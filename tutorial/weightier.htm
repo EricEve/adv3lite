@@ -1,0 +1,210 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Goldskull &mdash; Weightier Matters</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="goldskull.htm">Goldskull</a> &gt; 
+Weightier Matters
+<br><span class="navnp"><a class="nav" href="improving.htm"><i>Prev:</i> Improving the Game</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="inplace.htm"><i>Next:</i> Everything in its place</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Weightier Matters</h1>
+
+<h2>Weighing it up</h2>
+
+<p>In the code use to decide whether or not to spring the trap when the player character takes the skull from the pedestal, we simply counted the number of items on the pedestal. This is fine in this game when there's only two portable objects in any case, but if this puzzle were part of a rather larger game with rather more portable objects in it, it might not be the best way to do things.</p>
+
+<p>To illustrate the problem, try adding another small object to the <span class="code">cave</span> location:</p>
+
+ <p><div class="code"><pre>
++ pebble: Thing 'tiny pebble; smooth round'
+    "It's just a tiny, round pebble, almost perfectly smooth. "
+;
+</pre></div>
+
+<p>Now compile and run the game again. You'll find that putting the tiny pebble on the pedestal works just as well in avoiding the trap as using the more substantial rock, but that doesn't seem to be right. Presumably the springing of the trap is in some way related to the weight resting on the pedestal, and while the rock might plausibly weigh the same as the skull, the pebble must be a <em>lot</em> lighter. Of course we could change the <span class="code">notifyRemove()</span> method on the pedestal to check precisely which objects are on the pedestal when the rock or the skull is about to be removed, but that's rather an ad hoc solution, and the more objects there are in the game, the more complex and messy and ad hoc it will become, and the more chances there are of it not working properly. In principle the player should be able to use any combination of objects that weigh as much as or more than the skull and it should work to avoid springing the trap.</p>
+
+<p>The best way to produce a fully general solution, then, is to have the springing of the trap dependent on the total weight of all the items resting on the pedestal. The adv3Lite library doesn't keep track of weight by default, but it's easy enough to modify Thing so it does. Here's a first attempt (which you could add right at the end of your existing code):</p>
+
+ <p><div class="code"><pre>
+modify Thing
+    weight = 1
+    
+    getWeightWithin()
+    {
+        local totalWeight = 0;
+        for (local item in contents)
+            totalWeight += item.weight;
+        
+        return totalWeight;
+    }
+;
+</pre></div>
+
+<p>This adds a new <span class="code">weight</span> property to the Thing class and defines the default weight of every object as 1 (the unit can be whatever you imagine it to be, absolute precision isn't required here in any case; what we're really interested in is the rough relative weights of different objects within the limitations of integer arithmetic). For the sake of this exercise we'll leave the weight of the pebble as 1 (which it now inherits from the modified Thing, so we don't need to state it explicitly) and make the weight of both the rock and the skull 10.</p>
+
+
+ <p><div class="code"><pre>
+++ goldSkull: Thing 'gold skull;; head'
+    "It's the shape and size of a human skull, but made of solid gold; it must
+    be worth a fortune. "
+    
+    <strong>weight = 10</strong>
+;
+
++ smallRock: Thing 'small rock; round solid'
+     "It's roughly round and looks pretty solid. "
+    
+    <strong>weight = 10</strong>
+;
+</pre></div>
+
+<p>The next step is to arrange for the trap to be sprung when the total weight of objects resting on the pedestal is less than the weight of the skull:</p>
+
+ <p><div class="code"><pre>
++ pedestal: Fixture, Surface 'stone pedestal; smooth'
+    "The smooth stone pedestal is artfully positioned to catch the sunlight at
+    just this time of day. "
+        
+    notifyRemove(obj)
+    {
+        <strong>gMessageParams(obj);
+        
+        if(getWeightWithin() - obj.weight &lt; goldSkull.weight)
+        {
+            "As {the subj obj} {leaves} the pedestal, a volley of poisonous
+            arrows is shot from the walls! You try to dodge the arrows, but
+            they take you by surprise!"; </strong> 
+            
+            finishGameMsg(ftDeath, [finishOptionUndo]);  
+        }
+    }
+;
+</pre></div>
+
+<p>Note how we specify this. The total weight of objects resting on top of the pedestal just before <em>obj</em> is removed is given by the new <span class="code">getWeightWithin()</span> method we just defined on the modified Thing class. So the weight remaining on the pedestal after obj (i.e. the object that's being removed) is removed, is <span class="code">getWeightWithin() - obj.weight</span>. The trap is sprung is this is less than the weight of the gold skull. Note that we haven't specified any numbers here (such as 10); we've kept the code as general as we can so that if, for example, we later changed our mind about the weight of the skull and decided it should be 20, everything would still work in a logical manner.</p>
+
+<p>In fact, however, there is a logical error in the way we've defined the getWeightWithin() method, as you may have already spotted. To demonstrate what it is, we'll introduce another object into the game, a knapsack worn by the player character. We can define it like this:</p>
+
+<p><div class="code"><pre>
+++ knapsack: Wearable, Container 'knapsack; trusty old worn; bag sack'
+    "Your trusty old knapsack may be getting a bit worn, but it's accompanied
+    you on so many adventures you wouldn't be without it. "
+    
+    wornBy = me
+;
+</pre></div>
+
+<p>We could have defined the knapsack as a Thing with <span class="code">isWearable = true</span> and <span class="code">contType = In</span>, but we're sticking to our decision to use the library classes for this kind of thing. Here <span class="code">Wearable</span> contributes <span class="code">isWearable = true</span> and <span class="code">Container</span> contributes <span class="code">contType = In</span>. We still have to supply <span class="code">wornBy = me</span>, however, since a Wearable object isn't necessarily worn; it might also be carried. In his case we want it to start out worn by the player character, so we set <span class="code">wornBy = me</span>. We also need to ensure that the definition of the knapsack object follows directly after the definition of the me object in our code, so that the knapsack forms part of the player character's contents. </p>
+
+<p>Try recompiling the game and playing it with the knapsack added. Go into the cave, put the rock into the knapsack, and then put the knapsack onto the pedestal. Now take the gold skull. You'll find the trap is still sprung, even though the knapsack with the rock in it ought to weigh enough to have prevented it. You've probably already worked out what the problem is: <span class="code">getWeightWithin()</span> calculates the total weight of an object's contents by adding up the weights of each item in its contents list &mdash; ignoring any further items they may happen to contain in turn. What it should is to add up the weight of every items in its contents, plus the weight of the items <em>they</em> contain, and so on all the way down the chain. Just a small change should fix it:</p>
+
+ <p><div class="code"><pre>
+modify Thing
+    weight = 1
+    
+    getWeightWithin()
+    {
+        local totalWeight = 0;
+        for (local item in contents)
+            totalWeight += <strong>(item.weight + item.getWeightWithin())</strong>;
+        
+        return totalWeight;
+    }
+;
+</pre></div>
+
+<p>At first sight this may look a little odd, since <span class="code">getWeightWithin()</span> now calls itself as part of its calculation. In fact this <em>recursion</em>, as its called, is a perfectly legal and often useful programming technique, provided it's handled with care. For example, if there was any danger that getWeightWithin() might call itself on the same object that was doing the calling (for example, that <span class="code">knapsack.getWeightWithin()</span> might call <span class="code">knapsack.getWeightWithin()</span>) then we would indeed be in trouble, for our code could then get itself into an infinite loop from which it would never emerge and our game would hang. The golden rule of recursion is to ensure that there's always some way to end it, but here we're safe since each recursive call goes a step down the containment tree, and however far the containment tree goes, it can never be infinite (unless we've done something <em>really</em> weird in our game code) so we can be sure it'll bottom out somewhere (specifically, when <span class="code">getWeightWithin()</span> is called on an item like the rock that has no contents, the <span class="code">for</span> loop has nothing to do, so there's no further recursion). </p>
+
+<p>If you compile and run the game again, you should find it runs as expected.</p>
+
+<h2>Throwing Stones</h2>
+
+<p>Although we've designed the game so that the way to get the gold skull is to place the rock on the pedestal first, that's not the only solution that might occur to the player. Another way to use the rock might be to throw it at the skull to knock it off the pedestal while the player character stands far enough away to avoid the volley of deadly arrows. Whether or not we allow this solution, a well-designed game ought to anticipate the attempt and provide an appropriate response. The library's default response to throwing something at something else is to have the missile strike the target and fall to the ground without affecting anything else. That's probably an appropriate response to the player throwing the pebble at the skull, but if the rock is thrown at the skull, it really should dislodge it from the pedestal. Let's say that the skull will be knocked off the pedestal if the object thrown at it is at least half its weight, then if we want the rock-throwing solution to succeed, we might write:</p>
+
+ <p><div class="code"><pre>
+++ goldSkull: Thing 'gold skull;; head'
+    "It's the shape and size of a human skull, but made of solid gold; it must
+    be worth a fortune. "
+    
+    weight = 10
+    
+    <strong>iobjFor(ThrowAt)
+    {
+        action()
+        {
+            if(location != pedestal || gDobj.weight &lt; weight / 2)
+                inherited;
+            else
+            {
+                moveInto(cave);
+                gDobj.moveInto(cave);
+                "{The subj dobj} {strikes} the gold skull, sending both objects
+                tumbling to the floor. At the same time, a volley of poisonous
+                arrows is shot from the walls! Fortunately you're standing just
+                far enough away to avoid being hit. ";
+            }
+        }
+    }</strong>
+;
+</pre></div>
+
+<p>If, on the other hand, we don't want this solution to work (perhaps the cave isn't big enough to allow the player character to stand far enough away to avoid the trap), we can use the slightly simpler:</p>
+
+<p><div class="code"><pre>
+++ goldSkull: Thing 'gold skull;; head'
+    "It's the shape and size of a human skull, but made of solid gold; it must
+    be worth a fortune. "
+    
+    weight = 10
+    
+    <strong>iobjFor(ThrowAt)
+    {
+        action()
+        {
+            inherited;
+            if(gDobj.weight &gt;= weight/2 && location == pedestal)
+                actionMoveInto(cave);
+        }
+    }</strong>
+;
+</pre></div>
+
+<p>Okay, so let's take a closer look at what's going on here. The command THROW ROCK AT SKULL consists of a verb (throw), two nouns (rock and skull) and a preposition (at). This kind of action is said to have two<em> objects</em>, the <em>direct object</em>, coming between the verb and the preposition (in this case the rock) and the <em>indirect object</em> immediately following the preposition (in this case the gold skull). When we write a section of code that starts <span class="code">iobjFor(ThrowAt)</span> we're defining what happens to this object (in this case the gold skull) when it's the <em>indirect object</em> of a ThrowAt action (or, in plainer English, the target of a throw); remember, whenever you see 'iobj' think 'indirect object'.</p>
+
+<p>There are several stages in the action processing cycle at which the gold skull could respond to being the target of a throw, but in the interests of keeping things as simple as possible we shan't go into them all now. The stage we're interested in is the action() stage, which means that the action has passed all the tests that might rule it out (for example trying to throw something that's too heavy to pick up, or throw something at a target that's too far away) and is now going ahead. In the action() part we simply define what the action does (in this case, what happens when something hits the gold skull).</p>
+
+<p>One thing we need to know in writing this action part is what's just been thrown at the gold skull, in other words what the direct object of the ThrowAt command is. This is stored in the object property <span class="code">libGlobal.curAction.getDobj()</span>, but since that's rather a lot of typing for something so commonly needed, the library lets us abbreviate it to <span class="code">gDobj</span>. (Technically, <span class="code">gDobj</span> is a macro masquerading as a pseudo-global variable, but you really don't need to worry about that right now unless you were desperately anxious about what sort of thing <span class="code">gDobj</span> could possibly be in a language that doesn't have any global variables). You could similary use <span class="code">gIobj</span> to get at the indirect object of the command if you needed it (but here we know the indirect object must be the gold skull, since that's where we're defining this <span class="code">iobjFor()</span> code).</p>
+
+<p>Remember that the <span class="code">inherited</span> keyword means "at this point do what the method we're inheriting from would have done"; in this context it thu means "carry out the default ThrowAt handling" (which is to report that the missile has struck the target and landed on the floor, and to move the missile to the enclosing room).</p>
+
+<p>Armed with those pieces of information we're now in a position to examine how each version of the ThrowAt handling works. In the first version above, which makes throwing the rock at the skull a successful solution to the puzzle, we first check whether it's the case either that the skull isn't on the pedestal any more, or that the missile being thrown at it (<span class="code">gDobj</span>, the direct object of the command) is less than half the weight of the skull (since this is being defined on the goldSkull object, <span class="code">weight</span> unqualified by any other object name refers to the weight of the skull). If either of these two conditions is met (the skull is no longer on the pedestal or the missile being thrown at it is too light to dislodge it), we carry out the inherited handling (the missile strucks the skull and falls to the ground). Otherwise (if the missile is heavy enough and the skull is on the pedestal), we move both the skull and the missile to the <span class="code">cave</span> room (representing the fact that they both end up on the floor) and report what happens. Note the use of the message parameter substitutions <span class="code">"{The subj dobj} {strikes}"</span> at the beggining of this report. If it's the rock that thrown this becomes "The small rock strikes" before it's displayed to the player, but because it's been written with message parameter substitutions it will name the correct object whatever the player throws at the skull.</p>
+
+<p>You may be wondering about the difference between <span class="code">gDobj</span> and <span class="code">{The subj dobj}</span>, both of which have been used to refer to the direct object of this command in this short piece of code. The difference is that <span class="code">{The subj dobj}</span> simply produces some text, the name of the direct object, and marks it as the subject of the verb that's about to follow (that's what the <span class="code">subj</span> part is for), while <span class="code">gDobj</span> provides a reference to the object itself. We need to move the object to the floor, not it's name; conversely we need to display the object's name, not the object. More concretely, <span class="code">gDobj</span> refers to the <span class="code">smallRock</span> object while <span class="code">"{The subj dobj}"</span> expands into the string 'The small rock'.</p>
+
+<p>The second example, where we don't allow throwing the rock as a successful solution to the puzzle, is a bit simpler. We start by carrying out the inheriting handling in any case, since whatever happens we want to report the missile striking the gold skull and then falling to the floor. Then, if it's the case that the skull is on the pedestal and the missile (i.e. the direct object) is at least half the weight of the skull, we move the goldSkull object to the cave (here representing the floor of the cave). Since we here do so using <span class="code">actionMoveInto(cave)</span> rather than just <span class="code">moveInto(cave)</span>as we did in the first version, the removal of the skull from the pedestal will trigger the pedestal's <span class="code">notifyRemove(obj)</span> method which, you may recall, reports the launching of the poison arroes and the death of the player character. Conversely, we used <span class="code">moveInto()</span> rather than <span class="code">actionMoveInto()</span> in the first version to avoid precisely this happening.</p>
+
+<p>Don't worry if you're thinking there's rather a lot to take in here, or you're wondering how the heck you'd ever be able to work all this out for yourself. If it's all new too you it's bound to seem a bit odd and confusing at first. As you work through this tutorial this kind of thing should gradually become more familiar to you and you'll gradually gain confidence with it.</p>
+
+
+<h2></h2>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="goldskull.htm">Goldskull</a> &gt; 
+Weightier Matters
+<br><span class="navnp"><a class="nav" href="improving.htm"><i>Prev:</i> Improving the Game</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="inplace.htm"><i>Next:</i> Everything in its place</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

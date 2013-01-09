@@ -1,0 +1,123 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Reacting to Actions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Reacting to Actions
+<br><span class="navnp"><a class="nav" href="doers.htm"><i>Prev:</i> Doers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="define.htm"><i>Next:</i> Defining New Actions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Reacting to Actions</h1>
+<p>In the section on <a href="actres.htm">action results</a> we saw how to make the objects directly involved in an action <em>respond</em> to it. In the present section we shall discuss how to make other objects not directly involved in an action <em>react</em> to it. When an action takes place, every object in scope gets a chance to react to it both beforehand and afterwards, or even to veto the action before it takes place. On most objects this is achieved through their <strong>beforeAction()</strong> and <strong>afterAction()</strong> methods. These methods also work on the room, but you can instead use roomBeforeAction() and roomAfterAction() on the actor's current room, which ensures (a) that even if other rooms are in scope for some reason, only the one containing the current actor will react and (b) that the room get a chance to react before anything else. <a href="#travel">Travel</a> actions can be handled a little differently (see below). Finally, you can use <b>actorAction()</b> on the actor, which is another type of before notification.</p>
+
+<p>As a first approximation, the beforeAction() and roomBeforeAction() methods are run just before the main action takes place, and the afterAction() and roomAfterAction() methods just after, assuming the action actually does go ahead. The slight complication is in <em>precisely</em> when the before notifications are run in the case of TActions or TIActions (actions with direct and possibly indirect objects). These can either run after the check phase (the default) or before it, depending on the value of gameMain.beforeRunsBeforeCheck (which is nil by default). Usually this is the more logical sequence, since if the action is ruled out at the check phase there seems to be little point in other objects reacting to it (and possibly vetoing it), but the adv3 default is the other way round, and the option is provided in case you want to do it the adv3 way.</p>
+
+<p>If you want your code to react to an Action, you probably need to test what action it is. You can do this with the <strong>gActionIs(<i>action</i>)</strong> macro. For example, to prevent someone jumping in a room with a low ceiling you might write:</p>
+
+ <p><div class="code"><pre>
+    roomBeforeAction()
+    {
+        if(gActionIs(Jump))
+        {
+            "Better not, you might bang your head!";
+            exit;
+        }
+    }
+</pre></div> 
+
+<p>Note how we use the <strong>exit</strong> macro to veto the action here.</p>
+
+<p>Alternatively you might allow the jumping to go ahead and then report that the player character has banged his head on the ceiling:</p>
+
+ <p><div class="code"><pre>
+    roomAfterAction()
+    {
+        if(gActionIs(Jump))
+            "You bang your head on the ceiling. ";
+    }
+</pre></div>
+
+<p>If you want to test whether the current action is one among several actions, you can use the macro gActionIn(<i>action1, action2, ...</i>) instead, which evaluates to true if any of the listed actions is true.</p>
+
+<p>For actions involving one or more objects you may also want to test which objects were involved. In beforeAction() and roomBeforeAction() that's straightforward, you can just test the values of <strong>gDobj</strong> and <strong>gIobj</strong> for the direct and indirect objects respectively. In the afterAction() and roomAfterAction() methods it may be a little more complicated. If the action was only carried out on a single direct object, or a single direct object plus a single indirect object, then you can use gDobj and dIobj again. But if the action involved a sequence of objects (e.g. TAKE ALL) then gDobj and gIobj will only give you the final pair in the sequence. Since commands seldom involve a series of indirect objects you're probably safe using gIobj, but to test for the direct objects involved it's safer to use gActionList, which contains a list of all the direct objects that made it to the action stage (i.e. all the direct objects for which the action succeeded. For example:</p>
+
+ <p><div class="code"><pre>
+    afterAction()
+    {
+        if(gActionList.indexOf(redBall) != nil)
+            "You've just done something to the red ball. ";
+    }
+</pre></div>
+
+<p>The <strong>actorAction()</strong> method is called on the current actor (carrying out the action) just before any of the other before notifications. This can be useful if you temporarily want to prevent an actor (in particular the player character) from carrying out certain kinds of action because s/he's temporarily incapacitated or tied up; for example:</p>
+
+ <p><div class="code"><pre>
+actorAction()
+{
+    /* Be careful not to disable the system actions! */
+   if(gAction.ofKind(SystemAction))
+     return;
+     
+   if(gActionIn(Examine, ListenTo, Smell,  Listen, SmellSomething))
+     return;
+
+    "You can't do that while you're bound and gagged!";
+       exit;   
+} 
+</pre></div>
+<br>
+
+<h2><a name="travel">Reacting to Travel</a></h2>
+ 
+<p>Since a travel action (the action corresponding to commands like GO NORTH or WEST) is an action like any other, you can test for it with gActionIs(Travel), but that only tells you that the player character went (or tried to go) somewhere. If you want to test for which way s/he went you can combine a test for the action and the direction like so:</p>
+
+ <p><div class="code"><pre>
+   if(gActionIs(Travel) &amp;&amp; gAction.direction == eastDir)
+</pre></div>   
+
+<p>But to make this a little easier adv3Lite provides the gTravelActionIs(dir) macro, which you could use like this:</p>
+
+<p><div class="code"><pre>
+   if(gTravelActionIs(east))
+</pre></div>
+
+<p>But there's a problem with testing for travel actions this way. Consider, for example, the case where going east would take the player character through a door. In this case the player would get the same result from the commands EAST and GO THROUGH DOOR, so to make sure we covered both eventualities we'd have to test for:</p>
+
+<p><div class="code"><pre>
+   if(gTravelActionIs(east) || (gActionIs(GoThrough) &amp;&amp; gDobj == frontDoor))
+</pre></div>
+
+<p><a name="beforetravel"></a>A better way of doing this is to test not for what direction an actor travelled in, but what TravelConnector was traversed in the process. We can do this with <strong>beforeTravel(traveler, connector)</strong> and <strong>afterTravel(traveler, connector)</strong>, which are called on every object in scope when <em>connector</em> is traversed by <em>traveler</em>. Note that since a successful travel action generally results in the traveler starting in one place and finishing in another, the set of objects that are in scope will generally change between the beforeTravel() and afterTravel() notifications; the beforeTravel() notifications will be called on every object in scope in the room the traveler starts out in (including the room itself) while the afterTravel() notifications will be called on all the objects in the destination once the traveler has arrived there.</p>
+
+<p>In any case, rather than using gTravelActionIs() in a beforeAction() or afterAction() method, it's normally better to use the beforeTravel() and afterTravel() methods and test for the connector, e.g.:</p>
+
+ <p><div class="code"><pre>
+beforeTravel(traveler, connector)
+{
+    if(traveler == gPlayerChar &amp;&amp; connector == frontDoor)
+      ...
+}
+</pre></div> 
+
+<p>The limitation on this is that the notifications are only called where there's a TravelConnector (Room, Door or other TravelConnector object) to be traversed. Where exits point to strings, methods or nothing at all you have to fall back on using gTravelActionIs() in a beforeAction() or afterAction() routine.</p>
+
+<p>One potential complication with beforeTravel() notifications is that they could end up getting called twice during the course of the same travel action. If one travel connector (typically a TravelConnector or Door) leads to another (typically a Room, which also inherits from the TravelConnector class), then what could happen is that the before travel notifications are triggered on both connectors, both the Door and the Room it leads to, say. This probably isn't what we normally want; when we use a beforeTravel(traveler, connector) routine we don't really want to have to write code that tests for both connectors; normally we'd only want to test for the one that's connected directly to a direction property of the traveler's starting location. Neither do we want any code we've put into a beforeTravel() method to be triggered twice, once for the Door or other intermediate connector and once for the Room it leads to. To deal with this problem the first TravelConnector suppresses the triggering of the beforeTravel notifications on the next provided the first TravelConnector's <strong>dontChainNotifications</strong> property is true (which, by default, it is). This means you shouldn't have to worry about the second beforeTravel notification being triggered on teh same turn, since it will be suppressed. If you actually want both sets of beforeTravel notifications to be triggered for any reason, just override dontChainNotifications on the first TravelConnector to nil.</p>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Reacting to Actions
+<br><span class="navnp"><a class="nav" href="doer.htm"><i>Prev:</i> Doers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="define.htm"><i>Next: </i>Defining New Actions </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

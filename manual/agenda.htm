@@ -1,0 +1,152 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; AgendaItems</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+AgendaItems
+<br><span class="navnp"><a class="nav" href="actorstate.htm"><i>Prev:</i> Actor States</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="asktell.htm"><i>Next:</i> Basic Ask/Tell</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>AgendaItems</h1>
+<h2>The Purpose of AgendaItems</h2>
+
+<p>Some NPCs can afford to be fairly passive, at most reacting to what the player character says or does, but you may want at least some of the NPCs in your game to be a bit more life-like, pursuing agendas and goals of their own. One way to implement this in the adv3Lite library is through the use of AgendaItems, objects that encapsulate some action that your NPC takes when certain conditions become true. By adding and removing AgendaItems from your actors at appropriate moments, and defining the conditions under which they are invoked, you can create the appearance of NPCs who act more independently, not just reacting to what the player character says and does.</p>
+
+<p>Each actor can thus have its own "agenda," which is a list of AgendaItems.  Each AgendaItem represents an action that the actor wants to perform - this is usually a goal the actor wants to achieve,or a conversational topic the actor wants to pursue.</p>
+ 
+<p>On any given turn, an actor can carry out only one agenda item.</p>
+ 
+<p>AgendaItems are a convenient way of controlling complex behavior. Each agenda item defines its own condition for when the actor can pursue the item, and each item defines what the actor does when pursuing the item.  AgendaItems can improve the code structure for an NPC's behavior, since they nicely isolate a single background action and group it with the conditions that trigger it.  But the main benefit of agenda items is the one-per-turn pacing - by executing at most one agenda item per turn, we ensure that the NPC will carry out its self-initiated actions at a measured pace, rather than as a jumble of random actions on a single turn.</p>
+
+<p>Note that AgendaItems are not invoked when conversation has taken place on the same turn, except in the special case of a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> which can be used to allow an NPC to pursue its own conversational agenda rather than giving a bland default response to something the player character says (this will be discussed more fully in a later section). Apart from the special case of DefaultAgendaTopics, AgendaItems in adv3Lite work identically to those in adv3.</p>
+
+<br>
+<h2>Defining AgendaItems</h2>
+
+<p>At an absolute minimum, an AgendaItem must be defined with an <strong>invokeItem()</strong> method that defines what happens when the AgendaItem is invoked. The invokeItem() method will usually at some point set the AgendaItem's <strong>isDone</strong> property to true to indicate that the AgendaItem has now finished its work (and so can be removed from the actor's agenda). AgendaItems often also define their <strong>isReady</strong> property (which is simply true by default) to contain an expression that evaluates to true (or a method that returns true) when the time is right for the AgendaItem to be invoked. In addition, AgendaItems should always be located directly in the Actor to which they relate. For example:</p>
+
+ <p><div class="code"><pre>
+guard: Actor 'burly guard; strong powerful; man; him' @doorway
+    "He looks incredibly strong and powerful. "
+;
+
++ guardWarnAgenda: AgendaItem
+    isReady = Q.canSee(guard, gPlayerChar)
+    
+    invokeItem()
+    {
+        &quot;The guard straightens up at your approach, tightening his grip on his spear
+         and letting out a fierce growl, as if to say, &lt;q&gt;Don't you even dare 
+         &lt;i&gt;think&lt;/i&gt; about going through this door!&lt;/q&gt; &quot;;
+         
+         isDone = true;
+    }
+;
+</pre></div>
+
+<p>Here we've defined an AgendaItem that will be invoked as soon as the guard can see the player character, but which will only be invoked once (since isDone is set to true at the end of the first invocation). However, it won't be invoked at all unless we also do one of two things:</p>
+
+<ol>
+<li>Also define <span class=code>isInitiallyActive = true</span> on the AgendaItem; or</li>
+<li>Previously call the <strong>addToAgenda(item)</strong> method on the actor, e.g. <span class=code>guard.addToAgenda(guardWarnAgenda)</span>, to add it to the actor's agendaList property.</li>
+</ol>
+
+<p>Note that we could also call the addToAgenda() method indirectly via the &lt;.agenda item&gt; tag, e.g. <span class=code>&lt;.agenda guardWarnAgenda&gt;</span>, though this also adds the item to the agendaLists of any <a href="defaultagendatopic.htm">DefaultAgendaTopics</a> associated with the Actor, which may or may not be what we want to do (we shall describe DefaultAgendaTopics more fully in a later section). If for some reason we want to prevent an AgendaItem from being invoked after we've added it to the actor's agendaList we can use the actor's removeFromAgenda() method, e.g. <span class=code>guard.removeFromAgenda(guardWarnAgenda)</span>, for which there's also a corresponding &lt;.remove item&gt; tag, e.g. <span class=code>&lt;.remove guardWarnAgenda&gt;</span>. In adv3Lite the addToAgenda(item) and removeFromAgenda(item) can also be called with a list of items (a list enclosed in square brackets); this is one difference from the adv3 library, which does not allow this (and even in adv3Lite you can't do it with the &lt;.agenda&gt; and &lt;.remove&gt; tags).</p>
+
+<p>The complete list of methods and properties on AgendaItem that are likely to be of interest to game authors includes:</p>
+
+<ul>
+<li><strong>getActor()</strong>: returns the Actor this AgendaItem belongs to.</li>
+<li><strong>initiallyActive</strong>: set this to true to have this AgendaItem added to its actor's agendaList from the start of the game.</li>
+<li><strong>isReady</strong>: Is this item ready to execute?  The actor will only execute an agenda item when this condition is met.  By default, we're ready to execute.  Items can override this to provide a declarative condition of readiness if desired.</li>
+<li><strong>isDone</strong>: Is this item done?  On each turn, we'll remove any items marked as done from the actor's agenda list.  We remove items marked as done before executing any items, so done-ness overrides readiness; in other words, if an item is both 'done' and 'ready', it'll simply be removed from the list and will not be executed. By default, we simply return nil.  Items can override this to provide a declarative condition of done-ness, or they can simply set the property to true when they finish their work.  For example, an item that only needs to execute once can simply set isDone to true in its invokeItem() method; an item that's to be repeated until some success condition obtains can override isDone to return the success condition.  </li>
+<li><strong>agendaOrder</strong>: The ordering of the item relative to other agenda items.  When we choose an agenda item to execute, we always choose the lowest numbered item that's ready to run.  You can leave this with the default value (100) if you don't care about the order.</li>
+<li><strong>invokedByActor</strong>: was this AgendaItem invoked by the Actor (true) or by a DefaultAgendaTopic (nil)? invokeItem() can test the invokedByActor property to decide whether what the actor says should be a conversational gambit started on the actor's own initiative or as a (default) response to something the player character has just tried to say.</li>
+<li><strong>invokeItem()</strong>:  Execute this item.  This is invoked during the actor's turn when the item is the first item that's ready to execute in the actor's agenda list.</li>
+<li><strong>resetItem()</strong>:  Reset the item.  This is invoked whenever the item is added to an actor's agenda.  By default, we'll set isDone to nil as long as isDone isn't a method; this makes it easier to reuse agenda  items, since we don't have to worry about clearing out the isDone flag when reusing an item. </li>
+</ul>
+
+<br>
+
+<h2>Other Kinds of AgendaItem</h2>
+
+<p>In addition to the AgendaItem class, the adv3Lite library (in common with the adv3 library) defines two subclasses of AgendaItem for specialized use.</p>
+
+<p>A <strong>DelayedAgendaItem</strong> is just like an AgendaItem, except that it is invoked a set number of turns after it is added to its actor's agendaList. The delay is set by calling the DelayedAgendaItem's <strong>setDelay(<em>turns</em>)</strong> method, which returns a reference to the DelayedAgendaItem. This allows you to add a DelayedAgendaItem to the actor's agendaList and set the delay in a single statement, e.g.:</p>
+ <p><div class="code"><pre>
+    bob.addToAgenda(someDelayedAgendaItem.setDelay(3));
+</pre></div>
+
+<p>Note that the delay is enforced on the isReady property of the DelayedAgendaItem, so that if you want to enforce some other condition as well you need to <em>and</em> it with the inherited condition, e.g.: </p>
+ <p><div class="code"><pre>
++ guardReactionAgenda: DelayedAgendaItem
+     isReady = inherited &amp;&amp; canSee(guard, gPlayerChar)
+     
+     invokeItem()
+     {
+         isDone = true;
+         "The guard hefts his spear threateningly and prods you in the stomach,
+           as if to say, &lt;q&gt;Go now, while you still can!&lt;/q&gt; ";
+     }
+;
+</pre></div>
+
+<br>
+
+<p>The other specialized kind of AgendaItem is the <strong>ConvAgendaItem</strong>, which can be used to allow an NPC either to initiate a conversation or to seize the conversational initiative during a lull in the conversation. By default it is invoked when the actor can speak to the player character (they're within audible distance of each other), and there isn't a current <a href="convnode.htm">conversation node</a>, and either the player character hasn't conversed on the same turn or the play character has said something that triggers a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> (for which see below). Once again, if you need to define a further condition on the isReady property of a ConvAgendaItem you need to <em>and</em> it with the inherited handling, for example:</p>
+ 
+ <p><div class="code"><pre>
++ clerkPartyAgenda: ConvAgendaItem
+    isReady = inherited &amp;&amp; gRevealed('office-party')
+
+    invokeItem()
+    {
+        isDone = true;
+        &quot;&lt;q&gt;By the way, I hope I didn't give you the wrong impression,&lt;/q&gt;
+        the clerk tells you cautiously. &lt;q&gt;Our office party last week 
+        wasn't &lt;i&gt;that&lt;/i&gt; wild. &quot;;
+    }
+;
+</pre></div>
+
+ 
+<p>Finally, if you want something to behave as both a DelayedAgendaItem and a ConvAgendaItem you can just define it with both classes,e.g.:</p>
+
+ <p><div class="code"><pre>
++ clerkJacketAgenda: DelayedAgendaItem, ConvAgendaItem
+   invokeItem()
+   {
+      isDone = true;
+      &quot;&lt;q&gt;I've been meaning to ask you,&lt;/q&gt; says the clerk. &lt;q&gt;Where &lt;i&gt;did&lt;/i&gt;
+       you buy that jacket?&lt;/q&gt; &quot;;
+   }
+;
+
+ ...
+ 
+ /* Somewhere else in the code */
+ 
+    clerk.addToAgenda(clerkJacketAgenda.setDelay(10));
+</pre></div>
+    
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+AgendaItems
+<br><span class="navnp"><a class="nav" href="actorstate.htm"><i>Prev:</i> Actor States</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="asktell.htm"><i>Next:</i> Basic Ask/Tell</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; SenseRegion</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+SenseRegion
+<br><span class="navnp"><a class="nav" href="score.htm"><i>Prev:</i> Scoring</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topicentry.htm"><i>Next:</i> Topic Entries</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>SenseRegion</h1>
+<p>The optional SenseRegion class can be used to define regions with sensory connections, that is regions where it is possible to see (and possibly smell and hear) ojects in one room from another. If your game doesn't need to do this you can safely excluse the senseRegion.t module. The complications in using a SenseRegion come not from setting up the SenseRegion itself but in defining what particular objects can be <a href="#sensing">sensed</a> remotely, and if so, how they are to be <a href="#descriptions">described</a>.</p>
+
+<h2>The SenseRegion class</h2>
+<p>Setting up a SenseRegion is easy. You define a SenseRegion like any other kind of Region, and then assign rooms to it by listing the SenseRegion in their regions property, for example:</p>
+
+ <p><div class="code"><pre>
+countryside: Region
+;
+
+meadowRegion: SenseRegion
+;
+
+sun: MultiLoc, Distant 'sky; blue cloudless bright; sun; it'
+    "The sun glares down from the cloudless blue sky above. "
+    locationList = [countryside]
+;
+    
+meadow: Room 'Meadow' 'meadow'
+    &quot;&lt;&lt;first time&gt;&gt;You've no idea how you got here, nor do you recognize this
+    place.&lt;&lt;only&gt;&gt; Tall grass and wild flowers grow in profusion, forming an
+    even carpet that slopes down towards a riverbank to what you instinctively
+    think of as the east. To the south lies a thick band of trees, a large
+    wood or perhaps even a forest. To the north is another field, while a steep
+    hill rises up a short way off to the west. "
+    
+    east = riverbank
+    south = forestPath
+    west = hillsideFromMeadow
+    north = field
+    
+    regions = [countryside, meadowRegion]
+;
+
+riverbank: Room 'Riverbank' 'riverbank;;bank'
+    "A broad river runs lazily by just to the west. The way south is blocked by
+    a thick belt of trees extending all the way down to the water's edge, but
+    there's nothing to stop you carrying along the riverbank to the north, or
+    wandering off west towards the meadow. "
+    
+    west = meadow
+    north = marsh
+        
+    regions = [countryside, meadowRegion]                                                
+;
+</pre></div>
+<p>By default you can see, hear and smell objects in one room from any other room in the SenseRegion (subject to further limitations discussed in the section on <a href="#sensing">remote sensing</a> below). You can, however, customize this via the following properties on the SenseRegion:</p>
+
+<ul>
+<li><strong>canSeeAcross</strong>: if this is true (the default) then it's possible to see items in one room in this SenseRegion from the other rooms in this SenseRegion.</li>
+<li><strong>canHearAcross</strong>: if this is true (the default) then it's possible to hear items in one room in this SenseRegion from the other rooms in this SenseRegion.</li>
+<li><strong>canSmellAcross</strong>: if this is true (the default) then it's possible to smell items in one room in this SenseRegion from the other rooms in this SenseRegion.</li>
+<li><strong>canTalkAcross</strong>: being able to hear from one room to another is a necessary but not sufficient condition of being able to conduct a conversation across rooms. Normally two actors need to be in the same room in order to be able to converse with each other, so this property is nil by default. If the SenseRegion represents a sufficiently small space, however, such as the two ends of the same room, then conversation between rooms can be enabled by setting this property to true.</li>
+<li><strong>canThrowAcross</strong>: if this is true (not the default), an object can be thrown from one room to another in the SenseRegion (i.e. an object thrown from one room at a target in another room will hit the target and land in the second room). If it is nil (the default) an object thrown at a target in another room will fall short and land in the room from which it was thrown.</li>
+</ul>
+
+<p>Note that it is perfectly legal for SenseRegions to overlap (the same Room can be in two or more SenseRegions), but that SenseRegions cannot normally be changed during the course of a game, since they are initialized by the library at the pre-init stage.</p>
+
+<br>
+<h2>Remote <a name="sensing">Sensing</a></h2>
+<p>Although the global possibility of seeing, hearing and smelling across rooms is determined by the canSeeAcross, canHearAcross and canSmellAcross properties of the SenseRegion, the possibility of seeing, smelling and hearing individual objects in remote locations is further determined by their xxxSize and canXXXFrom(pov) properties.</p>
+
+<p>When the senseRegion.t module is included, each Thing defines the following additional properties:</p>
+<ul>
+<li><strong>isVisibleFrom(pov)</strong>: determines whether this object is visible from pov, where pov is the actor who is doing the looking. By default we return true if the sightSize is not small.</li>
+<li><strong>sightSize</strong>: can be small, medium or large. If it is small then the object can't be seen at all from a remote location. If it is medium then it can be see (i.e. it will be shown in room listings and can be referred to in commands) but attempting to examining it will cause a response to the effect that it's too far away to make out any detail. If it's large then it can be examined as normal (normally using its dewsc property). If the object defines a remoteDesc(pov) method then this will be used regardless of whether the object is medium or large.</li>
+<li><strong>isAudibleFrom(pov)</strong>: determines whether this object is audible from pov, where pov is the actor who is doing the listening. By default we return true if the soundSize is not small.</li>
+<li><strong>soundSize</strong>: can be small, medium or large. If it is small then the object can't be heard at all from a remote location. If it is large then listening to the object will evoke either its listenDesc, or its remoteListenDesc(pov) if the latter is defined. If it is medium then either its remoteListenDesc will be reported, if one is defined, or the object will be reported as being too far away to hear.</li>
+<li><strong>isSmellableFrom(pov)</strong>: determines whether this object is smellable from pov, where pov is the actor who is doing the smelling. By default we return true if the smellSize is not small.</li>
+<li><strong>smellSize</strong>: can be small, medium or large.  If it is small then the object can't be smelled at all from a remote location. If it is large then smelling the object will evoke either its smellDesc, or its remoteSmellDesc(pov) if the latter is defined. If it is medium then either its remoteSmellDesc will be reported, if one is defined, or the object will be reported as being too far away to smell.</li>
+<li><strong>isReadableFrom(pov)</strong>: just because an object is large it doesn't necessarily mean that any writing on it is large enough to read from a distance. To be able to read an object remotely both this method and isVisibleFrom(pov) must return true.</li>
+</ul>
+
+<p>At first sight it may appear that the medium soundSize and smellSize is virtually redundant, since it doesn't achieve anything that couldn't be achieved by making the size either small (to rule out sensing the object) or large (to report its sound or smell). This is part follows from the fact that there's no auditory or olfactory equivalent of seeing something without making out any detail. It's hard to thing of situations in which you can hear or smell something without being able to say at all what kind of sound or smell it is, however faint. If you did want to model such a situation, however, you could do so by overriding the tooFarAwayToHearMsg and/or tooFarAwayToSmellMsg properties on the object in question (or on the Thing class), which would then be the message the player got in response to trying to listen to or smell a remote object with a medium soundSize or smellSize. A further subtle difference is that the attempt to listen to or smell a remote object with a small soundSize or smellSize is ruled out at the verify stage, while the too far away message for medium sizes is produced at the action stage; the parser will therefore choose an object with a medium size in preference to one with a small size in these situations. Furthermore, when the remoteListenDesc() or remoteSmellDesc() method is defined, an object with a medium soundSize or smellSize behaves just like one with a large size in the appropriate sense. That means that with the library default (medium) you just have to define the remoteListenDesc() or remoteSmellDesc() to report a remote sound or smell without having to worry about adjusting the soundSize or smellSize.</p>
+
+<p>Note that the sightSize property is quite independent of the bulk property (unless, of course, you choose to override it to define it in terms of bulk).</p>
+
+<br>
+<h2>Remote <a name="descriptions">Descriptions</a></h2>
+
+<p>A further complication that's introduced when we allow the contents of one room to be sensed from another is how the items in the remote location should be listed and described. At the very least, we'll almost certainly want the room description listing to make it clear that the objects in question are in a remote location, and not to hand in the same place as the player character.</p>
+
+<p>If an object has a specialDesc or initSpecialDesc, we can additionally define the <strong>remoteSpecialDesc(pov)</strong> and <strong>remoteInitSpecialDesc(pov)</strong> methods to show alternative specialDescs when the object is viewed remotely from pov (the pov object normally being the actor who is doing the viewing, typically the player character). If these methods are not overridden the usual specialDesc and/or initSpecialDesc will be used, but most of the time it will normally be appropriate to provide an alternative for remote viewing, for example:</p>
+
+ <p><div class="code"><pre>
++ Fixture 'scarecrow; poor wretched straw; man sticks'
+    "It's a poor wretched thing, little more than a couple of sticks stuffed
+    with straw wearing a faded brown coat; a straw man if ever there was one! "
+        
+    
+    specialDesc = "A scarecrow stands guard over the crop at the centre of the
+        field, doing his best to ward off the crows. "
+        
+    remoteSpecialDesc(pov)
+    {
+        "Off in the distance a scarecrow stands lonely guard over the field. ";
+    }    
+;
+</pre></div>
+
+<p>Where items don't have a specialDesc (or initSpecialDesc) they're generally listed among the miscellaneous items in the room description. The miscellaneous items in remote rooms are listed after those in the player character's immediate location, usually prefaced with 'in' followed by the name of the room, for example, suppose we had defined:</p>
+
+ <p><div class="code"><pre>
+meadow: Room 'Meadow' 'meadow'
+    "Tall grass and wild flowers grow in profusion, forming an
+    even carpet that slopes down towards a riverbank to what you instinctively
+    think of as the east. To the south lies a thick band of trees, a large
+    wood or perhaps even a forest. To the north is another field, while a steep
+    hill rises up a short way off to the west. "
+    
+    east = riverbank
+    south = forestPath
+    west = hillsideFromMeadow
+    north = field
+    
+    regions = [countryside, meadowRegion]
+;
+
+
+riverbank: Room 'Riverbank' 'riverbank;;bank'
+    "A broad river runs lazily by just to the west. The way south is blocked by
+    a thick belt of trees extending all the way down to the water's edge, but
+    there's nothing to stop you carrying along the riverbank to the north, or
+    wandering off west towards the meadow. "
+    
+    west = meadow
+    north = marsh
+   
+    regions = [countryside, meadowRegion]                                                
+;
+</pre></div>
+
+<p>Now suppose we drop a couple of objects in the riverbank location and then retutn to the meadow location to look around. We might see something like:</p>
+
+<p><div class="cmdline"><pre>
+<strong>Meadow</strong>
+Tall grass and wild flowers grow in profusion, forming an even carpet that slopes down towards a riverbank to 
+what you instinctively think of as the east. To the south lies a thick band of trees, a large wood or perhaps
+even a forest. To the north is another field, while a steep hill rises up a short way off to the west. 
+
+In the riverbank you see a blue ball, a red box, and a red ball.
+</pre></div>
+
+<p>The introductory "in the riverbank" at least warns the player that the objects being listed are in another location, but it's not very elegant. To deal with this we'd probably override the riverbank's <strong>inRoomName(pov)</strong> method to display the name with which we want the listing of miscellaneous items to be introduced when they're viewed remotely by the pov object. So, for example, we might define:</p>
+
+<p><div class="code"><pre>
+riverbank: Room 'Riverbank' 'riverbank;;bank'
+    "A broad river runs lazily by just to the west. The way south is blocked by
+    a thick belt of trees extending all the way down to the water's edge, but
+    there's nothing to stop you carrying along the riverbank to the north, or
+    wandering off west towards the meadow. "
+    
+    west = meadow
+    north = marsh
+   
+    regions = [countryside, meadowRegion]         
+
+    inRoomName(pov) { return 'down by the riverbank'; }    
+;
+</pre></div>
+
+<p>This would then give us:</p>
+
+<p><div class="cmdline"><pre>
+<strong>Meadow</strong>
+Tall grass and wild flowers grow in profusion, forming an even carpet that slopes down towards a riverbank to 
+what you instinctively think of as the east. To the south lies a thick band of trees, a large wood or perhaps
+even a forest. To the north is another field, while a steep hill rises up a short way off to the west. 
+
+Down by the riverbank you see a blue ball, a red box, and a red ball.
+</pre></div>
+
+<p>You can gain even more control over the way in which miscellaneous objects are listed in a remote location by using a <a href="roomdesc.htm#customroomlister">CustomRoomLister</a>. You do this by attaching a CustomRoomLister to the remoteContentsLister property of the room to be viewed remotely. For example we could define:</p>
+
+<p><div class="code"><pre>
+riverbank: Room 'Riverbank' 'riverbank;;bank'
+    "A broad river runs lazily by just to the west. The way south is blocked by
+    a thick belt of trees extending all the way down to the water's edge, but
+    there's nothing to stop you carrying along the riverbank to the north, or
+    wandering off west towards the meadow. "
+    
+    west = meadow
+    north = marsh
+   
+    regions = [countryside, meadowRegion]         
+
+    remoteContentsLister = static new CustomRoomLister(nil, prefixMethod: 
+        method(lst, pl, irName) 
+        { &quot;&lt;.p&gt;Lying close to the riverbank &lt;&lt;if pl&gt;&gt;are&lt;&lt;else&gt;&gt;is&lt;&lt;end&gt;&gt; &quot;; })  
+;
+</pre></div>
+
+<p>And this would give us:</p>
+
+<p><div class="cmdline"><pre>
+<strong>Meadow</strong>
+Tall grass and wild flowers grow in profusion, forming an even carpet that slopes down towards a riverbank to 
+what you instinctively think of as the east. To the south lies a thick band of trees, a large wood or perhaps
+even a forest. To the north is another field, while a steep hill rises up a short way off to the west. 
+
+Lying close to the riverbank are a blue ball, a red box, and a red ball. 
+</pre></div>
+
+<p>Or as another variation we might define:</p>
+
+
+<p><div class="code"><pre>
+riverbank: Room 'Riverbank' 'riverbank;;bank'
+    "A broad river runs lazily by just to the west. The way south is blocked by
+    a thick belt of trees extending all the way down to the water's edge, but
+    there's nothing to stop you carrying along the riverbank to the north, or
+    wandering off west towards the meadow. "
+    
+    west = meadow
+    north = marsh
+   
+    regions = [countryside, meadowRegion]         
+
+    remoteContentsLister = new CustomRoomLister('\^', suffixMethod: method(lst,
+        pl, irName) { " &lt;&lt;if pl&gt;&gt;lie&lt;&lt;else&gt;&gt;lies&lt;&lt;end&gt;&gt; abandoned down by the
+            riverbank. "; })
+;
+</pre></div>
+
+<p>And this would give us:</p>
+
+
+<p><div class="cmdline"><pre>
+<strong>Meadow</strong>
+Tall grass and wild flowers grow in profusion, forming an even carpet that slopes down towards a riverbank to 
+what you instinctively think of as the east. To the south lies a thick band of trees, a large wood or perhaps
+even a forest. To the north is another field, while a steep hill rises up a short way off to the west. 
+
+A blue ball, a red box, and a red ball lie abandoned down by the riverbank. 
+</pre></div>
+<p>This incidentally illustrates that it doesn't make any difference to the output whether or not we use the <em>static</em> keyword when defining the CustomRoomLister; doing so is arguably more efficient since it creates the CustomRoomLister in question once and for all at the preinitialization stage.</p>
+
+<p>Finally, we may well wish to customize the description of an object that's examined, listened to or smelled remotely. We can do this by defining the following methods on the object in question:</p>
+
+<ul>
+<li><strong>remoteDesc(pov)</strong>: the description of the object when examined remotely by the pov object (normally the player character)</li>
+<li><strong>remoteListenDesc(pov)</strong>: the description of the object when listened to remotely by the pov object (normally the player character)</li>
+<li><strong>remoteSmellDesc(pov)</strong>: the description of the object when smelled remotely by the pov object (normally the player character)</li>
+</ul>
+
+<p>Note that these properties only take effect if the corresponding isVisibleFrom(pov), isAudibleFrom(pov) and/or isSmellableFrom(pov) methods return true, which by default is the case when the sightSize, soundSize and/or smellSize isn't small.</p>
+
+<p>So, for example, we might define:</p>
+
+ <p><div class="code"><pre>
++ crows: Decoration 'crows; nasty big black; birds; them'
+    "Nasty big black things. You never did like them, even since one scared you
+    as a child. "
+    
+    sightSize = large
+    soundSize = large
+    
+    listenDesc = "The horrid crows are making the most ugly, raucous cawing
+        sound. "
+    
+    remoteListenDesc(pov)
+    {
+        "You hear the raucous sound of crows cawing up in the field. ";
+    }
+    
+    remoteDesc(pov)
+    {
+        "The ones you can see are mostly flying around low over the field, as if
+        intent on annoying the unfortunate scarecrow. ";
+    }
+    
+    decorationActions = [Examine, ListenTo]
+    
+    notImportantMsg = 'You make it a point of principle to ignore all crows;
+        only that way can you show the full extent of your contempt for the
+        horrid things. '
+;
+</pre></div>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+SenseRegion
+<br><span class="navnp"><a class="nav" href="score.htm"><i>Prev:</i> Scoring</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topicentry.htm"><i>Next: </i>Topic Entries </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Player Character and NPC Knowledge</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Player Character and NPC Knowledge
+<br><span class="navnp"><a class="nav" href="hello.htm"><i>Prev:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="orders.htm"><i>Next:</i> Giving Orders to NPCs</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Player Character and NPC Knowledge</h1>
+<p>One type of condition that clearly effects what conversation topics should be available at any point in time is what the player character, and possibly the NPC s/he's conversing with, knows at that point in time. For examples the player character can't ask Bob about the dark tower until the player character knows such a thing exists (even if the player knows it because s/he's played the game before). In this section we look at how to keep track of what the player character and other characters know, and how to use that information to affect what conversation topics are available at any point in time.</p>
+
+<h2>Knowledge of Existence</h2>
+
+<p>We have already seen that the library keeps basic track of the player characters knowledge of the existence of <a href="thing.htm">things</a> and <a href="topic.htm">topics</a>. We can test whether the player character knows of the existence of some object <em>obj</em> by testing the value of gPlayerChar.knowsAbout(obj) or, equivalently, obj.known. If obj is a Thing this will be true either if the player character has seen obj or if the <em>familiar</em> property of obj (i.e. obj.familiar) is true. Since Topics can't be seen they're simply known if they're familiar. We can make an object become familiar to the player character during the course of play by calling gSetKnown(obj). Equivalently, if something becomes known to the player character during the course of conversation, we can use the &lt;.known obj&gt; tag to do the same thing.</p>
+
+<p>The important thing to bear in mind is that the matchObj property of a TopicEntry won't be matched by a conversational command is the object in question isn't known to the player character. Thus, without our having to do anything else about it, the player character can't ask about the dark tower, for example, until s/he knows of the dark tower's existence. That means we can safely define ActorTopicEntries like this:</p>
+
+ <p><div class="code"><pre>
++ AskTellTopic @tTown
+   &quot;&lt;q&gt;This seems a nice town,&lt;/q&gt; you remark cheerily.\b
+    &lt;q&gt;Yes it is -- provided you don't go anywhere the dark
+    tower,&lt;/q&gt; he agrees cautiously. &lt;.known darkTower&gt; &quot;
+;
+
++ AskTopic @darkTower
+  &quot;&lt;q&gt;What can you tell me about the dark tower?&lt;/q&gt; you ask.\b
+  Bob rolls his eyes and looks away for a moment. &lt;q&gt;You don't want
+  to know,&lt;/q&gt; he mutters. &lt;q&gt;You really don't.&lt;/q&gt; &quot;
+;
+</pre></div>
+
+<p>Here, the second TopicEntry can't be reached until the player character knows about (i.e. knows of the existence of) the dark tower. This might be because the player character has already encountered the tower in his travels, or because he's read about it somewhere, or because some other NPC has mentioned it to him, but if the player character hasn't heard about the dark tower before the start of his conversation with Bob, he won't be able to trigger the second response until Bob has mentioned the dark tower in the first.</p>
+<br>
+
+<h2>Knowledge of Facts</h2>
+<p>The player character's knowledge or ignorance of the existence of various things and topics may not, however, be sufficient to model all the epistemic conditions that determine what topics the player character can talk about. For example, in addition to learning of the dark tower's existence, the player character may come to learn when it was built, or that it's believed to be haunted by the ghost of a pirate, or that people are said to have mysteriously disappeared there. To represent such facts (or putative facts) we can use short string tags, such as 'when-tower-built' or 'tower-haunted' or 'tower-disapperances'. For reasons that will shortly become apparent, we should regard such tags as inhabiting a global namespace (in other words, we should always use the same knowledge tag with the same meaning throughout our game).</p>
+
+<p>When a piece of information becomes known to the player character, we can note the fact by using a <strong>&lt;.reveal&gt; </strong>tag; e.g. &lt;.reveal when-tower-built&gt; or &lt;.reveal tower-haunted&gt; or &lt;.reveal tower-disappearances&gt; (we can also do the same thing using the <strong>gReveal(tag)</strong> macro, e.g. gReveal('when-tower-built')). To test whether some item of knowledge has been revealed to the player character we can use the <strong>gRevealed(tag)</strong> macro, e.g. gRevealed('tower-haunted'). So, for example, we might go on to define:</p>
+
+ <p><div class="code"><pre>
++ AskTellTopic +110 @darkTower
+   &quot;&lt;q&gt;I've heard it said that the dark tower is haunted,&lt;/q&gt; you remark.
+    &lt;q&gt;Do you believe that?&lt;/q&gt;\b
+    Bob gives a little shudder. &lt;q&gt;I don't &lt;i&gt;believe&lt;/i&gt; that tower is
+    haunted,&lt;/q&gt; he tells you, &lt;q&gt;I &lt;i&gt;know&lt;/i&gt; it is!&lt;/q&gt; &quot;
+    
+    isActive = gRevealed('tower-haunted')
+;
+</pre></div>
+
+<p>Note that we've given this AskTellTopic a matchScore of 110 (10 higher than the default) so that if the player character has heard about the rumours of haunting he asks this more specific question about the tower in place of the more general one above.</p>
+
+<p>At this point we might also note that gReveal() and gRevealed() are defined in the core library, so you can use them even if the actor.t module isn't present (e.g. for use with the hints system), whereas the &lt;.reveal&gt; tag, in common with all such converational tags, only works if actor.t is included in the build.</p>
+
+<p>In the adv3Lite library &lt;.reveal&gt; tags should be regarded as a mechanism for keeping track of what has been revealed to the player character. To keep track of what the player character has told one or more NPCs we use <strong>&lt;.inform&gt;</strong> tags (note, the adv3 library does not make this distinction, but it seemed a useful distinction to introduce into adv3Lite), e.g., &lt;.inform tower-haunted&gt;. We can test whether an NPC has been informed about a particular subject by calling the <strong>informedAbout(key)</strong> method on the actor, or using the <strong>gInformed(key)</strong> macro on a TopicEntry, ActorState or AgendaItem belonging to the actor. For example, if at some later point in the game the player character were to discuss his experiences in Bob's town with a friend, he might want to inform her about the haunting:</p>
+ <p><div class="code"><pre>
++ TellTopic @darkTower
+  &quot;&lt;q&gt;You know, the folks in Doomsville even think their local tower is
+   haunted,&lt;/q&gt; you remark. &lt;.inform tower-haunted&gt;\b
+   Mavis shakes her head tut-tutting away to herself. &lt;q&gt;There's no
+   end to superstition and folly,&lt;/q&gt; she remarks. &lt;q&gt;Mind you, I heard
+   a similar story about Spookhampton.&lt;/q&gt; &lt;.reveal spookhampton-haunted&gt; &quot;
+   
+  isActive = gRevealed('tower-haunted') && !gInformed('tower-haunted')
+;
+</pre></div>
+
+<p>Note how we use the gInformed() macro in the isActive property so that the player character won't tell Mavis the same piece of information twice (we might also use it elsewhere). Note how we also use the gRevealed() macro to ensure that the player character can't tell Mavis about the haunting until he knows about it himself. Finally, note that we use the <.reveal spookhampton-haunted> tag to note that the player character has just learned another snippet of information about alleged hauntings.</p>
+
+<p>There's one further feature of the &lt;.reveal&gt; and &lt;.inform&gt; tags to bear in mind. The adv3Lite library assumes that if other actors are in earshot when a conversation is going on between the player character and an NPC, the other actors will be listening in on the conversation and hence will learn any piece of information that's imparted with a &lt;.reveal&gt; or &lt;.inform&gt; tag. This in fact extends to the NPC the player character is conversing with as well (though not to the player character, whose knowledge is accessed entirely though what's been revealed). So, for example, if Sally were listening in on the player character's conversation with Bob, then a &lt;.reveal tower-haunted&gt; or a &lt;.inform tower-haunted&gt; tag output in the course of that conversation would add the 'tower-haunted' key to both Bob's and Sally's table of inform keys, so that thereafter both bob.informedAbout('tower-haunted') and sally.informedAbout('tower-haunted') would return true. This seems more realistic than supposing that Sally would remain ignorant of the tower haunting rumours when Bob was discussing them with the player character right in front of her. It also ensures that Bob is reckoned as being informed about anything he has revealed to the player character, which is again surely more realistic than the opposite assumption. Note, however, that the &lt;.reveal&gt; tag only causes other actors to be notified of what's just been revealed if it's used during the course of conversation; if it's used for some other purpose (e.g. to set a flag when an object is examined), the notifications won't take place (unless a conversation happens to be taking place at th same time). If you want to ensure that no notifications take place, use gReveal(tag) instead.</p>
+
+<p>The fact that an information-key revealed to the player character is always the same information-key that informs one or more NPCs explains why such keys must be regarded as occupying a global namespace within any given game (even if that weren't a good idea in any case to avoid confusion).</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Player Character and NPC Knowledge
+<br><span class="navnp"><a class="nav" href="hello.htm"><i>Prev:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="orders.htm"><i>Next:</i> Giving Orders to NPCs</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

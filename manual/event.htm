@@ -1,0 +1,106 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Events</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Events
+<br><span class="navnp"><a class="nav" href="attachable.htm"><i>Prev:</i> Attachables</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="eventlist.htm"><i>Next:</i> EventList</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Events</h1>
+<p>The Events module implements Daemons and Fuses. A Fuse is something that causes a piece of code to execute after a set number of turns. A Daemon is something that causes a piece of code to be executed every turn or every so many turns. Daemons and Fuses in adv3Lite are very similar to those in adv3.</p>
+
+<p>To create set up a fuse, just create a new Fuse object thus:</p>
+
+<p><dt><span class=synLit>new Fuse(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>turns</span><span class=synLit><span class=synLit>)</span></dt></p>
+<p>This defines a Fuse that will call <span class=code>obj.(prop)</span>, i.e. the prop method of obj, after <i>turns</i> turns. If <i>turns</i> is 0 then the Fuse will execute on the same turn.</p>
+
+<p>For example, to define an alarm clock that rings in 10 turns' time after you push a button on it, we could define:</p>
+
+<p><div class=code><pre>
+alarmClock: Thing &apos;alarm clock&apos;
+	&quot;It has a big red button attached. &quot;
+	
+	ring() 
+	{
+	   "The alarm clock starts ringing loudly. ";
+	   redButton.isDown = nil;
+	}
+;
+
++ redButton: Component 'big red button'
+	dobjFor(Push)
+	{
+		verify()
+		{ 
+			if(isDown)
+				illogicalNow('The button is already down. ');
+		}
+ 	  
+		action()
+		{
+			isDown = true;
+			"You push the red button down. ";
+			new Fuse(alarmClock, &amp;ring, 10);
+		}
+	}
+   
+   isDown = nil
+;
+</pre></div>
+
+<p>Note, by the way, that the property we want to execute has to be listed in the arguments to <span class=code>new Fuse</span> as a property <i>pointer</i>, with an ampersand (&amp;) immediately preceding its name.</p>
+
+<p>A Daemon is defined in exactly the same way, except that instead of only executing once, it will execute every <i>turns</i> turns. It's sometimes useful to store a reference to a Daemon so we can turn it off again:</p>
+
+<p><dt><span class=synPar>daemonID</span><span class=synLit> = new Daemon(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>turns</span><span class=synLit><span class=synLit>)</span></dt></p>
+
+<p>It may be, though, that the player character won't be around to see (or hear, or smell) the event that the Fuse or Daemon is reporting, in which case we'd ideally like to suppress any text that the Fuse or Daemon would otherwise display. We can do that using a <b>SenseFuse</b> or <b>SenseDaemon</b>. These can be created in exactly the same way as a normal Fuse or Daemon but any text they would otherwise display won't be displayed unless the player character can see the object passes as the <i>obj</i> parameter when the SenseFuse or SenseDaemon is created.</p>
+
+<p>Occasionally this may not be what we want, since we want to test whether the object in question can be smelled or heard rather than seen. Or it may be that we want to test the visibility or audibility of some object other than the one we passed as the <i>obj</i> paramater, other, that is, than the object whose <i>prop</i> method the Fuse or Daemon is executing. In such a case we can define the Fuse or Daemon with one or two additional parameters:</p>
+
+<p><dt><span class=synLit>new SenseFuse(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>turns</span><span class=synMark>[, senseProp, senseObj]</span><span class=synLit><span class=synLit>)</span></dt></p>
+
+<p><dt><span class=synLit>new SenseDaemon(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>turns</span><span class=synMark>[, senseProp, senseObj]</span><span class=synLit><span class=synLit>)</span></dt></p>
+
+<p>Where <i>senseProp</i> must be one of &amp;canSee, &amp;canHear or &amp;canSmell (or conceivably &amp;canReach) and <i>senseObj</i> is the object that must be sensed appropriately. Note that you can just supply the <i>senseProp</i> parameter if you want to test whether <i>obj</i> can be heard or smelled, but that if you supply the <i>senseObj</i> parameter you have to supply the <i>senseProp</i> parameter as well.
+
+<p>Finally, you can define a <b>PromptDaemon</b> which executes just before the command prompt on every turn:</p>
+
+<p><dt><span class=synLit>new PromptDaemon(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit><span class=synLit><span class=synLit>)</span></dt></p>
+
+<p>There is also a <b>OneTimePromptDaemon</b> which, as its name suggests, is a PromptDaemon that executes only once (effectively a PromptFuse, though the adv3Lite library keeps the same name for this class as the adv3 library).</p>
+
+<p>Finally, you may wish to stop a Daemon, or prevent a Fuse from executing before its due to fire. If you've stored a reference to the Fuse or Daemon you can disable it by calling its <b>removeEvent()</b> method, e.g.:</p>
+
+<p><div class=code><pre>
+  daemonID.removeEvent();
+</pre></div>
+
+<p>If you haven't stored a reference to the Fuse or Daemon you want to remove, you can remove it by calling:</p>
+
+<p><dt><span class=synLit>eventManager.removeMatchingEvents(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>)</span></dt></p>
+
+<p>Where <i>obj</i> and <i>prop</i> are the object and property for which the Fuse or Daemon was originally created.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Events
+<br><span class="navnp"><a class="nav" href="attachable.htm"><i>Prev:</i> Attachables</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="eventlist.htm"><i>Next:</i>EventList </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

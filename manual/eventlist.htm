@@ -1,0 +1,113 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; EventList</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+EventList
+<br><span class="navnp"><a class="nav" href="event.htm"><i>Prev:</i> Events</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="exit.htm"><i>Next:</i> Exits</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>EventList</h1>
+<p>The EventList module implements the various EventList classes which are identical to those in adv3.</p>
+<p>An EventList provides a means of showing a series of messages (or doing other things) either in sequence or in random order (depending on the kind of EventList). Typical uses for EventLists include displaying varying atmospheric messages and varying conversational responses. To set up and use an EventList you define its list of items on its <b>eventList</b> property and call its <b>doScript()</b> method to process he next item in turn (typically but not necessarily a single-quoted string, which is then displayed).</p>
+<p>The various types of EventList are:</p>
+<ul>
+<li><b>EventList</b>: The base EventList runs through each of its items in order and then does nothing after it passes the last item.</li>
+<li><b>CyclicEventList</b>: A CyclicEventList runs through each of its items in order and then starts again at the beginning after reaching the end.</li>
+<li><b>StopEventList</b>: A StopEventList runs through each of its items in order and then keeps repeating the last item once it reaches the end.</li>
+<li><b>SyncEventList</b>: A SyncEventList is an EventList that is synchronized with the EventList defined on its <b>masterObject</b> property; the two EventLists can then define different lists of items but remain in the same state (e.g., if one is about to show the third item in its list, so is the other).</li>
+<li><b>RandomEventList</b>: A RandomEventList chooses one of its items at random each time its doScript() method is called.</li>
+<li><b>ShuffledEventList</b>: A ShuffledEventList goes through each of its items and then shuffles them into a new random order when it reaches the end of the list before starting again at the beginning (like going through a deck/pack of cards one at a time and then shuffling the deck/pack before going through them again). This is often the best option for atmospheric messages and varying default conversational responses.</li>
+
+</ul>
+
+<p>Since random atmospheric messages can start to get a bit tired after the player has seen them a couple of times, RandomEventList and ShuffledEventList define a few additional properties to control the frequency with which they trigger their items:</p>
+<ul>
+<li><b>eventPercent</b>: The percentage probability (expressed as an integer between 0 and 100) that this EventList will display an item when its doScript() method is called.</li>
+<li><b>eventReduceTo</b>: The percentage probability to reduce to after the EventList has fired <b>eventReduceAfter</b> times. If <b>eventReduceAfter</b> is nil (default), the EventList keeps on firing at its original rate (eventPercent).</li>
+</ul>
+
+<p><b>ShuffledEventList</b> defines a further couple of properties to control its behaviour:</p>
+<ul>
+<li><b>firstEvents</b>: If this property is not nil, but supplies a list of items, this list of items is gone through in order once only before the ShuffledEventList starts using the items in its eventList property.</li>
+<li><b>shuffleFirst</b>: If this property is true (the default) the items in the eventList property are shuffled before being used for the first time. If shuffleFirst is nil, then the items in the eventList are worked through in the order you defined them the first time and shuffled thereafter.</p>
+</ul>
+
+<p>The library calls the roomDaemon() method on the player character's current location at the end of every turn. This could be used to drive a ShuffledEventList displaying atmospheric messages, as in the following example:</p>
+
+<p><div class=code><pre>
+
+hall: Room, ShuffledEventList 'Hall' 'hall'   
+    "&lt;&lt;one of&gt;&gt;At least the fire hasn't reached the ground floor yet. The hall
+    is still blessedly clear of smoke, though you can see the smoke billowing
+    around at the top of the stairs you've just come down. The front door
+    leading out to the safety of the drive is just a few paces to the west -- if
+    only you'd remembered that key! Otherwise all seems normal: \v&lt;&lt;or&gt;&gt;At a
+    less troubled time you'd feel quite proud of this hall. A fine oak staircase
+    sweeps up to the floor above, matching the solid front door that stands just
+    to the west. &lt;&lt;stopping&gt;&gt;The pictures you bought last year look totally
+    oblivious of the flames that might engulf them, and since so far the fire
+    seems confined to the top floor there's nothing blocking your path north to
+    the lounge, east to the kitchen, or south to the study.  "
+    
+    south = study
+    north = lounge
+    east = kitchen
+    up = landing
+    west = frontDoor
+    out asExit(west)
+    
+    roomDaemon  { doScript; }
+    
+    eventList = 
+    [
+        'Wisps of smoke drift down the stairs. ',
+        
+        'You momentarily catch sight of the smoke billowing at the top of the
+        staircase. ',
+        
+        'There\'s an ominous creak upstairs. ',
+        
+        'You fancy you feel a wave of hot air gush about your face. '
+    ]
+	
+    eventReduceTo = 50
+    eventReduceAfter = 6
+	
+    regions = downstairs
+    
+    listenDesc = "There's a disturbing crackling of flames somewhere upstairs. "
+;
+
+</pre></div>
+
+<p>Although the items in an event list are usually single-quoted strings they can be any of the following:</p>
+
+<ul>
+<li>A single-quoted string, in which case the string is displayed.</li>
+<li>An object, in which case the object's doScript() method is called.</li>
+<li>A function pointer, in which case the function is invoked (note that an anonymous function counts as a function pointer for this purpose, so you could include an anonynous function as an item in an event list).</li>
+<li>A property pointer, in which case the property (or method) is invoked on the event list object.</li>
+<li>nil (or any other value not listed above), in which case nothing happens; it might be useful to use nil when you want an eventList to do nothing for one step.</li>
+</ul>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+EventList
+<br><span class="navnp"><a class="nav" href="event.htm"><i>Prev:</i> Events</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="exit.htm"><i>Next:</i>Exits </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

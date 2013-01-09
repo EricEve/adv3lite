@@ -1,0 +1,112 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Pathfinding</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Pathfinding
+<br><span class="navnp"><a class="nav" href="hint.htm"><i>Prev:</i> Hints</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scene.htm"><i>Next:</i> Scenes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Pathfinding</h1>
+<p>The pathfind.t module is used to implement pathfinding for the player character and, optionally, non-player characters. Its inclusion effectively enables the GO TO X command as an alternative form of navigation, (where X can be a room or some object known to the player character). You don't have to do anything except leave it in the build to make it work; in the adv3Lite library it's all set up to go, but if you don't want to allow this type of navigation, or your game map is so small you don't need it, you can exclude pathfind.t from the build; there's certainly no point in including it in a one-room game, for example.</p>
+
+<p>That said, you may find it helpful to know a little bit more about how the pathfinder works and how you can use it.</p>
+
+<h2>The GO TO and CONTINUE commands</h2>
+
+<p>From the player perspective the player character pathfinding is implemented by two commands, GO TO and CONTINUE (the latter can be abbreviated to C). GO TO takes the player character one step on his/her journey; the CONTINUE command is used to take each successive step (if more than one is needed). The reasons for proceeding only one step at a time are:</p>
+
+<ol>
+<li>Using the GO TO command should not reduce the number of turns it takes to get from one place to another.</li>
+<li>In general it is impossible to predict whether the player character might encounter some obstacle or other reason for breaking the journey along the route. Taking the journey one step at a time allows such obstacles to be dealt with on the turn they arise.</li>
+<li>Taking the journey one step at a time gives the player/player character the opportunity to interact with anything encountered along the way, for example an NPC that can be conversed with, or a new clue that can be examined. If the player character were taken straight to his/her destination s/he might miss things along the route s/he might want to see or interact with.</li>
+</ol>
+
+<p>The reasons for implementing a separate CONTINUE command rather than having the player type AGAIN or G are:</p>
+<ol>
+<li>The GO TO command calculates the route whereas the CONTINUE command merely makes use of the route calculated by the last GO TO command. On a small map this might not make a discernible difference, but on a large map, and especially on a very large map, CONTINUE might be noticeably faster to execute than GO TO.</li>
+<li>If the player character stops along the route to examine or interact with things, the journey can still be resumed after any number of turns with the CONTINUE command; this would not be possible with AGAIN.</li>
+</ol>
+
+<p>The target of a GO TO command can be a Room or an object. It's a Room (GO TO KITCHEN, say), route finder will calcute the shortest path from the player character's current location to the specified room. If it's an object (GO TO OLD BICYLCLE, say) the route finder will calculate the shortest path from the player character's current location to the room where the object in question was last seen by the player character, which may not be its current location if its been moved since, especially if its another actor who can move around of his/her own volition. This is a further reason to take the journey one step at a time; if the player types GO TO FRED and the player character encounters Fred along the way to Fred's last known location, the player will presumably want to break the journey there.</p>
+
+<p>Note that in order for the player to be able to use the GO TO ROOM form of the command, each room must have its vocab property defined.</p>
+
+<h2>routeFinder and pcRouteFinder</h2>
+
+<p>The pathfind.t module defines a Pathfinder class, which in principle could be used to find a path between any two nodes in a network (and not just rooms on a map), and two instantiations of that class, the routeFinder (for NPCs) and the pcRouteFinder (for the player character). (To use the Pathfinder class for other kinds of pathfinding you'd need to define the findDestinations() method on your custom Pathfinder object to find all the destinations one step away from a given node, but the details of doing that are beyond the scope of this manual).</p>
+
+<p>If you want to use the <b>routeFinder</b> object in your own game (to calculate the shortest route between two rooms for a non-player character) call <span class=synLit>routeFinder.findPath(</span><span class=synPar>start</span><span class=synLit>, </span><span class=synPar>target</span><span class=synLit>)</span>, where <span class=synPar>start</span> is the starting room for the route and <span class=synPar>target</span> is the destination room you're aiming for. This method will either return a path (if one is found) or nil (if it was unable to find a path between the two rooms). The routeFinder will also store a copy of the path it has found in its <b>cachedRoute</b> property, along with the destination to which the path leads in its <b>currentDestination</b> property.</p>
+
+<p>The format of the path return by routeFinder.findPath() is a list of two element lists: [[<i>dir</i>, <i>dest</i>], [<i>dir</i>, <i>dest</i>], [<i>dir</i>, <i>dest</i>]...], where <i>dir</i> is the direction needed to move to the next room along the route (<i>dest</i>). <i>dir</i> is given as a direction object (e.g. northDir, southeastDir or downDir), while <i>dest</i> will be the Room to which going in that direction leads. So to find which direction an actor needs to move in next to continue along a previously calculated route, you might use code like:</p>
+
+<p><div class=code><pre>
+   local dir;
+   local idx = routeFinder.cachedPath.indexWhich({x: x[2] == fred.getOutermostRoom});
+   if(idx != nil &amp;&amp; idx &lt; routeFinder.cachedPath.length)
+      dir = routeFinder.cachedPath[idx + 1][1];
+
+   if(dir != nil)
+      /* Code to move the NPC in this direction, e.g. */
+   {
+      try
+      {
+         local action = TravelAction.createInstance();
+         gActor = fred;
+         action.direction = dir;
+         action.doTravel();
+		 
+        if(gPlayerChar.isIn(fred.getOutermostRoom)
+           fred.sayArriving();
+      }
+	  
+      finally
+      {
+         gActor = gPlayerChar; // might or might not be needed, depending on context.
+      }
+   }
+</pre></div>
+
+<p>Alternatively you might want to bypass some of the complexities of travel by simply moving the NPC into the next room along the route, although this might have the unfortunate effect of allowing the NPC to move through locked doors and other such obstacles:</p>
+
+<p><div class=code><pre>
+   local dest;
+   local idx = routeFinder.cachedPath.indexWhich({x: x[2] == fred.getOutermostRoom});
+   if(idx != nil &amp;&amp; idx &lt; routeFinder.cachedPath.length)
+      dest = routeFinder.cachedPath[idx + 1][2];
+
+   if(dest != nil)      
+        dest.travelVia(fred);     
+   
+</pre></div>
+
+<p>Note that the library assumes that NPCs are omniscient when it comes to finding their way around the map; routeFinder simply calculates the shortest route between two rooms regardless of what NPCs might actually know; normally this is what you probably want (you just want to get your NPC from A to B without worrying about tracking NPC knowledge). You have the option, however, to allow the NPC to avoid locked doors and other impassible TravelConnectors by specifying <b>routeFinder.excludeLockedDoors = true</b> (which it is by default). If you do this, it's a good idea to set gActor to the NPC in question just before using the routeFinder (since routeFinder will assume that it's gActor that's trying to traverse any TravelConnectors). On the other hand, if you find that there's no route available with excludeLockedDoors set to true, you might like to try again with excludeLockedDoors set to nil so that the NPC can at least start on its journey (maybe things will change by the time it reaches the locked door or other barrier, or maybe the NPC has the appropriate key).</p>
+
+<p>The <b>pcRouteFinder</b> works a little differently, in that it doesn't offer an excludeLockedDoors option (the assumption being is that such obstacles are there for the player/player character to negotiate) but it does depend on player character knowledge. By default, the pcRouteFinder will only find routes through connections that the player character knows about, that is, through TravelConnectors (including Doors and Rooms) that the player character has previously traversed; the GO TO command cannot thus be used as a way of bypassing the need to explore. On the other hand, it may be that the player character is meant to start out knowing his/her way round some part of the game map (his own house, perhaps). In that case, include all the Rooms in the area the player character knows about in one region and declare that region to be familiar (familiar = true). The player character will then be able to move around that region using the GO TO command freely from the start. (Note that since individual rooms can belong to any number of regions and regions can freely overlap, the use of a region to declare the area of the map the player character starts out knowing should in no way interfere with any other purposes you may have for regions).</p>
+
+<p>Finally, note that if a direction property points to a method that moves the player character somewhere, the routeFinder can also include that exit in its route, provided that the method works consistently. A method that moves the player character (or another actor) to a random destination, or to one of multiple destinations depending on circumstances is likely to confuse the routeFinder since it will assume that the exit always leads where it did last time. To prevent your variable exit (if you have one) causing such confusion your variable-exit method should somewhere include the statement:</p
+
+<p><div class=code><pre>
+  <i>startLoc</i>.setDestInfo(<i>dir</i>, varDest_);  
+</pre></div>
+
+<p>Where <i>startLoc</i> is the Room your variable destination method exit leads from, <i>dir</i> is the direction it leads in (e.g. northDir) and varDest_ is a special dummy destination (meaning variable destination) that tells the routeFinder not to try to use the exit and the travel action not to try to add the actual destination to the destination table (since it can't be relied upon to stay constant). You can achieve a similar effect by using nil instead of varDest_, except that the exit won't then be included in any exit listing.</p>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Pathfinding
+<br><span class="navnp"><a class="nav" href="hint.htm"><i>Prev:</i> Hints</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scene.htm"><i>Next: </i>Scenes </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

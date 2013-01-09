@@ -1,0 +1,147 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Giving Orders to NPCs</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Giving Orders to NPCs
+<br><span class="navnp"><a class="nav" href="knowledge.htm"><i>Prev:</i> Player Character and NPC Knowledge</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tags.htm"><i>Next:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Giving Orders to NPCs</h1>
+
+<p>It's a long-standing convention of interactive fiction that a command in the form BOB, JUMP or BOB, TAKE THE RED BALL or BOB, PUT THE BALL IN THE BOX is to be understood as an attempt by the player character to order another character (in this case Bob) to do something. It's also a long-standing convention that IF parsers should deal with such commands cleanly, even if few games actually need them. Even if giving commands to other actors plays no part in your game, your game needs to be able to deal with such commands gracefully (which may just mean giving a polite refusal). If it is important to your game that the player give instructions to NPCs at some point or other, then it's even more important that your game should be able to handle them.</p>
+
+<p>The basic handling of orders directed to NPCs in adv3Lite is as follows:</p>
+
+<ol>
+<li>The default Doer objects redirect the command to the handleCommand(action) method of the target actor (the actor to whom the order was given).</li>
+<li>The actor's handleCommand() method performs various sanity checks, and then either refuses the command, translates it into another command, or tries to find a CommandTopic to deal with it.</li>
+<li>The command is handled by the relevant CommandTopic or DefaultCommandTopic, if there is one.</li>
+<li>If the command hasn't been intercepted by handleCommand(), and there's no CommandTopic to deal with it, the Actor's refuseCommandMsg is displayed (by default this says, 'Bob has better things to do', with the actual name of the actor substituted for 'Bob'.)</li>
+</ol>
+
+<p>In principle, then, you could intervene at any of these stages, but the normal and recommended way of dealing with orders directed to NPCs is by defining <a href="#commandtopic">CommandTopics</a>. But before looking at CommandTopics we should go into a little more detail about what the handleCommand method does.</p>
+
+<h2>The handleCommand() method</h2>
+
+<p>The action parameter passed to the handleCommand(action) method is in effect gCommand.action (the action property of the current command object). You can get at other properties of the current command object via the gCommand pseudo global variable.</p>
+
+<p>The handleCommand() method performs the following checks, before trying to deal with the command via a CommandTopic:</p>
+
+
+<ol>
+<li>If the command was of the form BOB, GIVE ME THE SPANNER it's executed as if it were ASK BOB FOR SPANNER.</li>
+<li>If the command was of the form BOB, TELL ME ABOUT THE TOWER, it's executed as it it were ASK BOB ABOUT THE TOWER.</li>
+<li>If the command is a system action, e.g. BOB, RESTORE or BOB, UNDO or BOB, QUIT, it's simply refused.</li>
+<li>BOB, HELLO is treated as saying hello to Bob.</li>
+<li>BOB, BYE is treated as saying goodbye to Bob.</li>
+<li>BOB, HOW/WHAT/WHY/WHO/WHEN xxx is executed as if it were ASK BOB HOW/WHAT/WHY/WHO/WHEN xxx.</li>
+<li>BOB, FOO (where FOO doesn't match any normal command syntax) is treated as SAY FOO TO BOB (but this only works if the player character is already talking to Bob, otherwise the parser won't treat FOO as an implicit SAY command).</li>
+</ol>
+
+<p>It's only after this that CommandTopics are tried.</p>
+
+<p>If you want to override this method to handle other cases, it's probably a good idea to call the inherited handling at the end, so your overridden method still ends by trying to deal with the order via a CommandTopic object, for example:</p>
+
+ <p><div class="code"><pre>
+modify Actor
+    handleCommand(action)
+    {
+       if(action.ofKind(ThinkAbout) || action.ofKind(AskAbout))
+          "I'm afraid that's a bit too convoluted. ";
+       else
+          inherited(action);
+    }
+;
+</pre></div>
+
+<p>Note that if a command is directed to an inanimate object (e.g. BALL, JUMP!) that object's handleCommand() method is also called, but in this case all it does is to display a message to the effect that it's futile to direct commands at inanimate objects. But you could always override this if, for example, you wanted some objects to respond to a magic word. For example:</p>
+
+ <p><div class="code"><pre>
+modify Thing    
+    handleCommand(action)
+    {
+        if(isOpenable && !isOpen)
+        {
+            &quot;\^&lt;&lt;theName&gt;&gt; flies open! &quot;;
+            makeOpen(true);
+        }
+        else
+            inherited(action);
+    }
+;
+
+DefineIAction(Xyzzy)
+    execAction(cmd)
+    {
+        "Your spell falls limp on the air. ";
+    }
+;
+
+VerbRule(Xyzzy)
+    'xyzzy'
+    : VerbProduction
+    action = Xyzzy
+    verbPhrase = 'say/saying XYZZY'
+;
+
+</pre></div>
+<br>
+
+<h2><a name="commandtopic">CommandTopics</a></h2>
+
+<p>Apart from the special cases noted above, the normal way to handle a command directed to an NPC is via a CommandTopic. A <strong>CommandTopic</strong> is basically just like any other ActorTopicEntry, except that is defines a few extra properties in relation to its special function:</p>
+
+<ul>
+<li><strong>matchObj</strong>: While this is extra to CommandTopic, it does have a slightly unusual meaning. The matchObj property of a CommandTopic is the action (e.g. Jump, Take, PutIn) that it responds to (or a list of actions).</li>
+<li><strong>matchDobj</strong>: If the action matched by this CommandTopic is a TAction or TIAction then the matchDobj property can be a Thing or class or a list of Things and/or classes that the direct object of the action needs to match.</li>
+<li><strong>matchIobj</strong>: If the action matched by this CommandTopic is a TIAction then the matchIobj property can be a Thing or class or a list of Things and/or classes that the indirect object of the action needs to match.</li>
+<li><strong>myAction</strong>: stores the value of the action this CommandTopic has just matched.</li>
+<li><strong>allowAction</strong>: if this is true then the targeted actor will perform the action according to the standard handling after the topicResponse() method has been executed. Note that setting this to nil (the default) doesn't necessarily mean that the actor is refusing the command; it might mean that you want to handle the execution of the command in some non-standard way in the topicResponse() method.</li>
+<li><strong>actionPhrase()</strong>: this method attempts (with mixed results) to reconstruct a phrase describing the command (e.g. 'take the red ball') that can then be used as part of the topicResponse, which may be particularly useful in a DefaultCommandTopic. It works best with IActions, TActions and TIActions, but probably needs further refinement before it's completely reliable.</li>
+</ul>
+
+<p>We can also define a DefaultCommandTopic to handle any commands not picked up by our CommandTopics. A simple example of how this might all work in practice might be:</p>
+
+ <p><div class="code"><pre>
++ CommandTopic @Jump
+    &quot;&lt;q&gt;Jump!&lt;/q&gt; you cry.\b
+    &lt;q&gt;Very well then,&lt;/q&gt; he agrees. &quot;
+    allowAction = true
+;
+
++ CommandTopic @Take
+    &quot;&lt;q&gt;Bob, be a good fellow and pick up that red ball will you?&lt;/q&gt; you
+    request.\b
+    &lt;q&gt;Very well,&lt;/q&gt; he agrees.&lt;.p&gt;&quot;
+    
+    allowAction = true
+    matchDobj = redBall
+    isActive = !redBall.isIn(bob)
+;
+
++ DefaultCommandTopic
+    &quot;&lt;q&gt;Bob, would you &lt;&lt;actionPhrase&gt;&gt; please?&lt;/q&gt; you ask.\b
+    &lt;q&gt;No, I don't think I will,&lt;/q&gt; he replies. &quot;
+;
+</pre></div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Giving Orders to NPCs
+<br><span class="navnp"><a class="nav" href="knowledge.htm"><i>Prev:</i> Player Character and NPC Knowledge</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tags.htm"><i>Next:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

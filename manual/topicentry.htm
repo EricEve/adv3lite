@@ -1,0 +1,115 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Topic Entries</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Topic Entries
+<br><span class="navnp"><a class="nav" href="senseregion.htm"><i>Prev:</i> SenseRegion</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="thought.htm"><i>Next:</i> Thoughts</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Topic Entries</h1>
+<p>The topicEntry.t implements the base TopicEntry class that forms the basis of Consultables, Thoughts and the conversation system. It also defines the Consultable and ConsultTopic classes that make particular use of this base class. Since game code is unlikely to use the base TopicEntry class (except, perhaps, if a game author wants to define a custom type of TopicEntry for special purposes), we can illustrate the use of TopicEntries by moving straight to a discussion of Consultables and ConsultTopics.</p>
+
+<p>A <b>Consultable</b> is something you can look things up in, through commands like LOOK UP ORANGES IN BLUE BOOK or CONSULT BOOK ABOUT LEMONS. To create a Consultable object in adv3Lite we first define an object of class Consultable, in much the same way as we'd define any other Thing, for example:</p>
+
+<p><div class=code><pre>
+blueBook: Consultable 'blue book; useless trusty of;dictionary information' @desk
+    "It's your trusty dictionary of useless information. "
+    
+    readDesc = "It's not the sort of book you'd want to read from cover to
+        cover; it's more for looking things up in. "
+;
+</pre></div>
+
+<p>Each item you want the player to be able to look up in the blue book can then be located by a <b>ConsultTopic</b> object. These should be defined with some combination of the following properties:</p>
+
+<ul>
+<li><b>matchObj</b>: The game object or class or Topic this ConsultTopic matches, or a list of objects and/or classes and/or topics any one of which will match this ConsultTopic.</li>
+<li><b>matchPattern</b>: A regular expression that this ConsultTopic matches. (Note you wouldn't define both this and the previous property, since if a matchObj is defined any matchPattern will be ignored.</li>
+<li><b>matchExactCase</b>: A flag to indicate whether the matchPattern has to match the exact case of the player's input. The default is nil.</li>
+<li><b>matchScore</b>: A numeric value to decide which ConsultTopic should be chosen in case there's more than one match. The ConsultTopic with the highest matchScore wins. The default value is 100.</li>
+<li><b>scoreBoost</b>: An optional method or expression that can be used to boost the matchScore under specified circumstances (by default this is simply 0).</li>
+<li><b>isActive</b>: A flag to indicate whether this ConsultTopic should be considered for a match. If it's nil then this ConsultTopic won't be matched. The default is true. It is intended that this property should be defined as an expression (or if necessary, a method) on the TopicEntry object rather than manipulated in code elsewhere, since treating it declaratively this way will make it much easier to read your code when you come back to it.</p>
+<li><b>topicResponse</b>: A double-quoted string (or possibly a method) that provides this ConsultTopic's response when it's matched.</li>
+<li><b>eventList</b>: If an EventList class is added to the class-list of this TopicEntry, we can define its eventList property, and the TopicEntry will respond with the next item in its eventList (in which case we should not also define the topicResponse property, since if we do, that will be used instead.).</li>
+</ul>
+
+<p>Most of these properties can be defined through a template. The basic template for a TopicEntry looks like this:</p>
+
+<p><div class=code><pre>
+TopicEntry template
+   +matchScore?
+   @matchObj | [matchObj] | 'matchPattern'
+   "topicResponse" | [eventList] ?;
+</pre></div>
+
+<p>This means that a TopicEntry can optionally be defined with a + sign and a number giving its matchScore; following that (if it is present) or starting off (if it is not) you then write at @ sign immediately before the matchObj, or a list of matchObjs, or a matchPattern in single quotes. Finally you either give the topicResponse in double-quotes or else define a list of responses (typically a list of single-quoted strings) if the TopicEntry is also an EventList.</p>
+
+<p>To continue the previous example, we might begin to populate our dictionary of useless information with ConsultTopics thus:</p>
+
+<p><div class=code><pre>
++ ConsultTopic @tLemons    
+    "Apparently they're yellow and sour. "
+;
+
++ ConsultTopic 'oranges'
+    "They're round and juicy. "
+;
+
++ ConsultTopic @Door
+    "Doors can be opened and closed, and when open you can go through them. "
+;
+
++ ConsultTopic '(black|red|green) blob(s){0,1}'
+   "They're very blobby. "   
+;
+</pre></div>
+
+<p>Finally, we probably also want a response for when the player types something for which we haven't provided a matching ConsultTopic, LOOK UP ABRAHAM LINCOLN IN BOOK or CONSULT DICTIONARY ABOUT KNOWN UNKNOWNS for example. For that purpose we use a <b>DefaultConsultTopic</b> which acts a catch-all for anything we haven't specifically defined:</p>
+
+<p><div class=code><pre>
++ DefaultConsultTopic
+    "You thumb through the blue book in vain for any interesting information on
+    that topic. "
+;
+</pre></div>
+
+<p>Alternatively, we might mix in the DefaultConsultTopic with an EventList class to provide a sequence of responses:</p>
+
+<p><div class=code><pre>
++ DefaultConsultTopic, StopEventList
+  [
+    'You thumb through the blue book in vain for any interesting information on
+    that topic. ',
+	
+    'Once again you fail to find anything useful. ',
+	
+    'You begin to wonder whether this book is much use; that\'s the third time
+	 it\'s failed to provide information on something. ',
+	 
+    'Oh dear! Yet again you fail to find what you\'re looking for. '    
+   ]
+;
+</pre></div>
+
+<p>If you don't need Consultables or any other kind of TopicEntries then you can exclude topicEntry.t from your build, but note that topicEntry must be present if you want to use thoughta.t or actor.t.</p>
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Yopic Entries
+<br><span class="navnp"><a class="nav" href="senseregion.htm"><i>Prev:</i> SenseRegion</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="thought.htm"><i>Next: </i>Thoughts </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Literal Actions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Literal Actions
+<br><span class="navnp"><a class="nav" href="define.htm"><i>Prev:</i> Defining New Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topicact.htm"><i>Next:</i> Topic Actions</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Literal Actions</h1>
+
+<p>Interactive Fiction occasionally involves commands that act on literal text rather than game object. For example, the command WRITE TIME AND TIDE WAIT FOR NO MAN, is a command to write the literal text 'TIME AND TIDE WAIT FOR NO MAN' somewhere, not a command involving any object called TIME AND TIME WAIT FOR NO MAN. Similarly, the command TYPE A756y ON KEYBOARD is a command to type a the literal string 'A756y' (probably a password) on some keyboard; the keyboard is a physical game object, but the literal string is not. The first of these commands is a <strong>LiteralAction</strong>, and the second is a <strong>LiteralTAction</strong>. In this section we shall see how to work with and define both types of action.</p>
+
+<h2>Working with LiteralActions and LiteralTActions</h2>
+
+<p>LiteralActions (as opposed to LiteralTActions) are so rare that the adv3Lite library doesn't define a single one (although it does define the LiteralAction class). For either kind of action you can get at the literal value the player actually typed with the pseudo-global variable <strong>gLiteral</strong> (a macro that expands to gAction.literal). On the Command object this literal value may be defined on either the dobj property or the iobj property. For a LiteralAction the literal value is always gCommand.dobj.name. For a LiteralAction it may be either gCommand.dobj.name or gCommand.iobj.name, depending on the <em>grammatical</em> roles the physical object and literal value play in the command. For example, if the command were WRITE TIME AND TIDE ON NOTE, the literal 'TIME AND TIDE' would be the value of gCommand.doj.name and gCommand.iobj would be the note. On the other hand, if the command were TURN DIAL TO BOOSTER (where 'booster' is a possible setting for the dial), the literal 'BOOSTER' would be held in gCommand.iobj.name and gCommand.dobj would be the dial.</p>
+
+<p>Do far as the <em>action</em> is concerned, however, things may be a little different, since a LiteralTAction always considers the physical object involved in the command to be its direct object. Thus LiteralTAction.execAction(cmd) examines the dobj and iobj of the cmd object passed to it and assigns whichever is the physical object of the two to the curDobj property, and whichever is the literal of the two to its literal property. A LiteralTAction is then processed exactly like a TAction, except that is also has access to the gLiteral pseudo-variable to determine the literal text involved in the command. It's thus possible that the Command and the LiteralTAction may have differing ideas about what the direct object of the command is; so long as you're aware of this and the reason for it, this apparent discrepancy shouldn't cause you any problems.</p>
+
+<p>To handle an existing (i.e. library-defined) LiteralTAction you thus simply define the appropriate action-handling methods on the direct object of the <em>action</em>, much as you would for any other action, while making use of gLiteral as appropriate. For example, to implement a note on which the player character can write things you could define:</p>
+
+ <p><div class="code"><pre>
+note: Thing 'note; white of[prep]; sheet piece paper writing' 
+  "It's a sheet of white paper with writing on it. "
+  
+  readDesc = "On the paper is written:\n &lt;&lt;showTextList()&gt;&gt; "
+
+  textList = ['Things to do:']
+  
+  showTextList()
+  {
+     foreach(local cur in textList)
+       &quot;&lt;&lt;cur&gt;&gt;\n&quot;;
+  }
+
+  dobjFor(WriteOn)
+  {
+      /* We can't normally write on Things so we need to override verify() to make it possible */
+      verify() { } 
+      
+      action()
+      {
+          textList += gLiteral;
+          "You write &lt;q&gt;&amp;lt;&amp;lt;gLiteral&amp;gt;&amp;gt;&lt;/q&gt; on the note. ";
+      }
+      
+  }  
+;
+</pre></div>
+<br>
+
+<h2>Defining New LiteralActions and LiteralTActions</h2>
+
+<p>It's probably quite unusual to define plain LiteralActions (with no physical objects involved), but one example might be a Write action that assumes a default object to write in or on (such a notebook the player character always carries with him). Here the steps would be similar to those involved in defining an IAction, except that we'd probably use the execAction() method of the Write action to install the default writing surface as the other object of the current Command object and then use the WriteOn command to actually carry out the action:</p>
+
+ <p><div class="code"><pre>
+VerbRule(Write)
+    'write' literalDobj
+    : VerbProduction
+    action = Write
+    verbPhrase = 'write/writing (what)'
+    missingQ = 'what do you want to write'
+;
+
+DefineLiteralAction(Write)
+    execAction(cmd)
+    {
+        "(on the note)\n";
+        cmd.iobj = note;
+        WriteOn.exec(cmd);
+    }
+;
+</pre></div>
+
+<p>The main thing to note here is the use of the token <strong>literalDobj</strong> to represent where in the command the literal object comes.</p>
+
+<p>Defining a LiteralTAction requires much the same steps as definind a LiteralAction, except that the VerbRule needs two object slots, one of them being either literalDobj or literalIobj (depening on its grammatical role; remember that in either case the LiteralTAction will treat the physical object involved as actual direct object). For example, to define a CarveOn command to carve an inscription on something we might define:</p>
+
+ <p><div class="code"><pre>
+VerbRule(CarveOn)
+    ('carve' | 'inscribe') literalDobj 'on' singleIobj
+    : VerbProduction
+    action = CarveOn
+    verbPhrase = 'carve/carving (what) (on what)'
+    missingQ = 'what do you want to carve; what do you want to carve that on'
+    dobjReply = singleNoun
+;  
+  
+DefineLiteralTAction(CarveOn)
+;
+
+modifyThing
+   dobjFor(CarveOn)
+   {
+      preCond = [touchObj]
+      verify() { illogical(cannotCarveOnMsg); }
+   }
+   
+   cannotCarveOnMsg = '{I} {can\'t} carve anything on {that dobj}. '
+;
+
+statue: Thing 'statue; of[prep] fatuous; king ferdidand'
+   "It's a statue of King Ferdinand the Fatuous. "
+   stateDesc()
+   {
+       if(inscription != '')
+         return 'At its base is carved the words &lt;q&gt;&lt;&lt;inscription&gt;&gt;&lt;/q&gt;. ';
+         
+       return '';  
+   }
+
+   inscription = ''
+   
+   dobjFor(CarveOn)
+   {
+       verify() { }
+       action()
+       {
+           "You carve the words &lt;q&gt;&lt;&lt;gLiteral&gt;&gt;&lt;/q&gt; on the base of the statue. ";
+           inscription += (gLiteral + ' ');
+       }
+   }
+;</pre></div>
+   
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Literal Actions
+<br><span class="navnp"><a class="nav" href="define.htm"><i>Prev:</i> Defining New Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topicact.htm"><i>Next: </i>Topic Actions </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

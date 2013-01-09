@@ -1,0 +1,177 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Core Library &mdash; Travel Connectors and Barriers</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+TravelConnectors and Barriers
+<br><span class="navnp"><a class="nav" href="door.htm"><i>Prev:</i>Doors</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="key.htm"><i>Next:</i> Keys</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Travel Connectors and Barriers</h1>
+<h2>TravelConnectors</h2>
+
+<p>In addition to Doors, the direction property of a Room can point to a TravelConnector (a Door is in fact a particular kind of TravelConnector). A TravelConnector is a kind of object that allows you to define:</p>
+<ul>
+<li>Whether or not the exit should be listed in the exit lister.</li>
+<li>Whether or not the exit is apparent to the player character (if not, then obviously it cannot be used).</li>
+<li>Whether or not travel should be allowed in that direction according to any condition you care to define.</li>
+<li>Any side-effects of travel, such as displaying a message describing the travel.</li>
+<li>Whether or not the player character knows where the exit leads (this is relevant to the routeFinder).</li>
+</ul>
+
+<p>The methods and properties that enable a TravelConnector to be used for these purposes are as follows:</p>
+<ul>
+<li><b>destination</b> Where this TravelConnector (and hence the exit to which it is attached) leads to. This would normally be set to a Room.</li>
+<li><b>isConnectorListed</b> If this is true (the default) then the corresponding exit will be shown in the exit lister. This can be set to nil to hide the exit (presumably until something occurs to reveal it, when you would then set it to true).</li>
+<li><b>isDestinationKnown</b> This is true when the player character knows where this exit leads. By default this is true if the destination of the connector has been visited (visited = true). You can, however, define it as true at the start of the game if the player character is meant to start out knowing where the exit leads (though it may be easier to define familiar = true on a region than set isDestination = true on a whole lot of TravelConnectors). This property is mostly relevant to the <a href="pathfind.htm">routeFinder</a> (the mechanism behind the GO TO command). Note that a Room is a TravelConnector whose destination is itself (so that if an exit leads directly to a room the destination of that exit is known if the destination room has been visited). Note also that a slightly different rule applies to <a href="door.htm">doors</a>: the isDestinationKnown property of both sides of a door becomes true once the player character passes through one side or the other of it.</li>
+<li><b>travelDesc</b> A message that's displayed when the player character traverses this TravelConnector (alternatively, this could be defined as a method that carried out all sorts of side effects of traversing this TravelConnector)</li>
+<li><b>isConnectorApparent</b> This must be true if travel is to be allowed via this connector. By default this property evaluates to true if isConnectorListed is true and either the current room or the destination room is illuminated.</li>
+<li><b>execTravel(actor)</b> This method is called by travelVia(actor) to move the actor to the destination when travelling via the corresponding exit. You won't normally want to override this method unless you want it to do something drastically different like killing the player character or ending the game for some other reason. Another reason for overriding this method might be to simply display a message instead of carrying out any travel, which would then make the TravelConnector act much like an adv3 DeadEndConnector (because the before travel notifications would still be carried out).</li>
+<li><b>travelVia(actor)</b> This is the principal method called when the actor tries to traverse this TravelConnector. It first checks for travel barriers (see below), then issues the before travel notifications (by calling beforeTravel(actor, self) on every object in scope, including the current location), then, if the actor is the player character it displays the travelDesc message (if any) and notes that the player character now knows where this TravelConnector leads. It next calls execTravel(actor) and finally carries out the after travel notifications on the new location (by calling afterTravel(actor, self) on every object in scope in the new location). The only reason to override this message would be if you wanted attempting to travel via this connector to do something drastically different from a normal travel action.</li>
+<li><b>canTravelerPass(actor)</b></li> Returns true if the actor is allowed to pass through this TravelConnector. Return nil to prevent travel (normally travel would be blocked conditionally, e.g., perhaps only certain objects would be allowed to pass, or the player character is only allowed to pass if he's wearing the magic ring or not carrying the great big ladder that won't fit through the narrow gap).</li>
+<li><b>explainTravelBarrier(actor)</b> If canTravelerPass(actor) returns nil (or might return nil), explainTravelBarrier(actor) should display a message explaining why travel is disallowed.</li>
+<li><b>travelBarriers</b> An optional list of TravelBarrier objects (or a single TravelBarrier object) that enforce further conditions on traveling via this connector (see further below).</li>
+<li><b>dontChainNotifications</b> If this is set to true (the default) then this prevents the calling of <a href="react.htm#beforetravel">beforeTravel</a> notifications on the second travel connector when one travel connector leads to another (the second typically being a room).</li>
+</ul>
+
+<p>Note that although the parameter of canTravelerPass() etc. is called actor, it could also be an object that an actor is attempting to push through this TravelConnector (via a command like PUSH TROLLEY NORTH, for example). This means that canTravelerPass(actor) can also be used to selectivelty prevent the pushing of objects in certain directions; for example, you might want to use this method to prevent a heavy object being pushed up a flight of stairs.</p>
+
+<p>An example of a TravelConnector which conditionally blocks travel could be one that only allows travel down a smoke-filled passage if the player is wearing a wet blanket, which could be defined thus:</p>
+
+<p><div class=code><pre>
+landing: Room 'Landing' 'landing'
+    "The smoke is already becoming so thick here that it's hard to see much.
+    Your bedroom lies to the north -- if you can make your way through the
+    smoke. Most of the other upstairs rooms are down the passage the other way,
+    to the south, but the worst of the smoke seems to be coming from there. "
+    
+    down = landingStairs
+    
+    north: TravelConnector
+    {
+        destination = bedroom
+        
+        travelDesc = "You manage to force your way through the smoke, coughing
+            and choking as you go. "
+        
+        canTravelerPass(actor)
+        {
+            return blanket.wornBy == actor && blanket.isWet;
+        }
+        
+        explainTravelBarrier(actor)
+        {
+            if(blanket.wornBy == actor)
+                "You take a few steps down the corridor but the smoke forces you
+                back as the blanket starts to get singed. ";
+            else
+                "The smoke is too thick; you find yourself coughing and choking
+                after the first step and are forced to retreat. ";
+        }
+    }
+    
+    
+    south  { "The smoke is too thick that way; you almost choke to death
+        with the first step south you take. Well, it's not as if there's
+        anything down there you really need all that much right now. "; }
+    
+    regions = upstairs
+;
+</pre></div>
+
+<p>This incidentally illustrates that if we only want to use a particular TravelConnector once, we don't need to define it as separate named object, since we can instead define it as an anonymous nested object directly on the appropriate direction property.</p>
+
+
+
+<h2>TravelBarriers</h2>
+<p>For many simple cases conditionally preventing travel by use of the canTravelerPass() method of a TravelConnector will suffice, but there may be situations where it's not the most convenient method to do it. The two most common situations where this might arise are where:</p>
+<ol>
+<li>You want to apply the same condition (and display the same refusal message if it's not met) to a number of TravelConnectors, and it would be tedious to have to define the same canTravelerPass() and explainTravelBarrier() methods on each of them.</li>
+<li>Several different conditions apply on a TravelConnector, each requiring a different explanation if it's not met, so that the explainTravelBarrier() method would need to contain a messy mass of if statements that largely duplicate those in the canTravelerPass() method.</li>
+</ol>
+
+<p>If either or both of those two conditions obtain, you might be better off defining and using a TravelBarrier object to represent the conditional barrier to travel. There are basically two methods you need to define when creating a TravelBarrier object:</p>
+
+<ul>
+<li><b>canTravelerPass(traveler, connector)</b> Return true if <i>traveler</i> is allowed to traverse <i>connector</i> (the TravelConnector object to which this TravelBarrier instance is attached) and nil otherwise.</li>
+<li><b>explainTravelBarrier(traveler, connector)</b> Explain why the traveler is not permitted to traverse this connector if travel is disallowed.</li>
+</ul>
+
+<p>Note the additional <i>connector</i> parameter on these methods. This is most likely to be useful when you want the explainTravelBarrier() method to name the connector that's being blocked. For example, suppose our game had several exits that required the player character to be wearing a wet blanket in order to penetrate the smoke. We might set it up thus:</p>
+
+<p><div class=code><pre>
+landing: Room 'Landing' 'landing'
+    "The smoke is already becoming so thick here that it's hard to see much.
+    Your bedroom lies to the north -- if you can make your way through the
+    smoke. Most of the other upstairs rooms are down the passage the other way,
+    to the south, but the worst of the smoke seems to be coming from there. "
+    
+    down = landingStairs
+    
+    north: TravelConnector
+    {
+        destination = bedroom
+        
+        travelDesc = "You manage to force your way through the smoke, coughing
+            and choking as you go. "
+        
+        theName = 'the corridor'
+		
+		travelBarriers = [smokeBarrier]
+    }
+    
+    
+    south: TravelConnector
+    {
+	   destination = bathroom
+	   
+	   travelDesc = "With the aid of the blanket, you are able to make your way 
+	    through the smoke to the bathroom. "
+		
+	   theName = 'bathroom passage'
+	   
+	   travelBarriers = [smokeBarrier]
+    }	
+    
+    regions = upstairs
+;
+
+smokeBarrier: TravelBarrier
+        canTravelerPass(actor, connector)
+        {
+            return blanket.wornBy == actor && blanket.isWet;
+        }
+        
+        explainTravelBarrier(actor, connector)
+        {
+            if(blanket.wornBy == actor)
+                "You take a few steps down &lt;&lt;connector.theName&gt;&gt; but the smoke forces you
+                back as the blanket starts to get singed. ";
+            else
+                "The smoke is too thick; you find yourself coughing and choking
+                after the first step and are forced to retreat. ";
+        }
+;
+</pre></div>
+
+<p>Note how we've added a custom theName property to the two TravelConnectors so that smokeBarrier.explainTravelBarrier(actor, connector) can refer to them.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+TravelConnectors and Barriers
+<br><span class="navnp"><a class="nav" href="door.htm"><i>Prev:</i> Doors</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="key.htm"><i>Next:</i> Keys</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

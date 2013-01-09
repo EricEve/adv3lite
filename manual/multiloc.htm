@@ -1,0 +1,125 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Core Library &mdash; MultiLocs</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+MultiLocs
+<br><span class="navnp"><a class="nav" href="key.htm"><i>Prev:</i>Keys</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topic.htm"><i>Next:</i> Topics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>MultiLocs</h1>
+
+<p>The standard adv3Lite containment model normally assumes that each game object resides in its own container, meaning that normally an object can only be in one place at a time. Occasionally, however, we may want to define an object that's present in multiple locations, such as the sky (present in every outdoor room), or a distant mountain visible from many different locations, or, perhaps, a floor running through several rooms in a house. For situations such as these we can use a MultiLoc</p>
+
+<h2>Defining a MultiLoc</h2>
+
+<p>To define a simple MultiLoc, add MultiLoc to the class list of the item you want to define before Thing (or a class derived from Thing) and set its <b>locationList</b> property to the list of locations in which you wish the MultiLoc object to be present. The locationList property can contain a list of Rooms, but it can also contain one or more regions, which makes it particular easy to place a MultiLoc in every room in a given region. For example, to define a night sky object that appears in every Room in the outdoors Region you could do something like this:</p>
+
+<p><div class=code><pre>
+sky: MultiLoc, Thing 'sky; dark tiny crescent; moon stars'
+   "The sky is dark tonight, with only a crescent moon showing among the myriad of stars. "
+   isDecoration = true
+   notImportantMsg = 'The sky is way too far above your head. '
+   locationList = [outdoors]
+;
+</pre></div>
+
+<p>It is very convenient to be able just to specify the region in the locationList of a MultiLoc, instead of having to list each room its in individually (though you can do it that way), but sometimes you may run into a situation where you want a MultiLoc to be present in every room in a region apart from one or two exceptions. Suppose, for example, we want a MultiLoc to represent the ceiling in every room in the house, but for some reason we have a custom ceiling in the kitchen, so we don't want our MultiLoc ceiling there as well. Instead of having to list all the other rooms we want the ceiling in by hand, we can specify the region and then use the <b>exceptions</b> property to list the rooms we <i>don't</i> want our plain vanilla MultiLoc ceiling to appear in:</p>
+
+<p><div class=code><pre>
+ceiling: MultiLoc, Thing 'ceiling'
+   
+   isDecoration = true
+   notImportantMsg = 'You can\'t reach the ceiling. '
+   locationList = [indoors]
+   exceptions = [kitchen]
+;
+</pre></div>
+
+<p>It is no coincidence that these two examples both use decoration-type objects. That is generally the only safe way to use a MultiLoc, since as soon as we allow the player to interact with it any way beyond examining (and perhaps smelling, touching and listening to it) we run the risk that the game will produce illogical results because what the player does to the MultiLoc in one location will apply to the MultiLoc in every location. For example, suppose we wanted to add a floor to every room in the indoors region. Since in real life a floor is something we can stand on and put things on we might be tempted to do this:</p>
+
+<p><div class=code><pre>
+floor: MultiLoc, Thing 'floor;;ground'  <font color=red><b>// DON'T DO THIS!!!</b></font>
+   
+   contType = On  
+   isEnterable = true
+   locationList = [indoors]   
+;
+</pre></div>
+
+<p>But this would be catastrophic, for as soon as the player placed an object on the floor, that object would appear on the floor of every room in the house (since it's actually the same floor), which is almost certainly not what we want. If you want to define MultiLoc object safely, make it a decoration, like this:</p>
+
+<p><div class=code><pre>
+floor: MultiLoc, Thing 'floor;;ground' 
+   
+   isDecoration = true
+   locationList = [indoors]   
+;
+</pre></div>
+
+<p>Or at the most, perhaps:</p>
+
+<p><div class=code><pre>
+floor: MultiLoc, Thing 'floor;;ground' 
+   isDecoration = true   
+   decorationActions = [Examine, Feel, SmellSomething]  
+   feelDesc = "The floor feels reassuringly solid. "
+   smellDesc = "There's a faint smell of floor polish. "
+   locationList = [indoors] 
+;
+</pre></div>
+
+<p>The first of these is probably better, however, since if the floor responds to <i>everything</i> except EXAMINE with "The floor is not important" players will pretty quickly realize it's simply a decoration object they don't need to interact with.</p>
+
+<p>Under certain circumstances, however, it may be both legitimate and safe to define a MultiLoc that does provide a bit more action. These circumstances are:</p>
+<ol>
+<li>The MultiLoc genuinely does represent a single object at a single spot, and not an extended object (like the ground or the sky) or similar objects in multiple location (like floors and ceilings in a house).</li>
+<li>The reason for defining it as a MultiLoc is that it is right on the boundary of two or more rooms and is equally accessible from each of them.</li>
+</ol>
+
+<p>An example might be a fountain that stands right at the centre of a square you're implementing as four different locations. The fountain is accessible from each corner of the square, so if you throw a coin into it from one corner you could indeed retrieve the coin from another:</p>
+
+<p><div class=code><pre>
+floor: MultiLoc, Thing 'fountain;large ;water fish mouth'
+   "It's a large fountain in the form of an improbable looking fish with water gushing from its mouth. " 
+   isFixed = true
+   contType = In
+   locationList = [squareNE, squareNW, squareSE, squareSW] 
+;
+</pre></div>
+
+<p>If we had defined a square region we could simply have used that in the locationList, but this seemed a good idea to show what a MultiLoc with an explicit list of rooms looks like.</p>
+<p>
+<h2>Moving MultiLocs</h2>
+<p>It may sometimes be necessary to move MultiLocs around. For example, if the game with the night sky defined long enough was meant to go on into the next day, at some point it might be necessary to remove the night sky with its moon and stars and replace it with a daytime one with the sun and some clouds. The following methods are available for moving MultiLocs around:</p>
+
+<ul>
+<li><b>moveIntoAdd(loc)</b>: moves the MultiLoc into loc in addition to its existing locations.</li>
+<li><b>moveOutOf(loc)</b>: moves the MultiLoc out of loc while leaving it present in all its other locations.</li>
+<li><b>moveInto(loc)</b>: moves the MultiLoc out of all its existing locations and into loc. One common use for this might be to call moveInto(nil) on a MultiLoc to move it off-stage altogether.</li>
+<li><b>addToLocations()</b>: moves the MultiLoc into all the locations in its locationList (and then out of all the locations in its exception list). This is called at library preinitialization to set up MultiLocs initially, but it could also be used during the course of a game to restore a MultiLoc to all its original locations after using moveInto(nil) to move it off-stage.</li>
+</ul>
+
+<h2>The location of a MultiLoc</h2>
+
+<p>You can test whether a MultiLoc is present in a location by using the <b>isIn(loc)</b> or <b>isDirectlyIn(loc)</b> methods, just as you do on a Thing. MultiLoc also defines its own version of the <b>location</b> property, which you should never override. In one sense the location property of a MultiLoc ought to be meaningless, since a MultiLoc generally does not reside in only one location, but for certain purposes the library needs to use a MultiLoc's location property, since certain calculations it makes assume that every physical object defines one, and it may occasionally be useful in game code to be able to make the same assumption when writing code that may apply to any object. The location property of a MultiLoc is taken to be the location of the current actor (or of the player character if no actor is defined), provided the MultiLoc is present there. Otherwise the location property is taken to be the last place the MultiLoc was seen.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+MultiLocs
+<br><span class="navnp"><a class="nav" href="key.htm"><i>Prev:</i> Keys</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="topic.htm"><i>Next:</i>Topics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

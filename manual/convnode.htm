@@ -1,0 +1,180 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Conversation Nodes</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Conversation Nodes
+<br><span class="navnp"><a class="nav" href="specialtopic.htm"><i>Prev:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Conversation Nodes</h1>
+
+<p>There may come a point in a conversation where particular responses are appropriate. For example, an NPC may have asked a question demanding an answer, perhaps yes or no. The replies YES and NO are then only meaningful in that particular context. Or at least, in the context of a different question they might have quite different meanings, and in general they might have no meaning at all. Or as another example, a remark by an NPC may make certain questions particularly appropriate. If an NPC announces that his best friend has just died, you might want to offer your condolences or ask how it happened. Again such responses are particularly relevant just at that particular point in the conversation, and might quickly become less relevant as the conversation moves on.</p>
+
+<p>In the adv3Lite library, a Conversation Node is such a moment in a conversation between the player character and another actor. In real-life conversation just about every moment in a conversation is a node in this sense, unless and until someone deliberately decides to change the subject. That is, in real-life conversation what has just been said generally places some constraints on what can reasonably be said next, evem if we don't in fact choose what to say next from a finite set of choices set out in a mental menu. To model this thoroughly in IF conversation, i.e. to make every moment in the conversation a node, could quickly become extremely laborious, but the presence of some conversation nodes in a work of IF can lend some shape to the conversation, and certain situations (such as supplying the player character with appropriate Yes and No responses) would be quite impossible without them.</p>
+
+<p>Thus far, we have used the term 'Conversation Node' to refer to the abstract concept, not to its implementation. The avd3 library used ConvNode objects to implement Conversation Nodes. There are no ConvNode objects in adv3Lite, which model Conversation Nodes rather differently, once again making use of the convKeys property.</p>
+
+<p>In essence, using the tag <strong>&lt;.convnode key&gt;</strong> sets up a Conversation Node in which the TopicEntries whose convKeys match <em>key</em> are considered the most appropriate to use next. More specifically, &lt;.convnode key&gt; gives TopicEntries whose convKey matches <em>key</em> priority over all other TopicEntries in selecting the best match to the player's next conversational command. It follows that if there's a DefaultTopic with a convKeys property that matches <em>key</em>, then that DefaultTopic will mask other TopicEntries of the same kind for as long as the Conversation Node persists (by default, until the next conversational command has been executed). Defining a DefaultAnyTopic whose convKeys matches <em>key</em> is therefore a way of restricting the possible responses to those that match the conversation node key. If you want to list the conversational options open to the player on entering the Conversation Node place a &lt;.topics&gt; tag immediately after the &lt;.convnode&gt; tag (this isn't done by default since it may not always be appropriate; for example just after an NPC has asked what might be a purely rhetorical question).</p>
+
+<p>If multiple &lt;.convnode&gt; tags are output in succession, e.g. &lt;.convnode key1&gt;&lt;.convnode key1&gt;&lt;convnode key3&gt;, the effect is to set up a Conversation Node that includes all the TopicEntries whose convKeys contain at least one of these keys (e.g. <em>key1</em> or <em>key2</em> or <em>key3</em>). This would be equivalent to:</p>
+ <p><div class="code"><pre>
+  someActor.addPendingKey('key1');
+  someActor.addPendingKey('key2');
+  someActor.addPendingKey('key3');
+</pre></div>
+<p>Or just:</p> 
+ <p><div class="code"><pre>
+  someActor.pendingKeys = ['key1', 'key2', 'key3'];
+</pre></div>
+
+<p>While this shows how to restrict or at least encourage the conversation to choose between a limited range of topics at a particular point (the Conversation Node), it does not show how we can make certain TopicEntries respond only at a given node (e.g., we may have several YesTopics and NoTopics, and we want each one only to respond just after the relevant question has been asked). We can restrict an ActorTopicEntry's applicability to a specific node by setting its isActive property to <strong>nodeActive()</strong>. An ActorTopicEntry's nodeActive() method evaluates to true only if its convKeys overlaps with the actor's current activeKeys (i.e. with the pendingKeys that were set up on the previous turn).</p>
+
+<p>Finally, to stay in the same Conversation Node for more than one conversational turn we can use the <strong>&lt;.convstay&gt;</strong> tag (or set the actors's keepPendingKeys property to true). Note that we'd have to do this on each additional turn we wanted to stay in the same Conversation Node. If the conversation does stay at the same node, you  may want the NPC to be able to prompt the player character for a response if the player does not issue a conversational command on any turn. For this purpose you can define a <strong>NodeContinuationTopic</strong>, and set its convKeys property to the current node (or to a list of all the nodes in which you want it to be active. </p>
+
+<p>This should all become clearer with the aid of a few examples.</p>
+<br>
+
+<h2>Examples</h2>
+
+<p>You may recall in the previous section we gave an example of a QueryTopic that included a question at the end of the NPC's response:</p>
+
+<p><div class="code"><pre>
++ QueryTopic 'how' 'old he is; are you'
+    &quot;&lt;q&gt;How old are you?&lt;/q&gt; you ask.\b
+    &lt;q&gt;None of your damned business,&lt;/q&gt; he replies. &lt;q&gt;Would you like someone
+    asking you about your age?&lt;/q&gt; &quot;
+      
+    askMatchObj = tAge    
+;
+</pre></div>
+
+<p>Perhaps the question "Would you like someone asking you about your age?" is a purely rhetorical one, but it at least invites the player to respond YES or NO; but clearly any YES or NO responses given would be particular to this precise point in the conversation: they wouldn't be relevant any sooner or any later. In other words, with this question the conversation has arrived at a Conversation Node.</p>
+
+<p>To implement the node we could simply add a &lt;.convnode&gt; tag to the end of Bob's response, and then a YesTopic and a NoTopic keyed to the same node:</p>
+
+<p><div class="code"><pre>
++ QueryTopic 'how' 'old he is; are you'
+    &quot;&lt;q&gt;How old are you?&lt;/q&gt; you ask.\b
+    &lt;q&gt;None of your damned business,&lt;/q&gt; he replies. &lt;q&gt;Would you like someone
+    asking you about your age?&lt;/q&gt; &lt;.convnode age-node&gt;&quot;
+      
+    askMatchObj = tAge    
+;
+
+
++ YesTopic
+    &quot;&lt;q&gt;Yes, sure, I wouldn't mind,&lt;/q&gt; you reply.\b
+    &lt;q&gt;Well, I do,&lt;/q&gt; he grunts. &quot;
+    convKeys = ['age-node']     
+;
+
++ NoTopic
+    &quot;&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;Well, there you are then!&lt;/q&gt; he declares triumphantly. &quot;
+    convKeys = ['age-node']    
+;
+
+</pre></div>
+
+<p>There's nothing magic about the name 'age-node' by the way. We don't have to include 'node' in the name just because we're setting up a Conversation Node; doing so just makes the purpose of the convKey a bit clearer.</p>
+
+<p>The above implementation will work after a fashion, in that if the player types YES or NO immediately after the NPC asks "Would you like someone asking you about your age?" s/he'll get the expected response. The trouble is, there's nothing that <em>restricts</em> these yes and no responses to this particular Conversation Node. As we've defined them, they could be triggered by the player typing YES or NO at any point. To restrict them to this particular Conversation Node we need to set their isActive property to nodeActive:</p>
+
+ <p><div class="code"><pre>
++ YesTopic
+    "<q>Yes, sure, I wouldn't mind,</q> you reply.\b
+    <q>Well, I do,</q> he grunts. "
+    convKeys = ['age-node']
+    isActive = nodeActive    
+;
+
++ NoTopic
+    "<q>No, I suppose not,</q> you concede.\b
+    <q>Well, there you are then!</q> he declares triumphantly. "
+    convKeys = ['age-node']
+    isActive = nodeActive    
+;
+</pre></div>
+
+<p>Note that if we had listed several keys in the convKeys property of these TopicEntries, they would have been available in those other Conversation Nodes as well; this makes such TopicEntries potentially reusable. Not also that we could also include a response here that's also available outside the ConversationNode. For example, suppose we also wanted the player character to be able to respond at this point by telling the NPC his age, but we wanted him to be able to do so elsewhere as well. We could achieve that by defining a TellTopic that had 'age-node' in its convKeys property but didn't set its isActive property to nodeActive:</p>
+
+ <p><div class="code"><pre>
++ TellTopic @tYourAge
+    "<q>I'm forty-three,</q> you tell him.\b
+    <q>Well bully for you!</q> he declares. "
+    convKeys = ['age-node']
+    autoName = true
+;
+</pre></div>
+
+<p>Note also that if you do set isActive to nodeActive, there is nothing to stop you adding further conditions to the isActive property (<span class="code">isActive = nodeActive &amp;&amp; whatever</span>) if you need them.</p>
+
+<p>So far we have supposed that Bob intended his question rhetorically. But if he actually expects an answser to "Would you like someone asking you about your age?" we could make him prompt the player for one until he receives it. For this purpose we can define a <strong>NodeContinuationTopic</strong> and set its convKeys property to the appropriate node:</p>
+
+ <p><div class="code"><pre>
++ NodeContinuationTopic
+    "&lt;q&gt;I thought I asked you a question,&lt;/q&gt; Bob reminds you. "
+    convKeys = ['age-node']
+;
+</pre></div>
+
+<p>There's no need to define the isActive property here, since NodeContinuationTopic defines is as nodeActive by default. Note, however, that we could have mixed NodeContinuationTopic in with an EventList class and provided a list of different nudges for Bob to say. Either way the NodeContinuationTopic will run on each turn that the player does not enter a conversational command.</p>
+
+<p>As things stand, the player still does not need to reply with one of the topics belonging to the Conversation Node (even though these will be the only ones listed in response to a TOPICS command or a &lt;.topics&gt; tag). Any conversational command entered by the player will serve to move the conversation on. But if Bob is really insistent on an answer to his question, you may want to so arrange things that the conversation cannot move on until the player has provided a satisfactory reply (i.e. one matching a topic specifically belonging to the Conversation Node). The way to do this is to define a DefaultTopic that's only active in the node in question, but which blocks attempts to leave the node until a satisfactory reply is given. For example:</p>
+
+ <p><div class="code"><pre>    
++ DefaultAnyTopic
+    &quot;&lt;q&gt;Don't try to change the subject; I want to know whether you'd like
+    someone asking about your age,&lt;/q&gt; he insists. &lt;q&gt;Well, would you?&lt;/q&gt;
+    &lt;.convstay&gt; &lt;.topics&gt; &quot;
+    convKeys = ['age-node']
+    isActive = nodeActive
+;
+</pre></div>
+
+<p>It's very important the we remember to define <span class="code">isActive = nodeActive</span> here, otherwise this DefaultAnyTopic might be fired at any time. Note the use of the &lt;.convstay&gt; tag to keep the Conversation at the current node. The use of the &lt;.topics&gt; tag to remind the player of what topics are available within the node is optional here, but might serve as a useful reminder, as well as a nudge to pick one of them. You can also combine the function of both tags at once with a <strong>&lt;.constayt&gt;</strong> tag. Similarly, you can combine the effects of a <.convode node> and a <.topics> tag with a single <strong>&lt;.convodet node&gt;</strong> tag.</p>
+
+<p><a name="nodecheck"></a>There's one further refinement we can add, if we want to, and that's to prevent the conversation being terminated while it's at this node. To do this need to define a <strong>NodeEndCheck</strong> object (in fact a special kind of InitiateTopic) with the appropriate convKeys and then define its <strong>canEndConversation(reason)</strong> method to return nil, or blockEndConv, if we want to disallow ending the conversation. For example, to prevent the player character from saying goodbye while we're at this node we could define:</p>
+
+ <p><div class="code"><pre>
++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        if(reason == endConvBye)
+        {
+            &quot;&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; Bob complains. &lt;q&gt;Would
+            you like someone to ask you about your age or wouldn't you?&lt;/q&gt; &quot;;
+                              
+            return blockEndConv;
+        }
+        
+        return true;
+    }
+    
+    convKeys = ['age-node']
+;
+</pre></div>
+
+<p>Once again we don't need to explicitly define the isActive property of the NodeEndCheck object since the NodeEndCheck class already defines it to be nodeActive. We have the canEndConversation() method return blockEndConv rather than just nil here to suppress any output our NodeContinuationTopic might otherwise produce on the same turn, which we may not want if Bob has already just spoken (in adv3Lite blockEndConv() is in fact a mehod of NodeContinuationTopic that calls noteConversed() on the Actor and then returns nil; it's called blockEndConv for consistency with adv3 although the implementation is quite different). An alternative method would have been to have canEndConversation display a much more generic refusal to accept a goodbye and then return nil, leaving ther NodeContinuationTopic to prompt the player with Bob's specific question. That way we could list several conversation nodes in the NodeEndCheck's convKeys property and have the one NodeEndCheck object block saying goodbye in them all.</p>
+
+<p>For a fuller explanation of the <em>reason</em> parameter, of saying goodbye, and of checking whether conversations are allowed to end, see the section on <a href="hello.htm">Hello and Goodbye</a> below.</p>
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Conversation Nodes
+<br><span class="navnp"><a class="nav" href="specialtopic.htm"><i>Prev:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

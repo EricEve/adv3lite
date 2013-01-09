@@ -1,0 +1,93 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Hints</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Hints
+<br><span class="navnp"><a class="nav" href="menu.htm"><i>Prev:</i> Menus</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="pathfind.htm"><i>Next:</i> Pathfinding</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Hints</h1>
+<p>The hintsys.t module can be used to implement a built-in hint system for your game. If you don't want any built-in hints in your game, exclude hintsys.t from your build. If you do include hintsys.t you must also include menusys.t.</p>
+
+<p>The hintsys module in advLite is almost identical to that in adv3, except that what adv3 calls the openWhenDescribed and closeWhenDescribed properties of Goal are called openWhenExamined and closeWhenExamined in adv3Lite, and adv3Lite additionally defines openWhenMoved and closeWhenMoved.</p>
+
+<p>To build a hint system with the hintsys.t module, you must start by defining a <b>TopHintMenu</b> item, which can be an anonymous object. The hintManager will automatically register the TopHintMenu item with the library so that a HINTS command can make use of it. Depending on how many hints you're likely to need to show at once, you can either put <b>Goal</b> objects directly under the TopHintMenu (a Goal object describes a current objective the player may be trying to achieve) or create a sub-menu structure using <b>HintMenu</b> items; for example:</p>
+
+<p><div class=code><pre>
+ topHintMenu: TopHintMenu 'Hints';
+   + HintMenu 'General Questions';
+   ++ Goal 'What am I supposed to be doing?' [answer, answer, answer];
+   ++ Goal 'Amusing things to try' [thing, thing, thing];
+   + HintMenu 'First Area';
+   ++ Goal 'How do I get past the shark?' [answer, answer, answer];
+   ++ Goal 'How do I open the fish tank?' [answer, answer, answer];
+   + HintMenu 'Second Area';
+   ++ Goal 'Where is the gold key?' [answer, answer, answer];
+   ++ Goal 'How do I unlock the gold door?' [answer, answer, answer];  
+</pre></div>
+
+<p>Note that there's no requirement that the hint menu tree takes exactly this shape.  A very small game could dispense with the submenus and simply put all of the goals directly in the top hint menu.  A very large game with lots of goals could add more levels of sub-menus to make it easier to navigate the large number of topics.</p>
+
+<p>The main work of building your hint system will be in defining your <b>Goal</b> object. Each Goal typically represents a task that the player is currently trying to achieve. To avoid giving too much away prematurely you generally want to avoid displaying a Goal until the player knows s/he needs to achieve it, and to avoid cluttering your hints menu you generally want to stop offering hints for a Goal once it's been achieved. A Goal can thus be in one of three states: Undiscovered, Open and Closed. An Undiscovered Goal is one the player doesn't know about yet. An Open Goal is one the player should be currently working on. A Closed Goal is a task that no longer needs working on (either because it's been solved or because other circumstances have rendered it unnecessary). Goals generally start out Undiscovered and the library generally takes care of their state for you according to other properties you define (more on which immediately below), but if you want to provide the player with hints on something right from the start of the game (e.g. 'What am I mean to be doing?') you can define it as Open from the start by setting its goalState property to OpenGoal.</p>
+
+<p>Otherwise, to make a Goal become open at the appropriate point of the game you can define one of the following properties to stipulate the conditions under which the Goal becomes open:</p>
+
+<ul>
+<li><b>openWhenSeen = <i>obj</i></b>: The Goal becomes open when the object defined on this property has been seen by the player character.</li>
+<li><b>openWhenExamined = <i>obj</i></b>: The Goal becomes open when the object defined on this property has been examined by the player character.</li>
+<li><b>openWhenMoved = <i>obj</i></b>: The Goal becomes open when the object defined on this property has been moved.</li>
+<li><b>openWhenKnown = <i>obj</i></b>: The Goal becomes open when the player character knows about the object or topic defined on this property.</li>
+<li><b>openWhenRevealed = <i>'key'</i></b>: The Goal becomes open when gRevealed('key') is true ('key' is an arbitrary string; you make it count as revealed by calling gRevealed('key')).</li>
+<li><b>openWhenAchieved = <i>achievement</i></b>: The Goal becomes open when the achievement defined on this property has been achieved (as defined in the <a href="score">scoring</a> module).</li>
+<li><b>openWhenTrue = <i>condition</i></b>: The Goal becomes open when the condition becomes true. This can be used to define any other condition not covered by those above.</li>
+</ul>
+ 
+<p>You close a Goal in exactly the same way, except that the properties for closing Goals are called closedWhenSeen, closeWhenExamined, closeWhenMoved, closeWhenKnown, closeWhenRevealed, closeWhenAchieved and closeWhenTrue.</p> 
+ 
+<p>The other part of defining a Goal is defining the list of hints that lead towards its achievement. You define these on the menuContents property (the second item in a Goal template) as a list, normally of single-quoted strings, each one successively nudging the player towards the goal by giving just a bit more information or a slightler clearer clue (since they will be displayed one at a time); for example:</p>
+
+<p><div class=code><pre>
++ Goal 'Where is the gold key?'
+   [
+      'What did the old man tell you?',
+      'Specifically, about rhymes? ',
+      'What rhymes with gold? ',
+      'Have you seen anything cold round here? ',
+      'What\'s the temperature like in the fountain? '
+   ]
+   
+   openWhenSeen = goldDoor
+   closeWhenSeen = goldKey
+;
+
+</pre></div>
+
+<p>Occasionally, though, you may want to use a Hint object instead of a single-quoted string in this list. This can be useful either when you want the same hint to appear in more than one list, or you want displaying the hint to open a fresh goal. For example, instead of the final item in the previous example we might have defined:</p>
+
+<p><div class=code><pre>
+fountainHint: Hint 'What\'s the temperature like in the fountain? ' [fountainGoal] ; 
+</div>
+
+<p>This would display the text "What\'s the temperature like in the fountain?" and at the same time open the fountainGoal Goal. (The properties of Hint used in this template are hintText, a single-quoted string, and referencedGoals, a list of Goal objects).</p>
+
+<p>Occasionally we may want our hint menu to display some instructions that are always present, rather than transient hints. For this purpose we can use a <b>HintLongTopicItem</b>, which is the hint menu equivalent of a MenuLongTopicItem.</p>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Hints
+<br><span class="navnp"><a class="nav" href="menu.htm"><i>Prev:</i> Menus</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="pathfind.htm"><i>Next: </i>Pathfinding </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Core Library &mdash; Rooms and Regions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+Rooms and Regions
+<br><span class="navnp"><a class="nav" href="thing.htm"><i>Prev:</i>Things</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="roomdesc.htm"><i>Next:</i> Room Descriptions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Rooms and Regions</h1>
+<p>In addition to Thing, the other absolutely essential class you need to write a TADS game with the adv3Lite library is Room. Every game must have at least one Room in which the action takes place. Your game may have several Rooms (depending on the size of the game world you want to implement. Notice that in Interactive Fiction in general and the adv3Lite in particular a Room isn't necessarily a room in a house (such as a kitchen or study) but any area the contents of which are considered accessible to the player character; so, while a Room could be a conventional room in a house, it could also be one corner of a city square, or a section of a riverbank, or a woodland path, or a meadow, part of the deck of a ship, or any number of other such things.</p>
+<p>A Room is a kind of Thing (or, to put it more technically, Room is a subclass of Thing) so Room inherits all the properties and methods of Thing, but in practice you won't use many of them, and in the main you'll be using the methods and properties specific to Room. (Possible exceptions include the vocab property and the isLit property, which determines if the Room is lit or dark; by default it's lit. Another clear exception is the desc property, which contains the description of the Room).</p>
+
+<h2>Defining a Room</h2>
+<p>The basic properties to define on a Room are its <b>roomTitle</b> (the name that's displayed in bold at the start of a room description), its <b>desc</b> (the body of the room description) and, optionally, its <b>vocab</b>. The normal way to define these properties is through the Room template. Without the vocab property this looks like this:</p>
+
+<p><div class=code><pre>
+kitchen: Room 'Kitchen' 
+    "This kitchen is equipped much as you'd expect, with, for example, a sink
+    over by the window, a large table in the middle of the room, and an oven
+    over by the back door to the east, not far from the fridge. The other exits
+    are west to the hall, north to the dining-room and down to the cellar. "
+;
+</pre></div>
+
+<p>If the vocab property is defined, it is given in a second single-quoted string, thus:</p>
+
+<p><div class=code><pre>
+kitchen: Room 'Kitchen' 'kitchen' 
+    "This kitchen is equipped much as you'd expect, with, for example, a sink
+    over by the window, a large table in the middle of the room, and an oven
+    over by the back door to the east, not far from the fridge. The other exits
+    are west to the hall, north to the dining-room and down to the cellar. "
+;
+</pre></div>
+
+<p>In general, it's probably better to use the second form, since there are a couple of advantages to defining the vocab property on a Room:<p>
+
+<ol>
+<li>If you want the player to be able to use the GO TO command (implemented via pathfind.t) rooms have to have vocab words for the player to be able to refer to them in a command like GO TO KITCHEN.</li>
+<li>By defining the vocab property you also automatically define the Room's name property (and hence it's theName property), which can be useful if you want the game to display a message that includes the name of the Room (e.g. 'You wander into the kitchen', perhaps generated from "You wander into &lt;&lt;getOutermostRoom.theName&gt;&gt;. "). In the kitchen example above this may look a little redundant since the name is the same as the roomTitle, but this need not always be the case. For example you might have a room whose roomTitle is 'Portland Square (east side)', which wouldn't work too well as a name (you might want to name it 'east side of Portland Square', for example).</li>
+</ol>
+
+<h2>Direction Properties</h2>
+
+<p>Unless your game only has a single room, you will generally need to provide some means of travelling from one location to another, and the normal way of doing that in an IF game is by defining direction properties on a Room. These correspond to the command a player would type to move in the corresponding direction (e.g. if the player typed NORTH or GO NORTH the game would attempt to move the player character according to the value of the current room's north property). The adv3Lite library provides 16 such properties:</p>
+
+<ul>
+<li>The eight compass directions: north, south, east, west, northeast, northwest, southeast and southwest.</li>
+<li>The four shipboard directions: port, starboard, fore and aft.</li>
+<li>The four other directions: up, down, in and out.</li>
+</ul>
+
+<p>You do not have to define all of these directions on every Room (indeed, you'll probably never do so); if any direction property is left at nil that simply means that travel is not possible in that direction. But if you do define any of these properties they can be defined as one of:</p>
+
+<ul>
+<li>Another Room, in which case the player character would be moved to that room.</li>
+<li>A <a href="door.htm">Door</a>, in which case the player would attempt to go through that door (but may be prevented from doing so if the door is locked).</li>
+<li>A <a href="travel.htm">TravelConnector</a> (or any object subclassed from TravelConnector), in which case that TravelConnector's travelVia(actor) method will be triggered.</li>
+<li>A single- or double-quoted string, in which case the string will simply be displayed.</li>
+<li>A method, in which case the method will be executed.</li>
+<li>The asExit macro, e.g. <span class=code>out asExit(west)</span>, in which case the command OUT will result in trying to move the player character west, without OUT being listed as a separate exit in any list of exits.</li>
+</ul>
+
+<p>If you define a direction property as a Room, Door, TravelConnector or method, then the corresponding direction will be shown in the list of exits (assuming that the module exits.t is present in your game). You can change this behaviour on a TravelConnector (and hence also on a Room or Door) by setting its isListed property to nil. A method will (virtually) always be listed as a possible exit (since presumably the point of defining it as a method is that something happens if the player character attempts to move in that direction). An exit defined as a single- or double-quoted string will never be listed as an available exit.</p>
+
+<p>It follows from this that defining a direction property as a string is equivalent to using a NoTravelMessage in the adv3 library (for which reason NoTravelMsg is not defined in the adv3Lite library). Likewise, a method that simply displays a string is equivalent to an adv3 FakeConnector (which is likewise not defined in the adv3Lite library). For example:</p>
+
+<p><div class=code><pre>
+kitchen: Room 'Kitchen' 'kitchen' 
+    "This kitchen is equipped much as you'd expect, with, for example, a sink
+    over by the window, a large table in the middle of the room, and an oven
+    over by the back door to the east, not far from the fridge. The other exits
+    are west to the hall, north to the dining-room and down to the cellar. "
+	
+	north = diningRoom
+	east = backDoor
+	west = hall
+	down = cellar
+	south = "Unfortunately, you can't simply walk through the window, and you have no means of opening it. "
+	southwest { "You have no reason to visit the pantry. "; }
+;
+</pre></div>
+
+<p>This illustrates what is probably likely to be the most common use of a method defined on a direction property, but in principle such a method can do anything you like, including killing the player character, ending the game in victory, or moving the player character to another location. If a direction-property method does result in the player character being moved to another location, the library keeps track of it in a LookupTable for use by the pathfinder, however for anything other than displaying a message that doesn't result in travel or ending the game, it's probably better and cleaner to use a TravelConnector to carry out the side-effects of travel (rather than defining them in a method). The possibility of doing whatever you like in a method is nevertheless there if you want it.</p>
+
+<h2>Directions</h2>
+
+<p>A direction in the adv3Lite object is generally represented by an object of type Direction, usually named with the name of the direction plus 'Dir', e.g. northDir, eastDir, downDir, southwestDir. For the most part you won't need to worry about direction objects since they generally take care of themselves, but occasionally you may want to refer to the name of a direction object when it's used as a parameter for some method or an element of a list (e.g. in the route finder) to indicate the direction taken.</p>
+
+<p>Otherwise, the only time you might want to worry about Direction objects is if you want to define a custom direction. This is a relatively straightforward process, best explained by means of an example. Suppose, for example, you wanted to implement a nornoreast direction which caused the player character to travel via the nornoreast property of the current room when the player entered the command NORNOREAST or NNE. You would just need to do this:</p>
+
+<p><div class=code><pre>
+nornoreastDir: Direction
+    name = 'nornoreast'
+    dirProp = &amp;nornoreast
+    sortingOrder = 1450
+;
+
+grammar directionName(nornoreast): 'nornoreast' | 'nne' : Production
+    dir = nornoreastDir
+;
+</pre></div>
+
+<p>With these two definitions, you could then used nornoreast just like any of the built-in directions. The <b>sortingOrder</b> property on the Direction object defines the order in which this direction will appear in any list of exits; I chose 1450 here since this would make nornoreast come just after northeast. The grammar declaration that follows enables the parser to recognize 'nornoreast' and 'nne' as referring to the nornoreast direction.</p>
+
+<h2>Other Room Properties and Methods</h2>
+
+<p>Some other properties and methods of Room you may find useful include:</p>
+
+<ul>
+<li><b>darkName</b> The name to use in place of the roomTitle when the room is dark. By default this is simply 'In the dark', but you can change it to anything you like.</li>
+<li><b>darkDesc</b> The description to use in place of desc when the room is dark. By default this is "It is dark; you can't see a thing." but you can change it to anything you like.</li>
+<li><b>isIlluminated()</b> and <b>litWithin()</b> Both these methods return true if the room is lit and nil if it's in darkness (a room is lit if its own isLit property is true or if there's a visible light source within the room)</li>
+<li><b>cannotGoThatWayMsg</b> The message that's displayed if travel is attempted in a direction that's undefined (i.e. nil). By default this is "You can't go that way. "</li>
+<li><b>cannotGoThatWay(dir)</b> The method that's called when travel is attempted in an undefined direction. By default this simply displays the cannotGoThatWayMsg and then displays a list of available exits, if the exits.t module is present. The dir parameter is the direction object corresponding to the attempted direction of travel, e.g. northDir.</li>
+<li><b>allowDarkTravel</b> Normally (when this property is set to nil) we don't allow travel from one dark location to another. Set this property to true if you do want to allow travel from this location when dark to another dark location.</li>
+<li><b>cannotGoThatWayInDarkMsg</b> The message to display when travel is not allowed from a dark location (either because the direction doesn't lead anywhere or because it goes to another dark location). By default this is "It's too dark to see where you're going. "</li>
+<li><b>cannotGoThatWayInDark(dir)</b> The method that's called when travel is disallowed from a dark location. The default behaviour is to display the cannotGoThatWayInDarkMsg and then display a list of available exits (if the exits.t module is present). Note that in this context the available exits will be only those that lead to illuminated locations (unless allowDarkTravel is true).</li>
+<li><b>roomBeforeAction()</b> This method is called on the room just before an action is about to take place, allowing the room to respond to or block the incipient action.</li>
+<li><b>roomAfterAction()</b> This method allows the room to respond to an action that's just taken place (e.g. by reporting an echo if the action was YELL or saying that the player character just cracked his head on the low ceiling if the action was JUMP)</li>
+<li><b>roomDaemon()</b> This method is called on the player character's location (the room s/he's in) each turn towards the end of the action processing cycle. It can be used, for example, to display a series of atmpospheric message string (e.g. by defining the Room as also being a ShuffledEventList and calling its doScript() method to cycle through its eventList).</li>
+<li><b>extraScopeItems</b> A list of items that would not normally be in scope but which should nevertheless be placed in scope in this room. This can of course be defined as a method that returns different lists of items under different circumstances.</li>
+<li><b>regions</b> An optional list of the regions that this room is regarded as being within (for the concept of regions, see below).</li>
+<li><b>isIn(region)</b> Tests whether this Room is in the specified region. Note that this isn't simply a matter of testing whether the specified region is listed in the room's regions property, since one region may be inside another. Thus, for example, if the regions property of the hall was [downstairs] and the regions property of the downstairs region was [indoors], hall.isIn(indoors) would be true.</li>
+<li><b>visited</b> Has the player character visited (i.e. been in) this room? This is true either if a room description has been shown when the room is lit, or if it's been shown when recognizableInDark is true for this room.</li>
+<li><b>recognizableInDark</b> If this is set to true, then a room is set to both familiar and visited if a room description is shown when it's dark (typically, because the player character enters the room when it's dark). This allows game authors to distinguish between a room that's so dark the player character can't even tell where s/he is (recognizableInDark = nil, the default) and a room that's too dark to see much by but nevertheless recognizable (e.g. a dark cellar, which the player knows must be the cellar even though there's little light there).</li>
+<li><strong>travelerLeaving(traveler, dest)</strong>: this is invoked on the room when <em>traveler</em> is about to leave the room to go to <em>dest</em>.</li>
+<li><strong>travelerEntering(traveler, dest)</strong>: this is invoked on the room when <em>traveler</em> is about to enter it from another room. (The dest parameter is strictly redundant but is supplied for compatibility with the same method on Region).</li>
+</ul>
+<p>Note that some of these explanations involve concepts we haven't come to yet. Don't worry; they will be explained fully in their place when we come to them.</p>
+<br>
+
+<h2>Closed Containers as Quasi-Rooms</h2>
+<p>Although all the above properties and methods have been described as belonging to Room, several of them are in fact defined on Thing, to allow for the possibility that the player character may at some point be inside a closed container and look around from inside it. In that case you can use the roomTitle, darkName and darkDesc properties on the containing Thing to determine what it should be called and how it should be described from the inside. These work in just the same way as they do for Room, as does the isIlluminated() method. You can also override the <strong>interiorDesc</strong> property to describe how the closed container looks from the inside.</p>
+
+<br>
+
+<h2><a name="regions">Regions</a></h2>
+
+<p>Regions in adv3Lite are simply a means of grouping Rooms together in any way you find useful (e.g. all downstairs rooms, all indoor rooms, all forest rooms, all riverside rooms, all outdoor rooms). You don't have to use Regions if you don't want to, but they are straightforward to use if you do. To include a Room in a Region, simply list that Region in the Room's region property and create a corresponding Region object, for example:</b>
+
+<p><div class=code><pre>
+kitchen: Room 'Kitchen' 'kitchen' 
+    "This kitchen is equipped much as you'd expect, with, for example, a sink
+    over by the window, a large table in the middle of the room, and an oven
+    over by the back door to the east, not far from the fridge. The other exits
+    are west to the hall, north to the dining-room and down to the cellar. "
+	
+	regions = [downstairs]
+;
+
+downstairs: Region
+;
+</pre></div>
+
+<p>Regions can themselves be included within other regions by setting their regions property. For example, to place the downstairs Region entirely within the indoors Region we could write:</p>
+
+<p><div class=code><pre>
+downstairs: Region
+  regions = [indoors]
+;
+
+indoors: Region
+;
+</pre></div>
+
+<p>It is also perfectly legal to define the regions property of Rooms in such a way that Regions end up overlapping.</p>
+
+<p>The properties and methods of Region you may find useful include:</p>
+
+<ul>
+<li><b>regions</b> A user-defined list of one or more regions that wholly contain this Region.</li>
+<li><b>isIn(other)</b> Tests whether this Region is directy or indirectly contained in the other Region.</li>
+<li><b>isOrIsIn(other)</b> Tests whether this Region either is the other Region or is directly or indirectly contained in the other Region.</li>
+<li><b>roomList</b> A list of all the Rooms lying within this Region (note: this list is built by the library and should not be altered by user code).</li>
+<li><b>addToContents(obj)</b> Adds obj to the contents of every Room in the Region (this is used by <a href="multiloc.htm">Multiloc</a> and probably shouldn't be used for any other purpose.</li>
+<li><b>familiar</b> Making a Region familiar has the effect of making every Room in the Region familiar. This in turn can be useful for enabling the player character to find his/her way around an area s/he already knows at the start of the game using the GO TO command.</li>
+<li><b>extraScopeItems</b> A list of items that will be put into scope for every Room in the Region (even if they would not normally be in scope).</li>
+<li><strong>travelerLeaving(traveler, dest)</strong>: this is invoked on the region when <em>traveler</em> is about to leave the room to go to <em>dest</em>.</li>
+<li><strong>travelerEntering(traveler, dest)</strong>: this is invoked on the region when <em>traveler</em> is about to enter it from another region, to go to the room given in the <em>dest</em> parameter.</li>
+</ul>
+
+<p>Some of the uses of Regions depend on features of the library we have not yet covered, and will need to be mentioned again when we come to them, but in summary the mains uses to which Regions can be put include:</p>
+
+<ul>
+<li>Testing whether the player character (or some other object) is within a particular region as a condition of displaying atmospheric messages (e.g. about weather conditions or forest sounds), or for any other purpose related to a region (e.g. perhaps particular actions are allowed or disallowed in a particular region, or an NPC's response to a question depends on the region where the conversation takes place, or the effect of waving a magic wand varies from region to region or... well, you probably get the picture).</li>
+<li>Specifying the location of a <a href="multiloc.htm">MultiLoc</a> (an object that can be in several rooms at once).</li>
+<li>Specifying the where condition of a <a href="doer.htm">Doer</a>.</li>
+<li>Designating a region as familiar at the start of a game so that the player character can navigate it with the pcRouteFinder (i.e. using the GO TO command) without having to explore it first.</li>
+<li>Conditionally preventing travel between Regions or making things happen when travel between Regions occurs (using the <span class="code">travelerLeaving()</span> and <span class="code">travelerEntering()</span> methods).</li>
+</ul>
+
+<p>A further word of explanation may be in order about travelerLeaving() and travelerEntering(). The first is called on all the regions the traveler is about to leave, and the second on all the regions the traveler is about to enter. Leaving a region means travelling from a room that is an that region to a room that is not. Conversely entering a region means traveling from a room that is not in that region to one that is. So, for example, if throneRoom is in regions A, B, C and D and corridor is in regions C, D, E and F, traveling from throneRoom to corridor would cause travelerLeaving() to be invoked on regions A and B (as well as throneRoom) and travelerEntering() to be invoked on Regions E and F (as well as corridor).</p>
+
+<p>Note that all these notifications take place just <em>before</em> the travel is actually executed. If you want something to take place immediately after the traveler enters a region one way to do it would be to set a zero-length fuse in the travelerEntering() method, e.g.:</p>
+
+<p><div class="code"><pre>
+planeRegion: Region
+    travelerLeaving(traveler, dest) { "You're about to leave the plane. "; }
+    travelerEntering(traveler, dest) 
+    { 
+        "You're about to enter the plane. ";
+        new Fuse(self, &amp;edesc, 0);
+    }
+    edesc = "You've just boarded the plane. "
+;
+</pre></div></p>
+
+<p>One further point: several of the properties on which the Region mechanisms depend are set up by the library at the preinitialization stage. This means that the layout of regions should not normally be changed during the course of a game.</p> 
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+Rooms and Regions
+<br><span class="navnp"><a class="nav" href="thing.htm"><i>Prev:</i> Things</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="roomdesc.htm"><i>Next:</i> Room Descriptions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

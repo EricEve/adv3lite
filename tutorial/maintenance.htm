@@ -1,0 +1,264 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Schemes and Devices &mdash; The Maintenance Room</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="schemes.htm">Schemes and Devices</a> &gt; 
+The Maintenance Room
+<br><span class="navnp"><a class="nav" href="ticket.htm"><i>Prev:</i> Just the Ticket</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="security.htm"><i>Next:</i> The Security Area</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>The Maintenance Room</h1>
+
+<p>You may recall that the main point of the maintenance room in the original game description was to provide a switch for the player to turn off the metal detector (so that the ID card can be carried through it without triggering an alarm). We'll elaborate on this a little, not for the sake of adding any stunningly original puzzles, but just to illustrate a few features of the adv3Lite library. In particular we'll furnish the maintenance room with a couple of steel cabinets, one tall one for keeping the cleaning equipment in and one shorter one containing the power switches. We'll lock the power cabinet with a small silver key, which we'll hide under a potted plant on top of the smaller cabinet.</p>
+
+<p>The first thing to do is to add a brief description of the maintenance room that mentions the two cabinets:</p>
+
+<p><div class="code"><pre>
+maintenanceRoom: Room 'Maintenance Room' 'maintenance room'
+   <strong> "&lt;&lt;one of&gt;&gt;On entering the room you immediately notice&lt;&lt;or&gt;&gt;This is a small
+    square room with&lt;&lt;stopping&gt;&gt; a pair of steel cabinets mounted against one
+    wall, one much taller than the other. The only way out is through a door to
+    the west. "</strong>
+    
+    west = mrDoorOut
+    out asExit(west)
+;
+</pre></div></p>
+
+<p>Notice the use of the &lt;&lt;one of&gt;&gt; ... &lt;&lt;or&gt;&gt; ... &lt;&lt;stopping&gt;&gt; embedded description so that we see one version of the description the first time we enter the room, and a different one thereafter.</p>
+
+<p>Next we need the two cabinets. We'll start with the tall one that would normally be used to house the bucket, sponge and garbage bag.</p>
+
+<p><div class="code"><pre>
++ tallCabinet: OpenableContainer, Fixture 'tall metal cabinet; green'
+    "It's a good two metres high and painted an institutional green. "
+    
+    bulkCapacity = 50
+;
+</pre></div></p>
+
+<p>We've made the tall cabinet both an OpenableContainer and a Fixture (so it can be open and closed, but can't be picked up and carried around), and we've given is a bulkCapacity of 50, so that it can hold a reasonable number of objects. This is only meaningful if we give some bulk to the objects that might be stored in the maintenance room, for example:</p>
+
+<p><div class="code"><pre>
++ bucket: Container 'bucket; plain yellow plastic; pail'
+    "It's just a plain yellow plastic bucket. "
+    initSpecialDesc = "Some cleaner seems to have left all his things here:
+        &lt;&lt;list of location.listableContents.subset({x: x.moved == nil})&gt;&gt;. "
+    
+   <strong> bulk = 6
+    bulkCapacity = 6</strong>
+    
+;
+
++ sponge: Thing 'sponge; turquoise'
+    "It's a kind of turquoise colour. "
+    
+    <strong>bulk = 3</strong>
+;
+
++ garbageBag: Container 'garbage bag; large green plastic rubbish; bag'
+    "It's basically just a large green plastic bag. "
+    
+    <strong>bulk = (2 + getBulkWithin)    
+    bulkCapacity = 10</strong>
+;
+
++ brassKey: Key 'small brass key; yale'
+    "It's just like all the other yale keys you've ever seen. "    
+    
+    actualLockList = [maintenanceRoomDoor, mrDoorOut]
+    plausibleLockList = [maintenanceRoomDoor, mrDoorOut]
+    
+    <strong>bulk = 1</strong>
+;
+</pre></div></p>
+
+<p>Note that we've also given a bulkCapacity to the bucket and the garbage bag, both of which can contain things, and that we've made the bulk of the garbage bag dependent on the bulk of the items it contains: an empty garbage bag could presumably be folded away to almost nothing, while a full one could get quite bulky.</p>
+
+<p>This might be a good point which to define the bulk of the other portable items in the game. You should by now know how to do this by yourself, using the following table:</p>
+
+<table>
+<tr><td><strong>Item</strong></td><td><strong>bulk</strong></td></tr>
+<tr><td>IDcard</td><td>1</td></tr>
+<tr><td>newspaper</td><td>4</td></tr>
+<tr><td>ticket</td><td>1</td></tr>
+<tr><td>suitcase</td><td>8</td></tr>
+<tr><td>uniform</td><td>6</td></tr>
+</table>
+
+<p>The whole point of this is of course to try to make sure that players can't put larger items inside smaller ones, or put an unrealistic number of items inside anything.</p>
+
+<h2>Multiple Containment</h2>
+
+<p>We said that the short cabinet would have a pot plant placed on top of it, but on the face of it that gives us a bit of a problem, since, being a cabinet, it also needs to have things inside it, and the adv3Lite containment model doesn't allow the same object to provide more than one kind of containment. The solution is to make it <em>appear</em> to the player that the cabinet can have things both placed on it and in it. To do that we need to make the cabinet out of three separate objects: one to represent the cabinet, one to represent its interior (a container), and one to represent its top (a surface). We then need to redirect actions appropriate to the container-like object (look in, put it, open, close, lock and unlock) from the cabinet to its container, and actions appropriate (put on) from the cabinet to its surface-like object.</p>
+
+<p>This may sound quite complex and messy, but a couple of features of the adv3Lite library and TADS 3 actually make it relatively simple. The first is the use of the <strong>remapXXX</strong> properties: <strong>remapIn</strong>, <strong>remapOn</strong>, <strong>remapUnder</strong> and <strong>remapBehind</strong>. One of more of these can be defined on any Thing; they should point to another Thing to which the appropriate actions will then be redirected. So, for example, if we had a desk with a drawer we could write: </p>
+
+<p><div class="code"><pre>
++ desk: Fixture, Surface 'desk'
+  "It has a single drawer. "
+  remapIn = drawer
+;
+
+++ drawer: OpenableContainer 'drawer'
+;
+</pre></div></p>
+
+<p>The set-up above will ensure that the commands LOOK IN DESK, SEARCH DESK, PUT something IN DESK, OPEN DESK, CLOSE DESK, LOCK DECK amd UNLOCK DESK are all automatically redirected to the drawer. </p>
+
+<p>It may still seem a bit of an effort to have to define a couple of extra objects to represent the inside and the top of the short cabinet, but we can take advantage of a TADS 3 feature to make it easier: anonymous nested objects. An anonymous nested object is one that's defined directly on the property of another object, like this:</p>
+
+<p><div class="code"><pre>
++ desk: Fixture, Surface 'desk'
+  "It has a single drawer. "
+  remapIn: OpenableContainer 'drawer' { location = lexicalParent }
+;
+</pre></div></p>
+
+<p>Note that in this case we have to use opening and closing braces to mark the beginning and end of the nested object definition. Note too this method of doing things doesn't created an object called <span class="code">remapIn</span>; it instead creates a nameless object that's the current value of the desk's <span class="code">remapIn</span> property. Note also the use of <strong>lexicalParent</strong> to control to the enclosing object (in this case the desk) from within the definition of the enclosed object (the drawer).</p>
+
+<p>That's probably not the best way to implement a desk drawer, but it's the ideal way to create the top and interior of an object that has both. One further step we can take to make things easier in this case is to use the <strong>SubComponent</strong> class to define the various nested objects we need; this automatically gives the SubComponent the same name as its lexicalParent (i.e. its enclosing object), sets the location of the SubComponent to its lexicalParent, and automatically sets the contType of the SubComponent to In, On, Under or Behind depend on whether the SubComponent has been defined on the remapIn, remapOn, remapUnder or remapBehind property of the enclosing object.</p>
+
+<p>Armed with these tools we can now define the short cabinet thus:</p>
+
+<p><div class="code"><pre>
++ shortCabinet: Fixture 'short metal cabinet; light grey gray'
+    "It's about a metre high and painted light grey. "
+    
+    remapIn: SubComponent 
+    {
+        isOpenable = true
+        lockability = lockableWithKey
+        isLocked = true
+        bulkCapacity = 5        
+    }
+    
+    remapOn: SubComponent { bulkCapacity = 10 }    
+;
+</pre></div></p>
+
+<p>With this definition, the short metal cabinet (which, of course, should be defined somewhere in the maintenance room) will behave exactly as if it was something the player can both put things on and put things in. Note also that we need to define all its container-like properties (isOpenable, lockability and isLocked) on the SubComponent attached to remap in, not on the shortCabinet itself. We give the container subComponent a bulkCapacity of only 5 since the short cabinet will mainly be filled up with the switches we've yet to define, so there won't be much room for anything else. We give the other SubComponent a bulkCapacity of 10 because there's a moderate amount of space to put things on top of the cabinet.</p>
+
+<p>We next need to define the pot plant and the silver key hidden beneath it. To hide the key under the pot plant we can simply list the key in the pot plant's hiddenUnder property. We'll also allow the player to put the key back under the pot plant, providing the pot plant is resting on a surface and not being carried, but we'll limit what can be put under the pot plant to one small item:</p>
+
+<p><div class="code"><pre>
+++ potPlant: Thing 'pot plant; small; cactus'
+    "It looks like a small cactus. "
+    
+    maxBulkHiddenUnder = 1
+    hiddenUnder = [silverKey]
+    canPutUnderMe = (locType == On || location.ofKind(Room))
+    
+    subLocation = &amp;remapOn
+    
+    cannotPutUnderMsg = '{I} {can\'t} put anything under the pot plant unless
+        it\'s resting on something. '
+;
+
+silverKey: Key 'small silver key'
+    
+    bulk = 1
+    actualLockList = [shortCabinet]
+    plausibleLockList = [shortCabinet]
+;
+</pre></div></p>
+
+<p>There are a number of points to note here. First, observe how we define the starting location of the pot plant. Assuming this piece of code is placed immediately after the definition of the short cabinet, putting ++ in front of it would normally locate directly in the shortCabinet object, making it effectivelty part of the cabinet, whereas we actually want it to start out located in shortCabinet's associated surface, the object defined on <span class="code">shortCabinet.remapOn</span>. We achieve this by adding <span class="code">subLocation = &amp;remapOn</span> to the definition of the potPlant.</p>
+
+<p>Second, note that when we come to define the silverKey, we listed the object it actually and plausibly unlocks as <span class="code">shortCabinet</span>, not <span class="code">shortCabinet.remapIn</span>, as we strictly should have done, since from the point of view of the program it's the object that's defined on <span class="code">shortCabinet.remapIn</span> that's actually lockable, not the shortCabinet itself. It would have worked just as well if we had used <span class="code">shortCabinet.remapIn</span> in here, but since using shortCabinet instead would be such an easy mistake to make, the library is smart enough to work out what we mean and make it all work properly anyway. Note that this only works in a case where the item to be locked and unlocked is defined on the remapIn property of its lexicalParent, as here.</p>
+
+<p>Third, note that we define <span class="code">potPlant.canPutUnderMe</span> as <span class="code">(locType == On || location.ofKind(Room))</span>. This ensures that the player character is only allowed to put something under the pot plant when it's resting on a surface (<span class="code">locType == On</span>) or notionally on the floor of a room (<span class="code">location.ofKind(Room)</span>.)</p>
+
+<p>Fourth, note that we've defined <span class="code">maxBulkHiddenUnder</span> on the pot plant as 1, so that only small item can be hidden under it at time. This allows the player character to put the silver key (or another small object) back under the pot plant when the pot plant is resting on something. Anything put back under the pot plant will be added to its hiddenUnder list and moved off-stage (location = nil) to simulate the fact that it's now hidden.</p>
+
+<h3>Switchgear</h3>
+
+<p>The final thing we need in the maintenance room is the switch to turn off the metal detector. It's unlikely that there'd be just one switch in the short metal cabinet, so we'll define a whole bank of switches as a Decoration object, and the power switch for the metal detector as a single switch (for which we can use the Switch class). We need to tell the player that the bank of switches is inside the cabinet, so we'll give it a specialDesc that causes it to be listed as part of the cabinet's contents, even though it's fixed in place. We'll then make the description of the switches Decoration object refer to the one switch we actually need. The following code should be placed immediately after the definition of the short cabinet and just before the definition of the pot plant:</p>
+
+<p><div class="code"><pre>
+++ powerSwitch: Fixture, Switch 'big red switch(-zz)'
+    "It's marked &lt;q&gt;Metal Detector&lt;/q&gt; and is currently in the &lt;&lt;if isOn&gt;&gt;ON
+    &lt;&lt;else&gt;&gt; OFF&lt;&lt;end&gt;&gt; position. "
+    
+    isOn = true
+    subLocation = &amp;remapIn
+;
+
+++ Decoration 'switches; other of[prep]; bank rows row; them'
+    "There's four rows of switches in a variety of colours, but your attention
+    is quickly drawn to the big red one marked <q>Metal Detector</q>. "
+
+    notImportantMsg = 'Only the big red switch is off any interest with you; you
+        don\'t want to risk drawing attention to yourself by messing with any of
+        the others. '
+    subLocation = &amp;remapIn
+    specialDesc = "A bank of switches is mounted at the rear of the 
+        cabinet. "
+;
+</pre></div></p>
+
+<p>We define <span class="code">subLocation = &amp;remapIn</span> on both these objects to make sure they actually start out inside the short cabinet's associated container object, defined on its remapIn property. We make the powerSwitch both a <span class="code">Fixture</span> (so it can't be taken) and a <span class="code">Switch</span> (so it can be switched on and off); this gives it an <span class="code">isSwitchable</span> of true. The <span class="code">isOn</span> property of a Thing determines whether it's currently on or off, and we use this to indicate the fact in the description of the powerSwitch. The <span class="code">notImportantMsg</span> of the Decoration object directs discourages the player from trying to do anything with the other switches and to focus on the powerSwitch instead.</p>
+
+<p>One particular point of note is the (-zz) we've added at the end of the vocab property of powerSwitch. This has the effect of defining the plural vocab for this object as 'switchzz' (which the player is most unlikely to type) instead of 'switches', which the library would otherwise give it by default. Normally the library default would be helpful, but here it wouldn't be, since we want any command directed to 'switches', for example EXAMINE SWITCHES to be targetted at the Decoration object only. We certainly don't want X SWITCHES to describe both the powerSwitch and the switches Decoration object, which is precisely what would have happened if we hadn't p found some way to change the plural vocab of the powerSwitch.</p>
+
+<p>Another minor point of note is that the specialDesc of the Decoration object will appear <em>after</em> the listing on any miscellaneous items that the player happens to put in side the short cabinet. The relative position of specialDescs and miscellaneous listings is controlled by the <span class="code">specialDescBeforeContents</span> property. By default this is true if the object on which it's defined is directly in a Room and nil otherwise. This actually gives better results in cases where objects with specialDescs are inside containers, since in this case the lister responsible for listing the miscellaneous contents also produces text like "Opening the cabinet reveals..." or "In the cabinet you see...", and it reads better if such announcements come before showing the specialDesc of any item in the container.</p>
+
+<p>There's one final task we need to perform before we leave the maintenance room; we need to make the powerSwitch actually control the metal detector. We can do that first by making the <span class="code">isOn</span> property of the metal detector take its value from the <span class="code">isOn</span> property of the powerSwitch:</p>
+
+<p><div class="code"><pre>
++ metalDetector: Passage 'metal detector; crude; frame'
+    "The metal detector is little more than a crude metal frame, just large
+    enough to step through, with a power cable trailing across the floor. "
+    destination = concourse
+    
+    <strong>isOn = (powerSwitch == true)</strong>
+    
+    canTravelerPass(traveler)
+    {
+        return !isOn || !IDcard.isIn(traveler);
+    }
+    
+    explainTravelBarrier(traveler)
+    {
+        "The metal detector buzzes furiously as you pass through it. The
+        security guard beckons you back immediately, with a pointed
+        tap of his holstered pistol. After a brisk search, he discovers the ID
+        card and takes it off you with a disapproving shake of his head. ";
+        
+        IDcard.moveInto(counter);
+    }
+    
+    travelDesc()
+    {
+        "You pass through the metal detector without incident. ";
+        announcementObj.start();
+    }
+;
+</pre></div></p>
+
+<p>If you compile and run the program at this point, you should be able to turn off the power switch and then carry the ID card through the metal detector without any problem.</p>
+
+
+<p>For further details of the concepts and features introduced in this section, refer to the <a href="../manual/thing.htm#containment">Containment</a> section of the article on Thing in the <em>adv3Lite Library Manual</em>.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="schemes.htm">Schemes and Devices</a> &gt; 
+The Maintenance Room
+<br><span class="navnp"><a class="nav" href="ticket.htm"><i>Prev:</i> Just the Ticket</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="security.htm"><i>Next:</i> The Security Area</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

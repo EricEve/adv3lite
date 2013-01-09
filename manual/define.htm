@@ -1,0 +1,447 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Defining New Actions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Defining New Actions
+<br><span class="navnp"><a class="nav" href="react.htm"><i>Prev:</i> Reacting to Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="literalact.htm"><i>Next:</i> Literal Actions</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Defining New Actions</h1>
+
+<p>Although adv3Lite comes with a fairly substantial range of built-in actions (almost as many as adv3), most games will want to define at least one or two additional ones, and in this section we discuss how. Here we'll focus on some of the basics, and concentrate on how to define new <a href="#iaction">IActions</a>, <a href="#taction">TActions</a> and <a href="#tiaction">TIActions</a> (actions that take no objects, a direct object that's a physical game object, or a direct object and an indirect object that are both physical game objects). Actions involving <a href="literalact.htm">literals</a> and <a href="topicact.htm">topics</a> raise additional issues that we'll look at in the sections to follow.</p>
+
+<h2>Synonyms for Existing Actions</h2>
+<p>Before discussing how to define new actions, we should first consider how to go about defining synonyms for existing actions, for in some cases that may be all you need to do. There are basically two ways to define synonyms for an existing action: either modify an existing VerbRule or create a new one. In either case you'll probably want to find the existing VerbRule defined in the adveLite library and then copy it and paste it into your own code to use as a model. <a href="#verbrule">VerbRules</a> (the grammar rules that define how a player can describe an action to the parser) are found in the file grammar.t under the english directory (that is, in the folder called 'english') within the adv3Lite library directory. To find the one you want, search on a word that describes the action (e.g. 'take') or on the name of the action (e.g. 'LockWith') if you know it.</p>
+
+<p>Suppose, for example, you wanted to make the commands GRAB and SNATCH work just like TAKE. Here's how you'd do it by modifying a VerbRule:</p>
+
+<p><div class="code"><pre>
+modify VerbRule(Take)
+    ('take' | 'pick' 'up' | 'get' |'grab'| 'snatch') multiDobj
+    | 'pick' multiDobj 'up' :
+;
+</pre></div>
+
+<p>Note that we start by using the keyword <strong>modify</strong> and then our redefinition with a colon following our new grammar specification (followed, of course, by the semicolon showing we've reached the end of the object definition). The various words or phrases we can use to mean 'take' are separated by the vertical bar symbol (|) and grouped in brackets to show that they are alternatives that can precede 'mutltiDobj'. The token 'multiDobj' in turn means that this is where the player would specify one or more direct objects of the command. If you wanted to restrict the command to only a single direct object at a time you would use the token 'singleDobj' instead. Finally,  another vertical bar symbol divides this phrasing from an alternative way of phrasing the command, PICK <i>object</i> UP.</p>
+
+<p>The other way of adding synonyms to an existing acton is to create a new VerbRule that refers to the existing action. For example:</p>
+
+ <p><div class="code"><pre>
+VerbRule(Grab)
+    ('grab' | 'snatch') multiDobj  
+    : VerbProduction
+    action = Take
+    verbPhrase = 'grab/grabbing (what)'
+    missingQ = 'what do you want to grab'
+;
+</pre></div>
+
+<p>Here we define the new vocabulary that we want to trigger the action in much the same way as beforre, except this time we do only have to define the new vocabulary (and not the existing vocabulary as well, since that still exists on the original VerbRule). We give the new VerbRule a distinctive name &mdash; in this case Grab ;mdash to identify it (we could call it anything so long as no other VerbRule has the same name, but it makes sense to call it something meaningful and relevant). After the colon we add the class name VerbProduction (this is common to all adv3Lite VerbRules), and then define the action this VerbRule on its <strong>action</strong> property. <strong>The verbPhrase</strong> is used for building implicit action announcements and the like and here takes the form 'infinitive/particple (placeholder for object)', except that the infinitive lacks the initial 'to' (we write 'grab', not 'to grab' here). The forms for other types of action will be described below as we come to them, but they all start infinitive/participle. Finally the <strong>missingQ</strong> property defines the question the parser will ask if the player issues a command that lacks the appropriate object, e.g.:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;grab</strong>
+What do you want to grab?
+
+<strong>&gt;ball</strong>
+You take the red ball.
+</pre></div>
+
+<p>(If you're used to adv3 you'll notice that the adv3Lite way of defining a VerbRule is quite similar but a little different in some details).</p>
+
+<p>Whether to modify an existing VerbRule or create a new one is entirely up to you; do whichever you find easier.</p>
+<br>
+
+<h2><a name="verbrule">VerbRules</a></h2>
+
+<p>We've just seen that modifying the words used to refer to an action requires modifying or creating a VerbRule. Creating a new action always requires defining a VerbRule to define how the player can describe the action to the parser (and how the parser can respond with certain qualifications and queries). As this is always a required step in defining any new action, we should next go into a bit more detail about how VerbRules are defined.</p>
+
+<p>English's predicate syntax is highly positional.  That is, the role of each word in a predicate is determined largely by its position in the phrase.  There are a several common patterns to the predicate word order, but the specific pattern that applies to a given verb is essentially idiomatic to that verb, especially with respect to complement words (like the "up" in "pick up").  Our approach to defining the predicate grammar is therefore to define a separate, custom syntax rule for each verb.  This makes it easy to add rules for the odd little idioms in English verbs.</p>
+  
+<p>For verbs that take indirect objects, the indirect object is usually introduced by a preposition (e.g., PUT KEY IN LOCK).  Since we consider the preposition in such a case to be part of the verb's grammatical structure, we write it directly into the grammar rule as a literal.  This means that we wouldn't be able to parse input that's missing the whole indirect object phrase (e.g., PUT KEY).  We don't want to just reject those without explanation, though, which means we have to define separate grammar rules for the truncated verbs.  Some of these cases are valid commands in their own right: UNLOCK DOOR and UNLOCK DOOR WITH KEY are both valid grammatically.  But PUT KEY isn't, so we need to mark this as missing its indirect object.  We do this by setting the missingRole property for these rules to the role (usually IndirectObject) of the phrase that's missing.</p>
+
+<p>The first step in defining a VerbRule is to use the VerbRule() macro with a suitable name tag, as in our previous example:</p>
+
+ <p><div class="code"><pre>
+VerbRule(Grab)
+</pre></div>
+ 
+ <p>The name-tag is arbitrary, but must be different for each VerbRule. It is usual (and advisable) to use something that relates as closely as possible to the action being defined, typically the name of the action itself except where we're defining more than one VerbRule for the same action.</p>
+ 
+ <p>We next define the grammar that applies to the action (i.e. the way the player can refer to it when entering commands). e.g.:
+ 
+<p><div class="code"><pre>
+VerbRule(Grab)
+   ('grab' | 'snatch') multiDobj
+</pre></div>
+ 
+<p>Exactly how this should be defined for each type of action is something we'll explain as we come to each type of action in turn. We next define the VerbRule to be of the VerbProduction class:</p>
+
+ 
+<p><div class="code"><pre>
+VerbRule(Grab)
+   ('grab' | 'snatch') multiDobj
+   : VerbProduction
+</pre></div>
+
+
+ 
+<p>From this point on eEach VerbRule has several properties and methods that it either can or must define:</p>
+
+<ul>  
+<li><strong>action</strong> [Required] - The associated Action that's executed when this verb is parsed.</li>
+ 
+<li><strong>verbPhrase</strong> - The message-building template for the verb.  The library uses this to construct messages to describe the associated action. The format is 'verb/verbing (dobj) (iobj) (accessory)'.  Each object role in parentheses consists of an optional preposition and the word 'what' or 'whom'.  For example, 'ask/asking (whom) (about what)'. Outside of the parentheses, you can also include verb complement words before the first object or after the last, but never between objects: for example, 'pick/picking up (what)'.</li>
+    
+<li><strong>missingQ</strong> - the template for asking missing object questions.  This consists of one question per object, separated by semicolons, in the order dobj, iobj, accessory.  You only need as many questions as the verb has object slots (i.e., you only need an iobj question if the verb takes an indirect object).  The question is simply of the form "what do you want to <verb>", but you can also include the words "it" and "that" to refer to the "other" object(s) in the verb.  "It" will be replaced by it/him/her/them as appropriate, and "that" by that/them.  Use it-dobj, it-iobj, it-acc to specify which other object
+ you're talking about (which is never necessary for two-object verbs, since there's only one other object).  Put the entire 'it' phrase, including prepositions, in parentheses to make it optional; it will be
+ omitted if the object isn't part of the command input.  This is only necessary for objects appearing earlier in the verb rule, since it's resolved left to right.</li>
+ 
+<li><strong>missingRole</strong> - the object role (DirectObject, etc) that's explicitly missing from this grammar syntax.  This is for rules that you define specifically to recognize partial input, like "PUT <dobj>".  The parser will ask for the missing object when it resolves such a rule.</li>
+ 
+<li><strong>answerMissing(cmd, np)</strong> - the base library calls this when the player answers the parser's question asking for the missing noun phrase.'cmd' is the Command, and 'np' is the noun phrase parsed from the user's answer to the query.  This is called from the base library but isn't required, in that it's purely advisory.  The point of this routine is to let the verb change the command according to the reply.
+ For example, in English, we have a generic Put <dobj> verb that asks where to put the dobj.  If the user says "in the box", we can change the action to Put In; if the user says "on the table", we can change the action to Put On.</li>
+ 
+<li><strong>dobjReply, iobjReply, accReply</strong> - the noun phrase production to use for parsing a reply to the missing-object question for the corresponding role.  Players sometimes reply to a question like "What do you want to put it in?" by starting the answer with the same preposition in the question: "in the box".  To support this, you can specify a noun phrase production that starts with the appropriate preposition (inSingleNoun, onSingleNoun, etc).</li> 
+
+<li>priority - The predicate priority is a small number, 0-99.  The default is 50, which should apply to most normal, complete verb phrases.  For incomplete phrases (with a missing object, which will force the   parser to assume a default or ask the player for the missing information), use 25.  Other values are for fine-tuning as needed in the individual grammar rules.  A higher value means higher priority. One example where this is used in the adv3Library is in the grammer for the Hello, Yes and Say commands. The Say command allows the player to say anything (this is used in the conversation system), such as SAY YOU DON'T BELIEVE HIM. One of the possible grammars for the Hello command is SAY HELLO, and one of the possible grammars for the Yes command is SAY YES. The trouble then is that SAY HELLO and SAY YES both match the grammar for the SAY command as well as a Hello or Yes command. To make sure the parser matches the corrent command in these cases the adv3Lite library gives VerbRule(Yes) and VerbRule(Hello) a priority of 60 to ensure that they're both matched in preference to VerbRule(Say).</li>
+</ul>
+
+<p>Note that for the most part when defining your own actions you'll mostly only have to worry about the first two or three of these properties (and occasionally the last), but there may occasionally be times when you need to know about the others, so they're included here for completeness. Note also that although it's possible to define a VerbRule for an action that takes three objects (direct object, indirect object amd accessory), the adv3Lite library has no direct support for such actions. One way of handling them in your own code if your game really needs them might be to define a <a href="doer.htm">Doer</a> that carries out whatever checks are needed on the accessory object and then redirects the command to an appropriate <a href="#tiaction">TIAction</a>.</p>
+
+
+<h2><a name="iaction">Defining New IActions</a></h2>
+
+<p>An IAction is one that consists purely of a verb with no objects. There are two steps to defining any new IAction in adv3Lite:</p>
+
+<ol>
+<li>Define the new VerbRule</li>
+<li>Define the new Action</li>
+</ol>
+
+<p>We've already seen how to define a new VerbRule, but we'll now show how to do it for a new IAction. Suppose you want to define an action that responds to the command WAKE UP (in its intransitive sense, i.e. telling the player character to wake up, not trying to wake up another character as in WAKE BOB). The VerbRule might look like this:</p>
+
+ <p><div class="code"><pre>
+VerbRule(WakeUp)
+    'wake' 'up'
+    : VerbProduction
+    action = WakeUp
+    verbPhrase = 'wake/waking up'        
+;
+
+</pre></div>
+
+<p>Note that we don't define the missingQ property here, since an IAction can never have a missing object. Otherwise we define the rest of the VerbRule in the manner already described, first giving the grammar we want the VerbRule to match (here simply WAKE UP), then ': VerbProduction', then the action this command will trigger (WakeUp, which we've about to define below), and finally the verbPhrase, which simply gives the infinitive and present participle forms of the command phrase (either 'wake up' or 'waking up', though note we don't repeat the 'up').</p>
+
+<p>The second step is to define the action, which for an IAction we do with the <strong>DefineIAction(<em>action-name</em>)</strong> macro, where <em>action-name</em> is the name of the new action we're defining. We also have to define the action's <strong>execAction(cmd)</strong> method to define what the action does. A minimal definition in the case of our new WakeUp action might look like this:</p>
+
+<p><div class="code"><pre>
+DefineIAction(WakeUp)
+    execAction(cmd)
+    {
+        "{I}{\'m} not asleep. ";
+    }
+;       
+</pre></div>  
+
+<p>Of course, your action may need to be more complex than this, in which case you'd need to define a more complicated execAction() method, for example to handle situations when the player character actually is asleep, in a dream sequence say (although another way of handling this might be via a <a href="doer.htm">Doer</a> to handle the special cases, for example:)</p>
+
+ <p><div class="code"><pre>
+Doer 'wake up'         
+    execAction(c)
+    {
+        "You wish you could wake up from this nightmare. ";
+    }
+    during = dreamScene
+; 
+</pre></div>
+
+<p>One further small point to note: in the adv3 library <span class="code">DefineIAction(WakeUp)</span> would have defined a new class called WakeUpAction which inherits from IAction; in adv3Lite it defines an object called WakeUp, which is of the IAction class.</p>
+
+<br>
+
+<h2><a name="taction">Defining New TActions</a></h2>
+
+<p>A TAction is an action that takes a direct object. There are three steps in defining a new TAction:</p>
+
+<ol>
+<li>Define the new VerbRule</li>
+<li>Define the new Action</li>
+<li>Define the Action handling on Thing (and perhaps other classes as well)</li>
+</ol>
+
+<p>For example, suppose we wanted to define a new Rub action, which can be applied to one or more objects at a time. Our VerbRule would look like this:</p>
+
+<p><div class="code"><pre>
+VerbRule(Rub)
+    'rub' multiDobj
+    : VerbProduction
+    action = Rub
+    verbPhrase = 'rub/rubbing (what)'
+    missingQ = 'what do you want to rub'
+;
+</pre></div>
+
+<p>As a second example, we could define a Repair command that can only act on one object at a time:</p>
+
+ <p><div class="code"><pre>
+VerbRule(Repair)
+   ('repair' | 'mend' | 'fix') singleDobj
+   : VerbProduction
+   action = Repair
+   verbPhrase = 'repair/ repairing (what)'
+   missingQ = 'what do you want to repair'
+;
+</pre></div>
+
+<p>Note how we use the bar (|) symbol to define alternative phrasings and the brackets to group them. We want the command to match REPAIR FOO, MEND FOO or FIX FOO; without the brackets it would match: REPAIR or MEND, or FIX FOO.</p>
+
+<p>The second step is usually very simple indeed; we just define the new action using the <strong>DefineIAction(<em>action-name</em>)</strong> macro, for example: </p>
+
+<p><div class="code"><pre>
+DefineTAction(Rub)
+;
+
+DefineTAction(Repair)
+;
+</pre></div>
+
+<p>And normally that's all there is to it. Occasionally, though, you might want do define the method <strong>getAll(cmd, role)</strong> which defines which objects should match ALL in a command like RUB ALL (here <em>cmd</em> is the current Command object and role is either DirectObject or IndirectObject). The default behaviour is to return every object in scope, but for some actions you may want to restrict this. For example on the Take action the adv3Lite library defines:</p>
+
+ <p><div class="code"><pre>
+    getAll(cmd, role)
+    {
+        return scopeList.subset({ x: !x.isDirectlyIn(cmd.actor) && !x.isFixed});
+    }
+</pre></div>
+
+<p>This stops TAKE ALL from trying to take objects the actor is already holding (which is unlikely to be what the player intended) or objects that are fixed in place (which again is unlikely to be what the player intended), and so avoids a whole lot of failure messages from objects that obviously can't be taken.</p>
+
+<p>One other property you might want to define on your action object is <strong>announceMultiAction</strong>. This is nil by default, but if it's true and the action applies to more than one direct object (e.g. EXAMINE ALL) then it will announce the name of the object each time it runs the actions routine, so you could get an output like:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;X ALL</strong>
+<strong>red ball:</strong> It's a small red ball, about the size of a cricket ball.
+<strong>blue ball:</strong> It's a large plastic beach-ball.
+<strong>me:</strong> You look as bedraggled as you feel.
+</pre></div>
+
+<p>The reason annountMultiAction is nil by default is that more most actions you'd use the report method to show a summary of the action (e.g. "You the red ball and blue ball") so that announcing each direct object as above would be superfluous (although in the case of the examine action it would be wanted to do).</p>
+
+<p>The third step is defining the appropriate action handling methods on Thing (and on any subclass of Thing for which you want different default behaviour). For this step you basically need to follow the principles already explained in the <a href="actres.htm">Action Results</a> section above. So for our Rub and Repair actions we might define: </p>
+
+ <p><div class="code"><pre>
+modify Thing
+   dobjFor(Rub)
+   {
+      preCond = [touchObj, objVisible]
+      
+      report() { "{I} {rub} &lt;&lt;gActionListStr&gt;&gt;. "; }
+   }
+
+   isRepairable = nil
+   
+   dobjFor(Repair)
+   {
+      preCond = [touchObj]
+      
+      verify()
+      {
+          if(!isRepairable)
+             illogical(cannotRepairMsg);
+      }      
+   }
+   
+   cannotRepairMsg = '{The subj dobj} {does}n\'t need mending. ')
+;
+
+CustomVocab
+    verbParams = ['rub/rubs/rubbed']
+;
+</pre></div>
+
+<p>We could have defined the message '{The subj dobj} {does}n\'t need mending. ' directly in the illogical() macro, but by taking the extra step of going via a cannotRepairMsg property we make it much easier to customise the failure response on individual objects. Likewise we don't strictly need to define the new isRepairable property and test it in the verify() method, but the library follows this coding pattern by and large and it makes it that much easier when it comes to defining objects that do need repairing (we just define isRepairable = true rather than having to override the complete verify method). We need to define the extra CustomVocab object so that the parser knows how to conjugate 'rub', but if we knew that the Rub action was only ever going to be performed by the player character and the game was never going to change tense, then we could skip this step and simply define:  </p>
+
+ <p><div class="code"><pre>
+   report() { "You rub &lt;&lt;gActionListStr&gt;&gt;. "; }
+</pre></div>
+
+<p>At some point you'll presumably want to define objects where these actions do something more interesting, e.g.:</p>
+
+ <p><div class="code"><pre>
+magicLamp: Thing 'brass lamp;magic; lantern'
+  ...
+  
+  dobjFor(Rub)
+  {
+      check()
+      {
+         if(!genie.isIn(nil))
+           "It's dangerous to rub the lamp again once you've already summoned the genie;
+             There's no telling what he might do!" ;
+      }
+      
+      action()
+      {
+         genie.moveInto(getOutermostRoom);
+         "As soon as you rub the lamp a genie appears! ";
+      }
+  }
+;  
+
+radio: Thing 'radio'
+   ...
+   isSwitchable = true
+   isRepairable = true
+   
+   dobjFor(Repair)
+   {            
+       check()
+       {
+          "Great idea; the next question is how? ";
+       }
+   }
+ ;
+   
+</pre></div>
+
+<br>
+
+<h2><a name="tiaction">Defining TIActions</a></h2>
+
+<p>TIActions are actions that take both a direct object and an indirect object. The steps in defining a new TIAction are very similar to those for defining a TAction. Here we'll use new RubWith and RepairWith actions as our examples. The first step to define the VerbRules that trigger the actions:</p>
+
+<p><div class="code"><pre>
+VerbRule(RubWith)
+    'rub' multiDobj 'with' singleIobj
+    : VerbProduction
+    action = RubWith
+    verbPhrase = 'rub/rubbing (what) (with what)'
+    missingQ = 'what do you want to rub; what do you want to rub it with'
+;
+
+
+VerbRule(RepairWith)
+   ('repair' | 'mend' | 'fix') singleDobj 'with' singleIobj
+   : VerbProduction
+   action = RepairWith
+   verbPhrase = 'repair/ repairing (what) (with what)'
+   missingQ = 'what do you want to repair; what do you want to repair it with'
+;
+</pre></div>
+
+<p>These follow much the same pattern as VerbRules for TActions, but with a couple of additions. First, note how the verbPhrase property is defined in each case, with the addition of '(with what)'; obviously we us the preposition appropriate to the action here, so in other cases it might be '(in what)' or '(to what)' or whatever. Second, note how the missingQ property is extended with a second question to ask in the case of a missing indirect object. Third note the use of the <strong>singleIobj</strong> token to represent the place of the indirect object in the command grammar. In principle we <em>could</em> use multiDobj here, and the parser would understand it, but the adv3Lite library doesn't provide full support for commands with multiple indirect objects because there's hardly any case in which they're actually useful, let alone essential. If you really must have one in your game, consider using a Doer to iterate over the indirect objects. In any case, if the VerbRule uses multiDoj ot cannot also use multiObj.</p>
+
+<p>The second step is to define the actual actions, which we do with the <strong>DefineTIAction(<em>action-name</em>)</strong> macro:</p>
+
+ <p><div class="code"><pre>
+DefineTIAction(RubWith)
+   resolveIobjFirst = nil   
+;
+
+DefineTIAction(RepairWith)
+   resolveIobjFirst = nil
+;
+</pre></div>
+
+<p>The additional point to note here is the use of the <strong>resolveIobjFirst</strong> property. In adv3Lite the verify() properties are only consulted once (at most) during object resolution; the resolveIobjFirst property controls whether the indirect object's verify() method is consulted first (the default, resolveIobjFirst = true), or whether the direct object's verify() method is run first (as here). The significance is that whichever property is run first has no access to the identity of the other object. So when resolveIobjFirst is true, the direct object is not known when the indirect object is resolved, but the indirect object is known when the direct object is resolved, so the direct object's verify() method can make use of the identity of the indirect object to decide whether or not the direct object is a logical choice. When resolveIobjFirst is false, it's the other way about. For actions like PutIn and PutOn, resolveIobjFirst = true is a good choice, since it's helpful to know what we want to put something in or on before deciding whether it's logical to put a particular object in it or on it. For our new RubWith and RepairWith actions, however, it's probably better to resolve the direct object first, so that when the parser comes to resolve the indirect object the the potential indirect objects' verify() routines can see what it is that's to be rubbed or repaired before deciding with the proposed indirect object is a logical choice to rub or repair it with.</p>
+
+<p>The third step proceeds as before, except that we now have to define the iobjFor(Action) methods as well as the dobjFor(Action) methods:</p>
+
+ <p><div class="code"><pre>
+modify Thing
+   dobjFor(RubWith)
+   {
+       preCond = [touchObj]
+       report() { "{I} {rub} &lt;&lt;gActionListStr&gt;&gt; with {the iobj}. ";}
+   }
+
+   iobjFor(RubWith)
+   {
+       preCond = [objHeld]
+   }
+     
+   
+   dobjFor(RepairWith)
+   {
+       preCond = [touchObj, objVisible]
+       
+       verify()   
+       {  
+          if(!isRepairable)
+             illogical(cannotRepairMsg);   
+       }
+   }
+   
+   canRepairWithMe = nil
+   
+   iobjFor(RepairWith)
+   {
+       preCond = [objHeld]
+       
+       verify()  
+       {  
+           if(!isRepairable)
+              illogical(cannotRepairWithMsg); 
+           
+           if(gDobj == self)
+              illogicalSelf(cannotRepairWithSelfMsg);
+       }
+   }
+   
+   cannotRepairWithMsg = '{I} {can\'t} repair anything with {that iobj}. '
+   cannotRepairWithSelfMsg = '{I} {can\'t} repair anything with itself. '
+;
+</pre></div>
+
+<p>Here we're assuming that we've previously defined a Repair action as above, so we can re-use the cannotRepairMsg on the direct object of a RepairWith action (another reason for defining it on a message property) along with the isRepairable property. Note too how we take advantage of the fact that the direct object is resolved first to test that we're not trying to repair anything with itself on the indirect object; if there's a red box and a red screwdriver, REPAIR BOX WITH RED will then result in the red screwdriver being selected as the indirect choice since even if the red box doesn't need repairing and the screwdriver couldn't repair it in any case, attempting to repair the box with the screwdriver is less illogical than attempting to repair the box with itself. Note too the definition of a new cannotRepairWithMe property (following the naming convention used in the library). This simplifies writing the code for objects that can be used to repair other ones with, since we can then simply define <span class="code">canRepairWithMe = true</span> without having to override the verify() method again and remembering to copy the code to block the attempt to repair something with itself.</p>
+
+<p>In addition to defining particular objects in our game that can be repaired, we might want to define a Tool class for objects we can reasonably attempt repairs with:</p>
+
+ <p><div class="code"><pre>
+class Tool: Thing
+   canRepairWithMe = true
+   
+   iobjFor(RepairWith)
+   {
+           
+      check()
+      {
+           if(valToList(itemsRepaired).indexOf(gDobj) == nil)
+             "{I} {can\'t} repair {the dobj} with {the iobj}. ";
+      }
+      
+      action()
+      {
+           "Using {the iobj} {i} {manage} to repair {the dobj}. ";
+           gDobj.makeRepaired(true);
+      }
+   }
+   
+   itemsRepaired = nil
+;
+</pre></div>
+
+<p>This assumes that you've defined a suitable makeRepaired(stat) method on the various things that might need mending over the course of your game. Note the use of a custom itemsRepaires property to define which objects a particular Tool can be used to repair. Note too the use of the <strong>valToList()</strong> function to conver this property into a list (if it isn't a list already) regardless of whether it's defined as nil, a single object, or a list of objects, so that the check() method can treat it as a list no matter how it's defined on individual objects. Finally, note that you'd have to define the conjugation of 'manage' in a CustomVocab object.</p>
+
+<p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two sections will discuss how to deal with such commands.</p>
+
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Defining New Actions
+<br><span class="navnp"><a class="nav" href="react.htm"><i>Prev:</i> Reacting to Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="literalact.htm"><i>Next: </i>Literal Actions </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

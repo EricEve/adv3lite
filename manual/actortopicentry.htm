@@ -1,0 +1,198 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; ActorTopicEntry</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+ActorTopicEntry
+<br><span class="navnp"><a class="nav" href="asktell.htm"><i>Prev:</i> Basic Ask/Tell</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="suggest.htm"><i>Next:</i> Suggesting Conversational Topics</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>The ActorTopicEntry Class</h1>
+
+<p>The Basic Ask/Tell system described in the previous section is fine up to a point, and may very well suffice for games in which NPCs do not play a major role, but it may be that your game requires something a bit more sophisticated and life-like. One major limitation of the basic ask/tell system is that it's virtually stateless; there's no real flow to the conversation which can proceed in any order, jumping almost randomly from one topic to the next according to the player's fancy (although sympathetic players may in fact follow any leads suggested by the NPC's responses). Another is that you're exceedingly limited in what the player can say. The player can type ASK BOB ABOUT MARY, for example, but has no control over whether the player character will ask about Mary's birthplace, her affair with her boss, her fondness for stamp-collecting, or her taste in clothes.</p>
+
+<p>The adv3Lite library provides a number of features that go at least some way to meeting both these shortcomings. To enable these, the <strong>ActorTopicEntry</strong> class, from which AskTopic and TellTopic and a number of other classes derive, adds several properties and methods to the basic <a href="topicentry.htem">TopicEntry</a> class which it inherits. In this section we shall look at some of these, and in the sections that follow we shall describe how they can be put to use to provide a richer conversational similuation than the basic ask/tell system provides.</p>
+
+<h2>Methods and Properties of ActorTopicEntry</h2>
+
+<p>We may broadly divide the methods and properties of the ActorTopicEntry class into four groups:</p>
+<ol>
+<li>Those it derives from the <a href="topicentry.htm">TopicEntry</a> class, which we have already covered, such as matchScore, matchObj, topicResponse and isActive.</li>
+<li>Those relating to <a href="suggest.htm">suggesting</a> topics of conversation to the player, which we'll discuss in the next section. These include name, autoname, timesToSuggest, curiositySatisfied, curiosityAroused, suggestAs, timesInvoked, keyTopics and showKeyTopics().</li>
+<li>The rest, including isConversational, impliesGreeting, getActor(), convKeys, nodeActive() and activated, which we'll deal with now.</li>
+</ol>
+
+<p>The <strong>isConversational</strong> property is used to determine whether the response defined on this ActorTopicEntry should count as conversational and hence make the current turn the latest turn on which the player character conversed with the NPC. In most cases the response will be conversational, but occasionally it may not (for example, if you define a topicResponse that simply says that the NPC is unresponsive, e.g. because he's asleep, or ignoring the player character). Certain types of ActorTopicEntry (KissTopic and HitTopic) also don't count as conversational.</p>
+
+<p>The <strong>impliesGreeting</strong> property is used to determine whether the response should trigger an implicit greeting. This is explained in more detail in the section below on <a href="hello.htm">Hello and Goodbye</a>.</p>
+
+<p>The <strong>getActor()</strong> method simply returns the Actor to which this ActorTopicEntry belongs.</p>
+
+<p>The <strong>nodeActive()</strong> method can be used to determine whether this ActorTopicEntry belongs to the current <a href="convnode.htm">Conversation Node</a>. This will be explained more fully in the section on Converation Nodes.</p>
+
+<p>The remaining two require slightly fuller explanations here.</p>
+
+<h3>convKeys</h3>
+
+<p>There are basically two ways of giving a conversation greater shape and a better sense of flow than is possible with the basic ask/tell system. One is to nudge the player by suggesting what topics it might be particularly appropriate to pursue, which can to some extent be done simply in the text of a topic response, but can also be done by presenting an explicit list of <a href="suggest.htm">suggestions</a>. The other is to place some kind of restriction on which topics follow on from a particular point in the conversation, effectively treating certain points in the conversation as <a href="convnode.htm">nodes</a> which constrain or direct the choice of immediately succeeding topics. Of course one might want to combine these by presenting a list of topics that are available at any particular node.</p>
+
+<p>The purpose of the <strong>convKeys</strong> property is to provide a way of referring to one or more TopicEntries at a point where one wants to impose a constraint or list some suggestions (given that TopicEntries are typically defined as anonymous objects). The convKey property of an ActorTopicEntry thus holds a single-quoted string, or a list of single-quoted strings, that effectively act as references to that ActorTopicEntry. One ActorTopicEntry can have several keys defines on its convKeys property, and the same key can be defined on several ActorTopicEntries, allowing you to use these keys to group ActorTopicEntries in any way you like and refer to a group of topics with a single key. For example if we defined:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @darkTower
+   &quot;&lt;q&gt;Tell me about the dark tower,&lt;/q&gt; you insist.\b
+    &lt;q&gt;Oh no!&lt;/q&gt; says Bob. &lt;q&gt;We don't talk about that -- ever!&lt;/q&gt;&quot;
+    
+    convKeys = ['tower-node', 'bob-fright']
+;
+
++ AskTopic @tFear
+   &quot;&lt;q&gt;Why are you so frightened of the dark tower?&lt;q&gt; you demand.
+    Bob merely rolls his eyes and shivers. &quot;
+    
+    convKeys = 'bob-fright'
+;</pre></div>
+
+<p>In this example, the first AskTopic can be referred to with either the 'tower-node' key or the 'bob-fright' key, but using the 'bob-fright' key also refers to the second AskTopic; so you'd use 'tower-node' just to refer to the first one and 'bob-fright' to refer to both together. Where and how one uses these references, and for what purpose, will be discussed below and in the sections that follow.</p>
+
+<p>One final point: the namespace for convKeys is the individual actor. That is to say, if you have several NPCs, Bob, Bill, Betty and Belinda, say, then the convKeys you define on Bob have nothing to do with those you use for Bill, Betty and Belinda, so you are free to use the same conv key on different actors with different meanings.</p>
+
+
+<h3>activated</h3>
+
+<p>The <strong>activated</strong> property provides the first of several ways in which we can restrict the flow of conversation, in this case by making a TopicEntry or a group of TopicEntries unavailable until we wish them to become active.</p>
+
+<p>Of itself, the <strong>activated</strong> property does nothing &mdash; unless you make it. It simply starts out at nil and becomes true in response to some string in your game code outputting '&lt;.activate key&gt;' where <em>key</em> is one of the keys in the convKeys property of one or more ActorTopicEntries. In otherwords, if whenever the tag &lt;.activate key&gt; is output the effect is to set the activated property to true on every ActorTopicEntry belonging to the player character's current interlocutor which has <em>key</em> among the keys on its convKeys property. Exactly the same happens if you call makeActivated(key) on the Actor object (which is precisely what the &lt;.activate key&gt; tag does).</p>
+
+<p>The purpose of this is to allow you to use the activated property of an ActorTopicEntry on its isActive property, so that you can make one or a whole group of ActorTopicEntries active at once. For example:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @darkTower
+   &quot;&lt;q&gt;Just why is that dark tower considered so terrible?&lt;/q&gt; you ask.\b
+   &lt;q&gt;It all started with the troubles,&lt;/q&gt; Bob replies darkly, &lt;q&gt;that and the massacre
+    at Longacre Farm.&lt;/q&gt; &lt;.activate troubles&gt; &quot;
+;
+
++ AskTopic @tTroubles
+   &quot;&lt;q&gt;Tell me about the troubles... &quot;
+   
+   convKeys = ['troubles']
+   isActive = activated
+;
+
++ AskTopic @tMassacre
+   &quot;&lt;q&gt;Tell me about the massacre...&quot;
+ 
+   convKeys = ['troubles']
+   isActive = activated
+;
+
++ AskTopic @tLongacre
+   &quot;&lt;q&gt;What happened at Longacre Farm?...&quot;
+   
+   convKeys = ['troubles', 'farm']
+   isActive = activated
+;
+</pre></div>
+
+<p>In this example, it doesn't make sense for the player character to be able to ask about the troubles, the massacre or Longacre Farm until Bob has mentioned them. This code holds back activating them until Bob gives his response to the question about the dark tower. Note that in this particular case we could have gone about this a different way by using a &lt;.known&gt; tag or a &lt;.reveal&gt; tag, but we'll take a look at those when we come to discuss player and non-player character <a href="knowledge.htm">knowledge</a>.</p>
+
+<p>A more immediate question might be, why bother with the activated property at all? Why not simply have the &lt;.activate&gt; tag set the isActive property of all the relevant ActorTopicEntries to true? There are three reasons for making use of a separate activated property:</p>
+
+<ol>
+<li>The recommended style of coding TopicEntry objects is to make them declarative as far as possible. It makes for cleaner and more readable code if the conditions that make a TopicEntry active are shown declaratively on their isActive property. If isActive properties were manipulated by code outside the TopicEntries to which they relate it would become that much harder to see what was causing a TopicEntry to become active or inactive, making your code that much harder to understand and debug. It may seem a little more effort to write <span class="code">isActive = activated</span>, but you can then see at a glance that the TopicEntry in question is being activated by an &lt;.activate&gt; tag somewhere.</li>
+<li>The use of a separate activated property allows you to specify additional conditions, e.g. <span class="code">isActive = activated &amp;&amp; me.hasSeen(darkTower)</span> or <span class="code">isActive = activated || me.hasSeen(farm)</span>.</li>
+<li>The isActive property of ActorTopicEntry is true by default (since this is by far the most common case), so if the &lt;.activate&gt; tag acted directly on the isActive property you'd have to remember to set it to nil first; quite apart from the fact that this might be easier to forget to do than setting <span class="code">isActive = activated</span>, if you would otherwise have to type <span class="code">isActive = nil</span> then given the other considerations above you might just as well type <span class="code">isActive = activated</span>.</li>
+</ol>
+
+<br>
+
+<h2>The Different Types of ActorTopicEntry</h2>
+
+<p>We have already seen how AskTopic, TellTopic and AskTellTopic can be used to respond to commands like ASK BOB ABOUT TOWER or TELL BOB ABOUT VISIT (which, incidentally, can be abbreviated to A TOWER or T VISIT once the conversation with Bob is in progress), but the adv3Lite library defines many more types of ActorTopicEntry classes capable of responding to a range of conversational (or quasi-conversational) commands. The full list is given below, although discussion of some of the more specialized classes will be deferred to the appropriate sections.</p>
+
+<ul>
+<li><strong>AskTopic</strong>: responds to ASK X ABOUT Y or A Y</li>
+<li><strong>TellTopic</strong>: responds to TELL X ABOUT Y or T Y</li>
+<li><strong>AskTellTopic</strong>: responds to ASK X ABOUT Y or TELL X ABOUT Y (or the abbreviated forms thereof)</li>
+<li><strong>GiveTopic</strong>: responds to GIVE X TO Y</li>
+<li><strong>ShowTopic</strong>: responds to SHOW X TO Y</li>
+<li><strong>GiveShowTopic</strong>: responds to GIVE X TO Y or SHOW X TO Y</li>
+<li><strong>AskForTopic</strong>: responds to ASK X FOR Y (or ASK FOR Y)</li>
+<li><strong>AskAboutForTopic</strong>: responds to ASK X FOR Y or ASK X ABOUT Y (or the abbreviated forms thereof)</li>
+<li><strong>TalkTopic</strong>: responds to TALK ABOUT Y</li>
+<li><strong>TellTalkTopic</strong>: responds to TELL X ABOUT Y or T Y or TALK ABOUT Y</li>
+<li><strong>AskTalkTopic</strong>: responds to ASK X ABOUT Y or ASK ABOUT Y or A Y or TALK ABOUT Y</li>
+<li><strong>AskTellTalkTopic</strong>: responds to ASK ABOUT Y or TELL X ABOUT Y or TALK ABOUT Y</li>
+<li><strong>SayTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to SAY WHATEVER or just WHATEVER (for further details see <a href="specialtopic.htm#saytopic">below</a>).</li>
+<li><strong>QueryTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to questions like ASK WHERE|WHEN|WHY|HOW|WHY|WHO SUCH-AND-SUCH (for further details see <a href="querytopic.htm#saytopic">below</a>).</li>
+<li><strong>YesTopic</strong>: responds to YES or SAY YES</li>
+<li><strong>NoTopic</strong>: responds to NO or SAY NO</li>
+<li><strong>YesNoTopic</strong>: responds to YES or NO</li>
+<li><strong>KissTopic</strong>: responds to KISS X, <em>but only if <strong>allowKiss</strong> on the actor is true</em>.</li>
+<li><strong>HitTopic</strong>: responds to HIT X, ATTACK X and the like<em>but only if <strong>allowAttack</strong> on the actor is true</em>.</li>
+<li><strong>InitiateTopic</strong>: an actor-initiated TopicEntry (see the section on <a href="initiate.htm">NPC-Initiated Conversation</a> below).</li>
+<li><strong>NodeContinuationTopic</strong>: a special kind of InitiateTopic for use in <a href="convnode.htm">Conversation Nodes</a>.</li>
+<li><strong>NodeEndCheck</strong>: another special kind of InitiateTopic for use in <a href="convnode.htm">Conversation Nodes</a>.</li>
+<li><strong>CommandTopic</strong>: responds to <a href="orders.htm">commands</a> given to NPCs (e.g. BOB, TAKE BALL).</li>
+<li><strong>HelloTopic</strong>: responds to TALK TO X or HELLO or X, HELLO (see the section on <a href="hello.htm">Hello and Goodbye</a> below)</li>
+<li><strong>ByeTopic</strong>: responds to BYE or X, BYE (see the section on <a href="hello.htm">Hello and Goodbye</a> below)</li>
+<li><strong>HelloGoodbyeTopic</strong>: responds to HELLO or BYE</li>
+<li><strong>ImpHelloTopic, ActorHelloTopic, ImpByeTopic, BoredByeTopic, LeaveByeTopic, ActorByeTopic</strong>: used for various kinds of implicit or actor-initiated Hellos and Goodbyes (see the section on <a href="hello.htm">Hello and Goodbye</a> below)</li>
+</ul>
+
+<p>Note that for certain of these kinds of ActorTopicEntry, such as YesTopic, NoTopic, YesNoTopic, KissTopic, HitTopic, NodeInitiateTopic, and the various kinds of HelloTopic and ByeTopic game code should not normally attempt to define the matchObj property (since none of them rely on the player specifying a topic they might match).</p>
+
+<p><strong>HitTopic</strong> and <strong>KissTopic</strong> are not treated as conversational (that is they don't trigger greeting protocols and are not counted as initiating a conversation). They are provided as potentially convenient means of customizing an NPC's response to the common non-conversational forms of interaction with NPCs. The potential convenience is that the responses can be made dependent on the current ActorState or on conditions specified on the isActive property or in any other way that ActorTopicEntries can be manipulated. The potential inconvenience is having to define these objects on actors where the desired response is a consistent refusal to kiss or attack them, which is likely to be the most common case. HitTopic and KissTopic are only used, therefore, when either <strong>allowAttack</strong> or <strong>allowKiss</strong> is true, respectively. Otherwise the response to ATTACK or KISS is given by the actor's <strong>shouldNotAttackMsg</strong> or <strong>shouldNotKissMsg</strong> (at the check stage).</p>
+
+<p>The <strong>TalkTopic</strong> class and its variants may seem an unnecessary complication. There is indeed to need to use it in your games if you don't want it. One of the uses envisaged for it is to specify a broad topic of conversation and have the game respond with a list of possible sub-topics, like this:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;talk about the dark tower</strong>
+You could ask Bob when the tower was built, or why the tower is scary, or tell him
+about your visit, or say you think he's exaggerating.
+</pre></div>
+
+<p>Just how you'd go about that is discussed in the section on <a href="suggest.htm">suggesting</a> topics.</p>
+
+<p>In addition to the ActorTopicEntry classes listed above are the various kinds of DefaultTopic (which match the appropriate conversational command when no specific response have been defined):</p>
+
+<ul>
+<li><strong>DefaultAnyTopic</strong>: responds to any conversational command (but not to HIT or KISS or to an attempt to invoke an InitiateTopic)</li>
+<li><strong>DefaultConversationTopic</strong>: responds to any conversational command except GIVE, SHOW, YES, NO, HELLO and GOODBYE (but not to HIT or KISS or to an attempt to invoke an InitiateTopic)</li>
+<li><strong>DefaultAgendaTopic</strong>: responds to any conversational command that a DefaultAnyTopic would and gives the NPC the opportunity to seize the conversational initiative via an AgendaItem. This is explained more fully <a href="initiate.htm#defaultagenda">below</a> in the section on <a href="initiate.htm">NPC-Initiated Conversation</a>.</li> 
+<li><strong>DefaultAskTopic</strong>: provides a default response for ASK X ABOUT Y</li>
+<li><strong>DefaultTellTopic</strong>: provides a default response for TELL X ABOUT Y</li>
+<li><strong>DefaultAskTellTopic</strong>: provides a default response for ASK X ABOUT Y or TELL X ABOUT Y</li>
+<li><strong>DefaultAskForTopic</strong>: provides a default response for ASK X FOR Y</li>
+<li><strong>DefaultTalkTopic</strong>: provides a default response for TALK ABOUT X</li>
+<li><strong>DefaultGiveTopic</strong>: provides a default response for GIVE X TO Y</li>
+<li><strong>DefaultShowTopic</strong>: provides a default response for SHOW X TO Y</li>
+<li><strong>DefaultGiveShowTopic</strong>: provides a default response for GIVE X TO Y or SHOW X TO Y</li>
+<li><strong>DefaultSayTopic</strong>: provides a default response for SAY X</li>
+<li><strong>DefaultQueryTopic</strong>: provides a default response for questions like ASK WHO/WHAT/WHY/WHEN</li>
+<li><strong>DefaultSayQueryTopic</strong>: provides a default response for SAY X or questions like ASK WHO/WHAT/WHY/WHEN</li>
+<li><strong>DefaultCommandTopic</strong>: provides a default response for orders given to the NPC.</li>    
+</ul>
+
+<p>Note that there is a hierarchy among the various kinds of DefaultTopics, such that the more specific types are defined with a higher matchScore than the more general ones. So, for example, if you define a DefaultAskTopic, a DefaultAskTellTopic, and a DefaultAnyTopic on the same actor, the DefaultAskTopic will responde to commands of the form ASK X ABOUT Y, the DefaultAskTellTopic to commands of the form TELL X ABOUT Y, and the DefaultAnyTopic to anything else (in the absence of more specific responses). The one apparent exception to this is the DefaultAgendaTopic, which takes precedence over all other types of DefaultTopics, but only when there's anything in its agendaList; this is to allow NPC's to pursue their own conversational agendas (if and when they have them) in preference to giving canned default responses.</p>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+ActorTopicEntry
+<br><span class="navnp"><a class="nav" href="asktell.htm"><i>Prev:</i> Basic Ask/Tell</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="suggest.htm"><i>Next:</i> Suggesting Conversational Topics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

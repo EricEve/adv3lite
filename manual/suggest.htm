@@ -1,0 +1,172 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Suggesting Conversational Topics</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Suggesting Conversational Topics
+<br><span class="navnp"><a class="nav" href="actortopicentry.htm"><i>Prev:</i> ActorTopicEntry</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="specialtopic.htm"><i>Next:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Suggesting Conversational Topics</h1>
+
+<p>Many players hate 'guess the topic' puzzles almost as much as they hate 'guess the verb'. One way to avoid such annoyances is to provide the player a list of conversational topics s/he can fruitfully pursue, either in response to a specific request (the TOPICS command) or when the library or the game code thinks it a good idea. You certainly don't need to provide the player with a list of <em>every</em> available topic, since in a game with quite fully-implemented NPCs the list of every available topic might simply be overwhelming. Moreover, in some games the topics to be pursued may be so obvious that there's no need to suggest them at all (in which case there's no need to use the facility to suggest topics). Often, however, it may be helpful to nudge the player towards the most fruitful topics of conversation at any one moment, and the best way to do that may be to provide a list of topics. If we are using any SayTopics and/or QueryTopics in our game, we must do this in any case, since the player cannot be expected to guess the wording that would trigger them.</p>
+
+<p>In the adv3 library you have to mix in your TopicEntry class with a SuggestedTopic class in order for it to be suggested. In adv3Lite you simply define the name property of the TopicEntry in question. This can be done in either one of two ways:</p>
+
+<ol>
+<li>Define the name property explicitly, e.g. <span class="code">name = 'the troubles'</span>.</li>
+<li>Define the name implicitly by setting the <strong>autoName</strong> property to true. This sets the name property of the TopicEntry to the theName property of its matchObj (or of the first object in its matchObj list if matchObj is defined as a list). If you've explicitly defined the name property or there is no matchObj, setting autoName to true has no effect.</li>
+</ol>
+
+<p>The following two definitions are therefore equivalent (assuming the darkTower object has a name of 'dark tower'):</p>
+
+<p><div class="code"><pre>
++ AskTopic @darkTower
+   &quot;&lt;q&gt;Tell me about the dark tower,&lt;/q&gt; you insist.\b
+    &lt;q&gt;Oh no!&lt;/q&gt; says Bob. &lt;q&gt;We don't talk about that -- ever!&lt;/q&gt;&quot;
+    
+    name = 'the dark tower'
+;
+
++ AskTopic @darkTower
+   &quot;&lt;q&gt;Tell me about the dark tower,&lt;/q&gt; you insist.\b
+    &lt;q&gt;Oh no!&lt;/q&gt; says Bob. &lt;q&gt;We don't talk about that -- ever!&lt;/q&gt;&quot;
+    
+    autoName = true
+;
+</pre></div>
+
+<p>In either of the above examples the dark tower would be presented as something the player could ask about ('You could ask Bob about the dark tower...'), because it's obvious that an AskTopic has to be asked about. With compound types of ActorTopicEntry (e.g. AskTellTopic) it's not so obvious whether it should be suggested as something to ask about or tell about. In cases such as these the library simply makes a default choice (for example, an AskTellTopic would be suggested as something to ask about), but if the library's default choice isn't what you want in any particular case you can override it by using the TopicEntry's <strong>suggestAs</strong> property to indicate how the topic should be suggested. For example, to make the game suggest 'You could tell Bob about your visit' with an AskTellTopic you could so the following: </p>
+
+ <p><div class="code"><pre>
++ AskTellTopic @tVisit
+   "&lt;q&gt;I visited the dark tower this morning,&lt;/q&gt; you announce.\b
+    &lt;q&gt;You shouldn't have done that, you really shouldn't,&lt;/q&gt; Bob
+    replies with a shudder. &quot;
+    
+    autoName = true
+    suggestAs = TellTopic
+;
+
+....
+
+tVisit: Topic '()your visit; my;' ;
+</pre></div>
+<br>
+
+<h2>The Conditions Under Which Topics are Suggested</h2>
+
+<p>Defining the name or autoName property on an ActorTopicEntry does not mean it will necessarily be suggested. For a conversational topic to be suggested each of the following conditions must also be true:</p>
+
+<ol>
+<li>The <strong>isActive</strong> property must be true.</li>
+<li>The <strong>curiosityAroused</strong> property must be true (it is true by default).</li>
+<li>The <strong>curiositySatisfied</strong> property must be nil.</li>
+<li>The ActorTopicEntry in question must be reachable.</li>
+</ol>
+
+<p>The <strong>curiosityAroused</strong> property is defined in addition to the isActive property to allow for topics that you want the player to be able to refer to, but you don't want to suggest them yet (because they're not that important to suggest until something else happens). To make use of the curiosityAroused property you can either define it declaratively (e.g. <span class="code">curiosityAroused = me.hasSeen(darkTower)</span>) or set it to nil initially on one or more TopicEntries and then use the <strong>&lt;.arouse key&gt;</strong> tag to set the curiosityAroused property to true for every ActorTopicEntry belonging to the current interlocutor whose convKeys property matches (or contains) <em>key</em>. You can achieve the same effect by calling arouse(key) on the actor (which is what the &lt;.arouse key&gt; tag does).</p>
+
+<p>The <strong>curiositySatisfied</strong> property allows the topic to stop being suggested once the player character has seen the response enough times. What counts as enough times is defined on the <strong>timesToSuggest</strong> property. By default this is 1 unless the TopicEntry is an EventList, in which case timesToSuggest is the number of items in the eventList property (eventList.length). You can easily override these defaults if you wish or else set timesToSuggest to nil if you want the TopicEntry to carry on being suggested indefinitely. Alternatively, you could override curiositySatisfied so that it becomes true according to some other condition.</p>
+
+<p>An ActorTopicEntry is <em>reachable</em> if using the suggestion (e.g. ASK BOB ABOUT DARK TOWER when told 'you could ask Bob about the dark tower' would actually trigger this particular TopicEntry. Reasons why it might not do so include:</p>
+
+<ul>
+<li>The isActive property is nil.</li>
+<li>The player character does not know about the matchObj.</li>
+<li>The ActorTopicEntry is masked by another ActorTopicEntry (possibly a DefaultTopic) defined under the current ActorState.</li>
+<li>The ActorTopicEntry is masked by another ActorTopicEntry with a higher matchScore.</li>
+</ul>
+
+<p>The isReachable() method of ActorTopicEntry attempts to test for all these conditions (ultimately by testing whether the current ActorTopicEntry is currently the best match for its matchObj, if it doesn't fail other tests first) to try to ensure that the player is not presented with conversation suggestions that are currently unavailable.</p>
+
+<p>Note that while the four numbered conditions above are jointly <em>necessary</em> for a topic to be suggested, they may not be jointly <em>sufficient</em>, since there are other restrictions that game authors can place on what topics are suggested at any given moment.</p>
+
+<p>Normally, all the topics that meet the four numbered conditions would be displayed in response to an explicit TOPICS command (or TALK TO X command), but game authors can restrict even this by overriding  the actor's <strong>suggestionKey</strong> property. If this is set to something other than nil, then only those TopicEntries whose convKeys property matches or contains the suggestionKey (and that also meet all the other conditions) will be listed as suggestions. We shall now go on to discuss one situation in which this might be useful (although game authors may of course think of others).</p>
+
+<br>
+
+<h2>TopicEntries that Suggest Other Topics</h2>
+
+<p>When an ActorTopicEntry matches a player's conversational command, it normally responds by displaying its topicResponse (or by executing its topicResponse method). An ActorTopicEntry can instead be defined to display a further list of more specific topics. We saw an example of this in the previous section:</p>
+
+
+<p><div class="cmdline"><pre>
+<strong>&gt;talk about the dark tower</strong>
+You could ask Bob when the tower was built, or why the tower is scary, or tell him
+about your visit, or say you think he's exaggerating.
+</pre></div>
+
+<p>Setting this up is quite straightfoward. You just define the <strong>keyTopics</strong> property on the ActorTopicEntry to contain a key or a list of keys (single-quoted strings) that will be matched by the convKeys property of the TopicEntries you want to suggest. For example:</p>
+
+ <p><div class="code"><pre>
++ AskTellTalkTopic @darkTower
+    keyTopics = 'dark-tower'
+    autoName = true
+;
+
++ TellTopic @tVisit
+   "&lt;q&gt;I visited the dark tower earlier..."
+ 
+    convKeys = 'dark-tower'
+    autoName = true    
+;
+
+...
+</pre></div>
+
+<p>One potential problem with this is that both the AskTellTalkTopic and the topics it suggests would be listed in response to a TOPICS command, which might seem redundant, or even as presenting the player with too much information at once. For this reason, if you were defining a whole lot of TalkTopics (say) that went on to suggest further subtopics you might prefer it if the TOPICS command only listed the top-level TalkTopics, leaving the TalkTopics to suggest their sub-topics. The topic suggestions could then act a little like a two-tier menu.</p>
+
+<p>To implement this scheme you would give all your top-level topics a common convKey (such as 'top') and then define that key on the <strong>suggestionKey</strong> property of the actor. For example:</p>
+
+ <p><div class="code"><pre>
+bob: Actor 'Bob; worried; man; him' @store
+  ...
+  suggestionKey = 'top'
+;
+ 
++ AskTellTalkTopic @darkTower
+    keyTopics = 'dark-tower'
+    convKeys = 'top'
+    autoName = true
+;
+
++ TellTopic @tVisit
+   "&lt;q&gt;I visited the dark tower earlier..."
+ 
+    convKeys = 'dark-tower'
+    autoName = true    
+; 
+... 
+</pre></div>
+
+<p>Note that if you do this, bob's suggestionKey isn't set in stone; it can be changed at run-time to anything else (including nil, which removes the restriction on what topics to suggest) simply by executing the statement <span class="code">bob.suggestionKey = 'another-key'</span> or <span class="code">bob.suggestionKey = nil</span>, or equivalently using the tag <strong>&lt;.sugkey another-key&gt;</strong> or <strong>&lt;.sugkey nil&gt;</strong>.</p>
+
+<p>It should be emphasized once again that there is absolutely no reason to use this scheme if you don't want to; in many games it probably wouldn't be convenient; but it is one of the reasons for introducing a separate TalkTopic (for use at the top-level of such a scheme in a way that clearly distinguishes top-level topics and suggestions from the sub-topics that fall underneath). It should also be emphasized that game authors are, of course, free to use the tools described here in any way they wish; they are certainly not restricted to this particular scheme.</p>
+
+<br>
+
+<h2>Other Ways of Suggesting Topics</h2>
+
+<p>It has already been mentioned in passing that the player can see a list of suggested topics (assuming there are any) by entering a TOPICS command. If you want to show the player an equivalent list of topics even though s/he hasn't explicitly asked for them, you can do so by including a <strong>&lt;.topics&gt;</strong> tag in the output of a conversational response. This schedules the diplay of a topic inventory (a list of suggested topics) just before the next command prompt. As a variation on this you can use the <strong>&lt;.suggest key&gt;</strong> tag to schedule a list of all suggested topics whose convKeys match <em>key</em>. To list all available suggested topics, even when the list might otherwise be restricted by the actor's suggestionKey property, use <strong>&lt;.suggest all&gt;</strong>.</p>
+
+<p>One further way to display a restricted list of suggested topics is via the <.convnode node> tag, but we'll discuss this in more detail when we come to look at <a href="convnode.htm">Conversation Nodes</a>.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Suggesting Conversational Topics
+<br><span class="navnp"><a class="nav" href="actortopicentry.htm"><i>Prev:</i> ActorTopicEntry</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="specialtopic.htm"><i>Next:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Doers</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Doers
+<br><span class="navnp"><a class="nav" href="message.htm"><i>Prev:</i> Messagse</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="react.htm"><i>Next:</i> Reacting to Actions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Doers</h1>
+<p>A Doer intervenes between a Command and the actions it performs. The Doers defined in the standard library (which simply match any player command) simply either pass the command straight on to the appopriate action (if it is to be performed by the player character) or call the handleCommand() method of the target actor (or other object) if it's a command directed at anyone else (such as GEORGE, TAKE THE RED BALL). But game authors can define custom Doers to intervene much more drastically, either stopping the action in its tracks or doing something quite different from the norm. A Doer is thus a little like an Inform 7 instead rule, and like an instead rule it can be defined to match specific actions on specific objects under specific circumstances, and only take effect then. Its use is thus similar to that of an instead rule, except that adv3Lite authors are likely to use Doers rather less frequently than Inform 7 authors use instead rules, since the methods for customizing <a href="actres.htm">action results</a> can often achieve the same results and will often be a better way of doing things. But there are cases where defining a custom Doer may be the better or simpler approach.</p>
+
+<p>There are basically two aspects to defining a Doer: defining the circumstances under which it is active, and defining what it does when it's active. We'll consider each of these in turn.</p>
+
+<h2>Defining when a Doer is active</h2>
+
+<h3>Matching a Command</h3>
+
+<p>The first part of defining when a Doer is active is defining what command it should match. We do this on its cmd property, which should be defined as a single-quoted string specifying the action and any objects it might take. We call this the <i>command string</i>.
+
+<p>The command string specifies a verb and its objects, generally using the same verb phrase syntax that a player would use to enter a command to the game.  The exact verb syntax is up to the language library to define; for English, we replicate the same verb phrases used to parse command input.</p>
+     
+<p>The verb phrase syntax is generally the same as for regular player commands, but the noun syntax is different.  Each noun is written as the <em>source code</em> name of a game object or class.  That is, not a 
+noun-and-adjective phrase as the player would type it, but the program symbol name as it appears in the source code.  If you use a class name, the command matches any object of the class.  For example, to handle putting any treasure in any container:
+        
+ <p><div class="code"><pre>cmd = 'put Treasure in Container'</pre></div>
+       
+ <p>You can match multiple objects or classes in a single noun slot (and you can freely mix objects and classes).  For example, to   handle putting any treasure or magic item in a container:
+     
+ <p><div class="code"><pre>cmd = 'put Treasure|Magical in Container'</pre></div>
+      
+ <p>You can't use the '|' syntax with verbs, because the verb syntax covers the entire phrase.  You can match multiple verbs by writing out the entire phrasing for each verb, separating each phrase with a semicolon:</p>
+      
+ <p><div class="code"><pre>cmd = 'take skull; put skull in Thing'</pre></div>
+       
+<p>You can also write a command that matches ANY verb, by using "*" as the verb.  You can follow the "*" with any number of objects; the first is the direct object, the second is the indirect, and the third is the accessory (note, the adv3Lite library does not currently make any use of the third, accessory, object, but the Mercury parser can, and Doer comes from the Mercury library and there seemed no reason to take this feature out, in case it proves useful in future).  This phrasing will match any verb that matches the given objects AND the given number of objects. For example, '* Thing' will match any verb with a direct object
+that's of class Thing, but it won't match verbs without any objects or verbs with an indirect object.  Using "*" as a noun will match any object as well as no object at all.</p>
+
+<p>Note, however, that there are some limitations with the kinds of objects a Doer's command string can match. The matching currently only works properly on objects derived from Thing (i.e. for TActions and TIActions, along with IActions). It does not, for example, work with directions. So although a Doer defined like this will indeed match a GO NORTH command:</p>
+
+ <p><div class="code"><pre>
+Doer
+   cmd = 'go northDir'
+   ...
+;</pre></div>
+
+<p>It will also match at attempt to go in any other direction, which probably isn't what's wanted.</p>
+
+<p>In the case of a movement command we can work round this by defining a direction property on the Doer:</p>
+
+ <p><div class="code"><pre>
+Doer 'go dir'
+  direction = northDir
+  ...
+;
+ </pre></div>
+
+<p>Note the use of the Doer template here. Since the cmd property has to be defined for every Doer and it's usually a relatively short single-quoted string, it makes sense to use a template for it like this.</p>
+
+<p>When the first word of the command string is 'go', it doesn't matter what the second word is provided it's alphanumeric. It could as well have been 'banana' or 'kangaroo' for all the difference it makes to the way the library interprets the command string in this special case; for the travel command it's simply matching the pattern 'go' followed by one other word. This is a consequence of the fact that at this point the Mercury implementation is set up only to recognize the verb, direct object, indirect object, and accessory object names in a command string, and its parser doesn't treat a direction as any of these (and so far as I can see it would be more trouble than it's worth to try to change this). At least for the time being, and probably for the forseeable future as well, we are therefore stuck with this slightly kludgy way of specifying a travel command for a Doer to match. On the positive side the direction property can also contain a list of directions, so we could, example, use a Doer to inform the player that shipboard directions aren't available if our game never uses them:</p>
+
+<p><div class="code"><pre>
+Doer 'go dir'
+    exec(curCmd)
+    {
+        "Shipboard directions have no meaning in this game. ";
+        
+        /*  
+         *  Use the abort macro to stop the rest of the action processing
+         *  cycle in its tracks, since we don't want this refusal to
+         *  act to count as a player turn. 
+         */
+        abort;
+    }
+    direction = [portDir, starboardDir, foreDir, aftDir]
+;
+</pre></div>
+ 
+<p>This would block any command to go Port, Starboard, Fore or Aft with the message shown (rather than printing the normal "You can't go that way" message, which could be taken as implying that the Shipboard Directions might be usable in a different room).</p>
+
+<p>Incidentally, Doers work even less well at matching commands involving literals or topics (conversational commands and the like), but this is probably not much of a restriction in practice since it is hard to envisage a situation where it would be useful to have a Doer intercept such commands.</p>
+
+<br>
+<h3>Matching Special Conditions</h3>
+
+<p>In addition to matching commands, you can specify the conditions under which a Doer takes effect; when the conditions are not met, the Doer does not intervene in the handling of the command. The conditions you can specify on a Doer are:</p>
+
+<ul>
+<li><strong>where</strong>: This is a room or region, or a list of rooms and/or regions; the player character must be in the specified room or region, or one of the specified rooms or regions in the list, for the Doer to take effect.</li>
+<li><strong>during</strong>: A Scene that must be currently happening for the Doer to take effect (or a list of scenes, one of which must be active)</li>
+<li><strong>when</strong>: A condition that must be true for the Doer to take effect (i.e. an expression that evaluates to true or nil or a method that returns true or nil)</li>
+<li><strong>who</strong>: The actor performing the command (or a list of actors, one of whom must be the actor performing this command). Use this condition with care, since you could end up bypassing the normal <a href="orders.htm">command-handling</a> process (for when the player character gives an order to an actor) in ways you may not intend.</li>
+</ul>
+ 
+<p>If you specify more than one of these conditions, then all the conditions you specify have to be true for the Doer to take effect.</p>
+
+<p>To give just one example: I've often seen people ask how to disable the UNDO command during combat. Here's one way you could do it with a Doer: first define a scene during which the combat takes place then define the corresponding Doer:</p>
+ <p><div class="code"><pre>
+Doer 'undo'
+    exec(curCmd)
+    {
+        "Sorry, you can't undo right now. ";
+    }
+    
+    during = combatScene
+;</pre></div>
+<p>Note that we don't need to use the abort macro in this case (though doing so would be harmless) since Undo, being a SystemAction, wouldn't run any after notifications, daemons or turn count increment in any case (which are the steps 'abort' would normally prevent).</p>
+
+<br>
+
+<h2>Defining What a Doer Does</h2>
+
+<p>There are two methods you can override on Doer to effect what it does, <strong>exec(curCmd)</strong> and <strong>execAction(curCmd</strong>). Which of them you choose depends on what it is you want to achieve. By default exec(curCmd) calls execAction(curCmd) if the action is to be carried out by the player character, and curCmd.actor.handleCommand if it's a command directed at anyone or anything else. Thus if you want your custom Doer to have the same effect whether the command is an action to be carried out by the player character or a command directed at someone else, then execCmd() is probably the best method to override; this works best when you simply want to block the action altogether, as in the examples we've seen so far. But it you want to make the command work differently just for the player character, then execAction() is probably the better choice; at the very least, if you choose to override exec() for anything other than simply blocking the command altogether you'll need to bear in mind that your custom code will be executed whether the player enters a command for the player character to carry out (e.g. TAKE RED BALL) or a command for someone or something else to carry out (e.d. BOB, TAKE THE RED BALL), and your code will therefore have to cover both cases, something you don't need to worry about if you override execAction() (which is precisely why it's a separate method in the first place).</p> 
+
+<p>Whether you're overriding exec(curCmd) or execAction(curCmd), it's useful to know that the curCmd parameter represents the current Command object (it can't be abbreviated to cmd, since that's the name of a property of Doer; you could abbreviate it to something briefer like just c in your own code if you wish, but we use curCmd in this manual to make it clear what it's for). You can use the properties of curCmd to get at the parser's interpretation of the player's command. The <strong>actor</strong> property give the actor the command is targeted at (usually the player character if it's an ordinary command, but otherwise the other actor if the command was targeted at another actor). The <strong>action</strong> property gives the action to be carried out (e.g. Take, Jump, PutIn). The <strong>dobj</strong> and <strong>iobj</strong> properties give the direct and indirect objects of the command, if they exist.</p>
+
+<p>At the point at which exec() or execAction() is called on a Doer, the parser has thus identified the action to be carried out, and the objects involved in that command, and the Command object is processing the action for one set of objects (where the command might apply to multiple direct objects, say). The parser has used the action's verify method to help it resolve the objects, but that's all; the verify method has not yet been used to determine whether or not the action can go ahead, and no other part of the action handling has been carried out. If you try to handle the action manually you should be aware that unless the normal action handling is executed, the library won't carry out any before notifications, although depending on the action it will usuall carry out the after notification,  execute any daemons, and advance the turn counter (since these steps are  handled by the Command object). The main exception is with SystemActions, that don't execute before and after notifications, or fuses, daemons and incrementing turn count in any case. If your Doer simply substitutes one action for another (probably the commonest case apart from blocking an action altogether), then none of this should be a problem, since the new action will handle all the notifications and so forth in any case.</p>
+
+<p>To make this easier for you, the Doer object provides a <strong>redirect()</strong> method, which can be called with two or more parameters. The first parameter is the current command (curCmd). The second is the action you want to execute (e.g. Jump, Take, PutIn). The two optional parameters are the new direct and indirect objects of the command which are called as named arguments (e.g. <span class=code>dobj: redBall, iobj: box</span>). You can omit these parameters either if they don't exist for the new action you want to execute (because it's an IAction that doesn't take either object or a TAction that only takes one) or because you want to leave one or the other or both objects unchanged (and in the same roles) as specified on the current Command object. To give some examples.:</span>
+
+<ul>
+<li><span class="code">redirect(curCmd, Jump);</span> makes the player character jump.</li>
+<li><span class="code">redirect(curCmd, Take, dobj: redBall);</span> makes the player character take the red ball.</li>
+<li><span class="code">redirect(curCmd, PutIn, dobj: redBall, iobj: blueBox);</span> makes the player character put the red ball in the blue box.</li>
+<li><span class="code">redirect(curCmd, PutIn, iobj: blueBox); </span> makes the player character put the original direct object of the command in the blue box.</li>
+</ul>
+
+<p>One use of Doer to redirect one command to another could be where English idiom suggests a meaning for a command other than its usual IF interpretation. For example, whereas GO THROUGH X normally means passing through X or walking through X, a command like GO THROUGH JUNK could be a way of saying SEARCH JUNK, so we might define a Doer like this:</p>
+
+<p><div class="code"><pre>
+Doer 'go through junk'   
+    exec(curCmd)
+    {
+        redirect(curCmd, LookIn);
+    }
+;
+</pre></div>
+
+<p>The one slight problem with this is that this Doer will match any wording of the GO THROUGH action, including WALK THROUGH JUNK, for example, which may be less than ideal. We can solve this problem by defining the <strong>strict</strong> property of the Doer to true, which means it will only match the player's command if the first word of the player's command (the command verb) is strictly identical to the first word of the Doer's cmd property. So in this case do define the Doer to match GO THROUGH JUNK but not WALK THROUGH JUNK we'd write:</p>
+
+ <p><div class="code"><pre>
+Doer 'go through junk'    
+    strict = true
+    
+    exec(curCmd)
+    {
+        redirect(curCmd, LookIn);
+    }
+;
+</pre></div>
+
+<p>The redirect() method is not much use for a travel command, since it doesn't give any easy way do specify the direction of travel (once more because TADS 3 doesn't treat a Direction as the object of a command in its normal sense). If you want to make the player character go somewhere, you can use the travel(dirn) method instead, where <em>dirn</em> is the direction object corresponding to the direction you want the player character to go in; for example:</p>
+
+ <p><div class="code"><pre>
+ Doer 'jump'
+    execAction(curCmd)
+    {
+        /* call the action's before notifications */
+        curCmd.action.beforeAction();
+        "You jump off the cliff, and down you go! ";
+        travel(downDir);
+    }
+    where = cliffEdge
+ ;
+ </pre></div>
+ 
+ <p>The kind of situation where one might want to use a Doer to carry out the full processing of a command rather than simply redirecting it to another action might be where an action involving a particular pair of objects does something quite out of the ordinary. For example, suppose that inserting the blood-diamond into the crown of the demon king results in the player character being instantly transported into the nether regions; we might use a Doer like this:</p>
+  <p><div class="code"><pre>
+ Doer 'put bloodDiamond in crown'
+    execAction(c)
+    {
+        c.action.beforeAction();
+        "The crown shatters in your hand. An instant later there's a
+         blinding flash and you suddenly feel horribly hot. Once you
+         recover your sight you see your surroundings have changed
+         ... for the worse!\b";
+         
+         crown.moveInto(nil);
+         
+         hell.travelVia(gPlayerChar);        
+    }
+ ;
+ </pre></div>
+<p>Under what circumstances is it better to define a Doer rather than override the various methods described in the <a href="actres.htm">Action Results</a> section above? Since Doer is a feature new to TADS 3 there's no experience or accumulated wisdom to call on here, so the only general advice that can be given is to use whichever is easier and simpler for getting the job done. The kinds of situation where it seems likely that a Doer may be the better choice include:</p>
+
+<ul>
+<li>Preventing certain actions taking place altogether (conditionally or otherwise) as in some of the examples given above.</li>
+<li>Doing something different under special circumstances, which can be readily specified using the where, when and/or during properties of a Doer.</li>
+<li>Implementing special handling of a TIAction when what should happen depends on the particular objects involved, particular when it depends on particular pairings of direct and indirect objects, which can become quite awkward to deal with using the methods described under <a href="actres.htm">Action Results</a>.</li>
+<li>Transforming one action into another action. Although this can also be done using <a href="actres.htm#remap">remap</a>, using Doer.redirect() may turn out to be a cleaner and more robust solution (for which reason remap may be withdrawn from the library at some future point).</li>
+</ul>
+<p>At this point it is probably worth experimenting to see what works best for you.</p>
+<br>
+ 
+<h2>Priority of Doers</h2>
+ 
+ <p>If several Doers are defined, it's possible that more than one will match a given command, in which case there needs to be some way of determining which one takes effect. The way in which the Mercury library, and hence the adv3Lite library, handles this is rather like the way Inform 7 orders the priority of rules such as instead rules, by giving the more specific Doers priority over less specific ones. Doers also have a <strong>priority</strong> property (default value 100) which can be used to determine the Doer's precedence order manually. The priority of this handler.  You can use this when it's necessary to override the default precedence order, which is figured according to the specialization rules described below.</p>
+     
+ <p>Most of the time, you shouldn't need to set a priority manually. If you don't, the library determines the precedence automatically according to the degree of specialization.  However, the way the library figures specialization is a heuristic, so it's not always right.  In cases where the heuristic produces the wrong results, you can bypass the rules by setting a priority manually.  A manual priority takes precedence over all of the standard rules.</p>
+    
+ <p>The basic approach is to process Doers in order from most specific to most general.  This creates a natural hierarchy of handlers where more specific rules override the generic, default handlers. Here are the degrees of specialization, in order of importance:</p>
+  <ol>  
+  <li>A Doer with a higher <em>priority</em> value takes precedence over one with a lower value. </li>
+     
+  <li>A Doer with a <em>when</em> condition is more specific than a Doer without one.  A <em>when</em> condition means that the Doer is designed to operate only under specific circumstancs, so it's inherently more specialized than one that always operates.</li>
+   
+  <li>A Doer with a <em>where</em> condition is more specific than a Doer without one.  A <em>where</em> condition means that the Doer only applies to a limited geographical area.</li>
+  <li>A Doer with a <em>who</em> condition is more specific than a Doer without one.  A <em>who</em> condition means that the Doer only applies to a particular actor.</li>
+  <li>A Doer with a <em>during</em> condition is more specific than a Doer without one. A <em>during</em> condition means that a Doer is restricted to a particular scene.</li>   
+  <li>A Doer that matches a particular Action is more specific than one that matches any Action.</li>
+      
+  <li>If two Doer commands are for the same Action, the Doer that matches a more specialized subclass (or just a single object instance) for a noun phrase is more specific than one that matches a base class for the same noun phrase.  For example, 'take Container' is more specific than 'take Thing', because Container is a subclass of Thing, and 'take backpack' (where the 'backpack' is a Container) is more specific than either.  This type of specialization applies in the canonical object role order: direct object, indirect object, accessory.  For example, we consider 'put Container in Thing' to be more specific than 'put Thing in Container', because we look at the direct object by itself before we even consider the indirect object.  This rule only applies when the Action is the same: 'put Thing in Container' and 'open Door' are equal for the purposes of this rule.</li>
+  </ol>
+    
+  <p>It's important to understand that each degree of specialization is considered independently of the others, in the order above.  For example, if you have a Doer with just a 'when' condition, and another with only a 'where' condition, the one with the 'when' condition has higher priority.  This is because we look at the  presence of a 'when' condition first, before even considering  whether there's a 'where' condition.</p>
+     
+  <p>The library has no way to gauge the specificity of a 'when','where', 'who' or 'during' condition, so there's no finer-grained priority to the conditions than simply their presence or absence.</p>
+     
+  <p>If two Doers have the same priority based on the rules above, the one that's defined LATER in the source code has priority.  This means that Doers defined in the game take priority over library definitions.</p> 
+   
+ 
+ 
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Doers
+<br><span class="navnp"><a class="nav" href="message.htm"><i>Prev:</i> Messages</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="react.htm"><i>Next: </i>Reacting to Actions </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

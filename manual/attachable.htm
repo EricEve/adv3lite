@@ -1,0 +1,72 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Attachables</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Attachables
+<br><span class="navnp"><a class="nav" href="optional.htm"><i>Prev:</i> Optional Modules</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="event.htm"><i>Next:</i> Events</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Attachables</h1>
+<p>The attachables module provides a couple of classes to facilitate attaching objects to one another in simple cases (so if you don't have any need to attach objects to each other in your game right now you can skip this section and come back to it later). The adv3Lite implementation is both simpler and easier to use than the adv3 Attachable class, but handles a far more restricted range of cases (for the sake of keeping things simple). Also, unlike the adv3 Attachable framework, in adv3Lite attachment is <i>not</i> a symmetrical arrangement, i.e. ATTACH A TO B does not mean the same thing as ATTACH B to A. Moreover in adv3Lite attachment is implemented as a many-to-one relationship, that is you can attach many As to one B using commands of the form ATTACH A to B.</p>
+
+<p>We can make this clearer by means of a concrete example. Suppose we have a fridge magnet. We can then ATTACH MAGNET TO FRIDGE. The magnet is then considered as attached to the fridge rather then vice versa. Sinced the fridge is the dominant or larger object in this attachment relationship, it could have several magnets attached to it, for example a round magnet, a square magnet, and a star-shaped magnet. All three magnets could be attached to the fridge in turn with the commands ATTACH ROUND MAGNET TO FRIDGE, ATTACH SQUARE MAGNET TO FRIDGE, and ATTACH STAR MAGNET TO FRIDGE. Either before or after being attached to the fridge the magnets could in their turn have objects attached to them, e.g. ATTACH PAPERCLIP TO ROUND MAGNET and ATTACH DRAWING PIN TO ROUND MAGNET. After all these commands had been issued, the three magnets would be attached to the fridge, while the paperclip and the drawing pin would be attached to the round magnet.</p>
+
+<p>The base class for implementing this type of attachment in adv3Lite in the <b>SimpleAttachable</b>. In order to attach two objects, both must defined as SimpleAttachables (or as a subclass thereof). You should then define the <b>allowableAttachments</b> property on the major item (the one things are to be attached to, such as the fridge in our previous example) with a list of objects that can be attached to it (e.f. [roundMagnet, squareMagnet, starMagnet]). For example, if we had just one magnet we wanted to be able to attach to a fridge we might define:</p>
+
+<p><div class=code><pre>
+
++ fridge: SimpleAttachable 'fridge; large white; refrigerator door'
+    "It's a large, white floor-standing refrigerator. "
+    remapIn: SubComponent { isOpenable = true }
+    allowableAttachments = [magnet]
+    isFixed = true
+    isListed = nil
+;
+
+++ magnet: SimpleAttachable 'small magnet; red maple; leaf'
+    "It's red and shaped like a maple-leaf. You must have picked it up on your
+    last trip to Canada. "
+    attachedTo = fridge
+;
+</pre></div>
+
+<p>In this example, the magnet starts out attached to the fridge, which is why we define <span class=code>attachedTo = fridge</span> and locate the magnet in the fridge (with the ++ notation; note also that to make sure the magnet is on the outside of the fridge we define the interior of the fridge on its remapIn property). If you didn't want the magnet to start out attached to the fridge you'd just locate it wherever you want it to start out and leave its attachedTo property undefined. The above example does, however, illustrate a couple of useful points. First, it shows how you can define an object as starting off attached, and secondly it calls attention to the fact that if you attach one object to another the first object ends up located in the second (which ensures that the first object will move around with the second if the second object is moved), and that when an object is attached to another object the first object's attachedTo property is set to the second object.</p>
+
+<p>More generally, the properties of SimpleAttachable you might commonly want to use are:</p>
+
+<ul>
+<li><b>allowableAttachments</b>: a list of items that can be attached <i>to</i> this item (which in general won't tbe same as the items to which this object can be attached).</li>
+<li><b>attachedTo</b>: the item (if any) to which this item is currently attached. Normally this is set by the library when the player issues ATTACH and DETACH commands; you only need to set it yourself for objects that start out attached.</li>
+<li><b>locType</b>: You should treat this as a read-only property. It will be set to Attached when this object is attached to something.</li>
+<li><b>isFirmAttachment</b>: If this is true (the default) then this object has to be explicitly detached from its parent before it can be moved anywhere else (though the library will carry out an implict DETACH command if the player character takes this object while it is attached).</li>
+<li><b>allowDetach</b>: If this is true then this object can be detached from its parent with a DETACH command. Otherwise the DETACH command won't work to detach this object (maybe some other command such as UNSCREW would be required, as specified by the game author).</li>
+<li><b>allowOtherToMoveWhileAttached</b>: If this is true (the default) then our parent object (the one this object is attached to) can be moved while we're attached to it. If it's nil, then the other object cannot be moved while this object is attached to it.</li>
+<li><b>attachments()</b>: A method that returns the list of objects attached to this object.</li>  
+</ul>
+
+<p>The library defines two subclasses of SimpleAttachable: <b>Component</b> and <b>NearbyAttachable</b>.</p>
+
+<p>A <b>Component</b> is a SimpleAttachable that's treated as a component of the item to which its attached (the handle of a knife, say). A Component starts out with its isFirmAttachment property set to true, and its allowDetach property set to nil. It also defines an <b>initiallyAttached</b> property which, if true (the default) means that the Component starts out attached to its immediate container. Moreover, the locType of an attached Component is PartOf. If a Component starts out as a separate item (e.g. a handle not yet attached to a knife) it effectively becomes a part of (i.e. a component of) the item its attached to when it is attached (e.g. ATTACH HANDLE TO KNIFE would effectively make the handle part of the knife, assuming the handle was a Component and the knife a suitably defined SimpleAttachable). Note that if the handle started out attached to the knife and never needed to be reattached to it during the game, there would be no need to make the knife a SimpleAttachable; the knife could then just be a Thing.</p>
+
+<p>A <b>NearbyAttachable</b> is a SimpleAttachable that's moved into the <i>location</i> of the object it's attached to, instead of becoming located within the other object. (This might be useful, say, for connecting lengths of hose or cable together, or assembling a device out of its components).</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Attachables
+<br><span class="navnp"><a class="nav" href="optional.htm"><i>Prev:</i> Optional Modules</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="event.htm"><i>Next:</i>Events </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

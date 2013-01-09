@@ -1,0 +1,255 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; NPC-Initiated Conversation</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+NPC-Initiated Conversation
+<br><span class="navnp"><a class="nav" href="tags.htm"><i>Prev:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="final.htm"><i>Next:</i> Final Moves</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>NPC-Initiated Conversation</h1>
+
+<p>All the conversational features of the adv3Lite library we have looked at so far have been aimed at providing ways for NPCs to respond to the player's conversational commands. But truly life-like NPCs will sometimes try to seize the conversational initiative. The adv3Lite provides two tools to help you achieve this: <a href="#convagendaitem">ConvAgendaItems</a> and <a href="#initiatetopic">InitiateTopics</a>. The former can also be used in conjunction with <a href="#defaultagenda">DefaultAgendaTopics</a> to allow NPCs to take the conversational initiative when the player character tries to talk about something they don't want to talk about. </p>
+
+<h2><a name="initiatetopic">InitiateTopic</a></h2>
+<p>An InitiateTopic is defined like any other ActorTopicEntry object, but instead of representing the actor's response to a conversational command from the player, it can be used to represent something an NPC chooses to say spontaneously (or in reaction to something in his/her environment). InitiateTopics are triggered by calling <span class="code">initiateTopic(obj)</span> on the actor. If there's one or more InitiateTopics defined on the actor (or the actor's current ActorState) that have <em>obj</em> as one of the objects on their matchObj property, then the InitiateTopic that's the best match (i.e. the one with the highest matchScore that has isActive = true) is selected and its topicResponse is displayed (much as would be the case for any other kind of ActorTopicEntry).</p>
+
+<p>We thus define an InitiateTopic in much the same way as we'd define any other kind of ActorTopicEntry, except that since an InitiateTopic can never be suggested to the player (it's never a direct response to a conversational command), it would be quite meaningless to define any of the properties that relate to suggesting topics (such as name, autoName or suggestAs). On the other hand, there is no limit to what kind of object <em>obj</em> can be. It can be a Topic or a Thing (or a class) as with the more usual kinds of ActorTopicEntry, but it doesn't need to be, and you're free to use or define any kind of objects for use with InitiateTopics that you find useful (as the library does with NodeContinuationTopic and NodeEndCheck, both of which are special types of InitiateTopic).</p>
+
+<p>One example of a possible use for an InitiateTopic might be to have an NPC who's following the player character around make a comment on each room (or some of the rooms) they arrive in, by keying the InitiateTopic to the location. This might be done like this:</p>
+
+ <p><div class="code"><pre>
++ bobAccompanying: ActorState
+    specialDesc = "Bob is by your side. "
+    
+    arrivingTurn() { getActor.initiateTopic(getActor.getOutermostRoom); }
+;
+
+++ InitiateTopic @lounge
+    &quot;&lt;q&gt;H'm,&lt;/q&gt; says Bob. &lt;q&gt;This room is rather bare, isn't it?&lt;/q&gt;. &quot;
+;
+
+++ InitiateTopic @kitchen
+    &quot;&lt;q&gt;Ah!&lt;/q&gt; says Bob. &lt;q&gt;Any chance of something to eat?&lt;/q&gt; &quot;   
+;
+</pre></div>
+
+<p>Note that such a scheme does not commit you to supplying an InitiateTopic for every room; if initiateTopic(obj) doesn't find a match it simply does nothing, so no harm is done.</p>
+<br>
+
+<h2><a name="convagendaitem">ConvAgendaItem</a></h2>
+<p>A ConvAgendaItem is a special kind of <a href="agenda.htm">AgendaItem</a>, which is discussed along with the other types of AgendaItem in the section on AgendaItems above. Unless you override the isReady property of a ConvAgendaItem to do something else (in which case you should normally define it as <span class="code">yourNewCondition &amp;&amp; inherited</span>), a ConvAgendaItem will be triggered when no conversation has taken place on that turn and the NPC is in a position to talk to the player character but isn't currently at a <a href="convnode.htm">conversation node</a>. A ConvAgendaItem can be used:</p>
+<ol>
+<li>To allow its Actor to initiate a conversation with the player character (when no conversation is currently taking place).</li>
+<li>To allow its Actor to initiate a new topic of conversation during a lull in a conversation that's already in progress (i.e. when no conversation has taken place on that turn).</li>
+<li>To allow its Actor to change the subject when the player tries to converse about something not specifically covered (in conjunction with a <a href="#defaultagenda">DefaultAgendaTopic</a>; see below)</li>
+</ol>
+<p>There's no way of knowing in advance under which of these three situations a ConvAgendaItem will be triggered, but there's three properties of ConvAgendaItem its invokeItem() you can check after (or during) the event.</p>
+
+<ul>
+<li>If <strong>greetingDisplayed</strong> is true then the ConvAgendaItem has just initiated a conversation and triggered an ActorHelloTopic in the process.</li>
+<li>If <strong>invokedByActor</strong> is nil then the ConvAgendaItem was invoked via a <a href="#defaultagenda">DefaultAgendaTopic</a>.</li>
+<li>You can also look at the value of the <strong>reasonInvoked</strong> property, which should be 1, 2 or 3 corresponding to the first, second and third situations in the numbered list above.</li>
+</ul>
+
+<p>Note that the library does assume that whatever else the invokeItem() method of a ConvAgendaItem does, it will output some kind of conversation from the corresponding actor. This means:</p>
+<ol type = a>
+<li>That the triggering of the ConvAgendaItem will count as conversation having taken place on that turn.</li>
+<li>That the player character will now be regarded as in conversation with the NPC, whether or not s/he was before.</li>
+<li>That if the player character was not previously in conversation with the NPC an actor-initiated greeting will be attempted via any <a href="hello.htm#actorhello">ActorHelloTopic</a> that's been defined..</li>
+</ol>
+
+<p>This does mean that a ConvAgendaItem should not be used for non-conversational purposes, but on the positive side it does mean that the invokeItem() method of a ConvAgendaItem can safely assume that conversation is in place between the player character and the NPC, and thus use any of the conversational tags such as &lt;.convnode&gt; it might want to (for example, if the NPC asks a question).</p>
+
+<p>So, for example, we could have an NPC ask a question about the player characters's study once both of them are in the study.</p>
+
+ <p><div class="code"><pre>
++ ActorHelloTopic
+    "George coughs to get your attention. ";
+;
+
++ ConvAgendaItem
+    isReady = inherited && getActor.getOutermostRoom == study
+    invokeItem()
+    {
+        &quot;&lt;q&gt;So this is where you work, is it?&lt;/q&gt; &lt;&lt;if
+          greetingDisplayed&gt;&gt;he&lt;&lt;else&gt;&gt;George&lt;&lt;end&gt;&gt; asks. &lt;.convnode
+        study-node&gt;&quot;;
+        isDone = true;
+    }
+    initiallyActive = true
+;
+
++ YesTopic
+    &quot;&lt;q&gt;Yes, this is where I do all my best work,&lt;/q&gt; you reply. &quot;
+    convKeys = 'study-node'
+    isActive = nodeActive
+;
+
++ NoTopic
+    &quot;&lt;q&gt;No, I only pretend to work here,&lt;/q&gt; you reply. &quot;
+    convKeys = 'study-node'
+    isActive = nodeActive
+;
+</pre></div>
+
+<p>Note how we use the value of greetingDisplayed to avoid repeating 'George' if the greeting from the ActorHelloTopic has been displayed. If a conversation was not previously in progress, we'd see:</p>
+
+<p><pre>     George coughs to get your attention. "So this is where you work, is it?" he asks.</pre></p>
+
+<p>But if a conversation was already in progress then we'd see:</p>
+
+<p><pre>     "So this is where you work, is it?</q> George asks.</pre></p>
+
+<br>
+
+<h2><a name="defaultagenda">DefaultAgendaTopic</a></h2>
+<h3>Overview</h3>
+
+<p>When the player types a conversational command concerning a topic for which we have not defined a specific response, the normal fallback is for the NPC to respond with a default response define on some kind of DefaultTopic. This does nothing to advance the conversation, and is in effect a thinly-veiled (though often unavoidable) way for the game to tell the player "I am not programmed to respond in this area." Our NPCs might seem livelier and more aggressive if instead of replying with some bland non-answer they seized the opportunity to pursue their own conversational agenda, so that instead of seeing something like:</p>
+
+
+<p><div class="cmdline"><pre>
+<strong>&gt;ask bob about his mother.</strong>
+Bob mutters something inaudible in reply.
+</pre></div>
+
+<p>We got:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;ask bob about his mother.</strong>
+"Never mind that," he interrupts you, "tell me about that fire!"
+</pre></div>
+
+<p>Of course we could in principle define a DefaultTopic that did this, but the problem is that what Bob wants to ask about is likely to change from one moment in the game to the next; at the very least he shouldn't carry on asking about the fire once the player character has told him about it. Again it would be possible to define a whole series of DefaultTopics and define their isActive properties so that the appropriate one was used at any particular moment, but the implementation would then become more than a little cumbersome. In any case the library already provides a mechanism for keeping track of what an NPC wants to talk about, namely the ConvAgendaItem. What we ideally need, then, is some way to combine the function of a DefaultTopic with the functionality of a ConvAgendaItem. This is was a <strong>DefaultAgendaTopic</strong> does.</p>
+
+<p>In essence, a DefaultAgendaTopic is a kind of DefaultTopic that keeps a list of agenda items. If there are any items in its agendaList it responds by triggering the first agenda item in its list. Also, if there are any agenda items in its list, the DefaultAgendaTopic takes priority over all other kinds of DefaultTopic. If there aren't (either because none has been added yet or they've all be used up), the DefaultAgendaTopic becomes inactive and the other, ordinary DefaultTopics will be used instead. If there are items in the DefaultAgendaTopic's agendaList but none of them is currently available to be triggered (they're all either done or not yet ready), then the DefaultAgendaTopic will fall back on the standard handling of simply displaying its topicResponse.</p>
+
+<p>To make use of a DefaultAgendaTopic requires three steps:</p>
+
+<ol>
+<li>Define the DefaultAgendaTopic itself.</li>
+<li>Define one or more ConvAgendaItems for use with the DefaultAgendaTopic.</li>
+<li>Add the ConvAgendaItems to the appropriate agendaLists.</li>
+</ol>
+
+<p>We shall now look at each of those steps in turn:</p>
+<br>
+
+<h3>Defining a DefaultAgendaTopic</h3>
+
+<p>Defining a DefaultAgendaTopic is much like defining any other kind of DefaultTopic. Note that it only makes sense to have at most one DefaultAgendaTopic located directly within each Actor and at most one located within each ActorState; if you don't have any ActorStates with DefaultTopics of their own that might mask TopicEntries located directly in the Actor, then there's really no need to define a DefaultAgendaTopic anywhere except in the Actor (unless you really want to manage different agendaLists for different DefaultAgendaTopics in different ActorStates).</p>
+
+<p>The other point you do have to bear in mind in defining a DefaultAgendaTopic is that you do have to define either its topicResponse or its eventList property (if it's mixed in with an EventList class) in case it has one or more AgendaItems in its agendaList but none of them is available to be executed. If the agendaList of a DefaultAgendaTopic is not empty, the DefaultAgendaTopic will take priority over all other DefaultTopics (on the assumption that it does have an AgendaItem to execute and that this should take precedence over a mere default response. If a DefaultAgendaTopic's agendaList is empty, the DefaultAgendaTopic will be inactive and the normal kinds of DefaultTopic will be left to field the command (all assuming that there was no specific TopicEntry to deal with it).</p>
+
+<p>A DefaultAgendaTopic might therefore look something like this:</p>
+
+ <p><div class="code"><pre>
++ DefaultAgendaTopic
+    &quot;&lt;q&gt;Let's talk about something else,&lt;/q&gt; he suggests. &lt;.topics&gt;&quot;
+;
+</pre></div>
+
+<p>We don't have to do it precisely this way, and if we manage the DefaultAgendaTopic's agendaList properly (see below) the player should hardly ever see its topicResponse in any case. Here our fall-back is to indicate that the NPC wants to talk about something else and then display a list of possible topics to the player.</p>
+<br>
+
+<h3>Defining a ConvAgendaItem to work with a DefaultAgendaTopic</h3>
+
+<p>We have already discusses how to define a <a href="#convagendaitem">ConvAgendaItem</a> above. When defining one to use in conjunction with a DefaultAgendaTopic there's just a couple of additional points to bear in mind:</p>
+
+<ol>
+<li>It probably is best to use only ConvAgendaItems and not any other kinds of AgendaItem in conjunction with a DefaultAgendaTopic, since a DefaultAgendaTopic needs to give a conversational response.</li>
+<li>When you write the text of a ConvAgendaItem's invokeItem() method, you need to bear in mind that (depending on how you set it all up) it might have been invoked either by the actor during a turn on which no conversation took place or in response to a player's conversational command via a DefaultAgendaTopic. This is really the only complication.</li>
+</ol>
+
+<p>To allow us to vary the text of what's said to make it appropriate to what invoked the ConvAgendaItem we can test the ConvAgendaItem's <strong>invokedByActor</strong> method. If invokedByActor is true then the ConvAgendaItem was invoked by the actor on a turn during which no conversation took place (in other words the actor is taking advantage of a lull in the conversation to get a word in edgeways). On the other hand, if invokedByActor is nil then the ConvAgendaItem was invoked by a DefaultAgendaTopic in response to a conversational topic your game doesn't allow for, so your response needs to read as a deliberate attempt by the NPC to change the subject. Typically, this might look like this:</p>
+
+ <p><div class="code"><pre>
++ fireAgenda: ConvAgendaItem
+    invokeItem()
+    {
+        isDone = true;
+        &quot;&lt;&lt;if invokedByActor&gt;&gt;&lt;q&gt;What I want to know,&lt;/q&gt; says George, 
+        &lt;q&gt;&lt;&lt;else&gt;&gt;&lt;q&gt;Never mind that,&lt;/q&gt; George interrupts you, &lt;q&gt;what I want 
+        to know&lt;&lt;end&gt;&gt; is what you're going to do about this fire.&lt;/q&gt; &quot;;
+    }
+;</pre></div>
+
+<p>In fact, it could get even more complicated, since in principle this ConvAgendaItem could be invoked in any of the three ways noted above (to initiate a conversation, to take advantage of a lull in the conversation, or as a DefaultAgendaTopic response, and we may need to customize our text to that it works well with all three. Potentially, this could lead to something like this:</p>
+
+ <p><div class="code"><pre>
++ fireAgenda: ConvAgendaItem
+    invokeItem()
+    {
+        isDone = true;
+        
+        switch(reasonInvoked)
+        {
+           case 1: /* Actor is initiating a new conversation */
+             if(greetingDisplayed)
+             {
+                &quot;&lt;q&gt;There's something I've been meaning to ask you,&lt;/q&gt; he announces. &lt;q&gt;\^&quot;;             
+                break;
+             }
+             /* deliberately fall through to the next case if no greeting was displayed */
+            case 2: /* Actor is taking advantage of a lull, or initiating a conversation without a greeting */ 
+                &quot;&lt;q&gt;There's something I have to ask you,&lt;/q&gt; says George, &lt;q&gt;
+             break;
+             
+            case 3: /* Actor is responding via a DefaultAgendaTopic */
+                &lt;q&gt;Never mind that,&lt;/q&gt; George interrupts you, &lt;q&gt;&quot;;
+            break;
+        }
+        
+        &quot;what I want to know is what you're going to do about this fire.&lt;/q&gt; &quot;;       
+        
+    }
+;</pre></div>
+
+<p>This certainly takes a bit of work (and maybe some ingenuity) to get right, but it's worth it if you want your NPCs to be lifelike; moreover you may be able to reduce the work by being a bit strategic about when you add and remove AgendaItems to and from agenda lists, which is what we'll look at next.</p>
+
+<br>
+<h3>Adding AgendaItems to Agenda Lists</h3>
+
+<p>The first thing to bear in mind is that the Actor and each DefaultAgendaTopic maintains its own list of agendaItems. The main reason for this is that the agendaList of a DefaultAgendaTopic should ideally only contain short-term conversation goals (ConvAgendaItems) relating to the current conversation (or possibly an imminent one), whereas an Actor's agendaList might very well contain other types of AgendaItem related to longer term goals (which wouldn't be appropriate as conversational responses). While, therefore, it might generally be appropriate that any ConvAgendaItem added to a DefaultAgendaTopic's agendaList should also be added to the Actor's agendaList (so the actor can pursue the topic either by taking advantage of a lull in the conversation or as a topic-changing default response), the reverse may very well not be true; in general the agendaList on a DefaultAgendaTopic is likely to be a subset of the AgendaList on the Actor.</p>
+
+<p>You can add an AgendaItem (usually it should only be a ConvAgendaItem) to the agendaList of a DefaultAgendaTopic by calling the DefaultAgendaTopic's addToAgenda(item) method. In addition, you can call any of the following methods on the Actor:</p>
+
+<ul>
+<li><strong>addToAgenda(item)</strong>: adds item to the Actor's agenda only.</li>
+<li><strong>addToBothAgendas(item)</strong>: adds an agenda item to both the Actor and to any DefaultAgendaTopic directly located in the Actor.</li>
+<li><strong>addToCurAgendas(item)</strong>: adds an agenda item to the Actor and to any DefaultAgendaTopios located either directly in the Actor or in its current ActorState.</li>
+<li><strong>addToAllAgendas(item)</strong>: adds an agenda item both to the Actor and to any DefaultAgendaTopics located either directly in the or in any of its Actor States</li>
+</ul>
+<p>Note that using the tag <strong>&lt;.agenda item&gt;</strong> is equivalent to calling addToAllAgendas(item).</p>
+
+<p>There is also a corresponding set of methods for removing agenda items from agendas (for example, when some change of circumstances renders them no longer appopriate, so you want to forestall their invocation):</p>
+
+
+<ul>
+<li><strong>removeFromAgenda(item)</strong>: removes item from the Actor's agenda only.</li>
+<li><strong>removeFromBothAgendas(item)</strong>: removes an agenda item from both the Actor and from any DefaultAgendaTopic directly located in the Actor.</li>
+<li><strong>removeFromCurAgendas(item)</strong>: removes an agenda item from the Actor and from any DefaultAgendaTopios located either directly in the Actor or in its current ActorState.</li>
+<li><strong>removeFromAllAgendas(item)</strong>: removes an agenda item both from the Actor and from any DefaultAgendaTopics located either directly in the or in any of its Actor States</li>
+</ul>
+<p>Note that using the tag <strong>&lt;.remove item&gt;</strong> is equivalent to calling removeFromAllAgendas(item).</p>
+
+<p>The &lt;.agenda&gt; and &lt;.remove&gt; tags can only be used while a conversation is in progess (i.e. while the player character has a currentInterlocutor), but this is probably the best time to add ConvAgendaItems to the agendaLists of DefaultAgendaTopics in any case. To make this a bit easier you can use the<strong> addToPendingAgenda(item)</strong> method of the Actor to store a list of ConvAgendaItems the NPC might want to use once a conversation is under way. and then call the Actor's <strong>activatePendingAgenda()</strong> method every time a conversation begins; a HelloTopic, ImpHelloTopic or ActorHelloTopic will do the latter for you. This scheme should ensure that activatePendingAgenda() will only update the NPC's agendaList with items that are currently relevant. You can use <strong>removeFromPendingAgenda(item)</strong> on the Actor to remove agenda items that are no longer relevant, but AgendaItems are automatically removed from the pending agenda once they're done (isDone = true).</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+NPC-Initiated Conversation
+<br><span class="navnp"><a class="nav" href="tags.htm"><i>Prev:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="final.htm"><i>Next:</i> Final Moves</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+</body>
+</html>

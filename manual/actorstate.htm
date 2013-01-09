@@ -1,0 +1,184 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Actor States</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Actor States
+<br><span class="navnp"><a class="nav" href="actorobj.htm"><i>Prev:</i> The Actor Object</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="agenda.htm"><i>Next:</i> AgendaItems</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Actor States</h1>
+<h2>The Purpose of Actor States</h2>
+
+<p>If you have an NPC whose behaviour is very basic, such as a guard whose sole purpose is to block an exit, or a fusty old clerk who never moves from her desk, you probably won't need to use Actor States with it. For more complex NPCs whose state can change, Actor States can be a very valuable way of modelling that state change. If the guard can be put to sleep by giving him too much to drink, then you might want to use one ActorState to represent the guard while he's alert and active, and another while he's somnulent. If the fusty old clerk turns into an animated conversationalist when you talk to her you might want to use one ActorState to represent her bent over her desk and another to represent her in animated conversation. The coding pattern might look something like this:</p>
+
+ <p><div class="code"><pre>
+guard: Actor 'burly guard; strong powerful; man; him' @doorway
+    "He looks incredibly strong and powerful. "
+;
+
++ guardAlertState: ActorState
+   isInitState = true
+   specialDesc = "A burly guard blocks your path, eyeing you suspiciously. "
+   stateDesc = 'You certainly don\'t want to mess with him. '
+   
+   beforeTravel(traveler, connector)
+   {
+      if(traveler == gPlayerChar && connector == forbiddenDoor)
+      {
+          "The guard blocks your path with a warning snarl. ";
+          exit;
+      }
+   }
+;
+
++ guardSleepingState: ActorState
+   specialDesc = "The burly guard lies sprawled on the ground, snoring loudly. "
+   stateDesc = 'At least he might be strong and powerful when he\'s awake, but right now he\'s dead
+     to the world. '
+;
+
+++ DefaultAnyTopic
+    "The guard is far too deep in his slumbers to hear you. "
+;
+
+
+clerk: Actor 'fusty old clerk;; woman; her' @procrastinationOffice
+   "She doesn't look a day under sixty. "
+;
+
+
++ clerkWorkingState: ActorState
+   isInitState = true
+   specialDesc = "A fusty old clerk sits bent over her desk, working her way through
+     dusty ledgers. "
+   stateDesc = 'She seems totally intent on her ledgers. '
+;
+  
++ clerkTalkingState: ActorState
+   specialDesc = "The clerk sits looking up at you from behind her desk, eagerly 
+     awaiting you to continue the conversation. "
+   stateDesc = 'But the rapt expression on her face and the animated sparkle in her bright
+     blue eyes as she hangs on your every word somehow make her seem half that age. '
+;
+</pre></div>
+
+<p>Note that the stateDesc on the current ActorState is appended to the desc defined on the Actor when the Actor is examined. (Authors familiar with the adv3 library might also like to note that adv3Lite defines only the one ActorState class; combining it with a DefaultAnyTopic as in the above example replicates the function of a HermitActorState, and other adv3 ActorState classes are similarly implemented in different ways in adv3Lite).</p>
+
+<br>
+
+<h2>Defining an ActorState: the Common Properties</h2>
+
+<p>As you may have gathered from the foregoing examples, one property you will nearly always want to define on an ActorState is the <strong>specialDesc</strong>, whioh provides a separate paragraph in a room description describing the Actor while it's in this state. You may also often wish to define the <strong>stateDesc</strong>, which is appended to the Actor's desc property when the Actor is examined. Finally, if an Actor has one or more ActorStates, one of them is presumably the ActorState the Actor starts out in; you indicate which one this is by defining <strong>isInitState = true</strong> on the ActorState in question.</p>
+
+<p>As shown in the examples above, ActorStates are always located directly within the Actor to which they belong. ActorStates can also contain TopicEntries; any TopicEntries contained within an ActorState will only be active while the Actor is in that state. This allows you to customize the Actor's reponse to conversation commands (such as ASK and TELL) depending on what state the Actor is in; responses common to all states can be placed directly within the Actor.</p>
+
+<p>The following properties and methods have the same meaning as they would on Thing (or Actor), except that the Actor delegates them to the current ActorState, so you can write state-specific responses:</p>
+
+<ul>
+<li>beforeAction()</li>
+<li>afterAction()</li>
+<li>beforeTravel(traveler, connector)</li>
+<li>afterTravel(traveler, connector)</li>
+</ul>
+
+<p>In addition, the following methods/properties defined on <a href="actorobj.htm">Actor</a> may also be defined on ActorState; if the Actor has a current ActorState the version defined on the current ActorState is the one that will be used:</p>
+<ul>
+<li><strong>sayFollowing(<em>oldLoc</em>)</strong>: displays a message when this Actor follows the player character into a new location from <em>oldLoc</em>. By default we either call the sayFollowing() method of the current ActorState (if there is one) or the <strong>actorSayFollowing(<em>oldLoc</em>)</strong> method on the Actor if the Actor's curState is nil. In either case the default message produced by the library is of the form "George follows behind you."</li>
+<li><strong>arrivingTurn()</strong>: this method is executed on the Actor immediately after the sayFollowing() message is displayed to allow the Actor to carry out additional handling on following the player character to a new location. By default Actor.arrivingTurn() calls arrivingTurn() on the current ActorState if there is one or actorArrivingTurn() if curState is nil.</li>
+<li><strong>attentionSpan</strong>: the number of turns this Actor will wait for the player character to speak (once a conversation is underway) before becoming bored with waiting and terminating the conversation. If this is nil (the default) this Actor never becomes bored.</li>
+<li><strong>canEndConversation(<em>reason</em>)</strong>: returns true if the Actor can end the current conversation for <em>reason</em>. By default we return canEndConversation(reason) on the current ActorState.</li>
+</ul>
+
+<p>And finally, there are some methods and properties that are peculiar to ActorState:</p>
+
+<ul>
+<li><strong>isInitState</strong>: set to true if this is the initial ActorState for the Actor.</li>
+<li><strong>getActor</strong>: the Actor to whom this ActorState belongs.</li>
+<li><strong>activateState(actor, oldState)</strong>: is called on this ActorState when we have just switched to this state from <em>oldState</em>. This does nothing by default but game code can override this to define anything that should happen on entering this ActorState.</li>
+<li><strong>deactivateState(actor, newState)</strong>: is called on this ActorState when we are just about to switch from this state to <em>newState</em>. This does nothing by default but game code can override this to define anything that should happen on leaving this ActorState.</li>
+</ul>
+<br>
+
+<h2>Changing ActorState</h2>
+
+<p>The whole point of having ActorState objects is to represent different states your NPCs can get into during the course of your game. It follows that if you are using ActorStates at all you will almost certainly need some means of changing from one state to another. The most common means is by calling <strong>setState(<em>stat</em>)</strong> on the Actor, where <em>stat</em> is the new ActorState you want to change to, for example:</p>
+
+ <p><div class="code"><pre>
+   /* In the code where the guard drinks too much wine */
+   guard.setState(guardSleepingState);
+   
+   /* In the code in which you engage the clerk in conversation */
+   clerk.setState(clerkTalkingState);
+</pre></div>   
+   
+<p>The second method, which can be useful if you're outputting a string just before changing ActorState is to use the &lt;.state <em>newstate</em>&gt; tag:</p>
+
+<p><div class="code"><pre>
+   /* In the code where the guard drinks too much wine */
+   "The wine bottle slips out of the guard's hand as he slips into a deep slumber. &lt;.state guardSleepingState&gt;";
+   
+   /* In the code in which you engage the clerk in conversation */
+   "The clerk looks up at you expectently. &lt;.state clerkTalkingState&gt;";
+</pre></div>   
+
+<p>Note that there may be limitation on where this will work; these will be discusses further below.</p>
+
+<p>A third method is to usea GreetingTopic (HelloTopic or ByeTopic) and define its <strong>changeToState</strong> property to change state on beginning or ending a conversation, for example:</p>
+
+ <p><div class="code"><pre>
+clerk: Actor 'fusty old clerk;; woman; her' @procrastinationOffice
+   "She doesn't look a day under sixty. "
+;
+
+
++ clerkWorkingState: ActorState
+   isInitState = true
+   specialDesc = "A fusty old clerk sits bent over her desk, working her way through
+     dusty ledgers. "
+   stateDesc = 'She seems totally intent on her ledgers. '
+;
+
+++ HelloTopic
+   &quot;&lt;q&gt;Hello there!&lt;/q&gt; you say.\b
+    &lt;q&gt;Why, hello!&lt;/q&gt; she replies, looking up at you with a surprisingly bright smile. "
+    
+    changeToState = clerkTalkingState   
+;
+   
+  
++ clerkTalkingState: ActorState
+   specialDesc = "The clerk sits looking up at you from behind her desk, eagerly 
+     awaiting you to continue the conversation. "
+   stateDesc = 'But the rapt expression on her face and the animated sparkle in her bright
+     blue eyes as she hangs on your every word somehow make her seem half that age. '
+;
+
+++ ByeTopic
+   "<q>Well, goodbye then,</q> you say.
+    <q>Goodbye,</q> she replies crisply, turning her attention back to her ledgers. "
+    
+    changeToState = clerkWorkingState
+;
+</pre></div>
+
+<p>This code will cause the clerk to switch to her clerkTalkingState when she's first addressed, and back to her clerkWorkingState when the conversation ends. The use of HelloTopics and ByeTopics will be discussed in more detail when we come to look at <a href="hello.htm">Greeting Protocols</a> below.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Actor States
+<br><span class="navnp"><a class="nav" href="actorobj.htm"><i>Prev:</i> The Actor Object</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="agenda.htm"><i>Next:</i> AgendaItems</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

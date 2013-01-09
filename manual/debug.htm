@@ -1,0 +1,132 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Debugging Commands</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Scope
+<br><span class="navnp"><a class="nav" href="scope.htm"><i>Prev:</i> Scope</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actor.htm"><i>Next:</i> Actors</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Debugging Commands</h1>
+
+<p>When testing and debugging a work of interactive fiction it is sometimes useful to be able to make use of a set of speoial commands not available to normal players of your game. These special commands are known as <em>debugging commands</em> and should only be included in the debug build of your game, not the release build. This section describes the built-in debugging commands and briefly discusses how you might add your own.</p>
+
+<h2>Built-In Debugging Commands</h2>
+
+<p>The following debugging commands are included in the adv3Lite library. They are only included in your game when you compile for debugging, and not when you compile for release.</p>
+
+<p><strong>PURLOIN</strong>: The command PURLOIN FOO (which can be abbreviated to PN FOO) can be used to add any object to the player's inventory; e.g. PURLOIN BRASS KEY causes the brass key to jump magically into the player's possession from wherever the brass key is in the game world. The PURLOIN command does impose certain sanity checks, so that, for example, you can't purloin yourself, or a room, or anything that currently contains the player character, but you can purloin things that would normally be fixed in place.</p>
+
+<p><strong>GONEAR</strong>: The command GONEAR FOO (which can be abbreviated to GN FOO or spelt as GO NEAR FOO) teleports the player character to FOO. If FOO is a room the player character is taken to that room, otherwise the player character is taken to the Room that encloses FOO. If FOO is off-stage (i.e. if its location is nil) the command is not allowed to go ahead. If FOO is a multiloc the destination the player character is taken to may not be well defined.</p>
+
+<p><strong>FIAT LUX</strong>: The command FIAT LUX (or alternatively LET THERE BE LIGHT) causes the player character to light up so s/he can see in an otherwise dark place. Repeating the command toggles the illumination off again.</p>
+
+<p><strong>EVAL</strong>: The command EVAL <em>expression</em> (where <em>expression</em> is any valid TADS 3 expression) evaluates the expression and displays the result. If the expression evaluates to an object EVAL diplays the name property of the object (if it has one) together with its superclass list. For example:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;eval 2 + 5</strong>
+7
+
+<strong>&gt;eval me.location</strong>
+hall [Room, ShuffledEventList]
+
+<strong>&gt;eval hall.contents</strong>
+you [Thing],George [Actor],red ball [Thing],front door [Door],pictures [Thing],stairs [Thing],dial [NumberedDial],
+  floor [MultiLoc,Decoration],ceiling [MultiLoc,Decoration]
+
+<strong>&gt;eval frontDoor.isLocked</strong>
+true
+
+<strong>&gt;open front door</strong>
+The front door is locked. 
+
+<strong>&gt;eval frontDoor.makeLocked(nil)</strong>
+nil
+
+<strong>&gt;open front door</strong>
+You open the front door.
+</pre></div>
+
+<p>The final example of EVAL above illustrates that it is perfectly possible to use the EVAL command with an expression that changes the game state.</p>
+<br>
+
+<h2>Defining New Debugging Commands</h2>
+
+<p>If you want to define additional debugging commands for your particular game, you can do so using the same means as described in the section on <a href="define.htm">Defining New Actions</a> above, with a couple of extra steps:</p>
+
+<ol>
+<li>Enclose the complete definition between <span class="code">#ifdef __DEBUG</span> and <span class="code">#endif</span> preprocessor commands to ensure that your custom debugging commands are included only when you compiple for debugging.</li>
+<li>Ensure your action definition allows for universal scope if it needs to be able to act on any item in the game (and not just those that would normally be available to the player character).</li>
+</ol>
+
+<p>For example, if in addition to the PURLOIN command which magically transports objects into the player character's inventory, we'd like to have a SUMMON command which can summon any object into the player character's presence (i.e. the same room as the player character) we could do it like this:</p>
+
+ <p><div class="code"><pre> 
+#ifdef __DEBUG
+
+VerbRule(Summon)
+    'summon' multiDobj
+    : VerbProduction
+    action = Summon
+    verbPhrase = 'summon/summoning (what)'
+    missingQ = 'what do you want to summon'
+;
+
+DefineTAction(Summon)
+    addExtraScopeItems(role) { makeScopeUniversal(); }
+    beforeAction() { }
+    afterAction() { }
+    turnSequence() { }
+;
+
+modify Thing
+    dobjFor(Summon)
+    {
+        verify()
+        {
+            if(isIn(gActor.getOutermostRoom))
+                illogicalNow('{The subj dobj} {is} already here. ' );
+        }
+        
+        action()
+        {
+            moveInto(gActor.getOutermostRoom);
+        }
+        
+        report()
+        {
+            &quot;\^&lt;&lt;gActionListStr&gt;&gt; appears before you! &quot;;
+        }
+    }
+;
+#endif
+</pre></div>
+
+<p>Note that since we probably don't want our debugging action to count as normal turn we override beforeAction(), afterAction() and turnSequence() on Summon to do nothing, thereby suppressing the before and after notifications, daemons and advancing the turn count.(I'm assuming that since this is a debugging command the fact that 'appears' may not agree with its subject is not too much of problem, but if it bothers you correcting it is left as an exercise for the reader.)</p>
+
+<br>
+
+<h2>Additional Debugging Resources</h2>
+
+<p>The adv3Library has one or two built-in checks to help with various kinds of common situations. For example, when writing conversational responses it's very easy to mismatch the smart quote tags &lt;q&gt; and &lt;/q&gt;; the adv3Lite thus looks out for any smart quotes that are mismatched over the course of a single turn and displays a warning whenever mismatched smart quotes are displayed, so the game author can correct them (it also tries to prevent the effect of mismatched smart quotes propagating to successive turns). If you want to suppress the warning messages in the released version of your game you can override quoteFilter.showWarnings to nil; however, you might find it useful to leave the warnings on for versions of the game you sent to beta-testers, which is why this isn't simply tied to whether or not you compiled for debugging.</p>
+
+<p>The Mercury library defines a DEBUG command (in the file debug.t) that doesn't actually do anything. I've left it there for now pending later versions of the adv3Library and suggestions from users on what additional debugging facilities might be useful.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Debugging Commands
+<br><span class="navnp"><a class="nav" href="scope.htm"><i>Prev:</i> Scope</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actor.htm"><i>Next:</i> Actors </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

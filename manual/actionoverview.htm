@@ -1,0 +1,117 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Overview</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Overview
+<br><span class="navnp"><a class="nav" href="action.htm"><i>Prev:</i> Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actres.htm"><i>Next:</i> Action Results</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Overview</h1>
+<p>So far we have seen how to populate the game world with a wide variety of objects, but not how to alter their default behaviour. Yet in a work of Interactive Fiction it's the non-default behaviour and non-standard responses that make the game interesting. In this part we shall look at how to customize the way actions behave and objects respond to them, and how to define new actions. Game authors familiar with the adv3 library will find the adv3Lite way of doing things familiar but not quite the same.</p>
+
+<h2>A Taxonomy of Actions</h2>
+
+<p>There are broadly three types of action common in Interactive Fiction. Intransitive actions consisting of a verb and no object (such as JUMP), transitive actions involving a verb and one object such as TAKE RED BALL, and transitive actions involving a verb and two objects such as PUT RED BALL IN BOX. The first object (the red ball in both cases) is referred to as the <i>direct object</i>, often abbreviated to dobj in various variable and property names. For example, gDobj refers to the current direct object of the current action. The second object, where there is one, is referred to the <i>indirect object</i>, often abbreviated to iobj (so that, for example, gIobj refers to the current indirect object of the current action). (Note, the Mercury parser also provides support for three-object commands like PUT THE PIN IN THE SLOT WITH THE TWEEZERS, but this is not further supported in the adv3Lite library; after all, it is meant to be adv3<i>Lite</i>).</p>
+
+<p>In fact the grammatical form of a command can sometimes be a bit misleading when it comes to identifying the kind of action. A command like GO NORTH may look like a transitive action with NORTH as its direct object, but it fact it's a TravelAction without a direct object. Similarly a command like THINK ABOUT NAPOLEON is a TopicAction, in this contect Napoleon is the <i>topic</i> associated with the command, not its direct object. Similarly in commands like ASK BOB ABOUT NAPOLEON or LOOK UP NAPOLEON IN DICTIONARY, Napoleon in the topic, not the indirect object (in the first case) or the direct object (in the second). In these last two commands, BOB and DICTIONARY are the direct objects, and there's no indirect object (at least, not in the normal sense). In general, the direct and indirect objects of a command have to be objects physically present in the game world, not just things or topics being thought about or talked about.</p>
+
+<p>This distinction is important when we come to consider the various classes of Action implemented in the adv3Lite library:</p>
+
+<ul>
+<li><b>IAction</b> An intransitive action, one which takes no objects (e.g. JUMP).</li>
+<li><b>TAction</b> A transitive action that takes one object (e.g. TAKE BALL).</li>
+<li><b>TIAction</b> A transitive action that takes two objects (e.g. PUT BALL IN BOX).</li>
+<li><b>TopicAction</b> An action that takes one topic (e.g. THINK ABOUT DEMOCRACY).</li>
+<li><b>TopicTAction</b> An action that takes one topic and a direct object (e.g. ASK LINCOLN ABOUT DEMOCRACY).</li>
+<li><b>LiteralAction</b> An action that takes one literal string (e.g. WRITE FOO).</li>
+<li><b>LiteralTAction</b> An action that takes a literal string and a direct object (e.g. TURN DIAL TO PLAY).</li>
+<li><b>TravelAction</b> An action that takes a direction and is a command to go somewhere (e.g. GO NORTH or just EAST).</li>
+<li><b>SystemAction</b> An action that carries out system commands such as SAVE and QUIT.</li>
+</ul>
+
+<p>The important thing to note here is that the behaviour of actions that take one or more physical object (TAction, TIAction, TopicTAction, LiteralTAction) is normally defined and customized on their direct (and if present) indirect objects, while the behaviour of other kinds of action has to be defined and customized on the action object itself.</p>
+
+<h2>The Action Cycle in Brief</h2>
+
+<p>What happens when a player enters a command? In brief, and with some simplifications the cycle goes like this:</p>
+
+<ol>
+<li>The library displays a command prompt.</li>
+<li>The player enters a command (and presses return to confirm it.</li>
+<li>Any <a href="stringpreparser.t">StringPreparsers</a> that have been defined get a chance to alter the text of the command.</li>
+<li>The Parser object parses the player's input by matching it to an action and (if there are any objects) resolving the objects.</li>
+<li>In the course of parsing the player's input the Parser creates a Command object which handles the execution of the command.</li>
+<li>The Command object starts by noting some initial value (such as installing itself in the gCommand pseudo-variable.</li>
+<li>The Command object selects the <a href="doer.htm">Doer</a> that's the best match to the command and calls its exec(curCmd) method once for each set of objects involved in the command (if the command involves multiple direct objects, a Doer's exec() method will be called once for each direct object).</li>
+<li>By default the Doer checks whether the action is to be performed by the player character or is a command directed at someone or something else. In the latter case it calls the handleCommand() method of the recipient of the command. In the former it calls the exec() method of the appropriate action.</li>
+<li>The exec() method of the action does some housekeeping and then calls the execAction method.</li>
+<li>If the action has a direct object the execAction() works through the appropriate methods of that object (which will be described in the section on action stages). If the action has an indirect object as well, it calls the appropriate methods on all its objects. If it has no objects, the execAction() handles the action in its entirety.</li>
+<li>The Command then calls the action's reportAction() method, which in turn calls the appropriate report method on the last direct object involved in the command; this allows the Command object (via the appropriate action) to display a summary of the action just completed (e.g. 'You take the red ball, the blue pen and the paperclip.').</li>
+<li>The Command then calls the action's afterReport() method, which displays any additional reports created during the course of the action through the use of the reportAfter() macro.</li>
+<li>The Command finally calls the action's afterAction() method, which does nothing if the action is a SystemAction, but which otherwise carries out the following steps:
+<ol type=i>
+<li>Announces the onset of darkness, or displays a room description, if the player character's location has just lost or gained illumination.</li>
+<li>Calls roomAfterAction() on the player's current location.</li>
+<li>Calls afterAction() on every object in scope.</li>
+<li>Calls roomDaemon() on the player's current location.</li>
+<li>If the events.t module is includes, calls eventManager.executeTurn() to execute any current Fuses and Daemons.</li>
+<li>Adds one to the turn count.</li>
+</ol>
+</li>
+<li>The status line display is updated.</li>
+<li>If the score.t module is present, the scoreNotifier is called to report on any changes in score.</li>
+<li>If the events.t module is present, any current PromptDaemons are now executed.</li>
+<li>Return to step 1 to execute the next command.</li>
+</ol>
+
+<p>The above is something of an over-simplification. For example if the player enters multiple commands on the one command line then the Parser generates multiple Command objects to deal with each in turn. But the above summary will do as a first approximation, so you can get a rough idea of how the action processing cycle all fits together. Don't worry if it doesn't all make sense yet; the relevant details will be explained in the sections that follow. Three further points may be worth a brief explanation at this stage however.</p>
+
+<p>First, the mechanism of Parser, Commands, Doers and Actions may seem a bit over-complicated (they are in fact the mechanism taken over from Mercury code), but the various parts do all serve a purpose. In particular, one player command is handled by one Command object, but may involve many Actions, as one action passes control to another either temporarily (as a nested or implicit action) or permanently (as a remapped or replacement action). The Command object thus serves to co-ordinate the entire command over what may be a number of actions.</p>
+
+<p>Secondly, at first sight the <a href="doer.htm">Doer</a> may not seem to do very much in this scheme of things. By default it does very little except decide whether the command is to be handled by the appropriate Action (if the actor is the player character) or some other object (in the case of a command directed to another object or actor). But Doers can do far more than this; they can intervene in special cases to interrupt the normal course of events and do something quite different, or simply stop the action in its tracks. In this way they are quite like instead rules in Inform 7 (in more ways than one, as we shall come to see when we look at them in more detail), and can perform a very similar function.</p>
+
+<p>Thirdly, the most common way of customizing responses to actions is by overriding the appropriate methods on the objects they involve, and this is therefore what we shall look at in the next section.</p>
+<br>
+<h2>Global Action Variables</h2>
+
+<p>When an action is in progress, certain pseudo-global variables (actually macros that evaluate to the relevant object properties) are available to be queried (and sometimes set). You will often need to refer to these. The main ones are:</p>
+
+<ul>
+<li><b>gCommand</b>: the current Command object.</li>
+<li><b>gAction</b>: the current Action object.</li>
+<li><b>gActor</b>: the current Actor (which is usually but not necessarily gPlayerChar).</li>
+<li><b>gDobj</b>: the current direct object of gAction (if there is one).</li>
+<li><b>gIobj</b>: the current indirect object of gAction (if there is one).</li>
+<li><b>gLiteral</b>: the text of the current literal object (if there is one). E.g. in the command TURN DIAL TO OFF gLiteral would be 'OFF'.</li>
+</ul>
+
+<p>Note that since a Command may involve more than one action (where there implicit actions, nested actions, remapped actions and so forth), gCommand and gAction may not be in agreement. The current Command (gCommand) had its own ideas about the current action, actor, direct object and indirect object (gCommand.action, gCommand.actor, gCommand.dobj, gCommand.iobj) which should usually agree with the values of the pseudo-global variables listed above, but may not always do so if the original action gets transformed into another.</p>
+
+<br>
+<h2><a name="default">The Default Action</a></h2>
+
+<p>When a player enters a command the parser cannot resolve to an action because it cannot find a verb in the command line, it next attempts to interpret the command line as as the single object of the default action. What the default action is depends on the context.</p>
+
+<p>If the player character is not currently conversing with anyone, the default action is whatever is defined as such in the DefaultAction property of Parser. Normally this is ExamineOrGoTo, which normally behaves just like Examine, so that, for example, the command ME would be interpreted as EXAMINE ME. If there's nothing in scope that matches the command line interpreted as an object, the command will of course fail ('You see no foo here'). If, however, the player enters the name of a room that's known to the player character, and the player character is not in that room already, and the pathfind module is present, then the command will be treated as a GoTo command; so, for example KITCHEN might be handled as GO TO KITCHEN. This allows the player to navigate the map by simply entering the name of the room s/he wants the player character to head for.</p>
+
+<p>If the player character is currently conversing with another character, then a command without an explicit verb is treated as the topic of a conversational action. It's first tried as SAY WHATEVER and if that doesn't match anything ASK ABOUT WHATEVER. (For further details about what this means, see under <a href="specialtopic.htm#saytopic">SayTopic</a> below).</p>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Overview
+<br><span class="navnp"><a class="nav" href="action.htm"><i>Prev:</i> Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actres.htm"><i>Next: </i>Action Results </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

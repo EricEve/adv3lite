@@ -1,0 +1,490 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Action Results</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Action Results
+<br><span class="navnp"><a class="nav" href="actionoverview.htm"><i>Prev:</i> Overview</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="message.htm"><i>Next:</i> Messages</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Action Results</h1>
+<p>As mentioned at the end of the previous section, the most common way to customize the results of actions in the adv3Lite library is to override the appropriate methods on the direct object and, where applicable, indirect object of the action in question. Each method corresponds to one stage of the action. The stages (with a brief explanation of the purpose of each) are:</p>
+
+<ul>
+<li><a href="#verify">Verify</a>: helps the parser select the most appropriate objects for this command and determines whether the action can go ahead.</li>
+<li><a href="#precond">Pre-conditions</a>: applies any preconditions relating to carrying out this action on this object.</li>
+<li><a href="#check">Check</a>: determines whether the action can go ahead without affecting the parser's choice of object.</li>
+<li><a href="#action">Action</a>: carries out the action if it three previous stages allow it to go ahead.</li>
+<li><a href="#report">Report</a>: displays a report summarizing the effect of the action on all the direct objects involved.</li>
+<li><a href="#remap">Remap:</a>: if present, remaps this action to another action or the same action involving different objects. Normally if this stage is defined none of the others is.</li>
+</ul>
+
+<p>These stages are defined in methods whose name is made up of the name of the stage, plus either Dobj (on the direct object of the command) or Iobj(on the indirect object of the command) followed by the name of the action. For example the method names corresponding to the stages listed above on the direct object of a Take action would be called:</p>
+
+<ul>
+<li>verifyDobjTake()</li>
+<li>preCondDobjTake()</li>
+<li>checkDobjTake()</li>
+<li>actionDobjTake()</li>
+<li>reportDobjTake()</li>
+<li>remapDobjTake()</li>
+</ul>
+
+<p>Normally, though, we don't use these names explicitly but use the <b>dobjFor</b> and <b>iobjFor</b> propertyset macros to write definitions that look like this:</p>
+
+<p><div class=code><pre>
+dobjFor(Take)
+{
+   verify() { ... }
+   preCond() { ... }
+   check() { ... }
+   action() { ... }
+   report() { ... }
+   remap() { ... }
+}
+</div></pre>
+
+<p>Note, however, that so far as the TADS 3 compiler is concerned, the two ways of defining these methods have exactly the same meaning. We use the second method because it's usually easier and clearer. Note also that we don't normally need to define every stage; for most actions on most objects it's normally sufficient just to define two or three of these stages.</p>
+
+<p>We can now proceed to consider each of these stages in more detail.</p>
+
+<h2><a name=verify>Verify</a></h2>
+
+<p>The Verify stage has two purposes:</p>
+<ol>
+<li>To help the parser decide which is the best choice of object for a command (in cases of ambiguity)</li>
+<li>To prevent an action going ahead if it is obviously inappropriate, and in that case to explain why it has been prevented.</li>
+</ol>
+
+<p>This may be alternatively expressed by saying that the job of the verify stage is to rule out illogical actions and to help the parser make the most logical choice; these two tasks are clearly related, which is why they are handled by the same stage.</p>
+
+<p>For example, suppose the player types the command TAKE BALL when there are three balls in scope: a small red ball which the player is already carrying, a blue plastic ball lying on the ground, and a large ornamental stone ball attached to a stone parapet. Which ball is the player most likely to have meant? The red ball can't currently be taken, because the player character is already holding in; the stone ball can never be taken, because it's fixed to the parapet and would in any case be too heavy to lift; so the player must presumably have intended the blue ball. In this case the parser would therefore select the blue ball and the TAKE action would go ahead.</p>
+
+<p>Now consider the same scenario but without the blue ball; only the red ball (held by the player character) and the immovable stone ball are present. Which should the parser choose when the player types TAKE BALL? You might think that since neither can be taken the parser should simply give up and ask the player to disambiguate (i.e. state which ball s/he meant), but that is precisely what the verify stage is trying to minimize. An alternative approach is to reckon that since the stone ball can never be taken, but the red ball could have been taken under different circumstances, the red ball is the more logical choice; the player could never have imagined that the great stone ball could ever be takeable, but it's possible s/he forget s/he was already carrying the red ball. So in this case ther parser would choose the red ball but display a message explaining that it can't be taken while it's already held.</p>
+
+<p>The code to achieve this might (in outline) look something like this:</p>
+
+<p><div class=code><pre>
+stoneBall: Thing 'stone ball; huge large ornamental'
+  isFixed = true
+  
+  dobjFor(Take)
+  {  
+     verify() { illogical('The stone ball is firmly fixed to the parapet. '); }
+  }
+;
+
+redBall: Thing 'red ball; small'
+  dobjFor(Take)
+  {
+     verify()
+     {
+       if(isDirectlyIn(gActor))
+         illogicalNow('You are already carrying the red ball. ');
+     }
+  }
+;
+</pre></div>
+
+<p>Notice the use of the <b>illogicalNow()</b> macro here; this means that the action might be illogical under certain circumstance &mdash; it's illogical <i>now</i> if the red ball is already directly in (i.e. carried by) the actor &mdash; but under other circumstances it might be perfectly logical and the action could proceed. (Note, adv3 would use illogicalAlready here, but adv3Lite makes no distinction between illogicalAlready and illogicalNow and uses illogicalNow for both). This makes it less illogical that somethings that always illogical (like taking the great stone ball).</p>
+
+<p>Note also what we mean by <i>logical</i> here; we don't mean logical primarily from the perspective of the game mechanics (what will actually work) but logical primarily from the perspective of the player, what the player is most likely to expect to work. The intention is to help the parser read the player's mind when s/he enters an ambiguous command, and then, at a second stage, rule out clearly impossible actions.</p>
+
+<p>There really are two stages rolled into one here, for the verify() method may actually be run twice during command execution. It is first run by the parser when matching objects to the command the player typed. The object with the highest score is selected, and only if there's a tie (as might be the case if both the red ball and the blue ball were lying on the ground available to be taken, for example) will the parser issue a disambiguation prompt asking the player to state which object s/he meant. If the object is selected for the command, the verify routine is run a second time by the action to check whether the action can proceed with this object, and if it isn't, the appropriate failure message will then be displayed.</p>
+
+<p>The previous paragraph spoke of the object with the highest score. The parser calculates the score of an object by calling scoreObjects() on the action. It is this routine that uses the verify stage to assign a score, assigned according to the <i>logical rank</i> the verify stage comes up with. The default logical rank (for an empty verify routine which does nothing, which means that the action is perfectly okay to proceed) is a score of 100. A logical rank of 150 would be a particularly good fit for the action proposed. A logical rank of 70 would mean that the action was possible with this object but not such a good fit (examining an unobtrusive background decoration object, say, when a far more prominent match is also available). A logical rank of 50 or less means that the action is illogical, the lower the rank meaning the more illogical it is.</p>
+
+<p>The adv3Lite library currently just uses the logical rank returned by the verify routine as the match score. Note that the Mercury parser, which adv3Lite uses, allows for further tweaking of the match score through the scoreObject() methods of both the action and the object concerned. At the moment the adv3Lite library makes no use of these methods, but in principle game authors could make use of them to make further adjustments or override the outcome of the logical ranking altogether (although this is not recommended). It is possible that future versions of adv3Lite may take advantage of these methods to provide game authors with further hooks to adjust the way the score is calculated, so game authors should be aware that there may be some adjustments in this area in the future. These adjustments will not, however, discuss the basic principles or indeed the details of how the verify stage should be used and what it's for; at most they will may simply provide means for further tweaking.</p>
+
+<p>Verify routines can make use of the following macros to define verify results:</p>
+<ul>
+<li><b>logical</b>: results in a logical rank of 100 and allows the action to go ahead. This is the default and is also what will happen if no other verify result is present (i.e. if the verify() routine is empty or if none of its conditional statements are true).</li>
+<li><b>logicalRank(<i>n</i>)</b>: results in a logical rank of <i>n</i> and allows the action to go ahead. (If you're familiar with adv3 please note that there's no second parameter in the adv3Lite version of logicalRank).</li>
+<li><b>illogicalNow(<i>msg</i>)</b>: results in a logical rank of 40 and prevents the action from going ahead. This should be used for actions that are illogical under certain circumstances (e.g. taking an object you're already holding) but not others. (If you're familiar with adv3 please note that you should use illogicalNow in place of illogicalAlready).</li>
+<li><b>implausible(<i>msg</i>)</b>: results in a logical rank of 35 and prevents the action from going ahead. This is intended for actions that are illogical, but whose illogicality might not be quite so immediately apparent as is the case with a straightfowardly illogical action.</li>
+<li><b>illogical(<i>msg</i>):</b> results in a logical rank of 30 and prevents the action from going ahead. Use this for actions that are straightforwardly and obviously illogical, like trying to take a mountain or eat a table.</li>
+<li><b>illogicalSelf(<i>msg</i>):</b> results in a logical rank of 20 and prevents the action from going ahead. This is intended to rule out actions such as PUT RED BOX IN RED BOX or TAKE ME (and thereby help to disambiguate commands like PUT RED IN RED where just about any object would be a better choice to put in the red box than the red box itself).</li>
+<li><b>inaccessible(<i>msg</i>):</b> results in a logical rank of 10 and prevents the action from going ahead. This rules out actions for which the object is inaccessible to the actor.</li>
+</ul>
+
+<p>Where the <i>msg</i> parameter is specified above it in each case refers to the message to be displayed to the player to explain why the action cannot go ahead (if indeed it can't). In the examples given above this was shown as a single-quoted string, which is indeed perfectly legal, but in the adv3Lite library it is always expressed as a property (e.g. cannotTakeMsg) which is a property defined on the object in question. Part of the reason for this is to make it easy for game authors to customize these refusal messages: if you want something less generic than 'The stone ball is fixed in place' you can simply override the cannotTakeMsg property on the stoneBall object; you don't have to override the entire verifyDobjTake() method. (The other part of the story will be covered in the section on <a href="message.htm">messages</a>).</p>
+
+<p>Note that your verify routines should contain nothing but one or more of the macros listed above and the conditional (if) statement needed to define when the apply (and, possibly, some code to calculate local variables for use by the conditional statements). In particular verify routines should not display anything (via say() statements or single-quoted strings) nor should they change the game state.</p>
+
+<p>Note also that it's perfectly okay for the logic of your verify routine to result in more than one of the logical/illogical macros being executed. The library will simply use the one that has the <i>lowest</i> logical rank (on the assumption that if it is applicable at all, it trumps all the rest). The verify result with the lowest logical rank is stored in a table, where it can be replaced by a verify result with an even lower logical rank, if one is encountered, and where its corresponding failure message can be accessed if and when the time comes to display it.</p>
+
+<p>Note finally that the library is set up to minimize the number of verify routines you need to override. For example, the action handling for Dig and DigWith is defined like this:</p>
+ <p><div class="code"><pre>
+ /* Most things are not suitable for digging in*/
+    isDiggable = nil
+    
+    dobjFor(Dig)
+    {
+        preCond = [touchObj]
+        verify() 
+        {
+            if(!isDiggable)
+               illogical(cannotDigMsg); 
+        }
+    }
+    
+    /* Most objects aren't suitable digging instruments */
+    canDigWithMe = nil
+    
+    dobjFor(DigWith)
+    {
+        preCond = [touchObj]
+        verify() 
+        {
+            if(!isDiggable)
+               illogical(cannotDigMsg); 
+        }
+    }
+        
+    iobjFor(DigWith)
+    {
+        preCond = [objHeld]
+        verify() 
+        { 
+            if(!canDigWithMe)
+               illogical(cannotDigWithMsg); 
+            
+            if(gDobj == self)
+                illogicalSelf(cannotDigWithSelfMsg);
+        }
+    }
+    
+    cannotDigMsg = BMsg(cannot dig, '{I} {can\'t} dig there. ')
+    cannotDigWithMsg = BMsg(cannot dig with, '{I} {can\'t} dig anything with
+        {that iobj}. ')
+    cannotDigWithSelfMsg = BMsg(cannot dig with self, '{I} {can\'t} dig {the
+        dobj} with {itself dobj}. ')
+</pre></div>
+
+<p>This means that instead of having to override the verify methods of things you want to dig or dig with to make the commands possible, you can simply define <span class="code">isDiggable = true</span> or <span class="code">canDigWithMe = true</span> as appropriate (and preventing using something to dig itself is still automatically taken care of). The name pattern isXXXable for the direct object and canXXXPrepMe for the indirect object when the corresponding actions are XXX and XXXPrep are used fairly consistently, as are the names of the corresponding cannotXXXMsg, cannotXXXPrepMsg and cannotXXXPrepSelfMsg properties, to make it relatively simple to work out which properties you might want to override. The main exceptions are the doubling of the final consonant where normal spelling would seem to require it for properties like isDiggable and is Cuttable, and the use of the more idiomatic isEdible in place of isEatable.</p>
+
+<p>The default values of the properties in the library generally depends on what seems to be the most likely common case. Thus, for example, few things can be used to burn or cut other things with, and probably most game objects won't be suitable for burning or cutting, so isBurnable, isCuttable, canBurnWithMe and canCutWithMe are all nil by default. Conversely, just about anything can be the target of a throw, so the default value of canThrowAtMe is true, while in general we can throw anything that isn't fixed in place, so that isThrowable is defined as (!isFixed). This incidentally illustrates that some properties define the default value of other properties; isFixed for example is used to determine several such properties such as isTakeable and isMoveable. Similarly, isCloseable is defined as (isOpenable), since one would normally expect something that can be opened to be also something than can be closed (a door or a desk drawer, say). If in doubt, consult the library code in Thing.t to see how these properties are defined.</p>
+
+<p>Note that changing these other behavioural properties to true doesn't necessarily make the corresponding action work, in most cases it merely allows the action to proceed to the next stage. It's up to authors' game code to define what happens when something is dug or cut or fastened or whatever, since in general the library can't know how you want these things to work in your game.</p>
+
+<p>Finally, note that there are no canPutInMe, canPutOnMe, canPutUnderMe or canPutBehindMe properties, since using such properties would risk breaking the <a href="thing.htm#containment">containment</a> model, which is controlled by the single contType property.</p>
+
+<br>
+
+<h2><a name="precond">Pre-conditions</a></h2>
+<p>In interactive fiction its frequently the case that some condition has to obtain in order for some action to go ahead. Before I can take the red ball I have to be able to reach it. Before I can put the red ball in the blue box I have to be holding the red ball and the blue box has to be open. Moreover in such cases it is very tedious for the player to be told s/he has to meet the condition before the action can be carried out. No player will thank you if you force the following kind of interaction on them:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;put red ball in blue box</b>
+You have to be holding the red ball before you can put it in anything.
+
+<b>&gt;take red ball</b>
+Done.
+
+<b>&gt;put red ball in blue box</b>
+The blue box must be open before you can put anything in it.
+
+<b>&gt;open blue box</b>
+Done.
+
+<b>&gt;put red ball in blue box</b>
+Done.
+</pre></div></p>
+
+<p>It would be much better if the parser just went ahead and carried out the obvious actions of taking the red ball and opening the blue box automatically for the player, instead of annoyingly telling the player that s/he needs to carry out these actions.</p>
+
+<p>It would, however, also be a bit tedious for game authors to have to code round such problems for every individual case. The solution provided by the adv3Library (shamelessly copied from the adv3Library) is to use preConditions, objects that encapsulate these frequently-occurring pre-conditions of carrying out an action and, where appropriate, trigger an implicit action to try to meet the pre-condition on the player's behalf. The preCondition objects currently defined in the adv3Lite library are:</p>
+
+<ul>
+<li><b>objHeld</b> This object must be held by the actor before the action can go ahead; if not, the library will attempt an implicit take.</li>
+<li><b>containerOpen</b> If this object is a container (i.e. if its contType is In), then it must be open before the action can proceed. If it's not open, the library will try an implicit open command. If the object's contType is not In then this preCondition has no effect. (It has to be defined this way so that this preCondition can be defined for various actions on Thing in the library).</li>
+<li><b>objClosed</b> This object must be closed before the action can go ahead (typically the action concerned will be locking). If not, the library will attempt an implicit close.</li>
+<li><b>objNotWorn</b> This object must not be worn when the action takes place (e.g. when dropping the object). It it is currently worn, the library will attempt an implicit doff.</li>
+<li><b>objVisible</b> This object must be visible and there must be enough light to see it by (e.g. to examine or read the object). If the condition is not let the library does not attempt to correct it.</li>
+<li><b>objAudible</b> This object must be audible to the actor for this action to go ahead.  If the condition is not let the library does not attempt to correct it.</li>
+<li><b>objDetached</b> This object must be detached from any other object before this action can go ahead. If it isn't, the library attempts an implicit detach command.</li>
+<li><b>touchObj</b> The actor must be able to touch this object before the action can proceed. If the condition is not met the library does not attempt to correct it.</li>
+</ul>
+
+<p>The last of these preConditions is very common. It also has a couple of additional complications, in that it queries the verifyReach(obj) and checkReach(obj) methods of the object that needs to be touched (the obj method in these methods actually refers to the actor whose trying to do the touching). verifyReach(obj) can optionally add further verify conditions (specified just as for a normal verify method). checkReach(obj) can then apply further checks; if checkReach(obj) displays anything (presumably a message saying why the object can't be touched), then the action will not be allowed to go ahead.</p>
+
+<p>This incidentally highlights the point that a preCondition has verify stage (when it can apply further verify results) and a check stage (which is normally the stage at which it would attempt any implicit actions, though touchObj is a bit of an exception here).</p>
+
+<p>To apply preconditions to objects involved in particular actions we simply list the appropriate precondition objects in the appropriate preCond property, for example:</p>
+
+<p><div class=code><pre>
+class Thing: Mentionable
+   ...
+   dobjFor(PutIn)
+   {
+        preCond = [objHeld, objNotWorn]
+	    ...
+   }
+   
+   iobjFor(PutIn)
+   {
+       preCond = [containerOpen]
+	   ...
+   }
+;
+</pre></div></p>
+
+<p>A further example illustrates how the touchObj precondition can be used in conjunction with a checkReach() method to prevent an object being touched when it's too hot:</p>
+
+<p><div class=code><pre>
++ cooker: Thing 'cooker;blackened;oven stove top'
+    "Normally, you keep it in pretty good shape (or your cleaner does) but right
+    now it's looking suspiciously blackened, especially round the top. "    
+    
+    isFixed = true
+    isSwitchable = true
+    isOn = true
+    
+    smellDesc = "There's a distinct smell of burning from the cooker. "
+    
+    remapIn: SubComponent
+    {
+        isOpenable = true
+        bulkCapacity = 6
+    }
+    
+    remapOn: SubComponent  {  }
+;
+
+
+
+++ saucepan: Thing 'saucepan;;pan'
+    "It's absolutely blackened. It was obviously left on the stove too long --
+    perhaps that's what started the fire. "
+   
+    subLocation = &amp;remapOn
+    contType = In
+    
+    temperature = 100
+    
+    temperatureDaemon()
+    {
+        if(location == cooker.remapOn &amp;&amp; cooker.isOn &amp;&amp; temperature &lt; 100)
+            temperature++;
+        
+        if((location != cooker.remapOn || !cooker.isOn) &amp;&amp; temperature &gt; 15)
+            temperature--;
+    }
+    
+    checkReach(obj)
+    {
+        if(temperature &gt; 70)
+        {
+            "The saucepan is &lt;&lt;if temperature &gt; 90&gt;&gt;far &lt;&lt;else if temperature
+            &lt; 80&gt;&gt; just&lt;&lt;end&gt;&gt; too hot to touch!&lt;.p&gt;";            
+        }        
+    }
+    
+    cannotBurnMsg = 'The saucepan\'s quite burnt enough already! '
+;
+</pre></div></p>
+<br>
+
+<h2><a name="check">Check</a></h2>
+
+<p>The check stage is used to prevent an action which is not obviously illogical to the player. An example might be trying to open a locked door (when it may be far from immediately obvious that the door is locked). Pragmatically, you would use a check routine to block an action when you don't want blocking the action to affect the parser's choice of this object as a good or at least reasonable match for the command entered by the player.</p>
+
+<p>Defining a check routine is very straightforward. If the action cannot go ahead, you simply display a message saying why it cannot go ahead. (adv3 users please note: in an adv3Lite check routine you do not need to use the exit macro, or failCheck(), or reportFailure(); indeed you should not use any such things here). A check routine should thus consist purely of statements that display failure messages to the player and conditional statements controlling when they are displayed, e.g.:
+
+<p><div class=code><pre>
+partyDress: Thing 'party dress; blue; frock'
+  isWearable = true
+  wornBy = gPlayerChar
+  
+  dobjFor(Doff)
+  {
+     check()
+	 {
+	    if(!gPlayerChar.isIn(bedroom))
+		   "It would be most unbecoming for a young lady to undress outside her 
+		    own room. ";
+	 }
+  }
+
+</pre></div></p>
+
+<p>This incidentally illustrates that when customizing objects to respond to actions, there's no need to repeat the parts already defined by the library. The library's implementation of dobjFor(Doff) already ensures that the object is currently being worn (in its verify routine) and already carries out the doffing action in its action routine if the action is allowed to go ahead. You only need to override the parts you want to customize.</p>
+
+<p>Finally, note that a check() routine should not normally contain anything but statements that display failure messages and conditional statements that control when they apply. In particular, check() methods should not normally change the game state. The one exception is that it's perfectly legitimate for a check method to set a flag to show that an action has been attempted. This could be used, for example, to trigger a series of hints about how to open a jammed door after the player first attempts to open it.</p>
+
+<br>
+
+<h2><a name="action">Action</a></h2>
+
+<p>The action stage is also perfectly straightforward: it's the stage that actually carries out the action and changes the game state accordingly, (e.g. by moving an object into the player's inventory or into a container, or opening a box or closing a door). The one complication to bear in mind is whether an action method should display anything to the player or leave it to the report stage.</p>
+
+<p>In general the action routine should display a message of its own in either of the following cases:</p>
+<ol>
+<li>The message represents the main point of the action (e.g. reading, examining, or looking under something to see what's there.)</li>
+<li>The action has an unusual, unexpected or idiosyncratic outcome: e.g. pushing the red button causes a secret door to open, turning the dial to the right combination causes the safe to open, or taking the golden skull triggers a trap.</li>
+</ol>
+
+<p>Note that if an action routine displays a message, the object won't be reported on by the report() routine (since in that case the library assumes that reporting on the action has been fully covered by the message displayed at by the action method). If, however, you want to report on a supplementary side effect of carrying out some action (e.g. taking a mat reveals a note that was previously concealed beneath) you could do so by using the reportAfter(<i>msg</i>) macro, which will cause <i>msg</i> to be displayed after any output from the report stage. For example:</p>
+
+<p><div class=code><pre>
+mat:Thing 'mat; white; placemat'
+  dobjFor(Take)
+  {
+     action()
+     {
+        if(harryNote.isIn(nil))
+        {
+           harryNote.moveInto(location);
+           reportAfter('Moving the mat reveals a note that was hidden beneath.' );
+        }
+        inherited();
+     }
+  }
+;
+</pre></div></p>
+<p>Note that you wouldn't have to code this particular example this way, since in practice you'd simply define <span name=code>hiddenUnder = [harryNote]</span> on the mat object to produce the same effect, but the example suffices to illustrate the principle.</p>
+<br>
+
+<h2><a name="report">Report</a></h2>
+
+<p>The report phase is one that adv3Lite adds to the phases used by the adv3 library. It's main function is to facilitate the display of a grouping or summarizing report for an acion that might be performed on several objects at once, e.g. TAKE ALL or TAKE BALLS or TAKE PEN, INK AND PAPER. Rather than the game responding with a separate report for each object, it simply runs the report routine on the <i>last</i> object to be involved in command, at which point a list of all the affected objects is available; the pseudo-global variable <b>gActionListStr</b> then contains a single-quoted string listing the items in the form 'the pen, the ink and the paper' which can be used in your report, e.g.:</p>
+
+<p><div class=code><pre>
+class Thing Mentionable
+  dobjFor(Take)
+  {
+     action()
+     {
+        actionMoveInto(gActor);
+     }
+	 
+     report()
+     {
+        "You take &lt;&lt;gActionListStr&gt;&gt;. ";
+     }
+  }
+;
+</pre></div>
+
+<p>This will result in a report such as 'You take the pen, the ink and the paper. ' (Note that there's no need to implement this particular example in your own code, since the library already does so, albeit in a slightly more elaborate form).</p>
+
+<p>It's worth emphasizing again that the report routine is only run on the <i>last</i> of a series of objects involved in any one command (of course many commands act on only one object, in which case this is the object whose report() method will be executed). You should also note that the report() phase is not run at all if either of the following conditions is true:</p>
+
+<ol>
+<li>The action is an implicit action.</li>
+<li>There's nothing left to report on, either because no objects made it to the action stage, or because the action stage has already reported on the action for every object involved in the command.</li>
+</ol>
+
+<p>There should thus be no danger of a report method generating output like 'You take .'</p>
+
+<p>Finally, since the report method is designed to give a routine report on what may be a group of objects, there's usually little point in defining it on a particular object as opposed to a class (quite apart from anything else, when a command applies to several objects you can't be sure which object's report() method will be used, so you'd want them all to be the same). The only exception might be for an action that can only be applied to a single object. In general, then, you'll normally only want to define or override a report() method in either of the following two cases:</p>
+
+<ol>
+<li>Defining the handling for a new action you have implemented yourself.</li>
+<li>Changing the library's default behaviour for a class (although even then it might be simpler to create a <a href='message.htm#custmessage'>CustomMessage</a> object to produce the same effect).</li>
+</ol>
+<br>
+
+<h2><a name="remap">Remap</a></h2>
+
+<p>The Remap stage is used to remap (i.e. redirect, transform, transmogrify or otherwise change) one action to another, possibly a totally different action or possibly the same action applied to different objects. If remapping is defined there's normally no point in defining other stages, unless the remapping is conditional (and thus might not occur).</p>
+
+<p>The first two forms of remapping are identical to the way it's done in the adv3 library, using the <b>remapTo()</b> and <b>maybeRemapTo()</b> macros. For example, suppose we have a desk with a drawer and we want to remap putting things in the desk to putting them in the drawer. We could do it like this:</p>
+
+<p><div class=code><pre>
+desk: Thing 'desk'
+  "It has a single drawer. "
+  iobjFor(PutIn) remapTo(PutIn, DirectObject, drawer)  
+;
+</pre></div></p>
+
+<p>(Note that I said we <i>could</i> do it that way, although in this particular example in practice we'd probably just define <span class=code>remapIn = drawer</span> on the desk to remap the whole set of relevant actions at once). Note that the arguments to a remap() macro are first the action to remap to, and then any objects of this new action in the order direct object, indirect object. In this definition, DirectObject is a placeholder for the direct object of the original command. If we wanted to use the indirect object we'd use IndirectObject here instead.</p>
+
+<p>For conditional remapping we can use the <b>maybeRemapTo()</b> macro, which works the same way as remapTo but takes an additional parameter at the beginning, which is a condition that must be true if the remapping is to take place. For example, suppose that we wanted PULL DRAWER to be treated as OPEN DRAWER, but only if the drawer is not already open; we could do it like this:</p>
+
+
+<p><div class=code><pre>
+drawer: Thing 'drawer'
+  isOpenable = true
+  contType = In
+
+  dobjFor(Pull) maybeRemapTo(!isOpen, Open, self)  
+;
+</pre></div></p>
+
+<p>There maybe more complex cases where you want to remap to different actions depending on certain conditions. For example you might want PUSH DOOR to open the door when it's closed, and close the door when it's open. To achieve that effect you can define remap as a method that returns a different list depending on the state of the door:</p>
+
+<p><div class=code><pre>
+frontDoor: Thing 'front door'
+  ...
+
+  dobjFor(Push) 
+  {
+     remap()
+     {
+        if(isOpen)
+           return [Close, self];
+        else
+           return [Open, self]; 
+     }
+  }
+;
+</pre></div></p>
+
+<p><FONT COLOR=RED><strong>IMPORTANT NOTE</strong>:</FONT> <em>The two forms of remapping just described above (with remapTo() and maybeRemapTo()) should be regarded as deprecated features of the adv3Lite library. That is, they may be withdrawn in a future version. This is because much the same effect can be obtained by using the redirect() method of a <a href="doer.htm">Doer</a>, and this is arguably a cleaner solution. Whether or not to retain remapTo() and maybeRemapTo() will depend in part on user feedback. This does not effect the short form remap described immediately below, which will be kept in any case.</em></p> 
+
+<p>The adv3Lite library also offers a short form of remap that can be used to remap an action to the same action applied to a different object in the same role, when we can just set remap to the new object. For example, to remap putting things in a desk to putting them into its drawer we could simply write:</p>
+
+<p><div class=code><pre>
+desk: Thing 'desk'
+  "It has a single drawer. "
+  iobjFor(PutIn) { remap = drawer)  }
+;
+</pre></div></p>
+
+<p>Finally, there are situations when you what you want to do is not so much to remap one action to another (possibly involving different objects) but to have one action behave like another on the same object. For this purpose you can use the macros <b>asDobjFor(<i>action</i>)</b> and <b>asIobjFor(<i>action</i>)</b>, just as in the adv3 library. For example if we wanted pulling the drawer always to equate to opening it we'd write:</p>
+
+<p><div class=code><pre>
+drawer: Thing 'drawer'
+  isOpenable = true
+  contType = In
+
+  dobjFor(Pull) asDobjFor(Open)  
+;
+</pre></div></p>
+
+<p>As a second example, the adv3Lite library defines the following on the SimpleAttachable class to make FASTEN and UNFASTEN behave just like ATTACH and DETACH:</p>
+
+
+<p><div class=code><pre>
+class SimpleAttachable: Thing
+  ...
+   /* Treat Fasten and Unfasten as equivalent to Attach and Detach */
+    dobjFor(FastenTo) asDobjFor(AttachTo)
+    iobjFor(FastenTo) asIobjFor(AttachTo)
+    dobjFor(UnfastenFrom) asDobjFor(DetachFrom)
+    iobjFor(UnfastenFrom) asIobjFor(DetachFrom)
+    dobjFor(Unfasten) asDobjFor(Detach)  
+;
+</pre></div></p>
+<br>
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Action Results
+<br><span class="navnp"><a class="nav" href="actionoverview.htm"><i>Prev:</i> Overview</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="message.htm"><i>Next: </i>Messages </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

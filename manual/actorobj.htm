@@ -1,0 +1,109 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; The Actor Object</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+The Actor Object
+<br><span class="navnp"><a class="nav" href="actoroverview.htm"><i>Prev:</i> NPC Overview</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actorstate.htm"><i>Next:</i> Actor States</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>The Actor Object</h1>
+
+<h2>Thing-like Properties</h2>
+
+<p>The first and one absolutely essential step in defining an actor (or Non-Player Character, NPC) is to define an Actor object to represent that NPC in the game world. If you're defining an NPC of any complexity, one that involves a number of ActorStates, AgendaItems and TopicEntries, for example, you might wish to place all the code and objects relating to that NPC in a separate source file, rather than in the source file containing the game map, say. If you're defining a really simple NPC for which the Actor object alone will suffice, you probably don't need to do this.</p>
+
+<p>The Actor class inherits from Thing, and you can thus define/override/use all the usual properties and methods of Thing on Actor, if you so wish/need. If, however, you plan to use ActorStates (which you don't have to) it makes better sense to define the corresponding properties on the ActorState (from which the Actor object will then obtain the appropriate value).</p>
+
+<p>The common properties you will normally want to define on all Actors, in just the same way as you'd define them on Thing are:</p>
+
+<ul>
+<li><strong>vocab</strong>: defining this effectively defines the name at the same time</li> 
+<li><strong>desc</strong>: the basic (non state-specific) description of the Actor</li>
+<li><strong>location</strong>: the starting location of the Actor (if you're defining the Actor in a separate source file it may be useful to do this via an @ part of the template).</li>
+<li><strong>isHim</strong>/<strong>isHer</strong>: if the Actor is a human-like person you'll want to define either isHim = true or isHer = true to define the Actor's gender (and thus the pronouns that can be used to refer to him or her); note that this property can also be set via the <a href="thing.htm#vocab">vocab</a> property.</li>
+<li><strong>globalParamName</strong>: this can be particularly useful on Actor's whose names change during the course of the game (e.g. from 'the tall man' to 'George'), since the globalParamName can be used in message parameter strings like '{The subj george} {is} here' to produce the right form of the name at any time in the game.</li>
+<li><strong>isFixed</strong>: by default this is true for an Actor, on the assumption that most actors can't be picked up and carried around; if you want a portable Actor in your game you would need to override this property to nil.</li>
+</ul>
+
+<p>A minimal Actor definition might thus look something like this:</p>
+
+<p><div class="code"><pre>
+george: Actor 'George; tall thin; man' @hall
+    "He's a tall thin man. "
+    isHim = true
+   
+    globalParamName = 'george'
+;
+</pre></div>
+
+<p>We might additionally define the following properties of an Actor if we're not going to use any ActorStates with this Actor; otherwise one would define them appropriately on the ActorState objects:</p>
+
+<ul>
+<li><strong>specialDesc</strong>: this normally does need to be defined either on the Actor or on its ActorStates to provide a paragraph about the Actor in room description listings (e.g. "George is standing a short way across the room"). The default behaviour is for Actor.specialDesc to use the specialDesc property of the current ActorState, so you'd only override specialDesc on the Actor either if you weren't planning to use any ActorStates with the Actor or you wanted the specialDesc to remain the same regardless of ActorState.</li>
+<li><strong>stateDesc</strong>: this is a state-specific description added to what is displayed from the desc property when the Actor is examined. The default behaviour is for Actor.stateDesc to return the stateDesc of the current ActorState, but you can override it on the Actor if you're not using ActorStates with that particular Actor.</li>
+<li><strong>beforeAction()</strong>: by default this defers to the beforeAction method of the current ActorState, but it also calls <strong>actorBeforeAction()</strong>, which you can use for before notications that are state-independent.</li>
+<li><strong>afterAction()</strong>: by default this defers to the afterAction method of the current ActorState, but it also calls <strong>actorAfterAction()</strong>, which you can use for after notications that are state-independent.</li>
+<li><strong>beforeTravel(traveler, connector)</strong>: by default this defers to the beforeTravel() method of the current ActorState, but it also calls <strong>actorBeforeTravel(traveler, connector)</strong>, which you can use for before travel notications that are state-independent. Note that the beforeTravel() method of Actor also checks whether the travel might end a conversation; it's probably best not to override it even if you aren't using ActorStates and to use actorBeforeTravel() instead.</li>
+<li><strong>afterTravel(traveler, connector)</strong>: by default this defers to the afterTravel() method of the current ActorState, but it also calls <strong>actorAfterTravel(traveler, connector)</strong>, which you can use for after travel notications that are state-independent.</li>
+<li><strong>remoteSpecialDesc(pov)</strong> (only relevant if we're using the <a href="senseregion.htm">SenseRegion</a> module).</li>
+
+</ul>
+
+
+
+<br>
+
+<h2>Actor-Specific Properties</h2>
+
+<p>In addition to the properties the Actor class more or less shares with Thing are a number peculiar to Actor. The most commonly useful of these (from the point of view of the ones game authors might use) are:</p>
+
+<ul>
+<li><strong>curState</strong>: the Actor's current ActorState. Note, while it is legal for this to be nil (in adv3Lite), it should normally be nil only on Actors that don't use ActorStates at all.</li>
+<li><strong>setCurState(<em>stat</em>)</strong>: set this Actor's current ActorState to <em>stat</em>. This method should always be used to change the ActorState; don't change the value of curState directly.</li>
+<li><strong>startFollowing()</strong>: call this method to make this Actor start following the player character around.</li>
+<li><strong>stopFollowing()</strong>: call this method to make this Actor stop following the player character around.</li>
+<li><strong>sayFollowing(<em>oldLoc</em>)</strong>: displays a message when this Actor follows the player character into a new location from <em>oldLoc</em>. By default we either call the sayFollowing() method of the current ActorState (if there is one) or the <strong>actorSayFollowing(<em>oldLoc</em>)</strong> method on the Actor if the Actor's curState is nil. In either case the default message produced by the library is of the form "George follows behind you."</li>
+<li><strong>arrivingTurn()</strong>: this method is executed on the Actor immediately after the sayFollowing() message is displayed to allow the Actor to carry out additional handling on following the player character to a new location. By default Actor.arrivingTurn() calls arrivingTurn() on the current ActorState if there is one or actorArrivingTurn() if curState is nil.</li>
+<li><strong>allowOtherActorToTake(<em>obj</em>)</strong>: returns true if another actor (including the player character) is allowed to take obj while obj is in this Actor's inventory; by default this method simply returns nil.</li>
+<li><strong>canCatchThrown(obj)</strong>: returns true (the default) if this actor can catch <em>obj</em> when <em>obj</em> is thrown to the actor. If this method returns nil, obj falls into the actor's location instead.</li>
+</ul>
+
+<p>There are also a number of properties and methods specific to actor conversation:</p>
+<ul>
+<li><strong>lastConvTime</strong>: the turn on which the player character last conversed with this Actor.</li>
+<li><strong>conversedThisTurn</strong>: true if the player character conversed with this Actor on this turn, nil otherwise.</li>
+<li><strong>conversedLastTurn</strong>: true if the player character last conversed with this Actor on the previous turn, nil otherwise.</li>
+<li><strong>canEndConversation(<em>reason</em>)</strong>: returns true if the Actor can end the current conversation for <em>reason</em>. By default we return canEndConversation(reason) on the current ActorState if there is one, or actorCanEndConversation(reason) if curState is nil. reason can be one of:
+<ul>
+<li>endConvBye: the player character says goodbye to the Actor.</li>
+<li>endConvLeave: the player character departs to a new location in the middle of the conversation.</li>
+<li>endConvBoredom: the Actor becomes bored with waiting for the player character to speak.</li>
+<li>endConvActor: the Actor wishes to terminate the conversation for some other reason.</li>
+</ul></li>
+<li><strong>endConversation(<em>reason</em>)</strong>: make the Actor terminate the current conversation with the player character, provided canEndConversation(reason) will permit it. Normally game code would only call this with reason = endConvActor; the other reasons come about indirectly as the effect of other occurrences.</li>
+<li><strong>attentionSpan</strong>: the number of turns this Actor will wait for the player character to speak (once a conversation is underway) before becoming bored with waiting and terminating the conversation. If this is nil (the default) this Actor never becomes bored.</li>
+<li><strong>canTalkTo(<em>other</em>)</strong>: can this Actor talk to <em>other</em>? By default this returns true if the Actor can hear <em>other</em>.</li>
+<li><strong>informedAbout(<em>tag</em>)</strong>: has this Actor been informed about the information denoted by <em>tag</em> (where tag is a single-quoted string value like 'fred-burgled' or 'martha-affair' or 'find-orb')?</li>
+</ul>
+<p>The purpose of some of the above should become more apparent when we get deeper into the conversation system. There are also a number of methods used for manipulated the Actor's agenda, whioh will be explained in the section on <a href="agenda.htm">AgendaItems</a>. Most of the other methods and properties of Actor are intended for internal use by the library, and would not normally be directly employed in game code.</p>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+The Actor Object
+<br><span class="navnp"><a class="nav" href="actoroverview.htm"><i>Prev:</i> NPC Overview</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="actorstate.htm"><i>Next:</i> Actor States</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

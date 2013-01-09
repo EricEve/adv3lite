@@ -1,0 +1,524 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Core Library &mdash; Things</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+Things
+<br><span class="navnp"><a class="nav" href="core.htm"><i>Prev:</i> The Core Library</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="room.htm"><i>Next:</i> Rooms & Regions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Things</h1>
+<p>If you've had any experience writing Interactive Fiction, especially with TADS (2 or 3) or with earlier versions of Inform (up to version 6, at any rate) you'll know that a great deal of IF programming is taken up with defining objects. In the adv2Lite library the kind of object you'll probably find yourself defining most often is the Thing, which represents a physical object in the game world. Every physical object in and adv3Lite game will either be a Thing or an object based on a subclass of Thing. The adv3 library has a very extensive hierarchy of classes derived from Thing. The adv3Lite library attempts to prune that hierarchy drastically so that just about any game object (with a few exceptions such as rooms, doors and keys) can be defined as a Thing. But if you prefer to do things the adv3 way (and that might make for more readable code, quite apart from other possible benefits), you can use many of the Thing classes (Container, OpenableContainer, KeyedContainer, Decoration, Surface, Platform, Distant, and the like) provided you include the module extras.t in your build (it will be included by default). All the class definitions do there, however, is define one or two properties on Thing you could just as easily define for yourself. In this section, we shall focus on how to define a Thing, and describe how to make a Thing behave like a Container, Surface, ComplexContainer, Platform, Wearable, Switch and so forth just by defining a few properties.</p>
+
+<p>We shall start with the basic properties you'll need to define on just about any thing, then discuss the <a href="#containment">containment properties</a>, and then the other <a href="#behaviour">behavioural properties</a>,  <a href="#sensory">sensory properties</a> and a few other <a href="#misc">miscellanoeus properties</a>. We shall not go into any depth on most of the properties and methods principally intended for internal use by the library; instead, we shall try to keep things as simple as we can.</q>
+
+<h2>Basic Properties</h2>
+
+<p>The basic properties you need to define for a Thing in adv3Lite are its name, the vocabulary used to describe it, and its description. In the adv3Lite library the first two of these can be defined in single property, the vocab property. So, for example, to define a red ball you might write:</p>
+
+<p><div class="code"><pre>
+redBall: Thing
+   vocab = 'red ball;bouncy rubber; sphere'
+   desc = "It's very bouncy, and appears to be made of rubber. "
+;
+</pre></div> 
+
+<p>Note how the vocab property works. First we supply the name the object ('red ball'), then, following the first semicolon we supply any additional adjectives the object might be known by (here 'bouncy' and 'rubber', and then, after the second semi-colon, any additional nouns the player might use to refer to the object. Note that by naming it 'red ball' before the first semicolon we automatically ensure that the player can refer to it as 'red ball' (or just 'red' or 'ball'). In this case the library assumes that 'red' is an adjective and 'ball' is a noun, because it assumes that the last word in the name is the noun and that all the words before it are adjectives. It is perfectly possible to override this assumption if you wish; for the full story on what you can do with the vocab property see below (it is quite a bit more sophisticated than the brief account given here may suggest, but the brief account will do for now). One further thing to note, however, is that the adv3Lite parser (or rather the Mercury parser that adv3Lite incorporates) is quite relaxed about the order in which the player enters words to describe an object, so the vocab property can readily be used to define odd names and vocabulary such as 'Cranky the clown' or 'S and P magazine' directly, without having to jump through any further hoops. Again, see below on the full account of the <a href='#vocab'>vocab</a> property for further details.</p>
+
+<p>In practice, though, we'd normally use the Thing template to define these basic properties, so in a real game our red ball definition would normally look like this:</p>
+
+
+<p><div class="code"><pre>
+redBall: Thing 'red ball;bouncy rubber; sphere'
+   "It's very bouncy, and appears to be made of rubber. "
+;
+</pre></div> 
+
+<p>If the name doesn't uniquely identify the object &mdash; say because there were two red balls in our game, the bouncy red rubber ball and a cricket ball &mdash; we can define the <b>disambigName</b> property to distinguish them when the parser asks the player to disambiguate which ball s/he means (we definitely don't want the parser to ask "Which do you mean, the red ball or the red ball?'"). In this admittedly artificial example, we would need to define a disambigName on our redBall object so:</p>
+
+
+<p><div class="code"><pre>
+redBall: Thing 'red ball;bouncy rubber; sphere'
+   "It's very bouncy, and appears to be made of rubber. "
+   
+   disambigName = 'bouncy rubber ball'
+;
+</pre></div>
+
+<p>Normally, though, this should not be necessary.</p>
+
+<p>We can also define the following properties broadly related to the object's name, although judicious use of the <a href='#vocab'>vocab</a> property will normally make it unnecessary to do so:</p>
+
+<ul>
+<li><b>name</b> Explicity defining the name (short name) property will override any name the library would otherwise have inferred from the vocab property.</li>
+<li><b>proper</b> Signifies that the object has a proper name (e.g. John Smith). If the first part of the vocab property is defined entirely with capitalized words this will set to true automatically.</li>
+<li><b>qualified</b> Signifies that although this object does not have a proper name, its name should not be preceded by an article (such as 'the' or 'a'). We can achieve the same effect by starting the first section of the vocab property (the name part) with '()'.</li>
+<li><b>plural</b> Set this to true if the object has a plural name (e.g. 'stairs'). The same effect can be achieved by ending the vocab property (after the third semicolon) with 'them' (e.g. 'stairs; steep; staircase; them).</li>
+<li><b>massNoun</b> Set this to true is the object's name is that of a mass noun (e.g. sand or snow). In English we do not refer to 'a sand' or 'a snow' but to 'some sand' or 'some snow' (or just 'sand' and 'snow'). The library will automatically set this to true if you define 'some' as the article in the vocab property (e.g. 'some sand; fine yellow').</li>
+<li><b>theName</b> The form of the name with the definite article (e.g. 'the red ball'), or simply the name if it's a proper or qualified name (e.g. 'John Smith' or 'Pride and Prejudice'). The library will normally get this right automatically, so you shouldn't generally need to override it, though you may often want to use this property to refer to objects in the text of your own game code.</li>
+<li><b>aName</b> The form of the name with the indefinite article (e.g. 'a red ball', 'an orange', 'some ball bearings'). Again the library will normally get this right without any intervention from game authors, so you shouldn't normally need to define this property (though you can if you need to), but you will probably want to use it to refer to or describe objects in your game code.</li>
+<li><b>owner</b> A list containing the owner or owners of the object.  This is for resolving possessives in the player's input, such as BOB'S WALLET.  By default, an object has no explicit owner, so this is an empty list. This should only return the <i>explicit</i> owner(s), not an implied locational owner.  For example, if Bob is holding a key, it's implicitly BOB'S KEY.  However, the key may or may not still be Bob's after he drops it.  If the key is something that's understood to belong to Bob, whether it's currently in his physical possession or not, then this routine would return Bob; otherwise it would return nil. An object can have multiple explicit owners, in which case it'll be recognized with a possessive qualifier for any of the owners. The first owner in the list is the nominal owner, meaning its the one we'll use if we're called upon to display the object's name with a possessive phrase.  </li>
+<li><b>ownsContents</b>  Are we the nominal owner of the objects we contain?  This controls whether or not we can be chosen as the nominal owner of a contained object for display purposes.  If a contained object has
+no explicit owner, it can still be implicitly owned by an actor carrying it, or by another suitable container.  (Note that this only applies as a default.  When an item in our contents has an explicit owner, that will override the implied container ownership for that item.  So, for example, Bob can be carrying Bill's wallet wallet, and as long as the wallet has its explicit owner set, we'll still describe it as Bill's despite its location.) By default, most objects are not nominal owners.  Actors generally should set this to true, so that (for example) anything Bob is carrying can be described as Bob's. ownsContents is thus nil by default on Thing but true by default on Actor.</li>
+<li><strong>matchName(toks)</strong> Normally the parser will match this object if the player's command refers to it with one or more words defined in this object's vocab object, regardless of the order in which the words appear, but preferring nouns to adjectives. In most cases this will be absolutely fine, but if you should want to enforce some other way of matching the name of this object (for example, because the precise order of words is important or you want to match a particular phrase), then this is method to override on that particular object. For details, see the comments on Mentionable.matchName() in thing.t. In brief, if you want to signal that a particular set of tokens represents a good match as a noun phrase, your custom matchName(toks) nethod should return (MatchNoTrunc | MatchNoApprox | MatchNoun); return 0 to indicate that there's no match.</li>
+</ul>
+
+<p>The other basic properties of Thing you will commonly use are:</p>
+<ul>
+<li><b>isFixed</b> Determines whether this object is portable (isFixed = nil) or portable (isFixed = true).</li>
+<li><b>isListed</b> Determines whether this object is listed in a room description. By default this is true for portable objects and nil if isFixed = true. For a fuller account of properties that control what's listed when see under the section on <a href="roomdesc.htm#whatlisted">Room Descriptions</a>.</li>
+<li><b>specialDesc</b> If this property is defined (i.e. non-nil) then it will be shown as a separate paragraph in a room listing (regardless of the value of isListed). If used, this property should be defined as a double-quoted string.</li>
+<li><b>initSpecialDesc</b> Like specialDesc, a double-quoted string defined on initSpecialDesc will be shown as a separate paragraph in a room listing, but only until the object has been moved (i.e. until the moved property becomes true).</li>
+<li><b>moved</b> Becomes true when the object has been moved as a direct result of a player command such as TAKE, DROP or PUT IN. Note that using moveInto(loc) to move an object does <i>not</i> change the value of this property; it is set automatically only by actionMoveInto(loc).</li>
+<li><b>seen</b> Becomes true when the object has been seen by the player character (the library should track this automatically, but there may be odd occasions when you need to set this manually).</li>
+<li><b>examined</b> Becomes true when this object has been examined (NB this is equivalent to the described property in the adv3 library).</li>
+<li><b>desc</b> The description of this object displayed in response to an EXAMINE command. This should be defined as a double-quoted string (or a method that displays some text) and is normally defined via the Thing template (as in the redBall example above.</li>
+<li><b>stateDesc</b> This is a single-quoted string that can be used to display additional information (in response to an EXAMINE command) about an object that can change its state (e.g. become open or closed, or switched on and off). By default this is simply a null string on Thing, so it's up to game authors to define any state-specific information they want here.</li>
+<li><b>familiar</b> This determines whether the player character knows of the existence of this object even if s/he has not yet seen it. This is relevant to whether the object can be referred to in Topic-related actions such as THINK ABOUT MAGIC ORB, LOOK UP ORB IN DICTIONARY OF MAGIC or ASK WIZARD ABOUT MAGIC ORB. Set this property to true for objects the player char is meant to know about at the start of the game, or use the gSetKnown(obj) macro to set it to true for objects the player char learns about during the course of the game.</li>
+<li><b>known</b> Use this property to test whether the player character knows of the existence of this object. This property evaluates to true if either seen is true or familiar is true.</li>
+<li><b>lastSeenAt</b> The location where the player character last saw this object. Normally the library should keep track of this, but if for any reason you need to track it manually, call the noteSeen() method on the object in question.</li>
+<li><strong>globalParamName</strong>. A string tag used to refer to this object in a <a href="message.htm#parameter">message substitution parameter</a>.</li>
+
+
+</ul>
+
+<p>Note that the account of known, seen and familiar given above is slightly simplified. If you wish, you can define seenProp and knownProp just as in the adv3 library in order to distinguish player character knowledge from that of other actors. If you do so, make sure that you set and test the seen, known and familiar properties through setKnowsAbout(obj), setKnown(), setHasSeen(obj), setSeen(), hasSeen(obj), and knowsAbout(obj). The setSeen() and setKnown() methods would be called on the object that has just been seen or become familiar (and would make them seen by or known to the player character). The other methods would be called on the actor who has just seen or learned about the object in question.</p>
+<p>
+
+<h2><a name=containment>Containment Properties</a></h2>
+
+<h3>The Containment Model</h3>
+
+<p>The adv3Lite containment model is basically the same as that used by adv3. In particular an object can 'contain' a number of other objects, but only (with one or two exceptions to be noted below) via one containment type (e.g. In, On, Under or Behind). The initial location of an object is therefore the object that immediately contains it (either another Thing or a Room). As in the adv3 library you set the initial location of an object by specifying its location property, either directly, or through the template with an @ sign, or by using the + syntax to indicate the containment hierarchy. The three following definitions are thus equivalent:</p>
+
+
+<p><div class="code"><pre>
+hall: Room 'Hall'
+;
+
+box: Thing 'box'
+  contType = In
+  location = hall
+;
+
+redBall: Thing 'red ball;bouncy rubber; sphere'
+   "It's very bouncy, and appears to be made of rubber. "
+   location = box
+;
+</pre></div> 
+
+<p>Means exactly the same as:</p>
+
+
+<p><div class="code"><pre>
+hall: Room 'Hall'
+;
+
+box: Thing 'box' @hall
+  contType = In  
+;
+
+redBall: Thing 'red ball;bouncy rubber; sphere' @box
+   "It's very bouncy, and appears to be made of rubber. "  
+;
+</pre></div> 
+
+<p>Which means exactly the same as:</p>
+
+
+<p><div class="code"><pre>
+hall: Room 'Hall'
+;
+
++ box: Thing 'box'
+  contType = In 
+;
+
+++ redBall: Thing 'red ball;bouncy rubber; sphere'
+   "It's very bouncy, and appears to be made of rubber. "   
+;
+</pre></div> 
+
+<p>The + syntax can be used to nest containment up to any desired depth.</p>
+
+<p>Note that while you need to use one of these methods to set the initial location of an object, you should not (normally) change the location property of an object in game code thereafter. To move an object around under programmatical control, use either the moveInto(loc) or actionMoveInto(loc) methods. The difference between the two is that moveInto(loc) simply moves the object into a new location and adjusts the contents properties of the old and new locations accordingly, without triggering any notifications. It is the method you will typically want to use to move things about by authorial fiat. The actionMoveInto(loc) method additionally triggers the notifyRemove(obj) and notifyInsert(obj) on the old and new locations respectively and sets the object's moved property to true. This is the method you would typically use to move an object in direct response to a player command that explicitly requests the object to be moved (such as TAKE or DROP). Note that in this case the notifyInsert(obj) and/or notifyRemove(obj) method can prevent the movement via use of the exit macro if for some reason it should not go ahead.</p>
+<p>As in the adv3 library it is perfectly legal to move an object into nil to move it off-stage, or to leave its initial location as nil if it is meant to start out off-stage.</p>
+
+<h3>Defining containment type with the contType property</h3>
+
+<p>The type of containment an object implements is defined by its <b>contType</b> property. This can be one of:</p>
+<ul>
+<li><b>Outside</b> (the default): any contents of the object are effectively external components.
+<li><b>In</b> The contents of the object are regarded as being inside it (equivalent to an adv3 Container). If you define contType = In you may also want to define isOpen = true to ensure that the contents are accessible.</li>
+<li><b>On</b> The contents of the object are regarded as being on top of it (equivalent to an adv3 Surface)</li>
+<li><b>Under</b> The contents of the object are regarded as being underneath it (equivalent to an adv3 Underside)</li>
+<li><b>Behind</b> The contents of the object are regarded as being behind if (equivalent to an adv3 RearContainer)</li>
+<li><b>Carrier</b> The portable contents of the object are regarded as being carried by it (this is the contType to use for the player character and any other actors).</li> 
+</ul>
+
+<p>If you look at the code in thing.t you'll note that the libary defines several other containment types (LocType objects) including Held, Worn, PartOf and Attached. At the moment none of these actually does anything; they'll either be removed or implemented in a later version of the library; you should certainly not attempt to use them as contTypes for for now. That said, there is also a <b>locType</b> method which returns an object's containment relation to its immediate container. Usually this is the same as its container's contType, but for objects that are being carried or worn it is either Held or Worn respectively; so although you should never <i>set</i> any property to either Held or Worn, you can test whether an object's locType is either Held or Worn.</p>
+
+<p>If you prefer to use adv-style classes (Container, Supporter etc.) to define containment types you can, provided extras.t is included in your build. Note that just about all these classes do is define the revelant contType property you would otherwise define on Thing (the Container class also defines isOpen = true). Using these adv3-type classes may nevertheless help to make your code more readable, and may be useful in situations where it's useful to test the class of an object. Which way you do it is up to you.</p>
+
+
+<h3><a name="hidden">The hiddenUnder, hiddenBehind and hiddenIn Properties</a></h3>
+<p>Often the only (or main) reason to place objects under or behind something in Interactive Fiction is to hide them from view until the player explicitly looks for them (with LOOK UNDER or LOOK BEHIND) or incidentally reveals them by moving the object they were previously concealed under or behind. To handle this common situation Thing provided three properties, <strong>hiddenIn</strong>, <b>hiddenUnder</b> and <b>hiddenBehind</b>, that can be used for this purpose without having to make the object an In, Under or Behind type container. To use hiddenIn, hiddenUnder or hiddenBehind, simply define one of these properties as a list of objects hidden in, under or behind the object in question. Then, when the player looks in, under or behind the object (or moves it by taking it, for example), the hidden items will be revealed and either moved into the object's location (or former location, if it has just been moved) or automatically taken by the player character. For example, to hide a gold coin and a silver key under a rug, you could define the rug thus:</p>
+
+<p><div class="code"><pre>
+rug: Thing 'persian rug; old worn'
+   "The old rug has seen better days; it's now rather worn. "
+   hiddenUnder = [goldCoin, silverKey]
+;
+</pre></div>
+
+<p>Note that in this case the location property of the goldCoin and the silverKey should be left at nil at the start of the game. Objects listed in a hiddenIn, hiddenUnder or hiddenBehind property are effectively off-stage until they are discovered.</p>
+
+<p>These properties become perhaps even more useful when used in conjunction with an object that has another principal containment type. Suppose, for example, that the rug was something the player character could stand on, so that we wanted to make it a Platform (or define contType = On and isEnterable = true). We could then define it thus, without having to worry about how to make the rug handle multiple kinds of containment:</p>
+
+<p><div class="code"><pre>
+rug: Platform 'persian rug; old worn'
+   "The old rug has seen better days; it's now rather worn. "
+   hiddenUnder = [goldCoin, silverKey]
+;
+</pre></div>
+
+<p>Three further related properties are <strong>canPutInMe</strong>, <b>canPutBehindMe</b> and <b>canPutUnderMe</b>, which are by default are true if the object in question has the appropriate contType and nil otherwise. If they are true, then the player will be allowed to PUT something IN, BEHIND or UNDER this object. If the object has the appropriate contType (In, Behind or Under respectively) then the item in question will be moved into the object (its location will be set to the object and it will be added to the object's contents list). If not, the item in question will be moved into nil (i.e. off-stage) and the item will be added to the hiddenIn, hiddenBehind or hiddenUnder property list as appropriate. (Note: hiddenIn might be used for something concealed in an object like a pile of junk or a haystack that isn't a container in the normal sense, but semi acts as one for this kind of purpose). Note that there is no canPutOnMe property, since the hiddenOn property that would then be needed wouldn't make much sense, and it wouldn't make any sense to allow game authors to override the rule that items can be put on an object if and only if its contType is On.</p>
+
+
+<p>It's also possible to control how much can be placed in hiddenIn, hiddenUnder and hiddenBehind lists through player commands with the properties, <strong>maxBulkHiddenIn</strong>, <strong>maxBulkHiddenUnder</strong> and <strong>maxBulkHiddenBehind</strong> that limit the amount that can be but in, under or behind an object that ends up in hiddenIn, hiddenUnder or hiddenBehind list. The corresponding methods <span class="code">getBulkHiddenIn</span>, <span class="code">getBulkHiddenUnder</span> and <span class="code">getBulkHiddenBehind</span> return the total bulk of the items currently contained in the corresponding lists.</p>
+
+<p>One potential problem with the hiddenUnder and hiddenBehind properties is where the objects they contain should end up when the player character looks under or behind the objects that notionally conceal them. If the concealing object has the appropriate contType (Under or Behind respectively), then the previously concealed objects can just be moved to the concealing object. Otherwise the default behaviour depends on whether or not the concealing object is fixed or portable. If the concealing object is fixed (which probably means it's a piece of furniture like a bed or a cabinet), then the default behaviour is for the player character to take the objects that have just discovered in/under/behind it (since there isn't anywhere else obvious for them to go). If the concealing object is portable then the default behaviour is to move the newly discovered objects into the concealing object's location so that they become available to the player character to interact with; the idea is that if you look under a rug or a blanket, say, you do so by lifting a corner of the rug or blanket or shifting it a little, leaving the newly discovered item where it notionally was all along (in the same location as the concealing object).
+
+<p>If you want something concealed in, under or behind another object to remain in, under or behind that object when it's discovered, then you need to define the concealing object as having the appropriate contType (In, Under or Behind as the case may be). If the concealing object also needs to be something you can put things on, then you'll need to use the Complex Containment features described immediately below.</p>
+
+<p>To give a more complete technical description: Tne <strong>autoTakeOnFindHidden</strong> property determines whether an object may be automatically taken when it's moved from a hiddenIn, hiddenUnder or hiddenBehind list. The default value of autoTakeOnFindHidden is (isFixed), the idea being that if we look in, under, or behind something fixed (like a pile of junk or a piece of furniture) and there's nowhere else for the objects discovered to go, we'll probably take them, but that if we look under or behind something portable, like a rug or a blanket, we probably move the rug or blanket a little to do so and leave the item discovered where it notionally was all along (in the same location as the portable item we've just looked under/behind). The property <strong>findHiddenDest</strong> determines where an object is moved to from a hiddenXXXX list (when there's no obvious container for it); by default if autoTakeOnFindHidden is true, then findHiddenDest is gActor (the actor who will take the items discovered), otherwise it's the location of the object that's just been looked in/under/behind. These properties are actually used in the three new methods <strong>findHiddenIn()</strong>, <strong>findHiddenUnder()</strong>, and <strong>findHiddenBehind()</strong>.</p>
+
+<p>The sequence of events with LOOK UNDER X is as follows:</p>
+<ol>
+<li>If X has a contType of Under then this is the target object we'll work with.</li>
+<li>Otherwise, if it has an associated remapUnder object, we'll work with that.</li>
+<li>If the target object has a contType of Under then move everything from the hiddenUnder list to the target object and then list the contents of the target object as being underneath it (or say there's nothing under it if there's nothing there).</li>
+<li>Otherwise, if there's anything in the hiddenUnder list, call findHiddenUnder().</li>
+<li>Otherwise, say there's nothing there.</li>
+</ol>
+
+<p>The findHiddenUnder() method then moves everything from the hiddenUnder list to findHiddenDest and displays an appropriate message.</p>
+
+<p>LOOK IN X and LOOK BEHIND X work in much the same way (except with hiddenIn and hiddenBehind respectively and contTypes of In and Behind respectively).</p>
+
+<p>This may all seem a bit complicated, but it should provide reasonable default behaviour most of the time, while being relatively easy to customize for exceptional cases.</p>
+
+
+<h3><a name="remapxxx">The remapXXX properties and Multiple Containment</a></h3>
+<p>It sometimes occurs that we want one object to act as the container (or surface, underside, or rear) for another. A typical case would be a desk with a drawer, where we want certain commands directed to the desk, such as LOOK IN, PUT IN, OPEN, CLOSE, LOCK and UNLOCK to be redirected to the drawer. To that end we can use one or more of the following remapXXX properties:</p>
+
+<ul>
+<li><b>remapIn</b> Redirect LOOK IN, PUT IN, OPEN, CLOSE, LOCK, LOCK WITH, UNLOCK and UNLOCK WITH to this object.</li>
+<li><b>remapOn</b> Redirect PUT ON to this object.</li>
+<li><b>remapUnder</b> Redirect PUT UNDER and LOOK UNDER to this object.</li>
+<li><b>remapBehind</b> Redirect PUT BEHIND and LOOK BEHIND to this object.</li>
+</ul>
+
+<p>The remapXXX properties can be used in conjuction with the <b>SubComponent</b> class to define the equivalent of an adv3 ComplexContainer. For example, suppose we want to define an oven (or stove) the player character can put things in or on. We could do it like this:</p>
+
+<p><div class="code"><pre>
+cooker: Thing 'cooker;blackened;oven stove top'
+    "Normally, you keep it in pretty good shape (or your cleaner does) but right
+    now it's looking suspiciously blackened, especially round the top. "    
+    
+    isFixed = true
+        
+    remapIn: SubComponent  {   isOpenable = true   }
+    remapOn: SubComponent  {  }
+;
+</pre></div>
+<p>Note that there's no need to define the contType property on these SubComponents, since the library can deduce what it should be from the remapXXX properties to which they're attached. In this case the only additional property we needed to define was <span class=code>isOpenable = true</span> on the remapIn SubComponent, to make the cooker openable.</p>
+
+<p>If we want an object to start off inside or on top of (or under or behind) a Thing with remapXXXX SubComponents, we do it in the same manner as in the adv3 library, i.e. by defining the contained objects subLocation property. Thus, for example, if there's a pan on top of the stove we'd define it thus:</p>
+
+<p><div class="code"><pre>
+cooker: Thing 'cooker;blackened;oven stove top'
+    "Normally, you keep it in pretty good shape (or your cleaner does) but right
+    now it's looking suspiciously blackened, especially round the top. "    
+    
+    isFixed = true
+        
+    remapIn: SubComponent  {   isOpenable = true   }
+    remapOn: SubComponent  {  }
+;
+
++ saucepan: Thing 'saucepan;;pan'
+    "It's absolutely blackened. It was obviously left on the stove too long --
+    perhaps that's what started the fire. "
+   
+    subLocation = &remapOn
+;
+</pre></div>
+
+<p>
+<h3><a name="bulk">Bulk and BulkCapacity</a></h3>
+<p>Since it's generally unrealistic to allow the player to put several large rocks into a small purse (for example), many games will want some kind of way of restricting what can be put in (or on, or under or behind) what. As in the adv3 library the principal means of doing this is via the <b>bulk</b> and <b>bulkCapacity</b> properties (along with the <b>maxSingleBulk</b> property, which by default is set to the bulkCapacity but which can be set to a lower value if required). One object (A) can only be placed inside another's (B) if A's bulk is less than or equal to B's maxSingleBulk and if the sum of A's bulk and that of B's existing contents is less than or equal to B's bulkCapacity (in other words, if B has enough room left to accommodate A's bulk). Similarly, the player character cannot pick up another object if that object's bulk is greater than the player character's maxSingleBulk or if picking up the object would take the player character's total carried bulk over its bulkCapacity.</p>
+
+<p>By default, everything has a bulk of 0 and a bulkCapacity of 10000, so by default the adv3Lite library effectively imposes no limits on carrying capacity. It is up to game authors to define bulk and bulkCapacity properties in ways that make sense in their games, which will in part depend on how finely granulated they wish the measure of bulk to be (in my view, adv3's assignment of a bulk of 10 to actors is far too coarse-grained, but others may disagree).</p>
+
+<p>Unlike the adv3 library, adv3Lite does not define a weight property and does not attempt to keep track of the total weight carried or contained. For most games, tracking bulk is usually sufficient.</p>
+
+<h3>Containment Properties and Methods</h3>
+<p>At this point it's worth noting a handful of properties methods that can be used to check for containment:</p>
+<ul>
+<li><b>isIn(obj)</b> Returns true if this object is directly or indirectly contained by obj (i.e. if obj is this object's container, or this object's container's container, or this object's container's container's container and so on). This method can also be used to test whether an object is in a particular <a href="region.htm">Region</a>.</li>
+<li><b>isOrIsIn(obj)</b> Returns true if this object either is obj or is directly or indirectly contained in obj.</li>
+<li><b>isDirectlyIn(obj)</b> Returns true is obj is this object's immediate container (i.e. location == obj).</li>
+<li><b>getOutermostRoom</b> Returns the room this object is in (even if this object is contained within an object inside the room).</li>
+<li><b>contents</b> The list of all the things that are directly contained by the object.</li>
+<li><b>listableContents</b> The subset of contents for which lookListed is true (i.e. the contents that would be listed via a LOOK command).</li>
+<li><b>allContents</b> A list of everything directly or indirectly within this object (i.e. its contents plus its contents' contents and so on).</li>
+</ul>
+
+<h3>Reaching In and Out</h3>
+
+<p>The method <strong>checkReach(actor)</strong> can be used to make an object inaccessible to an actor, for reasons other than being in a closed container. The <span class="code">checkReach()</span> method can, for example, be used to model an object that's too hot too touch or else out of reach on a high shelf. The library considers an object to be untouchable by <em>actor</em> if its <span class="code">checkReach(actor)</span> method displays anything. Note, this only takes effect if the touchObj precondition is defined for the action on the object in question.</p>
+
+<p>If an object is put out of reach by checkReach(actor) then the default behaviour is to put its contents out of reach as well. This is controlled by the method <strong>checkReachIn(actor)</strong>, which, by default, simply calls <span class="code">checkReach(actor)</span>. The contents of the object are considered out of reach if its <span class="code">checkReachIn()</span> method dislays anything at all.</p>
+
+<p>If an object has <span class="code">contType = In</span> and <span class="code">isEnterable = true</span> then an actor can get in it.</p>
+<p>If an object has <span class="code">contType = On</span> and <span class="code">isBoardable = true</span> then an actor can get on it.</p>
+
+<p>In either case you may want to control what happens when an actor who is inside/on top of an object (e.g. while the actor is on a bed or chair) tries to reach an object elsewhere in the room.</p>
+
+<p>For this purpose you can use <strong>allowReachOut(obj)</strong> and <strong>autoGetOutToReach</strong>. These properties should be defined on the object the actor is in/on. If <span class="code">allowReachOut(obj)</span> returns true for the obj the actor is trying to reach (the default), then reaching is allowed. Otherwise, if <span class="code">autoGetOutToReach</span> is true (the default) the actor will try to get out of his/her immediate container to reach the object. Otherwise (if <span class="code">autoGetOutToReach</span> is nil) reaching is prohibited and a message is displayed saying that the actor can't reach the target object from his/her present location.</p>
+
+<p>The property <strong>dropLocation</strong> defines where an item dropped by an actor immediately within an object should land. The default value of dropLocation is self.</p>
+
+<h2><a name=behaviour>Behavioural Properties</a></h2>
+<p>In addition to the various properties described above, an adv3Lite Thing has a number of properties that affect the way it behaves (which in the adv3 library would be implemented by defining various subclasses of Thing). The principal ones are:</p>
+
+<ul>
+<li><b>isOpenable</b> If true this object can be open and closed via the OPEN and CLOSE commands, and referred to as 'open' or 'closed' as appropriate.</li>
+<li><b>isSwitchable</b> If true this object can be switched on and off via the SWITCH ON and SWITCH OFF commands.</li>
+<li><b>isWearable</b> If true this object can be worn and taken off by the player character (or another actor) via the WEAR and DOFF commands.</li>
+<li><b>isBoardable</b> If true then the player character can get on (or under or behind) this object, provided its contType property is On (make sure you remember to define an appropriate contType for the object if you set isBoardable to true).</li>
+<li><b>isEnterable</b> If true then the player character can get in this object, provided its contType property is In (make sure you remember to define an appropriate contType for the object if you set isBoardable to true).</li>
+<li><b>isLightable</b> If true this object can be lit and unlit via the LIGHT and EXTINGUISH commands and referred to as 'lit' or 'unlit' as appropriate.</li>
+<li><b>isEdible</b> If true this object can be eated, via an EAT command.</li>
+<li><b>isDecoration</b> If true, this object behaves like an adv3 Decoration (i.e. it responds to every command except EXAMINE with 'The whatever is not important. '). This will be explained in a bit more detail below.</li>
+<li><b>lockability</b> This must be one of <span class=code>notLockable</span> (the default), <span class=code>lockableWithoutKey</span> (which means that the object can be locked or unlocked via a simple LOCK or UNLOCK command), <span class=code>lockableWithKey</span> (which means that the object can be locked or unlocked with the aid of the appropriate key or keys, on which see on <a href="key.htm">Key</a> below) or <span class=code>indirectLockable</span>, which means that the object can be locked and unlocked by some other means (e.g. by pressing a button or pulling a lever or entering the appropriate combination on a keypad).</li>
+</ul>
+<p>Note that since these are all defined as properties of Thing, they could in principle be changed at run time. There may be instances where this makes sense (e.g. when something is broken or repaired) but needs to be done with caution to avoid illogical or chaotic consequences. On the positive side, it allows these behavioural properties to be mixed and match without having to employ multiple classes; for example a lifejacket that can be switched on to activate a distress becon can simply be defined with isWearable = true and isSwitchable = true.</p>
+<p>A number of these behavioural properties imply the use of corresponding state properties (and in some cases, state-switching methods), in particular:</p>
+<ul>
+<li><b>isOpen</b> The object is open if this is true and closed otherwise. If you define a straightforward Container (contType = In) that isn't openable, you'll probably want to define isOpen = true to make its contents accessible. Use <span class=code>isOpen</span> to determine whether something is open or closed, and to define whether it starts out open or closed, but use <span class=code>makeOpen(true)</span> and <span class=code>makeOpen(nil)</span> to open and close an object programmatically during the course of a game. This ensures that the side effects of opening and closing (e.g. opening and closing the other side of a door) are properly dealt with.</li>
+<li><b>isLocked</b> The object is locked if this is true and unlocked otherwise. Use <span class=code>isLocked</span> to determine whether something is locked or unlocked, and to define whether it starts out locked or unlocked, but use <span class=code>makeLocked(true)</span> and <span class=code>makeLocked(nil)</span> to lock and unlock an object programmatically during the course of a game. This ensures that the side effects of locking and unlocking (e.g. locking and unlocking the other side of a door) are properly catered for.</li>
+<li><b>isOn</b> If true the object is switched on, otherwise it is switched off. Use isOn to check the on-off state and to set its initial value, but  <span class=code>makeOn(true)</span> and <span class=code>makeOn(nil)</span> to switch it on and off programmatically during the course of the game.</li>
+<li><b>isLit</b> If true this object is lit (i.e. it provides sufficient light to make everything in scope visible). Use isLit to check the lit-unlit state and to set its initial value, but  <span class=code>makeLit(true)</span> and <span class=code>makeLit(nil)</span> to make it lit or unlit during the course of the game.</li>
+<li><b>wornBy</b> If this is nil the object is not currently being worn. If it is not nil it should be set to the identity of the actor (or player character) who's currently wearing the object. Normally the library keeps track of this property automatically when the player issues WEAR and DOFF commands, but you may want to define the wornBy property of an object that starts out being worn by someone at the beginning of the game.</li>
+</ul>
+
+<p>The properties associated with isDecoration require a slightly fuller explanation. The default behaviour of the library is to display the notImportantMsg of an object defined as a Decoration (i.e. for which isDecoration = true) for every action except Examine. By default the notImportantMsg is simply 'The whatever is not important.', but you can override this on individual objects (or modify Thing) to make it say something else. You can also change the actions which will be carried out on a decoration (rather than simply triggering the notImportantMsg) by overriding the object's decorationActions, which should be set to the list of actions you want to allow. For example, extras.t defines a simple Odor class to represent something that can be smelled as well as examined:</p>
+
+<p><div class="code"><pre>
+class Odor: Thing
+    isDecoration = true
+    decorationActions = [Examine, SmellSomething]
+    notImportantMsg = BMsg(only smell, '{I} {can\'t} do that to a smell. ')
+    dobjFor(SmellSomething) asDobjFor(Examine)    
+;
+</pre></div>
+
+<p>Note that if you need additional behavioural or state properties you can always modify or subclass Thing to define them (or define them on the specific object that needs it them). For an explanation of BMsg() see the section on <a href="message.htm#dmsg">Messages</a>.</p>
+
+<p>The "behavioural" properties listed above are only a subset of the ones the adv3Lite library defines. For most (though not quite all) actions the library defines an isXXXable property to determine whether the object is a possible (or 'logical') target of an XXX action (e.g. isLightable, isPushable, isBurnable). For most of the actions that take two objects (e.g. CLEAN WITH, THROW AT) the library also defines corresponding canXXXme properties (e.g. canCleanWithMe, canThrowAtMe) which determine whether the object is a plausible indirect object of the command in question (e.g. something I can use to clean other things with, or something that can have other things thrown at it). In slightly more technical language, these properties define how the various <a href="actres.htm#verify">verify</a> methods behave.</p>
+
+<p>Note that changing these other behavioural properties to true doesn't necessarily make the corresponding action work, in most cases it merely allows the action to proceed to the next stage. It's up to authors' game code to define what happens when something is dug or cut or fastened or whatever, since in general the library can't know how you want these things to work in your game.</p>
+
+<p>Finally, note that there are no canPutInMe, canPutOnMe, canPutUnderMe or canPutBehindMe properties, since such properties would risk breaking the <a href="#containment">containment</a> model, which is controlled by the single contType property.</p>
+
+
+<br>
+
+<h2><a name=sensory>Sensory Properties</a></h2>
+<p>Thing defines a number of what might broadly be termed sensory properties:</p>
+<ul>
+<li><b>isTransparent</b> If this is true then we can see through this object. This is only relevant on a (closed) container, whose contents we can see (but not touch) if it's transparent.</li>
+<li><b>visibleInDark</b> Set this to true for an object that can be seen in the dark without providing enough light to see other objects by. Examples might include the night sky or stars in an outside dark location.</li>
+<li><b>smellDesc</b> A double-quoted string that contains the response to SMELL obj.</li>
+<li><b>listenDesc</b> A double-quoted string that contains the response to LISTEN TO obj.</li>
+<li><b>feelDesc</b> A double-quoted string that contains the response to FEEL obj.</li>
+<li><b>tasteDesc</b> A double-quoted string that contains the response to TASTE obj.</li>
+</ul>
+<p>This may be a convenient point to note that any double-quoted string property can alternatively be implemented as a method that displays some text. This would allow you, for example, to write a method that varied what listenDesc (or any of the others) displayed according to circumstances.</p>
+<p>A further point to note is that smellDesc and listenDesc are also used to provide responses to intransitive SMELL and LISTEN commands. In response to these commands the library displays the smellDesc or listenDesc of every object in scope (including the Room) for which the smellDesc or listenDesc is not nil. For this reason it is a good idea to write your smellDesc and listenDesc descriptions in a manner than identifies which objects they refer to.</p>
+
+<p>You can however override this behaviour with the following two properties (which are both true by default):</p>
+
+<ul>
+<li><strong>isProminentSmell</strong> smellDesc is only displayed in response to an intransitive SMELL command if this is true.</li>
+<li><strong>isProminentNoise</strong> listenDesc is only displayed in response to an intransitive LISTEN command if this is true.</li>
+</ul>
+
+
+<h2><a name=misc>Miscellaneous Properties</a></h2>
+
+<ul>
+<li><b>readDesc</b> A double-quoted string (or method) that provides a response to READ obj. If this is left as nil a READ command will result in a response to the effect that there's no lettering on the object. (This is different from the adv3 library which treats READ as equivalent to EXAMINE under such circumstances).</li>
+<li><b>objInPrep</b> A single-quoted string containing the preposition describing containment within this object (e.g. 'in' or 'on'). Normally the library takes this from the contType so you don't need to worry about it, but if you want things to be described as being 'inside' rather than 'in' or 'beneath' rather than 'under' a particular object you can do so by overriding this property on the object in question.</li>
+<li><b>listOrder</b> A number than determines the order in which items are listed; the list is sorted in ascending order of this property before it is displayed.</li>
+</ul>
+<p>If you look at the code in thing.t you'll see that it also defines listWith and groupOrder properties. These don't actually do anything (they don't appear anywhere else in the library code). They were defined in Mercury but, it seems, not implemented. Indeed if you look closely enough at the library code you'll probably find several other properties and methods that either don't do anything useful or are redundant because they duplicate other methods that do much the same thing. This has come about as a result of combining the Mercury code with the code I'd developed before coming across Mercury. At some future point I shall probably do some tidying up, but at the moment I've left things as they are in case some of the seemingly redundant code actually turns out to be useful or in case removing it inadvertently breaks something. The moral of this is that you should not rely overmuch on any properties or methods not documented in this manual in your own code (unless you're sure that they are in fact integral to the operation of the library and thus not likely to change.</p>
+
+
+<h2><a name=vocab>The vocab Property in Detail</a></h2>
+<p>(Note, the following description is taken straight from Mike Robert's comments in the Mercury english.t file):</p>
+
+<p>The vocab string is designed to make it as quick and easy as
+possible to define an object's name and vocabulary.  To the extent
+possible, we derive the vocabulary from the name, so for many
+objects the whole definition will just look like the object name.
+However, we also make it possible to define as much extra
+vocabulary beyond the name as needed, and to control the way the
+words making up the name are handled in terms of their parts of
+speech.</p>
+     
+<p>The 'vocab' string has this overall syntax:</p>
+ 
+<p><div class="code"><pre>	 
+     vocab = 'article short name; adjectives; nouns; pronouns'
+</pre></div> 
+	 
+
+<p>You don't have to include all of the parts; you can simply stop
+when you're done, so it's valid, for example, to just write the
+'short name' part.  It's also fine to include an empty part: if
+you have extra nouns to list, but no adjectives, you can say
+'short name;;nouns'.</p>
+   
+<p>The 'article' is optional.  This can be one of 'a', 'an', 'some',
+or '()'.  If it's 'a' or 'an', and this differs from what we'd
+automatically generate based on the first word of the short name,
+we automatically enter the first word into the list of special
+cases for a/an words.  If it's 'some', we automatically set
+massNoun=true for the object.  If it's '()', we set qualified=true
+('()' means that the name doesn't take an article at all).</p>
+  
+<p>Note that if you want to use 'a', 'an', 'some', or '()' as the
+first word of the actual short name, you simply need to add the
+desired article in front of it: 'an a tile from a scrabble set'.</p>
+        
+<p>The short name gives name that we display whenever the parser
+needs to show the object in a list, an announcement, etc.</p>
+     
+<p>If the short name consists entirely of capitalized words (that is,
+every word starts with a capital letter), and the 'proper'
+property isn't explicitly set for this object, we'll set 'proper'
+to true to indicate that this is a proper name.</p>
+     
+<p>We also try to infer the object's vocabulary words from the short
+ name.  We first break off any prepositional phrases, if we see the
+ prepositions 'to', 'of', 'from', 'with', or 'for'.  We then assume
+ that the FIRST phrase is of the form 'adj adj adj... noun' - that
+ is, zero or more adjectives followed by a noun; and that the
+ SECOND and subsequent phrases are entirely adjectives.  You can
+ override the part-of-speech inference by putting the actual part
+ of speech immediately after a word (with no spaces) in square
+ brackets: 'John[n] Smith' overrides the assumption that 'John' is
+ an adjective.  Use [n] to make a word a noun, [adj] to make it an
+ adjective, [prep] to make it a preposition, and [pl] to make it a
+ plural.  These annotations are stripped out of the name when it's
+ displayed.</p>
+     
+ <p>We consider ALL of the words in the short name's second and
+ subsequent phrases (the prepositional phrases) to be adjectives,
+ except for the preposition words themselves, which we consider to
+ be prepositions.  This is because these phrases all effectively
+ qualify the main phrase, so we don't consider them as "important"
+ to the object's name.  This helps the parser be smarter about
+ disambiguation, without bothering the user with clarifying
+ questions all the time.  When the player types "garage", we'll
+ match the "key to the garage" object as well as the "garage"
+ object, but if both objects are present, we'll know to choose the
+ garage over the key because the noun usage is a better match to
+ what the user typed.</p>
+     
+ <p> We automatically ignore articles (a, an, the, and some) as
+ vocabulary words when they immediately follow prepositions in the
+ short name.  For example, in 'key to the garage', we omit 'the' as
+ a vocabulary word for the object because it immediately follows
+ 'to'.  We also omit 'to', since we don't enter the prepositions as
+ vocabulary.  We do the complementary work on parsing, by ignoring
+ these words when we see them in the command input in the proper
+ positions.  These words are really structural parts of the grammar
+ rather than parts of the object names, so the parser can do a
+ better job of recognizing noun phrases by considering the
+ grammatical functions of these words.</p>
+     
+ <p>For many (if not most) objects, the short name won't be enough to
+ state all of the vocabulary words you want to recognize for the
+ object in command input.  Trying to cram every possible vocabulary
+ word into the short name would usually make for an unwieldy
+ display name.  Fortunately, it's easy to add input vocabulary
+ words that aren't displayed in the name.  Just add a semicolon,
+ then the adjectives, then another semicolon, then the nouns.</p>
+   
+ <p>Note that there's no section for adding extra prepositions, but
+ you can still add them.  Put the prepositions in the adjective
+ list, and explicitly annotate each one as a preposition by adding
+ "[prep]" at the end, as in "to[prep]".</p>
+    
+ <p>Next, there's the matter of plurals.  For each noun, we'll try to
+ automatically infer a plural according to the spelling pattern.
+ We also have a table of common irregular plurals that we'll apply.
+ For irregular words that aren't in the table, you can override the
+ spelling-based plural by putting the real plural in parentheses
+ immediately after the noun, with no spaces.  Start with a hyphen
+ to specify a suffix; otherwise just write the entire plural word.
+ For example, you could write 'man(men)' or 'child(-ren)' (although
+ these particular irregular plurals are already in our special-case
+ list, so the custom plurals aren't actually needed in these
+ cases).  You can use plural annotations in the short name as well
+ as the extra noun list; they'll be removed from the short name
+ when it's displayed.  We don't try to generate a plural for a
+ proper noun (a noun that starts with a capital letter), but you
+ can provide explicit plurals.</p>
+     
+ <p>For words longer than the truncation length in the string
+ comparator, you can set the word to match exactly by adding '=' as
+ the last character.  This also requires exact character matching,
+ rather than allowing accented character approximations (e.g.,
+ matching 'a' in the input to 'a-umlaut' in the dictionary).</p>
+     
+<p>We automatically assume that plurals should be matched without
+truncation.  This is because English plurals are usually formed
+with suffixes; if the user wants to enter a plural, they'll have
+to type the whole word anyway, because that's the only way you
+make it all the way to the suffix.  You can override this
+assumption for a given plural by adding '~' at the end of the
+plural.  This explicitly allows truncated and character
+approximation matches.</p>
+     
+<p>Finally, the 'pronouns' section gives a list of the pronouns that
+this word can match.  You can include 'it', 'him', 'her', and
+'them' in this section.  We'll automatically set the isIt, isHim,
+isHer, and plural properties to true when we see the corresponding
+pronouns. </p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="core.htm">The Core Library</a> &gt; 
+Things
+<br><span class="navnp"><a class="nav" href="core.htm"><i>Prev:</i> The Core Library</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="room.htm"><i>Next:</i> Rooms & Regions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

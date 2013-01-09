@@ -1,0 +1,402 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Messages</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Messages
+<br><span class="navnp"><a class="nav" href="actres.htm"><i>Prev:</i> Action Results</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="doer.htm"><i>Next:</i> Doers</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Messages</h1>
+<p>In broad terms, a message is anything a game displays to the player to convey information about what has just happened, or just failed to happen. In the context of discussing actions we are, of course, particular interested in messages relating to the consequences or failures of actions, the game's responses to player commands, but it's worth sketching the broader picture first.</p>
+
+<p>Unlike the adv3 library, adv3Lite does not use a transcript (a means of buffering all output and then finally displaying it at appropriate moments after giving library code and game code a chance to meddle with it). Instead, for the most part, the output of double-quoted strings and say() statements goes straight to the screen (after passing through a number of output filters). In particular instances the library code does capture or store messages in string properties and variables for use later; this allows the adv3Library to produce some of the effects of the adv3 library (e.g. the formatting of implicit action reports) without recourse to a full-blown transcript. But for the most part game authors can assume that any messages they ask to be displayed will be displayed more or less straight away; this removes many of the complexities that working with the transcript can sometimes cause in adv3.</p>
+
+<p>For a variety of reasons, however, the adv3Lite library does not generally display its messages in the form of raw text (e.g. "You can't take that; it's fixed in place" but via message properties and special macros (BMsg()and DMsg(), which will be described in more detail below). The reason for this is threefold:</p>
+
+<ol>
+<li>To facilitate translation of the library into other languages.</li>
+<li>To make it easier for game authors to customize the messages the library produces.</li>
+<li>To enable messages to be written in such a way that they still display correctly whichever tense the game is in (past or present) and whoever is performing the action (the player character or an NPC) or whether the game is written in the first, second or third person.</li>
+</ol>
+
+<p>The first of these reasons is unlikely to be much of a concern for game authors (unless perhaps you are a pioneer author wanting to be the first to write an adv3Lite game in your non-Anglophone native tongue). The second may be of limited concern to game authors, but at the very least game authors  need to understand the mechanisms the library employs so they can customize library messages, and they may want to employ similar techniques when defining their own classes and actions to ensure maximum reusability of their code. The third reason may or may not be of concern to game authors. If your game never changes tense and no action in your game will ever be directly performed by an NPC (and your game never changes player character), then there's probably no reason not to write all your custom messages directly (e.g. "You can't take that; it's fixed to the wall."). If your player character may change, or your game does change test (e.g., switching to the past tense for flashback scenes), or actions may be directly performed by an NPC (broadly speaking, if an action may be performed when gActor is another actor and not gPlayerChar), then you may need to write your messages more flexibly, employing some of the techniques used in the library.</p>
+
+<p>The adv3Lite uses two different mechanisms to handle library messages, one derived from the adv3 library and the other from the Mercury library. The adv3 method uses properties of the libGlobal object defined in the language-specific english.t module to store and display English-language messages. The Mercury library uses the DMsg macro in situ (i.e. directly with the library code that wants to display the message, rather than in a separate file) to display messages (and the adv3Lite library extends this mechanism by also defining a BMsg macro that generates a single-quoted string for subsequent use). Both these mechanisms serve similar goals, and to some extent the fact that the adv3Lite library uses both of them is a historical accident. Future versions of the adv3Lite library may well tidy things up a bit by moving messages from the libMessages mechanism to the BMsg/DMsg mechanism. It is unlikely that libMessages will disappear altogether, however, since for certain types of message the libMessages mechanism is more convenient.</p>
+
+<p>In fact, when the library needs to use a message defined on libMessages, it calls a property of gLibMessages (which points to libMessages by default). In principle this would allow game authors to define a completely new message object of their own and point gLibMessages to that. In practice, however, it would probably be simpler just to modify the existing libMessages object, e.g.:</p>
+
+<p><div class=code><pre>
+modify libMessages
+    finishDeathMsg = 'YOU ARE SO DEAD'
+    finishVictoryMsg = 'YOU HAVE TRIUMPHED OVER ALL ADVERSITY'
+    finishFailureMsg = 'WHAT A DISMAL FAILURE'
+    finishGameOverMsg = 'THAT'S IT, FOLKS'
+;
+</pre></div></p>
+
+<p>The libMessages mechanism is easy enough to understand in principle; the only difficulty is in tracking down the message property you need to override, which, as things stand, is a matter of looking at the adv3Lite source code to see where it's coming from. The DMsg() and BMsg() mechanisms are a little more complicated; we shall look at them next.</p>
+
+<br>
+
+<h2><a name="dmsg">DMsg() and BMsg()</a></h2>
+
+<p>DMsg() and BMsg() (think of them as standing for 'Display Message' and 'Build Message') are the mechanisms derived from the Mercury code for handling customizable messages. The difference between them is that DMsg() displays a message while BMsg() returns the text of a message in a single-quoted string (to be stored in an object property, for example).</p>
+
+<p>The basic format in which these macros are used is:</p>
+
+<p><div class="syntax"><pre>
+<dt><span class=synLit>DMsg(</span><span class=synPar>key</span><span class=synLit>, </span><span class=synPar>msg</span><span class=synMark>[, params...]</span><span class=synLit>)</span></dt>
+<dt><span class=synLit>BMsg(</span><span class=synPar>key</span><span class=synLit>, </span><span class=synPar>msg</span><span class=synMark>[, params...]</span><span class=synLit>)</span></dt></p>
+</pre></div>
+
+<p>Where <span class=synPar>key</span> is an arbitrary (or rather, user-defined) key to identify the message, <span class=synPar>msg</span> is the text of the message as a single-quoted string (which may and usually will contain message substitution parameters, see below), and <span class=synMark>[, params...]</span> is an optional list of one or more parameters (up to 9) corresponding to the placeholders <i>{1}, {2}, {3}... {9}</i> in <span class=synPar>msg</span>. The <span class=synPar>key</span> value is used to identify the message so that an alternative message with the same key value may be used instead if one is defined on an active <a href='#custmessage'>CustomMessage</a> object (for which see below). This may all become a bit clearer with a couple of examples, which we shall take from the library's definition of dobjFor(Take) on the Thing class:</p>
+
+<p><div class=code><pre>
+class Thing: Mentionable
+    ...
+
+    dobjFor(Take)    
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(isFixed)
+                illogical(cannotTakeMsg);
+            
+            if(isDirectlyIn(gActor))
+                illogicalNow(alreadyHeldMsg);
+            
+            if(gActor.isIn(self))
+                illogicalNow(cannotTakeMyContainerMsg);
+            
+            logical;
+        }
+        
+        check() 
+        {
+            /* 
+             *   Check that the actor has room to hold the item s/he's about to
+             *   pick up.
+             */
+            checkRoomToHold();
+        }
+        
+        action()
+        {
+            /* 
+             *   If we have any contents hidden behind us or under us, reveal it
+             *   now
+             */
+            revealOnMove();           
+            actionMoveInto(gActor);
+        }
+        
+        report()
+        {            
+            DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
+        }
+    }
+       
+    cannotTakeMsg = BMsg(fixed in place, '{The subj dobj} {is} fixed in place.
+        ')
+    
+    alreadyHeldMsg = BMsg(already holding, '{I}{\'m} already holding {the dobj}.
+        ')
+    
+    cannotTakeMyContainerMsg = BMsg(cannot take my container, '{I} {can\'t}
+        {take} {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
+        
+    ...
+;    
+</pre></div></p>
+
+<p>First note that we define three messages that might be used at the verify stage, cannotTakeMsg, alreadyHeldMsg and cannotTakeMyContainerMsg as properties of Thing, so they can be easily overridden by game authors (either on the Thing class or on individual objects). Each of these three message properties is populated by a BMsg macro that evaluates to a single-quoted string. Each of them is given a <i>key</i> value relating to the text or purpose of the message (fixed in place, already holding, and cannot take my container). Note that these key values are not wrapped in quote marks (the BMsg macro takes care of that for us). These key values can be used by a <a href='#custmessage'>CustomMessage</a> object to replace the text of these messages with something else, for what the BMsg() and DMsg() macros do is first look for an active CustomMessage object that defines a message with the corresponding key (such as fixed in place). If they can't find, they use <i>msg</i> instead (since the adv3Lite library doesn't define any CustomMessage objects, by default it will use the message defined in the <i>msg</i> property instead (unless a game author overrides it by providing a CustomMessage object that defines the message in question).</p>
+
+<p>The module english.t defines a number of <a href='#parameter'>parameter substitutions</a> that can be used to fit the message to its context. We'll give a full list of these below; for now we'll simply illustrate the principle by describing how they work in the particular examples above.</p>
+
+<p>We'll start with <span class=code>BMsg(fixed in place, '{The subj dobj} {is} fixed in place. ')</span> In this message '{the subj dobj}' will be replaced by the theName of the current direct object in the subjective case and {is} will be replaced by the appopriate form of the verb to be to match the direct object (in English nothing marks the name of a noun as being in the subjective case, but the message builder needs to know that it's the subject of the sentence, so that '{is}' is meant to agree with it). This will result in messages like 'The stone ball is fixed in place. ' or 'The stone pillars are fixed in place. ' (if the game is in the present tense) or 'The stone ball was fixed in place. ' or 'The stone pillars were fixed in place. ' (if the game is in the past tense).</p>
+
+<p>Next, let's look at <span class=code>BMsg(already holding, '{I}{\'m} already holding {the dobj}. ')</span> Here '{I}' stands for the actor, {\'m} will be replaced with the appropriatele contracted form of the verb to be, and {the dobj} will the replaced with the theName property of the direct object, which the message builder will consider to be the grammatical object of the sentence. For a second-person in the present tense this may result in message like "You're already holding the red ball. " For a first-person game in the past tense it would come as "I was already holding the red ball. "</p>
+
+<p>Now let's consider the slightly more complex <span class=code>BMsg(cannot take my container, '{I} {can\'t} {take} {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)</span>. Here, as before, '{I}' becomes the appropriate form of the actor ('I', 'You', 'He', or whatever the case may be). '{can\'t} then becomes either "can\'t" or "could not" depending on whether the game is in the present or the past tense. The second '{i}' is again replaced with the appropriate pronoun for the actor, but because this time '{i}' is in lower-case, the pronoun won't be capitalized (unless it's 'I'). The '{1}' will be replaced with the first parameter following the message string, in this case objInPrep ('in' or 'on' or whatever the case may be). Finally '{him dobj}' will expand to the appropriate objective-case pronoun to refer to the direct object (either 'him' or 'them', depending on whether the direct object is singular or plural).</p>
+
+<p>Finally, there's the DMsg() macro in the report() method: <span class=code>DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);</span> In this case the library uses the DMsg() macro to display the message straight away rather than going via a message property (a) because there's no point in overriding the report() method on individual objects, and (b) because it's easy enough to override a report method on a class should the need arise (or else to define a CustomMessage object to do the job). The main feature to note here, though, is the vertical bar (|) in the middle of the message. When this is present we're actually defining two messages: the one to the left of the bar ('Taken. ') is for use when it should be obvious to the player what object his/her command referred to (if you type TAKE RED BALL, the report 'You take the red ball' could seem just a little pedantic; 'Taken' will normally suffice). The one to the right of the bar ('{I} {take} {1}. ') is for use when it may not be immediately clear to the player what his/her command has acted on, e.g. TAKE BALL (when there's more than one ball in scope), TAKE BALLS (when it there may be several balls around) or TAKE ALL (which might pick anything). The general rule is that the library uses the longer, fuller form of the message (where two messages are defined with a vertical bar like this) either when the parser has had to diambiguate (by choosing the highest scoring object among two or more candidates) or when it has matched objects to an indefinite plural (such as BALLS or ALL). In the message '{I} {take} {1}. ', the {I} once again replaced with the pronoun appropriate to the actor, {take} becomes the appropriate form the verb to take ('take', 'takes' or 'took'), and the {1} is replaced with the value of gActionListStr, which contains a list of the objects just acted on. The DMsg in reportDobjTake() might this generate a transcript like this:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;take black cube</b>
+Taken.
+
+<b>&gt;take balls</b>
+You take the red ball and the green ball.
+
+<b>&gt;take blotter and ink</b>
+Taken.
+
+<b>&gt;take fountain</b>
+You take the fountain pen.
+
+<b>&gt;take all</b>
+You take the pad of paper, the diary, the half-eaten bar of chocolate, the glass paper-weight and the safety pin.
+
+</pre></div>
+<br>
+
+<h2><a name='custmessage'>CustomMessages Objects</a></h2>
+
+<p>We have already mentioned that messages can be customized by using CustomMessages objects. The time has now come to look at how these work.</p>
+
+<p>Language extensions and games can use CustomMessages objects to define their own custom messages that override the default English messages used throughout the library.</p>
+ 
+<p>Each CustomMessages object can define a list of messages to be customized.  This lets you centrally locate all of your custom messages by putting them all in a single object, if you wish. Alternatively, you can create separate objects, if you prefer to keep them with some other body of code they apply to.  In either case, the library gathers them all up during preinit.</p>
+
+<p>For most purposes the CustomMessages objects you create can be anonymous objects; the only reason for giving a CustomMessage object a name would be if you wanted to change its properties during the course of a game (so that you'd need to be able to refer to the CustomMessage object in your code). The properties you will or may need to define on your CustomMessage object are the following:</p>
+
+<p><b>priority</b>: The priority determines the precedence of a message defined in this object, if the same message is defined in more than one CustomMessages object.  The message with the highest priority is the one that's actually displayed. The library defines one standard priority level: 100 is the priority for language module overrides.  Each language module would need to provide a translated set of the standard library messages, via a CustomMessages object with priority 100.  (The default English messages defined in-line throughout the library via DMsg() and BMsg() macros effectively have a priority of negative infinity, since any custom message of any priority overrides a default.) Games will generally want to override all library messages, including translations, so the default priority is set to 200.</p>
+
+<p><b>active</b>: Determines whether this customizer is active.  If you want to change the messages at different points in the course of the game, you can use this to turn sets of messages on and off.  For example, if your game includes narrator changes at certain points, you can create separate sets of messages per narrator.  By default, we make all customizations active, but you can override this to turn selected  messages on and off as needed.  Note that the library consults this every time it looks up a message, so you can change the value   dynamically, or use a method whose return value changes dynamically.</p>
+
+<p><b>messages</b>: The list of messages being customized. This can contain any number of messages; the order isn't important.  Each message is defined with a Msg() macro: <span class=code>Msg(id key, 'Message text'),  ...</span>. The "id key" is the message ID that the library uses in the DMsg() or BMsg() message that you're customizing.  (DON'T use quotes around the ID key.)  The message text is a single-quoted string giving the message text.  This can contain curly-brace replacement parameters.</p>
+
+<p>For example, here's how we might define a CustomMessages object to replace the dobjFor(Take) messages we looked at above:</p>
+
+<p><div class=code><pre>
+ 
+CustomMessages
+    messages = [
+        Msg(report take, 'Snatched. | You grab {1}. '),
+        Msg(fixed in place, 'Idiot; any fool can see {the subj dobj} {is} firmly
+            nailed down. '),
+        Msg(already holding, 'In case you hadn\'t noticed, you\'re already
+            holding {the dobj}. '),
+        Msg(cannot take my container, 'Great idea. Just how do you propose to
+            pick up {the dobj} while you\'re right {1}? ')    
+           
+    ]
+;
+</pre></div>
+
+<p>Note that we can't <i>change</i> the parameters used by the message strings (the ones that {1} and the like refer to) but that we can continue to use the ones used in the original DMsg() and BMsg() macros we're replacing; in fact what the CustomMessages object does is effectively to substitute a different <i>msg</i> parameter into the DMsg/BMsg(key, msg, params...) set-up, leaving the original params in place.</p>
+
+<p>While we're on the subject of the numerical parameter substitutions ({1}, {2} and the like) and the parameters they can refer to, up until now all the examples we've shown of them have used single-quoted string 
+values in the <i>param</i> list, but the values can also be numbers (or numerical expressions) and objects (in which case the name property is used in the substitution. For example, the following is legal if not exactly useful:</p>
+
+<p><div class=code><pre>
+DMsg(two things, 'The {1} and the {2} are {3} separate objects. ', redBall, blueBall, 1 + 1);
+</pre></div>
+
+
+<br>
+<h2><a name='parameter'>Message Substitution Parameters</a></h2>
+<p>The previous section introduced the point that we can use message substitution parameters in conjunction with the DMsg() and BMsg() macros. In fact they can be used anywhere, with the limitation that the numerical substitution parameters ({0}...{9}) have no meaning outside a DMsg() or BMsg() macro, since there are no further parameters for them to refer to. If you want to use these numerical parameters outside BMsg() and DMsg() (i.e. without specifying a key value you have no use for) you can use the dmsg() and bmsg() functions, which work like DMsg() and BMsg() but don't take the first (key) parameter, e.g. <span class=code>dmsg('You take {1}. ', gActionListStr);</span>. To make full use of the message substitution parameters, however, you have to know what they all are, so we shall next provide a list of them all.</p>
+
+<p>In the following table <i>obj</i> can be one of: actor, dobj (the current direct object of the action), iobj (the current indirect object of the action), cobj (the current object &mdash; direct or indirect &mdash; of the action, the globalParamName of an object, or a temporary parameter name defined with the gMessageParams(obj) macro.</p>
+
+<table rules=all cellspacing=4 border=3 cellpadding=3>
+<thead><tr><td><strong>Parameter</strong></td><td><strong>Explanation</strong></td></tr></thead>
+<tbody>
+<tr><td>{i}</td> <td>The actor's name in the subjective case ('I' or 'you' for the pc in a first or second person game)</td></tr>
+<tr><td>{me}</td> <td>The actor's name in the objective case ('me' or 'you' for the pc in a first or second person game)</td></tr>
+<tr><td>{my}</td> <td>The possessive pronoun for the actor ('my' or 'your' for the pc in a first or second person game)</td></tr>
+<tr><td>{mine}</td> <td>The possessive noun for the actor ('mine' or 'yours' for the pc in a first or second person game)</td></tr>
+<tr><td>{myself}</td> <td>The reflexive pronoun for the actor (e.g. 'myself' or 'yourself')</td></tr>
+<tr><td>{here}</td> <td>If the actor is the PC this translates to 'here' for the present tense and 'there' for any other tense; otherwise it translates to nothing at all.</td></tr>
+<tr><td>{then}</td> <td>This translates to 'now' for the present tense and 'then' for the past.</td></tr>
+<tr><td>{now}</td> <td>This translates to 'now' for the present tense and nothing otherwise.</td></tr>
+<tr><td>{the subj <i>obj</i>}</td> <td>This translates to the theName property of <i>obj</i> and marks <i>obj</i> as the subject of the sentence.</td></tr>
+<tr><td>{the <i>obj</i>}</td> <td>This translates to the theName property of <i>obj</i> and marks <i>obj</i> as the object of the sentence.</td></tr>
+<tr><td>{the <i>obj's</i>}</td> <td>This translates to the possessive of <i>obj</i> (e.g. "the red ball's", "Bob's").</td></tr>
+<tr><td>{a subj <i>obj</i>}</td> <td>This translates to the aName property of <i>obj</i> and marks <i>obj</i> as the subject of the sentence.</td></tr>
+<tr><td>{an subj <i>obj</i>}</td> <td>This translates to the aName property of <i>obj</i> and marks <i>obj</i> as the subject of the sentence.</td></tr>
+<tr><td>{a <i>obj</i>}</td> <td>This translates to the aName property of <i>obj</i> and marks <i>obj</i> as the object of the sentence.</td></tr>
+<tr><td>{an <i>obj</i>}</td> <td>This translates to the aName property of <i>obj</i> and marks <i>obj</i> as the object of the sentence.</td></tr>
+<tr><td>{in <i>obj</i>}</td> <td>The objInName of <i>obj</i> (e.g. "in the box" or "on the table").</td></tr>
+<tr><td>{inprep <i>obj</i>}</td> <td>The objInPrep of <i>obj</i> (e.g. "in" or "on").</td></tr>
+<tr><td>{out <i>obj</i>}</td> <td>The objOutOfName of <i>obj</i> (e.g. "out of the box" or "off the table").</td></tr>
+<tr><td>{he <i>obj</i>}</td> <td>The subjective case pronoun for <i>obj</i> (e.g. 'he', 'she', 'it', or 'they').</td></tr>
+<tr><td>{him <i>obj</i>}</td> <td>The objective case pronoun for <i>obj</i> (e.g. 'him', 'her', 'it', or 'them').</td></tr>
+<tr><td>{her <i>obj</i>}</td> <td>The possessive pronoun for <i>obj</i> (e.g. 'his', 'her', 'its', or 'their').</td></tr>
+<tr><td>{hers <i>obj</i>}</td> <td>The possessive noun for <i>obj</i> (e.g. 'his', 'hers', 'its', or 'theirs').</td></tr>
+<tr><td>{herself <i>obj</i>}</td> <td>The reflexive pronoun for <i>obj</i> (e.g. 'himself', 'herself', 'itself', or 'themselves').</td></tr>
+<tr><td>{himself <i>obj</i>}</td> <td>The reflexive pronoun for <i>obj</i> (e.g. 'himself', 'herself', 'itself', or 'themselves').</td></tr>
+<tr><td>{itself <i>obj</i>}</td> <td>The reflexive pronoun for <i>obj</i> (e.g. 'himself', 'herself', 'itself', or 'themselves').</td></tr>
+<tr><td>{that subj <i>obj</i>}</td> <td>The demonstrative pronoun for <i>obj</i> as subject ('that' or 'those').</td></tr>
+<tr><td>{that <i>obj</i>}</td> <td>The demonstrative pronoun for <i>obj</i> as object ('that' or 'those').</td></tr>
+<tr><td>{dummy}</td> <td>Expands to nothing but acts as a singular subject marker for a verb that follows to agree with (e.g., 'There{dummy}{\'s} nothing {here}.')</td></tr>
+<tr><td>{plural}</td> <td>Expands to nothing but acts as a plural subject marker for a verb that follows to agree with (e.g., 'There{plural} {is} no people {here}.')</td></tr>
+<tr><td>{prev}</td> <td>Expands to nothing but acts as a subject marker to make a verb that follows agree with a previous list(see <a href="#prev">below</a>)</td></tr>
+<tr><td>{am}</td> <td>Verb 'to be' conjugated to agree in tense and number with the immediately preceeding subject (e.g. am, are, is, was, were)</td>
+<tr><td>{are}</td> <td>Verb 'to be' conjugated to agree in tense and number with the immediately preceeding subject (e.g. am, are, is, was, were)</td>
+<tr><td>{is}</td> <td>Verb 'to be' conjugated to agree in tense and number with the immediately preceeding subject (e.g. am, are, is, was, were)</td>
+<tr><td>{isn't}</td> <td>Negated verb 'to be' contracted and conjugated to agree with the immediately preceeding subject (e.g. am not, aren't, isn't, wasn't, weren't)</td>
+<tr><td>{amn't}</td> <td>Negated verb 'to be' contracted and conjugated to agree with the immediately preceeding subject (e.g. am not, aren't, isn't, wasn't, weren't)</td>
+<tr><td>{aren't}</td> <td>Negated verb 'to be' contracted and conjugated to agree with the immediately preceeding subject (e.g. am not, aren't, isn't, wasn't, weren't)</td>
+<tr><td>{'m}</td> <td>Contracted verb 'to be' agreeing with the immediately preceeding subject (e.g. 'm, 're, 's, was, were)</td>
+<tr><td>{'re}</td> <td>Contracted verb 'to be' agreeing with the immediately preceeding subject (e.g. 'm, 're, 's, was, were)</td>
+<tr><td>{'s}</td> <td>Contracted verb 'to be' agreeing with the immediately preceeding subject (e.g. 'm, 're, 's, was, were)</td>
+<tr><td>{don't <i>verb</i>}</td> <td>Contracted do not <i>verb</i>, where <i>verb</i> is an infinitive (e.g. if <i>verb</i>='come': don't come, doesn't come, didn't come)</td>
+<tr><td>{doesn't <i>verb</i>}</td> <td>Contracted do not <i>verb</i>, where <i>verb</i> is an infinitive (e.g. if <i>verb</i>='come': don't come, doesn't come, didn't come)</td>
+<tr><td>{can}</td> <td>Appropriate form of can (can or could)</td>
+<tr><td>{cannot}</td> <td>Appropriate form of can (cannot or could not)</td>
+<tr><td>{can't}</td> <td>Appropriate form of can (can't or couldn't)</td>
+<tr><td>{must <i>verb</i>}</td> <td>Conjugate must with <i>verb</i>, where <i>verb</i> is an infinitive (e.g. if <i>verb</i>='come': must come, had to come)</td>
+<tr><td>{<i>verb</i>}</td> <td>Conjugate <i>verb</i>, where <i>verb</i> can be 'have', 'do', 'open', 'close', 'take', 'hold', 'drop' or one of about seventy other common verbs.</td>
+<tr><td>{lb}</td><td>literal left brace {</td><tr>
+<tr><td>{rb}</td><td>literal right brace }</td><tr>
+<tr><td>{bar}</td><td>vertical bar symbol |</td><tr>
+<tr><td>{s}</td><td>expands to 's' if the previous parameter was plural, or nothing otherwise.</td><tr>
+<tr><td>{es}</td><td>expands to 'es' if the previous parameter was plural, or nothing otherwise.</td><tr>
+<tr><td>{es}</td><td>expands to 'ies' if the previous parameter was plural, or 'y' otherwise.</td><tr>
+<tr><td>{1}...{9}</td><td>substitute arguments 1 to 9</td></tr>
+<tr><td>{# <i>n</i>}</td><td>spells the number given by integer argument <i>n</i> (1-9)</td>
+<tr><td>{and <i>n</i>}</td><td>shows the list given by integer argument n (1-9) as a basic "and" list ("x, y, and z")</td>
+<tr><td>{or <i>n</i>}</td><td>shows the list given by integer argument n (1-9) as a basic "or" list ("x, y, or z")</td>
+</tbody>
+</table>
+
+<p>A couple of these may be made clearer by a couple of examples. <span class=code>dmsg('The available colours are {and 1}', ['red', 'blue', 'green']);</span> would display "The available colours are red, blue and green.". <span class=code>dmsg('There are {# 1} colour{s} available. ', 3); </span>would display "There are three colours available. "</p>
+
+<p>The <i>verb</i> parameter is generally used like this: <span class=code>DMsg(okay take, '{I} {take} {the dobj}. ')</span>. But how do you know which verbs the library defines? You can see them by looking at the definition of englishCustomVocab.verbParams in english.t. If the verb you need isn't there (and it actually needs to be defined as a parameter instead of plain text) you can add more verbs with a <a href="#custom">CustomVocab</a> object, which is explained in more detail below.</p>
+
+<p>As mentioned above the <i>obj</i> parameter can be one of actor, dobj, iobj, cobj, a globalParamName or a temporary parameter name set using gMessageParams(). A globalParamName is simply a string property you can define on any Thing and use later as a message parameter to refer to that thing, e.g.:</p>
+
+ <p><div class="code"><pre>
+george: Actor 'George; tall thin; man' @hall
+    "He's a tall thin man. "
+    isHim = true
+       
+    globalParamName = 'george'
+;
+
+...
+
+  "{The subj george} {seems} upset with you. ";
+</pre></div>
+
+<p>In this case there's little advantage in using the globalParam name over simply writing "George seems upset with you." But one reason you might want to use the globalParamName here is that George might start out as 'the tall man' when you first meet him and only become 'George' on closer acquaintance; in such a case '{The subj george}' will expand to either 'The tall man' or 'George' as appropriate (using the current theName property of the george object).</p>
+
+<p>Finally, we mentioned that the <i>obj</i> parameter could also be a temporary parameter name. The Action method setMessageParam() lets you define such a parameter, but for convenience, the library defines the <b>gMessageParams()</b> macro for setting one or more parameters whose names exactly match their local variable names.  In other words, if you call this macro like this:
+ 
+ <p><div class="code"><pre>
+ gMessageParams(obj, cont);
+ </pre></div>
+  
+<p>then you'll get one parameter with the text name 'obj' whose expansion will be the value of the local variable obj, and another with text name 'cont' whose expansion is the value of the local variable cont.</p>
+<br>
+
+
+<h3><a name="prev">Lists and <em>{prev}</em></a></h3>
+
+<p>It's sometimes useful to be able to display a list of items in your output text. The basic function the adv3Lite library provides for this purpose is <strong>makeListStr(lst, nameProp?, conjuction?)</strong>. The second two parameters are optional. The first, <em>lst</em>, is the list of items for which you want a formatted list. The second, <em>nameProp</em>, is the property to use on each item when building the list. The default value is &amp;aName, which means you get a list of the form "a duck, a green bottle, and an odd boot". If you wanted "the duck, the green bottle, and the odd boot" you'd supply &amp;theName as the value of this parameter. The optional<em>conjunction</em> parameter is a single-quoted string containing the conjunction you want between the last two elements of the list (assuming the list has more than one element). The default value is 'and' but you could, for example, supply it as 'or'. Whichever way you call it, makeListStr() returns a single-quoted string containing the duly formatted list.</p>
+
+<p>For example, suppose we have a pond whose contents are a duck, a green bottle and an old boot. Then we could write:</p>
+
+ <p><div class="code"><pre>
+/* lst1 becomes 'a duck, a green bottle and an old boot' */
+local lst1 = makeListStr(pond.contents);
+
+/* lst2 becomes 'the duck, the green bottle and the old boot' */
+local lst2 = makeListStr(pond.contents, &amp;theName);
+
+/* lst3 becomes 'the duck, the green bottle or the old boot' */
+local lst3 = makeListStr(pond.contents, &amp;theName, 'or');
+</pre></div>
+
+<p>If we just want the first form embedded in a string, we can use the &lt;&lt; list of * &gt;&gt; string template, for example. </p>
+
+ <p><div class="code"><pre>
+/* Displays "You see a duck, a green bottle and an old boot in the pond. */
+"You see &lt;&lt;list of pond.contents&gt;&gt; in the pond. ";
+</pre></div>
+
+<p>If pond.contents were an empty list, then the previous code would output "You see nothing in the pond". This may be just what you want, or you may want to test that your list has any elements in it (e.g. pond.contents.length &gt; 0) before trying to display your list, e.g.:</p>
+
+ <p><div class="code"><pre>
+"&lt;&lt;if pond.contents.length &gt; 0&gt;&gt;You see &lt;&lt;list of pond.contents&gt;&gt; in the pond. 
+ &lt;&lt;else&gt;&gt;The pond seems quite clear of debris.&lt;&lt;end&gt;&gt;&gt; ";     
+</pre></div>
+
+<p>This is all very well if you are preceeding your list with a verb phrase like "You see" of which the list is the object, but what if you want the list to be the subject of a verb, and you don't know how long the list will be (so you don't know if the verb needs to be singular or plural in form)? For this purpose you can use the <em>{prev}</em> tag, which acts as a stand-in for the list you've just displayed (whether you use makeListStr() or &lt;&lt;list of *&gt;&gt;). So for example, you could write: </p>
+
+ <p><div class="code"><pre>
+/* This gives "A duck, a green bottle and an old boot are floating on the pond." */
+"\^&lt;&lt;list of pond.contents&gt;&gt; {prev} {is} floating on the pond. ";
+
+<FONT COLOR=RED>/* Don't do this; it'll produce a run-time error! */ </FONT>
+"\^&lt;&lt;list of pond.contents&gt;&gt; {is} floating on the pond. ";
+</pre></div>
+
+<p>Note that you must use the <em>{prev}</em> tag here, or the <em>{is}</em> tag (or the tag for whichever verb you want to use) won't have a subject to agree with, which will result in a run-time error when your game tries to display the string. The {prev} tag doesn't output anything at all, it just gives the library a singular or plural dummy noun for the next verb to agree with (as appropriate).</p>
+
+<p>Because this is a relatively common case, with the verb 'to be' you can also use the form &lt;&lt;list of * is&gt;&gt;, for example:</p>
+
+ <p><div class="code"><pre>
+/* This also gives "A duck, a green bottle and an old boot are floating on the pond." */
+"\^&lt;&lt;list of pond.contents is&gt;&gt; floating on the pond. ";
+</pre></div>
+
+<p>This avoids the need to remember to use {prev}, but with any other verb you would still need to use it, for example:</p>
+
+ <p><div class="code"><pre>
+* This gives "A duck, a green bottle and an old boot sit on the pond." */
+"\^&lt;&lt;list of pond.contents&gt;&gt; {prev} {sit} on the pond. ";
+</pre></div>
+<p>Finally, you may occasionally want the verb to precede the list, as in "Floating around on the pond are a duck, a green bottle and an old boot." You can do this with the &lt;&lt; is list of * &gt;&gt; embedded expression (but only for the verb 'to be'), in which case you once again don't need to use <em>{prev}</em> or another verb tag. For example:</p>
+
+ <p><div class="code"><pre>
+"Floating around on the pond &lt;&lt;is list of pond.contents&gt;&gt;. ";
+</pre></div>
+
+<br>
+<h3><a name="custom">CustomVocab</a></h3>
+
+<p>Although the library defines about eighty verbs you can use for the <i>verb</i> parameter, you may occasionally need additional ones.  You can see which ones the library defines by looking at the definition of englishCustomVocab.verbParams in english.t. If you need to define more you can do so by defining a CustomVocab object like this:</p>
+
+<p><div class="code"><pre>
+CustomVocab
+    verbParams = 
+    [
+        'yell/yells/yelled',
+        'fight/fights/fought',
+        'break/breaks/broke/broken'
+    ]   
+;</pre></div>
+
+<p>The <b>verbParams</b> property is defined as is a list of strings, using the following template: 'infinitive/present3/past/past-participle'. The 'infinitive' is the 'to' form of the verb (to go, to look, to
+see), but *without* the word 'to'.  'present3' is the third-person  present form (has, goes, sees). 'past' is the past tense form (went, looked, saw).  'past-participle' is the past participle form; this is optional, and is needed only for verbs with distinct  past and past participle forms (e.g., saw/seen, went/gone).  Most regular verbs &mdash; those with the past formed by adding -ed to the infinitive &mdash; have identical past and participle forms.</p>
+
+<p>The other properties you can define on a CustomVocab object are:</p>
+
+<p><b>irregularPlurals</b>: Irregular plural list.  This is a list of words with plurals that can't be inferred from any of the usual spelling rules.  The entries are in pairs: singular, [plurals].  The plurals are given in a list, since some words have more than one valid plural.  The first plural is the preferred one; the remaining entries are alternates. For example the library definition of its irregularPlurals list begins:</p>
+ <p><div class="code"><pre>
+irregularPlurals = [
+        'calf', ['calves', 'calfs'],
+        'elf', ['elves', 'elfs'],
+        'half', ['halves', 'halfs'],
+        'hoof', ['hooves', 'hoofs'],
+        'knife', ['knives'],
+        ...
+</pre></div>
+
+<p><b>specialAOrAn</b>: usually the indefinite article is 'a' for a word that starts with consonant and 'an' for a word that starts with a vowel, but there are a few exceptions. The library lists ['an heir',    'an honest', 'an honor', 'an hors', 'an hour', 'a one', 'a ouija', 'a unified', 'a union', 'a unit', 'a united', 'a unity', 'a universal', 'a university',  'a universe', 'a unicycle', 'a usage', 'a user']. You can define more of these on a CustomVocab object (following the same format) if you need them.</p>
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Messages
+<br><span class="navnp"><a class="nav" href="actres.htm"><i>Prev:</i> Action Results</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="doer.htm"><i>Next: </i>Doers </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

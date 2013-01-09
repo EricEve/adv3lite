@@ -1,0 +1,80 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Querying the World Model</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Querying the World Model
+<br><span class="navnp"><a class="nav" href="topicact.htm"><i>Prev:</i> Topic Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scope.htm"><i>Next:</i> Scope</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Querying the World Model</h1>
+
+<h2>The Q Object</h2>
+
+<p>Just about every action (apart from SystemActions like SAVE, QUIT and UNDO) needs to query the world model, in any case to check what objects are in <a href="scope.htm">scope</a>, and often to check whether a given object can be seen, heard, touched or smelled. In the adv3Lite library such queries are made via a special query object called Q (which in this instance has nothing to do either with Star Trek or the Synoptic Problem). The Q object defines a number of methods that can be called to query the world model, but then delegates to the appropriate <a href="#special">Special</a> object (which will be explained further below) to provide the answer.</p>
+
+<p>Q is the general-purpose global Query object.  Its various methods areused to ask questions about the game state. The methods defined on Q (which represent the questions we can put it) include:</p>
+
+<ul>
+<li><strong>scopeList(actor)</strong>: the list of items that are in scope for <em>actor</em>.</li>
+<li><strong>topicScopeList()</strong>: the list of all Things and Topics that are known to the player character (and thus in scope as potential topics)</li>
+<li><strong>inLight(a)</strong>: determines whether there is any light shining on the surface of <em>a</em>.</li>
+<li><strong>canSee(a, b)</strong>: determines whether <em>a</em> can see <em>b</em>.</li>
+<li><strong>canHear(a, b)</strong>: determines whether <em>a</em> can hear <em>b</em>.</li>
+<li><strong>canSmell(a, b)</strong>: determines whether <em>a</em> can smell <em>b</em>.</li>
+<li><strong>canReach(a, b)</strong>: determines whether <em>a</em> can reach (i.e. touch) <em>b</em>.</li>
+<li><strong>sightBlocker(a, b)</strong>: returns a list of all the objects (if there are any) that block the sight path from <em>a</em> to <em>b</em> (if there are none, returns an empty list).<</li>
+<li><strong>reachBlocker(a, b)</strong>: returns a list of all the objects (if there are any) that block <em>a</em> from reaching <em>b</em> (if there are none, returns an empty list).</li>
+<li><strong>soundBlocker(a, b)</strong>: returns a list of all the objects (if there are any) that block the sound (hearing) path from <em>a</em> to <em>b</em> (if there are none, returns an empty list).</li>
+<li><strong>scentBlocker(a, b)</strong>: returns a list of all the objects (if there are any) that block the scent (smell) path from <em>a</em> to <em>b</em> (if there are none, returns an empty list).</li>
+</ul>
+
+<p>Note that for your convenience Thing defines the methods canSee(obj), canHear(obj), canSmell(obj) and canReach(obj) which all simply call the corresponding methods on Q.</p>
+<br>
+
+<h2><a name="special">Specials</a></h2>
+
+<p>A Special is an object that's used by Q to implement the queries that might be put to it. The library-defined QDefaults provides the answers that result from the standard world model and will be used if you don't define anything else; if your game only needs to use the standard model you don't need to worry about Specials.</p>
+
+<p>For any query, there are two sources of answers.  First, there's the standard answer based on the basic "physics" of the adventure world model.  Second, there are any number of custom answers from Special objects, which define customizations that apply to specific combinations of actors, locations, objects, times, or just about anything else that the game can model.</p> 
+
+<p>The standard physics-based answer is the default.  It provides the answer if there are no active Special objects that provide custom answers.</p>
+ 
+<p>If there are active Specials, the only ones that matter for a particular query are the ones that define that query's method.  If there are any active Special objects that define a query method, calling Q.foo() actually calls the highest-priority Special's version of the foo() method.  That Special method can in turn call the next lower priority Special using next().  If there are no active Special objects defining a query method, the default handler in QDefaults will be used automatically.</p>
+
+<p>A Special can thus define any or all of the methods that are defined on Q. It additionally defines:</p>
+
+<p><strong>isActive</strong>: At any given time, a Special is either active or inactive.  This is determined by the active() method. Each instance should therefore override this to define the conditions that activate this Special.</p>
+
+<p><strong>priority</strong>: The Special's priority.  This is an integer value that determines which Special takes precedence when two or more Specials are active at the same time, and they both/all define a given query method.  In such a situation, Q calls the active Specials in ascending priority order (lowest first, highest last), and takes the last one's answer as the true answer to the question.  This means that
+the Special with the highest priority takes precedence, and can override any lower-ranking Special that's active at the same time.</p>
+  
+<p>The library uses the following special priority values:</p>
+<ul>      
+<li>0 = the basic library defaults.  The defaults must have the lowest priority, meaning that all Special objects defined by a game or extension must use priorities higher than 0.</li>   
+
+<li>Other than the special priorities listed above, the priority is simply a relative ordering, so games and extensions can use whatever range of values they like.</li>
+</ul>
+     
+<p>Note that priorities can't change while running.  This is a permanent feature of the object.  The Mercury code incorporated into adv3Lite takes advantage of this to avoid re-sorting the active list every time it builds it.  It sorts the master list at initialization and assume it stays sorted, so that any subset is inherently sorted.  If it's important to the game to dynamically change priorities, you just need to re-sort the allActive_ list at appropriate times.  If priorities can only change when the game-world state changes, you can simply sort the list in allActive() each time it's rebuilt.  If priorities can change at other times (which doesn't seem like it'd be useful, but just in case), you'd need to re-sort the list on every call to allActive(), even when the list isn't rebuilt.</p>
+
+<br>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Querying the World Model
+<br><span class="navnp"><a class="nav" href="topicact.htm"><i>Prev:</i> Topic Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scope.htm"><i>Next: </i>Scope </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

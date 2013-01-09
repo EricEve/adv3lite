@@ -1,0 +1,123 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Hello and Goodbye</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Hello and Goodbye
+<br><span class="navnp"><a class="nav" href="convnode.htm"><i>Prev:</i> Conversation Nodes</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="knowledge.htm"><i>Next:</i> Player Character and NPC Knowledge</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Hello and Goodbye</h1>
+
+<p>Most conversations don't normally begin abruptly with a question or statement and then end just as abruptly with a final question or statement. It's more normal for people to follow some kind of greeting protocols, beginning a conversation with "Hello" or "Excuse me" or something of the sort, and ending it with some equivalent of "Goodbye". To model this the adv3Lite library provides various kinds of HelloTopic and GoodbyeTopic for implementing the beginning and ending of conversations.</p>
+
+<p>If you're used to the adv3 library you should note a couple of differences in the way adv3Lite handles greeting protocols. First, adv3Lite has no concept of a ConversationReadyState and/or InConversationState; it simply uses the ActorState class for everything, leaving it to game authors to decide what they want to use their ActorStates for. Second, and partly following on from this, adv3Lite does not expect to find GreetingTopics (the various kinds of HelloTopic and GoodbyeTopic) in any equivalent of a ConversationReadyState; instead it looks for them in whatever the Actor's current ActorState happens to be, or, failing that, in the Actor itself. Third, adv3Lite hellos and goodbyes do not automatically trigger a change of ActorState, although you can easily define them so that they do.</p>
+
+<h2>Saying Hello</h2>
+
+<p>To define what happens at the start of a conversation, we can use a <strong>HelloTopic</strong>. For example:</p>
+
+ <p><div class="code"><pre>
++ HelloTopic
+    &quot;&lt;q&gt;Hello,&lt;/q&gt; you say.\b
+    &lt;q&gt;Hi there!&lt;/q&gt; Bob replies. &lt;.agenda fireAgenda&gt; &quot;
+    
+    changeToState = bobTalking
+;
+</pre></div>
+
+<p>As we have defined it, this will be triggered when the player uses an explicit HELLO command, or BOB, HELLO or TALK TO BOB. If we have not also defined an ImplicitHelloTopic it will also be triggered when the player enters a conversational command at a point when the player character is not already in conversation with Bob.</p>
+
+<p>A HelloTopic can be placed either directly in the Actor, or in one or more ActorStates. The one that will be used is that in the Actor's current ActorState, if it exists or, failing that, the HelloTopic defined directly on the Actor. We can thus define HelloTopics that the actor always uses, or make them state-specific.</p>
+
+<p>If we want the start of the conversation to trigger a change of state, we can define the <strong>changeToState</strong> property of the HelloTopic to indicate the new ActorState we want to change to when the conversation starts. We can do this on all types of HelloTopic and Goodbye Topic. In this example, Bob goes into his bobTalking state when he's greeted. We could have achieved the same effect by putting a &lt;.state bobTalking&gt; tag in the conversational response, but if we had defined a list of greetings (as in the next example below) we'd have to do that on each one.</p>
+
+<p>The example above also illustrates the point that we could use a HelloTopic to set up the actor's conversational agenda at the start of a conversation. Here we use the &lt;.agenda&gt; tag to set up something about a fire Bob wants to talk about as soon as the player character lets him get a word in edgeways. A HelloTopic is quite a convenient place to do this, although in practice we might not do it in quite the way shown above, since this would result in fireAgenda being added to Bob's agenda at the start of every conversation, whereas we'd probably only want it added the first time. In practice, then, we might define the HelloTopic to give a list of responses that takes care of this:</p>
+
+ <p><div class="code"><pre>
++ HelloTopic, StopEventList
+    [
+        '&lt;q&gt;Hello,&lt;/q&gt; you say.\b
+        &lt;q&gt;Hi there!&lt;/q&gt; Bob replies. &lt;.agenda fireAgenda&gt; ',
+        
+        '&lt;q&gt;Hello again!&lt;/q&gt; you declare.\b
+        &lt;q&gt;Hi,&lt;/q&gt; says Bob. '
+    ]
+    changeToState = bobTalking
+;
+</pre></div>
+
+<p>If you want to distinguish between the greeting that occurs when the player explicitly enters a greeting command (TALK TO BOB, HELLO or the like) and the greeting that occurs when the player simply plunges in at the start of a conversation with an ordinary conversation command (e.g. ASK BOB ABOUT DARK TOWER) you can define an <strong>ImplicitHelloTopic</strong> to deal with the latter; the HelloTopic will then only respond to the explicit greeting.</p>
+
+<p>Finally, there's also an <strong><a name="actorhello">ActorHelloTopic</a></strong> class which can be used for an NPC to say hello when the NPC wants to initiate a conversation. ActorHelloTopic works much like an ordinary HelloTopic, but instead of being triggered by a player command, it's triggered by calling the <strong>actorSayHello()</strong> method on the Actor object. If the NPC is already in conversation with the player character, calling actorSayHello() does nothing, so that, for example, it's safe to call it from a ConvAgendaItem when we don't know in advance whether the ConvAgendaItem will be triggered before or during a conversation between the player character and the NPC. We'll say a bit more about this in the section on <a href="initiate.htm">NPC-initiated conversation</a>.</p>
+<br>
+
+<h2>Saying Goodbye</h2>
+
+<p>Saying goodbye, that is defining what happens at the end of a conversation, is very similar to defining what happens at the start, except that there are more situations that might trigger an implicit goodbye, and there's the possibility of not allowing a conversation to end.</p>
+
+<p>At the simplest, we can define a <strong>ByeTopic</strong> in much the same way as we define a HelloTopic; for example:</p>
+
+<p><div class="code"><pre>
++ ByeTopic
+    &quot;&lt;q&gt;Goodbye,&lt;/q&gt; you say.\b
+    &lt;q&gt;Cheerio,&lt;/q&gt; he replies. &quot;
+
+    changeToState = bobWorking
+;
+</pre></div>
+
+<p>Note that this needs to be located either directly in the Actor or in the ActorState the actor's in at the time the conversation ends (which would probably be the bobTalking state if the HelloTopic was defined as above). Once again we can define the <strong>changeToState</strong> property to indicate what ActorState the Actor should change to when the conversation terminates, although we don't have to do this if we're happy for the Actor to stay in the same state.</p>
+
+<p>A conversation can also be ended implicitly, either because the player character goes somewhere else in the middle of it, or because the Actor becomes bored with the player character failing to contribute to the conversation (i.e. the player not entering any conversational commands) after so many turns (as defined on the attentionSpan property). We can cover both cases by defining an <strong>ImpByeTopic</strong>, or use a <strong>LeaveByeTopic</strong> to deal with the former and a <strong>BoredByeTopic</strong> to deal with the latter. If none of these is defined then an implicit goodbye will be handled by the ByeTopic.</p>
+
+<p>There's also an <strong>ActorByeTopic</strong>, which is triggered when the NPC decides to end the conversation (or, to put it more prosaically, when <strong>endConversation(endConvActor)</strong> is called on the Actor in question). If an ActorByeTopic is not defined, the ImpByeTopic will be used instead, and if no ImpByeTopic is defined then the ByeTopic will be used instead.</p>
+<br>
+
+<h2>Deciding Whether a Conversation Can End</h2>
+
+<p>When a conversation is about to end, the method <strong>endConverstion(<em>reason</em>)</strong> is called on the Actor. This is turn calls <strong>canEndConversation(<em>reason</em>)</strong>, and the conversation is only allowed to end if this method returns true. The <em>reason</em> parameter can be one of:</p>
+
+<ul>
+<li><strong>endConvBye</strong> - the player character is trying to end the conversation by saying goodbye.</li>
+<li><strong>endConvLeave</strong> - the player character is trying to end the conversation by moving to a different location.</li>
+<li><strong>endConvBoredom</strong> - the NPC is about to end the conversation because the player character has failed to converse for <em>attentionSpan</em> turns.</li>
+<li><strong>endConvActor</strong> - the NPC wishes to terminate the conversation for reasons of its own.</li>
+</ul>
+
+<p>You wouldn't normally want to override canEndConversation() on the actor directly. Instead you might want to override one of the methods it calls. Actor.canEndConversation(reason) goes through the following steps:</p>
+
+<ol>
+<li>Check whether a current NodeEndCheck wants to object to ending the conversation; if so, return nil.</li>
+<li>If there's a current ActorState, see whether the current ActorState objects to ending the conversation.</li>
+<li>If there's no current ActorState, or the ActorState doesn't object, return whatever the Actor's actorCanEndConversation(reason) method returns.</li>
+<li>If we reach this step, it must be because there is a current ActorState and it did object, so return nil.</li>
+</ol>
+
+<p>There are thus three different places where a game author might want to override a method to prevent (or conditionally prevent) a conversation being terminated:</p>
+<ol>
+<li>On the canEndConversation(reason) method of a <a href="convnode.htm#nodecheck">NodeEndCheck</a> object.</li>
+<li>On the canEndConversation(reason) method of an <a href="actorstate.htm">ActorState</a> object.</li>
+<li>On the actorCanEndConversation(reason) method of an <a href="actorobj.htm">Actor</a> object.</li>
+</ol>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Hello and Goodbye
+<br><span class="navnp"><a class="nav" href="convnode.htm"><i>Prev:</i> Conversation Nodes</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="knowledge.htm"><i>Next:</i> Player Character and NPC Knowledge</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Heidi Revisited &mdash; Climbing the tree</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="revisit.htm">Heidi Revisited</a> &gt; 
+Climbing the tree
+<br><span class="navnp"><a class="nav" href="cottage.htm"><i>Prev:</i> Entering the Cottage</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dropping.htm"><i>Next:</i> Dropping objects from the tree</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Climbing the tree</h1>
+
+<p>Here's the next problem the player may encounter:</p>
+
+<p><div class="cmdline"><pre>
+<strong>In front of a Cottage</strong>
+You stand outside a cottage. The forest stretches east. 
+
+<strong>&gt;e</strong>
+
+<strong>Deep in the forest</strong>
+Through the dense foliage, you glimpse a building to the west. A track heads to the northeast. 
+
+You can see a baby bird here.
+
+<strong>&gt;ne</strong>
+
+<strong>A forest clearing</strong>
+A tall sycamore stands in the middle of this clearing. The path winds southwest through the trees. 
+
+You can see a bird’s nest here.
+
+<strong>&gt;x tree</strong>
+Standing proud in the middle of the clearing, the stout tree looks easy to climb.
+
+<strong>&gt;climb tree</strong>
+The tall sycamore tree is not something you can climb. 
+</pre></div>
+
+<p>It should hardly need spelling out why this won't do. Not only is CLIMB TREE a perfectly natural thing to try in any case, but the description of the tree positively invites it, and yet as implemented the game currently assumes that the player will type UP. The important question is how to fix it. There's more than one way to go about it, so we'll illustrate three of them here, passing over the first two fairly rapidly as a taste of things to come, and then sticking with the third.</p>
+
+<p>The first way is to make the tree climbable and then define what happens when it's climbed:</p>
+
+ <p><div class="code"><pre>
++ tree: Thing 'tall sycamore tree;;stout proud'     
+    "Standing proud in the middle of the clearing, the stout tree looks easy to
+    climb."
+    
+    isFixed = true
+    <strong>isClimbable = true
+    
+    dobjFor(Climb)
+    {
+        action()
+        {
+            "You climb up the tree.&lt;.p&gt;&quot;;
+            gActor.actionMoveInto(topOfTree);
+            topOfTree.lookAroundWithin();
+        }
+    }</strong>
+;
+</pre></div>
+
+<p>This is the way you'll often respond to actions, but we won't go into it in much detail for now, leaving the full explanation until later. In brief, we make the tree climbable by defining <span class="code">isClimbable = true</span>. We then define what happens when someone climbs the tree in the <span class="code">action()</span> section of <span class="code">dobjFor(Climb)</span> (this of that as meaning 'direct object for the Climb action'). First we display a message telling the player that Heidi is climbing the tree. Note the use of <span class="code">&lt;.p&gt;</span> at the end of this message; this ensures that there's a blank line after it (to separate it from the room description that's to follow). Then we move the actor (who in this case is the player character, i.e. Heidi, or the <span class="code">me</span> object) to <span class="code">topOfTree</span>. Finally, we look around at the top of the tree to provide a new room description by calling <span class="code">topOfTree.lookAroundWithin()</span>.</p>
+
+<p>Although this works fine, and is typical of how you'll often customise action handling, a shorter and arguably better solution in this case is to define a Doer that intercepts the climb tree action and makes it do the same thing as UP instead. The code for that is briefer, and consists simply of defining the following object:</p>
+
+ <p><div class="code"><pre>
+Doer 'climb tree'
+    execAction(curCmd)
+    {
+        travel(upDir);
+    }    
+;
+</pre></div>
+
+<p>We'll meet Doers in more detail later. If you're itching with curiorisity about them already you can look up <a href="../manual/doer.htm">Doers</a> in the adv3Lite manual. For now we need only note a handful of points. First, the property that's being defined through the Doer template ('climb tree') is its <span class="code">cmd</span> property. While 'climb tree' looks like something the player might type, this is in fact only partly the case; the <em>verb</em> (here 'climb') is specified as the player would type it, but the <em>noun</em> (here <span class="code">tree</span>) must be the programmatic name (or symbol) representing the object. It can also be the name of a class, in which case the Doer will match the specified action applied to any object of that class.</p>
+
+<p>Second, the <span class="code">execAction(curCmd)</span> is where the Doer defines what the player character should do instead of the action the command (passed to the method as the <span class="code">curCmd</span> parameter) would normally have made her carry out.</p>
+
+<p>Third, we'd normally call the <span class="code">redirect()</span> method to specify what the player character should do instead, but due to certain limitations to do with specifying a direction as the object of a command, <span class="code">redirect()</span> isn't much use for making the player character go in a certain direction, so we call <span class="code">travel()</span> instead. When we call travel(), the parameter we pass to it is the name of the direction (here 'up') with 'Dir' appended to it (hence <span class="code">upDir</span>); this is in fact the programmatic name of the object used to represent the direction in the adv3Lite library (whereas plain <span class="code">up</span> is a property of the Room class, which would make it a little more awkward to pass as a parameter here).</p>
+
+<p>Fourth, at least in the adv3Lite library, the purpose of a Doer isn't to implement the normal response to a command, but to deal with exceptions. A Doer intervenes between the parsing of the <em>command</em> (the translation of the player's input into a command the program can understand) and the execution of the corresponding <em>action</em>. One good use of a Doer is to redirect a command to a totally different action (as here); another might be to rule out certain commands altogether. For example, you could add the following to your code:</p>
+
+ <p><div class="code"><pre>
+Doer 'go dir'
+    execAction(curCmd)
+    {
+        "You're not aboard a ship. ";
+        abort;
+    }
+    
+    direction = [portDir, starboardDir, foreDir, aftDir]
+;
+</pre></div>
+
+<p>This would cause the message "You're not aboard a ship" to be displayed if the player typed PORT, STARBOARD, FORE or AFT, which are otherwise legal directions in adv3Lite. The <span class="code">abort;</span> statement then prevents any further processing of the command (so that, for example, there won't be any after action notifications for the action that didn't take place, and the abortive command won't count as a player turn).</p>
+
+<p>In sum a Doer is used to deal with exceptions rather than normal action-handling. If you're familiar with Inform 7 you can think of a Doer as being a little like an Inform 7 instead rule (even to the extent of having its equivalent of in, during, and when clauses), althouth Doers are probably used less freely in adv3Lite than instead rules typically are in Inform 7 coding.</p>
+
+<p>Since in the tree-climbing exercise we want to redirect one action (CLIMB TREE) to another (UP), this is a perfectly legitimate use for a Doer, and a perfectly good solution to the problem. In this case, however, I'd like to suggest that there's an even better one. Although up to this point we've implement <em>The Adventures of Heidi</em> using only the Room and Thing classes, the adv3Lite library does provide a number of other classes for special purposes, including one that handles precisely the situation we have here, when we want CLIMB to take the player character from one Room to another. The class in question is called <span class="code">StairwayUp</span>, because it could typically be used for staircases leading up from one floor to another, but it will work equally well for the tree:</p>
+
+ <p><div class="code"><pre>
++ tree: StairwayUp 'tall sycamore tree;;stout proud'     
+    "Standing proud in the middle of the clearing, the stout tree looks easy to
+    climb."
+    
+    destination = topOfTree
+;
+</pre></div>
+
+<p>The only property we now need to define on the tree is its <span class="code">destination</span> property, which tells the game where Heidi should go when she climbs the tree. We don't even need to define <span class="code">isFixed = true</span> any more since, this being the most common case for things you can climb, it's defined as the default on the StairwayUp class (if you had a portable stairway like a ladder, you could always override it, but you'd then have the challenge of making the <span class="code">destination</span> property work right!). As a further bonus, using a StairwayUp means that CLIMB UP TREE will be handled the same as CLIMB TREE, which would not otherwise have been automatically the case. As a further bonus, we can add a <span class="code">travelDesc</span> property to describe Heidi climbing the tree:</p>
+
+<p><div class="code"><pre>
++ tree: StairwayUp 'tall sycamore tree;;stout proud'     
+    "Standing proud in the middle of the clearing, the stout tree looks easy to
+    climb."
+    
+    destination = topOfTree
+    
+    <strong>travelDesc = &quot;You &lt;&lt;one of&gt;&gt; manage to scramble all the way up &lt;&lt;or&gt;&gt; once 
+        again climb &lt;&lt;stopping&gt;&gt; to the top of the tree. &quot;</strong>
+    
+;
+</pre></div>
+
+<p>Note the use of the embedded expression <span class="code">&lt;&lt;one of&gt;&gt; ... &lt;&lt;or&gt;&gt; ... &lt;&lt;stopping&gt;&gt;</span> syntax to vary the message that's shown when Heidi climbs the tree. The first time the player will see "You manage to scramble all the way up to the top of the tree"; thereafter you get the more prosaic "You once again climb to the top of the tree", which arguably helps the message from becoming a bit jarring. One problem with this, however, is that you only get this message at all if you type CLIMB TREE and not if you climb UP. The solution is simple: just change the <span class="code">up</span> property of the <span class="code">clearing</span> to point to the <span class="code">tree</span> object instead of the <span class="code">topOfTree</span> room:</p>
+
+ <p><div class="code"><pre>
+clearing: Room 'A forest clearing'
+    "A tall sycamore stands in the middle of this clearing. The path winds
+    southwest through the trees. "
+    
+    southwest = forest
+    <strong>up = tree</strong>
+;
+</pre></div>
+
+<p>This works because StairwayUp inherits from the TravelConnector class as well as the Thing class, and a TravelConnector is another kind of object you can usefully attach to a direction property. It is in fact the TravelConnector class that defines the <span class="code">destination</span> and <span class="code">travelDesc</span> properties we've used here. A TravelConnector can also specify the conditions under which travel is possible at all, but that's a feature for another day (or at least, for a later part of this tutorial).</p>
+
+<p>Now try compiling and running the game again to check that everything behaves as you expect.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="revisit.htm">Heidi Revisited</a> &gt; 
+Climbing the tree
+<br><span class="navnp"><a class="nav" href="cottage.htm"><i>Prev:</i> Entering the Cottage</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dropping.htm"><i>Next:</i> Dropping objects from the tree</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
