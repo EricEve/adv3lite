@@ -416,7 +416,7 @@ class MessageCtx: object
             return toString(val);
 
         case TypeObject:
-            if (val.ofKind(Mentionable))
+            if (val.ofKind(Mentionable) || val.ofKind(Pronoun))
                 return val.name;
             else if (val.ofKind(List) || val.ofKind(Vector))
                 return val.mapAll({ x: paramToString(x) }).join(', ');
@@ -592,7 +592,7 @@ class MessageCtx: object
             return lastParam != 1;
 
         case TypeObject:
-            if (lastParam.ofKind(Mentionable))
+            if (lastParam.ofKind(Mentionable) || lastParam.ofKind(Pronoun))
                 return lastParam.plural;
             else if (lastParam.ofKind(List) || lastParam.ofKind(Vector))
                 return lastParam.length() != 1;
@@ -927,7 +927,8 @@ class MessageParams: object
             /* retrieve the source object from the command */
             if (dataType(src) == TypeProp)
                 srcObj = ctx.cmd.(src);
-            else if (dataType(src) == TypeObject && src.ofKind(Mentionable))
+            else if (dataType(src) == TypeObject 
+                     && (src.ofKind(Mentionable) || src.ofKind(Pronoun)))
                 srcObj = src;
 
             /* check for reflexivity */

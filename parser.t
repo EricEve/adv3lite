@@ -98,13 +98,16 @@ class Parser: object
     autoLook = true
 
     /*
-     *   Default Actions: Should we treat a command line that consists
-     *   entirely of a single noun phrase to be a "Default Action" on the
-     *   named object?  The precise meaning of the default action varies by
-     *   object.  For most objects, it's EXAMINE.  For locations, it's GO
-     *   TO.  
+     *   Default Actions: Should we treat a command line that consists entirely
+     *   of a single noun phrase to be a "Default Action" on the named object?
+     *   The precise meaning of the default action varies by object.  For most
+     *   objects, it's EXAMINE.  For locations, it's GO TO.
+     *
+     *   We make the default value nil since setting it to true can result in
+     *   some rather odd parser behaviour.
      */
-    defaultActions = true
+    
+    defaultActions = nil
 
     /*
      *   Should we attempt automatic spelling correction?  If this is true,
@@ -358,57 +361,60 @@ class Parser: object
 
                 /*
                  *   If we don't have a command yet, and this is the first
-                 *   command on the line, and default actions are enabled,
-                 *   check to see if the command looks like a single noun
-                 *   phrase.  If so, handle it as the default action on the
-                 *   noun.  
+                 *   command on the line, handle it as a conversational command
+                 *   if conversation is in progress; otherwise if default
+                 *   actions are enabled, check to see if the command looks like
+                 *   a single noun phrase.  If so, handle it as the default
+                 *   action on the noun.
                  */
                 if (cmdLst.cmd == nil
-                    && firstCmd
-                    && defaultActions)
+                    && firstCmd)
                 {
-                    local l;
+                    local l;                   
                     
-                                      
+                    
+                    /* 
+                     *   If a conversation is in progress parse the command line
+                     *   as the single topic object phrase of a Say command,
+                     *   provided that the first word on the command line
+                     *   doesn't match a possible action.
+                     */
+                    
+                    if(gPlayerChar.currentInterlocutor != nil
+                       && cmdLst.length == 0 
+                       && Q.canTalkTo(gPlayerChar,
+                                       gPlayerChar.currentInterlocutor))
+                    {
+                         l = new CommandList(
+                            topicPhrase, toks, cmdDict,
+                            { p: new Command(SayAction, p) });
+                    }
                     /* 
                      *   If the player char is not in conversation with anyone,
                      *   or the first word of the command matches a possible
                      *   command verb, then try parsing the command line as a
-                     *   single direct object phrase for the DefaultAction verb.
+                     *   single direct object phrase for the DefaultAction verb,
+                     *   provided defaultActions are enabled (which they aren't
+                     *   by default).
                      */
-
-                    
-                    if(gPlayerChar.currentInterlocutor == nil
-                       || cmdLst.length > 0 
-                       || !Q.canTalkTo(gPlayerChar,
-                                       gPlayerChar.currentInterlocutor))
+                    else if(defaultActions)                        
                     {
                         l = new CommandList(
                             singleNoun, toks, cmdDict,
                             { p: new Command(DefaultAction, p) });
                     }
-                    else
-                        /* 
-                         *   If a conversation is in progress parse the command
-                         *   line as the single topic object phrase of a Say
-                         *   command,  provided that the first word on the
-                         *   command line doesn't match a possible action.
-                         */
-                    {
-                        
-                        l = new CommandList(
-                            topicPhrase, toks, cmdDict,
-                            { p: new Command(SayAction, p) });
-                    }
                     
-                    /* accept a curable reply */
-                    if (l.acceptCurable() != nil)
-                        cmdLst = l;
-
-                    /* note any resolution error */
-                    defErr = l.getResErr();
+                    if(l != nil)   
+                    {   
+                        /* accept a curable reply */
+                        if (l.acceptCurable() != nil)
+                            cmdLst = l;
+                        
+                        /* note any resolution error */
+                        defErr = l.getResErr();
+                    }
                 }
-
+                
                 /*
                  *   If we've applied a spelling correction, and the
                  *   command match didn't consume the entire input, make
@@ -772,6 +778,11 @@ class CommandList: object
                     break;
                 }
                 catch(InsufficientNounsError err)
+                {
+                    c.cmdErr = err;
+                    throw err;
+                }
+                catch(NoneInOwnerError err)
                 {
                     c.cmdErr = err;
                     throw err;
@@ -4538,7 +4549,18 @@ You: Pronoun
      *   is, we return 'self' to tell the parser that it needs to go back
      *   and resolve this pronoun after resolving other phrases.  
      */
-    resolve() { return self; }
+    resolve() 
+    { 
+        /* 
+         *   But if no other actor has been specified, 'YOU' must mean 'ME',
+         *   i.e. the player character
+         */
+             
+        if(gCommand && gCommand.actorNPs == [] && gCommand.actorPerson == 2)
+            return [gPlayerChar];
+        
+        return [self]; 
+    }
 
     /* this is a second-person pronoun */
     person = 2
@@ -5263,7 +5285,7 @@ class NoneInOwnerError: ActorResolutionError
              *   present, but neither of them has a sword (not that's in
              *   scope, anyway).  
              */
-            DMsg(none in owners, 'No {2} {appears} to have any {3}.',
+            DMsg(none in owners, 'No {2} {dummy}{appears} to have any {3}.',
                  cmd, possQual.prod.getText(), txt);
             
 //            "No <<possQual.prod.getText()>> appears to have any <<txt>>. ";
@@ -5278,13 +5300,15 @@ class NoneInOwnerError: ActorResolutionError
              *   entered BOB'S WALLET, and Bob is indeed in scope, but Bob
              *   doesn't own a wallet (not one that's in scope, anyway).  
              */
-            DMsg(none in owner, '{The 2} {doesn\'t appear} to have any {3}.',
-                 cmd, possQual.matches[1].obj, txt);
+            local obj = possQual.matches[1].obj;
+            gMessageParams(obj);
             
-            "The <<possQual.matches[1].obj>> doesn't appear to have any
-            <<txt>>. ";
+            DMsg(none in owner, '{The subj obj} {doesn\'t appear} to have any
+                {2}.',  cmd,  txt);
+                      
         }
-    }
+    }    
+    
 ;
 
 /*
