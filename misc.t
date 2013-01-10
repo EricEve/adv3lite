@@ -340,7 +340,7 @@ class GameMainDef: object
      *   Option flag: allow the player to use "you" and "me"
      *   interchangeably in referring to the player character.  We set this
      *   true by default, so that the player can refer to the player
-https://github.com/EricEve/adv3lite.gitc     *   character in either the first or second person, regardless of how
+     *   character in either the first or second person, regardless of how
      *   the game refers to the PC.
      *   
      *   If desired, the game can set this flag to nil to force the player
