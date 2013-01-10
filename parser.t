@@ -4538,7 +4538,7 @@ You: Pronoun
      *   is, we return 'self' to tell the parser that it needs to go back
      *   and resolve this pronoun after resolving other phrases.  
      */
-    resolve() { return self; }
+    resolve() { return [self]; }
 
     /* this is a second-person pronoun */
     person = 2
