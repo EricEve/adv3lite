@@ -2241,8 +2241,8 @@ class NounPhrase: object
          */
         local sub = matches.subset({x: x.score == matches[1].score});
         
-//        if (isAllEquivalent(sub))
-//            sub.setLength(num);
+        if (isAllEquivalent(sub))
+            sub.setLength(num);
         
         if (sub.length() <= num)
         {
