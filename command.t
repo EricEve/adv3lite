@@ -728,8 +728,7 @@ class Command: object
 
     /* carry out a callback for each noun phrase in each list */
     forEachNP(func)
-    {
-        
+    {       
         /* run through each noun phrase list in the command */
         foreach (local role in npListSorted)
         {
