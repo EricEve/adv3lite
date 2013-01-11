@@ -1591,10 +1591,10 @@ OpenClosed: State
 
 /* Is this the player char? If so then 'me' applies to this object. */
 
-PCOrNot: State
-    stateProp = &isPlayerChar
-    vocabWords = [[true, 'me', MatchNoun]]
-;
+//PCOrNot: State
+//    stateProp = &isPlayerChar
+//    vocabWords = [[true, 'me', MatchNoun]]
+//;
 
 
 /* ------------------------------------------------------------------------ */
@@ -1621,6 +1621,13 @@ modify Thing
     tooDarkToSeeMsg = tSel('It\'s', 'It was') + ' too dark to see anything. '
     
    
+;
+
+modify Pronoun
+    aName = (name)
+    theName = (name)
+    theObjName = (objName)  
+    
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -1664,6 +1671,7 @@ pronounPreinit: PreinitObject
         Them.possNoun = 'theirs';
         Them.thatName = Them.thatObjName = 'those';
 	Them.reflexive = Themselves;
+        Them.plural = true;
         
         You.name = You.objName = 'you';
         You.possAdj = 'your';
@@ -1674,6 +1682,7 @@ pronounPreinit: PreinitObject
         Yall.possAdj = 'your';
         Yall.possNoun = 'yours';
 	Yall.reflexive = Yourselves;
+        Yall.plural = true;
 
         Me.name = 'I';
         Me.objName = 'me';
@@ -1686,6 +1695,7 @@ pronounPreinit: PreinitObject
         Us.possAdj = 'our';
         Us.possNoun = 'ours';
 	Us.reflexive = Ourselves;
+        Us.plural = true;
         
 
         Myself.name = Myself.objName = 'myself';
