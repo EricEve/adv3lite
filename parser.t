@@ -2255,7 +2255,7 @@ class NounPhrase: object
         if (isAllEquivalent(sub))
             sub.setLength(num);
         
-        if (sub.length() <= num)
+        if (sub.length() == num)
         {
             /* 
              *   We have the desired number of most obvious matches, so
@@ -2279,6 +2279,21 @@ class NounPhrase: object
             
             /* we've successfully disambiguated the phrase */
             return;
+        }        
+        else if (sub.length() > num && num > 1)                    
+        {
+            /*            
+             *   We've asked for a definite number of 2 or more items, but there are different
+             *   options among the best matches.  This poses a problem because there's n
+             *   good disambiguation we can possibly ask here. So we just give up and ask
+             *   them to be more specific.  I can imagine someone responding to this
+             *   message by just retyping a more specific form of the noun phrase.
+             *   For example, after GET THE TWO MATCHES doesn't work, they might just
+             *   want to type THE LIT MATCH AND AN UNLIT MATCH, but currently the parser
+             *   does not do this.  Probably the DMsg should also refer to the specific
+             *   noun phrase that is ambiguous in its message.
+             */
+            throw new AmbiguousMultiDefiniteError(cmd,self);
         }
     
         /*
@@ -5505,6 +5520,21 @@ class AmbiguousError: ResolutionError
      */
     nameList = []
 ;
+
+class AmbiguousMultiDefiniteError: UnmatchedNounError
+    display()
+    {
+        DMsg(be more specific, 'I don\'t know which ones you mean.  Can you be more specific?');
+    }
+
+    /* 
+     *   this is not really curable, but we need to say it is curable so that our custom
+     *   message is displayed.  Would like to find a way to do this where curable=nil
+     */
+    curable = true
+;
+
+
 
 /*
  *   Ordinal out of range.  This occurs when the player replies to a
