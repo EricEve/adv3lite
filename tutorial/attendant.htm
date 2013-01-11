@@ -11,7 +11,7 @@
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="character.htm">Character Building</a> &gt; 
 The Flight Attendant
-<br><span class="navnp"><a class="nav" href="cortes.htm"><i>Prev:</i> Pablo Cortez</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="cockpit.htm"><i>Next:</i> Cockpit Controls</a> &nbsp;&nbsp;&nbsp; </span>
+<br><span class="navnp"><a class="nav" href="cortes.htm"><i>Prev:</i> Pablo Cortez</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="conversation.htm"><i>Next:</i> The Art of Conversation</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
 <div class="main">
@@ -32,11 +32,54 @@ angela: Actor 'flight attendant; statuesque young; woman angela; her'
 
 <p>The one new feature we've introduced here is the <strong>globalParamName</strong> property. Because the player character may learn the flight attendant's name at some point during the course of the game, it's hard to know when text that mentions her should call her 'the flight attendant' and when it should call her 'Angela'. By giving her a <span class="code">globalParamName</span> we can use a message substitution parameter like '{the subj angela}' whenever we need to refer to her, and either 'the flight attendant' or 'Angela' will be substituted for it, according to the current value of her name property. At the start of the game, she starts out as 'The flight attendant'. The player character can only learn her name once we've implemented some conversational responses, which we'll leave until Chapter 11.</p>
 
+<p>Note that the value we give to the globalParamName can be any single-quoted string we like, so long as it's not the same as any other globalParamName in the game. In particular, we didn't have to give Angela a globalParamName of 'angela' just because that's what her name is. It's usually a good idea, however, to use a globalParamName that corresponds to the object name, since that generally helps makes your code more readable. If we see '{The subj angela}' in a message somewhere, it'll be pretty obvious it refers to the angela NPC. If we saw '{The sub attendant}' we'd probably make the same deduction, but it would then be a bit too easy to get confused and write {The subj angela} somewhere else, because we wouldn't be following such a consistent convention. If we wrote '{The subj blonde}' or '{The subj foo}' we might end rather too easily lose track of who it was meant to refer to.</p>
+
+<p>Thus <span class="code">globalParamName</span> creates a label that can be used in message substitutions, and later we'll see how we can change in the middle of the game what that label refers to.</p>
+
 <p>Otherwise this definition looks even simpler than those of the previous two NPCs, but that's because most of the complexity is going to be farmed out to <strong>ActorState</strong> objects. While Pablo Cortez and the security guard don't change much in over the course of the game &mdash; Cortez only makes a relatively fleeting appearance in one scene, and the guard just keeps on guarding &mdash; the flight attendant will be in different states at different points in the game. When we first meet her she'll be greeting passengers as they board the plane and asking to see their tickets. During the takeover scene she'll be standing in the jetway seeing to the disembarking passengers, or else talking with the player character. Finally, she'll be back aboard the plane to look after the new passengers, effectively as their hostage.</p>
 
-<p>Rather than trying to represent these four different states with a lot of if-statements or switch-statements on the Actor object, we'll represent each of them with an <strong>ActorState</strong>. Amongst other things an ActorState can be used to define the Actor's current <span class="code">specialDesc</span>, <span class="code">stateDesc</span>, and action and travel notifications, such as <span class="code">beforeAction()</span>, <span class="code">afterAction()</span>, <span class="code">beforeTravel()</span> and <span class="code">afterTravel(</span>); <span class="code">stateDesc</span> is an extra description that can be tacked on to the desc defined on the Actor. What happens behind the scenes is that the Actor object takes the value of its <span class="code">specialDesc</span>, <span class="code">stateDesc</span>, <span class="code">beforeTravel()</span>, <span class="code">afterTravel()</span>, <span class="code">beforeAction()</span> and <span class="code">afterAction()</span> properties and methods from its current ActorState object, if it has one, or otherwise uses its <span class="code">actorSpecialDesc</span> etc. properties. That's why it's generally not a good idea to override <span class="code">specialDesc</span> and all the rest on the Actor object, but rather use actorSpecialDesc instead, since even if you start out with the intention of not using ActorStates with a particular object, should you later change your mind, having overridden <span class="code">specialDesc</span> and other such properties on the Actor object will have broken part of the ActorState mechanism.</p>
+<p>Rather than trying to represent these four different states with a lot of if-statements or switch-statements on the Actor object, we'll represent each of them with an <strong>ActorState</strong>. As its name hopefully implies, an <span class="code">ActorState</span> is a special kind of object used to track the state of an Actor. During the course of a game, an NPC may change from doing one thing to another, stacking cans at one moment, sweeping the floor at another, talking with the player character at another, and maybe walking down the street at another. The NPC needs to be described differently on each occasion. In a room description one would need to see "Bob is busily stacking cans" or "Bob is sweeping the floor" or "Bob is watching you, waiting for you to speak" or "Bob is walking rapidly down the street". Ordinarily such paragraphs would come from an object's <span class="code">specialDesc()</span> property, but in the case of Bob we'd need to write quite a complex specialDesc that varied according to state. This would become more complicated (and messier) the more different activities Bob could be engaged in over the course of the game. And it isn't just his specialDesc that needs to vary with what Bob is doing or the state he's in. The way he reacts to things (including attempts by the player character to talk with him) may differ quite a lot depending on whether he's calmly stacking cans, desperately trying to put a fire out, or sound asleep in an alcoholic stupor. Rather than writing lots of complex code on the Bob object to cater for these differences, we can encapsulate Bob's different activities or states by representing each one of them by an ActorState object. The Actor then uses its current ActorState object to decide how to respond.</p>
 
-<p>The Actor's current ActorState is referenced in its <strong>curState</strong> property (which is allowed to be nil, if there is no ActorState currently associated with the Actor). However, if you want an Actor to start out in a particular state, you can just set <span class="code">isInitState = true</span> on the ActorState in question. Like AgendaItems, ActorStates are associated with their Actor by being located within them using the + syntax. We can thus define Angela's initial ActorState like this:</p>
+<p>Every Actor contains a property called <strong>curState</strong> that serves as a slot to point to the ActorState object corresponding to its current state.  You can think of an ActorState object as a bundle of methods (and properties) meant to replace the usual Actor methods while the Actor is in that state.</p>
+
+<p>You don't have to use ActorState objects. For really simple NPCs like the security guard and Pablo Cortez, they aren't really needed. But if an Actor does have a current ActorState then that the Actor object gets the value of various of its properties and methods from the corresponding property on its current ActorState object. For example, <span class="code">Actor.specialDesc()</span> simply calls curState.specialDesc() if curState is not nil (if it is nil it calls <span class="code">actorSpecialDesc</span> instead). To illustrate this by means of a crude flowchart:</p>
+
+<p><pre>
+
+                      +--------------------+   
+                      | Actor.specialDesc  |
+                      +--------------------+  
+                                |
+                               / \
+                              /   \
+                             /     \  
+                            /       \
+                           /         \
+                          /  Does the \
++------------------+  NO /  actor have \  YES   +-----------------------+
+|      Use         |&lt;---&lt;   a current   &gt; ----> |        Use            |
+| actorSpecialDesc |     \ ActorState? /        |  curState.specialDesc |
++------------------+      \           /         +-----------------------+
+                           \         /
+                            \       /
+                             \     /
+                              \   /
+                               \ /
+                                V
+</pre>
+
+<p>You can see from this flowchart that it's a bad idea to override <span class="code">actor.specialDesc</span> because that's where the switching logic resides and if you override it you'll break the code that reroutes <span class="code">specialDesc</span> to the <span class="code">curState</span> when available.  Furthermore, you can see that <span class="code">actor.actorSpecialDesc</span> is where you want to place the fallback special description that should hold whenever no special state is in effect.  The same pattern holds for the following properties and methods of actor:</p>
+
+<ul>
+<li><strong>specialDesc</strong></li>
+<li><strong>stateDesc</strong> (an extra description that can be tacked on to the desc defined on the Actor)</li>
+<li><strong>beforeAction()</strong></li>
+<li><strong>afterAction()</strong></li>
+<li><strong>beforeTravel()</strong></li>
+<li><strong>afterTravel()</strong></li>
+</ul>
+
+<p>As previously mentioned, we can see what ActorState an Actor is currently in from the value of its <strong>curState</strong> property (which is allowed to be nil, if there is no ActorState currently associated with the Actor). If you want an Actor to start out in a particular state, you can just set <span class="code">isInitState = true</span> on the ActorState in question. Like AgendaItems, ActorStates are associated with their Actor by being located within them using the + syntax. We can thus define Angela's initial ActorState like this:</p>
 
 <p><div class="code"><pre>
 + angelaGreetingState: ActorState
@@ -201,7 +244,7 @@ angela: Actor 'flight attendant; statuesque young; woman angela; her'
 </pre></div></p>
 
 
-<p>And that's where we'll leave Angela and her ActorStates for now, although we'll find further uses for them in Chapter 11 when we come to implement some conversation. In the meantime, if you'd like more information on <a href="../manual/actorstate.htm">ActorStates</a>, see the <em>adv3Lite Library Manual</em>.</p>
+<p>And that's where we'll leave Angela and her ActorStates for now, although we'll find further uses for them in the next chapter when we come to implement some conversation. In the meantime, if you'd like more information on <a href="../manual/actorstate.htm">ActorStates</a>, see the <em>adv3Lite Library Manual</em>.</p>
 
 </div>
 <hr class="navb"><div class="navb">
@@ -209,7 +252,7 @@ angela: Actor 'flight attendant; statuesque young; woman angela; her'
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="character.htm">Character Building</a> &gt; 
 The Flight Attendant
-<br><span class="navnp"><a class="nav" href="cortes.htm"><i>Prev:</i> Pablo Cortez</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="cockpit.htm"><i>Next:</i> Cockpit Controls</a> &nbsp;&nbsp;&nbsp; </span>
+<br><span class="navnp"><a class="nav" href="cortes.htm"><i>Prev:</i> Pablo Cortez</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="conversation.htm"><i>Next:</i> The Art of Conversation</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
 </body>
