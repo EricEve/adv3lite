@@ -106,34 +106,34 @@ class Immovable: Thing
 
 class StairwayUp: TravelConnector, Thing
     dobjFor(Climb)
-    {
-        verify() {}
+    {        
         action() { travelVia(gActor); }        
     }
     dobjFor(ClimbUp) asDobjFor(Climb)
     
     isFixed = true
+    isClimbable = true
 ;
 
 class StairwayDown: TravelConnector, Thing
     dobjFor(ClimbDown)
-    {
-        verify() {}
+    {       
         action { travelVia(gActor); }
     }
     
     isFixed = true
+    isClimbDownable = true
 ;
 
 class Passage: TravelConnector, Thing
     dobjFor(GoThrough)
-    {
-        verify() {}
+    {        
         action() { travelVia(gActor); }
     }
     
     dobjFor(Enter) asDobjFor(GoThrough)
     isFixed = true
+    isGoThroughable = true
 ;
 
 class PathPassage: Passage
