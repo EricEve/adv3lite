@@ -722,13 +722,22 @@ class TravelAction: Action
     {
         /* 
          *   Obtain the direction from the verbProd of the current command
-         *   object.
+         *   object, unless this TravelAction already defines its direction
          */
-        direction = cmd.verbProd.dirMatch.dir; 
+        if(!predefinedDirection)
+           direction = cmd.verbProd.dirMatch.dir; 
         
         /* Carry out the inherited handling. */
         inherited(cmd);
     }
+    
+    
+    /* 
+     *   Does this TravelAction already define a set direction on its direction
+     *   property (so we don't need to look to what direction object the command
+     *   refers)?
+     */
+    predefinedDirection = nil
     
     /* 
      *   Execute the travel command, first carrying out any implicit actions

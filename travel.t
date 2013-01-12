@@ -890,19 +890,19 @@ class Region: object
      *   every room in this region.
      */
     
-    addToContents(obj)
+    addToContents(obj, vec?)
     {
         foreach(local cur in roomList)
         {
-            cur.addToContents(obj);
+            cur.addToContents(obj, vec);
         }
     }
     
-    removeFromContents(obj)
+    removeFromContents(obj, vec?)
     {
         foreach(local cur in roomList)
         {
-            cur.removeFromContents(obj);
+            cur.removeFromContents(obj, vec);
         }
     }
     

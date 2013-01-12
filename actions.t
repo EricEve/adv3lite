@@ -470,12 +470,12 @@ DefineIAction(Sleep)
 
 GoIn: TravelAction
     direction = inDir
-
+    predefinedDirection = true
 ;
 
 GoOut: TravelAction
     direction = outDir
-    
+    predefinedDirection = true
     
     execAction(cmd)
     {
