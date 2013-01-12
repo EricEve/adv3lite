@@ -950,6 +950,12 @@ class LMentionable: object
             local o = nominalOwner();
             if (o != nil)
                 ret = nominalOwner().possessify(article, self, ret);
+            // If this object is unowned and no locational distinguisher is present
+            // and the object is lying on the ground, we still need to describe it.
+            else if (!loc && self.location == gActor.getOutermostRoom())
+            {
+                ret = self.location.locify(self, ret);
+            }
         }    
 
         /* add the contents qualifier */
@@ -967,8 +973,6 @@ class LMentionable: object
         {
             if (location != nil)
                 ret = location.locify(self, ret);
-            else
-                ret = '<<ret>> here';
         }
 
         /* 
@@ -1036,7 +1040,10 @@ class LMentionable: object
      */
     locify(obj, str)
     {
-        return '<<str>> <<obj.locType.prep>> <<theName>>';
+        if (obj.location == gActor.getOutermostRoom())
+            return '<<str>> on the <<obj.location.groundName>>';
+        else
+            return '<<str>> <<obj.locType.prep>> <<theName>>';
     }
 
     /*
@@ -4783,8 +4790,13 @@ removeDoer: Doer 'remove Thing'
         else
             redirect(c, Take, dobj: c.dobj);
     }    
-    
-  
+;
+
+putOnGroundDoer: Doer 'put Thing on DefaultGround'
+    execAction(c)
+    {
+        redirect(c, Drop, dobj: c.dobj);
+    }
 ;
 
 takePathDoer: Doer 'take PathPassage'

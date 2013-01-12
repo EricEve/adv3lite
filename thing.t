@@ -372,6 +372,20 @@ class Mentionable: LMentionable
             vw += nominalContents != nil
                 ? nominalContents.vocabWords : emptyVocabWords;
         }
+        
+        /* 
+         *   Allow the word in the outermostRoom's groundName (usually 'ground')
+         *   to describe object that is on the ground
+         *   for disambiguation purposes, i.e. GET GROUND MARBLE
+         */
+        local outermostRoom = gActor.getOutermostRoom();
+        if (location == outermostRoom)
+        {
+            vw += [new VocabWord(outermostRoom.groundName,MatchAdj)];
+        }               
+        
+        if(self == DefaultGround)
+            vw += [new VocabWord(outermostRoom.groundName,MatchNoun)];
 
         /* note the number of states we have */
         local stateCnt = states.length();
@@ -6782,8 +6796,14 @@ class MultiLoc: object
         
         return lastSeenAt;
         
-    }
-    
+    }   
+;
+
+DefaultGround : MultiLoc, Decoration
+    name = gActor.getOutermostRoom().groundName
+    locationList = [EverywhereRegion]
+    contType = On
+    contents = (gActor.getOutermostRoom().contents - self)
 ;
 
 multiLocInitiator: PreinitObject
