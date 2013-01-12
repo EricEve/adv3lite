@@ -6664,17 +6664,38 @@ class MultiLoc: object
     
     exceptions = []
     
+    
+    /* 
+     *   If the initialLocationClass property is defined, then this MultiLoc is
+     *   initially located in every instance of this class. Note that this would
+     *   be in addition to the locations defined in the locationList class and
+     *   would likewise be subject to anything defined in the exceptions
+     *   property.
+     */
+    initialLocationClass = nil
+    
+    
+    
     /*   
      *   In Preinit, add this MultiLoc into the contents list of every item in
-     *   its locationList and then remove it from the contents list of every
+     *   its locationList and every object of class initialLocationClass (if
+     *   this is not nil) and then remove it from the contents list of every
      *   item in its exceptions list.
      */
+       
     
     addToLocations()
     {
         foreach(local loc in valToList(locationList))
         {           
             loc.addToContents(self); 
+        }
+        
+        if(initialLocationClass != nil)
+        {
+            for(local obj = firstObj(initialLocationClass); obj != nil; obj =
+                nextObj(obj, initialLocationClass))                
+                obj.addToContents(self);
         }
         
         foreach(local loc in valToList(exceptions))            
