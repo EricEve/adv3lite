@@ -40,6 +40,11 @@ class Room: TravelConnector, Thing
     /* Has this room been visited? */
     visited = nil
     
+    /* 
+     *   For disambiguation purposes, loose objects in the room are described as
+     *   "on the <<groundName>>"
+     */
+    groundName = 'ground'   
     
     /* 
      *   When travelling via a room we move the traveler into the room. Then, if
@@ -159,6 +164,7 @@ class Room: TravelConnector, Thing
     {
         foreach(local reg in valToList(regions))
             reg.addToRoomList(self);
+        EverywhereRegion.addToRoomList(self);
     }
     
     /* 
@@ -930,6 +936,14 @@ class Region: object
       *   go to dest (the destination room).
       */    
     travelerEntering(traveler, dest) { }
+;
+
+/* 
+ *   The EverywhereRegion is a region containing all the rooms in the game.
+ *   Useful for MultiLocs that need to be everywhere
+ */
+
+EverywhereRegion : Region
 ;
 
 /* 
