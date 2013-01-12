@@ -1760,16 +1760,21 @@ class Thing:  Mentionable
      */
     location = nil
     
-    addToContents(obj)
+    addToContents(obj, vec?)
     {
         contents = contents.appendUnique([obj]);
+        if(vec != nil)
+            vec.appendUnique(self);
     }
     
-    removeFromContents(obj)
+    removeFromContents(obj, vec?)
     {
         local idx = contents.indexOf(obj);
         if(idx != nil)
             contents = contents.removeElementAt(idx);
+        
+        if(vec != nil)
+            vec.removeElement(self);
     }
 
     /* 
@@ -6651,10 +6656,19 @@ class SubComponent: Thing
 class MultiLoc: object
     
     /* 
-     *   A list of the locations this object is to be present in. Locations may
-     *   be specified as Things, Rooms or Regions, or as some mix of all three.
+     *   A list of the locations this object is currently present in. If this
+     *   property is defined at the start of the game and initialLocationList
+     *   isn't, then this list will be copied to initialLocationList, and so can
+     *   be specified by users in exactly the same way.
      */
     locationList = []
+    
+    
+    /* 
+     *   A list of the locations this object is to start out in. Locations may
+     *   be specified as Things, Rooms or Regions, or as some mix of all three.
+     */   
+    initialLocationList = []
     
     /* 
      *   A list of locations this object is not to be present in. This is
@@ -6674,7 +6688,14 @@ class MultiLoc: object
      */
     initialLocationClass = nil
     
-    
+    /*
+     *   Test an object for inclusion in our initial location list.  By
+     *   default, we'll simply return true to include every object.  We
+     *   return true by default so that an instance can merely specify a
+     *   value for initialLocationClass in order to place this object in
+     *   every instance of the given class.
+     */
+    isInitiallyIn(obj) { return true; }
     
     /*   
      *   In Preinit, add this MultiLoc into the contents list of every item in
@@ -6686,33 +6707,59 @@ class MultiLoc: object
     
     addToLocations()
     {
-        foreach(local loc in valToList(locationList))
+        /* 
+         *   If there's nothing in the initialLocationList, we'll assume the
+         *   author used the locationList property to specify the initial
+         *   locations of this MultiLoc, since this was correct in earlier
+         *   versions and should be maintained for backward compatibility. In
+         *   That case copy the locationList to the initialLocationList and then
+         *   set the locationList to an empty list before attempting to build
+         *   it.
+         */
+        if(initialLocationList.length == 0)
+        {
+            initialLocationList = locationList;
+            locationList = [];               
+        }
+        
+        local locationVec = new Vector(10);
+        
+        foreach(local loc in valToList(initialLocationList))
         {           
-            loc.addToContents(self); 
+            loc.addToContents(self, locationVec);             
         }
         
         if(initialLocationClass != nil)
         {
             for(local obj = firstObj(initialLocationClass); obj != nil; obj =
-                nextObj(obj, initialLocationClass))                
-                obj.addToContents(self);
+                nextObj(obj, initialLocationClass))   
+            {
+                if(isInitiallyIn(obj))
+                    obj.addToContents(self, locationVec);
+            }
         }
         
         foreach(local loc in valToList(exceptions))            
         {
-            loc.removeFromContents(self); 
+            loc.removeFromContents(self, locationVec); 
         }
+        
+        locationList = locationVec.toList();
     }
       
     /* 
      *   Move this MultiLoc into an additional location by adding it to that
-     *   location's contents list and adding that locationg to our locationList.
+     *   location's contents list and adding that location to our locationList.
      */  
     
     moveIntoAdd(loc)
     {
-        loc.addToContents(self);    
-        locationList += loc;
+        if(loc.contents.indexOf(self) == nil)
+            loc.addToContents(self);     
+        
+        
+        if(locationList.indexOf(loc) == nil)
+            locationList += loc;
     }
     
     /* 
