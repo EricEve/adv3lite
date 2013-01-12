@@ -383,6 +383,9 @@ class Mentionable: LMentionable
         {
             vw += [new VocabWord(outermostRoom.groundName,MatchAdj)];
         }               
+        
+        if(self == DefaultGround)
+            vw += [new VocabWord(outermostRoom.groundName,MatchNoun)];
 
         /* note the number of states we have */
         local stateCnt = states.length();
@@ -6797,7 +6800,7 @@ class MultiLoc: object
 ;
 
 DefaultGround : MultiLoc, Decoration
-    vocab = 'ground'
+    name = gActor.getOutermostRoom().groundName
     locationList = [EverywhereRegion]
     contType = On
     contents = (gActor.getOutermostRoom().contents - self)
