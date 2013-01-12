@@ -6822,7 +6822,8 @@ class MultiLoc: object
 
 DefaultGround : MultiLoc, Decoration
     name = gActor.getOutermostRoom().groundName
-    locationList = [EverywhereRegion]
+//    locationList = [EverywhereRegion]
+    initialLocationClass = Room
     contType = On
     contents = (gActor.getOutermostRoom().contents - self)
 ;
