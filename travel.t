@@ -46,6 +46,11 @@ class Room: TravelConnector, Thing
      */
     groundName = 'ground'   
     
+    
+    floorObj = defaultGround
+    
+    
+    
     /* 
      *   When travelling via a room we move the traveler into the room. Then, if
      *   the traveler is the player char we perform a look around in the room

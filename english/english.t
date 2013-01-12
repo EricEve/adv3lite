@@ -2880,6 +2880,10 @@ modify restoreOptionRestoreAnother
             'Restore a saved position')>> a different saved position'''
 ;
 
+modify defaultGround
+    vocab = 'ground;;floor'
+;
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -4792,7 +4796,7 @@ removeDoer: Doer 'remove Thing'
     }    
 ;
 
-putOnGroundDoer: Doer 'put Thing on DefaultGround'
+putOnGroundDoer: Doer 'put Thing on Floor'
     execAction(c)
     {
         redirect(c, Drop, dobj: c.dobj);
