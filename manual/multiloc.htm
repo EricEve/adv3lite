@@ -77,7 +77,7 @@ floor: MultiLoc, Thing 'floor;;ground'
 ;
 </pre></div>
 
-<p>The first of these is probably better, however, since if the floor responds to <i>everything</i> except EXAMINE with "The floor is not important" players will pretty quickly realize it's simply a decoration object they don't need to interact with.</p>
+<p>The first of these is probably better, however, since if the floor responds to <i>everything</i> except EXAMINE with "The floor is not important" players will pretty quickly realize it's simply a decoration object they don't need to interact with. In fact, though, you'll hardly ever need to define a MultiLoc to represent the floor or ground in your own code, since adv3Lite already provides a <a href="room.htm#roomfloor">Floor</a> class which takes care of it for you. You'd only need to define your own if you wanted to replace the library's default implementation with something different.</p>
 
 <p>Under certain circumstances, however, it may be both legitimate and safe to define a MultiLoc that does provide a bit more action. These circumstances are:</p>
 <ol>
@@ -88,7 +88,7 @@ floor: MultiLoc, Thing 'floor;;ground'
 <p>An example might be a fountain that stands right at the centre of a square you're implementing as four different locations. The fountain is accessible from each corner of the square, so if you throw a coin into it from one corner you could indeed retrieve the coin from another:</p>
 
 <p><div class=code><pre>
-floor: MultiLoc, Thing 'fountain;large ;water fish mouth'
+fountain: MultiLoc, Thing 'fountain;large ;water fish mouth'
    "It's a large fountain in the form of an improbable looking fish with water gushing from its mouth. " 
    isFixed = true
    contType = In
@@ -105,12 +105,26 @@ floor: MultiLoc, Thing 'fountain;large ;water fish mouth'
 <li><b>moveIntoAdd(loc)</b>: moves the MultiLoc into loc in addition to its existing locations.</li>
 <li><b>moveOutOf(loc)</b>: moves the MultiLoc out of loc while leaving it present in all its other locations.</li>
 <li><b>moveInto(loc)</b>: moves the MultiLoc out of all its existing locations and into loc. One common use for this might be to call moveInto(nil) on a MultiLoc to move it off-stage altogether.</li>
-<li><b>addToLocations()</b>: moves the MultiLoc into all the locations in its locationList (and then out of all the locations in its exception list). This is called at library preinitialization to set up MultiLocs initially, but it could also be used during the course of a game to restore a MultiLoc to all its original locations after using moveInto(nil) to move it off-stage.</li>
+<li><b>addToLocations()</b>: moves the MultiLoc into all the locations in its locationList/initialLocationList (and then out of all the locations in its exception list). This is called at library preinitialization to set up MultiLocs initially, but it could also be used during the course of a game to restore a MultiLoc to all its original locations after using moveInto(nil) to move it off-stage.</li>
 </ul>
+<br>
 
 <h2>The location of a MultiLoc</h2>
 
 <p>You can test whether a MultiLoc is present in a location by using the <b>isIn(loc)</b> or <b>isDirectlyIn(loc)</b> methods, just as you do on a Thing. MultiLoc also defines its own version of the <b>location</b> property, which you should never override. In one sense the location property of a MultiLoc ought to be meaningless, since a MultiLoc generally does not reside in only one location, but for certain purposes the library needs to use a MultiLoc's location property, since certain calculations it makes assume that every physical object defines one, and it may occasionally be useful in game code to be able to make the same assumption when writing code that may apply to any object. The location property of a MultiLoc is taken to be the location of the current actor (or of the player character if no actor is defined), provided the MultiLoc is present there. Otherwise the location property is taken to be the last place the MultiLoc was seen.</p>
+<br>
+
+<h2><a name="initloc">Initializing a MultiLoc's Location</a></h2>
+
+<p>All the examples above have used the <span class="code">locationList</span> property to define where we want a MultLoc to start out. As we've seen, this property can contain a list of Rooms, other Things and/or Regions. We could also use the <span class="code">initialLocationList</span> property and it would appear to work in just the same way. If you define a MultiLoc with an empty <span class="code">initialLocationList</span>, adv3Lite copies the <span class="code">locationList</span> to the <span class="code">initialLocationList</span>, and then proceeds to initialize the locationList just as it would have done had you defined a lis of Rooms and/or Regions directly on the <span class="code">initialLocationList</span> property.</p>
+
+<p>What happens during this initialization is that any Regions in the initialLocationList are expanded into their constituent rooms and then added to the locationList property (with any duplicates being removed, to ensure that the same Room isn't listed twice). For example, suppose your <span class="code">outdoors</span> region contains the Rooms <span class="code">courtyard</span>, <span class="code">gravelPath</span> and <span class="code">garden</span>, and suppose you define a MultiLoc <span class="code">sky</span> object with a <span class="code">locationList</span> of <span class="code">[outdoors, riverBank, meadow]</span>. After your sky object is initialized its <span class="code">initialLocationList</span> will be <span class="code">[outdoors, riverBank, meadow]</span> and its <span class="code">locationList</span> will be <span class="code">[courtyard, gravelPath, garden, riverBank, meadow]</span>. Thereafter, <span class="code">initialLocationList</span> will remain unchanged (unless, of course, you deliberately change it in your own code) while <span class="code">locationList</span> will be updated to reflect any changes caused by using <span class="code">moveIntoAdd()</span>, <span class="code">moveOutOf()</span> and <span class="code">moveInto()</span> (so don't try to change <span class="code">locationList</span> directly in your own code, or you'll probably upset things).</p>
+
+<p>MultiLoc also defines an <strong>initialLocationClass</strong> property and an <strong>isInitiallyIn(obj)</strong> method, which are intended to work together. If <span class="code">initialLocationClass</span> is not nil then every instance of that class will be added to the MultiLoc's <span class="code">locationList</span> provided <span class="code">isInitiallyIn(obj)</span> returns true for that instance (where <em>obj</em> is the instance in question). One reason for this feature is to facilitate the implementation of the <a href="room.htm#roomfloor">Floor</a> class, but you may find other uses for it in your own code.</p>
+
+<p>Note that any locations added to the location list via <span class="code">initialLocationClass</span> will be in addition to those defined on <span class="code">initialLocationList</span>, and that any locations defined in the exceptions list will be removed from the location list after those defined in both <span class="code">initialLocationList</span> and <span class="code">initialLocationClass</span> have been added. </p>
+
+<p>You may be wondering why you're allowed to use either the <span class="code">locationList</span> or the <span class="code">initialLocationList</span> property to accomplish essentially the same task: defining the initial set of locations in which a MultiLoc resides. One reason is that <span class="code">locationList</span> is a bit less of a mouthful to type; another is to ensure backward compatibility with game code written for earlier versions of adv3Lite that didn't provide the <span class="code">initialLocationList</span> property. Which of the two you use is entirely up to you (for instance, you may prefer to define initial locations on <span class="code">initialLocationList</span> because it seems clearer that way), just so long as you use one or the other and don't try to use both. If you define both <span class="code">locationList</span> and <span class="code">initialLocationList</span> on the same MultiLoc, whatever you put in <span class="code">locationList</span> will simply be ignored. </p>
 
 </div>
 <hr class="navb"><div class="navb">
