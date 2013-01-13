@@ -160,7 +160,6 @@ class Room: TravelConnector, Thing
     {
         foreach(local reg in valToList(regions))
             reg.addToRoomList(self);
-//        EverywhereRegion.addToRoomList(self);
     }
     
     /* 
@@ -933,14 +932,6 @@ class Region: object
       */    
     travelerEntering(traveler, dest) { }
 ;
-
-/* 
- *   The EverywhereRegion is a region containing all the rooms in the game.
- *   Useful for MultiLocs that need to be everywhere
- */
-//
-//EverywhereRegion : Region
-//;
 
 /* 
  *   Go through each room and add it to every regions it's (directly or
