@@ -39,17 +39,8 @@ class Room: TravelConnector, Thing
     
     /* Has this room been visited? */
     visited = nil
-    
-    /* 
-     *   For disambiguation purposes, loose objects in the room are described as
-     *   "on the <<groundName>>"
-     */
-    groundName = 'ground'   
-    
-    
-    floorObj = defaultGround
-    
-    
+ 
+    floorObj = defaultGround       
     
     /* 
      *   When travelling via a room we move the traveler into the room. Then, if
