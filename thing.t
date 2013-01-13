@@ -6858,6 +6858,15 @@ class Floor: MultiLoc, Decoration
     contType = On
     isInitiallyIn(obj) { return obj.floorObj == self; }
     contents = (gActor.getOutermostRoom().contents - self)
+    
+    /* 
+     *   By default we probably want to keep the description of a Floor object
+     *   as minimalistic as possible to discourage players from trying to
+     *   interact with it, so we won't listed the 'contents' of a Floor when
+     *   it's examined. This can of course be overridden if desired.
+     */
+    
+    contentsListed = nil
 ;
 
 defaultGround: Floor

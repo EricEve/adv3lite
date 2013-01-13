@@ -1040,8 +1040,9 @@ class LMentionable: object
      */
     locify(obj, str)
     {        
-        if (obj.location == gActor.getOutermostRoom())
-            return '<<str>> <<obj.location.floorObj.contType.prep>> <<obj.location.floorObj.theName>>';
+        if (obj.location == gActor.getOutermostRoom()
+            && obj.location.floorObj != nil)
+            return '<<str>> <<obj.location.floorObj.objInName>> ';
         else
             return '<<str>> <<obj.locType.prep>> <<theName>>';
     }
