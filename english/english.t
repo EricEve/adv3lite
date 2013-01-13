@@ -1039,9 +1039,9 @@ class LMentionable: object
      *   prepositional phrase: "the box UNDER THE TABLE".  
      */
     locify(obj, str)
-    {
+    {        
         if (obj.location == gActor.getOutermostRoom())
-            return '<<str>> on the <<obj.location.groundName>>';
+            return '<<str>> <<obj.location.floorObj.contType.prep>> <<obj.location.floorObj.theName>>';
         else
             return '<<str>> <<obj.locType.prep>> <<theName>>';
     }
