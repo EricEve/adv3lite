@@ -217,6 +217,10 @@ QDefaults: Special
         if(a.ofKind(Room))
             return a.isIlluminated;
         
+        /* Otherwise a may be lit if it's visible in the dark */
+        if(a.visibleInDark)
+            return true;
+        
         /* A is lit if its enclosing parent is lit within */
         local par = a.interiorParent();
         return par != nil && par.litWithin();
