@@ -1134,7 +1134,16 @@ class TAction: Action
         }         
         
     }
+    
+    /* 
+     *   Flag: do we want the object name to appear before a check stage failure
+     *   message if multiple objects are involved in the action. By default we
+     *   do, otherwise it might not be clear which object the message referes
+     *   to.
+     */
         
+    announceMultiCheck = true
+    
     /* 
      *   Run the check phase of the action, both on the direct object and on any
      *   preconditions.
@@ -1196,6 +1205,10 @@ class TAction: Action
          */
         if(checkMsg not in (nil, ''))
         {           
+            
+            if(announceMultiCheck && gCommand.dobjs.length > 1)
+                announceObject(obj);
+            
             /* 
              *   If we're an implicit action then add a failure message to our
              *   implicit action list and display the list ("first trying
@@ -1311,6 +1324,15 @@ class TAction: Action
         return true;
     }
     
+    
+    /* 
+     *   Flag, do we want to announce the object name before the verify message
+     *   in cases where there's more direct object in the command? By default we
+     *   don't since verify messages generally make it clear enough which
+     *   objects they refer to.
+     */
+    announceMultiVerify = nil
+    
     /* 
      *   Run the verify routine on the current object in the current role to see
      *   whether it will allow the action. If it won't, display any pending
@@ -1340,6 +1362,16 @@ class TAction: Action
             verMsg = verResult.errMsg;
             
             /* 
+             *   If this is the direct object of the command and there's more
+             *   than one, and if the option to announce objects in verify
+             *   messages is true, then announce the name of this object to make
+             *   it clear which one is being referred to.
+             */
+            if(announceMultiVerify && role == DirectObject &&
+               gCommand.dobjs.length > 1)
+                announceObject(obj);
+            
+            /* 
              *   If we're an implicit action ddd a failed implicit action report
              *   ('trying to...').
              */
@@ -1348,6 +1380,7 @@ class TAction: Action
             
             /* Display the failure message */
             say(verMsg);
+            "\n";
             
             /* Note that this action has failed. */
             actionFailed = true;
