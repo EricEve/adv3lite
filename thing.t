@@ -2937,6 +2937,25 @@ class Thing:  Mentionable
     notImportantMsg = BMsg(not important, '{The subj cobj} {is} not important.
          ')
     
+    
+    /* 
+     *   Next deal with what happens if this object is being tested as a
+     *   potential actor
+     */
+    
+    verifyActor()
+    {
+        if(contType != Carrier)
+            logicalRank(70);
+    }
+    
+    remapActor = nil
+    
+    preCondActor = [objAudible]
+    
+    
+    /* Now the handling for specific actions */
+    
     dobjFor(Examine)
     {
         preCond = [objVisible]

@@ -1409,6 +1409,11 @@ class TAction: Action
             preCondProp = preCondAobjProp;
             remapProp = remapAobjProp;
             break;
+        case ActorRole:
+            verifyProp = &verifyActor;
+            remapProp = &remapActor;
+            preCondProp = &preCondActor;
+                
         } 
             
         /* first check if we need to remap this action. */
