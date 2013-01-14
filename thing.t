@@ -6857,7 +6857,7 @@ class Floor: MultiLoc, Decoration
     initialLocationClass = Room
     contType = On
     isInitiallyIn(obj) { return obj.floorObj == self; }
-    contents = (gActor.getOutermostRoom().contents - self)
+    contents = (gActor.outermostVisibleParent().contents - self)
     
     /* 
      *   By default we probably want to keep the description of a Floor object
