@@ -3062,188 +3062,188 @@ PreinitObject
 objTablePreinit: PreinitObject
     execute()
     {
-        if(gameMain.storeWholeObjectTable)
+//        if(gameMain.storeWholeObjectTable)
         {
             storeAllRelevantObjects();
             return;
         }
         
-        local str;
-        for(local e = firstObj(TopicEntry); e != nil ; e = nextObj(e,
-            TopicEntry))
-        {
-            /* 
-             *   A SlaveTopic simply runs the topicResponse of some other Topic
-             *   Entry we'll visit, so we don't need to look at it separately.
-             */
-            if(e.ofKind(SlaveTopic))
-               continue;
-            
-            if(e.ofKind(EventList))
-            {
-                foreach(local cur in e.eventList)
-                {
-                    if(dataType(cur) == TypeSString)
-                        check(cur, e);
-                }
-                
-                if(e.ofKind(ShuffledEventList))
-                {
-                    foreach(local cur in nilToList(e.firstEvents))
-                        if(dataType(cur) == TypeSString)
-                            check(cur, e);
-                }
-            }
-            else if(e.propType(&topicResponse) == TypeDString)
-            {
-                str = e.getMethod(&topicResponse);
-                check(str, e);            
-            }
-            else if(e.propType(&topicResponse) == TypeCode && lookInMethods)
-            {
-                str = testMethodOutputObj.getStringFrom(e, &topicResponse);
-                if(str != nil && str.length > 0)
-                   check(str, e);
-            }
-                    
-            
-        }
-        
-        
-        /* now do the same for agenda items */
-        
-        for(local e = firstObj(AgendaItem); e != nil ; e = nextObj(e,
-            AgendaItem))
-        {
-            if(e.ofKind(EventList))
-            {
-                foreach(local cur in e.eventList)
-                {
-                    if(dataType(cur) == TypeSString)
-                        check(cur, e);
-                }
-                
-                if(e.ofKind(ShuffledEventList))
-                {
-                    foreach(local cur in nilToList(e.firstEvents))
-                        if(dataType(cur) == TypeSString)
-                            check(cur, e);
-                }
-            }
-            
-            if(e.propType(&invokeItem) == TypeDString)
-            {
-                str = e.getMethod(&invokeItem);
-                check(str, e);            
-            }
-            else if(e.propType(&invokeItem) == TypeCode && lookInMethods)
-            {
-                str = testMethodOutputObj.getStringFrom(e, &invokeItem);
-                if(str != nil && str.length > 0)
-                   check(str, e);
-            }
-        }
-            
-        if(errorReported)
-            aioMorePrompt();
-            
+//        local str;
+//        for(local e = firstObj(TopicEntry); e != nil ; e = nextObj(e,
+//            TopicEntry))
+//        {
+//            /* 
+//             *   A SlaveTopic simply runs the topicResponse of some other Topic
+//             *   Entry we'll visit, so we don't need to look at it separately.
+//             */
+//            if(e.ofKind(SlaveTopic))
+//               continue;
+//            
+//            if(e.ofKind(EventList))
+//            {
+//                foreach(local cur in e.eventList)
+//                {
+//                    if(dataType(cur) == TypeSString)
+//                        check(cur, e);
+//                }
+//                
+//                if(e.ofKind(ShuffledEventList))
+//                {
+//                    foreach(local cur in nilToList(e.firstEvents))
+//                        if(dataType(cur) == TypeSString)
+//                            check(cur, e);
+//                }
+//            }
+//            else if(e.propType(&topicResponse) == TypeDString)
+//            {
+//                str = e.getMethod(&topicResponse);
+//                check(str, e);            
+//            }
+//            else if(e.propType(&topicResponse) == TypeCode && lookInMethods)
+//            {
+//                str = testMethodOutputObj.getStringFrom(e, &topicResponse);
+//                if(str != nil && str.length > 0)
+//                   check(str, e);
+//            }
+//                    
+//            
+//        }
+//        
+//        
+//        /* now do the same for agenda items */
+//        
+//        for(local e = firstObj(AgendaItem); e != nil ; e = nextObj(e,
+//            AgendaItem))
+//        {
+//            if(e.ofKind(EventList))
+//            {
+//                foreach(local cur in e.eventList)
+//                {
+//                    if(dataType(cur) == TypeSString)
+//                        check(cur, e);
+//                }
+//                
+//                if(e.ofKind(ShuffledEventList))
+//                {
+//                    foreach(local cur in nilToList(e.firstEvents))
+//                        if(dataType(cur) == TypeSString)
+//                            check(cur, e);
+//                }
+//            }
+//            
+//            if(e.propType(&invokeItem) == TypeDString)
+//            {
+//                str = e.getMethod(&invokeItem);
+//                check(str, e);            
+//            }
+//            else if(e.propType(&invokeItem) == TypeCode && lookInMethods)
+//            {
+//                str = testMethodOutputObj.getStringFrom(e, &invokeItem);
+//                if(str != nil && str.length > 0)
+//                   check(str, e);
+//            }
+//        }
+//            
+//        if(errorReported)
+//            aioMorePrompt();
+//            
+//    }
+//    
+//    errorReported = nil
+//    
+//    /* 
+//     *   Certain tags (<.agenda arg>, <.remove arg>, <.state arg> and <.known
+//     *   arg> need a way of translating the string value 'arg' to an object
+//     *   reference, where arg is also the programmatic name of the object. For
+//     *   that purpose we try to pick these tags out of TopicEntry strings
+//     *   wherever they occur and then look them up in the global symbols table
+//     *   to store a reference to them in a LookupTable.
+//     */
+//    
+//    check(str, e)
+//    {   
+//    
+//        local start;        
+//        local obj;
+//        local gtab = t3GetGlobalSymbols();      
+//        
+//        /* scan for our special tags */
+//        for (start = 1 ; ; )
+//        {
+//            local match;
+//            local arg;
+////            local actor;
+////            local sp;
+//            local tag;
+//            local nxtOfs;
+//            
+//            /* scan for the next tag */
+//            match = rexSearch(tagPat, str, start);
+//
+//            /* if we didn't find it, we're done */
+//            if (match == nil)
+//                break;
+//
+//            /* note the next offset */
+//            nxtOfs = match[1] + match[2];
+//
+//            /* get the argument (the third group from the match) */
+//            arg = rexGroup(3);
+//            if (arg != nil)
+//                arg = arg[3];
+//
+//            /* pick out the tag */
+//            tag = rexGroup(1)[3].toLower();
+//            
+//            obj = gtab[arg];
+//            if(obj == nil)
+//            {
+//                "WARNING! Bad <<tag>> tag <<arg>> in <<e>> for <<if
+//                  e.ofKind(ConsultTopic)>>ConsultTopic <<else if
+//                  e.ofKind(ActorTopicEntry)>> <<e.getActor.name>>\nTopic text =
+//                <<str>>\b";
+//            
+//                 errorReported = true; 
+//            }
+//            else
+//                conversationManager.objNameTab[arg] = obj;
+//
+//             /* continue the search after this match */
+//            start = nxtOfs;
+//        }
+//        
+//    
+//#ifdef __DEBUG
+//     /* 
+//      *   take advantage of the fact that we're iterating through topic entries
+//      *   to check for balancing smart quotes.
+//      */   
+//        local openQuotes = str.findAll('<q>').length;
+//        local closeQuotes = str.findAll('</q>').length;
+//        if(openQuotes != closeQuotes)
+//        {
+//            "WARNING! Mismatched smart quotes in <<e>> for 
+//            <<if e.ofKind(ConsultTopic)>>ConsultTopic
+//            <<else if e.getActor != nil>> <<e.getActor.name>>\nText
+//            = <<str>>\b";
+//            
+//            errorReported = true;
+//        }
+//        
+//        
+//#endif
+//        
+//    
     }
-    
-    errorReported = nil
-    
-    /* 
-     *   Certain tags (<.agenda arg>, <.remove arg>, <.state arg> and <.known
-     *   arg> need a way of translating the string value 'arg' to an object
-     *   reference, where arg is also the programmatic name of the object. For
-     *   that purpose we try to pick these tags out of TopicEntry strings
-     *   wherever they occur and then look them up in the global symbols table
-     *   to store a reference to them in a LookupTable.
-     */
-    
-    check(str, e)
-    {   
-    
-        local start;        
-        local obj;
-        local gtab = t3GetGlobalSymbols();      
-        
-        /* scan for our special tags */
-        for (start = 1 ; ; )
-        {
-            local match;
-            local arg;
-//            local actor;
-//            local sp;
-            local tag;
-            local nxtOfs;
-            
-            /* scan for the next tag */
-            match = rexSearch(tagPat, str, start);
-
-            /* if we didn't find it, we're done */
-            if (match == nil)
-                break;
-
-            /* note the next offset */
-            nxtOfs = match[1] + match[2];
-
-            /* get the argument (the third group from the match) */
-            arg = rexGroup(3);
-            if (arg != nil)
-                arg = arg[3];
-
-            /* pick out the tag */
-            tag = rexGroup(1)[3].toLower();
-            
-            obj = gtab[arg];
-            if(obj == nil)
-            {
-                "WARNING! Bad <<tag>> tag <<arg>> in <<e>> for <<if
-                  e.ofKind(ConsultTopic)>>ConsultTopic <<else if
-                  e.ofKind(ActorTopicEntry)>> <<e.getActor.name>>\nTopic text =
-                <<str>>\b";
-            
-                 errorReported = true; 
-            }
-            else
-                conversationManager.objNameTab[arg] = obj;
-
-             /* continue the search after this match */
-            start = nxtOfs;
-        }
-        
-    
-#ifdef __DEBUG
-     /* 
-      *   take advantage of the fact that we're iterating through topic entries
-      *   to check for balancing smart quotes.
-      */   
-        local openQuotes = str.findAll('<q>').length;
-        local closeQuotes = str.findAll('</q>').length;
-        if(openQuotes != closeQuotes)
-        {
-            "WARNING! Mismatched smart quotes in <<e>> for 
-            <<if e.ofKind(ConsultTopic)>>ConsultTopic
-            <<else if e.getActor != nil>> <<e.getActor.name>>\nText
-            = <<str>>\b";
-            
-            errorReported = true;
-        }
-        
-        
-#endif
-        
-    
-    }
-       
-    
-     /* regular expression pattern for our tags */
-    tagPat = static new RexPattern(
-        '<nocase><langle><dot>'
-        + '(agenda|remove|state|known)'        
-        + '(<space>+(<^rangle>+))?'
-        + '<rangle>')
-    
+//       
+//    
+//     /* regular expression pattern for our tags */
+//    tagPat = static new RexPattern(
+//        '<nocase><langle><dot>'
+//        + '(agenda|remove|state|known)'        
+//        + '(<space>+(<^rangle>+))?'
+//        + '<rangle>')
+//    
     executeBeforeMe = [pronounPreinit, thingPreinit]
     
     storeAllRelevantObjects()
@@ -3267,7 +3267,7 @@ objTablePreinit: PreinitObject
      *   errors, so we set the default to nil.
      */
     
-    lookInMethods = nil
+//    lookInMethods = nil
 ;
 
 /* 
@@ -3276,44 +3276,44 @@ objTablePreinit: PreinitObject
  *   produce while preserving the value of the captured string.
  */
 
-transient testMethodOutputObj: object
-    getStringFrom(obj, prop)
-    {
-        local str;
-        savepoint();
-        /* 
-         *   create a dummy action context to avoid run-time errors in any
-         *   methods that assume one exists.
-         *
-         */
-        gAction = DoNothing;
-        gActor = gPlayerChar;
-        gCommand = new Command(gAction, gDobj, gIobj);
-               
-        try
-        {
-            /* 
-             *   Normally the default output function is initiated in an
-             *   InitObject and isn't available at PreInit, but we need to make
-             *   it temporarily available here.
-             */
-            t3SetSay(say);
-            str = mainOutputStream.captureOutput({: obj.(prop)});               
-        }
-        catch(Exception ex)
-        {
-            #ifdef __DEBUG
-            ex.displayException;
-            #endif
-        }
-        finally
-        {
-            undo();
-            return str;
-        }
-    }
-    
-;
+//transient testMethodOutputObj: object
+//    getStringFrom(obj, prop)
+//    {
+//        local str;
+//        savepoint();
+//        /* 
+//         *   create a dummy action context to avoid run-time errors in any
+//         *   methods that assume one exists.
+//         *
+//         */
+//        gAction = DoNothing;
+//        gActor = gPlayerChar;
+//        gCommand = new Command(gAction, gDobj, gIobj);
+//               
+//        try
+//        {
+//            /* 
+//             *   Normally the default output function is initiated in an
+//             *   InitObject and isn't available at PreInit, but we need to make
+//             *   it temporarily available here.
+//             */
+//            t3SetSay(say);
+//            str = mainOutputStream.captureOutput({: obj.(prop)});               
+//        }
+//        catch(Exception ex)
+//        {
+//            #ifdef __DEBUG
+//            ex.displayException;
+//            #endif
+//        }
+//        finally
+//        {
+//            undo();
+//            return str;
+//        }
+//    }
+//    
+//;
 
 /* 
  *   This is kludge of last resort that game authors can use to get objects into
@@ -3326,24 +3326,24 @@ transient testMethodOutputObj: object
  *   be stored, e.g. ['redBall', 'bobStackingCansState', 'botherAgenda' ]
  */
 
-extraObjPreinit: PreinitObject
-    execute()
-    {
-        local gtab = t3GetGlobalSymbols();
-        local val;
-        foreach(local key in valToList(extraObjList))
-        {
-            val = gtab[key];
-            if(val != nil)
-                conversationManager.objNameTab[key] = val;
-        }
-                
-    
-    }
-    executeBeforeMe = [objTablePreinit]
-    
-    extraObjList = []
-;
+//extraObjPreinit: PreinitObject
+//    execute()
+//    {
+//        local gtab = t3GetGlobalSymbols();
+//        local val;
+//        foreach(local key in valToList(extraObjList))
+//        {
+//            val = gtab[key];
+//            if(val != nil)
+//                conversationManager.objNameTab[key] = val;
+//        }
+//                
+//    
+//    }
+//    executeBeforeMe = [objTablePreinit]
+//    
+//    extraObjList = []
+//;
 
 
  /* 
