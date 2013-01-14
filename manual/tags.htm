@@ -18,34 +18,9 @@ String Tags and Object Tags
 
 <p>You may have noticed that with some of the conversation tags, such as &lt;.reveal val&gt;, &lt;.inform val&gt;, &lt;.convnode val&gt;, &lt;.arouse val&gt;, &lt;.suggest val&gt; and &lt;.sugkey val&gt;, <em>val</em> represents a string value, while in others, such as &lt;.agenda val&gt;, &lt;.remove val&gt;, &lt;.state val&gt; and &lt;.known val&gt;, <em>val</em> is an object name. If so you may be wondering how the <em>val</em> parameter can be sometimes a string value and sometimes an object name in such seemingly similar contexts.</p>
 
-<p>The answer is that in reality it's always a string value. Where a tag requires val to be an object name it then has to find some means of converting the string to an object. It does this via a table defined on conversationManager.objNameTab which it uses to translates the strings to objects (by looking up the value of objNameTab[val], where <em>val</em> is the string in question). The practical importance of this is that the library uses one of two methods to populate the objNameTab, and which is uses is controlled by the value of <strong>gameMain.storeWholeObjectTable</strong>, and you may need to decide which you want to use: the economical method or the comprehensive method.</p>
+<p>The answer is that in reality it's always a string value. Where a tag requires val to be an object name it then has to find some means of converting the string to an object. It does this via a table defined on conversationManager.objNameTab which it uses to translates the strings to objects (by looking up the value of objNameTab[val], where <em>val</em> is the string in question).</p>
 
-<p>The comprehensive method is employed if gameMain.storeWholeObjectTable is set to true (the default). In this case a reference to every Mentionable (Thing and Topic), AgendaItem and ActorState is stored in the objNameTab, which means that the various conversation tags that might refer to them are guaranteed to work. This is fine, but may be quite wasteful of space if your game doesn't make much use of these tags.</p>
-
-<p>The economical method is employed if gameMain.storeWholeObjectTable is set to nil. In this case the library preInit looks inside the topicResponse strings and/or eventList strings of every TopicEntry, and the invokeItem() method of every AgendaItem, in attempt to look for all the &lt;.agenda val&gt;, &lt;.remove val&gt;, &lt;.state val&gt; and &lt;.known val&gt; used and store a reference to their val arguments in the objNameTab. If objTablePreinit.lookInMethods is set to true (the default is nil, because this is safer) then the library preInit will look at methods as well as strings to try to find the appropriate tags; this is more comprehensive but may result in run-time errors when methods are executed out of context. Even then it's not guaranteed to pick up every single object that needs to be stored, particularly if you use one of these tags outside a TopicEntry or AgendaItem. </p>
-
-<p>The upshot is that if you're using the economical method and you find these tags aren't always working quite as you suspect (and the game will warn you if you try to use a <em>val</em> in any of them that doesn't refer to an object it recognizes, provided you've compiled for debugging), you may need to take one of the three following steps:</p>
-
-<ol>
-<li>Switch to the comprehensive method by setting gameMain.storeWholeObjectTable to true. This is probably the most convenient method, provided you're happy that it doesn't bloat your compiled game file too much. Alternatively,</li>
-<li>Add the string version of the object names the economical method isn't picking up to extraObjPreinit.extraObjList, e.g.;
- <p><div class="code"><pre>
-  modify extraObjPreinit
-    extraObjList = ['redBall', 'bobStackingCansState', 'botherAgenda' ]
-  ;</pre></div>
-</li>
-<li>Replace all the object-using tags with their equivalent methods:
-<ul>
-<li>&lt;.known obj&gt; = gSetKnown(obj)</li>
-<li>&lt;.agenda obj&gt; = addToAllAgendas(obj) [on the appropriate actor object]</li>
-<li>&lt;.remove obj&gt; = removeFromAllAgendas(obj) [on the appropriate actor object]</li>
-<li>&lt;.state obj&gt; = setState(obj) [on the appropriate actor object]</li>
-</ul>
-</li>
-</ol>
-<p>Hopefully, though, everything will work just fine and you won't have to worry. This advice is provided just in case it doesn't.</p>
-
-<p>Note that the economical method may be removed from a future version of adv3Lite if there doesn't seem to be much demand for it, since it may turn out to be more trouble than it's worth.</p>
+<p>Earlier versions of adv3Lite offered a choice of two methods for building this table, but the supposedly 'economical' option turned out to be not that economical and not very reliable, and so was withdrawn. Provided actor.t is included in the build, the library now just stores an entry in the table for every instance of every class that could be used in an object tag (i.e. Mentionables, AgendaItems and ActorStates.</p>
 
 </div>
 <hr class="navb"><div class="navb">
