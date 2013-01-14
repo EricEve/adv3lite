@@ -177,7 +177,18 @@ class Doer: object
     
     redirect(curCmd, altAction, dobj:?, iobj:?)
     {
-        gAction = altAction.createInstance();
+        if(!curCmd.action.ofKind(altAction))
+        {
+            /* 
+             *   If we're changing the action in mid-sequence, allow the
+             *   previous action to report what it's done up to now before
+             *   switching actions
+             */
+            curCmd.action.reportAction();
+            
+            /*   Then create the new action */
+            gAction = altAction.createInstance();
+        }
                 
         if(dobj != nil)
         {

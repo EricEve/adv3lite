@@ -4797,20 +4797,32 @@ removeDoer: Doer 'remove Thing'
     }    
 ;
 
-putOnGroundDoer: Doer 'put Thing on Floor'
+putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
     execAction(c)
     {
+        /* 
+         *   The player has asked to put something on the ground, so we should
+         *   override the actor's location's dropLocation on this occasion to
+         *   ensure that that's where the dropped object indeed ends up
+         */
+        
         local oldDropLocation;
         local oldLocation;
         try
         {
+            /* Note the original dropLocation */
             oldLocation = gActor.location;
             oldDropLocation = oldLocation.dropLocation;
+            
+            /* Change the dropLocation to the Room */
             oldLocation.dropLocation = gActor.getOutermostRoom;
+            
+            /* redirect the action to Drop */
             redirect(c, Drop, dobj: c.dobj);
         }
         finally
         {
+            /* Restore the original dropLocation */
             oldLocation.dropLocation = oldDropLocation;
         }
     }

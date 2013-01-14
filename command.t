@@ -298,6 +298,8 @@ class Command: object
     
     afterReports = []
     
+    
+    
     /* 
      *   Run through our list of afterReports displaying each in turn. We do
      *   this on the Command rather than on any of the Actions since actions may
