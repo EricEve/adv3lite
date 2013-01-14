@@ -4800,7 +4800,19 @@ removeDoer: Doer 'remove Thing'
 putOnGroundDoer: Doer 'put Thing on Floor'
     execAction(c)
     {
-        redirect(c, Drop, dobj: c.dobj);
+        local oldDropLocation;
+        local oldLocation;
+        try
+        {
+            oldLocation = gActor.location;
+            oldDropLocation = oldLocation.dropLocation;
+            oldLocation.dropLocation = gActor.getOutermostRoom;
+            redirect(c, Drop, dobj: c.dobj);
+        }
+        finally
+        {
+            oldLocation.dropLocation = oldDropLocation;
+        }
     }
 ;
 
