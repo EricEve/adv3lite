@@ -543,23 +543,7 @@ class GameMainDef: object
     beforeRunsBeforeCheck = nil
     
     usePastTense = nil
-    
-    /* 
-     *   This value only takes effect if actor.t is included in the build. If it
-     *   is true it then has the effect of causing symbolic references to all
-     *   relevant objects (Mentionables, ActorStates and AgendaItems) to be
-     *   stored in conversationManager's object name table for use in various
-     *   tags (<.agenda >, <.remove >, <.state  > and <.known >). This ensures
-     *   that these tags will always work (i.e. that they will be able to
-     *   reference any relevant game object). If this is set at nil the
-     *   conversation manager preInit instead tries to harvest all the objects
-     *   it finds in these tags in TopicEntry topicResponse and AgendaItem
-     *   invokeItem methods, which will result in a (possibly much) smaller
-     *   table being stored, and is therefore more economical, but may be less
-     *   reliable. The default value is true, which is safer.
-     */
-    
-    storeWholeObjectTable = true
+        
 ;
 
 /*
