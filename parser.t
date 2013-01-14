@@ -2188,11 +2188,15 @@ class NounPhrase: object
              *   in the list.
              */
             
-            /* start by getting object rankings from the verb */
-            cmd.action.scoreObjects(cmd, role, matches);
-            
-            /* sort by score (highest to lowest) */
-            matches.sort(SortDesc, { a, b: a.score - b.score });
+            if(role != ActorRole)
+            {
+                /* start by getting object rankings from the verb */
+                cmd.action.scoreObjects(cmd, role, matches);
+                
+                /* sort by score (highest to lowest), except for the ActorRole */
+                if(role != ActorRole)
+                    matches.sort(SortDesc, { a, b: a.score - b.score });
+            }
             
             if (matches.length() > num)
                 matches.removeRange(num + 1, matches.length());

@@ -6859,6 +6859,9 @@ class Floor: MultiLoc, Decoration
     isInitiallyIn(obj) { return obj.floorObj == self; }
     contents = (gActor.getOutermostRoom().contents - self)
     
+    decorationActions = [Examine, TakeFrom]
+    
+    
     /* 
      *   By default we probably want to keep the description of a Floor object
      *   as minimalistic as possible to discourage players from trying to
