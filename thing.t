@@ -6876,7 +6876,7 @@ class Floor: MultiLoc, Decoration
     initialLocationClass = Room
     contType = On
     isInitiallyIn(obj) { return obj.floorObj == self; }
-    contents = (gActor.getOutermostRoom().contents - self)
+    contents = (gActor.outermostVisibleParent().contents - self)
     
     decorationActions = [Examine, TakeFrom]
     
@@ -6889,6 +6889,8 @@ class Floor: MultiLoc, Decoration
      */
     
     contentsListed = nil
+    
+    decorationActions = [Examine, TakeFrom]
 ;
 
 defaultGround: Floor

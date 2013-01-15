@@ -287,7 +287,7 @@ touchObj: PreCondition
         
         while(loc != gActor.getOutermostRoom)
         {
-            if(!obj.isIn(loc) && !loc.allowReachOut(obj))
+            if(!obj.isOrIsIn(loc) && !loc.allowReachOut(obj))
             {
                 if(allowImplicit && loc.autoGetOutToReach 
                    && tryImplicitAction(GetOutOf, loc))

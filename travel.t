@@ -275,6 +275,14 @@ class Room: TravelConnector, Thing
         
         foreach(local reg in valToList(regions))
             reg.addExtraScopeItems(action);
+        
+        /* 
+         *   by default we'll also add our floor object to scope if we have one
+         *   and it isn't already in scope
+         */
+        
+        if(floorObj != nil)
+            action.scopeList = action.scopeList.appendUnique([floorObj]);
     }
     
     extraScopeItems = []
