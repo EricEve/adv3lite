@@ -47,4 +47,26 @@ Debug: Action
     }
 ;
 
+/* DEBUG without any options simply breaks into the debugger, as in adv3 */
+
+DefineSystemAction(DebugI)
+    execAction(cmd)
+    {
+        /* if the debugger is present, break into it */
+        if (t3DebugTrace(T3DebugCheck))
+            t3DebugTrace(T3DebugBreak);
+        else
+            DMsg(debugger not present, 'Debugger not present. ');
+    }
+;
+
+VerbRule(DebugI)
+    'debug' 
+    : VerbProduction
+    action = DebugI
+    verbPhrase = 'debug/debugging'
+    missingQ = 'which debug option do you want to set'
+;
+
+
 #endif
