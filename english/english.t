@@ -4828,6 +4828,17 @@ putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
     }
 ;
 
+getOnGroundDoer: Doer 'stand on Floor; get on Floor'
+    execAction(c)
+    {
+        if(gPlayerChar.location.ofKind(Room))
+            "{I} {am} standing on {the dobj}. ";
+        else
+            redirect(c, GetOut);    
+    }
+;
+
+
 takePathDoer: Doer 'take PathPassage'
     execAction(c)
     {
