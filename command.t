@@ -185,6 +185,7 @@ class Command: object
         {
             action.reset();
             gAction = action;
+            lastAction = nil;
             gCommand = self;
             if(action.isRepeatable)
                 libGlobal.lastCommand = self.createClone();
@@ -267,6 +268,17 @@ class Command: object
             
             action.reportAction();        
             
+            /* 
+             *   This is a kludgy fix to force a report of a redirected action,
+             *   but a better solution is needed long-term
+             */
+            if(lastAction not in (nil, action))
+            {
+                action = lastAction;
+                action.reportAction();
+//                gAction = action;
+            }
+            
             /* List our own sequence of afterReports, if we have any. */
             afterReport();
             
@@ -278,6 +290,8 @@ class Command: object
              *   increment) for the current action.
              */
             action.turnSequence();
+            
+           
         }
         catch(AbortActionSignal aas)
         {
@@ -1018,6 +1032,9 @@ class Command: object
     /* the Action object giving the action to be performed */
     action = nil
 
+    /* the Previous action performed by this command */
+    lastAction = nil
+    
     /* the VerbProduction object for the command */
     verbProd = nil
 

@@ -177,17 +177,36 @@ class Doer: object
     
     redirect(curCmd, altAction, dobj:?, iobj:?)
     {
-        if(!curCmd.action.ofKind(altAction))
+        
+        local oldAction = curCmd.action;
+        local oldIobj = curCmd.iobj;
+        
+        if(!curCmd.action.ofKind(altAction) &&
+           !(curCmd.lastAction && curCmd.lastAction.ofKind(altAction)))
         {
             /* 
              *   If we're changing the action in mid-sequence, allow the
              *   previous action to report what it's done up to now before
              *   switching actions
              */
-            curCmd.action.reportAction();
+            
+            if(curCmd.action.reportList.length > 0)
+            {
+                curCmd.action.reportAction();
+                "\n";
+                
+                /* 
+                 *   empty the reportList so we don't see the same items a
+                 *   second time.
+                 */
+                curCmd.action.reportList = [];
+            }
             
             /*   Then create the new action */
             gAction = altAction.createInstance();
+            
+            /*   Tell the new action what it's been redirected from */
+            gAction.redirectParent = curCmd.action;
         }
                 
         if(dobj != nil)
@@ -207,7 +226,22 @@ class Doer: object
             gAction.curIobj = curCmd.iobj;
         
         curCmd.action = gAction;
-        gAction.exec(curCmd);
+        
+        try
+        {
+            gAction.exec(curCmd);
+        }
+        finally
+        {
+            /* 
+             *   restore the previous values in case this command has any
+             *   further direct objects to process
+             */
+            curCmd.lastAction = gAction;
+            curCmd.action = oldAction;
+            curCmd.iobj = oldIobj;
+            
+        }
     }
 
     /* 

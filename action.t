@@ -623,6 +623,14 @@ class Action: object
      *   no cases are missed.
      */
     allowAll = (gameMain.allVerbsAllowAll)
+    
+    /* 
+     *   If we've been redirected here from another action, store a reference to
+     *   that action.
+     */
+    redirectParent = nil
+    
+    parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)
 ;
 
 
@@ -995,7 +1003,7 @@ class TAction: Action
     curObj = nil
     
     /* 
-     *   Resest values to their starting state when an action is used to execute
+     *   Reset values to their starting state when an action is used to execute
      *   a new command.
      */
     
@@ -1009,6 +1017,7 @@ class TAction: Action
         curDobj = nil;
         curObj = nil;
         lastVerifyMsg = nil;
+        redirectParent = nil;
     }
     
     /* 
@@ -1027,7 +1036,7 @@ class TAction: Action
          *   among the command tokens.
          */
         
-        if(cmd.matchedAll && !allowAll && mentionsAll(cmd))
+        if(cmd.matchedAll && !(allowAll || parentAllowAll) && mentionsAll(cmd))
         {
             DMsg(all not allowed, 'Sorry; ALL is not allowed with this command.
                 ');
