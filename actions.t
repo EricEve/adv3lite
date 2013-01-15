@@ -1309,16 +1309,19 @@ class MiscConvAction: IAction
 ;
 
 SayYes: MiscConvAction
+    baseActionClass = SayYes
     responseProp = &miscTopics
     topicObj = yesTopicObj
 ;
 
 SayNo: MiscConvAction
+    baseActionClass = SayNo
     responseProp = &miscTopics
     topicObj = noTopicObj
 ;
 
 QueryVague: MiscConvAction
+    baseActionClass = QueryVague
     execAction(cmd)
     {
         qType = cmd.verbProd.qtype;
@@ -1330,6 +1333,8 @@ QueryVague: MiscConvAction
 ;
 
 Goodbye: IAction
+    baseActionClass = Goodbye
+    
     execAction(cmd)
     {
         curObj = gPlayerChar.currentInterlocutor;
@@ -1347,6 +1352,8 @@ Goodbye: IAction
 ;
 
 Hello: IAction
+    baseActionClass = Hello
+    
     execAction(cmd)
     {
         /* first build the scope list so we know which actors are in scope */
@@ -1442,6 +1449,10 @@ DefineTopicTAction(QueryAbout)
     }
     qType = nil
     
+    #ifdef __DEBUG    
+    iqinfo = (gCommand.verbProd.qtype)
+    #endif
+    
 ;
 
 DefineTopicTAction(SayTo)
@@ -1468,6 +1479,8 @@ DefineTIAction(ShowTo)
 ;
 
 ThinkAbout: TopicAction
+    baseActionClass = ThinkAbout
+    
     execAction(cmd)
     {
         if(libGlobal.thoughtManagerObj != nil)
@@ -1553,18 +1566,22 @@ class ImplicitConversationAction: TopicAction
 //;
         
 AskAboutImplicit: ImplicitConversationAction
+    baseActionClass = AskAboutImplicit
     topicListProperty = &askTopics
 ;
 
 TellAboutImplicit: ImplicitConversationAction
+    baseActionClass = TellAboutImplicit
     topicListProperty = &tellTopics
 ;
 
 TalkAboutImplicit: ImplicitConversationAction
+    baseActionClass = TalkAboutImplicit
     topicListProperty = &talkTopics
 ;
 
 Query: ImplicitConversationAction
+    baseActionClass = Query
     execAction(cmd)
     {
         qType = cmd.verbProd.qtype;
@@ -1573,9 +1590,14 @@ Query: ImplicitConversationAction
     }
     qType = nil
     topicListProperty = &queryTopics
+    
+    #ifdef __DEBUG
+    dqinfo = (gCommand.verbProd.qtype)
+    #endif
 ;
 
 SayAction: ImplicitConversationAction
+    baseActionClass = SayAction
     topicListProperty = &sayTopics
 ;
 

@@ -456,8 +456,8 @@ dictionary property noun, nounApostS;
  */
 
 #define DefineAction(name, baseClass...) \
-    name: ##baseClass 
-
+    name: ##baseClass \
+    baseActionClass = name
 
 /*
  *   Define a "system" action.  System actions are meta-game commands, such

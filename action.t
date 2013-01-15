@@ -51,7 +51,7 @@ class Action: object
      *   the command object; the cmd parameter gives the calling Command object.
      */
     exec(cmd)
-    {
+    {                
         
         /* Resest actionFailed to nil */
         actionFailed = nil;
@@ -89,6 +89,13 @@ class Action: object
     {
         try
         {            
+            IfDebug(actions, 
+                    "[Executing <<actionTab.symbolToVal(baseActionClass)>> 
+                    << if cmd.dobj != nil>> : <i><<dqinfo>></i>
+                    <<cmd.dobj.name>><<end>>
+                    << if cmd.iobj != nil>> : <i><<iqinfo>></i>
+                    <<cmd.iobj.name>><<end>> ]" );
+            
             /* Carry out the before action notifications. */
             beforeAction();
             
@@ -678,7 +685,10 @@ class SystemAction: Action
     execCycle(cmd)
     {
         try
-        {            
+        {           
+            IfDebug(actions, 
+                    "[Executing <<actionTab.symbolToVal(baseActionClass)>> ]" );
+            
             execAction(cmd);
             
             if(isRepeatable)
@@ -722,6 +732,8 @@ class IAction: Action
 
 class TravelAction: Action
     
+    baseActionClass = TravelAction
+    
     /* 
      *   Use the inherited handling but first make a note of the direction the
      *   actor wants to travel in.
@@ -734,6 +746,10 @@ class TravelAction: Action
          */
         if(!predefinedDirection)
            direction = cmd.verbProd.dirMatch.dir; 
+        
+        IfDebug(actions, 
+                    "[Executing <<actionTab.symbolToVal(baseActionClass)>> 
+                    <<direction.name>>]" );
         
         /* Carry out the inherited handling. */
         inherited(cmd);
@@ -1020,6 +1036,16 @@ class TAction: Action
         redirectParent = nil;
     }
     
+    
+    /* 
+     *   Information to allow the DEBUG ACTIONS command to express a complete
+     *   topic phrase
+     */
+    #ifdef __DEBUG
+    dqinfo = ''
+    iqinfo = ''
+    #endif
+    
     /* 
      *   Execute the command cycle for this action. This differs from the base
      *   Action class in not calling beforeAction directly, since the
@@ -1027,8 +1053,15 @@ class TAction: Action
      *   method.
      */
     
+    
     execCycle(cmd)
     {
+        
+        IfDebug(actions, 
+                "[Executing <<actionTab.symbolToVal(baseActionClass)>> :
+                    <<dqinfo>> <<cmd.dobj.name>> <<if cmd.iobj != nil>>
+                    : <i><<iqinfo>></i> <<cmd.iobj.name>> <<end>>]\n" );
+        
         /* 
          *   Disallow ALL (e.g. EXAMINE ALL) if the action does not permit it.
          *   Since we don't want to block plural matches (for which

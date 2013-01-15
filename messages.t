@@ -278,26 +278,29 @@ buildMessage(id, txt, [args])
 #ifdef __DEBUG
 debugMessage(id, txt, cm, args)
 {
-    "\nmessage(id=<<id>>, default text='<<txt>>', ";
+    if(id is in (nil,''))
+        return;
+    
+    oSay('\nmessage(id=<<id>>, default text=\'<<txt>>\' ');
     if (cm != nil)
-        "custom text='<<cm.msgTab[id]>>'";
+        oSay('custom text=\'<<cm.msgTab[id]>>\'');
 
     if (args.length() != 0)
     {
-        ", args={ ";
+        oSay(', args={ ');
         for (local i = 1 ; i <= args.length() ; ++i)
         {
             local a = args[i];
             if (a > 1)
-                ", ";
+                oSay(', ');
             if (dataType(a) == TypeSString)
-                "'<<args[i]>>'";
+                oSay(''''<<args[i]>>'''');
             else
-                "object(name=<<a.name>>)";
+                oSay('object(name=<<a.name>>)');
         }
-        " }";
+        oSay(' }');
     }
-    "\n";
+    oSay(')\n');
 }
 #endif
 

@@ -40,9 +40,32 @@ VerbRule(Debug)
     missingQ = 'which debug option do you want to set'
 ;
 
-Debug: Action
-    exec(cmd)
+DefineSystemAction(Debug)
+    execAction(cmd)
     {
+        gLiteral = cmd.dobj.name.toLower;
+        switch(gLiteral)
+        {
+        case 'messages':
+        case 'spelling':
+        case 'actions':
+            DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
+            /* Deliberately omit break to allow fallthrough */
+        case 'status':
+            DebugCtl.status();
+            break;
+        case 'off':
+        case 'stop':    
+            foreach(local opt in DebugCtl.all)
+                DebugCtl.enabled[opt] = nil;
+            DebugCtl.status();
+            break;
+        default:
+            "That is not a valid option. The valid DEBUG options are DEBUG
+            MESSAGES, DEBUG SPELLING and DEBUG ACTIONS (not yet implemented),
+            DEBUG OFF or DEBUG STOP (to turn off all options) or
+            just DEBUG by itself to break into the debugger. ";
+        }
         
     }
 ;
@@ -68,5 +91,22 @@ VerbRule(DebugI)
     missingQ = 'which debug option do you want to set'
 ;
 
+actionTab: PreinitObject
+    symbolToVal(val)
+    {
+        return ctab[val];        
+    }
+    
+    ctab = [* -> '???']
+        
+    execute()
+    {
+        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+        {
+            if(dataType(value) == TypeObject && value.ofKind(Action))
+                ctab[value] = key;
+        });
+    }
+;
 
 #endif
