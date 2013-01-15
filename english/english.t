@@ -4748,6 +4748,7 @@ class LCommandTopicHelper: object
          *
          */
         local txt = '';
+        
         local verb = myAction.verbRule.verbPhrase.split('/')[1];
         foreach(local cur in myAction.grammarTemplates)
         {
@@ -4756,13 +4757,26 @@ class LCommandTopicHelper: object
         }
         
         
-        if(myAction.curDobj != nil)
-          txt = txt.findReplace('(dobj)', myAction.curDobj.theName);
+        if(myAction.curDobj != nil)            
+            txt = txt.findReplace('(dobj)', getName(myAction.curDobj));
+           
         
-        if(myAction.curIobj != nil)            
-          txt = txt.findReplace('(iobj)', myAction.curIobj.theName);
+        if(myAction.curIobj != nil)        
+            txt = txt.findReplace('(iobj)', getName(myAction.curIobj));
+        
         
         return txt;
+    }
+    
+    getName(obj)
+    {
+        if(obj == gPlayerChar)
+            return 'me';
+        
+        if(obj == gActor)
+            return gActor.plural ? 'yourselves' : 'yourself';
+        
+        return obj.theName;   
     }
 ;
     
