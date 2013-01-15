@@ -175,73 +175,22 @@ class Doer: object
      *   command to a new action with the same (or new) objects.
      */
     
-    redirect(curCmd, altAction, dobj:?, iobj:?)
+    redirect(curCmd, altAction, dobj: = 0, iobj: = 0)
     {
         
-        local oldAction = curCmd.action;
-        local oldIobj = curCmd.iobj;
+        /* 
+         *   We use a default value of 0 for the dobj and iobj parameters to
+         *   mean 'keep the current value' so that we can explicitly pass nil
+         *   values if we want to.
+         */
+             
+        dobj = dobj == 0 ? curCmd.dobj : dobj;
+        iobj = iobj == 0 ? curCmd.iobj : iobj;
         
-        if(!curCmd.action.ofKind(altAction) &&
-           !(curCmd.lastAction && curCmd.lastAction.ofKind(altAction)))
-        {
-            /* 
-             *   If we're changing the action in mid-sequence, allow the
-             *   previous action to report what it's done up to now before
-             *   switching actions
-             */
-            
-            if(curCmd.action.reportList.length > 0)
-            {
-                curCmd.action.reportAction();
-                "\n";
+        curCmd.changeAction(altAction, dobj, iobj);
                 
-                /* 
-                 *   empty the reportList so we don't see the same items a
-                 *   second time.
-                 */
-                curCmd.action.reportList = [];
-            }
-            
-            /*   Then create the new action */
-            gAction = altAction.createInstance();
-            
-            /*   Tell the new action what it's been redirected from */
-            gAction.redirectParent = curCmd.action;
-        }
-                
-        if(dobj != nil)
-        {
-            gAction.curDobj = dobj;
-            curCmd.dobj = dobj;
-        }
-        else
-            gAction.curDobj = curCmd.dobj;
-            
-        if(iobj != nil)
-        {
-            gAction.curIobj = iobj;
-            curCmd.iobj = iobj;
-        }
-        else
-            gAction.curIobj = curCmd.iobj;
-        
-        curCmd.action = gAction;
-        
-        try
-        {
-            gAction.exec(curCmd);
-        }
-        finally
-        {
-            /* 
-             *   restore the previous values in case this command has any
-             *   further direct objects to process
-             */
-            curCmd.lastAction = gAction;
-            curCmd.action = oldAction;
-            curCmd.iobj = oldIobj;
-            
-        }
+        gAction.exec(curCmd);
+
     }
 
     /* 

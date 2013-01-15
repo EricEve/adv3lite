@@ -185,8 +185,11 @@ class Command: object
         {
             action.reset();
             gAction = action;
+            originalAction = action;
             lastAction = nil;
             gCommand = self;
+            actions = [];
+            
             if(action.isRepeatable)
                 libGlobal.lastCommand = self.createClone();
             
@@ -264,20 +267,24 @@ class Command: object
                 execCombos(predRoles, 1, [action]);
             }
             
-            /* Allow the action to summarize or report on what it has just done */
+            /* 
+             *   Let every action that has been involved in this Command
+             *   summarize or report on what it has just done.
+             */
+
             
-            action.reportAction();        
+            foreach(local a in actions)
+            {
+                action = a;
+                action.reportAction();
+            }
             
             /* 
-             *   This is a kludgy fix to force a report of a redirected action,
-             *   but a better solution is needed long-term
+             *   Reset the action to the original one, if it has been executed,
+             *   or else to the first one actually executed.
              */
-            if(lastAction not in (nil, action))
-            {
-                action = lastAction;
-                action.reportAction();
-//                gAction = action;
-            }
+            
+            action = actions.indexOf(originalAction) ? originalAction : actions[1];
             
             /* List our own sequence of afterReports, if we have any. */
             afterReport();
@@ -304,6 +311,15 @@ class Command: object
              */
         }
     }
+    
+    /*  A list of actions executed directly by this command or via a Doer */
+    actions = []
+
+    /*  
+     *   The originalAction this Command started out with, which may be changed
+     *   by a Doer (or some other mechanism)
+     */
+    originalAction = nil
     
      /*   
      *   A list of strings containing reports to be displayed at the end of the
@@ -397,7 +413,20 @@ class Command: object
         catch (ExitSignal ex)
         {
         }
+        
+        finally
+        {
+            /* 
+             *   If the action isn't one this Command haa executed before while
+             *   iterating over its list of objects, note that we've now
+             *   executed it
+             */
+            if(actions.indexOf(action) == nil)
+                actions += action;
             
+            /*  Restore the original action */
+            action = originalAction;
+        }
     }
 
     /*
@@ -414,6 +443,25 @@ class Command: object
         
     }
     
+    /* Change the action to a new action with a new set of objects */
+    changeAction(newAct, newDo, newIo)
+    {
+        action = newAct;
+        
+        /* 
+         *   If we haven't used this action before while executing this command,
+         *   reset it.
+         */
+        if(actions.indexOf(action) == nil)
+            action.reset();
+        
+        dobj = newDo;
+        iobj = newIo;
+        action.curDobj = newDo;
+        action.curIobj = newIo;
+        gAction = action;
+        gAction.redirectParent = originalAction;
+    }
   
     /*
      *   Invoke a callback for each object in the current command
