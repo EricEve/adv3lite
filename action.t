@@ -1379,15 +1379,23 @@ class TAction: Action
                 announceObject(obj);
             
             /* 
-             *   If we're an implicit action ddd a failed implicit action report
+             *   If we're an implicit action add a failed implicit action report
              *   ('trying to...').
              */
             if(isImplicit)
                 "<<buildImplicitActionAnnouncement(nil)>>";
             
-            /* Display the failure message */
-            say(verMsg);
-            "\n";
+            /* 
+             *   Display the failure message, unless it's identical to the
+             *   previous one.
+             */
+            
+            if(verMsg != lastVerifyMsg || announceMultiVerify)
+            {
+                say(verMsg);
+                "\n";
+                lastVerifyMsg = verMsg;
+            }
             
             /* Note that this action has failed. */
             actionFailed = true;
