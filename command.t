@@ -463,7 +463,7 @@ class Command: object
          *   the player might not otherwise know what ALL referred to.
          */
         
-        if(matchedAll)
+        if(matchedAll || matchedMulti)
             return nil;
         
         /* check all noun roles for Disambig flags */
@@ -1149,8 +1149,8 @@ class Command: object
     
     matchedAll = nil
     
-    
-   
+    /*   Does this command apply to objects matched to multiple objects? */
+    matchedMulti = nil
 ;
 
 

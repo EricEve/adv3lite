@@ -968,6 +968,12 @@ class TAction: Action
     verifyTab = nil
         
     
+    /*   
+     *   Store the last verify failure message so that if we get several
+     *   identical ones in a row, we don't keep repeating them
+     */
+    lastVerifyMsg = nil
+    
     /* 
      *   set this property to true if you want to announce the object before the
      *   action result when there's more than one object. If the action routine
@@ -1002,6 +1008,7 @@ class TAction: Action
         isImplicit = nil;
         curDobj = nil;
         curObj = nil;
+        lastVerifyMsg = nil;
     }
     
     /* 
@@ -1773,6 +1780,7 @@ class TIAction: TAction
     {
         inherited;
         curIobj = nil;
+        ioActionList = [];
     }
     
     /* execute this action. */

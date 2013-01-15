@@ -6876,6 +6876,13 @@ class Floor: MultiLoc, Decoration
     initialLocationClass = Room
     contType = On
     isInitiallyIn(obj) { return obj.floorObj == self; }
+    
+    /* 
+     *   The Floor object needs to appear to share the contents of the player
+     *   character's room (or other enclosing container) for certain purposes
+     *   (such as disambiguating by container or the TakeFrom command), but
+     *   nothing is really moved into or out of a Floor).
+     */
     contents = (gActor.outermostVisibleParent().contents - self)
     
     decorationActions = [Examine, TakeFrom]

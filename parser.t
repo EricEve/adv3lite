@@ -2207,7 +2207,7 @@ class NounPhrase: object
              *   set we've already built.  Flag the selections as plural.  
              */
             matches.forEach({ m: m.flags |= SelPlural });
-            cmd.matchedAll = true;
+            cmd.matchedMulti = true;
             break;
         }
     }
