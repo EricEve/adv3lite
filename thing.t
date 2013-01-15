@@ -6889,8 +6889,7 @@ class Floor: MultiLoc, Decoration
      */
     
     contentsListed = nil
-    
-    decorationActions = [Examine, TakeFrom]
+        
 ;
 
 defaultGround: Floor
