@@ -85,9 +85,9 @@ class SimpleAttachable: Thing
         }
         
         action()
-        {
+        {            
+            actionMoveInto(attachedTo.location);
             attachedTo = nil;
-            moveInto(location);
         }
         
         report()
@@ -115,7 +115,7 @@ class SimpleAttachable: Thing
         action()
         {
             attachedTo = nil;
-            moveInto(location);
+            actionMoveInto(gIobj.location);
         }
         
         report()

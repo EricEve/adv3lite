@@ -1180,9 +1180,10 @@ class Thing:  Mentionable
             
             /* 
              *   Recursively list the contents of each item in this object's
-             *   contents, if it has any.
+             *   contents, if it has any; but don't list recursively for an
+             *   object that's just been opened.
              */
-            if(obj.contents.length > 0)
+            if(obj.contents.length > 0 && lister != openingContentsLister)
                 listSubcontentsOf(obj.contents, lister);          
             
             
@@ -3267,10 +3268,10 @@ class Thing:  Mentionable
             if(!isDirectlyIn(gActor))
                 illogicalNow(notHoldingMsg);
             
-            if(isFixed)
+            else if(isFixed)
                 illogical(partOfYouMsg);
             
-            if(!isDroppable)
+            else if(!isDroppable)
                 illogical(cannotDropMsg);
             
             logical;
@@ -4421,7 +4422,7 @@ class Thing:  Mentionable
     }
     
     notLockableMsg = BMsg(not lockable, '{The subj dobj} {isn\'t} lockable. ')
-    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t} need a key to lock and
+    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t need} a key to lock and
         unlock {the dobj}. ')
     indirectLockableMsg = BMsg(indirect lockable,'{The dobj} {appears} to use
         some other kind of locking mechanism. ')
@@ -4674,7 +4675,7 @@ class Thing:  Mentionable
     notHoldingKeyMsg = BMsg(not holding key,'{I} {don\'t have} the right key. ')
     
     keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
-        {doesn\'t} work on {the dobj}. ', useKey_.theName)
+        {doesn\'t work} on {the dobj}. ', useKey_.theName)
     
     
     
@@ -5411,7 +5412,7 @@ class Thing:  Mentionable
     alreadyCleanMsg = BMsg(already clean, '{The subj dobj} {is} already quite
         clean enough. ')
     
-    noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {does}n\'t need cleaning.
+    noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {doesn\'t need} cleaning.
         ')
     
     cleanWithObjNeededMsg = BMsg(clean with obj needed, '{I} {need} something to
@@ -6138,6 +6139,8 @@ class Thing:  Mentionable
      */
     
     canPourOntoMe = true
+    allowPourOntoMe = nil
+    
     
     
     iobjFor(PourOnto)
@@ -6153,6 +6156,9 @@ class Thing:  Mentionable
             
             if(!canPourOntoMe)
                 illogical(cannotPourOntoMsg);
+            else if(!allowPourOntoMe)
+                implausible(shouldNotPourOntoMsg);
+           
         }
         
        
@@ -6178,6 +6184,13 @@ class Thing:  Mentionable
      */
     canPourIntoMe = (contType == In || remapIn != nil)
     
+    
+    /*   
+     *   While it's possible to pour stuff into any container, we probably don't
+     *   want to allow it on most of them
+     */
+    allowPourIntoMe = nil
+    
     iobjFor(PourInto)
     {
         preCond = [touchObj]
@@ -6191,6 +6204,8 @@ class Thing:  Mentionable
             
             if(!canPourIntoMe)
                 illogical(cannotPourIntoMsg);
+            else if(!allowPourIntoMe)
+                implausible(shouldNotPourIntoMsg);
         }
     }
     
@@ -6200,9 +6215,14 @@ class Thing:  Mentionable
     cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {the
         dobj} into {itself dobj}. ')
     cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {the
-        dobj} into {that dobj}. ')    
+        dobj} into {that dobj}. ')
     cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {the
-        dobj} onto {that dobj}. ')  
+        dobj} into {that dobj}. ')
+    shouldNotPourIntoMsg = BMsg(should not pour into, 'It{dummy}{\'s} better not
+        to pour {the dobj} into {the iobj}. ')
+    
+    shouldNotPourOntoMsg = BMsg(cannot pour onto, 'It{dummy}{\'s} better not
+        to pour {the dobj} onto {the iobj}. ')  
     
     
     isScrewable = nil

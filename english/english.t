@@ -2102,6 +2102,7 @@ englishCustomVocab: CustomVocab
         'wear/wears/wore/worn',
         'will/will/would',
         'won\'t/won\'t/would not',
+        'work/works/worked',
         'write/writes/wrote'
                 
     ]
@@ -3775,10 +3776,10 @@ englishMessageParams: MessageParams
         
 
         /* {I} is the addressee's name in subjective case */
-        [ 'i',  { ctx, params: cmdInfo(ctx, &actor, &name, vSubject) } ],
+        [ 'i',  { ctx, params: cmdInfo(ctx, &actor, &theName, vSubject) } ],
 
         /* {me} is the addressee's name in objective case */
-        [ 'me', { ctx, params: cmdInfo(ctx, &actor, &objName, vObject) } ],
+        [ 'me', { ctx, params: cmdInfo(ctx, &actor, &theObjName, vObject) } ],
 
         /* {my} is a possessive adjective for the addressee */
         [ 'my', { ctx, params: cmdInfo(ctx, &actor, &possAdj, vObject) } ],

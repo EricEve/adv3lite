@@ -367,7 +367,246 @@ class Action: object
         exit;
     }
     
+    /* 
+     *   Carry out the verification stage for this object in this role, and
+     *   carry out any remapping needed. This needs to be defined on Action
+     *   since there might be verification of the ActorRole.
+     */
+
+
+    verify(obj, role)
+    {
+        local remapResult;
+        local verifyProp;
+        local preCondProp;
+        local remapProp;
+        
+        
+        /* Clear out any previous verify results */
+        verifyTab = nil;
+        
+        /* 
+         *   Note which properties to use according to which role we're
+         *   verifying for. (No actions in the adv3Lite library currently use an
+         *   Accessory object but the possibility is included here to ease
+         *   subsequent extension).
+         */
+        
+        switch(role)
+        {
+        case DirectObject:            
+            verifyProp = verDobjProp;
+            preCondProp = preCondDobjProp;
+            remapProp = remapDobjProp;
+            break;        
+            
+        case IndirectObject:            
+            verifyProp = verIobjProp;
+            preCondProp = preCondIobjProp;
+            remapProp = remapIobjProp;
+            break;
+            
+        case AccessoryObject:
+            verifyProp = verAobjProp;
+            preCondProp = preCondAobjProp;
+            remapProp = remapAobjProp;
+            break;
+        case ActorRole:
+            verifyProp = &verifyActor;
+            remapProp = &remapActor;
+            preCondProp = &preCondActor;
+                
+        } 
+            
+        /* first check if we need to remap this action. */
+        
+        remapResult = obj.(remapProp);
+        
+        /* 
+         *   the object's remap routine can return an object or a list (if it
+         *   returns anything else we ignore it). If it returns an object use
+         *   that object in place of the one we were about to verify for the
+         *   remainder of this action. If it returns a list, the list should
+         *   contain the details of an action that is to replace the current
+         *   action, so run the remapped action instead.
+         */
+        
+        switch(dataType(remapResult))
+        {
+        case TypeObject:
+            obj = remapResult;
+            break;
+        case TypeList:
+            /* 
+             *   If the remap result is a list, then we'll need to remap the
+             *   action to another one, but we'll leave that until all the
+             *   objects have been resolved. For the purpose of verifying this
+             *   object we'll just return a standard logical verify result to
+             *   allow the remapping to proceed at a later stage.
+             */
+            
+            return new VerifyResult(100, '', true, obj);                     
+            
+             
+        default:
+            break;
+        }
+        
+        /* 
+         *   Note which object we're currently verifying in the Action's
+         *   verifyObj property so other routines can find it (particularly a
+         *   verify routine called from a preCondition).
+         */
+        verifyObj = obj;
+        curObj = obj;
+        
+        switch(role)
+        {
+            
+        case DirectObject:
+            curDobj = obj;
+            break;
+            
+        case IndirectObject:            
+            curIobj = obj;
+            break;
+            
+        case AccessoryObject:
+            curAobj = obj;
+            break;
+        }
+        /* 
+         *   if the object is a decoration then we use the catchall Default
+         *   prop, unless we're an action that bypasses it.
+         */
+        
+        if(obj.isDecoration 
+           && obj.decorationActions.indexWhich({x: self.ofKind(x)}) == nil)
+        {
+            switch(role)
+            {
+                
+            case DirectObject:
+                verifyProp =  &verifyDobjDefault;            
+                preCondProp = &preCondDobjDefault;
+                break;
+                
+            case IndirectObject:            
+                verifyProp = &verifyIobjDefault;            
+                preCondProp = &preCondIobjDefault;
+                break;
+                
+            case AccessoryObject:
+                verifyProp = &verifyAobjDefault;            
+                preCondProp = &preCondAobjDefault;
+                break;
+            }          
+        }
+
+        /* Execute the appropriate verify routine on the object */
+        obj.(verifyProp);
+        
+        /* If we don't already have a verify table, create it */
+        if(verifyTab == nil)
+            verifyTab = new LookupTable;
+        
+        /* 
+         *   If executing this verify routine didn't create an entry for this
+         *   object in the verify table, create one now with a default 'logical'
+         *   verify result.
+         */        
+        if(verifyTab.isKeyPresent(obj) == nil)
+            verifyTab[obj] = new VerifyResult(100, '', true, obj);
+        
+        
+        /* 
+         *   Next run through all the items in our precondition list and execute
+         *   their verify methods.
+         */
+        foreach(local cur in valToList(obj.(preCondProp)))
+            cur.verifyPreCondition(obj);        
+        
+        
+        /* 
+         *   Return the entry for this object in our verify table (which may
+         *   have been altered by one of the preconditions above).
+         **/
+        return verifyTab[obj];
+    }
     
+    /* 
+     *   Run the verify routine on the current object in the current role to see
+     *   whether it will allow the action. If it won't, display any pending
+     *   implicit action announcements, then display the message explaining why
+     *   the action is disallowed, and finally return nil to tell our caller to
+     *   halt the action. If the verify stage does allow the action to go ahead,
+     *   return true to tell our caller that this routine has no objection.
+     */
+    
+    verifyObjRole(obj, role)
+    {
+        local verResult;
+        local verMsg;
+        
+        /* Make sure we start with a clean new verify table */
+        verifyTab = new LookupTable;
+        
+        verResult = verify(obj, role);
+        
+        /* 
+         *   If the verify result is one that disallows the action then display
+         *   the failure message, along with any failed implicit action message.
+         */
+        if(!verResult.allowAction)
+        {
+             /* Note our failure message */
+            verMsg = verResult.errMsg;
+            
+            /* 
+             *   If this is the direct object of the command and there's more
+             *   than one, and if the option to announce objects in verify
+             *   messages is true, then announce the name of this object to make
+             *   it clear which one is being referred to.
+             */
+            if(announceMultiVerify && role == DirectObject &&
+               gCommand.dobjs.length > 1)
+                announceObject(obj);
+            
+            /* 
+             *   If we're an implicit action add a failed implicit action report
+             *   ('trying to...').
+             */
+            if(isImplicit)
+                "<<buildImplicitActionAnnouncement(nil)>>";
+            
+            /* 
+             *   Display the failure message, unless it's identical to the
+             *   previous one.
+             */
+            
+            if(verMsg != lastVerifyMsg || announceMultiVerify)
+            {
+                say(verMsg);
+                "\n";
+                lastVerifyMsg = verMsg;
+            }
+            
+            /* Note that this action has failed. */
+            actionFailed = true;
+            
+            /* 
+             *   Stop the processing of the action here by telling our caller
+             *   we've failed.
+             */
+            return nil;
+        }
+        
+        /* 
+         *   Otherwise return true to tell our caller we're not objecting to the
+         *   action.
+         */
+        return true;
+    }
     
     /* The object currently being verified */
     
@@ -1382,245 +1621,7 @@ class TAction: Action
      */
     announceMultiVerify = nil
     
-    /* 
-     *   Run the verify routine on the current object in the current role to see
-     *   whether it will allow the action. If it won't, display any pending
-     *   implicit action announcements, then display the message explaining why
-     *   the action is disallowed, and finally return nil to tell our caller to
-     *   halt the action. If the verify stage does allow the action to go ahead,
-     *   return true to tell our caller that this routine has no objection.
-     */
     
-    verifyObjRole(obj, role)
-    {
-        local verResult;
-        local verMsg;
-        
-        /* Make sure we start with a clean new verify table */
-        verifyTab = new LookupTable;
-        
-        verResult = verify(obj, role);
-        
-        /* 
-         *   If the verify result is one that disallows the action then display
-         *   the failure message, along with any failed implicit action message.
-         */
-        if(!verResult.allowAction)
-        {
-             /* Note our failure message */
-            verMsg = verResult.errMsg;
-            
-            /* 
-             *   If this is the direct object of the command and there's more
-             *   than one, and if the option to announce objects in verify
-             *   messages is true, then announce the name of this object to make
-             *   it clear which one is being referred to.
-             */
-            if(announceMultiVerify && role == DirectObject &&
-               gCommand.dobjs.length > 1)
-                announceObject(obj);
-            
-            /* 
-             *   If we're an implicit action add a failed implicit action report
-             *   ('trying to...').
-             */
-            if(isImplicit)
-                "<<buildImplicitActionAnnouncement(nil)>>";
-            
-            /* 
-             *   Display the failure message, unless it's identical to the
-             *   previous one.
-             */
-            
-            if(verMsg != lastVerifyMsg || announceMultiVerify)
-            {
-                say(verMsg);
-                "\n";
-                lastVerifyMsg = verMsg;
-            }
-            
-            /* Note that this action has failed. */
-            actionFailed = true;
-            
-            /* 
-             *   Stop the processing of the action here by telling our caller
-             *   we've failed.
-             */
-            return nil;
-        }
-        
-        /* 
-         *   Otherwise return true to tell our caller we're not objecting to the
-         *   action.
-         */
-        return true;
-    }
-    
-    /* 
-     *   Carry out the verification stage for this object in this role, and
-     *   carry out any remapping needed.
-     */
-
-
-    verify(obj, role)
-    {
-        local remapResult;
-        local verifyProp;
-        local preCondProp;
-        local remapProp;
-        
-        
-        /* Clear out any previous verify results */
-        verifyTab = nil;
-        
-        /* 
-         *   Note which properties to use according to which role we're
-         *   verifying for. (No actions in the adv3Lite library currently use an
-         *   Accessory object but the possibility is included here to ease
-         *   subsequent extension).
-         */
-        
-        switch(role)
-        {
-        case DirectObject:            
-            verifyProp = verDobjProp;
-            preCondProp = preCondDobjProp;
-            remapProp = remapDobjProp;
-            break;        
-            
-        case IndirectObject:            
-            verifyProp = verIobjProp;
-            preCondProp = preCondIobjProp;
-            remapProp = remapIobjProp;
-            break;
-            
-        case AccessoryObject:
-            verifyProp = verAobjProp;
-            preCondProp = preCondAobjProp;
-            remapProp = remapAobjProp;
-            break;
-        case ActorRole:
-            verifyProp = &verifyActor;
-            remapProp = &remapActor;
-            preCondProp = &preCondActor;
-                
-        } 
-            
-        /* first check if we need to remap this action. */
-        
-        remapResult = obj.(remapProp);
-        
-        /* 
-         *   the object's remap routine can return an object or a list (if it
-         *   returns anything else we ignore it). If it returns an object use
-         *   that object in place of the one we were about to verify for the
-         *   remainder of this action. If it returns a list, the list should
-         *   contain the details of an action that is to replace the current
-         *   action, so run the remapped action instead.
-         */
-        
-        switch(dataType(remapResult))
-        {
-        case TypeObject:
-            obj = remapResult;
-            break;
-        case TypeList:
-            /* 
-             *   If the remap result is a list, then we'll need to remap the
-             *   action to another one, but we'll leave that until all the
-             *   objects have been resolved. For the purpose of verifying this
-             *   object we'll just return a standard logical verify result to
-             *   allow the remapping to proceed at a later stage.
-             */
-            
-            return new VerifyResult(100, '', true, obj);                     
-            
-             
-        default:
-            break;
-        }
-        
-        /* 
-         *   Note which object we're currently verifying in the Action's
-         *   verifyObj property so other routines can find it (particularly a
-         *   verify routine called from a preCondition).
-         */
-        verifyObj = obj;
-        curObj = obj;
-        
-        switch(role)
-        {
-            
-        case DirectObject:
-            curDobj = obj;
-            break;
-            
-        case IndirectObject:            
-            curIobj = obj;
-            break;
-            
-        case AccessoryObject:
-            curAobj = obj;
-            break;
-        }
-        /* 
-         *   if the object is a decoration then we use the catchall Default
-         *   prop, unless we're an action that bypasses it.
-         */
-        
-        if(obj.isDecoration 
-           && obj.decorationActions.indexWhich({x: self.ofKind(x)}) == nil)
-        {
-            switch(role)
-            {
-                
-            case DirectObject:
-                verifyProp =  &verifyDobjDefault;            
-                preCondProp = &preCondDobjDefault;
-                break;
-                
-            case IndirectObject:            
-                verifyProp = &verifyIobjDefault;            
-                preCondProp = &preCondIobjDefault;
-                break;
-                
-            case AccessoryObject:
-                verifyProp = &verifyAobjDefault;            
-                preCondProp = &preCondAobjDefault;
-                break;
-            }          
-        }
-
-        /* Execute the appropriate verify routine on the object */
-        obj.(verifyProp);
-        
-        /* If we don't already have a verify table, create it */
-        if(verifyTab == nil)
-            verifyTab = new LookupTable;
-        
-        /* 
-         *   If executing this verify routine didn't create an entry for this
-         *   object in the verify table, create one now with a default 'logical'
-         *   verify result.
-         */        
-        if(verifyTab.isKeyPresent(obj) == nil)
-            verifyTab[obj] = new VerifyResult(100, '', true, obj);
-        
-        
-        /* 
-         *   Next run through all the items in our precondition list and execute
-         *   their verify methods.
-         */
-        foreach(local cur in valToList(obj.(preCondProp)))
-            cur.verifyPreCondition(obj);        
-        
-        
-        /* 
-         *   Return the entry for this object in our verify table (which may
-         *   have been altered by one of the preconditions above).
-         **/
-        return verifyTab[obj];
-    }
         
     
     /* Carry out any remapping required for this role. */
