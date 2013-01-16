@@ -2458,6 +2458,14 @@ notePronounAntecedent([objlist])
      */
     foreach(local cur in objlist)
     {
+        /* 
+         *   If we refer to a SubComponent, we're really referring to its
+         *   location
+         */
+        
+        if(cur.ofKind(SubComponent) && cur.location)
+            cur = cur.location;
+        
         if(cur.plural)
             themList += cur;
         if(cur.isHim)
