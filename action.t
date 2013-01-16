@@ -94,7 +94,7 @@ class Action: object
                     << if cmd.dobj != nil>> : <i><<dqinfo>></i>
                     <<cmd.dobj.name>><<end>>
                     << if cmd.iobj != nil>> : <i><<iqinfo>></i>
-                    <<cmd.iobj.name>><<end>> ]" );
+                    <<cmd.iobj.name>><<end>> ]\n" );
             
             /* Carry out the before action notifications. */
             beforeAction();
@@ -926,7 +926,7 @@ class SystemAction: Action
         try
         {           
             IfDebug(actions, 
-                    "[Executing <<actionTab.symbolToVal(baseActionClass)>> ]" );
+                    "[Executing <<actionTab.symbolToVal(baseActionClass)>> ]\n" );
             
             execAction(cmd);
             
@@ -988,7 +988,7 @@ class TravelAction: Action
         
         IfDebug(actions, 
                     "[Executing <<actionTab.symbolToVal(baseActionClass)>> 
-                    <<direction.name>>]" );
+                    <<direction.name>>]\n" );
         
         /* Carry out the inherited handling. */
         inherited(cmd);
