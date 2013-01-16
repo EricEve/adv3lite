@@ -230,7 +230,7 @@ class Command: object
             if (predRoles.length() == 0)
             {
                 /* it's intransitive - just execute once */
-                execDoer([action]);
+                execIter([action]);
             }
             else
             {
@@ -284,7 +284,8 @@ class Command: object
              *   or else to the first one actually executed.
              */
             
-            action = actions.indexOf(originalAction) ? originalAction : actions[1];
+            action = (actions.indexOf(originalAction) || actions.length == 0) 
+                ? originalAction : actions[1];
             
             /* List our own sequence of afterReports, if we have any. */
             afterReport();
