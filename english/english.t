@@ -520,6 +520,37 @@ class LMentionable: object
         /* clear our vocabulary word list */
         vocabWords = new Vector(10);
 
+        /* get the inherited string, if there is one */
+        
+        local inheritedStr, ipart1, ipart2, ipart3, ipart4;
+        foreach(local cls in getSuperclassList())
+        {
+            if(cls.vocab != nil)
+            {
+                inheritedStr = cls.vocab;
+                break;
+            }
+        }
+        
+        /* 
+         *   If there is an inherited string, break it down into its parts,
+         *   provided that this object also defines a vocab property directly
+         *   (so that we need to combine the two).
+         */
+        if(inheritedStr != nil && propDefined(&vocab, PropDefDirectly))
+        {
+            local iparts = inheritedStr.split(';').mapAll({x: x.trim()});
+            if(iparts.length > 0)
+                ipart1 = iparts[1];
+            if(iparts.length > 1)
+                ipart2 = iparts[2];
+            if(iparts.length > 2)
+                ipart3 = iparts[3];
+            if(iparts.length > 3)
+                ipart4 = iparts[4];
+            
+        }
+        
         /* get the initial string; we'll break it down as we work */
         local str = vocab;
 
@@ -528,6 +559,15 @@ class LMentionable: object
 
         /* the first part is the short name */
         local shortName = parts[1].trim();
+        
+        /* 
+         *   if the shortName contains a + sign and there's an appropriate
+         *   inherited part, replace the + with the inherited shortname
+         */
+        
+        if(ipart1 != nil)
+            shortName = shortName.findReplace('+', ipart1);
+        
 
         /* 
          *   if the short name is all in title case, and 'proper' isn't
@@ -652,16 +692,72 @@ class LMentionable: object
             initVocabWord(w, pos);
         }
 
+        /* Do we need to merge any inherited vocab in the second part? */
+        if(ipart2 != nil)
+        {
+            if(parts.length < 1)
+                parts += shortName;
+            if(parts.length < 2)
+            {
+                parts += ipart2;
+            }
+            else if(!parts[2].startsWith('-'))
+                parts[2] = parts[2] + ' ' + ipart2;
+        }
+        
         /* the second section is the list of adjectives */
-        if (parts.length() >= 2 && parts[2] != '')
+        if (parts.length() >= 2 && parts[2] != '') 
+        {
+            if(parts[2].startsWith('-'))
+                parts[2] = parts[2].substr(2);
+               
             parts[2].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchAdj)});
+        }
+    
+        /* Do we need to merge any inherited vocab in the third part? */
+        if(ipart3 != nil)
+        {
+            if(parts.length < 1)
+                parts += shortName;
+            if(parts.length < 2)            
+                parts += '';
+            if(parts.length < 3)
+                parts += ipart3;
+            else if(!parts[3].startsWith('-'))
+                parts[3] = parts[3] + ' ' + ipart3;
+        }
+        
 
         /* the third section is the list of nouns */
         if (parts.length() >= 3 && parts[3] != '')
             parts[3].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchNoun)});
 
+        
+        /* 
+         *   We only use the fourth inherited section if no pronouns are defined
+         *   on the object, unless they are specifically requested.
+         */
+        
+        
+        if(ipart4 != nil)
+        {
+            /* pad out the first three parts if need be */
+            
+            for(local i = parts.length; i < 3; i++)
+                parts += '';
+            
+            /* 
+             *   Then if the object doesn't define its own pronouns, use the
+             *   inherited ones.
+             */
+            if(parts.length < 4)
+                parts += ipart4;
+            else
+                parts[4] = parts[4].findReplace('+', ' ' + ipart4 + ' ');
+        }
+            
         /* the fourth section is the list of pronouns */
         if (parts.length() >= 4 && parts[4] != '')
         {
