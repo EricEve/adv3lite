@@ -731,8 +731,13 @@ class LMentionable: object
 
         /* the third section is the list of nouns */
         if (parts.length() >= 3 && parts[3] != '')
+        {
+            if(parts[3].startsWith('-'))
+                parts[3] = parts[3].substr(2);
+            
             parts[3].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchNoun)});
+        }
 
         
         /* 
