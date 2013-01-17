@@ -5744,6 +5744,9 @@ class Thing:  Mentionable
             
             if(route == nil)
                 DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+            else if(route.length == 1)
+                DMsg(destination unknown, '{I} {don\'t know} how to reach
+                    {him dobj}.' );
             else
             {
                 local dir = route[2][1];
