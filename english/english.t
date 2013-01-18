@@ -517,39 +517,12 @@ class LMentionable: object
         if (vocab == nil || vocab == '')
             return;
 
+        /* inherit any vocab from our superclasses */
+        inheritVocab();
+                
         /* clear our vocabulary word list */
         vocabWords = new Vector(10);
 
-        /* get the inherited string, if there is one */
-        
-        local inheritedStr, ipart1, ipart2, ipart3, ipart4;
-        foreach(local cls in getSuperclassList())
-        {
-            if(cls.vocab != nil)
-            {
-                inheritedStr = cls.vocab;
-                break;
-            }
-        }
-        
-        /* 
-         *   If there is an inherited string, break it down into its parts,
-         *   provided that this object also defines a vocab property directly
-         *   (so that we need to combine the two).
-         */
-        if(inheritedStr != nil && propDefined(&vocab, PropDefDirectly))
-        {
-            local iparts = inheritedStr.split(';').mapAll({x: x.trim()});
-            if(iparts.length > 0)
-                ipart1 = iparts[1];
-            if(iparts.length > 1)
-                ipart2 = iparts[2];
-            if(iparts.length > 2)
-                ipart3 = iparts[3];
-            if(iparts.length > 3)
-                ipart4 = iparts[4];
-            
-        }
         
         /* get the initial string; we'll break it down as we work */
         local str = vocab;
@@ -559,15 +532,7 @@ class LMentionable: object
 
         /* the first part is the short name */
         local shortName = parts[1].trim();
-        
-        /* 
-         *   if the shortName contains a + sign and there's an appropriate
-         *   inherited part, replace the + with the inherited shortname
-         */
-        
-        if(ipart1 != nil)
-            shortName = shortName.findReplace('+', ipart1);
-        
+ 
 
         /* 
          *   if the short name is all in title case, and 'proper' isn't
@@ -692,76 +657,23 @@ class LMentionable: object
             initVocabWord(w, pos);
         }
 
-        /* Do we need to merge any inherited vocab in the second part? */
-        if(ipart2 != nil)
-        {
-            if(parts.length < 1)
-                parts += shortName;
-            if(parts.length < 2)
-            {
-                parts += ipart2;
-            }
-            else if(!parts[2].startsWith('-'))
-                parts[2] = parts[2] + ' ' + ipart2;
-        }
         
         /* the second section is the list of adjectives */
         if (parts.length() >= 2 && parts[2] != '') 
         {
-            if(parts[2].startsWith('-'))
-                parts[2] = parts[2].substr(2);
-               
             parts[2].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchAdj)});
         }
-    
-        /* Do we need to merge any inherited vocab in the third part? */
-        if(ipart3 != nil)
-        {
-            if(parts.length < 1)
-                parts += shortName;
-            if(parts.length < 2)            
-                parts += '';
-            if(parts.length < 3)
-                parts += ipart3;
-            else if(!parts[3].startsWith('-'))
-                parts[3] = parts[3] + ' ' + ipart3;
-        }
-        
+
 
         /* the third section is the list of nouns */
         if (parts.length() >= 3 && parts[3] != '')
-        {
-            if(parts[3].startsWith('-'))
-                parts[3] = parts[3].substr(2);
-            
+        {            
             parts[3].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchNoun)});
         }
 
-        
-        /* 
-         *   We only use the fourth inherited section if no pronouns are defined
-         *   on the object, unless they are specifically requested.
-         */
-        
-        
-        if(ipart4 != nil)
-        {
-            /* pad out the first three parts if need be */
-            
-            for(local i = parts.length; i < 3; i++)
-                parts += '';
-            
-            /* 
-             *   Then if the object doesn't define its own pronouns, use the
-             *   inherited ones.
-             */
-            if(parts.length < 4)
-                parts += ipart4;
-            else
-                parts[4] = parts[4].findReplace('+', ' ' + ipart4 + ' ');
-        }
+
             
         /* the fourth section is the list of pronouns */
         if (parts.length() >= 4 && parts[4] != '')
@@ -789,6 +701,122 @@ class LMentionable: object
      */
     properNamePat = R'(<upper><^space>*)(<space>+<upper><^space>*)*'
 
+    /* 
+     *   Flag; have we inherited any vocab from our superclasses yet? If so, we
+     *   don't need to do it again.
+     */
+    vocabInherited = nil
+    
+    /*   
+     *   Inherit vocab from our superclasses according to the following scheme:
+     *.  1. A + sign in the name section will be replaced with the name from our
+     *   superclass.
+     *.  2  Unless the adjective and nouns section start with a -, any
+     *   adjectives and nouns from our superclasses vocab will be added to the
+     *   respective section.
+     *.  3  If our pronouns section is empty or contains a +, inherit pronouns
+     *   from our superclass, otherwise leave it unchanged.
+     */
+    inheritVocab()
+    {
+        /* 
+         *   If we've already inherited vocab from our superclasses, or we don't
+         *   have any vocab, there's no work to do.
+         */
+        if(vocabInherited || vocab == nil || vocab == '')            
+            return;
+        
+        
+        foreach(local cls in getSuperclassList)
+        {   
+            /* 
+             *   If the superclass doesn't have any vocab, there's nothing more
+             *   we need do with it. Otherwise Ensure that our superclasses have
+             *   inherited any vocab they need to before we try to inherit from
+             *   them.
+             */
+            
+            if(cls.vocab not in (nil, ''))        
+                cls.inheritVocab();
+        }
+        
+        /* Note that we have run this method for this object or class */
+        vocabInherited = true;
+        
+        /* 
+         *   If we don't define our own vocab property directly, there's no more
+         *   work to do; it's all been done on our parent classes. There's also
+         *   no more work to do if none of our parent classes defines any vocab.
+         */
+        if(!propDefined(&vocab, PropDefDirectly) 
+           || getSuperclassList.indexWhich({c: c.vocab not in (nil, '')}) == nil)
+            return;
+        
+        /* Our list of vocab, split into parts. */
+        local vlist = vocab.split(';').mapAll({x: x.trim()});
+        
+        /* for convenience, make sure we end up with four parts */
+        for(local i = vlist.length; i < 4; i++)
+            vlist += '';
+        
+        foreach(local cls in getSuperclassList)
+        {  
+            /* 
+             *   If this class doesn't specify any vocab, we don't need to
+             *   process it.
+             */
+            if(cls.vocab is in (nil, ''))
+                continue;
+            
+            /* The inherited vocab, split into parts */               
+            local ilist = cls.vocab.split(';').mapAll({x: x.trim()});
+            
+            /* For convenience, make sure we have four parts. */
+            for(local i = ilist.length; i < 4; i++)
+                ilist += '';
+        
+            /* Replace any + sign in the first part with the inherited name */
+            vlist[1] = vlist[1].findReplace('+', ilist[1]);
+            
+            /* 
+             *   For the second and third parts, unless they atart with - add in
+             *   the inherited adjectives and nouns.
+             */
+            
+            for(local i in 2..3)
+            {
+                if(!vlist[i].startsWith('-'))
+                    vlist[i] = vlist[i] + ' ' + ilist[i];
+            }
+            
+            /* 
+             *   For the 4th (pronoun) part, add any inherited pronouns only if
+             *   we don't have any of our own or there's a + in the pronoun part
+             */
+            
+            if((vlist[4] == '' || vlist[4].find('+') != nil) && ilist[4] != '')
+                vlist[4] = vlist[4] + ' ' + ilist[4];
+            
+        }
+        
+        /* Strip out any leading - in parts 2 and 3 */
+        for(local i in 2..3)
+        {
+            if(vlist[i].startsWith('-'))
+                vlist[i] = vlist[i].substr(2);
+        }
+        
+        /* Strip out any + in part 4 */
+        vlist[4] = vlist[4].findReplace('+', '');
+            
+        /* Join the list back into a vocab string */
+        vocab = vlist.join(';');
+    }
+    
+    
+    
+    
+    
     /* 
      *   Initialize vocabulary for one word from the 'vocab' list.  'w' is
      *   the word text, with optional part-of-speech and plural-form
