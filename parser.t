@@ -2376,10 +2376,12 @@ class NounPhrase: object
          *   remember this list, since it determines the meanings of
          *   ordinals ("the second one") in the reply 
          */
-        disambigNameList = nameList;
-
+        disambigNameList = nameList;       
+        
         /* throw the still-ambiguous error */
         throw new AmbiguousError(cmd, self, nameList);
+        
+        
     }
 
     /*
@@ -5461,14 +5463,8 @@ class AmbiguousError: ResolutionError
     display()
     {
         /* ask the language-specific ambiguous noun question */
-        askAmbiguous(cmd, np.role, nameList.mapAll({ n: n[1] }));
+        askAmbiguous(cmd, np.role, nameList.mapAll({ n: n[1] }));     
         
-        /* 
-         *   If the autoSwitchAgain option is true, switch the againRepeatsParse
-         *   option off so AGAIN doesn't trigger the same question
-         */
-        if(gameMain.autoSwitchAgain)
-            gameMain.againRepeatsParse = nil;
     }
 
     /* 

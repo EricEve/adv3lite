@@ -817,17 +817,19 @@ DefineTAction(Take)
     
     announceMultiAction = nil
     allowAll = true
+    againRepeatsParse = true
 ;
 
 DefineTAction(Drop)
    
-    announceMultiAction = nil    
+    announceMultiAction = true   
     allowAll = true
     
     getAll(cmd, role)
     {
         return scopeList.subset({ x: x.isDirectlyIn(cmd.actor) && !x.isFixed});
     }
+    againRepeatsParse = true
    
 ;
 
@@ -836,6 +838,7 @@ DefineTAction(Throw)
     {
         return scopeList.subset({ x: !x.isFixed});
     }
+    againRepeatsParse = true
 ;
 
 
@@ -846,9 +849,11 @@ DefineTAction(Strike)
 ;
 
 DefineTAction(Open)   
+    againRepeatsParse = true
 ;
 
 DefineTAction(Close)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(LookIn)   
@@ -864,71 +869,91 @@ DefineTAction(LookThrough)
 ;
 
 DefineTAction(Unlock)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Lock)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(SwitchOn)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(SwitchOff)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(Turn)    
 ;
 
 DefineTAction(Wear)   
+    againRepeatsParse = true
 ;
 
 DefineTAction(Doff)    
     allowAll = true
+    againRepeatsParse = true
 ;
 
 DefineTAction(Break)
 ;
 
 DefineTAction(Climb)    
+    againRepeatsParse = true
 ;
 
-DefineTAction(ClimbUp)    
+DefineTAction(ClimbUp)  
+    againRepeatsParse = true
 ;
 
 DefineTAction(ClimbDown)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(Board)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(StandOn)
+    againRepeatsParse = true
 ;
 
 DefineTAction(SitOn)
+    againRepeatsParse = true
 ;
 
 DefineTAction(LieOn)
+    againRepeatsParse = true
 ;
 
 
 DefineTAction(StandIn)
+    againRepeatsParse = true
 ;
 
 DefineTAction(SitIn)
+    againRepeatsParse = true
 ;
 
 DefineTAction(LieIn)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Enter)
+    againRepeatsParse = true
 ;
 
 DefineTAction(GetOff)    
+    againRepeatsParse = true
 ;
 
 DefineTAction(GetOutOf)
+    againRepeatsParse = true
 ;
     
 DefineTAction(GoThrough)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Push)
@@ -947,9 +972,11 @@ DefineTAction(Move)
 ;
     
 DefineTAction(Light)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Extinguish)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Eat)
@@ -1001,7 +1028,7 @@ DefineTIAction(MoveWith)
 ;
 
 DefineTIAction(PutOn)   
-        
+    againRepeatsParse = true    
     announceMultiAction = nil
     allowAll = true
     getAll(cmd, role)
@@ -1013,6 +1040,7 @@ DefineTIAction(PutOn)
 
 
 DefineTIAction(PutIn)      
+    againRepeatsParse = true
     announceMultiAction = nil
     allowAll = true
     
@@ -1024,7 +1052,8 @@ DefineTIAction(PutIn)
         
 ; 
 
-DefineTIAction(PutUnder)     
+DefineTIAction(PutUnder)  
+    againRepeatsParse = true
     announceMultiAction = nil
     allowAll = true
     
@@ -1036,6 +1065,7 @@ DefineTIAction(PutUnder)
 ;
 
 DefineTIAction(PutBehind)  
+    againRepeatsParse = true
     nnounceMultiAction = nil
     allowAll = true
     
@@ -1048,20 +1078,23 @@ DefineTIAction(PutBehind)
 
 
 
-DefineTIAction(UnlockWith)    
+DefineTIAction(UnlockWith)   
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
 DefineTIAction(LockWith)   
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
 DefineTIAction(AttachTo)
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
 DefineTIAction(DetachFrom)
-    
+    againRepeatsParse = true
     getAll(cmd, role)
     {
         return scopeList.subset({ x: x.attachedTo == curIobj});
@@ -1069,6 +1102,7 @@ DefineTIAction(DetachFrom)
 ;
 
 DefineTIAction(FastenTo)  
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
@@ -1081,7 +1115,7 @@ DefineTIAction(CutWith)
 ;
 
 DefineTIAction(TakeFrom)
-    
+    againRepeatsParse = true
     /* 
      *   If the command matched ALL filter out dobjs that aren't in the iobj by
      *   not executing the command for them.
@@ -1122,10 +1156,12 @@ DefineTIAction(TakeFrom)
 ;
 
 DefineTIAction(ThrowAt)
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
 DefineTIAction(ThrowTo)
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
@@ -1143,7 +1179,7 @@ DefineTAction(ThrowDir)
     direction = nil
 ;
 
-DefineIAction(JumpOffIntransitive)
+DefineIAction(JumpOffIntransitive)    
     execAction(cmd)
     {
         if(gActor.location.contType == On)
@@ -1154,6 +1190,7 @@ DefineIAction(JumpOffIntransitive)
 ;
 
 DefineTAction(JumpOff)
+    againRepeatsParse = true
 ;
 
 DefineTAction(JumpOver)
@@ -1161,9 +1198,11 @@ DefineTAction(JumpOver)
 
 
 DefineLiteralTAction(TurnTo)
+    againRepeatsParse = true
 ;
 
 DefineLiteralTAction(SetTo)
+    againRepeatsParse = true
 ;
 
 DefineTAction(Set)
@@ -1191,6 +1230,7 @@ DefineTAction(Flip)
 ;
 
 DefineTAction(Fasten)
+    againRepeatsParse = true
 ;
 
 
@@ -1204,7 +1244,7 @@ DefineTIAction(BurnWith)
 DefineTAction(Pour)
 ;
 
-DefineTIAction(PourOnto)
+DefineTIAction(PourOnto)    
     resolveIobjFirst = nil
 ;
 
@@ -1216,6 +1256,7 @@ DefineTAction(Screw)
 ;
 
 DefineTIAction(ScrewWith)
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
     
@@ -1223,6 +1264,7 @@ DefineTAction(Unscrew)
 ;
 
 DefineTIAction(UnscrewWith)
+    againRepeatsParse = true
     resolveIobjFirst = nil
 ;
 
@@ -1230,6 +1272,7 @@ DefineTAction(Unfasten)
 ;
 
 DefineTIAction(UnfastenFrom)
+    againRepeatsParse = true
 ;
 
 DefineTAction(PushTravelDir)
@@ -2422,6 +2465,7 @@ DefineTIAction(DoNothing)
 #ifdef __DEBUG
  
 DefineTAction(Purloin)    
+    againRepeatsParse = true
     addExtraScopeItems(whichRole?)
     {
         makeScopeUniversal();
@@ -2432,7 +2476,8 @@ DefineTAction(Purloin)
     
 ;    
 
-DefineTAction(GoNear)    
+DefineTAction(GoNear)   
+    againRepeatsParse = true
     addExtraScopeItems(whichRole?)
     {
         makeScopeUniversal();

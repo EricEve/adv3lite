@@ -192,11 +192,11 @@ class Command: object
             
             local lastCommandStr = valToList(verbProd.tokenList).mapAll({x:
                 getTokVal(x)}).join(' ');
-            
-            
-            if(gameMain.autoSwitchAgain && action != Again && lastCommandStr !=
-               libGlobal.lastCommandForAgain)
-                gameMain.againRepeatsParse;
+           
+            if(gameMain.autoSwitchAgain && action != Again)           
+            {                
+                gameMain.againRepeatsParse = action.againRepeatsParse;
+            }
             
             if(action.isRepeatable)
             {

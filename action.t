@@ -269,6 +269,15 @@ class Action: object
     
     
     /* 
+     *   If an AGAIN command is used with this command, should the command be
+     *   reparsed from scratch (because it might involve a different object) or
+     *   not (because it should act on the same objects). We generally set this
+     *   to true for actions it wouldn't normally make sense to repeat on the
+     *   same object straight away.
+     */
+    againRepeatsParse = nil
+    
+    /* 
      *   Report on the action. This is only relevant where the action has more
      *   or one objects, so TAction must override. This is called from the
      *   current Command object once all the objects have been acted on (in a

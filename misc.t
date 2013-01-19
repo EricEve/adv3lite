@@ -562,7 +562,8 @@ class GameMainDef: object
      *   interpretation of AGAIN. This should be regarded as somewhat
      *   experimental for now.
      */
-    autoSwitchAgain = nil
+    autoSwitchAgain = true
+    
     
 ;
 
