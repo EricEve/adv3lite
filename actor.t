@@ -846,6 +846,12 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /* An actor generally owns its contents */
     ownsContents = true
     
+    /* 
+     *   This definition is needed for the TopicGroup implementation, and should
+     *   not normally be overridden in user game code.
+     */
+    active = true
+    
     /*
      *   ***********************************************************************
      *   ACTION HANDLING
@@ -1093,6 +1099,8 @@ class ActorState: ActorTopicDatabase
     afterTravel(traveler, connector) {}
     
     canEndConversation(reason) { return true; }
+    
+    active = (location.active)
    
 ;
 
@@ -1120,7 +1128,7 @@ class ActorTopicDatabase: TopicDatabase
         
         lst = lst.getUnique();
         
-        lst = lst.subset({x: x.name!= nil && x.isActive && !x.curiositySatisfied 
+        lst = lst.subset({x: x.name!= nil && x.active && !x.curiositySatisfied 
                         && x.curiosityAroused && x.isReachable});
         
         if(actor.activeKeys.length > 0)
@@ -1137,12 +1145,70 @@ class ActorTopicDatabase: TopicDatabase
        return handleTopic(&initiateTopics, [top], &nilResponse);
     }
 ;
-//
-//class TopicGroup: object
-//    isActive = nil
-//    matchScore = 0
-//    getActor = (location.getActor)
-//;
+
+
+/* 
+ *   A TopicGroup is an object that can be used to group ActorTopicEntries that
+ *   share common features such as convKeys or isActive conditions. A TopicGroup
+ *   can be used anywhere an ActorTopicEntry can be used, and any
+ *   ActorTopicEntries should behave just as they would if they were in the
+ *   TopicGroup's container, apart from the modifications imposed by the
+ *   TopicGroup.
+ */
+
+class TopicGroup: object
+    
+    addTopic(obj)
+    {
+        location.addTopic(obj);
+        
+        /* 
+         *   For each TopicEntry located in this TopicGroup, add any convKeys
+         *   defined on the TopicGroup to those defined on the individual
+         *   TopicEntries
+         */
+        
+        obj.convKeys =
+            valToList(obj.convKeys).appendUnique(valToList(convKeys));
+        
+        
+        /* 
+         *   If the TopicEntry's scoreBoost property is an integer, add our
+         *   scoreBoost to it (obviously we can't do this if it's defined as a
+         *   method, for example
+         */
+        if(obj.propType(&scoreBoost) == TypeInt)
+            obj.scoreBoost += scoreBoost;
+        
+    }
+    
+    isActive = true
+    
+    active = (isActive && location.active)
+    
+    convKeys = nil
+        
+    scoreBoost = 0
+    
+    nodeActive()
+    {
+        return valToList(convKeys).overlapsWith(getActor.activeKeys);
+    }
+    
+    getActor = (location.getActor)
+    
+    
+;
+
+/* 
+ *   A ConvNode is a TopicGroup specialized for use as a ConversationNode; it's
+ *   active when its nodeActive property is true.
+ */
+
+class ConvNode: TopicGroup
+    isActive = nodeActive
+;
+
 
 class ActorTopicEntry: TopicEntry
     /* 
@@ -1284,7 +1350,7 @@ class ActorTopicEntry: TopicEntry
         foreach(local ky in valToList(keyTopics))
             lst += actor.convKeyTab[ky];
         
-        lst = lst.subset({t: t.isActive && !t.curiositySatisfied &&
+        lst = lst.subset({t: t.active && !t.curiositySatisfied &&
                          t.curiosityAroused && t.isReachable });
             
         lst = nilToList(lst).getUnique();    
@@ -1301,6 +1367,17 @@ class ActorTopicEntry: TopicEntry
      *   isActive. Unless it is explicitly tested by isActive is has no effect.
      */
     activated = nil
+    
+    
+    /* 
+     *   This TopicEntry is active if its own isActive property is true and if
+     *   its location is active. This allows the isActive conditions of
+     *   individual TopicEntries to be combined with that of any TopicGroups
+     *   they're in. This property should not normally be overridden in game
+     *   code.
+     */
+    active = (isActive && location.active)
+    
     
     isReachable()
     {

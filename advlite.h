@@ -653,6 +653,9 @@ Topic template 'vocab' @familiar?;
 Room template 'roomTitle' 'vocab' "desc"?;
 Room template 'roomTitle' "desc"?;
 
+TopicGroup template +boostScore? 'convKeys' | [convKeys] ? ;
+
+
 TopicEntry template
    +matchScore?
    @matchObj | [matchObj] | 'matchPattern'
