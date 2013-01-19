@@ -11,7 +11,7 @@
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="actor.htm">Actors</a> &gt; 
 Conversation Nodes
-<br><span class="navnp"><a class="nav" href="specialtopic.htm"><i>Prev:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
+<br><span class="navnp"><a class="nav" href="topicgroup.htm"><i>Prev:</i> Topic Groups</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
 </div>
 <div class="main">
 <h1>Conversation Nodes</h1>
@@ -20,9 +20,9 @@ Conversation Nodes
 
 <p>In the adv3Lite library, a Conversation Node is such a moment in a conversation between the player character and another actor. In real-life conversation just about every moment in a conversation is a node in this sense, unless and until someone deliberately decides to change the subject. That is, in real-life conversation what has just been said generally places some constraints on what can reasonably be said next, evem if we don't in fact choose what to say next from a finite set of choices set out in a mental menu. To model this thoroughly in IF conversation, i.e. to make every moment in the conversation a node, could quickly become extremely laborious, but the presence of some conversation nodes in a work of IF can lend some shape to the conversation, and certain situations (such as supplying the player character with appropriate Yes and No responses) would be quite impossible without them.</p>
 
-<p>Thus far, we have used the term 'Conversation Node' to refer to the abstract concept, not to its implementation. The avd3 library used ConvNode objects to implement Conversation Nodes. There are no ConvNode objects in adv3Lite, which model Conversation Nodes rather differently, once again making use of the convKeys property.</p>
+<p>Thus far, we have used the term 'Conversation Node' to refer to the abstract concept, not to its implementation. The adv3 library used ConvNode objects to implement Conversation Nodes. You can also use ConvNode objects in adv3Lite (see <a href="#convnode">below</a>), but it is possible to set up Conversation Nodes without them, and we'll first explain how to do this before going on to explain the ConvNode class.</p>
 
-<p>In essence, using the tag <strong>&lt;.convnode key&gt;</strong> sets up a Conversation Node in which the TopicEntries whose convKeys match <em>key</em> are considered the most appropriate to use next. More specifically, &lt;.convnode key&gt; gives TopicEntries whose convKey matches <em>key</em> priority over all other TopicEntries in selecting the best match to the player's next conversational command. It follows that if there's a DefaultTopic with a convKeys property that matches <em>key</em>, then that DefaultTopic will mask other TopicEntries of the same kind for as long as the Conversation Node persists (by default, until the next conversational command has been executed). Defining a DefaultAnyTopic whose convKeys matches <em>key</em> is therefore a way of restricting the possible responses to those that match the conversation node key. If you want to list the conversational options open to the player on entering the Conversation Node place a &lt;.topics&gt; tag immediately after the &lt;.convnode&gt; tag (this isn't done by default since it may not always be appropriate; for example just after an NPC has asked what might be a purely rhetorical question).</p>
+<p>Conversation Nodes are implemented rather differently in adv3Lite from the way they work in adv3, once again making use of the convKeys property. In essence, using the tag <strong>&lt;.convnode key&gt;</strong> sets up a Conversation Node in which the TopicEntries whose convKeys match <em>key</em> are considered the most appropriate to use next. More specifically, &lt;.convnode key&gt; gives TopicEntries whose convKey matches <em>key</em> priority over all other TopicEntries in selecting the best match to the player's next conversational command. It follows that if there's a DefaultTopic with a convKeys property that matches <em>key</em>, then that DefaultTopic will mask other TopicEntries of the same kind for as long as the Conversation Node persists (by default, until the next conversational command has been executed). Defining a DefaultAnyTopic whose convKeys matches <em>key</em> is therefore a way of restricting the possible responses to those that match the conversation node key. If you want to list the conversational options open to the player on entering the Conversation Node place a &lt;.topics&gt; tag immediately after the &lt;.convnode&gt; tag (this isn't done by default since it may not always be appropriate; for example just after an NPC has asked what might be a purely rhetorical question).</p>
 
 <p>If multiple &lt;.convnode&gt; tags are output in succession, e.g. &lt;.convnode key1&gt;&lt;.convnode key1&gt;&lt;convnode key3&gt;, the effect is to set up a Conversation Node that includes all the TopicEntries whose convKeys contain at least one of these keys (e.g. <em>key1</em> or <em>key2</em> or <em>key3</em>). This would be equivalent to:</p>
  <p><div class="code"><pre>
@@ -166,6 +166,65 @@ Conversation Nodes
 <p>Once again we don't need to explicitly define the isActive property of the NodeEndCheck object since the NodeEndCheck class already defines it to be nodeActive. We have the canEndConversation() method return blockEndConv rather than just nil here to suppress any output our NodeContinuationTopic might otherwise produce on the same turn, which we may not want if Bob has already just spoken (in adv3Lite blockEndConv() is in fact a mehod of NodeContinuationTopic that calls noteConversed() on the Actor and then returns nil; it's called blockEndConv for consistency with adv3 although the implementation is quite different). An alternative method would have been to have canEndConversation display a much more generic refusal to accept a goodbye and then return nil, leaving ther NodeContinuationTopic to prompt the player with Bob's specific question. That way we could list several conversation nodes in the NodeEndCheck's convKeys property and have the one NodeEndCheck object block saying goodbye in them all.</p>
 
 <p>For a fuller explanation of the <em>reason</em> parameter, of saying goodbye, and of checking whether conversations are allowed to end, see the section on <a href="hello.htm">Hello and Goodbye</a> below.</p>
+<br>
+
+<h2><a name="convnode">Using the ConvNode Class</a></h2>
+
+<p>As we have just seen, it is perfectly possible to set up a Conversation Node in adv3Lite without the use of a special ConvNode object. In some cases, however, using a ConvNode object can save a bit of repetitive typing and help to make the structure of the code a bit clearer.</p>
+
+<p>An adv3Lite ConvNode is a specialization of an adv3Lite TopicGroup. This means that any TopicEntries located within a ConvNode have the ConvNode's convKeys added to any they may define individually, and that for them to be active both their own and the ConvNode's isActive properties must be true. A ConvNode defines <span class="code">isActive = nodeActive</span>, which means that the ConvNode becomes active when its convKeys are those of an active node.</p>
+
+<p>This may all sound a bit complicated, but the practical upshot is that to define a Conversation Node we can simply define its convKeys property to be that corresponding to the node we want, and then locate the associated TopicEntries within it. The TopicGroup template, which ConvNode inherits, makes this even easier, since we can just put the relevant convKey name in single quotes after <span class="code">ConvNode</span>. ConvNode objects themselves should be located directly in the Actors with which they are meant to be associated.</p>
+
+<p>Using a ConvNode object, the Conversation Node illustrated above could be defined like this:</p>
+
+<p><div class="code"><pre>
++ QueryTopic 'how' 'old he is; are you'
+    &quot;&lt;q&gt;How old are you?&lt;/q&gt; you ask.\b
+    &lt;q&gt;None of your damned business,&lt;/q&gt; he replies. &lt;q&gt;Would you like someone
+    asking you about your age?&lt;/q&gt; &lt;.convnode age-node&gt;&quot;
+      
+    askMatchObj = tAge    
+;
+
++ ConvNode 'age-node';
+
+++ YesTopic
+    &quot;&lt;q&gt;Yes, sure, I wouldn't mind,&lt;/q&gt; you reply.\b
+    &lt;q&gt;Well, I do,&lt;/q&gt; he grunts. &quot;         
+;
+
+++ NoTopic
+    &quot;&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;Well, there you are then!&lt;/q&gt; he declares triumphantly. &quot;        
+;
+
+++ DefaultAnyTopic
+    &quot;&lt;q&gt;Don't try to change the subject; I want to know whether you'd like
+    someone asking about your age,&lt;/q&gt; he insists. &lt;q&gt;Well, would you?&lt;/q&gt;
+    &lt;.convstay&gt; &lt;.topics&gt; &quot;  
+;
+
+++ NodeContinuationTopic
+    "&lt;q&gt;I thought I asked you a question,&lt;/q&gt; Bob reminds you. "   
+;
+
+++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        if(reason == endConvBye)
+        {
+            &quot;&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; Bob complains. &lt;q&gt;Would
+            you like someone to ask you about your age or wouldn't you?&lt;/q&gt; &quot;;
+                              
+            return blockEndConv;
+        }
+        
+        return true;
+    }    
+;
+</pre></div>
+
 
 
 <hr class="navb"><div class="navb">
@@ -173,7 +232,7 @@ Conversation Nodes
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="actor.htm">Actors</a> &gt; 
 Conversation Nodes
-<br><span class="navnp"><a class="nav" href="specialtopic.htm"><i>Prev:</i> Special Topics</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
+<br><span class="navnp"><a class="nav" href="topicgroup.htm"><i>Prev:</i> Topic Groups</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
 </body>
