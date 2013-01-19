@@ -2283,15 +2283,16 @@ class NounPhrase: object
         else if (sub.length() > num && num > 1)                    
         {
             /*            
-             *   We've asked for a definite number of 2 or more items, but there are different
-             *   options among the best matches.  This poses a problem because there's n
-             *   good disambiguation we can possibly ask here. So we just give up and ask
-             *   them to be more specific.  I can imagine someone responding to this
-             *   message by just retyping a more specific form of the noun phrase.
-             *   For example, after GET THE TWO MATCHES doesn't work, they might just
-             *   want to type THE LIT MATCH AND AN UNLIT MATCH, but currently the parser
-             *   does not do this.  Probably the DMsg should also refer to the specific
-             *   noun phrase that is ambiguous in its message.
+             *   We've asked for a definite number of 2 or more items, but there
+             *   are different options among the best matches.  This poses a
+             *   problem because there's no good disambiguation we can possibly
+             *   ask here. So we just give up and ask them to be more specific.
+             *   I can imagine someone responding to this message by just
+             *   retyping a more specific form of the noun phrase. For example,
+             *   after GET THE TWO MATCHES doesn't work, they might just want to
+             *   type THE LIT MATCH AND AN UNLIT MATCH, but currently the parser
+             *   does not do this.  Probably the DMsg should also refer to the
+             *   specific noun phrase that is ambiguous in its message.
              */
             throw new AmbiguousMultiDefiniteError(cmd,self);
         }
@@ -5461,6 +5462,13 @@ class AmbiguousError: ResolutionError
     {
         /* ask the language-specific ambiguous noun question */
         askAmbiguous(cmd, np.role, nameList.mapAll({ n: n[1] }));
+        
+        /* 
+         *   If the autoSwitchAgain option is true, switch the againRepeatsParse
+         *   option off so AGAIN doesn't trigger the same question
+         */
+        if(gameMain.autoSwitchAgain)
+            gameMain.againRepeatsParse = nil;
     }
 
     /* 

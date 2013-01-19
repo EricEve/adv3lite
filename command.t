@@ -190,19 +190,27 @@ class Command: object
             gCommand = self;
             actions = [];
             
+            local lastCommandStr = valToList(verbProd.tokenList).mapAll({x:
+                getTokVal(x)}).join(' ');
+            
+            
+            if(gameMain.autoSwitchAgain && action != Again && lastCommandStr !=
+               libGlobal.lastCommandForAgain)
+                gameMain.againRepeatsParse;
+            
             if(action.isRepeatable)
+            {
                 libGlobal.lastCommand = self.createClone();
+                libGlobal.lastCommandForAgain = lastCommandStr;                    
+            }
             
             if(action.includeInUndo && verbProd != nil)
-            {
-                local str = '';            
-                foreach(local tok in nilToList(verbProd.tokenList))
-                {
-                    str += getTokVal(tok) + ' ';
-                }
-                libGlobal.lastCommandForUndo = str;
+            {               
+                libGlobal.lastCommandForUndo = lastCommandStr;
                 savepoint();
             }
+            
+            
             
             /* 
              *   First, carry out the group action.  This gives the verb a

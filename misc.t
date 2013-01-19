@@ -544,6 +544,26 @@ class GameMainDef: object
     
     usePastTense = nil
         
+    /*   
+     *   The AGAIN command could be interpreted in two different ways. It could
+     *   repeat the resolved action (using precisely the same objects as
+     *   before), or it could act as if the player had retyped the command and
+     *   then parse it again from scratch (which might result in a different
+     *   interpretation of the command, or different objects being selected).
+     *   The former interpretation is used if againRepeatsParse is nil; the
+     *   latter if it's true.
+     */
+    
+    againRepeatsParse = nil
+    
+    /*   
+     *   Flag. If this is true the game attempts to switch the againRepeatsParse
+     *   flag between true and nil to give the contextually better
+     *   interpretation of AGAIN. This should be regarded as somewhat
+     *   experimental for now.
+     */
+    autoSwitchAgain = nil
+    
 ;
 
 /*
@@ -770,121 +790,12 @@ libGlobal: object
      */
     libMessageObj = libMessages
     
-    /* 
-     *   Sense cache - we keep SenseInfo lists here, keyed by [pov,sense];
-     *   we normally discard the cached information at the start of each
-     *   turn, and disable caching entirely at the start of the "action"
-     *   phase of each turn.  We leave caching disabled during each turn's
-     *   action phase because this is the phase where simulation state
-     *   changes are typically made, and hence it would be difficult to
-     *   keep the cache coherent during this phase.
-     *   
-     *   When this is nil, it indicates that caching is disabled.  We only
-     *   allow caching during certain phases of execution, when game state
-     *   is not conventionally altered, so that we don't have to do a lot
-     *   of work to keep the cache up to date.  
-     */
-//    senseCache = nil
-
-    /*
-     *   Can-Touch cache - we keep CanTouchInfo entries here, keyed by
-     *   [from,to].  This cache is the touch-path equivalent of the sense
-     *   cache, and is enabled and disabled 
-     */
-//    canTouchCache = nil
-
-    /* 
-     *   Connection list cache - this is a cache of all of the objects
-     *   connected by containment to a given object. 
-     */
-//    connectionCache = nil
-
-    /* 
-     *   Actor visual ambient cache - this keeps track of the ambient light
-     *   level at the given actor. 
-     */
-//    actorVisualAmbientCache = nil
-
-    /* enable the cache, clearing any old cached information */
-//    enableSenseCache()
-//    {
-//        /* create a new, empty lookup table for the sense cache */
-//        senseCache = new LookupTable(32, 64);
-//
-//        /* create the can-touch cache */
-//        canTouchCache = new LookupTable(32, 64);
-//
-//        /* create the actor visual ambient cache */
-//        actorVisualAmbientCache = new LookupTable(32, 64);
-//
-//        /* create a connection list cache */
-//        connectionCache = new LookupTable(32, 64);
-//    }
-//
-//    /* disable the cache */
-//    disableSenseCache()
-//    {
-//        /* forget the cache tables */
-//        senseCache = nil;
-//        canTouchCache = nil;
-//        actorVisualAmbientCache = nil;
-//        connectionCache = nil;
-//    }
-//
-    /* 
-     *   Invalidate the sense cache.  This can be called if something
-     *   happens during noun resolution or verification that causes any
-     *   cached sense information to become out of date.  For example, if
-     *   you have to create a new game-world object during noun-phrase
-     *   resolution, this should be called to ensure that the new object's
-     *   visibility is properly calculated and incorporated into the cached
-     *   information.  
-     */
-//    invalSenseCache()
-//    {
-//        /* remember whether or not caching is currently enabled */
-//        local wasEnabled = (senseCache != nil);
-//
-//        /* clear the cache by disabling it */
-//        disableSenseCache();
-//
-//        /* if the cache was previously enabled, re-enable it */
-//        if (wasEnabled)
-//            enableSenseCache();
-//    }
-
-    /*
-     *   List of all of the senses.  The library pre-initializer will load
-     *   this list with a reference to each instance of class Sense. 
-     */
-//    allSenses = []
-
+   
     /*
      *   The current player character 
      */
     playerChar = me
-
-    /* 
-     *   The current perspective actor.  This is the actor who's performing
-     *   the action (LOOK AROUND, EXAMINE, SMELL, etc) that's generating
-     *   the current description. 
-     */
-//    pointOfViewActor = nil
-
-    /*
-     *   The current perspective object.  This is *usually* the actor
-     *   performing the current command, but can be a different object when
-     *   the actor is viewing the location being described via an
-     *   intermediary, such as through a closed-circuit TV camera.  
-     */
-//    pointOfView = nil
-
-    /*
-     *   The stack of point of view objects.  The last element of the
-     *   vector is the most recent point of view after the current point
-     *   of view.  
-     */
-//    povStack = static new Vector(32)
+   
 
     /* 
      *   The global score object.  We use a global for this, rather than
@@ -936,6 +847,10 @@ libGlobal: object
      *   actor.  
      */
     lastActorForUndo = ''
+    
+    /*   The text of the last command to be repeated by Again */
+    
+    lastCommandForAgain = ''
 
     /*
      *   Current command information.  We keep track of the current
@@ -1090,8 +1005,7 @@ libGlobal: object
     revealedNameTab = static new LookupTable(32, 32)
     
     /*  
-     *   A symbol table for every game object that may be optionally stored if
-     *   gameMain.storeObjectSymbolTable is true.
+     *   The symbol table for every game object.
      */
     
     objectNameTab = nil

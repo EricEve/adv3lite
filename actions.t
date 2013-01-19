@@ -2383,9 +2383,15 @@ DefineSystemAction(Again)
     
     exec(cmd)
     {
-        if(libGlobal.lastCommand == nil)
+        if((gameMain.againRepeatsParse && libGlobal.lastCommandForAgain is in
+           ('',nil)) || (!gameMain.againRepeatsParse && libGlobal.lastCommand is
+           in ('', nil)))
         {
             DMsg(no repeat, 'Sorry, there is no action available to repeat. ');
+        }
+        else if (gameMain.againRepeatsParse)
+        {
+            Parser.parse(libGlobal.lastCommandForAgain);
         }
         else
         {
