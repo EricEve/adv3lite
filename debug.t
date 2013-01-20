@@ -15,7 +15,7 @@ DebugCtl: object
     enabled = static (new LookupTable(32, 64))
 
     /* list of all debugging options */
-    all = ['spelling', 'messages', 'actions']
+    all = ['spelling', 'messages', 'actions', 'doers']
 
     /* show the current status */
     status()
@@ -49,6 +49,7 @@ DefineSystemAction(Debug)
         case 'messages':
         case 'spelling':
         case 'actions':
+        case 'doers':
             DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
             /* Deliberately omit break to allow fallthrough */
         case 'status':
@@ -62,7 +63,7 @@ DefineSystemAction(Debug)
             break;
         default:
             "That is not a valid option. The valid DEBUG options are DEBUG
-            MESSAGES, DEBUG SPELLING and DEBUG ACTIONS (not yet implemented),
+            MESSAGES, DEBUG SPELLING, DEBUG ACTIONS, DEBUG DOERS,
             DEBUG OFF or DEBUG STOP (to turn off all options) or
             just DEBUG by itself to break into the debugger. ";
         }
