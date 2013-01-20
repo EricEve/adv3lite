@@ -6463,6 +6463,50 @@ class Thing:  Mentionable
         iobj}. ')
     
     
+    dobjFor(ShowToImplicit)
+    {
+        preCond = isFixed ? [objVisible] : [objHeld]
+        
+        verify() 
+        {
+            if(gPlayerChar.currentInterlocutor == nil)
+                illogical(notTalkingToAnyoneMsg);
+            else if(!Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
+                illogicalNow(noLongerTalkingToAnyoneMsg);            
+            
+        }
+        
+        action()
+        {
+            gPlayerChar.currentInterlocutor.handleTopic(&showTopics, [self]);
+        }
+    }
+    
+    dobjFor(GiveToImplicit)
+    {
+        preCond = isFixed ? [objVisible] : [objHeld]
+        
+        verify() 
+        {
+            if(gPlayerChar.currentInterlocutor == nil)
+                illogical(notTalkingToAnyoneMsg);
+            else if(!Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
+                illogicalNow(noLongerTalkingToAnyoneMsg);            
+            
+        }
+        
+        action()
+        {
+             gPlayerChar.currentInterlocutor.handleTopic(&giveTopics, [self]);
+        }
+    }
+    
+    notTalkingToAnyoneMsg = BMsg(not talking to anyone, '{I}{\'m} not talking to
+        anyone. ')
+    
+    noLongerTalkingToAnyoneMsg = BMsg(no longer talking to anyone, '{I}{\'m} no
+        longer talking to anyone. ')
+    
  #ifdef __DEBUG
     dobjFor(Purloin)
     {

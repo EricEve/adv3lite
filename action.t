@@ -2160,7 +2160,7 @@ class TopicTAction: TAction
          *   the indirect object.
          */
         
-        if(cmd.dobj.ofKind(Thing))
+        if(cmd.dobj && cmd.dobj.ofKind(Thing))
         {        
             curDobj = cmd.dobj;
             curIobj = cmd.iobj;
@@ -2199,6 +2199,9 @@ class TopicTAction: TAction
     
     resolvePronouns()
     {
+        if(curIobj == nil)
+            return;
+        
         for(local cur in curIobj.topicList, local i = 1;; ++i)
         {
             if(cur == Him && curDobj.isHim)

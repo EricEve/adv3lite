@@ -1777,6 +1777,18 @@ VerbRule(AskWhomFor)
     priority = 25
 ;
 
+VerbRule(AskForImplicit)
+    ('a' | ('ask' | 'tell' 'me') 'for') topicIobj
+    : VerbProduction
+    action = AskForImplicit
+    verbPhrase = 'ask/asking (whom) (for what)'
+    missingQ = 'whom do you want to ask;what do you want to ask it for'
+    iobjReply = topicPhrase
+    priority = 60
+;
+
+
+
 VerbRule(AskAbout)
     ('ask' | 'a') singleDobj 'about' topicIobj
     : VerbProduction
@@ -1977,10 +1989,10 @@ VerbRule(GiveToType2)
     isPrepositionalPhrasing = nil
 ;
 
-VerbRule(GiveToWhom)
+VerbRule(GiveToImplicit)
     ('give' | 'offer') multiDobj
     : VerbProduction
-    action = GiveTo
+    action = GiveToImplicit
     verbPhrase = 'give/giving (what) (to whom)'
     missingQ = 'what do you want to give (to it);whom do you want to give it to'
 
@@ -2008,10 +2020,10 @@ VerbRule(ShowToType2)
     isPrepositionalPhrasing = nil
 ;
 
-VerbRule(ShowToWhom)
+VerbRule(ShowToImplicit)
     'show' multiDobj
     : VerbProduction
-    action = ShowTo
+    action = ShowToImplicit
     verbPhrase = 'show/showing (what) (to whom)'
     missingQ = 'what do you want to show (to it);whom do you want to show it to'
 

@@ -190,8 +190,9 @@ class Command: object
             gCommand = self;
             actions = [];
             
-            local lastCommandStr = valToList(verbProd.tokenList).mapAll({x:
-                getTokVal(x)}).join(' ');
+            if(verbProd != nil)
+                local lastCommandStr = valToList(verbProd.tokenList).mapAll({x:
+                    getTokVal(x)}).join(' ');
            
             if(gameMain.autoSwitchAgain && action != Again)           
             {                

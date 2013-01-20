@@ -1472,18 +1472,23 @@ DefineLiteralTAction(TellTo)
 
 
 DefineTopicTAction(AskAbout)
+    againRepeatsParse = true
 ;
 
 DefineTopicTAction(AskFor)
+    againRepeatsParse = true
 ;
 
 DefineTopicTAction(TellAbout)
+    againRepeatsParse = true
 ;
 
 DefineTopicTAction(TalkAbout)
+    againRepeatsParse = true
 ;
 
 DefineTopicTAction(QueryAbout)
+    againRepeatsParse = true
     execAction(cmd)
     {
         qType = cmd.verbProd.qtype;
@@ -1499,9 +1504,11 @@ DefineTopicTAction(QueryAbout)
 ;
 
 DefineTopicTAction(SayTo)
+    againRepeatsParse = true
 ;
 
 DefineTIAction(GiveTo)
+    againRepeatsParse = true
     giveReport = nil
     
     execAction(cmd)
@@ -1512,6 +1519,7 @@ DefineTIAction(GiveTo)
 ;
 
 DefineTIAction(ShowTo)
+    againRepeatsParse = true
     giveReport = nil
     
     execAction(cmd)
@@ -1613,6 +1621,11 @@ AskAboutImplicit: ImplicitConversationAction
     topicListProperty = &askTopics
 ;
 
+AskForImplicit: ImplicitConversationAction
+    baseActionClass = AskForImplicit
+    topicListProperty = &askForTopics
+;
+
 TellAboutImplicit: ImplicitConversationAction
     baseActionClass = TellAboutImplicit
     topicListProperty = &tellTopics
@@ -1622,6 +1635,13 @@ TalkAboutImplicit: ImplicitConversationAction
     baseActionClass = TalkAboutImplicit
     topicListProperty = &talkTopics
 ;
+
+DefineTAction(ShowToImplicit)
+;
+
+DefineTAction(GiveToImplicit)
+;
+              
 
 Query: ImplicitConversationAction
     baseActionClass = Query
