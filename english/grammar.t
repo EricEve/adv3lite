@@ -1778,7 +1778,7 @@ VerbRule(AskWhomFor)
 ;
 
 VerbRule(AskForImplicit)
-    ('a' | ('ask' | 'tell' 'me') 'for') topicIobj
+    ('a' | 'ask')  'for' topicIobj
     : VerbProduction
     action = AskForImplicit
     verbPhrase = 'ask/asking (whom) (for what)'

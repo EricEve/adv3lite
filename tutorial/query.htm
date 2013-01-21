@@ -1,0 +1,118 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Art of Conversation &mdash; Queries and Questions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="conversation.htm">The Art of Conversation</a> &gt; 
+Queries and Questions
+<br><span class="navnp"><a class="nav" href="asktell.htm"><i>Prev:</i> Ask, Tell, Give, Show</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="conversation.htm"><i>Next:</i> The Art of Conversation</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Queries and Questions</h1>
+
+<p>We've set things up so that at some point in the game the player character can learn the flight attendant's name. Presumably this comes about because he asks her &mdash; or at least has the opportunity of asking her. But this may not be the only thing the player character wants to ask her about herself.</p>
+
+<p>In the conventional ASK/TELL system we could create a 'name' topic and then define a TopicEntry that responds to ASK ATTENDANT ABOUT NAME, but this doesn't seem altogether a natural way to converse. Or we could set up a TopicEntry that refers to angela object itself, something like:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @angela
+    "&lt;q&gt;Tell me about yourself,&lt;/q&gt; you say.\b
+    &lt;q&gt;I'm called Angela,&lt;/q&gt; she tells you. "
+;
+</pre></div>
+
+<p>We might locate this directly in the angela object (hence only the single + sign) on the basis that the player character might ask Angela about herself at any point in the game. That's fair enough, but there are several other things we could improve. For one thing, it may not occur to every player to try ASK ATTENDANT ABOUT HERSELF; perhaps we might want to drop a hint that this might be a good idea. For another, the syntax ASK ATTENDANT ABOUT HERSELF doesn't give the player that much agency. How do we know that it's the attendant's name he wants to ask about, rather than, say, whether she enjoys her work or whether she's free for dinner that evening? Let's see what we can do about each of these issues in turn.</p>
+
+<h2>Suggesting Topics of Conversation</h2>
+
+<p>The adv3Lite library allows you to suggest topics of conversation to the player, either in response to an explicit TOPICS command typed by the player, or when you the game author think it would be appropriate to do so (e.g. by using a <span class="code">&lt;.topics&gt;</span> tag). But for this to work, the game needs to know which topics to suggest, and what to call them. In adv3Lite all you have to do is to give a TopicEntry a name property and the game will know to suggest it by that name. In this case, for example, we could write this:</p>
+
+<p><div class="code"><pre>
++ AskTopic @angela
+    "&lt;q&gt;Tell me about yourself,&lt;/q&gt; you say.\b
+    &lt;q&gt;I'm called Angela,&lt;/q&gt; she tells you. "
+    
+    name = 'herself'
+;
+</pre></div>
+
+<p>Then, once the player character is in conversation with Angela, the player can type TOPICS and the game will respond with "You could ask her about herself."</p>
+
+<p>Now let's add a second topic of conversation. Suppose the player character wants to know when the plane is going to leave. We could use the flight departures Topic we've already defined to create a new AskTopic for Angela:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @tFlightDepartures    
+    "&lt;q&gt;When is this plane going to leave?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Just as soon as the pilot comes aboard,&lt;/q&gt; she tells you. &lt;.reveal
+    pilot-awaited&gt; "   
+    
+    name = 'flight departures'
+;
+</pre></div>
+
+<p>Note the use of the <span class="code"><.reveal pilot-awaited></span> tag here to note that our protagonist has just learned the highly significant fact that there isn't yet a pilot aboard. Then consider something else: the way we previously defined the tFlightDepartures Topic object already gave it a name of 'flight departures', which we're now repeating in the name property of the AskTopic. In this sort of situation we can avoid the repetition by telling the TopicEntry to take its name property from that of its matchObj (here tFlightDepartures). To do that we can just define <span class="code">autoName = true</span> on the TopicEntry instead of spelling out the name explicitly:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @tFlightDepartures    
+    "&lt;q&gt;When is this plane going to leave?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Just as soon as the pilot comes aboard,&lt;/q&gt; she tells you. &lt;.reveal
+    pilot-awaited&gt; "   
+    
+    <strong>autoName = true</strong>
+;
+</pre></div>
+
+<p>In this case this doesn't quite give us what we'd ideally like, since the game will now suggest "You could ask her about the flight departures" and we don't really want the definite article here. We could fix that by tweaking the way we defined the vocab property of the tFlightDepartures Topic object:</p>
+
+ <p><div class="code"><pre>
+tFlightDepartures: Topic '<strong>()</strong> flight departures; plane; times';
+</pre></div>
+
+<p>Adding the () at the start of the vocab property tells adv3Lite to treat the name as a qualified name and so omit the article.</p>
+
+<p>The reply to the question about flight departures invites a further question about the missing pilot, but only when the player character knows that the pilot is missing:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @tPilot
+    "&lt;q&gt;What's happened to the pilot?&lt;/q&gt; you ask.\b
+    &lt;q&gt;I don't know; we're still waiting for him,&lt;/q&gt; she replies. &lt;q&gt;But don't
+    worry; I'm sure he'll turn up any moment now.&lt;/q&gt; "
+
+    autoName = true
+    isActive = gRevealed('pilot-awaited')
+;
+</pre></div>
+
+<p>This of course requires us to define the tPilot Topic somewhere; the best place would be wherever we've put our other Topic objects:</p>
+
+ <p><div class="code"><pre>
+tPilot: Topic 'pilot';
+</pre></div>
+
+<p>If you try compiling and running the game now and going to talk to Angela, you'll find that when you first type TOPICS the game will respond with "You could ask her about herself or about flight departures." The pilot topic isn't suggested, since it isn't available until its isActive property becomes true, so there's no point in suggesting it. Once the player has typed ASK ATTENDANT ABOUT DEPARTURES and received the response about waiting for the pilot, the topic does become available and so will be suggested.</p>
+
+<p>One other thing you'll find is that once you've asked about a suggested topic, it's no longer suggested. The game won't keep suggesting topics the player has already tried.</p>
+
+<p>For the full story on suggesting topics of conversation to the player, see the section on <a href="../manual/suggest.htm">Suggesting Conversational Topics</a> in the adv3Lite library manual.</p>
+<br>
+<h2>Queries</h2>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="conversation.htm">The Art of Conversation</a> &gt; 
+Queries and Questions
+<br><span class="navnp"><a class="nav" href="asktell.htm"><i>Prev:</i> Ask, Tell, Give, Show</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="conversation.htm"><i>Next:</i> The Art of Conversation</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
