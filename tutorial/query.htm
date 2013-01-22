@@ -104,8 +104,110 @@ tPilot: Topic 'pilot';
 <br>
 <h2>Queries</h2>
 
+<p>We suggested earlier on that specific questions we might want to ask about Angela might might include what her name is, whether she enjoys her work, or whether she's free for dinner that evening. While the ask/tell system would allow us to provide responses to ASK WOMAN ABOUT NAME, ASK ABOUT WORK and ASK ABOUT DINNER, none of these quite supplies the precise nuance we're looking for. Allowing players to pose these more specific kind of questions is beyond the ability of the basic ask/tell system. One way in which the adv3Lite conversation system extends beyond basic ask/tell, however, is in allowing for precisely this kind of question. It does this through a special kind of TopicEntry called a <strong>QueryTopic</strong>, which can respond to questions of the form ASK WHERE|WHEN|WHO|WHAT|WHY|WHETHER|HOW|IF such-and-such. </p>
+
+<p>The question being put to an NPC via a QueryTopic consists of two parts: the <em>type</em> of query ('who', 'what', 'why', 'when', 'what', 'whether', 'if' or 'how'), known as the <strong>qtype</strong>, and the topic representing the such-and-such part. A QueryTopic for asking Angela about her name might thus look like this:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'what' @tHerName
+    "&lt;q&gt;What's your name?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Angela,&lt;/q&gt; she replies. "
+;
+</pre></div>
+
+<p>This would then require us to define a <span class="code">tHerName</span> topic object that might look something like this:</p>
+
+ <p><div class="code"><pre>
+tHerName: Topic 'her name; your';
+</pre></div>
+
+<p>We add 'your' as an additional vocab word in case the player types WHAT IS YOUR NAME (some players will certainly try this, and we'll want it to work; players can be guaranteed to ignore the wording you actually give them and then complain that your game is buggy when they try everything <em>but</em> the wording you gave them). A QueryTopic defines <span class="code">autoName = true</span> by default, so we want to define the name part of the topic vocab to read well after "You could ask her what "; the game will supply the suggestion automatically, since players can't be expected to guess what QueryTopics you've implemented and the possibilities are simply too great for random experimentation to be a fruitful player strategy.</p>
+
+<p>This works, but unless you're going to use the 'her name is' topic on a number of different QueryTopics, it may seem a bit tedious to have to define it in addition to the QueryTopic. Adv3Lite therefore allows you to define it directly on the QueryTopic thus:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'what' 'her name is; your'
+    "&lt;q&gt;What's your name?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Angela,&lt;/q&gt; she replies. "
+;
+</pre></div>
+
+<p>This actually does precisely the same thing; it simply makes the library define the Topic object for you. In this case the library will define a new Topic object with a vocab property of 'her name is' and make it the matchObj of your QueryTopic. This is probably easier when you'd otherwise have to define a separate Topic you'd never use anywhere else.</p>
+
+<p>In this kind of case you can, if you like, run the qtype string and the topic vocab string into one, like this:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'what her name is; your'
+    "&lt;q&gt;What's your name?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Angela,&lt;/q&gt; she replies. "
+;
+</pre></div>
+
+<p>When the library doesn't find a separate qtype (i.e. when it finds only one string defined on the template) it takes the first word of the string it finds to be the qtype ('who', 'what', 'when', etc.) and the remainder of the string to be vocab of the associated Topic. This actually appears quite transparent, since the single string 'what her name is' indeed responds to the question ASK WHAT HER NAME IS, but it's well to be aware that things are a little more complicated behind the scenes.</p>
+
+<p>Although we now have a QueryTopic that responds to ASK WHAT HER NAME IS (or, indeed, to WHAT IS YOUR NAME), it doesn't quite do everything we want. When Angela tells the player character her name, we want her displayed name to change from 'the flight attendant' to 'Angela'. To do that we need both to change her name property and to set <span class="code">proper = true</span> (to indicate that she now has a proper name), so that she's not referred to as 'the Angela'. It will be convenient to define a <span class="code">makeProper()</span> method that does this for us and then returns her name: </p>
+
+ <p><div class="code"><pre>
+angela: Actor 'flight attendant; statuesque young; woman angela; her'
+    @planeFront
+    "She's a statuesque and by no means unattractive young woman. "
+    
+    shouldNotAttackMsg = 'That would be cruel and unnecessary. '
+    
+    globalParamName = 'angela'
+    
+    <strong>makeProper
+    {
+        proper = true;
+        name = 'Angela';
+        return name;
+    }</strong>
+;
+</pre></div>
+
+<p>We can then call this method in the QueryTopic so that it changes her name to Angela at the same time as telling the player character that that's what her name is. We don't want to do this twice; once the player character has asked her name once, there's no need to do it again, so at the same time we want to define the QueryTopic so that it's isActive property becomes nil once Angela has a proper name:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'what' 'her name is; your'
+    "&lt;q&gt;What's your name?&lt;/q&gt; you ask.\b
+    &lt;q&gt;&lt;&lt;getActor.makeProper&gt;&gt;,&lt;/q&gt; she replies. "
+    
+    isActive = !getActor.proper
+;
+</pre></div>
+
+<p>Another question we wanted to be able to ask Angela is whether she enjoys her work. Given the plot of this story, the answer she gives is likely to be dependent on what ActorState she's in, so we might want to define different QueryTopics for different ActorStates. Since it will then be used by several QueryTopics it's probably worth definining a separate Topic object for this:</p>
+
+<p><div class="code"><pre>
+tEnjoyWork: Topic 'she enjoys her work; you enjoy your like likes; job';
+</pre></div>
+
+<p>Here the name section 'she enjoys her work' provides the text for a suggestion like 'ask if she enjoys her work', while the rest of the vocab allows for alternative phrasings like DO YOU LIKE YOUR JOB. The advLite parser recognizes questions beginning DO as equivalent to commands beginning ASK IF, so we only need to supply the words that might follow DO.</p>
+
+<p>We can then go ahead and define the QueryTopic that might be located in the angelaGreetingState:</p>
+
+ <p><div class="code"><pre>
+++ QueryTopic 'if|whether' @tEnjoyWork
+   "&lt;q&gt;Do you enjoy your work?&lt;/q&gt; you ask.\b
+   &lt;q&gt;Of course, sir,&lt;/q&gt; she replies with a bland smile. "    
+;
+</pre></div>
+
+<p>Note how here we define the qtype part as  'if|whether'. This means that QueryTopic will respond either to ASK IF... or ASK WHETHER..., since the two phrasing could be used with the same meaning.</p>
+
+<p>Here's the version of the QueryTopic we might locate in angelaTalkingState, which is the state Angela will be in if the player character talks with her on the Jetway while she's assisting the passengers who have just been forced off the plane.</p>
+
+ <p><div class="code"><pre>
+++ QueryTopic 'if|whether' @tEnjoyWork
+   "&lt;q&gt;Do you enjoy your work -- at times like these?&lt;/q&gt; you ask.\b
+   &lt;q&gt;At times like these...&lt;/q&gt; she leaves the sentence unfinished with an
+   expressive grimace. "    
+;
+</pre></div>
+
 
 </div>
+
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Tutorial</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 
