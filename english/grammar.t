@@ -1748,7 +1748,7 @@ VerbRule(QueryVague)
 ;
 
 VerbRule(DoQuery)
-    ('do' | 'does' | 'did') topicDobj
+    ('do' | 'does' | 'did' | 'is' | 'are') topicDobj
     :VerbProduction
     action = Query
     missingQ = 'what do you want to ask'

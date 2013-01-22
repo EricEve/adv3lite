@@ -2017,6 +2017,27 @@ class QueryTopic: SpecialTopic
      */
     qtype = nil    
     
+    
+    initializeTopicEntry()
+    {
+        /* 
+         *   If qtype isn't specified but matchPattern is, take the first word
+         *   of the matchPattern to be the qtype.
+         */
+        if(qtype == nil && matchPattern != nil)
+        {
+            local idx = matchPattern.find(' ');
+            if(idx)
+            {
+                qtype = matchPattern.substr(1, idx - 1);
+                matchPattern = matchPattern.substr(idx + 1).trim();
+            }
+            
+        }
+     
+        inherited;    
+    }
+    
     buildName()
     {
         if(name == nil && matchObj != nil)
