@@ -28,7 +28,7 @@ Queries and Suggestions
 ;
 </pre></div>
 
-<p>We might locate this directly in the angela object (hence only the single + sign) on the basis that the player character might ask Angela about herself at any point in the game. That's fair enough, but there are several other things we could improve. For one thing, it may not occur to every player to try ASK ATTENDANT ABOUT HERSELF; perhaps we might want to drop a hint that this might be a good idea. For another, the syntax ASK ATTENDANT ABOUT HERSELF doesn't give the player that much agency. How do we know that it's the attendant's name he wants to ask about, rather than, say, whether she enjoys her work or whether she's free for dinner that evening? Let's see what we can do about each of these issues in turn.</p>
+<p>We might locate this directly in the angela object (hence only the single + sign) on the basis that the player character might ask Angela about herself at any point in the game. That's fair enough, but there are several other things we could improve. For one thing, it may not occur to every player to try ASK ATTENDANT ABOUT HERSELF; perhaps we might want to drop a hint that this might be a good idea. For another, the syntax ASK ATTENDANT ABOUT HERSELF doesn't give the player that much agency. How do we know that it's the attendant's name he wants to ask about, rather than, say, whether she enjoys her work or what she's doing that evening? Let's see what we can do about each of these issues in turn.</p>
 
 <h2>Suggesting Topics of Conversation</h2>
 
@@ -176,6 +176,8 @@ angela: Actor 'flight attendant; statuesque young; woman angela; her'
 ;
 </pre></div>
 
+<p>One further point. We said above that this QueryTopic would respond to ASK WHAT HER NAME IS or WHAT IS YOUR NAME, but what happens if the player types WHAT'S YOUR NAME? It turns out that we don't need to worry about this, since the library will expand the WHAT'S into WHAT IS before attempting to match the grammar. It doesn't do this for eveything, just for input that looks like it might be trying to match a QueryTopic, but it does mean that when we're defining the vocab for a QueryTopic we don't need to worry about the player using the qtype word ('who', 'what', 'why', 'when', 'where' or 'how') with apostrophe-s; so long as we've included 'is' among our vocab words our QueryTopic will cope just fine.</p>
+
 <p>Another question we wanted to be able to ask Angela is whether she enjoys her work. Given the plot of this story, the answer she gives is likely to be dependent on what ActorState she's in, so we might want to define different QueryTopics for different ActorStates. Since it will then be used by several QueryTopics it's probably worth definining a separate Topic object for this:</p>
 
 <p><div class="code"><pre>
@@ -205,6 +207,78 @@ tEnjoyWork: Topic 'she enjoys her work; you enjoy your like likes; job';
 ;
 </pre></div>
 
+<p>The third personal question we suggested the player character might put to Angela is what she's doing tonight. The answer might vary a bit according to circumstances: we'll suppose she'll give a different answer once the player character boards the plane wearing a pilot's uniform from what she says before. To implement this we can locate one QueryTopic directly in the angela object to represent her earlier reply, and another in angelaSeatedState which will take precedence towards the end of the game. First the more general answer to be located directly in angela:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic, StopEventList 'what' @tDoingTonight
+    [
+        '&lt;q&gt;What are you doing tonight?&lt;/q&gt; you ask.\b
+        She cocks one eyebrow at you. &lt;q&gt;I have my plans,&lt;/q&gt; she replies
+        vaguely. ',
+        
+        '&lt;q&gt;What &lt;i&gt;are&lt;/i&gt; you doing tonight?&lt;/q&gt; you insist.\b
+        &lt;q&gt;I don\'t think that\'s any of your business,&lt;/q&gt; she replies, with
+        rather a bleak smile. &lt;q&gt;Do you?&lt;/q&gt; ',
+        
+        '&lt;q&gt;About tonight...&lt;/q&gt; you begin.\b
+        She cuts you off by pressing her lips together and raising her eyebrows
+        in a mildly disapproving manner, as if to say, &lt;q&gt;That topic is
+        closed.&lt;/q&gt; '       
+    ]
+;
+</pre></div>
+
+<p>And then the QueryTopic to be located in angelaSeatedState (i.e. once the drug cartel has replaced the regular passengers and the player character returns to the plane wearing a pilot's uniform).</p>
+
+ <p><div class="code"><pre>
+++ QueryTopic, StopEventList 'what' @tDoingTonight
+    [
+        '&lt;q&gt;What are your plans for tonight now?&lt;/q&gt; you ask.\b
+        &lt;q&gt;I\'m not sure,&lt;/q&gt; she replies, just a little nervously. &lt;q&gt;I think
+        I\'d rather wait until this plane has safely landed at its destination
+        and -- well, you know.&lt;/q&gt; She indicates the new set of passengers witha
+        flick of her eyes. &lt;q&gt;I think I\'d rather wait until this is all over
+        before making any further plans.&lt;/q&gt; ',
+        
+        '&lt;q&gt;About later tonight...&lt;/q&gt; you begin.\b
+        &lt;q&gt;Let\'s discuss it when we\'ve arrived at the other end,&lt;/q&gt; she
+        insists. '
+    ]
+;
+</pre></div>
+
+<p>For either of these to work, we also have to define the Topic object they both use:</p>
+
+ <p><div class="code"><pre>
+tDoingTonight: Topic 'she\'s doing tonight; she is you are';
+</pre></div>
+
+<p>There's one final QueryTopic we could add at this point. The question asked about flight departures is 'When is this plane going to leave?' which suggests a QueryTopic like this:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'when' 'this plane is going to leave; depart take off'
+    "&lt;q&gt;When is this plane going to leave?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Just as soon as the pilot comes aboard,&lt;/q&gt; she tells you. &lt;.reveal
+    pilot-awaited&gt; "
+;
+</pre></div>
+
+<p>The problem with this, however, is that it effectively duplicates the existing AskTopic for tFlightDepartures. What we'd ideally like is a single TopicEntry that can respond in the same way to either ASK ABOUT FLIGHT DEPARTURES or ASK WHEN THE PLANE IS GOING TO LEAVE. We can do that by deleting the AskTopic, retaining the QueryTopic, and adding <span class="code">askMatchObj = tFlightDepartures</span> to the definition of the QueryTopic. This tells the QueryTopic that it should also behave like an AskTopic that matches tFlightDepartures:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic 'when' 'this plane is going to leave; depart take off'
+    "&lt;q&gt;When is this plane going to leave?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Just as soon as the pilot comes aboard,&lt;/q&gt; she tells you. &lt;.reveal
+    pilot-awaited&gt; "
+    
+    <strong>askMatchObj = tFlightDepartures</strong>
+;
+</pre></div>
+
+<p>Actually, what it does behind the scenes is a bit more complex than that, but we don't need to worry about the technicalities for now. In essence, it makes the game <em>behave</em> as it the QueryTopic were also an AskTopic matching tFlightDepartures.</p>
+
+<br>
+<h2>Tying it All Together</h2>
 
 </div>
 

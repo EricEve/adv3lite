@@ -820,9 +820,7 @@ DefineTAction(Take)
     againRepeatsParse = true
 ;
 
-DefineTAction(Drop)
-   
-    announceMultiAction = true   
+DefineTAction(Drop)      
     allowAll = true
     
     getAll(cmd, role)
