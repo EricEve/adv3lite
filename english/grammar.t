@@ -1756,6 +1756,29 @@ VerbRule(DoQuery)
     qtype = 'if'
 ;
 
+/* 
+ *   For queries, turn an apostrophe-s form into the underlying qtype plus is so
+ *   that the grammer defined immediately above can be matched.
+ */
+
+queryPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        local s = str.toLower();
+        
+        /* First, check that this looks like a query */
+        if(s.startsWith('a ') || s.startsWith('ask ') || s.substr(1, 3) is in
+           ('who', 'wha', 'whe', 'why', 'how'))
+        {
+            str = s.findReplace(['what\'s','who\'s', 'where\'s', 'why\'s',
+                'when\'s', 'how\'s'], ['what is', 'who is', 'where is', 'why
+                    is', 'when is', 'how is'], ReplaceOnce);        }
+
+    
+        return str;
+    }
+;
+
 VerbRule(AskFor)
     ('ask' | 'a') singleDobj 'for' topicIobj
     | ('ask' | 'a') 'for' topicIobj 'from' singleDobj
