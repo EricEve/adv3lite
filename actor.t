@@ -598,7 +598,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          *   tag to list all available special topics.
          */
         if(tag not in (nil, 'all'))
-            lst = lst.overlapsWith(valToList(convKeyTab[tag]));
+            lst = lst.intersect(valToList(convKeyTab[tag]));
         
         suggestedTopicLister.show(lst, explicit);            
         

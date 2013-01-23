@@ -207,6 +207,16 @@ tEnjoyWork: Topic 'she enjoys her work; you enjoy your like likes; job';
 ;
 </pre></div>
 
+<p>And this is the version we might locate under the angelaSeatedState (when the plane has been taken over by the drug barons):</p>
+
+ <p><div class="code"><pre>
+++ QueryTopic 'if|whether' @tEnjoyWork
+    "&lt;q&gt;Are you enjoying your work now?&lt;/q&gt; you ask.\b
+    &lt;q&gt;I'll be glad when this particular flight is over,&lt;/q&gt; she replies
+    quietly. "       
+;
+</pre></div>
+
 <p>The third personal question we suggested the player character might put to Angela is what she's doing tonight. The answer might vary a bit according to circumstances: we'll suppose she'll give a different answer once the player character boards the plane wearing a pilot's uniform from what she says before. To implement this we can locate one QueryTopic directly in the angela object to represent her earlier reply, and another in angelaSeatedState which will take precedence towards the end of the game. First the more general answer to be located directly in angela:</p>
 
  <p><div class="code"><pre>
@@ -279,6 +289,102 @@ tDoingTonight: Topic 'she\'s doing tonight; she is you are';
 
 <br>
 <h2>Tying it All Together</h2>
+
+<p>We've now achieved part of what we set out to do, but not all of it. Our original aim was to have ASK WOMAN ABOUT HERSELF to suggest three further topics, namely "ask her what her name is", "ask if she enjoys her work" and "ask what she's doing tonight", but as we have things so far the QueryTopics we've defined so far are quite unrelated to the AskTopic for ASK HER ABOUT HERSELF. The way to relate them is through the <strong>convKeys</strong> property. This simply consists of an arbitrary string (or a list of arbitrary strings) that we can use to group and refer to TopicEntries and groups of TopicEntries. To make one TopicEntry suggest a number of other ones we need to define the <strong>keyTopics</strong> property of the suggesting TopicEntry to be the same as the convKeys property (or at least one of the strings in the convKeys list) of the TopicEntries to be suggested.</p>
+
+<p>In this case let's call the convKey we want to use 'angela'. It could be anything we liked, but this seems a meaningful name for a set of topics that relate to Angela herself. We then need to define keyTopics = 'angela' on the 'ask her about herself' AskTopic, and convKeys = 'angela' on the QueryTopics for ASK WHAT HER NAME IS, ASK IF SHE ENJOYS HER JOB and ASK WHAT SHE'S DOING TONIGHT:</p>
+
+ <p><div class="code"><pre>
++ AskTopic @angela
+    keyTopics = 'angela'
+    
+    name = 'herself'
+;
+
++ QueryTopic 'what' 'her name is; your'
+    "&lt;q&gt;What's your name?&lt;/q&gt; you ask.\b
+    &lt;q&gt;&lt;&lt;getActor.makeProper&gt;&gt;,&lt;/q&gt; she replies. "
+    
+    isActive = !getActor.proper
+    
+    convKeys = 'angela'
+;
+
++ QueryTopic, StopEventList 'what' @tDoingTonight
+    [
+        '&lt;q&gt;What are you doing tonight?&lt;/q&gt; you ask.\b
+        She cocks one eyebrow at you. &lt;q&gt;I have my plans,&lt;/q&gt; she replies
+        vaguely. ',
+        
+        '&lt;q&gt;What &lt;i&gt;are&lt;/i&gt; you doing tonight?&lt;/q&gt; you insist.\b
+        &lt;q&gt;I don\'t think that\'s any of your business,&lt;/q&gt; she replies, with
+        rather a bleak smile. &lt;q&gt;Do you?&lt;/q&gt; ',
+        
+        '&lt;q&gt;About tonight...&lt;/q&gt; you begin.\b
+        She cuts you off by pressing her lips together and raising her eyebrows
+        in a mildly disapproving manner, as if to say, &lt;q&gt;That topic is
+        closed.&lt;/q&gt; '       
+    ]
+    
+    convKeys = 'angela'
+;
+</pre></div>
+
+<p>And so on for the other QueryTopics we've defined that relate to what Angela's doing tonight or whether she enjoys her work.</p>
+
+<p>This almost does what we want, but perhaps not quite, for when the player types TOPICS at the start of the first conversation with Angela, the three QueryTopics that are meant to be listed as a result of asking Angela about herself are listed alongside "You could ask when this plane is leaving, or ask her about herself". If we want the topic suggestions to act like a kind ot two-tier menu, with only the main topics appearing in response to a TOPICS command, and the subtopics only appearing in response to a command like ASK ANGELA ABOUT HERSELF, then we need to carry out a couple of extra steps. First we need to define the <strong>suggestionKey</strong> property of the actor to hold a convKey used on the top-level TopicEntries. Again, this can be anything we like, but let's call it 'top':</p>
+
+ <p><div class="code"><pre>
+angela: Actor 'flight attendant; statuesque young; woman angela; her'
+    @planeFront
+    "She's a statuesque and by no means unattractive young woman. "
+    
+    shouldNotAttackMsg = 'That would be cruel and unnecessary. '
+    
+    globalParamName = 'angela'
+    
+    makeProper
+    {
+        proper = true;
+        name = 'Angela';
+        return name;
+    }
+    
+    suggestionKey = 'top'
+;
+</pre></div>
+
+<p>Now the TOPICS command will only list those TopicEntries whose convKeys include 'top'. We thus need to give a convKey of 'top' to the ASK ABOUT HERSELF and ASK ABOUT PILOT AskTopic, and the ASK WHEN THIS PLANE IS LEAVING QueryTopic. We could do this by adding <span class="code">convKeys = 'top'</span> to each of these in turn, but we can save a bit of typing (and perhaps make out intentions a bit clearer) by putting these three TopicEntries together in the same TopicGroup and defining the convKeys property on the TopicGroup:</p>
+
+ <p><div class="code"><pre>
++ TopicGroup 'top';
+
+++ AskTopic @angela
+    keyTopics = 'angela'
+    
+    name = 'herself'
+;
+
+++ QueryTopic 'when' 'this plane is going to leave; depart take off'
+    "&lt;q&gt;When is this plane going to leave?&lt;/q&gt; you ask.\b
+    &lt;q&gt;Just as soon as the pilot comes aboard,&lt;/q&gt; she tells you. &lt;.reveal
+    pilot-awaited&gt; "
+    
+    askMatchObj = tFlightDepartures
+;
+
+
+++ AskTopic @tPilot
+    "&lt;q&gt;What's happened to the pilot?&lt;/q&gt; you ask.\b
+    &lt;q&gt;I don't know; we're still waiting for him,&lt;/q&gt; she replies. &lt;q&gt;But don't
+    worry; I'm sure he'll turn up any moment now.&lt;/q&gt; "
+
+    autoName = true
+    isActive = gRevealed('pilot-awaited')
+;
+</pre></div>
+
+
 
 </div>
 
