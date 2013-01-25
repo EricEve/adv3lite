@@ -667,7 +667,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             handleTopic(&miscTopics, [helloTopicObj], &noResponseMsg);
         }
         "<.p>";
-        showSuggestions(nil);
+        showSuggestions(nil, suggestionKey);
     }
     
     /* Have the actor greet the player character */

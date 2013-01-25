@@ -16,6 +16,47 @@ Hello and Goodbye
 </div>
 <div class="main">
 <h1>Hello and Goodbye</h1>
+<p>You may recall that in setting up Angela's ActorStates in the previous chapter we defined two different ActorStates for her while she's out in the Jetway: one (angelaAssistingState) for when Angela is assisting the other passengers, and the other (angelaTalkingState) for when Angela is actually talking with the player character out on the Jetway. So far, however, we've provided no mechanism for switching between these two states. We've located a QueryTopic in angelaTalkingState, but as things stand at the moment it will never be activated because nothing we've done so far will ever cause Angela to go into the angelaTalkingState.</p>
+
+<p>The two different states do nevertheless serve a purpose. Engaging someone in conversation may well result in a change of state from what they were doing before. When Angela is in angelaAssistingState she's dealing with other passengers. When she's in angelaTalkingState her attention is focused on the player character. Once the player character has finished speaking with her, she'll return her attention to the other passengers; in other words she should go back into the angelaAssistingState.</p>
+
+<p>These state transitions model what happen in real life when we start and end a conversation. Our conversation partner will stop whatever he or she was doing before to talk with us, and resume doing it (or else start doing something else, such as leaving the room) when we've finished. To mark the boundaries between states we normally use some form of <em>greeting protocols</em>, like saying hello and goodbye, partly to attract the attention of the other person, perhaps, but also to mark the beginning and end of the conversation, both as a matter of politeness and social convention, and for the practical purpose of ensuring that the conversation partners know when to 'switch states'. There may be some occasions when it's appropriate to begin and end a conversation abruptly, but on many occasions it would seem rather odd, if not quite impolite, to do so (although the formula employed may not be an explicit 'hello' or 'goodbye'; in England, for example, either 'Excuse me' or commenting on the weather is regarded as an acceptable way to open a conversation with a stranger).</p>
+
+<p>In adv3Lite, these <em>greeting protocols</em> can be modelled with a <strong>HelloTopic</strong> to start the conversation and a <strong>ByeTopic</strong> to end it. Neither of these special types of TopicEntry (or their subtypes) causes the actor to switch state automatically unless you instruct it to, but if you do switch states the rule is this: both types of greeting TopicEntry must be located either directly in the Actor or in the ActorState the actor as in at the point at which the Hello or Goodbye occurs. This means that if there is a switch of state, the <span class="code">HelloTopic</span> should be located in the ActorState the actor is in immediately prior to the conversation, while the <span class="code">ByeTopic</span> should be in the state the actor is in while conversing. To make a HelloTopic or ByeTopic switch states you define its <strong>changeToState</strong> property to point to the ActorState you want it to change to.</p>
+
+<p>To see how this works in practice, let's add a HelloTopic that switches Angela to the <span class="code">angelaTalkingState</span> when the player character starts addressing her on the Jetway. The following definition should be placed immediately after than of the <span class="code">angelaAssistingState</span> object:</p>
+
+ <p><div class="code"><pre>
+++ HelloTopic, StopEventList
+    [
+        '&lt;q&gt;Excuse me, might I have a word?&lt;/q&gt; you say.\b
+        {The subj angela} turns to you with a fixed smile, no doubt mentally
+        preparing herself for another barrage of complaints. &lt;q&gt;Yes; how can I
+        help?&lt;/q&gt; she replies. ',
+        
+        '&lt;q&gt;Might I have another word?&lt;/q&gt; you ask.\b
+        &lt;q&gt;Yes?&lt;/q&gt; she replies, turning to you just a little warily. '
+    ]
+    
+    changeToState = angelaTalkingState
+;
+</pre></div>
+
+<p>Here we've combined the HelloTopic with a StopEventList to vary the greeting used on the first and subsequent occasions. Note that this HelloTopic will be triggered whether the player types a conversational command like ASK ANGELA ABOUT FLIGHT DEPARTURES or whether s/he types an explicit greeting like TALK TO ANGELA. What happens next will differ in the two cases, though. If the player types a conversational command like ASK ANGELA ABOUT FLIGHT DEPARTURES, this will be dealt with immediately after the greeting exchange. If the player types TALK TO ANGELA a list of suggested conversation topics will be displayed immediately after the exchange of greetings. If we wanted a different exchange of greetings in the first case (where the player doesn't explicitly ask for it), we could define a separate <strong>ImpHelloTopic</strong> (implicit HelloTopic) to deal with it, but we hardly need one here.</p>
+
+<p>To end the conversation we can define a <span class="code">ByeTopic</span> in much the same way, except that the ByeTopic needs to be located in the <span class="code">angelaTalkingState</span> and to define <span class="code">changeToState = angelaAssistingState</span> to ensure that Angela switches back to her former ActorState at the end of the conversation:</p>
+
+ <p><div class="code"><pre>
+++ ByeTopic
+    "&lt;q&gt;Well, cheerio for now then,&lt;/q&gt; you say.\b
+    &lt;q&gt;Goodbye,&lt;/q&gt; she replies with a brisk nod, before turning to yet another
+    importuning displaced passenger anxious for her attention. "
+    
+    changeToState = angelaAssistingState
+;
+
+
+</pre></div>
 
 
 </div>
@@ -26,6 +67,8 @@ Hello and Goodbye
 <a class="nav" href="conversation.htm">The Art of Conversation</a> &gt; 
 Hello and Goodbye
 <br><span class="navnp"><a class="nav" href="query.htm"><i>Prev:</i> Queries and Suggestions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="hello.htm"><i>Next:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; </span>
+
+
 
 </div>
 </body>
