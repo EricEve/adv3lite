@@ -1747,8 +1747,9 @@ VerbRule(QueryVague)
     priority = 60
 ;
 
-VerbRule(DoQuery)
-    ('do' | 'does' | 'did' | 'is' | 'are') topicDobj
+VerbRule(AuxQuery)
+    ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
+     'could' | 'would' | 'should' ) topicDobj
     :VerbProduction
     action = Query
     missingQ = 'what do you want to ask'
@@ -1772,7 +1773,10 @@ queryPreParser: StringPreParser
         {
             str = s.findReplace(['what\'s','who\'s', 'where\'s', 'why\'s',
                 'when\'s', 'how\'s'], ['what is', 'who is', 'where is', 'why
-                    is', 'when is', 'how is'], ReplaceOnce);        }
+                    is', 'when is', 'how is'], ReplaceOnce);        
+                       
+        
+        }
 
     
         return str;

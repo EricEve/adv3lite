@@ -718,7 +718,7 @@ DefineSystemAction(Topics)
             DMsg(no interlocutor, '{I}{\'m} not talking to anyone. ');
         else
         {            
-            otherActor.showSuggestions(true, otherActor.suggestionKey);
+            otherActor.showSuggestions(true);
         }
     }
     

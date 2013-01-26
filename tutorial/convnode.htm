@@ -27,6 +27,140 @@ Angela Wants Answers
 
 <p>Many, if not most players will probably treat the "Do you?" at the end of Angela's reply as a purely rhetorical question, but a few may try responding YES or NO. Such a response would be appropriate only just at that point in the conversation (there may be other points at which the player could respond YES or NO, but it wouldn't meant the same thing, since it would constitute an answer to a different question). With Angela's (possibly rhetorical) question "Do you?" the conversation enters a special state, which we might call a <em>Conversation Node</em>, meaning a particular point in the conversation at which particular responses become potentially appropriate. Once the conversation moves on, these particular responses (such as a YES or DO in response to Angela's "Do you?" cease to be appropriate once more.</p>
 
+<p>We can model such a Conversation Node in adv3Lite by using a <.convode> tag, of the form <span class="code">&lt;.convnode <em>key</em>&gt;</span>, where <em>key</em> corresponds to the convKey (or one of the convKeys) of the TopicEntries we want to be active during that Conversation Node. To ensure that those TopicEntries are <em>only</em> available during that Conversation Node, we also need to set their <span class="code">isActive</span> property to <span class="code">nodeActive</span>. A <strong>YesTopic</strong> responds to YES and a <strong>NoTopic</strong> responds to NO, so we could allow the player to reply YES or NO to Angela's possibly rhetorical question by adding a <span class="code">&lt;.convnode&gt;</span> tag to the question and then the following <span class="code">YesTopic</span> and <span class="code">NoTopic</span>:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic, StopEventList 'what' @tDoingTonight
+    [
+        '&lt;q&gt;What are you doing tonight?&lt;/q&gt; you ask.\b
+        She cocks one eyebrow at you. &lt;q&gt;I have my plans,&lt;/q&gt; she replies
+        vaguely. ',
+        
+        '&lt;q&gt;What &lt;i&gt;are&lt;/i&gt; you doing tonight?&lt;/q&gt; you insist.\b
+        &lt;q&gt;I don\'t think that\'s any of your business,&lt;/q&gt; she replies, with
+        rather a bleak smile. &lt;q&gt;Do you?&lt;/q&gt; <strong>&lt;.convnode not-your-business&gt;</strong>',
+        
+        '&lt;q&gt;About tonight...&lt;/q&gt; you begin.\b
+        She cuts you off by pressing her lips together and raising her eyebrows
+        in a mildly disapproving manner, as if to say, &lt;q&gt;That topic is
+        closed.&lt;/q&gt; '       
+    ]
+    
+    convKeys = 'angela'
+;
+
++ YesTopic
+    "&lt;q&gt;As a matter of fact I do,&lt;/q&gt; you reply boldly.\b
+    &lt;q&gt;In that case we shall have to agree to differ,&lt;/q&gt; she replies, just a
+    little stiffly." 
+    
+    convKeys = ['not-your-business']
+    isActive = nodeActive
+;
+
++ NoTopic
+    "&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;No; well, there you are then,&lt;/q&gt; she remarks. "
+    
+    convKeys = ['not-your-business']
+    isActive = nodeActive    
+;
+</pre></div>
+
+<p>This works, but it may seem a little repetitive to have to repeat the <span class="code">convKeys</span> and <span class="code">isActive</span> property on each TopicEntry in the Conversation Node. We have already seen how we can use a <span class="code">TopicGroup</span> to apply the same <span class="code">isActive</span> and <span class="code">convKeys</span> conditions to a group of TopicEntries, and we can use a special kind of TopicGroup, a <strong>ConvNode</strong>, to do that for us here:</p>
+
+ <p><div class="code"><pre>
++ ConvNode 'not-your-business';
+
+++ YesTopic
+    "&lt;q&gt;As a matter of fact I do,&lt;/q&gt; you reply boldly.\b
+    &lt;q&gt;In that case we shall have to agree to differ,&lt;/q&gt; she replies, just a
+    little stiffly."     
+;
+
+++ NoTopic
+    "&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;No; well, there you are then,&lt;/q&gt; she remarks. "  
+;
+</pre></div>
+
+<p>In most cases, this is probably the easier way to do it; it may also help make it more immediately apparent which TopicEntries relate to a particular Conversation Node.</p>
+
+<p>A Conversation Node of the kind we've just defined is highly ephemeral. It lasts only for one conversational turn. If the player chooses to type YES or NO as the next conversational command following Angela's question, then YesTopic or NoTopic will be triggered, but once the player types any other conversational command the moment is lost, and the TopicEntries in the node will no longer be available. In the case we've just implemented, that's just as it should be, since the player can choose to say YES or NO or else treat the question as rhetorical and so ignore it altogether, in which case the opportunity for replying YES or NO is forever lost. But in another case, where Angela has just asked a question that clearly isn't rhetorical, she may wish to insist on an answer, or at the very least to complain if the player tries to change the subject.</p>
+
+ <p><div class="code"><pre>
+++ AskTellTopic, StopEventList @cortez
+    [
+        '&lt;q&gt;Do you know who that man waving a gun around at the front of the
+        plane is?&lt;/q&gt; you ask, lowering your voice. &lt;q&gt;It\'s Pablo Cortez, El
+        Diablo\'s right-hand man!&lt;/q&gt;\b
+        Her smile becomes rather frosty as she replies, &lt;q&gt;What\'s that to
+        you?&lt;/q&gt; &lt;.convnodet what-to-you&gt;',
+        
+        '&lt;q&gt;You need to be &lt;i&gt;very&lt;/i&gt; careful around Cortez,&lt;/q&gt; you warn
+        her.\b
+        &lt;q&gt;I shall be,&lt;/q&gt; she assures you. '
+    
+    ]
+    autoName = true
+    convKeys = 'top'
+    suggestAs = TellTopic
+;
+
++ ConvNode 'what-to-you';
+    
+++ TellTopic @me    
+    "&lt;q&gt;The name's Pond, Sherlock Pond,&lt;/q&gt; you tell her. &lt;q&gt;I'm a British
+    secret agent on the track of these villains!&lt;/q&gt;\b
+    &lt;q&gt;Indeed!&lt;/q&gt; she replies with ill-disguised scepticism. &quot; 
+    
+    name = 'yourself'
+;
+
+++ SayTopic 'Cortez is dangerous'
+    "&lt;q&gt;Pablo Cortez is a &lt;i&gt;very&lt;/i&gt; dangerous man,&lt;/q&gt; you warn her. &lt;q&gt;He's
+    killed more men than I've had hot dinners!&lt;/q&gt;\b
+    &lt;q&gt;Anyone waving a gun around aboard a passenger aircraft might be
+    considered dangerous,&lt;/q&gt; she points out pragmatically. "    
+;
+
+++ SayTopic 'she should call security'
+    "&lt;q&gt;You should call airport security to deal with him!&lt;/q&gt; you urge her.\b
+    &lt;q&gt;Airport security -- in Narcosia?&lt;/q&gt; she asks incredulously. &lt;q&gt;Somehow I
+    don\'t think that will exactly help the situation!&lt;/q&gt; "
+;
+
+++ DefaultAnyTopic, StopEventList
+    [
+        '&lt;q&gt;No, but what is to you who this man is?&lt;/q&gt; she interrupts you.
+        &lt;.convstay&gt; ',
+    
+        'She shakes her head. &lt;q&gt;Very well, don\'t answer my question then,&lt;/q&gt;
+        she mutters. '
+    ]
+;
+
+++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        if(reason == endConvBye)
+        {
+            "&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; {the subj angela}
+            complains. &lt;q&gt;Why are you so bothered about this man Cortez?&lt;/q&gt; ";
+                              
+            return blockEndConv;
+        }
+        
+        if(reason == endConvLeave)
+        {
+            "This doesn't seem a good point to break off the conversation. ";
+            return nil;
+        }
+        
+        return true;
+    }
+;
+</pre></div>
 
 </div>
 

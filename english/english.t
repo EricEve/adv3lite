@@ -1733,6 +1733,59 @@ OpenClosed: State
 //    vocabWords = [[true, 'me', MatchNoun]]
 //;
 
+modify TopicPhrase
+    matchNameScope(cmd, scope)
+    {
+        
+        local toks = tokens;
+        local ret;
+        /* 
+         *   Strip any apostrophe-S from our tokens since the vocab words
+         *   initialization will have done the same
+         */
+        
+        
+        tokens = tokens.subset({x: x != '\'s'});
+        
+        try
+        {
+           ret = inherited(cmd, scope);
+        }
+        finally
+        {
+            tokens = toks;
+        }
+        
+        return ret;
+    }
+    
+;
+
+modify ResolvedTopic
+    /* 
+     *   The English Tokenizer separates apostrophe-S from the word it's part
+     *   of, so in restoring the original text we need to join any apostrophe-S
+     *   back to the word it was separated from.
+     */
+    
+    getTopicText()
+    {
+        local str = tokens.join(' ').trim();
+        str = str.findReplace(' \'s', '\'s', ReplaceAll);
+        return str;        
+    }
+    
+;
+
+modify Topic
+    construct(name_)
+    {
+        name_ = name_.findReplace(' \'s', '\'s', ReplaceAll);
+        inherited(name_);
+    }
+    
+;
+
 
 /* ------------------------------------------------------------------------ */
 /*

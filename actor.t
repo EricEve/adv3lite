@@ -583,21 +583,38 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     suggestionKey = nil
 
-    showSuggestions(explicit = true, tag = nil)
+    showSuggestions(explicit = true, tag = (pendingKeys == [] ? suggestionKey
+                                            : pendingKeys))
     {
         local lst = listableTopics;
         
         if(curState != nil)
             lst += curState.listableTopics;
         
+        /* 
+         *   If the tag parameter has been passed as a list, then for each tag
+         *   in the list find all the matching TopicEntries, then find the
+         *   intersect of all the listable TopicEntries with those that match
+         *   all the tags.
+         */
+        if(dataType(tag) == TypeList)
+        {
+            local vec = new Vector(10);
+            foreach(local t in tag)
+            {
+                vec.appendUnique(valToList(convKeyTab[t]));
+            }
+            
+            lst = lst.intersect(vec.toList());    
+        }
         
         /* 
-         *   If the tag parameter is supplied, use it to provide a sublist of
-         *   only those topics with a convKeys property matching the tag. A tag
-         *   of 'all' is treated as a special value to allow a <.suggest all>
-         *   tag to list all available special topics.
+         *   Otherwise, if the tag parameter is supplied, use it to provide a
+         *   sublist of only those topics with a convKeys property matching the
+         *   tag. A tag of 'all' is treated as a special value to allow a
+         *   <.suggest all> tag to list all available special topics.
          */
-        if(tag not in (nil, 'all'))
+        else if(tag not in (nil, 'all'))
             lst = lst.intersect(valToList(convKeyTab[tag]));
         
         suggestedTopicLister.show(lst, explicit);            
@@ -2396,13 +2413,18 @@ conversationManager: OutputFilter, PreinitObject
                  *   too, so we fall through to the 'topics' tag.
                  */
                 
-                if(tag not in ('convnodet', 'convstayt'))
-                   break;
+                if(tag is in ('convnodet', 'convstayt') 
+                   && respondingActor != nil)                    
+                    scheduleTopicInventory(respondingActor.pendingKeys);
+                    
+                 break;
 
             case 'topics':
                 /* schedule a topic inventory listing */
                 if (respondingActor != nil)
-                    scheduleTopicInventory(respondingActor.suggestionKey);
+                    scheduleTopicInventory(respondingActor.pendingKeys = [] ? 
+                                           respondingActor.suggestionKey
+                                           : respondingActor.pendingKeys);
                 break;
             case 'arouse':
                 /* 
