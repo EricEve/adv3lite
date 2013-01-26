@@ -240,35 +240,21 @@ objAudible: PreCondition
 
 
 touchObj: PreCondition
+    /* The issues, if any, that are causing difficulty with reaching */
+    reachIssues = []
+    
     verifyPreCondition(obj)
     {
-       
-        local lst = Q.reachBlocker(gActor, obj);
-        
         /* 
-         *   If the blocking object is the one we're trying to reach, then
-         *   presumably we can reach it after all (e.g. an actor inside a closed
-         *   box.
+         *   Store any issues that the Query object finds with reaching obj from
+         *   gActor
          */
+        reachIssues = Q.reachProblem(gActor, obj);
         
-        if(lst.length > 0 && lst[1] != obj)
-        {
-            local errMsg;
-            gMessageParams(obj);
-            
-            if(lst[1].ofKind(Room))
-                errMsg = BMsg(too far away, '{The subj obj} {is} too far away.
-                    ');
-            
-            else          
-                errMsg = BMsg(cannot reach, '{I} {can\'t} reach {1} 
-                through {2}. ', obj.theName, lst[1].theName);
-                
-            inaccessible(errMsg);
-        }
+        /*  Run the verify method of any issues we found */
+        foreach(local issue in reachIssues)        
+            issue.verify();
         
-        
-        obj.verifyReach(gActor);
     }
     
     
@@ -276,53 +262,20 @@ touchObj: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
         /* 
-         *   First check whether the actor is in a nested room that does not
-         *   contain the object being reached, and if said nested room does not
-         *   allow reaching out.
-         */
-        
-        local loc = gActor.location;
-        local str = nil;
-        
-        
-        while(loc != gActor.getOutermostRoom)
+         *   Go through each stores issue in turn running its check method; if
+         *   any of the check methods return nil, exit and return nil.
+         */        
+        foreach(local issue in reachIssues)
         {
-            if(!obj.isOrIsIn(loc) && !loc.allowReachOut(obj))
-            {
-                if(allowImplicit && loc.autoGetOutToReach 
-                   && tryImplicitAction(GetOutOf, loc))
-                {
-                    if(gActor.isIn(loc))
-                        return nil;
-                }
-                else
-                {
-                    gMessageParams(obj, loc);
-                    DMsg(cannot reach out, '{I} {can\'t} reach {the obj} from
-                        {the loc}. ');
-                    return nil;
-                }
-                    
-            }
-            
-            loc = loc.location;
-        }
-        
-        
-        str = gOutStream.watchForOutput({:obj.checkReach(gActor)});
-        
-        if(str != nil)
-            return nil;
-        
-        local cPar = gActor.commonInteriorParent(obj);
-        
-        for(local item = obj.location; item != cPar; item = item.location)
-        {
-            if(gOutStream.watchForOutput({: item.checkReachIn(gActor)}))
+            if(issue.check(allowImplicit) == nil)
                 return nil;
-                
         }
         
+       
+        /* 
+         *   If we reach here we've passed all the checks, so return true to
+         *   indicate success.
+         */
         return true;
     }
     

@@ -82,6 +82,15 @@ Q: object
     reachBlocker(a, b)
         { return Special.first(&reachBlocker).reachBlocker(a, b); }
 
+    
+    /*   
+     *   Determine if there is a problem with A reaching B, and if so what it
+     *   is. If there is a problem return a ReachProblem object describing what
+     *   the problem is, otherwise return nil.
+     */
+    reachProblem(a, b)
+       { return Special.first(&reachProblem).reachProblem(a, b); }
+    
     /*
      *   Can A hear B?  
      */
@@ -256,49 +265,133 @@ QDefaults: Special
     }
 
     /*
-     *   Can we reach from A to B?  We return true if there's a clear reach
-     *   path from A to B.  
+     *   Can we reach from A to B?  We return true if there's a clear reach path
+     *   from A to B, which we take to be the case if we can't find any problems
+     *   in reaching from A to B.
      */
     canReach(a, b)
     {
+        return reachProblem(a, b) == [];
+    }
+    
+    /* 
+     *   Determine if there is anything preventing or hindering A from reaching
+     *   B; if so return a ReachProblem object describing the problem in a way
+     *   that a check or verify routine can act on (possibly with an implicit
+     *   action to remove the problem). If not, return an empty list.
+     *
+     *   NOTE: if you provide your own version of this method on a Special it
+     *   must return either an empty list (to indicate that there are no
+     *   problems with reaching from A to B) or a list of one or more
+     *   ReachProblem objects describing what is preventing A from reaching B.
+     */
+    
+    reachProblem(a, b)
+    {
+        /* 
+         *   A list of issues that might prevent reaching from A to B. If we
+         *   encounter a fatal one we return the list straight away rather than
+         *   carrying out more checks.
+         */
+        local issues = [];
+        
         if(a.isIn(nil) || b.isIn(nil))
-            return nil;
+        {
+            issues += new ReachProblemDistance(b);
+            return issues;
+        }
         
-        local blocker = Q.reachBlocker(a, b);
+        local lst = Q.reachBlocker(a, b);
+        
+         /* 
+          *   If there's a blocking object but the blocking object is the one
+          *   we're trying to reach, then presumably we can reach it after all
+          *   (e.g. an actor inside a closed box. Otherwise if there's a
+          *   blocking object then reach is impossible.
+          */
+        
+        if(lst.length > 0 && lst[1] != b)
+        {           
+            
+            /* 
+             *   If the blocking object is a room, then the problem is that the
+             *   other object is too far away.
+             */
+            if(lst[1].ofKind(Room))
+                issues += new ReachProblemDistance(b);        
+            /* Otherwise some enclosing object is in the way */
+            else          
+                issues += new ReachProblemBlocker(b, lst[1]);                
+                
+            return issues;
+        }
         
         /* 
-         *   A cannot reach B if there are any obstacles between A and B besides
-         *   B itself (e.g. the actor is inside a closed box)
+         *   If a defines a verifyReach method, check whether running it adds a
+         *   new verify result to the current action's verifyTab table. If so,
+         *   there's a problem with reaching so return a ReachProblemVerifyReach
+         *   object.
          */
         
-        if (blocker.length() > 0 && blocker[1] != b)
-            return nil;
+        if(a.propDefined(&verifyReach))
+        {
+            local tabCount = gAction.verifyTab.getEntryCount();
+            a.verifyReach(b);
+            if(gAction.verifyTab.getEntryCount > tabCount)
+               issues += new ReachProblemVerifyReach(a, b);
+        }
+        
+        local checkMsg = nil;
         
         /* 
-         *   Finally we need to check whether there's anything along the path
-         *   from A to B that rules out touching in a checkReach() or
-         *   checkReachIn() method.
+         *   Next check whether the actor is in a nested room that does not
+         *   contain the object being reached, and if said nested room does not
+         *   allow reaching out.
          */
         
-        if(gOutStream.captureOutput({: b.checkReach(a)}) not in (nil, ''))
-            return nil;
+        local loc = a.location;
+        if(loc != a.getOutermostRoom && !b.isOrIsIn(loc) && 
+           !loc.allowReachOut(b))
+            issues += new ReachProblemReachOut(b);
         
+        
+        /*  
+         *   Determine whether there's any problem with b reached from a defined
+         *   in b's checkReach (from a) method.
+         */
+        checkMsg = gOutStream.captureOutput({: b.checkReach(a)});
+        
+        
+        /*   
+         *   If the checkReach method generates a non-empty string, return a new
+         *   ReachProblemCheckReach object that encapsulates it
+         */
+        if(checkMsg not in (nil, ''))
+            issues += new ReachProblemCheckReach(b, checkMsg);
+        
+        
+        /* 
+         *   Next check whether there's any problem reaching inside B from A
+         *   defined in B's checkReachIn method or the checkReach in method of
+         *   anything that contains B.
+         */
         local cpar = b.commonInteriorParent(a);
         
         if(cpar != nil)
         {
-            for(local loc = b.location; loc != cpar; loc = loc.location)
+            for(loc = b.location; loc != cpar; loc = loc.location)
             {
-                if(gOutStream.captureOutput({: loc.checkReachIn(a)}) not in
-                   (nil, ''))
-                    return nil;
+                checkMsg = gOutStream.captureOutput({: loc.checkReachIn(a)});
+                if(checkMsg not in (nil, ''))
+                    issues += new ReachProblemCheckReach(b, checkMsg);
             }
             
         }
         
-        
-        return true;
+        /* Return our list of issues */
+        return issues;
     }
+    
     
     /*
      *   Determine if A can reach B, and if not, what stands in the way. Returns
@@ -668,3 +761,142 @@ class ScopeList: object
     status_ = perInstance(new LookupTable(64, 128))
 ;
 
+/*  An object describing a reach problem */
+
+class ReachProblem: object
+    verify() { }   
+    check(allowImplicit) { return true; }    
+    
+    construct(target)
+    {
+        target_ = target;
+    }
+    
+    /* The object we're trying to reach */
+    target_ = nil
+;
+
+/* 
+ *   A ReachProblem object for when the target object is too far away (because
+ *   it's in another room).
+ */
+class ReachProblemDistance: ReachProblem
+    verify()
+    {
+        inaccessible(tooFarAwayMsg);
+    }
+    
+    tooFarAwayMsg()
+    {
+        local b = target_;
+        gMessageParams(b);
+        return BMsg(too far away, '{The subj b} {is} too far away. ');
+    }
+;
+    
+/*  
+ *   A ReachProblem object for when access to the target is blocked by a closed
+ *   container along the path from the source to the target.
+ */
+class ReachProblemBlocker: ReachProblem
+    verify()
+    {
+        inaccessible(reachBlockedMsg);
+    }
+    
+    reachBlockedMsg()
+    {
+        local b = target_;
+        local obj = obstructor_;
+        gMessageParams(b, obj);
+        return BMsg(cannot reach, '{I} {can\'t} reach {the b} through
+            {the obj}. ');
+    }
+    
+    obstructor_ = nil
+    
+    construct(target, obstructor)
+    {
+        inherited(target);
+        obstructor_ = obstructor;
+    }
+;
+
+/*   
+ *   A ReachProblem resulting from the verifyReach() method of the target
+ *   object.
+ */
+class ReachProblemVerifyReach: ReachProblem   
+    verify()
+    {
+        source_.verifyReach(target_);
+    }
+    
+    construct(source, target)
+    {
+        inherited(target);
+        source_ = source;
+    }
+    
+    source_ = nil
+;
+
+/*  
+ *   A ReachProblem resulting from reach being prohibited by the checkReach()
+ *   method or checkReachIn() method of the target object or an object along the
+ *   reach path.
+ */
+class ReachProblemCheckReach: ReachProblem
+    errMsg_ = nil
+    
+    construct(target, errMsg)
+    {
+        inherited(target);
+        errMsg_ = errMsg;
+    }
+    
+    check(allowImplicit)
+    {
+        say(errMsg_);
+        return nil;
+    }
+    
+;
+
+/*   
+ *   A ReachProblem object for when the actor can't reach the target from the
+ *   actor's (non top-level room) container.
+ */
+class ReachProblemReachOut: ReachProblem        
+    check(allowImplicit)
+    {
+        local loc = gActor.location;
+        local obj = target_;
+        
+        while(loc != gActor.getOutermostRoom)
+        {
+            if(!obj.isOrIsIn(loc) && !loc.allowReachOut(obj))
+            {
+                if(allowImplicit && loc.autoGetOutToReach 
+                   && tryImplicitAction(GetOutOf, loc))
+                {
+                    if(gActor.isIn(loc))
+                        return nil;
+                }
+                else
+                {
+                    gMessageParams(obj, loc);
+                    DMsg(cannot reach out, '{I} {can\'t} reach {the obj} from
+                        {the loc}. ');
+                    return nil;
+                }
+                    
+            }
+            
+            loc = loc.location;
+        }
+        
+        return true;
+    }
+    
+;

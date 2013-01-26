@@ -2603,7 +2603,14 @@ class Thing:  Mentionable
      *   reach if it's on top of a high cupboard or it's too hot to touch.
      */
     
-    verifyReach(obj) { }
+    
+    /*  
+     *   If the verifyReach() method is defined, it should use the
+     *   illogical/inaccessible/implausible/logical/logicalRank verify macros
+     *   like a verify method. Don't define this method if you don't want it to
+     *   block reaching.
+     */
+//    verifyReach(obj) { }
     
     /* 
      *   Check whether the actor can reach (touch) this object. If this method
