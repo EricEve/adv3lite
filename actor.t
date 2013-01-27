@@ -133,7 +133,17 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     refuseCommandMsg = BMsg(refuse command, '{I} {have} better things to do. ')
     
-    getBestMatch(myList, requestedList)
+    
+    
+    /* 
+     *   Find the best response to the topic produced by the player's command.
+     *   prop is the xxxTopics list property we'll use to search for a matching
+     *   TopicEntry. We first search the current ActorState for a match and
+     *   then, only if we fail to find one, we search TopicEntries directly
+     *   located in the actor.
+     */
+    
+    getBestMatch(prop, requestedList)
     {
         /* 
          *   If we have a current activeKeys list restrict the choice of topic
@@ -141,6 +151,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          *   first attempt. If that doesn't produce a match, try the normal
          *   handling.
          */
+        
+        local myList = self.(prop);
         
         if(activeKeys.length > 0)
         {
@@ -155,25 +167,17 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         return inherited(myList, requestedList);
     }
     
-    /* 
-     *   Find the best response to the topic produced by the player's command.
-     *   prop is the xxxTopics list property we'll use to search for a matching
-     *   TopicEntry. We first search the current ActorState for a match and
-     *   then, only if we fail to find one, we search TopicEntries directly
-     *   located in the actor.
-     */
-    
     findBestResponse(prop, topic)
     {
         local bestMatch;
         if(curState != nil)
         {
-            bestMatch = curState.getBestMatch(curState.(prop), topic);
+            bestMatch = curState.getBestMatch(prop, topic);
             if(bestMatch != nil)
                 return bestMatch;
         }
         
-        return getBestMatch(self.(prop), topic);
+        return getBestMatch(prop, topic);
     }
     
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
@@ -188,16 +192,16 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          *   TellTopic instead
          */
         
-        if((response == nil || (response.ofKind(DefaultTopic) &&
-           !response.ofKind(DefaultSayTopic))) && prop == &sayTopics)
-        {
-            response = findBestResponse(&askTopics, topic);
-            if(response == nil || response.ofKind(DefaultTopic))
-            {
-                response = findBestResponse(&tellTopics, topic);                
-            }
-           
-        }
+//        if((response == nil || (response.ofKind(DefaultTopic) &&
+//           !response.ofKind(DefaultSayTopic))) && prop == &sayTopics)
+//        {
+//            response = findBestResponse(&askTopics, topic);
+//            if(response == nil || response.ofKind(DefaultTopic))
+//            {
+//                response = findBestResponse(&tellTopics, topic);                
+//            }
+//           
+//        }
         
         if(response != nil)
         {    
@@ -1119,6 +1123,44 @@ class ActorState: ActorTopicDatabase
     
     active = (location.active)
    
+    
+    getBestMatch(prop, requestedList)
+    {
+        
+        local myList = self.(prop);
+        
+        /* 
+         *   If we have a current activeKeys list restrict the choice of topic
+         *   entries to those whose convkeys overlap with it, at least at a
+         *   first attempt. If that doesn't produce a match, try the normal
+         *   handling.
+         */
+        
+        if(getActor.activeKeys.length > 0)
+        {
+            local kList = myList.subset({x:
+                                   valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
+            
+            local match = inherited(kList, requestedList);
+            if(match != nil)
+                return match;
+            
+            /* 
+             *   If we don't find a match in the current state that overlaps
+             *   with activeKeys, try finding one in the actor.
+             */
+            
+            myList = getActor.(prop);
+            kList = myList.subset({x:
+                                   valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
+            
+            match = inherited(kList, requestedList);
+            if(match != nil)
+                return match;
+        }
+      
+        return inherited(myList, requestedList);
+    }
 ;
 
 class ActorTopicDatabase: TopicDatabase
@@ -1161,6 +1203,8 @@ class ActorTopicDatabase: TopicDatabase
     {
        return handleTopic(&initiateTopics, [top], &nilResponse);
     }
+    
+    
 ;
 
 
@@ -1899,6 +1943,16 @@ class DefaultQueryTopic: DefaultTopic
 
 class DefaultSayQueryTopic: DefaultTopic
     includeInList = [&sayTopics, &queryTopics]
+    matchScore = 4
+;
+
+class DefaultSayTellTopic: DefaultTopic
+    includeInList = [&sayTopics, &tellTopics]
+    matchScore = 4
+;
+
+class DefaultAskQueryTopic: DefaultTopic
+    includeInList = [&queryTopics, &askTopics]
     matchScore = 4
 ;
 

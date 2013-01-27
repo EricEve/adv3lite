@@ -77,6 +77,8 @@ class TopicEntry: object
     
     isActive = true    
     
+    active = isActive
+    
 ;
 
 class TopicDatabase: object
@@ -85,7 +87,7 @@ class TopicDatabase: object
         local bestMatch = nil;
         local bestScore = 0;
         
-        myList = myList.subset({c: c.isActive});
+        myList = myList.subset({c: c.active});
         foreach(local req in valToList(requestedList))
         {    
             foreach(local top in myList)

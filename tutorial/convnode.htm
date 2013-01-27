@@ -88,6 +88,8 @@ Angela Wants Answers
 
 <p>A Conversation Node of the kind we've just defined is highly ephemeral. It lasts only for one conversational turn. If the player chooses to type YES or NO as the next conversational command following Angela's question, then YesTopic or NoTopic will be triggered, but once the player types any other conversational command the moment is lost, and the TopicEntries in the node will no longer be available. In the case we've just implemented, that's just as it should be, since the player can choose to say YES or NO or else treat the question as rhetorical and so ignore it altogether, in which case the opportunity for replying YES or NO is forever lost. But in another case, where Angela has just asked a question that clearly isn't rhetorical, she may wish to insist on an answer, or at the very least to complain if the player tries to change the subject.</p>
 
+<p>Suppose, for example, that when the player character is talking to Angela in the Jetway he's given he option of talking to her about Pablo Cortez, and Angela wants to know why he's so interested in the man. We could start by adding an AskTellTopic under angelaTalkingState that triggers an appropriate Conversation Node:</p>
+
  <p><div class="code"><pre>
 ++ AskTellTopic, StopEventList @cortez
     [
@@ -106,7 +108,14 @@ Angela Wants Answers
     convKeys = 'top'
     suggestAs = TellTopic
 ;
+</pre></div>
 
+<p>There are a few points to note about the way we've defined this AskTellTopic. First, note that we've given it an autoName of true, so that it will be suggested as a topic of conversation with the name 'Pablo Cortez'. Note too that we needed to add <span class="code">convKeys = 'top'</span> to make sure that it would be included as a top-level suggestion in response to a TOPICS command (but we only have to do that because we defined <span class="code">suggestionKey = 'top'</span> on Angela). Next, note how we've defined <span class="code">suggestAs = TellTopic</span>. Left to its own devices the library will suggest an AskTellTopic with 'ask', i.e. "You could ask her about Pablo Cortez". We can override that with the <span class="code">suggestAs</span> property to force the library to suggest is as something else, here as if it were a TellTopic (i.e. "You could tell her about Pablo Cortez"). Finally note that instead of <span class="code">&lt;.convnode what-to-suggest&gt;</span> we wrote <span class="code">&lt;.convnodet what-to-suggest&gt;</span>, with an extra t (convnodet rather than just convnode). The extra <strong>t</strong> tells the game to display a suggested list of <strong>t</strong>opics on entering the Conversation Node.</p>
+
+<p>The next step is to define the TopicEntries making up the Conversation Node. We'll once again use a ConvNode object to simplify the definition (so we don't have to define the isActive and convKeys properties on each of the TopicEntries on the node. But we'll also do something new: we'll use a type of TopicEntry we haven't seen before, the <strong>SayTopic</strong>. A SayTopic allows the player character to say just about anything. </p>
+
+
+ <p><div class="code"><pre>
 + ConvNode 'what-to-you';
     
 ++ TellTopic @me    
@@ -124,7 +133,7 @@ Angela Wants Answers
     considered dangerous,&lt;/q&gt; she points out pragmatically. "    
 ;
 
-++ SayTopic 'she should call security'
+++ SayTopic 'she should call security; you'
     "&lt;q&gt;You should call airport security to deal with him!&lt;/q&gt; you urge her.\b
     &lt;q&gt;Airport security -- in Narcosia?&lt;/q&gt; she asks incredulously. &lt;q&gt;Somehow I
     don\'t think that will exactly help the situation!&lt;/q&gt; "
@@ -132,14 +141,19 @@ Angela Wants Answers
 
 ++ DefaultAnyTopic, StopEventList
     [
-        '&lt;q&gt;No, but what is to you who this man is?&lt;/q&gt; she interrupts you.
+        '&lt;q&gt;No, but what is it to you who this man is?&lt;/q&gt; she interrupts you.
         &lt;.convstay&gt; ',
     
         'She shakes her head. &lt;q&gt;Very well, don\'t answer my question then,&lt;/q&gt;
         she mutters. '
     ]
 ;
+</pre></div>
 
+<p></p>
+
+
+<p><div class="code"><pre>
 ++ NodeEndCheck
     canEndConversation(reason)
     {

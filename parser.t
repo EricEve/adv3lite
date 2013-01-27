@@ -388,6 +388,9 @@ class Parser: object
                          l = new CommandList(
                             topicPhrase, toks, cmdDict,
                             { p: new Command(SayAction, p) });
+                        
+                        libGlobal.lastCommandForUndo = str;
+                        savepoint();
                     }
                     /* 
                      *   If the player char is not in conversation with anyone,
@@ -2991,6 +2994,51 @@ class TopicPhrase: NounPhrase
         matches = new Vector([res]);
         
         
+    }
+    
+    matchNameScope(cmd, scope)
+    {
+        /* set up a vector for the results */
+        local v = new Vector(32);
+        
+        /*
+         *   Run through the scope list and ask each object if it matches
+         *   the noun phrase.  Keep the ones that match.  
+         */
+        foreach (local obj in scope)
+        {
+            /* ask this object if it matches */
+            local match = obj.matchName(tokens);
+            
+            /* if it matches, include it in the results */
+            if (match)
+                v.append(new NPMatch(self, obj, match));
+        }
+
+//        /*
+//         *   Now narrow the list according to the match strength.  Only
+//         *   keep the matches that have the maximum strength of the list.
+//         */
+//        if (v.length() > 0)
+//        {
+//            /* sort in descending order of strength */
+//            v.sort(SortDesc, { a, b: a.strength - b.strength });
+//
+//            /* 
+//             *   discard everything that doesn't match the highest strength
+//             *   (which is the first element's strength, since we've sorted
+//             *   in descending order) 
+//             */
+//            v = v.subset({ a: a.strength == v[1].strength });
+//        }
+//        else
+//        {
+//            /* the list is empty - complain about it */
+//            throw new UnmatchedNounError(cmd, self);
+//        }
+//
+        /* return the list */
+        return v;
     }
     
     selectObjects(cmd)
