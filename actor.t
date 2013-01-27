@@ -143,16 +143,30 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   located in the actor.
      */
     
-    getBestMatch(prop, requestedList)
+    getBestMatch(prop, requestedList)    
     {
+        /* 
+         *   In the implementation of the conversation system we expect the prop
+         *   parameter to be passed as a property pointer, but in the inherited
+         *   handling it's a list. To avoid accidents, first check what we've
+         *   got before converting the prop to a list.
+         *
+         */
+        local myList;
+        
+        if(dataType(prop) == TypeProp)
+            myList = self.(prop);
+        else
+            myList = valToList(prop);
+        
+        
         /* 
          *   If we have a current activeKeys list restrict the choice of topic
          *   entries to those whose convkeys overlap with it, at least at a
          *   first attempt. If that doesn't produce a match, try the normal
          *   handling.
-         */
+         */       
         
-        local myList = self.(prop);
         
         if(activeKeys.length > 0)
         {
@@ -1127,7 +1141,19 @@ class ActorState: ActorTopicDatabase
     getBestMatch(prop, requestedList)
     {
         
-        local myList = self.(prop);
+        local myList;
+        
+        /* 
+         *   In the implementation of the conversation system, prop should be
+         *   passed as a property pointer, but in the base TopicDatabase class
+         *   the corresponding parameter is a list, so check what we have before
+         *   we deal with it.
+         */
+        
+        if(dataType(prop) == TypeProp)        
+            myList = self.(prop);
+        else
+            myList = valToList(prop);
         
         /* 
          *   If we have a current activeKeys list restrict the choice of topic
@@ -1147,16 +1173,28 @@ class ActorState: ActorTopicDatabase
             
             /* 
              *   If we don't find a match in the current state that overlaps
-             *   with activeKeys, try finding one in the actor.
+             *   with activeKeys, try finding one in the actor. (Not doing this
+             *   would break the Conversation Nodes mechanism, quite apart from
+             *   anything else). Note we can only do this is prop has been
+             *   passed as a property pointer, as the method expects.
              */
             
-            myList = getActor.(prop);
-            kList = myList.subset({x:
-                                   valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
-            
-            match = inherited(kList, requestedList);
-            if(match != nil)
-                return match;
+            if(dataType(prop) == TypeProp)
+            {
+                myList = getActor.(prop);
+                kList = myList.subset({x:
+                                      valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
+                
+                match = inherited(kList, requestedList);
+                if(match != nil)
+                    return match;
+                
+                /* 
+                 *   Restore the list to this ActorState's list of relevant
+                 *   TopicEntries
+                 */
+                myList = self.(prop);
+            }
         }
       
         return inherited(myList, requestedList);

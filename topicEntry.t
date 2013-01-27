@@ -87,6 +87,17 @@ class TopicDatabase: object
         local bestMatch = nil;
         local bestScore = 0;
         
+        /* 
+         *   The implementation of the Actor Conversation system requires a
+         *   property pointer to be passed as the first parameter in the
+         *   corresponding method. To prevent accidents, we check whether we
+         *   have a property pointer here and if so convert it to the
+         *   corresponding list.
+         */
+        if(dataType(myList) == TypeProp)
+            myList = self.(myList);
+        
+        
         myList = myList.subset({c: c.active});
         foreach(local req in valToList(requestedList))
         {    
