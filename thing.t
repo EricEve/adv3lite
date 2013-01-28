@@ -6452,7 +6452,7 @@ class Thing:  Mentionable
     
     dobjFor(ShowTo)
     {
-        preCond = [objVisible]   
+        preCond = isFixed ? [objVisible] : [objHeld]  
         report()
         {
             if(gAction.giveReport != nil)
@@ -6491,7 +6491,7 @@ class Thing:  Mentionable
     
     dobjFor(GiveToImplicit)
     {
-        preCond = isFixed ? [objVisible] : [objHeld]
+        preCond = [objHeld]
         
         verify() 
         {

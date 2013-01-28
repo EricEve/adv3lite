@@ -1989,6 +1989,17 @@ class DefaultSayTellTopic: DefaultTopic
     matchScore = 4
 ;
 
+class DefaultTellTalkTopic: DefaultTopic
+    includeInList = [&tellTopics, &talkTopics]
+    matchScore = 4
+;
+
+
+class DefaultSayTellTalkTopic: DefaultTopic
+    includeInList = [&sayTopics, &tellTopics, &talkTopics]
+    matchScore = 3
+;
+
 class DefaultAskQueryTopic: DefaultTopic
     includeInList = [&queryTopics, &askTopics]
     matchScore = 4
