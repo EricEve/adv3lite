@@ -1494,8 +1494,8 @@ class ActorTopicEntry: TopicEntry
         
                     
         /* 
-         *   if we don't have a matchObj assume we're reachable (this will need
-         *   refining.
+         *   if we don't have a matchObj assume we're reachable unless certain
+         *   conditions apply (e.g. we're blocked by a DefaultTopic).
          */
         
         if(matchObj == nil)
@@ -1510,9 +1510,18 @@ class ActorTopicEntry: TopicEntry
             
             /* 
              *   otherwise, we're reachable if the current actor state doesn't
-             *   have a DefaulTopic that might block us.
+             *   have a DefaulTopic that might block us, or if our convKeys
+             *   overlap with that of the actor's activeKeys
              */
             
+            /*   First check if we're reachable by virtue of our convKeys */
+            if(valToList(convKeys).overlapsWith(getActor.activeKeys))
+                return true;
+            
+            
+            /*   
+             *   Then check for a DefaultTopic in the Actor's current ActorState
+             */
             foreach(local prop in includeInList)
             {
                 if(actor.curState.(prop).indexWhich({ t: t.ofKind(DefaultTopic)
@@ -1856,12 +1865,26 @@ endConvActor: object;
 class DefaultTopic: ActorTopicEntry
 //    matchTopic(top)
 //    {
+//        if(excludeMatch.indexWhich({x: top.ofKind(x)}) != nil)
+//            return nil;
 //        
-//        return matchScore + scoreBoost;
+//        return inherited(top);
 //    } 
+//    
+//    initializeTopicEntry()
+//    {
+//        inherited;
+//        excludeMatch = valToList(excludeMatch);
+//    }
     
     matchObj = [Thing, Topic, yesTopicObj, noTopicObj]
     matchScore = 1
+    
+    /* 
+     *   An optional list of objects, Things, Topics or classes that this
+     *   Default Topic won't match
+     */
+//    excludeMatch = nil
 ;
 
 class DefaultAnyTopic: DefaultTopic

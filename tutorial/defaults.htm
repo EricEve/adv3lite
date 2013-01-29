@@ -80,9 +80,115 @@ Diverse Defaults
 
 <p>We've now dealt with a several of the common kinds of DefaultTopic, but there are many others. For a complete list see the section on <a href="../manual/actortopicentry.htm#default">ActorTopicEntry</a> in the <em>adv3Lite Library Manual</em>. Fortunately for our purposes (and probably for those of many other games) we don't need to worry about all of these types, many of which overlap with one another in any case. For our purposes it should suffice to define (in addition to what we already have) a <strong>DefaultAskQueryTopic</strong> to field questions, and a <strong>DefaultSayTellTalkTopic</strong> to field statements. The former will deal with any command that begins with ASK or with any of the query words such as WHO, WHAT, WHY, WHEN or HOW while the latter will deal with TELL ANGELA ABOUT X or TALK ABOUT X or SAY X, i.e. with any attempt to impart information. For most purposes having a DefaultTopic to field questions and another to field statements should suffice, without our needing to worry about sub-types of each.</p>
 
-<p>But is one of each enough? It might give Angela a bit more characterization if the way she responds to questions and statements varies according to the state she's in. We might be tempted, then, to put her DefaultAskQueryTopics and her DefaultSayTellTalkTopics in her various ActorStates; but this would be a mistake.</p>
+<p>But is one of each enough? It might give Angela a bit more characterization if the way she responds to questions and statements varies according to the state she's in. We might be tempted, then, to put her DefaultAskQueryTopics and her DefaultSayTellTalkTopics in her various ActorStates; but this could be a mistake. The potential problem is this: if we place a DefaultTopic in an ActorState it will mask any TopicEntries of the same kind directly in the Actor (for example, a <span class="code">DefaultAskQueryTopic</span> in the current ActorState will be used in preference to any AskTopics or TellTopics in the current Actor, except when some convKeys are active). Sometimes this may be what we want, for example, if an NPC becomes so preoccupied that he or she ceases to be responsive. In other cases it may not be at all what we want, since we want any more specific TopicEntries defined directly on the Actor to still be available. With Angela, we have the second kind of situation, since we probably want the TopicEntries located directly in the angela actor object to be available all the time.</p>
+
+<p>The way to handle this is to define our state-dependent DefaultTopics not on the ActorState (as seen might most natural) but located directly within the Actor, and then to use their isActive property to make them active only when the actor is in a particular state. If we want to define more than one DefaultTopic associated with a particular ActorState, it may be convenient to use a TopicGroup for the purpose so we only need to define the isActive property once. While we're at it, it would also be a good idea to define a modest scoreBoost on the TopicGroup to ensure that the DefaultTopics defined under it are used in preference to any other when it is active; a scoreBoost of 5 should suffice. This scheme also allows for considerable flexibility; for example we could define DefaultTopics that are shared by two or more ActorStates, or which only come into play when other conditions are satisfied.</p>
+
+<p>Consider the case when Angela is first greeting passengers boarding the plane. Before the player character show her his ticket, her most likely default response will be to ask to see it; once she's seen the ticket, she'll be more anxious to get the player character to take a seat so she can deal with the next passenger or so that the plane can be readied for takeoff. Thus, when Angela is in angelaGreetingState we actually want two groups of conversational DefaultTopics, which we could define like so:</p>
+
+ <p><div class="code"><pre>
++ TopicGroup +5
+    isActive = angela.curState == angelaGreetingState &&
+    !angelaGreetingState.ticketSeen
+;
+
+++ DefaultAskQueryTopic
+    "&lt;q&gt;I really need to see your ticket, sir,&lt;/q&gt; she insists &lt;&lt;one
+      of&gt;&gt;politely&lt;&lt;or&gt;&gt;once more&lt;&lt;stopping&gt;&gt;. "
+;
+
+++ DefaultSayTellTalkTopic
+    "{The subj angela} listens &lt;&lt;one of&gt;&gt;politely&lt;&lt;or&gt;&gt;a little impatiently
+    &lt;&lt;stopping&gt;&gt; to what you have to say, then replies, &lt;q&gt;May I see your
+    ticket, sir?&lt;/q&gt; "
+;
+
++ TopicGroup +5
+    isActive = angela.curState == angelaGreetingState &&
+    angelaGreetingState.ticketSeen
+;
+
+++ DefaultAskQueryTopic
+    "&lt;q&gt;If you have any further questions perhaps you could ask them once we're
+    in flight,&lt;/q&gt; she &lt;&lt;one of&gt;&gt;suggests&lt;&lt;or&gt;&gt;repeats&lt;&lt;stopping&gt;&gt;. &lt;q&gt;&lt;&lt;one
+      of&gt;&gt;It would be best if you moved &lt;&lt;or&gt;&gt; Please move&lt;&lt;stopping&gt;&gt; to the
+    rear of the plane and &lt;&lt;one of&gt;&gt;took&lt;&lt;or&gt;&gt;take&lt;&lt;stopping&gt;&gt; your seat now,
+    sir.&lt;/q&gt; "
+;
+
+++ DefaultSayTellTalkTopic
+    "{The subj angela} holds up her hand to stop you in mid-flow. &lt;q&gt;Can I ask
+    you to move to the rear of your plane and take your seat now, sir?&lt;/q&gt; she
+    &lt;&lt;one of&gt;&gt;requests&lt;&lt;or&gt;&gt;repeats&lt;&lt;or&gt;&gt;insists&lt;&lt;stopping&gt;&gt;. "
+;
+</pre></div>
+
+<p>Since at this stage the flight attendant is focused almost entirely on seeing passengers' tickets and getting them seated, there's not much need to vary her default responses here; we simply use the <span class="code">&lt;&lt;one of&gt;&gt; ... &lt;&lt;stopping&gt;&gt;</span> embedded expression to supply some minimal variation to avoid Angela appearing totally robotic. Note the subtle difference between the isActive properties of the two TopicGroups: the first has a <strong>!</strong> (negation symbol) at the start of the second line, whereas the second does not.</p>
+
+<p>We can do something similar for the angelaTalkingState, but here we only need one group of DefaultTopics. At this point Angela is surrounded by the passengers who have just been thrown off the plane, so she'll be a bit preoccupied with attending to them, and her default responses can reflect that. Since players tend to ASK more than they TELL, we can probably get away with one default response for say/tell/talk, but we should provide some variety of responses to asking unimplemented questions:</p>
 
 
+ <p><div class="code"><pre>
++ TopicGroup +5
+    isActive = angela.curState == angelaTalkingState
+;
+
+++  DefaultAskQueryTopic, ShuffledEventList
+    [
+        '{The subj angela} mutters something inaudible and looks round, as if
+        dropping a heavy hint that she has other people besides you to attend
+        to. ',
+        
+        '&lt;q&gt;Maybe we can discuss that some other time,&lt;/q&gt; she suggests, with
+        a significant glance at the other passengers anxious to attract her
+        attention. ',
+        
+        '&lt;q&gt;Hm, well,&lt;/q&gt; she says, in a tone of voice that rather suggests
+        she has more urgent things on her mind. ',
+        
+        '&lt;q&gt;I think perhaps...&lt;/q&gt; she begins, and then trails off as one of the
+        other passengers taps her on the arm in an attempt to grab her
+        attention. '
+    ]
+;
+
+++ DefaultSayTellTalkTopic
+    "{The subj angela} listens to what you have to say without comment, but with
+    the air of one who has other things on her mind. "
+;
+</pre></div>
+
+<p>The DefaultTopics for angelaSeatedState, when Angela and the player character are both back aboard the plane, with the likes of Pablo Cortez occupying the passenger seats, can follow much the same pattern, except that here Angela's main concern will be with the type of people who may overhear the conversation:</p>
+
+ <p><div class="code"><pre>
++ TopicGroup +5
+    isActive = angela.curState == angelaSeatedState
+;
+
+++ DefaultAskQueryTopic, ShuffledEventList
+    [
+        '{The subj angela} lowers her voice and swivels her eyes just enough to
+        remind you of the other people in earshot. &lt;q&gt;Perhaps we should discuss
+        that some other time,&lt;/q&gt; she suggests. ',
+        
+        '&lt;q&gt;I don\'t think I care to answer that right now,&lt;/q&gt; she replies,
+        with just enough movement of the head to indicate how easily you might
+        be overheard by the hoodlums in the other passenger seats. ',
+        
+        '&lt;q&gt;I think...&lt;/q&gt; she begins, and then breaks off. &lt;q&gt;I think this may
+        not be the best time to talk about that,&lt;/q&gt; she concludes. ',
+        
+        '&lt;q&gt;Hm,&lt;/q&gt; she says, &lt;q&gt;right.&lt;/q&gt; It\'s obviously intended as a
+        non-answer, perhaps because she\'s worried about who else might here
+        what she says. '       
+    ]
+;
+
+++ DefaultSayTellTalkTopic
+    "{The subj angela} merely listens, looking faintly disapproving at your
+    garrulouslness. "
+;
+</pre></div>
 </div>
 
 <hr class="navb"><div class="navb">
