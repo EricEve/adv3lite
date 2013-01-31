@@ -1103,7 +1103,10 @@ finishGameMsg(msg, extra)
      *   before the termination message. 
      */
     if (libGlobal.scoreObj != nil)
+    {
+        "<.p>";
         libGlobal.scoreObj.runScoreNotifier();
+    }
 
     /* translate the message, if specified */
     if (dataType(msg) == TypeObject)
@@ -1120,13 +1123,13 @@ finishGameMsg(msg, extra)
     if (msg != nil)
         gLibMessages.showFinishMsg(msg);
 
-//    /* if the extra options include a scoring option, show the score */
-//    if (extra != nil && extra.indexWhich({x: x.showScoreInFinish}) != nil)
-//    {
-//        "<.p>";
-//        libGlobal.scoreObj.showScore();
-//        "<.p>";
-//    }
+    /* if the extra options include a scoring option, show the score */
+    if (extra != nil && extra.indexWhich({x: x.showScoreInFinish}) != nil)
+    {
+        "<.p>";
+        libGlobal.scoreObj.showScore();
+        "<.p>";
+    }
 //
 //    /*
 //     *   Since we need to interact directly with the player, any sense
@@ -1485,7 +1488,7 @@ finishOptionScore: FinishOption
     showScoreInFinish = true
 
     /* this is not a listed option */
-    isListed = nil
+    listed = nil
 
     /* this option isn't selectable, so it has no effect */
     doOption() { }
