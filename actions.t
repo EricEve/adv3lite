@@ -489,6 +489,22 @@ GoOut: TravelAction
     }
 ;
 
+/* 
+ *   The GO action is never triggered directly by a player command but can be
+ *   used to synthesize a travel action in the direction supplied by the dobj.
+ */
+
+Go: TravelAction
+    predefinedDirection = true
+    
+    execAction(cmd)
+    {
+        direction = cmd.dobj;
+        inherited(cmd);
+    }
+
+;
+    
 DefineIAction(GetOut)
     execAction(cmd)
     {        

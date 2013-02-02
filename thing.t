@@ -743,9 +743,29 @@ class State: LState
     }
 ;
 
+/*  
+ *   A ReplaceRedirector is a Redirector that uses replaceAction (or its
+ *   _nestedAction equivalent) to redirect one action to another.
+ */
 
+class ReplaceRedirector: Redirector
+    /* 
+     *   User code should normally call this method via doInstead rather than
+     *   directly.
+     */
+    
+    redirect(cmd, altAction, dobj:?, iobj:?, isReplacement: = true)
+    {
+        if(iobj != nil && dobj != nil)
+            _nestedAction(isReplacement, gActor, altAction, dobj, iobj);
+        else if(dobj != nil)
+            _nestedAction(isReplacement, gActor, altAction, dobj);
+        else
+            _nestedAction(isReplacement, gActor, altAction);
+    }
+;
 
-class Thing:  Mentionable
+class Thing:  ReplaceRedirector, Mentionable
    
     /* 
      *   The description of this Thing that's displayed when it's examined.

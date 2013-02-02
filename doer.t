@@ -1,5 +1,115 @@
 #include "advlite.h"
 
+
+/*  
+ *   A Redirector is an object that can redirect one action to another via a
+ *   doInstead wrapper method that provides a common interface. Subclasses are
+ *   responsible for implementing the redirect method.
+ */
+
+class Redirector: object
+    doInstead(altAction, [args])
+    {
+        doOtherAction(true, altAction, args...);
+    }
+    
+    doNested(altAction, [args])
+    {
+        doOtherAction(nil, altAction, args...);
+    }
+    
+    doOtherAction(isReplacement, altAction, [args])
+    {
+        /* 
+         *   If the action involves a Literal argument and one of the arguments
+         *   is supplied as a single-quoted string, wrap it in a LiteralObject
+         *   before passing it.
+         */
+        
+        local dobj = args.element(1);
+        local iobj = args.element(2);
+        
+        if(altAction.ofKind(LiteralAction) || altAction.ofKind(LiteralTAction))
+        {
+            if(dataType(dobj) == TypeSString)
+                dobj = new LiteralObject(dobj);
+            if(dataType(iobj) == TypeSString)
+                iobj = new LiteralObject(iobj);
+        }
+        
+        /*  
+         *   If the action involves a Topic object and one of the argumnets is
+         *   supplied as a single-quoted string, wrap it in a Topic before using
+         *   it.
+         */                
+        if(altAction.ofKind(TopicAction) || altAction.ofKind(TopicTAction))
+        {
+            if(dataType(dobj) == TypeSString)
+                dobj = new Topic(dobj);
+            if(dataType(iobj) == TypeSString)
+                iobj = new Topic(iobj);
+        }
+        
+        /*   
+         *   If the action is a TopicTAction check that the appropriate object
+         *   (usually but not necessarily the indirect object) has been passed
+         *   as a ResolvedTopic; if not, wrap it in a new Resolved Topic object.
+         */
+        if(altAction.ofKind(TopicTAction))
+        {
+            if(altAction.topicIsGrammaticalIobj && !iobj.ofKind(ResolvedTopic))
+                iobj = new ResolvedTopic([iobj], iobj.name.split(' '));
+            
+            if(!altAction.topicIsGrammaticalIobj && !dobj.ofKind(ResolvedTopic))
+                dobj = new ResolvedTopic([dobj], dobj.name.split(' '));
+        }
+        
+        
+        /*  
+         *   If the new action is of a kind that requires two objects, call the
+         *   redirect method with both objects
+         */
+        if(altAction.ofKind(TIAction) || altAction.ofKind(LiteralTAction) ||
+           altAction.ofKind(TopicTAction))
+        {
+            redirect(gCommand, altAction, dobj: dobj, iobj: iobj,
+                     isReplacement: isReplacement);
+            return;
+        }
+        
+        /*   
+         *   If the action is a TopicAction check that its object has been
+         *   passed as a ResolvedTopic; if not, wrap it in a new Resolved Topic
+         *   object.
+         */
+        if(altAction.ofKind(TopicAction) && !dobj.ofKind(ResolvedTopic))
+        {
+            dobj = new ResolvedTopic([dobj], dobj.name.split(' '));
+        }
+        
+        /*  
+         *   If the new action requires a single object, call redirect with the
+         *   direct object.
+         */
+        if(altAction.ofKind(TAction) || altAction.ofKind(LiteralAction) ||
+           altAction == Go || altAction.ofKind(TopicAction))
+        {
+            redirect(gCommand, altAction, dobj: dobj, isReplacement:
+                     isReplacement);
+            return;
+        }      
+        
+        /*  
+         *   Otherwise call redirect with the new action alone (it's some form
+         *   of intransitve action).
+         */
+        redirect(gCommand, altAction, isReplacement: isReplacement);
+    }
+    
+    
+;
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   A Doer is a command handler for a specific action acting on particular
@@ -12,7 +122,7 @@
  *   objects as conditions in the game change, use the Doer conditions to
  *   define when a given Doer is active and when it's dormant.  
  */
-class Doer: object
+class Doer: Redirector
     /*
      *   The command that the object handles.  This is a string describing
      *   the action and object combination that this handler recognizes.
@@ -143,6 +253,15 @@ class Doer: object
     exec(curCmd)
     {
         // $$$
+        
+        /*   
+         *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
+         *   so that they're available to be passed as parameters
+         */
+        
+        gAction.curDobj = curCmd.dobj;
+        gAction.curIobj = curCmd.iobj;
+        
         /* 
          *   If the command is an action to be carried out by the player
          *   character, execute the action in the normal manner.
@@ -175,7 +294,7 @@ class Doer: object
      *   command to a new action with the same (or new) objects.
      */
     
-    redirect(curCmd, altAction, dobj: = 0, iobj: = 0)
+    redirect(curCmd, altAction, dobj: = 0, iobj: = 0, isReplacement: = true)
     {
         
         /* 
@@ -193,27 +312,31 @@ class Doer: object
 
     }
 
-    /* 
-     *   A convenience method to make it easier for a Doer to synthesize a
-     *   travel command. The dirn parameter should be a direction object, e.g.
-     *   northDir, so the method would be called like this
-     *
-     *.     travel(northDir);
-     *
-     *   To make the player character go north.
-     */
     
-    travel(dirn)    
-    {
-        /* 
-         *   Setup the dirMatch property of gCommand.verbProd so it points to
-         *   the desired direction.
-         */
-        gCommand.verbProd.dirMatch = object { dir = dirn};
-        
-        /* Execute the travel command. */
-        Travel.exec(gCommand);
-    }
+    
+    
+    
+//    /* 
+//     *   A convenience method to make it easier for a Doer to synthesize a
+//     *   travel command. The dirn parameter should be a direction object, e.g.
+//     *   northDir, so the method would be called like this
+//     *
+//     *.     travel(northDir);
+//     *
+//     *   To make the player character go north.
+//     */
+//    
+//    travel(dirn)    
+//    {
+//        /* 
+//         *   Setup the dirMatch property of gCommand.verbProd so it points to
+//         *   the desired direction.
+//         */
+//        gCommand.verbProd.dirMatch = object { dir = dirn};
+//        
+//        /* Execute the travel command. */
+//        Travel.exec(gCommand);
+//    }
     
     /* 
      *   Set this property to true for this Doer to match only if the wording

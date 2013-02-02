@@ -19,7 +19,7 @@
 property curAobj, verAobjProp, preCondAobjProp, remapAobjProp;
 property verifyAobjDefault, preCondAobjDefault;
 
-class Action: object
+class Action: ReplaceRedirector
     
     /* 
      *   Flag; should this action be considered a failure? This should be reset
@@ -2228,6 +2228,8 @@ class TopicTAction: TAction
     {
         return inherited(obj, DirectObject);
     }
+    
+    topicIsGrammaticalIobj = true
 ;
 
 /* 
@@ -2241,7 +2243,7 @@ class TopicAction: IAction
 
 /* Try action as an implicit action with [objs] as its objects */
 
-_tryImplicitAction(action, [objs])
+tryImplicitAction(action, [objs])
 {
          
     
@@ -2298,15 +2300,37 @@ _tryImplicitAction(action, [objs])
 /*
  *   Run a replacement action. 
  */
-_replaceAction(actor, action, [objs])
+
+replaceAction(action, [objs])
 {
-    
+    /* run the replacement action as a nested action */
+    _nestedAction(true, gActor, action, objs...);
+
+    /* the invoking command is done */
+    exit;;
+}
+
+
+replaceActorAction(actor, action, [objs])
+{    
     
     /* run the replacement action as a nested action */
     _nestedAction(true, actor, action, objs...);
 
     /* the invoking command is done */
     exit;
+}
+
+
+/* Run a nested action */
+nestedActorAction(actor, action, [objs])
+{
+    _nestedAction(nil, actor, action, objs...);
+}
+
+nestedAction(action, [objs])
+{
+    _nestedAction(nil, gActor, action, objs...);
 }
 
 
@@ -2353,7 +2377,7 @@ execNestedAction(isReplacement, isRemapping, actor, action)
     local oldAction;
     
     /* prepare the nested action */
-    prepareNestedAction(isReplacement, isRemapping, action);
+    action.parentAction = gAction;
 
        
     action.isImplicit = gAction.isImplicit;
@@ -2404,15 +2428,6 @@ execNestedAction(isReplacement, isRemapping, actor, action)
     }
 }
 
-/*
- *   Prepare a nested or replacement action for execution. 
- */
-prepareNestedAction(isReplacement, isRemapping, action)
-{
-    action.parentAction = gAction;
-    
-    
-}
 
 //------------------------------------------------------------------------------
 

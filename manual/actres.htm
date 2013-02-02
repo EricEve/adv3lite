@@ -351,6 +351,48 @@ mat:Thing 'mat; white; placemat'
 ;
 </pre></div></p>
 <p>Note that you wouldn't have to code this particular example this way, since in practice you'd simply define <span name=code>hiddenUnder = [harryNote]</span> on the mat object to produce the same effect, but the example suffices to illustrate the principle.</p>
+
+<p>There are two special methods you can call from an action routine if you want to perform another action, either instead of or as part of the current action. These methods are called <strong>doInstead()</strong> and <strong>doNested()</strong>  respectively. Suppose, for example, you wanted putting something under the tap to result in its being put in the sink; you could do it like this:</p>
+
+ <p><div class="code"><pre>
+tap: Fixture 'tap; silver; faucet'
+  ...
+  iobjFor(PutUnder)
+  {
+     verify() { }
+     action()
+     {
+         doInstead(PutIn, gDobj, sink);
+     }
+  }
+;
+</pre></div>
+
+<p>You could do the same with replaceAction(), but doInstead() makes it easier to synthesize certain kinds of action that are much harder to so with replaceAction() or nestedAction(). For example if you want the player to ask George about the broken candlestick the first time s/he looks at it you could write something like:</p>
+
+ <p><div class="code"><pre>
+candestick: Thing 'silver candlestick; broken'
+   "It's broken. "
+   
+   dobjFor(Examine)
+   {
+       action()
+       {
+          inherited();
+          if(Q.canTalkTo(me, george) &amp;&amp; !georgeAsked)
+          {  
+              georgeAsked = true;
+              doNested(AskAbout, george, self);
+          }
+       }
+   }    
+   georgeAsked = nil
+;
+</pre></div>
+
+<p>This wouldn't work with <span class="code">nestedAction()</span> because the AskAbout command expects its indirect object to be a ResolvedTopic, not a Thing (or Topic); the doNested() method takes care of this complication for you by wrapping the indirect object of a TopicTCommand in a ResolvedTopic if it isn't one already.</p>
+
+<p>Note, however, that it may often be better to call <span class="code">doInstead()</span> on a <a href="doer.htm">Doer</a>.</p>
 <br>
 
 <h2><a name="report">Report</a></h2>

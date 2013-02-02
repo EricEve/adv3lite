@@ -124,13 +124,13 @@ Doer 'undo'
 
 <p>At the point at which exec() or execAction() is called on a Doer, the parser has thus identified the action to be carried out, and the objects involved in that command, and the Command object is processing the action for one set of objects (where the command might apply to multiple direct objects, say). The parser has used the action's verify method to help it resolve the objects, but that's all; the verify method has not yet been used to determine whether or not the action can go ahead, and no other part of the action handling has been carried out. If you try to handle the action manually you should be aware that unless the normal action handling is executed, the library won't carry out any before notifications, although depending on the action it will usuall carry out the after notification,  execute any daemons, and advance the turn counter (since these steps are  handled by the Command object). The main exception is with SystemActions, that don't execute before and after notifications, or fuses, daemons and incrementing turn count in any case. If your Doer simply substitutes one action for another (probably the commonest case apart from blocking an action altogether), then none of this should be a problem, since the new action will handle all the notifications and so forth in any case.</p>
 
-<p>To make this easier for you, the Doer object provides a <strong>redirect()</strong> method, which can be called with two or more parameters. The first parameter is the current command (curCmd). The second is the action you want to execute (e.g. Jump, Take, PutIn). The two optional parameters are the new direct and indirect objects of the command which are called as named arguments (e.g. <span class=code>dobj: redBall, iobj: box</span>). You can omit these parameters either if they don't exist for the new action you want to execute (because it's an IAction that doesn't take either object or a TAction that only takes one) or because you want to leave one or the other or both objects unchanged (and in the same roles) as specified on the current Command object. To give some examples.:</span>
+<p>To make this easier for you, the Doer object provides a <strong>doInstead()</strong> method, which can be called with one or more parameters. The first parameter is the action you want to execute (e.g. Jump, Take, PutIn). The two optional parameters are the new direct and indirect objects of the command which, if they are included, must be called in the order direct object, indirect object.To give some examples:</span>
 
 <ul>
-<li><span class="code">redirect(curCmd, Jump);</span> makes the player character jump.</li>
-<li><span class="code">redirect(curCmd, Take, dobj: redBall);</span> makes the player character take the red ball.</li>
-<li><span class="code">redirect(curCmd, PutIn, dobj: redBall, iobj: blueBox);</span> makes the player character put the red ball in the blue box.</li>
-<li><span class="code">redirect(curCmd, PutIn, iobj: blueBox); </span> makes the player character put the original direct object of the command in the blue box.</li>
+<li><span class="code">doInstead(Jump);</span> makes the player character jump.</li>
+<li><span class="code">doInstead(Take, redBall);</span> makes the player character take the red ball.</li>
+<li><span class="code">doInstead(PutIn, redBall, blueBox);</span> makes the player character put the red ball in the blue box.</li>
+<li><span class="code">doInstead(PutIn, gDobj, blueBox); </span> makes the player character put the original direct object of the command in the blue box.</li>
 </ul>
 
 <p>One use of Doer to redirect one command to another could be where English idiom suggests a meaning for a command other than its usual IF interpretation. For example, whereas GO THROUGH X normally means passing through X or walking through X, a command like GO THROUGH JUNK could be a way of saying SEARCH JUNK, so we might define a Doer like this:</p>
@@ -139,7 +139,7 @@ Doer 'undo'
 Doer 'go through junk'   
     exec(curCmd)
     {
-        redirect(curCmd, LookIn);
+        doInstead(LookIn, gDobj);
     }
 ;
 </pre></div>
@@ -152,12 +152,12 @@ Doer 'go through junk'
     
     exec(curCmd)
     {
-        redirect(curCmd, LookIn);
+        doInstead(LookIn, gDobj);
     }
 ;
 </pre></div>
 
-<p>The redirect() method is not much use for a travel command, since it doesn't give any easy way do specify the direction of travel (once more because TADS 3 doesn't treat a Direction as the object of a command in its normal sense). If you want to make the player character go somewhere, you can use the travel(dirn) method instead, where <em>dirn</em> is the direction object corresponding to the direction you want the player character to go in; for example:</p>
+<p>For a travel command, use the special <strong>Go</strong> action followed by the direction object corresponding to the direction you want the player character to go in; for example:</p>
 
  <p><div class="code"><pre>
  Doer 'jump'
@@ -166,7 +166,7 @@ Doer 'go through junk'
         /* call the action's before notifications */
         curCmd.action.beforeAction();
         "You jump off the cliff, and down you go! ";
-        travel(downDir);
+        doInstead(Go, downDir);
     }
     where = cliffEdge
  ;
@@ -189,6 +189,9 @@ Doer 'go through junk'
     }
  ;
  </pre></div>
+ 
+<p>Note that you can also call <span class="code">doInstead()</span> on a Thing or an Action, using precisely the same syntax, and with broadly similar effects (broadly similar in that when you call this method on an Action or Thing you're intervening at a later stage of the action-processing cycle, so the effect isn't quite the same). Thing and Action also define a <span class="code">doNested()</span> method for when you want to perform one action as part of another instead of replacing one action with another. It's also perfectly okay to call <span class="code">doNested()</span> on a Doer, but in that case it won't do anything different from <span class="code">doInstead(</span>), so there's little point.</p> 
+ 
 <p>Under what circumstances is it better to define a Doer rather than override the various methods described in the <a href="actres.htm">Action Results</a> section above? Since Doer is a feature new to TADS 3 there's no experience or accumulated wisdom to call on here, so the only general advice that can be given is to use whichever is easier and simpler for getting the job done. The kinds of situation where it seems likely that a Doer may be the better choice include:</p>
 
 <ul>

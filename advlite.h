@@ -588,8 +588,8 @@ dictionary property noun, nounApostS;
 //#define tryImplicitAction(action, objs...) \
 //    _tryImplicitAction(action##Action, ##objs)
 
-#define tryImplicitAction(action, objs...) \
-    _tryImplicitAction(action, ##objs)
+//#define tryImplicitAction(action, objs...) \
+//    _tryImplicitAction(action, ##objs)
 
 /*
  *   Replace the current action with a new action.  The new action will be
@@ -602,8 +602,8 @@ dictionary property noun, nounApostS;
 //#define replaceAction(action, objs...) \
 //    _replaceAction(gActor, action##Action, ##objs)
 
-#define replaceAction(action, objs...) \
-    _replaceAction(gActor, action, ##objs)
+//#define replaceAction(action, objs...) \
+//    _replaceAction(gActor, action, ##objs)
 
 /*
  *   Run a nested action.
@@ -611,9 +611,9 @@ dictionary property noun, nounApostS;
 //#define nestedAction(action, objs...) \
 //    _nestedAction(nil, gActor, action##Action, ##objs)
 
-#define nestedAction(action, objs...) \
-    _nestedAction(nil, gActor, action, ##objs)
-
+//#define nestedAction(action, objs...) \
+//    _nestedAction(nil, gActor, action, ##objs)
+//
 
 /* ------------------------------------------------------------------------ */
 /*

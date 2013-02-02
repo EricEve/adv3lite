@@ -2125,8 +2125,14 @@ modify List
         return intersect(valToList(lst)).length > 0;
     }
         
+    /*  Returns the ith member of the list if there is one, or nil otherwise */
+    element(i)
+    {
+        return length >= i ? self[i] : nil;
+    }
+    
+    
 ;
-
 
 /* ------------------------------------------------------------------------ */
 /*
