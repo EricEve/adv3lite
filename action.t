@@ -424,7 +424,7 @@ class Action: ReplaceRedirector
             verifyProp = &verifyActor;
             remapProp = &remapActor;
             preCondProp = &preCondActor;
-                
+            break;    
         } 
             
         /* first check if we need to remap this action. */
@@ -455,7 +455,7 @@ class Action: ReplaceRedirector
              */
             
 //            return new VerifyResult(100, '', true, obj);                     
-            DMsg(remap error, 'ERROR! The long form of remap is no longer
+            DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
                 available; use a Doer instead. ');
              
         default:
@@ -610,6 +610,14 @@ class Action: ReplaceRedirector
              */
             return nil;
         }
+        
+        /* 
+         *   If we're an implicit action and our best verify result doesn't
+         *   allow implicit actions, abort the implicit action.
+         */
+        
+        if(isImplicit && !verResult.allowImplicit)
+            abortImplicit;
         
         /* 
          *   Otherwise return true to tell our caller we're not objecting to the
@@ -2065,7 +2073,7 @@ class TIAction: TAction
          *   Execute the action method on the indirect object. If it doesn't
          *   output anything, add the current indirect object to ioActionList in
          *   case the report phase wants to do anything with it, and add the
-         *   dobj to the actionList if it's not already there so that a report
+         *   dobj to the reportList if it's not already there so that a report
          *   method on the dobj can report on actions handled on the iobj.
          */
         if(!gOutStream.watchForOutput({:curIobj.(actionIobjProp)}) && canReport)
@@ -2507,7 +2515,7 @@ notePronounAntecedent([objlist])
             himList += cur;
         if(cur.isHer)
             herList += cur;
-        if(cur.isIt)
+        if(cur.isIt && !cur.plural)
             itList += cur;        
         
     }

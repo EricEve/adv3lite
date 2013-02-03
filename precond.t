@@ -71,10 +71,20 @@ containerOpen: PreCondition
         if (obj == nil || obj.contType != In || obj.isOpen)
             return true;
         
-        if(allowImplicit && tryImplicitAction(Open, obj))
+        if(allowImplicit) 
         {
-            return obj.isOpen;
+            local tried = tryImplicitAction(Open, obj);
+            
+            if(obj.isOpen)
+                return true;
+            
+            if(tried)
+                return nil;
         }
+        
+        gMessageParams(obj);
+        DMsg(container needs to be open, '{The subj obj} {needs} to be open for
+            that. ');
         
         return nil;        
     }
@@ -98,10 +108,20 @@ objOpen: PreCondition
         if (obj == nil || obj.isOpen)
             return true;
         
-        if(allowImplicit && tryImplicitAction(Open, obj))
+        if(allowImplicit) 
         {
-            return obj.isOpen;
+            local tried = tryImplicitAction(Open, obj);
+            
+            if(obj.isOpen)
+                return true;
+            
+            if(tried)
+                return nil;
         }
+        
+        gMessageParams(obj);
+        DMsg(object needs to be open, '{The subj obj} {needs} to be open for
+            that. ');
         
         return nil;        
     }
@@ -125,10 +145,21 @@ objClosed: PreCondition
         if (obj == nil || ! obj.isOpen)
             return true;
         
-        if(allowImplicit && tryImplicitAction(Close, obj))
+        if(allowImplicit) 
         {
-            return !obj.isOpen;
+            local tried = tryImplicitAction(Close, obj);
+            
+            if(!obj.isOpen)
+                return true;
+            
+            if(tried)
+                return nil;
         }
+        
+        gMessageParams(obj);
+        
+        DMsg(obj needs to be closed, '{The subj obj} {needs} to be closed for
+            that. ');
         
         return nil;        
     }
@@ -170,10 +201,19 @@ objHeld: PreCondition
         if (obj == nil || obj.isDirectlyIn(gActor))
             return true;
         
-        if(allowImplicit && tryImplicitAction(Take, obj))
-        {
-            return obj.isDirectlyIn(gActor);
+        if(allowImplicit) 
+        {    
+            local tried = tryImplicitAction(Take, obj);
+            
+            if(obj.isDirectlyIn(gActor))
+              return true;   
+            
+            if(tried)
+                return nil;            
         }
+        
+        gMessageParams(obj);
+        DMsg(need to hold, '{I} {need} to be holding {the obj} to do that. ');
         
         return nil;        
     }
@@ -188,10 +228,21 @@ objNotWorn: PreCondition
         if (obj == nil || obj.wornBy != gActor)
             return true;
         
-        if(allowImplicit && tryImplicitAction(Doff, obj))
+        if(allowImplicit) 
         {
-            return obj.wornBy == nil;
+            local tried = tryImplicitAction(Doff, obj);
+            
+            if(obj.wornBy == nil)
+                return true;
+            
+            if(tried)
+                return nil;
+            
         }
+        
+        gMessageParams(obj);
+        DMsg(cant do that while wearing, '{I} {can\'t} do that while
+            {he actor}{\'m} wearing {the obj). ');
         
         return nil;        
     }
@@ -298,10 +349,22 @@ objDetached: PreCondition
         if(obj.attachedTo == nil)
             return true;
         
-        if(allowImplicit && tryImplicitAction(DetachFrom, obj, obj.attachedTo))
+        if(allowImplicit)            
         {
-            return obj.attachedTo == nil;
+            local tried = tryImplicitAction(DetachFrom, obj, obj.attachedTo);
+            
+            if(obj.attachedTo == nil)
+               return true;
+            
+            if(tried)
+                return nil;
         }
+        
+        local att = obj.attachedTo;
+        gMessageParams(obj, att);
+        
+        DMsg(cant do that while attached, '{I} {can\'t} do that while {the subj
+            obj} is attached to {the att). ');
         
         return nil;  
     }

@@ -571,6 +571,13 @@ dictionary property noun, nounApostS;
 #define implausible(msg) \
     gAction.addVerifyResult(new VerifyResult(35, msg, nil, self))
 
+#define nonObvious \
+    gAction.addVerifyResult(new VerifyResult(30, '', true, self, nil))
+
+#define dangerous \
+    gAction.addVerifyResult(new VerifyResult(90, '', true, self, nil))
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Command interruption signal macros.  
