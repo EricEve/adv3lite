@@ -3303,8 +3303,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             logical;
         }
-        
-        check() { }
+                
         
         action()
         {           
@@ -3355,8 +3354,8 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotReadMsg = BMsg(cannot read, 'There {dummy} {is} no lettering on {the
-        dobj}. ')
+    cannotReadMsg = BMsg(cannot read, 'There {dummy} {is} nothing to read on
+        {the dobj}. ')
     
 
     
@@ -3402,6 +3401,15 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotAttackMsg);
         }
         
+        
+        /* 
+         *   In case isAttackable is changed to true but no other handling is
+         *   added, we need to provide some kind of default report.
+         */
+        report()
+        {
+            DMsg(futile attack, futileToAttackMsg, gActionListStr); 
+        }
     }
    
    
@@ -3412,8 +3420,25 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(AttackWith)
     {
         preCond = [touchObj]
-        check() { say(shouldNotAttackMsg); }
+        
+        verify()
+        {
+            if(!isAttackable)
+                illogical(cannotAttackMsg);
+        }
+        
+        
+        /* 
+         *   In case isAttackable is changed to true but no other handling is
+         *   added, we need to provide some kind of default report.
+         */
+        report()
+        {
+            DMsg(futile attack, futileToAttackMsg,  gActionListStr); 
+        }       
     }
+    
+    futileToAttackMsg = 'Attacking {1} {dummy}{proves} futile. '
     
     iobjFor(AttackWith)
     {
@@ -3447,6 +3472,8 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isBreakable = true
     
+    /*   Probably most things shouldn't be broken though. */
+    shouldBeBroken = nil
     
     dobjFor(Break)
     {
@@ -3456,9 +3483,9 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!isBreakable)
                 illogical(cannotBreakMsg);
-        }
-        
-        check() { say(shouldNotBreakMsg); }
+            else if(!shouldBeBroken)
+                implausible(shouldNotBreakMsg);            
+        }       
     }
     
     cannotBreakMsg = BMsg(cannot break, '{The subj dobj} {is} not the sort of
@@ -3486,16 +3513,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            local obj = object: Thing 
-            {
-                plural = (gAction.reportList.length > 1 ||
-                          gAction.reportList[1].plural);
-            };
+            local obj = gActionListObj;
             
             gMessageParams(obj);
             
-            DMsg(throw dir, '{I} {throw} {1} {2}wards and {he obj} {lands} on
-                the ground. ', gActionListStr, gAction.direction.name );
+            DMsg(throw dir, '{I} {throw} {the obj} {1}wards and {he obj} {lands}
+                on the ground. ', gAction.direction.name );
         }
     }
     
@@ -3585,8 +3608,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalNow(alreadyClosedMsg);
             logical;
         }
-        
-        check() { }
+           
         
         action()
         {            
@@ -3627,7 +3649,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 logicalRank(80);
         }
         
-        action()
+        report()
         {
             say(turnNoEffectMsg);
         }
@@ -3636,8 +3658,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotTurnMsg = BMsg(cannot turn, '{The subj dobj} {can\'t} be turned. ')
     
-    turnNoEffectMsg = BMsg(turn useless, 'Turning {the dobj} {dummy} {achieves}
-        nothing. ')
+    turnNoEffectMsg = BMsg(turn useless, 'Turning {1} {dummy} {achieves}
+        nothing. ', gActionListStr)
     
     dobjFor(TurnWith)
     {
@@ -3651,6 +3673,11 @@ class Thing:  ReplaceRedirector, Mentionable
                 logical;
             else
                 logicalRank(80);
+        }
+        
+        report()
+        {
+            say(turnNoEffectMsg);
         }
         
     }
@@ -4060,14 +4087,14 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPushMsg);
         }
         
-        action() { say(pushNoEffectMsg); }
+        report() { say(pushNoEffectMsg); }
     }
         
     cannotPushMsg = BMsg(cannot push, '{There}{\'s} no point trying to push
         {that dobj}. ')
     
-    pushNoEffectMsg = BMsg(push no effect, 'Pushing {the dobj} {dummy} {has} no
-        effect. ')
+    pushNoEffectMsg = BMsg(push no effect, 'Pushing {1} {dummy} {has} no
+        effect. ', gActionListStr)
     
     /* We can at least try to push most things. */
     isPullable = true
@@ -4082,14 +4109,14 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPullMsg);
         }
         
-        action() { say(pullNoEffectMsg); }
+        report() { say(pullNoEffectMsg); }
     }
     
     cannotPullMsg = BMsg(cannot pull, '{There}{\'s} no point trying to pull
         {that dobj}. ')
     
-    pullNoEffectMsg = BMsg(pull no effect, 'Pulling {the dobj} {dummy} {has} no
-        effect. ')
+    pullNoEffectMsg = BMsg(pull no effect, 'Pulling {1} {dummy} {has} no
+        effect. ', gActionListStr)
     
     dobjFor(PutOn)
     {
@@ -4114,11 +4141,10 @@ class Thing:  ReplaceRedirector, Mentionable
             logical;
         }
         
-        check()  {  }
         
         action()
-        {                  
-            actionMoveInto(gIobj);                        
+        {          
+            /* Handled on iobj */                                    
         }
         
         report()
@@ -4164,7 +4190,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            /* handled by dobj */
+            gDobj.actionMoveInto(self);
         }      
     
     }
@@ -4195,20 +4221,10 @@ class Thing:  ReplaceRedirector, Mentionable
             logical;
         }
         
-        check() 
-        { 
-            
-        }
-        
+              
         action()
         {                     
-           if(gIobj.contType == In)
-                actionMoveInto(gIobj);
-            else
-            {
-                gIobj.hiddenIn += self;
-                actionMoveInto(nil);
-            }                        
+            /* handled on iobj */                          
         }
         
         report()
@@ -4250,7 +4266,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            /* handled by dobj */
+            if(contType == In)
+                gDobj.actionMoveInto(self);
+            else
+            {
+                hiddenIn += gDobj;
+                gDobj.actionMoveInto(nil);
+            }  
         }      
     
     }
@@ -4282,13 +4304,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(gIobj.contType == Under)
-                actionMoveInto(gIobj);
-            else
-            {
-                gIobj.hiddenUnder += self;
-                actionMoveInto(nil);
-            }
+            /* Handled by iobj */
         }
         
         report()
@@ -4323,7 +4339,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            /* handled by dobj */
+            if(contType == Under)
+                gDobj.actionMoveInto(self);
+            else
+            {
+                hiddenUnder += gDobj;
+                gDobj.actionMoveInto(nil);
+            }
         }
         
         
@@ -4332,7 +4354,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPutUnderMsg = BMsg(cannot put under, '{I} {cannot} put anything under
         {the iobj}. ' )
         
-     dobjFor(PutBehind)
+    dobjFor(PutBehind)
     {
         preCond = [objHeld, objNotWorn]
         
@@ -4356,13 +4378,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(gIobj.contType == Behind)
-                actionMoveInto(gIobj);
-            else
-            {
-                gIobj.hiddenBehind += self;
-                actionMoveInto(nil);
-            }
+            /* Handled by iobj */
         }
         
         report()
@@ -4397,7 +4413,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            /* handled by dobj */
+            if(contType == Behind)
+                gDobj.actionMoveInto(self);
+            else
+            {
+                hiddenBehind += gDobj;
+                gDobj.actionMoveInto(nil);
+            }
         }
         
         
@@ -4958,10 +4980,17 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            moveInto(getOutermostRoom);
-            DMsg(throw, '{The subj dobj} {sails} through the air and {lands}
+            moveInto(getOutermostRoom);            
+        }
+        
+        report()
+        {
+            local obj = gActionListObj;
+            gMessageParams(obj);
+            DMsg(throw, '{The subj obj} {sails} through the air and {lands}
                 on the ground. ' );
         }
+        
     }
     
     
@@ -5090,8 +5119,9 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE
      *   otherwise. This handling will be dealt with by removeDoer insteadof
-     *   remap, since this form of remap is now deprecated. See english.t for
-     *   removeDoer (which seems to be a language-specific construct)
+     *   remap, since this form of remap has now been discontinued. See
+     *   english.t for removeDoer (which seems to be a language-specific
+     *   construct)
      */
     dobjFor(Remove)
     {
@@ -5143,10 +5173,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotMoveMsg);
         }
         
-        action()
-        {
-            
-        }
+        action()  {  }
         
         report()
         {
@@ -5168,10 +5195,7 @@ class Thing:  ReplaceRedirector, Mentionable
                         
         }
         
-        action()
-        {
-            
-        }
+        action() {  }
         
         report()
         {
@@ -5408,17 +5432,14 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isCleanable) 
                 illogical(cannotCleanMsg);
             
-            if(isClean)
-                illogicalNow(alreadyCleanMsg);
-        }    
+            else if(isClean)
+                illogicalNow(alreadyCleanMsg);        
         
-        check()
-        {
-            if(!needsCleaning)
-                say(noNeedToCleanMsg);
+            else if(!needsCleaning)
+                implausible(noNeedToCleanMsg);
             
-            if(mustBeCleanedWith != nil)
-                say(cleanWithObjNeededMsg);
+            else if(mustBeCleanedWith != nil)
+                implausible(cleanWithObjNeededMsg);
         }
         
         
@@ -5457,19 +5478,16 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isCleanable) 
                 illogical(cannotCleanMsg);
             
-            if(isClean)
+            else if(isClean)
                 illogicalNow(alreadyCleanMsg);
-        }    
         
-        check()
-        {
-            if(!needsCleaning)
-                say(noNeedToCleanMsg);
+            else if(!needsCleaning)
+                implausible(noNeedToCleanMsg);
             
-            if(mustBeCleanedWith == nil)
-                say(dontNeedCleaningObjMsg);
+            else if(mustBeCleanedWith == nil)
+                implausible(dontNeedCleaningObjMsg);
             else if(valToList(mustBeCleanedWith).indexOf(gIobj) == nil)
-                say(cannotCleanWithMsg);
+                implausible(cannotCleanWithMsg);
         }
         
         
@@ -5619,11 +5637,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         
         action()
-        {
-            DMsg(throw at, '{The subj dobj} {strikes} {the iobj} and {lands}
-                on the ground. ');
-            
+        {            
             gDobj.moveInto(getOutermostRoom);
+        }
+        
+        report()
+        {
+            local obj = gActionListObj;
+            gMessageParams(obj);
+            DMsg(throw at, '{The subj obj} {strikes} {the iobj} and {lands}
+                on the ground. ');            
         }
         
     }

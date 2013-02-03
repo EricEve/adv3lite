@@ -268,6 +268,19 @@ dictionary property noun, nounApostS;
 /* a displaying string version of the above */
 #define gActionListStr makeListStr(gCommand.action.reportList, &theName)
 
+/* 
+ *   an object that is singular or plural according to whether gActionList
+ *   represents a single object of a plurality of objects
+ */
+
+#define gActionListObj (object: Thing \
+            { \
+                plural = (gAction.reportList.length > 1 || \
+                          gAction.reportList[1].plural); \
+                name = gActionListStr; \
+                qualified = true; \
+            } )
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Miscellaneous macros

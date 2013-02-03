@@ -76,12 +76,9 @@ class SimpleAttachable: Thing
         {                        
             if(attachedTo == nil)
                 illogicalNow(notAttachedMsg);           
-        }
         
-        check()
-        {
-            if(!isDetachable)
-                say(cannotDetachMsg);
+            else if(!isDetachable)
+                implausible(cannotDetachMsg);
         }
         
         action()

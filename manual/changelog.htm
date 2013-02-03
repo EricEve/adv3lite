@@ -40,15 +40,27 @@ Change Log
 <p><strong>Slight risk of incompatibity:</strong> Previously an implicit SAY command (text interpreted as a SAY command during a conversation when the player's command did not explicitly start with SAY) would attempt to mask an AskTopic or a TellTopic if it failed to match a SayTopic. This is probably needlessly complex, and may not be altogether intuitive to players. The handling of implicit SAY commands has thus been changed so that the game will only attempt to match SayTopics (including DefaultTopic types that include SayTopics).</p>
 <hr>
 <p><strong>Slight risk of incompatibity:</strong> The Action methods <strong>getDobj()</strong> and <strong>getIobj()</strong> have been removed. Since all they did was to return <span class="code">curDobj</span> and <span class="code">curIobj</span> respectively, they seemed an unnecessary piece of indirection. It is unlikely that game code would call these methods directly, but if it does, just use <span class="code">curDobj</span> (or <span class="code">gDobj</span>) and <span class="code">curIobj</span> (or <span class="code">gIobj</span>) instead.</p>
+<hr>
+<p><strong>Very slight risk of incompatibity:</strong> The action handling for a TI action now adds the direct object of a command to it actionList even if the action is dealt with on the indirect object. This is probably better behaviour that what was there before, and means that <span class="code">gActionListStr</span> returns a useful value for report() methods (usually defined on the direct object) even when the action handling has taken place on the indirect object (as may sometimes be more appropriate).</p>
+<hr>
+<p><strong>Very slight risk of incompatibity:</strong> The action handling for PutIn, PutOn, PutUnder and PutBehind has been moved from the direct object to the indirect object of the action, since game code is more likely to want to customize the effects of the action there (for example, a Container is more likely to behave in a non-standard way to having things inserted in it than the things being inserted in it are).</p>
 
 
 <hr>
+<p><strong>Very slight risk of incompatibity:</strong> The action handling for a number of actions on Thing and one or two other classes has been tweaked to produce a more consistent scheme. Wherever possible, actions that need to be blocked are blocked at the verify stage rather than the check stage, and actions are reported on at the report stage rather than the action stage. This scheme was more or less followed before, but not quite as consistently as it might have been.</p>
+
+<p>Note that there are still some exceptions where (in the first case) it still seems appropriate to perform some additional checks at the check stage and perhaps rule an action out there and (in the second case) where the main point of an action (e.g. EXAMINE, LOOK IN) is the output it produces, which is then best left at the action stage.</p>
+<hr>
+
+
 <p><span class="code">replaceAction()</span> and <span class="code">nestedAction()</span> are now functions, not macros, although they still do exactly the same thing. They are joined by two new functions <span class="code">replaceActorAction()</span> and <span class="code">nestedActorAction()</span>, which can be used when you wish to specify the actor. Game authors are, however, encouraged to use the new methods <span class="code">doInstead()</span> and <span class="code">doNested(</span>) (see below) in place of <span class="code">replaceAction()</span> and <span class="code">nestedAction()</span> since these provide greater functionality and a more consistent interface.</p>
 <hr>
 <p>Doer, Action and Thing all define two methods, <strong>doInstead()</strong> and <strong>doNested()</strong> which can be used to divert one action to another (in the first case) or to execute one action in the course of another (in the second case), e.g. <span class="code">doInstead(PutIn, redBall, greenBox)</span> or <span class="code">doNested(Drop, gDobj)</span>. See the discussion on <a href="doer.htm">Doer</a> for details.</p>
 <p>Note that the existing Doer method <span class="code">redirect()</span> still exists and works as before, but is now a service method used by <span class="code">doInstead()</span>. Existing code that uses <span class="code">redirect()</span> will still work, but game authors are encouraged to use <span class="code">doInstead()</span> instead.</p>
 <hr>
 <p>There is now a new <strong>Go</strong> action to make it easier to synthesize travel commands. This action is never triggered directly by a player command, but can be used in doInstead(), doNested, replaceAction(), replaceActorAction, nestedAction() and nestedActorAction() in the form <span class="code">doInstead(Go, northDir)</span>.</p>
+<hr>
+<p>A new macro <strong>gActionListObj</strong> has been added for use in report() methods. It evaluates to an object that can be used in situations where we want gActionListStr to be the subject of a sentence (so that any verbs need to agree with it in number depending on whether gReportList represents one or more objects). Consult the section on the <a href="actres.htm#report">Report</a> phase of Actions Results for further details.</p>
 
 <hr>
 <p>Two new classes have been added to the conversation system: <a href="topicgroup.htm">TopicGroup</a> and <a href="convnode.htm#convnode">ConvNode</a> These don't enable game authors to do anything that couldn't be done before, but they may make it more convenient, especially when definining Conversation Nodes.</p>

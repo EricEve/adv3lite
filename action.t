@@ -2047,11 +2047,13 @@ class TIAction: TAction
         
         /* 
          *   Run the action routine on the current direct object. If it doesn't
-         *   display anything add the direct object to the list of objects to be
-         *   reported on at the report stage.
+         *   display anything note that the direct object can be added to the
+         *   list of objects to be reported on at the report stage, provided the
+         *   iobj action routine doesn't report anything either.
          */
-        if(!gOutStream.watchForOutput({:curDobj.(actionDobjProp)}))
-           reportList += curDobj;
+        local canReport =
+            !gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+           
         
         /* Note that we've acted on this direct object. */
         actionList += curDobj;
@@ -2062,10 +2064,15 @@ class TIAction: TAction
         /* 
          *   Execute the action method on the indirect object. If it doesn't
          *   output anything, add the current indirect object to ioActionList in
-         *   case the report phase wants to do anything with it.
+         *   case the report phase wants to do anything with it, and add the
+         *   dobj to the actionList if it's not already there so that a report
+         *   method on the dobj can report on actions handled on the iobj.
          */
-        if(!gOutStream.watchForOutput({:curIobj.(actionIobjProp)}))
-           ioActionList += curIobj;
+        if(!gOutStream.watchForOutput({:curIobj.(actionIobjProp)}) && canReport)
+        {
+            ioActionList += curIobj;
+            reportList = reportList.appendUnique([curDobj]);
+        }
               
         return true;
     }

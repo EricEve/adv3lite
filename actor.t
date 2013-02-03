@@ -972,13 +972,12 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     dobjFor(Kiss)
     {
-        verify() {}
-            
-        check()
+        verify() 
         {
             if(!allowKiss)
-                say(shouldNotKissMsg);
+                implausible(shouldNotKissMsg);
         }
+                
         
         action()
         {
@@ -1005,10 +1004,10 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     dobjFor(Attack)
     {       
         
-        check()  
+        verify()  
         {
             if(!allowAttack)
-                say(shouldNotAttackMsg);
+                implausible(shouldNotAttackMsg);
         }
         
         action()
