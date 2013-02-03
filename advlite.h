@@ -318,9 +318,9 @@ dictionary property noun, nounApostS;
  *   restrictions on object role references.
  *   
  *   Note that role reversals can almost always be handled with other
- *   mechanisms that handle reversals cleanly.  Always consider remapTo()
+ *   mechanisms that handle reversals cleanly.  Always consider Doer.doInstead()
  *   first when confronted with a situation that seems to call for a
- *   role-reversing asObjFor() mapping, as remapTo() specifically allows for
+ *   role-reversing asObjFor() mapping, as doInstead() specifically allows for
  *   object role changes.  
  */
 #define asObjFor(obj, Action) \
@@ -356,40 +356,40 @@ dictionary property noun, nounApostS;
 #define asDobjWithoutActionFor(action) asObjWithoutActionFor(Dobj, action)
 #define asIobjWithoutActionFor(action) asObjWithoutActionFor(Iobj, action)
 
-/*
- *   "Remap" an action.  This effectively rewrites the action in the given
- *   form.  Each of the object slots can be filled either with a specific
- *   object, or with a noun phrase role name (DirectObject, IndirectObject);
- *   in the latter case, the object or objects from the named noun phrase
- *   role in the *current* action (i.e., before the rewrite) will be used.
- *   
- *   If the new action has two or more objects (for example, if it's a
- *   TIAction), then EXACTLY ONE of the slots must be filled with a specific
- *   object, and all of the other slots must be filled with role names.  The
- *   specific object is the one that corresponds to the original object
- *   that's doing the remapping in the first place - this can simply be
- *   'self' if the new action will operate on the same object, or it can be
- *   a different object.  The important thing is that the 'verify' method
- *   for the defining object will be forwarded to the corresponding 'verify'
- *   method on the corresponding object for the new action.
- *   
- *   This macro must be used as the ENTIRE definition block for a dobjFor()
- *   or iobjFor().  For example, to remap a "put in" command directed to a
- *   desk so that the command is instead applied to a drawer in the desk, we
- *   could define the following on the desk object:
- *   
- *   iobjFor(PutIn) remapTo(PutIn, DirectObject, deskDrawer) 
- */
-#define remapTo(action, objs...) { remap = [action, ##objs] }
-
-/*
- *   Conditionally remap an action.  If 'cond' (a conditional expression)
- *   evaluated to true, we'll remap the action as directed; otherwise, we'll
- *   inherit the default handling 
- */
-#define maybeRemapTo(cond, action, objs...) \
-    { remap = ((cond) ? [action, ##objs] : inherited()) }
-
+///*
+// *   "Remap" an action.  This effectively rewrites the action in the given
+// *   form.  Each of the object slots can be filled either with a specific
+// *   object, or with a noun phrase role name (DirectObject, IndirectObject);
+// *   in the latter case, the object or objects from the named noun phrase
+// *   role in the *current* action (i.e., before the rewrite) will be used.
+// *   
+// *   If the new action has two or more objects (for example, if it's a
+// *   TIAction), then EXACTLY ONE of the slots must be filled with a specific
+// *   object, and all of the other slots must be filled with role names.  The
+// *   specific object is the one that corresponds to the original object
+// *   that's doing the remapping in the first place - this can simply be
+// *   'self' if the new action will operate on the same object, or it can be
+// *   a different object.  The important thing is that the 'verify' method
+// *   for the defining object will be forwarded to the corresponding 'verify'
+// *   method on the corresponding object for the new action.
+// *   
+// *   This macro must be used as the ENTIRE definition block for a dobjFor()
+// *   or iobjFor().  For example, to remap a "put in" command directed to a
+// *   desk so that the command is instead applied to a drawer in the desk, we
+// *   could define the following on the desk object:
+// *   
+// *   iobjFor(PutIn) remapTo(PutIn, DirectObject, deskDrawer) 
+// */
+//#define remapTo(action, objs...) { remap = [action, ##objs] }
+//
+///*
+// *   Conditionally remap an action.  If 'cond' (a conditional expression)
+// *   evaluated to true, we'll remap the action as directed; otherwise, we'll
+// *   inherit the default handling 
+// */
+//#define maybeRemapTo(cond, action, objs...) \
+//    { remap = ((cond) ? [action, ##objs] : inherited()) }
+//
 
 /*
  *   For two-object push-travel actions, such as "push sled into cave",

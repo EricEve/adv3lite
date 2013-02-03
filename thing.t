@@ -5378,8 +5378,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 
     }
         
-    cannotDrinkMsg = BMsg(not potable, '{The subj dobj} {is} not something {i}
-        {can} drink. ')
+    cannotDrinkMsg = BMsg(not potable, '{I} {can\'t} drink {1}. ', fluidName)
     
     
     /* 
@@ -6142,6 +6141,16 @@ class Thing:  ReplaceRedirector, Mentionable
     
     isPourable = nil
     
+    
+    /* 
+     *   Sometimes we may have a container, such as an oilcan, from which we
+     *   want to pour a liquid, such as oil, and we're using the same object to
+     *   do duty for both. We can then use the fluidName property to say 'the
+     *   oil' rather than 'the oilcan' in messages that refer specifically to
+     *   pouring the liquid.
+     */
+    fluidName = theName
+    
     dobjFor(Pour)
     {
         preCond = [touchObj]
@@ -6239,20 +6248,21 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotPourMsg = BMsg(cannot pour, '{I} {can\'t} pour {the dobj} anywhere. ')
-    cannotPourOntoSelfMsg = BMsg(cannot pour on self, '{I} {can\'t} pour {the
-        dobj} onto {itself dobj}. ')
-    cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {the
-        dobj} into {itself dobj}. ')
-    cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {the
-        dobj} into {that dobj}. ')
-    cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {the
-        dobj} into {that dobj}. ')
+    cannotPourMsg = BMsg(cannot pour, '{I} {can\'t} pour {1} anywhere. ',
+                         fluidName)
+    cannotPourOntoSelfMsg = BMsg(cannot pour on self, '{I} {can\'t} pour {1} 
+        onto {itself dobj}. ', gDobj.fluidName)
+    cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {1}
+        into {itself dobj}. ', gDobj.fluidName)
+    cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {1)
+        into {that dobj}. ', gDobj.fluidName)
+    cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {1}
+        into {that dobj}. ', gDobj.fluidName)
     shouldNotPourIntoMsg = BMsg(should not pour into, 'It{dummy}{\'s} better not
-        to pour {the dobj} into {the iobj}. ')
+        to pour {1} into {the iobj}. ', gDobj.fluidName)
     
     shouldNotPourOntoMsg = BMsg(cannot pour onto, 'It{dummy}{\'s} better not
-        to pour {the dobj} onto {the iobj}. ')  
+        to pour {1} onto {the iobj}. ', gDobj.fluidName)  
     
     
     isScrewable = nil

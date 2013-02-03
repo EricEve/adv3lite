@@ -24,7 +24,7 @@ Action Results
 <li><a href="#check">Check</a>: determines whether the action can go ahead without affecting the parser's choice of object.</li>
 <li><a href="#action">Action</a>: carries out the action if it three previous stages allow it to go ahead.</li>
 <li><a href="#report">Report</a>: displays a report summarizing the effect of the action on all the direct objects involved.</li>
-<li><a href="#remap">Remap:</a>: if present, remaps this action to another action or the same action involving different objects. Normally if this stage is defined none of the others is.</li>
+<li><a href="#remap">Remap:</a>: if present, replaces the current object of the action with another object in the same role.</li>
 </ul>
 
 <p>These stages are defined in methods whose name is made up of the name of the stage, plus either Dobj (on the direct object of the command) or Iobj(on the indirect object of the command) followed by the name of the action. For example the method names corresponding to the stages listed above on the direct object of a Take action would be called:</p>
@@ -437,58 +437,12 @@ class Thing Mentionable
 
 <h2><a name="remap">Remap</a></h2>
 
-<p>The Remap stage is used to remap (i.e. redirect, transform, transmogrify or otherwise change) one action to another, possibly a totally different action or possibly the same action applied to different objects. If remapping is defined there's normally no point in defining other stages, unless the remapping is conditional (and thus might not occur).</p>
-
-<p>The first two forms of remapping are identical to the way it's done in the adv3 library, using the <b>remapTo()</b> and <b>maybeRemapTo()</b> macros. For example, suppose we have a desk with a drawer and we want to remap putting things in the desk to putting them in the drawer. We could do it like this:</p>
+<p>The Remap stage is used to replace the current object of an action with another object in the same role. For example, to remap putting things in a desk to putting them into its drawer we could simply write:</p>
 
 <p><div class=code><pre>
 desk: Thing 'desk'
   "It has a single drawer. "
-  iobjFor(PutIn) remapTo(PutIn, DirectObject, drawer)  
-;
-</pre></div></p>
-
-<p>(Note that I said we <i>could</i> do it that way, although in this particular example in practice we'd probably just define <span class=code>remapIn = drawer</span> on the desk to remap the whole set of relevant actions at once). Note that the arguments to a remap() macro are first the action to remap to, and then any objects of this new action in the order direct object, indirect object. In this definition, DirectObject is a placeholder for the direct object of the original command. If we wanted to use the indirect object we'd use IndirectObject here instead.</p>
-
-<p>For conditional remapping we can use the <b>maybeRemapTo()</b> macro, which works the same way as remapTo but takes an additional parameter at the beginning, which is a condition that must be true if the remapping is to take place. For example, suppose that we wanted PULL DRAWER to be treated as OPEN DRAWER, but only if the drawer is not already open; we could do it like this:</p>
-
-
-<p><div class=code><pre>
-drawer: Thing 'drawer'
-  isOpenable = true
-  contType = In
-
-  dobjFor(Pull) maybeRemapTo(!isOpen, Open, self)  
-;
-</pre></div></p>
-
-<p>There maybe more complex cases where you want to remap to different actions depending on certain conditions. For example you might want PUSH DOOR to open the door when it's closed, and close the door when it's open. To achieve that effect you can define remap as a method that returns a different list depending on the state of the door:</p>
-
-<p><div class=code><pre>
-frontDoor: Thing 'front door'
-  ...
-
-  dobjFor(Push) 
-  {
-     remap()
-     {
-        if(isOpen)
-           return [Close, self];
-        else
-           return [Open, self]; 
-     }
-  }
-;
-</pre></div></p>
-
-<p><FONT COLOR=RED><strong>IMPORTANT NOTE</strong>:</FONT> <em>The two forms of remapping just described above (with remapTo() and maybeRemapTo()) should be regarded as deprecated features of the adv3Lite library. That is, they may be withdrawn in a future version. This is because much the same effect can be obtained by using the redirect() method of a <a href="doer.htm">Doer</a>, and this is arguably a cleaner solution. Whether or not to retain remapTo() and maybeRemapTo() will depend in part on user feedback. This does not effect the short form remap described immediately below, which will be kept in any case.</em></p> 
-
-<p>The adv3Lite library also offers a short form of remap that can be used to remap an action to the same action applied to a different object in the same role, when we can just set remap to the new object. For example, to remap putting things in a desk to putting them into its drawer we could simply write:</p>
-
-<p><div class=code><pre>
-desk: Thing 'desk'
-  "It has a single drawer. "
-  iobjFor(PutIn) { remap = drawer)  }
+  iobjFor(PutIn) { remap = drawer  }
 ;
 </pre></div></p>
 
