@@ -1258,8 +1258,8 @@ class TAction: Action
     /* The current direct object of this action */    
     curDobj = nil
     
-    /* A method that returns ther current direct object of this action. */
-    getDobj { return curDobj; }
+//    /* A method that returns ther current direct object of this action. */
+//    getDobj { return curDobj; }
     
     /* 
      *   The current object being processed (in a TAction, always the curDObj;
@@ -1815,8 +1815,8 @@ class TIAction: TAction
     /* The current indirect object of this action. */
     curIobj = nil
     
-    /* A method that returns the current indirect object of this action. */
-    getIobj { return curIobj; }
+//    /* A method that returns the current indirect object of this action. */
+//    getIobj { return curIobj; }
     
     /* The various methods to call on the indirect object of this action. */
     verIobjProp = nil
@@ -2190,7 +2190,7 @@ class TopicTAction: TAction
      */
     curIobj = nil
     
-    getIobj() { return curIobj; }
+//    getIobj() { return curIobj; }
     
     /* 
      *   This is a bit of a kludge to deal with the fact that the Parser doesn't

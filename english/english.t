@@ -4667,7 +4667,7 @@ modify TAction
 //            ctx = defaultGetVerbPhraseContext;
 
         /* get the direct object */
-        dobj = getDobj();
+        dobj = curDobj;
 
 //        /* note if it's a pronoun */
 //        dobjIsPronoun = ctx.isObjPronoun(dobj);
@@ -4777,7 +4777,7 @@ modify TIAction
 //            ctx = defaultGetVerbPhraseContext;
 
         /* get the direct object information */
-        dobj = getDobj();
+        dobj = curDobj;
 //        dobjText = ctx.objNameObj(dobj);
 //        dobjIsPronoun = ctx.isObjPronoun(dobj);
         
@@ -4785,7 +4785,7 @@ modify TIAction
         dobjIsPronoun = nil;
 
         /* get the indirect object information */
-        iobj = getIobj();
+        iobj = curIobj;
 //        iobjText = (iobj != nil ? ctx.objNameObj(iobj) : nil);
         iobjText = (iobj != nil ? iobj.theName : nil);
 

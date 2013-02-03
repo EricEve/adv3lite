@@ -231,8 +231,8 @@ dictionary property noun, nounApostS;
  *   and indirect objects, so games that define additional command objects
  *   will have to add their own similar macros for those.  
  */
-#define gDobj (gAction.getDobj())
-#define gIobj (gAction.getIobj())
+#define gDobj (gAction.curDobj)
+#define gIobj (gAction.curIobj)
 #define gLiteral (gAction.literal)
 
 
