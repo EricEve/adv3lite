@@ -502,6 +502,9 @@ Go: TravelAction
         direction = cmd.dobj;
         inherited(cmd);
     }
+    
+    /* Define this so that this action can be called from execNestedAction */
+    resolvedObjectsInScope() { return true; }
 
 ;
     

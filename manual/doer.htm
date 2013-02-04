@@ -116,7 +116,7 @@ Doer 'undo'
 
 <br>
 
-<h2>Defining What a Doer Does</h2>
+<h2><a name="doerdoes">Defining What a Doer Does</a></h2>
 
 <p>There are two methods you can override on Doer to effect what it does, <strong>exec(curCmd)</strong> and <strong>execAction(curCmd</strong>). Which of them you choose depends on what it is you want to achieve. By default exec(curCmd) calls execAction(curCmd) if the action is to be carried out by the player character, and curCmd.actor.handleCommand if it's a command directed at anyone or anything else. Thus if you want your custom Doer to have the same effect whether the command is an action to be carried out by the player character or a command directed at someone else, then execCmd() is probably the best method to override; this works best when you simply want to block the action altogether, as in the examples we've seen so far. But it you want to make the command work differently just for the player character, then execAction() is probably the better choice; at the very least, if you choose to override exec() for anything other than simply blocking the command altogether you'll need to bear in mind that your custom code will be executed whether the player enters a command for the player character to carry out (e.g. TAKE RED BALL) or a command for someone or something else to carry out (e.d. BOB, TAKE THE RED BALL), and your code will therefore have to cover both cases, something you don't need to worry about if you override execAction() (which is precisely why it's a separate method in the first place).</p> 
 
@@ -162,9 +162,7 @@ Doer 'go through junk'
  <p><div class="code"><pre>
  Doer 'jump'
     execAction(curCmd)
-    {
-        /* call the action's before notifications */
-        curCmd.action.beforeAction();
+    {       
         "You jump off the cliff, and down you go! ";
         doInstead(Go, downDir);
     }
@@ -176,8 +174,7 @@ Doer 'go through junk'
   <p><div class="code"><pre>
  Doer 'put bloodDiamond in crown'
     execAction(c)
-    {
-        c.action.beforeAction();
+    {        
         "The crown shatters in your hand. An instant later there's a
          blinding flash and you suddenly feel horribly hot. Once you
          recover your sight you see your surroundings have changed
@@ -191,8 +188,10 @@ Doer 'go through junk'
  </pre></div>
  
 <p>Note that you can also call <span class="code">doInstead()</span> on a Thing or an Action, using precisely the same syntax, and with broadly similar effects (broadly similar in that when you call this method on an Action or Thing you're intervening at a later stage of the action-processing cycle, so the effect isn't quite the same). Thing and Action also define a <span class="code">doNested()</span> method for when you want to perform one action as part of another instead of replacing one action with another. It's also perfectly okay to call <span class="code">doNested()</span> on a Doer, but in that case it won't do anything different from <span class="code">doInstead(</span>), so there's little point.</p> 
+
+<p>If you're wondering which to use, then as a rule of thumb <span class="code">Doer.doInstead()</span> should be used to handle special cases in your game code, whereas calling <span class="code">doInstead()</span> or <span class="code">doNested()</span> in the <span class="code">execAction()</span> method of an Action or an action method on a Thing (or, for that matter, using the lower-level functions <span class="code">replaceAction()</span> or <span class="code">nestedAction()</span>) is best left either to general case handling of a new (user defined) action or when <span class="code">Doer.doInstead()</span> simply won't do the job (for example because you need to execute a nested action as part of another action, or you need to make another actor do something via <span class="code">nestedActorAction()</span> or <span class="code">replaceActorAction()</span>, but such cases are likely to be rare). The technical difference is that calling <span class="code">Doer.doInstead()</span> calls the exec() method of the new action (and so gives you the entire action cycle) whereas all the other methods call the <span class="code">execAction()</span> method of the new action (and so skip part of the action cycle). </p>
  
-<p>Under what circumstances is it better to define a Doer rather than override the various methods described in the <a href="actres.htm">Action Results</a> section above? Since Doer is a feature new to TADS 3 there's no experience or accumulated wisdom to call on here, so the only general advice that can be given is to use whichever is easier and simpler for getting the job done. The kinds of situation where it seems likely that a Doer may be the better choice include:</p>
+<p>Under what other circumstances is it better to define a Doer rather than override the various methods described in the <a href="actres.htm">Action Results</a> section above? Since Doer is a feature new to TADS 3 there's no experience or accumulated wisdom to call on here, so the only general advice that can be given is to use whichever is easier and simpler for getting the job done. The kinds of situation where it seems likely that a Doer may be the better choice include:</p>
 
 <ul>
 <li>Preventing certain actions taking place altogether (conditionally or otherwise) as in some of the examples given above.</li>

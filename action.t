@@ -426,7 +426,7 @@ class Action: ReplaceRedirector
             preCondProp = &preCondActor;
             break;    
         } 
-            
+           
         /* first check if we need to remap this action. */
         
         remapResult = obj.(remapProp);
@@ -979,7 +979,7 @@ class SystemAction: Action
  */
 
 class IAction: Action
-  
+    
 ;
 
 /* 
@@ -2320,7 +2320,7 @@ tryImplicitAction(action, [objs])
 replaceAction(action, [objs])
 {
     /* run the replacement action as a nested action */
-    _nestedAction(true, gActor, action, objs...);
+    execNestedAction(true, gActor, action, objs...);
 
     /* the invoking command is done */
     exit;;
@@ -2331,7 +2331,7 @@ replaceActorAction(actor, action, [objs])
 {    
     
     /* run the replacement action as a nested action */
-    _nestedAction(true, actor, action, objs...);
+    execNestedAction(true, actor, action, objs...);
 
     /* the invoking command is done */
     exit;
@@ -2341,35 +2341,35 @@ replaceActorAction(actor, action, [objs])
 /* Run a nested action */
 nestedActorAction(actor, action, [objs])
 {
-    _nestedAction(nil, actor, action, objs...);
+    execNestedAction(nil, actor, action, objs...);
 }
 
 nestedAction(action, [objs])
 {
-    _nestedAction(nil, gActor, action, objs...);
+    execNestedAction(nil, gActor, action, objs...);
 }
 
 
-_nestedAction(isReplacement, actor, action, [objs])
-{
-//    local action;
+//_nestedAction(isReplacement, actor, action, [objs])
+//{
+////    local action;
+////
+//    /* create an instance of the desired action class */
+//    action = action.createInstance();
 //
-    /* create an instance of the desired action class */
-    action = action.createInstance();
-
-    /* install the resolved objects in the action */
-    action.setResolvedObjects(objs...);
-
-    if(isReplacement)
-    {
-        gCommand.action = action;
-//        gCommand.dobj = action.curDobj;
-//        gCommand.iobj = action.curIobj;
-    }
-    
-    /* execute the new action */
-    execNestedAction(isReplacement, nil, actor, action);
-}
+//    /* install the resolved objects in the action */
+//    action.setResolvedObjects(objs...);
+//
+////    if(isReplacement)
+////    {
+////        gCommand.action = action;
+//////        gCommand.dobj = action.curDobj;
+//////        gCommand.iobj = action.curIobj;
+////    }
+//    
+//    /* execute the new action */
+//    execNestedAction(isReplacement, actor, action);
+//}
     
 
 
@@ -2388,27 +2388,40 @@ _nestedAction(isReplacement, actor, action, [objs])
  *   we're remapping from one action to another, this will be true; for
  *   any other kind of nested or replacement action, this should be nil.  
  */
-execNestedAction(isReplacement, isRemapping, actor, action)
+execNestedAction(isReplacement, actor, action, [objs])
 {
     local oldAction;
+    local oldActor = gActor;
+    
+    /* 
+     *   Create a new instance of the desired action, so we don't override the
+     *   current state of any similar action higher up the calling chain.
+     */
+    action = action.createInstance();
     
     /* prepare the nested action */
     action.parentAction = gAction;
-
        
-    action.isImplicit = gAction.isImplicit;
-    
-    /* If our objects aren't in scope we can't proceed with the action. */ 
-    if (!action.resolvedObjectsInScope())
-        return nil;
-    
+    action.isImplicit = gAction.isImplicit;   
 
     oldAction = gAction;
-    gAction = action;
+    gActor = actor;
+    gCommand.actor = actor;
+    
+    gCommand.changeAction(action, objs.element(1), objs.element(2));
+    
+    /* If our objects aren't in scope we can't proceed with the action. */ 
+    if (objs.length > 0 && !action.resolvedObjectsInScope())
+        return nil;
+    
+//    gCommand.actions += action;
+    
+//    gAction = action;
     
     try
     {
-        action.execResolvedAction();
+        action.execAction(gCommand);
+        action.reportAction();
         return true;
     }
     
@@ -2426,20 +2439,11 @@ execNestedAction(isReplacement, isRemapping, actor, action)
          *   implicit, then we should show our action reports (if any) before
          *   handing back to the main action.
          */
-        if(!isReplacement)
-        {
-            /* report the action */
-            gAction.reportAction();
-            
-            /* 
-             *   Clear out the reportList to make sure we don't display the same
-             *   report again
-             */
-            gAction.reportList = [];
-            
-            /* restore the old gAction */
-            gAction = oldAction;
-        }
+        
+        gCommand.action = gCommand.originalAction;
+        gAction = oldAction;
+        gActor = oldActor;
+        gCommand.actor = oldActor;
 
     }
 }

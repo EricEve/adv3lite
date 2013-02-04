@@ -745,7 +745,7 @@ class State: LState
 
 /*  
  *   A ReplaceRedirector is a Redirector that uses replaceAction (or its
- *   _nestedAction equivalent) to redirect one action to another.
+ *   execNestedAction equivalent) to redirect one action to another.
  */
 
 class ReplaceRedirector: Redirector
@@ -757,11 +757,11 @@ class ReplaceRedirector: Redirector
     redirect(cmd, altAction, dobj:?, iobj:?, isReplacement: = true)
     {
         if(iobj != nil && dobj != nil)
-            _nestedAction(isReplacement, gActor, altAction, dobj, iobj);
+            execNestedAction(isReplacement, gActor, altAction, dobj, iobj);
         else if(dobj != nil)
-            _nestedAction(isReplacement, gActor, altAction, dobj);
+            execNestedAction(isReplacement, gActor, altAction, dobj);
         else
-            _nestedAction(isReplacement, gActor, altAction);
+            execNestedAction(isReplacement, gActor, altAction);
     }
 ;
 

@@ -1308,7 +1308,7 @@ class ConvNode: TopicGroup
 ;
 
 
-class ActorTopicEntry: TopicEntry
+class ActorTopicEntry: ReplaceRedirector, TopicEntry
     /* 
      *   To make this a suggested topic, just give it a name under which it will
      *   be suggested (of the kind that could follow 'You could ask about ' or
