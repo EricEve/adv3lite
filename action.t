@@ -2399,7 +2399,7 @@ execNestedAction(isReplacement, actor, action, [objs])
      */
     action = action.createInstance();
     
-    /* prepare the nested action */
+    /* Make the new action make a note of its parent action */
     action.parentAction = gAction;
        
     action.isImplicit = gAction.isImplicit;   
@@ -2420,8 +2420,42 @@ execNestedAction(isReplacement, actor, action, [objs])
     
     try
     {
+        /* Execute the new action */
         action.execAction(gCommand);
-        action.reportAction();
+        
+        /* 
+         *   In principle we only want to show the reportAction report if we're
+         *   not a replacement action, leaving a replacement action to display
+         *   its report in the normal course of the Command's action-processing
+         *   cycle, but there are certain circumstances where even a replacement
+         *   action needs to display its reportAction here, specifically (1) if
+         *   there's been a change of actor (in which case replaceAction has
+         *   arguably been misused) or (2) if an object announcement has just
+         *   been displayed for the parent action, in which case we need to
+         *   ensure that the report corresponding to the object announcement is
+         *   displayed immediately after the object name (by displaying the
+         *   report straight away here).
+         */
+        
+        if(!isReplacement || gActor != oldActor || 
+         (action.parentAction.announceMultiAction && gCommand.dobjs.length > 1))
+        {    
+            action.reportAction();
+            
+            /* 
+             *   If this is a replacement action, there won't be anything
+             *   printed after reportAction displays a report so we need to
+             *   print a newline in case there's another object.
+             */
+            if(isReplacement)
+                "\n";
+            
+            /*   
+             *   Empty the report list to ensure the report isn't duplicated
+             *   later
+             */
+            action.reportList = [];
+        }
         return true;
     }
     
@@ -2435,15 +2469,25 @@ execNestedAction(isReplacement, actor, action, [objs])
     {
         /* 
          *   If we're not a replacement action we need to restore the old
-         *   gAction when we're done; but if we're a nested action and not
+         *   gAction when we're done; and if we're a nested action and not
          *   implicit, then we should show our action reports (if any) before
-         *   handing back to the main action.
+         *   handing back to the main action. We also need to do this if we've
+         *   changed actor, since unpredictable results could occur from
+         *   substituting an action by one actor with one by another.
+         *
+         *   We try to avoid doing this if this is a replacement action, because
+         *   if possible we want all aspects of the new action, including its
+         *   reporting and after action processing.
          */
         
-        gCommand.action = gCommand.originalAction;
-        gAction = oldAction;
-        gActor = oldActor;
-        gCommand.actor = oldActor;
+        if(!isReplacement || gActor != oldActor)        
+        {            
+           
+            gCommand.action = gCommand.originalAction;
+            gAction = oldAction;
+            gActor = oldActor;
+            gCommand.actor = oldActor;
+        }
 
     }
 }

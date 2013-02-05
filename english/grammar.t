@@ -2385,14 +2385,7 @@ VerbRule(Restart)
     action = Restart
     verbPhrase = 'restart/restarting'
 ;
-//
-//VerbRule(Pause)
-//    'pause'
-//    : VerbProduction
-//    action = Pause
-//    verbPhrase = 'pause/pausing'
-//;
-//
+
 VerbRule(Undo)
     'undo'
     : VerbProduction
@@ -2540,21 +2533,7 @@ class EnTravelVia: VerbProduction
     verbPhrase = 'use/using (what)'
     missingQ = 'what do you want to use'
 ;
-//
-//VerbRule(Port)
-//    'go' 'to' ('port' | 'p')
-//    : VerbProduction
-//    action = Port
-//    verbPhrase = 'go/going to port'
-//;
-//
-//VerbRule(Starboard)
-//    'go' 'to' ('starboard' | 'sb')
-//    : VerbProduction
-//    action = Starboard
-//    verbPhrase = 'go/going to starboard'
-//;
-//
+
 VerbRule(In)
     'enter'
     : VerbProduction
