@@ -3310,55 +3310,55 @@ VerbRule(UnfastenFrom)
                + 'what do you want to unfasten it from'
     iobjReply = fromSingleNoun
 ;
-//
-//VerbRule(PlugInto)
-//    'plug' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
-//    : VerbProduction
-//    action = PlugInto
-//    verbPhrase = 'plug/plugging (what) (into what)'
-//    missingQ = 'what do you want to plug (into it);'
-//             + 'what do you want to plug it into'
-//    iobjReply = inSingleNoun
-//;
-//
-//VerbRule(PlugIntoWhat)
-//    [badness 500] 'plug' multiDobj
-//    : VerbProduction
-//    action = PlugInto
-//    verbPhrase = 'plug/plugging (what) (into what)'
-//    missingQ = 'what do you want to plug (into it);'
-//              + 'what do you want to plug it into'
-//
-//    missingRole = IndirectObject
-//    iobjReply = inSingleNoun
-//;
-//
-//VerbRule(PlugIn)
-//    'plug' multiDobj 'in'
-//    | 'plug' 'in' multiDobj
-//    : VerbProduction
-//    action = PlugIn
-//    verbPhrase = 'plug/plugging (what) in'
-//    missingQ = 'what do you want to plug in'
-//;
-//
-//VerbRule(UnplugFrom)
-//    'unplug' multiDobj 'from' singleIobj
-//    : VerbProduction
-//    action = UnplugFrom
-//    verbPhrase = 'unplug/unplugging (what) (from what)'
-//    missingQ = 'what do you want to unplug;what do you want to unplug it from'
-//    iobjReply = fromSingleNoun
-//;
-//
-//VerbRule(Unplug)
-//    'unplug' multiDobj
-//    : VerbProduction
-//    action = Unplug
-//    verbPhrase = 'unplug/unplugging (what)'
-//    missingQ = 'what do you want to unplug'
-//;
-//
+
+VerbRule(PlugInto)
+    'plug' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
+    : VerbProduction
+    action = PlugInto
+    verbPhrase = 'plug/plugging (what) (into what)'
+    missingQ = 'what do you want to plug (into it);'
+             + 'what do you want to plug it into'
+    iobjReply = inSingleNoun
+;
+
+VerbRule(PlugIntoWhat)
+    [badness 500] 'plug' multiDobj
+    : VerbProduction
+    action = PlugInto
+    verbPhrase = 'plug/plugging (what) (into what)'
+    missingQ = 'what do you want to plug (into it);'
+              + 'what do you want to plug it into'
+
+    missingRole = IndirectObject
+    iobjReply = inSingleNoun
+;
+
+VerbRule(PlugIn)
+    'plug' multiDobj 'in'
+    | 'plug' 'in' multiDobj
+    : VerbProduction
+    action = PlugIn
+    verbPhrase = 'plug/plugging (what) in'
+    missingQ = 'what do you want to plug in'
+;
+
+VerbRule(UnplugFrom)
+    'unplug' multiDobj 'from' singleIobj
+    : VerbProduction
+    action = UnplugFrom
+    verbPhrase = 'unplug/unplugging (what) (from what)'
+    missingQ = 'what do you want to unplug;what do you want to unplug it from'
+    iobjReply = fromSingleNoun
+;
+
+VerbRule(Unplug)
+    'unplug' multiDobj
+    : VerbProduction
+    action = Unplug
+    verbPhrase = 'unplug/unplugging (what)'
+    missingQ = 'what do you want to unplug'
+;
+
 VerbRule(Screw)
     'screw' multiDobj
     : VerbProduction

@@ -1292,6 +1292,23 @@ DefineTIAction(UnfastenFrom)
     againRepeatsParse = true
 ;
 
+DefineTIAction(PlugInto)
+    againRepeatsParse = true    
+;
+
+DefineTAction(PlugIn)
+    againRepeatsParse = true
+;
+
+DefineTIAction(UnplugFrom)
+    againRepeatsParse = true    
+;
+
+DefineTAction(Unplug)
+    againRepeatsParse = true
+;
+
+
 DefineTAction(PushTravelDir)
     execAction(cmd)
     {

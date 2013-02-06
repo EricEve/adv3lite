@@ -2278,6 +2278,7 @@ englishCustomVocab: CustomVocab
         'type/types/typed',
         'unfasten/unfastens/unfastened',
         'unlock/unlocks/unlocked',
+        'unplug/unplugs/unplugged',
         'unscrew/unscrews/unscrewed',
         'wait/waits/waited',
         'wake/wakes/woke/woken',
@@ -2690,12 +2691,19 @@ modify simpleAttachmentLister
         "{I} {see} ";        
     }
 
-    showListSuffix(lst, pl, paraCnt)
+    showListSuffix(lst, pl, parent)
     {
-        " attached to <<lst[1].location.theName>>. ";
+        " attached to <<parent.theName>>. ";
     }
      
     showSubListing = (gameMain.useParentheticalListing) 
+;
+
+modify plugAttachableLister
+    showListSuffix(lst, pl, parent)
+    {
+        " plugged into <<parent.theName>>. ";
+    }    
 ;
 
 finishOptionsLister: Lister

@@ -22,6 +22,9 @@ class SimpleAttachable: Thing
     /* A list of the objects that can be attached to me */
     allowableAttachments = []
     
+    /* A list of the objects that are attached to me */
+    attachments = []
+    
     isAttachable = true
     canAttachToMe = true
     canDetachFromMe = true
@@ -42,14 +45,17 @@ class SimpleAttachable: Thing
         {
             moveInto(gIobj);
             attachedTo = gIobj;
+            gIobj.attachments += self;
         }
         
         report()
         {
-            DMsg(okay attach, '{I} {attach} {1} to {the iobj}. ', 
-                 gActionListStr);
+            say(okayAttachMsg);
         }
     }
+    
+    okayAttachMsg = BMsg(okay attach, '{I} {attach} {1} to {the iobj}. ',
+                         gActionListStr) 
     
     alreadyAttachedMsg = BMsg(already attached, '{The subj dobj} {is} already
         attached to {1}. ', attachedTo.theName)
@@ -84,11 +90,13 @@ class SimpleAttachable: Thing
         action()
         {            
             actionMoveInto(attachedTo.location);
-            attachedTo = nil;
+            attachedTo.attachments -= self;
+            attachedTo = nil;          
         }
         
         report()
         {
+           
             DMsg(okay detach, '{I} detach {1}. ', gActionListStr);
         }
         
@@ -101,7 +109,7 @@ class SimpleAttachable: Thing
             if(attachedTo == nil)
                 illogicalNow(notAttachedMsg);  
             
-            if(attachedTo != gIobj)
+            else if(attachedTo != gIobj)
                 illogicalNow(notAttachedToThatMsg);
             
             inherited;
@@ -111,16 +119,19 @@ class SimpleAttachable: Thing
         
         action()
         {
+            attachedTo.attachments -= self;
             attachedTo = nil;
             actionMoveInto(gIobj.location);
         }
         
         report()
         {
-            DMsg(okay detach from, '{I} detach {1} from {the iobj}. ', 
-                 gActionListStr);
+            say(okayDetachFromMsg);            
         }
     }
+    
+    okayDetachFromMsg = BMsg(okay detach from, '{I} {detach} {1} from {the iobj}. ', 
+                 gActionListStr)
     
     cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj) {cannot} be
         detached from {1}. ', location.theName)
@@ -230,9 +241,11 @@ class SimpleAttachable: Thing
     examineStatus()
     {
         inherited;
-        if(contents.countWhich({x: x.locType == Attached}) > 0)
-            simpleAttachmentLister.show(contents, 0);
+        if(attachments.length > 0)
+            attachmentLister.show(attachments, self);
     }
+    
+    attachmentLister = simpleAttachmentLister
     
     /* 
      *   If I'm attached, do I become firmly attached (so that I can't be
@@ -256,22 +269,7 @@ class SimpleAttachable: Thing
     
     allowOtherToMoveWhileAttached = true
     
-    /* 
-     *   For a SimpleAttachment we build the list of attachments by looking for
-     *   things in our contents and our immediate location that are attached to
-     *   us.
-     */
-    attachments()
-    {
-        local vec = new Vector(contents.subset({x: x.attachedTo == self}));
-        
-        vec += location.contents.subset({x: x.attachedTo == self});
-        
-//        if(attachedTo != nil)
-//            vec.append(attachedTo);
-        
-        return vec.toList;                   
-    }
+    
 ;
 
 /* 
@@ -329,6 +327,7 @@ class NearbyAttachable: SimpleAttachable
             actionMoveInto(gIobj.location);
             attachedTo = gIobj;
             oldLocation = location;
+            gIobj.attachments += self;
         }
     }
     
@@ -345,4 +344,77 @@ class NearbyAttachable: SimpleAttachable
     }
     
     oldLocation = nil
+;
+
+class PlugAttachable: object
+    isPlugable = true
+    canPlugIntoMe = true
+    
+    attachmentLister = plugAttachableLister
+    
+    dobjFor(PlugInto)    
+    {
+        verify()
+        {
+            inherited;
+            
+            if(attachedTo != nil)
+                illogicalNow(alreadyAttachedMsg);
+            
+        }
+        
+        action() { actionDobjAttachTo(); }
+        
+        report() { reportDobjAttachTo(); }        
+    }
+    
+    okayAttachMsg = BMsg(okay plug, '{I} {plug} {1} into {the iobj}. ',
+                         gActionListStr) 
+    
+    alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
+        plugged into {the iobj}. ')
+    
+    iobjFor(PlugInto)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            inherited;
+            
+            if(!allowAttach(gDobj))
+                illogical(cannotBeAttachedMsg);
+        }
+    }
+    
+    cannotBeAttachedMsg = BMsg(cannot be plugged in, '{The subj dobj} {can\'t}
+        be plugged into {the iobj}. ')
+    
+    
+    dobjFor(UnplugFrom)
+    {
+        verify()
+        {
+            inherited;
+            
+            if(attachedTo == nil)
+                illogicalNow(notAttachedMsg);  
+            
+            else if(attachedTo != gIobj)
+                illogicalNow(notAttachedToThatMsg);
+            
+        }
+        
+        action() { actionDobjDetachFrom(); }
+        report() { reportDobjDetachFrom(); }
+    }
+    
+    okayDetachFromMsg = BMsg(okay unplug from, '{I} {unplug} {1} from {the iobj}. ', 
+                 gActionListStr)
+    
+    notAttachedMsg = BMsg(not plugged in, '{The subj dobj} {isn\'t} plugged into
+        anything. ') 
+    
+    notAttachedToThatMsg = BMsg(not plugged into that, '{The subj dobj} {isn\'t}
+        plugged into {the iobj}. ')
 ;

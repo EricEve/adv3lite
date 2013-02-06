@@ -281,6 +281,9 @@ simpleAttachmentLister: ItemLister
     
 ;
 
+plugAttachableLister: simpleAttachmentLister
+;
+
 /* 
  *   A lister that can be readily customized to tailor the text before and after
  *   a list of miscellaneous items in a room description.

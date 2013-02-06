@@ -6005,6 +6005,82 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnfastenFromSelfMsg = BMsg(cannot unfasten from self, '{I} {can\'t}
         unfasten {the dobj} from {itself dobj}. ')
 
+    
+    isPlugable = nil
+    canPlugIntoMe = nil
+    
+    dobjFor(PlugInto)
+    {
+        preCond = [objHeld]
+        
+        verify()
+        {
+            if(!isPlugable)
+                illogical(cannotPlugMsg);
+            
+            if(self == gIobj)
+                illogicalSelf(cannotPlugIntoSelfMsg);            
+        }        
+        
+    }
+    
+    iobjFor(PlugInto)
+    {
+        preCond = [touchObj]
+        verify()
+        {          
+            if(!canPlugIntoMe)
+                illogical(cannotPlugIntoMsg);
+        }
+    }
+    
+    
+    cannotPlugMsg = BMsg(cannot plug, '{The subj dobj} {can\'t} be plugged into
+        anything. ')
+    cannotPlugIntoSelfMsg = BMsg(cannot plug into self, '{I} {can\'t} plug
+        {the dobj} into {itself dobj}. ')
+    cannotPlugIntoMsg = BMsg(cannot plug into, '{I} {can\'t} plug anything into
+        {the iobj}. ')
+    
+    isUnplugable = (isPlugable)
+    canUnplugFromMe = (canPlugIntoMe)
+    
+    dobjFor(UnplugFrom)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!isUnplugable)
+                illogical(cannotUnplugMsg);
+            
+            if(gIobj == self)
+                illogicalSelf(cannotUnplugFromSelfMsg);
+        }
+    }
+    
+    iobjFor(UnplugFrom)
+    {
+        preCond = []
+        
+        verify()
+        {
+            if(!canUnplugFromMe)
+                illogical(cannotUnplugFromMsg);
+            
+           
+        }
+    }
+    
+    cannotUnplugMsg = BMsg(cannot unplug, '{The subj dobj} {can\'t} be
+        unplugged. ')
+    
+    cannotUnplugFromSelfMsg = BMsg(cannot unplug from self, '{I} {can\'t} unplug
+        {the dobj} from {itself dobj}. ')
+    
+    cannotUnplugFromMsg = BMsg(cannot unplug from, '{I} {can\'t} unplug anything
+        from {the iobj}. ')
+    
     /* We can try kissing most things, even if it isn't very rewarding */
     isKissable = true
     
