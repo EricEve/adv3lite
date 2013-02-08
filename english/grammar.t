@@ -3644,6 +3644,12 @@ initDoerParsers(ptab)
         local mo = alt.gramMatchObj;
         local action = mo.action;
         
+        /* 
+         *   Make a note on the action that this is one of the predicates that
+         *   matches it.
+         */
+        action.verbRules = action.verbRules.appendUnique([mo]);
+        
         /* save the alternative info with the match object */
         mo.grammarAlts += alt;
         
@@ -3757,4 +3763,8 @@ modify VerbProduction
         /* still didn't find it - return a suitable default for the role */
         return (role == DirectObject ? nounList : singleNoun);
     }
+;
+
+modify Action
+    verbRules = []
 ;

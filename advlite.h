@@ -369,6 +369,10 @@ dictionary property noun, nounApostS;
 #define asDobjWithoutActionFor(action) asObjWithoutActionFor(Dobj, action)
 #define asIobjWithoutActionFor(action) asObjWithoutActionFor(Iobj, action)
 
+#define askForDobj(action)  askMissingObject(action, DirectObject)
+#define askForIobj(action)  askMissingObject(action, IndirectObject)
+
+
 ///*
 // *   "Remap" an action.  This effectively rewrites the action in the given
 // *   form.  Each of the object slots can be filled either with a specific

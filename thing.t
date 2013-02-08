@@ -6011,7 +6011,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(PlugInto)
     {
-        preCond = [objHeld]
+        preCond = [touchObj]
         
         verify()
         {
@@ -6080,6 +6080,28 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotUnplugFromMsg = BMsg(cannot unplug from, '{I} {can\'t} unplug anything
         from {the iobj}. ')
+    
+    dobjFor(PlugIn)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!isPlugable)
+                illogical(cannotPlugMsg);
+        }
+    }
+    
+    dobjFor(Unplug)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!isUnplugable)
+                illogical(cannotUnplugMsg);
+        }
+    }
     
     /* We can try kissing most things, even if it isn't very rewarding */
     isKissable = true

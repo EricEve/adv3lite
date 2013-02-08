@@ -29,6 +29,22 @@ class SimpleAttachable: Thing
     canAttachToMe = true
     canDetachFromMe = true
     
+    
+    /* 
+     *   The location this object should be moved to when it's attached. A
+     *   SimpleAttachment should normally be moved into the object it's attached
+     *   to.
+     */
+    attachedLocation = (attachedTo)
+    
+    /*   
+     *   The location this object should be moved to when it's detached. A
+     *   SimpleAttachment should normally be moved into the location of the
+     *   object it's just been detached from.
+     */
+    detachedLocation = (attachedTo.location)
+    
+    
     dobjFor(AttachTo)
     {
         preCond = [objHeld]
@@ -42,9 +58,16 @@ class SimpleAttachable: Thing
         }
         
         action()
-        {
-            moveInto(gIobj);
+        {            
             attachedTo = gIobj;
+            
+            /* 
+             *   If we're already in our attached location, there's no need to
+             *   move, otherwise move us into our attached location.
+             */
+            if(location != attachedLocation)
+                actionMoveInto(attachedLocation);
+            
             gIobj.attachments += self;
         }
         
@@ -88,19 +111,23 @@ class SimpleAttachable: Thing
         }
         
         action()
-        {            
-            actionMoveInto(attachedTo.location);
+        { 
+            /* 
+             *   If we're already in our detached location, there's no need to
+             *   move, otherwise move us into our detached location
+             */
+            
+            if(location != detachedLocation)
+                moveInto(detachedLocation);
             attachedTo.attachments -= self;
             attachedTo = nil;          
         }
         
-        report()
-        {
-           
-            DMsg(okay detach, '{I} detach {1}. ', gActionListStr);
-        }
+        report()   {  say(okayDetachMsg);   }
         
     }
+    
+    okayDetachMsg = BMsg(okay detach, '{I} detach {1}. ', gActionListStr)
     
     dobjFor(DetachFrom)
     {
@@ -119,9 +146,12 @@ class SimpleAttachable: Thing
         
         action()
         {
+            if(location != detachedLocation)
+               moveInto(detachedLocation);
+            
             attachedTo.attachments -= self;
             attachedTo = nil;
-            actionMoveInto(gIobj.location);
+            
         }
         
         report()
@@ -294,7 +324,10 @@ class Component: SimpleAttachable
     {
         inherited;
         if(initiallyAttached)
+        {
             attachedTo = location;
+            location.attachments += self;
+        }
     }
     
     allowDetach = nil
@@ -314,43 +347,76 @@ class Component: SimpleAttachable
 ;
 
 /* 
- *   A NearbyAttachable is placed in the same location as the object to which it
- *   is attached, and moves with the object it's attached to (or, alternatively,
- *   can prevent the other object being moved while it's attached to it).
+ *   A NearbyAttachable is (optionallyplaced in the same location as the object
+ *   to which it is attached, and moves with the object it's attached to (or,
+ *   alternatively, can prevent the other object being moved while it's attached
+ *   to it).
  */
 
 class NearbyAttachable: SimpleAttachable
-    dobjFor(AttachTo)
-    {
-        action()
-        {
-            actionMoveInto(gIobj.location);
-            attachedTo = gIobj;
-            oldLocation = location;
-            gIobj.attachments += self;
-        }
-    }
+    
+    attachedLocation = (attachedTo == nil ? nil : attachedTo.location)
+    detachedLocation = (attachedTo == nil ? location : attachedTo.location)
+    
     
     beforeAction()
     {
         if(attachedTo != nil)
-            oldLocation = attachedTo.location;
+            oldLocation = location;
     }
     
     afterAction()
     {
-        if(attachedTo != nil && attachedTo.location != oldLocation)
-            moveInto(attachedTo.location);
+        if(attachedTo != nil && attachedLocation != oldLocation)
+            moveInto(attachedLocation);
     }
     
     oldLocation = nil
 ;
 
+/* 
+ *   PlugAttachable is a mix-in class for use in conjunction with either
+ *   SimpleAttachable or NearbyAttachable, enabling the commands PLUG X INTO Y,
+ *   UNPLUG X FROM Y, PLUG X IN and UNPLUG X, treating ATTACH and DETACH
+ *   commands as equivalent to these, and describing an object's attachments as
+ *   being plugged into it.
+ */
+
 class PlugAttachable: object
     isPlugable = true
     canPlugIntoMe = true
     
+    /* 
+     *   Objects attached to this object should be described as plugged into it,
+     *   so we need to use the appropriate lister.
+     */
     attachmentLister = plugAttachableLister
+    
+    /*   
+     *   Plugable objects could either be implemented so that an explicit socket
+     *   needs to be specified (e.g. PLUG CABLE INTO SOCKET) or so that the
+     *   socket can be left unspecified (e.g. PLUG TV IN). For the former case,
+     *   make this property true; for the latter, make it nil.
+     */
+    needsExplicitSocket = true
+    
+    /*   Is this item plugged in to anything? */
+    isPluggedIn = nil    
+    
+    /*   
+     *   If this object represents the socket side of a plug-and-socket
+     *   relationship, then the socketCapacity defines the total number of items
+     *   that can be plugged into it once. By default we'll assume that a socket
+     *   can only have one thing plugged into it at a time, but this can readily
+     *   be overridded for items that can take more.
+     */
+    socketCapacity = 1
+    
+    
+    makePlugged(stat)
+    {
+        isPluggedIn = stat;
+    }
     
     dobjFor(PlugInto)    
     {
@@ -358,12 +424,16 @@ class PlugAttachable: object
         {
             inherited;
             
-            if(attachedTo != nil)
+            if(isPluggedIn)
                 illogicalNow(alreadyAttachedMsg);
             
         }
         
-        action() { actionDobjAttachTo(); }
+        action() 
+        { 
+            actionDobjAttachTo(); 
+            makePlugged(true);
+        }
         
         report() { reportDobjAttachTo(); }        
     }
@@ -376,7 +446,7 @@ class PlugAttachable: object
     
     iobjFor(PlugInto)
     {
-        preCond = [touchObj]
+        preCond = [touchObj]     
         
         verify()
         {
@@ -384,6 +454,25 @@ class PlugAttachable: object
             
             if(!allowAttach(gDobj))
                 illogical(cannotBeAttachedMsg);
+        }
+        
+        check()
+        {
+            if(attachments.length >= socketCapacity)
+                say(cannotPlugInAnyMoreMsg);
+        }
+    }
+    
+    cannotPlugInAnyMoreMsg = BMsg(cannot plug in any more, '{I} {can\'t} plug
+        any more into {the iobj}. ')
+    
+    
+    iobjFor(AttachTo)
+    {
+        check()
+        {
+            inherited;
+            checkIobjPlugInto();
         }
     }
     
@@ -397,7 +486,7 @@ class PlugAttachable: object
         {
             inherited;
             
-            if(attachedTo == nil)
+            if(!isPluggedIn)
                 illogicalNow(notAttachedMsg);  
             
             else if(attachedTo != gIobj)
@@ -405,7 +494,11 @@ class PlugAttachable: object
             
         }
         
-        action() { actionDobjDetachFrom(); }
+        action() 
+        { 
+            actionDobjDetachFrom(); 
+            makePlugged(nil);
+        }
         report() { reportDobjDetachFrom(); }
     }
     
@@ -417,4 +510,56 @@ class PlugAttachable: object
     
     notAttachedToThatMsg = BMsg(not plugged into that, '{The subj dobj} {isn\'t}
         plugged into {the iobj}. ')
+    
+    
+    dobjFor(Unplug)
+    {
+        verify()
+        {
+            inherited;
+            
+            if(!isPluggedIn)
+                illogicalNow(notAttachedMsg);   
+        }
+        
+        action()
+        {
+            makePlugged(nil);
+            if(needsExplicitSocket)
+                actionDobjDetach();
+        }
+        
+        report() { reportDobjDetach(); }
+    }
+    
+    okayDetachMsg = BMsg(okay unplug, '{I} {unplug} {1}. ', gActionListStr)
+    
+    dobjFor(PlugIn)
+    {
+        verify()
+        {
+            inherited;
+            
+            if(isPluggedIn)
+                illogicalNow(alreadyAttachedMsg);
+        }
+        
+                
+        
+        action()
+        {
+            
+            if(needsExplicitSocket)
+                askForIobj(PlugInto);
+            else
+                makePlugged(true);          
+            
+        }
+        
+        report() { DMsg(okay plug in, '{I} {plug} in {1}. ', gActionListStr); }
+        
+    }
+
+
 ;
+

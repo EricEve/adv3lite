@@ -2281,6 +2281,7 @@ englishCustomVocab: CustomVocab
         'unplug/unplugs/unplugged',
         'unscrew/unscrews/unscrewed',
         'wait/waits/waited',
+        'want/wants/wanted',
         'wake/wakes/woke/woken',
         'wear/wears/wore/worn',
         'will/will/would',

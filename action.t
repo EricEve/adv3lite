@@ -2493,6 +2493,21 @@ execNestedAction(isReplacement, actor, action, [objs])
 }
 
 
+askMissingObject(action, role)
+{
+    gCommand.action = action;
+    gCommand.originalAction = action;
+    gCommand.verbProd = action.verbRules[1];    
+     
+    
+    local err = new EmptyNounError(gCommand, role);
+    err.display();
+    Parser.question = new ParseErrorQuestion(err);
+   
+    abort;    
+    
+}
+
 //------------------------------------------------------------------------------
 
 /*  
