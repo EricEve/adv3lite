@@ -5102,7 +5102,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            gActor.actionMoveInto(getOutermostRoom);            
+            gActor.actionMoveInto(location);            
         }
         
         report()
@@ -6469,47 +6469,70 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnscrewWithSelfMsg = BMsg(cannot unscrew with self, '{I} {can\'t}
         unscrew {the iobj} with {itself iobj}. ')
     
+    
+    verifyPushTravel()
+    {
+        if(!allowPushTravel)
+            illogical(cannotPushTravelMsg);
+        
+        if(gActor.isIn(self))
+            illogicalNow(cannotPushOwnContainerMsg);
+        
+        if(gIobj == self)
+            illogicalSelf(cannotPushViaSelfMsg);
+    }
+        
+    cannotPushOwnContainerMsg = BMsg(cannot push own container, '{I} {can\'t}
+        push {the dobj} anywhere while {he actor}{\'s} {1} {him dobj}. ',
+                                     gDobj.objInPrep)
+    
+    cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
+        dobj} via {itself dobj}. ')
+    
+    
     dobjFor(PushTravelDir)
     {
         preCond = [touchObj]
         
-        verify()
-        {
-            if(!allowPushTravel)
-                illogical(cannotPushTravelMsg);
-        }
+        verify()  {  verifyPushTravel();  }
         
         
         action()
         {
             gAction.travelAllowed = true;
             
-            /* 
-             *   Check whether moving this object revealed any items hidden
-             *   behind or beneath it (even if we don't succeed in pushing the
-             *   object to another room we can presumably move it far enough
-             *   across its current one to reveal any items it was concealing.
-             */
-            revealOnMove();
-            
-            /* 
-             *   If moving this item did reveal any hidden items, we want to see
-             *   the report of them now, before moving to another location./
-             */
-            
-            gCommand.afterReport();
-            
-            /* 
-             *   We don't want to see these reports again at the end of the
-             *   action, so clear the list.
-             */
-            gCommand.afterReports = [];
-            
+            pushTravelRevealItems();            
         }
     }
     
+    pushTravelRevealItems()
+    {
+        /* 
+         *   Check whether moving this object revealed any items hidden behind
+         *   or beneath it (even if we don't succeed in pushing the object to
+         *   another room we can presumably move it far enough across its
+         *   current one to reveal any items it was concealing.
+         */
+        revealOnMove();
+        
+        /* 
+         *   If moving this item did reveal any hidden items, we want to see the
+         *   report of them now, before moving to another location./
+         */
+        
+        gCommand.afterReport();
+        
+        /* 
+         *   We don't want to see these reports again at the end of the action,
+         *   so clear the list.
+         */
+        gCommand.afterReports = [];   
+    }
+    
+    
     allowPushTravel = nil
     
+      
     cannotPushTravelMsg()
     {
         if(isFixed)
@@ -6517,6 +6540,192 @@ class Thing:  ReplaceRedirector, Mentionable
         return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
             push {that dobj} anywhere. ');
     }
+    
+    /* Check the travel barriers on the indirect object of the action */
+    checkPushTravel()
+    {
+        checkTravelBarriers(gDobj);
+        checkTravelBarriers(gActor);
+    }
+    
+    /*  Carry out the push travel on the direct object of the action. */
+    doPushTravel(prep)
+    {
+        /* 
+         *   Check whether moving this object revealed any items hidden behind
+         *   or beneath it (even if we don't succeed in pushing the object to
+         *   another room we can presumably move it far enough across its
+         *   current one to reveal any items it was concealing.
+         */
+        pushTravelRevealItems();       
+                        
+        gIobj.travelVia(gDobj);
+        
+        /* 
+         *   The travel of the object being pushed might fail, e.g. if we're
+         *   trying to push it through a locked door, so we only complete the
+         *   travel and report on it if the object being pushed arrives at its
+         *   destination.
+         */
+        if(location == gIobj.destination)
+        {
+            DMsg(push travel somewhere, '{I} {push} {the dobj} {1} {the iobj}. ',
+                 prep);        
+            gIobj.travelVia(gActor);
+        }       
+        
+    }
+    
+    dobjFor(PushTravelThrough)    
+    {
+        preCond = [touchObj]
+        verify()   {   verifyPushTravel();   }
+        
+        action() { doPushTravel(BMsg(through, 'through')); }
+    }
+    
+    iobjFor(PushTravelThrough)
+    {
+        preCond = [touchObj]
+        verify() 
+        {  
+            if(!isGoThroughable || destination == nil)
+                illogical(cannotPushThroughMsg);
+        }
+        
+        check() { checkPushTravel(); }
+                
+        
+    }
+    
+    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {push}
+        anything through {the iobj}. ')
+    
+    
+    dobjFor(PushTravelEnter)
+    {
+        preCond = [touchObj]
+        verify()  {  verifyPushTravel();  }        
+        
+    }
+    
+    okayPushIntoMsg = BMsg(okay push into, '{I} {push} {the dobj} into {the
+        iobj}. ')
+    
+    iobjFor(PushTravelEnter)
+    {
+        preCond = [containerOpen]
+        verify() 
+        {  
+            if(!isEnterable)
+                illogical(cannotPushIntoMsg);
+        }
+        
+        check() 
+        {             
+            checkInsert(gActor);            
+            checkInsert(gDobj);
+        }    
+        
+        action() 
+        {
+            gDobj.actionMoveInto(self);
+            gActor.actionMoveInto(self);
+            if(gDobj.isIn(self))
+                say(okayPushIntoMsg);
+        }
+    }
+    
+    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {push}
+        anything into {the iobj}. ')
+    
+    dobjFor(PushTravelGetOutOf)
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            verifyPushTravel();
+            if(!self.isIn(gIobj))
+                illogicalNow(notInMsg);
+        }
+        
+        
+        
+    }
+    
+    iobjFor(PushTravelGetOutOf)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!gActor.isIn(self))
+                illogicalNow(actorNotInMsg);   
+            
+        }
+        
+        action()
+        {
+            gDobj.actionMoveInto(location);
+            if(gDobj.location ==  location)
+            {
+                say(okayPushOutOfMsg);
+                gActor.actionMoveInto(location);
+            }
+        }
+       
+    }
+    
+    okayPushOutOfMsg = BMsg(okay push out of, '{I} {push} {the dobj} {outof
+        iobj}. ')
+    
+    dobjFor(PushTravelClimbUp)
+    {
+        preCond = [touchObj]
+        verify()  {  verifyPushTravel();  }
+        
+        action() { doPushTravel(BMsg(up, 'up')); }
+    }
+    
+    iobjFor(PushTravelClimbUp)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!isClimbable || destination == nil)
+                illogical(cannotPushUpMsg);
+        }
+        
+        check() { checkPushTravel(); }
+    }
+    
+    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {push}
+        anything up {the iobj}. ')
+    
+    dobjFor(PushTravelClimbDown)
+    {
+        preCond = [touchObj]
+        verify()  { verifyPushTravel();  }
+        
+        action() { doPushTravel(BMsg(down, 'down')); }
+    }
+    
+    iobjFor(PushTravelClimbDown)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!isClimbDownable || destination == nil)
+                illogical(cannotPushThroughMsg);
+        }
+        
+        check() { checkPushTravel(); }
+    }
+    
+    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} {push}
+        anything down {the iobj}. ')
     
     /* 
      *   We don't bother to define isAskable etc. properties since we assume

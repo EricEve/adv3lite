@@ -610,6 +610,13 @@ DefineIAction(Sit)
     }
 ;
 
+DefineIAction(Lie)
+    execAction(cmd)
+    {
+        askForDobj(LieOn);
+    }   
+;
+
 
 Travel: TravelAction
     direction = (dirMatch.dir)
@@ -1321,14 +1328,18 @@ DefineTAction(PushTravelDir)
            if(oldLoc.propType(direction.dirProp) == TypeObject)
            {
                 local conn = oldLoc.(direction.dirProp);
-                if(!conn.canTravelerPass(curDobj))
-                {
-                    explainTravelBarrier(curDobj);
+                
+                if(conn.PushTravelVia)
+                    replaceAction(conn.PushTravelVia, gDobj, conn);
+                               
+                if(!conn.checkTravelBarriers(curDobj))
+                {                    
                     return;
                 }
             
            }
            delegated TravelAction(cmd);
+            
            if(oldLoc != gActor.getOutermostRoom)
            {
                 curDobj.moveInto(gActor.getOutermostRoom);
@@ -1341,7 +1352,27 @@ DefineTAction(PushTravelDir)
     
     travelAllowed = nil
     direction = nil
+    
+    doTravel() { delegated TravelAction(); }
 ;
+
+DefineTIAction(PushTravelThrough)
+;
+
+DefineTIAction(PushTravelEnter)
+;
+
+DefineTIAction(PushTravelGetOutOf)
+;
+
+DefineTIAction(PushTravelClimbUp)
+;
+
+DefineTIAction(PushTravelClimbDown)
+;
+
+
+
 
 
 DefineTAction(TalkTo)

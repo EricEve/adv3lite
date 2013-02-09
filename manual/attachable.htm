@@ -57,8 +57,50 @@ Attachables
 
 <p>A <b>Component</b> is a SimpleAttachable that's treated as a component of the item to which its attached (the handle of a knife, say). A Component starts out with its isFirmAttachment property set to true, and its allowDetach property set to nil. It also defines an <b>initiallyAttached</b> property which, if true (the default) means that the Component starts out attached to its immediate container. Moreover, the locType of an attached Component is PartOf. If a Component starts out as a separate item (e.g. a handle not yet attached to a knife) it effectively becomes a part of (i.e. a component of) the item its attached to when it is attached (e.g. ATTACH HANDLE TO KNIFE would effectively make the handle part of the knife, assuming the handle was a Component and the knife a suitably defined SimpleAttachable). Note that if the handle started out attached to the knife and never needed to be reattached to it during the game, there would be no need to make the knife a SimpleAttachable; the knife could then just be a Thing.</p>
 
-<p>A <b>NearbyAttachable</b> is a SimpleAttachable that's moved into the <i>location</i> of the object it's attached to, instead of becoming located within the other object. (This might be useful, say, for connecting lengths of hose or cable together, or assembling a device out of its components).</p>
+<p>A <b>NearbyAttachable</b> is a SimpleAttachable that's moved into the <i>location</i> of the object it's attached to, instead of becoming located within the other object. (This might be useful, say, for connecting lengths of hose or cable together, or assembling a device out of its components). You can override the <strong>attachedLocation</strong> and <strong>detachedLocation</strong> properties (on the object to be attached) to tweak this behaviour; for example you could set both to <span class="code">location</span> (meaning the location of the attached object) if you don't want attaching it to the other object to move it at all.</p>
 
+<h2><a name="plug">PlugAttachable</a></h2>
+
+<p>The <strong>PlugAttachable</strong> class is a mix-in class designed to be used together with either <span class="code">SimpleAttachable</span> or <span class="code">NearbyAttachable</span>. This allows an object to be Plugged into or Unplugged from another object. It's then attached to the other object, but described as being plugged into it. Attaching one PlugAttachable to another is equivalent to plugging it in. For example:</p>
+
+ <p><div class="code"><pre>
++ plug: PlugAttachable, NearbyAttachable 'electric plug'    
+;
+
++ socket: PlugAttachable, NearbyAttachable, Fixture 'power socket'
+    allowableAttachments = [plug]
+;
+</pre></div>
+
+<p>The number of items that can be plugged into something (the socket) at any one time is controlled by the socket's <strong>socketCapacity</strong> property, which is 1 by default.</p>
+
+<p>If you want to define an object that can be plugged in and unplugged without specifying a particular socket, you can use the <span class="code">PlugAttachable</span> mix-in with an ordinary Thing class and define its <strong>needsExplicitSocket</strong> property as nil, e.g.:</p>
+
+ <p><div class="code"><pre>
++ tv: PlugAttachable, Switch, Fixture 'television;;tv'
+    "It's currently &lt;&lt;if isOn&gt;&gt;on&lt;&lt;else&gt;&gt;off&lt;&lt;end&gt;&gt;, not that it makes much
+    difference to the quality of what appears on the screen. "
+
+    specialDesc = "A TV lurks in one corner of the room. "
+    needsExplicitSocket = nil
+    
+    dobjFor(SwitchOn)
+    {
+        check()
+        {
+            if(!isPluggedIn)
+                "It's not plugged in. ";
+        }
+    }
+    
+    makePlugged(stat)
+    {
+        inherited(stat);
+        if(!stat)
+            makeOn(nil);
+    }
+;
+</pre></div>
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

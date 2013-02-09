@@ -317,6 +317,16 @@ class Room: TravelConnector, Thing
         action() { GoOut.execAction(gCommand); }
     }
     
+    iobjFor(PushTravelGetOutOf)
+    {
+        action()
+        {
+            gCommand.verbProd.dirMatch = object { dir = outDir; };
+            gAction = PushTravelDir;
+            PushTravelDir.execAction(gCommand);
+        }
+    }
+    
 ;
 
 /* 
@@ -371,6 +381,8 @@ class Door: TravelConnector, Thing
         
         return nil;
     }
+    
+    isGoThroughable = true
     
     makeOpen(stat)
     {
@@ -481,6 +493,8 @@ class Door: TravelConnector, Thing
     }
     
     dobjFor(Enter) asDobjFor(GoThrough)
+    
+    PushTravelVia = PushTravelThrough
 ;
 
 
@@ -617,6 +631,7 @@ class UnlistedProxyConnector: TravelConnector
     construct(dir_)
     {
         direction = dir_;
+        
     }
     
   

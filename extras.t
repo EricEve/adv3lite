@@ -113,6 +113,7 @@ class StairwayUp: TravelConnector, Thing
     
     isFixed = true
     isClimbable = true
+    PushTravelVia = PushTravelClimbUp
 ;
 
 class StairwayDown: TravelConnector, Thing
@@ -123,6 +124,7 @@ class StairwayDown: TravelConnector, Thing
     
     isFixed = true
     isClimbDownable = true
+    PushTravelVia = PushTravelClimbDown
 ;
 
 class Passage: TravelConnector, Thing
@@ -134,6 +136,7 @@ class Passage: TravelConnector, Thing
     dobjFor(Enter) asDobjFor(GoThrough)
     isFixed = true
     isGoThroughable = true
+    PushTravelVia = PushTravelThrough
 ;
 
 class PathPassage: Passage
@@ -148,6 +151,26 @@ class Enterable: Fixture
         action() { connector.travelVia(gActor); }
     }
     
+    iobjFor(PushTravelEnter)
+    {
+        preCond = [touchObj]
+        
+        check() { connector.checkPushTravel(); }
+        
+        action()
+        {
+            if(connector.PushTravelVia)
+                replaceAction(connector.PushTravelVia, gDobj, connector);
+            
+            connector.travelVia(gDobj);
+            if(gDobj.isIn(connector.destination))
+            {
+                say(okayPushIntoMsg);
+                connector.travelVia(gActor);
+            }           
+        }
+    }
+    
     /* 
      *   We set connector = destination since on occasion it may seem more
      *   natural to authors to set the destination property (when it leads
@@ -157,6 +180,8 @@ class Enterable: Fixture
      */
     connector = (destination)
     destination = nil
+    isEnterable = true
+    
 ;
 
 class Switch: Thing

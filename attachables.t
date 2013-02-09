@@ -442,7 +442,10 @@ class PlugAttachable: object
                          gActionListStr) 
     
     alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
-        plugged into {the iobj}. ')
+        plugged into {1}. ', attachedTo.theName)
+    
+    alreadyPluggedInMsg = BMsg(already plugged in vagaue, '{The subj {dobj} {is}
+        already plugged in. ')
     
     iobjFor(PlugInto)
     {
@@ -529,7 +532,7 @@ class PlugAttachable: object
                 actionDobjDetach();
         }
         
-        report() { reportDobjDetach(); }
+        report() { say(okayDetachMsg); }
     }
     
     okayDetachMsg = BMsg(okay unplug, '{I} {unplug} {1}. ', gActionListStr)
@@ -541,7 +544,8 @@ class PlugAttachable: object
             inherited;
             
             if(isPluggedIn)
-                illogicalNow(alreadyAttachedMsg);
+                illogicalNow(needsExplicitSocket ? alreadyAttachedMsg :
+                             alreadyPluggedInMsg);
         }
         
                 

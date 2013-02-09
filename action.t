@@ -895,6 +895,15 @@ class Action: ReplaceRedirector
     redirectParent = nil
     
     parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)
+    
+    
+    /* 
+     *   A list of VerbRules (or other VerbProductions) that refer to this
+     *   action. This list needs to be populated at the PreInit stage by the
+     *   language-specific part of the library as is required for the
+     *   askMissingObject() function.
+     */
+    verbRules = []
 ;
 
 

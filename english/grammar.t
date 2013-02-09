@@ -2742,19 +2742,7 @@ VerbRule(EnterOn)
     missingQ = 'what do you want to enter;what do you want to enter that on'
     dobjReply = singleNoun
 ;
-//
-//VerbRule(EnterOnWhat)
-//    [badness 500] 'enter' literalDobj
-//    : VerbProduction
-//    action = EnterOn
-//    verbPhrase = 'enter/entering (what) (on what)'
-//    missingQ = 'what do you want to enter;what do you want to enter that on'
-//
-//    missingRole = DirectObject
-//    dobjReply = singleNoun
-//
-//    priority = 25
-//;
+
 
 VerbRule(WriteOn)
     'write' literalDobj ('on' | 'in') singleIobj
@@ -3177,13 +3165,13 @@ VerbRule(LieIn)
     dobjReply = singleNoun
 ;
 
-//
-//VerbRule(Lie)
-//    'lie' ( | 'down') : VerbProduction
-//    action = Lie
-//    verbPhrase = 'lie/lying down'
-//;
-//
+
+VerbRule(Lie)
+    'lie' 'down' : VerbProduction
+    action = Lie
+    verbPhrase = 'lie/lying down'
+;
+
 VerbRule(StandOn)
     ('stand' ('on' | 'onto' | 'on' 'to' )
      | 'climb' ('on' | 'onto' | 'on' 'to'))
@@ -3401,51 +3389,51 @@ VerbRule(PushTravelDir)
     action = PushTravelDir
 ;
 
-//VerbRule(PushTravelThrough)
-//    ('push' | 'pull' | 'drag' | 'move') singleDobj
-//    ('through' | 'thru') singleIobj
-//    : VerbProduction
-//    action = PushTravelThrough
-//    verbPhrase = 'push/pushing (what) (through what)'
-//    missingQ = 'what do you want to push;what do you want to push it through'
-//;
-//
-//VerbRule(PushTravelEnter)
-//    ('push' | 'pull' | 'drag' | 'move') singleDobj
-//    ('in' | 'into' | 'in' 'to') singleIobj
-//    : VerbProduction
-//    action = PushTravelEnter
-//    verbPhrase = 'push/pushing (what) (into what)'
-//    missingQ = 'what do you want to push;what do you want to push it into'
-//;
-//
-//VerbRule(PushTravelGetOutOf)
-//    ('push' | 'pull' | 'drag' | 'move') singleDobj
-//    'out' ('of' | ) singleIobj
-//    : VerbProduction
-//    action = PushTravelGetOutOf
-//    verbPhrase = 'push/pushing (what) (out of what)'
-//    missingQ = 'what do you want to push;what do you want to push it out of'
-//;
-//
-//
-//VerbRule(PushTravelClimbUp)
-//    ('push' | 'pull' | 'drag' | 'move') singleDobj
-//    'up' singleIobj
-//    : VerbProduction
-//    action = PushTravelClimbUp
-//    verbPhrase = 'push/pushing (what) (up what)'
-//    missingQ = 'what do you want to push;what do you want to push it up'
-//;
-//
-//VerbRule(PushTravelClimbDown)
-//    ('push' | 'pull' | 'drag' | 'move') singleDobj
-//    'down' singleIobj
-//    : VerbProduction
-//    action = PushTravelClimbDown
-//    verbPhrase = 'push/pushing (what) (down what)'
-//    missingQ = 'what do you want to push;what do you want to push it down'
-//;
+VerbRule(PushTravelThrough)
+    ('push' | 'pull' | 'drag' | 'move') singleDobj
+    ('through' | 'thru') singleIobj
+    : VerbProduction
+    action = PushTravelThrough
+    verbPhrase = 'push/pushing (what) (through what)'
+    missingQ = 'what do you want to push;what do you want to push it through'
+;
+
+VerbRule(PushTravelEnter)
+    ('push' | 'pull' | 'drag' | 'move') singleDobj
+    ('in' | 'into' | 'in' 'to') singleIobj
+    : VerbProduction
+    action = PushTravelEnter
+    verbPhrase = 'push/pushing (what) (into what)'
+    missingQ = 'what do you want to push;what do you want to push it into'
+;
+
+VerbRule(PushTravelGetOutOf)
+    ('push' | 'pull' | 'drag' | 'move') singleDobj
+    'out' ('of' | ) singleIobj
+    : VerbProduction
+    action = PushTravelGetOutOf
+    verbPhrase = 'push/pushing (what) (out of what)'
+    missingQ = 'what do you want to push;what do you want to push it out of'
+;
+
+
+VerbRule(PushTravelClimbUp)
+    ('push' | 'pull' | 'drag' | 'move') singleDobj
+    'up' singleIobj
+    : VerbProduction
+    action = PushTravelClimbUp
+    verbPhrase = 'push/pushing (what) (up what)'
+    missingQ = 'what do you want to push;what do you want to push it up'
+;
+
+VerbRule(PushTravelClimbDown)
+    ('push' | 'pull' | 'drag' | 'move') singleDobj
+    'down' singleIobj
+    : VerbProduction
+    action = PushTravelClimbDown
+    verbPhrase = 'push/pushing (what) (down what)'
+    missingQ = 'what do you want to push;what do you want to push it down'
+;
 
 VerbRule(Exits)
     'exits'
@@ -3765,6 +3753,3 @@ modify VerbProduction
     }
 ;
 
-modify Action
-    verbRules = []
-;
