@@ -273,9 +273,10 @@ class Action: ReplaceRedirector
      *   reparsed from scratch (because it might involve a different object) or
      *   not (because it should act on the same objects). We generally set this
      *   to true for actions it wouldn't normally make sense to repeat on the
-     *   same object straight away.
+     *   same object straight away. Since this applies to the majority of
+     *   actions, we make this the default.
      */
-    againRepeatsParse = nil
+    againRepeatsParse = true
     
     /* 
      *   Report on the action. This is only relevant where the action has more
@@ -988,7 +989,11 @@ class SystemAction: Action
  */
 
 class IAction: Action
-    
+    /* 
+     *   There's usually no point in parsing an IAction again when it's repeated
+     *   since there are no objects to have changed.
+     */
+    againRepeatsParse = nil
 ;
 
 /* 

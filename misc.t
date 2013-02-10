@@ -554,7 +554,7 @@ class GameMainDef: object
      *   latter if it's true.
      */
     
-    againRepeatsParse = nil
+    againRepeatsParse = true
     
     /*   
      *   Flag. If this is true the game attempts to switch the againRepeatsParse

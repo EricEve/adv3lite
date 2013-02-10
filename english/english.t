@@ -4879,8 +4879,7 @@ modify TIAction
 
     
 modify In
-    prep = 'in'
-    
+    prep = 'in'    
 ;
 
 
@@ -4912,6 +4911,25 @@ modify Worn
 ;
 
 
+modify Into
+    prep = 'into'
+;
+
+modify OutOf
+    prep = 'out of'
+;
+
+modify Down
+    prep = 'down'
+;
+
+modify Up
+    prep = 'up';
+;
+
+modify Through
+    prep = 'through';
+;
 
 modify Carrier
     prep = 'borne by'

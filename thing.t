@@ -4614,6 +4614,8 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(useKey_ != nil)
                 DMsg(with key, '(with {1})\n', useKey_.theName);
+            else
+                askForIobj(UnlockWith);
             
             makeLocked(nil);            
             DMsg(report unlock, okayUnlockMsg);
@@ -4670,6 +4672,8 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(useKey_ != nil)
                 DMsg(with key, '(with {1})\n', useKey_.theName);
+            else
+                askForIobj(LockWith);
             
             makeLocked(true);            
             DMsg(report lock, okayLockMsg);
@@ -4710,8 +4714,8 @@ class Thing:  ReplaceRedirector, Mentionable
                 lexicalParent.findPlausibleKey();
                 useKey_ = lexicalParent.useKey_;
             }
-            else
-               say(notHoldingKeyMsg);
+//            else
+//               say(notHoldingKeyMsg);
         }
         else if(useKey_.actualLockList.indexOf(self) == nil)
         {
@@ -4721,7 +4725,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    notHoldingKeyMsg = BMsg(not holding key,'{I} {don\'t have} the right key. ')
+//    notHoldingKeyMsg = BMsg(not holding key,'{I} {don\'t have} the right key. ')
     
     keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
         {doesn\'t work} on {the dobj}. ', useKey_.theName)
@@ -6469,9 +6473,12 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnscrewWithSelfMsg = BMsg(cannot unscrew with self, '{I} {can\'t}
         unscrew {the iobj} with {itself iobj}. ')
     
+    viaMode = ''
     
-    verifyPushTravel()
+    verifyPushTravel(via)
     {
+        viaMode = via;
+        
         if(!allowPushTravel)
             illogical(cannotPushTravelMsg);
         
@@ -6487,14 +6494,14 @@ class Thing:  ReplaceRedirector, Mentionable
                                      gDobj.objInPrep)
     
     cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
-        dobj} via {itself dobj}. ')
+        dobj} {1} {itself dobj}. ', viaMode.prep)
     
     
     dobjFor(PushTravelDir)
     {
         preCond = [touchObj]
         
-        verify()  {  verifyPushTravel();  }
+        verify()  {  verifyPushTravel('');  }
         
         
         action()
@@ -6531,7 +6538,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     allowPushTravel = nil
-    
+   
       
     cannotPushTravelMsg()
     {
@@ -6549,7 +6556,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /*  Carry out the push travel on the direct object of the action. */
-    doPushTravel(prep)
+    doPushTravel(via)
     {
         /* 
          *   Check whether moving this object revealed any items hidden behind
@@ -6570,7 +6577,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(location == gIobj.destination)
         {
             DMsg(push travel somewhere, '{I} {push} {the dobj} {1} {the iobj}. ',
-                 prep);        
+                 via.prep);        
             gIobj.travelVia(gActor);
         }       
         
@@ -6579,9 +6586,9 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(PushTravelThrough)    
     {
         preCond = [touchObj]
-        verify()   {   verifyPushTravel();   }
+        verify()   {   verifyPushTravel(Through);   }
         
-        action() { doPushTravel(BMsg(through, 'through')); }
+        action() { doPushTravel(Through); }
     }
     
     iobjFor(PushTravelThrough)
@@ -6605,7 +6612,7 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(PushTravelEnter)
     {
         preCond = [touchObj]
-        verify()  {  verifyPushTravel();  }        
+        verify()  {  verifyPushTravel(Into);  }        
         
     }
     
@@ -6644,7 +6651,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [touchObj]
         verify()
         {
-            verifyPushTravel();
+            verifyPushTravel(OutOf);
             if(!self.isIn(gIobj))
                 illogicalNow(notInMsg);
         }
@@ -6682,9 +6689,9 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(PushTravelClimbUp)
     {
         preCond = [touchObj]
-        verify()  {  verifyPushTravel();  }
+        verify()  {  verifyPushTravel(Up);  }
         
-        action() { doPushTravel(BMsg(up, 'up')); }
+        action() { doPushTravel(Up); }
     }
     
     iobjFor(PushTravelClimbUp)
@@ -6706,9 +6713,9 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(PushTravelClimbDown)
     {
         preCond = [touchObj]
-        verify()  { verifyPushTravel();  }
+        verify()  { verifyPushTravel(Down);  }
         
-        action() { doPushTravel(BMsg(down, 'down')); }
+        action() { doPushTravel(Down); }
     }
     
     iobjFor(PushTravelClimbDown)
@@ -7486,3 +7493,16 @@ PartOf: ExtLocType
 
 Carrier: ExtLocType
 ;
+
+
+class ViaType: object
+    prep = ''
+;
+
+Into: ViaType;
+OutOf: ViaType;
+Down: ViaType;
+Up: ViaType;
+Through: ViaType;
+
+    
