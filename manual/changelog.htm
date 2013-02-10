@@ -51,7 +51,12 @@ Change Log
 
 <p>Note that there are still some exceptions where (in the first case) it still seems appropriate to perform some additional checks at the check stage and perhaps rule an action out there and (in the second case) where the main point of an action (e.g. EXAMINE, LOOK IN) is the output it produces, which is then best left at the action stage.</p>
 <hr>
+<p><strong>Very slight risk of incompatibity:</strong> The <strong>scoreObjects()</strong> method of Action now multiplies the verify score by 100 when calculating the overall score for each object in its matchList. This is to allow other scoreObject() methods along the way to tweak the scores of particular objects by small amounts to allow fine tuning of the parser's choice of object while giving priority to the verify results.</p>
 
+<hr>
+<p>The new Thing property <strong>vocabLikelihood</strong> can be used to make the parser prefer one object over another, other things (notably verify results) being equal. It is recommended that the value given to this property (if it is used at all) be relatively small, say in the range 0 to 10, to ensure that verify results take precedence.</p>
+
+<hr>
 
 <p><span class="code">replaceAction()</span> and <span class="code">nestedAction()</span> are now functions, not macros, although they still do exactly the same thing. They are joined by two new functions <span class="code">replaceActorAction()</span> and <span class="code">nestedActorAction()</span>, which can be used when you wish to specify the actor. Game authors are, however, encouraged to use the new methods <span class="code">doInstead()</span> and <span class="code">doNested(</span>) (see below) in place of <span class="code">replaceAction()</span> and <span class="code">nestedAction()</span> since these provide greater functionality and a more consistent interface.</p>
 <hr>
@@ -68,10 +73,14 @@ Change Log
 <p>To allow these two new verification results to work, parts of the verification and implicit action handling have had to be tweaked along with the checkPreCondition methods of most PreConditions. As things stood before it was possible to create a VerifyResult with <span class="code">allowImplicit = nil</span>, but nothing took any notice of this value.</p>
 
 <hr>
-<p>A new function <strong>askMissingObject(action, role)</strong> has been added, which may be called via the new macros <strong>askForDobj(action)</strong> and <strong>askForIobj(action)</strong>. This function (or the macros that translate to it) cause the player to be prompted to supply the missing object for <em>action</em>, and the input is then parsed in the normal way, as if the query had arisen from the parser; meaning that if the player supplies a valid object <em>action</em> will be executed with that object.</p>
+<p>A new function <strong>askMissingObject(action, role)</strong> has been added, which may be called via the new macros <strong>askForDobj(action)</strong> and <strong>askForIobj(action)</strong>. This function (or the macros that translate to it) causes the player to be prompted to supply the missing object for <em>action</em> (unless it can find the object for itself, see below), and the input is then parsed in the normal way, as if the query had arisen from the parser; meaning that if the player supplies a valid object <em>action</em> will be executed with that object.</p>
+
+<p>The <span class="code">askMissingObject()</span> function first attempts to find the missing object before prompting the player to supply one. It does so by finding the highest scoring object in scope for the requested role in the requested action. It uses this object if and only if (a) no other object it finds has so high a score and (b) if the action were tried with the object found it would pass the verify stage and would be allowed as an implicitAction (so we don't pick an object with a <span class="code">dangerous</span> or <span class="code">nonObvious</span> verify result, for example). If these conditions are met the requested action is executed with the best match object in the request role without the player being prompted to supply an object.</p>
 
 <hr>
 <p>The behaviour of the <strong>Lock</strong> and <strong>Unlock</strong> actions (LOCK DOOR or UNLOCK DOOR without specifying a key) has been altered slightly to take advantage of <span class="code">askForDobj()</span>. Now if the player attempts to lock or unlock something without specifying a key and the player character isn't holding an appropriate key the player is asked to specify a key; previous s/he was told the player character wasn't holding an appropriate key. This seems better behaviour in general, but also in particular when a puzzle requires using something unobvious to unlock (or lock) something with.</p>
+<hr>
+<p>The behaviour of several other actions  have also been tweaked to take advantage of <span class="code">askMissingObject()</span>, namely Sit, Lie (as in Lie down), Write, Type, and Look up (as in Consult).</p>
 
 <hr>
 <p>A number of new actions have now been implemented (more or less completing the set envisaged in the Mercury version of grammar.t apart from some system actions that are being left out on purpose as probably not needed). The new actions include <strong>Lie</strong> (as in lie down, not as in tell an untruth), <strong>PlugIn</strong>, <strong>PlugInto</strong>, <strong>Unplug</strong> and <strong>UnplugFrom</strong>, together with the rest of the PushTravel actions: <strong>PushTravelThrough</strong>, <strong>PushTravelEnter</strong>, <strong>PushTravelGetOutOf</strong>, <strong>PushTravelClimbUp</strong> and <strong>PushTravelClimbDown</strong>.</p>
@@ -79,6 +88,8 @@ Change Log
 <p>In order to facilitate the implementation of the <span class="code">Plug</span> set of actions a new <strong>PlugAttachable</strong> mix-in class has been added. For details see the appropriate part of the <a href="attachable.htm#plug">Attachables</a> section.</p>
 <p>In order to facilitate the implementation of the <span class="code">PlugAttachable</span> class there has been some tweaking of the <span class="code">SimpleAttachable</span> and <span class="code">NearbyAttachable</span> classes, including some changes to the NearbyAttachable class that now make it usable (it was fundamentally broken before).</p>
 <hr>
+
+
 
 <p>Two new classes have been added to the conversation system: <a href="topicgroup.htm">TopicGroup</a> and <a href="convnode.htm#convnode">ConvNode</a> These don't enable game authors to do anything that couldn't be done before, but they may make it more convenient, especially when definining Conversation Nodes.</p>
 <hr>

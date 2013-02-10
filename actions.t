@@ -530,6 +530,9 @@ DefineIAction(Stand)
 DefineIAction(Sit)
     execAction(cmd)
     {
+        askForDobj(SitOn);
+        
+        
         /* 
          *   We'll take SIT to be a request to sit in or on any suitable object
          *   in scope
@@ -539,15 +542,15 @@ DefineIAction(Sit)
          *   So, if the actor is already in an enclosing object that's not a
          *   room, simply say so and end the action.
          */
-        local loc = gActor.location;
-        if(!loc.ofKind(Room))
-        {
-            gMessageParams(loc);
-            DMsg(already seated, '{I}{\'m} sitting {in loc}.  ');
-            return;
-        }
-        
-        buildScopeList;
+//        local loc = gActor.location;
+//        if(!loc.ofKind(Room))
+//        {
+//            gMessageParams(loc);
+//            DMsg(already seated, '{I}{\'m} sitting {in loc}.  ');
+//            return;
+//        }
+//        
+//        buildScopeList;
 //        local obj = scopeList.valWhich({o: (o.isBoardable || o.isEnterable) 
 //                                          && Q.canReach(gActor, o)});
         
@@ -556,49 +559,49 @@ DefineIAction(Sit)
          *   to sit in or on.
          */
         
-        local matchList = scopeList.subset({o: Q.canReach(gActor, o)});
-        matchList = wrapObjectsNP(matchList);
-        
-        local sitOnMatches = matchList.subset({o: o.obj.isBoardable}); 
-        local sitInMatches = matchList.subset({o: o.obj.isEnterable});
-        
-        if(sitOnMatches.length > 0)
-        {
-            cmd.action = SitOn;
-            SitOn.scoreObjects(cmd, DirectObject, sitOnMatches);
-            sitOnMatches = sitOnMatches.sort(SortDesc, {a, b: a.score - b.score});
-        }
-        
-        if(sitInMatches.length > 0)
-        {
-            cmd.action = SitIn;
-            SitIn.scoreObjects(cmd, DirectObject, sitInMatches);            
-            sitInMatches = sitInMatches.sort(SortDesc, {a, b: a.score - b.score});
-        }
-        
-        local obj = nil;
-        
-        if(sitOnMatches.length > 0 && sitOnMatches[1].obj.isBoardable)
-            obj = sitOnMatches[1].obj;
-        
-        if(sitInMatches.length > 0 && sitInMatches[1].obj.isEnterable
-           && (obj == nil || sitOnMatches.length == 0 || sitInMatches[1].score >
-               sitOnMatches[1].score))
-            obj = sitInMatches[1].obj;
-        
-        if(obj == nil)
-            DMsg(nowhere to sit, 'There{dummy}{\'s} nothing suitable to sit on
-                {here}. ');
-        else
-        {
-            gMessageParams(obj);
-            DMsg(announce sit object, '({in obj})\n');
-            if(obj.isBoardable)
-                replaceAction(SitOn, obj);
-            else
-                replaceAction(SitIn, obj);
-        }
-        
+//        local matchList = scopeList.subset({o: Q.canReach(gActor, o)});
+//        matchList = wrapObjectsNP(matchList);
+//        
+//        local sitOnMatches = matchList.subset({o: o.obj.isBoardable}); 
+//        local sitInMatches = matchList.subset({o: o.obj.isEnterable});
+//        
+//        if(sitOnMatches.length > 0)
+//        {
+//            cmd.action = SitOn;
+//            SitOn.scoreObjects(cmd, DirectObject, sitOnMatches);
+//            sitOnMatches = sitOnMatches.sort(SortDesc, {a, b: a.score - b.score});
+//        }
+//        
+//        if(sitInMatches.length > 0)
+//        {
+//            cmd.action = SitIn;
+//            SitIn.scoreObjects(cmd, DirectObject, sitInMatches);            
+//            sitInMatches = sitInMatches.sort(SortDesc, {a, b: a.score - b.score});
+//        }
+//        
+//        local obj = nil;
+//        
+//        if(sitOnMatches.length > 0 && sitOnMatches[1].obj.isBoardable)
+//            obj = sitOnMatches[1].obj;
+//        
+//        if(sitInMatches.length > 0 && sitInMatches[1].obj.isEnterable
+//           && (obj == nil || sitOnMatches.length == 0 || sitInMatches[1].score >
+//               sitOnMatches[1].score))
+//            obj = sitInMatches[1].obj;
+//        
+//        if(obj == nil)
+//            DMsg(nowhere to sit, 'There{dummy}{\'s} nothing suitable to sit on
+//                {here}. ');
+//        else
+//        {
+//            gMessageParams(obj);
+//            DMsg(announce sit object, '({in obj})\n');
+//            if(obj.isBoardable)
+//                replaceAction(SitOn, obj);
+//            else
+//                replaceAction(SitIn, obj);
+//        }
+//        
     }
 ;
 
@@ -1221,7 +1224,13 @@ DefineTAction(TypeOnVague)
 ;
 
 DefineLiteralTAction(TypeOn)
+    againRepeatsParse = nil   
+;
+
+DefineLiteralAction(Type)
     againRepeatsParse = nil
+    
+    execAction(cmd) { askForIobj(TypeOn); }
 ;
 
 DefineLiteralTAction(EnterOn)
@@ -1232,8 +1241,21 @@ DefineLiteralTAction(WriteOn)
     againRepeatsParse = nil
 ;
 
+DefineLiteralAction(Write)
+    againRepeatsParse = nil
+
+    execAction(cmd) { askForIobj(WriteOn); }
+;
+
 DefineTopicTAction(ConsultAbout)
     againRepeatsParse = nil
+;
+
+DefineTopicAction(ConsultWhatAbout)
+    execAction(cmd)
+    {
+        askForDobj(ConsultAbout);
+    }
 ;
 
 DefineTAction(SwitchVague)

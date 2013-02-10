@@ -147,10 +147,41 @@ class Consultable: TopicDatabase, Thing
                     on that. ');
             else
                 matchedTopic.topicResponse();
+            
+            /* 
+             *   Boost our currentConsultableScore in recognition that we were
+             *   the last item to be consulted.
+             */
+            currentConsultableScore = 20;
         }
     }
     
-   
+    scoreObject(cmd, role, lst, m) 
+    {
+        inherited(cmd, role, lst, m); 
+        
+        /* 
+         *   If the parser is looking to match a ConsultAbout action, boost our
+         *   score if we've been consulted recently.
+         */
+        if(cmd.action == ConsultAbout && role == DirectObject)
+            m.score += currentConsultableScore;
+    }
+    
+    currentConsultableScore = 0
+    
+    afterAction()
+    {
+        /* 
+         *   Decrement out currentConsultableScore if we weren't one of the
+         *   objects for the current action, but don't decrement it below zero.
+         */
+        
+        if(gIobj != self && gDobj != self && currentConsultableScore > 0)
+            currentConsultableScore-- ;
+    }
+    
+
 ;
 
 

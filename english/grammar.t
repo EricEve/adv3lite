@@ -2725,12 +2725,12 @@ VerbRule(TypeLiteralOn)
 VerbRule(TypeLiteralOnWhat)
     [badness 500] 'type' literalDobj
     : VerbProduction
-    action = TypeOn
+    action = Type
     verbPhrase = 'type/typing (what) (on what)'
     missingQ = 'what do you want to type;what do you want to type that on'
 
-    missingRole = IndirectObject
-    iobjReply = onSingleNoun
+//    missingRole = IndirectObject
+//    iobjReply = onSingleNoun
 ;
 
 VerbRule(EnterOn)
@@ -2756,12 +2756,12 @@ VerbRule(WriteOn)
 VerbRule(WriteOnWhat)
     'write' literalDobj
     : VerbProduction
-    action = WriteOn
+    action = Write
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
 
-    missingRole = IndirectObject
-    iobjReply = onSingleNoun
+//    missingRole = IndirectObject
+//    iobjReply = onSingleNoun
     
     priority = 25
 ;
@@ -2803,12 +2803,12 @@ VerbRule(ConsultWhatAbout)
     topicIobj
     | ('look' | 'l') topicIobj 'up'
     : VerbProduction
-    action = ConsultAbout
+    action = ConsultWhatAbout
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
 
-    missingRole = DirectObject
-    dobjReply = inSingleNoun
+//    missingRole = DirectObject
+//    dobjReply = inSingleNoun
 
     priority = 25
 ;

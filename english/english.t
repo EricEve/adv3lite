@@ -3188,6 +3188,47 @@ nounRoleQuestion(cmd, role)
     
 }
 
+
+/* 
+ *   Announce our choice of object when askForIobj() or askForDobj() chooses the
+ *   best match on the player's behalf. We simply take the last word of the
+ *   appopriate missinQ section for the action and prepend it to the name of the
+ *   chosen object. This will result in messages like '(on the bed)' or '(take
+ *   the red ball'), both of which are acceptable in this context.
+ */
+announceBestChoice(action, obj, role)
+{
+    
+    local qPhrase = action.verbRules[1].missingQ;
+    local phrases = qPhrase.split(';');
+
+    switch(role)
+    {
+    case DirectObject:
+        qPhrase = phrases[1];
+        break;
+    case IndirectObject:
+        qPhrase = phrases[2];
+        break;
+    case AccessoryObject:
+        qPhrase = phrases[3];
+        break;
+    default:
+        qPhrase = '';
+    }
+    
+    /* Pull out the last word from the qPhrase */
+    
+    local idx = qPhrase.findLast(' ');
+    if(idx != nil)
+        qPhrase = qPhrase.substr(idx + 1);
+    
+    "(<<qPhrase>> <<obj.theName>>)\n";
+    
+    /* alternative - use the verb phrase */
+//    "(<<action.getVerbPhrase(true, nil)>>)\n";
+}
+
 /*
  *   Get the pronoun for a resolved (or partially resolved) NounPhrase list
  *   from a command. 

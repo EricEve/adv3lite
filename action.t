@@ -794,11 +794,11 @@ class Action: ReplaceRedirector
             /* get this object */
             local obj = i.obj;
             verResult = cmd.action.verify(obj, role);
-            i.score = verResult.resultRank;
+            i.score = verResult.resultRank * 100;
             
-            if(verResult.resultRank > bestScore)
+            if(i.score > bestScore)
             {
-                bestScore = verResult.resultRank;
+                bestScore = i.score;
                 bestResult = verResult;
             }
             
@@ -2512,12 +2512,78 @@ askMissingObject(action, role)
     gCommand.action = action;
     gCommand.originalAction = action;
     gCommand.verbProd = action.verbRules[1];    
-     
+       
+    
+    /* See if we can find an obvious best object to select */
+    
+    action.buildScopeList(role);
+    local matchList = action.wrapObjectsNP(action.scopeList);
+    local bestObj = nil;
+   
+    if(matchList.length > 0)
+    {
+        action.scoreObjects(gCommand, role, matchList);
+        
+        matchList = matchList.sort(SortDesc, {a, b: a.score - b.score});
+    
+        /* If there's only one object with the top score, select it */
+        if(matchList.countWhich({o: o.score == matchList[1].score}) == 1)
+            bestObj = matchList[1].obj;
+    }
+        
+    /* 
+     *   If we have a best object, check that the command can actually use it
+     *   before finally selecting it.
+     */
+    
+    if(bestObj != nil)
+    {
+        local verResult = action.verify(bestObj, role);
+        
+        /* 
+         *   Only execute the action with the best object if the action would
+         *   pass the verify stage and the verify stage would allow the action
+         *   to be performed implicitly. That way we won't choose an object with
+         *   a dangerous or nonObvious verify result.
+         */
+        if(verResult.allowAction && verResult.allowImplicit)
+        {
+            /* 
+             *   Announce which object we've chosen; language-specific modules
+             *   will need to implement this.
+             */
+            announceBestChoice(action, bestObj, role);
+            
+            /* 
+             *   Slot our best choice of object into the appropriate object
+             *   property of the current command object.
+             */
+            gCommand.(role.objProp) = bestObj;
+                        
+            
+            /* Execute the new action with the new set of objects. */
+            gCommand.execDoer([action, gCommand.dobj, gCommand.iobj]);            
+            
+            /* 
+             *   If we were able to execute the new action with the new set of
+             *   objects, we're done.
+             */
+            return;
+        }        
+    }
+    
+    
+    /* 
+     *   If we couldn't find an obvious best object to use, prompt the player
+     *   for his/her choice of object
+     */    
     
     local err = new EmptyNounError(gCommand, role);
     err.display();
     Parser.question = new ParseErrorQuestion(err);
    
+    
+    /* Skip to the next command line */
     abort;    
     
 }

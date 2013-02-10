@@ -2875,8 +2875,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   
      *   See Action.scoreObjects() for full details.  
      */
-    scoreObject(cmd, role, lst, m) { }
+    scoreObject(cmd, role, lst, m) 
+    {
+        m.score += vocabLikelihood;
+    }
 
+    vocabLikelihood = 0
+    
     /* before and after travel notifications. By default we do nothing */
     
     beforeTravel(traveler, connector) {}
@@ -5039,9 +5044,79 @@ class Thing:  ReplaceRedirector, Mentionable
      *   equivalent to BOARD
      */
     
-    dobjFor(StandOn) asDobjFor(Board)
-    dobjFor(SitOn) asDobjFor(Board)
-    dobjFor(LieOn) asDobjFor(Board)
+    dobjFor(StandOn) asDobjWithoutVerifyFor(Board)
+    dobjFor(SitOn) asDobjWithoutVerifyFor(Board)
+    dobjFor(LieOn) asDobjWithoutVerifyFor(Board)
+    
+    /*  
+     *   Although we don't track postures as such, some objects may be better
+     *   choices than other for sitting on (e.g. chairs), lying on (e.g. beds)
+     *   and standing on (e.g. rugs), so we allow these to be tested for
+     *   individually at the verify stage.
+     */
+    canSitOnMe = isBoardable
+    canLieOnMe = isBoardable
+    canStandOnMe = isBoardable
+    
+    
+    /*   
+     *   As well as ruling out certain objects for sitting, lying or standing
+     *   on, we can also give them a score for each of these postures; e.g. a
+     *   bed may be particularly suitable for lying on (although you could lie
+     *   on the sofa) while a chair may be particularly suitable for sitting on
+     *   (though you could sit on the bed.
+     *
+     *   By default we'll give each posture a score of 100, the normal logical
+     *   verify score. Note that these scores have no effect if the
+     *   corresponding can xxxOnMe property is nil.
+     */
+    sitOnScore = 100
+    lieOnScore = 100
+    standOnScore = 100
+    
+    dobjFor(StandOn)
+    {
+        verify()
+        {
+            if(!canStandOnMe)
+                illogical(cannotStandOnMsg);
+            if(gActor.isIn(self))
+                illogicalNow(actorAlreadyOnMsg);
+            logicalRank(standOnScore);
+        }
+    }
+    
+    dobjFor(SitOn)
+    {
+        verify()
+        {
+            if(!canSitOnMe)
+                illogical(cannotSitOnMsg);
+            if(gActor.isIn(self))
+                illogicalNow(actorAlreadyOnMsg);
+            logicalRank(sitOnScore);
+        }
+    }
+    
+    dobjFor(LieOn)
+    {
+        verify()
+        {
+            if(!canLieOnMe)
+                illogical(cannotLieOnMsg);
+            if(gActor.isIn(self))
+                illogicalNow(actorAlreadyOnMsg);
+            logicalRank(lieOnScore);
+        }
+    }
+    
+    cannotStandOnMsg = BMsg(cannot stand on, '{The subj dobj} {isn\'t}
+        something {i} {can} stand on. ')
+    cannotSitOnMsg = BMsg(cannot sit on, '{The subj dobj} {isn\'t}
+        something {i} {can} sit on. ')
+    cannotLieOnMsg = BMsg(cannot lie on, '{The subj dobj} {isn\'t}
+        something {i} {can} lie on. ')
+    
     
     /*   
      *   Flag, can we enter (i.e. get inside) this thing? For most objects, we

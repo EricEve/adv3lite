@@ -369,6 +369,17 @@ dictionary property noun, nounApostS;
 #define asDobjWithoutActionFor(action) asObjWithoutActionFor(Dobj, action)
 #define asIobjWithoutActionFor(action) asObjWithoutActionFor(Iobj, action)
 
+#define asObjWithoutVerifyFor(obj, Action) \
+    { \
+        preCond { return preCond##obj##Action; } \
+        remap() { return remap##obj##Action(); } \
+        check() { check##obj##Action; } \
+        action() { action##obj##Action(); } \
+    }
+
+#define asDobjWithoutVerifyFor(action) asObjWithoutVerifyFor(Dobj, action)
+#define asIobjWithoutVerifyFor(action) asObjWithoutVerifyFor(Iobj, action)
+
 #define askForDobj(action)  askMissingObject(action, DirectObject)
 #define askForIobj(action)  askMissingObject(action, IndirectObject)
 
