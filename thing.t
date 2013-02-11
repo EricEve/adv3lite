@@ -2878,6 +2878,23 @@ class Thing:  ReplaceRedirector, Mentionable
     scoreObject(cmd, role, lst, m) 
     {
         m.score += vocabLikelihood;
+        
+        /* 
+         *   If we're the last object written on, boost our score if the player
+         *   wants to write something again.
+         */
+        if(libGlobal.lastWrittenOnObj == self && cmd.action == WriteOn && role
+           == IndirectObject)
+            m.score += 20;
+        
+        /* 
+         *   If we're the last object typed on, boost our score if the player
+         *   wants to type something again.
+         */
+        if(libGlobal.lastTypedOnObj == self && cmd.action == TypeOn && role
+           == IndirectObject)
+            m.score += 20;
+        
     }
 
     vocabLikelihood = 0
@@ -6316,7 +6333,8 @@ class Thing:  ReplaceRedirector, Mentionable
         { 
             if(!isWriteOnable)
                illogical(cannotWriteOnMsg); 
-        }
+        }        
+        
     }
     
     cannotWriteOnMsg = BMsg(cannot write on, '{I} {can\'t} write anything on

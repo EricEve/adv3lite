@@ -1015,8 +1015,11 @@ libGlobal: object
     
     thoughtManagerObj = nil
     
-    
-   
+    /* The object last written on */
+    lastWrittenOnObj = nil
+       
+    /* The object last typed on */
+    lastTypedOnObj = nil
 ;
 
 

@@ -1225,6 +1225,12 @@ DefineTAction(TypeOnVague)
 
 DefineLiteralTAction(TypeOn)
     againRepeatsParse = nil   
+    
+    doActionOnce()
+    {
+        libGlobal.lastTypedOnObj = curDobj;
+        return inherited();
+    }
 ;
 
 DefineLiteralAction(Type)
@@ -1239,6 +1245,12 @@ DefineLiteralTAction(EnterOn)
 
 DefineLiteralTAction(WriteOn)
     againRepeatsParse = nil
+    
+    doActionOnce()
+    {
+        libGlobal.lastWrittenOnObj = curDobj;
+        return inherited();
+    }
 ;
 
 DefineLiteralAction(Write)
