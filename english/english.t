@@ -1009,6 +1009,66 @@ class LMentionable: object
     }
 
     /* 
+     *   reinitialize the vocab of this object from scratch, using the string
+     *   voc in place of the original vocab property. 
+     */
+    
+    replaceVocab(voc)
+    {
+        name = nil;
+        vocab = voc;
+        initVocab();
+    }
+                 
+    /*  
+     *   Add additional vocab words to those already in use for this object. If
+     *   we specify the name part this will replace the existing name for the
+     *   object.
+     */
+    addVocab(voc)
+    {
+        /* 
+         *   First check if we have anything in the name part. If so, assume
+         *   that it's meant to replace the existing name.
+         */
+        local parts = voc.split(';');
+        if(parts[1] > '')
+            name = nil;
+        
+        /* 
+         *   Make a note of the existing vocabWords, since they'll be overridden
+         *   when we add the new ones.
+         */
+        local vocWords = vocabWords;
+        
+        /*   Copy the new vocab string to our vocab property. */
+        vocab = voc;
+        
+        /*  Initialize our vocabWords using the new string. */
+        initVocab();
+        
+        /*  Add back our old vocabWords, without any duplicates */
+        vocabWords = vocabWords.appendUnique(vocWords);
+        
+    }
+    
+    
+    /* 
+     *   Remove a word from this object's vocabulary. If the matchFlags
+     *   parameter is supplies it should be one of MatchNoun, MatchAdj,
+     *   MatchPrep or MatchPlural, in which case only VocabWords matching the
+     *   corresponding part of speech (as well as word) will be removed.
+     */
+    removeVocabWord(word, matchFlags?)
+    {
+        if(matchFlags)            
+            vocabWords = vocabWords.subset({v: v.wordStr != word || v.posFlags !=
+                                           matchFlags});
+        else
+            vocabWords = vocabWords.subset({v: v.wordStr != word});
+    }
+    
+    /* 
      *   Regular expression pattern for matching a single preposition word.
      *   A word is a preposition if it's in our preposition list, OR it's
      *   annotated explicitly with "[prep]" at the end. 
