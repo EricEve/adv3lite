@@ -305,6 +305,15 @@ class Mentionable: LMentionable
      */
     matchName(tokens)
     {
+        
+        /* 
+         *   First try the phrase-match matcher; if this fails return 0 to
+         *   indicate that we don't match.
+         */
+        
+        if(phraseMatches && !phraseMatchName(tokens))
+            return 0;
+        
         /* use the simple name matcher, which ignores word order */
         return simpleMatchName(tokens);
     }
@@ -336,10 +345,27 @@ class Mentionable: LMentionable
      */
     matchNameDisambig(tokens)
     {
+        
+         /* 
+         *   First try the phrase-match matcher; if this fails return 0 to
+         *   indicate that we don't match.
+         */
+        
+        if(phraseMatches && disambigPhraseMatch && !phraseMatchName(tokens))
+            return 0;
+        
         /* use the simple name matcher */
         return simpleMatchName(tokens);
     }
 
+    /* 
+     *   Do we want to test for phrase matches when disambiguating? We'll assume
+     *   that by default we do since the same reasons for wanting the phrase
+     *   match are likely to apply when disambiguating
+     */
+    disambigPhraseMatch = true
+    
+    
     /*
      *   Simple implementation of matchName(), which simply checks to see
      *   if all of the tokens are associated with the object.  The "simple"
@@ -444,6 +470,77 @@ class Mentionable: LMentionable
         return strength | partOfSpeech;
     }
 
+    
+    /* 
+     *   If we have any phraseMatches defined, check whether we fail to match
+     *   any of them. This will be the case if we find a phraseMatch containing
+     *   one of our tokens but not the rest in the right order.
+     */
+    phraseMatchName(tokens)
+    {
+        /* Start by assuming we won't find a mismatch */
+        local ok = true;
+        
+        local tokLen = tokens.length;
+        local cmp = Mentionable.dictComp;
+        
+        /* 
+         *   Go through each phraseMatch in turn to see if the tokens either
+         *   fail to match it or succeed in matching it.
+         */
+        foreach(local pm in valToList(phraseMatches))
+        {
+            /* Split the phraseMatch into a list of words */
+            local pmList = pm.split(' ');
+            
+            /* 
+             *   If the list of words from the phraseMatch contains no words in
+             *   common with the token list, there's nothing to test; but if it
+             *   does, we need to test it.
+             */
+            if(pmList.overlapsWith(tokens))
+            {
+                /* 
+                 *   See if we can find a list equivalent to the phraseMatch
+                 *   list as a sublist of the tokens list.
+                 */
+                for(local i in 1 .. tokLen - pmList.length + 1)
+                {
+                    /* 
+                     *   If we can we've succeeded in finding a phrase match, so
+                     *   we can return true straight away.
+                     */
+                    if(tokens.sublist(i, pmList.length).equatesTo(pmList, cmp))
+                    {
+                        return true;                            
+                    }                                            
+                }
+                /* 
+                 *   If we don't find a phrase match, note the failure, but
+                 *   there may be other phrases to try matching, so carry on
+                 *   looking.
+                 */
+                ok = nil;
+            }           
+        }
+        
+        /* Return the result */
+        return ok;
+    }
+    
+    
+    
+    /* 
+     *   A single-quoted string, or a list of single-quoted strings containing
+     *   exact phrases (i.e. sequences of words) that must be matched by the
+     *   player input if any of the words in the phrase matches appear in the
+     *   player input. Note that words defined here should also be defined in
+     *   the vocab property; the purpose of the phraseMatches property is to
+     *   limit matches. Note also that object will be matched if any of the
+     *   phrases in the list are matched.
+     */
+    phraseMatches = nil
+    
     /* 
      *   On dynamically creating a new object, do the automatic vocabulary
      *   and short name initialization.  

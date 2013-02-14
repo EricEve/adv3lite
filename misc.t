@@ -2134,7 +2134,18 @@ modify List
         return length >= i ? self[i] : nil;
     }
     
-    
+    equatesTo(lst, cmp)
+    {
+        if(lst.length != length)
+            return nil;
+        
+        for(local i in 1 .. lst.length)
+        {
+            if(cmp.matchValues(self[i], lst[i]) == 0)
+                return nil;
+        }
+        return true;
+    }
 ;
 
 /* ------------------------------------------------------------------------ */

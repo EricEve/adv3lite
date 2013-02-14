@@ -1068,6 +1068,11 @@ class LMentionable: object
             vocabWords = vocabWords.subset({v: v.wordStr != word});
     }
     
+    addVocabWord(word, matchFlags)
+    {
+        initVocabWord(word, matchFlags);
+    }
+    
     /* 
      *   Regular expression pattern for matching a single preposition word.
      *   A word is a preposition if it's in our preposition list, OR it's
