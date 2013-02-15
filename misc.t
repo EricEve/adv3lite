@@ -2134,7 +2134,7 @@ modify List
         return length >= i ? self[i] : nil;
     }
     
-    equatesTo(lst, cmp)
+    strComp(lst, cmp)
     {
         if(lst.length != length)
             return nil;

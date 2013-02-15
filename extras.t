@@ -184,6 +184,35 @@ class Enterable: Fixture
     
 ;
 
+
+class SecretDoor: Door
+    isGoThroughable = isOpen
+    isConnectorListed = isOpen   
+    isOpenable = isOpen
+    
+    vocabWhenOpen = nil
+    vocabWhenClosed = nil
+    
+    preinitThing()
+    {
+        inherited();
+        if(isOpen)
+            vocabWhenOpen = vocab;
+        else
+            vocabWhenClosed = vocab;
+    }
+    
+    makeOpen(stat)
+    {
+        inherited(stat);
+        if(stat && vocabWhenOpen && vocab != vocabWhenOpen)
+            replaceVocab(vocabWhenOpen);
+        
+        if(!stat && vocabWhenClosed && vocab != vocabWhenClosed)
+            replaceVocab(vocabWhenClosed);
+    }
+;
+
 class Switch: Thing
     isSwitchable = true
     dobjFor(Flip) asDobjFor(SwitchVague)

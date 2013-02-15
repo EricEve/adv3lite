@@ -488,7 +488,7 @@ class Door: TravelConnector, Thing
     
     dobjFor(GoThrough)
     {
-        verify() { logical; }
+//        verify() { logical; }
         action() { travelVia(gActor); }
     }
     

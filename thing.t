@@ -311,7 +311,7 @@ class Mentionable: LMentionable
          *   indicate that we don't match.
          */
         
-        if(phraseMatches && !phraseMatchName(tokens))
+        if(matchPhrases && !phraseMatchName(matchPhrases, tokens))
             return 0;
         
         /* use the simple name matcher, which ignores word order */
@@ -351,19 +351,15 @@ class Mentionable: LMentionable
          *   indicate that we don't match.
          */
         
-        if(phraseMatches && disambigPhraseMatch && !phraseMatchName(tokens))
+        if(disambigMatchPhrases != nil &&
+           !phraseMatchName(disambigMatchPhrases, tokens))
             return 0;
         
         /* use the simple name matcher */
         return simpleMatchName(tokens);
     }
 
-    /* 
-     *   Do we want to test for phrase matches when disambiguating? We'll assume
-     *   that by default we do since the same reasons for wanting the phrase
-     *   match are likely to apply when disambiguating
-     */
-    disambigPhraseMatch = true
+    
     
     
     /*
@@ -476,7 +472,7 @@ class Mentionable: LMentionable
      *   any of them. This will be the case if we find a phraseMatch containing
      *   one of our tokens but not the rest in the right order.
      */
-    phraseMatchName(tokens)
+    phraseMatchName(phrases, tokens)
     {
         /* Start by assuming we won't find a mismatch */
         local ok = true;
@@ -488,7 +484,7 @@ class Mentionable: LMentionable
          *   Go through each phraseMatch in turn to see if the tokens either
          *   fail to match it or succeed in matching it.
          */
-        foreach(local pm in valToList(phraseMatches))
+        foreach(local pm in valToList(phrases))
         {
             /* Split the phraseMatch into a list of words */
             local pmList = pm.split(' ');
@@ -510,7 +506,7 @@ class Mentionable: LMentionable
                      *   If we can we've succeeded in finding a phrase match, so
                      *   we can return true straight away.
                      */
-                    if(tokens.sublist(i, pmList.length).equatesTo(pmList, cmp))
+                    if(tokens.sublist(i, pmList.length).strComp(pmList, cmp))
                     {
                         return true;                            
                     }                                            
@@ -539,7 +535,18 @@ class Mentionable: LMentionable
      *   limit matches. Note also that object will be matched if any of the
      *   phrases in the list are matched.
      */
-    phraseMatches = nil
+    matchPhrases = nil
+    
+    
+    /* 
+     *   Do we want to test for phrase matches when disambiguating? We'll assume
+     *   that by default we do since the same reasons for wanting the phrase
+     *   match are likely to apply when disambiguating, and that we'll use the
+     *   same set of phrases. This can be overridden to supply a different set
+     *   of phrases or none.
+     */
+    disambigMatchPhrases = matchPhrases
+    
     
     /* 
      *   On dynamically creating a new object, do the automatic vocabulary
