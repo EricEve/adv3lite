@@ -1015,8 +1015,16 @@ class LMentionable: object
     
     replaceVocab(voc)
     {
+        /* clear out the existing name */
         name = nil;
+        
+        /* Set our vocab property to the vocab we're replacing it with */
         vocab = voc;
+       
+        /* Clear out any existing vocabWords */
+        vocabWords = [];
+        
+        /* Initialize the vocab again */
         initVocab();
     }
                  

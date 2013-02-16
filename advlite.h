@@ -119,6 +119,9 @@ dictionary property noun, nounApostS;
 /* matched a plural (the phrase contains at least one plural word) */
 #define MatchPlural    0x0008
 
+/* matched a phrase */
+#define MatchPhrase    0x0010 
+
 /* mask to select only the part-of-speech flags */
 #define MatchPartMask  0x0FFF
 

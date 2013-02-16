@@ -100,6 +100,118 @@ hall: Room 'Hall'
 
 <p>An <b>Immovable</b> is like a Fixture, except that taking it is blocked in check() rather than verify(). What this is means is that although it can't be taken, this doesn't affect the parser's choice of it as the target of a TAKE command. This could be used for anything that looks like it might be possible to take, but turns out not to be takeable (perhaps because it's heavier than it looks, or it's fastened in place but not obviously so).
 
+<p>A <strong><a name="secretdoor">SecretDoor</a></strong> is a Door that only acts like a Door when it's open. When it's closed it's either totally invisible, or it appears to be something else, such as a bookcase or a panel.</p>
+
+<p>To use a SecretDoor, define it just like a <a href="door.htm">Door</a>, but (assuming it starts out closed) define its <span class="code">vocab</span> property to be whatever's suitable for its closed state, and a separate <strong>vocabWhenOpen</strong> property to define the name and other vocab to use when it's open. For example:</p>
+
+ <p><div class="code"><pre>
+cellar: Room 'Cellar' 'cellar'
+    "It's not a pleasant place at the best of times, dark, dank and smelly, with
+    piles of old junk strewn all over the place waiting for you to find time to
+    sort them out (which you probably never will). A wine rack stands &lt;&lt;unless
+      wineRack.isOpen&gt;&gt; empty against the east wall&lt;&lt;else&gt;&gt;open to the east,
+    revealing a passage beyond&lt;&lt;end&gt;&gt;. "
+    
+    isLit = nil
+    darkName = 'Cellar (in the dark)'
+    darkDesc = "It's too dark to see anything down here, but you could just
+        about find your way back up to the kitchen. "
+    up = kitchen
+    west = wineRack
+    
+    regions = downstairs
+;
+
++ wineRack: SecretDoor 'wine rack; empty'
+    "It's empty; you never got round to restocking it. &lt;&lt;if isOpen&gt;&gt;It's also
+    open, revealing a dark passage behind.&lt;&lt;end&gt;&gt; "
+    
+    afterAction()
+    {
+       if(gActionIs(Jump) && !isOpen)
+        {
+            "The vibration causes the wine rack to swing open, revealing a dark
+            passage beyond. ";
+            makeOpen(true);
+        }
+    
+    }
+    otherSide = dpDoor
+    
+    vocabWhenOpen = 'dark passage; empty wine; rack'
+;
+</pre></div>
+
+<p>Note that the OPEN command won't work on a <span class="code">SecretDoor</span> when it's closed, but the CLOSE command will work on a <span class="code">SecretDoor</span> when it's open (unless you override the isOpenable property to make it do otherwise). The default assumption is that a <span class="code">SecretDoor</span> has to be opened by some non-standard and probably non-obvious means.</p>
+
+<p>If (exceptionally) a SecretDoor starts out open you can define its <strong>vocabWhenClosed</strong> property to specify the name and vocab to use for it when it's closed.</p>
+
+<p>If you want a SecretDoor to be effectively invisible when it's closed, give it a vocab property comprising an empty string and make sure nothing else mentions it when it's closed, for example:</p>
+
+ <p><div class="code"><pre>
+loft: Room 'Hay Loft' 'hay loft'
+    "There's not much up here, apart from a few stray strands of straw
+    scattered across the bare boards. A ladder leads back down to the
+    main part of the barn below. "
+    down = ladderDown
+    west = loftDoor
+    
+;
+
++ Decoration 'straw; stray of; strands'
+;
+    
++ Decoration 'bare boards;;them'
+;
+
++ ladderDown: StairwayDown 'ladder'
+    destination = barn
+    
+    dobjFor(Pull)
+    {
+        action()
+        {
+            if(loftDoor.isOpen)
+            {
+                "Pulling the ladder causes the secret door to close again. ";
+                loftDoor.makeOpen(nil);
+            }
+            else
+            {
+                "Pulling the ladder causes a secret door to open to the west,
+                revealing a small compartment beyond. ";
+                loftDoor.makeOpen(true);                
+            }
+        }
+    }
+;
+
++ loftDoor: SecretDoor ''
+    "It looks only just big enough to enter. "
+    otherSide = compartmentDoor
+    
+    vocabWhenOpen = 'small compartment;secret;door'
+    
+    specialDesc = "A small compartment has opened up to the west. "
+    useSpecialDesc = isOpen
+;
+
+
+smallCompartment: Room 'Small Compartment' 'small compartment'
+   "There's only just enough room to stand in here. "
+    otherSide = loftDoor
+    
+    east = compartmentDoor
+    out asExit(east)
+;
+
++ compartmentDoor: Door 'small door'
+    otherSide = loftDoor
+;
+</pre></div>
+
+<p>Note that in both these example, the <span class="code">west</span> exit will only be displayed in the exit lister when the corresponding SecretDoor is open. When a SecretDoor is closed then, for travel purposes, it behaves as if there's no exit through it, even though it's attached to an exit property like a standard Door.</p>
+
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

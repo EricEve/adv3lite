@@ -304,19 +304,54 @@ class Mentionable: LMentionable
      *   box 123", say).  
      */
     matchName(tokens)
+    {        
+        return matchNameCommon(tokens, matchPhrases);      
+    }
+    
+    
+    matchNameCommon(tokens, phrases)
     {
-        
-        /* 
+         /* 
          *   First try the phrase-match matcher; if this fails return 0 to
-         *   indicate that we don't match.
+         *   indicate that we don't match. If it succeeds in matching a phrase
+         *   of more than one word, return MatchPhrase (we found a match).
          */
         
-        if(matchPhrases && !phraseMatchName(matchPhrases, tokens))
+        local match = 0;
+        
+        if(phrases != nil)
+        {    
+            match = phraseMatchName(phrases, tokens);
+            if(match == 0 && matchPhrasesExclude)    
+                return 0;
+            
+            /* 
+             *   A return type of true means there was no overlap between the
+             *   tokens and the matchPhrases, so the matchPhrases should have no
+             *   effect on the match.
+             */
+            if(dataType(match) != TypeInt)
+                match = 0;
+        }
+        
+        local simpleMatch = simpleMatchName(tokens);
+        
+        /* 
+         *   If the simpleMatchName routine fails to match anything, consider
+         *   the match a failure
+         */
+        if(simpleMatch == 0)
             return 0;
         
-        /* use the simple name matcher, which ignores word order */
-        return simpleMatchName(tokens);
+        
+        /* 
+         *   Otherwise boost the simpleMatch score with the result of the phrase
+         *   match.
+         */
+        return match | simpleMatch;
     }
+    
+    
 
     /*
      *   Match the object to a noun phrase in *disambiguation* input.  This
@@ -346,17 +381,19 @@ class Mentionable: LMentionable
     matchNameDisambig(tokens)
     {
         
-         /* 
-         *   First try the phrase-match matcher; if this fails return 0 to
-         *   indicate that we don't match.
+        /* 
+         *   If disambigMatchPhrases is defined then we must match it
+         *   exclusively; i.e. a fail to match any relevant phrase must result
+         *   in a failure overall; otherwise we'll just keep getting the same
+         *   disambiguation question over and over.
          */
         
-        if(disambigMatchPhrases != nil &&
-           !phraseMatchName(disambigMatchPhrases, tokens))
+        if(disambigMatchPhrases != nil && 
+           phraseMatchName(disambigMatchPhrases, tokens) == 0)
             return 0;
         
-        /* use the simple name matcher */
         return simpleMatchName(tokens);
+           
     }
 
     
@@ -500,15 +537,17 @@ class Mentionable: LMentionable
                  *   See if we can find a list equivalent to the phraseMatch
                  *   list as a sublist of the tokens list.
                  */
-                for(local i in 1 .. tokLen - pmList.length + 1)
+                
+                local pmLength = pmList.length();
+                for(local i in 1 .. tokLen - pmLength + 1)
                 {
                     /* 
                      *   If we can we've succeeded in finding a phrase match, so
                      *   we can return true straight away.
                      */
-                    if(tokens.sublist(i, pmList.length).strComp(pmList, cmp))
+                    if(tokens.sublist(i, pmLength).strComp(pmList, cmp))
                     {
-                        return true;                            
+                        return pmLength > 1 ? MatchPhrase : MatchAdj;                            
                     }                                            
                 }
                 /* 
@@ -516,7 +555,7 @@ class Mentionable: LMentionable
                  *   there may be other phrases to try matching, so carry on
                  *   looking.
                  */
-                ok = nil;
+                ok = 0;
             }           
         }
         
@@ -546,6 +585,15 @@ class Mentionable: LMentionable
      *   of phrases or none.
      */
     disambigMatchPhrases = matchPhrases
+        
+    
+    /*   
+     *   If failing to match any of the match phrases (when the player's input
+     *   includes at least one word used in any of them) excludes a match, then
+     *   return nil
+     */
+    matchPhrasesExclude = true
+   
     
     
     /* 

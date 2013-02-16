@@ -523,6 +523,56 @@ this word can match.  You can include 'it', 'him', 'her', and
 isHer, and plural properties to true when we see the corresponding
 pronouns. </p>
 
+<h3><a name="phrase">Phrase Matching</a></h3>
+
+<p>Most of the time the adv3Lite parser doesn't care about the order in which the player enters words to describe an object. LARGE GREEN BOX, LARGE BOX GREEN and BOX GREEN LARGE will all do just as well to match the large green box. Most of the time this flexibility is just what we want, making it easy to refer to objects whose names don't match the standard adjective-moun pattern, and most of the time this will work perfectly well. Very occasionally, however, it may be important that an object matches only a particular combination of words or only the words in a certain order. This may be because the solution to a puzzle depends on the player getting the object name exactly right, or it may because some object names are such that this is the only way of distinguishing between them. In such cases we can use the <strong>matchPhrases</strong> property to place a further restriction on what input a particular object will match.</p>
+
+<p>For example, suppose we have two green bottles, one called 'green bottle' and the other called 'dark green bottle'. When both bottles are present there'd normally be no way of referring to the 'green bottle' object since anything the player can enter to refer to it could also refer to the dark green bottle. One way to tackle this problem (the other would be to give the green bottle a <span class="code">vocabLikelihood</span>) is to define the <span class="code">matchPhrases</span> property on the dark green bottle so that it will match 'dark green' or 'dark' but not 'green' by itself:</p>
+
+ <p><div class="code"><pre>
+++ greenBottle: Thing 'green bottle'
+    "It's just an ordinary green bottle. "
+;
+
+++ darkGreenBottle: Thing 'dark green bottle'
+    "It's a dark green bottle. "
+    matchPhrases = ['dark', 'dark green']    
+;
+</pre></div>
+
+<p>The rule is this: if any of the words in the noun phrase entered by the player occur in any of the matchPhrases, then one of the matchPhrases (i.e. that precise sequence of words) must occur somewhere in the noun phrase for the noun phrase to match. In the example above the darkGreenBottle will thus be matched by 'dark' or 'dark bottle' or 'dark green' or 'dark green bottle' but not by 'green' or 'green bottle'. The noun phrase 'green bottle' will therefore be taken as matching the <span class="code">greenBottle</span> object but not the <span class="code">darkGreenBottle</span> object. (The noun phrase 'bottle' by itself would match both bottles, since the word 'bottle' does not appear anywhere in the matchPhrases and so is ignored for the purposes of phrase matching).</p>
+
+<p>Note why we included 'dark' in the list of matchPhrases. If we hadn't, then neither 'dark' nor 'dark bottle' would have matched the dark green bottle (despite referring to it unambiguously from the player's point of view) since the word 'dark' appears in the 'dark green' phrase but the player's command didn't include the phrase 'dark green'. By including 'dark' as a separate phrase we prevent the lone adjective 'dark' from being screened out by the phrase 'dark green'.</p>
+
+<p>Note also that the <span class="code">matchPhrases</span> property doesn't add anything to the vocab an object will match; any words that appear in <span class="code">matchPhrases</span> must also appear somewhere in the object's vocb property or no match will occur. The function of matchPhrases is simply to <em>restrict</em> what words or combinations of words will apply to the object.</p>
+
+<p>In the foregoing example we used the <span class="code">matchPhrases</span> property to distinguish between objects where the vocab of one of them was a subset of the vocab of the other. Another case might be where two objects share precisely the same vocab words but in a different order, for example a green broad bean and a broad green bean. We might handle this case thus:</p>
+
+ <p><div class="code"><pre>
+++ broadGreenBean: Thing 'broad green bean'
+    "It's broad and green. "
+    matchPhrases = 'broad green'
+    matchPhrasesExclude = nil    
+;
+
+++ greenBroadBean: Thing 'green broad bean'
+    "It's green and broad. "
+    matchPhrases = 'green broad'
+    matchPhrasesExclude = nil    
+;
+</pre></div>
+
+<p>In this example the <span class="code">matchPhrases</span> distinguish between the order in which the words 'broad' and 'green' must appear in the player's input for the match to occur. Note, incidentally, that if we only want to specify one phrase we can specify it as a single-quoted string; in that instance it doesn't have to be a list. Note also the use of the <span class="code">matchPhrasesExcludes</span> property here.</p>
+
+<p>If <strong>matchPhrasesExcludes</strong> is true (the default), then failure to match one of the phrases in the <span class="code">matchPhrases</span> property will cause the match to fail (as in the dark green bottle example). If it is nil as here, however, then instead of the <span class="code">matchPhrases</span> property ruling out a match when it fails to match, it enhances the match when it does match. That means when only one bean is in scope it can be referred to as 'bean', 'green bean', 'broad bean' and so forth without any difficultly, but if both beans are in scope the player will get a disambiguation prompt unless s/he specifies either the 'broad green' bean or the 'green broad' bean. (This, incidentally, avoids a potentialy misleading  'You see no green bean here' response if the player types X GREEN BEAN). Note, however, that this score-boosting behaviour only applies to the original command; any disambiguation will still use the exluding behaviour (otherwise disambiguation would never succeed).</p>
+
+<p>As a rule of thumb, <span class="code">matchPhrasesExclude = true</span> (the default) is the better option when one object's vocab is a subset of another's (otherwise the player can never refer to the object with the shorter vocab), while <span class="code">matchPhrasesExclude = nil</span> is the better option when two objects share the same vocab distiguished by word order (since this relaxes the requirement for a match when only one of the objects is in scope, and gives the player a disambiguation prompt instead of a 'You see no...' message in response to ambiguous input). This does mean, for example, that if the player character takes the dark green bottle to another location where the green bottle isn't in scope, a command like X GREEN BOTTLE will be met with 'You see no green bottle here', but that's arguably the correct response, since the green bottle whose presence is denied is indeed a different object from the dark green bottle that is actually present.</p>
+
+<p>As a further refinement you can define the <strong>disambigMatchPhrases</strong> property to hold a different set of phrases (or none at all) for disambiguation purposes (i.e. when the player has responded to a a disambiguation request), but by default <span class="code">disambigMatchPhrases</span> takes its value from <span class="code">matchPhrases</span> and you will seldom, if ever, need to change this.</p>
+
+<p>Indeed, it's probably quite rare that you will need to use phrase matching at all, and this facility is best used sparingly. On the whole it's better to name your objects so you don't need to; but occasionally it may prove necessary to use a phrase match, especially, perhaps, when the solution to a puzzle requires the player to use a particular combination of words in a particular order.</p>
+
+
 <h3><a name="inherit">Inheriting vocab</a></h3>
 
 <p>Occasionally you may wish to define a class whose instances or subclasses inherit part of its vocab property and merge it into their own, e.g. a Coin class which can be used as the basis of different types of coin with some common vocabulary.</p>
@@ -602,6 +652,65 @@ torchlight: Light 'torch+';
 <p>This would result in vocabs (and hence names) of 'moonlight', 'sunlight' and 'torchlight' respectively.</p> 
 
 <h3><a name="manipulatevocab">Manipulating vocab at run-time</a></h3>
+
+<p>Occasionally the vocabulary that should be used to refer to an object, or even the object's name, may need to be changed at run-time. For example, 'the shopkeeper' may become 'Bob' once the player character learns his name. Adv3lite provides several ways of manipulating vocabulary and changing names at run-time.</p>
+
+<p>Sometimes it may be sufficient just to change the name. In the Bob case, for example, you might decide that since the player may know (because s/he may have played your game before) that the shopkeeper is called Bob, it would be as well to include 'bob' in the shopkeeper's vocab string from the outset and just change the shopkeeper's name to 'Bob' wheh the player character learns it, so that the player who tries to refer to Bob earlier in the game isn't misleading told that 'You see no bob here.'</p>
+
+<p>In other cases the built-in <strong>State</strong> mechanism may do what you need. The English-specific part of the library defines State objects so that openable objects can be referred to as 'open' or 'closed' according to their state, and lightable ones as 'lit' or 'unlit'. If you have other objects that switch between states like this you could define custom state objects of your own. For example if your game involves one or more objects that can be wet, damp or dry you could define the following State objects:</p>
+
+ <p><div class="code"><pre>
+enum wet, damp, dry;
+
+WetDryDamp: State
+   stateProp = &amp;wetness
+
+   adjectives = [[dry, 'dry'], [damp, 'damp'], [wet, 'wet']]
+;
+</pre></div>
+
+<p>The <span class="code">WetDryDamp</span> state will then be applicable to any object that defines the <span class="code">wetness</span> property, allowing it to be referred to as 'dry', 'damp' or 'wet' according to its state.</p>
+
+<p>Sometimes, though, you may encounter cases which fall outside what the State mechanism can readily do. For example, if a secret panel slides open to reveal a passage beyond, you may want both the name and the vocabulary referring to the panel to change to 'dark passage' once the panel is open (in fact the <span class="code">SecretDoor</span> class can do this for you, but it does so using one of the mechanisms we're about to describe). For such purposes the library provides four methods that can be used to adjust the vocabulary (and possibly the name) of an object at run-time: <strong>addVocabWord(word, matchFlags</strong>), <strong>removeVocabWord(word, matchFlags?)</strong>, <strong>addVocab(voc)</strong> and <strong>replaceVocab(voc)</strong>.</p>
+
+<p><strong>addVocabWord(word, matchFlags</strong>) adds <em>word</em> (given as a single-quoted string) to the words that can be used to refer to the object as the part of speech defined by <em>matchFlags</em>, which can be one of <span class="code">MatchPrep</span>, <span class="code">MatchAdj</span>. <span class="code">MatchNoun</span> or <span class="code">MatchPlural</span>.</p>
+
+<p><strong>removeVocabWord(word, matchFlags?)</strong> removes <em>word</em> from the words that can be used to refer to the object. If the optional <em>matchFlags</em> parameter is supplied the method only removes the word as the corresponding part of speech; otherwise it removes the word for any part of speech.</p>
+
+<p><strong>addVocab(voc)</strong> takes the string <em>voc</em> and treats it exactly like a vocab string defined on the object, except that the vocabulary defined in <em>voc</em> is added to the existing vocabularly. If the name section of the voc string is defined, the method will also change the name of the object. For example addVocab('Bob') would change the object's name to 'Bob' and add 'bob' to the vocabulary, whereas addVocab(';;bob') would simply add 'bob' to the vocabularly, leaving the name unchanged.</p>
+
+<p><strong>replaceVocab(voc)</strong> takes the string <em>voc</em> and uses it just like a vocab string defined on the object to replace the existing vocabulary and name, just as if the object were being initialized from scratch. Where several changes are needed, this might be rather more straightforward than several calls to <span class="code">addVocabWord()</span> and <span class="code">removeVocabWord()</span> For example, the SecretDoor class uses this method to change the vocabulary that can be used to refer to a secret door (something that isn't obviously a door when it's closed) according to whether it's open or closed:</p>
+
+ <p><div class="code"><pre>
+class SecretDoor: Door
+    isGoThroughable = isOpen
+    isConnectorListed = isOpen   
+    isOpenable = isOpen
+    
+    vocabWhenOpen = nil
+    vocabWhenClosed = nil
+    
+    preinitThing()
+    {
+        inherited();
+        if(isOpen)
+            vocabWhenOpen = vocab;
+        else
+            vocabWhenClosed = vocab;
+    }
+    
+    makeOpen(stat)
+    {
+        inherited(stat);
+        if(stat &amp;&amp; vocabWhenOpen &amp;&amp; vocab != vocabWhenOpen)
+            replaceVocab(vocabWhenOpen);
+        
+        if(!stat &amp;&amp; vocabWhenClosed &amp;&amp; vocab != vocabWhenClosed)
+            replaceVocab(vocabWhenClosed);
+    }
+;
+</pre></div>
+
 
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

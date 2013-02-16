@@ -184,30 +184,89 @@ class Enterable: Fixture
     
 ;
 
-
+/* 
+ *   A SecretDoor is a Door that doesn't appear to be a door when it's closed,
+ *   and which must be opened by some external mechanism (other than an OPEN
+ *   command)
+ */
 class SecretDoor: Door
+    /* You can only go through a SecretDoor when it's open */
     isGoThroughable = isOpen
+    
+    /* A SecretDoor only functions as a TravelConnector when it's open */
     isConnectorListed = isOpen   
+    
+    /* 
+     *   We can't use an OPEN command to open a SecretDoor, but by default we'll
+     *   allow a CLOSE command to close it. To disallow this override isOpenable
+     *   to nil
+     */
     isOpenable = isOpen
     
+    /*   
+     *   The vocab string (including the name) that applies to this SecretDoor
+     *   when it's open. This might be somewhat different from that which
+     *   applies when it's closed. For example, opening a bookcase might turn it
+     *   into a passage or an opening. If you don't want to the vocab to change
+     *   when this SecretDoor is opened and closed, leave vocabWhenOpen as nil.
+     */
+     
     vocabWhenOpen = nil
+    
+    /*  
+     *   The vocab string (including the name) that applies to this SecretDoor
+     *   when it's closed. If the SecretDoor starts out closed there's no need
+     *   to define this explicitly as it will be copied from the vocab property
+     *   at preInit.
+     *
+     *   To define a SecretDoor that's effectively invisible when closed, give
+     *   it a vocab property comprising an empty string (i.e. '', not nil); this
+     *   will make it impossible for the player to refer to it when it's closed.
+     */
     vocabWhenClosed = nil
     
+    /*   Preinitialize a SecretDoor */
     preinitThing()
     {
+        /* Carry out the inherited handling */
         inherited();
+        
+        /* 
+         *   If the door starts out open, copy its initial vocab to its
+         *   vocabWhenOpen property.
+         */
         if(isOpen)
             vocabWhenOpen = vocab;
+        
+        /*  
+         *   If the door starts out closed, copy its initial vocab to its
+         *   vocabWhenClosed property.
+         */
         else
             vocabWhenClosed = vocab;
     }
     
+    /* Carry out opening or closing a SecretDoor */
     makeOpen(stat)
     {
+        /* Perform the inherited handling */
         inherited(stat);
+        
+        /* 
+         *   If we're opening the SecretDoor and it has a non-nil vocabWhenOpen
+         *   property and its vocabWhenOpen property is different from its
+         *   current vocab, then reinitialize its vocab from the vocabWhenOpen
+         *   property.
+         */
         if(stat && vocabWhenOpen && vocab != vocabWhenOpen)
             replaceVocab(vocabWhenOpen);
         
+        /* 
+         *   If we're closing the SecretDoor and it has a non-nil
+         *   vocabWhenClosed property and its vocabWhenClosed property is
+         *   different from its current vocab, then reinitialize its vocab from
+         *   the vocabWhenClosed property.
+         */
         if(!stat && vocabWhenClosed && vocab != vocabWhenClosed)
             replaceVocab(vocabWhenClosed);
     }
