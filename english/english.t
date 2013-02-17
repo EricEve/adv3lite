@@ -3264,42 +3264,40 @@ nounRoleQuestion(cmd, role)
 
 /* 
  *   Announce our choice of object when askForIobj() or askForDobj() chooses the
- *   best match on the player's behalf. We simply take the last word of the
- *   appopriate missinQ section for the action and prepend it to the name of the
- *   chosen object. This will result in messages like '(on the bed)' or '(take
- *   the red ball'), both of which are acceptable in this context.
+ *   best match on the player's behalf. We find the section of the verbPhrase
+ *   appropriate to the direct or indirect object (e.g. '(what)' or '(on what)')
+ *   and replace 'what' with the object name.
  */
 announceBestChoice(action, obj, role)
-{
+{    
+    /* The string to display the object announcement */
+    local ann;
     
-    local qPhrase = action.verbRules[1].missingQ;
-    local phrases = qPhrase.split(';');
-
-    switch(role)
-    {
-    case DirectObject:
-        qPhrase = phrases[1];
-        break;
-    case IndirectObject:
-        qPhrase = phrases[2];
-        break;
-    case AccessoryObject:
-        qPhrase = phrases[3];
-        break;
-    default:
-        qPhrase = '';
-    }
+    /* Get the verb phrase for the action */
+    local vp = action.verbRule.verbPhrase;
     
-    /* Pull out the last word from the qPhrase */
+    /* 
+     *   Set up a rex pattern to search for the shortest match to something in
+     *   parentheses.
+     */
+    local pat = R'(<lparen>.*?<rparen>)';
     
-    local idx = qPhrase.findLast(' ');
-    if(idx != nil)
-        qPhrase = qPhrase.substr(idx + 1);
+    /* Pull out the first parenthesised section */
+    local rm = rexSearch(pat, vp);
     
-    "(<<qPhrase>> <<obj.theName>>)\n";
     
-    /* alternative - use the verb phrase */
-//    "(<<action.getVerbPhrase(true, nil)>>)\n";
+    /* 
+     *   If we're looking for the indirect object pull out the next
+     *   parenthesized section
+     */
+    if(role == IndirectObject)
+        rm = rexSearch(pat, vp, rm[1] + rm[2]);
+    
+    /*  Replace 'what' with the object name */
+    ann = rm[3].findReplace('what', obj.theName);
+    
+    /*  Display the annoucement */
+    "<<ann>>\n";
 }
 
 /*

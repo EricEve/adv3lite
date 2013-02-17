@@ -895,16 +895,8 @@ class Action: ReplaceRedirector
      */
     redirectParent = nil
     
-    parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)
-    
-    
-    /* 
-     *   A list of VerbRules (or other VerbProductions) that refer to this
-     *   action. This list needs to be populated at the PreInit stage by the
-     *   language-specific part of the library as is required for the
-     *   askMissingObject() function.
-     */
-    verbRules = []
+    parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)   
+  
 ;
 
 
@@ -2506,24 +2498,43 @@ execNestedAction(isReplacement, actor, action, [objs])
     }
 }
 
-
+/* 
+ *   Ask for a missing object to fulfil role in action. First see if there's a
+ *   uniquely best match to fill the role, and if so execute the action with
+ *   that object. Otherwise ask the player to supply an object.
+ */
 askMissingObject(action, role)
 {
+    /* Make action the current action for the current Command. */
     gCommand.action = action;
     gCommand.originalAction = action;
-    gCommand.verbProd = action.verbRules[1];    
-       
+  
+    /* 
+     *   Slot the new action's verbRule into the Command's verbProd, so that the
+     *   Command has a verbProd appropriate to the action.
+     */
+    gCommand.verbProd = action.verbRule;    
     
-    /* See if we can find an obvious best object to select */
+    /* See if we can find an obvious best object to select. */
     
+    /* First get the scope list for the new action. */
     action.buildScopeList(role);
+    
+    /* 
+     *   Then wrap the scopeList in a list of NP objects so we can use it as a
+     *   parameter for scoreObjects().
+     */
     local matchList = action.wrapObjectsNP(action.scopeList);
+    
+    /*   Make a note of the highest scoring object we find */
     local bestObj = nil;
    
     if(matchList.length > 0)
     {
+        /* Score all the objects in scope */
         action.scoreObjects(gCommand, role, matchList);
         
+        /* Sort the list of objects in descending order of score */
         matchList = matchList.sort(SortDesc, {a, b: a.score - b.score});
     
         /* If there's only one object with the top score, select it */
@@ -2544,7 +2555,8 @@ askMissingObject(action, role)
          *   Only execute the action with the best object if the action would
          *   pass the verify stage and the verify stage would allow the action
          *   to be performed implicitly. That way we won't choose an object with
-         *   a dangerous or nonObvious verify result.
+         *   a dangerous or nonObvious verify result, and we won't pointlessly
+         *   attempt an impossible action.
          */
         if(verResult.allowAction && verResult.allowImplicit)
         {
@@ -2583,7 +2595,7 @@ askMissingObject(action, role)
     Parser.question = new ParseErrorQuestion(err);
    
     
-    /* Skip to the next command line */
+    /* Skip to the next command line so the player can enter a response */
     abort;    
     
 }

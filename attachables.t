@@ -299,7 +299,18 @@ class SimpleAttachable: Thing
     
     allowOtherToMoveWhileAttached = true
     
+ 
     
+    preinitThing()
+    {
+        /* carry out the inherited handling */
+        inherited();
+        
+        /* if I'm attached to anything, add me to its attachment list */
+        if(attachedTo != nil)
+            attachedTo.attachments = 
+            attachedTo.attachments.appendUnique([self]);
+    }
 ;
 
 /* 

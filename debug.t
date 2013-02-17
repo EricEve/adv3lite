@@ -110,4 +110,101 @@ actionTab: PreinitObject
     }
 ;
 
+DefineTAction(Purloin)    
+    againRepeatsParse = true
+    addExtraScopeItems(whichRole?)
+    {
+        makeScopeUniversal();
+    }
+    beforeAction() { }
+    afterAction() { }
+    turnSequence() { }
+    
+;    
+
+DefineTAction(GoNear)   
+    againRepeatsParse = true
+    addExtraScopeItems(whichRole?)
+    {
+        makeScopeUniversal();
+    }  
+    beforeAction() { }
+    afterAction() { }
+    turnSequence() { }
+;
+
+DefineIAction(FiatLux)
+    execAction(cmd)
+    {
+        gPlayerChar.isLit = !gPlayerChar.isLit;
+        DMsg(fiat lux, '{I} suddenly {1} glowing. ', gPlayerChar.isLit ? 'start'
+             :  'stop' );
+    }
+    
+    beforeAction() { }    
+    turnSequence() { }
+;
+
+DefineLiteralAction(Evaluate)
+    exec(cmd)
+    {
+        try
+        {
+            local res = Compiler.eval(stripQuotesFrom(cmd.dobj.name));
+            say(toString(res));
+        }
+        catch (CompilerException cex)
+        {
+            cex.displayException();
+        }
+        catch (Exception ex)
+        {
+            ex.displayException();
+        }
+        
+    }
+    includeInUndo = true
+    afterAction() {}
+    beforeAction() { }    
+    turnSequence() { }
+;
+
+
+symTab: PreinitObject
+    symbolToVal(val)
+    {
+        return ctab[val];        
+    }
+    
+    ctab = [* -> '???']
+        
+    execute()
+    {
+        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+        {
+            if(dataType(value) == TypeObject && value.isClass)
+                ctab[value] = key;
+        });
+    }
+;
+
+modify TadsObject
+    objToString()
+    {
+        if(isClass)
+            return symTab.symbolToVal(self);
+        
+        local str;
+        
+        if(name != nil)
+            str = name + ' ';
+        
+        str  += '(' + getSuperclassList + ')';
+        
+        return str;
+    }
+    
+;
+
+
 #endif

@@ -378,6 +378,7 @@ dictionary property noun, nounApostS;
         remap() { return remap##obj##Action(); } \
         check() { check##obj##Action; } \
         action() { action##obj##Action(); } \
+        report() { report##obj##Action(); } \
     }
 
 #define asDobjWithoutVerifyFor(action) asObjWithoutVerifyFor(Dobj, action)

@@ -305,11 +305,17 @@ class Mentionable: LMentionable
      */
     matchName(tokens)
     {        
-        return matchNameCommon(tokens, matchPhrases);      
+        return matchNameCommon(tokens, matchPhrases, matchPhrasesExclude);      
     }
     
-    
-    matchNameCommon(tokens, phrases)
+    /* 
+     *   Match a name against a list of tokens entered by the player. phrases is
+     *   the list of match phrases defined on the object (either for initial
+     *   matching or for disambiguation) and excludes should be true or nil
+     *   depending on whether failure to match phrases should exclude a match
+     *   overall.
+     */    
+    matchNameCommon(tokens, phrases, excludes)
     {
          /* 
          *   First try the phrase-match matcher; if this fails return 0 to
@@ -317,12 +323,12 @@ class Mentionable: LMentionable
          *   of more than one word, return MatchPhrase (we found a match).
          */
         
-        local match = 0;
+        local phraseMatch = 0;
         
         if(phrases != nil)
         {    
-            match = phraseMatchName(phrases, tokens);
-            if(match == 0 && matchPhrasesExclude)    
+            phraseMatch = phraseMatchName(phrases, tokens);
+            if(phraseMatch is in (0, nil) && excludes)    
                 return 0;
             
             /* 
@@ -330,8 +336,8 @@ class Mentionable: LMentionable
              *   tokens and the matchPhrases, so the matchPhrases should have no
              *   effect on the match.
              */
-            if(dataType(match) != TypeInt)
-                match = 0;
+            if(dataType(phraseMatch) != TypeInt)
+                phraseMatch = 0;
         }
         
         local simpleMatch = simpleMatchName(tokens);
@@ -348,7 +354,7 @@ class Mentionable: LMentionable
          *   Otherwise boost the simpleMatch score with the result of the phrase
          *   match.
          */
-        return match | simpleMatch;
+        return phraseMatch | simpleMatch;
     }
     
     
@@ -386,13 +392,8 @@ class Mentionable: LMentionable
          *   exclusively; i.e. a fail to match any relevant phrase must result
          *   in a failure overall; otherwise we'll just keep getting the same
          *   disambiguation question over and over.
-         */
-        
-        if(disambigMatchPhrases != nil && 
-           phraseMatchName(disambigMatchPhrases, tokens) == 0)
-            return 0;
-        
-        return simpleMatchName(tokens);
+         */        
+        return matchNameCommon(tokens, disambigMatchPhrases, true);
            
     }
 

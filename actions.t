@@ -530,78 +530,7 @@ DefineIAction(Stand)
 DefineIAction(Sit)
     execAction(cmd)
     {
-        askForDobj(SitOn);
-        
-        
-        /* 
-         *   We'll take SIT to be a request to sit in or on any suitable object
-         *   in scope
-         */
-        
-        /*  
-         *   So, if the actor is already in an enclosing object that's not a
-         *   room, simply say so and end the action.
-         */
-//        local loc = gActor.location;
-//        if(!loc.ofKind(Room))
-//        {
-//            gMessageParams(loc);
-//            DMsg(already seated, '{I}{\'m} sitting {in loc}.  ');
-//            return;
-//        }
-//        
-//        buildScopeList;
-//        local obj = scopeList.valWhich({o: (o.isBoardable || o.isEnterable) 
-//                                          && Q.canReach(gActor, o)});
-        
-        /* 
-         *   Rather complex experimental code to find the best object in scope
-         *   to sit in or on.
-         */
-        
-//        local matchList = scopeList.subset({o: Q.canReach(gActor, o)});
-//        matchList = wrapObjectsNP(matchList);
-//        
-//        local sitOnMatches = matchList.subset({o: o.obj.isBoardable}); 
-//        local sitInMatches = matchList.subset({o: o.obj.isEnterable});
-//        
-//        if(sitOnMatches.length > 0)
-//        {
-//            cmd.action = SitOn;
-//            SitOn.scoreObjects(cmd, DirectObject, sitOnMatches);
-//            sitOnMatches = sitOnMatches.sort(SortDesc, {a, b: a.score - b.score});
-//        }
-//        
-//        if(sitInMatches.length > 0)
-//        {
-//            cmd.action = SitIn;
-//            SitIn.scoreObjects(cmd, DirectObject, sitInMatches);            
-//            sitInMatches = sitInMatches.sort(SortDesc, {a, b: a.score - b.score});
-//        }
-//        
-//        local obj = nil;
-//        
-//        if(sitOnMatches.length > 0 && sitOnMatches[1].obj.isBoardable)
-//            obj = sitOnMatches[1].obj;
-//        
-//        if(sitInMatches.length > 0 && sitInMatches[1].obj.isEnterable
-//           && (obj == nil || sitOnMatches.length == 0 || sitInMatches[1].score >
-//               sitOnMatches[1].score))
-//            obj = sitInMatches[1].obj;
-//        
-//        if(obj == nil)
-//            DMsg(nowhere to sit, 'There{dummy}{\'s} nothing suitable to sit on
-//                {here}. ');
-//        else
-//        {
-//            gMessageParams(obj);
-//            DMsg(announce sit object, '({in obj})\n');
-//            if(obj.isBoardable)
-//                replaceAction(SitOn, obj);
-//            else
-//                replaceAction(SitIn, obj);
-//        }
-//        
+        askForDobj(SitOn);          
     }
 ;
 
@@ -1683,16 +1612,6 @@ class ImplicitConversationAction: TopicAction
     topics = nil
 ;
 
-//DefineTopicAction(AskAboutImplicit)
-//    execAction(cmd)
-//    {
-//        if(gPlayerChar.currentInterlocutor == nil)
-//            DMsg(not talking, '{I}{\'m} not talking to anyone. ');
-//        else
-//            gPlayerChar.currentInterlocutor.handleTopic(&askTopics, 
-//                cmd.iobj.topicList);;
-//    }
-//;
         
 AskAboutImplicit: ImplicitConversationAction
     baseActionClass = AskAboutImplicit
@@ -1744,13 +1663,6 @@ SayAction: ImplicitConversationAction
 
 
 
-//DefineTopicAction(SayAction)
-//    execAction(cmd)
-//    {
-//        "<q><<cmd.dobj.topicList[1].name>></q>";
-//    }
-//;
-//
 
 /*
  *   A state object that keeps track of our logging (scripting) status.
@@ -2562,100 +2474,5 @@ DefineTIAction(DoNothing)
 
 #ifdef __DEBUG
  
-DefineTAction(Purloin)    
-    againRepeatsParse = true
-    addExtraScopeItems(whichRole?)
-    {
-        makeScopeUniversal();
-    }
-    beforeAction() { }
-    afterAction() { }
-    turnSequence() { }
-    
-;    
-
-DefineTAction(GoNear)   
-    againRepeatsParse = true
-    addExtraScopeItems(whichRole?)
-    {
-        makeScopeUniversal();
-    }  
-    beforeAction() { }
-    afterAction() { }
-    turnSequence() { }
-;
-
-DefineIAction(FiatLux)
-    execAction(cmd)
-    {
-        gPlayerChar.isLit = !gPlayerChar.isLit;
-        DMsg(fiat lux, '{I} suddenly {1} glowing. ', gPlayerChar.isLit ? 'start'
-             :  'stop' );
-    }
-    
-    beforeAction() { }    
-    turnSequence() { }
-;
-
-DefineLiteralAction(Evaluate)
-    exec(cmd)
-    {
-        try
-        {
-            local res = Compiler.eval(stripQuotesFrom(cmd.dobj.name));
-            say(toString(res));
-        }
-        catch (CompilerException cex)
-        {
-            cex.displayException();
-        }
-        catch (Exception ex)
-        {
-            ex.displayException();
-        }
-        
-    }
-    includeInUndo = true
-    afterAction() {}
-    beforeAction() { }    
-    turnSequence() { }
-;
-
-
-symTab: PreinitObject
-    symbolToVal(val)
-    {
-        return ctab[val];        
-    }
-    
-    ctab = [* -> '???']
-        
-    execute()
-    {
-        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
-        {
-            if(dataType(value) == TypeObject && value.isClass)
-                ctab[value] = key;
-        });
-    }
-;
-
-modify TadsObject
-    objToString()
-    {
-        if(isClass)
-            return symTab.symbolToVal(self);
-        
-        local str;
-        
-        if(name != nil)
-            str = name + ' ';
-        
-        str  += '(' + getSuperclassList + ')';
-        
-        return str;
-    }
-    
-;
 
 #endif

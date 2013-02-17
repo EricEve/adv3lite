@@ -428,7 +428,7 @@ class Command: object
         finally
         {
             /* 
-             *   If the action isn't one this Command haa executed before while
+             *   If the action isn't one this Command has executed before while
              *   iterating over its list of objects, note that we've now
              *   executed it
              */
