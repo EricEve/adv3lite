@@ -2173,9 +2173,8 @@ VerbRule(Attack)
 ;
 
 VerbRule(AttackWith)
-    ('attack' | 'kill' | 'hit' | 'kick' | 'punch' | 'strike')
-        singleDobj
-        'with' singleIobj
+    ('attack' | 'kill' | 'hit' | 'strike')
+        singleDobj 'with' singleIobj
     : VerbProduction
     action = AttackWith
     verbPhrase = 'attack/attacking (whom) (with what)'
@@ -2185,7 +2184,7 @@ VerbRule(AttackWith)
 ;
 
 VerbRule(Inventory)
-    'i' | 'inventory' | 'take' 'inventory'
+    'i' | 'inv' | 'inventory' | 'take' 'inventory'
     : VerbProduction
     action = Inventory
     verbPhrase = 'take/taking inventory'

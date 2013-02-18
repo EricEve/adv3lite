@@ -724,7 +724,7 @@ DefineTAction(ExamineOrGoTo)
 ;
 
 DefineTAction(Follow)
-    againRepeatsParse = nil
+    againRepeatsParse = nil   
 ;
 
 

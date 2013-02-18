@@ -370,13 +370,21 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             endConversation(endConvLeave);
         
         if(traveler == gPlayerChar)
-            pcConnector = connector;
+            pcConnector = connector;       
+        
     }
     
     /* The Travel Connector just traversed by the player character */
     
     pcConnector = nil
     
+    /* 
+     *   If the player character has seen this actor travel then lastTravelInfo
+     *   contains a two-element list comprising the room the actor was seen
+     *   travelling from and the connector by which the actor was seen
+     *   travelling.
+     */
+    lastTravelInfo = nil
     
     actorBeforeTravel(traveler, connector) { }
        
@@ -525,7 +533,30 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         gMessageParams(follower);
         DMsg(follow, '<.p>{The follower} {follows} behind {me}. ');
     }
+    
+    setFollowMeFuse()
+    {
+        /* reset the travel info */
+        lastTravelInfo = nil;
+        
+        /* set up a new fuse */ 
+        local fuseID = new Fuse(self, &followFuse, 0);
+        
+        /* give it a low priority so any events that move the actor fire first */
+        fuseID.eventOrder = 100000;
+    }
+    
+    followFuse()
+    {
+        if(lastTravelInfo)
+        {
+            say(followActorMsg);
+            lastTravelInfo[2].travelVia(gActor);
+        }
+    }
 
+    followActorMsg = BMsg(follow actor, '{I} {follow} {1}. ', theName)
+    
     arrivingTurn()
     {
         if(curState != nil)
@@ -1066,6 +1097,57 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             }
         }       
     }
+    
+    dobjFor(Follow)
+    {
+        preCond = []
+        
+        verify()
+        {
+            if(Q.canSee(gActor, self) && isIn(gActor.getOutermostRoom))
+                logical;
+            else if(Q.canSee(gActor, self))
+                illogicalNow(cantFollowFromHereMsg);
+            else if(lastTravelInfo == nil)
+                illogicalNow(dontKnowWhereGoneMsg);
+            else if(!gActor.isIn(lastTravelInfo[1]))
+                illogicalNow(cantStartFromHereMsg);
+        }
+        
+        action()
+        {
+            if(Q.canSee(gActor, self))
+            {
+                say(waitToSeeMsg);
+                setFollowMeFuse();
+            }
+            else if(lastTravelInfo)
+            {
+                say(followActorDirMsg);
+                lastTravelInfo[2].travelVia(gActor);
+                
+                /* 
+                 *   reset the lastTravelInfo now that it's been used and is no
+                 *   longer relevant.
+                 */
+                lastTravelInfo = nil;
+            }
+        }
+        
+    }
+    
+    waitToSeeMsg = BMsg(wait to see, '{I} {wait} to see where {he dobj}
+        {goes}. ')
+    
+    followActorDirMsg = BMsg(follow actor dir, '{I} {follow} in the direction
+        {he actor} saw {the dobj} go. ')
+
+    dontKnowWhereGoneMsg = BMsg(dont know where gone, '{I} {don\'t know} where
+        {the subj dobj} {has} gone. ')
+    cantStartFromHereMsg = BMsg(cant start from here, '{I}{\'m} not where {i}
+        last saw {the dobj}. ')
+    cantFollowFromHereMsg = BMsg(cant follow from here, '{I} {can\'t} follow
+        {him dobj} from {here}. ')
 ;
 
 class ActorState: ActorTopicDatabase
@@ -3661,4 +3743,13 @@ suggestedTopicLister: object
     sayPrefix = BMsg(say prefix, 'say ')
     orListSep = BMsg(or list separator, '; or ')
 
+;
+
+modify Follow
+    /* For this action to work all known actors also need to be in scope */
+    addExtraScopeItems(whichRole?)
+    {
+        scopeList = scopeList.appendUnique(Q.knownScopeList.subset({x:
+            x.ofKind(Actor)}));
+    }
 ;

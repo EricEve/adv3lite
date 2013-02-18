@@ -6621,10 +6621,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotPourMsg = BMsg(cannot pour, '{I} {can\'t} pour {1} anywhere. ',
                          fluidName)
-    cannotPourOntoSelfMsg = BMsg(cannot pour on self, '{I} {can\'t} pour {1} 
-        onto {itself dobj}. ', gDobj.fluidName)
-    cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {1}
-        into {itself dobj}. ', gDobj.fluidName)
+    cannotPourOntoSelfMsg = BMsg(cannot pour on self, '{I} {can\'t} pour {the
+        dobj} onto {itself dobj}. ')
+    cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {the
+        dobj} into {itself dobj}. ')
     cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {1)
         into {that dobj}. ', gDobj.fluidName)
     cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {1}

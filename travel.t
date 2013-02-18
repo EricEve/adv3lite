@@ -542,6 +542,14 @@ class TravelConnector: object
                 
                 libGlobal.lastLoc = gPlayerChar.getOutermostRoom;                               
             }
+            /* 
+             *   If the player character can see the actor traverse this
+             *   connector, note the fact on the actor
+             */
+            else if(Q.canSee(gPlayerChar, actor) &&
+                    !suppressBeforeNotifications)
+                actor.lastTravelInfo = [actor.getOutermostRoom, self];
+            
                 
             execTravel(actor);
             
