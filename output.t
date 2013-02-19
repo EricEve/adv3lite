@@ -49,7 +49,17 @@ htmlSay(val)
     }
 }
 
+/*  
+ *   A version of say() that only produces output if the player can see obj (or,
+ *   optionally, sense obj by some other sense passed as a canXXX method of the
+ *   Query object via the prop parameter)
+ */
 
+senseSay(val, obj, prop = &canSee)
+{
+    if(Q.(prop)(gPlayerChar, obj))
+        say(val);    
+}
 
 
 /* ------------------------------------------------------------------------ */

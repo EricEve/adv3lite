@@ -549,8 +549,7 @@ Travel: TravelAction
 DefineIAction(VagueTravel)
     execAction(cmd)
     {
-        DMsg(vague travel, '{I} {need} to be more specific about where {i}
-            want to go. ');
+        DMsg(vague travel, 'Which way do you want to go? ');       
     }
 ;
 
@@ -1051,6 +1050,9 @@ DefineTIAction(FastenTo)
 DefineTIAction(TurnWith)
     resolveIobjFirst = nil
     againRepeatsParse = nil
+;
+
+DefineTAction(Cut)
 ;
 
 DefineTIAction(CutWith)

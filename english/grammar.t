@@ -2513,10 +2513,10 @@ VerbRule(VagueTravel) 'go' | 'walk' : VerbProduction
 ;
 
 VerbRule(Travel)
-    'go' singleDir | singleDir
+    (('go' | 'walk') ('to' ('the' |) | ) singleDir) | singleDir
     : VerbProduction
     action = Travel
-    verbPhrase = 'go/going {where)'
+    verbPhrase = 'go/going {where)'  
 ;
 
 /*
@@ -2901,7 +2901,7 @@ VerbRule(Break)
 VerbRule(CutWithWhat)
     [badness 500] 'cut' singleDobj
     : VerbProduction
-    action = CutWith
+    action = Cut
     verbPhrase = 'cut/cutting (what) (with what)'
     missingQ = 'what do you want to cut;what do you want to cut it with'
 

@@ -3196,9 +3196,10 @@ class AgendaItem: object
             isDone = nil;
     }
     
-    /* An optional tag, specified as a single-quoted string. */
-    
+    /* An optional tag, specified as a single-quoted string. */    
     name = nil
+    
+    report(msg, prop=&canSee) { senseSay(msg, getActor, prop); }
 ;
 
 

@@ -3883,6 +3883,18 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default things can't be cut */
     isCuttable = nil
     
+    dobjFor(Cut)
+    {
+        preCond = [touchObj]
+        verify() 
+        { 
+            if(!isCuttable)
+               illogical(cannotCutMsg); 
+        }
+        
+        action() { askForIobj(CutWith); }
+    }
+    
     dobjFor(CutWith)
     {
         preCond = [touchObj]
