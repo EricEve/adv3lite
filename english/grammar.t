@@ -2982,7 +2982,7 @@ VerbRule(ClimbUp)
 VerbRule(ClimbUpWhat)
     [badness 200] ('climb' | 'go' | 'walk') 'up'
     : VerbProduction
-    action = ClimbUp
+    action = ClimbUpVague
     verbPhrase = 'climb/climbing (up what)'
     missingQ = 'what do you want to climb up'
     missingRole = DirectObject
@@ -3001,7 +3001,7 @@ VerbRule(ClimbDown)
 VerbRule(ClimbDownWhat)
     [badness 200] ('climb' | 'go' | 'walk') 'down'
     : VerbProduction
-    action = ClimbDown
+    action = ClimbDownVague
     verbPhrase = 'climb/climbing (down what)'
     missingQ = 'what do you want to climb down'
     missingRole = DirectObject
@@ -3039,7 +3039,7 @@ VerbRule(AttachTo)
 VerbRule(AttachToWhat)
     [badness 500] ('attach' | 'connect') multiDobj
     : VerbProduction
-    action = AttachTo
+    action = Attach
     verbPhrase = 'attach/attaching (what) (to what)'
     missingQ = 'what do you want to attach (to it);'
                + 'what do you want to attach it to'
@@ -3172,9 +3172,7 @@ VerbRule(Lie)
 ;
 
 VerbRule(StandOn)
-    ('stand' ('on' | 'onto' | 'on' 'to' )
-     | 'climb' ('on' | 'onto' | 'on' 'to'))
-    singleDobj
+    'stand' ('on' | 'onto' | 'on' 'to' ) singleDobj
     : VerbProduction
     action = StandOn
     verbPhrase = 'stand/standing (on what)'
@@ -3183,9 +3181,7 @@ VerbRule(StandOn)
 ;
 
 VerbRule(StandIn)
-    ('stand' ('in' | 'into' | 'in' 'to')
-     | 'climb' ('in' | 'into' | 'in' 'to'))
-    singleDobj
+    'stand' ('in' | 'into' | 'in' 'to')  singleDobj
     : VerbProduction
     action = StandIn
     verbPhrase = 'stand/standing (on what)'
@@ -3222,8 +3218,7 @@ VerbRule(GetOff)
 VerbRule(GetOut)
     'get' 'out'
     | 'get' 'off'
-    | 'get' 'down'
-    | 'get' 'up'
+    | 'get' 'down'    
     | 'disembark'
     | 'climb' 'out'
     : VerbProduction

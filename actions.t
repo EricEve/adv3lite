@@ -863,6 +863,14 @@ DefineTAction(ClimbUp)
 DefineTAction(ClimbDown)        
 ;
 
+DefineIAction(ClimbUpVague)
+    execAction(cmd)  { askForDobj(ClimbUp); }
+;    
+
+DefineIAction(ClimbDownVague)
+    execAction(cmd)  { askForDobj(ClimbDown); }
+;
+
 DefineTAction(Board)        
 ;
 
@@ -1030,6 +1038,9 @@ DefineTIAction(UnlockWith)
 
 DefineTIAction(LockWith)      
     resolveIobjFirst = nil
+;
+
+DefineTAction(Attach)
 ;
 
 DefineTIAction(AttachTo)    

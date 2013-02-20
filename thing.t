@@ -6072,6 +6072,17 @@ class Thing:  ReplaceRedirector, Mentionable
     
     isAttachable = nil
     
+    dobjFor(Attach)
+    {
+        preCond = [touchObj]        
+        verify() 
+        {
+            if(!isAttachable)
+               illogical(cannotAttachMsg); 
+        }
+        action() { askForIobj(AttachTo); }
+    }
+    
     dobjFor(AttachTo)
     {
         preCond = [touchObj]        
