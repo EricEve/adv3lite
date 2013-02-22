@@ -382,7 +382,7 @@ class Door: TravelConnector, Thing
         return nil;
     }
     
-    isGoThroughable = true
+    canGoThroughMe = true
     
     makeOpen(stat)
     {

@@ -1766,32 +1766,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    /* 
-     *   Is this object openable. If this property is set to true then this
-     *   object can be open and closed via the OPEN and CLOSE commands. Note
-     *   that setting this property to true also automatically makes the
-     *   OpenClosed State apply to this object, so that it can be referred to as
-     *   'open' or 'closed' accordingly.
-     */
-    isOpenable = nil
     
-    /* 
-     *   Is this object open. By default we'll make Things open so that their
-     *   interiors (if they have any) are accessible, unless they're openable,
-     *   in which case we'll assume they start out closed.
-     */
-    isOpen = (!isOpenable)
-    
-    /* 
-     *   Make us open or closed. We define this as a method so that subclasses
-     *   such as Door can override to produce side effects (such as opening or
-     *   closing the other side).
-     */
-    
-    makeOpen(stat)
-    {
-        isOpen = stat;
-    }
     
        
     /* 
@@ -3393,14 +3368,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      'were' : 'was', himName);
             
             
-            moveHidden(&hiddenBehind, location);
-//            foreach(local cur in hiddenBehind)
-//            {
-//                cur.moveInto(location);
-//                cur.noteSeen();
-//                hiddenBehind = [];                       
-//            }          
-            
+            moveHidden(&hiddenBehind, location);            
         }
         
         
@@ -3509,23 +3477,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            switch(propType(&readDesc))
-            {
-            case TypeSString:
-                say(readDesc);
-                break;
-            case TypeDString:
-            case TypeCode:
-                readDesc;
-                break;
-            case TypeNil:
+            if(propType(&readDesc) == TypeNil)
                 say(cannotReadMsg);
-                break;
-            default:
-                DMsg(read error, 'Illegal readDesc property type on {1}. ',
-                     name);
-                break;
-            }
+            else
+                display(&readDesc);         
         }
     }
     
@@ -3700,6 +3655,33 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotThrowMsg = BMsg(cannot throw, '{I} {can\'t} throw {the dobj} anywhere.
         ')
     
+    
+    /* 
+     *   Is this object openable. If this property is set to true then this
+     *   object can be open and closed via the OPEN and CLOSE commands. Note
+     *   that setting this property to true also automatically makes the
+     *   OpenClosed State apply to this object, so that it can be referred to as
+     *   'open' or 'closed' accordingly.
+     */
+    isOpenable = nil
+    
+    /* 
+     *   Is this object open. By default we'll make Things open so that their
+     *   interiors (if they have any) are accessible, unless they're openable,
+     *   in which case we'll assume they start out closed.
+     */
+    isOpen = (!isOpenable)
+    
+    /* 
+     *   Make us open or closed. We define this as a method so that subclasses
+     *   such as Door can override to produce side effects (such as opening or
+     *   closing the other side).
+     */
+    
+    makeOpen(stat)
+    {
+        isOpen = stat;
+    }
     
     dobjFor(Open)
     {
@@ -4042,7 +4024,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   We can look under most things, but there are some things (houses, the
      *   ground, sunlight) it might not make much sense to try looking under.
      */
-    isLookUnderable = true
+    canLookUnderMe = true
     
     
     
@@ -4052,7 +4034,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!isLookUnderable)
+            if(!canLookUnderMe)
                 illogical(cannotLookUnderMsg);       
         }
         
@@ -4131,7 +4113,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   be many things it makes no sense to try to look behind.
      */
     
-    isLookBehindable = true
+    canLookBehindMe = true
     
     
     
@@ -4141,7 +4123,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!isLookBehindable)
+            if(!canLookBehindMe)
                 illogical(cannotLookBehindMsg);
         }
         
@@ -4223,7 +4205,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   By default we make it possible to look through things, but there may
      *   well be things you obviously couldn't look through.
      */
-    isLookThroughable = true
+    canLookThroughMe = true
     
     dobjFor(LookThrough)
     {
@@ -4231,7 +4213,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!isLookThroughable)
+            if(!canLookThroughMe)
                 illogical(cannotLookThroughMsg);            
         }
         
@@ -4246,14 +4228,14 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     /* Most things cannot be gone through */
-    isGoThroughable = nil
+    canGoThrougMe = nil
     
     dobjFor(GoThrough)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isGoThroughable)
+            if(!canGoThroughMe)
                 illogical(cannotGoThroughMsg); 
         }
     }
@@ -5031,8 +5013,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
     dobjFor(BurnWith)
     {
-        preCond = [touchObj]
-        verify() { illogical(cannotBurnMsg); }
+        preCond = [touchObj]        
+        verify() 
+        {
+            if(!isBurnable)
+               illogical(cannotBurnMsg); 
+        }
     }
     
     /* 
@@ -5794,6 +5780,8 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isDiggable)
                illogical(cannotDigMsg); 
         }
+        
+        action() { askForIobj(DigWith); }
     }
     
     /* Most objects aren't suitable digging instruments */
@@ -5835,6 +5823,9 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            if(!isTakeable)
+                illogical(cannotTakeMsg);
+            
             if(gIobj.notionalContents.indexOf(self) == nil)
                 illogicalNow(notInMsg);
             if(self == gIobj)
@@ -6400,7 +6391,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotKissMsg = BMsg(cannot kiss, '{I} really {can\'t} kiss {that dobj}. ')
 
     
-    isJumpOffable = (gActor.location == self && contType == On)
+    canJumpOffMe = (gActor.location == self && contType == On)
     
     dobjFor(JumpOff)
     {
@@ -6408,13 +6399,13 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!isJumpOffable)
+            if(!canJumpOffMe)
                 illogical(cannotJumpOffMsg);
         }
         
         action()
         {
-            gActor.actionMoveInto(getOutermostRoom);
+            gActor.actionMoveInto(location);
         }
         
         report()
@@ -6427,7 +6418,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotJumpOffMsg = BMsg(cannot jump off, '{I}{\'m} not on {the dobj}. ')
     
     
-    isJumpOverable = nil
+    canJumpOverMe = nil
     
     dobjFor(JumpOver)
     {
@@ -6435,7 +6426,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(!isJumpOverable)
+            if(!canJumpOverMe)
                illogical(cannotJumpOverMsg); 
         }
     }
@@ -6459,14 +6450,14 @@ class Thing:  ReplaceRedirector, Mentionable
         {can} set. ')
     
     
-    isTypeOnable = nil
+    canTypeOnMe = nil
     
     dobjFor(TypeOnVague)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isTypeOnable)
+            if(!canTypeOnMe)
                illogical(cannotTypeOnMsg); 
         }
     }
@@ -6476,7 +6467,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [touchObj]
         verify() 
         { 
-            if(!isTypeOnable)
+            if(!canTypeOnMe)
                illogical(cannotTypeOnMsg); 
         }
     }
@@ -6484,14 +6475,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTypeOnMsg = BMsg(cannot type on, '{I} {can\'t} type anything on {the
         dobj}. ')
     
-    isEnterOnable = nil
+    canEnterOnMe = nil
     
     dobjFor(EnterOn)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isEnterOnable)
+            if(!canEnterOnMe)
                illogical(cannotEnterOnMsg); 
         }
     }
@@ -6500,14 +6491,14 @@ class Thing:  ReplaceRedirector, Mentionable
         {the dobj}. ')
     
     
-    isWriteOnable = nil
+    canWriteOnMe = nil
     
     dobjFor(WriteOn)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isWriteOnable)
+            if(!canWriteOnMe)
                illogical(cannotWriteOnMsg); 
         }        
         
@@ -6865,7 +6856,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [touchObj]
         verify() 
         {  
-            if(!isGoThroughable || destination == nil)
+            if(!canGoThroughMe || destination == nil)
                 illogical(cannotPushThroughMsg);
         }
         
@@ -7209,7 +7200,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             DMsg(gonear, '{I} {am} translated in the twinkling of an
                 eye...<.p>');
-            getOutermostRoom.travelVia(gActor);
+            moveInto(gActor);
         }
     }
     

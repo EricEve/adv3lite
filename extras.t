@@ -135,7 +135,7 @@ class Passage: TravelConnector, Thing
     
     dobjFor(Enter) asDobjFor(GoThrough)
     isFixed = true
-    isGoThroughable = true
+    canGoThroughMe = true
     PushTravelVia = PushTravelThrough
 ;
 
@@ -191,7 +191,7 @@ class Enterable: Fixture
  */
 class SecretDoor: Door
     /* You can only go through a SecretDoor when it's open */
-    isGoThroughable = isOpen
+    canGoThroughMe = isOpen
     
     /* A SecretDoor only functions as a TravelConnector when it's open */
     isConnectorListed = isOpen   
