@@ -1405,12 +1405,7 @@ class Thing:  ReplaceRedirector, Mentionable
     openStatusReportable = (isOpenable && isOpen)
     
     examineStatus()
-    {
-//        if(propType(&stateDesc) == TypeSString)
-//           say(stateDesc);
-//        else if(propType(&stateDesc) is in (TypeDString, TypeCode))
-//           stateDesc;
-        
+    {        
         display(&stateDesc);
         
         if(contType != Carrier && contentsListedInExamine)
@@ -1761,12 +1756,6 @@ class Thing:  ReplaceRedirector, Mentionable
         return totBulk;
     }
                           
-    
-    
-    
-    
-    
-    
     
        
     /* 
@@ -3344,16 +3333,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      theName, makeListStr(hiddenUnder), 
                      (hiddenUnder.length > 1 || hiddenUnder[1].plural) ?
                      'were' : 'was', himName);
-            
-            
-            
-//            foreach(local cur in hiddenUnder)
-//            {
-//                cur.moveInto(location);
-//                cur.noteSeen();
-//                hiddenUnder = [];                       
-//            }          
-            
+                     
             moveHidden(&hiddenUnder, location);
             
         }
@@ -3731,7 +3711,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-//    openingContainerMsg = 'Opening {the dobj} {dummy} {reveals} {1}. '
+
     okayOpenMsg = 'Opened.|{I} {open} {1}. '
     
     cannotOpenMsg = BMsg(cannot open, '{The subj dobj} {is} not something {i}
@@ -4113,9 +4093,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   be many things it makes no sense to try to look behind.
      */
     
-    canLookBehindMe = true
-    
-    
+    canLookBehindMe = true    
     
     dobjFor(LookBehind)
     {
@@ -4854,7 +4832,12 @@ class Thing:  ReplaceRedirector, Mentionable
     findPlausibleKey()
     {
       
-        useKey_ = nil;    
+        useKey_ = nil;   
+        
+        /* 
+         *   First see if the actor is holding a key that is known to work on
+         *   this object. If so, use it.
+         */
         foreach(local obj in gActor.contents)
         {
             if(obj.ofKind(Key) 
@@ -4865,6 +4848,11 @@ class Thing:  ReplaceRedirector, Mentionable
             }
         }
         
+        
+        /*  
+         *   Then see if the actor is holding a key that might plausibly work on
+         *   this object; if so, try that.
+         */
         foreach(local obj in gActor.contents)
         {
             if(obj.ofKind(Key) 
@@ -4875,7 +4863,11 @@ class Thing:  ReplaceRedirector, Mentionable
             }
         }
         
-        
+        /*  
+         *   If we haven't found a suitable key yet, check to see if the actor
+         *   is holding one that might fit our lexicalParent, if we have a
+         *   lexicalParent whose interior we're representing.
+         */
         if(useKey_ == nil)
         {
             if(lexicalParent != nil && lexicalParent.remapIn == self)
@@ -4883,26 +4875,27 @@ class Thing:  ReplaceRedirector, Mentionable
                 lexicalParent.findPlausibleKey();
                 useKey_ = lexicalParent.useKey_;
             }
-//            else
-//               say(notHoldingKeyMsg);
         }
-        else if(useKey_.actualLockList.indexOf(self) == nil)
+        
+        /*  
+         *   If we've found a possible key but it doesn't actually work on this
+         *   object, report that we're trying this key but it doesn't work.
+         */
+        if(useKey_ && useKey_.actualLockList.indexOf(self) == nil)
         {
             DMsg(with key, '(with {1})\n', useKey_.theName);
             say(keyDoesntWorkMsg);            
         }
         
     }
-    
-//    notHoldingKeyMsg = BMsg(not holding key,'{I} {don\'t have} the right key. ')
+  
     
     keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
         {doesn\'t work} on {the dobj}. ', useKey_.theName)
     
-    
-    
-    
     useKey_ = nil
+    
+    
     
     dobjFor(SwitchOn)
     {
@@ -6733,7 +6726,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnscrewWithSelfMsg = BMsg(cannot unscrew with self, '{I} {can\'t}
         unscrew {the iobj} with {itself iobj}. ')
     
-    viaMode = ''
+    
     
     verifyPushTravel(via)
     {
@@ -6749,6 +6742,8 @@ class Thing:  ReplaceRedirector, Mentionable
             illogicalSelf(cannotPushViaSelfMsg);
     }
         
+    viaMode = ''
+    
     cannotPushOwnContainerMsg = BMsg(cannot push own container, '{I} {can\'t}
         push {the dobj} anywhere while {he actor}{\'s} {1} {him dobj}. ',
                                      gDobj.objInPrep)
@@ -6756,6 +6751,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
         dobj} {1} {itself dobj}. ', viaMode.prep)
     
+    allowPushTravel = nil
     
     dobjFor(PushTravelDir)
     {
@@ -6797,7 +6793,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    allowPushTravel = nil
+    
    
       
     cannotPushTravelMsg()
@@ -7200,7 +7196,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             DMsg(gonear, '{I} {am} translated in the twinkling of an
                 eye...<.p>');
-            moveInto(gActor);
+            getOutermostRoom.travelVia(gActor);
         }
     }
     

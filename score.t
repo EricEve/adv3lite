@@ -255,9 +255,9 @@ scoreNotifier: object
                  *   appropriate 
                  */
                 if (everNotified)
-                    gLibMessages.scoreChange(delta);                    
+                    scoreChange(delta);                    
                 else
-                    gLibMessages.firstScoreChange(delta);
+                    firstScoreChange(delta);
             
                 /* 
                  *   note that we've ever generated a score change
@@ -277,7 +277,42 @@ scoreNotifier: object
              */
             lastScore = libScore.totalScore;
         }
+        
+        
     }
+    
+    /* score change - first notification */
+    firstScoreChange(delta)
+    {
+        scoreChange(delta);
+//        scoreChangeTip.showTip();
+    }
+
+    /* score change - notification other than the first time */
+    scoreChange(delta)
+    {
+        "<.notification><<
+        basicScoreChange(delta)>><./notification> ";
+    }
+
+    /*
+     *   basic score change notification message - this is an internal
+     *   service routine for scoreChange and firstScoreChange 
+     */
+    basicScoreChange(delta)
+    {
+        cquoteOutputFilter.deactivate();
+        
+        DMsg(basic score change,         
+        '''Your <<aHref(gLibMessages.commandFullScore, 'score', 'Show full score')>>
+        has just <<delta > 0 ? 'in' : 'de'>>creased by
+        <<spellNumber(delta > 0 ? delta : -delta)>>
+        point<<delta is in (1, -1) ? '' : 's'>>. ''');
+        
+        cquoteOutputFilter.activate();
+    }
+
+    
 
     /* 
      *   We won't use a PromptDaemon here in order to make this module
@@ -396,18 +431,36 @@ libScore: PreinitObject
          *   the message, depending on whether or not there's a maximum
          *   score value. 
          */
-        if (gameMain.maxScore != nil)
-            gLibMessages.showScoreMessage(totalScore,
-                                          gameMain.maxScore,
+        if (gameMain.maxScore != nil)                
+            showScoreMessage(totalScore, gameMain.maxScore,
                                           libGlobal.totalTurns);
         else
-            gLibMessages.showScoreNoMaxMessage(totalScore,
-                                               libGlobal.totalTurns);
+            showScoreNoMaxMessage(totalScore, libGlobal.totalTurns);
 
         /* show the score ranking */
         showScoreRank(totalScore);
+                
+
     }
 
+    /* show the basic score message */
+    showScoreMessage(points, maxPoints, turns)
+    {
+        DMsg(show score, 'In {1} turn<<turns == 1 ? '' : 's'>> you have scored 
+            {2} of a total {3} point<<maxPoints == 1 ? '' : 's'>>. ',
+        turns, points, maxPoints);
+    }
+    
+    
+    /* show the basic score message with no maximum */
+    showScoreNoMaxMessage(points, turns)
+    {
+        DMsg(show score no max, 'In {1} turn<<turns == 1 ? '' : 's'>> you have
+            scored {2} point<<points == 1 ? '' : 's'>>. ', turns, points);
+        
+    }
+    
+    
     /* 
      *   show the score rank message 
      */
@@ -432,9 +485,16 @@ libScore: PreinitObject
             idx = 1;
     
         /* show the description from the item we found */
-        gLibMessages.showScoreRankMessage(tab[idx][2]);
+        showScoreRankMessage(tab[idx][2]);
     }
 
+     /* show the full message for a given score rank string */
+    showScoreRankMessage(msg) 
+    { 
+        DMsg(show score rank, 'This makes you {1}. ', msg ); 
+    }
+    
+    
     /*
      *   Display the full score.  'explicit' is true if the player asked
      *   for the full score explicitly, as with a FULL SCORE command; if

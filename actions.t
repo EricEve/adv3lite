@@ -204,7 +204,15 @@ DefineSystemAction(Score)
             }
         }
         else
-            gLibMessages.scoreNotPresent;
+            /* this game doesn't use scoring */
+            scoreNotPresent(); 
+        
+    }
+    
+    scoreNotPresent()
+    {
+          DMsg(score not present, '<.parser>This story doesn&rsquo;t use
+               scoring.<./parser> ');            
     }
     
     mentionedFullScore = nil
@@ -227,7 +235,7 @@ DefineSystemAction(FullScore)
         if (libGlobal.scoreObj != nil)
             libGlobal.scoreObj.showFullScore();
         else
-            gLibMessages.scoreNotPresent;
+            Score.scoreNotPresent;
     }
    
 ;
@@ -318,10 +326,7 @@ DefineIAction(Inventory)
              *   paragraph break and then display it.
              */
             if(wornList.length > 0)
-            {
-//                local wList = wornLister.buildList(wornList);
-//                say(wList);
-                
+            {               
                 wornLister.show(wornList, 0, nil);
                 
                 /* 
@@ -394,21 +399,33 @@ DefineIAction(Yell)
 DefineIAction(Smell)
     execAction(cmd)
     {
+        /* 
+         *   Build a list of all the objects in scope that both (1) define a
+         *   non-nil smellDesc property and (2) whose isProminentSmell property
+         *   is true
+         */
         local s_list = Q.scopeList(gActor).toList.subset(
             {x: Q.canSmell(gActor,x) && x.propDefined(&smellDesc) && 
             x.propType(&smellDesc) != TypeNil && x.isProminentSmell});
         
+        /*  Obtain the corresponding list for remote rooms */
         local r_list = getRemoteSmellList();
         
-        if(s_list.length + r_list.length == 0)
+        /*  If both lists are empty report that there is nothing to smell */
+        if(s_list.length + r_list.length == 0)            
             DMsg(smell nothing, '{I} {smell} nothing out of the ordinary.<.p>');
         else
         {
+            /* 
+             *   Otherwise display the smellDesc of every item in our local
+             *   smell list
+             */
             foreach(local cur in s_list)
             {
                 cur.display(&smellDesc);               
             }
             
+            /* Then list any smells from remote locations */
             listRemoteSmells(r_list);
         }
     }
@@ -1281,34 +1298,71 @@ DefineTAction(Unplug)
 DefineTAction(PushTravelDir)
     execAction(cmd)
     {
+        /* Note whether travel is allowed. This can be adjusted by the dobj */
         travelAllowed = nil;
+        
+        /* Get the direction of travel from the command */
         direction = cmd.verbProd.dirMatch.dir;
+        
+        /* 
+         *   Carry out the inherited handling, including calling dobjFor(Travel)
+         *   on the dobj
+         */
         inherited(cmd);
+        
+        /* Proceed to carry out the travel if the dobj allows it */
         if(travelAllowed)
         {
+            /* Note the old location, which is the actor's current room. */ 
            local oldLoc = gActor.getOutermostRoom; 
+            
+           /*  
+            *   If the relevant direction property of the actor's current room
+            *   points to an object, then try pushing the dobj via that object
+            *   (e.g. up the stairs or through the door).
+            */ 
            if(oldLoc.propType(direction.dirProp) == TypeObject)
            {
+                /* Note the connector object in the relevant direstion */
                 local conn = oldLoc.(direction.dirProp);
                 
+                /*  
+                 *   If the connector object defines a PushTravelVia action,
+                 *   then replace the current action with that PushTravelVia
+                 *   action (e.g. PushTravelGoThrough or PushTravelClimbUp).
+                 */
                 if(conn.PushTravelVia)
                     replaceAction(conn.PushTravelVia, gDobj, conn);
                                
+                /* 
+                 *   Otherwise, if the travel barriers would not allow the dobj
+                 *   to pass, stop the action here.
+                 */
                 if(!conn.checkTravelBarriers(curDobj))
                 {                    
                     return;
                 }
+                
+            }
             
-           }
-           delegated TravelAction(cmd);
+            /* 
+             *   Carry out the standard handling of TravelAction to move the
+             *   actor in the appropriate direction
+             */ 
+            delegated TravelAction(cmd);
             
-           if(oldLoc != gActor.getOutermostRoom)
-           {
+            
+            /* 
+             *   If the actor has moved to a new location, move the dobj to that
+             *   location and report what's happened.
+             */
+            if(oldLoc != gActor.getOutermostRoom)
+            {
                 curDobj.moveInto(gActor.getOutermostRoom);
                 DMsg(push travel, '{I} {push} {the dobj} into {1}. ',
                      gActor.getOutermostRoom.name != nil ?
                      gActor.getOutermostRoom.theName : 'the area');
-           }
+            }
         }
     }
     

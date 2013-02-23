@@ -3635,55 +3635,9 @@ libMessages: object
         restored.<./parser> ";
     }
 
-     /* show the basic score message */
-    showScoreMessage(points, maxPoints, turns)
-    {
-        "In <<turns>> move<<turns == 1 ? '' : 's'>>, you have
-        scored <<points>> of a possible <<maxPoints>> point<<
-          maxPoints == 1 ? '' : 's'>>. ";
-    }
-
-    /* show the basic score message with no maximum */
-    showScoreNoMaxMessage(points, turns)
-    {
-        "In <<turns>> move<<turns == 1 ? '' : 's'>>, you have
-        scored <<points>> point<<points == 1 ? '' : 's'>>. ";
-    }
-
-    /* show the full message for a given score rank string */
-    showScoreRankMessage(msg) { "This makes you <<msg>>. "; }
-
+   
     
-   /* score change - first notification */
-    firstScoreChange(delta)
-    {
-        scoreChange(delta);
-//        scoreChangeTip.showTip();
-    }
-
-    /* score change - notification other than the first time */
-    scoreChange(delta)
-    {
-        "<.notification><<
-        basicScoreChange(delta)>><./notification> ";
-    }
-
-    /*
-     *   basic score change notification message - this is an internal
-     *   service routine for scoreChange and firstScoreChange 
-     */
-    basicScoreChange(delta)
-    {
-        cquoteOutputFilter.deactivate();
-        
-        "Your <<aHref(commandFullScore, 'score', 'Show full score')>>
-        has just <<delta > 0 ? 'in' : 'de'>>creased by
-        <<spellNumber(delta > 0 ? delta : -delta)>>
-        point<<delta is in (1, -1) ? '' : 's'>>.";
-        
-        cquoteOutputFilter.activate();
-    }
-
+   
        
      /* show the current score notify status */
     showNotifyStatus(stat)
@@ -3706,9 +3660,7 @@ libMessages: object
     commandNotPresent = "<.parser>That command isn&rsquo;t needed
                          in this story.<./parser> "
 
-    /* this game doesn't use scoring */
-    scoreNotPresent = "<.parser>This story doesn&rsquo;t use
-                       scoring.<./parser> "
+    
 
     /* mention the FULL SCORE command */
     mentionFullScore()

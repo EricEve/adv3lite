@@ -398,17 +398,7 @@ class Door: TravelConnector, Thing
             otherSide.isLocked = stat;
     }
     
-//    travelVia(actor, suppressBeforeNotifications?)
-//    {
-//        if(!isOpen)
-//        {
-//            tryImplicitAction(Open, self);
-//            "<<gAction.buildImplicitActionAnnouncement(true)>>";
-//        }
-//        
-//        inherited(actor, suppressBeforeNotifications);
-//    }
-    
+ 
     execTravel(actor)
     {
         
@@ -488,7 +478,6 @@ class Door: TravelConnector, Thing
     
     dobjFor(GoThrough)
     {
-//        verify() { logical; }
         action() { travelVia(gActor); }
     }
     

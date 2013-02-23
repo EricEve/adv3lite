@@ -387,6 +387,11 @@ dictionary property noun, nounApostS;
 #define askForDobj(action)  askMissingObject(action, DirectObject)
 #define askForIobj(action)  askMissingObject(action, IndirectObject)
 
+/*  Convenience macros for synthesizing travel in a given compass direction */
+
+#define goInstead(dirn) doInstead(Go, dirn##Dir)
+#define goNested(dirn) goNested(Go, dirn##Dir)
+
 
 ///*
 // *   "Remap" an action.  This effectively rewrites the action in the given

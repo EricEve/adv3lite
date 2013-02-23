@@ -1,0 +1,2848 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Action Reference</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt;
+Source
+<br><span class="navnp"><a class="nav" href="actionref.htm"><i>Prev:</i> ActionReference</a> &nbsp;&nbsp;&nbsp; <i>Next:</i> <a class="nav" href="actionref.htm">ActionReference</a> &nbsp;&nbsp;&nbsp;</span>
+
+</div>
+<div class="main">
+<h1>Source Reference</h1>
+
+<p>This file contains <em>extracts</em> from various library source files, intended for reference from the <a href="actionref.htm">Action Reference</a>. It is not a complete listing. For complete listings please see the actual source files.</p>
+
+ <p><div class="code"><pre>
+<h2>action.t</h2>
+/* 
+ *   A <a name="TravelAction">TravelAction</a> is one that moves (or at least tries to move) the player
+ *   character from one place to another via a command like GO NORTH, or EAST.
+ */
+
+class TravelAction: Action
+    
+    baseActionClass = TravelAction
+    
+    <span class="comment">/* 
+     *   Use the inherited handling but first make a note of the direction the
+     *   actor wants to travel in.
+     */</span>
+    execCycle(cmd)
+    {
+        <span class="comment">/* 
+         *   Obtain the direction from the verbProd of the current command
+         *   object, unless this TravelAction already defines its direction
+         */</span>
+        if(!predefinedDirection)
+           direction = cmd.verbProd.dirMatch.dir; 
+        
+        IfDebug(actions, 
+                    &quot;[Executing &lt;&lt;actionTab.symbolToVal(baseActionClass)&gt;&gt; 
+                    &lt;&lt;direction.name&gt;&gt;]\n&quot; );
+        
+        <span class="comment">/* Carry out the inherited handling. */</span>
+        inherited(cmd);
+    }
+    
+    
+    <span class="comment">/* 
+     *   Does this TravelAction already define a set direction on its direction
+     *   property (so we don't need to look to what direction object the command
+     *   refers)?
+     */</span>
+    predefinedDirection = nil
+    
+    <span class="comment">/* 
+     *   Execute the travel command, first carrying out any implicit actions
+     *   needed to facilitate travel
+     */</span>
+    
+    execAction(cmd)
+    {        
+        
+        <span class="comment">/* 
+         *   If the actor is not directly in the room, treat OUT as a request to
+         *   get out of the immediate container.
+         */</span>
+        if(!gActor.location.ofKind(Room) &amp;&amp; direction == outDir)
+        {
+            replaceAction(GetOff, gActor.location);
+            return;
+        }
+             
+        <span class="comment">/* 
+         *   If the actor is not directly in the room, make him/her get out of
+         *   his immediate container(s) before attempting travel.
+         */</span>
+        
+        while(!gActor.location.ofKind(Room))
+        {
+           <span class="comment"> /* Note the actor's current location. */</span>
+            local loc = gActor.location;
+            
+            <span class="comment">/* 
+             *   Try to get the actor out of his/her current location with an
+             *   implicit action.
+             */</span>
+            tryImplicitAction(GetOff, loc);
+            
+            <span class="comment">/* Note and if necessary display the implicit action report. */</span>
+            &quot;&lt;&lt;buildImplicitActionAnnouncement(true)&gt;&gt;&quot;;
+            
+            
+           <span class="comment"> /*
+             *   if the command didn't work, quit the loop or we'll be stuck in
+             *   it forever.
+             */</span>
+            if(gActor.location == loc)
+                exit;
+            
+        }
+        
+        <span class="comment">/* 
+         *   Note and if necessary display any other implicit action reports
+         *   that may have been generated prior to executing this action.
+         */</span>
+        &quot;&lt;&lt;buildImplicitActionAnnouncement(true)&gt;&gt;&quot;;
+              
+        <span class="comment">/* Carry out the actual travel. */</span>
+        doTravel();
+    }
+    
+    <span class="comment"><a name="TravelAction:doTravel">/*</a> 
+     *   Carry out travel in direction. For this purpose we first have to define
+     *   what the corresponding direction property of the actor's current
+     *   location refers to. If it's nil, no travel is possible, and we simply
+     *   display a refusal message. If it's an object we execute its travelVia()
+     *   method for the current actor. If it's a double-quoted string or a
+     *   method we execute it and make a note of where the actor ends up, if the
+     *   actor is the player character. If it's a single-quoted string we
+     *   display it.
+     *
+     *   Note that we only display the various messages announcing failure of
+     *   travel if the actor is the player character. We presumably don't want
+     *   to see these messages as the result of NPCs trying to move around the
+     *   map.
+     */</span>
+    
+    doTravel()
+    {
+        <span class="comment">/* Note the actor's current location. */</span>
+        local loc = gActor.getOutermostRoom;
+        local conn;
+        
+        <span class="comment">/* 
+         *   Note whether the current location is located, or whether it permits
+         *   travel in the dark (in which case we treat it as illuminated for
+         *   the purposes of allowing travel).
+         */</span>
+        local illum = loc.allowDarkTravel || loc.isIlluminated;
+        
+        
+        <span class="comment">/* 
+         *   Find out what's attached to the direction property of the direction
+         *   in which the actor wants to travel and respond accordingly.
+         */</span>
+        switch (loc.propType(direction.dirProp))
+        {
+            <span class="comment">/* 
+             *   If there's nothing there, simply display the appropriate
+             *   message explaining that travel that way isn't possible.
+             */</span>
+        case TypeNil:
+            if(illum &amp;&amp; gActor == gPlayerChar)
+                loc.cannotGoThatWay(direction);
+            else if(gActor == gPlayerChar)
+                loc.cannotGoThatWayInDark(direction);            
+            break;
+            
+           <span class="comment"> /* 
+             *   If the direction property points to an object, assume it's some
+             *   kind of TravelConnector (which also includes Rooms and Doors)
+             *   and then attempt travel via that object.
+             */</span>
+        case TypeObject:     
+            <span class="comment">/* Note our connector */</span>
+            conn = loc.(direction.dirProp);
+            
+            <span class="comment">/* 
+             *   If the connector is apparent to the actor then attempt travel
+             *   via the connector.
+             */</span>
+            if(conn.isConnectorApparent)
+                conn.travelVia(gActor);
+            
+           <span class="comment"> /* 
+             *   Otherwise if there's light enough to travel and the actor is
+             *   the player character, display the standard can't travel message
+             *   (as if the connector wasn't there.
+             */</span>
+            else if(illum &amp;&amp; gActor == gPlayerChar)
+                loc.cannotGoThatWay(direction);
+            
+            <span class="comment">/* 
+             *   Otherwise if the actor is the player character, display the
+             *   standard message forbidding travel in the dark.
+             */</span>
+            else if(gActor == gPlayerChar)
+                loc.cannotGoThatWayInDark(direction);
+            break;       
+            
+            <span class="comment">/* 
+             *   If the direction property points to a double-quoted method or a
+             *   string, then provided the illumination is right, we display the
+             *   string or execute the method. Otherwise show the message saying
+             *   we can't travel that way in the dark.
+             */ </span>           
+        case TypeDString:
+        case TypeCode:
+            if(illum)
+            {
+                loc.(direction.dirProp);
+                
+                <span class="comment">/* 
+                 *   If we've just executed a method, it may have moved the
+                 *   actor to a new location, so if the actor is the player
+                 *   character note where the method took the actor to so that
+                 *   the pathfinder can find a route via this exit.
+                 */</span>
+                if(gActor == gPlayerChar)
+                    libGlobal.addExtraDestInfo(loc, direction,
+                                           gActor.getOutermostRoom);
+            }
+            else if(gActor == gPlayerChar)
+                loc.cannotGoThatWayInDark(direction);
+            break;
+            
+            <span class="comment">/* 
+             *   If the direction property points to a single-quoted string,
+             *   simply display the string if the illumination is sufficient,
+             *   otherwise display the message saying we can't go that way in
+             *   the dark. If the actor isn't the player character, do nothing.
+             */</span>
+        case TypeSString:
+            if(gActor == gPlayerChar)
+            {
+                conn = loc.(direction.dirProp);
+                if(illum)
+                {
+                    say(conn);
+                    libGlobal.addExtraDestInfo(loc, direction,
+                                               gActor.getOutermostRoom); 
+                }
+                else
+                    loc.cannotGoThatWayInDark(direction);
+            }    
+            break;
+            
+        }       
+    }
+    
+    <span class="comment">/* 
+     *   The direction the actor wants to travel in. This is placed here by the
+     *   execCycle method and takes the form of A Direction object, e.g.
+     *   northDir.
+     */</span>
+    direction = nil
+    
+    <span class="comment">/* It's generally possible to undo a travel command. */</span>
+    canUndo = true
+;
+</pre></div>
+
+<h2>actions.t</h2>
+
+ <p><div class="code"><pre>
+DefineSystemAction(<a name="Again">Again</a>)
+    
+    exec(cmd)
+    {
+        if((gameMain.againRepeatsParse &amp;&amp; libGlobal.lastCommandForAgain is in
+           ('',nil)) || (!gameMain.againRepeatsParse &amp;&amp; libGlobal.lastCommand is
+           in ('', nil)))
+        {
+            DMsg(no repeat, 'Sorry, there is no action available to repeat. ');
+        }
+        else if (gameMain.againRepeatsParse)
+        {
+            Parser.parse(libGlobal.lastCommandForAgain);
+        }
+        else
+        {
+            libGlobal.lastCommand.exec();
+        }
+    }
+    
+    clearForAgain()
+    {
+        libGlobal.lastAction = nil;
+        libGlobal.lastCommand = nil;
+    }
+    
+;
+
+</pre></div>
+
+ <p><div class="code"><pre>
+DefineIAction(<a name="Continue">Continue</a>)
+    execAction(cmd)
+    {
+        local path;
+        path = defined(pcRouteFinder) ? pcRouteFinder.cachedRoute : nil;
+        if(path == nil)
+        {
+            DMsg(no journey, '{I}{\'m} not going anywhere. ');
+        }
+        
+        local idx = path.indexWhich({x: x[2] == gActor.getOutermostRoom});
+        
+        if(idx == nil)
+        {
+            path = defined(pcRouteFinder) ?
+                pcRouteFinder.findPath(gActor.getOutermostRoom,
+                                       pcRouteFinder.currentDestination) : nil;
+            
+            if(path == nil)
+            {
+                DMsg(off route, '{I}{\'m} no longer on {my} route. Use the GO TO
+                    command to set up a new route. ');
+                return;
+            }
+            else
+                idx = 1;                
+        }
+        
+        if(idx == path.length)
+        {
+            DMsg(already there, '{I}{\'m} already there. ');
+            return;
+        }
+        
+        local dir = path[idx + 1][1];
+        
+        takeStep(dir, path[path.length][2]);
+        
+        
+    }
+    
+    takeStep(dir, dest)
+    {
+        DMsg(going dir, '(going {1})\n', dir.name);
+        
+        gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
+        
+        if(!gActor.isIn(dest))
+        {
+            local contMsg = BMsg(explain continue, 'To continue the journey
+                use the command
+                &lt;&lt;aHref('Continue','CONTINUE','Continue')&gt;&gt; or C. ');
+            htmlSay(contMsg);
+        }
+    }
+    
+;
+</pre></div>
+
+
+ <p><div class="code"><pre>
+DefineSystemAction(<a name="ExitsColour">ExitsColour</a>)
+    execAction(cmd)
+    {
+        if(gExitLister == nil)
+        {
+             DMsg(no exit lister, 'Sorry, that command is not available in this
+                game, since there\'s no exit lister. ');
+            return;
+        }
+        
+        if(cmd.verbProd.on_ != nil)
+        {
+            statuslineExitLister.highlightUnvisitedExits = 
+                (cmd.verbProd.on_ == 'on');
+            
+            DMsg(exit color onoff, 'Okay, colouring of unvisited exits is now
+                {1}.&lt;.p&gt;', cmd.verbProd.on_);
+        }
+        
+        if(cmd.verbProd.colour_ != nil)
+        {
+            statuslineExitLister.unvisitedExitColour = cmd.verbProd.colour_;
+            statuslineExitLister.highlightUnvisitedExits = true;
+            DMsg(exit color change, 'Okay, unvisited exits in the status line
+                will now be shown in {1}. ', cmd.verbProd.colour_);
+        }
+    }
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+DefineIAction(<a name="GoBack">GoBack</a>)
+    execAction(cmd)
+    {
+        local pathBack = nil;
+        
+        if(libGlobal.lastLoc == nil)
+        {
+            DMsg(nowhere back, '{I} {have} nowhere to go back to. ');
+            return;            
+        }
+        
+        pathBack = defined(routeFinder) ? 
+             routeFinder.findPath(gActor.getOutermostRoom,
+                libGlobal.lastLoc) : nil;
+               
+        
+        if(pathBack == nil)
+        {
+            DMsg(no way back, 'There{dummy}{\'s} no way back. ');
+            return;
+        }
+        
+        if(pathBack.length == 1)
+        {
+            DMsg(already there, '{I}{\'m} already there. ');
+            return;
+        }
+        
+        local dir = pathBack[2][1];
+        
+        DMsg(going dir, '(going {1})\n', dir.name);
+        
+        gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
+        
+    }
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+<a name="GoIn">GoIn</a>: <a href="#TravelAction">TravelAction</a>
+    direction = inDir
+    predefinedDirection = true
+;
+
+<a name="GoOut">GoOut</a>: <a href="#TravelAction">TravelAction</a>
+    direction = outDir
+    predefinedDirection = true
+    
+    execAction(cmd)
+    {
+        if(!gActor.location.ofKind(Room))
+            replaceAction(GetOff, gActor.location);
+        else
+        {
+            "&lt;&lt;buildImplicitActionAnnouncement(true)&gt;&gt;";
+            <a href="#TravelAction:doTravel">doTravel</a>();
+        }
+    }
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+<a name="Hello">Hello</a>: IAction
+    baseActionClass = Hello
+    
+    execAction(cmd)
+    {
+        <span class="comment">/* first build the scope list so we know which actors are in scope */</span>
+        buildScopeList();
+        
+        <span class="comment">/* 
+         *   if the pc isn't already talking to someone then this is an attempt
+         *   to engage a new interlocutor in conversation.
+         */</span>
+        if(gPlayerChar.currentInterlocutor == nil)
+        {
+            <span class="comment">/* 
+             *   Ascertain how many actors other than the player char are in
+             *   scope (and thus potentially greetable.
+             */</span>
+
+            local greetList = scopeList.subset(
+                    { x: x.ofKind(Actor) &amp;&amp; x != gPlayerChar });
+            
+            local greetCount = greetList.length;
+            
+            <span class="comment">/* If there are no other actors in scope, say so. */ </span>           
+            if(greetCount == 0)
+            {
+                DMsg(no one here, 'There{dummy}{\'s} no one {here} to talk to.
+                    ');
+            }
+            <span class="comment">/* 
+             *   Otherwise construct a list of all the actors in scope and greet
+             *   all of them (rather than asking the player to disambiguate -
+             *   after all the pc may have just said 'hello' to a room full of
+             *   people and there's no reason why they shouldn't all respond).
+             */</span>
+            else
+            {               
+                foreach(local greeted in greetList)
+                {
+                    curObj = greeted;
+                    greeted.sayHello();
+                }
+            }
+        }
+        <span class="comment">/* 
+         *   If the player char is currently talking to someone, say so and
+         *   carry out a repeat greeting.
+         */</span>
+        else
+        {
+            DMsg(already talking, '{I}{\'m} already talking to {1}. ',
+                 gPlayerChar.currentInterlocutor.theName);
+            
+            gPlayerChar.currentInterlocutor.sayHello();
+        }
+    }
+    
+    curObj = nil  
+;
+</pre></div>
+
+
+
+ <p><div class="code"><pre>
+class <a name="ImplicitConversationAction">ImplicitConversationAction</a>: TopicAction
+    execAction(cmd)
+    {
+        if(cmd.iobj == nil &amp;&amp; cmd.dobj != nil)
+        {
+            if(cmd.dobj.ofKind(ResolvedTopic))
+                topics = cmd.dobj.topicList;
+            else
+                topics = cmd.dobj;
+        }
+        else if (cmd.dobj == nil && cmd.iobj != nil)
+        {
+            if(cmd.iobj.ofKind(ResolvedTopic))
+                topics = cmd.iobj.topicList;
+            else
+                topics = cmd.iobj;
+        }
+        
+        if(gPlayerChar.currentInterlocutor == nil ||
+           !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
+            DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+        else
+        {
+            resolvePronouns();
+            curObj = gPlayerChar.currentInterlocutor;
+            gPlayerChar.currentInterlocutor.handleTopic(topicListProperty, 
+                topics);
+        }
+    }
+    
+    <span class="comment">/* 
+     *   This is a bit of a kludge to deal with the fact that the Parser doesn't
+     *   seem able to resolve pronouns within ResolvedTopics. We do it here
+     *   instead.
+     */</span>
+    
+    resolvePronouns()
+    {
+        local actor = gPlayerChar.currentInterlocutor;
+        for(local cur in topics, local i = 1;; ++i)
+        {
+            if(cur == Him &amp;&amp; actor.isHim)
+                topics[i] = actor;
+            
+            if(cur == Her &amp;&amp; actor.isHer)
+                topics[i] = actor;
+            
+            if(cur == It &amp;&amp; actor.isIt)
+                topics[i] = actor;
+        }
+    }
+    
+    
+    topicListProperty = nil
+    topics = nil
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+DefineIAction(<a name="Inventory">Inventory</a>)
+    execAction(cmd)
+    {
+        <span class="comment">/* 
+         *   If splitListing is true, we potentially need to display two lists,
+         *   one of what the actor is wearing and one of what the actor is
+         *   carrying.
+         */</span>
+        if(splitListing)
+        {
+            <span class="comment">/* Construct a list of what the actor is wearing */</span>
+            local wornList = gActor.contents.subset({o: o.wornBy == gActor });
+            
+            <span class="comment">/* Construst a list of what the actor is carrying */</span>
+            local carriedList = gActor.contents.subset({o: o.wornBy == nil });
+
+            <span class="comment">/* 
+             *   If anything is being worn, get a list of it minus the final
+             *   paragraph break and then display it.
+             */</span>
+            if(wornList.length &gt; 0)
+            {               
+                wornLister.show(wornList, 0, nil);
+                
+                <span class="comment">/* 
+                 *   If nothing is being carried, terminate the list with a full
+                 *   stop and a paragraph break.
+                 */</span>
+                if(carriedList.length == 0)
+                    &quot;.&lt;.p&gt;&quot;;
+                
+                <span class="comment">/*  
+                 *   Otherwise prepare to append the list of what's being
+                 *   carried.
+                 */</span>
+                else
+                    DMsg(inventory list conjunction, ', and \v');
+                
+            }
+            <span class="comment">/* 
+             *   If something's being carried or nothing's being worn, display
+             *   an inventory list of what's being carried. If nothing's being
+             *   worn or carried, this will display the &quot;You are empty-handed&quot;
+             *   message.
+             */</span>
+            if(carriedList.length &gt; 0 || wornList.length == 0)
+                inventoryLister.show(carriedList, 0);
+        }
+        else
+        {
+            inventoryLister.show(gActor.contents, 0);
+        }
+        
+       <span class="comment"> /* Mark eveything just listed as having been seen. */</span>
+        gActor.contents.forEach({x: x.<a href="#Thing:noteSeen">noteSeen</a>()});
+    }
+   
+    <span class="comment">/* Do we want separate lists of what's worn and what's carried? */</span>
+    splitListing = true
+;
+</pre></div>
+
+
+ <p><div class="code"><pre>
+DefineIAction(<a name="Listen">Listen</a>)
+    execAction(cmd)
+    {
+        local s_list = Q.scopeList(gActor).toList.subset(
+            {x: Q.canHear(gActor,x) &amp;&amp; x.propType(&amp;listenDesc) != TypeNil &amp;&amp;
+            x.isProminentNoise});
+        
+        local r_list = getRemoteSoundList();
+        
+        if(s_list.length + r_list.length == 0)
+            DMsg(hear nothing, '{I} {hear} nothing out of the ordinary.&lt;.p&gt;');
+        else
+        {
+            foreach(local cur in s_list)
+            {
+                cur.<a href="#Thing:display">display</a>(&amp;listenDesc);               
+            }
+            
+            listRemoteSounds(r_list);
+        }
+    }
+    
+    <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
+    getRemoteSoundList() { return []; }
+    
+    <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
+    listRemoteSounds(lst) { }
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+DefineTAction(<a name="PushTravelDir">PushTravelDir</a>)
+    execAction(cmd)
+    {
+        <span class="comment">/* Note whether travel is allowed. This can be adjusted by the dobj */</span>
+        travelAllowed = nil;
+        
+        <span class="comment">/* Get the direction of travel from the command */</span>
+        direction = cmd.verbProd.dirMatch.dir;
+        
+        <span class="comment">/* 
+         *   Carry out the inherited handling, including calling <a href="#Thing:PushTravelDir">dobjFor(PushTravelDir)</a>)
+         *   on the dobj
+         */</span>
+        inherited(cmd);
+        
+        <span class="comment">/* Proceed to carry out the travel if the dobj allows it */</span>
+        if(travelAllowed)
+        {
+            <span class="comment">/* Note the old location, which is the actor's current room. */</span> 
+           local oldLoc = gActor.getOutermostRoom; 
+            
+           <span class="comment">/*  
+            *   If the relevant direction property of the actor's current room
+            *   points to an object, then try pushing the dobj via that object
+            *   (e.g. up the stairs or through the door).
+            */</span> 
+           if(oldLoc.propType(direction.dirProp) == TypeObject)
+           {
+               <span class="comment"> /* Note the connector object in the relevant direstion */</span>
+                local conn = oldLoc.(direction.dirProp);
+                
+                <span class="comment">/*  
+                 *   If the connector object defines a PushTravelVia action,
+                 *   then replace the current action with that PushTravelVia
+                 *   action (e.g. PushTravelGoThrough or PushTravelClimbUp).
+                 */</span>
+                if(conn.PushTravelVia)
+                    replaceAction(conn.PushTravelVia, gDobj, conn);
+                               
+                <span class="comment">/* 
+                 *   Otherwise, if the travel barriers would not allow the dobj
+                 *   to pass, stop the action here.
+                 */</span>
+                if(!conn.checkTravelBarriers(curDobj))
+                {                    
+                    return;
+                }
+                
+            }
+            
+            <span class="comment">/* 
+             *   Carry out the standard handling of TravelAction to move the
+             *   actor in the appropriate direction
+             */ </span>
+            delegated <a href="#TravelAction">TravelAction</a>(cmd);
+            
+            
+           <span class="comment"> /* 
+             *   If the actor has moved to a new location, move the dobj to that
+             *   location and report what's happened.
+             */</span>
+            if(oldLoc != gActor.getOutermostRoom)
+            {
+                curDobj.<a href="#Thing:moveInto">moveInto</a>(gActor.getOutermostRoom);
+                DMsg(push travel, '{I} {push} {the dobj} into {1}. ',
+                     gActor.getOutermostRoom.name != nil ?
+                     gActor.getOutermostRoom.theName : 'the area');
+            }
+        }
+    }
+    
+    travelAllowed = nil
+    direction = nil
+    
+    doTravel() { delegated <a href="#TravelAction:doTravel">TravelAction</a>(); }
+;
+</pre></div>
+
+ <p><div class="code"><pre>
+DefineIAction(<a name="Smell">Smell</a>)
+    execAction(cmd)
+    {
+       <span class="comment"> /* 
+         *   Build a list of all the objects in scope that both (1) define a
+         *   non-nil smellDesc property and (2) whose isProminentSmell property
+         *   is true
+         */</span>
+        local s_list = Q.scopeList(gActor).toList.subset(
+            {x: Q.canSmell(gActor,x) && x.propDefined(&smellDesc) && 
+            x.propType(&smellDesc) != TypeNil && x.isProminentSmell});
+        
+       <span class="comment"> /*  Obtain the corresponding list for remote rooms */</span>
+        local r_list = getRemoteSmellList();
+        
+        <span class="comment">/*  If both lists are empty report that there is nothing to smell */</span>
+        if(s_list.length + r_list.length == 0)            
+            DMsg(smell nothing, '{I} {smell} nothing out of the ordinary.<.p>');
+        else
+        {
+            <span class="comment">/* 
+             *   Otherwise display the smellDesc of every item in our local
+             *   smell list
+             */</span>
+            foreach(local cur in s_list)
+            {
+                cur.<a href="#Thing:display">display</a>(&amp;smellDesc);               
+            }
+            
+            <span class="comment">/* Then list any smells from remote locations */</span>
+            listRemoteSmells(r_list);
+        }
+    }
+    
+    <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
+    getRemoteSmellList() { return []; }
+    
+    <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
+    listRemoteSmells(lst) { }
+;
+</pre></div>
+
+
+ <p><div class="code"><pre>
+<a name="Travel">Travel</a>: <a href="#TravelAction">TravelAction</a>
+    direction = (dirMatch.dir)
+;
+</pre></div>
+
+<h2>debug.t</h2>
+
+ <p><div class="code"><pre>
+DefineSystemAction(<a name="Debug">Debug</a>)
+    execAction(cmd)
+    {
+        gLiteral = cmd.dobj.name.toLower;
+        switch(gLiteral)
+        {
+        case 'messages':
+        case 'spelling':
+        case 'actions':
+        case 'doers':
+            DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
+            <span class="comment">/* Deliberately omit break to allow fallthrough */</span>
+        case 'status':
+            DebugCtl.status();
+            break;
+        case 'off':
+        case 'stop':    
+            foreach(local opt in DebugCtl.all)
+                DebugCtl.enabled[opt] = nil;
+            DebugCtl.status();
+            break;
+        default:
+            "That is not a valid option. The valid DEBUG options are DEBUG
+            MESSAGES, DEBUG SPELLING, DEBUG ACTIONS, DEBUG DOERS,
+            DEBUG OFF or DEBUG STOP (to turn off all options) or
+            just DEBUG by itself to break into the debugger. ";
+        }
+        
+    }
+;
+</pre></div>
+
+<h2>thing.t</h2>
+ <p><div class="code"><pre>
+class Thing:  ReplaceRedirector, Mentionable
+
+   
+    
+   <span class="comment"> <a name="Thing:checkInsert">/*</a>  
+     *   Check whether an item can be inserted into this object, or whether
+     *   doing so would either exceed the total bulk capacity of the object or
+     *   the maximum bulk allowed for a single item.
+     */</span>
+    checkInsert(obj)
+    {
+        gMessageParams(obj);
+        if(obj.bulk &gt; maxSingleBulk || obj.bulk &gt; bulkCapacity)
+            DMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
+                 objInPrep, theName);
+            
+        else if(obj.bulk &gt; bulkCapacity - <a href="#Thing:getBulkWithin">getBulkWithin</a>())
+            DMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
+                obj). ', objInPrep, theName);            
+    }
+    
+
+
+    <span class="comment">/* 
+     *   Attempt to display prop appropriately according to it data type
+     *   (single-quoted string, double-quoted string, integer or code )
+     */</span>
+    <a name="Thing:display">display</a>(prop)
+    {
+        switch(propType(prop))
+        {
+        case TypeSString:
+        case TypeInt:    
+            say(self.(prop));
+            break;
+        case TypeDString:
+        case TypeCode:
+            self.(prop);
+            break;
+        default:
+            /* do nothing */
+            break;
+        }
+    }
+
+    <a name="Thing:examineStatus">examineStatus</a>()
+    {        
+        <a href="#Thing:display">display</a>(&amp;stateDesc);
+        
+        if(contType != Carrier && contentsListedInExamine)
+        {          
+            <a href="#Thing:unmention">unmention</a>(contents);
+            listSubcontentsOf(self, examineLister);            
+        }           
+           
+    }
+    
+     <a href="Thing:getBulkWithin"><span class="comment">/*   Calculate the total bulk of the items contained within this object. */</span></a>
+    getBulkWithin()
+    {
+        local totalBulk = 0;
+        foreach(local cur in contents)
+            totalBulk += cur.bulk;
+        
+        return totalBulk;
+    }
+    
+    <span class="comment"><a name="Thing:getCarriedBulk">/*</a>  
+     *   Calculate the total bulk carried by an actor, which excludes the bulk
+     *   of any items currently worn.
+     */</span>
+    getCarriedBulk()
+    {
+        local totalBulk = 0;
+        foreach(local cur in contents)
+        {
+            if(cur.wornBy == nil)
+               totalBulk += cur.bulk;
+        }
+        
+        return totalBulk;
+    }
+    
+    <span class="comment">/* 
+     *   Basic <a name="Thing:moveInto">moveInto</a> for moving an object from one container to another by
+     *   program fiat.
+     */</span>
+    
+    moveInto(newCont)
+    {
+        if(location != nil)            
+            location.removeFromContents(self);
+               
+        location = newCont;
+               
+        if(location != nil)
+            location.addToContents(self);        
+    }
+    
+    <span class="comment">/* <a name="Thing:actionMoveInto">Move into generated by a user action</a>, which includes notifications */</span>
+    actionMoveInto(newCont)
+    {
+        if(location != nil)
+            location.notifyRemove(self);            
+        
+        if(newCont != nil)
+            newCont.notifyInsert(self); 
+        
+        moveInto(newCont);
+        
+        moved = true;
+        
+        if(Q.canSee(gPlayerChar, self))
+            <a href="#Thing:noteSeen">noteSeen</a>();
+    }
+    
+    
+    notifyRemove(obj) { }
+    notifyInsert(obj) { }
+    
+    
+
+    <span class="comment">/* <a name="Thing:noteSeen">Note that we've been seen</a> and where we were last seen */    </span>
+    noteSeen()
+    {
+        gPlayerChar.setHasSeen(self);
+        lastSeenAt = location;
+    }  
+    
+    <span class="comment">/*
+     *   Have we been seen?  This is set to true the first time the object
+     *   is described or listed in a room description or the description of
+     *   another object (such as LOOK IN this object's container).  
+     */</span>
+    seen = nil
+
+    <span class="comment">/*
+     *   The last location where the player character saw this object.
+     *   Whenever the object is described or listed in the description of a
+     *   room or another object, we set this to the object's location at
+     *   that time.  
+     */</span>
+    lastSeenAt = nil
+    
+    <span class="comment">/* 
+     *   <a name="Thing:unmention">Mark everything</a> item in lst as not mentioned , and carry on down the
+     *   containment tree marking the contents of every item in lst as not
+     *   mentioned.
+     */</span>
+    unmention(lst)
+    {
+        foreach(local obj in lst)
+        {
+            obj.mentioned = nil;
+            if(obj.contents.length > 0)
+                unmention(obj.contents);
+        }
+    }
+    
+   <span class="comment"> /********************************************
+     *   CLOSE
+     ********************************************/</span>
+    
+    <span class="comment">/* <a name="Thing:Close">By default something is closeable if it's openable</a> */</span>
+         
+    isCloseable = (isOpenable)
+    
+    dobjFor(Close)
+    {
+        preCond = [touchObj]
+        
+        remap()
+        {
+            if(!isOpenable &amp;&amp; remapIn != nil &amp;&amp; remapIn.isOpenable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        
+        verify()
+        {
+            if(!isCloseable)
+                illogical(cannotCloseMsg);
+            if(!isOpen)
+                illogicalNow(alreadyClosedMsg);
+            logical;
+        }
+           
+        
+        action()
+        {            
+            <a href="#Thing:makeOpen">makeOpen</a>(nil);
+        }
+        
+        report()
+        {
+            DMsg(report close, 'Done |{I} {close} &lt;&lt;theName&gt;&gt;. ');
+        }
+    }
+    
+    cannotCloseMsg = BMsg(not closeable, '{The subj dobj} {is} not something
+        that {can} be closed. ')
+    alreadyClosedMsg = BMsg(already closed,'{The subj dobj} {isn\'t} open. ')
+    
+    <span class="comment"> /********************************************
+     *   DOFF
+     ********************************************/</span>
+    
+    <span class="comment">/*<a name="Thing:Doff"> By default we assume</a> that something's doffable if it's wearable */</span>
+    isDoffable = (isWearable)
+    
+    dobjFor(Doff)
+    {
+        
+        verify()
+        {
+            if(wornBy != gActor)
+                illogicalNow(notWornMsg);
+                        
+            if(!isDoffable)
+                illogical(cannotDoffMsg);
+        }
+        
+        check()
+        {
+            <a href="#Thing:checkRoomToHold">checkRoomToHold</a>();
+        }
+        
+        action()  {   makeWorn(nil);  }
+        
+        report()
+        {
+            DMsg(okay doff, 'Okay, {I}{\'m} no longer wearing {1}. ', 
+                 gActionListStr);
+            
+        }
+    }
+    
+  
+    cannotDoffMsg = (cannotWearMsg)
+    
+    notWornMsg = BMsg(not worn, '{I}{\'m} not wearing {the dobj}. ')
+    
+    <span class="comment"> /********************************************
+     *   DROP
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:Drop">Drop</a>)
+    {
+        preCond = [objNotWorn]
+        
+        verify()
+        {
+            if(!isDirectlyIn(gActor))
+                illogicalNow(notHoldingMsg);
+            
+            else if(isFixed)
+                illogical(partOfYouMsg);
+            
+            else if(!isDroppable)
+                illogical(cannotDropMsg);
+            
+            logical;
+        }
+                
+        
+        action()
+        {           
+            <a href="#Thing:actionMoveInto">actionMoveInto</a>(gActor.location.dropLocation);
+        }
+        
+        report()
+        {
+            DMsg(report drop, 'Dropped. |{I} {drop} {1}. ', gActionListStr);            
+        }
+    }
+    
+    notHoldingMsg = BMsg(not holding, '{I} {amn\'t} holding {the dobj}. ')
+    partOfYouMsg = BMsg(part of me, '{The subj dobj} {is} part of {me}. ')
+    
+    <span class="comment">/* By default we can drop anything that's held */</span>
+    isDroppable = true
+    
+    cannotDropMsg = BMsg(cannot drop, '{The subj dobj} {can\'t} be dropped. ')
+    
+   <span class="comment"> /* The location in which something dropped in me should land. */</span>
+    dropLocation = self
+    
+    <span class="comment"> /********************************************
+     *   EXAMINE
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:Examine">Examine</a>)
+    {
+        preCond = [objVisible]
+        
+        verify() 
+        { 
+            if(isDecoration)
+                logicalRank(70);
+            else
+                logical; 
+        }
+        
+        check() { }
+        
+        action()
+        {
+            <a href="#Thing:display">display</a>(&amp;desc);
+            
+            <a href="#Thing:examineStatus">examineStatus</a>();
+            examined = true;
+            "\n";
+        }
+    }
+    
+    
+    <span class="comment"> /********************************************
+     *   GONEAR
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:GoNear">GoNear</a>)
+    {
+        verify()
+        {
+            if(getOutermostRoom == nil)
+                illogicalNow(cannotGoNearThereMsg);
+            
+            if(ofKind(Room))
+                logicalRank(120);
+        }
+        
+        action()
+        {
+            DMsg(gonear, '{I} {am} translated in the twinkling of an
+                eye...&lt;.p&gt;');
+            getOutermostRoom.travelVia(gActor);
+        }
+    }
+    
+     
+    
+    cannotGoNearThereMsg = BMsg(cannot go there, '{I} {can\'t} go there right
+        {now}. ')
+
+    <span class="comment"> /********************************************
+     *   GOTO
+     ********************************************/</span>
+    
+    
+    dobjFor(<a name="Thing:GoTo">GoTo</a>)
+    {
+        verify()
+        {
+            if(gActor.isIn(self))
+                illogicalNow(alreadyThereMsg);
+            
+            if(isIn(gActor.getOutermostRoom))
+                illogicalNow(alreadyPresentMsg);
+        }
+        
+        action()
+        {
+            local route = defined(pcRouteFinder) &amp;&amp; lastSeenAt != nil 
+                ? pcRouteFinder.findPath(
+                gActor.getOutermostRoom, lastSeenAt.getOutermostRoom) : nil;
+            
+            if(route == nil)
+                DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+            else if(route.length == 1)
+                DMsg(destination unknown, '{I} {don\'t know} how to reach
+                    {him dobj}.' );
+            else
+            {
+                local dir = route[2][1];
+                Continue.takeStep(dir, getOutermostRoom);               
+            }
+        }
+    }
+    
+    alreadyThereMsg = BMsg(already there, '{I}{\'m} already there. ')
+    alreadyPresentMsg = BMsg(already present, '{The subj dobj} {is} right
+        {here}. ')    
+        
+        
+    <span class="comment">/* 
+     *   The <a name="Thing:lockability">lockability</a> property determines whether this object is lockable and
+     *   if so how. The possible values are <strong>notLockable</strong>, <strong>lockableWithoutKey</strong>,
+     *   <strong>lockableWithKey</strong> and <strong>indirectLockable</strong>.
+     */</span>
+     
+    <span class="comment">/* 
+     *   Note: we don't use isLockable, because this is not a binary property;
+     *   there are different kings of lockability and defining an isLockable
+     *   property in addition would only confuse things and might break the
+     *   logic.
+     */</span>
+    
+    lockability = notLockable
+    
+    <span class="comment">/* Is this object currently locked */</span>
+    isLocked = nil
+    
+    <span class="comment">/* 
+     *   <a name="Thing:makeLocked">Make us locked or ublocked</a>. We define this as a method so that
+     *   subclasses such as Door can override to produce side effects (such as
+     *   locking or unlocking the other side).
+     */</span>
+    
+    makeLocked(stat)
+    {
+        isLocked = stat;
+    }    
+        
+    <span class="comment"> /********************************************
+     *   LOCK
+     ********************************************/</span>    
+        
+        
+    dobjFor(<a name="Thing:Lock">Lock</a>)
+    {
+        preCond = [objClosed, touchObj]
+        
+        remap()
+        {
+            if(<a href="#Thing:lockability">lockability</a> == notLockable &amp;&amp; remapIn != nil &amp;&amp;
+               remapIn.lockability != notLockable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(<a href="#Thing:lockability">lockability</a> == notLockable || lockability == nil)
+                illogical(notLockableMsg);
+            
+            if(lockability == indirectLockable)
+                implausible(indirectLockableMsg);
+            
+            if(lockability == lockableWithKey)
+            {
+                if(isLocked)
+                    illogicalNow(alreadyLockedMsg);
+                else
+                    logical;
+            }
+            
+        }
+        
+        check()
+        {
+            <span class="comment">/* 
+             *   if we need a key to be unlocked with, check whether the player
+             *   is holding a suitable one.
+             */</span>
+            if(lockability == lockableWithKey)
+            {
+                <a href="#Thing:findPlausibleKey">findPlausibleKey</a>();                
+            }
+               
+        }
+        
+        action()
+        {
+            if(useKey_ != nil)
+                DMsg(with key, '(with {1})\n', useKey_.theName);
+            else
+                askForIobj(LockWith);
+            
+            <a href="#Thing:makeLocked">makeLocked</a>(true);            
+            DMsg(report lock, okayLockMsg);
+        }
+    }
+    
+    okayLockMsg = 'Locked.|{I} {lock} {the dobj}. '
+    
+    <a name="Thing:findPlausibleKey">findPlausibleKey</a>()
+    {
+      
+        useKey_ = nil;    
+        
+       <span class="comment"> /* 
+         *   First see if the actor is holding a key that is known to work on
+         *   this object. If so, use it.
+         */</span>
+        foreach(local obj in gActor.contents)
+        {
+            if(obj.ofKind(Key) 
+               &amp;&amp; obj.knownLockList.indexOf(self) !=  nil)
+            {
+                useKey_ = obj;
+                return;
+            }
+        }
+        
+       <span class="comment"> /*  
+         *   Then see if the actor is holding a key that might plausibly work on
+         *   this object; if so, try that.
+         */</span>
+        foreach(local obj in gActor.contents)
+        {
+            if(obj.ofKind(Key) 
+               &amp;&amp; obj.plausibleLockList.indexOf(self) !=  nil)
+            {
+                useKey_ = obj;
+                break;
+            }
+        }
+        
+        <span class="comment">/*  
+         *   If we haven't found a suitable key yet, check to see if the actor
+         *   is holding one that might fit our lexicalParent, if we have a
+         *   lexicalParent whose interior we're representing.
+         *</span>/
+        if(useKey_ == nil)
+        {
+            if(lexicalParent != nil &amp;&amp; lexicalParent.remapIn == self)
+            {
+                lexicalParent.findPlausibleKey();
+                useKey_ = lexicalParent.useKey_;
+            }
+        }
+        
+        <span class="comment">/*  
+         *   If we've found a possible key but it doesn't actually work on this
+         *   object, report that we're trying this key but it doesn't work.
+         */</span>
+        if(useKey_ &amp;&amp; useKey_.actualLockList.indexOf(self) == nil)
+        {
+            DMsg(with key, '(with {1})\n', useKey_.theName);
+            say(keyDoesntWorkMsg);            
+        }
+        
+    }
+  
+    
+    keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
+        {doesn\'t work} on {the dobj}. ', useKey_.theName)
+    
+    useKey_ = nil
+        
+    <span class="comment"> /********************************************
+     *   LOCKWITH
+     ********************************************/</span>    
+        
+    dobjFor(<a name="Thing:LockWith">LockWith</a>)
+    {
+        preCond  = [objClosed, touchObj]
+        
+        remap()
+        {
+            if(<a href="#Thing:lockability">lockability</a> == notLockable && remapIn != nil &&
+               remapIn.lockability != notLockable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(lockability == notLockable || lockability == nil)
+                illogical(notLockableMsg);
+            
+            if(lockability == lockableWithoutKey)
+                implausible(keyNotNeededMsg);
+            
+            if(lockability == indirectLockable)
+                implausible(indirectLockableMsg);
+            
+            if(lockability == lockableWithKey)
+            {
+                if(isLocked)
+                   illogicalNow(alreadyLockedMsg);
+                else                    
+                    logical;
+            }
+        }
+        
+    }
+    
+    alreadyLockedMsg = BMsg(already locked, '{The subj dobj} {is} already
+        locked. ')
+    
+    
+    /* 
+     *   Usually, if something can be used to unlock things it can also be used
+     *   to lock them
+     */
+    canLockWithMe = (canUnlockWithMe)
+       
+    <span class="comment"> /********************************************
+     *   LOOKBEHIND
+     ********************************************/</span>    
+    
+    <span class="comment">/*   <a name="Thing:LookBehind"></a>
+     *   By default we make it possible to look behind things, but there could
+     *   be many things it makes no sense to try to look behind.
+     */</span>
+    
+    canLookBehindMe = true    
+    
+    dobjFor(LookBehind)
+    {
+        preCond = [objVisible, touchObj]
+        
+        verify()
+        {
+            if(!canLookBehindMe)
+                illogical(cannotLookBehindMsg);
+        }
+        
+        
+        action()
+        {
+            
+            local obj = remapBehind ?? self;
+            gMessageParams(obj);
+            
+            if(obj.contType == Behind)
+            {
+                
+                <span class="comment">/* 
+                 *   If there's anything hidden under us move it into us before
+                 *   doing anything else
+                 */</span>
+                if(obj.hiddenBehind.length &gt; 0)
+                {
+                    for(local item in obj.hiddenBehind)
+                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
+                    
+                    obj.hiddenBehind = [];
+                }
+                
+                if(obj.contents.length == 0)
+                    say(obj.lookBehindMsg);                
+                else
+                {
+                    obj.<a href="#Thing:unmention">unmention</a>(contents);
+                    if(gOutStream.watchForOutput(
+                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)                        
+                        say(obj.lookBehindMsg); 
+
+                }
+            }
+            else if(obj.hiddenBehind.length &gt; 0)            
+                obj.<a href="#Thing:findHiddenBehind">findHiddenBehind()</a>;               
+            else
+                say(obj.lookBehindMsg);           
+            
+            
+        }
+    }
+    
+    cannotLookBehindMsg = BMsg(cannot look behind, '{I} {can\'t} look behind
+        {that dobj}. ')
+    
+    lookBehindMsg = BMsg(look behind, '{I} {find} nothing behind {the
+        dobj}. ')
+    
+    
+     <span class="comment">/* 
+      *   <a name="Thing:findHiddenBehind">If</a> there's something hidden under the dobj but nowhere obvious to move
+      *   it to then by default we move everything from the hiddenUnder list to
+      *   the actor's inventory and announce that the actor has taken it. We
+      *   call this out as a separate method to make it easy to override if
+      *   desired.
+      */</span>
+    
+    findHiddenBehind()
+    {
+        DMsg(find behind, 'Behind {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest
+              == gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
+             makeListStr(hiddenBehind));
+        
+        foreach(local cur in hiddenBehind)
+        {
+            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
+            cur.<a href="#Thing:noteSeen">noteSeen</a>();
+        }
+        
+        hiddenBehind = [];
+    }
+   
+    <span class="comment">/* 
+     *   <a name="Thing:findHiddenDest">If</a>  the actor finds something in a hiddenPrep list and there's nowhere
+     *   obvious for it go, should he take it? By default the actor should take
+     *   it if the object he's found it in/under/behind is fixed in place.
+     */</span>
+    autoTakeOnFindHidden = (isFixed)
+    
+    <span class="comment">/*   
+     *   Where should an item that's been hidden in/under/behind something be
+     *   moved to when its found? If it's taken, move into the actor; otherwise
+     *   move it to the location of the object it's just been found
+     *   in/under/behind.
+     */</span>
+    findHiddenDest = (autoTakeOnFindHidden ? gActor : location)
+      
+    <span class="comment"> /********************************************
+     *   LOOKIN
+     ********************************************/</span>  
+      
+    dobjFor(<a name="Thing:LookIn">LookIn</a>)
+    {
+        preCond = [objVisible, containerOpen]
+        
+        remap()
+        {
+            if(contType != In &amp;&amp; remapIn != nil &amp;&amp; remapIn.contType == In)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        
+        verify()
+        {
+            if(contType == In)
+                logicalRank(120);
+            
+            if(remapIn != nil)
+                logicalRank(120);
+            
+            logical;
+        }
+        
+        action()
+        {
+            local obj = remapIn ?? self;
+            gMessageParams(obj);
+                       
+            if(obj.contType == In)
+            {
+            
+                /* 
+                 *   If there's anything hidden inside us move it into us before
+                 *   doing anything else
+                 */
+                if(obj.hiddenIn.length &gt; 0)
+                {
+                    for(local item in obj.hiddenIn)
+                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
+                    
+                    hiddenIn = [];
+                }
+                
+                if(obj.contents.length == 0)
+                    say(obj.lookInMsg);                    
+                else
+                {
+                    obj.<a href="#Thing:unmention">unmention</a>(contents);
+                    if(gOutStream.watchForOutput(
+                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
+                      say(obj.lookInMsg);  
+                    
+
+                }
+            }
+            else if(obj.hiddenIn.length &gt; 0)
+            {
+                obj.<a href="#Thing:findHiddenIn">findHiddenIn</a>();               
+            }            
+            else
+                say(obj.lookInMsg);
+        }
+        
+    }
+    
+    
+    
+    lookInMsg = BMsg(look in, '{I} {see} nothing interesting in {the
+        dobj}. ')
+    
+    
+    <span class="code">/* 
+     *   <a name="Thing:findHiddenIn">If there's</a> something hidden in the dobj but nowhere obvious to move it
+     *   to then by default we move everything from the hiddenIn list to the
+     *   actor's inventory and announce that the actor has taken it. We call
+     *   this out as a separate method to make it easy to override if desired.
+     */</span>
+    
+    findHiddenIn()
+    {
+        DMsg(find in, 'In {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest ==
+              gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
+             makeListStr(hiddenIn));
+        
+        foreach(local cur in hiddenIn)
+        {
+            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
+            cur.<a href="#Thing:noteSeen">noteSeen</a>();
+        }
+        
+        hiddenIn = [];
+    }
+
+    <span class="comment"> /********************************************
+     *   LOOKUNDER
+     ********************************************/</span>
+    
+    <span class="comment">/* 
+     *   We can <a name="Thing:LookUnder">look under</a> most things, but there are some things (houses, the
+     *   ground, sunlight) it might not make much sense to try looking under.
+     */</span>
+    canLookUnderMe = true
+        
+    
+    dobjFor(LookUnder)
+    {
+        preCond = [objVisible, touchObj]
+        
+        verify()
+        {
+            if(!canLookUnderMe)
+                illogical(cannotLookUnderMsg);       
+        }
+        
+        
+        action()
+        {            
+            local obj = remapUnder ?? self;
+            gMessageParams(obj);
+                       
+            if(obj.contType == Under)
+            {
+                
+               <span class="comment"> /* 
+                 *   If there's anything hidden under us move it into us before
+                 *   doing anything else
+                 */</span>
+                if(obj.hiddenUnder.length &gt; 0)
+                {
+                    for(local item in obj.hiddenUnder)
+                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
+                    
+                    obj.hiddenUnder = [];
+                }
+                
+                if(obj.contents.length == 0)
+                    say(obj.lookUnderMsg);                
+                else
+                {
+                    obj.<a href="#Thing:unmention">unmention</a>(contents);
+                    if(gOutStream.watchForOutput(
+                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
+                        say(obj.lookUnderMsg);  
+                    
+                }
+            }
+            else if(obj.hiddenUnder.length &gt; 0)            
+                obj.<a href="#Thing:findHiddenUnder">findHiddenUnder</a>();               
+            else
+                say(obj.lookUnderMsg);           
+            
+        }
+    }
+    
+    cannotLookUnderMsg = BMsg(cannot look under, '{I} {can\'t} look under {that
+        dobj}. ')
+    
+    lookUnderMsg = BMsg(look under, '{I} {find} nothing of interest under
+        {the dobj}. ')
+    
+     <span class="comment">/* 
+      *   If there's something <a name="Thing:findHiddenUnder">hidden under</a> the dobj but nowhere obvious to move
+      *   it to then by default we move everything from the hiddenUnder list to
+      *   the actor's inventory and announce that the actor has taken it. We
+      *   call this out as a separate method to make it easy to override if
+      *   desired.
+      */</span>
+    
+    findHiddenUnder()
+    {
+        DMsg(find under, 'Under {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest ==
+              gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
+             makeListStr(hiddenUnder));
+        
+        foreach(local cur in hiddenUnder)
+        {
+            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
+            cur.<a href="#Thing:noteSeen">noteSeen</a>();
+        }
+        
+        hiddenUnder = [];
+    }
+    
+    
+    <span class="comment"> /********************************************
+     *   OPEN
+     ********************************************/</span>
+     
+    <span class="comment">/* 
+     *   Is this object openable. If this property is set to true then this
+     *   object can be open and closed via the OPEN and CLOSE commands. Note
+     *   that setting this property to true also automatically makes the
+     *   OpenClosed State apply to this object, so that it can be referred to as
+     *   'open' or 'closed' accordingly.
+     */</span>
+    isOpenable = nil
+    
+    <span class="comment">/* 
+     *   Is this object open. By default we'll make Things open so that their
+     *   interiors (if they have any) are accessible, unless they're openable,
+     *   in which case we'll assume they start out closed.
+     */</span>
+    isOpen = (!isOpenable)
+    
+    <span class="comment">/* 
+     *   <a name="Thing:makeOpen">Make us open or closed</a>. We define this as a method so that subclasses
+     *   such as Door can override to produce side effects (such as opening or
+     *   closing the other side).
+     */</span>
+    
+    makeOpen(stat)
+    {
+        isOpen = stat;
+    }
+    
+    dobjFor(<a name="Thing:Open">Open</a>)
+    {
+        
+        preCond = [touchObj]
+        
+        remap()
+        {
+            if(!isOpenable &amp;&amp; remapIn != nil &amp;&amp; remapIn.isOpenable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(isOpenable == nil)
+                illogical(cannotOpenMsg);
+            
+            if(isOpen)
+                illogicalNow(alreadyOpenMsg);
+            
+            logical;                          
+        }
+        
+        check()
+        {
+            if(isLocked)
+                say(lockedMsg);
+        }
+        
+        action()
+        {
+            <a href="#Thing:makeOpen">makeOpen</a>(true);
+            if(!gAction.isImplicit)
+            {              
+                <a href="#Thing:unmention">unmention</a>(contents);
+                listSubcontentsOf(self, openingContentsLister);
+            }           
+        }
+        
+        report()
+        {
+            DMsg(okay open, okayOpenMsg, gActionListStr);
+        }
+    }
+    
+
+    okayOpenMsg = 'Opened.|{I} {open} {1}. '
+    
+    cannotOpenMsg = BMsg(cannot open, '{The subj dobj} {is} not something {i}
+        {can} open. ')
+    alreadyOpenMsg = BMsg(already open, '{The subj dobj} {is} already open. ')
+    lockedMsg = BMsg(locked, '{The subj dobj} {is} locked. ')
+ 
+   
+    
+    <span class="comment"> /********************************************
+     *   PUSH TRAVEL
+     ********************************************/</span>
+    
+    <a name="Thing:verifyPushTravel">verifyPushTravel</a>(via)
+    {
+        viaMode = via;
+        
+        if(!allowPushTravel)
+            illogical(cannotPushTravelMsg);
+        
+        if(gActor.isIn(self))
+            illogicalNow(cannotPushOwnContainerMsg);
+        
+        if(gIobj == self)
+            illogicalSelf(cannotPushViaSelfMsg);
+    }
+        
+    viaMode = ''
+    
+    cannotPushOwnContainerMsg = BMsg(cannot push own container, '{I} {can\'t}
+        push {the dobj} anywhere while {he actor}{\'s} {1} {him dobj}. ',
+                                     gDobj.objInPrep)
+    
+    cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
+        dobj} {1} {itself dobj}. ', viaMode.prep)
+    
+    allowPushTravel = nil
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELDIR
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:PushTravelDir">PushTravelDir</a>)
+    {
+        preCond = [touchObj]
+        
+        verify()  {  <a href="#Thing:verifyPushTravel">verifyPushTravel</a>('');  }
+        
+        
+        action()
+        {
+            gAction.travelAllowed = true;
+            
+            <a href="#Thing:pushTravelRevealItems">pushTravelRevealItems</a>();            
+        }
+    }
+    
+    <a name="Thing:pushTravelRevealItems">pushTravelRevealItems</a>()
+    {
+        <span class="comment">/* 
+         *   Check whether moving this object revealed any items hidden behind
+         *   or beneath it (even if we don't succeed in pushing the object to
+         *   another room we can presumably move it far enough across its
+         *   current one to reveal any items it was concealing.
+         */</span>
+        revealOnMove();
+        
+        <span class="comment">/* 
+         *   If moving this item did reveal any hidden items, we want to see the
+         *   report of them now, before moving to another location./
+         */</span>
+        
+        gCommand.afterReport();
+        
+        <span class="comment">/* 
+         *   We don't want to see these reports again at the end of the action,
+         *   so clear the list.
+         */</span>
+        gCommand.afterReports = [];   
+    }
+    
+      
+    cannotPushTravelMsg()
+    {
+        if(isFixed)
+            return cannotTakeMsg;
+        return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
+            push {that dobj} anywhere. ');
+    }
+    
+    <span class="comment">/*<a name="Thing:checkPushTravel"> Check the travel barriers</a> on the indirect object of the action */</span>
+    checkPushTravel()
+    {
+        checkTravelBarriers(gDobj);
+        checkTravelBarriers(gActor);
+    }
+    
+    <span class="comment">/*  Carry out the <a name="Thing:doPushTravel">push travel</a> on the direct object of the action. */</span>
+    doPushTravel(via)
+    {
+        <span class="comment">/* 
+         *   Check whether moving this object revealed any items hidden behind
+         *   or beneath it (even if we don't succeed in pushing the object to
+         *   another room we can presumably move it far enough across its
+         *   current one to reveal any items it was concealing.
+         */</span>
+        pushTravelRevealItems();       
+                        
+        gIobj.travelVia(gDobj);
+        
+        <span class="comment">/* 
+         *   The travel of the object being pushed might fail, e.g. if we're
+         *   trying to push it through a locked door, so we only complete the
+         *   travel and report on it if the object being pushed arrives at its
+         *   destination.
+         */</span>
+        if(location == gIobj.destination)
+        {
+            DMsg(push travel somewhere, '{I} {push} {the dobj} {1} {the iobj}. ',
+                 via.prep);        
+            gIobj.travelVia(gActor);
+        }       
+        
+    }
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELTHROUGH
+     ********************************************/</span>
+   
+    
+    dobjFor(<a name="Thing:PushTravelThrough">PushTravelThrough</a>)    
+    {
+        preCond = [touchObj]
+        verify()   {   <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(Through);   }
+        
+        action() { <a href="#Thing:doPushTravel">doPushTravel</a>(Through); }
+    }
+    
+    iobjFor(PushTravelThrough)
+    {
+        preCond = [touchObj]
+        verify() 
+        {  
+            if(!canGoThroughMe || destination == nil)
+                illogical(cannotPushThroughMsg);
+        }
+        
+        check() { <a href="#Thing:checkPushTravel">checkPushTravel</a>(); }
+                
+        
+    }
+    
+    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {push}
+        anything through {the iobj}. ')
+    
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELENTER
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:PushTravelEnter">PushTravelEnter</a>)
+    {
+        preCond = [touchObj]
+        verify()  {  <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(Into);  }        
+        
+    }
+    
+    okayPushIntoMsg = BMsg(okay push into, '{I} {push} {the dobj} into {the
+        iobj}. ')
+    
+    iobjFor(PushTravelEnter)
+    {
+        preCond = [containerOpen]
+        verify() 
+        {  
+            if(!isEnterable)
+                illogical(cannotPushIntoMsg);
+        }
+        
+        check() 
+        {             
+            checkInsert(gActor);            
+            checkInsert(gDobj);
+        }    
+        
+        action() 
+        {
+            gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+            gActor.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+            if(gDobj.isIn(self))
+                say(okayPushIntoMsg);
+        }
+    }
+    
+    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {push}
+        anything into {the iobj}. ')
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELGETOUTOF
+     ********************************************/</span>
+    
+    
+    dobjFor(<a name="Thing:PushTravelGetOutOf">PushTravelGetOutOf</a>)
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(OutOf);
+            if(!self.isIn(gIobj))
+                illogicalNow(notInMsg);
+        }
+        
+        
+        
+    }
+    
+    
+    iobjFor(PushTravelGetOutOf)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!gActor.isIn(self))
+                illogicalNow(actorNotInMsg);   
+            
+        }
+        
+        action()
+        {
+            gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(location);
+            if(gDobj.location ==  location)
+            {
+                say(okayPushOutOfMsg);
+                gActor.<a href="#Thing:actionMoveInto">actionMoveInto</a>(location);
+            }
+        }
+       
+    }
+    
+    okayPushOutOfMsg = BMsg(okay push out of, '{I} {push} {the dobj} {outof
+        iobj}. ')
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELCLIMBUP
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:PushTravelClimbUp">PushTravelClimbUp</a>)
+    {
+        preCond = [touchObj]
+        verify()  {  <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(Up);  }
+        
+        action() { <a href="#Thing:doPushTravel">doPushTravel</a>(Up); }
+    }
+    
+    iobjFor(PushTravelClimbUp)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!isClimbable || destination == nil)
+                illogical(cannotPushUpMsg);
+        }
+        
+        check() { <a href="#Thing:checkPushTravel">checkPushTravel</a>(); }
+    }
+    
+    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {push}
+        anything up {the iobj}. ')
+    
+    
+    <span class="comment"> /********************************************
+     *   PUSHTRAVELCLIMBDOWN
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:PushTravelClimbDown">PushTravelClimbDown</a>)
+    {
+        preCond = [touchObj]
+        verify()  { <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(Down);  }
+        
+        action() { <a href="#Thing:doPushTravel">doPushTravel</a>(Down); }
+    }
+    
+    iobjFor(PushTravelClimbDown)
+    {
+        preCond = [touchObj]
+        
+        verify() 
+        {  
+            if(!isClimbDownable || destination == nil)
+                illogical(cannotPushThroughMsg);
+        }
+        
+        check() { <a href="#Thing:checkPushTravel">checkPushTravel</a>(); }
+    }
+    
+    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} {push}
+        anything down {the iobj}. ')
+    
+    <span class="comment"> /********************************************
+     *   PUTBEHIND
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:dobjPutBehind">PutBehind</a>)
+    {
+        preCond = [objHeld, objNotWorn]
+        
+        verify()
+        {
+            if(gIobj != nil &amp;&amp; self == gIobj)
+                illogicalSelf(cannotPutInSelfMsg);     
+            
+            if(isFixed)
+                illogical(cannotTakeMsg);
+            
+            if(gIobj != nil &amp;&amp; (isDirectlyIn(gIobj)))
+                illogicalNow(alreadyInMsg);
+            
+            if(gIobj != nil &amp;&amp; gIobj.isIn(self))
+                illogicalNow(circularlyInMsg);           
+            
+                         
+            logical;           
+        }
+        
+        action()
+        {
+            <span class="comment">/* Handled by iobj */</span>
+        }
+        
+        report()
+        {
+            DMsg(report put behind, '{I} {put} {1} behind {the iobj}. ', 
+                 gActionListStr);
+        }
+        
+            
+    }
+    
+    iobjFor(<a name="Thing:iobjPutBehind">PutBehind</a>)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!canPutBehindMe)
+                illogical(cannotPutBehindMsg);
+            else
+                logical;
+        }
+        
+        check() 
+        { 
+            if(contType == Behind)
+                <a href="#Thing:checkInsert">checkInsert</a>(gDobj);
+             else if(gDobj.bulk &gt; maxBulkHiddenBehind - getBulkHiddenBehind)
+                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                    dobj} behind {the iobj}. ');    
+        }
+        
+        action()
+        {
+            if(contType == Behind)
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+            else
+            {
+                hiddenBehind += gDobj;
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(nil);
+            }
+        }
+        
+        
+    }   
+    
+    cannotPutBehindMsg = BMsg(cannot put behind, '{I} {cannot} put anything
+        behind {the iobj}. ')
+    
+    
+    
+    <span class="comment"> /********************************************
+     *   PUTIN
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:dobjPutIn">PutIn</a>)
+    {
+        preCond = [objHeld, objNotWorn]
+        
+        verify()
+        {
+            if(gIobj != nil &amp;&amp; self == gIobj)
+                illogicalSelf(cannotPutInSelfMsg);   
+            
+            if(isFixed)
+                illogical(cannotTakeMsg);
+            
+            if(gIobj != nil &amp;&amp; isDirectlyIn(gIobj))
+                illogicalNow(alreadyInMsg);
+            
+            if(gIobj != nil &amp;&amp; gIobj.isIn(self))
+                illogicalNow(circularlyInMsg);    
+            
+            
+            
+            logical;
+        }
+        
+              
+        action()
+        {                     
+            <span class="comment">/* handled on iobj */</span>                          
+        }
+        
+        report()
+        {
+            DMsg(report put in, '{I} {put} {1} in {the iobj}. ', gActionListStr);            
+        }
+    }
+    
+    
+        
+    iobjFor(<a name="Thing:iobjPutIn">PutIn</a>)
+    {
+        preCond = [containerOpen, touchObj]
+        
+        remap()
+        {
+            if(contType != In && remapIn != nil)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(!canPutInMe)
+                illogical(cannotPutInMsg);
+            
+            logical;
+        }
+        
+        check()
+        {
+            if(contType == In)
+               <a href="#Thing:checkInsert">checkInsert</a>(gDobj);
+            else if(gDobj.bulk &gt; maxBulkHiddenIn - getBulkHiddenIn)
+                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                    dobj} in {the iobj}. ');            
+        }
+        
+        action()
+        {
+            if(contType == In)
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+            else
+            {
+                hiddenIn += gDobj;
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(nil);
+            }  
+        }      
+    
+    }
+    
+    cannotPutInMsg = BMsg(cannot put in, '{I} {can\'t} put anything in {the
+        iobj}. ')
+    
+    
+    <span class="comment"> /********************************************
+     *   PUTON
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:dobjPutOn">PutOn</a>)
+    {
+        preCond = [objHeld, objNotWorn]
+        
+        verify()
+        {
+            if(gIobj != nil &amp;&amp; self == gIobj)
+                illogicalSelf(cannotPutInSelfMsg);  
+            
+            if(isFixed)
+                illogical(cannotTakeMsg);
+            
+            if(gIobj != nil &amp;&amp; isDirectlyIn(gIobj))
+                illogicalNow(alreadyInMsg);
+            
+            if(gIobj != nil &amp;&amp; gIobj.isIn(self))
+                illogicalNow(circularlyInMsg);               
+            
+            logical;
+        }
+        
+        
+        action()
+        {          
+            <span class="comment">/* Handled on iobj */  </span>                                  
+        }
+        
+        report()
+        {
+            DMsg(report put on, '{I} {put} {1} on {the iobj}. ', gActionListStr);            
+        }
+    }
+    
+    alreadyInMsg = BMsg(already in, '{The subj dobj} {is} already {in iobj}. ')
+    
+    circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {in iobj}
+        while {the subj iobj} {is} {in dobj}. ')
+        
+    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put anything
+        {1} itself. ', gIobj.objInPrep)
+    
+    iobjFor(<a name="Thing:iobjPutOn">PutOn</a>)
+    {
+        
+        preCond = [touchObj]
+        
+        remap()
+        {
+            if(contType != On &amp;&amp; remapOn != nil)
+                return remapOn;
+            else
+                return self;
+        }
+        
+        
+        verify()
+        {
+            if(contType != On)
+                illogical(cannotPutOnMsg);
+            
+            logical;
+        }
+        
+        check()
+        {
+            <a href="#Thing:checkInsert">checkInsert</a>(gDobj);
+        }
+        
+        action()
+        {
+            gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+        }      
+    
+    }
+    
+    cannotPutOnMsg = BMsg(cannot put on,'{I} {can\'t} put anything on {the
+        iobj}. '   )
+    
+    
+    
+    <span class="comment"> /********************************************
+     *   PUTUNDER
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:dobjPutUnder">PutUnder</a>)
+    {
+        preCond = [objHeld, objNotWorn]
+        
+        verify()
+        {
+            if(gIobj != nil &amp;&amp; self == gIobj)
+                illogicalSelf(cannotPutInSelfMsg);     
+            
+            if(isFixed)
+                illogical(cannotTakeMsg);
+            
+            if(gIobj != nil &amp;&amp; (isDirectlyIn(gIobj)))
+                illogicalNow(alreadyInMsg);
+            
+            if(gIobj != nil &amp;&amp; gIobj.isIn(self))
+                illogicalNow(circularlyInMsg);           
+            
+                         
+            logical;           
+        }
+        
+        action()
+        {
+            <span class="comment">/* Handled by iobj */</span>
+        }
+        
+        report()
+        {
+            DMsg(report put under, '{I} {put} {1} under {the iobj}. ', 
+                 gActionListStr);
+        }
+        
+            
+    }
+    
+    iobjFor(<a name="Thing:iobjPutUnder">PutUnder</a>)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!canPutUnderMe)
+                illogical(cannotPutUnderMsg);
+            else
+                logical;
+        }
+        
+        check() 
+        { 
+            if(contType == Under)
+               <a href="#Thing:checkInsert">checkInsert</a>(gDobj); 
+            else if(gDobj.bulk &gt; maxBulkHiddenUnder - getBulkHiddenUnder)
+                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                    dobj} under {the iobj}. ');    
+        }
+        
+        action()
+        {
+            if(contType == Under)
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+            else
+            {
+                hiddenUnder += gDobj;
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(nil);
+            }
+        }
+        
+        
+    }
+    
+    cannotPutUnderMsg = BMsg(cannot put under, '{I} {cannot} put anything under
+        {the iobj}. ' )
+    
+    
+    
+    
+    <span class="comment"> /********************************************
+     *   TAKE
+     ********************************************/</span> 
+    
+    dobjFor(<a name="Thing:Take">Take</a>)    
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!isTakeable)
+                illogical(cannotTakeMsg);
+            
+            if(isDirectlyIn(gActor))
+                illogicalNow(alreadyHeldMsg);
+            
+            if(gActor.isIn(self))
+                illogicalNow(cannotTakeMyContainerMsg);
+            
+            if(gActor == self)
+                illogicalSelf(cannotTakeSelfMsg);
+            
+            logical;
+        }
+        
+        check() 
+        {
+           <span class="comment"> /* 
+             *   Check that the actor has room to hold the item s/he's about to
+             *   pick up.
+             */</span>
+            <a href="#Thing:checkRoomToHold">checkRoomToHold</a>();
+        }
+        
+        action()
+        {
+            <span class="comment">/* 
+             *   If we have any contents hidden behind us or under us, reveal it
+             *   now
+             */</span>
+            <a href="#Thing:revealOnMove">revealOnMove</a>();           
+            <a href="#Thing:actionMoveInto">actionMoveInto</a>(gActor);
+        }
+        
+        report()
+        {            
+            DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
+        }
+    }
+       
+     <span class="comment">/* By default a Thing is takeable if it's not fixed in place */</span>
+    isTakeable = (!isFixed)   
+       
+    cannotTakeMsg = BMsg(cannot take, '{The subj dobj} {is} fixed in place.
+        ')
+    
+    alreadyHeldMsg = BMsg(already holding, '{I}{\'m} already holding {the dobj}.
+        ')
+    
+    cannotTakeMyContainerMsg = BMsg(cannot take my container, '{I} {can\'t}
+        {take} {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
+    
+    cannotTakeSelfMsg = BMsg(cannot take self, '{I} {can} hardly take {myself}. ')
+    
+    <span class="comment">/* 
+     *   <a name="Thing:revealOnMove">List and move</a> into an appropriate location any item that was hidden
+     *   behind or under us. We place this in a separate method so it can be
+     *   conveniently called by other actions that move an object, or overridden
+     *   by particular objects that want a different handling.
+     *
+     *   Note that we don't provide any handling for the hiddenIn property here,
+     *   on the assumption that items hidden in something may well stay there
+     *   when it's moved; but this method can always be overridden to provide
+     *   custom behaviour.
+     */</span>
+    
+    revealOnMove()
+    {
+        local moveReport = '';
+        if(hiddenUnder.length > 0)
+        {
+            moveReport += 
+                BMsg(reveal move under,'Moving {1} reveals {2} that {3}
+                    hidden under {4}. ',
+                     theName, makeListStr(hiddenUnder), 
+                     (hiddenUnder.length &gt; 1 || hiddenUnder[1].plural) ?
+                     'were' : 'was', himName);
+                     
+            <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenUnder, location);
+            
+        }
+        
+        if(hiddenBehind.length &gt; 0)
+        {
+            moveReport += 
+                BMsg(reveal move behind,'Moving {1} reveals {2} that {3}
+                    hidden behind {4}. ',
+                     theName, makeListStr(hiddenBehind), 
+                     (hiddenBehind.length &gt; 1 || hiddenBehind[1].plural) ?
+                     'were' : 'was', himName);
+            
+            
+            <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenBehind, location);            
+        }
+        
+        
+        
+        if(moveReport != '' )
+            reportAfter(moveReport);
+    }
+    
+    <span class="comment">/* 
+     *  <a name="Thing:moveHidden"> Service method</a>: move everything in the prop property to loc and mark it
+     *   as seen
+     */</span>
+    
+    moveHidden(prop, loc)
+    {
+        foreach(local cur in self.(prop))
+        {
+            cur.moveInto(loc);
+            cur.noteSeen();
+        }
+        self.(prop) = [];
+                
+    }
+    
+    <span class="comment"><a name="Thing:checkRoomToHold">/*</a> 
+     *   Check that the actor has enough spare bulkCapacity to add this item to
+     *   his/her inventory. Since by default everything has a bulk of zero and a
+     *   very large bulkCapacity by default there will be no effective
+     *   restriction on what an actor (and in particular the player char) can
+     *   carry, but game authors may often wish to give portable items bulk in
+     *   the interests of realism and may wish to impose an inventory limit by
+     *   bulk by reducing the bulkCapacity of the player char.
+     */</span>
+    
+    checkRoomToHold()
+    {
+        <span class="comment">/* 
+         *   First check whether this item is individually too big for the actor
+         *   to carry.
+         */</span>
+        if(bulk &gt; gActor.maxSingleBulk)
+            DMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
+                carry. ');
+        /* 
+         *   otherwise check that the actor has sufficient spare carrying
+         *   capacity.
+         */
+        else if(bulk &gt; gActor.bulkCapacity - gActor.<a href="#Thing:getCarriedBulk">getCarriedBulk</a>())
+            DMsg(cant carry any more, '{I} {can\'t} carry any more than
+                {i}{\'m} already carrying. ');
+    }
+    
+    
+    <span class="comment"> /********************************************
+     *   UNLOCK
+     ********************************************/</span>
+    
+    
+    dobjFor(<a name="Thing:Unlock">Unlock</a>)
+    {
+        preCond = [touchObj]
+        
+        remap()
+        {
+            if(<a href="#Thing:lockability">lockability</a> == notLockable && remapIn != nil &&
+               remapIn.lockability != notLockable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(lockability == notLockable || lockability == nil)
+                illogical(notLockableMsg);
+            
+            if(lockability == indirectLockable)
+                implausible(indirectLockableMsg);
+            
+            if(lockability == lockableWithKey)
+            {
+                if(isLocked)
+                    logical;
+                else
+                    illogicalNow(notLockedMsg);
+            }
+            
+        }
+        
+        check()
+        {
+            /* 
+             *   if we need a key to be unlocked with, check whether the player
+             *   is holding a suitable one.
+             */
+            if(lockability == lockableWithKey)
+            {
+                <a href="#Thing:findPlausibleKey">findPlausibleKey</a>();                
+            }
+               
+        }
+        
+        action()
+        {
+            if(useKey_ != nil)
+                DMsg(with key, '(with {1})\n', useKey_.theName);
+            else
+                askForIobj(UnlockWith);
+            
+            <a href="#Thing:makeLocked">makeLocked</a>(nil);            
+            DMsg(report unlock, okayUnlockMsg);
+        }
+    }
+    
+    okayUnlockMsg = 'Unlocked.|{I} {unlock} {the dobj}. '
+    
+    
+    <span class="comment"> /********************************************
+     *   UNLOCKWITH
+     ********************************************/</span>
+    
+    dobjFor(<a name="Thing:UnlockWith">UnlockWith</a>)
+    {
+        
+        preCond = [touchObj]
+        
+        remap()
+        {
+            if(<a href="#Thing:lockability">lockability</a> == notLockable &amp;&amp; remapIn != nil &amp;&amp;
+               remapIn.lockability != notLockable)
+                return remapIn;
+            else
+                return self;
+        }
+        
+        verify()
+        {
+            if(lockability == notLockable || lockability == nil)
+                illogical(notLockableMsg);
+            
+            if(lockability == lockableWithoutKey)
+                implausible(keyNotNeededMsg);
+            
+            if(lockability == indirectLockable)
+                implausible(indirectLockableMsg);
+            
+            if(lockability == lockableWithKey)
+            {
+                if(isLocked)
+                    logical;
+                else
+                    illogicalNow(notLockedMsg);
+            }
+        }
+    }
+    
+    notLockableMsg = BMsg(not lockable, '{The subj dobj} {isn\'t} lockable. ')
+    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t need} a key to lock and
+        unlock {the dobj}. ')
+    indirectLockableMsg = BMsg(indirect lockable,'{The dobj} {appears} to use
+        some other kind of locking mechanism. ')
+    notLockedMsg = BMsg(not locked, '{The subj dobj} {isn\'t} locked. ')
+        
+    iobjFor(UnlockWith)
+    {
+        verify()
+        {
+            if(!canUnlockWithMe)
+               illogical(cannotUnlockWithMsg);
+            
+            if(gDobj == self)
+                illogicalSelf(cannotUnlockWithSelfMsg);
+        }      
+    }
+    
+   <span class="comment"> /* 
+     *   Most things can't be used to unlock with. In practice there's probably
+     *   little point in overriding this property since if you do want to use
+     *   something to unlock other things with, you'd use the Key class.
+     */</span>
+    canUnlockWithMe = nil 
+    
+    cannotUnlockWithMsg = BMsg(cannot unlock with, '{I} {can\'t} unlock
+        anything with {that dobj}. ' )
+    
+    cannotUnlockWithSelfMsg = BMsg(cannot unlock with self, '{I} {can\'t} unlock
+        anything with itself. ' )
+;
+
+
+
+
+</pre></div>
+
+
+ <p><div class="code"><pre>
+<strong>class Key: Thing</strong>
+    actualLockList = []
+    plausibleLockList = []
+    knownLockList = []
+    
+    <a name="Key:isPossibleKeyFor">isPossibleKeyFor</a>(obj)
+    {
+        if(obj.lexicalParent != nil &amp;&amp; obj.lexicalParent.remapIn == obj
+           &amp;&amp;(knownLockList.indexOf(obj.lexicalParent) != nil
+              || plausibleLockList.indexOf(obj.lexicalParent) != nil))
+            return true;
+        
+        return knownLockList.indexOf(obj) != nil ||
+            plausibleLockList.indexOf(obj) != nil;
+    }
+    
+    canUnlockWithMe = true
+    
+    iobjFor(<a name="Key:UnlockWith">UnlockWith</a>)
+    {
+        preCond = [objHeld]
+        
+               
+        verify()
+        {
+            inherited;
+            
+            if(<a href="#Key:isPossibleKeyFor">isPossibleKeyFor</a>(gDobj))
+                logical;
+            else
+                implausible(notAPlausibleKeyMsg);            
+        }
+        
+        check()
+        {
+            if(actualLockList.indexOf(gDobj) == nil
+               &amp;&amp; (gDobj.lexicalParent == nil
+               || gDobj.lexicalParent.remapIn != gDobj
+               || actualLockList.indexOf(gDobj.lexicalParent) == nil))
+                say(keyDoesntFitMsg);              
+        }
+        
+        action()
+        {
+            gDobj.<a href="#Thing:makeLocked">makeLocked</a>(nil);
+            if(knownLockList.indexOf(gDobj) == nil)
+                knownLockList += gDobj;
+        }
+        
+        report()
+        {
+            DMsg(okay unlock with, okayUnlockWithMsg, gActionListStr);
+        }
+        
+    }
+    
+    okayUnlockWithMsg = '{I} {unlock} {the dobj} with {the iobj}. '
+    
+    iobjFor(<a name="Key:LockWith">LockWith</a>)
+    {
+        preCond = [objHeld]
+        
+        verify()
+        {
+            inherited;
+            
+            if(<a href="#Key:isPossibleKeyFor">isPossibleKeyFor</a>(gDobj))
+                logical;
+            else
+                implausible(notAPlausibleKeyMsg);            
+        }
+        
+        check()
+        {
+             if(actualLockList.indexOf(gDobj) == nil
+               &amp;&amp; (gDobj.lexicalParent == nil
+               || gDobj.lexicalParent.remapIn != gDobj
+               || actualLockList.indexOf(gDobj.lexicalParent) == nil))
+                say(keyDoesntFitMsg);              
+        }
+        
+        action()
+        {
+            gDobj.<a href="#Thing:makeLocked">makeLocked</a>(true);
+            if(knownLockList.indexOf(gDobj) == nil)
+                knownLockList += gDobj;
+        }
+        
+        report()
+        {
+             DMsg(okay lock with, okayLockWithMsg, gActionListStr);
+        }
+    }
+    
+    
+    okayLockWithMsg = '{I} {lock} {the dobj} with {the iobj}. '
+    
+    notAPlausibleKeyMsg = '\^&lt;&lt;theName&gt;&gt; clearly won\'t work on &lt;&lt;gDobj.theName&gt;&gt;. '
+    
+    keyDoesntFitMsg = '\^&lt;&lt;theName&gt;&gt; won\'t fit &lt;&lt;gDobj.theName&gt;&gt;. '   
+;
+</pre></div>
+
+<h2>travel.t</h2>
+
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Source Reference
+<br><span class="navnp"><a class="nav" href="actionref.htm"><i>Prev:</i> ActionReference</a> &nbsp;&nbsp;&nbsp; <i>Next:</i> <a class="nav" href="actionref.htm">ActionReference</a> &nbsp;&nbsp;&nbsp;</span>
+
+</div>
+</body>
+</html>
