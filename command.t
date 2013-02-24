@@ -824,6 +824,12 @@ class Command: object
      */
     buildObjLists()
     {
+        /* 
+         *   Note that we're the current command object, so that other object
+         *   methods can refer to our object lists.
+         */
+        gCommand = self;
+        
         /* run through each active noun phrase list */
         foreach (local role in npList)
         {

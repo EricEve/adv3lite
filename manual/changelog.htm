@@ -29,17 +29,17 @@ Change Log
 <p><strong>Risk of incompatibity:</strong> The long form of remap (using <span class="code">remapTo()</span> or <span class="code">maybeRemapTo()</span> or a list defined on a remap property) has been withdrawn. This feature was deprecated from the first, and we said we might withdraw it all along. The same functionality is better implemented using a Doer (see below on the new Doer <span class="code">doInstead()</span> method).</p>
 <p>Note that the short form of remap (where remap simply evaluates to another object that replaces the current object in the same command) remains unaffected. The short form remap will remain a permanent part of the library.</p>
 <hr>
-<p><strong>Risk of incompatibity:</strong> The Doer method <strong>travel()</strong> has been withdrawn, as it is no longer needed. Use the new <strong>doInstead()</strong> method with the new <strong>Go</strong> action instead (see below), e.g. <span class="code">doInstead(Go, northDir)</span>.</p>
+<p><strong>Risk of incompatibity:</strong> The Doer method <strong>travel()</strong> has been withdrawn, as it is no longer needed. Use the new <strong>doInstead()</strong> method with the new <strong>Go</strong> action instead (see below), e.g. <span class="code">doInstead(Go, northDir)</span>, or, if you prefer, the new <span class="code">goInstead()</span> macro, e.g. <span class="code">goInstead(north)</span></p>
 <hr>
 <p><strong>Risk of incompatibity:</strong> Some isXXXable properties have been renamed as canXXXMe properties where XXX contains a preposition and the isXXXable form looks too barbarous: e.g. isJumpOffable has been changed to canJumpOffMe.</p>
 <hr>
 <p><strong>Slight risk of incompatibity:</strong> The <strong>touchObj</strong> PreCondition has been reconfigured to make use of the new Query method <strong>reachProblem(a, b)</strong>. This ensures that almost the entire logic of checking for reachability is handled by the Query object, rather than duplicated between the Query object and the touchObj PreCondition, so that if a Special wants to enforce different reachability rules these will be respected by touchObj without game authors needing to modify touchObj.</p>
 
 <p>The <span class="code">reachProblem()</span> method must return either an empty list (meaning that there's no difficulty with A reaching B) or a list of one or more <strong>ReachProblem</strong> objects. A ReachProblem object must define a <span class="code">verify()</span> method and a <span class="code">check(allowImplicit)</span> method (which can be called by touchObj.verifyPreCondition and touchObj.checkPreCondition respectively). The <span class="code">verify</span> method must either do nothing, or else use the same macros (<span class="code">inaccessible</span>, <span class="code">illogical</span>, <span class="code">implausible</span>, etc.) that are used elsewhere in verify routines. The <span class="code">check</span> method should return true to allow the action to proceed or nil to fail it at the check stage; if it returns nil it should display a message explaining the problem. The check method may optionally also attempt to rectify the problem by carrying out an implicit action.</p>
-<p>The <span class="code">reachProblem()</span> on QDefaults carries out the same checks that were formerly coded directly on <span class="code">touchObj</span>, so game behaviour should not be altered in any way unless your game modifies touchObj.</p>
+<p>The <span class="code">reachProblem()</span> method on QDefaults carries out the same checks that were formerly coded directly on <span class="code">touchObj</span>, so game behaviour should not be altered in any way unless your game modifies touchObj.</p>
 <p><span class="code">QDefault.canReach(a, b)</span> now returns true if <span class="code">Q.reachProblem(a, b)</span> returns an empty list.</p>
 <hr>
-<p><strong>Slight risk of incompatibity:</strong> Previously an implicit SAY command (text interpreted as a SAY command during a conversation when the player's command did not explicitly start with SAY) would attempt to mask an AskTopic or a TellTopic if it failed to match a SayTopic. This is probably needlessly complex, and may not be altogether intuitive to players. The handling of implicit SAY commands has thus been changed so that the game will only attempt to match SayTopics (including DefaultTopic types that include SayTopics).</p>
+<p><strong>Slight risk of incompatibity:</strong> Previously an implicit SAY command (text interpreted as a SAY command during a conversation when the player's command did not explicitly start with SAY) would attempt to match an AskTopic or a TellTopic if it failed to match a SayTopic. This is probably needlessly complex, and may not be altogether intuitive to players. The handling of implicit SAY commands has thus been changed so that the game will only attempt to match SayTopics (including DefaultTopic types that include SayTopics).</p>
 <hr>
 <p><strong>Slight risk of incompatibity:</strong> The Action methods <strong>getDobj()</strong> and <strong>getIobj()</strong> have been removed. Since all they did was to return <span class="code">curDobj</span> and <span class="code">curIobj</span> respectively, they seemed an unnecessary piece of indirection. It is unlikely that game code would call these methods directly, but if it does, just use <span class="code">curDobj</span> (or <span class="code">gDobj</span>) and <span class="code">curIobj</span> (or <span class="code">gIobj</span>) instead.</p>
 <hr>
@@ -74,6 +74,8 @@ Change Log
 <p>Two new verification macros have been added: <strong>dangerous</strong> and <strong>nonObvious</strong>. Both of these allow the action to go ahead unless it's an implicit action, but <span class="code">nonObvious</span> is given the same logical rank as <span class="code">illogical</span>. For further details see the <a href="actres.htm#verify">Verify</a> section of the Action Results article.</p>
 
 <p>To allow these two new verification results to work, parts of the verification and implicit action handling have had to be tweaked along with the checkPreCondition methods of most PreConditions. As things stood before it was possible to create a VerifyResult with <span class="code">allowImplicit = nil</span>, but nothing took any notice of this value.</p>
+<hr>
+<p>Two new macros have been added to assist with verification: <strong>gTentativeDobj</strong> and <strong>gTentativeIobj</strong>. These contain the lists of objects that the current Command is considering as possible direct and indirect objects. These can be used in the verify routines of TIActions on the first object to be resolved when it would be helpful to know what the other object might turn out to be before it has been fully resolved. Note that unlike the similarly named macros in adv3, these ones do actually results in lists of actual objects, not npMatches or the like.</p>
 
 <hr>
 <p>A new function <strong>askMissingObject(action, role)</strong> has been added, which may be called via the new macros <strong>askForDobj(action)</strong> and <strong>askForIobj(action)</strong>. This function (or the macros that translate to it) causes the player to be prompted to supply the missing object for <em>action</em> (unless it can find the object for itself, see below), and the input is then parsed in the normal way, as if the query had arisen from the parser; meaning that if the player supplies a valid object <em>action</em> will be executed with that object.</p>
@@ -101,7 +103,8 @@ Change Log
 <hr>
 <p>It's now possible to specify a <strong>matchPhrase</strong> (and, if desired, a separate <strong>disambigMatchPhrase</strong>) that the player's input must match in order to refer to a particular object. For example, if an object with vocab 'dark green bottle; glass' is given a <span class="code">matchPhrase</span> of 'dark green', then it will match DARK GREEN BOTTLE but not just GREEN BOTTLE. For the full story see the paragraph on <a href="thing.htm#phrase">Phrase Matching</a> in the section on Thing.</p>
 <hr>
-
+<p>Sections of the vocab property can now be selectively inherited from superclasses. For details, see the explanation of the <a href="thing.htm#inherit">vocab</a> property in the Thing section of the manual.</p>
+<hr>
 <p>The new Thing property <strong>vocabLikelihood</strong> can be used to make the parser prefer one object over another, other things (notably verify results) being equal. It is recommended that the value given to this property (if it is used at all) be relatively small, say in the range 0 to 10, to ensure that verify results take precedence.</p>
 
 <hr>
@@ -112,7 +115,7 @@ Change Log
 <hr>
 <p>Four new types of DefaultTopic have been added to the conversation system: <strong>DefaultSayTellTopic</strong>, <strong>DefaultTalkTellTopic</strong>, <strong>DefaultSayTellTalkTopic</strong> and <strong>DefaultAskQueryTopic</strong>, since these seem natural groupings for DefaultTopics responding to attempts to impart information or ask questions respectively.</p>
 <hr>
-<p>Sections of the vocab property can now be selectively inherited from superclasses. For details, see the explanation of the <a href="thing.htm#inherit">vocab</a> property in the Thing section of the manual.</p>
+<p>The query type and topic vocab of a QueryTopic may now be given together in a single single-quoted string (in the QueryTopic template), e.g. 'where he was born' as an alternative to 'where' 'he was born'.</p>
 <hr>
 <p>The new gameMain option <strong>againRepeatsParse</strong> controls how the AGAIN command is interpreted. If it is nil AGAIN repeats the resolved command, that is, the command as it was interpreted on the previous turn, with the same objects. If it is true (the default), then the text of the previous command is reparsed, which may result in a different interpretation involving different objects. For example, suppose there are two coins on the floor. If <span class="code">againRepeatsParse</span> is nil then TAKE COIN followed by AGAIN will result in one of the coins beingtaken, followed by an attempt to take the <em>same coin</em> again (which will fail with a message that you're already holding the coin. If <span class="code">againRepeatsParse</span> is true, however, than TAKE COIN followed by AGAIN will result in one coin being taken, and then the other, just as if the player had typed TAKE COIN twice. Which is the better behaviour depends on context; while in the coin example the second interpretation seems better, if a player were to type EXAMINE BOOK and be prompted to say which one, the second interpretation would result in the disambiguation prompt being repeated, which might seem perverse.</p>
 
@@ -122,8 +125,7 @@ Change Log
 <hr>
 <p>There is now an additional debugging command, DEBUG DOER, which shows which doer (identified by its cmd string) is being executed.</p>
 <hr>
-<p>The query type and topic vocab of a QueryTopic may now be given together in a single single-quoted string (in the QueryTopic template), e.g. 'where he was born' as an alternative to 'where' 'he was born'.</p>
-<hr>
+
 <p>The behaviour of the FOLLOW command with an actor as its target has now been enhanced. If the command FOLLOW X is issued and X is not in sight, but the player character is in the location from where s/he last saw X depart, the FOLLOW X command will cause the player character to take the same exit that the player character saw X leave by (i.e. the player character will follow X's last known move). Otherwise, if FOLLOW X is issued when the player character is in the same room as X, then the player character will follow X if X subsequently moves on the same turn.</p>
 <hr>
 <p>The new function <strong>senseSay(val, obj, prop=&amp;canSee)</strong> can be used to output text only when <em>obj</em> is visible to the player character. This may be particularly useful when reporting the movements and other actions of NPCs who may or may not be visible to the player character.</p>
@@ -156,6 +158,8 @@ Change Log
 <p>Bug fixed whereby finishOptionScore and finishOptionFullScore weren't causing a display of the final score, but finishOptionScore was generating a spurious additional comma in the list of post-game options.</p>
 <hr>
 <p>Bug fixed whereby the TAKE FROM command might result in an object being taken even if it was fixed in place.</p>
+<hr>
+<p>Bug fixed whereby the TAKE FROM command might result in an object being taken even if the actor didn't have room to hold it. The dobj handling of TakeFrom now used the <span class="code">asDobjWithoutVerify()</span> macro to copy all its direct object handling apart from the verify stage from Take, while retaining its own verify handling.</p>
 <hr>
 
 <br>

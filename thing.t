@@ -5810,10 +5810,10 @@ class Thing:  ReplaceRedirector, Mentionable
         dobj} with {itself dobj}. ')
     
         
+    dobjFor(TakeFrom) asDobjWithoutVerifyFor(Take)
+    
     dobjFor(TakeFrom)
-    {
-        preCond = [touchObj]
-        
+    {           
         verify()
         {
             if(!isTakeable)
@@ -5823,15 +5823,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalNow(notInMsg);
             if(self == gIobj)
                 illogicalSelf(cannotTakeFromSelfMsg);
-        }
-        
-        action() { actionDobjTake(); }
-        
-        report() 
-        { 
-            if(gAction.reportList.length > 0)
-               reportDobjTake();             
-        }
+        }        
     }
     
     iobjFor(TakeFrom)
@@ -5843,6 +5835,14 @@ class Thing:  ReplaceRedirector, Mentionable
             /*We're a poor choice of indirect object if there's nothing in us */
             if(notionalContents.countWhich({x: !x.isFixed}) == 0)
                 logicalRank(70);
+            
+            /* 
+             *   We're also a poor choice if none of the tentative direct
+             *   objects is in our list of notional contents
+             */
+            if(gTentativeDobj.overlapsWith(notionalContents) == nil)
+                logicalRank(80);        
+        
         }
         
        

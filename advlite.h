@@ -243,6 +243,9 @@ dictionary property noun, nounApostS;
 #define gAction (libGlobal.curAction)
 #define gCommand (libGlobal.curCommand)
 
+#define gTentativeDobj (gCommand.dobjs.mapAll({x: x.obj}).toList)
+#define gTentativeIobj (gCommand.iobjs.mapAll({x: x.obj}).toList)
+
 /*
  *   Determine if the current global action is the specified action.  Only
  *   the action prefix is needed - so use "Take" rather than "TakeAction"
