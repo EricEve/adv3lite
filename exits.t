@@ -281,7 +281,7 @@ exitLister: PreinitObject
                 
             case TypeObject:
                 conn = loc.(dir.dirProp);
-                if(conn.isConnectorApparent && conn.isConnectorListed)
+                if(conn.isConnectorVisible && conn.isConnectorListed)
                     destList.append(new DestInfo(dir, conn.destination));
                 break;
                 

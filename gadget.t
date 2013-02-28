@@ -121,7 +121,7 @@ class Settable: Fixture
         return validSettings.indexOf(val) != nil;
     }
     
-    isSetToable = true
+    canSetMeTo = true
     
     dobjFor(SetTo)
     {
@@ -163,7 +163,7 @@ class Settable: Fixture
 
 class Dial: Settable
     dobjFor(TurnTo) asDobjFor(SetTo)
-    isTurnToable = true
+    canTurnMeTo = true
 ;
 
 

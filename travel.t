@@ -488,13 +488,33 @@ class Door: TravelConnector, Thing
 
 
 class TravelConnector: object
-    isConnectorApparent = (isConnectorListed && 
-                           (gPlayerChar.getOutermostRoom.isIlluminated
+    
+    
+    /* 
+     *   Is this connector apparent? That is, would it be apparent to an
+     *   observer under normal lighting conditions, as opposed to being
+     *   concealed? By default we'll suppose a TravelConnector is apparent
+     */
+    isConnectorApparent = true
+    
+    /* 
+     *   Should this exit be shown in the exit lister? By default we'll assumed
+     *   it should be it it's apparent. 
+     */
+    isConnectorListed = isConnectorApparent
+    
+    
+    /*  
+     *   A TravelConnector (or at least, the exit it represents) is visible if
+     *   it's apparent (i.e. not concealed in some way) and if the lighting
+     *   conditions are adequate.
+     */
+    isConnectorVisible = (isConnectorApparent && 
+                          (gPlayerChar.getOutermostRoom.isIlluminated
                               || (destination != nil &&
                                   destination.isIlluminated)))
     
-    isConnectorListed = true
-    
+    /* The room to which this TravelConnector leads when it is traversed */    
     destination = nil
     
     /* 
@@ -614,9 +634,9 @@ class TravelConnector: object
 class UnlistedProxyConnector: TravelConnector
     isConnectorListed = nil
     
-    isConnectorApparent = (gPlayerChar.getOutermostRoom.isIlluminated
-                              || (destination != nil &&
-                                  destination.isIlluminated))
+//    isConnectorVisible = (gPlayerChar.getOutermostRoom.isIlluminated
+//                              || (destination != nil &&
+//                                  destination.isIlluminated))
     
     travelVia(actor)
     {

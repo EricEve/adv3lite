@@ -4833,6 +4833,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
       
         useKey_ = nil;   
+        local lockObj = self;
         
         /* 
          *   First see if the actor is holding a key that is known to work on
@@ -4874,6 +4875,7 @@ class Thing:  ReplaceRedirector, Mentionable
             {
                 lexicalParent.findPlausibleKey();
                 useKey_ = lexicalParent.useKey_;
+                lockObj = lexicalParent;
             }
         }
         
@@ -4881,7 +4883,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If we've found a possible key but it doesn't actually work on this
          *   object, report that we're trying this key but it doesn't work.
          */
-        if(useKey_ && useKey_.actualLockList.indexOf(self) == nil)
+        if(useKey_ && useKey_.actualLockList.indexOf(lockObj) == nil)
         {
             DMsg(with key, '(with {1})\n', useKey_.theName);
             say(keyDoesntWorkMsg);            
@@ -5108,14 +5110,14 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    isClimbUpable = (isClimbable)
+    canClimbUpMe = (isClimbable)
     
     dobjFor(ClimbUp)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isClimbUpable)
+            if(!canClimbUpMe)
                illogical(cannotClimbMsg); 
         }
     }
@@ -5123,14 +5125,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotClimbMsg = BMsg(cannot climb,'{The subj dobj} {is} not something {i}
         {can} climb. ')
     
-    isClimbDownable = (isClimbable)
+    canClimbDownMe = (isClimbable)
     
     dobjFor(ClimbDown)
     {
         preCond = [touchObj]
         verify() 
         { 
-            if(!isClimbDownable)
+            if(!canClimbDownMe)
                illogical(cannotClimbDownMsg); 
         }
     }
@@ -5942,7 +5944,7 @@ class Thing:  ReplaceRedirector, Mentionable
         be thrown to {itself dobj}. ')
     
     
-    isTurnToable = nil
+    canTurnMeTo = nil
     
     dobjFor(TurnTo)
     {
@@ -5950,7 +5952,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {
-            if(!isTurnToable)
+            if(!canTurnMeTo)
                illogical(cannotTurnToMsg); 
         }   
         
@@ -5984,7 +5986,7 @@ class Thing:  ReplaceRedirector, Mentionable
         anything. ')
     
     
-    isSetToable = nil
+    canSetMeTo = nil
     
     dobjFor(SetTo)
     {
@@ -5992,7 +5994,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         { 
-            if(!isSetToable)
+            if(!canSetMeTo)
                illogical(cannotSetToMsg); 
         }
         
@@ -6732,7 +6734,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         viaMode = via;
         
-        if(!allowPushTravel)
+        if(!canPushTravel)
             illogical(cannotPushTravelMsg);
         
         if(gActor.isIn(self))
@@ -6751,7 +6753,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
         dobj} {1} {itself dobj}. ', viaMode.prep)
     
-    allowPushTravel = nil
+    canPushTravel = nil
     
     dobjFor(PushTravelDir)
     {
@@ -6980,8 +6982,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {  
-            if(!isClimbDownable || destination == nil)
-                illogical(cannotPushThroughMsg);
+            if(!canClimbDownMe || destination == nil)
+                illogical(cannotPushDownMsg);
         }
         
         check() { checkPushTravel(); }

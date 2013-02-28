@@ -1471,10 +1471,17 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     /* 
      *   Assuming this topic entry is ever suggested, it will continue to be
      *   suggested until curiositySatisfied becomes true. By default this occurs
-     *   when the topic has been invoked timesToSuggest times.
+     *   when the topic has been invoked timesToSuggest times. If, however, we
+     *   have any keyTopics we'll take our curiosity to be satisfied when our
+     *   keyTopics have all been satisfied.
      */
-    curiositySatisfied = ( timesToSuggest != nil && timesInvoked >=
-                          timesToSuggest)
+    curiositySatisfied()
+    {
+        if(keyTopics == nil)
+            return( timesToSuggest != nil && timesInvoked >= timesToSuggest);
+        else
+            return getKeyTopics.length == 0;
+    }
     
     /* The number of times this topic entry has been invoked. */
     timesInvoked = 0
@@ -1522,6 +1529,17 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     
     showKeyTopics()
     {
+        local lst = getKeyTopics();
+        
+        if(lst.length > 0)        
+           suggestedTopicLister.show(lst);       
+        else
+            DMsg(nothing to discuss on that topic, '{I} {have} nothing to
+                discuss on that topic just {now}. '); 
+    }
+    
+    getKeyTopics()
+    {
         local actor = getActor();
 
         local lst = [];
@@ -1533,11 +1551,11 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         lst = lst.subset({t: t.active && !t.curiositySatisfied &&
                          t.curiosityAroused && t.isReachable });
             
-        lst = nilToList(lst).getUnique();    
+        lst = nilToList(lst).getUnique();
         
-        suggestedTopicLister.show(lst);       
-            
+        return lst;
     }
+    
     
     keyTopics = nil
     
@@ -3534,7 +3552,8 @@ suggestedTopicLister: object
         {
             if(explicit)
                 DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
-                    {now}. ');
+                    with {1} just {now}. ',
+                     gPlayerChar.currentInterlocutor.theObjName);
                 
             return;
         }

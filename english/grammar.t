@@ -2752,7 +2752,7 @@ VerbRule(WriteOn)
     dobjReply = singleNoun
 ;
 
-VerbRule(WriteOnWhat)
+VerbRule(Write)
     'write' literalDobj
     : VerbProduction
     action = Write
@@ -2898,15 +2898,15 @@ VerbRule(Break)
     missingQ = 'what do you want to break'
 ;
 
-VerbRule(CutWithWhat)
+VerbRule(Cut)
     [badness 500] 'cut' singleDobj
     : VerbProduction
     action = Cut
     verbPhrase = 'cut/cutting (what) (with what)'
-    missingQ = 'what do you want to cut;what do you want to cut it with'
-
-    missingRole = IndirectObject
-    iobjReply = withSingleNoun
+//    missingQ = 'what do you want to cut;what do you want to cut it with'
+//
+//    missingRole = IndirectObject
+//    iobjReply = withSingleNoun
 ;
 
 VerbRule(CutWith)
@@ -2984,8 +2984,8 @@ VerbRule(ClimbUpWhat)
     : VerbProduction
     action = ClimbUpVague
     verbPhrase = 'climb/climbing (up what)'
-    missingQ = 'what do you want to climb up'
-    missingRole = DirectObject
+//    missingQ = 'what do you want to climb up'
+//    missingRole = DirectObject
     dobjReply = singleNoun
 ;
 
@@ -3003,8 +3003,8 @@ VerbRule(ClimbDownWhat)
     : VerbProduction
     action = ClimbDownVague
     verbPhrase = 'climb/climbing (down what)'
-    missingQ = 'what do you want to climb down'
-    missingRole = DirectObject
+//    missingQ = 'what do you want to climb down'
+//    missingRole = DirectObject
     dobjReply = singleNoun
 ;
 

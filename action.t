@@ -1140,10 +1140,10 @@ class TravelAction: Action
             conn = loc.(direction.dirProp);
             
             /* 
-             *   If the connector is apparent to the actor then attempt travel
+             *   If the connector is visible to the actor then attempt travel
              *   via the connector.
              */
-            if(conn.isConnectorApparent)
+            if(conn.isConnectorVisible)
                 conn.travelVia(gActor);
             
             /* 

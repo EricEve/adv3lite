@@ -123,7 +123,7 @@ class StairwayDown: TravelConnector, Thing
     }
     
     isFixed = true
-    isClimbDownable = true
+    canClimbDownMe = true
     PushTravelVia = PushTravelClimbDown
 ;
 
@@ -194,7 +194,7 @@ class SecretDoor: Door
     canGoThroughMe = isOpen
     
     /* A SecretDoor only functions as a TravelConnector when it's open */
-    isConnectorListed = isOpen   
+    isConnectorApparent = isOpen   
     
     /* 
      *   We can't use an OPEN command to open a SecretDoor, but by default we'll
