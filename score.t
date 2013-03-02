@@ -102,7 +102,6 @@ class Achievement: object
     listFullScoreItem()
     {
         /* show the number of points I'm worth */
-//        gLibMessages.fullScoreItemPoints(totalPoints);
         DMsg(full score item points, '\n <<totalPoints>> point<<totalPoints == 1
               ?  '' : 's'>> for ');
 
@@ -204,7 +203,6 @@ fullScoreLister: Lister
     showListPrefix(lst, pl, paraCnt)
     {
         /* show the full score list intro message */
-//        gLibMessages.showFullScorePrefix;
         DMsg(full score prefix, 'Your score consists of:');
     }
 
@@ -285,7 +283,6 @@ scoreNotifier: object
     firstScoreChange(delta)
     {
         scoreChange(delta);
-//        scoreChangeTip.showTip();
     }
 
     /* score change - notification other than the first time */
@@ -314,18 +311,6 @@ scoreNotifier: object
     }
 
     
-
-    /* 
-     *   We won't use a PromptDaemon here in order to make this module
-     *   independent of events.t. Instead we'll use custom code in main.t
-     */
-    
-//    /* execute pre-initialization */
-//    execute()
-//    {
-//        /* initialize the score change notification daemon */
-//        new PromptDaemon(self, &checkNotification);
-//    }
 ;
 
 /* 

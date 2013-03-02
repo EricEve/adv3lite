@@ -1404,7 +1404,7 @@ class LogConsole: OutputStream
         addOutputFilter(typographicalOutputFilter);
         addOutputFilter(new transient ParagraphManager());
         addOutputFilter(styleTagFilter);
-//        addOutputFilter(langMessageBuilder);
+
     }
 
     /* 
@@ -1492,8 +1492,6 @@ class OutputStreamWindow: object
         outputStream_.addOutputFilter(typographicalOutputFilter);
         outputStream_.addOutputFilter(new transient ParagraphManager());
         outputStream_.addOutputFilter(styleTagFilter);
-//        outputStream_.addOutputFilter(commandSequencer);
-//        outputStream_.addOutputFilter(langMessageBuilder);
     }
 
     /*

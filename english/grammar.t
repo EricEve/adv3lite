@@ -1324,10 +1324,10 @@ grammar oopsPhrase(main):
     : OopsProduction
 ;
 
-///* ------------------------------------------------------------------------ */
-///*
-// *   Direction grammar rules.
-// */
+/* ------------------------------------------------------------------------ */
+/*
+ *   Direction grammar rules.
+ */
 class DirectionName : object;
 
 #define DefineLangDir(root, dirNames, backPre) \
@@ -1935,17 +1935,6 @@ VerbRule(TalkTo)
     missingQ = 'whom do you want to talk to'
     dobjReply = singleNoun
 ;
-//
-//VerbRule(TalkToWhat)
-//    [badness 500] 'talk'
-//    : VerbProduction
-//    action = TalkTo
-//    verbPhrase = 'talk/talking (to whom)'
-//    missingQ = 'whom do you want to talk to'
-//
-//    missingRole = DirectObject
-//    dobjReply = toSingleNoun
-//;
 
 VerbRule(Topics)
     'topics'
@@ -2189,21 +2178,7 @@ VerbRule(Inventory)
     action = Inventory
     verbPhrase = 'take/taking inventory'
 ;
-//
-//VerbRule(InventoryTall)
-//    'i' 'tall' | 'inventory' 'tall'
-//    : VerbProduction
-//    action = InventoryTall
-//    verbPhrase = 'take/taking "tall" inventory'
-//;
-//
-//VerbRule(InventoryWide)
-//    'i' 'wide' | 'inventory' 'wide'
-//    : VerbProduction
-//    action = InventoryWide
-//    verbPhrase = 'take/taking "wide" inventory'
-//;
-//
+
 VerbRule(Wait)
     'z' | 'wait'
     : VerbProduction
@@ -2232,75 +2207,6 @@ VerbRule(Again)
     verbPhrase = 'repeat/repeating the last command'
 ;
 
-//VerbRule(Footnote)
-//    ('footnote' | 'note') numberDobj
-//    : VerbProduction
-//    action = Footnote
-//    verbPhrase = 'show/showing a footnote'
-//;
-//
-//VerbRule(FootnotesFull)
-//    'footnotes' 'full'
-//    : VerbProduction
-//    action = FootnotesFull
-//    verbPhrase = 'enable/enabling all footnotes'
-//;
-//
-//VerbRule(FootnotesMedium)
-//    'footnotes' 'medium'
-//    : VerbProduction
-//    action = FootnotesMedium
-//    verbPhrase = 'enable/enabling new footnotes'
-//;
-//
-//VerbRule(FootnotesOff)
-//    'footnotes' 'off'
-//    : VerbProduction
-//    action = FootnotesOff
-//    verbPhrase = 'hide/hiding footnotes'
-//;
-//
-//VerbRule(FootnotesStatus)
-//    'footnotes'
-//    : VerbProduction
-//    action = FootnotesStatus
-//    verbPhrase = 'show/showing footnote status'
-//;
-//
-//VerbRule(TipsOn)
-//    ('tips' | 'tip') 'on'
-//    : VerbProduction
-//    action = TipsOn
-//
-//    stat_ = true
-//
-//    verbPhrase = 'turn/turning tips on'
-//;
-//
-//VerbRule(TipsOff)
-//    ('tips' | 'tip') 'off'
-//    : VerbProduction
-//    action = TipsOff
-//
-//    stat_ = nil
-//
-//    verbPhrase = 'turn/turning tips off'
-//;
-//
-//VerbRule(Verbose)
-//    'verbose'
-//    : VerbProduction
-//    action = Verbose
-//    verbPhrase = 'enter/entering VERBOSE mode'
-//;
-//
-//VerbRule(Terse)
-//    'terse' | 'brief'
-//    : VerbProduction
-//    action = Terse
-//    verbPhrase = 'enter/entering BRIEF mode'
-//;
-//
 VerbRule(Score)
     'score' | 'status'
     : VerbProduction
@@ -2364,19 +2270,6 @@ VerbRule(RestoreString)
     verbPhrase = 'restore/restoring'
 ;
 
-//VerbRule(SaveDefaults)
-//    'save' 'defaults'
-//    : VerbProduction
-//    action = SaveDefaults
-//    verbPhrase = 'save/saving defaults'
-//;
-//
-//VerbRule(RestoreDefaults)
-//    'restore' 'defaults'
-//    : VerbProduction
-//    action = RestoreDefaults
-//    verbPhrase = 'restore/restoring defaults'
-//;
 
 VerbRule(Restart)
     'restart'
@@ -2727,9 +2620,6 @@ VerbRule(TypeLiteralOnWhat)
     action = Type
     verbPhrase = 'type/typing (what) (on what)'
     missingQ = 'what do you want to type;what do you want to type that on'
-
-//    missingRole = IndirectObject
-//    iobjReply = onSingleNoun
 ;
 
 VerbRule(EnterOn)
@@ -2758,20 +2648,9 @@ VerbRule(Write)
     action = Write
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
-
-//    missingRole = IndirectObject
-//    iobjReply = onSingleNoun
-    
     priority = 25
 ;
 
-//VerbRule(Consult)
-//    'consult' singleDobj : VerbProduction
-//    action = Consult
-//    verbPhrase = 'consult/consulting (what)'
-//    missingQ = 'what do you want to consult'
-//    dobjReply = singleNoun
-//;
 
 VerbRule(ConsultAbout)
     'consult' singleDobj ('on' | 'about') topicIobj
@@ -2805,10 +2684,6 @@ VerbRule(ConsultWhatAbout)
     action = ConsultWhatAbout
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
-
-//    missingRole = DirectObject
-//    dobjReply = inSingleNoun
-
     priority = 25
 ;
 
@@ -2903,10 +2778,6 @@ VerbRule(Cut)
     : VerbProduction
     action = Cut
     verbPhrase = 'cut/cutting (what) (with what)'
-//    missingQ = 'what do you want to cut;what do you want to cut it with'
-//
-//    missingRole = IndirectObject
-//    iobjReply = withSingleNoun
 ;
 
 VerbRule(CutWith)
@@ -2984,8 +2855,6 @@ VerbRule(ClimbUpWhat)
     : VerbProduction
     action = ClimbUpVague
     verbPhrase = 'climb/climbing (up what)'
-//    missingQ = 'what do you want to climb up'
-//    missingRole = DirectObject
     dobjReply = singleNoun
 ;
 
@@ -3003,8 +2872,6 @@ VerbRule(ClimbDownWhat)
     : VerbProduction
     action = ClimbDownVague
     verbPhrase = 'climb/climbing (down what)'
-//    missingQ = 'what do you want to climb down'
-//    missingRole = DirectObject
     dobjReply = singleNoun
 ;
 
@@ -3472,20 +3339,6 @@ VerbRule(Hints)
     action = Hints
     verbPhrase = 'show/showing hints'
 ;
-
-//VerbRule(Oops)
-//    ('oops' | 'o') literalDobj
-//    : VerbProduction
-//    action = Oops
-//    verbPhrase = 'oops/correcting (what)'
-//;
-//
-//VerbRule(OopsOnly)
-//    ('oops' | 'o')
-//    : VerbProduction
-//    action = OopsOnly
-//    verbPhrase = 'oops/correcting'
-//;
 
 
 #ifdef __DEBUG

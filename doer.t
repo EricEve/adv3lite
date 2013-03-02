@@ -311,32 +311,6 @@ class Doer: Redirector
         gAction.exec(curCmd);
 
     }
-
-    
-    
-    
-    
-//    /* 
-//     *   A convenience method to make it easier for a Doer to synthesize a
-//     *   travel command. The dirn parameter should be a direction object, e.g.
-//     *   northDir, so the method would be called like this
-//     *
-//     *.     travel(northDir);
-//     *
-//     *   To make the player character go north.
-//     */
-//    
-//    travel(dirn)    
-//    {
-//        /* 
-//         *   Setup the dirMatch property of gCommand.verbProd so it points to
-//         *   the desired direction.
-//         */
-//        gCommand.verbProd.dirMatch = object { dir = dirn};
-//        
-//        /* Execute the travel command. */
-//        Travel.exec(gCommand);
-//    }
     
     /* 
      *   Set this property to true for this Doer to match only if the wording
@@ -679,7 +653,6 @@ class DoerCmd: object
         if(doer.propDefined(&direction) && cmd[1] == Travel)
             return valToList(doer.direction).indexOf(
                 gCommand.verbProd.dirMatch.dir) != nil;
-//            return gCommand.verbProd.dirMatch.dir == doer.direction;
         
         
         return true;

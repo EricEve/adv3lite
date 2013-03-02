@@ -260,8 +260,7 @@ QDefaults: Special
     sightBlocker(a, b)
     {
         /* scan for sight blockages along the containment path */
-        return a.containerPathBlock(b, &canSeeOut, &canSeeIn); // TODO
-//        return [];
+        return a.containerPathBlock(b, &canSeeOut, &canSeeIn);
     }
 
     /*

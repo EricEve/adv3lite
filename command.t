@@ -217,11 +217,7 @@ class Command: object
              *   First, carry out the group action.  This gives the verb a
              *   chance to perform the action collectively on all of the objects
              *   at once.
-             */
-            
-            
-            //        action.reportList = [];
-            //        action.afterReports = [];
+             */          
             action.execGroup(self);
             
             
@@ -609,7 +605,7 @@ class Command: object
          */
         if (npList.indexOf(role) == nil)
         {
-//            
+          
             npList += role;
             
             /* 

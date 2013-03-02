@@ -563,9 +563,9 @@ class SpellingHistory: object
                 }
 
                 /* log it for debugging */
-//                IfDebug(spelling,
-//                        "\nRespell: <<candidates[1].mapAll(
-//                            {x: getTokVal(x)}).join(' ')>>\n");
+                IfDebug(spelling,
+                        "\nRespell: <<candidates[1].mapAll(
+                            {x: getTokVal(x)}).join(' ')>>\n");
                 
                 /* return the first candidate token list */
                 return candidates[1];
@@ -742,8 +742,8 @@ class SpellingHistory: object
          *   corrected string includes HTML markups to highlight the word
          *   or words that the spelling corrector changed.  
          */
-//        DMsg(corrected spelling, '(<i>{1}</i>)<br>', str);
-        "<i><<str>></i>\n";
+        DMsg(corrected spelling, '(<i>{1}</i>)<br>', str);
+        
     }
 
     /* our parser object */

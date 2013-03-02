@@ -1648,10 +1648,7 @@ class NounPhrase: object
         /* start with an empty vector */
         local v = new Vector(32);
 
-        /* get the current scope list */
-//        local scope = World.scope;
-        
-        
+        /* get the current scope list */        
         cmd.action.buildScopeList();
         local scope = cmd.action.scopeList;
 
@@ -2875,12 +2872,7 @@ class TopicPhrase: NounPhrase
                 throw new AntecedentScopeError(cmd, self, pronoun);
             
         }
-        //        else if (determiner == All && tokens == [])
-        //        {
-        //            /* ALL - use everything in scope applicable to the verb */
-        //            addMatches(v, cmd.action.getAll(cmd, role), 0);
-        //            cmd.matchedAll = true;
-        //        }
+        
         else
         {
             /* 
@@ -2907,31 +2899,7 @@ class TopicPhrase: NounPhrase
         /* save the match list so far */
         matches = v;
         
-        /* if we have a contents qualifier, match its vocabulary */
-        //        if (contQual != nil)
-        //        {
-        //            /* match vocabulary */
-        //            contQual.matchVocab(cmd);
-        //
-        //            /* apply the qualifier to keep only matching items */
-        //            contQual.applyContQual();
-        //
-        //            /* if that empties our list, flag it */
-        //            if (matches.length() == 0)
-        //                throw new NoneWithContentsError(cmd, self, contQual);
-        //
-        //            /* 
-        //             *   Expand the error text name to include the contents
-        //             *   qualifier, since any subsequent failure to match will be
-        //             *   against the result of this qualification.  For example, if
-        //             *   the phrase is BUCKET OF FISH ON TABLE, we've now limited
-        //             *   the scope to just BUCKET OF FISH, so if we fail to find
-        //             *   such an object on the table it'll be because there's no
-        //             *   BUCKET OF FISH on the table, not because there's simply no
-        //             *   BUCKET.  
-        //             */
-        //            expandErrName(contQual);
-        //        }
+        
         
         /* if we have a possessive qualifier, apply it */
         if (possQual != nil)
@@ -2953,26 +2921,7 @@ class TopicPhrase: NounPhrase
             expandErrName(possQual);
         }
         
-        /* if we have a locational qualifier, match its vocabulary */
-        //        if (locQual != nil)
-        //        {
-        //            /* match vocabulary */
-        //            locQual.matchVocab(cmd);
-        //
-        //            /* apply the qualifier to keep only properly located items */
-        //            locQual.applyLocational();
-        //
-        //            /* if that empties our list, flag it */
-        //            if (matches.length() == 0)
-        //                throw new NoneInLocationError(cmd, self, locQual);
-        //
-        //            /* expand the error name to include the locational */
-        //            expandErrName(locQual);
-        //        }
-        //
-        //        /* if there's an exclusion list, apply it */
-        //        if (exclusions != nil)
-        //            exclusions.forEach({ x: x.applyExclusion(cmd) });
+      
         
         if(matches.length == 0)
         {        
@@ -3015,28 +2964,7 @@ class TopicPhrase: NounPhrase
                 v.append(new NPMatch(self, obj, match));
         }
 
-//        /*
-//         *   Now narrow the list according to the match strength.  Only
-//         *   keep the matches that have the maximum strength of the list.
-//         */
-//        if (v.length() > 0)
-//        {
-//            /* sort in descending order of strength */
-//            v.sort(SortDesc, { a, b: a.strength - b.strength });
-//
-//            /* 
-//             *   discard everything that doesn't match the highest strength
-//             *   (which is the first element's strength, since we've sorted
-//             *   in descending order) 
-//             */
-//            v = v.subset({ a: a.strength == v[1].strength });
-//        }
-//        else
-//        {
-//            /* the list is empty - complain about it */
-//            throw new UnmatchedNounError(cmd, self);
-//        }
-//
+
         /* return the list */
         return v;
     }
@@ -4917,9 +4845,7 @@ class NotUnderstoodError: ParseError
          *   to find any grammar match for the input, so we basically have
          *   no idea what the player was trying to say.  
          */
-//        DMsg(not understood, 'I don\'t understand that command.');
-        say('I don\'t understand that command.');
-        
+        DMsg(not understood, 'I don\'t understand that command.');        
     }
 
     /* 
@@ -4994,7 +4920,7 @@ class UnknownWordError: ParseError
          *   can sometimes match arbitrary input.)  
          */
         DMsg(unknown word, 'I don\'t know the word "{1}".', badWord);
-//        "I don't know the word <<badWord>>. ";
+
     }
 
     /* the text of the unknown word */
@@ -5021,7 +4947,6 @@ class CantOopsError: OopsError
          *   contain any non-dictionary words. 
          */
         DMsg(no oops now, 'Sorry, I\'m not sure what you\'re correcting.');
-//        say('Sorry, I\'m not sure what you\'re correcting.');
     }
 ;
 
@@ -5219,7 +5144,6 @@ class UnmatchedActorError: ResolutionError
          *   from the player's input.  
          */
         DMsg(unmatched actor, '{I} {see} no {1} {here}.', txt);
-//        "You {see} no <<txt>> here. ";
     }
 ;
 
@@ -5237,7 +5161,6 @@ class UnmatchedNounError: ActorResolutionError
          *   text of the noun phrase from the player's input.  
          */
         DMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, txt);
-//        "{You} {see} no <<txt>> here. ";
     }
 ;
 
@@ -5268,8 +5191,6 @@ class NoAntecedentError: PronounError
          */
         DMsg(no antecedent,
              'I\'m not sure what you mean by "{1}".', np.prod.getText());
-        
-//        "I\'m not sure what you mean by <q><<np.prod.getText()>></q>.";
     }
 ;
 
@@ -5294,8 +5215,6 @@ class AntecedentScopeError: PronounError
          */
         DMsg(antecedent out of scope,
              '{I} no longer {see} that {here}.', cmd);
-        
-//        say('{You} no longer {see} that {here}.');
     }
 ;
 
@@ -5313,9 +5232,8 @@ class InsufficientNounsError: ActorResolutionError
          *   there aren't enough of those objects present.  
          */
         DMsg(not enough nouns,
-             '{I} {don\'t see} that many {2} {here}.', cmd, txt);
-        
-//        "{You} {do}n\'t see that many <<txt>> here. ";
+             '{I} {don\'t see} that many {2} {here}.', cmd, txt);       
+
     }
 ;
 
@@ -5354,8 +5272,6 @@ class NoneInOwnerError: ActorResolutionError
              */
             DMsg(none in owners, 'No {2} {dummy}{appears} to have any {3}.',
                  cmd, possQual.prod.getText(), txt);
-            
-//            "No <<possQual.prod.getText()>> appears to have any <<txt>>. ";
         }
         else
         {
@@ -5413,9 +5329,6 @@ class NoneInLocationError: ActorResolutionError
             DMsg(none in locations,
                  '{I} {see} no {2} {3} any {4}.',
                  cmd, txt, locQual.locType.prep, locQual.prod.getText());
-            
-//            "{You} {see} no <<txt>> <<locQual.locType.prep>> any
-//            <<locQual.prod.getText()>>. ";
         }
         else
         {
@@ -5430,10 +5343,6 @@ class NoneInLocationError: ActorResolutionError
             DMsg(none in location,
                  '{I} {see} no {2} {3} {the 4}.',
                  cmd, txt, locQual.locType.prep, locQual.matches[1].obj);
-            
-//            "{You} {see} no <<txt>> <<locQual.locType.prep>> 
-//            <<locQual.matches[1].obj.theName>>.";
-            
         }
     }
 ;
@@ -5474,8 +5383,6 @@ class NoneWithContentsError: ActorResolutionError
             DMsg(none with contents in list,
                  '{I} {see} no {2} of {3}.',
                  cmd, txt, contQual.prod.getText());
-            
-//            "{You} {see} no <<txt>> of <<contQual.prod.getText()>>. ";
         }
         else
         {
@@ -5491,8 +5398,6 @@ class NoneWithContentsError: ActorResolutionError
             DMsg(none with contents,
                  '{I} {see} no {2} of {3}.',
                  cmd, txt, contQual.matches[1].obj);
-            
-//            "{You} {see} no <<txt>> of <<contQual.matches[1].obj>>. ";
         }
     }
 ;

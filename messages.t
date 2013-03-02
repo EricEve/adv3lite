@@ -264,8 +264,6 @@ buildMessage(id, txt, [args])
         i = eos + delta + 1;
     }
 
-    /* apply typographical translations */
-//    txt = typography(txt);
 
     return txt;
 }
@@ -341,9 +339,6 @@ class MessageCtx: object
         self.args = args;
 
         /* if there's a Command among the arguments, note it */
-//        cmd = args.valWhich(
-//            { arg: dataType(arg) == TypeObject && arg.ofKind(Command) });
-        
         cmd = gCommand;
 
         /* if there's no command, use the placeholder */
@@ -906,12 +901,6 @@ class MessageParams: object
                 }
                 else
                 {
-//                    /* it's a role name - look up the role */
-//                    local role = NounRole.all.valWhich({ r: r.name == src });
-//
-//                    /* get the role's object property */
-//                    src = role.objProp;
-                    
                     /* Find the source object corresponding to the string */
                     src = findStrParam(src, role);
                 

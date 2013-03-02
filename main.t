@@ -37,20 +37,6 @@ mainRestore(args, restoreFile)
  */
 mainCommon(prop, [args])
 {
-//    try
-//    {
-//        /* restore the global default settings */
-//        settingsManager.restoreSettings();
-//    }
-//    catch (Exception exc)
-//    {
-//        /* 
-//         *   ignore any errors restoring defaults - it's not critical that
-//         *   we restore this file automatically 
-//         */
-//    }
-//
-    
     
     try
     {
@@ -125,9 +111,7 @@ runGame(look)
 
 mainCommandLoop()
 {
-//    local cmd, tokList;
-//    local parsedCmd;
-//    local pCommands;
+
     local txt;
 
     gActor = gPlayerChar;

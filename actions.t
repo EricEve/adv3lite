@@ -1716,7 +1716,7 @@ Query: ImplicitConversationAction
     execAction(cmd)
     {
         qType = cmd.verbProd.qtype;
-//        "<q><<cmd.verbProd.qtype>> <<cmd.dobj.topicList[1].name>></q>";
+
         inherited(cmd);
     }
     qType = nil
@@ -1817,7 +1817,7 @@ class FileOpAction: SystemAction
     setUpFileOp(ack)
     {
         local result;
-//        local origElapsedTime;
+
 
         /* ask for a file */
         result = getInputFile(filePromptMsg, fileDisposition, fileTypeID, 0);
@@ -2282,23 +2282,14 @@ DefineSystemAction(Restore)
     {
         local succ;        
         local result;
-//        local origElapsedTime;
+
 
         /* presume failure */
         succ = nil;
 
-        /* note the current elapsed game time */
-//        origElapsedTime = realTimeManager.getElapsedTime();
-
         /* ask for a file */
         result = getInputFile(gLibMessages.getRestorePrompt(), InFileOpen,
                               FileTypeT3Save, 0);
-
-        /* 
-         *   restore the real-time clock, so that the time spent in the
-         *   file selector dialog doesn't count against the game time 
-         */
-//        realTimeManager.setElapsedTime(origElapsedTime);
 
         /* check the inputFile response */
         switch(result[1])
@@ -2313,16 +2304,7 @@ DefineSystemAction(Restore)
                 /* note that we succeeded */
                 succ = true;
             }
-            else
-            {
-                /* 
-                 *   failed - in case the failed restore took some time,
-                 *   restore the real-time clock, so that the file-reading
-                 *   time doesn't count against the game time 
-                 */
-//                realTimeManager.setElapsedTime(origElapsedTime);
-            }
-
+           
             /* done */
             break;
 
@@ -2540,10 +2522,3 @@ DefineTIAction(DoNothing)
     grammarTemplates = ['do nothing']
 ;
 
-
-/* Debugging Actions */
-
-#ifdef __DEBUG
- 
-
-#endif

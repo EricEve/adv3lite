@@ -136,11 +136,6 @@ class Settable: Fixture
                 say(invalidSettingMsg);
         }
         
-//        action()
-//        {
-//            makeSetting(gLiteral);
-//            say(okaySetMsg);
-//        }
     }
     
     invalidSettingMsg = BMsg(invalid setting, 'That {dummy} {is} not a valid

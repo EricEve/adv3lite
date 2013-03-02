@@ -200,22 +200,6 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         local response = findBestResponse(prop, topic);
         
-        /* 
-         *   If the player tried a (possibly implicit) say command and we didn't
-         *   find a match, try to see if we match a non-default AskTopic or
-         *   TellTopic instead
-         */
-        
-//        if((response == nil || (response.ofKind(DefaultTopic) &&
-//           !response.ofKind(DefaultSayTopic))) && prop == &sayTopics)
-//        {
-//            response = findBestResponse(&askTopics, topic);
-//            if(response == nil || response.ofKind(DefaultTopic))
-//            {
-//                response = findBestResponse(&tellTopics, topic);                
-//            }
-//           
-//        }
         
         if(response != nil)
         {    
@@ -250,15 +234,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
            
         }
         
-                 
         
-       
-        
-//        
-//        /* If the active keys are about to change, schedule a topic inventory */
-//        if(pendingKeys != activeKeys && pendingKeys.length > 0)
-//            conversationManager.pendingTopicInventory = true;
-//        
         /* 
          *   Reset the pending keys to nil unless we've been requested to retain
          *   them
@@ -1961,41 +1937,13 @@ endConvLeave: object;
 endConvActor: object;
 
 
-class DefaultTopic: ActorTopicEntry
-//    matchTopic(top)
-//    {
-//        if(excludeMatch.indexWhich({x: top.ofKind(x)}) != nil)
-//            return nil;
-//        
-//        return inherited(top);
-//    } 
-//    
-//    initializeTopicEntry()
-//    {
-//        inherited;
-//        excludeMatch = valToList(excludeMatch);
-//    }
-    
+class DefaultTopic: ActorTopicEntry   
     matchObj = [Thing, Topic, yesTopicObj, noTopicObj]
-    matchScore = 1
-    
-    /* 
-     *   An optional list of objects, Things, Topics or classes that this
-     *   Default Topic won't match
-     */
-//    excludeMatch = nil
+    matchScore = 1    
 ;
 
 class DefaultAnyTopic: DefaultTopic
-//    matchTop(top)
-//    {
-//        /* We don't want a DefaultAnyTopic to respond to HIT or KISS */
-//        if(top is in (hitTopicObj, kissTopicObj))
-//            return nil;
-//        
-//        return inherited(top);
-//    }
-    
+   
     includeInList = [&sayTopics, &queryTopics, &askTopics, &tellTopics,
         &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics]
 ;
@@ -2520,8 +2468,6 @@ conversationManager: OutputFilter, PreinitObject
         {
             local match;
             local arg;
-//            local actor;
-//            local sp;
             local tag;
             local nxtOfs;
             local obj;
@@ -2589,7 +2535,7 @@ conversationManager: OutputFilter, PreinitObject
                 setInformed(arg);
                 break;
 
-//            
+         
             case 'convnode':
             case 'convnodet':    
                 /* 
@@ -2909,10 +2855,6 @@ conversationManager: OutputFilter, PreinitObject
     /* preinitialize */
     execute()
     {
-//        /* add every ConvNode object to our master table */
-//        forEachInstance(ConvNode,
-//                        { obj: obj.getActor().convNodeTab[obj.name] = obj });
-        
         
         /*  Add ourselves to the list of output filters. */
         
@@ -3561,11 +3503,6 @@ suggestedTopicLister: object
         
         /* next we need to divide the list according to category */   
         
-//        /* first, initialize all our lists. */
-//        
-//       
-//        doneList = new Vector;
-        
         
         /* 
          *   Go through the list assigning each topic entry to the user
@@ -3589,8 +3526,7 @@ suggestedTopicLister: object
             self.(cur[1]) += lst.subset({t: includes(t, cur[2])});
             lst -= self.(cur[1]);
         }
-        
-//       
+      
         
         /* Introduce the list */
         if(!explicit)

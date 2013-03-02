@@ -320,75 +320,7 @@ class GameMainDef: object
      *   overridden on individual rooms.
      */
     paraBrksBtwnSubcontents = true
-    
-    /* 
-     *   Verbose mode.  If this is on, the full room description is
-     *   displayed each time the player enters a room, regardless of
-     *   whether or not the player has seen the room before; if this is
-     *   nil, the full description is only displayed on the player's first
-     *   entry to a room, and only the short description on re-entry.  Note
-     *   that the library provides VERBOSE and TERSE commands that let the
-     *   player change this setting dynamically.
-     *   
-     *   We use a BinarySettingsItem to store the current mode, so that
-     *   this setting's default will be taken from the user's global
-     *   cross-game preferences.  
-     */
-//    verboseMode = verboseModeSettingsItem
-
-    /*
-     *   Option flag: allow the player to use "you" and "me"
-     *   interchangeably in referring to the player character.  We set this
-     *   true by default, so that the player can refer to the player
-     *   character in either the first or second person, regardless of how
-     *   the game refers to the PC.
-     *   
-     *   If desired, the game can set this flag to nil to force the player
-     *   to use the correct pronoun to refer to the player character.  We
-     *   define "correct" in the case of first or second person as the
-     *   complement of what the game uses: if the game calls the PC "me",
-     *   the player must say "you", and vice versa.  In a third-person
-     *   game, the player must also refer to the PC in the third person.
-     *   
-     *   We set the default to allow using "you" and "me" interchangeably
-     *   because (a) this will create no confusion in most games, and (b)
-     *   many players would be annoyed otherwise.  For one thing, most
-     *   experienced IF players will be rather set in their ways; they'll
-     *   be accustomed to using either "me" or "you" (but usually "me") to
-     *   refer to the PC, and will tend out of habit to do so even in games
-     *   that don't use the traditional second-person narration format.
-     *   For another thing, different players have different ideas about
-     *   whether the PC is "you" or "me" in input, even in a conventional
-     *   second-person game.  Some players think in terms of a conversation
-     *   with the narrator, in which case the narrator's "you" is the
-     *   player's "me", and vice versa; other players are rather more
-     *   literal-minded, assuming that if the game talks about "you" then
-     *   so should the player.
-     *   
-     *   Even in games that use first-person or third-person narration, it
-     *   seems unlikely that there will be a separate second-person element
-     *   to the narration, and as long as that's true, it should cause no
-     *   confusion for the game to accept "you" and "me" as equivalent in
-     *   commands.  However, the library provides this option in case such
-     *   as situation does arise.  
-     */
-//    allowYouMeMixing = true
-
-    /*
-     *   Option flag: filter plural phrase matches exclude the most obvious
-     *   illogicalities, such as trying to TAKE an object that's already
-     *   being held, or trying to OPEN an object that's already open.
-     *   
-     *   This is set to true by default, which means that we exclude an
-     *   object from matching a plural phrase when the object's "verify"
-     *   routine for the verb has an "illogical-already" or an
-     *   "illogical-self" result.
-     *   
-     *   If you would prefer that plural words are simply matched to
-     *   everything present that matches the vocabulary, without any
-     *   filtering at all, override this and set it to nil.  
-     */
-//    filterPluralMatches = true
+        
 
     /*
      *   Option flag: allow ALL to be used for every verb.  This is true by
@@ -409,120 +341,7 @@ class GameMainDef: object
      */
     allVerbsAllowAll = true
 
-    /*
-     *   When a command fails, should we continue processing any remaining
-     *   commands on the same command line, or simply ignore them?  The
-     *   reason we might want to ignore additional commands is that they
-     *   might not do what the player was expecting if an earlier command
-     *   failed; this can sometimes create confusing situations, because
-     *   the player expected one effect but got something quite different.
-     *   On the other hand, *not* executing all the commands on the command
-     *   line could be confusing in its own way, since the game's
-     *   assessment of what constitutes "failure" might not be clear to the
-     *   player; from the player's perspective, the game might appear to be
-     *   inexplicably skipping commands.
-     *   
-     *   There's no perfect solution.  As always, the ideal is to
-     *   understand the player's intentions and act accordingly.  But when
-     *   a command fails, it's usually because the player's idea of what's
-     *   going on is out of sync with the game's - in other words, if we're
-     *   in this situation to start with, it's probably because our best
-     *   effort to understand the player's intentions has already failed.
-     *   This isn't always the case; sometimes we understand the player's
-     *   intentions perfectly well, but the command fails anyway because of
-     *   some surprising new development.  In these cases, aborting the
-     *   rest of the command is arguably the right approach, because the
-     *   player will need a chance to reconsider the pre-typed commands in
-     *   light of the new information.  In other cases, though, it's not so
-     *   clear.  For many players, the prime virtue for the parser is to be
-     *   predictable, and the most predictable thing to do is to simply
-     *   plow through the rest of the command line in all cases.
-     *   
-     *   Our traditional approach (from the early adv3 versions, and even
-     *   in tads 2) has been the simple-minded approach - just keep going
-     *   in all cases.  So, we make this the default.  You can abort
-     *   remaining commands on a command failure by setting this to true.  
-     */
-//    cancelCmdLineOnFailure = nil
-
-    /*
-     *   Should we use distinguishers when generating action object
-     *   announcement messages?  If this is set, announcement messages that
-     *   list objects by name will add distinguishing details to indicate
-     *   specifically which objects are being referred to.  This applies to
-     *   messages announcing default objects, vaguely matched objects, and
-     *   multiple objects.
-     *   
-     *   A distinguisher is a parser object that tells two objects apart by
-     *   some feature that's different in the two objects.  The key thing
-     *   is that the difference has some natural language phrasing
-     *   associated with it, both on the input side and the output side.
-     *   For example, the locational distinguisher can tell two objects
-     *   apart if they have different containers, since it can describe the
-     *   objects by adding containment phrases like "in the box" or "on the
-     *   table".
-     *   
-     *   When this flag is turned on, the parser will try to pick a
-     *   distinguisher that can tell apart the specific objects mentioned
-     *   in the announcement, from one another or from other objects in
-     *   scope, depending on the context.  The point is to help make it
-     *   clearer to the player the exact objects being referred to.
-     *   
-     *   Even when this flag is set, the parser tries to minimize the use
-     *   of additional distinguishing detail.  The goal is to be natural in
-     *   the usage, adding detail only when a human speaker would, which is
-     *   when the phrasing would otherwise be ambiguous.
-     *   
-     *   Setting this flag to nil makes the parser simply use the basic
-     *   name of each object in an announcement.  You can use this setting
-     *   if you find that the distinguisher mode generates too much fussy
-     *   detail for your taste.  
-     */
-//    useDistinguishersInAnnouncements = true
-
-    /*
-     *   How should we handle object announcements when an object is
-     *   automatically disambiguated?  This controls how an action is
-     *   described when the parser uses the logicalness rules to narrow
-     *   down the object for a noun phrase when the noun phrase could refer
-     *   to multiple in-scope objects.  There are three options:
-     *   
-     *   AnnounceUnclear - Make a parenthetical announcement only when the
-     *   choice is *not* clear (as described below).  This is the original
-     *   library behavior, from before this option was added.
-     *   
-     *   AnnounceClear - Make a parenthetical announcement (for example,
-     *   "(the red door)") for all disambiguated objects, whether clear or
-     *   unclear.  We don't make an announcement when there's only one
-     *   in-scope object matching the noun phrase - the announcement is
-     *   only when multiple objects match the words.
-     *   
-     *   DescribeClear - For *unclear* disambiguation, make a parenthetical
-     *   announcement, to emphasize that the parser had to make a choice.
-     *   For *clear* disambiguation, skip the announcement, but *do* use a
-     *   verbose version of the library message in place of one of the
-     *   terse default replies.  For example, for >TAKE BOX, instead of
-     *   "Taken", we would reply "You take the green box."  The longer
-     *   reply in these cases always mentions the involved object by name,
-     *   to make it clear exactly which object we chose to use.
-     *   
-     *   The default setting is DescribeClear.
-     *   
-     *   This only applies when the disambiguation choice is clear - that
-     *   is, when there's exactly one in-scope object that passes the
-     *   logicalness tests.  For example, if the current location contains
-     *   a red door that's open and a green door that's closed, CLOSE DOOR
-     *   clearly refers to the red door because the other one is already
-     *   closed - it's not logical.  There are other cases where the
-     *   disambiguation is a best guess rather than a clear choice, such as
-     *   when there are multiple logical objects but there's one that's
-     *   more likely than the others due to the logicalRank results.  In
-     *   those best-guess situations, the parser always announces its
-     *   decision, because it's entirely plausible that the player meant
-     *   one of the other logical, but less likely, choices.  
-     */
-//    ambigAnnounceMode = DescribeClear
-
+    
     /*
      *   Should the "before" notifications (beforeAction, roomBeforeAction,
      *   and actorAction) run before or after the "check" phase?
@@ -567,20 +386,6 @@ class GameMainDef: object
     
 ;
 
-/*
- *   The VERBOSE mode settings item. 
- */
-//verboseModeSettingsItem: BinarySettingsItem
-//    /* VERBOSE mode is on by default */
-//    isOn = true
-//
-//    /* our configuration file variable ID */
-//    settingID = 'adv3.verbose'
-//
-//    /* show our description */
-//    settingDesc = (gLibMessages.shortVerboseStatus(isOn))
-//;
-//
 /* ------------------------------------------------------------------------ */
 /*
  *   Clear the main game window.  In most cases, you should call this
@@ -597,12 +402,7 @@ class GameMainDef: object
  *   the screen is cleared.  
  */
 cls()
-{
-//    /* flush any captured transcript output */
-//    if (gTranscript != nil)
-//        gTranscript.flushForInput();
-//
-    /* clear the screen */
+{    /* clear the screen */
     aioClearScreen();
 }
 
@@ -662,10 +462,8 @@ adv3LibPreinit: PreinitObject
         mainOutputStream.addOutputFilter(mainParagraphManager);
         mainOutputStream.addOutputFilter(styleTagFilter);        
         mainOutputStream.addOutputFilter(cquoteOutputFilter);
-//        mainOutputStream.addOutputFilter(langMessageBuilder);
+
         mainOutputStream.addOutputFilter(commandSequencer);
-//        mainOutputStream.addOutputFilter(conversationManager);
-//        mainOutputStream.addOutputFilter(senseContext);
 //
 //        /* 
 //         *   Attach our message parameter filter and style tag filter to
@@ -673,27 +471,14 @@ adv3LibPreinit: PreinitObject
 //         *   window's filters in the status line.  
 //         */
         statusTagOutputStream.addOutputFilter(styleTagFilter);
-//        statusTagOutputStream.addOutputFilter(langMessageBuilder);
+
 
         statusLeftOutputStream.addOutputFilter(styleTagFilter);
         statusLeftOutputStream.addOutputFilter(cquoteOutputFilter);
-//        statusLeftOutputStream.addOutputFilter(langMessageBuilder);
-        
-
         statusRightOutputStream.addOutputFilter(styleTagFilter);
-//        statusRightOutputStream.addOutputFilter(langMessageBuilder);
+
     }
-//
-//    /* 
-//     *   Make sure the output streams we depend on are initialized before
-//     *   me (so that they set up properly internally).  Also, make sure
-//     *   that the message builder object (langMessageBuilder) is set up
-//     *   first, so that we can add entries to its parameter substitution
-//     *   table.  
-//     */
-//    execBeforeMe = [mainOutputStream, statusTagOutputStream,
-//                    statusLeftOutputStream, statusRightOutputStream,
-//                    langMessageBuilder]
+
 ;
 //
 /* ------------------------------------------------------------------------ */
@@ -1086,18 +871,7 @@ finishGameMsg(msg, extra)
 {
     local lst;
 
-    /*
-     *   Adjust the turn counter to take into account the action currently
-     *   in progress, if any, and to reflect any turns that the player
-     *   character has already completed and which aren't yet reflected in
-     *   the turn counter.  If we're processing a daemon, the PC's next
-     *   schedulable run time will already reflect the last turn the PC
-     *   completed, but the global turn counter won't be there yet, since
-     *   we're still scheduling daemons that were ready to run on the same
-     *   turn as the player's last action.  
-     */
-//    libGlobal.totalTurns = gPlayerChar.nextRunTime + gAction.actionTime;
-
+    
     /*
      *   Explicitly run any final score notification now.  This will ensure
      *   that any points awarded in the course of the final command that
@@ -1133,19 +907,6 @@ finishGameMsg(msg, extra)
         libGlobal.scoreObj.showScore();
         "<.p>";
     }
-//
-//    /*
-//     *   Since we need to interact directly with the player, any sense
-//     *   context currently in effect is now irrelevant.  Reset the sense
-//     *   context by setting the 'source' object to nil to indicate that we
-//     *   don't need any sense blocking at all.  We can just set the context
-//     *   directly, since this routine will never return into the
-//     *   surrounding command processing - we always either terminate the
-//     *   program or proceed to a different game context (via undo, restore,
-//     *   restart, etc).  By the same token, the actor we're talking to now
-//     *   is the player character.  
-//     */
-//    senseContext.setSenseContext(nil, sight);
     gActor = gPlayerChar;
 
     /* start with the standard options */
@@ -1195,12 +956,6 @@ promptLoop:
         
         /* show the options */
         finishOptionsLister.show(lst, 0);
-        
-//        "What would you like to do: <<makeListStr(lst, &responseKeyword, 
-//                                                  'or')>>?\n>";
-
-        /* switch to before-command mode for reading the interactive input */
-//        "<.commandbefore>";
 
         /* 
          *   update the status line, in case the score or turn counter has
@@ -1211,14 +966,10 @@ promptLoop:
          */
         statusLine.showStatusLine();
 
-        /* read a response */
-//        resp = inputManager.getInputLine(nil, nil);
-        
+        /* read a response */       
         ">";
         resp = inputManager.getInputLine();
 
-        /* switch to command-after mode */
-//        "<.commandafter>";
 
         /* check for a match to each of the options in our list */
         foreach (local cur in lst)
@@ -1371,7 +1122,7 @@ finishOptionRestore: FinishOption
              *   state - terminate any remaining processing in the command
              *   that triggered the end-of-game options
              */
-//            throw new TerminateCommandException();
+
             abort;
         }
         else
@@ -1539,97 +1290,8 @@ finishOptionAmusing: FinishOption
    listOrder = 60
 ;
 
-/* ------------------------------------------------------------------------ */
-/*
- *   The settings user interface.  This is a subclass of the Settings
- *   Manager that adds a command-line user interface, particularly to allow
- *   the user to view, save, and load the default settings.  
- *   
- *   Our user interface consists mainly of a pair of special commands: SAVE
- *   DEFAULTS and RESTORE DEFAULTS.  The SAVE DEFAULTS command tells the
- *   library to write out all of the current settings (at least, all of
- *   those that participate in this framework) to a file.  RESTORE DEFAULTS
- *   explicitly reads that same file and puts the stored settings into
- *   effect.  Finally, we'll also read the file and activate its stored
- *   settings when we start (or RESTART) the game.
- *   
- */
-//settingsUI: settingsManager
-//    /* display all of the current settings */
-//    showAll()
-//    {
-//        local first = true;
-//
-//        /* loop over all SettingsItem instances */
-//        forEachInstance(SettingsItem, function(item)
-//        {
-//            /* include only items that want to participate in the listing */
-//            if (item.includeInListing)
-//            {
-//                /* add a separator if this isn't the first one */
-//                if (!first)
-//                    gLibMessages.settingsItemSeparator;
-//                
-//                /* show this item's description */
-//                item.settingDesc;
-//                
-//                /* it's no longer the first */
-//                first = nil;
-//            }
-//        });
-//    }
-//
-//    /* 
-//     *   Save settings, and display an acknowledgment message (or an error
-//     *   message, if necessary) for the user's edification.
-//     */
-//    saveSettingsMsg()
-//    {
-//        /* catch any errors */
-//        try
-//        {
-//            /* save the settings */
-//            saveSettings();
-//
-//            /* if we got this far, declare success */
-//            gLibMessages.savedDefaults();
-//        }
-//        catch (Exception exc)
-//        {
-//            /* we couldn't open the file */
-//            gLibMessages.defaultsFileWriteError;
-//        }
-//    }
-//
-//    /*
-//     *   Restore settings, and display an acknowledgment or error message,
-//     *   as appropriate.  
-//     */
-//    restoreSettingsMsg()
-//    {
-//        /* catch any errors */
-//        try
-//        {
-//            /* restore the settings */
-//            restoreSettings();
-//
-//            /* if we got this far, declare success */
-//            gLibMessages.restoredDefaults();
-//        }
-//        catch (SettingsNotSupportedException sns)
-//        {
-//            /* this interpreter doesn't support the settings file */
-//            gLibMessages.defaultsFileNotSupported;
-//        }
-//        catch (Exception exc)
-//        {
-//            /* display other errors */
-//            gLibMessages.defaultsFileReadError(exc);
-//        }
-//    }
-//;
-//
-///* ------------------------------------------------------------------------ */
+
+
 /*
  *   Utility functions 
  */
@@ -2134,6 +1796,11 @@ modify List
         return length >= i ? self[i] : nil;
     }
     
+    /*  
+     *   Compare two lists of strings using the cmp StringComparator; return
+     *   true if all the corresponding strings in the two lists are the same
+     *   (according to cmp) and nil otherwise.
+     */
     strComp(lst, cmp)
     {
         if(lst.length != length)

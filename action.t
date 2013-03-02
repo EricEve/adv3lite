@@ -5,7 +5,7 @@
  *   ****************************************************************************
  *    action.t 
  *    This module forms part of the adv3Lite library 
- *    (c) 2012 Eric Eve
+ *    (c) 2012-13 Eric Eve
  */
 
 
@@ -298,85 +298,7 @@ class Action: ReplaceRedirector
     parentAction = nil
     
     
-//    /* 
-//     *   Remap the current action to a completely new one according to the
-//     *   values passed in the list parameter remapList. The first item in the
-//     *   list should be the new action class, the second item the new direct
-//     *   object (if any) and the third the indirect object (if any).
-//     *
-//     *   NOTE: this may be removed in future versions of the library, since it
-//     *   might be cleaner simply to call redirect on a Doer to achieve the same
-//     *   effect. This feature should therefore be regareded as deprecated.
-//     */
-//    
-//    remapAction(remapList)
-//    {
-//        
-//        local action;
-//        
-//        action = remapList[1];
-//        if(action == nil)
-//            return nil;
-//        
-//        
-//        action.parentAction = self;
-//        
-//        
-//        /* 
-//         *   The remapping of a two-object action might take place before the
-//         *   other object involved in the command has been resolved. If the
-//         *   remapping references either the dobj or the iobj of the command
-//         *   when they're still nil then we need to resolve the appropriate
-//         *   object before proceeding. To maintain compatibility with the adv3
-//         *   library we also allow the enums DirectObject, IndirectObject and
-//         *   OtherObject to be used to specify the other object to be used in a
-//         *   remapped command. These are then replaced with the appropriate
-//         *   object.
-//         */
-//        
-//        if(remapList.length > 1)
-//        {
-//            action.reportList = [];
-//            action.curDobj = remapList[2];
-//            if(action.curDobj == DirectObject)
-//                action.curDobj = curDobj;
-//            
-//            if(action.curDobj is in (IndirectObject, OtherObject))
-//                action.curDobj = curIobj;
-//                                         
-//               
-//        }
-//        
-//        if(remapList.length > 2)
-//        {
-//            action.curIobj = remapList[3];
-//            
-//             if(action.curIobj == IndirectObject)
-//                action.curIobj = curIobj;
-//            
-//            if(action.curIobj is in (DirectObject, OtherObject))
-//                action.curIobj = curDobj;
-//                    
-//            
-//        }
-//        
-//        action.isImplicit = isImplicit;
-//        action.afterReports = afterReports;
-//        action.buildScopeList();
-//        
-//        if (!action.resolvedObjectsInScope())
-//           return nil;
-//        
-//        gAction = action;  
-//        gCommand.action = action;
-//        gCommand.dobj = curDobj;
-//        gCommand.iobj = curIobj;
-//        
-//        
-//        gAction.execResolvedAction();       
-//        exit;
-//    }
-//    
+    
     /* 
      *   Carry out the verification stage for this object in this role, and
      *   carry out any remapping needed. This needs to be defined on Action
@@ -455,9 +377,9 @@ class Action: ReplaceRedirector
              *   allow the remapping to proceed at a later stage.
              */
             
-//            return new VerifyResult(100, '', true, obj);                     
+                  
             DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
-                available; use a Doer instead. ');
+                available; please use a Doer instead. ');
              
         default:
             break;
@@ -1275,9 +1197,8 @@ class TAction: Action
     
     /* The current direct object of this action */    
     curDobj = nil
-    
-//    /* A method that returns ther current direct object of this action. */
-//    getDobj { return curDobj; }
+   
+
     
     /* 
      *   The current object being processed (in a TAction, always the curDObj;
@@ -1410,10 +1331,6 @@ class TAction: Action
             if(!verifyObjRole(curDobj, DirectObject))
                return nil; 
                
-            
-            
-//            /* Carry out any remapping of this action on the direct objec. */
-//            remap(DirectObject);
             
             /* 
              *   If gameMain defines the option to run the before notifications
@@ -1650,49 +1567,6 @@ class TAction: Action
     announceMultiVerify = nil
     
     
-        
-    
-//    /* Carry out any remapping required for this role. */
-//    
-//    remap(role)
-//    {
-//        local remapProp;
-//        local remapResult;
-//        local obj;
-//        
-//        /* 
-//         *   First determine which properties we need to use according to the
-//         *   current object's role in the action.
-//         */
-//        switch(role)
-//        {
-//        case DirectObject:
-//            remapProp = remapDobjProp;
-//            obj = curDobj;
-//            break;
-//           
-//        case IndirectObject:
-//            remapProp = remapIobjProp;
-//            obj = curIobj;
-//            break;
-//            
-//        case AccessoryObject:
-//            remapProp = remapAobjProp;
-//            obj = curAobj;
-//        }
-//        
-//                       
-//        /* then check if we need to remap this action in this role. */
-//        
-//        remapResult = obj.(remapProp);
-//        
-//        /* We only need to do anything here if the remapResult is a list. */
-//        
-//        if(dataType(remapResult) == TypeList && remapResult.length > 0)
-//            remapAction(remapResult);
-//        
-//    }
-//    
       
     /* 
      *   Return a list of direct objects corresponding to the word ALL in the
@@ -1832,9 +1706,7 @@ class TIAction: TAction
     
     /* The current indirect object of this action. */
     curIobj = nil
-    
-//    /* A method that returns the current indirect object of this action. */
-//    getIobj { return curIobj; }
+   
     
     /* The various methods to call on the indirect object of this action. */
     verIobjProp = nil
@@ -1991,11 +1863,6 @@ class TIAction: TAction
             if(!resolveIobjFirst && !verifyObjRole(curIobj, IndirectObject))
                 return nil;
             
-//            /* Carry out any remapping needed on the direct object. */           
-//            remap(IndirectObject);
-//            
-//            /* Carry out any remapping needed on the indirect object. */  
-//            remap(DirectObject);
             
             /* 
              *   If gameMain defines the option to run before notifications
@@ -2215,8 +2082,6 @@ class TopicTAction: TAction
      */
     curIobj = nil
     
-//    getIobj() { return curIobj; }
-    
     /* 
      *   This is a bit of a kludge to deal with the fact that the Parser doesn't
      *   seem able to resolve pronouns within ResolvedTopics. We do it here
@@ -2274,7 +2139,7 @@ tryImplicitAction(action, [objs])
          
     
     local oldAction;
-//    local wasImplicit = gAction.isImplicit;
+
      
     action = action.createInstance();
     action.isImplicit = true;
@@ -2314,9 +2179,7 @@ tryImplicitAction(action, [objs])
     
     finally
     {
-        gAction = oldAction;
-//        gAction.afterReports += action.afterReports;
-        
+        gAction = oldAction;       
     }
     
 }
@@ -2360,29 +2223,6 @@ nestedAction(action, [objs])
 }
 
 
-//_nestedAction(isReplacement, actor, action, [objs])
-//{
-////    local action;
-////
-//    /* create an instance of the desired action class */
-//    action = action.createInstance();
-//
-//    /* install the resolved objects in the action */
-//    action.setResolvedObjects(objs...);
-//
-////    if(isReplacement)
-////    {
-////        gCommand.action = action;
-//////        gCommand.dobj = action.curDobj;
-//////        gCommand.iobj = action.curIobj;
-////    }
-//    
-//    /* execute the new action */
-//    execNestedAction(isReplacement, actor, action);
-//}
-    
-
-
 
 /*
  *   Execute a fully-constructed nested action.
@@ -2423,10 +2263,6 @@ execNestedAction(isReplacement, actor, action, [objs])
     /* If our objects aren't in scope we can't proceed with the action. */ 
     if (objs.length > 0 && !action.resolvedObjectsInScope())
         return nil;
-    
-//    gCommand.actions += action;
-    
-//    gAction = action;
     
     try
     {

@@ -102,10 +102,7 @@ inputManager: PostRestoreObject
      */
     getInputLineExt(defObj)
     {
-        /* make sure the command transcript is flushed */
-//        if (gTranscript != nil)
-//            gTranscript.flushForInput();
-        
+
         /* 
          *   If a previous input was in progress, cancel it - this must be
          *   a recursive entry from a real-time event that's interrupting
@@ -125,13 +122,7 @@ inputManager: PostRestoreObject
         {
             local result;
             local timeout;
-//            local t0;
 
-//            /* note the starting time, in case we want to freeze the clock */
-//            t0 = realTimeManager.getElapsedTime();
-//
-//            /* process real-time events, if possible */
-//            timeout = processRealTimeEvents(defObj.allowRealTime);
 
             /* show the prompt and any pre-input codes */
             inputLineBegin(defObj);
@@ -143,15 +134,7 @@ inputManager: PostRestoreObject
              */
             result = aioInputLineTimeout(timeout);
 
-            /*
-             *   If we're not allowing real-time event processing, freeze
-             *   the clock during the read - set the elapsed game
-             *   real-time clock back to the value it had on entry, so
-             *   that the input effectively consumes no real time.  
-             */
-//            if (!defObj.allowRealTime)
-//                realTimeManager.setElapsedTime(t0);
-//
+            
             /* check the event code from the result list */
             switch(result[1])
             {
@@ -280,56 +263,10 @@ inputManager: PostRestoreObject
      *   to see or modify any of the output that occurred prior to the
      *   pause, since we will have flushed the output to that point.  
      */
-    pauseForMore(freezeRealTime?)
+    pauseForMore()
     {
-//        local t0;
-//        local wasTranscriptActive = nil;
-//
-//        /* 
-//         *   flush any command transcript and turn off transcript capture,
-//         *   so that we show any pent-up reports before pausing for the
-//         *   MORE prompt 
-//         */
-//        if (gTranscript != nil)
-//            wasTranscriptActive = gTranscript.flushForInput();
-//        
-//        /* 
-//         *   cancel any pending input - we must be interrupting the
-//         *   pending input with a real-time event 
-//         */
-//        cancelInputInProgress(true);
-//
-//        /* note the starting time, in case we want to freeze the clock */
-//        t0 = realTimeManager.getElapsedTime();
-
         /* run the MORE prompt */
         aioMorePrompt();
-
-//        /* if the transcript was previously active, re-activate it */
-//        if (wasTranscriptActive)
-//            gTranscript.activate();
-//
-//        /* 
-//         *   if the caller wanted us to freeze the clock, restore the
-//         *   elapsed game real time to what it was when we started, so
-//         *   that the time the player took to acknowledge the MORE prompt
-//         *   won't count against the elapsed game time; otherwise, process
-//         *   any real-time events that came due while we were waiting 
-//         */
-//        if (freezeRealTime)
-//        {
-//            /* time was frozen - restore the original elapsed time */
-//            realTimeManager.setElapsedTime(t0);
-//        }
-//        else
-//        {
-//            /* 
-//             *   time wasn't frozen - check for any events that have come
-//             *   due since we started waiting, and process them
-//             *   immediately 
-//             */
-//            processRealTimeEvents(true);
-//        }
     }
 
     /*
@@ -338,22 +275,9 @@ inputManager: PostRestoreObject
      */
     getInputFile(prompt, dialogType, fileType, flags)
     {
-        /* 
-         *   note the game elapsed time before we start - we want to
-         *   freeze the real-time clock while we're waiting for the user
-         *   to respond, since this system verb exists outside of the
-         *   usual time flow of the game 
-         */
-//        local origElapsedTime = realTimeManager.getElapsedTime();
-        
+       
         /* ask for a file */
         local result = aioInputFile(prompt, dialogType, fileType, flags);
-
-        /* 
-         *   restore the game real-time counter to what it was before we
-         *   started the interactive response 
-         */
-//        realTimeManager.setElapsedTime(origElapsedTime);
 
         /* return the result from inputFile */
         return result;
@@ -365,22 +289,10 @@ inputManager: PostRestoreObject
      *   for the built-in inputDialog() function.  
      */
     getInputDialog(icon, prompt, buttons, defaultButton, cancelButton)
-    {
-        /* 
-         *   note the current elapsed game real time, so we can restore it
-         *   after the dialog is done
-         */
-//        local origElapsedTime = realTimeManager.getElapsedTime();
-
+    {       
         /* show the dialog */
         local result = aioInputDialog(icon, prompt, buttons,
                                       defaultButton, cancelButton);
-
-        /* 
-         *   restore the real-time counter, so that the time spent in the
-         *   dialog doesn't count 
-         */
-//        realTimeManager.setElapsedTime(origElapsedTime);
 
         /* return the dialog result */
         return result;
@@ -429,9 +341,6 @@ inputManager: PostRestoreObject
      */
     getEventOrKey(allowRealTime, promptFunc, keyOnly)
     {
-        /* make sure the command transcript is flushed */
-//        if (gTranscript != nil)
-//            gTranscript.flushForInput();
         
         /* 
          *   Cancel any in-progress input.  If there's an in-progress
@@ -445,13 +354,7 @@ inputManager: PostRestoreObject
         {
             local result;
             local timeout;
-//            local t0;
 
-            /* note the starting time, in case we want to freeze the clock */
-//            t0 = realTimeManager.getElapsedTime();
-
-            /* process real-time events, if possible */
-//            timeout = processRealTimeEvents(allowRealTime);
 
             /* show the prompt and any pre-input codes */
             inputEventBegin(promptFunc);
@@ -462,15 +365,7 @@ inputManager: PostRestoreObject
              *   will simply act like the ordinary untimed inputLine.)  
              */
             result = aioInputEvent(timeout);
-
-            /*
-             *   If we're not allowing real-time event processing, freeze
-             *   the clock during the read - set the elapsed game
-             *   real-time clock back to the value it had on entry, so
-             *   that the input effectively consumes no real time.  
-             */
-//            if (!allowRealTime)
-//                realTimeManager.setElapsedTime(t0);
+           
 
             /* check the event code from the result list */
             switch(result[1])
@@ -588,29 +483,7 @@ inputManager: PostRestoreObject
         /* presume we will not use a timeout */
         timeout = nil;
 
-        /* process real-time events, if allowed */
-//        if (allowRealTime)
-//        {
-//            local tNext;
-//            
-//            /* 
-//             *   Process any real-time events that are currently ready to
-//             *   execute, and note the amount of time until the next
-//             *   real-time event is ready.  
-//             */
-////            tNext = realTimeManager.executeEvents();
-//
-//            /* 
-//             *   If there's an event pending, note the interval between the
-//             *   current time and the event's scheduled time - this will
-//             *   give us the maximum amount of time we want to wait for the
-//             *   user to edit the command line before interrupting to
-//             *   execute the pending event.  Ignore this if the platform
-//             *   doesn't support timeouts to begin with.  
-//             */
-////            if (tNext != nil && !noInputTimeout)
-////                timeout = tNext - realTimeManager.getElapsedTime();
-//        }
+       
 
         /* return the timeout until the next real-time event */
         return timeout;
@@ -706,18 +579,7 @@ inputManager: PostRestoreObject
      *   shows the prompt if given.  
      */
     inputBegin(promptFunc)
-    {
-        /* 
-         *   Turn off command transcript capture, if it's active.  Once
-         *   we're soliciting input interactively, we can no longer
-         *   usefully capture the text output of commands, but this is fine
-         *   because we must be doing something for which capture isn't
-         *   important anyway.  Reporting capture is used for things like
-         *   selecting the kind of result to show, which clearly isn't a
-         *   factor for actions involving interactive input.  
-         */
-//        if (gTranscript != nil)
-//            gTranscript.flushForInput();
+    {        
 
         /* if we have a prompt, display it */
         if (promptFunc != nil)
@@ -784,35 +646,6 @@ inputManager: PostRestoreObject
     noInputTimeout = nil
 ;
 
-
-/* ------------------------------------------------------------------------ */
-/*
- *   Read a command line from the player.  Displays the main command
- *   prompt and returns a line of input.
- *   
- *   We process any pending real-time events before reading the command.
- *   If the local platform supports real-time command-line interruptions,
- *   we'll continue processing real-time events as they occur in the
- *   course of command editing.  
-// */
-//readMainCommand(which)
-//{
-//    local str;
-//    
-//    /* execute any pre-command-prompt daemons */
-//    eventManager.executePrompt();
-//            
-//    /* 
-//     *   Read a line of input, allowing real-time event processing, and
-//     *   return the line of text we read.  Use the appropriate main
-//     *   command prompt for the given prompt mode.  
-//     */
-//    str = inputManager.getInputLine(
-//        true, {: gLibMessages.mainCommandPrompt(which) });
-//
-//    /* return the string we read */
-//    return str;
-//}
 
 
 /* ------------------------------------------------------------------------ */
@@ -1036,65 +869,3 @@ commentPreParser: StringPreParser
 ;
 
 
-/* ------------------------------------------------------------------------ */
-/*
- *   Read a line of text and return the token list and the original text.
- *   We keep going until a non-empty line of text is read.
- *   
- *   'which' is one of the rmcXxx enum values specifying what kind of
- *   command line we're reading.
- *   
- *   The return value is a list of two elements.  The first element is the
- *   string entered, and the second element is the token list.  
- */
-//readMainCommandTokens(which)
-//{
-//    local str;
-//    local toks;
-//
-//    /* keep going until we get a non-empty command line */
-//    for (;;)
-//    {
-//        /* read a command line */
-//        str = readMainCommand(which);
-//
-//        /* run any preparsing desired on the string */
-//        str = StringPreParser.runAll(str, which);
-//
-//        /* 
-//         *   if preparsing returned nil, it means that the preparser fully
-//         *   handled the string - simply return nil to tell the caller
-//         *   that its work is done 
-//         */
-//        if (str == nil)
-//            return nil;
-//
-//        try
-//        {
-//            /* tokenize the command string */
-//            toks = cmdTokenizer.tokenize(str);
-//        }
-//        catch (TokErrorNoMatch tokExc)
-//        {
-//            /* 
-//             *   Invalid tokens in the response - complain about it.  Flag
-//             *   the error as being in the first character of the
-//             *   remaining string, since that's the character for which we
-//             *   could find no match. 
-//             */
-//            gLibMessages.invalidCommandToken(tokExc.curChar_.htmlify());
-//
-//            /* go back for another input line */
-//            continue;
-//        }
-//
-//        /* if we got a non-empty token list, return it */
-//        if (toks.length() != 0)
-//            return [str, toks];
-//
-//        /* show the empty-command reply */
-//        gLibMessages.emptyCommandResponse();
-//    }
-//}
-//
-//

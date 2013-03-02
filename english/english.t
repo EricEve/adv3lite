@@ -225,10 +225,6 @@ class LMentionable: object
         }
     }
     
-//    theNameObj = (person > 2 ? theName : itObj)
-//    aNameObj = (person > 2 ? aName : itObj)
-    
-    
     /*
      *   Class initialization.  The library calls this at preinit time,
      *   before calling construct() on any instances, to set up any
@@ -1669,10 +1665,7 @@ class LMentionable: object
     /* class property: pronoun lookup table (built during preinit) */
     pronounMap = nil
     
-    
-    
-    
-    
+        
     itReflexive
     {
         switch(person)
@@ -1799,12 +1792,6 @@ OpenClosed: State
     appliesTo(obj) { return obj.isOpenable; }
 ;
 
-/* Is this the player char? If so then 'me' applies to this object. */
-
-//PCOrNot: State
-//    stateProp = &isPlayerChar
-//    vocabWords = [[true, 'me', MatchNoun]]
-//;
 
 modify TopicPhrase
     matchNameScope(cmd, scope)
@@ -2263,7 +2250,6 @@ englishCustomVocab: CustomVocab
 
     /* verb parameters, for {xxx} tokens in message strings */
     verbParams = [
-//        'be/is/was/been',
         'achieve/achieves/achieved',
         'appear/appears/appeared',
         'ask/asks/asked',
@@ -2680,8 +2666,6 @@ modify descContentsLister
 modify lookContentsLister
     showListPrefix(lst, pl, parent)
     {
-//        gMessageParams(parent);
-//        "{In parent} {i} {see} ";
         "\^<<parent.objInName>> {i} {see} ";
     }
 
@@ -2696,27 +2680,6 @@ modify lookContentsLister
     
 ;
 
-//modify openableContentsLister
-//    showListPrefix(lst, pl, parent)
-//    {
-//        gMessageParams(parent);
-//        "{The subj parent} {is} open and {contains} ";        
-//    }
-//
-//    showListSuffix(lst, pl, paraCnt)
-//    {
-//        ".\n";
-//    }
-//    
-//    showListEmpty(parent)  
-//    {
-//        if(parent.openStatusReportable)
-//            "\^<<parent.theNameIs>> <<if parent.isOpen>>open<<else>>
-//            closed<<end>>. ";
-//    }
-//    
-//    showSubListing = (gameMain.useParentheticalListing)
-//;
 
 modify openingContentsLister
     showListPrefix(lst, pl, parent)
@@ -2831,10 +2794,6 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and')
             desc += ' (providing light)';
         
         lst += desc;
-//        if(i == objList.length - 1)
-//            lst += (' ' + conjunction + ' ');
-//        else if(i < objList.length - 1)
-//            lst += ', ';
     }
     
     
@@ -3636,9 +3595,6 @@ libMessages: object
     }
 
    
-    
-   
-       
      /* show the current score notify status */
     showNotifyStatus(stat)
     {
@@ -4735,28 +4691,19 @@ modify TAction
         local dobjIsPronoun;
         local ret;
 
-//        /* use the default pronoun context if one wasn't supplied */
-//        if (ctx == nil)
-//            ctx = defaultGetVerbPhraseContext;
+//       ctx = defaultGetVerbPhraseContext;
 
         /* get the direct object */
         dobj = curDobj;
 
-//        /* note if it's a pronoun */
-//        dobjIsPronoun = ctx.isObjPronoun(dobj);
         dobjIsPronoun = nil;
         
 
-        /* get the direct object name */
-//        dobjText = ctx.objNameObj(dobj);
-        
+        /* get the direct object name */ 
         dobjText = dobj.theName;
 
         /* get the phrasing */
         ret = getVerbPhrase1(inf, verbRule.verbPhrase, dobjText, dobjIsPronoun);
-
-//        /* set the pronoun antecedent to my direct object */
-//        ctx.setPronounObj(dobj);
 
         /* return the result */
         return ret;
@@ -4802,10 +4749,6 @@ modify TAction
         /* get the direct object preposition */
         dprep = rexGroup(4)[3];
 
-//        /* do any verb-specific adjustment of the preposition */
-//        if (dprep != nil)
-//            dprep = adjustDefaultObjectPrep(dprep, getDobj());
-
         /*
          *   if the direct object is not a pronoun, put the complementizer
          *   BEFORE the direct object (the 'up' in "PICKING UP THE BOX")
@@ -4845,37 +4788,22 @@ modify TIAction
         local iobj, iobjText;
         local ret;
 
-//        /* use the default context if one wasn't supplied */
-//        if (ctx == nil)
-//            ctx = defaultGetVerbPhraseContext;
-
         /* get the direct object information */
         dobj = curDobj;
-//        dobjText = ctx.objNameObj(dobj);
-//        dobjIsPronoun = ctx.isObjPronoun(dobj);
         
         dobjText = dobj.theName;
         dobjIsPronoun = nil;
 
         /* get the indirect object information */
         iobj = curIobj;
-//        iobjText = (iobj != nil ? ctx.objNameObj(iobj) : nil);
+
         iobjText = (iobj != nil ? iobj.theName : nil);
 
         /* get the phrasing */
         ret = getVerbPhrase2(inf, verbRule.verbPhrase,
                              dobjText, dobjIsPronoun, iobjText);
 
-        /*
-         *   Set the antecedent for the next verb phrase.  Our direct
-         *   object is normally the antecedent; however, if the indirect
-         *   object matches the current antecedent, keep the current
-         *   antecedent, so that 'it' (or whatever) remains the same for
-         *   the next verb phrase.
-         */
-//        if (ctx.pronounObj != iobj)
-//            ctx.setPronounObj(dobj);
-
+        
         /* return the result */
         return ret;
     }

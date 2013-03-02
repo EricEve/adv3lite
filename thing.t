@@ -1035,21 +1035,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     
     interiorDesc = (desc)
-    
 
-//    /*  
-//     *   The description from inside this object, which is our interiorDesc if
-//     *   we're illuminated and our darkDesc otherwise.
-//     */
-//    insideDesc(pov) 
-//    { 
-//        if(isIlluminated)
-//            interiorDesc; 
-//        else
-//            darkDesc;
-//    }
-        
-    
     
     isIlluminated
     {
@@ -1126,7 +1112,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         "<.p>";
         
-//        lookAround(gActor);
+
         if(gExitLister != nil)
             gExitLister.lookAroundShowExits(gActor, self, isIlluminated);
     }
@@ -1511,9 +1497,6 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    
-    
-    
     /* 
      *   Flag to indicate whether this item is portable (nil) or fixed in place
      *   (true). If it's fixed in place it can't be picked up or moved around
@@ -1687,8 +1670,6 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    
-    
     /* Remap LOOK IN, PUT IN etc. to the following objects if they're not nil */
     
     remapIn = nil
@@ -1830,6 +1811,8 @@ class Thing:  ReplaceRedirector, Mentionable
 
     /* get everything I'm directly wearing */
     directlyWorn = (contents.subset({ obj: obj.wornBy = self }))
+    
+    
     /* 
      *   Although there are (or may be) mechanisms that would allow objects to
      *   be put under other objects, in general we probably don't want to allow
@@ -1840,8 +1823,6 @@ class Thing:  ReplaceRedirector, Mentionable
     canPutBehindMe = (contType == Behind)
     canPutInMe = (contType == In)
     
-    
-  
     
     
     /* 
@@ -2387,29 +2368,6 @@ class Thing:  ReplaceRedirector, Mentionable
                 location != nil && location.isHeldBy(obj));
     }
 
-//    /* are we directly held by the given object? */
-//    isDirectlyHeldBy(obj) { return location == obj && locType == Held; }
-//
-//    /* get everything I'm directly holding */
-//    directlyHeld = (contents.subset({ obj: obj.locType == Held }))
-    
-    /*
-     *   The room headline.  This is printed as the first line of the room
-     *   description (for LOOK AROUND, travel to a new room, turning on the
-     *   lights in the dark, etc).  By default, this consists of the room
-     *   title, followed by the actor's direct container if the actor is
-     *   inside some intermediate container within the room, such as a
-     *   chair.  
-     */
-//    roomHeadline(pov)
-//    {
-//        /* start with the room title */
-//        say(roomTitle);
-//
-//        /* if the actor is in an intermediate container, add the container */
-//        if (pov.location not in (self, nil))
-//            pov.location.roomSubhead(pov);
-//    }
 
     /*
      *   The nested room subhead.  This shows a little addendum to the room
@@ -2777,19 +2735,9 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     checkReachIn(actor)  
     {
-//        local str = gOutStream.captureOutput({:checkReach(actor)}); 
-//    
-//        if(str not in (nil,''))
-//            cantReachInsideMsg(str);
-        
         checkReach(actor);
     }
     
-//    cantReachInsideMsg(str)
-//    {
-//        DMsg(cant reach inside, '{I} {can\'t} reach {the cobj} because \v{1} ',
-//             str); 
-//    }
     
     /* 
      *   Check whether the actor can reach out of this object to touch obj, if
@@ -5347,7 +5295,6 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(GetOff)
     {
-//        preCond = [objOpen]
         
         remap = remapOn
         
@@ -7713,11 +7660,6 @@ class Topic: Mentionable
  *   locational phrases ("the book *on* the table", etc).  
  */
 class LocType: object
-    /*
-     *   Move object a into object b, using this location type as the
-     *   relationship. 
-     */
-//    move(a, b) { a.moveTo(b, self); }
     
     listOrder = 100
 ;

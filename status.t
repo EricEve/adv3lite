@@ -185,12 +185,7 @@ transient statusLine: object
         if (statusDispMode == nil || gPlayerChar == nil)
             return;
 
-        /* 
-         *   showing the status line doesn't normally change any game
-         *   state, so we can turn on the sense cache while generating the
-         *   display 
-         */
-//        libGlobal.enableSenseCache();
+       
 
         /* 
          *   Enter status-line mode.  This will do whatever is required for
@@ -230,8 +225,6 @@ transient statusLine: object
             /* end status-line mode */
             endStatusLine(oldStr);
 
-            /* turn off sense caching */
-//            libGlobal.disableSenseCache();
         }
     }
 

@@ -249,17 +249,9 @@ exitLister: PreinitObject
     showExitsWithLister(actor, loc, lister, locIsLit)
     {
         local destList;
-//        local showDest;
-        local options;
 
-        /* 
-         *   Ask the lister if it shows the destination names.  We need to
-         *   know because we want to consolidate exits that go to the same
-         *   place if and only if we're going to show the destination in
-         *   the listing; if we're not showing the destination, there's no
-         *   reason to consolidate. 
-         */
-//        showDest = lister.listerShowsDest;
+        local options;
+       
 
         /* we have no option flags for the lister yet */
         options = 0;
@@ -302,111 +294,8 @@ exitLister: PreinitObject
                 break;
             }
             
-            
-            
-            
         }
         
-        
-        
-//        foreach (local dir in Direction.allDirections)
-//        {
-//            local conn;
-//            
-//            /* 
-//             *   If the actor's location has a connector in this
-//             *   direction, and the connector is apparent, add it to the
-//             *   list.
-//             *   
-//             *   If the actor is in the dark, we can only see the
-//             *   connector if the connector is visible in the dark.  If
-//             *   the actor isn't in the dark, we can show all of the
-//             *   connectors.  
-//             */
-//            if ((conn = loc.getTravelConnector(dir, actor)) != nil
-//                && conn.isConnectorApparent(loc, actor)
-//                && conn.isConnectorListed
-//                && (locIsLit || conn.isConnectorVisibleInDark(loc, actor)))
-//            {
-//                local dest;
-//                local destName = nil;
-//                local destIsBack;
-//
-//                /* 
-//                 *   We have an apparent connection in this direction, so
-//                 *   add it to our list.  First, check to see if we know
-//                 *   the destination. 
-//                 */
-//                dest = conn.getApparentDestination(loc, actor);
-//
-//                /* note if this is the "back to" connector for the actor */
-//                destIsBack = (conn == actor.lastTravelBack);
-//
-//                /* 
-//                 *   If we know the destination, and they want to include
-//                 *   destination names where possible, get the name.  If
-//                 *   there's a name to show, include the name.  
-//                 */
-//                if (dest != nil
-//                    && showDest
-//                    && (destName = dest.getDestName(actor, loc)) != nil)
-//                {
-//                    local orig;
-//
-//                    /* 
-//                     *   we are going to show a destination name for this
-//                     *   item, so set the special option flag to let the
-//                     *   lister know that this is the case 
-//                     */
-//                    options |= ExitLister.hasDestNameFlag;
-//
-//                    /* 
-//                     *   if this is the back-to connector, note that we
-//                     *   know the name of the back-to location 
-//                     */
-//                    if (destIsBack)
-//                        options |= ExitLister.hasBackNameFlag;
-//                    
-//                    /* 
-//                     *   If this destination name already appears in the
-//                     *   list, don't include this one in the list.
-//                     *   Instead, add this direction to the 'others' list
-//                     *   for the existing entry, so that we will show each
-//                     *   known destination only once. 
-//                     */
-//                    orig = destList.valWhich({x: x.dest_ == dest});
-//                    if (orig != nil)
-//                    {
-//                        /* 
-//                         *   this same destination name is already present
-//                         *   - add this direction to the existing entry's
-//                         *   list of other directions going to the same
-//                         *   place 
-//                         */
-//                        orig.others_ += dir;
-//
-//                        /* 
-//                         *   if this is the back-to connector, note it in
-//                         *   the original destination item 
-//                         */
-//                        if (destIsBack)
-//                            orig.destIsBack_ = true;
-//
-//                        /* 
-//                         *   don't add this direction to the main list,
-//                         *   since we don't want to list the destination
-//                         *   redundantly 
-//                         */
-//                        continue;
-//                    }
-//                }
-//
-//                /* add it to our list */
-//                destList.append(new DestInfo(dir, dest, destName,
-//                                             destIsBack));
-//            }
-//        }
-
         /* show the list */
         lister.showListAll(destList.toList(), options, 0);
     }
@@ -591,8 +480,6 @@ class DestInfo: object
         /* remember the direction, destination, and destination name */
         dir_ = dir;
         dest_ = dest;
-//        destName_ = destName;
-//        destIsBack_ = destIsBack;
     }
 
     /* the direction of travel */

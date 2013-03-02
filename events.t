@@ -125,24 +125,9 @@ eventManager: object
             /* make sure we restore things on the way out */
             try
             {
-//                local pc;
-                
-                /* have the player character note the pre-event conditions */
-//                pc = gPlayerChar;
-//                pc.noteConditionsBefore();
-                
-                /* cancel any sense caching currently in effect */
-//                libGlobal.disableSenseCache();
-
                 /* execute the event */
                 cur.executeEvent();
 
-                /* 
-                 *   if the player character is the same as it was, ask
-                 *   the player character to note any change in conditions 
-                 */
-//                if (gPlayerChar == pc)
-//                    pc.noteConditionsAfter();
             }
             catch (Exception exc)
             {
