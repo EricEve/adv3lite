@@ -1034,13 +1034,16 @@ class TravelAction: Action
     execAction(cmd)
     {        
         
+        local getOutAction;
+        
         /* 
          *   If the actor is not directly in the room, treat OUT as a request to
          *   get out of the immediate container.
          */
         if(!gActor.location.ofKind(Room) && direction == outDir)
         {
-            replaceAction(GetOff, gActor.location);
+            getOutAction = gActor.location.contType == On ? GetOff : GetOutOf;
+            replaceAction(getOutAction, gActor.location);
             return;
         }
              
@@ -1054,11 +1057,12 @@ class TravelAction: Action
             /* Note the actor's current location. */
             local loc = gActor.location;
             
+            getOutAction = loc.contType == On ? GetOff : GetOutOf;
             /* 
              *   Try to get the actor out of his/her current location with an
              *   implicit action.
              */
-            tryImplicitAction(GetOff, loc);
+            tryImplicitAction(getOutAction, loc);
             
             /* Note and if necessary display the implicit action report. */
             "<<buildImplicitActionAnnouncement(true)>>";

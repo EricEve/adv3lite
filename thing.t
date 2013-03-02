@@ -933,7 +933,11 @@ class Thing:  ReplaceRedirector, Mentionable
          *   description.
          */
         
-        if(gOutStream.captureOutput({: examineStatus()}) is in (nil, ''))            
+        local str = gOutStream.captureOutput({: examineStatus()});
+        
+        str = str == nil ? '' : str.trim();
+        
+        if(str == '')            
             DMsg(nothing special,  '{I} {see} nothing special about {1}. ', 
                  theName); 
     }
@@ -1154,6 +1158,9 @@ class Thing:  ReplaceRedirector, Mentionable
             gMessageParams(loc);
             DMsg(list immediate container, '{I} {am} {in loc}. <.p>');
             loc.mentioned = true;
+            if(loc.ofKind(SubComponent) && loc.lexicalParent != nil)
+                loc.lexicalParent.mentioned = true;
+                
             listSubcontentsOf([loc]);
         }
         
@@ -2279,7 +2286,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 break;
 
             /* if we can't see out to our next container, stop here */
-            if (loc.location.contType == In && !loc.canSeeOut)
+            if (loc.contType == In && !loc.canSeeOut)
                 break;
         }
 
@@ -5170,6 +5177,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        remap = remapOn
+        
         verify()
         {
             if(!isBoardable || contType != On)
@@ -5293,6 +5302,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj, containerOpen]
         
+        remap = remapIn
+        
         verify()
         {
             if(!isEnterable || contType != In)
@@ -5331,32 +5342,56 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(SitIn) asDobjFor(Enter)
     dobjFor(LieIn) asDobjFor(Enter)
     
+    
+    exitLocation = (lexicalParent == nil ? location : lexicalParent.location)
+    
     dobjFor(GetOff)
     {
-        preCond = [objOpen]
+//        preCond = [objOpen]
+        
+        remap = remapOn
         
         verify()
         {
-            if(!gActor.isIn(self))
+            if(!gActor.isIn(self) || contType != On)
+                illogicalNow(actorNotOnMsg);
+            
+        }
+        
+        action()
+        {
+            gActor.actionMoveInto(exitLocation);            
+        }
+        
+        report() { say(okayGetOutOfMsg); }
+    }
+            
+    dobjFor(GetOutOf) 
+    {
+        preCond = [containerOpen]
+        
+        remap = remapIn
+        
+        verify()
+        {
+            if(!gActor.isIn(self) || contType != In)
                 illogicalNow(actorNotInMsg);
             
         }
         
         action()
         {
-            gActor.actionMoveInto(location);            
+            gActor.actionMoveInto(exitLocation);            
         }
         
-        report()
-        {
-            DMsg(okay get outof, 'Okay, {i} {get} {outof dobj}. ');
-        }
+        report() { say(okayGetOutOfMsg); }        
     }
-            
-    dobjFor(GetOutOf) asDobjFor(GetOff)
     
-    actorNotInMsg = BMsg(actor not in,'{I}{\'m} not {in dobj}. ')
     
+    okayGetOutOfMsg = BMsg(okay get outof, 'Okay, {i} {get} {outof dobj}. ')
+    
+    actorNotInMsg = BMsg(actor not in,'{I}{\'m} not in {the dobj}. ')
+    actorNotOnMsg = BMsg(actor not on,'{I}{\'m} not on {the dobj}. ')
     
     /* 
      *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE
@@ -7343,6 +7378,7 @@ class SubComponent: Thing
     preinitThing()
     {
         initializeSubComponent(lexicalParent);
+        origVocab = vocab;
         inherited;
     }
     
@@ -7369,6 +7405,30 @@ class SubComponent: Thing
         if(contType != nil)
             listOrder = contType.listOrder;
     }
+    
+    makeOpen(stat)
+    {
+        inherited(stat);
+        
+        /* 
+         *   If we close this item when the playerChar is inside it, the player
+         *   will need to be able to refer to it with the vocab of its
+         *   lexicalParent
+         */
+        if(lexicalParent != nil && gPlayerChar.isIn(self))
+        {
+            if(stat)
+            {
+                replaceVocab(origVocab);
+                name = lexicalParent.name;
+            }
+            else
+                addVocab(lexicalParent.vocab);
+        }
+    }
+    
+    origVocab = nil
+    
 ;
 
 class MultiLoc: object

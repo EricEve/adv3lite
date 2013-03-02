@@ -489,7 +489,11 @@ GoOut: TravelAction
     execAction(cmd)
     {
         if(!gActor.location.ofKind(Room))
-            replaceAction(GetOff, gActor.location);
+        {
+            local getOffAction;
+            getOffAction = gActor.location.contType == On ? GetOff : GetOutOf;
+            replaceAction(getOffAction, gActor.location);
+        }
         else
         {
             "<<buildImplicitActionAnnouncement(true)>>";

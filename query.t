@@ -872,13 +872,15 @@ class ReachProblemReachOut: ReachProblem
     {
         local loc = gActor.location;
         local obj = target_;
+        local getOutAction;
         
         while(loc != gActor.getOutermostRoom)
         {
             if(!obj.isOrIsIn(loc) && !loc.allowReachOut(obj))
             {
+                getOutAction = loc.contType == On ? GetOff : GetOutOf;
                 if(allowImplicit && loc.autoGetOutToReach 
-                   && tryImplicitAction(GetOutOf, loc))
+                   && tryImplicitAction(getOutAction, loc))
                 {
                     if(gActor.isIn(loc))
                         return nil;
