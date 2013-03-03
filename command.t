@@ -352,6 +352,8 @@ class Command: object
         }
     }
     
+    
+    
     /* 
      *   A list of reports of previous implicit actions performed in the course
      *   of executing this command which can be used if we need to collate a
@@ -1230,6 +1232,8 @@ class Command: object
     
     /*   Does this command apply to objects matched to multiple objects? */
     matchedMulti = nil
+    
+    madeTopic = nil
 ;
 
 

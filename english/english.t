@@ -1807,6 +1807,17 @@ modify TopicPhrase
         
         tokens = tokens.subset({x: x != '\'s'});
         
+        /* 
+         *   Strip any articles out of the tokens. We need to do this in the
+         *   English library to ensure that we get a sensible match to a Topic
+         *   when the player's input includes articles (e.g. ASK ABOUT THE
+         *   DARK), since the parser will first try to match items that include
+         *   the tokens 'the' and 'dark' in their vocabWords, with results that
+         *   may not be what we want.
+         */
+        
+        tokens = tokens.subset({x: x not in ('a', 'the', 'an')});
+        
         try
         {
            ret = inherited(cmd, scope);

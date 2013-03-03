@@ -1221,9 +1221,9 @@ class TAction: Action
         curDobj = nil;
         curObj = nil;
         lastVerifyMsg = nil;
-        redirectParent = nil;
+        redirectParent = nil;        
     }
-    
+       
     
     /* 
      *   Information to allow the DEBUG ACTIONS command to express a complete
@@ -1548,7 +1548,10 @@ class TAction: Action
          *   report stage.
          */    
         
-        if(!gOutStream.watchForOutput({:curDobj.(actionDobjProp)}))
+        local msg = gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+                
+        
+        if(msg==nil)    
             reportList += curDobj;       
         
         /* Note that we've carried out the action on this object. */
@@ -1931,14 +1934,15 @@ class TIAction: TAction
         
         
         /* 
-         *   Run the action routine on the current direct object. If it doesn't
-         *   display anything note that the direct object can be added to the
-         *   list of objects to be reported on at the report stage, provided the
-         *   iobj action routine doesn't report anything either.
+         *   Run the action routine on the current direct object and capture the
+         *   output for later use. If the output is null direct object can be
+         *   added to the list of objects to be reported on at the report stage,
+         *   provided the iobj action routine doesn't report anything either.
          */
-        local canReport =
-            !gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+        local msgForDobj =
+            gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
            
+               
         
         /* Note that we've acted on this direct object. */
         actionList += curDobj;
@@ -1953,11 +1957,18 @@ class TIAction: TAction
          *   dobj to the reportList if it's not already there so that a report
          *   method on the dobj can report on actions handled on the iobj.
          */
-        if(!gOutStream.watchForOutput({:curIobj.(actionIobjProp)}) && canReport)
+        
+        local msgForIobj =
+            gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+        
+       
+        
+        if(!msgForDobj&& !msgForIobj)
         {
             ioActionList += curIobj;
             reportList = reportList.appendUnique([curDobj]);
         }
+        
               
         return true;
     }

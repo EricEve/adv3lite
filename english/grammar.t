@@ -1354,7 +1354,7 @@ DefineLangDir(out, 'out', 'back');
 DefineLangDir(port, 'port' | 'p', 'back to');
 DefineLangDir(starboard, 'starboard' | 'sb', 'back to');
 DefineLangDir(aft, 'aft', 'back');
-DefineLangDir(fore, 'fore' | 'f' ,  'back');
+DefineLangDir(fore, 'fore' | 'f' | 'forward' ,  'back');
 //
 
 /* ------------------------------------------------------------------------ */

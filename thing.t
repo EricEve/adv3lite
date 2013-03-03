@@ -4715,16 +4715,21 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(useKey_ != nil)
-                DMsg(with key, '(with {1})\n', useKey_.theName);
-            else
+                reportBefore(withKeyMsg);
+            else if(lockability == lockableWithKey)
                 askForIobj(UnlockWith);
             
-            makeLocked(nil);            
-            DMsg(report unlock, okayUnlockMsg);
+            makeLocked(nil);               
         }
+        
+        report()
+        {
+            DMsg(report unlock, okayUnlockMsg, gActionListStr);
+        }
+        
     }
     
-    okayUnlockMsg = 'Unlocked.|{I} {unlock} {the dobj}. '
+    okayUnlockMsg = 'Unlocked.|{I} {unlock} {1}. '
     
     dobjFor(Lock)
     {
@@ -4751,7 +4756,7 @@ class Thing:  ReplaceRedirector, Mentionable
             {
                 if(isLocked)
                     illogicalNow(alreadyLockedMsg);
-                else
+                else 
                     logical;
             }
             
@@ -4773,16 +4778,25 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(useKey_ != nil)
-                DMsg(with key, '(with {1})\n', useKey_.theName);
-            else
+                reportBefore(withKeyMsg);
+            else if(lockability == lockableWithKey)
                 askForIobj(LockWith);
-            
-            makeLocked(true);            
-            DMsg(report lock, okayLockMsg);
+         
+            makeLocked(true);              
+        }
+        
+        report()
+        {
+            DMsg(report lock, okayLockMsg, gActionListStr);
         }
     }
     
-    okayLockMsg = 'Locked.|{I} {lock} {the dobj}. '
+    
+    
+    
+    okayLockMsg = 'Locked.|{I} {lock} {1}. '
+    
+    withKeyMsg = BMsg(with key, '(with {1})\n', useKey_.theName)
     
     findPlausibleKey()
     {
@@ -5993,7 +6007,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay set to, 'Okay, {I} {set} {1} to {2}', gActionListStr, 
+            DMsg(okay set to, 'Okay, {i} {set} {1} to {2}', gActionListStr, 
                  gLiteral); 
         }
     }

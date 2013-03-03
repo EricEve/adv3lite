@@ -778,7 +778,13 @@ class CommandList: object
                     
                     /* success - take this as the result; look no further */
                     cmd = c;
-                    break;
+                    
+                    /* 
+                     *   But if this command had to create a new Topic object,
+                     *   let's go on to see if we can find a better match.
+                     */
+                    if(!cmd.madeTopic)
+                       break;
                 }
                 catch(InsufficientNounsError err)
                 {
@@ -2880,20 +2886,21 @@ class TopicPhrase: NounPhrase
              *   words in the noun phrase in the user input.  Match it against
              *   the objects in physical scope.
              */
-            try
-            {
+//            try
+//            {
                 v.appendAll(matchNameScope(cmd, scope));
-            }
-            catch(UnmatchedNounError une)
-            {        
-                /* Create a dummy object to represent the literal text */
-                local obj = new Topic(tokens.join(' ').trim());
-                
-                /* Wrap the dummy object in am NPMatch object */
-                local lst = [obj];
-                addMatches(v, lst, MatchNoApprox);       
-                
-            }
+//            }
+//            catch(UnmatchedNounError une)
+//            {        
+//                /* Create a dummy object to represent the literal text */
+//                local obj = new Topic(tokens.join(' ').trim());
+//                
+//                /* Wrap the dummy object in am NPMatch object */
+//                local lst = [obj];
+//                addMatches(v, lst, MatchNoApprox);     
+////                addMatches(v, lst, 1); 
+//                
+//            }
         }
         
         /* save the match list so far */
@@ -2930,9 +2937,12 @@ class TopicPhrase: NounPhrase
             
             /* Wrap the dummy object in am NPMatch object */
             local lst = [obj];
-            addMatches(v, lst, MatchNoApprox);
+//            addMatches(v, lst, MatchNoApprox);
+            addMatches(v, lst, 1);
             
             matches = v;  
+            
+            cmd.madeTopic = true;
         }
         
         

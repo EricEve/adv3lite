@@ -1514,7 +1514,14 @@ modify String
 
     /* rightmost n characters; if n is negative, rightmost (length-n) */
     right(n) { return n >= 0 ? substr(-n) : substr(n + length()); }
+    
+    
+    
 ;
+
+/* A string is empty if it's nil or if when trimmed it's '' */
+isEmptyStr(str) {  return (str == nil || str.trim() == ''); }
+
 
 /*
  *   Add a couple of handy utility functions to Vector 
