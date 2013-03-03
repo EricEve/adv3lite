@@ -140,7 +140,7 @@ class GameMainDef: object
         local succ;
 
         /* mention that we're about to restore the saved position */
-        gLibMessages.noteMainRestore();
+        DMsg(note main restore, 'Game restored.<.p>');
 
         /* try restoring it */
         succ = Restore.startupRestore(filename);
@@ -805,6 +805,12 @@ libGlobal: object
        
     /* The object last typed on */
     lastTypedOnObj = nil
+    
+    /* 
+     *   our name table for parameter substitutions - a LookupTable that we set
+     *   up during preinit
+     */
+    nameTable_ = static new LookupTable()
 ;
 
 
@@ -832,16 +838,16 @@ class FinishType: object
 ;
 
 /* 'death' - the game has ended due to the player character's demise */
-ftDeath: FinishType finishMsg = BMsg(finishDeathMsg, 'YOU HAVE DIED');
+ftDeath: FinishType finishMsg = BMsg(finish death, 'YOU HAVE DIED');
 
 /* 'victory' - the player has won the game */
-ftVictory: FinishType finishMsg = BMsg(finishVictoryMsg,'YOU HAVE WON');
+ftVictory: FinishType finishMsg = BMsg(finish victory,'YOU HAVE WON');
 
 /* 'failure' - the game has ended in failure (but not necessarily death) */
-ftFailure: FinishType finishMsg = BMsg(finishFailureMsg, 'YOU HAVE FAILED');
+ftFailure: FinishType finishMsg = BMsg(finish failure, 'YOU HAVE FAILED');
 
 /* 'game over' - the game has simply ended */
-ftGameOver: FinishType finishMsg = BMsg(finishGameOverMsg, 'GAME OVER');
+ftGameOver: FinishType finishMsg = BMsg(finish game over, 'GAME OVER');
 
 /*
  *   Finish the game, showing a message explaining why the game has ended.
@@ -898,7 +904,8 @@ finishGameMsg(msg, extra)
 
     /* if we have a message, display it */
     if (msg != nil)
-        gLibMessages.showFinishMsg(msg);
+        DMsg(show finish msg, '\b*** {1} ***\b\b', msg);
+        
 
     /* if the extra options include a scoring option, show the score */
     if (extra != nil && extra.indexWhich({x: x.showScoreInFinish}) != nil)
@@ -1002,8 +1009,9 @@ promptLoop:
          *   option.  Display our "invalid option" message, and continue
          *   looping so that we show the prompt again and read a new
          *   option.  
-         */
-        gLibMessages.invalidFinishOption(resp);
+         */       
+        DMsg(invalid finish option, '<q>{1}</q> was not one of the
+            options.<.p>', resp);
     }
 }
 

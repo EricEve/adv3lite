@@ -970,7 +970,7 @@ class MessageParams: object
         if (targetObj == nil)
         {
             /* look up the name */
-            targetObj = libMessages.nameTable_[src];
+            targetObj = libGlobal.nameTable_[src];
             
             /* 
              *   if we found it, and the result is a function pointer or an

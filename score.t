@@ -301,7 +301,7 @@ scoreNotifier: object
         cquoteOutputFilter.deactivate();
         
         DMsg(basic score change,         
-        '''Your <<aHref(gLibMessages.commandFullScore, 'score', 
+             '''Your <<aHref('full score', 'score', 
                             'Show full score')>>
         has just <<delta > 0 ? 'in' : 'de'>>creased by
         <<spellNumber(delta > 0 ? delta : -delta)>>
@@ -575,5 +575,8 @@ scoreNotifySettingsItem: object //BinarySettingsItem
     settingID = 'adv3.notify'
 
     /* show our description */
-    settingDesc = (gLibMessages.shortNotifyStatus(isOn))
+    settingDesc() 
+    { 
+        DMsg(short notify status, 'NOTIFY <<isOn ? 'ON' : 'OFF'>>');
+    }    
 ;

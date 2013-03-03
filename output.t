@@ -1203,11 +1203,25 @@ transient commandSequencer: OutputFilter
 
                 case stateBeforeCommand:
                     /* 
-                     *   We're waiting for the first command output, and
-                     *   we've now found it.  Write the command results
-                     *   prefix separator. 
+                     *   We're waiting for the first command output, and we've
+                     *   now found it.  Write the command results prefix
+                     *   separator.
                      */
-                    ret += gLibMessages.commandResultsPrefix;
+                    
+                    /*
+                     *   Command group prefix - this is displayed after a
+                     *   command line and before the first command results shown
+                     *   after the command line.
+                     *
+                     *   By default, we'll show the "zero-space paragraph"
+                     *   marker, which acts like a paragraph break in that it
+                     *   swallows up immediately following paragraph breaks, but
+                     *   doesn't actually add any space. This will ensure that
+                     *   we don't add any space between the command input line
+                     *   and the next text.
+                     */
+                    
+                    ret += BMsg(command results prefix, '<.p0>');
 
                     /* we're now inside some command result text */
                     state_ = stateInCommand;
@@ -1233,7 +1247,20 @@ transient commandSequencer: OutputFilter
                     inputManager.cancelInputInProgress(nil);
 
                     /* insert the command interruption prefix */
-                    ret += gLibMessages.commandInterruptionPrefix;
+                    
+                    /*
+                     *   Command "interruption" group prefix.  This is displayed
+                     *   after an interrupted command line - a command line
+                     *   editing session that was interrupted by a timeout event
+                     *   - just before the text that interrupted the command
+                     *   line.
+                     *
+                     *   By default, we'll show a paragraph break here, to set
+                     *   off the interrupting text from the command line under
+                     *   construction.
+                     */
+                    
+                    ret += BMsg(command interuption prefix, '<.p>');
                     break;
 
                 case stateBetweenCommands:
@@ -1243,7 +1270,27 @@ transient commandSequencer: OutputFilter
                      *   some text for the new command, so show a command
                      *   separator. 
                      */
-                    ret += gLibMessages.commandResultsSeparator;
+                    
+                    /*
+                     *   Command separator - this is displayed after the results
+                     *   from a command when another command is about to be
+                     *   executed without any more user input.  That is, when a
+                     *   command line contains more than one command, this
+                     *   message is displayed between each successive command,
+                     *   to separate the results visually.
+                     *
+                     *   This is not shown before the first command results
+                     *   after a command input line, and is not shown after the
+                     *   last results before a new input line.  Furthermore,
+                     *   this is shown only between adjacent commands for which
+                     *   output actually occurs; if a series of commands
+                     *   executes without any output, we won't show any
+                     *   separators between the silent commands.
+                     *
+                     *   By default, we'll just start a new paragraph.
+                     */
+                    
+                    ret += BMsg(command results separator, '<.p>');
 
                     /* we're now inside some command result text */
                     state_ = stateInCommand;
@@ -1314,7 +1361,17 @@ transient commandSequencer: OutputFilter
                      *   we've shown nothing since the last command; show
                      *   the empty command separator 
                      */
-                    writeThrough(gLibMessages.commandResultsEmpty());
+                    
+                    /*
+                     *   Empty command results - this is shown when we read a
+                     *   command line and then go back and read another without
+                     *   having displaying anything.
+                     *
+                     *   By default, we'll return a message indicating that
+                     *   nothing happened.
+                     */
+                    writeThrough(BMsg(command results empty, 
+                                      'Nothing obvious {dummy}{happens}.<.p>'));
                     break;
 
                 case stateBetweenCommands:
@@ -1323,7 +1380,15 @@ transient commandSequencer: OutputFilter
                      *   we've written at least one command result, so
                      *   show the after-command separator 
                      */
-                    writeThrough(gLibMessages.commandResultsSuffix());
+                    
+                    /*
+                     *   Command results suffix - this is displayed just before
+                     *   a new command line is about to be read if any command
+                     *   results have been shown since the last command line.
+                     *
+                     *   By default, we'll show nothing extra.
+                     */
+                    writeThrough(BMsg(command results suffix, ''));
                     break;
 
                 default:

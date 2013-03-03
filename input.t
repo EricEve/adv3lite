@@ -809,11 +809,11 @@ commentPreParser: StringPreParser
              *   the comment isn't being saved anywhere 
              */
             if (scriptStatus.scriptFile != nil)
-                gLibMessages.noteWithScript;
+                DMsg(note with script, 'Comment recorded. ');
             else if (warningCount++ == 0)
-                gLibMessages.noteWithoutScriptWarning;
+                DMsg(note without script warning, 'Comment NOT recorded. ');
             else
-                gLibMessages.noteWithoutScript;
+                DMsg(note without script, 'Comment NOT recorded. ');
 
             /* 
              *   Otherwise completely ignore the command line.  To do this,

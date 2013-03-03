@@ -819,6 +819,29 @@ class Action: ReplaceRedirector
     
     parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)   
   
+    /* 
+     *   The message to display if an action fails at the check stage (via an
+     *   exit macro) without any other explanatory text being displayed.
+     */
+    failCheckMsg = BMsg(fail check, '{I} {cannot} do that (but the author of
+        this game failed to specify why).')
+    
+    
+    /* optional command is not supported in this game */
+    commandNotPresent()
+    {
+       DMsg(command not present, '<.parser>That command isn&rsquo;t needed
+           in this story.<./parser> ');
+    }
+    
+    
+    
+    /* acknowledge a change in the score notification status */
+    acknowledgeNotifyStatus(stat)
+    {
+        DMsg(acknowledge notify status, '<.parser>Score notifications are now
+        <<stat ? 'on' : 'off'>>.<./parser> ');
+    }
 ;
 
 
@@ -1428,7 +1451,7 @@ class TAction: Action
              *   a method, we supply a dummy failure message at this point.
              */
             if(checkMsg is in (nil, ''))
-               checkMsg = gLibMessages.failCheckMsg;
+               checkMsg = failCheckMsg;
         }
                
         /* 

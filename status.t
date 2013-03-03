@@ -256,7 +256,8 @@ transient statusLine: object
          *   location name to a "look around" command 
          */
         "<<statusHTML(0)>><<
-          aHref(gLibMessages.commandLookAround, nil, nil, AHREF_Plain)>>";
+          aHref(BMsg(command look around, 'look around'), 
+                nil, nil, AHREF_Plain)>>";
 
         /* show the left part of the status line */
         showStatusLeft();
@@ -267,7 +268,7 @@ transient statusLine: object
          *   command 
          */
         "<./a></a><<statusHTML(1)>><<
-          aHref(gLibMessages.commandFullScore, nil, nil, AHREF_Plain)>>";
+          aHref(BMsg(command full score, 'full score'), nil, nil, AHREF_Plain)>>";
           
         /* show the right part of the status line */
         showStatusRight();

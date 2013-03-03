@@ -2000,14 +2000,14 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Get my list of enclosed direct contents.  This is the subset of my
      *   direct contents that have interior location types (In).  
      */
-    intContents = ( objInPrep == gInPrep ? contents : [] )
+    intContents = ( contType == In ? contents : [] )
 
     /*
      *   Get my list of unenclosed direct contents.  This is the subset of
      *   my direct contents that have exterior location types (On, Outside,
      *   Behind, Under). 
      */
-    extContents = ( objInPrep == gInPrep ? [] : contents)
+    extContents = ( contType == In ? [] : contents)
     
     
     preinitThing()
@@ -2020,7 +2020,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         /* if we have a global parameter name, add it to the global table */
         if (globalParamName != nil)
-            libMessages.nameTable_[globalParamName] = self;
+            libGlobal.nameTable_[globalParamName] = self;
     }
     
     getOutermostRoom = (location == nil ? nil : location.getOutermostRoom)
@@ -2049,10 +2049,10 @@ class Thing:  ReplaceRedirector, Mentionable
         if(location == nil)
             return nil;
         
-        if(location == obj && obj.objInPrep == gInPrep)
+        if(location == obj && obj.contType == In)
             return true;
         
-        if(location.ofKind(SubComponent) && location.objInPrep == gInPrep &&
+        if(location.ofKind(SubComponent) && location.contType == In &&
            location.lexicalParent == obj)
             return true;
         
@@ -2575,7 +2575,7 @@ class Thing:  ReplaceRedirector, Mentionable
         catch (ExitSignal ex)
         {
             if(ret is in ('', nil))
-                ret = gLibMessages.failCheckMsg;
+                ret = gAction.failCheckMsg;
         }
         finally
         {

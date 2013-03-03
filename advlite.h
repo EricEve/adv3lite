@@ -848,10 +848,6 @@ enum masculine, feminine, neuter;
 #define withPresent(callback) (withTense(nil, (callback)))
 #define withPast(callback)    (withTense(true, (callback)))
 
-#define gInPrep (gLibMessages.inPrep)
-#define gOnPrep (gLibMessages.onPrep)
-#define gUnderPrep (gLibMessages.underPrep)
-#define gBehindPrep (gLibMessages.behindPrep)
 
 /* ------------------------------------------------------------------------ */
 /*

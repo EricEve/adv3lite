@@ -2297,6 +2297,7 @@ englishCustomVocab: CustomVocab
         'get/gets/got/gotten',
         'give/gives/gave/given',
         'go/goes/went/gone',
+        'happen/happens/happened',
         'have/has/had',
         'hear/hears/heard',
         'hit/hits/hit',
@@ -3321,319 +3322,13 @@ npListPronoun(pro, nplst, prep)
         return '<<prep>> <<pro>>';
 }
 
-
+/* 
+ *   The libMessage object contains a number of messages/string values needed by
+ *   the menu system and the WebUI. It is not used for any other library
+ *   messages.
+ */
 
 libMessages: object
-    noteWithScript = "Comment recorded. "
-    noteWithoutScriptWarning = "Comment NOT recorded. "
-    noteWithoutScript = "Comment NOT recorded. "
-    
-    /*
-     *   some standard commands for insertion into <a> tags - these are in
-     *   the messages so they can translated along with the command set
-     */
-    commandLookAround = 'look around'
-    commandFullScore = 'full score'
-    
-    exitListerObj = nil
-    
-    explainExitsOnOff = "<.p>Exit Listing can be adjusted with the following
-        commands:\n
-        EXITS ON -- show exits in both the status line and in room
-        descriptions.\n
-        EXITS OFF -- show exits neither in the status line nor in room
-        descriptions.\n
-        EXITS STATUS -- show exits in the status line only.\n
-        EXITS LOOK -- show exits in room descriptions only.\n
-        EXITS COLOR ON -- show unvisited exits in a different colour.\n
-        EXITS COLOR OFF -- don\'t show unvisited exits in a different colour.\n
-        EXITS COLOR RED / BLUE / GREEN / YELLOW -- show unvisted exits in the
-        specified colour. 
-        <.p>"
-    
-    exitsOnOffOkay(stat, look)
-    {
-        "Okay. Exit listing in the status line is now <<stat ? 'ON' : 'OFF'>>,
-        while exit listing in room descriptions is now <<look ? 'ON' : 'OFF'>>.
-        ";
-     }
-    
-    currentExitsSettings(inStatusLine, inRoomDesc)
-    {
-        "Exits are listed ";
-        if(inStatusLine && inRoomDesc)
-            "both in the status line and in room descriptions. ";
-        if(inStatusLine && !inRoomDesc)
-            "in the status line only. ";
-        if(!inStatusLine && inRoomDesc)
-            "in room descriptions only. ";
-        if(!inStatusLine && !inRoomDesc)
-            "neither in the status line nor in room descriptions. ";
-    }
-    
-    noteMainRestore()
-    {
-        "Game restored.<.p>";
-    }
-    
-    showVersion(nam, ver)
-    {
-        "<<nam>> version <<ver>> ";
-    }
-    
-    inPrep = 'in'
-    onPrep = 'on'
-    underPrep = 'under'
-    behindPrep = 'behind'
-    
-    finishDeathMsg = 'YOU HAVE DIED'
-    finishVictoryMsg = 'YOU HAVE WON'
-    finishFailureMsg = 'YOU HAVE FAILED'
-    finishGameOverMsg = 'GAME OVER'
-    
-    showFinishMsg(msg)
-    {
-        "\b*** <<msg>> ***\b\b";
-    }
-    
-    invalidFinishOption(resp)
-    {
-        "<q><<resp>></q> was not one of the options.<.p>";
-    }
-    
-    failCheckMsg = '{I} {cannot} do that (but the author of this game failed to
-        specify why). '
-    
-    /* 
-     *   our name table for parameter substitutions - a LookupTable that we set
-     *   up during preinit
-     */
-    nameTable_ = static new LookupTable()
-    
-    
-    /* acknowledge starting an input script */
-    inputScriptOkay(fname)
-    {
-        "<.parser>Reading commands from <q><<
-          File.getRootName(fname).htmlify()>></q>...<./parser>\n ";
-    }
-
-    /* error opening input script */
-    inputScriptFailed = "<.parser>Failed; the script input file could
-        not be opened.<./parser> "
-        
-    /* exception opening input script */
-    inputScriptFailedException(exc)
-    {
-        "<.parser>Failed; <<exc.displayException>><./parser> ";
-    }
-
-    /* get the scripting inputFile prompt message */
-    getScriptingPrompt = 'Please select a name for the new script file'
-
-    /* acknowledge scripting on */
-    scriptingOkay()
-    {
-        htmlSay('<.parser>The transcript will be saved to the file.
-        Type <<aHref('script off', 'SCRIPT OFF', 'Turn off scripting')>> to
-        discontinue scripting.<./parser> ');
-    }
-
-    scriptingOkayWebTemp()
-    {
-        htmlSay('<.parser>The transcript will be saved.
-        Type <<aHref('script off', 'SCRIPT OFF', 'Turn off scripting')>>
-        to discontinue scripting and download the saved
-        transcript.<./parser> ');
-    }
-
-    /* scripting failed */
-    scriptingFailed = "<.parser>Failed; an error occurred opening
-        the script file.<./parser> "
-
-    /* scripting failed with an exception */
-    scriptingFailedException(exc)
-    {
-        "<.parser>Failed; <<exc.displayException>><./parser>";
-    }
-
-    /* acknowledge cancellation of script file dialog */
-    scriptingCanceled = "<.parser>Canceled.<./parser> "
-
-    /* acknowledge scripting off */
-    scriptOffOkay = "<.parser>Scripting ended.<./parser> "
-
-    /* SCRIPT OFF ignored because we're not in a script file */
-    scriptOffIgnored = "<.parser>No script is currently being
-                        recorded.<./parser> "
-
-    /* get the RECORD prompt */
-    getRecordingPrompt = 'Please select a name for the new command log file'
-
-    /* acknowledge recording on */
-    recordingOkay = htmlSay('<.parser>Commands will now be recorded.  Type
-                     <<aHref('record off', 'RECORD OFF',
-                             'Turn off recording')>>
-                     to stop recording commands.<.parser> ')
-
-    /* recording failed */
-    recordingFailed = "<.parser>Failed; an error occurred opening
-        the command recording file.<./parser> "
-
-    /* recording failed with exception */
-    recordingFailedException(exc)
-    {
-        "<.parser>Failed; <<exc.displayException()>><./parser> ";
-    }
-
-    /* acknowledge cancellation */
-    recordingCanceled = "<.parser>Canceled.<./parser> "
-
-    /* recording turned off */
-    recordOffOkay = "<.parser>Command recording ended.<./parser> "
-
-    /* RECORD OFF ignored because we're not recording commands */
-    recordOffIgnored = "<.parser>No command recording is currently being
-                        made.<./parser> "
-
-    /* REPLAY prompt */
-    getReplayPrompt = 'Please select the command log file to replay'
-
-    /* REPLAY file selection canceled */
-    replayCanceled = "<.parser>Canceled.<./parser> "
-
-    /* error showing the input file dialog (or character-mode equivalent) */
-    filePromptFailed()
-    {
-        "<.parser>A system error occurred asking for a filename.
-        Your computer might be running low on memory, or might have a
-        configuration problem.<./parser> ";
-    }
-
-    /* error showing the input file dialog, with a system error message */
-    filePromptFailedMsg(msg)
-    {
-        "<.parser>Failed: <<makeSentence(msg)>><./parser> ";
-    }
-    
-    /*
-     *   Get the save-game file prompt.  Note that this must return a
-     *   single-quoted string value, not display a value itself, because
-     *   this prompt is passed to inputFile(). 
-     */
-    getSavePrompt = 'Save game to file'
-
-    /* get the restore-game prompt */
-    getRestorePrompt = 'Restore game from file'
-
-    /* successfully saved */
-    saveOkay() { "<.parser>Saved.<./parser> "; }
-
-    /* save canceled */
-    saveCanceled() { "<.parser>Canceled.<./parser> "; }
-
-    /* saved failed due to a file write or similar error */
-    saveFailed(exc)
-    {
-        "<.parser>Failed; your computer might be running low
-        on disk space, or you might not have the necessary permissions
-        to write this file.<./parser> ";
-    }
-
-    /* save failed due to storage server request error */
-    saveFailedOnServer(exc)
-    {
-        "<.parser>Failed, because of a problem accessing the storage server:
-        <<makeSentence(exc.errMsg)>><./parser>";
-    }
-    
-    /* 
-     *   make an error message into a sentence, by capitalizing the first
-     *   letter and adding a period at the end if it doesn't already have
-     *   one 
-     */
-    makeSentence(msg)
-    {
-        return rexReplace(
-            ['^<space>*[a-z]', '(?<=[^.?! ])<space>*$'], msg,
-            [{m: m.toUpper()}, '.']);
-    }
-    
-     
-    /* successfully restored */
-    restoreOkay() { "<.parser>Restored.<./parser> "; }
-
-    /* restore canceled */
-    restoreCanceled() { "<.parser>Canceled.<./parser> "; }
-
-    /* restore failed due to storage server request error */
-    restoreFailedOnServer(exc)
-    {
-        "<.parser>Failed, because of a problem accessing the storage server:
-        <<makeSentence(exc.errMsg)>><./parser>";
-    }
-
-    /* restore failed because the file was not a valid saved game file */
-    restoreInvalidFile()
-    {
-        "<.parser>Failed: this is not a valid saved
-        position file.<./parser> ";
-    }
-
-    /* restore failed because the file was corrupted */
-    restoreCorruptedFile()
-    {
-        "<.parser>Failed: this saved state file appears to be
-        corrupted.  This can occur if the file was modified by another
-        program, or the file was copied between computers in a non-binary
-        transfer mode, or the physical media storing the file were
-        damaged.<./parser> ";
-    }
-
-    /* restore failed because the file was for the wrong game or version */
-    restoreInvalidMatch()
-    {
-        "<.parser>Failed: the file was not saved by this
-        story (or was saved by an incompatible version of
-        the story).<./parser> ";
-    }
-
-    /* restore failed for some reason other than those distinguished above */
-    restoreFailed(exc)
-    {
-        "<.parser>Failed: the position could not be
-        restored.<./parser> ";
-    }
-
-   
-     /* show the current score notify status */
-    showNotifyStatus(stat)
-    {
-        "<.parser>Score notifications are
-        currently <<stat ? 'on' : 'off'>>.<./parser> ";
-    }
-
-    /* show the current score notify status, in short form */
-    shortNotifyStatus(stat) { "NOTIFY <<stat ? 'ON' : 'OFF'>>"; }
-
-    /* acknowledge a change in the score notification status */
-    acknowledgeNotifyStatus(stat)
-    {
-        "<.parser>Score notifications are now
-        <<stat ? 'on' : 'off'>>.<./parser> ";
-    }
-    
-    /* optional command is not supported in this game */
-    commandNotPresent = "<.parser>That command isn&rsquo;t needed
-                         in this story.<./parser> "
-
-    
-
-    /* mention the FULL SCORE command */
-    mentionFullScore()
-    {
-//        fullScoreTip.showTip();
-    }
     
     /*
      *   Command key list for the menu system.  This uses the format
@@ -3771,101 +3466,22 @@ libMessages: object
     
     /* Web UI inputFile error: uploaded file is too large */
     webUploadTooBig = 'The file you selected is too large to upload.'
-    
-    /*
-     *   Command group prefix - this is displayed after a command line and
-     *   before the first command results shown after the command line.
-     *   
-     *   By default, we'll show the "zero-space paragraph" marker, which
-     *   acts like a paragraph break in that it swallows up immediately
-     *   following paragraph breaks, but doesn't actually add any space.
-     *   This will ensure that we don't add any space between the command
-     *   input line and the next text.  
-     */
-    commandResultsPrefix = '<.p0>'
-
-    /*
-     *   Command "interruption" group prefix.  This is displayed after an
-     *   interrupted command line - a command line editing session that
-     *   was interrupted by a timeout event - just before the text that
-     *   interrupted the command line.
-     *   
-     *   By default, we'll show a paragraph break here, to set off the
-     *   interrupting text from the command line under construction.  
-     */
-    commandInterruptionPrefix = '<.p>'
-
-    /*
-     *   Command separator - this is displayed after the results from a
-     *   command when another command is about to be executed without any
-     *   more user input.  That is, when a command line contains more than
-     *   one command, this message is displayed between each successive
-     *   command, to separate the results visually.
-     *   
-     *   This is not shown before the first command results after a
-     *   command input line, and is not shown after the last results
-     *   before a new input line.  Furthermore, this is shown only between
-     *   adjacent commands for which output actually occurs; if a series
-     *   of commands executes without any output, we won't show any
-     *   separators between the silent commands.
-     *   
-     *   By default, we'll just start a new paragraph.  
-     */
-    commandResultsSeparator = '<.p>'
-
-    /*
-     *   "Complex" result separator - this is displayed between a group of
-     *   messages for a "complex" result set and adjoining messages.  A
-     *   command result list is "complex" when it's built up out of
-     *   several generated items, such as object identification prefixes
-     *   or implied command prefixes.  We use additional visual separation
-     *   to set off these groups of messages from adjoining messages,
-     *   which is especially important for commands on multiple objects,
-     *   where we would otherwise have several results shown together.  By
-     *   default, we use a paragraph break.  
-     */
-    complexResultsSeparator = '<.p>'
-
-    /*
-     *   Internal results separator - this is displayed to visually
-     *   separate the results of an implied command from the results for
-     *   the initiating command, which are shown after the results from
-     *   the implied command.  By default, we show a paragraph break.
-     */
-    internalResultsSeparator = '<.p>'
-
-    /*
-     *   Command results suffix - this is displayed just before a new
-     *   command line is about to be read if any command results have been
-     *   shown since the last command line.
-     *   
-     *   By default, we'll show nothing extra.  
-     */
-    commandResultsSuffix = ''
-
-    /*
-     *   Empty command results - this is shown when we read a command line
-     *   and then go back and read another without having displaying
-     *   anything.
-     *   
-     *   By default, we'll return a message indicating that nothing
-     *   happened.  
-     */
-    commandResultsEmpty =
-        ('Nothing obvious happen' + tSel('s', 'ed') + '.<.p>')
-
-    /*
-     *   Intra-command report separator.  This is used to separate report
-     *   messages within a single command's results.  By default, we show
-     *   a paragraph break.  
-     */
-    intraCommandSeparator = '<.p>'
-
-    
-    
-    
+   
+ 
 ;
 
+
+/* 
+ *   make an error message into a sentence, by capitalizing the first letter and
+ *   adding a period at the end if it doesn't already have one
+ */
+
+makeSentence(msg)
+{
+    return rexReplace(
+        ['^<space>*[a-z]', '(?<=[^.?! ])<space>*$'], msg,
+        [{m: m.toUpper()}, '.']);
+}
 
 modify dummy_ 
     dummyName = ''

@@ -64,8 +64,13 @@ class ModuleID: object
      */
     showVersion()
     {
-        gLibMessages.showVersion(name, version);
+        showVersionMsg(name, version);
         "\n";
+    }
+    
+    showVersionMsg(nam, ver)
+    {
+        DMsg(show version, '{1} version {2}', nam, ver);        
     }
 
     /*
@@ -624,7 +629,7 @@ ModuleID
          *   show the version information - note that we must decompose
          *   the version number into the standard 3-part dotted string 
          */
-        gLibMessages.showVersion('T3 VM (' + t3GetVMID() + ')',
+        showVersionMsg('T3 VM (' + t3GetVMID() + ')',
                                  '' + (vsn >> 16) + '.'
                                  + ((vsn >> 8) & 0xFF) + '.'
                                  + (vsn & 0xFF));

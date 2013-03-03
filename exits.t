@@ -137,7 +137,21 @@ exitLister: PreinitObject
          */
         if (!exitsOnOffExplained)
         {
-            gLibMessages.explainExitsOnOff;
+            DMsg(explain exits on off, 
+                 '<.p>Exit Listing can be adjusted with the following
+        commands:\n
+        EXITS ON -- show exits in both the status line and in room
+        descriptions.\n
+        EXITS OFF -- show exits neither in the status line nor in room
+        descriptions.\n
+        EXITS STATUS -- show exits in the status line only.\n
+        EXITS LOOK -- show exits in room descriptions only.\n
+        EXITS COLOR ON -- show unvisited exits in a different colour.\n
+        EXITS COLOR OFF -- don\'t show unvisited exits in a different colour.\n
+        EXITS COLOR RED / BLUE / GREEN / YELLOW -- show unvisted exits in the
+        specified colour. 
+        <.p>');           
+
             exitsOnOffExplained = true;
         }
     }
@@ -155,8 +169,10 @@ exitLister: PreinitObject
         exitsMode.inRoomDesc = look;
 
         /* confirm the new status */
-        gLibMessages.exitsOnOffOkay(stat, look);
-
+        DMsg(exits on off okay, 'Okay. Exit listing in the status line is now 
+            <<stat ? 'ON' : 'OFF'>>, while exit listing in room descriptions is
+            now <<look ? 'ON' : 'OFF'>>. ');
+        
         /* 
          *   If we haven't already explained how the EXITS ON/OFF command
          *   works, don't bother explaining it now, since they obviously
@@ -506,8 +522,19 @@ exitsMode: object
     settingID = 'adv3.exits'
 
     /* show our description */
-    settingDesc =
-        (gLibMessages.currentExitsSettings(inStatusLine, inRoomDesc))
+    settingDesc()
+    {
+        DMsg(current exit settings, 'Exits are listed 
+            <<if(inStatusLine && inRoomDesc)>>
+            both in the status line and in room descriptions. 
+            <<else if(inStatusLine && !inRoomDesc)>>
+            in the status line only. 
+            <<else if(!inStatusLine && inRoomDesc)>>
+            in room descriptions only. 
+            <<else if(!inStatusLine && !inRoomDesc)>>
+            "neither in the status line nor in room descriptions. <<end>>');
+    }
+        
 
     /* convert to text */
     settingToText()
@@ -530,6 +557,9 @@ exitsMode: object
         }
     }
 
+   
+    
+    
     /* 
      *   Our value is in two parts.  inStatusLine controls whether or not
      *   we show the exit list in the status line; inRoomDesc controls the

@@ -146,10 +146,10 @@ DefineSystemAction(ExitsMode)
         if(cmd.verbProd.look_ != nil)
             gExitLister.exitsOnOffCommand(nil, true);
         
-        if(cmd.verbProd.status_ != nil)
+        if(cmd.verbProd.stat_ != nil)
             gExitLister.exitsOnOffCommand(true, nil);
     }
-    
+        
 ;
 
 DefineSystemAction(ExitsColour)
@@ -197,7 +197,10 @@ DefineSystemAction(Score)
             if (!mentionedFullScore)
             {
                 /* explain about it */
-                gLibMessages.mentionFullScore;
+                htmlSay(BMsg(mention full score, 'To see your complete list of
+                    achievements, use the <<aHref('full score', 'FULL SCORE',
+                                                  'show full score')>> command. 
+                    '));
 
                 /* don't mention it again */
                 Score.mentionedFullScore = true;
@@ -245,10 +248,16 @@ DefineSystemAction(Notify)
     {
         /* show the current notification status */
         if (libGlobal.scoreObj != nil)
-            gLibMessages.showNotifyStatus(
-                libGlobal.scoreObj.scoreNotify.isOn);
+            showNotifyStatus(libGlobal.scoreObj.scoreNotify.isOn);        
         else
-            gLibMessages.commandNotPresent;
+            commandNotPresent;
+    }
+    
+      /* show the current score notify status */
+    showNotifyStatus(stat)
+    {
+        DMsg(show notify status, '<.parser>Score notifications are
+        currently <<stat ? 'on' : 'off'>>.<./parser> ');
     }
 ;
 
@@ -259,10 +268,10 @@ DefineSystemAction(NotifyOn)
         if (libGlobal.scoreObj != nil)
         {
             libGlobal.scoreObj.scoreNotify.isOn = true;
-            gLibMessages.acknowledgeNotifyStatus(true);
+            acknowledgeNotifyStatus(true);
         }
         else
-            gLibMessages.commandNotPresent;
+            commandNotPresent;
     }
 ;
 
@@ -273,10 +282,10 @@ DefineSystemAction(NotifyOff)
         if (libGlobal.scoreObj != nil)
         {
             libGlobal.scoreObj.scoreNotify.isOn = nil;
-            gLibMessages.acknowledgeNotifyStatus(nil);
+            acknowledgeNotifyStatus(nil);
         }
         else
-            gLibMessages.commandNotPresent;
+            commandNotPresent;
     }
 ;
 
@@ -1836,9 +1845,9 @@ class FileOpAction: SystemAction
         case InFileFailure:
             /* advise of the failure of the prompt */
             if (result.length() > 1)
-                gLibMessages.filePromptFailedMsg(result[2]);
+                filePromptFailedMsg(result[2]);
             else
-                gLibMessages.filePromptFailed();
+                filePromptFailed();
             break;
 
         case InFileCancel:
@@ -1863,12 +1872,14 @@ class FileOpAction: SystemAction
  */
 DefineAction(ScriptOn, FileOpAction)
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (gLibMessages.getScriptingPrompt())
+    filePromptMsg = (BMsg(get scripting prompt, 'Please select a name for the
+        new script file'))
+    
     fileTypeID = FileTypeLog
     fileDisposition = InFileSave
 
     /* show our cancellation mesasge */
-    showCancelMsg() { gLibMessages.scriptingCanceled(); }
+    showCancelMsg() { DMsg(scripting canceled, '<.parser>Canceled.<./parser>'); }
 
     /* 
      *   set up scripting - this can be used to set up scripting
@@ -1907,9 +1918,10 @@ DefineAction(ScriptOn, FileOpAction)
             if (ack)
             {
                 if (fname.isWebTempFile)
-                    gLibMessages.scriptingOkayWebTemp();
+                    htmlSay(scriptingOkayWebTemp);                  
                 else
-                    gLibMessages.scriptingOkay();
+                    htmlSay(scriptingOkay);
+                    
             }
         }
         else
@@ -1921,12 +1933,28 @@ DefineAction(ScriptOn, FileOpAction)
             if (ack)
             {
                 if (exc != nil)
-                    gLibMessages.scriptingFailedException(exc);
+                    DMsg(scripting failed exception, '<.parser>Failed; 
+                        <<exc.displayException>><./parser>');
+                    
                 else
-                    gLibMessages.scriptingFailed;
+                    DMsg(scripting failed, '<.parser>Failed; an error occurred
+                        opening the script file.<./parser> ');
+                   
             }
         }
     }
+    
+    scriptingOkayWebTemp = BMsg(scripting okay web temp,
+                                '<.parser>The transcript will be saved.
+                                Type <<aHref('script off', 'SCRIPT OFF', 
+                                             'Turn off scripting')>>
+                                to discontinue scripting and download the saved
+                                transcript.<./parser> ')
+    
+    scriptingOkay = BMsg(scripting okay, '<.parser>The transcript will
+                        be saved to the file. Type <<aHref('script off', 
+                            'SCRIPT OFF', 'Turn off scripting')>> to
+                        discontinue scripting.<./parser> ')
 ;
 
 /*
@@ -1968,7 +1996,9 @@ DefineSystemAction(ScriptOff)
         /* if we're not in a script file, ignore it */
         if (scriptStatus.scriptFile == nil)
         {
-            gLibMessages.scriptOffIgnored();
+            DMsg(script off ignored, '<.parser>No script is currently being
+                        recorded.<./parser>');
+
             return;
         }
 
@@ -1980,7 +2010,8 @@ DefineSystemAction(ScriptOff)
 
         /* acknowledge the change, if desired */
         if (ack)
-            gLibMessages.scriptOffOkay();
+            DMsg(script off okay, '<.parser>Scripting ended.<./parser>');
+           
     }
 
     /* we can't include this in undo, as it affects external files */
@@ -1993,12 +2024,14 @@ DefineSystemAction(ScriptOff)
  */
 DefineAction(Record, FileOpAction)
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (gLibMessages.getRecordingPrompt())
+    filePromptMsg = (BMsg(get recording prompt, 'Please select a name for the 
+        new command log file'))
+    
     fileTypeID = FileTypeCmd
     fileDisposition = InFileSave
 
     /* show our cancellation mesasge */
-    showCancelMsg() { gLibMessages.recordingCanceled(); }
+    showCancelMsg() { DMsg(recording canceled, '<.parser>Canceled.<./parser> '); }
 
     /* 
      *   set up recording - this can be used to set up scripting
@@ -2026,7 +2059,12 @@ DefineAction(Record, FileOpAction)
 
             /* note that logging is active, if acknowledgment is desired */
             if (ack)
-                gLibMessages.recordingOkay();
+                 htmlSay(BMsg(recording okay, 
+                              '<.parser>Commands will now be recorded.  Type
+                     <<aHref('record off', 'RECORD OFF',
+                             'Turn off recording')>>
+                              to stop recording commands.<.parser> '));                
+                
         }
         else
         {
@@ -2037,9 +2075,12 @@ DefineAction(Record, FileOpAction)
             if (ack)
             {
                 if (exc != nil)
-                    gLibMessages.recordingFailedException(exc);
+                    DMsg(recording failed exception, '<.parser>Failed; 
+                        <<exc.displayException()>><./parser>');
+                    
                 else
-                    gLibMessages.recordingFailed();
+                    DMsg(recording failed, '<.parser>Failed; an error occurred
+                        opening the command recording file.<./parser>');
             }
         }
     }
@@ -2084,7 +2125,9 @@ DefineSystemAction(RecordOff)
         /* if we're not recording anything, ignore it */
         if (scriptStatus.recordFile == nil)
         {
-            gLibMessages.recordOffIgnored();
+            DMsg(record off ignored, '<.parser>No command recording is currently
+                being made.<./parser> ');
+           
             return;
         }
 
@@ -2096,7 +2139,7 @@ DefineSystemAction(RecordOff)
 
         /* acknowledge the change, if desired */
         if (ack)
-            gLibMessages.recordOffOkay();
+            DMsg(record off okay, '<.parser>Command recording ended.<./parser> ');
     }
 
     /* we can't include this in undo, as it affects external files */
@@ -2108,12 +2151,14 @@ DefineSystemAction(RecordOff)
  */
 DefineAction(Replay, FileOpAction)
     /* our file dialog parameters - ask for a log file to save */
-    filePromptMsg = (gLibMessages.getReplayPrompt())
+    filePromptMsg = (BMsg(get replay prompt, 'Please select the command log file
+        to replay'))
+    
     fileTypeID = FileTypeCmd
     fileDisposition = InFileOpen
 
     /* show our cancellation mesasge */
-    showCancelMsg() { gLibMessages.replayCanceled(); }
+    showCancelMsg() { DMsg(replay canceled, '<.parser>Canceled.<./parser> '); }
 
     /* script flags passed to setScriptFile */
     scriptOptionFlags = 0
@@ -2127,7 +2172,7 @@ DefineAction(Replay, FileOpAction)
          *   acknowledgment even if we're in 'quiet' mode. 
          */
         if (ack)
-            gLibMessages.inputScriptOkay(
+            inputScriptOkay(
                 fname.ofKind(TemporaryFile) ? fname.getFilename() : fname);
 
         /* activate the script file */
@@ -2143,11 +2188,23 @@ DefineAction(Replay, FileOpAction)
         if (!ok)
         {
             if (exc != nil)
-                gLibMessages.inputScriptFailed(exc);
+                DMsg(input script failed exception, '<.parser>Failed; 
+                    <<exc.displayException>><./parser>');               
             else
-                gLibMessages.inputScriptFailed();
+                DMsg(input script failed, '<.parser>Failed; the script input
+                    file could not be opened.<./parser>');
+              
         }
     }
+    
+    /* acknowledge starting an input script */
+    inputScriptOkay(fname)
+    {
+        DMsg(input script okay, '<.parser>Reading commands from <q><<
+          File.getRootName(fname).htmlify()>></q>...<./parser>\n ');
+    }
+
+    
 ;
 
 /* subclass of Replay action taking a quoted string for the filename */
@@ -2179,14 +2236,14 @@ DefineAction(ReplayString, Replay)
  */
 DefineAction(Save, FileOpAction)
     /* the file dialog prompt */
-    filePromptMsg = (gLibMessages.getSavePrompt())
+    filePromptMsg = (BMsg(get save prompt, 'Save game to file'))
 
     /* we're asking for a file to save, or type t3-save */
     fileDisposition = InFileSave
     fileTypeID = FileTypeT3Save
 
     /* cancel message */
-    showCancelMsg() { gLibMessages.saveCanceled(); }
+    showCancelMsg() { DMsg(save cancelled, '<.parser>Canceled.<./parser> '); }
     
     /* perform a save */
     performFileOp(fname, ack, desc:?)
@@ -2205,8 +2262,10 @@ DefineAction(Save, FileOpAction)
         }
         catch (StorageServerError sse)
         {
-            /* the save failed due to a storage server problem - explain */
-            gLibMessages.saveFailedOnServer(sse);
+            /* the save failed due to a storage server problem - explain */           
+            DMsg(save failed on server, '<.parser>Failed, because of a problem
+                accessing the storage server:
+                <<makeSentence(sse.errMsg)>><./parser>');
 
             /* done */
             return;
@@ -2214,14 +2273,17 @@ DefineAction(Save, FileOpAction)
         catch (RuntimeError err)
         {
             /* the save failed - mention the problem */
-            gLibMessages.saveFailed(err);
+            DMsg(save failed, '<.parser>Failed; your computer might be running
+                low on disk space, or you might not have the necessary
+                permissions to write this file.<./parser>');            
             
             /* done */
             return;
         }
         
         /* note the successful save */
-        gLibMessages.saveOkay();
+        DMsg(save okay, '<.parser>Saved.<./parser> ');
+        
     }
 
     /* 
@@ -2288,8 +2350,8 @@ DefineSystemAction(Restore)
         succ = nil;
 
         /* ask for a file */
-        result = getInputFile(gLibMessages.getRestorePrompt(), InFileOpen,
-                              FileTypeT3Save, 0);
+        result = getInputFile(BMsg(get restore prompt, 'Restore game from file'), 
+                              InFileOpen, FileTypeT3Save, 0);
 
         /* check the inputFile response */
         switch(result[1])
@@ -2311,14 +2373,14 @@ DefineSystemAction(Restore)
         case InFileFailure:
             /* advise of the failure of the prompt */
             if (result.length() > 1)
-                gLibMessages.filePromptFailedMsg(result[2]);
+                filePromptFailedMsg(result[2]);
             else
-                gLibMessages.filePromptFailed();
+                filePromptFailed();
             break;
 
         case InFileCancel:
             /* acknowledge the cancellation */
-            gLibMessages.restoreCanceled();
+            DMsg(restore canceled, '<.parser>Canceled.<./parser> ');            
             break;
         }
 
@@ -2398,7 +2460,9 @@ DefineSystemAction(Restore)
         catch (StorageServerError sse)
         {
             /* failed due to a storage server error - explain the problem */
-            gLibMessages.restoreFailedOnServer(sse);
+            DMsg(restore failed on server,'<.parser>Failed, because of a problem
+                accessing the storage server:
+                <<makeSentence(sse.errMsg)>><./parser>');            
 
             /* indicate failure */
             return nil;
@@ -2410,22 +2474,30 @@ DefineSystemAction(Restore)
             {
             case 1201:
                 /* not a saved state file */
-                gLibMessages.restoreInvalidFile();
+                DMsg(restore invalid file, '<.parser>Failed: this is not a valid
+                    saved position file.<./parser> ');                
                 break;
                 
             case 1202:
                 /* saved by different game or different version */
-                gLibMessages.restoreInvalidMatch();
+                DMsg(restore invalid match, '<.parser>Failed: the file was not
+                    saved by this story (or was saved by an incompatible version
+                    of the story).<./parser> ');               
                 break;
                 
             case 1207:
                 /* corrupted saved state file */
-                gLibMessages.restoreCorruptedFile();
+                DMsg(restore corrupted file, '<.parser>Failed: this saved state
+                    file appears to be corrupted.  This can occur if the file
+                    was modified by another program, or the file was copied
+                    between computers in a non-binary transfer mode, or the
+                    physical media storing the file were damaged.<./parser> ');                
                 break;
                 
             default:
                 /* some other failure */
-                gLibMessages.restoreFailed(err);
+                DMsg(restore failed, '<.parser>Failed: the position could not be
+                    restored.<./parser>');                
                 break;
             }
 
@@ -2434,8 +2506,8 @@ DefineSystemAction(Restore)
         }
 
         /* note that we've successfully restored the game */
-        gLibMessages.restoreOkay();
-        
+        DMsg(restore okay, '<.parser>Restored.<./parser> ');
+               
         /* set the appropriate restore-action code */
         PostRestoreObject.restoreCode = code;
 
@@ -2461,6 +2533,21 @@ DefineSystemAction(Restore)
      *   anything to undo.  
      */
     includeInUndo = nil
+    
+    /* error showing the input file dialog (or character-mode equivalent) */
+    filePromptFailed()
+    {
+        DMsg(file prompt failed, '<.parser>A system error occurred asking for a
+            filename. Your computer might be running low on memory, or might
+            have a configuration problem.<./parser> ');
+    }
+
+    /* error showing the input file dialog, with a system error message */
+    filePromptFailedMsg(msg)
+    {
+        DMsg(file prompt failed msg, '<.parser>Failed:
+            <<makeSentence(msg)>><./parser> ');
+    }
 ;
 
 /*
