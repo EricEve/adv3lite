@@ -152,9 +152,8 @@ class LMentionable: object
      */
     thatObjName = (pronoun().thatObjName)
     
-    reflexiveName = (pronoun().reflexive.name)
-    
-    
+    /*  The reflexive name as a pronoun, e.g. himself, herself, itself */
+    reflexiveName = (pronoun().reflexive.name)    
     
     /*
      *   Pronoun-or-name mapper.  If our name is a pronoun, return the
@@ -205,24 +204,47 @@ class LMentionable: object
     /* Determine the gender of this object */
     isHim = nil
     isHer = nil
+    
+    /*  
+     *   By default an object is neuter if it's neither masculine nor feminine,
+     *   but that can be overridden in cases where something might be referred
+     *   to as either 'him' or 'it' for example.
+     */
     isIt = (!(isHim || isHer))
     
     
+    /*   
+     *   The name with a definite article (or just the proper or qualified name)
+     *   followed by the appropriate form of the verb 'to be'. This can be
+     *   useful for producing sentences of which this object is the subject.
+     */
     theNameIs
     {
-        switch(person)
-        {
-        case 1:
-            return plural ? tSel('we are', 'we were') : tSel('I am', 'I was
-                ');
-        case 2:
-            return tSel('you are', 'you were');
-        default:
-            if(plural)
-                return theName + tSel(' are', ' were');
-            else
-                return theName + tSel(' is', ' was');
-        }
+        local obj = self;
+        
+        /* 
+         *   Return theName plus the appropriate conjugation of the verb 'to
+         *   be', which we obtain from the conjugateBe() function, which expects
+         *   a ctx object as its first parameter; we instead create an inline
+         *   object and set its subj property to the current object (which is
+         *   all the conjugateBe() function needs).
+         */
+         
+        return theName + ' ' + conjugateBe(object {subj = obj; }, nil);
+        
+//        switch(person)
+//        {
+//        case 1:
+//            return plural ? tSel('we are', 'we were') : tSel('I am', 'I was
+//                ');
+//        case 2:
+//            return tSel('you are', 'you were');
+//        default:
+//            if(plural)
+//                return theName + tSel(' are', ' were');
+//            else
+//                return theName + tSel(' is', ' was');
+//        }
     }
     
     /*
@@ -352,7 +374,7 @@ class LMentionable: object
     }
 
     
-    
+    /* The appropriate pronoun for leaving (getting out of) this object */
     objOutOfPrep
     {
         switch(objInPrep)
@@ -368,7 +390,16 @@ class LMentionable: object
         }
     }
     
+    /* 
+     *   The pronominal phrase for something located inside this object, e.g.
+     *   'in the box' or 'on the table
+     */
     objInName = (objInPrep + ' ' + theName)
+    
+    /*   
+     *   The pronominal phrase for something leaving this object, e.g. 'out of
+     *   the box'
+     */
     objOutOfName = (objOutOfPrep + ' ' + theName)
     
     
@@ -1664,61 +1695,14 @@ class LMentionable: object
 
     /* class property: pronoun lookup table (built during preinit) */
     pronounMap = nil
+ 
     
-        
-    itReflexive
-    {
-        switch(person)
-        {
-        case 1:
-            return plural ? 'ourselves' : 'myself';
-        case 2:
-            return plural ? 'youselves' : 'yourself';
-        default:
-            return plural ? 'themselves' : himName + 'self';
-        }
-        
-    }
-    
-    isThirdPersonSingular = ( person == 3 && !plural)
-    
-    verbEndingS = ( isThirdPersonSingular ? 's' : '' )   
-    verbEndingSD = (tSel(verbEndingS, 'd'))
-    verbEndingSEd = (tSel(verbEndingS, 'ed'))
-    verbEndingEs = ( tSel(isThirdPersonSingular ? 'es' : '', 'ed' ))
-    verbEndingIes = ( tSel(isThirdPersonSingular? 'ies' : 'y', 'ied'))
-    
-      
-    verbToBe 
-    {
-        switch(person)
-        {
-        case 1:
-            return tSel(plural ? 'are' : 'am', plural ? 'were' : 'was');
-        case 2:
-            return tSel('are', 'were');
-        default:
-            return tSel(plural ? 'are' : 'is', plural ? 'were' : 'was');
-        }
-    }
-    
-    verbWas
-    {
-        switch(person)
-        {
-        case 1:
-            return tSel(plural ? 'were' : 'was', 'had been');
-        case 2:
-            return tSel('were', 'had been');
-        default:
-            return tSel(plural ? 'were' : 'was', 'had been');
-        }
-    }
-    
-
+    /* 
+     *   The dummyName is a property that displays nothing, for use when we want
+     *   to use an object in a sentence without actually displaying any text for
+     *   it (e.g. to provide a subject for a verb to agree with).
+     */
     dummyName = ''
-    
-
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -1759,6 +1743,26 @@ class LState: object
         /* add it to the dictionary */
         cmdDict.addWord(dictionaryPlaceholder, w, &noun);
     }
+    
+    /*  
+     *   Additional info to be added to the item name when it appears in a
+     *   listing and is in the corresponding state
+     */
+    additionalInfo = []
+    
+    /* 
+     *   Get the string providing additional info about this object when it's in
+     *   a particular state (such as '(providing light)', the only additional
+     *   state info actually defined in the English library)
+     */
+    getAdditionalInfo(obj)
+    {
+        /* get the info list entry for the object's current state */
+        local st = obj.(stateProp);
+        local info = additionalInfo.valWhich({ ele: ele[1] == st });
+        
+        return info != nil ? info[2] : '';
+    }
 ;
 
 
@@ -1779,7 +1783,8 @@ class LState: object
 LitUnlit: State
     stateProp = &isLit
     adjectives = [[nil, ['unlit']], [true, ['lit']]]
-    appliesTo(obj) { return obj.isLightable; }
+    appliesTo(obj) { return obj.isLightable || obj.isLit; }
+    additionalInfo = [[true, ' (providing light)']]
 ;
 
 /*
@@ -1792,19 +1797,21 @@ OpenClosed: State
     appliesTo(obj) { return obj.isOpenable; }
 ;
 
-
+/*  
+ *   Modifications to TopicPhrase to make it work better with the
+ *   English-specific part of the library.
+ */
 modify TopicPhrase
     matchNameScope(cmd, scope)
     {
         
         local toks = tokens;
         local ret;
+        
         /* 
          *   Strip any apostrophe-S from our tokens since the vocab words
          *   initialization will have done the same
-         */
-        
-        
+         */        
         tokens = tokens.subset({x: x != '\'s'});
         
         /* 
@@ -1814,31 +1821,38 @@ modify TopicPhrase
          *   DARK), since the parser will first try to match items that include
          *   the tokens 'the' and 'dark' in their vocabWords, with results that
          *   may not be what we want.
-         */
-        
+         */        
         tokens = tokens.subset({x: x not in ('a', 'the', 'an')});
+        
         
         try
         {
-           ret = inherited(cmd, scope);
+            /* Carry out the inherited handling and store the result */
+            ret = inherited(cmd, scope);
         }
         finally
         {
+            /* Restore the original tokens on the way out. */
             tokens = toks;
         }
         
+        /* Return the result of the inherited handling. */
         return ret;
     }
     
 ;
 
+/* 
+ *   Modification to the ResolvedTopic for use with the English-language
+ *   specific part of the library.
+ */
 modify ResolvedTopic
+    
     /* 
      *   The English Tokenizer separates apostrophe-S from the word it's part
      *   of, so in restoring the original text we need to join any apostrophe-S
      *   back to the word it was separated from.
-     */
-    
+     */    
     getTopicText()
     {
         local str = tokens.join(' ').trim();
@@ -1847,6 +1861,13 @@ modify ResolvedTopic
     }
     
 ;
+
+/* 
+ *   Modification to the Topic class so that when constructing a new Topic a
+ *   separate apostrophe-S token is concatenated with the previous word when
+ *   storing the name (which undoes the effect on building the name of what the
+ *   English-language tokenizer does with apostrophe-S).
+ */
 
 modify Topic
     construct(name_)
@@ -1875,15 +1896,44 @@ modify Thing
     {
         " (<<childLocType(pov).prep>> <<theName>>)";
     }
-    
-    
-    
-    
-    tooDarkToSeeMsg = tSel('It\'s', 'It was') + ' too dark to see anything. '
-    
-   
 ;
 
+
+/*-------------------------------------------------------------------------- */
+/*  
+ *   English language modifications to Room. Here we simply allow a Room to take
+ *   its vocab from its roomTitle property if vocab is not already defined; this
+ *   reduces the need to type the same text twice when the two are effectively
+ *   the same.
+ */
+modify Room
+    initVocab()
+    {
+        /* 
+         *   If our vocab property isn't already defined, take it from our
+         *   roomTitle, converting it to lower case, provided proper is false.
+         */
+        if(vocab == nil && autoName)            
+            vocab = proper ? roomTitle : roomTitle.toLower() ;
+        
+        /* Carry out the inherited handling */
+        inherited();
+    }
+    
+    /* 
+     *   Flag: do we want this room to take its vocab (and hence its name) from
+     *   its roomTitle property if its vocab property isn't explicitly defined?
+     *   By default we do.
+     */
+    autoName = true
+;
+
+
+
+/* 
+ *   Modifications to Pronoun to ensure that aName, theName and theObjName
+ *   return the appropriate results.
+ */
 modify Pronoun
     aName = (name)
     theName = (name)
@@ -2479,6 +2529,11 @@ spellNumber(n)
  */
 
 modify Lister
+    /* 
+     *   Show the list as an 'and' list, that is a list of the aNames of each
+     *   item in lst formatted with commas between list elements and 'and'
+     *   between the last two items in the list.
+     */
     showList(lst, pl, paraCnt)
     {        
         "<<andList(lst.mapAll({ o: o.aName }))>>";
@@ -2486,20 +2541,46 @@ modify Lister
     
 ;
 
-modify ItemLister
+/* 
+ *   Modifications to the ItemLister (the base class for listers that list
+ *   physical objects) for the English-language part of the library.
+ */
+modify ItemLister    
     
-    
+    /* 
+     *   For an item lister we use the listName method of the lister rather than
+     *   the aName property of the object to provide a name for the object; this
+     *   allows the lister to add status-specific information like '(providing
+     *   light)' or '(being worn)' to the name as it appears in the list.
+     */
     showList(lst, pl, paraCnt)   
     {        
         "<<andList(lst.mapAll({ o: listName(o) }))>>";        
     }
     
+    /* 
+     *   The listName is the aName of o plus any status-specific information we
+     *   might want to appear in the listing, such as '(providing light)'
+     */
     listName(o)
     {
+        /* Store the object name in a local variable */
         local lName = o.aName;
-        if(o.isLit && showAdditionalInfo)
-            lName += ' (providing light)';
         
+        /* 
+         *   Add any additional state-specific info, such as  ' (providing
+         *   light)', to the name of this object.
+         */
+        if(showAdditionalInfo)
+        {
+            foreach(local state in o.states)
+                lName += state.getAdditionalInfo(o);
+        }            
+
+        /* 
+         *   If this object is being worn and we want to show information about
+         *   objects being worn, add ' (being worn)' to the name
+         */
         if(o.wornBy != nil && showWornInfo)
             lName += ' (being worn)';
         
@@ -2515,6 +2596,10 @@ modify ItemLister
             o.contents.forEach({x: x.mentioned = true});
         }
         
+        /* 
+         *   Return the result, i.e. the aName of the object plus any additional
+         *   information about its state and/or contents.
+         */
         return lName;
     }
     
@@ -2542,6 +2627,10 @@ modify ItemLister
     showSubListing = true
 ;
 
+/*  
+ *   English-language modifications to the lister used for miscellaneous items
+ *   when looking around in a room.
+ */
 modify lookLister
     showListPrefix(lst, pl, paraCnt)
     {
@@ -2556,6 +2645,10 @@ modify lookLister
     showSubListing = (gameMain.useParentheticalListing)
 ;
 
+/* 
+ *   English-language modifications to the lister used for listing items carried
+ *   by the player character.
+ */
 modify inventoryLister
     showListPrefix(lst, pl, paraCnt)
     {
@@ -2570,14 +2663,13 @@ modify inventoryLister
     showListEmpty(paraCnt)
     {
         "{I} {am} empty-handed. ";
-    }
-    
-    
-    
-    
-    
+    }    
 ;
 
+/* 
+ *   English-language modifications to the lister used for listing items worn
+ *   by the player character.
+ */
 modify wornLister
     showListPrefix(lst, pl, paraCnt)
     {
@@ -2603,10 +2695,10 @@ modify wornLister
 
 /* 
  *   The subLister is used by other listers such as inventoryLister and
- *   wornLister to show contents of contents in parentheses. The depth of
- *   nesting is limited by the maxNestingDepth property.
+ *   wornLister to show the contents of listed items in parentheses (e.g. '(in
+ *   which is a pen, a pencil and a piece of paper). The depth of nesting is
+ *   limited by the maxNestingDepth property. I
  */
-
 subLister: ItemLister
     showListPrefix(lst, pl, paraCnt)
     {
@@ -2618,17 +2710,35 @@ subLister: ItemLister
     
     showListEmpty(paraCnt) { }
    
+    /* Construct the list contents from lst to a maximum nesting depth */
     buildList(lst)
     {
+        /* increase the nesting depth by 1 */
         nestingDepth++;
+        
+        /* 
+         *   if we've gone beyond the maximum nesting depth, simply return an
+         *   empty string to stop going any deeper.
+         */
         if(nestingDepth > maxNestingDepth)
         {
+            /* reduce the nesting depth by 1 */
             nestingDepth--;
+            
+            /* return an empty string. */
             return '';
         }
     
+        /* 
+         *   Carry out the inherited handling and store the result in a local
+         *   variable.
+         */
         local str = inherited(lst);
+        
+        /* Reduce the nesting depth by 1 */
         nestingDepth--;
+        
+        /* Return the result */
         return str;
     }
     
@@ -2643,17 +2753,34 @@ subLister: ItemLister
     /* The current nesting depth of this subLister */
     nestingDepth = 0
     
+    
     showSubListing = true 
     
     listed(o) { return o.lookListed; }
 ;
 
+
+/* 
+ *   English language modifications to the descContentsLister, which is used to
+ *   list the contents of a container when it's examined.
+ */
 modify descContentsLister
     showListPrefix(lst, pl, parent)
     {
         gMessageParams(parent);
+        
+        /* 
+         *   If the item whose contents we're listing want to report its
+         *   open-or-closed status, start the listing by reporting that it's
+         *   open and then say 'and contains'
+         */
         if(parent.openStatusReportable)
             "{The subj parent} {is} open and {contains} ";  
+        
+        /*  
+         *   Otherwise start the listing without explicitly mentioning that the
+         *   container is open.
+         */
         else
             "{In parent} {i} {see} ";               
         
@@ -2664,6 +2791,11 @@ modify descContentsLister
         ".";
     }
     
+    /* 
+     *   If there's no contents to list, but the item whose contents we were
+     *   trying to list wants to report its open-or-closed status, simply state
+     *   that it's open or closed.
+     */
     showListEmpty(parent)  
     {
         if(parent.openStatusReportable)
@@ -2671,10 +2803,18 @@ modify descContentsLister
             closed<<end>>. ";
     }
     
+    /* 
+     *   Flag: Show a sublisting (i.e. the contents of the items in our
+     *   immediate contents, in parentheses after the name of the item, if the
+     *   gameMain option useParentheticalListing is true.
+     */
     showSubListing = (gameMain.useParentheticalListing)
 ;
 
-
+/* 
+ *   English-language modifications to the lister used to list the contents of
+ *   containers when looking around in a room.
+ */
 modify lookContentsLister
     showListPrefix(lst, pl, parent)
     {
@@ -2684,15 +2824,21 @@ modify lookContentsLister
     showListSuffix(lst, pl, paraCnt)
     {
         ".";
-    }
+    }    
     
-    
-    
+    /* 
+     *   Flag: Show a sublisting (i.e. the contents of the items in our
+     *   immediate contents, in parentheses after the name of the item, if the
+     *   gameMain option useParentheticalListing is true.
+     */
     showSubListing = (gameMain.useParentheticalListing)
     
 ;
 
-
+/* 
+ *   English-language modifications to the lister used to describe the contents
+ *   of an openable container when it has just been opened.
+ */
 modify openingContentsLister
     showListPrefix(lst, pl, parent)
     {
@@ -2713,6 +2859,11 @@ modify openingContentsLister
     showSubListing = (gameMain.useParentheticalListing)
 ;
 
+
+/* 
+ *   English-language modifications to the lister used to list the contents of
+ *   something that's being looked in (or searched).
+ */
 modify lookInLister
     showListPrefix(lst, pl, parent)
     {
@@ -2733,7 +2884,10 @@ modify lookInLister
     showSubListing = (gameMain.useParentheticalListing)
 ; 
     
-
+/* 
+ *   English-language modifications to the lister used to list the items
+ *   attached to a SimpleAttachable.
+ */
 modify simpleAttachmentLister
     showListPrefix(lst, pl, parent)
     {
@@ -2748,6 +2902,10 @@ modify simpleAttachmentLister
     showSubListing = (gameMain.useParentheticalListing) 
 ;
 
+/*  
+ *   English-language modifications to the lister used to list the items plugged
+ *   into a PlugAttachable.
+ */
 modify plugAttachableLister
     showListSuffix(lst, pl, parent)
     {
@@ -2755,9 +2913,17 @@ modify plugAttachableLister
     }    
 ;
 
+/* 
+ *   The lister used to list the options from which the player can choose when
+ *   the game comes to an end.
+ */
 finishOptionsLister: Lister
     showList(lst, pl, paraCnt)
     {
+        /* 
+         *   List the options as alternatives (with an 'or' between the last two
+         *   items).
+         */
         "<<orList(lst.mapAll({ o: o.desc }))>>";
     }
     
@@ -2780,7 +2946,17 @@ finishOptionsLister: Lister
     
 ;
 
-
+/* 
+ *   Take a list of objects supplied in objList and return a formatted list in a
+ *   single quoted string, having first sorted the items in objList in the order
+ *   of their listOrder property.
+ *
+ *   If the nameProp parameter is supplied, we'll use that property for the name
+ *   of every item in the list; otherwise we use the aName property by default.
+ *
+ *   By default the last two items in the list are separated by 'and', but we
+ *   can choose a different conjunction by supplying the conjunction parameter.
+ */ 
 makeListStr(objList, nameProp = &aName, conjunction = 'and')
 {
     local lst = [];
@@ -2792,19 +2968,25 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and')
      *   the property, and only if they use it to define an order. If all the
      *   items in the list have the same sortOrder, we don't want to shuffle
      *   them out of their original order by performing an unnecessary sort.
-     */
-       
+     */       
     if(objList.length > 0 && objList[1].propDefined(&listOrder) &&
        objList.indexWhich({x: x.listOrder != objList[1].listOrder}))
         objList = objList.sort(SortAsc, {a, b: a.listOrder - b.listOrder});
     
+    /* Go through every item in our sorted list */
     for(i = 1, obj in objList ; ; ++i)
     {
+        /* Mark it as having been mentioned in a list */
         obj.mentioned = true;        
-        local desc = obj.(nameProp);
-        if(obj.isLit)
-            desc += ' (providing light)';
         
+        /* Store the value of the nameProp property in a local variable */
+        local desc = obj.(nameProp);
+        
+        /* Add any state-specific information */
+        foreach(local state in obj.states)
+            desc += state.getAdditionalInfo(obj);
+        
+        /* Add the expanded name to our list of strings. */
         lst += desc;
     }
     
@@ -2812,46 +2994,74 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and')
     /* 
      *   Note whether the list would make a singular or plural grammatical
      *   subject if referred to with the {prev} tag.
-     */
-        
+     */        
     if(objList.length > 1 || (objList.length > 0 && objList[1].plural))
         prevDummy_.plural = true;
     else
         prevDummy_.plural = nil;   
           
     
+    /* 
+     *   If the list is empty return 'nothing', otherwise use the genList()
+     *   function to construct the string representation of the list and return
+     *   that.
+     */
     return lst == [] ? 'nothing' : genList(lst, conjunction);
        
 }
 
 /* 
- *   function to use with the <<mention a *>> string template. This marks the
+ *   Function to use with the <<mention a *>> string template. This marks the
  *   object as mentioned in a room description and allows it to be used as the
  *   antecedent of a {prev} tag, to ensure verb agreement.
  */
-
 mentionA(obj)
 {
+    /* Note that the object has been mentioned */
     obj.mentioned = true;
+    
+    /* Note that the object has been seen */
     obj.noteSeen();
+    
+    /* 
+     *   Set the plurality of the prevDummy_ object to the plurality of the
+     *   object we're mentioning (so that prevDummy_ can be used to secure
+     *   grammatical agreement with a subsequent verb).
+     */
     prevDummy_.plural = obj.plural;
+    
+    /* Return the aName of our obj. */
     return obj.aName;    
 }
 
-
+/* 
+ *   Function to use with the <<mention the *>> string template. This marks the
+ *   object as mentioned in a room description and allows it to be used as the
+ *   antecedent of a {prev} tag, to ensure verb agreement.
+ */
 mentionThe(obj)
 {
+    /* Note that the object has been mentioned */
     obj.mentioned = true;
+    
+    /* Note that the object has been seen */
     obj.noteSeen();
+    
+    /* 
+     *   Set the plurality of the prevDummy_ object to the plurality of the
+     *   object we're mentioning (so that prevDummy_ can be used to secure
+     *   grammatical agreement with a subsequent verb).
+     */
     prevDummy_.plural = obj.plural;
+    
+    /* Return the theName of our obj. */
     return obj.theName;
 }
 
 /* 
- *   A version of makeListStr that uses only one parameter, for compatitibility
- *   with the <<list of *>>string template
+ *   A version of makeListStr that uses only one parameter, for use by the
+ *   <<list of *>>string template
  */
-
 makeListInStr(objList)
 {   
      return makeListStr(objList);    
@@ -2859,10 +3069,10 @@ makeListInStr(objList)
 
 /* 
  *   Function for use with the <<is list of *>> string template, prefixing a
- *   list with the correct of the verb to be to match the grammatical number of
- *   the list (e.g. "There are a box and a glove here" or "There is box here").
+ *   list with the correct form of the verb to be to match the grammatical
+ *   number of the list (e.g. "There are a box and a glove here" or "There is
+ *   box here").
  */
-
 isListStr(objList)
 {
     if(objList.length > 1 || objList[1].plural)
@@ -2870,22 +3080,19 @@ isListStr(objList)
     else
         prevDummy_.plural = nil;   
     
-    return '{prev} {is} ' + makeListStr(objList);
-    
+    return '{prev} {is} ' + makeListStr(objList);    
 }
    
+/*  
+ *   Function for use by the <<list of * is>> string template, which returns a
+ *   formatted list followed by the appropriate form of the verb 'to be' in
+ *   grammatical agreement with that list.
+ */
 listStrIs(objList)
 {    
     return makeListStr(objList) + ' {prev} {is}';
 }
 
-/*
- *   Show a list of items in a room description. 
- */
-showRoomList(lst, pl, paraCnt)
-{
-    "{I} {can} see <<andList(lst.mapAll({ o: o.aName }))>> {here}.";
-}
 
 /*
  *   Construct a printable list of strings separated by "or" conjunctions.
@@ -2942,8 +3149,7 @@ genList(lst, conj)
 
 /* 
  *   Take a list of strings of the form ['a book', 'a cat', 'a book'] and merge
- *   the duplicate items to return a list of the form ['two books', 'a cat']
- */     
+ *   the duplicate items to return a list of the form ['two books', 'a cat'] */     
 
 mergeDuplicates(lst)
 {
@@ -2953,6 +3159,7 @@ mergeDuplicates(lst)
     /* The Vector we build to return the processed list */
     local processedVec = new Vector(10);
     
+    /* Go through every item in our list */
     foreach(local cur in lst)
     {
         /* 
@@ -3009,9 +3216,9 @@ mergeDuplicates(lst)
  *   return a string with the number spelled out and the name pluralised, e.g.
  *   makeCountPlural('a cat', 3) -> 'three cats'
  */
-
 makeCountedPlural(str, num)
 {
+    /* Split the string into a list of words to make it easier to manipulate */
     local strList = str.split(' ');
     
     /* 
@@ -3032,8 +3239,7 @@ makeCountedPlural(str, num)
      *   If the name ends with a section in parentheses, pluralize the part of
      *   the name before the parentheses and then append the parenthetical
      *   section.
-     */
-    
+     */    
     if(idx1 != nil && idx2 != nil && idx2 >= idx1 && idx2 == strList.length)
     {
         local plStr = strList.sublist(1, idx1 - 1).join(' ');
@@ -3118,6 +3324,9 @@ modify restoreOptionRestoreAnother
     desc = '''<<aHrefAlt('restore', 'RESTORE', '<b>R</b>ESTORE',
             'Restore a saved position')>> a different saved position'''
 ;
+
+/* ------------------------------------------------------------------------ */
+/* English-language addition to defaultGround to give it appropriate vocab */
 
 modify defaultGround
     vocab = 'ground;;floor'
@@ -3220,11 +3429,7 @@ nounRoleQuestion(cmd, role)
         return npListPronoun(rexGroup(2)[3], cmd.(r.npListProp), prep);
     };
 
-    /* substitute each other-object phrase and return the result */
-//    return q.findReplace(
-//        R'(<lparen><alpha|space>+)?%<(it|that)(-<alpha>+)?%><rparen>?',
-//        q, f).trim();
-    
+    /* substitute each other-object phrase and return the result */    
    return q.findReplace(
         R'(<lparen><alpha|space>+)?%<(it|that)(-<alpha>+)?%><rparen>?',
         f).trim();
@@ -3323,11 +3528,10 @@ npListPronoun(pro, nplst, prep)
 }
 
 /* 
- *   The libMessage object contains a number of messages/string values needed by
- *   the menu system and the WebUI. It is not used for any other library
+ *   The libMessages object contains a number of messages/string values needed
+ *   by the menu system and the WebUI. It is not used for any other library
  *   messages.
  */
-
 libMessages: object
     
     /*
@@ -3475,7 +3679,6 @@ libMessages: object
  *   make an error message into a sentence, by capitalizing the first letter and
  *   adding a period at the end if it doesn't already have one
  */
-
 makeSentence(msg)
 {
     return rexReplace(
@@ -3483,6 +3686,12 @@ makeSentence(msg)
         [{m: m.toUpper()}, '.']);
 }
 
+/* 
+ *   The dummy object is used to provide a {dummy} parameter in a message
+ *   parameter substitution to provide a grammatical subject in a sentence for
+ *   which no actual in-game subject is available; e.g. "There {dummy}{is}
+ *   nothing here" provides a subject for {is} without displaying any text.
+ */
 modify dummy_ 
     dummyName = ''
     name = ''
@@ -3492,6 +3701,10 @@ modify dummy_
     }
 ;
 
+/*  
+ *   pluralDummy_ provides the same function as dummy_ when a plural subject is
+ *   required in a sentence.
+ */
 modify pluralDummy_ 
     dummyName = ''
     name = ''
@@ -3503,6 +3716,11 @@ modify pluralDummy_
     plural = true
 ;
 
+/* 
+ *   prevDummy_ is used by the {prev} message parameter substitution to enable a
+ *   subsequent verb to agree with a previous list defined through one of the
+ *   string templates.
+ */
 prevDummy_: Mentionable
     dummyName = ''
     name = ''
@@ -3627,14 +3845,32 @@ englishMessageParams: MessageParams
         /* {mine} is a possessive noun for the addressee */
         [ 'mine', { ctx, params: cmdInfo(ctx, &actor, &possNoun, vAmbig) } ],
         
+        /* {myself} is the reflexive pronoun for the addressee */
         [ 'myself', { ctx, params: cmdInfo(ctx, &actor, &reflexiveName, vObject) } ],
         
+        /* 
+         *   {dummy} provides a singular subject for an ensuing verb without
+         *   displaying any text
+         */
         [ 'dummy', { ctx, params: cmdInfo(ctx, dummy_, &dummyName, vSubject) } ],
         
+        /* 
+         *   {sing} provides a singular subject for an ensuing verb without
+         *   displaying any text
+         */
         [ 'sing', { ctx, params: cmdInfo(ctx, dummy_, &dummyName, vSubject) } ],
         
+        /* 
+         *   {plural} provides a plural subject for an ensuing verb without
+         *   displaying any text
+         */
         [ 'plural', { ctx, params: cmdInfo(ctx, pluralDummy_, &dummyName, vSubject) } ],
         
+        /* 
+         *   {prev} provides a singular or plural subject for an ensuing verb,
+         *   matching the plurarity of a previous list, without displaying any
+         *   text
+         */
         [ 'prev', { ctx, params: cmdInfo(ctx, prevDummy_, &dummyName, vSubject) } ],
 
         /* 
@@ -3700,7 +3936,11 @@ englishMessageParams: MessageParams
            return cmdInfo(ctx, params[2], &theObjName, vAmbig);
         }
         ],
-    
+            
+        /*
+         *   {a subj obj} - aName, subjective case
+         *.  {a obj} - name, objective case         
+         */
         [ 'a', function(ctx, params) {
         
         if (params[2] == 'subj')
@@ -3710,6 +3950,10 @@ englishMessageParams: MessageParams
         }
         ],
     
+        /*
+         *   {an subj obj} - aName, subjective case
+         *.  {an obj} - name, objective case         
+         */
         [ 'an', function(ctx, params) {
         
         if (params[2] == 'subj')
@@ -3719,12 +3963,23 @@ englishMessageParams: MessageParams
         }
         ],
     
+        /* 
+         *   {in obj} - the appropriate containment preposition (in, on, under
+         *   or behind) followed by the theName of the object (e.g. 'in the
+         *   bath')
+         */
         [ 'in', { ctx, params: cmdInfo(ctx, params[2], &objInName, vObject) } ],
+
+    /* {inprep obj} the objInPrep (in, on, under or behind) of obj */
     ['inprep' , { ctx, params: cmdInfo(ctx, params[2], &objInPrep, vObject) } ], 
     
+/* 
+ *   {outof obj} the appropriate exit preposition followed the theName of the
+ *   obj, e.g. 'out of the bath'
+ */ 
     ['outof', { ctx, params: cmdInfo(ctx, params[2], &objOutOfName, vObject) } ],
     
-    /* {he obj} - pronoun, subjective case */
+       /* {he obj} - pronoun, subjective case */
         [ 'he',
          { ctx, params: cmdInfo(ctx, params[2], &heName, vSubject) } ],
 
@@ -3812,8 +4067,7 @@ englishMessageParams: MessageParams
         /* 
          *   Note, this seems to produce rather odd results, so I'll try
          *   commenting it out.
-         */
-        
+         */        
 //        if (ctx.reflexiveAnte.indexOf(srcObj) != nil)
 //            return srcObj.pronoun().reflexive.name;
 
@@ -4215,12 +4469,11 @@ conjugateMust(ctx, params)
 /*
  *   ---------------------------------------------------------------------------
  *   Language-specific modifications to Action classes principally to enable the
- *   construction of implicit action announcements.
- */
+ *   construction of implicit action announcements. */
 
 modify Action
      getVerbPhrase(inf, ctx)
-    {
+     {
         /*
          *   parse the verbPhrase into the parts before and after the
          *   slash, and any additional text following the slash part
@@ -4245,7 +4498,10 @@ modify Action
   
 
     
-    
+    /* 
+     *   Construct the announcement of an implicit action according to whether
+     *   the implict action succeeds (success = true) or fails (success = nil)
+     */
     buildImplicitActionAnnouncement(success)
     {
                
@@ -4255,7 +4511,10 @@ modify Action
         
         /* 
          *   If the current action is an implicit action, add it to the list of
-         *   implicit action reports
+         *   implicit action reports, either in the participle form if it's a
+         *   success (e.g. 'opening the door') or in the infinitive form
+         *   preceded by 'trying' if it's a failure (e.g. 'trying to open the
+         *   door')
          */
         if(isImplicit)
         {    
@@ -4268,16 +4527,29 @@ modify Action
         /* 
          *   If this implicit action failed we need to report this implicit
          *   action. If we're not an implicit action we need to report
-         *   the previous set of implicit actions, if there are any.
-         */
+         *   the previous set of implicit actions, if there are any.         */
         
         if((success == nil || !isImplicit) &&
            gCommand.implicitActionReports.length > 0)
         {
+            /* 
+             *   Begin our report with an opening parenthesis and the word
+             *   'first'
+             */
             rep = '(first ';
+            
+            /* 
+             *   Then go through all the implicit action reports on the current
+             *   Command object, adding them to our report string.
+             */
             for (cur in gCommand.implicitActionReports, local i = 1 ;; ++i)
             {    
                 rep += cur;
+                
+                /* 
+                 *   if we haven't reached the last report, add ', then ' to
+                 *   separate one report from the next
+                 */
                 if(i < gCommand.implicitActionReports.length)
                     rep += ', then ';
             }
@@ -4302,7 +4574,11 @@ modify Action
     spPrefix(str) { return (str == '' ? str : ' ' + str); }
     spSuffix(str) { return (str == '' ? str : str + ' '); }
     
-    
+    /* 
+     *   Announce an object (for use to introduce a report on what an action
+     *   does to particular object when it's one of a number of objects the
+     *   actions is acting upon)
+     */
     announceObject(obj)
     {
         "<.announceObj><<obj.name>>:<./announceObj> ";
@@ -4318,13 +4594,11 @@ modify TAction
         local dobjIsPronoun;
         local ret;
 
-//       ctx = defaultGetVerbPhraseContext;
-
         /* get the direct object */
         dobj = curDobj;
-
-        dobjIsPronoun = nil;
-        
+         
+        /* Assume the direct object is not a pronoun */
+        dobjIsPronoun = nil;        
 
         /* get the direct object name */ 
         dobjText = dobj.theName;
@@ -4496,7 +4770,13 @@ modify TIAction
     }
 ;
 
-    
+/* -------------------------------------------------------------------------- */
+/* 
+ *   English-language modifications to the various pronoun objects to provide
+ *   them with an appropriate English name in their prep properties.
+ */
+
+
 modify In
     prep = 'in'    
 ;
@@ -4555,19 +4835,18 @@ modify Carrier
 ;
 
 /* 
- *   [must define] The language-specific part of CommandTopicHelper.
- */
+ *   [must define] The language-specific part of CommandTopicHelper. */
 
 property myAction;
 
 class LCommandTopicHelper: object
+    
     /* 
      *   builds the action phrase of the command, e.g. 'jump', 'take the red
      *   ball', 'put the blue ball in the basket'. This can be used to help
      *   construct the player char's command to the actor in the topic response,
      *   e.g. "<q>\^<<actionPhrase>>!</q> you cry. "
-     */
-    
+     */    
     actionPhrase()
     {
         if(myAction == nil || myAction.verbRule == nil)
@@ -4580,18 +4859,36 @@ class LCommandTopicHelper: object
          */
         local txt = '';
         
+        /*   
+         *   Obtain the verb from the first part of the verbPhrase of the
+         *   verbRule of the action matched by this CommandTopic.
+         */
         local verb = myAction.verbRule.verbPhrase.split('/')[1];
+        
+        /*  
+         *   Go through all the grammar templates associated with the action
+         *   matched by this CommandTopic and pick out the longest one that
+         *   starts with the verb we've just identified; we'll take this to be
+         *   the 'canonical' form (as a rough rule of thumb this works
+         *   reasonably well)
+         */
         foreach(local cur in myAction.grammarTemplates)
         {
             if(cur.length > txt.length && cur.startsWith(verb))
                 txt = cur;
         }
         
-        
+        /* 
+         *   If the matched action has a direct object, replacc the string
+         *   'dobj' in our txt string with the name of the direct object
+         */
         if(myAction.curDobj != nil)            
             txt = txt.findReplace('(dobj)', getName(myAction.curDobj));
            
-        
+        /* 
+         *   If the matched action has an indirect object, replacc the string
+         *   'iobj' in our txt string with the name of the indirect object
+         */
         if(myAction.curIobj != nil)        
             txt = txt.findReplace('(iobj)', getName(myAction.curIobj));
         
@@ -4599,22 +4896,32 @@ class LCommandTopicHelper: object
         return txt;
     }
     
+    /* 
+     *   Get the appropriate name for an object to use the action phrase of a
+     *   CommandTopic.
+     */
     getName(obj)
     {
+        /* If the object is the player character, it should appear as 'me' */
         if(obj == gPlayerChar)
             return 'me';
         
+        /* 
+         *   If the object is the actor to whom the command is being addressed,
+         *   it should appear as the singular or plural form of the second
+         *   person reflexive pronoun
+         */
         if(obj == gActor)
             return gActor.plural ? 'yourselves' : 'yourself';
         
+        /* Otherwise just use the theName property of the object */
         return obj.theName;   
     }
 ;
     
 /* 
  *   Does the token list for this command contain the word 'ALL'? This is a
- *   language-specific question so we define this function here.
- */
+ *   language-specific question so we define this function here. */
 
 mentionsAll(cmd)
 {
@@ -4628,8 +4935,7 @@ mentionsAll(cmd)
  *   In English, Remove X might mean take it off (if we're wearing it) or take
  *   it (if it's simply a free-standing object). We handle this with a Doer in
  *   the English-specific library (a) because this ambiguity may be
- *   language-specific and (b) because remap is now deprecated.
- */
+ *   language-specific and (b) because remap is now deprecated. */
 
 removeDoer: Doer 'remove Thing'
 
@@ -4642,6 +4948,12 @@ removeDoer: Doer 'remove Thing'
     }    
 ;
 
+/*  
+ *   Make putting something on a Floor object or throwing something at a Floor
+ *   object equivalent to dropping it; since this depends on the
+ *   English-language grammar of the actions concerned it needs to appear in the
+ *   English-specific part of the library.
+ */
 putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
     execAction(c)
     {
@@ -4649,8 +4961,7 @@ putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
          *   The player has asked to put something on the ground, so we should
          *   override the actor's location's dropLocation on this occasion to
          *   ensure that that's where the dropped object indeed ends up
-         */
-        
+         */        
         local oldDropLocation;
         local oldLocation;
         try
@@ -4673,6 +4984,12 @@ putOnGroundDoer: Doer 'put Thing on Floor; throw Thing at Floor'
     }
 ;
 
+/* 
+ *   'Get on ground' or 'stand on ground' does nothing if the player is already
+ *   directly in a room, so in that case we just display an appropriate message;
+ *   otherwise we take the command as equivalent to getting out of the actor's
+ *   immediate container.
+ */
 getOnGroundDoer: Doer 'stand on Floor; get on Floor'
     execAction(c)
     {
@@ -4683,13 +5000,17 @@ getOnGroundDoer: Doer 'stand on Floor; get on Floor'
     }
 ;
 
-
+/*  In English taking a path means going along it */
 takePathDoer: Doer 'take PathPassage'
     execAction(c)
     {
         redirect(c, GoThrough);
     }
     
+    /* 
+     *   But this only applies if the command is actually 'take' and not a
+     *   synonymn like 'get' or 'pick up'
+     */
     strict = true
 ;
     

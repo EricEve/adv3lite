@@ -2167,7 +2167,6 @@ class TopicAction: IAction
 ;
 
 /* Try action as an implicit action with [objs] as its objects */
-
 tryImplicitAction(action, [objs])
 {
          
@@ -2206,6 +2205,11 @@ tryImplicitAction(action, [objs])
         return true;
     }
     
+    /*  
+     *   If the action threw an AbortImplicitSignal this means that its verify
+     *   routine does not allow the action to be carried out implicitly; return
+     *   nil to signal that we weren't allowed to attempt this implicit action.
+     */
     catch (AbortImplicitSignal ex)
     {
         return nil;

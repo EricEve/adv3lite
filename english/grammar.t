@@ -2389,6 +2389,7 @@ VerbRule(GoTo)
     verbPhrase = 'go/going to (what)'
     missingQ = 'where do you want to go'
     dobjReply = toSingleNoun
+    priority = 60
 ;
 
 VerbRule(Continue)
@@ -2406,7 +2407,8 @@ VerbRule(VagueTravel) 'go' | 'walk' : VerbProduction
 ;
 
 VerbRule(Travel)
-    (('go' | 'walk') ('to' ('the' |) | ) singleDir) | singleDir
+//    (('go' | 'walk') ('to' ('the' |) | ) singleDir) | singleDir
+    (('go' | 'walk')  singleDir) | singleDir
     : VerbProduction
     action = Travel
     verbPhrase = 'go/going {where)'  

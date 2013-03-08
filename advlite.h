@@ -305,7 +305,7 @@ dictionary property noun, nounApostS;
 #define iobjFor(action) objFor(Iobj, action)
 
 #define reportAfter(msg) gCommand.afterReports += msg
-#define reportBefore(msg) gOutStream.writeFromStream(msg)
+#define extraReport(msg) gOutStream.writeFromStream(msg)
 
 /*
  *   Treat an object definition as equivalent to another object definition.
@@ -397,79 +397,6 @@ dictionary property noun, nounApostS;
 #define goNested(dirn) goNested(Go, dirn##Dir)
 
 
-///*
-// *   "Remap" an action.  This effectively rewrites the action in the given
-// *   form.  Each of the object slots can be filled either with a specific
-// *   object, or with a noun phrase role name (DirectObject, IndirectObject);
-// *   in the latter case, the object or objects from the named noun phrase
-// *   role in the *current* action (i.e., before the rewrite) will be used.
-// *   
-// *   If the new action has two or more objects (for example, if it's a
-// *   TIAction), then EXACTLY ONE of the slots must be filled with a specific
-// *   object, and all of the other slots must be filled with role names.  The
-// *   specific object is the one that corresponds to the original object
-// *   that's doing the remapping in the first place - this can simply be
-// *   'self' if the new action will operate on the same object, or it can be
-// *   a different object.  The important thing is that the 'verify' method
-// *   for the defining object will be forwarded to the corresponding 'verify'
-// *   method on the corresponding object for the new action.
-// *   
-// *   This macro must be used as the ENTIRE definition block for a dobjFor()
-// *   or iobjFor().  For example, to remap a "put in" command directed to a
-// *   desk so that the command is instead applied to a drawer in the desk, we
-// *   could define the following on the desk object:
-// *   
-// *   iobjFor(PutIn) remapTo(PutIn, DirectObject, deskDrawer) 
-// */
-//#define remapTo(action, objs...) { remap = [action, ##objs] }
-//
-///*
-// *   Conditionally remap an action.  If 'cond' (a conditional expression)
-// *   evaluated to true, we'll remap the action as directed; otherwise, we'll
-// *   inherit the default handling 
-// */
-//#define maybeRemapTo(cond, action, objs...) \
-//    { remap = ((cond) ? [action, ##objs] : inherited()) }
-//
-
-/*
- *   For two-object push-travel actions, such as "push sled into cave",
- *   define a special mapping for both the direct and indirect objects:
- *   
- *   - Map the direct object (the object being pushed) to a simple
- *   PushTravel action.  So, for "push sled into cave," map the direct
- *   object handling to PushTravel for the sled.  This makes the handling of
- *   the command equivalent to "push sled north" and the like.
- *   
- *   - Map the indirect object (the travel connector) to use the PushTravel
- *   action's verify remapper.  This is handled specially by the PushTravel
- *   action object to handle the verification as though it were verifying
- *   the corresponding ordinary (non-push) travel action on the indirect
- *   object.  Beyond verification, we do nothing, since the direct object of
- *   a pushable object will handle the whole action using a nested travel
- *   action.
- *   
- *   This effectively decomposes the two-object action into two coupled
- *   single-object actions: a regular PushTravel action on the object being
- *   pushed, and a regular whatever-kind-of-travel on the connector being
- *   traversed.  This handling has the appeal that it means that we don't
- *   need a separate PUSH version of every kind of allowed travel on a
- *   connector, and we don't need a special handler version for each kind of
- *   travel on a pushable object; instead, we just use the basic PushTravel
- *   and kind-of-travel handlers to form the combined form.  Note that this
- *   still allows separate treatment of the combined form wherever desired,
- *   just by overriding these default handlers for the two-object action.  
- */
-#define mapPushTravelHandlers(pushAction, travelAction) \
-    dobjFor(pushAction) asDobjFor(PushTravel) \
-    mapPushTravelIobj(pushAction, travelAction)
-
-#define mapPushTravelIobj(pushAction, travelAction) \
-    iobjFor(pushAction) \
-    { \
-        verify() \
-            { gAction.verifyPushTravelIobj(self, travelAction##Action); } \
-    }
 
 
 #define asExit(dir) : UnlistedProxyConnector { direction = dir##Dir }
@@ -485,11 +412,6 @@ dictionary property noun, nounApostS;
  *   relate any instances of those various subclasses back to this same
  *   canonical class for the action if necessary.  
  */
-//#define DefineAction(name, baseClass...) \
-//    class name##Action: ##baseClass \
-//    baseActionClass = name##Action
-//
-
 
 /* 
  *   Define an action OBJECT with the given name inheriting from the given base
@@ -577,6 +499,11 @@ dictionary property noun, nounApostS;
     reportDobjProp = &reportDobj##name \
     reportIobjProp = &reportIobj##name \
 
+/* 
+ *   Macros for use in verify routines, returning various kinds of verify
+ *   results
+ */
+
 #define gVerifyList = gAction.verifyList
 
 #define logical gAction.addVerifyResult (new VerifyResult(100, '', true, self))
@@ -621,57 +548,15 @@ dictionary property noun, nounApostS;
 #define abortImplicit throw new AbortImplicitSignal()
 
 /* a concise macro to throw an Abort signal */
-
 #define abort throw new AbortActionSignal()
 
 
-/* ------------------------------------------------------------------------ */
-/*
- *   Try performing a command implicitly.  The action is the root name of
- *   the action, without the 'Action' suffix - we'll automatically add the
- *   suffix.  'objs' is a varying-length list of the resolved objects in the
- *   new action - the direct object, indirect object, and any others needed
- *   for the action.  
- */
-//#define tryImplicitAction(action, objs...) \
-//    _tryImplicitAction(action##Action, ##objs)
-
-//#define tryImplicitAction(action, objs...) \
-//    _tryImplicitAction(action, ##objs)
-
-/*
- *   Replace the current action with a new action.  The new action will be
- *   performed, and the original action will be terminated with 'exit'.
- *   
- *   'action' is the root name of the action, without the 'Action' suffix
- *   (we'll add the suffix automatically).  'objs' is a varying-length list
- *   of the resolved objects - direct object, indirect object, etc.  
- */
-//#define replaceAction(action, objs...) \
-//    _replaceAction(gActor, action##Action, ##objs)
-
-//#define replaceAction(action, objs...) \
-//    _replaceAction(gActor, action, ##objs)
-
-/*
- *   Run a nested action.
- */
-//#define nestedAction(action, objs...) \
-//    _nestedAction(nil, gActor, action##Action, ##objs)
-
-//#define nestedAction(action, objs...) \
-//    _nestedAction(nil, gActor, action, ##objs)
-//
 
 /* ------------------------------------------------------------------------ */
 /*
  *   aHref() flags 
  */
 #define AHREF_Plain  0x0001    /* plain text hyperlink (no underline/color) */
-
-
-
-
 
 
 
@@ -854,16 +739,9 @@ enum masculine, feminine, neuter;
  *   Object role identifiers.  These are used to identify the role of a noun
  *   phrase in a command.
  *   
- *   The library provides base classes for actions of zero, one, and two noun
- *   phrases in their grammars: "look", "take book", "put book on shelf".  We
- *   thus define role identifiers for direct and indirect objects.  Note that
- *   even though we stop there, this doesn't preclude games or library
- *   extensions from adding actions that take more than two noun phrases
- *   ("put coin in slot with tongs"); any such extensions must simply define
- *   their own additional role identifiers for the third or fourth (etc) noun
- *   phrase.
+ *  
  */
-//enum ActorObject, DirectObject, IndirectObject;
+
 
 /*
  *   A special role for the "other" object of a two-object command.  This

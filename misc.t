@@ -2,8 +2,9 @@
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
+ *   Adapted for adv3Lite by Eric Eve
  *   
- *   TADS 3 Library - miscellaneous definitions
+ *   adv3Lite Library - miscellaneous definitions
  *   
  *   This module contains miscellaneous definitions that don't have a
  *   natural grouping with any larger modules, and which aren't complex

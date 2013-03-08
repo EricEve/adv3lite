@@ -966,8 +966,12 @@ class Thing:  ReplaceRedirector, Mentionable
             say(self.(prop));
             break;
         case TypeDString:
-        case TypeCode:
             self.(prop);
+            break;
+        case TypeCode:
+            local str = self.(prop);
+            if(dataType(str) == TypeSString)
+                say(str);
             break;
         default:
             /* do nothing */
@@ -2315,51 +2319,7 @@ class Thing:  ReplaceRedirector, Mentionable
         return (location == obj ? locType == Outside :
                 location != nil && location.isOutside(obj));
     }
-
-    /* are we directly on the exterior the given object? */
-    isDirectlyOutside(obj) { return location == obj && locType == Outside; }
-
-    /* get everything that's directly on my exterior */
-    directlyOutside = (contents.subset({ obj: obj.locType == Outside }))
-
-//    /* are atop the given object, directly or indirectly? */
-//    isOn(obj)
-//    {
-//        return (location == obj ? locType == On :
-//                location != nil && location.isOn(obj));
-//    }
-
-    /* are we directly atop the given object? */
-    isDirectlyOn(obj) { return location == obj && locType == On; }
-
-    /* get everything that's directly on me */
-    directlyOn = (contents.subset({ obj: obj.locType == On }))
-
-    /* are we under the given object, directly or indirectly? */
-    isUnder(obj)
-    {
-        return (location == obj ? locType == Under :
-                location != nil && location.isUnder(obj));
-    }
     
-    /* are we directly under the given object? */
-    isDirectlyUnder(obj) { return location == obj && locType == Under; }
-
-    /* get everything that's directly under me */
-    directlyUnder = (contents.subset({ obj: obj.locType == Under }))
-
-    /* are we behind the given object, directly or indirectly? */
-    isBehind(obj)
-    {
-        return (location == obj ? locType == Behind :
-                location != nil && location.isBehind(obj));
-    }
-
-    /* are we directly behind the given object? */
-    isDirectlyBehind(obj) { return location == obj && locType == Behind; }
-
-    /* get everything that's directly behind me */
-    directlyBehind = (contents.subset({ obj: obj.locType == Behind }))
 
     /* are we held by the given object, directly or indirectly? */
     isHeldBy(obj)
@@ -3023,7 +2983,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   dobjFor(Default) and/or iobjFor(Default).
      */
     
-    decorationActions = [Examine]
+    decorationActions = [Examine, GoTo]
     /* 
      *   The verify routines to be used if this object is a deooration
      *   (isDecoration is true). Note that (at least in this version of the
@@ -3101,6 +3061,10 @@ class Thing:  ReplaceRedirector, Mentionable
             "\n";
         }
     }
+    
+    /* The message to display when it's too dark to see anything */
+    tooDarkToSeeMsg = BMsg(too dark to see, 'It{dummy}{\'s} too dark to see
+        anything. ')
     
     /* 
      *   By default everything is smellable, but you can override this to nil if
@@ -4689,14 +4653,8 @@ class Thing:  ReplaceRedirector, Mentionable
             if(lockability == indirectLockable)
                 implausible(indirectLockableMsg);
             
-            if(lockability == lockableWithKey)
-            {
-                if(isLocked)
-                    logical;
-                else
-                    illogicalNow(notLockedMsg);
-            }
-            
+            if(!isLocked)            
+                illogicalNow(notLockedMsg);           
         }
         
         check()
@@ -4715,7 +4673,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(useKey_ != nil)
-                reportBefore(withKeyMsg);
+                extraReport(withKeyMsg);
             else if(lockability == lockableWithKey)
                 askForIobj(UnlockWith);
             
@@ -4750,15 +4708,10 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(notLockableMsg);
             
             if(lockability == indirectLockable)
-                implausible(indirectLockableMsg);
+                implausible(indirectLockableMsg);            
             
-            if(lockability == lockableWithKey)
-            {
-                if(isLocked)
-                    illogicalNow(alreadyLockedMsg);
-                else 
-                    logical;
-            }
+            if(isLocked)
+                illogicalNow(alreadyLockedMsg);            
             
         }
         
@@ -4778,7 +4731,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(useKey_ != nil)
-                reportBefore(withKeyMsg);
+                extraReport(withKeyMsg);
             else if(lockability == lockableWithKey)
                 askForIobj(LockWith);
          
@@ -6026,6 +5979,9 @@ class Thing:  ReplaceRedirector, Mentionable
             
             if(isIn(gActor.getOutermostRoom))
                 illogicalNow(alreadyPresentMsg);
+            
+            if(isDecoration)
+                logicalRank(90);
         }
         
         action()

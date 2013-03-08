@@ -3,12 +3,30 @@
 
 class Actor: AgendaManager, ActorTopicDatabase, Thing
     
+    /* Our current ActorState */
     curState = nil
     
+    /* 
+     *   Our state-specific description, which is appended to our desc to give
+     *   our full description. By default we simply take this from our current
+     *   ActorState.
+     */
     stateDesc = (curState != nil ? curState.stateDesc : '')
+    
+    /*   
+     *   Our specialDesc (used to describe us in room listing). By default we
+     *   use our ActorState's specialDesc if we have a current ActorState or
+     *   else our actorSpecialDesc if our current ActorState is nil
+     */
     specialDesc = (curState != nil ? curState.specialDesc : actorSpecialDesc)
+
+    
+    /*   The specialDesc to use if we don't have a current ActorState */
     actorSpecialDesc = nil
     
+    /*   
+     *   We normally list any actors after the miscellaneous contents of a room
+     */
     specialDescBeforeContents = nil
     
     remoteSpecialDesc(pov) 
@@ -256,6 +274,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     {
         gPlayerChar.currentInterlocutor = self;
         lastConvTime = libGlobal.totalTurns;
+        notePronounAntecedent(self);
     }
     
     lastConvTime = -1
@@ -3201,7 +3220,8 @@ class ConvAgendaItem: AgendaItem
             else
                 reasonInvoked = 3;
             
-            greetingDisplayed = actor.actorSayHello();                    
+            greetingDisplayed = actor.actorSayHello();    
+            actor.noteConversed();
         }
         else
             otherActor.currentInterlocutor = actor;
@@ -3215,8 +3235,7 @@ class ConvAgendaItem: AgendaItem
          *   handleTopic method, it won't have moved any pendingKeys into the
          *   activeKeys, so we need to do that now. At the same time we need to
          *   tell the actor not to keep the pending keys beyond the next
-         *   conversational turn.
-         */
+         *   conversational turn.         */
         
         actor.activeKeys = actor.pendingKeys;        
         actor.keepPendingKeys = nil;

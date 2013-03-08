@@ -3,7 +3,7 @@
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
  *   
- *   TADS 3 Library - module ID's
+ *   adv3Lite Library - module ID's
  *   
  *   This module defines a framework for "module ID's."  The module ID
  *   mechanism allows library modules to identify themselves.  The module

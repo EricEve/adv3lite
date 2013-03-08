@@ -567,7 +567,7 @@ libScore: PreinitObject
 ;
 
 /* settings item for score notification mode */
-scoreNotifySettingsItem: object //BinarySettingsItem
+scoreNotifySettingsItem: object 
     /* the "factory setting" for NOTIFY is ON */
     isOn = true
 
