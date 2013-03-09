@@ -658,6 +658,14 @@ class Door: TravelConnector, Thing
      *   PushTravelThrough
      */
     PushTravelVia = PushTravelThrough
+    
+    /*  Display message announcing that traveler has left via this door. */
+    sayDeparting(traveler)
+    {
+        gMessageParams(traveler);
+        DMsg(say departing through door, '{The subj traveler} {leaves} through
+            {1}. ', theName);
+    }
 ;
 
   /* 
@@ -886,6 +894,47 @@ class TravelConnector: object
         return true;   
     }
     
+    
+    /* 
+     *   Display a message to say that an actor is departing via this connector.
+     *   On the base class the default behaviour is to describe the departure
+     *   via a compass direction.
+     */
+    sayDeparting(traveler)
+    {
+        local depdir = nil;
+        
+        /* Note what room the traveler is in prior to departure */
+        local room = traveler.getOutermostRoom;
+        
+        /* Create a message parameter substitution for the traveler */
+        gMessageParams(traveler);
+        
+        /*  
+         *   Go through each available direction until we find the one this
+         *   TravelConnector is attached to.
+         */
+        foreach(local dir in Direction.allDirections)
+        {
+            if(room.(dir.dirProp) == self)
+            {
+                /* Note that we've found the departure direction */
+                depdir = dir;
+                
+                /* Stop looking */
+                break;
+            }
+        }
+        
+        
+        if(depdir == nil)
+            DMsg(say departing vague, '<.p>{The subj traveler} {leaves} the
+                area. ');
+        else        
+            DMsg(say departing dir, '<.p>{The subj traveler} {leaves} {1}. '
+                 , depdir.departureName);
+                        
+    }
 ;
 
 /* 
@@ -1004,6 +1053,11 @@ class Direction: object
      */
     name = nil
     
+    /*  
+     *   The name to use when departing via this direction, e.g. 'to the north'
+     */
+    departureName = nil
+    
     /*
      *   Initialize.  We'll use this routine to add each Direction instance to
      *   the master direction list (Direction.allDirections) during
@@ -1057,72 +1111,84 @@ class Direction: object
 northDir: Direction
     dirProp = &north
     name = BMsg(north, 'north')
+    departureName = BMsg(depart north, 'to the north')
     sortingOrder = 1000
 ;
 
 eastDir: Direction
     dirProp = &east
     name = BMsg(east, 'east')
+    departureName = BMsg(depart east, 'to the east')
     sortingOrder = 1100
 ;
 
 southDir: Direction
     dirProp = &south
     name = BMsg(south, 'south')
+    departureName = BMsg(depart south, 'to the south')
     sortingOrder = 1200
 ;
 
 westDir: Direction
     dirProp = &west
     name = BMsg(west, 'west')
+    departureName = BMsg(depart west, 'to the west')
     sortingOrder = 1300
 ;
 
 northeastDir: Direction
     dirProp = &northeast
     name = BMsg(northeast, 'northeast')
+    departureName = BMsg(depart northeast, 'to the northeast')
     sortingOrder = 1400
 ;
 
 northwestDir: Direction
     dirProp = &northwest
     name = BMsg(northwest, 'northwest')
+    departureName = BMsg(depart northwest, 'to the northwest')
     sortingOrder = 1500
 ;
 
 southeastDir: Direction
     dirProp = &southeast
     name = BMsg(southeast, 'southeast')
+    departureName = BMsg(depart southeast, 'to the southeast')
     sortingOrder = 1600
 ;
 
 southwestDir: Direction
     dirProp = &southwest
     name = BMsg(southwest, 'southwest')
+    departureName = BMsg(depart southwest, 'to the southwest')
     sortingOrder = 1700
 ;
 
 downDir: Direction
     dirProp = &down
     name = BMsg(down, 'down')
+    departureName = BMsg(depart down, 'downwards')
     sortingOrder = 2000
 ;
 
 upDir: Direction
     dirProp = &up
     name = BMsg(up, 'up')
+    departureName = BMsg(depart up, 'upwards')
     sortingOrder = 2100
 ;
 
 inDir: Direction
     dirProp = &in
     name = BMsg(in, 'in')
+    departureName = BMsg(depart in, 'by going inside')
     sortingOrder = 3000
 ;
 
 outDir: Direction
     dirProp = &out
     name = BMsg(out, 'out')
+    departureName = BMsg(depart out, 'by going out')
     sortingOrder = 3100
 ;
 
@@ -1132,24 +1198,28 @@ class ShipboardDirection: Direction;
 portDir: ShipboardDirection
     dirProp = &port
     name = BMsg(port, 'port')
+    departureName = BMsg(depart port, 'to port')
     sortingOrder = 4000
 ;
 
 starboardDir: ShipboardDirection
     dirProp = &starboard
     name = BMsg(starboard, 'starboard')
+    departureName = BMsg(depart starboard, 'to starboard')
     sortingOrder = 4100
 ;
 
 foreDir: ShipboardDirection
     dirProp = &fore
     name = BMsg(forward, 'forward')
+    departureName = BMsg(depart forward, 'going forward')
     sortingOrder = 4200
 ;
 
 aftDir: ShipboardDirection
     dirProp = &aft
     name = BMsg(aft, 'aft')
+    departureName = BMsg(depart aft, 'going aft')
     sortingOrder = 4300
 ;
 

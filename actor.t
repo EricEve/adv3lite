@@ -1,10 +1,61 @@
 #charset "us-ascii"
 #include "advlite.h"
 
+
+/*
+ *   ****************************************************************************
+ *    actor.t 
+ *    This module forms part of the adv3Lite library 
+ *    (c) 2012-13 Eric Eve
+ */
+
+/*    
+ *   An Actor is an object representing a living being (or something that
+ *   behaves like a living being, such as an intelligent robot), with which the
+ *   player character can potentially converse, and which can move around and
+ *   pursue his/her/its own agenda. This class is intended for the
+ *   implementation of NPCs (non-player characters).
+ */
 class Actor: AgendaManager, ActorTopicDatabase, Thing
     
-    /* Our current ActorState */
+    /* 
+     *   Our current ActorState. This should normally be treated as a read-only
+     *   property; to change the current ActorState of an actor call the
+     *   setState() method.
+     */
     curState = nil
+    
+    /*   
+     *   Set our current ActorState to a new state (stat) or to no state at all
+     *   (if the stat parameter is supplied as nil).
+     */
+    setState(stat)
+    {
+        /* 
+         *   Only do anything if the new state (stat) is different from our
+         *   current state.
+         */
+        if(curState != stat)
+        {
+            /* 
+             *   If the current state is non-nil, call its deactivateState()
+             *   method to notify it that we're leaving it.
+             */
+            if(curState != nil)
+               curState.deactivateState(self, stat);
+            
+            /*  
+             *   If the new state is non-nil, call its activateState() method to
+             *   notify it that we're entering it.
+             */
+            if(stat != nil)
+               stat.activateState(self, curState);
+            
+            /*  Set out current state to the new state. */
+            curState = stat;
+        }
+    }
+    
     
     /* 
      *   Our state-specific description, which is appended to our desc to give
@@ -29,36 +80,40 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     specialDescBeforeContents = nil
     
+    /*   
+     *   The specialDesc of this actor when it is viewed from a remote location.
+     *   If we have a current ActorState we use its remoteSpecialDesc, otherwise
+     *   we use the actorRemoteSpecialDesc on the actor. Either way the pov
+     *   parameter is the point of view object from which this actor is being
+     *   viewed (normally the player char).
+     *
+     *   Note that this method is generally only relevant if the senseRegion
+     *   module is used.
+     */
     remoteSpecialDesc(pov) 
     { 
         curState == nil ? actorRemoteSpecialDesc(pov) :
         curState.remoteSpecialDesc(pov);
     }
-    
+        
+    /* 
+     *   The remoteSpecialDesc to use if we don't have a current ActorState
+     *   (i.e. if curState is nil). By default we just use our actorSpecialDesc.
+     */
     actorRemoteSpecialDesc(pov) { actorSpecialDesc; }
-    
-    
-    setState(stat)
-    {
-        if(curState != stat)
-        {
-            if(curState != nil)
-               curState.deactivateState(self, stat);
-            
-            if(stat != nil)
-               stat.activateState(self, curState);
-            
-            curState = stat;
-        }
-    }
-    
-   
-    
+       
+    /*   
+     *   By default actors can't be picked up and carried around by other actors
+     *   (though game authors can override this if they need to create a
+     *   portable actor).
+     */
     isFixed = true    
     
+    /*   The message to display when someone tries to take this actor. */
     cannotTakeMsg = BMsg(cannot take actor, '{The subj dobj} {won\'t} let {me}
         pick {him dobj} up. ')
     
+    /*   The (portable) contents of an actor are regarded as being carried. */
     contType = Carrier
     
     /* 
@@ -67,23 +122,32 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     contentsListed = nil
     
-    
+    /*   
+     *   The default response of the actor to a conversational command that is
+     *   not handled anywhere else.
+     */
     noResponseMsg = BMsg(no response, '{The subj cobj} {does} not respond. ')
     
-    kissResponseMsg = BMsg(kiss, '{The subj dobj} {does}n\'t like that. ')
     
+    /* Handle a command (e.g. BOB, JUMP) directed at this actor. */
     handleCommand(action)
     {
         /* 
-         *   if the Command is GiveTo and the iobj is the player char, treat it
-         *   as Ask for with the player char as the effective actor
-         */
-        
+         *   If the Command is GiveTo and the iobj is the player char, treat it
+         *   as AskFor with the player char as the effective actor
+         */        
         if(action.ofKind(GiveTo) && gCommand.iobj == gPlayerChar)
         {
+            /* Change the current actor to the player char */
             gCommand.actor = gPlayerChar;
+            
+            /* 
+             *   Handle the command as if the player had issued an AskFor
+             *   command
+             */
             handleTopic(&askForTopics, gCommand.dobj);
         }
+        
         /* 
          *   if the command is TellAbout then convert the command from X,tell me
          *   about Y to ASK X ABOUT Y
@@ -105,6 +169,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
              */
             gCommand.actor = gPlayerChar;
             
+            /* Handle the command as AskFor */
             handleTopic(&askTopics, gCommand.iobj.topicList);
         }
         
@@ -114,53 +179,75 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             DMsg(cant command system action, 'Only the player can carry out
                 that kind of command. ');
         }
+        
         /* treat Actor, hello as saying hello to the actor */
         else if(action.ofKind(Hello))
         {
             gCommand.actor = gPlayerChar;
             sayHello();
         }
+        
         /* treat Actor, Bye as saying goodbye to the actor */
         else if(action.ofKind(Goodbye))
         {
             gCommand.actor = gPlayerChar;
             sayGoodbye();
         }    
+        
         /* treat Actor, question as directing a question to the actor */
         else if(action.ofKind(Query))
         {
+            /* Make the player character the current actor */
             gCommand.actor = gPlayerChar;
+            
+            /* Note the query type on the current action */
             gAction.qType = gCommand.verbProd.qtype;
+            
+            /* Carry out the QueryTopic handling. */
             handleTopic(&queryTopics, gCommand.dobj.topicList);
         }
+        
         /* treat Actor, (say) something as SAY SOMETHING TO ACTOR */
         else if(action.ofKind(SayAction))
         {
+            /* Make the player character the current actor */
             gCommand.actor = gPlayerChar;            
+            
+            /* Carry out the SayTopic handling */
             handleTopic(&sayTopics, gCommand.dobj.topicList);
         }
         
         /* Otherwise try letting a CommandTopic handle it */
         else
         {
+            /* 
+             *   Note the direct and indirect objects of the command on the
+             *   action.
+             */
             action.curDobj = gCommand.dobj;
             action.curIobj = gCommand.iobj;
+            
+            /* Carry out the CommandTopic handling with the action commanded. */
             handleTopic(&commandTopics, action, &refuseCommandMsg);
         }
     }
     
+    /*  
+     *   The default message to use in response to a command directed to this
+     *   actor that is not handled in any other way.
+     */
     refuseCommandMsg = BMsg(refuse command, '{I} {have} better things to do. ')
-    
-    
+        
     
     /* 
      *   Find the best response to the topic produced by the player's command.
      *   prop is the xxxTopics list property we'll use to search for a matching
      *   TopicEntry. We first search the current ActorState for a match and
      *   then, only if we fail to find one, we search TopicEntries directly
-     *   located in the actor.
-     */
-    
+     *   located in the actor. First priority, however, is given to TopicEntries
+     *   whose convKeys match this actor's currentKeys (they match if the two
+     *   lists have at least one element in common).
+     */    
     getBestMatch(prop, requestedList)    
     {
         /* 
@@ -172,8 +259,16 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          */
         local myList;
         
+        /* 
+         *   If prop has been supplied as a property pointer, get the list
+         *   defined on that property
+         */
         if(dataType(prop) == TypeProp)
             myList = self.(prop);
+        
+        /*  
+         *   Otherwise, if prop is simply a value, convert it directly to a list
+         */
         else
             myList = valToList(prop);
         
@@ -183,59 +278,130 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          *   entries to those whose convkeys overlap with it, at least at a
          *   first attempt. If that doesn't produce a match, try the normal
          *   handling.
-         */       
-        
-        
+         */             
         if(activeKeys.length > 0)
         {
+            /* 
+             *   Obtain a list of those items in myList (the list of topic
+             *   entries we started with) that have convKeys that overlap with
+             *   our activeKeys.
+             */
             local kList = myList.subset({x:
                                    valToList(x.convKeys).overlapsWith(activeKeys)});
             
+            /* 
+             *   See if we can find a match by carrying out the inherited
+             *   handling (from ActorTopicDatabase) with this sublist (for which
+             *   the convKeys and activeKeys overlap)
+             */
             local match = inherited(kList, requestedList);
+            
+            /*   If we find a match, simply return it and end there. */
             if(match != nil)
                 return match;
         }
       
+        /* 
+         *   Otherwise carry out the inherited handling (from
+         *   ActorTopicDatabase) with the complete list and return the result.
+         */
         return inherited(myList, requestedList);
     }
     
+    /*  
+     *   Find the best response to use for a conversational command directed to
+     *   this actor. prop would normally be a property pointer for the property
+     *   containing the appropriate list or lists of Topic Entries to test, and
+     *   topic is the Topic object we're trying to match.
+     */
     findBestResponse(prop, topic)
     {
         local bestMatch;
+        
+        /* If we have a current ActorState, first try to get its best match */
         if(curState != nil)
         {
+            /* Get the best matching TopicEntry from our current actor state. */
             bestMatch = curState.getBestMatch(prop, topic);
+            
+            /* If we found a result, return it and end there. */
             if(bestMatch != nil)
                 return bestMatch;
         }
         
+        /* 
+         *   If we don't have a current ActorState, or we can't find a match on
+         *   our current ActorState, find the best match from the TopicEntries
+         *   located directly within the actor.
+         */
         return getBestMatch(prop, topic);
     }
     
+    /* 
+     *   Handle a conversational command where prop is a pointer to the property
+     *   containing the appropriate list of TopicEntries to search (e.g.
+     *   &askTopics), topic is the Topic to match, and defaultProp is pointer to
+     *   the property to invoke if we can't find a match.
+     */
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
     {
-        
-        
+        /* 
+         *   Note the best response we can find; i.e. the TopicEntry from the
+         *   prop list that best matches topic.
+         */
         local response = findBestResponse(prop, topic);
         
-        
+        /* 
+         *   If we find a response, carry out an implied greeting if we need
+         *   one, and then display the response.
+         */
         if(response != nil)
         {    
+            /* 
+             *   Check whether we need to carry out an implied greeting. We need
+             *   to do so if we're not already the player character's current
+             *   interlocutor and the response we've found is a conversational
+             *   one (i.e. one in which a conversational exchange actually takes
+             *   place as opposed to one explaining why it can't or shouldn't).
+             */
             if(gPlayerChar.currentInterlocutor != self &&
                response.isConversational)
             {            
+                /* Make the player character the current interlocutor. */
                 gPlayerChar.currentInterlocutor = self;
+                
+                /* 
+                 *   Only try an implicit greeting if the response we've found
+                 *   implies one (this prevents an implicit greeting from
+                 *   forever trying to trigger itself, for example).
+                 */
                 if(response.impliesGreeting)
                 {
+                    /* 
+                     *   Carry out an implicit greeting. If this does anything
+                     *   add a paragraph break to separate it from the
+                     *   conversational exchange that follows.
+                     */
                     if(handleTopic(&miscTopics, [impHelloTopicObj]))
                       "<.p>";
                 }
             }
+            
+            /* 
+             *   Let the response (the TopicEntry we've identified as the best
+             *   match to the topic requested) handle the topic.
+             */
             response.handleTopic();     
             
+            /* 
+             *   If the response is a converational one, note that conversation
+             *   has taken place on this turn.
+             */
             if(response.isConversational)
                 noteConversed(); 
         }
+        
+        /* Otherwise, if we haven't found a matching response... */
         else
         {
             /* 
@@ -247,6 +413,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
              */
             if(prop == &initiateTopics || topic == [impHelloTopicObj])
                 return nil;
+            
+            /* Otherwise, use our defaultProp to display a default message */
             else
                 say(self.(defaultProp));    
            
@@ -255,46 +423,71 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         /* 
          *   Reset the pending keys to nil unless we've been requested to retain
-         *   them
+         *   them. (The pendingKeys are the set of convKeys that a previous
+         *   conversational turn may have told us to match).
          */
         if(!keepPendingKeys)
             pendingKeys = [];
         
+        /* Set our activeKeys to our pendingKeys */
         activeKeys = pendingKeys;
         
+        /*  Reset the flag that tells us to keep our pending keys */
         keepPendingKeys = nil;
         
-                
+         /* 
+          *   Return true or nil depending on whether we found a matching
+          *   response to display
+          */        
         return response != nil;
     }
     
-    /* Convenience method to note that conversation has occurred on this turn */
-    
+    /* Convenience method to note that conversation has occurred on this turn */    
     noteConversed()
     {
+        /* Note that we're the player character's current interlocutor */
         gPlayerChar.currentInterlocutor = self;
+        
+        /* Note that we last conversed on this turn */
         lastConvTime = libGlobal.totalTurns;
+        
+        /* Note that this actor is a possible antecedent for a pronoun */
         notePronounAntecedent(self);
     }
     
+    /* 
+     *   The last turn on which this actor conversed with the player character.
+     *   We start out with a value of -1 to mean that we haven't conversed at
+     *   all.
+     */
     lastConvTime = -1
     
+    /*  
+     *   Has this actor conversed with the player character on the current turn?
+     *   He/she/it has done so if our last conversation time is the same as the
+     *   game's turn count.
+     */
     conversedThisTurn = (lastConvTime == libGlobal.totalTurns)
 
+    /*  
+     *   Did this actor converse with the player character on the previous turn?
+     *   He/she/it did so if our last conversation time is one less than the
+     *   game's current turn count.
+     */
     conversedLastTurn = (lastConvTime == libGlobal.totalTurns - 1)
     
     
     /* 
      *   If this list is not empty then the choice of topic entries to match
      *   will be restricted to those whose convKeys property includes at least
-     *   one key in this list.
+     *   one of the key values in this list.
      */
     activeKeys = []
     
     /* 
      *   a list of the keys to be copied into the activeKeys property for use in
      *   the next conversational turn. These are normally added by game code via
-     *   <.convnode> tags in conversational output.
+     *   <.convnode> tags and the like in conversational output.
      */
     pendingKeys = []
     
@@ -302,75 +495,123 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   If keepPendingKeys is set to true (normally by a <.convstay> tag) then
      *   retain the pending conversation keys (and hence the active ones) for
      *   the next conversational turn.
-     */
-    
+     */    
     keepPendingKeys = nil
     
     /* 
      *   Add a convkey value to our pending keys list (for use as an active key
-     *   on the next conversational turn.
-     */
+     *   on the next conversational turn.     */
     
     addPendingKey(val)
     {
         pendingKeys += val;
     }
     
+    
+    /*  Notification that an action is about to be carried out in our presence */
     beforeAction()
     {
+        /* First execute our own actorBeforeAction() method */
         actorBeforeAction();
+        
+        /* 
+         *   Then execute our current ActorState's beforeAction() method, if we
+         *   have a current ActorState.
+         */
         if(curState != nil)
             curState.beforeAction();
     }
     
     /* 
      *   Give this actor a chance to respond just before an action prior to any
-     *   response from its current actor state.
-     */
+     *   response from its current actor state. By default we do nothing, but
+     *   game code can easily override this without any risk of breaking the
+     *   state-dependent beforeAction mechanism.
+     */    
+    actorBeforeAction()  { }
     
-    actorBeforeAction()
-    {
-    }
-    
+    /*  Notification that an action has just been carried out in our presence */
     afterAction()
     {
+        /* First execute our own actorAfterAction() method */
         actorAfterAction();
+        
+        /* 
+         *   Then execute the afterAction() method on our current ActorState, if
+         *   we have one.
+         */
         if(curState != nil)
             curState.afterAction();
            
     }
     
+    /* 
+     *   Give this actor a chance to respond just after an action prior to any
+     *   response from its current actor state. By default we do nothing, but
+     *   game code can easily override this without any risk of breaking the
+     *   state-dependent afterAction mechanism.
+     */ 
     actorAfterAction() { }
     
      /* 
-      *   before and after travel connections. By default we defer to out actor
-      *   state, if we have one, but we also give the actor object a chance to
-      *   respond.
+      *   Notification that something else is about to travel. By default we
+      *   defer to out actor state, if we have one, but we also give the actor
+      *   object a chance to respond.
       */
     
     beforeTravel(traveler, connector) 
     {
+        /* 
+         *   Execute the beforeTravel() method on our current ActorState, if we
+         *   have one.
+         */
         if(curState != nil)
             curState.beforeTravel(traveler, connector);
         
+        /*  Then execute our own actorBeforeTravel() method. */
         actorBeforeTravel(traveler, connector);
         
+        /*  
+         *   If the actor is waiting for the traveler to follow the actor via
+         *   connector, then execute the appropriate FollowAgendaItem instead of
+         *   the actor's travel command.
+         */
+        
+        local followAgenda =        
+                    valToList(agendaList).valWhich({a: a.ofKind(FollowAgendaItem)
+                                  && a.nextConnNum < a.connectorList.length 
+                                  && a.connectorList[a.nextConnNum + 1] == connector});
+        
+        if(followAgenda != nil && traveler == gPlayerChar)
+        {
+            followFuseID = true;
+            followAgenda.invokeItem();
+            say(followActorMsg);
+            followFuseID = nil;
+        }
+        
+        
         /* 
-         *   If the player char is talking to me and I'm not following him, end
-         *   the conversation.
+         *   If the player char is talking to this actor and this actor is not
+         *   following the player character, end the conversation.
          */
         
         if(gPlayerChar.currentInterlocutor == self && traveler == gPlayerChar
            && fDaemon == nil)
             endConversation(endConvLeave);
         
+        /*  
+         *   If the traveler that's about to travel is the player character,
+         *   note the connector the player character is about to use.
+         */
         if(traveler == gPlayerChar)
             pcConnector = connector;       
         
+        
+        
     }
     
-    /* The Travel Connector just traversed by the player character */
-    
+    /* The Travel Connector just traversed by the player character */    
     pcConnector = nil
     
     /* 
@@ -381,27 +622,59 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     lastTravelInfo = nil
     
+    /* 
+     *   Give this actor a chance to react just before another actor travels in
+     *   addition to any reaction from its current actor state. By default we do
+     *   nothing, but game code can easily override this without any risk of
+     *   breaking the state-dependent beforeTravel mechanism.
+     */ 
     actorBeforeTravel(traveler, connector) { }
        
+    /* 
+     *   Notification that travel has just taken place in our presence (usually
+     *   because an actor has just arrived in our location)
+     */    
     afterTravel(traveler, connector) 
     {
+        /* If we have a current ActorState, execute its afterTravel() method */
         if(curState != nil)
             curState.afterTravel(traveler, connector);
         
+        /* Execute our own actorAfterTravel() method */
         actorAfterTravel(traveler, connector);
     }  
         
         
+    /* 
+     *   Give this actor a chance to react just after another actor travels in
+     *   addition to any reaction from its current actor state. By default we do
+     *   nothing, but game code can easily override this without any risk of
+     *   breaking the state-dependent afterTravel mechanism.
+     */ 
     actorAfterTravel(traveler, connector) {}
     
+    
+    /*   
+     *   Terminate a conversation that's currently going on between this actor
+     *   and the player character. The reason parameter is the reason for ending
+     *   the conversation and can be one of endConvBye (the player character has
+     *   just said goodbye), endConvTravel (the player character is leaving the
+     *   location), endConvBoredom (this actor has become bored with waiting for
+     *   the player character to say anything) or endConvActor (this actor
+     *   wishes to terminate the conversation for some other reason of its own).
+     */
     endConversation(reason)
     {
+        /* 
+         *   If we're permitted to end the conversation for the reason
+         *   specified, display a farewell message appopriate to the reason
+         */
         if(canEndConversation(reason))
             sayGoodbye(reason);
         
         /* 
-         *   if the player char is about to depart and the actor won't let the
-         *   conversation end, block the travel
+         *   otherwise if the player char is about to depart and the actor won't
+         *   let the conversation end, block the travel
          */
         else if(reason == endConvLeave)
             exit;
@@ -412,14 +685,13 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   the current actor state (if any) and then the actor object. If either
      *   raises an object it should display a message saying what the objection
      *   is (and then return nil). By default we simply return true, allowing
-     *   the conversation to end.
-     */
+     *   the conversation to end.     */
     
     canEndConversation(reason)
     {
         
         /* 
-         *   first check whether there's a Conversation Node that wants to
+         *   First check whether there's a Conversation Node that wants to
          *   object to the conversation ending. We do that by first seeing if
          *   there's an active NodeEndCheck object...
          */
@@ -428,8 +700,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         /* 
          *... and if there is, seeing whether its canEndConversation() method
          *   objects.
-         */
-        
+         */        
         if(nodeCheck != nil && !nodeCheck.canEndConversation(reason))
             return nil;
         
@@ -442,12 +713,19 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         
         /* 
-         *   if we've reached this point it's because our current ActorState has
+         *   If we've reached this point it's because our current ActorState has
          *   objected to ending the conversation, so return nil to disallow it.
          */
         return nil;
     }
     
+    /* 
+     *   A state-independent check on whether this actor will allow the current
+     *   conversation to end on account of reason. By default we simply return
+     *   true to allow the conversation to end, but game code can override this
+     *   to return nil to disallow the ending of the conversation (presumably
+     *   under specific conditions).
+     */
     actorCanEndConversation(reason) { return true; }
     
     
@@ -459,49 +737,83 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   can we. On arriving in the player char's new location we announce that
      *   we've just followed the player char and then run the arrivingTurn
      *   method on our current actor state (if we have one).
-     */
-    
+     */    
     followDaemon()
     {
+        /* First note which room we're currentlt in */
         local oldLoc = getOutermostRoom;
+        
+        /* 
+         *   If we're not in the player character's current room, try to follow
+         *   the player character
+         */
         if(getOutermostRoom != gPlayerChar.getOutermostRoom)
         {
-            if(pcConnector != nil)
+            /* 
+             *   If we know which TravelConnector the player character left by,
+             *   try to traverse it.
+             */
+            if(pcConnector != nil)                
                 pcConnector.travelVia(self);
+            
+            /* 
+             *   Otherwise, simply travel to the player character's current room
+             */
             else
                 gPlayerChar.getOutermostRoom.travelVia(self);
             
+            /*  
+             *   Display our message to say we're following the player character
+             */
             sayFollowing(oldLoc);
+            
+            /* 
+             *   Carry out any additional handling we want to do on arriving in
+             *   out new location.
+             */
             arrivingTurn();            
         }        
         
         /* 
-         *   Set pcConnector to nil in any event so that a spurious value isn't
-         *   left for a later turn.
+         *   Reset pcConnector to nil in any event so that a spurious value
+         *   isn't left for a later turn.
          */
         pcConnector = nil;
     }
     
     /* 
-     *   Instruct this actor to start following the player char round the world
-     *   map
-     */
-    
+     *   Call this method to instruct this actor to start following the player
+     *   char round the map
+     */    
     startFollowing()
     {
+        /* 
+         *   Create a new Daemon to carry out the following and make a note of
+         *   it
+         */
         fDaemon = new Daemon(self, &followDaemon, 1);
     }
     
     /* 
-     *   Instruct this actor to stop following the player char round the world
-     *   map.
-     */
+     *   Call this method to instruct this actor to stop following the player
+     *   char round the map.     */
     
     stopFollowing()
     {
+        /* 
+         *   If there's a currently active following Daemon, remove it from the
+         *   game's list of events to be executed each turn.
+         */
         if(fDaemon != nil)
             fDaemon.removeEvent();
         
+        /*   Note that we no longer have an active following Daemon */
+        fDaemon = nil;
+        
+        /*   
+         *   Reset pcConnector to nil so that we don't leave an old spurious
+         *   value for a later turn.
+         */
         pcConnector = nil;
     }
     
@@ -509,48 +821,143 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   Store the id of the daemon being used to make us follow the player
      *   char. We can check whether this actor is currently following or not by
      *   testing whether or not this is nil.
-     */
-    
+     */    
     fDaemon = nil
     
+    /*   
+     *   Display a message to say that we've just followed the player character
+     *   to a new location from oldLoc.
+     */
     sayFollowing(oldLoc)
     {
+        /* 
+         *   If we don't have a current ActorState, use our own
+         *   sayActorFollowing() method to say we've just followed the player
+         *   character.
+         */
         if(curState == nil)
             sayActorFollowing(oldLoc);
+        
+        /*  Othewise call the sayFollowing() method on our current ActorState */
         else
             curState.sayFollowing(oldLoc);
     }
     
-    
+    /*  
+     *   Display a message to say that we've just followed the player character
+     *   to a new location from oldLoc. The library provides a default message
+     *   but this can be overridded as desired.
+     */
     sayActorFollowing(oldLoc)
     {
+        /* Create a local variable to use as a message substitution parameter */
         local follower = self;
         gMessageParams(follower);
+        
+        /* Display our default following message */
         DMsg(follow, '<.p>{The follower} {follows} behind {me}. ');
     }
     
+    
+    /* 
+     *   In addition to providing a mechanism to allow an actor to follow the
+     *   player character around (above) we provide a few methods to enable the
+     *   player character to follow an actor (below). We do this by having the
+     *   the FOLLOW command set a fuse which, when it is triggered later on the
+     *   same turn, attempts to make the player character follow the target
+     *   actor either if the target actor has just moved away from the player
+     *   character's current location later on the same turn as the FOLLOW
+     *   command was issued or if the player character is in the location from
+     *   which he last saw the target actor depart, in which case the player
+     *   character attempts to traverse the TravelConnector through which s/he
+     *   saw the actor depart.
+     */
+    
+    /*   
+     *   Set the fuse to enable travel later on the same turn if this actor
+     *   travels in the meantime. This method is called when a FOLLOW command is
+     *   issed with this actor as its direct object.
+     */
     setFollowMeFuse()
     {
         /* reset the travel info */
         lastTravelInfo = nil;
         
         /* set up a new fuse */ 
-        local fuseID = new Fuse(self, &followFuse, 0);
+        followFuseID = new Fuse(self, &followFuse, 0);
         
         /* give it a low priority so any events that move the actor fire first */
-        fuseID.eventOrder = 100000;
+        followFuseID.eventOrder = 100000;
+        
+        /* 
+         *   Suppress the next paragraph break (otherwise we get an unnecessary
+         *   blank line after a FOLLOW command)
+         */
+        "<.p0>";
     }
     
+    /* 
+     *   A note of our current following fuse, if we have one; this is used by
+     *   FollowAgendaItem to check whether the player character is ready to
+     *   follow us.
+     */
+    followFuseID = nil
+    
+    /*   
+     *   This method is executed right at the end of a turn on which the player
+     *   has issued a command to follow this actor, and carries out the travel
+     *   to follow this actor if the actor has traveled.
+     */
     followFuse()
     {
+        /* 
+         *   If we have information relating to this actor's last travel
+         *   movements, then follow this actor.
+         */
         if(lastTravelInfo)
         {
+            /* Display a message saying that we're following this actor. */
             say(followActorMsg);
+            
+            /* 
+             *   Make the following actor travel via the TravelConnector last
+             *   traversed by this actor.
+             */
             lastTravelInfo[2].travelVia(gActor);
         }
+        
+        /* Otherwise display a message saying that the actor hasn't moved */
+        else
+            say(actorStaysPutMsg);
+        
+        /* Reset the following fuse ID to nil */
+        followFuseID = nil;
     }
 
+    /* The message to display when another actor follows this one. */
     followActorMsg = BMsg(follow actor, '{I} {follow} {1}. ', theName)
+    
+    /* 
+     *   The message to display when this actor doesn't go anywhere when the
+     *   player character tries to follow this actor.
+     */
+    actorStaysPutMsg = BMsg(actor stays put, '{I} {wait} in vain for {1} to
+        go anywhere. ', theName)
+    
+    /* Display a message describing this actor's departure via conn */
+    sayDeparting(conn)
+    {
+        if(curState != nil)
+            curState.sayDeparting(conn);
+        else
+            sayActorDeparting(conn);
+    }
+    
+    
+    sayActorDeparting(conn)
+    {
+        conn.sayDeparting(self);
+    }
     
     arrivingTurn()
     {
@@ -988,13 +1395,18 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   By default we'll respond to KISS ACTOR with the shouldNotKissMsg; to
      *   enable responses to KISS via KissTopics (or some other custom handling
      *   in the action stage) set allowKiss to true.
-     */
-       
+     */       
     allowKiss = nil
     
     /* The message to display if allowKiss is nil */
     shouldNotKissMsg = BMsg(should not kiss, 'That hardly {dummy} {seems}
         appropriate. ')
+    
+    /*   
+     *   The default response of the actor to an attempt to kiss him/her/it
+     *   where this is not handled anywhere else, but allowKiss is true.
+     */
+    kissResponseMsg = BMsg(kiss, '{The subj dobj} {does}n\'t like that. ')
     
     dobjFor(Kiss)
     {
@@ -1113,7 +1525,6 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         {
             if(Q.canSee(gActor, self))
             {
-                say(waitToSeeMsg);
                 setFollowMeFuse();
             }
             else if(lastTravelInfo)
@@ -1171,6 +1582,8 @@ class ActorState: ActorTopicDatabase
         gMessageParams(follower);
         DMsg(follow, '{The follower} {follows} behind {me}. ');
     }
+    
+    sayDeparting(conn) { getActor.sayActorDeparting(conn); }
     
     getActor = nil
     
@@ -3345,6 +3758,109 @@ class BoredomAgendaItem: AgendaItem
      */
     agendaOrder = 50
 ;
+
+/* 
+ *   An AgendaItem that can be used to trigger actor travel when the actor is
+ *   waiting for the player character to follow him/her/it.
+ */
+class FollowAgendaItem: AgendaItem
+    
+    
+    invokeItem()
+    {
+        /* If we've exhausted our list of connectors, then we're done. */
+        if(nextConnNum >= connectorList.length)    
+        {
+            isDone = true;                  
+            return;
+        }
+        
+        /* Get our next connector */
+        local conn = connectorList[nextConnNum + 1];
+        
+        /* 
+         *   Otherwise travel via the next connector in our list if we're ready
+         *   to move; we're ready to move when the player character has just
+         *   issues a Follow command, which in turn sets the fuse to move the
+         *   player character when we move.
+         */
+        if(getActor.followFuseID != nil) 
+        {
+            /* Note our actor */
+            local actor = getActor;
+                                    
+            /* Say that we're departing via it, provided the PC can see us */
+            if(Q.canSee(gPlayerChar, actor))
+                sayDeparting(conn);
+            
+            /* Travel via the connector. */
+            conn.travelVia(actor);
+            
+            /* Increment our next connector number. */
+            nextConnNum++;
+            
+            /* 
+             *   Mark this Agenda Item as done if we've exhausted out list of
+             *   connectors
+             */
+            isDone == (nextConnNum >= connectorList.length);
+        }
+        
+        else
+            sayWaiting(conn);
+    }
+    
+    /* A pointer to the next connector to use */
+    nextConnNum = 0
+    
+    
+    /* 
+     *   A list of TravelConnectors through which we want the player character
+     *   to follow our associated actor.
+     */
+    connectorList = []
+    
+    /*  
+     *   Display a message announcing our actor's travel; by default we simply
+     *   use our actor's sayDeparting message, but we call this out as a
+     *   separate method on the FollowAgendaItem to make it easy to
+     *   customise.
+     */
+    sayDeparting(conn) { getActor.sayDeparting(conn); }    
+    
+    
+    /*   
+     *   Display a message announcing that our actor is waiting for the player
+     *   character to follow him/her/it.
+     */
+    sayWaiting(conn) 
+    { 
+        local leader = getActor;
+        gMessageParams(leader);
+        DMsg(waiting for follow, '{The subj leader} {is} waiting for {1} to
+            follow {him leader}{2}. ', gPlayerChar.theObjName,
+             followWhereMsg(conn)); 
+        
+        notePronounAntecedent(leader);
+    }
+    
+    /* 
+     *   An additional piece of text that can optionally be added to the
+     *   sayWaiting() message to indicate where the actor want the player
+     *   character to follow. Any text returned (other than an empty string)
+     *   should start with a space.
+     */
+    followWhereMsg(conn) { return ''; }
+    
+    
+    /*   
+     *   Give this agendaItem a high priority to make sure it is used in
+     *   response to a FOLLOW ccmmand in preference to any other AgendaItems
+     *   that may be pending.
+     */
+    agendaOrder = 1
+;
+
 
 /* 
  *   An AgendaItem initializer.  For each agenda item that's initially

@@ -114,6 +114,14 @@ class StairwayUp: TravelConnector, Thing
     isFixed = true
     isClimbable = true
     PushTravelVia = PushTravelClimbUp
+    
+    /*  Display message announcing that traveler has left via this staircase. */
+    sayDeparting(traveler)
+    {
+        gMessageParams(traveler);
+        DMsg(say departing up stairs, '{The subj traveler} {leaves} up
+            {1}. ', theName);
+    }
 ;
 
 class StairwayDown: TravelConnector, Thing
@@ -125,6 +133,14 @@ class StairwayDown: TravelConnector, Thing
     isFixed = true
     canClimbDownMe = true
     PushTravelVia = PushTravelClimbDown
+    
+    /*  Display message announcing that traveler has left via this staircase. */
+    sayDeparting(traveler)
+    {
+        gMessageParams(traveler);
+        DMsg(say departing down stairs, '{The subj traveler} {leaves} down
+            {1}. ', theName);
+    }
 ;
 
 class Passage: TravelConnector, Thing

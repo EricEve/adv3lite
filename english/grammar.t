@@ -1330,31 +1330,32 @@ grammar oopsPhrase(main):
  */
 class DirectionName : object;
 
-#define DefineLangDir(root, dirNames, backPre) \
+#define DefineLangDir(root, dirNames, backPre, depName) \
 grammar directionName(root): dirNames: Production \
    dir = root##Dir \
 ; \
 \
    root##Direction: DirectionName \
    name = #@root \
-   backToPrefix = backPre
+   backToPrefix = backPre\
+   departureName = depName 
 
-DefineLangDir(north, 'north' | 'n', 'back to the');
-DefineLangDir(south, 'south' | 's', 'back to the');
-DefineLangDir(east, 'east' | 'e', 'back to the');
-DefineLangDir(west, 'west' | 'w', 'back to the');
-DefineLangDir(northeast, 'northeast' | 'ne', 'back to the');
-DefineLangDir(northwest, 'northwest' | 'nw', 'back to the');
-DefineLangDir(southeast, 'southeast' | 'se', 'back to the');
-DefineLangDir(southwest, 'southwest' | 'sw', 'back to the');
-DefineLangDir(up, 'up' | 'u', 'back');
-DefineLangDir(down, 'down' | 'd', 'back');
-DefineLangDir(in, 'in', 'back');
-DefineLangDir(out, 'out', 'back');
-DefineLangDir(port, 'port' | 'p', 'back to');
-DefineLangDir(starboard, 'starboard' | 'sb', 'back to');
-DefineLangDir(aft, 'aft', 'back');
-DefineLangDir(fore, 'fore' | 'f' | 'forward' ,  'back');
+DefineLangDir(north, 'north' | 'n', 'back to the', 'to the north');
+DefineLangDir(south, 'south' | 's', 'back to the', 'to the south');
+DefineLangDir(east, 'east' | 'e', 'back to the', 'to the east');
+DefineLangDir(west, 'west' | 'w', 'back to the', 'to the west');
+DefineLangDir(northeast, 'northeast' | 'ne', 'back to the', 'to the northeast');
+DefineLangDir(northwest, 'northwest' | 'nw', 'back to the', 'to the northwest');
+DefineLangDir(southeast, 'southeast' | 'se', 'back to the', 'to the southeast');
+DefineLangDir(southwest, 'southwest' | 'sw', 'back to the', 'to the southwest');
+DefineLangDir(up, 'up' | 'u', 'back', 'upwards');
+DefineLangDir(down, 'down' | 'd', 'back', 'downwards');
+DefineLangDir(in, 'in', 'back', 'inwards');
+DefineLangDir(out, 'out', 'back', 'outwards');
+DefineLangDir(port, 'port' | 'p', 'back to', 'to port');
+DefineLangDir(starboard, 'starboard' | 'sb', 'back to', 'to starboard');
+DefineLangDir(aft, 'aft', 'back', 'going aft');
+DefineLangDir(fore, 'fore' | 'f' | 'forward' ,  'back', 'going forward');
 //
 
 /* ------------------------------------------------------------------------ */
@@ -2751,7 +2752,7 @@ VerbRule(BurnWith)
     ('light' | 'burn' | 'ignite' | 'set' 'fire' 'to') singleDobj
         'with' singleIobj
     : VerbProduction
-    action = Burn
+    action = BurnWith
     verbPhrase = 'burn/burning (what) (with what)'
     missingQ = 'what do you want to burn;what do you want to burn it with'
     dobjReply = singleNoun

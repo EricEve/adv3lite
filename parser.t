@@ -4338,7 +4338,7 @@ class OopsProduction: Production
          *   splice the corrected tokens into the original token list,
          *   replacing the unknown word token, and return the result 
          */
-        return toks.splice(typoIdx, 1, cmd.tokens);
+        return toks.splice(typoIdx, 1, cmd.tokens...);
     }
 
     /* build the command */

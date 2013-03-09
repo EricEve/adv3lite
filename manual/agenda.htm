@@ -78,7 +78,7 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
 
 <h2>Other Kinds of AgendaItem</h2>
 
-<p>In addition to the AgendaItem class, the adv3Lite library (in common with the adv3 library) defines two subclasses of AgendaItem for specialized use.</p>
+<p>In addition to the AgendaItem class, the adv3Lite library (in common with the adv3 library) defines three subclasses of AgendaItem for specialized use.</p>
 
 <p>A <strong>DelayedAgendaItem</strong> is just like an AgendaItem, except that it is invoked a set number of turns after it is added to its actor's agendaList. The delay is set by calling the DelayedAgendaItem's <strong>setDelay(<em>turns</em>)</strong> method, which returns a reference to the DelayedAgendaItem. This allows you to add a DelayedAgendaItem to the actor's agendaList and set the delay in a single statement, e.g.:</p>
  <p><div class="code"><pre>
@@ -101,7 +101,7 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
 
 <br>
 
-<p>The other specialized kind of AgendaItem is the <strong>ConvAgendaItem</strong>, which can be used to allow an NPC either to initiate a conversation or to seize the conversational initiative during a lull in the conversation. By default it is invoked when the actor can speak to the player character (they're within audible distance of each other), and there isn't a current <a href="convnode.htm">conversation node</a>, and either the player character hasn't conversed on the same turn or the play character has said something that triggers a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> (for which see below). Once again, if you need to define a further condition on the isReady property of a ConvAgendaItem you need to <em>and</em> it with the inherited handling, for example:</p>
+<p>The second specialized kind of AgendaItem is the <strong>ConvAgendaItem</strong>, which can be used to allow an NPC either to initiate a conversation or to seize the conversational initiative during a lull in the conversation. By default it is invoked when the actor can speak to the player character (they're within audible distance of each other), and there isn't a current <a href="convnode.htm">conversation node</a>, and either the player character hasn't conversed on the same turn or the play character has said something that triggers a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> (for which see below). Once again, if you need to define a further condition on the isReady property of a ConvAgendaItem you need to <em>and</em> it with the inherited handling, for example:</p>
  
  <p><div class="code"><pre>
 + clerkPartyAgenda: ConvAgendaItem
@@ -118,7 +118,7 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
 </pre></div>
 
  
-<p>Finally, if you want something to behave as both a DelayedAgendaItem and a ConvAgendaItem you can just define it with both classes,e.g.:</p>
+<p>Note that if you want something to behave as both a DelayedAgendaItem and a ConvAgendaItem you can just define it with both classes,e.g.:</p>
 
  <p><div class="code"><pre>
 + clerkJacketAgenda: DelayedAgendaItem, ConvAgendaItem
@@ -137,8 +137,28 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
     clerk.addToAgenda(clerkJacketAgenda.setDelay(10));
 </pre></div>
     
+<p>The third special kind of AgendaItem is the <strong><a name="followagenda">FollowAgendaItem</a></strong>. This is used when an actor want the player character to follow him/her/it. To define a <span class="code">FollowAgendaItem</span> you need to define its <strong>connectorList</strong> property, which is a list of connectors (which in the simplest case could just be rooms, but might need to include doors, stairways and other TravelConnectors) through which the actor wishes to lead the player character. You can optionally also override the <strong>followWhereMsg(conn)</strong> method to provide snippets of extra text describing where the actor wants to lead the player character; these should be appropriate for following the message "X is waiting for you to follow him"; for example:</p>
 
+ <p><div class="code"><pre>    
++ FollowAgendaItem
+    initiallyActive = true
+    
+    connectorList = [study, hall, kitchen]
+    
+    followWhereMsg(conn)
+    {
+        switch(conn)
+        {
+            case study: return ' south';
+            case hall: return ' back to the hall';
+            case kitchen: return ' off to the east';
+        }
+        return inherited(conn);
+    }
+;
+</pre></div>
 
+<p>To vary the 'waiting to follow' messages more thoroughly, you can override the <strong>sayWaiting(conn)</strong> method, which is responsible for producing the complete text; this is another method of the FollowAgendaItem. </p>
 
 </div>
 <hr class="navb"><div class="navb">
