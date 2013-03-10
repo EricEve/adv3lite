@@ -380,7 +380,7 @@ QDefaults: Special
         {
             for(loc = b.location; loc != cpar; loc = loc.location)
             {
-                checkMsg = gOutStream.captureOutput({: loc.checkReachIn(a)});
+                checkMsg = gOutStream.captureOutput({: loc.checkReachIn(a, b)});
                 if(checkMsg not in (nil, ''))
                     issues += new ReachProblemCheckReach(b, checkMsg);
             }

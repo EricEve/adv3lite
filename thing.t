@@ -2691,9 +2691,10 @@ class Thing:  ReplaceRedirector, Mentionable
      *   of this object can't be reached) then disallow reaching inside. Note
      *   that this only has any effect when the touchObj preCondition is defined
      *   on this object. By default we can reach inside if we can reach this
-     *   object and not otherwise.
+     *   object and not otherwise. If the optional target parameter is supplied,
+     *   it's the object that actor is trying to reach.
      */
-    checkReachIn(actor)  
+    checkReachIn(actor, target?)  
     {
         checkReach(actor);
     }

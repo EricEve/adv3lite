@@ -3025,7 +3025,7 @@ conversationManager: OutputFilter, PreinitObject
             case 'topics':
                 /* schedule a topic inventory listing */
                 if (respondingActor != nil)
-                    scheduleTopicInventory(respondingActor.pendingKeys = [] ? 
+                    scheduleTopicInventory(respondingActor.pendingKeys == [] ? 
                                            respondingActor.suggestionKey
                                            : respondingActor.pendingKeys);
                 break;
@@ -3648,10 +3648,14 @@ class ConvAgendaItem: AgendaItem
          *   handleTopic method, it won't have moved any pendingKeys into the
          *   activeKeys, so we need to do that now. At the same time we need to
          *   tell the actor not to keep the pending keys beyond the next
-         *   conversational turn.         */
+         *   conversational turn.
+         */
         
-        actor.activeKeys = actor.pendingKeys;        
-        actor.keepPendingKeys = nil;
+        if(reasonInvoked < 3)
+        {
+            actor.activeKeys = actor.pendingKeys;        
+            actor.keepPendingKeys = nil;
+        }
     }
     
     /* 

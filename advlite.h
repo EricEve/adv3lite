@@ -615,6 +615,14 @@ TopicEntry template
    [firstEvents] [eventList]; 
 
 QueryTopic template
+   +matchScore? 'matchPattern'
+    "topicResponse" | [eventList] ?;
+
+QueryTopic template
+    +matchScore? 'matchPattern'
+    [firstEvents] [eventList];    
+
+QueryTopic template
    +matchScore? 'qtype'
    @matchObj | [matchObj] | 'matchPattern'
    "topicResponse" | [eventList] ?;
@@ -651,6 +659,12 @@ NodeContinuationTopic template "topicResponse" | [eventList];
 NodeContinuationTopic template [firstEvents] [eventList];
 
 Doer template 'cmd';
+
+/* Define convenient named constants for use with ConvAgendaItem */
+
+#define InitiateConversationReason 1
+#define ConversationLullReason 2
+#define DefaultTopicReason 3
 
 
 
