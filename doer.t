@@ -1,34 +1,60 @@
 #include "advlite.h"
 
 
+/*
+ *   **************************************************************************
+ *   doer.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, but is
+ *   heavily based on parts of the Mercury library (c) 2012 Michael J. Roberts.
+ */
+
 /*  
  *   A Redirector is an object that can redirect one action to another via a
  *   doInstead wrapper method that provides a common interface. Subclasses are
  *   responsible for implementing the redirect method.
+ *
+ *   We begin this module by defing the Redirector class since in adv3Lite
+ *   (though not in Mercury) Redirector is the base class for Doer.
  */
-
 class Redirector: object
+    
+    /* 
+     *   doInstead() turns the current action into altAction with the objects
+     *   specified in args, and executes altAction as a replacement for the
+     *   current action.
+     */
     doInstead(altAction, [args])
     {
         doOtherAction(true, altAction, args...);
     }
     
+    /* 
+     *   doNested() executes altAction with the objects specified in args,
+     *   executins altAction as part of the current action.
+     */
     doNested(altAction, [args])
     {
         doOtherAction(nil, altAction, args...);
     }
     
+    /* 
+     *   Execute altAction on the objects specified in the args parameter. If
+     *   isReplacement is true make altAction a replacement for the current
+     *   action.
+     */
     doOtherAction(isReplacement, altAction, [args])
     {
+        
+        /* Extract our dobj and our iobj from the args parameter. */
+        local dobj = args.element(1);
+        local iobj = args.element(2);        
+        
         /* 
          *   If the action involves a Literal argument and one of the arguments
          *   is supplied as a single-quoted string, wrap it in a LiteralObject
          *   before passing it.
          */
-        
-        local dobj = args.element(1);
-        local iobj = args.element(2);
-        
         if(altAction.ofKind(LiteralAction) || altAction.ofKind(LiteralTAction))
         {
             if(dataType(dobj) == TypeSString)
@@ -251,14 +277,11 @@ class Doer: Redirector
      *   handling (execute the action associated with the current command).
      */
     exec(curCmd)
-    {
-        // $$$
-        
+    {        
         /*   
          *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
          *   so that they're available to be passed as parameters
-         */
-        
+         */        
         gAction.curDobj = curCmd.dobj;
         gAction.curIobj = curCmd.iobj;
         
@@ -268,6 +291,7 @@ class Doer: Redirector
          */
         if(curCmd.actor == gPlayerChar)
             execAction(curCmd); 
+        
         /* 
          *   If the command is directed to another actor (or object) let the
          *   actor or object in question handle it.
@@ -280,20 +304,24 @@ class Doer: Redirector
      *   We separate out execAction() as a separate method from exec() so that
      *   custom Doers can readily override this for the player character while
      *   leaving commands directed to other actors (or objects) to be handle by
-     *   their handleCommand() method.
-     */
+     *   their handleCommand() method.     */
     
     execAction(curCmd)
     {
+        /* 
+         *   Our default behaviour is to let the current action handle the
+         *   command.
+         */
         curCmd.action.exec(curCmd);
     }
     
     
     /* 
      *   Utility method that can be called from execAction() to redirect the
-     *   command to a new action with the same (or new) objects.
-     */
-    
+     *   command to a new action with the same (or new) objects. This will
+     *   normally be called via the doInstead()/doNested() interface defined on
+     *   our Redirector superclass.
+     */    
     redirect(curCmd, altAction, dobj: = 0, iobj: = 0, isReplacement: = true)
     {
         
@@ -301,15 +329,19 @@ class Doer: Redirector
          *   We use a default value of 0 for the dobj and iobj parameters to
          *   mean 'keep the current value' so that we can explicitly pass nil
          *   values if we want to.
-         */
-             
+         */             
         dobj = dobj == 0 ? curCmd.dobj : dobj;
         iobj = iobj == 0 ? curCmd.iobj : iobj;
         
+        /* 
+         *   Get the current command to change its current action to altAction
+         *   performed on dobj and iobj. Note that this will change gAction to
+         *   altAction.
+         */
         curCmd.changeAction(altAction, dobj, iobj);
-                
+        
+        /* Execute the command on our new action. */
         gAction.exec(curCmd);
-
     }
     
     /* 
@@ -321,7 +353,7 @@ class Doer: Redirector
     strict = nil
 ;
 
-
+/* Define isHappening as a property in case the scenes module is not included */
 property isHappening;
 
 /* ------------------------------------------------------------------------ */
@@ -522,8 +554,7 @@ class DoerCmd: object
         /* 
          *   a 'direction' has priority over no 'direction' for a Travel
          *   command.
-         */
-        
+         */        
         if(a == Travel)
         {
             p = doer.propDefined(&direction);
@@ -591,16 +622,14 @@ class DoerCmd: object
         return doer.sourceTextOrder - other.doer.sourceTextOrder;
     }
     
-    /* Check whether a Doer matches its where and when conditions. */
-    
+    /* Check whether a Doer matches its where, when, who and during conditions. */    
     matchConditions()    
     {
         /* first check the where condition, if there is one. */
         if(doer.propDefined(&where))
         {
             local whereLst = valToList(doer.where);
-                        
-            
+                                    
             /* 
              *   if we can't match any item in the where list to the player
              *   char's current location, we don't meet the where condition, so
@@ -614,8 +643,7 @@ class DoerCmd: object
          *   Interpret 'when' as simply a routine that returns true or nil
          *   aocording to some condition defined by the author; so we simply
          *   test whether doer.when returns nil if the property is defined.
-         */
-        
+         */        
         if(doer.propDefined(&when) && doer.when() == nil)
             return nil;       
         
@@ -626,7 +654,7 @@ class DoerCmd: object
                         
             
             /* 
-             *   if we can't match any item in the who list to the current
+             *   If we can't match any item in the who list to the current
              *   actor, we don't meet the who condition, so return nil
              */
             if(whoLst.indexOf(gCommand.actor) == nil)
@@ -637,24 +665,27 @@ class DoerCmd: object
         /* 
          *   if we're using the scene manager and a during condition is
          *   specified, test whether the scene is currently happening.
-         */
-        
+         */        
         if(defined(sceneManager) && doer.propDefined(&during))
         {
             local duringList = valToList(doer.during);
+            
             if(duringList.indexWhich({s: s.isHappening}) == nil)
                 return nil;
         }
         
         /* 
-         *   if the command is a travel action and a direction has been
+         *   If the command is a travel action and a direction has been
          *   specified, check that we match the direction.
          */
         if(doer.propDefined(&direction) && cmd[1] == Travel)
             return valToList(doer.direction).indexOf(
                 gCommand.verbProd.dirMatch.dir) != nil;
         
-        
+        /* 
+         *   If we haven't failed any of the conditions, we're okay to match, so
+         *   return true.
+         */
         return true;
     }
 ;
@@ -953,6 +984,12 @@ PreinitObject
         }
     }
 ;
+
+/* 
+ *   Define four DefaultDoers that between them will match any command unless a
+ *   more specialized Doer intervenes. This allows most commands to be executed
+ *   by the appropriate action.
+ */
 
 default4Doer: Doer
     cmd = '* * * *'

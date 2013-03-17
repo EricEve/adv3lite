@@ -1,14 +1,17 @@
 #charset "us-ascii"
 #include "advlite.h"
 
-
-/* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
- *   
- *   TADS 3 Library: input
- *   
- *   This modules defines functions and objects related to reading input
- *   from the player.  
+/*
+ *   ************************************************************************
+ *   actor.t This module forms part of the adv3Lite library
+ *.  (c) 2012-13 Eric Eve.
+ *.  Based substantially on input.t in the adv3 library
+ *.  Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved.
+ *
+ *
+ *
+ *   This modules defines functions and objects related to reading input from
+ *   the player.
  */
 
 

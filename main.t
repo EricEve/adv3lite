@@ -2,6 +2,13 @@
 #include "advlite.h"
 
 
+/*
+ *   **************************************************************************
+ *   main.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve. Based
+ *   in part on code in the adv3 Library (c) Michael J. Roberts.
+ */
 
 /*
  *   Main program entrypoint.  The core run-time start-up code calls this
@@ -69,10 +76,6 @@ mainCommon(prop, [args])
          *   program. 
          */
     }
-    
-   
-
-
 }
 
 
@@ -103,19 +106,31 @@ runGame(look)
         gPlayerChar.outermostVisibleParent().lookAroundWithin();
     }
 
-    /* run the scheduling loop until the game ends */
+    /* run the main command loop until the game ends */
     mainCommandLoop();
 }
 
 /* ------------------------------------------------------------------------ */
+/* 
+ *   The main command loop. This repeatedly prompts the player for a command and
+ *   then processes the command until the game ends.
+ */
 
 mainCommandLoop()
 {
 
     local txt;
 
+    /* 
+     *   Set the current actor to the player character at the start of the game
+     *   (to ensure we have a current actor defined).
+     */
     gActor = gPlayerChar;
     
+    /* 
+     *   Repeat this loop, which asks for a command and then parses it, until
+     *   the game comes to an end.
+     */
     do
     {
         /* Display score notifications if the score module is included. */
@@ -128,17 +143,25 @@ mainCommandLoop()
         
         try
         {
+            /* Output a paragraph break */
             "<.p>";
+            
+            /* Read a new command from the keyboard. */
             "<.inputline>>";
             txt = inputManager.getInputLine();
             "<./inputline>\n";   
             
+            /* Pass the command through all our StringPreParsers */
             txt = StringPreParser.runAll(txt, nil);
             
+            /* 
+             *   If the txt is now nil, a StringPreParser has fully dealt with
+             *   the command, so go back and prompt for another one.
+             */        
             if(txt == nil)
                 continue;
             
-            
+            /* Parse and execute the command. */
             Parser.parse(txt);
         }
         catch(TerminateCommandException tce)
@@ -146,29 +169,32 @@ mainCommandLoop()
             
         }
         
+        /* Update the status line. */
         statusLine.showStatusLine();
         
-    } while (true);
-       
+    } while (true);    
     
 }
 
 
 
-
-
+/* Exception thrown by exit macro */
 ExitSignal: Exception
 ;
 
+/* Exception thrown by abortImplicit macro */
 AbortImplicitSignal: Exception
 ;
 
+/* Exception thrown by abort macro */
 AbortActionSignal: Exception
 ;
 
+/* Exception thrown by exitAction macro */
 ExitActionSignal: Exception  
 ;
 
+/* Exception thrown to terminate a command. */
 TerminateCommandException: Exception
 ;
 

@@ -304,8 +304,6 @@ class Action: ReplaceRedirector
      *   carry out any remapping needed. This needs to be defined on Action
      *   since there might be verification of the ActorRole.
      */
-
-
     verify(obj, role)
     {
         local remapResult;
@@ -322,8 +320,7 @@ class Action: ReplaceRedirector
          *   verifying for. (No actions in the adv3Lite library currently use an
          *   Accessory object but the possibility is included here to ease
          *   subsequent extension).
-         */
-        
+         */        
         switch(role)
         {
         case DirectObject:            
@@ -350,8 +347,7 @@ class Action: ReplaceRedirector
             break;    
         } 
            
-        /* first check if we need to remap this action. */
-        
+        /* first check if we need to remap this action. */        
         remapResult = obj.(remapProp);
         
         /* 
@@ -361,8 +357,7 @@ class Action: ReplaceRedirector
          *   remainder of this action. If it returns a list, the list should
          *   contain the details of an action that is to replace the current
          *   action, so run the remapped action instead.
-         */
-        
+         */        
         switch(dataType(remapResult))
         {
         case TypeObject:
@@ -375,9 +370,7 @@ class Action: ReplaceRedirector
              *   objects have been resolved. For the purpose of verifying this
              *   object we'll just return a standard logical verify result to
              *   allow the remapping to proceed at a later stage.
-             */
-            
-                  
+             */                  
             DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
                 available; please use a Doer instead. ');
              
@@ -408,11 +401,11 @@ class Action: ReplaceRedirector
             curAobj = obj;
             break;
         }
+        
         /* 
          *   if the object is a decoration then we use the catchall Default
          *   prop, unless we're an action that bypasses it.
-         */
-        
+         */        
         if(obj.isDecoration 
            && obj.decorationActions.indexWhich({x: self.ofKind(x)}) == nil)
         {
@@ -463,7 +456,7 @@ class Action: ReplaceRedirector
         /* 
          *   Return the entry for this object in our verify table (which may
          *   have been altered by one of the preconditions above).
-         **/
+         */
         return verifyTab[obj];
     }
     
@@ -474,8 +467,7 @@ class Action: ReplaceRedirector
      *   the action is disallowed, and finally return nil to tell our caller to
      *   halt the action. If the verify stage does allow the action to go ahead,
      *   return true to tell our caller that this routine has no objection.
-     */
-    
+     */    
     verifyObjRole(obj, role)
     {
         local verResult;
@@ -515,8 +507,7 @@ class Action: ReplaceRedirector
             /* 
              *   Display the failure message, unless it's identical to the
              *   previous one.
-             */
-            
+             */            
             if(verMsg != lastVerifyMsg || announceMultiVerify)
             {
                 say(verMsg);
@@ -537,8 +528,7 @@ class Action: ReplaceRedirector
         /* 
          *   If we're an implicit action and our best verify result doesn't
          *   allow implicit actions, abort the implicit action.
-         */
-        
+         */        
         if(isImplicit && !verResult.allowImplicit)
             abortImplicit;
         
@@ -549,8 +539,7 @@ class Action: ReplaceRedirector
         return true;
     }
     
-    /* The object currently being verified */
-    
+    /* The object currently being verified */    
     verifyObj = nil
     
     /*
@@ -701,8 +690,7 @@ class Action: ReplaceRedirector
      *   Finally, we call each object's scoreObject() routine to give the
      *   object a chance to make any adjustments for special affinities (or
      *   aversions).  
-     */
-    
+     */    
     scoreObjects(cmd, role, lst)
     {
         local bestScore = 0;
@@ -711,13 +699,28 @@ class Action: ReplaceRedirector
         
         gAction = cmd.action;
         gActor = cmd.actor;
+        
         foreach (local i in lst)
         {
             /* get this object */
             local obj = i.obj;
+            
+            /* 
+             *   Get the verify result by running the verify routine on the
+             *   current Command object's action for this object in this role.
+             */
             verResult = cmd.action.verify(obj, role);
+            
+            /* 
+             *   Compute the score as being the verify result's result rank
+             *   times 100
+             */
             i.score = verResult.resultRank * 100;
             
+            /* 
+             *   If this score is greater than the best score we've found so
+             *   far, note the new best score and the new best verify result.
+             */
             if(i.score > bestScore)
             {
                 bestScore = i.score;
@@ -732,10 +735,9 @@ class Action: ReplaceRedirector
         }
         
         /* 
-         *   Make a note of which came out best in case it's needed when we come
-         *   to verify the other object.
-         */
-        
+         *   Make a note of which object came out best in case it's needed when
+         *   we come to verify the other object.
+         */        
         if(role == DirectObject)        
             curDobj = bestResult.myObj;
         
@@ -789,8 +791,7 @@ class Action: ReplaceRedirector
      *   Add extra scope items if this action needs a wider definition of scope
      *   than normal. By default we simply allow the current actor's current
      *   location to add additional items to scope if it wishes to.
-     */
-    
+     */    
     addExtraScopeItems(role?)
     {
         gActor.getOutermostRoom.addExtraScopeItems(self);
@@ -817,6 +818,7 @@ class Action: ReplaceRedirector
      */
     redirectParent = nil
     
+    /* Does the command from which we've been redirected allow ALL? */
     parentAllowAll = (redirectParent ? redirectParent.allowAll : nil)   
   
     /* 
@@ -833,8 +835,7 @@ class Action: ReplaceRedirector
        DMsg(command not present, '<.parser>That command isn&rsquo;t needed
            in this story.<./parser> ');
     }
-    
-    
+        
     
     /* acknowledge a change in the score notification status */
     acknowledgeNotifyStatus(stat)
@@ -889,12 +890,18 @@ class SystemAction: Action
     execCycle(cmd)
     {
         try
-        {           
+        {     
+            /* Display a message if we're debugging actions. */
             IfDebug(actions, 
                     "[Executing <<actionTab.symbolToVal(baseActionClass)>> ]\n" );
             
+            /* Execute the action. */
             execAction(cmd);
             
+            /* 
+             *   If we're a repeatable action, note that we were the last action
+             *   to be executed.
+             */
             if(isRepeatable)
                 libGlobal.lastAction = self.createClone();
         }
@@ -924,7 +931,6 @@ class SystemAction: Action
  *   An IAction is an Action that doesn't directly act on any objects. At least
  *   in this version of the library it works just like the base Action class.
  */
-
 class IAction: Action
     /* 
      *   There's usually no point in parsing an IAction again when it's repeated
@@ -937,7 +943,6 @@ class IAction: Action
  *   A TravelAction is one that moves (or at least tries to move) the player
  *   character from one place to another via a command like GO NORTH, or EAST.
  */
-
 class TravelAction: Action
     
     baseActionClass = TravelAction
@@ -955,6 +960,7 @@ class TravelAction: Action
         if(!predefinedDirection)
            direction = cmd.verbProd.dirMatch.dir; 
         
+        /* Display a debug message if we're debugging actions. */
         IfDebug(actions, 
                     "[Executing <<actionTab.symbolToVal(baseActionClass)>> 
                     <<direction.name>>]\n" );
@@ -974,8 +980,7 @@ class TravelAction: Action
     /* 
      *   Execute the travel command, first carrying out any implicit actions
      *   needed to facilitate travel
-     */
-    
+     */    
     execAction(cmd)
     {        
         
@@ -995,14 +1000,18 @@ class TravelAction: Action
         /* 
          *   If the actor is not directly in the room, make him/her get out of
          *   his immediate container(s) before attempting travel.
-         */
-        
+         */        
         while(!gActor.location.ofKind(Room))
         {
             /* Note the actor's current location. */
             local loc = gActor.location;
             
+            /* 
+             *   The action needed to remove the actor from its immediate
+             *   container.
+             */
             getOutAction = loc.contType == On ? GetOff : GetOutOf;
+            
             /* 
              *   Try to get the actor out of his/her current location with an
              *   implicit action.
@@ -1046,12 +1055,12 @@ class TravelAction: Action
      *   travel if the actor is the player character. We presumably don't want
      *   to see these messages as the result of NPCs trying to move around the
      *   map.
-     */
-    
+     */    
     doTravel()
     {
         /* Note the actor's current location. */
         local loc = gActor.getOutermostRoom;
+        
         local conn;
         
         /* 
@@ -1158,10 +1167,7 @@ class TravelAction: Action
             }    
             break;
             
-        }
-        
-       
-        
+        }        
     }
     
     /* 
@@ -1221,7 +1227,6 @@ class TAction: Action
     /* The current direct object of this action */    
     curDobj = nil
    
-
     
     /* 
      *   The current object being processed (in a TAction, always the curDObj;
@@ -1232,8 +1237,7 @@ class TAction: Action
     /* 
      *   Reset values to their starting state when an action is used to execute
      *   a new command.
-     */
-    
+     */    
     reset()
     {
         scopeList = [];
@@ -1262,12 +1266,10 @@ class TAction: Action
      *   Action class in not calling beforeAction directly, since the
      *   beforeAction() notifications occur within the execResolvedAction
      *   method.
-     */
-    
-    
+     */    
     execCycle(cmd)
     {
-        
+        /* If we're debugging actions, display some debugging information. */
         IfDebug(actions, 
                 "[Executing <<actionTab.symbolToVal(baseActionClass)>> :
                     <<dqinfo>> <<cmd.dobj.name>> <<if cmd.iobj != nil>>
@@ -1278,8 +1280,7 @@ class TAction: Action
          *   Since we don't want to block plural matches (for which
          *   cmd.matchedAll is also true) we all test for the presence of 'all'
          *   among the command tokens.
-         */
-        
+         */        
         if(cmd.matchedAll && !(allowAll || parentAllowAll) && mentionsAll(cmd))
         {
             DMsg(all not allowed, 'Sorry; ALL is not allowed with this command.
@@ -1288,9 +1289,14 @@ class TAction: Action
         }
         
         try
-        {            
+        {   
+            /* Execute the action. */
             execAction(cmd);
             
+            /* 
+             *   If we're a repeatable action, note that we were the last action
+             *   performed (for use with an AGAIN command).
+             */
             if(isRepeatable)
                 libGlobal.lastAction = self.createClone();
           
@@ -1303,8 +1309,7 @@ class TAction: Action
         
     }
     
-    /* Execute this action */
-    
+    /* Execute this action */    
     execAction(cmd)
     {
         /* 
@@ -1321,15 +1326,14 @@ class TAction: Action
         
         /* Execute the action with the current direct object. */
         execResolvedAction();
-    }
-    
+    }    
  
     
     /* 
-     *   Call this method when there's no need to resolve the objects used in
-     *   the command but we still want it to pass through every stage
-     */
-    
+     *   Execute this action with a known direct object or objects. Call this
+     *   method when there's no need to resolve the objects used in the command
+     *   but we still want it to pass through every stage
+     */    
     execResolvedAction()
     {
                
@@ -1349,8 +1353,7 @@ class TAction: Action
              *   interested in whether the verify command is going to allow the
              *   action to go ahead. If it doesn't allow the action return nil
              *   to stop it here.
-             */
-            
+             */            
             if(!verifyObjRole(curDobj, DirectObject))
                return nil; 
                
@@ -1396,15 +1399,13 @@ class TAction: Action
      *   message if multiple objects are involved in the action. By default we
      *   do, otherwise it might not be clear which object the message referes
      *   to.
-     */
-        
+     */        
     announceMultiCheck = true
     
     /* 
      *   Run the check phase of the action, both on the direct object and on any
      *   preconditions.
-     */
-    
+     */   
     checkAction(cmd)
     {
         /* 
@@ -1417,8 +1418,7 @@ class TAction: Action
         /* 
          *   Finally try the check phase of any preconditions and return the
          *   result.
-         */
-        
+         */        
         return checkPreCond(curDobj, preCondDobjProp);          
                 
     }
@@ -1461,7 +1461,11 @@ class TAction: Action
          */
         if(checkMsg not in (nil, ''))
         {           
-            
+            /* 
+             *   If this action wants to announce the object of the action when
+             *   it fails at the check stage and our Command is processing more
+             *   than one direct object, announce the object.
+             */ 
             if(announceMultiCheck && gCommand.dobjs.length > 1)
                 announceObject(obj);
             
@@ -1494,8 +1498,7 @@ class TAction: Action
         return true;
     }
     
-    /* Run the check stage on the preCondProp of obj */
-    
+    /* Run the check stage on the preCondProp of obj */    
     checkPreCond(obj, preCondProp)
     {
         local preCondList;
@@ -1546,8 +1549,7 @@ class TAction: Action
         /* 
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
-         */
-        
+         */        
          if(announceMultiAction && gCommand.dobjs.length > 1)
             announceObject(curDobj);
         
@@ -1567,19 +1569,24 @@ class TAction: Action
          *   stage, on the assumption that the action stage has either produced
          *   its own report for this object or reported on the failure of the
          *   action. If, however, the action is carried out silently then we'll
-         *   add this object to the list to objects to be reported on at the
+         *   add this object to the list of objects to be reported on at the
          *   report stage.
-         */    
-        
+         */            
         local msg = gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
                 
-        
+        /* 
+         *   If there's no output from the action method, add this object to the
+         *   list of objects to be reported on at the report stage.
+         */
         if(msg==nil)    
             reportList += curDobj;       
         
         /* Note that we've carried out the action on this object. */
         actionList += curDobj;
         
+        /* 
+         *   Return true to tell our caller we succesfully completed the action.
+         */
         return true;
     }
     
@@ -1592,8 +1599,7 @@ class TAction: Action
      */
     announceMultiVerify = nil
     
-    
-      
+          
     /* 
      *   Return a list of direct objects corresponding to the word ALL in the
      *   player's command. By default we return everything in scope that isn't a
@@ -1608,8 +1614,7 @@ class TAction: Action
      *   Add a verify result to this action's verify table. This method is
      *   normally called by one of the macros (logical, illogical, logicalRank,
      *   etc.) use in an object's verify routine.
-     */
-    
+     */    
     addVerifyResult(verRes)
     {
         /* Note the object to which this verify result relates. */
@@ -1645,7 +1650,7 @@ class TAction: Action
     
     /* 
      *   reportAction() is called only after all the action routines have been
-     *   run and the list of dobjs acted on is known. It is also called only if
+     *   run and the list of dobjs acted on is known. It only does anything if
      *   the action is not implicit. It can thus be used to summarize a list of
      *   identical actions carried out on every object in reportList or to print
      *   a report that is not wanted if the action is implicit. By default we
@@ -1654,13 +1659,15 @@ class TAction: Action
      *   Note that this method is usually called from the current Command object
      *   after its finished iterated over all the direct objects involved in the
      *   command.
-     */
-    
+     */    
     reportAction()
     {
+        /* 
+         *   If we're not an implicit action and there's something in our report
+         *   list to report on, execute the report stage of this action.
+         */
         if(!isImplicit && reportList.length > 0)
-            curDobj.(reportDobjProp);    
-        
+            curDobj.(reportDobjProp);            
 
     }
     
@@ -1703,19 +1710,27 @@ class TAction: Action
      *   A convenience method for putting every game object in scope, which may
      *   be appropriate for certain commands (not least, certain debugging
      *   commands). It's intended to be called from addExtraScopeItems when
-     *   needed.
-     */
+     *   needed.     */
     
     makeScopeUniversal()
     {
+        /* Note the fist object of the Thing class. */
         local obj = firstObj(Thing);
+        
+        /* Create a vector to store our results. */
         local vec = new Vector;
+        
+        /* Go through every Thing in the game and add it to our vector. */
         do
         {
             vec.append(obj);
             obj = nextObj(obj, Thing);
         } while (obj!= nil);
         
+        /* 
+         *   Convert the vector to a list and append it to our scopeList,
+         *   removing any duplicates.
+         */
         scopeList = scopeList.appendUnique(vec.toList());
     }
    
@@ -1725,9 +1740,8 @@ class TAction: Action
  *   A TIAction is an action that applies to both a direct object and an
  *   indirect object. Since it inherits from TAction we only need to define the
  *   additional methods and properties relating to the handling of indirect
- *   objects
+ *   objects.
  */
-
 class TIAction: TAction
     
     /* The current indirect object of this action. */
@@ -1797,9 +1811,8 @@ class TIAction: TAction
         
         /* 
          *   Return the result of running the check stage on both the iobj and
-         *   the dobj
-         */
-        
+         *   the dobj's preconditions.
+         */        
         return checkPreCond(curIobj, preCondIobjProp) 
             && checkPreCond(curDobj, preCondDobjProp);
         
@@ -1821,7 +1834,8 @@ class TIAction: TAction
     resolvedObjectsInScope()
     {
         buildScopeList();
-        return scopeList.indexOf(curDobj) && scopeList.indexOf(curIobj) != nil;
+        return scopeList.indexOf(curDobj) != nil 
+            && scopeList.indexOf(curIobj) != nil;
     }
     
     
@@ -1835,9 +1849,17 @@ class TIAction: TAction
      */
     reportAction()
     {
+        /* 
+         *   If we're not an implicit action and there's something to report on,
+         *   carry out the report stage on our indirect object.
+         */
         if(!isImplicit && ioActionList.length > 0)
             curIobj.(reportIobjProp);
         
+        /* 
+         *   Carry out the inherited handling, which executes the report stage
+         *   on the direct object.
+         */
         inherited;
         
     }
@@ -1858,19 +1880,20 @@ class TIAction: TAction
     }
     
     
-    
+    /* 
+     *   Execute this action as a resolved action, that is once its direct and
+     *   indirect objects are known.
+     */
     execResolvedAction()
-    {
-        
+    {        
         try
         {
             /* 
-             *   If we want to resolve the indirect object first (before the
+             *   If the indirect object was resolved first (before the
              *   direct object) then we run the verify stage on the indirect
              *   action first. If it fails, return nil to tell the caller it
              *   failed.
-             */
-             
+             */             
             if(resolveIobjFirst && !verifyObjRole(curIobj, IndirectObject))
                 return nil;
             
@@ -1882,7 +1905,7 @@ class TIAction: TAction
                 return nil;
             
             /* 
-             *   If we want to resolve the indirect object after the direct
+             *   If the indirect object was resolved after the direct
              *   object, run the verify routines on the indirect object now, and
              *   return nil if they disallow the action.
              */
@@ -1907,12 +1930,11 @@ class TIAction: TAction
             /* 
              *   If gameMain defines the option to run before notifications
              *   after the check stage, run the before notifications now.
-             */
-            
+             */            
             if(!gameMain.beforeRunsBeforeCheck)
                 beforeAction();
             
-            /* Carry out the action stage */
+            /* Carry out the action stage on one set of objects */
             doActionOnce();
             
             /* Return true to tell our caller the action was a success */
@@ -1941,8 +1963,7 @@ class TIAction: TAction
         /* 
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
-         */
-        
+         */        
         if(announceMultiAction && gCommand.dobjs.length > 1)
             announceObject(curDobj);
         
@@ -1970,7 +1991,7 @@ class TIAction: TAction
         /* Note that we've acted on this direct object. */
         actionList += curDobj;
         
-        /* Note that the current object is now in the indirect object. */
+        /* Note that the current object is now the indirect object. */
         curObj = curIobj;
         
         /* 
@@ -1979,20 +2000,28 @@ class TIAction: TAction
          *   case the report phase wants to do anything with it, and add the
          *   dobj to the reportList if it's not already there so that a report
          *   method on the dobj can report on actions handled on the iobj.
-         */
-        
+         */        
         local msgForIobj =
             gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
         
        
-        
+        /* 
+         *   If neither the action stage for the direct object nor the action
+         *   stage for the direct object produced any output then add the
+         *   indirect object to the list of indirect objects that could be
+         *   reported on, and add the current direct object to the list of
+         *   direct objects to be reported on at the report stage.
+         */
         if(!msgForDobj&& !msgForIobj)
         {
             ioActionList += curIobj;
             reportList = reportList.appendUnique([curDobj]);
         }
         
-              
+        /* 
+         *   Return true to tell our caller we completed the action
+         *   successfully.
+         */      
         return true;
     }
     
@@ -2013,6 +2042,7 @@ class LiteralAction: Action
         inherited(cmd);
     }
  
+    /* The string literal on which this command is operating. */
     literal = nil
 ;
 
@@ -2027,11 +2057,10 @@ class LiteralTAction: TAction
     {
         
         /* 
-         *   determine which is the object and which is the literal value and
-         *   plug each into the right slot (so that the Thing ends up as the
-         *   direct object of the command and the string as the literal).
-         */
-        
+         *   Determine which is the Thing-based object and which is the literal
+         *   value and plug each into the right slot (so that the Thing ends up
+         *   as the direct object of the command and the string as the literal).
+         */        
         if(cmd.dobj.ofKind(Thing))
         {        
             curDobj = cmd.dobj;
@@ -2047,8 +2076,7 @@ class LiteralTAction: TAction
         notePronounAntecedent(curDobj);
 
         /* Execute the resolved action (as for a TAction) */
-        execResolvedAction();
-        
+        execResolvedAction();        
     }
     
     /* 
@@ -2058,8 +2086,7 @@ class LiteralTAction: TAction
      *   for WRITE FOO ON BALL we treat BALL as the direct object of the command
      *   and FOO as the literal, even if the Parser thinks it needs to verify
      *   the Indirect Object to disambiguate BALL.
-     */
-    
+     */    
     verify(obj, role)
     {
         return inherited(obj, DirectObject);
@@ -2075,18 +2102,16 @@ class LiteralTAction: TAction
  *   A TopicTAction is an action involving one physical object and one topic,
  *   e.g. ASK BOB ABOUT TOWER.
  */
-
 class TopicTAction: TAction
     execAction(cmd)
     {
         
         /* 
-         *   determine which is the object and which is the literal value and
-         *   plug each into the right slot. We ensure that the physical object
-         *   (the Thing) ends up as the direct object and the ResolvedTopic as
-         *   the indirect object.
-         */
-        
+         *   determine which is the Thing-type object and which is the literal
+         *   value and plug each into the right slot. We ensure that the
+         *   physical object (the Thing) ends up as the direct object and the
+         *   ResolvedTopic as the indirect object.
+         */        
         if(cmd.dobj && cmd.dobj.ofKind(Thing))
         {        
             curDobj = cmd.dobj;
@@ -2120,8 +2145,7 @@ class TopicTAction: TAction
      *   This is a bit of a kludge to deal with the fact that the Parser doesn't
      *   seem able to resolve pronouns within ResolvedTopics. We do it here
      *   instead.
-     */
-    
+     */    
     resolvePronouns()
     {
         if(curIobj == nil)
@@ -2147,13 +2171,19 @@ class TopicTAction: TAction
      *   for WRITE FOO ON BALL we treat BALL as the direct object of the command
      *   and FOO as the literal, even if the Parser thinks it needs to verify
      *   the Indirect Object to disambiguate BALL.
-     */
-    
+     */    
     verify(obj, whichObj)
     {
         return inherited(obj, DirectObject);
     }
     
+    /* 
+     *   Is the topic the grammatical Indirect object of this command? This is
+     *   used by Redirector.doOtherAction() to encapsulate the appropriate
+     *   string in a ResolvedTopic. The topic is the grammatical iobj if its the
+     *   second object involved in the commamd, e.g. ASK BOB ABOUT FIRE, where
+     *   FIRE is the topic.
+     */
     topicIsGrammaticalIobj = true
 ;
 
@@ -2162,28 +2192,32 @@ class TopicTAction: TAction
  *   TOWER). It behaves almost exactly like an IAction.
  */
 
-class TopicAction: IAction
-    
+class TopicAction: IAction    
 ;
 
 /* Try action as an implicit action with [objs] as its objects */
 tryImplicitAction(action, [objs])
 {
-         
     
     local oldAction;
 
-     
+    /* 
+     *   Create a new copy of the action we're to try executing so we don't
+     *   contaminate the properties of the same action if it'e being used
+     *   elsewhere in the call chain.
+     */ 
     action = action.createInstance();
+    
+    /* Our new action will be an implict action. */
     action.isImplicit = true;
     
+    /* Note the previous action being executed. */
     oldAction = gAction;
     
     /* install the resolved objects in the action */
     action.setResolvedObjects(objs...);
     
-    
-    
+       
     /* 
      *   For an implicit action, we must check the objects involved to make
      *   sure they're in scope.  If any of the objects aren't in scope,
@@ -2194,14 +2228,23 @@ tryImplicitAction(action, [objs])
     if (!action.resolvedObjectsInScope())
         return nil;
     
-    
+    /* 
+     *   Note that the previous current action is our new action's parent action
+     */
     action.parentAction = gAction;
     
+    /* Make our new action the current action. */
     gAction = action;
     
     try
     {
+        /* Execute our new action. */
         action.execResolvedAction();
+        
+        /* 
+         *   If all went well, return true to indicate that we were able to
+         *   execute the action.
+         */
         return true;
     }
     
@@ -2217,6 +2260,7 @@ tryImplicitAction(action, [objs])
     
     finally
     {
+        /* Restore the original current action. */
         gAction = oldAction;       
     }
     
@@ -2227,7 +2271,6 @@ tryImplicitAction(action, [objs])
 /*
  *   Run a replacement action. 
  */
-
 replaceAction(action, [objs])
 {
     /* run the replacement action as a nested action */
@@ -2237,7 +2280,7 @@ replaceAction(action, [objs])
     exit;;
 }
 
-
+/* Run a replacement action for another actor. */
 replaceActorAction(actor, action, [objs])
 {    
     
@@ -2249,12 +2292,16 @@ replaceActorAction(actor, action, [objs])
 }
 
 
-/* Run a nested action */
+/* 
+ *   Run a nested action; execution of the parent action continues once the
+ *   nested action is complete.
+ */
 nestedActorAction(actor, action, [objs])
 {
     execNestedAction(nil, actor, action, objs...);
 }
 
+/* Run a nested action for the current actor. */
 nestedAction(action, [objs])
 {
     execNestedAction(nil, gActor, action, objs...);
@@ -2289,13 +2336,26 @@ execNestedAction(isReplacement, actor, action, [objs])
     
     /* Make the new action make a note of its parent action */
     action.parentAction = gAction;
-       
+    
+    /* 
+     *   Treat us an an implicit action if the current (parent) action is
+     *   implicit.
+     */
     action.isImplicit = gAction.isImplicit;   
 
+    /* Note the previous (calling) action. */
     oldAction = gAction;
+    
+    /* Set the current actor to the value of our actor parameter. */
     gActor = actor;
+    
+    /* Install the new actor on the current Command object. */
     gCommand.actor = actor;
     
+    /* 
+     *   Change the current Command object's action to the new action with its
+     *   new objects.
+     */
     gCommand.changeAction(action, objs.element(1), objs.element(2));
     
     /* If our objects aren't in scope we can't proceed with the action. */ 
@@ -2319,11 +2379,11 @@ execNestedAction(isReplacement, actor, action, [objs])
          *   ensure that the report corresponding to the object announcement is
          *   displayed immediately after the object name (by displaying the
          *   report straight away here).
-         */
-        
+         */        
         if(!isReplacement || gActor != oldActor || 
          (action.parentAction.announceMultiAction && gCommand.dobjs.length > 1))
         {    
+            /* report the outcome of the action. */
             action.reportAction();
             
             /* 
@@ -2340,11 +2400,16 @@ execNestedAction(isReplacement, actor, action, [objs])
              */
             action.reportList = [];
         }
+        
+        /* 
+         *   Return true to indicate that the action was completed successfully.
+         */
         return true;
     }
     
     catch (AbortImplicitSignal ex)
     {
+        /* Return nil to indicate failure. */
         return nil;
     }
         
@@ -2362,17 +2427,21 @@ execNestedAction(isReplacement, actor, action, [objs])
          *   We try to avoid doing this if this is a replacement action, because
          *   if possible we want all aspects of the new action, including its
          *   reporting and after action processing.
-         */
-        
+         */        
         if(!isReplacement || gActor != oldActor)        
         {            
-           
+            /* Restore the original action on the current Command object. */
             gCommand.action = gCommand.originalAction;
+            
+            /* Restore the original current action. */
             gAction = oldAction;
+            
+            /* Restore the original actor. */
             gActor = oldActor;
+            
+            /* Restore the original actor on the Command object. */
             gCommand.actor = oldActor;
         }
-
     }
 }
 
@@ -2385,6 +2454,12 @@ askMissingObject(action, role)
 {
     /* Make action the current action for the current Command. */
     gCommand.action = action;
+    
+    /* 
+     *   Make the action the original action for the current Command; we need to
+     *   do this because otherwise the Command object will overwrite our new
+     *   action with its original one before we're done.
+     */
     gCommand.originalAction = action;
   
     /* 
@@ -2407,6 +2482,10 @@ askMissingObject(action, role)
     /*   Make a note of the highest scoring object we find */
     local bestObj = nil;
    
+    /*  
+     *   If we found any objects we could match, determine which of them is the
+     *   best match.
+     */
     if(matchList.length > 0)
     {
         /* Score all the objects in scope */
@@ -2423,10 +2502,13 @@ askMissingObject(action, role)
     /* 
      *   If we have a best object, check that the command can actually use it
      *   before finally selecting it.
-     */
-    
+     */    
     if(bestObj != nil)
     {
+        /* 
+         *   Obtain the verify result for the best object for this action in
+         *   this role.
+         */
         local verResult = action.verify(bestObj, role);
         
         /* 
@@ -2466,16 +2548,29 @@ askMissingObject(action, role)
     /* 
      *   If we couldn't find an obvious best object to use, prompt the player
      *   for his/her choice of object
-     */    
+     */        
     
+    /* 
+     *   First create a new error for a missing object for our Command in the
+     *   desired role.
+     */
     local err = new EmptyNounError(gCommand, role);
+    
+    /* 
+     *   Display the corresponding error message (which will be a request to
+     *   specify the missing object.
+     */
     err.display();
-    Parser.question = new ParseErrorQuestion(err);
-   
+    
+    /*  
+     *   Set the Parser's question property to a question asking for this
+     *   missing object, so that the Parser is prepared to treat the next input
+     *   as an answer to this question.
+     */
+    Parser.question = new ParseErrorQuestion(err);   
     
     /* Skip to the next command line so the player can enter a response */
-    abort;    
-    
+    abort;        
 }
 
 //------------------------------------------------------------------------------
@@ -2537,13 +2632,18 @@ notePronounAntecedent([objlist])
         /* 
          *   If we refer to a SubComponent, we're really referring to its
          *   location
-         */
-        
+         */        
         if(cur.ofKind(SubComponent) && cur.location)
             cur = cur.location;
         
+        /* If the object is plural, it's a possible antecedent for 'them' */
         if(cur.plural)
             themList += cur;
+        
+        /* 
+         *   Add the object to the himList, herList and itList according to
+         *   whether it's isHim, isHer or isIt property is true.
+         */
         if(cur.isHim)
             himList += cur;
         if(cur.isHer)
@@ -2553,7 +2653,10 @@ notePronounAntecedent([objlist])
         
     }
     
-    
+    /* 
+     *   If any of the lists have anything in them, use them to set the
+     *   antecedent list on the corresponding pronoun.
+     */
     if(themList.length > 0)
         Them.setAntecedents(themList);
     if(itList.length > 0)

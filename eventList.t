@@ -1,9 +1,14 @@
 #charset "us-ascii"
 #include "advlite.h"
 
-/* 
- *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. Lightly
- *   adapted by Eric Eve for use in the advLite library
+/*
+ *   ************************************************************************
+ *   eventList.t This module forms an optional part of the adv3Lite library.
+ *   
+ *
+ *   (c) 2012-13 Eric Eve (but based largely on code borrowed from the adv3
+ *   library Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved.
+ *   Lightly adapted by Eric Eve for use in the advLite library
  *
  *   adv3Lite Library - EventLists
  *

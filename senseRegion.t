@@ -9,7 +9,7 @@
  *   classes needed to support it. It can be omitted from games that don't need
  *   the functionality it provides.
  *
- *   This file forms part of the adv3Lite library by Eric Eve
+ *   This file forms part of the adv3Lite library by Eric Eve (c) 2012, 2013
  *
  */
 
@@ -48,24 +48,35 @@ class SenseRegion: Region
     /*   
      *   Are rooms in this SenseRegion close enough together to allow objects to
      *   be thrown from one room to another; by default we'll assume not.
-     */
-    
+     */    
     canThrowAcross = nil
     
+    /*  
+     *   Use this method to carry out some additional initialization useful to
+     *   SenseRegions
+     */
     setFamiliarRooms()
     {
+        /* Carry out the inherited handling. */
         inherited();
-        
+                
         /* 
          *   Also take the opportunity to build each room's list of
          *   sensory-connected rooms.
-         */
+         */        
         
+        /* Go through each room in our room list */
         foreach(local rm in roomList)
         {
+            /* 
+             *   If we can see into remote rooms from here, append our list of
+             *   visible rooms to the other room's list of visible rooms,
+             *   excluding itself.
+             */
             if(canSeeAcross)
                 rm.visibleRooms = rm.visibleRooms.appendUnique(roomList - rm);
             
+            /* And so on for the other senses */
             if(canHearAcross)
                 rm.audibleRooms = rm.audibleRooms.appendUnique(roomList - rm);
             
@@ -87,27 +98,38 @@ class SenseRegion: Region
      *   Add everything to scope for all the rooms that belong to this
      *   SenseRegion. We do this by sending a senseProbe into each of the rooms
      *   and adding what would be in scope for that probe.
-     */
-    
+     */    
     addExtraScopeItems(action)
     {
+        /* Carry out the inherited handling */
         inherited(action);
         
+        /* Initialize a new vector for our extra scope items */
         local extraScope = new Vector(30);
         
+        /* Go through every room in our list */
         foreach(local rm in roomList)
         {
+            /* Move the scopeProbe_ object into the room */
             scopeProbe_.moveInto(rm);
+            
+            /* 
+             *   Add to our scope everything that's in scope for our scopeProbe_
+             *   while it's in the other room.
+             */
             extraScope.appendAll(Q.scopeList(scopeProbe_).toList);
         }
         
+        /* 
+         *   Append our list of extra scope items to the action's scope list,
+         *   removing any duplicates.
+         */
         action.scopeList = action.scopeList.appendUnique(extraScope.toList -
             scopeProbe_);
         
+        /* Remove the scopeProbe_ from the map */
         scopeProbe_.moveInto(nil);
-    }
-    
-    
+    }   
 ;
     
 
@@ -123,14 +145,22 @@ modify Room
      *   that game code could tweak these lists after Preinit, though, perhaps
      *   to create a one-way connection (e.g. to model a high room that
      *   overlooks lower ones)
-     */
-         
+     */         
     visibleRooms = []
+    
+    /* 
+     *   The lists of rooms we can smell, hear, talk or throw from/into from
+     *   this room.
+     */
     audibleRooms = []
     smellableRooms = []
     talkableRooms = []
     throwableRooms = []
 
+    /*  
+     *   The list of rooms to which we're linked by virtue of being in the same
+     *   SenseRegion.
+     */
     linkedRooms = []
     
     /* 
@@ -154,8 +184,7 @@ modify Room
             rm.showSecondRemoteSpecials(pov);        
     }
     
-    /* List the miscellaneous contents of a remote room */ 
-    
+    /* List the miscellaneous contents of a remote room */     
     showConnectedMiscContents(pov)
     {
         foreach(local rm in visibleRooms)
@@ -173,13 +202,31 @@ modify Room
      *   In additional to showing the first (i.e. pre-miscellaneous) list of
      *   items with specialDescs in remote locations, the
      *   showFirstRemoteSpecials() method builds the other lists of objects for
-     *   the subsequent methods to use.
+     *   the subsequent methods to use. pov is the point of view object
+     *   (typically the player character) from whose point of view the list is
+     *   being constructed.
      */
     showFirstRemoteSpecials(pov)
     {
+        /* 
+         *   The list of items whose specialDescs are to be displayed before the
+         *   list of miscellaneous items.
+         */
         local specialVec1 = new Vector(10);
+        
+        /* 
+         *   The list of items whose specialDescs are to be displayed after the
+         *   list of miscellaneous items.
+         */
         local specialVec2 = new Vector(10);
+        
+        /*   The list of miscellaneous items */
         local miscVec = new Vector(10);
+        
+        /* 
+         *   Reduce our list to that subset of the list that is visible to the
+         *   pov object.
+         */
         local lst = contents.subset({o: o.isVisibleFrom(pov)});
         
         /* 
@@ -190,23 +237,41 @@ modify Room
          */
         foreach(local obj in lst)
         {            
+            /* 
+             *   See if obj defines an initSpecialDesc property or specialDesc
+             *   property that is currently in use.
+             */
             if((obj.propType(&initSpecialDesc) != TypeNil &&
                obj.useInitSpecialDesc()) ||
                (obj.propType(&specialDesc) != TypeNil && obj.useSpecialDesc()))
             {
+                /* 
+                 *   If so, and obj's specialDesc is to be shown before any
+                 *   miscellaneous contents, add obj to the first specials list
+                 */
                 if(obj.specialDescBeforeContents)
                     specialVec1.append(obj);
+                /* 
+                 *   If obj's specialDesc is to be shown after this list of
+                 *   miscellaneous context, add obj to the second list of
+                 *   specials.
+                 */
                 else
                     specialVec2.append(obj);
             }
+            /* 
+             *   Otherwise, if obj doesn't define a currently usable specialDesc
+             *   or initSpecialDesc, but its lookListed property is true, add it
+             *   to the list of miscellaneous items.
+             */
             else if(obj.lookListed)
                 miscVec.append(obj);
         }
         
-        
-        
+        /* Sort the first list of specials in specialDescOrder */        
         specialVec1.sort(nil, {a, b: a.specialDescOrder - b.specialDescOrder});
-                 
+        
+        /* Sort the second list of specials in specialDescOrder */
         specialVec2.sort(nil, {a, b: a.specialDescOrder - b.specialDescOrder});
                        
         /* 
@@ -222,13 +287,14 @@ modify Room
         remoteMiscContentsList = miscVec.toList();
     }
     
-    
+    /* Show the removeSpecialDesc of each item in the second list of specials */
     showSecondRemoteSpecials(pov)
     {
         foreach(local obj in remoteSecondSpecialList)
             obj.showRemoteSpecialDesc(pov); 
     }
     
+    /* List the miscellaneous list of items in this remote location */
     showRemoteMiscContents(pov)
     {        
         remoteContentsLister.show(remoteMiscContentsList, inRoomName(pov));        
@@ -240,7 +306,10 @@ modify Room
      */
     remoteContentsLister = remoteRoomContentsLister
     
-    /* Reset the contents of all the remote rooms visible from this room */
+    /* 
+     *   Reset the contents of all the remote rooms visible from this room to
+     *   not having been mentioned.
+     */
     unmentionRemoteContents()
     {
         foreach(local rm in visibleRooms)
@@ -255,10 +324,7 @@ modify Room
     inRoomName(pov)
     {
         return BMsg(in room name, 'in {1}', theName);
-    }
-    
-    
-    
+    }   
 ;
     
 /* 
@@ -284,30 +350,41 @@ remoteRoomContentsLister: Lister
 ;
 
 
-
-
-/* modifications to Thing to support other mods above. */
-
+/* 
+ *   Modifications to Thing to support the other mods required for use with
+ *   SenseRegion.
+ */
 modify Thing
        
    /* 
     *   Show our remoteSpecialDesc, i.e. the version of our specialDesc that
     *   should be seen when this item is viewed from a remote location.
-    */ 
-   
-    
+    */     
     showRemoteSpecialDesc(pov)
     {
+        /* If we've already been mentioned, don't do anything */
         if(mentioned)
             return;
+        /* 
+         *   Otherwise note that we've now been mentioned before doing anything
+         *   else.
+         */
         else
             mentioned = true;
         
+        /* 
+         *   If we have a non-nil initSpecialDesc and our useInitSpecialDesc
+         *   property is true, show our remoteInitSpecialDesc from pov's point
+         *   of view.
+         */
         if(propType(&initSpecialDesc) != TypeNil && useInitSpecialDesc)
             remoteInitSpecialDesc(pov);
+        
+        /* Otherwise show our remoteSpecialDesc() */
         else
             remoteSpecialDesc(pov);
            
+        /* Then add a paragraph break */
         "<.p>";
     }
     
@@ -321,8 +398,9 @@ modify Thing
     
     /*  
      *   Our remoteInitSpecialDesc, used when viewing this item from a remote
-     *   location.     */
-    
+     *   location.By default we just show our ordinary initSpecialDesc, but in
+     *   practice we'll normally want to override this.
+     */    
     remoteInitSpecialDesc(pov) { initSpecialDesc; }
     
     /* 
@@ -431,17 +509,37 @@ modify Thing
     {
         action()
         {
+            /* 
+             *   If the actor doing the examining is in the same room as this
+             *   object, simply carry out the inherited handling.
+             */
             if(isIn(gActor.getOutermostRoom))
                 inherited;
+            
+            /* Otherwise, if we're being examined from a remote location... */
             else
             {
+                /* 
+                 *   If this Thing defines the remoteDesc() property, display
+                 *   our remoteDesc() from the pov of the examining actor.
+                 */
                 if(propDefined(&remoteDesc))
                 {
                     remoteDesc(gActor);
                     "<.p>";
                 }
+                
+                /* 
+                 *   Otherwise if our sightSize is large, carry out the standard
+                 *   (inherited) handling
+                 */
                 else if(sightSize == large)
                     inherited;
+                
+                /* 
+                 *   Otherwise say this object is too far away for the actor to
+                 *   see any detail.
+                 */
                 else
                 {
                     say(tooFarAwayToSeeDetailMsg);
@@ -465,17 +563,38 @@ modify Thing
     {
         action()
         {
+            /* 
+             *   If the actor doing the listening is in the same room as this
+             *   object, simply carry out the inherited handling.
+             */
             if(isIn(gActor.getOutermostRoom))
                 inherited;
+            
+            /* Otherwise, if we're being listened to from a remote location... */
             else
             {
+                /* 
+                 *   If this Thing defines the remoteListenDesc() property,
+                 *   display our remoteListenDesc() from the pov of the
+                 *   examining actor.
+                 */
                 if(propDefined(&remoteListenDesc))
                 {
                     remoteListenDesc(gActor);
-                    "<.p>";
+                    "<.p>";                   
                 }
+                
+                /* 
+                 *   Otherwise if our soundSize is large, carry out the standard
+                 *   (inherited) handling
+                 */
                 else if(soundSize == large)
                     inherited;
+                
+                /* 
+                 *   Otherwise say this object is too far away for the actor to
+                 *   hear.
+                 */
                 else
                 {
                     say(tooFarAwayToHearMsg);
@@ -492,8 +611,7 @@ modify Thing
     /* 
      *   Modify the effect of a Read action to prevent this item being read from
      *   a remote location unless isReadableFrom(gActor) is true.
-     */
-    
+     */    
     dobjFor(Read)
     {
         verify()
@@ -519,17 +637,38 @@ modify Thing
     {
         action()
         {
+            /* 
+             *   If the actor doing the smelling is in the same room as this
+             *   object, simply carry out the inherited handling.
+             */
             if(isIn(gActor.getOutermostRoom))
                 inherited;
+            
+            /* Otherwise, if we're being smelled from a remote location... */
             else
             {
+                /* 
+                 *   If this Thing defines the remoteSmellDesc() property,
+                 *   display our remoteSmellDesc() from the pov of the
+                 *   examining actor.
+                 */                
                 if(propDefined(&remoteSmellDesc))
                 {
                     remoteSmellDesc(gActor);
                     "<.p>";
                 }
+                
+                /* 
+                 *   Otherwise if our smellSize is large, carry out the standard
+                 *   (inherited) handling
+                 */
                 else if(smellSize == large)
                     inherited;
+                
+                /* 
+                 *   Otherwise say this object is too far away for the actor to
+                 *   smell.
+                 */
                 else
                 {
                     say(tooFarAwayToSmellMsg);
@@ -542,41 +681,29 @@ modify Thing
     tooFarAwayToSmellMsg = BMsg(too far away to smell, '{The subj dobj} {is} too
         far away to smell. ')
     
+    /* Modify the effects of throwing something at this object */
     iobjFor(ThrowAt)
     {
         action()
         {
+            /* 
+             *   If the Query object reckons that the throw is possible, carry
+             *   out the inherited handling.
+             */
             if(Q.canThrowTo(gActor, self))
                 inherited;
+            
+            /* 
+             *   Otherwise move the direct object to the throwing actor's room
+             *   and display a message saying it fell short of its target.
+             */
             else
             {
                 gDobj.moveInto(gActor.getOutermostRoom);
                 say(throwFallsShortMsg);
             }
         }
-    }
-    
-    throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} {lands} far
-        short of {the iobj}. ')
-    
-;
-
-modify Actor
-    iobjFor(ThrowTo)
-    {
-        /* Only allow the throw to succeed if the actor is in range. */
-        action()
-        {
-            if(Q.canThrowTo(gActor, self))
-                inherited;
-            else
-            {
-                gDobj.moveInto(gActor.getOutermostRoom);
-                say(throwFallsShortMsg);
-            }
-        }
-    }
-    
+    }    
 ;
 
 
@@ -588,11 +715,9 @@ scopeProbe_: Thing
 ;
 
 /* 
- *   Modifications to the Smell and Listen (intransitive) actions to list remote
+ *   Modifications to the (intransitive) Smell and Listen actions to list remote
  *   smells and sounds
  */
-
-
 modify Smell
     /* 
      *   Return a list of items in remote locations that can be smelt from the
@@ -600,35 +725,61 @@ modify Smell
      */
     getRemoteSmellList() 
     { 
+        /* Note the actor's location */
         local loc = gActor.getOutermostRoom;
+        
+        /* Create a new vector */
         local vec = new Vector(10);
         
+        /* 
+         *   Go through all the rooms that can be smelled from the actor's
+         *   location
+         */
         foreach(local rm in loc.smellableRooms)
         {
+            /* Move the scopeProbe_ object into the room */
             scopeProbe_.moveInto(rm);
+            
+            /* 
+             *   Create a list of objects that are in scope for the scope probe
+             *   and that can also be smelt by the actor.
+             */
             local sList = (Q.scopeList(scopeProbe_).toList).subset(
                 {o: Q.canSmell(gActor, o)});
             
+            /* 
+             *   Create a sublist of that list containing all the items with a
+             *   large smellSize that also define a non-nil smellDesc, plus all
+             *   the items that define a remoteSmellDesc, in each case provided
+             *   that the item's isProminentSmell is true. Then append this
+             *   sublist to our vector.
+             */
             vec.appendAll(sList.subset({o: ((o.smellSize == large &&
                                             o.propType(&smellDesc) != TypeNil) ||
                                        o.propDefined(&remoteSmellDesc))
                                        && o.isProminentSmell} ));
         }
         
-        
+        /* Remove the sense probe from the map. */
         scopeProbe_.moveInto(nil);
+        
+        /* Convert the vector to a list and return it. */
         return vec.toList();
     }
     
     /* List smells in remote locations */
     listRemoteSmells(lst) 
     { 
+        /* For each item in lst */
         foreach(local cur in lst)
         {
+            /* If the item defined a remoteSmellDesc property, display it */
             if(cur.propDefined(&remoteSmellDesc))
             {
                 cur.remoteSmellDesc(gActor);
             }
+            
+            /* Othewise display its smellDesc */
             else
             {
                 cur.display(&smellDesc);                
@@ -643,26 +794,51 @@ modify Smell
      */
 
 modify Listen
-    
+    /* 
+     *   Return a list of items in remote locations that can be heard from the
+     *   current actor's location.
+     */    
     getRemoteSoundList() 
     { 
+        /* Note the actor's location */
         local loc = gActor.getOutermostRoom;
+        
+        /* Create a new vector */
         local vec = new Vector(10);
         
+        /* 
+         *   Go through all the rooms that can be heard from the actor's
+         *   location
+         */
         foreach(local rm in loc.audibleRooms)
         {
+            /* Move the scopeProbe_ object into the room */
             scopeProbe_.moveInto(rm);
+            
+            /* 
+             *   Create a list of objects that are in scope for the scope probe
+             *   and that can also be heard by the actor.
+             */
             local sList = (Q.scopeList(scopeProbe_).toList).subset(
                 {o: Q.canHear(gActor, o)});
             
+            /* 
+             *   Create a sublist of that list containing all the items with a
+             *   large soundSize that also define a non-nil listenDesc, plus all
+             *   the items that define a remoteListenDesc, in each case provided
+             *   that the item's isProminentNoise is true. Then append this
+             *   sublist to our vector.
+             */
             vec.appendAll(sList.subset({o: ((o.soundSize == large &&
                                        o.propType(&listenDesc) != TypeNil) ||
                                        o.propDefined(&remoteListenDesc))
                                        && o.isProminentNoise} ));
         }
         
-        
+        /* Remove the sense probe from the map. */
         scopeProbe_.moveInto(nil);
+        
+        /* Convert the vector to a list and return it. */
         return vec.toList();
     }
     
@@ -671,12 +847,16 @@ modify Listen
     /* List smells in remote locations */
     listRemoteSounds(lst) 
     { 
+         /* For each item in lst */
         foreach(local cur in lst)
         {
+            /* If the item defined a remoteListenDesc property, display it */
             if(cur.propDefined(&remoteListenDesc))
             {
                 cur.remoteListenDesc(gActor);
             }
+            
+            /* Othewise display its listenDesc */
             else
             {
                 cur.display(&listenDesc);                
@@ -688,28 +868,40 @@ modify Listen
 
 
 /* 
- *   This Special redefines canHear, canSee and canSmell to take account of
- *   possible sensory connections across rooms in a SenseRegion
+ *   This Special redefines canHear, canSee, canSmell, canTalkTo and canThrowTo
+ *   to take account of possible sensory connections across rooms in a
+ *   SenseRegion
  */
-
 QSenseRegion: Special
     
+    /* 
+     *   Gives this Special a slightly higher priority than QDefaults, so that
+     *   it takes priority.
+     */
     priority = 2
 
-    
+    /* This Special should be active whenever this module is included. */
     active = true
 
-   
-   
+     
     /*
      *   Can A see B?  We return true if and only if B is in light and
      *   there's a clear sight path from A to B.  
      */
     canSee(a, b)
     {
+        /* 
+         *   If either a or b is not on the map, assume we can't see from A to
+         *   B and return nil (otherwise we'd probably get a run-time error
+         *   further down the line.
+         */
         if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
+        /* 
+         *   Construct a list of objects that might block the sight path from A
+         *   to B.
+         */
         local blockList = Q.sightBlocker(a, b);
         
         /* 
@@ -724,20 +916,15 @@ QSenseRegion: Special
          *   A can see B if A and B are in the same room or if B is in one of
          *   the rooms in A's room's visibleRoom's list and B can be seen
          *   remotely from A's pov.
-         */   
-        
+         */           
         local c = a.getOutermostRoom();
         
         return b.isOrIsIn(c) || (b.isVisibleFrom(a) &&
-                             c.visibleRooms.indexOf(b.getOutermostRoom));
-        
+                             c.visibleRooms.indexOf(b.getOutermostRoom));        
         
         
     }
 
-    
-
-    
 
     /*
      *   Can A hear B?  We return true if there's a clear sound path from A
@@ -745,26 +932,34 @@ QSenseRegion: Special
      */
     canHear(a, b)
     {
+        /* 
+         *   If either a or b is not on the map, assume A can't hear B and
+         *   return nil (otherwise we'd probably get a run-time error further
+         *   down the line.
+         */
          if(a.isIn(nil) || b.isIn(nil))
             return nil;        
         
+        /* 
+         *   Construct a list of objects that might block the sound path from A
+         *   to B.
+         */
         local blockList = Q.soundBlocker(a, b);      
         
         
         /* 
-         *   A can't hear B if B there's something other
-         *   than a room blocking the sound path between them
+         *   A can't hear B if B there's something other than a room blocking
+         *   the sound path between them
          */
         if(blockList.indexWhich({x: !x.ofKind(Room)} ) != nil)            
             return nil;
         
         
         /* 
-         *   A can see B if A and B are in the same room or if B is in one of
+         *   A can hear B if A and B are in the same room or if B is in one of
          *   the rooms in A's room's audibleRoom's list and B can be heard
          *   remotely from A's pov.
-         */   
-        
+         */           
         local c = a.getOutermostRoom();
         
         return b.isOrIsIn(c) || (b.isAudibleFrom(a) &&
@@ -779,9 +974,18 @@ QSenseRegion: Special
      */
     canSmell(a, b)
     {
+        /* 
+         *   If either a or b is not on the map, assume A can't smell B and
+         *   return nil (otherwise we'd probably get a run-time error further
+         *   down the line.
+         */
          if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
+        /* 
+         *   Construct a list of objects that might block the scent path from A
+         *   to B.
+         */
          local blockList = Q.scentBlocker(a, b);
         
         /* 
@@ -794,10 +998,9 @@ QSenseRegion: Special
         
         /* 
          *   A can smell B if A and B are in the same room or if B is in one of
-         *   the rooms in A's room's smelablelRoom's list and B can be seen remotely
-         *   from A's pov.
-         */   
-        
+         *   the rooms in A's room's smelablelRoom's list and B can be seen
+         *   remotely from A's pov.
+         */           
         local c = a.getOutermostRoom();
         
         return b.isOrIsIn(c) || (b.isSmellableFrom(a) &&
@@ -812,24 +1015,44 @@ QSenseRegion: Special
     
     canTalkTo(a, b)
     {
-         if(a.isIn(nil) || b.isIn(nil))
+        /* 
+         *   If either a or b is not on the map, assume A can't talk to B and
+         *   return nil (otherwise we'd probably get a run-time error further
+         *   down the line.
+         */
+        if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
+        /* Note which room A is in */
         local c = a.getOutermostRoom();
         
+        /* 
+         *   A can talk to B if A can hear B and B's location is in C's list of
+         *   rooms where conversation can take place from C, or if B is in C.
+         */
         return Q.canHear(a, b) 
             && (b.isIn(c) 
                 || c.talkableRooms.indexOf(b.getOutermostRoom) != nil);
     }
    
-    
+    /* Can A throw an object to B? */
     canThrowTo(a, b)
-    {
+    {        
+        /* 
+         *   If either a or b is not on the map, assume A can't throw anything
+         *   to B and return nil (otherwise we'd probably get a run-time error
+         *   further down the line.
+         */
         if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
+        /* Note which room A is in */
         local c = a.getOutermostRoom();
         
+        /* 
+         *   A can throw something to B if B's location is in C's list of rooms
+         *   into which objects can be thrown from C, or if B is in C.
+         */
         return b.isOrIsIn(c) 
             || c.throwableRooms.indexOf(b.getOutermostRoom) != nil; 
     }

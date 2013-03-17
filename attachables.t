@@ -1,8 +1,14 @@
 #charset "us-ascii"
 #include "advlite.h"
 
-   
-/* 
+/*
+ *   ***************************************************************************
+ *   attachables.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+ *
+ *
+ *
  *   The attachables file provides a framework for simple and common case
  *   attachables.
  *
@@ -13,7 +19,18 @@
  *
  */
 
+/* 
+ *   A SimpleAttachabe is a Thing that can be attached to other things or have
+ *   other things attached to it in the special case in which the attached
+ *   objects are located in the object to which they are attached.
+ *   SimpleAttachable is also the base class for other types of attachable.
+ */
 class SimpleAttachable: Thing
+    
+    /* 
+     *   Can an object be attached to this one? By default we return true if obh
+     *   is on our list of allowableAttachments.
+     */
     allowAttach(obj)
     {
         return valToList(allowableAttachments.indexOf(obj)) != nil;
@@ -25,15 +42,20 @@ class SimpleAttachable: Thing
     /* A list of the objects that are attached to me */
     attachments = []
     
+    /* A SimpleAttachable can be attached to (some) other things. */
     isAttachable = true
+    
+    /* A SimpleAttachable can have (some) other things attached to it */
     canAttachToMe = true
+    
+    /* A SimpleAttachable can have (some) other things detached from it */
     canDetachFromMe = true
     
     
     /* 
-     *   The location this object should be moved to when it's attached. A
-     *   SimpleAttachment should normally be moved into the object it's attached
-     *   to.
+     *   The location this object should be moved to when it's attached to
+     *   another object. A SimpleAttachment should normally be moved into the to
+     *   which it's attached.
      */
     attachedLocation = (attachedTo)
     
@@ -44,21 +66,24 @@ class SimpleAttachable: Thing
      */
     detachedLocation = (attachedTo.location)
     
-    
+    /*  Handling for the ATTACH TO action */
     dobjFor(AttachTo)
     {
         preCond = [objHeld]
         
         verify()
         {
+            /* Carry out the inherited handling. */
             inherited; 
             
+            /* We can't be attached while we're already attached */
             if(attachedTo != nil)
                 illogicalNow(alreadyAttachedMsg);
         }
         
         action()
         {            
+            /* Note that we're now attached to the iobj of the attach action */
             attachedTo = gIobj;
             
             /* 
@@ -68,6 +93,7 @@ class SimpleAttachable: Thing
             if(location != attachedLocation)
                 actionMoveInto(attachedLocation);
             
+            /* Add us to the iobj's list of attachments. */
             gIobj.attachments += self;
         }
         
@@ -89,8 +115,13 @@ class SimpleAttachable: Thing
         
         verify()
         {
+            /* Carry out the inherited handling. */
             inherited;
             
+            /* 
+             *   If we don't allow the dobj to be attached to us, rule out the
+             *   attachment.
+             */
             if(!allowAttach(gDobj))
                 illogical(cannotBeAttachedMsg);
         }
@@ -102,10 +133,12 @@ class SimpleAttachable: Thing
     dobjFor(Detach)
     {
         verify()
-        {                        
+        {                   
+            /* We can't be detached if we're not attached to anything */
             if(attachedTo == nil)
                 illogicalNow(notAttachedMsg);           
         
+            /* We can't be detached if we're not detachable */
             else if(!isDetachable)
                 implausible(cannotDetachMsg);
         }
@@ -115,11 +148,14 @@ class SimpleAttachable: Thing
             /* 
              *   If we're already in our detached location, there's no need to
              *   move, otherwise move us into our detached location
-             */
-            
+             */            
             if(location != detachedLocation)
                 moveInto(detachedLocation);
+            
+            /* Remove us from our former attachment's list of attachements. */
             attachedTo.attachments -= self;
+            
+            /* Note that we're no longer attached to anything. */
             attachedTo = nil;          
         }
         
@@ -129,16 +165,23 @@ class SimpleAttachable: Thing
     
     okayDetachMsg = BMsg(okay detach, '{I} detach {1}. ', gActionListStr)
     
+    
     dobjFor(DetachFrom)
     {
         verify()
         {
+            /* 
+             *   We can't be detached from anything if we're not attached to
+             *   anything.
+             */
             if(attachedTo == nil)
                 illogicalNow(notAttachedMsg);  
             
+            /* We can't be detached from the iobj if we're not attached to it */
             else if(attachedTo != gIobj)
                 illogicalNow(notAttachedToThatMsg);
             
+            /* Carry out the inherited handling. */
             inherited;
         }
         
@@ -146,10 +189,17 @@ class SimpleAttachable: Thing
         
         action()
         {
+            /* If we're not already in our detachedLocation, move us there. */
             if(location != detachedLocation)
                moveInto(detachedLocation);
             
+            /* 
+             *   Remove us from the list of attachements of the object to which
+             *   we were formerly attached.
+             */
             attachedTo.attachments -= self;
+            
+            /* Note that we're no longer attached to anything. */
             attachedTo = nil;
             
         }
@@ -178,6 +228,16 @@ class SimpleAttachable: Thing
             if(attachments.length == 0)
                 illogicalNow(nothingAttachedMsg);
             
+            /* 
+             *   Otherwise we can check whether our list of attachments overlaps
+             *   with the list of tentative direct objects; if it does, we're
+             *   probably a good choice of indirect object.
+             */
+            else if(attachments.overlapsWith(gTentativeDobj))
+                logicalRank(120);
+            
+                
+            /* Carry out the inherited handling */
             inherited;
                 
         }
@@ -204,8 +264,7 @@ class SimpleAttachable: Thing
      *   assymetric: it applies only to the attached object (the one for which
      *   attachedTo != nil) not to the object it's attached to (which can be
      *   taken with the attached object still attached to it.
-     */
-    
+     */    
     dobjFor(Take)
     {
         preCond = [objDetached]
@@ -216,23 +275,40 @@ class SimpleAttachable: Thing
      *   Check while any of my attachments object to my being moved while they
      *   are attached to me. If so, prevent the attempt to move me as the result
      *   of a player command.
-     */
-     
-        
+     */        
     actionMoveInto(loc)
     {
+       /* 
+        *   See if there's an object among our attachments that objects to our
+        *   being moved while we're attached to it.
+        */
+          
         local other = attachments.valWhich({o:
                                            !o.allowOtherToMoveWhileAttached});
+        
+        /* 
+         *   If there is, display a message saying we can't be moved while the
+         *   object object is attached, then stop the action. 
+         */
         if(other != nil)
         {            
-            gMessageParams(other);            
-            DMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
-                while {he cobj} {is} attached to {the other}. ');
+            sayCannotMoveWhileAttached(other);
             exit;
         }
         
-           
+        /* Carry out the inherited handling */   
         inherited(loc);
+    }
+    
+    /* 
+     *   Display a message saying we can't be moved while we're attached to
+     *   other.
+     */
+    sayCannotMoveWhileAttached(other)
+    {
+        gMessageParams(other);            
+        DMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
+            while {he cobj} {is} attached to {the other}. ');   
     }
     
     
@@ -248,13 +324,17 @@ class SimpleAttachable: Thing
      */
     isListed = (attachedTo == nil && inherited)
     
+    /* 
+     *   Is obj attached to me? By default it is if it's in my list of
+     *   attachements.
+     */
     isAttachedToMe(obj)
     {
         return attachments.indexOf(obj) != nil;
     }
     
     
-    
+    /* Our locType is Attached if we're attached so something. */
     locType()
     {
         if(attachedTo != nil)
@@ -266,15 +346,18 @@ class SimpleAttachable: Thing
     /* 
      *   If anything's attached to us, list our attachements when we're
      *   examined.
-     */
-    
+     */    
     examineStatus()
     {
+        /* Carry out the inherited handling. */
         inherited;
+        
+        /* List our attachments, if we have any. */
         if(attachments.length > 0)
             attachmentLister.show(attachments, self);
     }
     
+    /* The lister to be used for listing our attachments. */
     attachmentLister = simpleAttachmentLister
     
     /* 
@@ -287,20 +370,18 @@ class SimpleAttachable: Thing
      *   Allow detachment through a simple DETACH command. (If this is nil
      *   detachment might still be programatically possible, e.g. by UNSCREWing
      *   something).
-     */
-    
+     */    
     isDetachable = true
     
     /*   
      *   Determine whether the object I'm attached to can be moved while I'm
      *   attached to it. For a SimpleAttachable we normally do allow this, since
      *   I simply move with the other object.
-     */
-    
+     */    
     allowOtherToMoveWhileAttached = true
     
  
-    
+    /* Preinitialize a SimpleAttachable */
     preinitThing()
     {
         /* carry out the inherited handling */
@@ -314,15 +395,15 @@ class SimpleAttachable: Thing
 ;
 
 /* 
- *   A component is an item that effectively becomes a component of
- *   the object it's attached to, or is treated as a component if it starts out
- *   attached.
+ *   A component is an item that effectively becomes a component of the object
+ *   it's attached to, or is treated as a component if it starts out attached.
  */
-
 class Component: SimpleAttachable
-    
+   
+    /* A Component if firmly attached to its parent. */
     isFirmAttachment = true
     
+    /* A Component's locType is PartOf while it's attached */
     locType()
     {
         if(attachedTo != nil)
@@ -331,9 +412,16 @@ class Component: SimpleAttachable
             return inherited;
     }
     
+    /* Preinitialize a Component. */
     preinitThing()
     {
+        /* Carry out the inherited handling. */
         inherited;
+        
+        /* 
+         *   If we start out initiallyAttached, note that we're attached to our
+         *   location and add us to our location's list of attachments.
+         */
         if(initiallyAttached)
         {
             attachedTo = location;
@@ -341,47 +429,76 @@ class Component: SimpleAttachable
         }
     }
     
+    /* 
+     *   We can't normally detach a Component with a straightforward DETACH
+     *   command.
+     */
     allowDetach = nil
+    
+    /* 
+     *   A Component is generally fixed in place (i.e. not separately takeable)
+     *   if it's attached to something.
+     */
     isFixed = (attachedTo != nil)
     
     /* 
      *   Assume that most components start out attached to their containers
-     */
-    
+     */    
     initiallyAttached = true
     
+    /* The object to which this Component is attached. */
     attachedTo = nil
     
     cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that dobj},
-        {he dobj}{\'s} part of {1}. ', location.theName)    
+        {he dobj}{\'s} part of {1}. ', location.theName)  
     
 ;
 
 /* 
- *   A NearbyAttachable is (optionallyplaced in the same location as the object
- *   to which it is attached, and moves with the object it's attached to (or,
- *   alternatively, can prevent the other object being moved while it's attached
- *   to it).
+ *   A NearbyAttachable is (optionally) placed in the same location as the
+ *   object to which it is attached, and moves with the object it's attached to
+ *   (or, alternatively, can prevent the other object being moved while it's
+ *   attached to it).
  */
-
 class NearbyAttachable: SimpleAttachable
     
-    attachedLocation = (attachedTo == nil ? nil : attachedTo.location)
+    /* 
+     *   Our location when attached; by default this is the location of the item
+     *   we're attached to (if there is one)
+     */
+    attachedLocation = (attachedTo == nil ? location : attachedTo.location)
+    
+    
+    /*  
+     *   Our location when detached; by default this is simply the location of
+     *   the item to which we're attached, if there is one.
+     */         
     detachedLocation = (attachedTo == nil ? location : attachedTo.location)
     
-    
+    /* 
+     *   Before any action takes place when we're in scope, make a note of our
+     *   current location if we're attached to anything
+     */
     beforeAction()
     {
         if(attachedTo != nil)
             oldLocation = location;
     }
     
+    /*  
+     *   After any action takes place when we're attached to something, move us
+     *   into our attachedLocation if we're not already there.
+     */
     afterAction()
     {
         if(attachedTo != nil && attachedLocation != oldLocation)
             moveInto(attachedLocation);
     }
     
+    /* 
+     *   Our location just before an action takes place when we're attached to
+     *   something.
+     */
     oldLocation = nil
 ;
 
@@ -394,7 +511,11 @@ class NearbyAttachable: SimpleAttachable
  */
 
 class PlugAttachable: object
+    
+    /* A PlugAttachable can be plugged into things. */
     isPlugable = true
+    
+    /* A PlugAttachable can have other things plugged into it. */
     canPlugIntoMe = true
     
     /* 
@@ -423,7 +544,7 @@ class PlugAttachable: object
      */
     socketCapacity = 1
     
-    
+    /* Note whether we're plugged our unplugged. */
     makePlugged(stat)
     {
         isPluggedIn = stat;
@@ -433,8 +554,10 @@ class PlugAttachable: object
     {
         verify()
         {
+            /* Carry out the inherited handling. */
             inherited;
             
+            /* We can't be plugged in if we're already plugged in. */
             if(isPluggedIn)
                 illogicalNow(alreadyAttachedMsg);
             
@@ -442,7 +565,13 @@ class PlugAttachable: object
         
         action() 
         { 
+            /* 
+             *   Carry out the action to attach us to the object we're being
+             *   attached to.
+             */
             actionDobjAttachTo(); 
+            
+            /* Note that we're now plugged in. */
             makePlugged(true);
         }
         
@@ -464,14 +593,24 @@ class PlugAttachable: object
         
         verify()
         {
+            /* Carry out the inherited handling. */
             inherited;
             
+            /* 
+             *   If the direct object is not one that can be plugged into us,
+             *   rule out the action with an appropriate message.
+             */                 
             if(!allowAttach(gDobj))
                 illogical(cannotBeAttachedMsg);
         }
         
         check()
         {
+            /* 
+             *   If plugging anything else into us would exceed our
+             *   socketCapacity, rule out the action with an appropriate
+             *   message,
+             */
             if(attachments.length >= socketCapacity)
                 say(cannotPlugInAnyMoreMsg);
         }
@@ -485,7 +624,14 @@ class PlugAttachable: object
     {
         check()
         {
+            /* Carry out the inherited handling. */
             inherited;
+            
+            /* 
+             *   Make sure we don't exceed our socketCapacity if the player uses
+             *   ATTACH TO rather than PLUG INTO; use the check method for
+             *   PlugInto.
+             */
             checkIobjPlugInto();
         }
     }
@@ -498,11 +644,17 @@ class PlugAttachable: object
     {
         verify()
         {
+            /*  Carry out the inherited checks */
             inherited;
             
+            /*  If we're not plugged in we can't be unplugged from anything. */
             if(!isPluggedIn)
                 illogicalNow(notAttachedMsg);  
             
+            /*  
+             *   If we're not attached to the direct object of the command, we
+             *   can't be unplugged from it.
+             */
             else if(attachedTo != gIobj)
                 illogicalNow(notAttachedToThatMsg);
             
@@ -510,7 +662,10 @@ class PlugAttachable: object
         
         action() 
         { 
+            /* Carry out the action handling for detaching from. */
             actionDobjDetachFrom(); 
+            
+            /* Note that we're no longer plugged in to anything. */
             makePlugged(nil);
         }
         report() { reportDobjDetachFrom(); }
@@ -530,15 +685,24 @@ class PlugAttachable: object
     {
         verify()
         {
+            /* Carry out the inherited checks. */
             inherited;
             
+            /* If we're not plugged into anything, we can't be unplugged. */
             if(!isPluggedIn)
                 illogicalNow(notAttachedMsg);   
         }
         
         action()
         {
+            /* Note that we're no longer plugged in. */
             makePlugged(nil);
+            
+            /* 
+             *   If plugging/unplugging this item requires an explicit socket to
+             *   plug into/unplug from, then detach this item from whatever it's
+             *   currently attached to.
+             */
             if(needsExplicitSocket)
                 actionDobjDetach();
         }
@@ -552,20 +716,31 @@ class PlugAttachable: object
     {
         verify()
         {
+            /* Carry out the inherited handling. */
             inherited;
             
+            /* 
+             *   If we're already plugged in we can't be plugged in now, but the
+             *   message to display depends on whether we require a specific
+             *   socket to be plugged into.
+             */
             if(isPluggedIn)
                 illogicalNow(needsExplicitSocket ? alreadyAttachedMsg :
                              alreadyPluggedInMsg);
-        }
-        
+        }        
                 
         
         action()
         {
-            
+            /* 
+             *   If we need to specify a specific socket for this item to be
+             *   plugged into, convert this action into a PlugInto action and
+             *   ask for its indirect object (i.e. the socket to plug into).
+             */
             if(needsExplicitSocket)
                 askForIobj(PlugInto);
+            
+            /* Otherwise simply note that we're now plugged in. */
             else
                 makePlugged(true);          
             
@@ -574,7 +749,5 @@ class PlugAttachable: object
         report() { DMsg(okay plug in, '{I} {plug} in {1}. ', gActionListStr); }
         
     }
-
-
 ;
 

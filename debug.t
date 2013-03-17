@@ -1,5 +1,18 @@
 #include "advlite.h"
 
+/*
+ *   ************************************************************************
+ *   debug.t This module forms part of the adv3Lite library, and defines a
+ *   number of commands that can be used for debugging purposes.
+ *
+ *   (c) 2012-13 Eric Eve (but based partly on code borrowed from the Mercury
+ *   library (c) Michael J. Roberts).
+ *
+ *
+ */
+
+
+/* We only include any of the code in this module in debug builds */
 #ifdef __DEBUG
 
 DebugCtl: object
@@ -40,6 +53,7 @@ VerbRule(Debug)
     missingQ = 'which debug option do you want to set'
 ;
 
+/* The Debug Action with various options */
 DefineSystemAction(Debug)
     execAction(cmd)
     {
@@ -72,7 +86,6 @@ DefineSystemAction(Debug)
 ;
 
 /* DEBUG without any options simply breaks into the debugger, as in adv3 */
-
 DefineSystemAction(DebugI)
     execAction(cmd)
     {
@@ -92,16 +105,32 @@ VerbRule(DebugI)
     missingQ = 'which debug option do you want to set'
 ;
 
+/* 
+ *   The actionTab object holds a table providing the names (as strings)
+ *   corresponding to the various Action objects, for use with the DEBUG ACTIONS
+ *   option.
+ */
 actionTab: PreinitObject
+    
+    /* 
+     *   To return the string val corresponding to the Action val, simply look
+     *   it up in out ctab table
+     */
     symbolToVal(val)
     {
         return ctab[val];        
     }
     
+    /* A LookupTable of Actions and their corresponding string names */
     ctab = [* -> '???']
         
     execute()
     {
+        /* 
+         *   Populate our ctab table by going through the global symbol table at
+         *   preinit and storing the value and associated name of every Action
+         *   object.
+         */
         t3GetGlobalSymbols().forEachAssoc( new function(key, value)
         {
             if(dataType(value) == TypeObject && value.ofKind(Action))
@@ -110,8 +139,14 @@ actionTab: PreinitObject
     }
 ;
 
+/* 
+ *   The Purloin Action allows a game author to take any object in the game
+ *   while testing
+ */
 DefineTAction(Purloin)    
     againRepeatsParse = true
+    
+    /* The PURLOIN action requires universal scope */
     addExtraScopeItems(whichRole?)
     {
         makeScopeUniversal();
@@ -122,8 +157,14 @@ DefineTAction(Purloin)
     
 ;    
 
+/* 
+ *   The GONEAR action allows the game author to move the player character to
+ *   anywhere on the map, while testing.
+ */
 DefineTAction(GoNear)   
     againRepeatsParse = true
+    
+    /* The GONEAR action requires universal scope */
     addExtraScopeItems(whichRole?)
     {
         makeScopeUniversal();
@@ -133,6 +174,11 @@ DefineTAction(GoNear)
     turnSequence() { }
 ;
 
+/*  
+ *   The FIAT LUX Action can be used to light up the player character (thus
+ *   bringing light to a dark location). Repeating the FIAT LUX action removes
+ *   the light from the player character
+ */
 DefineIAction(FiatLux)
     execAction(cmd)
     {
@@ -145,18 +191,35 @@ DefineIAction(FiatLux)
     turnSequence() { }
 ;
 
+/* The EVALUATE action allows any expression to be evaluated */
 DefineLiteralAction(Evaluate)
     exec(cmd)
     {
         try
         {
+            /* 
+             *   Try using the Compiler object to evaluate the expression
+             *   contained in the name property of the direct object of this
+             *   command (i.e. the string literal it was executed upon).
+             */
             local res = Compiler.eval(stripQuotesFrom(cmd.dobj.name));
+            
+            /* Display a string version of the result */
             say(toString(res));
         }
+        /* 
+         *   If the attempt to evaluate the expression caused a compiler error,
+         *   display the exception message.
+         */
         catch (CompilerException cex)
-        {
+        {           
             cex.displayException();
         }
+        
+        /* 
+         *   If the attempt to evaluate the expression caused any other kind of
+         *   error, display the exception message.
+         */
         catch (Exception ex)
         {
             ex.displayException();
@@ -169,7 +232,7 @@ DefineLiteralAction(Evaluate)
     turnSequence() { }
 ;
 
-
+/* An object to store class names */
 symTab: PreinitObject
     symbolToVal(val)
     {
@@ -177,7 +240,11 @@ symTab: PreinitObject
     }
     
     ctab = [* -> '???']
-        
+    
+    /* 
+     *   Store a string equivalent of the name of every class defined in the
+     *   game (and the library)
+     */
     execute()
     {
         t3GetGlobalSymbols().forEachAssoc( new function(key, value)
@@ -188,23 +255,34 @@ symTab: PreinitObject
     }
 ;
 
+/* 
+ *   Provide TadsObject with an objToString() method so that the EVALUATE
+ *   command can display some kind of name of the object via the toString()
+ *   function
+ */
 modify TadsObject
     objToString()
     {
+        /* If this object is a class, return the name of the class */
         if(isClass)
             return symTab.symbolToVal(self);
         
         local str;
         
+        /* 
+         *   If the object has a name property, start the string with this
+         *   object's name
+         */
         if(name != nil)
             str = name + ' ';
         
+        /*  Append this object's superclass list in parentheses*/
         str  += '(' + getSuperclassList + ')';
         
+        /*  Return the result */
         return str;
     }
     
 ;
-
 
 #endif

@@ -5893,6 +5893,8 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotThrowToSelfMsg = BMsg(cannot throw at self, '{The subj dobj} {can\'t}
         be thrown to {itself dobj}. ')
     
+    throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} {lands} far
+        short of {the iobj}. ')
     
     canTurnMeTo = nil
     

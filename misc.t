@@ -308,8 +308,7 @@ class GameMainDef: object
      *   listings use a parenthetical style to show subcontents (e.g. "On the
      *   table you see a box (in which is a brass key)") instead of showing each
      *   item and its contents in a separate paragraph.
-     */
-    
+     */    
     useParentheticalListing = nil
     
     /* 
@@ -362,6 +361,12 @@ class GameMainDef: object
      */
     beforeRunsBeforeCheck = nil
     
+    /* 
+     *   Flag, should this game be in the past tense. By default the game is in
+     *   the present tense.
+     *
+     *   For a wider selection of tenses override Narrator.tense instead.
+     */
     usePastTense = nil
         
     /*   
@@ -372,8 +377,7 @@ class GameMainDef: object
      *   interpretation of the command, or different objects being selected).
      *   The former interpretation is used if againRepeatsParse is nil; the
      *   latter if it's true.
-     */
-    
+     */    
     againRepeatsParse = true
     
     /*   
@@ -382,9 +386,7 @@ class GameMainDef: object
      *   interpretation of AGAIN. This should be regarded as somewhat
      *   experimental for now.
      */
-    autoSwitchAgain = true
-    
-    
+    autoSwitchAgain = true    
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -465,12 +467,12 @@ adv3LibPreinit: PreinitObject
         mainOutputStream.addOutputFilter(cquoteOutputFilter);
 
         mainOutputStream.addOutputFilter(commandSequencer);
-//
-//        /* 
-//         *   Attach our message parameter filter and style tag filter to
-//         *   the status line streams.  We don't need most of the main
-//         *   window's filters in the status line.  
-//         */
+
+        /* 
+         *   Attach our message parameter filter and style tag filter to
+         *   the status line streams.  We don't need most of the main
+         *   window's filters in the status line.  
+         */
         statusTagOutputStream.addOutputFilter(styleTagFilter);
 
 
@@ -575,14 +577,12 @@ libGlobal: object
      *   designed for cases where you want to *dynamically* change the
      *   standard messages during the game.)  
      */
-    libMessageObj = libMessages
-    
+    libMessageObj = libMessages    
    
     /*
      *   The current player character 
      */
-    playerChar = me
-   
+    playerChar = me   
 
     /* 
      *   The global score object.  We use a global for this, rather than
@@ -635,22 +635,24 @@ libGlobal: object
      */
     lastActorForUndo = ''
     
-    /*   The text of the last command to be repeated by Again */
-    
+    /*   The text of the last command to be repeated by Again */    
     lastCommandForAgain = ''
 
     /*
      *   Current command information.  We keep track of the current
-     *   command's actor and action here, as well as the verification
-     *   result list and the command report list.  
+     *   command's actor and action here.  
      */
     curActor = nil
     curIssuingActor = nil
     curAction = nil
-    curVerifyResults = nil
+    
+    /* The current Command object */
     curCommand = nil
 
+    /* The last action to be performed. */
     lastAction = nil
+    
+    /* The previous Command object */
     lastCommand = nil
     
     /* the exitLister object, if included in the build */
@@ -724,17 +726,14 @@ libGlobal: object
     /* 
      *   The last location visited by the player char before a travel action.
      *   Noted to allow travel back.
-     */
-    
+     */    
     lastLoc = nil
     
     /* 
      *   A lookup table to store information about the destinations of direction
      *   properties not connected to objects (i.e. direction properties defined
      *   as strings or methods
-     */
-   
-    
+     */    
     extraDestInfo = static [ * -> unknownDest_ ]
 
     /* 
@@ -743,8 +742,7 @@ libGlobal: object
      *   (which most of the time will probably be the same as the source, since
      *   in most cases where we create one of these records, no travel will have
      *   taken place.
-     */
-    
+     */    
     addExtraDestInfo(source, dirn, dest)
     {
         if(extraDestInfo == nil)
@@ -793,12 +791,10 @@ libGlobal: object
     
     /*  
      *   The symbol table for every game object.
-     */
-    
+     */    
     objectNameTab = nil
  
-    /* The thought manager object, if it exists. */
-    
+    /* The thought manager object, if it exists. */    
     thoughtManagerObj = nil
     
     /* The object last written on */
@@ -817,13 +813,11 @@ libGlobal: object
 
 
 /* object representing an unknown destination */
-
 unknownDest_: Room 'unknown'
 ;
 
 
 /* object representing a variable destination */
-
 varDest_: Room 'unknown'
 ;
 
@@ -1300,7 +1294,7 @@ finishOptionAmusing: FinishOption
 ;
 
 
-
+/* -------------------------------------------------------------------------- */
 /*
  *   Utility functions 
  */
@@ -1323,7 +1317,6 @@ nilToList(val)
  *   return it. If it's nil return an empty list. If it's a singleton value,
  *   return a one-element list containing it.
  */
-
 valToList(val)
 {
     switch (dataType(val))
@@ -1343,7 +1336,6 @@ valToList(val)
  *   in room and object descriptions to mark an object as mentioned so it won't
  *   be included in the listing.
  */
-
 makeMentioned(obj)
 {
     foreach(local cur in valToList(obj))
@@ -1397,6 +1389,24 @@ isListSubset(a, b)
      */
     return true;
 }
+
+
+/* 
+ *   Find an existing Topic whose vocab is voc. If the cls parameter
+ *   is supplied it can be used to find a match in some other class, such as
+ *   Thing or Mentionable.
+ */
+findMatchingTopic(voc, cls = Topic)
+{
+    for(local cur = firstObj(cls); cur != nil; cur = nextObj(cur, cls))
+    {
+        if(cur.vocab == voc)
+            return cur;
+    }
+    
+    return nil;
+}
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -1799,8 +1809,7 @@ modify List
         return new Vector(length(), self).shuffle().toList();
     }
     
-    /* Determine whether this list has any elements in common with lst */
-    
+    /* Determine whether this list has any elements in common with lst */    
     overlapsWith(lst)
     {
         return intersect(valToList(lst)).length > 0;

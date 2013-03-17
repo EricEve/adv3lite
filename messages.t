@@ -1,4 +1,14 @@
+#charset "us-ascii"
 #include "advlite.h"
+
+
+/*
+ *   ***************************************************************************
+ *   messages.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, but is
+ *   based substantially on the Mercury Library (c) 2012 Michael J. Roberts
+ */
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -99,8 +109,7 @@ FuturePerfect: VerbTense
  *   Once we have the message text, we perform parameter substitutions.
  *   Parameters can be provided as strings, which are substituted in
  *   literally; or as objects, whose names are inserted according to the
- *   grammar in the template text.  
- */
+ *   grammar in the template text.   */
 
 message(id, txt, [args])
 {
@@ -119,8 +128,6 @@ message(id, txt, [args])
  *   We put this in a separate function to make it easy to obtain the text of a
  *   message for subsequent use without first displaying it.
  */
-
-
 buildMessage(id, txt, [args])
 {
    
@@ -664,17 +671,20 @@ messageDummyCommand: object
 ;
 
 /*
- *    Use the message builder to format a message without supplying key
+ *    Use the message builder to format a message without supplying a key
  *    to look up at alternative message. We can use this with library
  *    messages that employ object properties (e.g. cannotTakeMsg) or user
  *    code.
+ *
+ *    dmsg() displays the resultant message.
  */
-
 dmsg(txt, [args])
 {
     message('', txt, args...);
 }
 
+
+/* bmsg returns the text of a message formatted by the message formatter. */
 bmsg(txt, [args])
 {
     return buildMessage('', txt, args...);
@@ -1048,34 +1058,6 @@ dummy_: Mentionable
 pluralDummy_: Mentionable
     noteName(src) { }
 ;
-
-/* ------------------------------------------------------------------------ */
-/*
- *   Apply special typographical characters to a string.  This makes the
- *   following substitutions:
- *   
- *.     --    -> en dash
- *.     ---   -> em dash
- *.     '     -> curly quote (left quote at the start of a word, else right)
- *.     "     -> curly quote (left quote at the start of a word, else right)
- */
-typography(str)
-{
-    return str.findReplace(
-        ['---',
-         '--',
-         R'($<|<space>)\'',
-         R'($<|<space>)"',
-         R'(<^space>)\'',
-         R'(<^space>)"'],
-
-        ['&mdash;',
-            '&ndash;',
-            '%1&lsquo;',
-            '%1&ldquo;',
-            '%1&rsquo;',
-            '%1&rdquo;']);
-}
 
 
 /*----------------------------------------------------------------------------*/

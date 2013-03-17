@@ -1,4 +1,16 @@
+#charset "us-ascii"
 #include "advlite.h"
+
+/*
+ *   ***************************************************************************
+ *   query.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+ *
+ *   Based substantially on the query.t module in the Mercury Library (c) 2012
+ *   Michael J. Roberts.
+ */
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -456,8 +468,7 @@ QDefaults: Special
     /*  
      *   Determine if A can talk to B. In the base situation A can talk to B if
      *   A can hear B.
-     */
-    
+     */    
     canTalkTo(a, b)
     {
         return Q.canHear(a, b);
@@ -467,8 +478,7 @@ QDefaults: Special
      *   Determine if A can throw something to B. In the base situation A can
      *   throw to B if A can reach B.
      *
-     */
-    
+     */    
     canThrowTo(a, b)
     {
         return canReach(a, b);
@@ -760,10 +770,33 @@ class ScopeList: object
     status_ = perInstance(new LookupTable(64, 128))
 ;
 
-/*  An object describing a reach problem */
-
+/*  
+ *   An object describing a reach problem; such objects are used by the Query
+ *   object to communicate problems with one object touching another to the
+ *   touchObj PreCondition (see also precond.t). ReachProblem objects are
+ *   normally created dynamicallty as required, although it is usually one of
+ *   the subclasses of ReachProblem that it used.
+ */
 class ReachProblem: object
+    /* 
+     *   Problems which reaching an object that occur at the verify stage and
+     *   which might affect the choice of object. If the verify() method of a
+     *   ReachProblem object wishes to rule out an action it should do so using
+     *   illogical(), inaccessible() or other such verification macros.
+     */    
     verify() { }   
+    
+    /*   
+     *   The check() method of a ReachProblem should check whether the target
+     *   object can be reached by the source object. If allowImplicit is true
+     *   the check method may attempt an implicit action to bring the target
+     *   object within reach.
+     *
+     *   Return true if the target object is within reach, and nil otherwise.
+     *
+     *   Note that the check() method of a ReachProblem will normally be called
+     *   from the checkPreCondition() method of touchObj.
+     */
     check(allowImplicit) { return true; }    
     
     construct(target)
@@ -866,37 +899,86 @@ class ReachProblemCheckReach: ReachProblem
  *   A ReachProblem object for when the actor can't reach the target from the
  *   actor's (non top-level room) container.
  */
-class ReachProblemReachOut: ReachProblem        
+class ReachProblemReachOut: ReachProblem  
+    /* 
+     *   If allowImplicit is true we can try moving the actor out of its
+     *   immediate container to see if this solves the problem. If it does,
+     *   return true; otherwise return nil.
+     */
     check(allowImplicit)
     {
+        /* Note the actor's immediate location. */
         local loc = gActor.location;
+        
+        /* Note the target we're trying to reach. */
         local obj = target_;
+        
+        /* 
+         *   The action needed by the actor to leave the actor's immediate
+         *   location (GetOff or GetOutOf, depending whether the actor is on a
+         *   Platform or in a Booth).
+         */
         local getOutAction;
         
-        while(loc != gActor.getOutermostRoom)
-        {
-            if(!obj.isOrIsIn(loc) && !loc.allowReachOut(obj))
-            {
-                getOutAction = loc.contType == On ? GetOff : GetOutOf;
-                if(allowImplicit && loc.autoGetOutToReach 
-                   && tryImplicitAction(getOutAction, loc))
-                {
-                    if(gActor.isIn(loc))
-                        return nil;
-                }
-                else
-                {
-                    gMessageParams(obj, loc);
-                    DMsg(cannot reach out, '{I} {can\'t} reach {the obj} from
-                        {the loc}. ');
-                    return nil;
-                }
-                    
-            }
+        /*   
+         *   Keep trying to move the actor out of its immediate location until
+         *   the actor is in its outermost room, or until we can't move the
+         *   actor, or until the actor can reach the target object.
+         */
+        while(loc != gActor.getOutermostRoom && !obj.isOrIsIn(loc) &&
+              !loc.allowReachOut(obj))
+        {           
+            /* 
+             *   The action we need to move the actor out of its immediate
+             *   location will be GetOff or GetOutOf depending on the contType
+             *   of the actor's location.
+             */
+            getOutAction = loc.contType == On ? GetOff : GetOutOf;
             
-            loc = loc.location;
+            /* 
+             *   If we're allowed to attempt an implicit action, and the actor's
+             *   location is happy to allow the actor to leave it via an
+             *   implicit action for the purpose of reaching, then try an
+             *   implicit action to take the actor out of its location.
+             */
+            if(allowImplicit && loc.autoGetOutToReach 
+               && tryImplicitAction(getOutAction, loc))
+            {
+                /* 
+                 *   If the actor is still in its original location, then we
+                 *   were unable to move it out, so return nil to signal that
+                 *   the reachability condition can't be met.
+                 */
+                if(gActor.isIn(loc))
+                    return nil;
+            }
+            /* 
+             *   Otherwise, if we can't perform an implicit action to remove the
+             *   actor from its immediate location, display a message explaining
+             *   the problem and return nil to signal that the reachability
+             *   condition can't be met.
+             */
+            else
+            {
+                gMessageParams(obj, loc);
+                DMsg(cannot reach out, '{I} {can\'t} reach {the obj} from
+                    {the loc}. ');
+                return nil;
+            }
+                       
+            /* 
+             *   If we've reached this point we haven't failed either check in
+             *   this loop, so note that the actor's location is now the
+             *   location of its former location and then continue round the
+             *   loop.
+             */            
+            loc = loc.location;           
         }
         
+        /* 
+         *   If we've reached this point, we must have met the reachability
+         *   condition, so return true.
+         */
         return true;
     }
     

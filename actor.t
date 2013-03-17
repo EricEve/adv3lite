@@ -5,9 +5,13 @@
 /*
  *   ****************************************************************************
  *    actor.t 
+ *
  *    This module forms part of the adv3Lite library 
  *    (c) 2012-13 Eric Eve
  */
+
+/* Declare the eventList property in case the eventList module isn't included */
+property eventList;
 
 /*    
  *   An Actor is an object representing a living being (or something that
@@ -685,8 +689,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   the current actor state (if any) and then the actor object. If either
      *   raises an object it should display a message saying what the objection
      *   is (and then return nil). By default we simply return true, allowing
-     *   the conversation to end.     */
-    
+     *   the conversation to end.
+     */    
     canEndConversation(reason)
     {
         
@@ -782,8 +786,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     /* 
-     *   Call this method to instruct this actor to start following the player
-     *   char round the map
+     *   Game code can call this method to instruct this actor to start
+     *   following the player char round the map
      */    
     startFollowing()
     {
@@ -795,9 +799,9 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     /* 
-     *   Call this method to instruct this actor to stop following the player
-     *   char round the map.     */
-    
+     *   Game code can call this method to instruct this actor to stop following
+     *   the player char round the map.
+     */    
     stopFollowing()
     {
         /* 
@@ -944,76 +948,143 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     actorStaysPutMsg = BMsg(actor stays put, '{I} {wait} in vain for {1} to
         go anywhere. ', theName)
     
-    /* Display a message describing this actor's departure via conn */
+    /* 
+     *   Display a message describing this actor's departure via conn. This
+     *   looks a bit circuitous in that this method calls the corresponding
+     *   method on the current ActorState, which by default calls our own
+     *   sayActorDeparting() method, which in turn calls sayDeparting on the
+     *   connector; the idea is to allow customization at any point with the
+     *   connector's sayDeparting() method simply providing a fallback to a
+     *   colourless default. Note, however, that game code shouldn't normally
+     *   override the actor's sayDeparting() method, but should instead
+     *   intervene either on the ActorState or on the actor's
+     *   sayActorDeparting() method.
+     */
     sayDeparting(conn)
     {
+        /* If we have a current ActorState, call its sayDeparting() method */
         if(curState != nil)
             curState.sayDeparting(conn);
+        
+        /* Otherwise, call our own sayActorDeparting() method */
         else
             sayActorDeparting(conn);
     }
     
-    
+    /*  
+     *   Method to display a message saying that this actor is departing via
+     *   conn (a TravelConnector object, which may be a Room as well as a Door
+     *   or other kind of connector). Note that the default behaviour of
+     *   ActorState.sayDeparting is simply to call this method.
+     */
     sayActorDeparting(conn)
     {
+        /* 
+         *   By default we let the connector describe the departure in a manner
+         *   appropriate to the kind of connector it is.
+         */
         conn.sayDeparting(self);
     }
     
+    /* 
+     *   This method is executed when this actor has just followed the player
+     *   character to a new location.
+     */
     arrivingTurn()
     {
+        /* If we have a current ActorState, execute its arrivingTurn() method */
         if(curState != nil)
             curState.arrivingTurn();
+        
+        /* Otherwise execute our own actorArrivingTurn() method. */
         else
             actorArrivingTurn();
     }
     
+    /* 
+     *   This method is executed when this actor has just followed the player
+     *   character to a new location and there is no current ActorState. By
+     *   default we do nothing.
+     */
     actorArrivingTurn() { }
         
        
+    /*  
+     *   The takeTurn() method is called on every Actor every turn to carry out
+     *   a number of housekeeping functions relating to the conversation and
+     *   agenda item systems.
+     */
     takeTurn()
-    {
-        /* 
-         *   if we have active keys we may be in a notional conv node. If we
-         *   haven't conversed this turn we may want to nudge the player's
-         *   memory, which we do by trying an initiate topic
-         */
+    {      
         
         /* 
-         *   But first, if we're the current interlocutor, check that we can
+         *   First, if we're the current interlocutor, check that we can
          *   still talk to the player character. If not, make us no longer the
          *   current interlocutor so we don't respond to conversational commands
          *   when we're no longer there.
-         */
-        
+         */        
         if(gPlayerChar.currentInterlocutor == self && 
            !canTalkTo(gPlayerChar))
         {
+            /* Reset the player character's current interlocutor to nil */
             gPlayerChar.currentInterlocutor = nil;
+            
+            /* 
+             *   Reset our active and pending conversation keys so we don't
+             *   behave as if we were still in an active conversation node.
+             */
             activeKeys = [];
             pendingKeys = [];
+            
+            /* Terminate the method there; we've done enough for this turn. */
             return;
         }
         
+        /*  
+         *   Next, if we haven't already conversed this turn, and we have active
+         *   conversation keys (meaning that we might be in a Conversation
+         *   Node), try executing the NodeContinuationTopic associated with our
+         *   current node (this can be used to nudge the player's memory that
+         *   we're expecting an answer to a question we've just asked). If we
+         *   find one and execute it, end there.
+         */
         if(!conversedThisTurn && activeKeys.length > 0 &&
            initiateTopic(nodeObj))
                         return;
         
         
+        /* 
+         *   Next, if we haven't conversed this turn, try executing our highest
+         *   priority AgendaItem, if we have one.
+         */
         if(!conversedThisTurn && !executeAgenda)
         {
+            /* 
+             *   If we haven't conversed this turn and we didn't find an
+             *   AgendaItem to execute, then, if we have a current ActorState
+             *   that's been mixed in with a Script class (typically some kind
+             *   of EventList), execute our current ActorState's curScript
+             *   method, provided the player character can see us. This allows
+             *   an ActorState to display a series of 'fidget messages' or the
+             *   like for an actor who hasn't otherwise done anything this turn.
+             */
             if(curState != nil && curState.ofKind(Script) 
                && Q.canSee(gPlayerChar, self))
                 curState.doScript();
         }
         
-        if(!conversedThisTurn && gActor.currentInterlocutor == self)
-        {
+        /* 
+         *   If we haven't conversed this term and we're meant to be in
+         *   conversation with the player character, increment our boredomCount
+         *   by one; this may eventually lead to this actor terminating the
+         *   conversation of its own accord.
+         */
+        if(!conversedThisTurn && gActor.currentInterlocutor == self)        
             boredomCount++;
             
-        }
+        /*  Otherwise reset the boredomCount to zero */
         else
-            boredomCount = 0;
-           
+            boredomCount = 0;           
     }
     
     
@@ -1034,11 +1105,29 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     suggestionKey = nil
 
+    /* 
+     *   Show a list of topics the player character might want to discuss with
+     *   this actor. The explicit flag is true if the player has explicitly
+     *   requested the topic list via a TOPICS command. The tag parameter can be
+     *   a single convKey tag or a list of convKey tags; if tag is nil or 'all'
+     *   then we don't restrict the suggestions by tag, otherwise we restrict
+     *   the suggestions to those that match the tag (or one of the tags in the
+     *   list of tags).
+     */
     showSuggestions(explicit = true, tag = (pendingKeys == [] ? suggestionKey
                                             : pendingKeys))
     {
+        /* 
+         *   Start by creating a list of listable topics (i.e. those topics that
+         *   could be reached by a conversational command issued by the player
+         *   on the next turn)
+         */
         local lst = listableTopics;
         
+        /* 
+         *   If we have a current ActorState, add its listableTopics to our
+         *   list.
+         */
         if(curState != nil)
             lst += curState.listableTopics;
         
@@ -1050,12 +1139,23 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          */
         if(dataType(tag) == TypeList)
         {
+            /* Create a new empty Vector */
             local vec = new Vector(10);
+            
+            /* 
+             *   Go through each tag in our list, looking it up in our
+             *   convKeyTab table and adding all the corresponding TopicEntries
+             *   (that match the tag) to our Vector.
+             */
             foreach(local t in tag)
             {
                 vec.appendUnique(valToList(convKeyTab[t]));
             }
             
+            /* 
+             *   Restrict our list of TopicEntries to those that are also found
+             *   in the Vector of TopicEntries that match one of our tags.
+             */
             lst = lst.intersect(vec.toList());    
         }
         
@@ -1068,22 +1168,43 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         else if(tag not in (nil, 'all'))
             lst = lst.intersect(valToList(convKeyTab[tag]));
         
+        /* 
+         *   Use the suggestedTopicLister to show a list of Suggested Topics
+         *   from the resulting list (lst).
+         */
         suggestedTopicLister.show(lst, explicit);            
         
     }
     
         
-     /* A Lookup Table holding conversation keys. */
-    
+     /* 
+      *   A Lookup Table holding conversation keys. Entries in this list take
+      *   the form tag -> list of TopicEntries that match this tag (e.g. the key
+      *   is a convKey tag, expressed as a single-quoted string, and the value
+      *   is a list containing TopicEntries whose convKeys property contains
+      *   that tag).
+      */      
     convKeyTab = nil
     
     /* 
-     *   set the curiosityAroused flag to true for all topic entries with this
-     *   convKey
+     *   Set the curiosityAroused flag to true for all topic entries with this
+     *   convKey. This allows topics to be suggested when and only when the
+     *   player character has some reason to be curious about them, even though
+     *   they were actually available before.
      */
     arouse(key)
     {
+        /* 
+         *   First check that we actually have any entries in our convKeyTab
+         *   before we attempt to use them.
+         */
         if(convKeyTab != nil)
+            /* 
+             *   If we do then go through every TopicEntry that has key amongst
+             *   its convKeys (which we can obtain by looking up the list of suh
+             *   TopicEntries in our convKeysTab) and set its curiosityAroused
+             *   property to true.
+             */
             foreach(local cur in valToList(convKeyTab[key]))
         {
             cur.curiosityAroused = true;
@@ -1091,91 +1212,181 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     /* 
-     *   set the activated flag to true for all topic entries with this
-     *   convKey
+     *   Set the activated flag to true for all topic entries with this convKey.
+     *   Note that this does not actually make any of these topic entries
+     *   active, it simply sets a flag (activated) that their isActive
+     *   properties can test.
      */    
     makeActivated(key)    
     {
+        /* 
+         *   First check that we actually have any entries in our convKeyTab
+         *   before we attempt to use them.
+         */
         if(convKeyTab != nil)
+            /* 
+             *   If we do then go through every TopicEntry that has key amongst
+             *   its convKeys (which we can obtain by looking up the list of suh
+             *   TopicEntries in our convKeysTab) and set its activated property
+             *   to true.
+             */
             foreach(local cur in valToList(convKeyTab[key]))
         {
             cur.activated = true;
         }
     }
     
-    
-    
-    
+    /* 
+     *   We supply a getActor method that returns self so that objects such as
+     *   TopicEntries that may be located either directly or indirectly in us
+     *   can get at their associated actor by simply calling getActor on their
+     *   immediate location; at some point such a chain of calls to
+     *   location.getActor will end here.
+     */    
     getActor { return self; }
     
+    /*   
+     *   The count of how many turns have passed during which no conversation
+     *   has actually taken place when we're the player charater's current
+     *   interlocutor. This can be used to terminate the conversation through
+     *   'boredom' if the boredomCount exceeds our attention span.
+     */
     boredomCount = 0
     
+    
+    /*  
+     *   The maximum value that our boredomCount can reach before we terminate a
+     *   conversation through 'boredom', because we've given up waiting for the
+     *   player character to say anything. A value of nil (the default) meanns
+     *   that we never terminate a conversation for this reason.
+     */
     attentionSpan = nil
     
-    /* Our look up table for things we've been informed about */
-    
+    /* Our look up table for things we've been informed about */    
     informedNameTab = static new LookupTable(32, 32)
     
-    /* Note that we've been informed of something */
     
+    /* 
+     *   Note that we've been informed of something, by adding it to our
+     *   informedNameTab. Tag is an arbitrary single-quoted string value used to
+     *   represent the information in question.
+     */    
     setInformed(tag)
     {
         informedNameTab[tag] = true;
     }
     
+    /* 
+     *   Determine whether this actor has been informed about tag. We return
+     *   true if there is a corresponding non-nil entry in our informedNameTab
+     */
     informedAbout(tag) { return informedNameTab[tag] != nil; }
     
-    /* Say hello to the actor (initiated by the player character) */
+    /* 
+     *   Say hello to the actor (when the greetin is initiated by the player
+     *   character)
+     */
     sayHello()
     {
-        
+        /* 
+         *   Only carry out the  full greeting if we're not already the player
+         *   character's current interlocutor.
+         */
         if(gPlayerChar.currentInterlocutor != self)
         {
+            /* 
+             *   Note that we are now the player character's current
+             *   interlocutor
+             */
             gPlayerChar.currentInterlocutor = self;
+            
+            /*  Look for an appropriate HelloTopic to handle the greeting. */
             handleTopic(&miscTopics, [helloTopicObj], &noResponseMsg);
         }
+        
+        /* Add a paragraph break */
         "<.p>";
+        
+        /* Display a list of not-explicitly-asked-for topic suggestions */
         showSuggestions(nil, suggestionKey);
     }
     
-    /* Have the actor greet the player character */
-    actorSayHello()
+    /* Have the actor greet the player character on the actor's initiative */
+    actorSayHello()    
     {
+        /* 
+         *   First check that we're not already the player character's current
+         *   interlocutor before issuing a greeting.
+         */
         if(gPlayerChar.currentInterlocutor != self)
         {
+            /* 
+             *   Note that we have conversed with the player character on this
+             *   turn.
+             */
             noteConversed();
+            
+            /*  
+             *   Find an appropriate ActorHelloTopic to handle the greeting; if
+             *   we don't find one, use our nilResponse (i.e., don't display
+             *   anything)
+             */
             return handleTopic(&miscTopics, [actorHelloTopicObj], &nilResponse);
         }       
         
+        /* Return nil to signal we didn't actually do anything */
         return nil;
     }
     
-    /* Say goodbye to this actor (farewell from the player character) */
+    /* 
+     *   Say goodbye to this actor (farewell from the player character). The
+     *   optional reason parameter is the reason we're saying goodbye, which
+     *   defaults to endConvBye (i.e. the player character saying goodbye)
+     */
     sayGoodbye(reason = endConvBye)
     {
+        /* 
+         *   If we've not the player character's current interlocutor and the
+         *   player character tries to say goodbye to us, display a message
+         *   saying that the player character isn't talking to us.
+         */
         if(gPlayerChar.currentInterlocutor != self && reason == endConvBye)
         {
             DMsg(not interlocutor, '{I}{\'m} not talking to {1}. ', theName);
-        }
+        }        
         else
         {
+            /* 
+             *   Otherwise find the appropriate kind of ByeTopic to handle the
+             *   farewell, which will vary according to the reason for the
+             *   farewell.
+             */
             handleTopic(&miscTopics, [reason], 
                         reason == endConvBye ? &noResponseMsg : &nilResponse);
+            
+            /* 
+             *   Then note that we are no longer in conversation with the player
+             *   character.
+             */
             gPlayerChar.currentInterlocutor = nil;
         }
     }
     
-    /* Do nothing if we can't fine a suitable Hello or Bye Topic/ */
-    
+    /* Do nothing if we can't fine a suitable Hello or Bye Topic/ */    
     nilResponse() { }
     
+    /* 
+     *   A list of all the ActorStates associated with this Actor; this is
+     *   populated by the preinitialization of the individual ActorStates.
+     */
     allStates = []
     
     /* 
      *   Is this actor ready to invoke a ConvAgendaItem? We're ready if we
      *   haven't conversed this term and we can speak to the other actor and
      *   we're not at a conversation node. This method is used by the isReady
-     *   property of ConvAgendaItem.
+     *   property of ConvAgendaItem (to save it having to make three separate
+     *   calls to getActor).
      */
     
     convAgendaReady(other)
@@ -1189,8 +1400,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /* 
      *   Add an agenda item to both myself and any DefaultAgendaTopic directly
      *   within me.
-     */
-    
+     */    
     addToBothAgendas([lst])
     {
         addToAgenda(lst...);
@@ -1201,8 +1411,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /* 
      *   Add an agenda item both to myself and to any DefaultAgendaTopics either
      *   directly in me or in any of my Actor States
-     */
-    
+     */    
     addToAllAgendas([lst])
     {
         addToBothAgendas(lst...);
@@ -1216,8 +1425,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /* 
      *   Add an agenda item to myself and to any DefaultAgendaTopios directly in
      *   me or in my current ActorState.
-     */
-    
+     */    
     addToCurAgendas([lst])
     {
         addToBothAgendas(lst...);
@@ -1225,6 +1433,10 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             curState.defaultAgendaTopic.addToAgenda(lst...);
     }
     
+    /*  
+     *   Remove an agenda Item both from this actor and from any associated
+     *   DefaultAgendaTopics directly within this actor.
+     */
     removeFromBothAgendas([lst])
     {
         removeFromAgenda(lst...);
@@ -1232,6 +1444,11 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             defaultAgendaTopic.removeFromAgenda(lst...);
     }
     
+    /*  
+     *   Remove an agenda Item both from this actor and from any associated
+     *   DefaultAgendaTopics directly within this actor or in any of its
+     *   ActorStates.
+     */
     removeFromAllAgendas([lst])
     {
         removeFromBothAgendas(lst...);
@@ -1242,6 +1459,10 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         }      
     }
     
+    /* 
+     *   Remove an agenda item from myself and from any DefaultAgendaTopios
+     *   directly in me or in my current ActorState.
+     */
     removeFromCurAgendas([lst])
     {
         removeFromBothAgendas(lst...);
@@ -1249,18 +1470,26 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             curState.defaultAgendaTopic.removeFromAgenda(lst...);
     }
     
-    /* a list of agenda items to be added to our agenda at some later point. */
-    
+    /* 
+     *   A list of agenda items to be added to our agenda at some later point.
+     *   The main purpose is to allow game code to set up a list of AgendaItems
+     *   (typically ConvAgendaItems) that become part of the actor's current
+     *   agenda when conversation is initiated via a HelloTopic.
+     */    
     pendingAgendaList = []
     
-    /* Add an item to our pending agenda list */
-    
+    /* Add an item to our pending agenda list */    
     addToPendingAgenda([lst])
     {
         foreach(local item in lst)
             pendingAgendaList += item;
     }
     
+    /* 
+     *   Make our pending agenda items acting by moving them all from our
+     *   pendingAgendaList to all our actual agenda lists (on the actor and on
+     *   all our DefaultAgendaItems).
+     */
     activatePendingAgenda()
     {
         foreach(local cur in pendingAgendaList)
@@ -1269,46 +1498,75 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         pendingAgendaList = [];
     }
     
+    /*  Remove one or more agenda items from our pending agenda */
     removeFromPendingAgenda([lst])
     {
         foreach(local item in lst)
             pendingAgendaList -= item;
     }
+      
     
-    
-  
-    /* 
-     *   Try our current actor state first, if we have one, and only if it fails
-     *   to find a response try handling the initiateTopic on the actor.
+    /*  
+     *   Respond to an InitiateTopic triggered on this actor with top as the
+     *   matching object
      */
-    
     initiateTopic(top)
-    {
+    {        
+        /* 
+         *   Try our current actor state first, if we have one, and only if it
+         *   fails to find a response try handling the initiateTopic on the
+         *   actor.
+         */
         if(curState != nil && curState.initiateTopic(top))
             return true;
         
         return inherited(top);
     }
     
-   
+    /* 
+     *   The notifyRemove() method is triggered when actionMoveInto() tries to
+     *   move an object that's located within this actor. By default we don't
+     *   allow it since it typically represents an attempt by the player
+     *   character to take something from this actor's inventory.
+     */
     notifyRemove(obj)
     {
+        /* 
+         *   If we're not the actor initiating the moving of obj and we don't
+         *   allow this object to be removed from us, prevent the move.
+         */
         if(gActor != self && !allowOtherActorToTake(obj))
         {            
+            /* Display a message saying that removing obj is disallowed. */
             say(cannotTakeFromActorMsg(obj));
+            
+            /* Halt the action. */
             exit;
-        }
-    
+        }    
     }
     
+    /* 
+     *   Return a message saying that the actor cannot take obj from our
+     *   inventory.
+     */
     cannotTakeFromActorMsg(obj)
     {
+        /* 
+         *   Set up a convenient pair of message substitution parameters to use
+         *   in the mesage.
+         */
         local this = self;
         gMessageParams(obj, this);
+        
+        /* Return the text of the message. */
         return BMsg(cannot take from actor, '{The subj this} {won\'t} let {me}
             have {the obj} while {he obj}{\'s} in {her this} possession. ');
     }
     
+    /* 
+     *   Is another actor allowed to take obj from our inventory? By default we
+     *   return nil to disallow it for all objects.
+     */
     allowOtherActorToTake(obj) { return nil; }
     
     /* An actor generally owns its contents */
@@ -1316,7 +1574,9 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     /* 
      *   This definition is needed for the TopicGroup implementation, and should
-     *   not normally be overridden in user game code.
+     *   not normally be overridden in user game code. It allows TopicEntries
+     *   and TopicGroups to determine their own active status by reference to
+     *   that of their immediate location.
      */
     active = true
     
@@ -1424,20 +1684,33 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     }
     
-     /* 
-     *   By default we'll respond to ATTACK ACTOR with the shouldNotAttackMsg; to
-     *   enable responses to ATTACK via HitTopics (or some other custom handling
-     *   in the action stage) set allowAttack to true.
+    /* 
+     *   By default it's normally possible to attack an actor, even if we don't
+     *   want to allow it. Game code might want to override this to nil for
+     *   actors it's obviously futile to try attacking, such as ghosts, gods and
+     *   giants.
      */
-       
+    isAttackable = true
+    
+     /* 
+      *   By default we'll respond to ATTACK ACTOR with the shouldNotAttackMsg;
+      *   to enable responses to ATTACK via HitTopics (or some other custom
+      *   handling in the action stage) set allowAttack to true.
+      *
+      *   Leave allowAttack at nil for actors the player character will never
+      *   want to attack (because their friendly or harmless, for instance) and
+      *   for which the refusal to attack message will never vary. Override
+      *   allowAttack to true for actor the player character may want to attack
+      *   under some circumstances, or where the response to ATTACKing this
+      *   actor might vary.
+      */       
     allowAttack = nil
     
-    /* The message to display if allowKiss is nil */
+    /* The message to display if allowAttack is nil */
     shouldNotAttackMsg = BMsg(should not attack, 'That hardly {dummy} {seems}
         appropriate. ')
     
-   
-    isAttackable = true
+    
     
     dobjFor(Attack)
     {       
@@ -1477,8 +1750,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /* 
      *   Unlike inaminate objects, actors can be the logical target of a ThrowTo
      *   action
-     */
-    
+     */    
     canThrowToMe = true
     
     /* 
@@ -1487,22 +1759,63 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     canCatchThrown(obj) { return true; }
     
+      
+    
     iobjFor(ThrowTo)
     {
         action()
         {
-            if(canCatchThrown(gDobj))
+            /* 
+             *   First check whether the throw is possible by checking with the
+             *   Query object. This will normally only be relevant if the target
+             *   actor is in a location remote from that of the thrower. If the
+             *   Q object rules out the throw, move the direct object to the
+             *   thrower's room and display a message saying the object fell
+             *   short.
+             */
+            if(!Q.canThrowTo(gActor, self))
+            {
+                gDobj.moveInto(gActor.getOutermostRoom);
+                say(throwFallsShortMsg);
+                
+            }            
+            
+            /* 
+             *   Otherwise if this Actor can catch Dobj when it's thrown, move
+             *   the direct object into this Actor and display an appropriate
+             *   message.
+             */
+            else if(canCatchThrown(gDobj))
             {
                 gDobj.moveInto(self);
-                DMsg(catch okay, '{The subj iobj} {catches} {the dobj}. ');
+                sayActorCatches(gDobj);
             }
+            
+            /* 
+             *   Otherwise move the direct object into this actor's location and
+             *   display a message saying that the actor dropped the catch.
+             */
             else
             {
                 gDobj.moveInto(location);
-                DMsg(drop catch, '{The subj iobj} {fails} to catch {the dobj},
-                    so that {he dobj} {lands} on the ground instead. ');
+                sayActorDropsCatch(gDobj);   
             }
         }       
+    }
+    
+    /* Display a message saying that this actor catches obj */
+    sayActorCatches(obj)
+    {
+        gMessageParams(obj);
+        DMsg(catch okay, '{The subj iobj} {catches} {the obj}. ');
+    }
+    
+    /* Display a message saying that this actor failst to catch obj */
+    sayActorDropsCatch(obj)
+    {
+        gMessageParams(obj);
+        DMsg(drop catch, '{The subj iobj} {fails} to catch {the obj},
+                    so that {he obj} {lands} on the ground instead. ');
     }
     
     dobjFor(Follow)
@@ -1511,25 +1824,55 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         verify()
         {
+            /* 
+             *   If the player character can see the actor s/he wants to follow,
+             *   and they're in the same qocation then following the target is
+             *   logical.
+             */
             if(Q.canSee(gActor, self) && isIn(gActor.getOutermostRoom))
                 logical;
+            
+            /*   But we can't follow an actor we can see in a remote location */
             else if(Q.canSee(gActor, self))
                 illogicalNow(cantFollowFromHereMsg);
+            
+            /*  And we can't follow the actor if we don't know where it went */
             else if(lastTravelInfo == nil)
                 illogicalNow(dontKnowWhereGoneMsg);
+            
+            /*  
+             *   And we can't follow the actor if we're not in the location we
+             *   last saw it depart from.
+             */
             else if(!gActor.isIn(lastTravelInfo[1]))
                 illogicalNow(cantStartFromHereMsg);
         }
         
         action()
         {
+            /* 
+             *   If we can see the actor we want to follow, then set the
+             *   following Fuse (to fire at the end of this turn so we can
+             *   follow the actor if it moves on this turn)
+             */
             if(Q.canSee(gActor, self))
             {
                 setFollowMeFuse();
             }
+            
+            /* 
+             *   Otherwise use our stored travel information to try to follow
+             *   this actor.
+             */
             else if(lastTravelInfo)
             {
+                /* Display a message to say we're following this actor */
                 say(followActorDirMsg);
+                
+                /* 
+                 *   Then travel via the connector this actor was seen to leave
+                 *   by.
+                 */
                 lastTravelInfo[2].travelVia(gActor);
                 
                 /* 
@@ -1556,55 +1899,146 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         {him dobj} from {here}. ')
 ;
 
+/*  
+ *   An ActorState represents a state (possibly one of many) an actor can be in
+ *   or get into. This can control how the actor is described and the actor's
+ *   response to certain conversational commands and other actions.
+ *
+ *   ActorStates should always be located directly in the Actor to which they
+ *   belong.
+ */
+
 class ActorState: ActorTopicDatabase
+    
+    /* 
+     *   The stateDesc from the actor's current ActorState is appended to the
+     *   desc defined on the actor when the actor is described via an EXAMINE
+     *   command.
+     */
     stateDesc = nil
+    
+    /*   
+     *   The specialDesc from the actor's current ActorState is used as the
+     *   specialDesc for that actor in a room listing.
+     */
     specialDesc = nil
-    isInitState = nil
+    
+    /*   
+     *   If our associated actor is viewed from a remote location, use the
+     *   ActorState's remoteSpecialDesc to describe the actor in a room listing.
+     *   By default we just use the specialDesc.
+     */    
     remoteSpecialDesc(pov) { specialDesc; }
     
+    
+    /*   
+     *   Set isInitState to true if you want this ActorState to be the one the
+     *   associated Actor starts out in.
+     */
+    isInitState = nil
+    
+    
+    /*   Initialize this ActorState (this is actually called at preinit). */
     initializeActorState()
     {
+        /* 
+         *   If we're our Actor's initial state and we have a location (our
+         *   associated actor) set out location's (i.e. our actor's) current
+         *   state to this ActorState
+         */
         if(isInitState && location != nil)
             location.curState = self;
         
+        /*   
+         *   Initialize our getActor property from the getActor property of our
+         *   location, which should simply return our associated actor. This
+         *   should normally never change at run-time.
+         */
         getActor = location.getActor;
         
+        /*   Add this ActorState to our actor's list of ActorStates */
         addToActor();
                
     }
     
+    /*   Add this ActorState to our actor's list of ActorStates */
+    addToActor()
+    {
+        /* 
+         *   First convert our actor's allStates property to an empty list if
+         *   it's still nil
+         */
+        if(getActor.allStates == nil)
+            getActor.allStates = [];
+        
+        /*   Then add ourself to our actor's list of all its ActorStates */
+        getActor.allStates += self;
+    }
+    
+    /*  
+     *   The afterAction() method is called on an actor's current ActorState
+     *   when the actor is in scope for the action that's just taken place. This
+     *   allows game code to define state-specific reactions.
+     */
     afterAction() {}
+    
+    
+    /*  
+     *   The beforeAction() method is called on an actor's current ActorState
+     *   when the actor is in scope for the action that's just about to take
+     *   place. This allows game code to define state-specific reactions.
+     */
     beforeAction() {}
     
+    /*  
+     *   Display a message saying that we're following the player character from
+     *   oldLoc when our actor is in this ActorState (and the actor is following
+     *   the player character)
+     */
     sayFollowing(oldLoc)
     {
-        local follower = location;
+        /* Create a convenient message substitution parameter */
+        local follower = getActor;
         gMessageParams(follower);
+        
+        /* Display the message */
         DMsg(follow, '{The follower} {follows} behind {me}. ');
     }
     
+    /*  
+     *   Display a message saying that our associated actor is departing via
+     *   conn. By default we simply use our actor's sayActorDeparting(conn)
+     *   method.
+     */
     sayDeparting(conn) { getActor.sayActorDeparting(conn); }
     
+    /*   
+     *   Our associated actor. This is set to our location at preinit by our
+     *   initializeActorState method.
+     */
     getActor = nil
     
+    
+    /*   
+     *   Our actor's attention span while our actor is in this ActorState. This
+     *   is the number of turns the actor will wait for the player character to
+     *   say something when a our actor is the player character's current
+     *   conversation partner, before our actor gives up on the conversation and
+     *   terminates it through 'boredom'. A value of nil (the default) means our
+     *   actor is infinitely patient and will never terminate a conversation for
+     *   this reason.
+     */
     attentionSpan = nil
     
     /* 
      *   the arrivingTurn method is executed when an actor in this state has
      *   just followed the player char to a new location.
-     */
-    
+     */    
     arrivingTurn() { }
     
-    addToActor()
-    {
-        if(getActor.allStates == nil)
-            getActor.allStates = [];
-        
-        getActor.allStates += self;
-    }
     
-      /*
+    
+    /*
      *   Activate the state - this is called when we're about to become
      *   the active state for an actor.  We do nothing by default.
      */
@@ -1617,16 +2051,49 @@ class ActorState: ActorTopicDatabase
      */
     deactivateState(actor, newState) { }
     
-    /* before and after travel notifications. By default we do nothing */
     
+    /* 
+     *   The beforeTravel notification triggered when the Actor is in this
+     *   ActorState and traveler is just about to travel via connector. By
+     *   default we do nothing.
+     */
     beforeTravel(traveler, connector) {}
+        
+    /* 
+     *   The afterTravel notification triggered when the Actor is in this
+     *   ActorState and traveler has just traveled via connector. By default we
+     *   do nothing.
+     */
     afterTravel(traveler, connector) {}
     
+    
+    /*   
+     *   Determine whether our actor will allow a current conversation to be
+     *   terminated for reason when in this ActorState. Return true to allow the
+     *   conversation to be terminated and nil otherwise. By default we simply
+     *   return true. If we return nil we should also display a message
+     *   explaining why we're not allowing the conversation to end.
+     */
     canEndConversation(reason) { return true; }
     
+    /*   
+     *   The active property is used by any TopicGroups and TopicEntries located
+     *   directly within us to determine whether they in turn are active.
+     *   Normally there is no reason for game code to override this on an
+     *   ActorState; the property is simply provided so that TopicGroups and
+     *   TopicEntries can call location.active regardless of whether they're
+     *   located in TopicGroups, ActorStates or Actors.
+     */    
     active = (location.active)
    
-    
+    /* 
+     *   The getBestMatch() method is already defined on TopicDatabase, from
+     *   which ActorState inherits via ActorTopicDatabase. ActorState overrides
+     *   it to allow certain modifications particular to ActorState, such as the
+     *   possibility that the prop parameter might be passed as either a list or
+     *   a property pointer to a list property, and the need to take into
+     *   account the actor's activeKeys list.
+     */    
     getBestMatch(prop, requestedList)
     {
         
@@ -1637,10 +2104,14 @@ class ActorState: ActorTopicDatabase
          *   passed as a property pointer, but in the base TopicDatabase class
          *   the corresponding parameter is a list, so check what we have before
          *   we deal with it.
-         */
-        
+         *
+         *   If prop has been passed as a property pointer, get our list from
+         *   the corresponding property.
+         */        
         if(dataType(prop) == TypeProp)        
             myList = self.(prop);
+        
+        /*  Otherwise get our list directely from the prop parameter. */
         else
             myList = valToList(prop);
         
@@ -1648,33 +2119,63 @@ class ActorState: ActorTopicDatabase
          *   If we have a current activeKeys list restrict the choice of topic
          *   entries to those whose convkeys overlap with it, at least at a
          *   first attempt. If that doesn't produce a match, try the normal
-         *   handling.
+         *   handling. We need to do this first to ensure that we prioritize
+         *   TopicEntries whose convKeys match our actor's activeKeys (which is
+         *   the whole point of our actor having activeKeys).
          */
         
         if(getActor.activeKeys.length > 0)
         {
+            /* 
+             *   Obtain a list that is that subset of our original list where
+             *   the convKeys of the TopicEntries in the list overlaps with our
+             *   actor's active keys (i.e. at this stage we only want to
+             *   consider TopicEntries selected by our actor's active keys)
+             */
             local kList = myList.subset({x:
                                    valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
             
+            /*   
+             *   Now find the best match that results from using the inherited
+             *   handling with our restricted list
+             */
             local match = inherited(kList, requestedList);
+            
+            /*   If we found a suitable match, return it. */
             if(match != nil)
                 return match;
             
             /* 
-             *   If we don't find a match in the current state that overlaps
+             *   If we didn't find a match in the current state that overlaps
              *   with activeKeys, try finding one in the actor. (Not doing this
              *   would break the Conversation Nodes mechanism, quite apart from
              *   anything else). Note we can only do this is prop has been
              *   passed as a property pointer, as the method expects.
-             */
-            
+             */            
             if(dataType(prop) == TypeProp)
             {
+                /* 
+                 *   If prop was passed as a property pointer, obtain the list
+                 *   from the corresponding property on our actor (if it wasn't
+                 *   there's no need to do anything since we're already stored
+                 *   it as a list)
+                 */
                 myList = getActor.(prop);
+                
+                /*   
+                 *   Obtain that subset of our list that contains TopicEntries
+                 *   whose convKeys overlap with our actor's activeKeys
+                 .*/
                 kList = myList.subset({x:
                                       valToList(x.convKeys).overlapsWith(getActor.activeKeys)});
                 
+                /*  
+                 *   Try to find a best match using the inherited handling with
+                 *   our new sub-list.
+                 */
                 match = inherited(kList, requestedList);
+                
+                /*  If we found a suitable match, return it. */
                 if(match != nil)
                     return match;
                 
@@ -1686,12 +2187,31 @@ class ActorState: ActorTopicDatabase
             }
         }
       
+        /* 
+         *   If we haven't found a match corresponding to our actor's
+         *   activeKeys, or if our actor doesn't have any activeKeys, simply
+         *   return the result of the inherited handling.
+         */
         return inherited(myList, requestedList);
     }
 ;
 
+/*  
+ *   A TopicDatabase is an object that can contain TopicEntries and return the
+ *   best match on request. ActorTopicDatabase is a specialization of
+ *   TopicDatabase for use with the conversation system, and is used as a mix-in
+ *   class in the list of classes from which Actor and ActorState inherit.
+ */
 class ActorTopicDatabase: TopicDatabase
        
+    /* 
+     *   The various lists of TopicEntries located within this TopicDatabase.
+     *   For exampel the askTopics list would contain a list of all our
+     *   AskTopics. Note that the same TopicEntry can appear in more than one
+     *   list; for example an AskTellTopic would appear in both the askTopics
+     *   list and the tellTopics list, and a DefaultAnyTopic would appear in all
+     *   the lists apart from initiateTopics.
+     */
     askTopics = []
     tellTopics = []
     sayTopics = []
@@ -1704,28 +2224,67 @@ class ActorTopicDatabase: TopicDatabase
     miscTopics = []
     commandTopics = []
     
-    
+    /* 
+     *   Return a list of our listable topics, that is the topic entries located
+     *   within us that should be included in a topic inventory listing because
+     *   they are (a) currently reachable and (b) currently marked for listing.
+     *   The resulting list forms part of the list passed to the
+     *   suggestedTopicLister.
+     */
     listableTopics()
     {
+        /* 
+         *   Start by creating a list of all the TopicEntries we contain
+         *   (excluding InitiateTopics, which are never suggested because
+         *   they're never a response to a conversational command).
+         */
         local lst = miscTopics + askTopics + tellTopics + sayTopics +
             queryTopics + giveTopics + askForTopics + talkTopics;
         
+        /*  Note our actor. */
         local actor = getActor;
         
+        /*  Remove any duplicates from our list */
         lst = lst.getUnique();
         
+        /*  
+         *   Form that subset of our list that contains TopicEntries that are
+         *   actually listable. These are TopicEntries that meet all of the
+         *   following conditions:
+         
+         *. 1) They define a name property (used to list them)
+         *. 2) They are currently active
+         *. 3) Their curiosity is not yet satisfied
+         *. 4) Their curiosity has been aroused
+         *. 5) They are reachable (i.e. they could potentially be triggered
+         *   by a player command on the current turn).
+         *
+         *   Note that we deliberately leave the reachability test to last as it
+         *   is the most computationally demanding.
+         */
         lst = lst.subset({x: x.name!= nil && x.active && !x.curiositySatisfied 
                         && x.curiosityAroused && x.isReachable});
         
+        /*  
+         *   If our actor has any activeKeys, further narrow down our list to
+         *   those TopicEntries whose convKeys match (i.e. overlap with) our
+         *   actor's activeKeys.
+         */
         if(actor.activeKeys.length > 0)
             lst = lst.subset({x: actor.activeKeys.overlapsWith(x.convKeys)});
         
+        /* Return the resulting list. */
         return lst;
     }
     
+    /* 
+     *   Obtain the identify of any DefaultAgendaTopic contained in this
+     *   database
+     */
     defaultAgendaTopic = static 
                        askTopics.valWhich({x: x.ofKind(DefaultAgendaTopic)})
     
+    /*  Handle an InitiateTopic */
     initiateTopic(top)
     {
        return handleTopic(&initiateTopics, [top], &nilResponse);
@@ -1733,7 +2292,6 @@ class ActorTopicDatabase: TopicDatabase
     
     
 ;
-
 
 /* 
  *   A TopicGroup is an object that can be used to group ActorTopicEntries that
@@ -1743,19 +2301,25 @@ class ActorTopicDatabase: TopicDatabase
  *   TopicGroup's container, apart from the modifications imposed by the
  *   TopicGroup.
  */
-
 class TopicGroup: object
     
+    /* 
+     *   Add a topic entry to our database; since a TopicGroup isn't a
+     *   TopicDatabase we simply ask our location to add it to its database. We
+     *   also modify the convKeys and scoreBoost properties of any items
+     *   contained in us according to our own convKeys and scoreBoost
+     *   properties.
+     */
     addTopic(obj)
     {
+        /* Add the topic entry to our enclosing topic database */
         location.addTopic(obj);
         
         /* 
          *   For each TopicEntry located in this TopicGroup, add any convKeys
          *   defined on the TopicGroup to those defined on the individual
          *   TopicEntries
-         */
-        
+         */        
         obj.convKeys =
             valToList(obj.convKeys).appendUnique(valToList(convKeys));
         
@@ -1770,22 +2334,45 @@ class TopicGroup: object
         
     }
     
+    /*  
+     *   A TopicGroup's isActive property can be used to make all the
+     *   TopicEntries enclosed within in inactive by being set to nil; if it is
+     *   true then the enclosed TopicEntries are active if their own isActive
+     *   property is true.
+     */
     isActive = true
     
+    /* 
+     *   This TopicGroup is active if both its own isActive property is true and
+     *   its location is active (this allows us to locate TopicGroups within
+     *   other TopicGroups, for instance)
+     */
     active = (isActive && location.active)
     
+    /*  
+     *   A list of convKeys that should be added to the convKeys of each of our
+     *   TopicEntries.
+     */
     convKeys = nil
-        
+    
+    /*   
+     *   A scoreBoost that should be added to the scoreBoost of each of our
+     *   TopicEntries.
+     */
     scoreBoost = 0
     
+    /*   
+     *   If we're being used as a conversation node, our node is active when our
+     *   own convKeys matches (i.e. overlaps with) that of our actor's
+     *   activeKeys.
+     */
     nodeActive()
     {
         return valToList(convKeys).overlapsWith(getActor.activeKeys);
     }
     
-    getActor = (location.getActor)
-    
-    
+    /* Our associated actor is our location's associated actor. */
+    getActor = (location.getActor)    
 ;
 
 /* 
@@ -1797,32 +2384,56 @@ class ConvNode: TopicGroup
     isActive = nodeActive
 ;
 
-
+/* 
+ *   An ActorTopicEntry is a specialization of TopicEntry for use with the
+ *   conversation system. ActorTopicEntries represent potential responses to
+ *   conversational commands like ASK BOB ABOUT LIGHTHOUSE or TELL GEORGE ABOUT
+ *   FIRE.
+ *
+ *   Since ActorTopicEntry inherits from ReplaceRedirector as well as
+ *   TopicEntry, its topicResponse() methods can make use of doInstead() and
+ *   doNested().
+ */
 class ActorTopicEntry: ReplaceRedirector, TopicEntry
+    
     /* 
      *   To make this a suggested topic, just give it a name under which it will
      *   be suggested (of the kind that could follow 'You could ask about ' or
      *   'You could tell him about ' or 'You could show him ' etc.). Note that
      *   for QueryTopics and SayTopics that are specified with a matchObj the
      *   library constructs this name automatically.
-     */
-         
+     */         
     name = nil
     
     /* 
      *   Set autoName to true to have this topic entry generate a name from its
-     *   first matchObj's theName
-     */
+     *   first matchObj's theName     */
     
     autoName = nil
     
+    /*   
+     *   An ActorTopicEntry is conversational (the default) if it results in an
+     *   actual conversational exchange. Change this to nil for
+     *   ActorTopicEntries that merely report why a conversational exchange did
+     *   not take place (e.g. "Bob ignores you" or "You think better of talking
+     *   to George about that.")
+     */
     isConversational = true
     
-    impliesGreeting = true
+    /*  
+     *   Normally a conversational command implies a greeting (that is, it
+     *   should trigger a greeting if a conversation is not already in process).
+     *   This needs to be overridden to nil on ActorTopicEntries that explicitly
+     *   handle greetings (HelloTopic and its subclasses) to avoid an infinite
+     *   loop.
+     */
+    impliesGreeting = isConversational
     
     /* 
      *   A string or list of strings defining one or more groups to which this
-     *   topic entry belongs
+     *   topic entry belongs. Under certain circumstances an ActorTopicEntry may
+     *   be prioritized if its convKeys overlaps with the associated actor's
+     *   activeKeys.
      */
     convKeys = nil
     
@@ -1831,39 +2442,68 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      *   Actor's activeKeys list (whether or not the latter has any entries).
      *   This can be used in the isActive property to make this topic entry
      *   *only* available when its convKeys are active.
-     */
-    
+     */    
     nodeActive()
     {
         return valToList(convKeys).overlapsWith(getActor.activeKeys);
     }
     
+    /* Add this ActorTopicEntry to its associated actor's table of convKeys */
     addToConvKeyTable()   
     {
+        /* Note our associated actor. */
         local actor = getActor;
         
+        /* If our actor doesn't yet have a convKeyTab, create one */
         if(actor.convKeyTab == nil)
             actor.convKeyTab = new LookupTable;
         
+        /*  
+         *   Go through every key in our convKeys list and add this
+         *   ActorTopicEntry to the list of ActorTopicEntries that correspond to
+         *   it in our actor's convKeyList.
+         */
         foreach(local k in valToList(convKeys))
         {
+            /* Obtain the existing value corresponding to this key */
             local val = actor.convKeyTab[k];
+            
+            /* 
+             *   Make sure the value is a list, and then add this
+             *   ActorTopicEntry to it before storing it in the table.
+             */
             actor.convKeyTab[k] = valToList(val) + self;
         }
     }
     
+    /* Initialize this ActorTopicEntry (this is actually called at preinit) */
     initializeTopicEntry()
     {
+        /* Carry out the inherited handling (on TopicEntry) */
         inherited;
         
+        /* 
+         *   Add this ActorTopicEntry and its associated convKeys to our actor's
+         *   convKeyTable
+         */
         addToConvKeyTable();
         
+        /*  
+         *   If our autoname property is true, construct our name (for use in
+         *   suggesting this TopicEntry) provided we have something to construct
+         *   it from.
+         */
         if(autoName && matchObj != nil && name is in (nil, ''))
             buildName();
     }
     
+    /* 
+     *   Construct the name of this ActorTopicEntry by using the theName
+     *   property of our first matchObj.     
+     */
     buildName() { name = valToList(matchObj)[1].theName; }
     
+    /* Our associated actor is our location's associated actor. */
     getActor = (location.getActor)
     
     /* 
@@ -1872,9 +2512,8 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      *   number of items in our eventList (if we are an EventList). If you want
      *   this topic entry to go on being suggested ad infinitum, set
      *   timesToSuggest to nil.
-     */
-    
-    timesToSuggest = static (ofKind(EventList) ? eventList.length : 1)
+     */    
+    timesToSuggest = static (ofKind(Script) ? eventList.length : 1)
     
     /* 
      *   Assuming this topic entry is ever suggested, it will continue to be
@@ -1911,17 +2550,27 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      *   this property. If you do it must be specified as a kind that this topic
      *   entry can actually match, e.g. TellTopic for an AskTellTopic or
      *   ShowTopic for a GiveShowTopic.
-     */
-    
+     */    
     suggestAs = nil
     
-    
+    /*   
+     *   Handle this topic (if we're the ActorTopicEntry selected to respond to
+     *   a conversational command.
+     */
     handleTopic()
     {
+        /* Increment our timesInvoked counter */            
         timesInvoked++ ;
         
+        /* 
+         *   If we have a list of keyTopics defined, then we display them as a
+         *   list of topic suggestions instead of showing our topicResponse.
+         *   This allows one topicEntry to be used as a means of suggesting
+         *   other, more specific, topics.
+         */
         if(valToList(keyTopics).length > 0)
         {
+            /* Show a list of our keyTopics */
             showKeyTopics();
             
             /* 
@@ -1930,43 +2579,85 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
              */
             abort;
         }
+        
+        /* Otherwise execute our topicResponse  */
         else
             topicResponse();
     }
         
+    /* 
+     *   The keyTopios can contain a convKey or a list of convKeys, in which
+     *   case when this TopicEntry is triggered instead of responding directly
+     *   it will list topic suggestions that correspond to the convKeys defined
+     *   here. For example, a TopicEntry that responded to ASK BOB ABOUT
+     *   TROUBLES could define a keyTopics property of 'troubles' that triggered
+     *   more specific suggestions such as "You could ask when the troubles
+     *   started, or what the troubles were, or how the troubles ended",
+     *   assuming that these QueryTopics had a convKeys property of 'troubles'
+     *
+     *   If you want this TopicEntry to display its topicResponse in the normal
+     *   way, leave keyTopics as nil.
+     */
+    keyTopics = nil
     
+    /* Show our suggested keyTopics, if keyTopics is defined. */
     showKeyTopics()
     {
+        /* 
+         *   First construct a list of TopicEntries that match the keys in our
+         *   keyTopics.
+         */
         local lst = getKeyTopics();
         
-        if(lst.length > 0)        
+        /*   
+         *   If the list contains any entries, display the list of suggestions
+         *   using the suggestedTopicLister
+         */
+        if(lst.length > 0)                    
            suggestedTopicLister.show(lst);       
+        
+        /* 
+         *   Otherwise display a message explaining that we've nothing to
+         *   discuss on this topic.
+         */
         else
             DMsg(nothing to discuss on that topic, '{I} {have} nothing to
                 discuss on that topic just {now}. '); 
     }
     
+    /* Obtain a list of the TopicEntries that match our keyTopics property. */
     getKeyTopics()
     {
+        /* Make a note of our associated actor. */
         local actor = getActor();
 
+        /* Initialize an empty list */
         local lst = [];
         
-        
+        /* 
+         *   For each key value in our keyTopics list, look up the associated
+         *   TopicEntries in our actor's convKeyTab and add them to our list.
+         */
         foreach(local ky in valToList(keyTopics))
             lst += actor.convKeyTab[ky];
         
+        /*   
+         *   Reduce our list to a subset that only contains those TopicEntries
+         *   that (1) are active, (2) don't yet have their curiosity satisfied,
+         *   (3) have their curiosity aroused and (4) are reachable (i.e. they
+         *   would actually be triggered if the player were to follow the
+         *   suggestion).
+         */
         lst = lst.subset({t: t.active && !t.curiositySatisfied &&
                          t.curiosityAroused && t.isReachable });
             
+        /* Remove any duplicate entries from the list. */
         lst = nilToList(lst).getUnique();
         
+        /* Return the list. */
         return lst;
     }
-    
-    
-    keyTopics = nil
-    
+       
     
     /* 
      *   A flag that can be set with an <.activate> tag and tested with
@@ -1985,38 +2676,41 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     active = (isActive && location.active)
     
     
+    /* 
+     *   Determine whether this TopicEntry is currently reachable, i.e. whether
+     *   it could be reached if the player asked/told etc. about its matchObj on
+     *   the next turn.
+     */
     isReachable()
     {
+        /* Note our associated actor */
         local actor = getActor;
         
         /* 
-         *   if the actor has a current ActorState and we're in a different
+         *   If the actor has a current ActorState and we're in a different
          *   ActorState then we're reachable only if we're in the current
          *   ActorState
-         */
-        
+         */        
         if(actor.curState != nil && location.ofKind(ActorState) 
            && location != actor.curState)
             return nil;
         
                     
         /* 
-         *   if we don't have a matchObj assume we're reachable unless certain
+         *   If we don't have a matchObj assume we're reachable unless certain
          *   conditions apply (e.g. we're blocked by a DefaultTopic).
-         */
-        
+         */        
         if(matchObj == nil)
         {
             /* 
              *   if the actor doesn't have a current actor state or we're in the
              *   current actor state, assume we're reachable
-             */
-            
+             */            
             if(actor.curState == nil || location == actor.curState)            
                return true;
             
             /* 
-             *   otherwise, we're reachable if the current actor state doesn't
+             *   Otherwise, we're reachable if the current actor state doesn't
              *   have a DefaulTopic that might block us, or if our convKeys
              *   overlap with that of the actor's activeKeys
              */
@@ -2036,18 +2730,20 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
                     return nil;
             }
             
+            /* 
+             *   There's nothing obvious that makes this TopicEntry unreachable,
+             *   so return true to say we are reachable.
+             */
             return true;
             
         }
         
         /* 
          *   We're not reachable if the player char doesn't know about our
-         *   matchObj
-         */
+         *   matchObj         */
         
         if(valToList(matchObj).indexWhich({ x: x.isClass() 
-                                          || gPlayerChar.knowsAbout(x)}) == nil) 
-        
+                                          || gPlayerChar.knowsAbout(x)}) == nil)         
             return nil;
         
         /* 
@@ -2062,30 +2758,63 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   suggestion lister's default behaviour. By this means we simulate
          *   the command the sugggestion lister will suggest; e.g. if it would
          *   suggest ASK ABOUT FOO we test whether this topic entry is reachable
-         *   via an ASL ABOUT command, so we want to test whether its the best
+         *   via an ASK ABOUT command, so we want to test whether its the best
          *   response for its matchObj from the askTopic list.
          */
         
+        /*   
+         *   Find the topic entry list property of our TopicDatabase that would
+         *   be searched to find us if the player followed the suggestion to try
+         *   us (e.g. if we would be listed as "You could ask about foo" prop
+         *   should come out as &askTopics).
+         */
         local prop = (suggestAs != nil ? suggestAs.includeInList[1] :
                       includeInList[1]);
         
+        /*   
+         *   If we'd be sought as a QueryTopic, determine what qType we'd match;
+         *   if we can match more than one qType, select our first one for this
+         *   exercise.
+         */             
         if(prop == &queryTopics)
             gAction.qType = qtype.split('|')[1];
         
+        /* 
+         *   Try seeing what the best response would be if we asked our actor to
+         *   find the best matching TopicEntry for our matchObj in its prop list
+         *   (e.g. its askTopics list if prop is &askTopics). If the result is
+         *   this TopicEntry, then this TopicEntry is reachable, so return true.
+         */
         if(actor.findBestResponse(prop, matchObj) == self)
             return true;
         
-        
+        /*   
+         *   Otherwise it's not reachable, so return nil. (This might happen if
+         *   another matching topic has a higher matchScore, for example).
+         */
         return nil;           
             
     }
 ;
 
+
+/* 
+ *   CommandTopicHelper is a mix-in class for use with CommandTopic and
+ *   DefaultCommantTopic to provide some common handling for both. Its base
+ *   class LCommandTopicHelper (which provides a method for reconstructing the
+ *   text of a command issued to an actor) must be defined in the
+ *   language-specific part of the library.
+ */
 class CommandTopicHelper: LCommandTopicHelper
     handleTopic()
     {
+        /* Carry out the inherited handling */
         inherited;
         
+        /* 
+         *   If this CommandTopic allows the action our actor has been ordered
+         *   to carry out to proceed, then execute it
+         */
         if(allowAction)
             myAction.exec(gCommand);
     }
@@ -2096,10 +2825,17 @@ class CommandTopicHelper: LCommandTopicHelper
      */
     allowAction = nil
         
-    
+    /*   
+     *   The action our actor has been ordered to carry out, which will be the
+     *   action on the current Command object.
+     */
     myAction = (gCommand.action)
 ;
 
+/*  
+ *   A CommandTopic is a TopicEntry that handles a command directed at this
+ *   actor (e.g. BOB, JUMP).
+ */
 class CommandTopic: CommandTopicHelper, ActorTopicEntry    
     matchTopic(top)
     {
@@ -2137,15 +2873,26 @@ class CommandTopic: CommandTopicHelper, ActorTopicEntry
     myAction = nil
     
     
-    
+    /* 
+     *   CommandTopics are included in the commandTopics list of their
+     *   ActorTopicDatabase
+     */
     includeInList = [&commandTopics]
     
     
 ;
 
+/* 
+ *   A MiscTopic is an ActorTopicEntry that responds not to a conversational
+ *   command specifying a separate topic (such as ASK BOB ABOUT FRUIT) but just
+ *   to as simple command like YES, NO, HELLO or GOODBYE
+ */
 class MiscTopic: ActorTopicEntry
- 
-    
+    /* 
+     *   A MiscTopic isn't matched to a topic in the normal sense, but we
+     *   instead pass the routine an obj parameter to determine what particular
+     *   kind of MiscTopic (e.g. YesTopic or ByeTopic) we want to match.
+     */    
     matchTopic(obj)
     {
         /* 
@@ -2157,42 +2904,116 @@ class MiscTopic: ActorTopicEntry
     }
 ;
 
+/*  
+ *   A KissTopic can be used to provide a response to KISS ACTOR, provided that
+ *   we have overridden allowKiss to true on the actor object. This allows the
+ *   response to Kiss to vary according to ActorState or other conditions in a a
+ *   way that can readily be expressed in a declarative programming style
+ */
 class KissTopic: MiscTopic
+    /* 
+     *   KissTopics should be included in the miscTopics list of their
+     *   TopicDatabase (Actor or ActorState)
+     */
     includeInList = [&miscTopics]
+    
+    /*   A KissTopic matches the kissTopicObj */
     matchObj = kissTopicObj
+    
+    /*   
+     *   A KissTopic is not regarded as conversational, since KISS ACTOR is not
+     *   normally treated as a conversational exchange.
+     */
     isConversational = nil
+    
+    /*   Kissing someone should not trigger a greeting */
     impliesGreeting = nil
 ;
 
+/*  The kissTopicObject is simply an object used for KissTopic to match. */
 kissTopicObj: object;
 
+
+/*  
+ *   A HitTopic can be used to respond to HIT ACTOR (or ATTACK ACTOR, etc.),
+ *   provided the actor's allowAtack property has been overridden to true
+ */
 class HitTopic: MiscTopic
+    /* 
+     *   HitTopics should be included in the miscTopics list of their
+     *   TopicDatabase (Actor or ActorState)
+     */
     includeInList = [&miscTopics]
+    
+    /* HitTopics match the hitTopicObj */
     matchObj = hitTopicObj
+    
+    /* 
+     *   Hitting someone is not normally regarded as form of conversational
+     *   exchange.
+     */
     isConversational = nil
+    
+    /*  Hitting someone does not trigger a greeting */
     impliesGreeting = nil
 ;
 
+/* The hitTopicObj exists solely as something for HitTopics to match. */
 hitTopicObj: object;
 
+/* A YesTopic is a TopicEntry that responds to YES or SAY YES */
 class YesTopic: MiscTopic
+    /* YesTopics are included in the miscTopics list of their TopicDatabase */
     includeInList = [&miscTopics]
+    
+    /* YesTopics match the yesTopicObj */
     matchObj = yesTopicObj
+    
+    /* 
+     *   We give YesTopic a name so that it can be suggested in response to a
+     *   request to display a list of suggested topics.
+     */
     name = BMsg(say yes, 'say yes')
 ;
 
+/* A NoTopic is a TopicEntry that responds to NO or SAY NO */
 class NoTopic: MiscTopic
+    /* NoTopics are included in the miscTopics list of their TopicDatabase */    
     includeInList = [&miscTopics]
+    
+    /* NoTopics match the noTopicObj */
     matchObj = noTopicObj
+    
+    /* 
+     *   We give NoTopic a name so that it can be suggested in response to a
+     *   request to display a list of suggested topics.
+     */
     name = BMsg(say no, 'say no')
 ;
 
+/* A YesNoTopic is a TopicEntry that responds to either YES or NO */
 class YesNoTopic: MiscTopic
+        /* 
+         *   YesNoTopics are included in the miscTopics list of their
+         *   TopicDatabase
+         */
     includeInList = [&miscTopics]
+    
+    /* YesNoTopics match the yesTopicObj or the noTopicObj*/
     matchObj = [yesTopicObj, noTopicObj]
+    
+    /* 
+     *   We give YesNoTopic a name so that it can be suggested in response to a
+     *   request to display a list of suggested topics.
+     */
     name = BMsg(say yes or no, 'say yes or no')
 ;
 
+/*  
+ *   A GreetingTopic is a kind of TopicEntry used in greeting protocols (saying
+ *   Hello or Goodbye). Game code will not use this class directly but will
+ *   instead use one or more of its subclasses
+ */
 class GreetingTopic: MiscTopic
     includeInList = [&miscTopics]
     impliesGreeting = nil
@@ -2204,28 +3025,68 @@ class GreetingTopic: MiscTopic
      */
     changeToState = nil
     
+    /*   
+     *   Handling a GreetingTopic includes the requested state change, if
+     *   changeToState is defined
+     */
     handleTopic()
     {
+        /* 
+         *   Carry out the inherited handling and store the result (true or nil
+         *   for success or failure)
+         */
         local result = inherited();
+        
+        /*  
+         *   If changeToState is not nil, change our actor's current ActorState
+         *   accordingly
+         */
         if(changeToState != nil)
-            getActor.setState(changeToState);
+            getActor.setState(changeToState);        
         
-        
+        /* Return the result of the inherited handling. */
         return result;
     }
 ;
 
+/* 
+ *   A HelloTopic is a TopicEntry that handles an explicit greeting (the player
+ *   character explicitly saying Hello to this actor). It also handles implicit
+ *   greetings (triggered when the player enters a conversational command when a
+ *   conversation with this actor is not already going on), unless we have also
+ *   defined an ImpHelloTopic, which will then take preference.
+ */
 class HelloTopic: GreetingTopic    
+    /* A HelloTopic matches either helloTopicObj or impHelloTopicObj */
     matchObj = [helloTopicObj, impHelloTopicObj]    
-    handleTopic()
+    
+    handleTopic()    
     {
+        /* 
+         *   Activate our actor's pending agenda items at the start of this new
+         *   conversation.
+         */
         getActor.activatePendingAgenda();
+        
+        /* Carry out the inherited handling and return the result. */
         return inherited;
     }
 ;
 
+/* 
+ *   An ImpHelloTopic is one that handles an implied greeting; i.e. it is used
+ *   to start a conversation when some other conversational command is used
+ *   before the conversation is underway.
+ */
 class ImpHelloTopic: HelloTopic
+    /* An ImpHelloTopic matches the impHelloTopicObj only. */
     matchObj = [impHelloTopicObj]
+    
+    /* 
+     *   We give ImpHelloTopic a higher than usual matchScore so that it's used
+     *   in preference to a HelloTopic when both are present to match the
+     *   impHelloTopicObj.
+     */
     matchScore = 150
 ;
 
@@ -2234,17 +3095,22 @@ class ImpHelloTopic: HelloTopic
  *   conversation. 
  */
 class ActorHelloTopic: HelloTopic    
+    /* An ActorHelloTopic matches the actorHelloTopicObj only. */
     matchObj = [actorHelloTopicObj]
+    
     matchScore = 200
 
 
     /* 
-     *   if we use this as a greeting upon entering a ConvNode, we'll want
+     *   If we use this as a greeting upon entering a ConvNode, we'll want
      *   to stay in the node afterward
      */
     noteInvocation(fromActor)
     {
+        /* Carry out the inherited handling. */
         inherited(fromActor);
+        
+        /* Issue a constay tag */-
         "<.convstay>";
     }
 ;
@@ -2257,6 +3123,10 @@ class ActorHelloTopic: HelloTopic
  *   NPC terminates the conversation of its own volition.  
  */
 class ByeTopic: GreetingTopic    
+    /* 
+     *   This most general kind of ByeTopic matches every kind of
+     *   conversation-ending object
+     */
     matchObj = [endConvBye,
                  endConvLeave, endConvBoredom, endConvActor]
 
@@ -2275,7 +3145,16 @@ class ByeTopic: GreetingTopic
  *   more specific ImpByeTopic.  
  */
 class ImpByeTopic: GreetingTopic    
+    /* 
+     *   The ImpByeTopic matches endConvLeave, endConvBoredom, or endConvActor
+     *   (but not endConvBye).
+     */
     matchObj = [endConvLeave, endConvBoredom, endConvActor]
+    
+    /* 
+     *   Give ImpByeTopic a high matchScore so that it takes precedence over
+     *   ByeTopic when both are present.
+     */
     matchScore = 200
 ;
 
@@ -2291,7 +3170,13 @@ class ImpByeTopic: GreetingTopic
  *   endings.  
  */
 class BoredByeTopic: GreetingTopic    
+    /* A BoredByeTopic matches endConvBoredom only */
     matchObj = [endConvBoredom]
+    
+    /* 
+     *   Give BoredByeTopic an even higher matchScore so that it takes
+     *   precedence over ImpByeTopic when both are present.
+     */
     matchScore = 300
 ;
 
@@ -2306,7 +3191,13 @@ class BoredByeTopic: GreetingTopic
  *   endings.  
  */
 class LeaveByeTopic: GreetingTopic    
+    /* A LeaveByeTopic matches endConvLeave only */
     matchObj = [endConvLeave]
+    
+    /* 
+     *   Give LeaveByeTopic an even higher matchScore so that it takes
+     *   precedence over ImpByeTopic when both are present.
+     */
     matchScore = 300
 ;
 
@@ -2315,17 +3206,30 @@ class LeaveByeTopic: GreetingTopic
  *   the NPC terminates the conversation of its own volition via
  *   npc.endConversation(). 
  */
-class ActorByeTopic: GreetingTopic    
+class ActorByeTopic: GreetingTopic   
+    /* An ActorByeTopic matches endConvActor only */
     matchObj = [endConvActor]
+    
+    /* 
+     *   Give BoredByeTopic an even higher matchScore so that it takes
+     *   precedence over ImpByeTopic when both are present.
+     */
     matchScore = 300
 ;
 
 /* a topic for both HELLO and GOODBYE */
 class HelloGoodbyeTopic: GreetingTopic    
+    /* A HelloGoodbyeTopic matches every kind of hello and endConv object */
     matchObj = [helloTopicObj, impHelloTopicObj,
                  endConvBye, endConvBoredom, endConvLeave,
                  endConvActor]
     
+    /* 
+     *   We give HelloGoodByeTopic a slightly lower than normal matchScore to
+     *   ensure that all the other, more specific, types of HelloTopic and
+     *   ByeTopics take precedence over it.
+     */
+    matchScore = 90
 ;
 
 /* 
@@ -2369,13 +3273,31 @@ endConvLeave: object;
 endConvActor: object;
 
 
-class DefaultTopic: ActorTopicEntry   
+/* 
+ *   A DefaultTopic is a kind of TopicEntry for use as a fallback when the
+ *   player attempts to discuss a topic that game code doesn't explicitly cater
+ *   for.
+ */
+class DefaultTopic: ActorTopicEntry       
+    /* A DefaultTopic matches any Thing or Topic or yes or no */
     matchObj = [Thing, Topic, yesTopicObj, noTopicObj]
+    
+    /* 
+     *   A DefaultTopic has a very low matchScore to allow anything more
+     *   specific to take precedence.
+     */
     matchScore = 1    
 ;
 
+/* 
+ *   A DefaultAnyTopic is a DefaultTopic that can match any kind of
+ *   conversational command.
+ */
 class DefaultAnyTopic: DefaultTopic
-   
+    /* 
+     *   DefaultAnyTopics are included in all the lists of their TopicDatabase
+     *   that contain lists of conversational responses.
+     */
     includeInList = [&sayTopics, &queryTopics, &askTopics, &tellTopics,
         &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics]
 ;
@@ -2397,8 +3319,6 @@ class DefaultAnyTopic: DefaultTopic
  *   DefaultAgendaTopic in case none of the agenda items in its agenda list turn
  *   out to be executable.
  */
-
-
 class DefaultAgendaTopic: AgendaManager, DefaultAnyTopic
     
     handleTopic()
@@ -2406,8 +3326,7 @@ class DefaultAgendaTopic: AgendaManager, DefaultAnyTopic
         /* 
          *   Try to execute our next agenda item. If this fails fall back on our
          *   inherited handling.
-         */
-        
+         */        
         if(!executeAgenda())
             inherited();
     }
@@ -2425,141 +3344,204 @@ class DefaultAgendaTopic: AgendaManager, DefaultAnyTopic
     matchScore = 10
 ;
 
+/* 
+ *   A DefaultConversationTopic is a DefaultTopic that matches any strictly
+ *   conversational command; it matches everything a DefaultAnyTopic matches
+ *   apart from GIVE and SHOW (which don't necessarily imply verbal exchanges)
+ */
 class DefaultConversationTopic: DefaultTopic
     includeInList = [&sayTopics, &queryTopics, &askTopics, &tellTopics,
         &askForTopics, &talkTopics]
     matchScore = 2
 ;
 
+/* Default Topic to match ASK ABOUT and TELL ABOUT */
 class DefaultAskTellTopic: DefaultTopic
     includeInList = [&askTopics, &tellTopics]
     matchScore = 4    
 ;
 
+/* Default Topic to match GIVE and SHOW */
 class DefaultGiveShowTopic: DefaultTopic
     includeInList = [&giveTopics, &showTopics]
     matchScore = 4
 ;
 
+/* Default Topic to match ASK ABOUT */
 class DefaultAskTopic: DefaultTopic
     includeInList = [&askTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match TELL (SOMEONE) ABOUT */
 class DefaultTellTopic: DefaultTopic
     includeInList = [&tellTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match TALK ABOUT */
 class DefaultTalkTopic: DefaultTopic
     includeInList = [&talkTopics]
     matchScore = 5
 ;
 
-class DefaultGiveTopic: DefaultTopic
+/* Default Topic to match GIVE (something to someone) */
+class DefaultGiveTopic: DefaultTopic 
     includeInList = [&giveTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match SHOW (something to someone) */
 class DefaultShowTopic: DefaultTopic
     includeInList = [&showTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match ASK (someone) FOR (something) */
 class DefaultAskForTopic: DefaultTopic
     includeInList = [&askForTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match SAY (something) */
 class DefaultSayTopic: DefaultTopic
     includeInList = [&sayTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match ASK (WHO/WHAT/WHY/WHERE/WHEN/HOW/IF) */
 class DefaultQueryTopic: DefaultTopic
     includeInList = [&queryTopics]
     matchScore = 5
 ;
 
+/* Default Topic to match SAY (something) or ASK (WHO/WHAT/WHY etc.) */
 class DefaultSayQueryTopic: DefaultTopic
     includeInList = [&sayTopics, &queryTopics]
     matchScore = 4
 ;
 
+/* DefaultTopic to match SAY (something) OR TELL (someone) ABOUT (something) */
 class DefaultSayTellTopic: DefaultTopic
     includeInList = [&sayTopics, &tellTopics]
     matchScore = 4
 ;
 
+/* 
+ *   DefaultTopic to match TELL (someone) ABOUT (something) OR TALK ABOUT
+ *   (something)
+ */
 class DefaultTellTalkTopic: DefaultTopic
     includeInList = [&tellTopics, &talkTopics]
     matchScore = 4
 ;
 
-
+/* 
+ *   DefaultTopic to match SAY (something) OR TELL (someone) ABOUT (something)
+ *   OR TALK ABOUT (something)
+ */
 class DefaultSayTellTalkTopic: DefaultTopic
     includeInList = [&sayTopics, &tellTopics, &talkTopics]
     matchScore = 3
 ;
 
+/* Default Topic to match ASK ABOUT/HOW/WHAT/WHY/WHEN/WHO/IF/WHERE etc */
 class DefaultAskQueryTopic: DefaultTopic
     includeInList = [&queryTopics, &askTopics]
     matchScore = 4
 ;
 
+/* 
+ *   DefaultTopic to match orders directed to this actor by the player
+ *   (character)
+ */
 class DefaultCommandTopic: CommandTopicHelper, DefaultTopic
     includeInList = [&commandTopics]
     matchScore = 5
     matchObj = [Action]
 ;
 
+/* A TopicEntry that matches ASK ABOUT */
 class AskTopic: ActorTopicEntry
     includeInList = [&askTopics]
 ;
 
+/* A TopicEntry that matches TELL ABOUT */
 class TellTopic: ActorTopicEntry
     includeInList = [&tellTopics]
 ;
 
+/* A TopicEntry that matches ASK ABOUT or TELL ABOUT*/
 class AskTellTopic: ActorTopicEntry
     includeInList = [&askTopics, &tellTopics]
 ;
 
+/* A TopicEntry that matches ASK FOR */
 class AskForTopic: ActorTopicEntry
     includeInList = [&askForTopics]
 ;
 
+/* A TopicEntry that matches ASK ABOUT or ASK FOR*/
 class AskAboutForTopic: ActorTopicEntry
     includeInList = [&askForTopics, &askTopics]
 ;
 
+/* A TopicEntry that matches GIVE TO */
 class GiveTopic: ActorTopicEntry
     includeInList = [&giveTopics]
 ;
 
+/* A TopicEntry that matches SHOW TO */
 class ShowTopic: ActorTopicEntry
     includeInList = [&showTopics]
 ;
 
+/* A TopicEntry that matches GIVE TO or SHOW TO */
 class GiveShowTopic: ActorTopicEntry
     includeInList = [&giveTopics, &showTopics]
 ;
 
+/* 
+ *   SpecialTopic is the base class for two kinds of TopicEntry that extend the
+ *   conversation system beyong basic ask/tell: SayTopic and QueryTopic. The
+ *   SpecialTopic class defines the common handling but is not used directly in
+ *   game code, which will use either SayTopic or QueryTopic
+ */
 class SpecialTopic: ActorTopicEntry
+    
+    /* 
+     *   Carry out the initialization (actually preinitialization) of a
+     *   SpecialToipc
+     */
     initializeTopicEntry()
     {
+        /* First carry out the inherited handling */
         inherited;
         
         
         /* 
          *   if the matchPattern contains a semi-colon assume it's not a regex
          *   match pattern but the vocab for a new Topic object.
-         */
-        
+         */        
         
         if(matchPattern != nil && (matchPattern.find(';') != nil ||                             
                                    matchPattern.find(rex) == nil))            
         {
+            /* 
+             *   first see if there's already a Topic that has our matchPattern
+             *   as its vocab.
+             */            
+            matchObj = findMatchingTopic(matchPattern);
+            
+            /* if we found a matching topic, we're done. */
+            if(matchObj != nil)
+            {
+                /* set the matchPattern to nil, since we shan't be using it. */
+                matchPattern = nil;
+                
+                return;
+            }
+            
             /* create a new Topic object using the matchPattern as its vocab */
             matchObj = new Topic(matchPattern);
             
@@ -2570,23 +3552,67 @@ class SpecialTopic: ActorTopicEntry
             World.universalScope += matchObj;
         }
         
+        /* 
+         *   Although the inherited handling might have built our name property
+         *   already, it won't have done if we created our matchObj from our
+         *   matchPattern property, so if need be we try building it again here.
+         */
         if(autoName)
            buildName();
         
+        /* 
+         *   It may be we want this SpecialTopic also to respond to a
+         *   conventional ASK ABOUT X or TELL ABOUT X. We can do this by
+         *   defining the askMatchObj and tellMatchObj properties.
+         *
+         *   First check if our askMatchObj is non-nil and equal to our
+         *   tellMatchObj. If so then we want this SpecialTopic also to behave
+         *   like an AskTellTopic that matches askMatchObj. To that end we
+         *   create a SlaveTopic to represent the AskTellTopic
+         */
         if(askMatchObj != nil && askMatchObj == tellMatchObj)
         {
             new SlaveTopic(askMatchObj, self, [&askTopics, &tellTopics]);            
         }
+        
+        /* 
+         *   Otherwise, if we have an askMatchObj, create a SlaveTopic to
+         *   represent us as an AskTopic so that we also match ASK ABOUT
+         *   askMatchObj.
+         */
         else if(askMatchObj != nil)
             new SlaveTopic(askMatchObj, self, [&askTopics]);
         
+        /*   
+         *   If we have a tellMatchObj that's different from our askMatchObj
+         *   (and non-nil), create a new SlaveTopic to represent a TellTopic
+         *   that we also match.
+         */
         if(tellMatchObj != nil && tellMatchObj != askMatchObj)
             new SlaveTopic(tellMatchObj, self, [&tellTopics]);
     }
     
+    /* 
+     *   A Regular expression pattern to look for the kinds of characters we'd
+     *   expect to find in our matchPattern property if it actually represents a
+     *   regular expression for this TopicEntry to match. We use this to help
+     *   determine whether the matchPattern property contains a regex to match
+     *   our the vocab of a Topic object to create on the fly.
+     */    
     rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|carat>')
     
+    /* 
+     *   If we want this SpecialTopic also to match an ASK ABOUT command, define
+     *   the askMatchObj to hold the topic or list of topics that said ASK ABOUT
+     *   command should match here.
+     */
     askMatchObj = nil
+    
+    /* 
+     *   If we want this SpecialTopic also to match an TELL ABOUT command,
+     *   define the askMatchObj to hold the topic or list of topics that said
+     *   TELL ABOUT command should match here.
+     */
     tellMatchObj = nil
     
     /* 
@@ -2597,39 +3623,99 @@ class SpecialTopic: ActorTopicEntry
     
 ;
 
+/*  
+ *   A SlaveTopic is a special kind of TopicEntry created by a SpecialTopic to
+ *   function as an AskTopic, TellTopic or AskTellTopic that produces the same
+ *   response at the SpecialTopic. Game code would not normally define
+ *   SlaveTopics directly
+ */
 class SlaveTopic: ActorTopicEntry
+    
+    /* Construct a SlaveTopic */
     construct(matchObj_, masterObj_, includeInList_)
     {
+        /* Note the Topic/Object (or objects) this TopicEntry should match. */           
         matchObj = matchObj_;
+        
+        /* 
+         *   Note our masterObj, which will be the SpecialTopic that called our
+         *   c constructor.
+         */
         masterObj = masterObj_;
+        
+        /*  Note which list or lists of TopicEntries we should be included in */
         includeInList = includeInList_;
+        
+        /*  Our location is the same as our masterObj's location. */
         location = masterObj.location;
+        
+        /* Carry out our initialization as a TopicEntry. */
         initializeTopicEntry();
     }
     
     initializeTopicEntry()
     {
+        /* 
+         *   Only carry out our initialization if we haven't been initialized
+         *   already.
+         */
         if(!initialized)
         {
+            /* Carry out the inherited handling. */
             inherited();
+            
+            /* Note that we've now been initialized. */
             initialized = true;
         }
     }
     
+    /* 
+     *   To handle this topic we simply call the handleTopic method on our
+     *   masterObj (i.e. the SpecialTopic that created us)
+     */
     handleTopic() { masterObj.handleTopic(); }
     
+    /* Our masterObj is the SpecialTopic that created us */
     masterObj = nil
+    
+    /* Flag: has this SlaveTopic already been initialized. */
     initialized = nil
 ;
 
+/* 
+ *   A QueryTopic is a kind of SpecialTopic that extends the range of questions
+ *   that the player (character) can ask an NPC from ASK ABOUT so-and-so to ASK
+ *   WHO/WHAT/WHY/WHERE/WHETHER/IF/HOW so-and-so. The type of question to be
+ *   matched (who/what/why/when etc.) needs to be defined on a QueryTopic's
+ *   qType property (so that it can be matched by the QueryTopic's grammar). The
+ *   remainder of the question is the Topic a particular QueryTopic matches.
+ */
 class QueryTopic: SpecialTopic
+    
+    /* 
+     *   Check whether this QueryTopic matches the question asked. For it to do
+     *   so it must match not only the topic but the qType (query type)
+     */
     matchTopic(top)
     {
+        /* 
+         *   A QueryTopic can match more than one query type, so first we split
+         *   our qType property into a potential list.
+         */
         local qtList = qtype.split('|');
         
+        /* 
+         *   If the action's qType isn't in our list of qTypes, then we don't
+         *   match the question asked, so return nil to indicate a failure to
+         *   match.
+         */
         if(qtList.indexOf(gAction.qType) == nil)
             return nil;
-        
+                
+        /* 
+         *   Otherwise carry out the inherited handling to see whether we match
+         *   the topic (i.e., the rest of the question following the qType word)
+         */
         return inherited(top);
     }
     
@@ -2648,45 +3734,100 @@ class QueryTopic: SpecialTopic
          */
         if(qtype == nil && matchPattern != nil)
         {
+            /* 
+             *   Find the first space in our matchPattern string. This should
+             *   mark the end of the first word.
+             */
             local idx = matchPattern.find(' ');
+            
+            /* Only do anything if we find a space */
             if(idx)
             {
+                /* 
+                 *   Take the qType to be the first word, i.e. the beginning of
+                 *   the string up to but not including the first space
+                 */
                 qtype = matchPattern.substr(1, idx - 1);
+                
+                /*   
+                 *   Take the true matchPattern -- or rather the Topic vocab --
+                 *   to be the rest of the matchPattern string following the
+                 *   first space.
+                 */
                 matchPattern = matchPattern.substr(idx + 1).trim();
             }
             
         }
      
+        /* Carry out the inherited handling. */
         inherited;    
     }
     
+    /* 
+     *   When we build the name of a QueryTopic (for use in a list of topic
+     *   suggestions) we need to include the query type (qType).
+     */
     buildName()
     {
+        /* 
+         *   Don't attempt to construct the name if we already have one or we
+         *   don't have a matchObj.
+         */
         if(name == nil && matchObj != nil)
         {
+            /* 
+             *   Split our qType property into a list of query types, since it
+             *   could be specified as several possible types separated by
+             *   vertical bars
+             */
             local qList = qtype.split('|');
+            
+            /*   
+             *   Prepend the first word from the query type list to the name of
+             *   our matchObj to create our name
+             */
             name = qList[1] + ' ' + valToList(matchObj)[1].name; 
         }
     }
     
-   
-    includeInList = [&queryTopics]
-            
-           
+    /* A QueryTopic belongs in the queryTopics list of its TopicDatabase */
+    includeInList = [&queryTopics]          
 ;
 
+
+/* 
+ *   A SayTopic is a kind of SpecialTopic that allows the player (character) to
+ *   say virtually anything (within reason) to an NPC; a SayTopic may be
+ *   triggered by a command that explicitly begins with SAY, but it may also be
+ *   triggered by any combination of words that matches its matchObj and doesn't
+ *   correspond to any other recognizable command. This allows the player to
+ *   respond, for example, with either SAY YOU DON'T KNOW or just I DON'T KNOW,
+ *   to trigger an appropriately defined SayTopic.
+ */
 class SayTopic: SpecialTopic
+   
+    /* 
+     *   When we construct the name of a SayTopic we use the name property of
+     *   its matchObj rather that theName property, since it won't normally make
+     *   sense to include the definite article at the beginning of suggestions
+     *   of things that can be said.
+     */
     buildName()
     {
+        /* 
+         *   We don't try to construct a name if we have one already or if we
+         *   don't have a matchObhj.
+         */
         if(name == nil && matchObj != nil)
+            /* 
+             *   The matchObj property could in principle be specified as a
+             *   list, in which case use the first (and possibly omly) item in
+             *   the list to construct our name.
+             */
             name = valToList(matchObj)[1].name; 
     }
-    
-    initializeTopicEntry()
-    {
-        inherited;
-        buildName();
-    }
+
+    /* SayTopics belong in the sayTopics list of their TopicDatabase */    
     includeInList = [&sayTopics]
     
     /* 
@@ -2700,33 +3841,49 @@ class SayTopic: SpecialTopic
     includeSayInName = true
 ;
 
+/* A TalkTopic is a TopicEntry that responds to TALK ABOUT so-and-so. */
 class TalkTopic: ActorTopicEntry
     includeInList = [&talkTopics]
 ;
     
-
+/* 
+ *   A TellTalkTopic is a TopicEntry that responds to TELL ABOUT or TALK ABOUT
+ *   so-and-so.
+ */
 class TellTalkTopic: TalkTopic
     includeInList = [&tellTopics, &talkTopics]
 ;
  
+/* 
+ *   An AskTellTalkTopic is a TopicEntry that responds to ASK ABOUT or TELL
+ *   ABOUT or TALK ABOUT so-and-so.
+ */
 class AskTellTalkTopic: TalkTopic
     includeInList = [&askTopics, &tellTopics, &talkTopics]
 ;
 
+/* 
+ *   An AskTalkTopic is a TopicEntry that responds to ASK ABOUT or TALK ABOUT
+ *   so-and-so.
+ */
 class AskTalkTopic: TalkTopic
     includeInList = [&askTopics, &talkTopics]
 ;
 
 
-/* An initiateTopic is used for conversational topics initiated by the actor */
-
+/* 
+ *   An initiateTopic is used for conversational topics initiated by the actor
+ *   through a call to initiateTopic() on the actor or ActorState
+ */
 class InitiateTopic: ActorTopicEntry
     includeInList = [&initiateTopics]
 ;
 
 /* 
- *   A special kind of InitiateTopic that can be used to prompt the player/pc
- *   when particular convKeys have been activated.
+ *   A NodeContinuationTopic is aspecial kind of InitiateTopic that can be used
+ *   to prompt the player/pc when particular convKeys have been activated. It is
+ *   generally used when a Conversation Node is active to remind the player that
+ *   the player character's conversation partner is waiting for an answer.
  */
 
 class NodeContinuationTopic: InitiateTopic
@@ -2736,12 +3893,13 @@ class NodeContinuationTopic: InitiateTopic
      *   We're only active when one or more of our keys is active (having been
      *   activated through an <.convnode> tag).
      */
-    isActive = nodeActive
-    
+    isActive = nodeActive    
     
     /* 
      *   Particular instances must override this property to stipulate which
-     *   keys we're active for.
+     *   keys we're active for. (This isn't needed if the NodeContinuationTopic
+     *   is located in a ConvNode, since the ConvNode will then take care of
+     *   this for us).
      */
     convKeys = nil
     
@@ -2752,16 +3910,19 @@ class NodeContinuationTopic: InitiateTopic
          *   we send a convstay tag to retain them.
          */
         "<.p><.convstay>";
+        
+        /* Carry out the inherited handling. */
         inherited();
     }
 ;
 
 /* 
  *   A NodeEndCheck may optionally be assigned to a Conversation Node (as
- *   defined on the convKeys property) to decide whether a conversation is
- *   allowed to end while it's at this node. There's no need to define one of
- *   these objects for a conversation node if you're happy for the conversation
- *   to be ended during it under all circumstances.
+ *   defined on the convKeys property, or through being located in a ConvNode
+ *   object) to decide whether a conversation is allowed to end while it's at
+ *   this node. There's no need to define one of these objects for a
+ *   conversation node if you're happy for the conversation to be ended during
+ *   it under all circumstances.
  */
 
 class NodeEndCheck: InitiateTopic
@@ -2776,7 +3937,11 @@ class NodeEndCheck: InitiateTopic
     
     /* 
      *   Particular instances must override this property to stipulate which
-     *   keys we're active for.
+     *   keys we're active for, unless this NodeEndCheck is located within a
+     *   ConvNode object which will take care of this for us. Note that instead
+     *   of locating a NodeEndCheck in a particular ConvNode, you can specify
+     *   the convKeys for a number of ConvNodes here, and this NodeEndCheck will
+     *   then apply to them all.
      */
     convKeys = nil
     
@@ -2786,8 +3951,7 @@ class NodeEndCheck: InitiateTopic
      *   instances should override to return nil when the conversation should
      *   not be permitted to end. When the method returns nil it should also
      *   display a message saying why the conversation may not be ended.
-     */
-    
+     */    
     canEndConversation(reason)
     {
         return true;
@@ -2796,8 +3960,7 @@ class NodeEndCheck: InitiateTopic
     /* 
      *   Do nothing here; this class only exists for the sake of its
      *   canEndConversation() method.
-     */
-    
+     */    
     handleTopic() { }
     
     /* 
@@ -2807,37 +3970,74 @@ class NodeEndCheck: InitiateTopic
      *   return blockEndConv;
      *
      *   in the canEndConversation method to suppress the output of any
-     *   NodeContinuationTopic on this turn.
-     */
+     *   NodeContinuationTopic on this turn.     */
     
     blockEndConv()
     {
+        /* Note that the actor has conversed on this turn */
         getActor.noteConversed();
+        
+        /* 
+         *   Return nil to signal that we're not allowing the conversation to
+         *   end.
+         */
         return nil;
     }
     
 ;
 
+/* Singleton object to allow initiateTopic to trigger a NodeContinuationTopic */
 nodeObj: object;
+
+/* Singleton object to allow initiateTopic to trigger a NodeEndCheck */
 nodeEndCheckObj: object;
+
+/* 
+ *   Singleton object used to trigger a YesTopic; we must make it familiar so
+ *   that YesTopics can be listed as suggested topics.
+ */
 yesTopicObj: object familiar = true;
+
+/* Singleton object used to trigger a NoTopic */
 noTopicObj: object familiar = true;
 
+
+/* 
+ *   Preinitialize all the Actors in the game and the objects associated with
+ *   them.
+ */
 actorPreinit:PreinitObject
     execute()
     {       
+        /* Initialize every ActorState defined in the game */
         forEachInstance(ActorState, {a: a.initializeActorState() } );
         
+        /* Initialize every ActorTopicEntry definined in the game */
         forEachInstance(ActorTopicEntry, {a: a.initializeTopicEntry() });
         
+        /* 
+         *   Set up a new Daemon in the game to run our eachTurn method each
+         *   turn
+         */
         local actorDaemon = new Daemon(self, &eachTurn, 1);
+        
+        /*   Give the actorDaemon a relatively late running order */
         actorDaemon.eventOrder = 300;
     }
     
+    /* 
+     *   Make use that various other preinitializations presupposed by our own
+     *   have been carried out before ours
+     */
     execBeforeMe = [World, libObjectInitializer, pronounPreinit]
 
+    /* 
+     *   Our eachTurn method is called every turn by the Daemon set up in out
+     *   preinitialization
+     */
     eachTurn()
     {
+        /* Call the takeTurn() method on every Actor in the game */
         forEachInstance(Actor, {a: a.takeTurn() });
     }
     
@@ -2848,24 +4048,65 @@ actorPreinit:PreinitObject
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Conversation manager output filter.  We look for special tags in the
- *   output stream:
- *   
- *   <.reveal key> - add 'key' to the knowledge token lookup table.  The
+ *   Conversation manager output filter.  We look for special tags in the output
+ *   stream:
+ *
+ *   <.reveal key> - add 'key' to the knowledge token lookup table.  The 'key'
+ *   is an arbitrary string, which we can look up in the table to determine if
+ *   the key has even been revealed.  This can be used to make a response
+ *   conditional on another response having been displayed, because the key will
+ *   only be added to the table when the text containing the <.reveal key>
+ *   sequence is displayed.
+ *
+ *   <.inform key> - add 'key' to our actor's knowledge token lookup take. The
  *   'key' is an arbitrary string, which we can look up in the table to
- *   determine if the key has even been revealed.  This can be used to make
- *   a response conditional on another response having been displayed,
- *   because the key will only be added to the table when the text
- *   containing the <.reveal key> sequence is displayed.
- *   
- *   <.activate name> - add 'name' to the current list of convKeys (this 
- *   actually adds it to the actor's pendingKeys for use on the next turn)'.  
- *   
- *   <.convstay> - retain the same list of active keys for the next 
- *   conversational response
- *   
- *   <.topics> - schedule a topic inventory for the end of the turn (just
- *   before the next command prompt) 
+ *   determine if the actor has ever been informed about this key.  This can be
+ *   used to make a response conditional on another response having been
+ *   displayed, because the key will only be added to the information table when
+ *   the text containing the <.inform key> sequence is displayed.
+ *
+ *   <.convnode name> - add 'name' to the current list of convKeys (this
+ *   actually adds it to the actor's pendingKeys for use on the next turn); this
+ *   is normally used to trigger a Conversation Node that's defined to match the
+ *   same name.
+ *
+ *   <.convodet name> does the same as <.convnode name> and additionally
+ *   schedules a topic inventory (a listing of suggested topics); this can be
+ *   used to ensure that the player knows what conversational options are
+ *   available in the node we're about to enter, where this isn't obvious from
+ *   the context.
+ *
+ *   <.convstay> - retain the same list of active keys for the next
+ *   conversational response (and thus has the effect of making the conversation
+ *   remain in the same conversation node).
+ *
+ *   <.convstayt> - does the same as <.convstay> but additionally schedules a
+ *   topic inventory.
+ *
+ *   <.topics> - schedule a topic inventory for the end of the turn (just before
+ *   the next command prompt)
+ *
+ *   <.arouse key> Set the curiosityAroused property to true for all
+ *   TopicEntries whose convKeys include key
+ *
+ *   <.suggest key> Schedule a topic inventory for all topic entries whose
+ *   convKeys include key.
+ *
+ *   <.sugkey key> Set our actor's suggestionKey to key (this potentially
+ *   restricts the list of topics that will be suggested)
+ *
+ *   <.activate key> Set the activated property to true for every topic entry
+ *   whose convKeys list includes key.
+ *
+ *   <.agenda item> Add item to the agenda list of our Actor and any associated
+ *   DefaultAgendaTopics.
+ *
+ *   <.remove item> Remove item from the agenda list of our Actor and any
+ *   associated DefaultAgendaTopics.
+ *
+ *   <.state newstate> Change our actor's current ActorState to newstate.
+ *
+ *   <.known obj> Mark obj (a Thing or Topic) as now being known (i.e. familiar)
  */
 conversationManager: OutputFilter, PreinitObject
     /*
@@ -2888,6 +4129,10 @@ conversationManager: OutputFilter, PreinitObject
     customTags = nil
     doCustomTag(tag, arg) { /* do nothing by default */ }
 
+    /* 
+     *   The actor we're dealing with is the player character's current
+     *   interlocutor
+     */
     respondingActor = (gPlayerChar.currentInterlocutor)
     
     /* filter text written to the output stream */
@@ -2974,8 +4219,7 @@ conversationManager: OutputFilter, PreinitObject
                  *   if there's a current responding actor, add the key to its
                  *   list of pending keys (for use on the next conversational
                  *   turn).
-                 */
-                
+                 */                
                 if(respondingActor != nil)
                 {
                     /* 
@@ -2997,12 +4241,11 @@ conversationManager: OutputFilter, PreinitObject
                  *   We deliberatelty don't put a BREAK; statement here since we
                  *   need to fall through the convstay behaviour to ensure that
                  *   our keys aren't obliterated as soon as they're set.
-                 */
-                
+                 */                
             case 'convstay':
             case 'convstayt':    
                 /* 
-                 *   leave the responding actor in the old conversation
+                 *   Leave the responding actor in the old conversation
                  *   node - we don't need to change the ConvNode, but we do
                  *   need to note that we've explicitly set it 
                  */
@@ -3010,12 +4253,11 @@ conversationManager: OutputFilter, PreinitObject
                     respondingActor.keepPendingKeys = true;
                
                 /* 
-                 *   if the tag was 'convnode' we didn't ask for a topic
+                 *   If the tag was 'convnode' we didn't ask for a topic
                  *   inventory, so we need to avoid falling through. If the tag
                  *   was 'convnodet' or 'convstayt' we want a topic inventory
                  *   too, so we fall through to the 'topics' tag.
-                 */
-                
+                 */                
                 if(tag is in ('convnodet', 'convstayt') 
                    && respondingActor != nil)                    
                     scheduleTopicInventory(respondingActor.pendingKeys);
@@ -3029,6 +4271,7 @@ conversationManager: OutputFilter, PreinitObject
                                            respondingActor.suggestionKey
                                            : respondingActor.pendingKeys);
                 break;
+                
             case 'arouse':
                 /* 
                  *   make the curiosityAroused property true for Topic Entries
@@ -3038,14 +4281,20 @@ conversationManager: OutputFilter, PreinitObject
                     respondingActor.arouse(arg);
                 
                 break;
+                
             case 'suggest':
                  /* translate the string 'nil' to an actual nil */
                 if(arg == 'nil')
                     arg = nil;
                 
+                /* 
+                 *   If we have a responding actor, schedule a topic inventory
+                 *   for topic entries that match arg
+                 */
                 if (respondingActor != nil)
                     scheduleTopicInventory(arg);
                 break;
+                
             case 'sugkey':
                 /* translate the string 'nil' to an actual nil */
                 if(arg == 'nil')
@@ -3054,6 +4303,7 @@ conversationManager: OutputFilter, PreinitObject
                 if (respondingActor != nil)
                     respondingActor.suggestionKey = arg;
                 break;    
+                
             case 'activate':
                 /* 
                  *   Set the activated property to true for all Topic Entries
@@ -3065,55 +4315,113 @@ conversationManager: OutputFilter, PreinitObject
                 
             case 'agenda':
                 /* add an agenda item to all relevant objects */
+                
+                /* 
+                 *   Obtain the object corresponding to arg (a string value)
+                 *   from our object name table
+                 */
                 obj = objNameTab[arg];
                 
+                /* 
+                 *   If the object we're trying to add to an agenda list isn't
+                 *   an AgendaItem belonging to our respondingActor, display an
+                 *   error message.
+                 */
                 if(obj == nil || !obj.ofKind(AgendaItem) || 
                    obj.getActor != respondingActor)
                 {
                     showAgendaError(tag, arg);
                 }
                 else
+                    /* 
+                     *   Otherwise add the AgendaItem obj to our
+                     *   respondingActor's agendaList and that of any associated
+                     *   DefaultAgendaTopics
+                     */
                     respondingActor.addToAllAgendas(obj);
                 break;
                 
             case 'remove':
                 /* remove an agenda item from all relevant objects */
                 
+                /* 
+                 *   Obtain the object corresponding to arg (a string value)
+                 *   from our object name table
+                 */
                 obj = objNameTab[arg];
                 
+                /* 
+                 *   If the object we're trying to add to an agenda list isn't
+                 *   an AgendaItem belonging to our respondingActor, display an
+                 *   error message.
+                 */
                 if(obj == nil || !obj.ofKind(AgendaItem) || 
                    obj.getActor != respondingActor)
                 {
                     showAgendaError(tag, arg);
                 }
                 else
+                    /* 
+                     *   Otherwise remove the AgendaItem obj from our
+                     *   respondingActor's agendaList and that of any associated
+                     *   DefaultAgendaTopics
+                     */
                     respondingActor.removeFromAllAgendas(obj);
                 break;
+                
             case 'state':
                 /* change ActorState */
                 
+                /* 
+                 *   Obtain the object corresponding to arg (a string value)
+                 *   from our object name table
+                 */
                 obj = objNameTab[arg];
+                
+                /* Convert a string 'nil' to an actual nil */
                 if(arg == 'nil')
                     obj = nil;                
+                
+                /* 
+                 *   Otherwise if the object we're trying to add to an agenda
+                 *   list isn't an ActorState belonging to our respondingActor,
+                 *   display an error message.
+                 */
                 else if(obj == nil || !obj.ofKind(ActorState) || 
                    obj.getActor != respondingActor)
                 {
                     showStateError(tag, arg);
                 }
                 else
+                    /* 
+                     *   Otherwise set our respondingActor's ActorState to the
+                     *   new state requested (obj).
+                     */
                     respondingActor.setState(obj);
                 break;
             
             case 'known':
                 /* mark as item as known. */
                 
+                /* 
+                 *   Obtain the object corresponding to arg (a string value)
+                 *   from our object name table
+                 */
                 obj = objNameTab[arg];
                              
+                /* 
+                 *   If the obj doesn't exist, or it isn't a Mentionable,
+                 *   display an error message
+                 */
                 if(obj == nil || !obj.ofKind(Mentionable))
                 {
                     showKnownError(tag, arg);
                 }
                 else
+                    /* 
+                     *   Otherwise mark obj as known about by the player
+                     *   character
+                     */
                    gPlayerChar.setKnowsAbout(obj);
                 break;
                 
@@ -3183,18 +4491,17 @@ conversationManager: OutputFilter, PreinitObject
      */
     setRevealed(tag)
     {
+        /* Note that our tag has been revealed */
         libGlobal.setRevealed(tag);
         
         /* 
-         *   if something has just been revealed to us, it has also just been
+         *   If something has just been revealed to us, it has also just been
          *   revealed to every other actor in the vicinity who could overhear
          *   the conversation (including the actor who has just spoken, if there
          *   is one; if there isn't then the revealed tag is presumably being
          *   used for a non-conversational purpose, so we don't try to inform
          *   any other actors).
-         */
-        
-        
+         */                
         if(respondingActor != nil)
         {
             forEachInstance(Actor, new function(a) {
@@ -3216,7 +4523,12 @@ conversationManager: OutputFilter, PreinitObject
         } );
     }
     
-    
+    /* 
+     *   Display an error message if the game code tries to add or remove agenda
+     *   items from an agendaList using a <.agenda item> or <.remove item> tag,
+     *   when item doesn't correspond to a valid AgendaItem, but only do so if
+     *   the game has been compiled for debugging.
+     */
     showAgendaError(tag, arg)
     {
 #ifdef __DEBUG
@@ -3229,10 +4541,16 @@ conversationManager: OutputFilter, PreinitObject
             showObjDoesNotBelongToActorError(tag, arg, 'Agenda Item');
         
         
-#endif
-        
+#endif        
     }
     
+    
+    /* 
+     *   Display an error message if the game code tries to change our actor's
+     *   ActorState via a <.state newstate> tag, when tag doesn't correspond to
+     *   a valid ActorState, but only do so if the game has been compiled for
+     *   debugging.
+     */
     showStateError(tag, arg)
     {
         #ifdef __DEBUG
@@ -3247,6 +4565,12 @@ conversationManager: OutputFilter, PreinitObject
         #endif
     }
 
+    /* 
+     *   Display an error message if the game code tries mark an object as known
+     *   about using a <.known obj> tag, when obj doesn't correspond to a valid
+     *   Mentionable object, but only do so if the game has been compiled for
+     *   debugging.
+     */
     showKnownError(tag, arg)
     {
          #ifdef __DEBUG
@@ -3259,21 +4583,28 @@ conversationManager: OutputFilter, PreinitObject
 #endif
     }
     
+    /* 
+     *   Various supporting routines for displaying error messages that are only
+     *   needed if the game has been compiled for debugging
+     */
+    
  #ifdef __DEBUG   
+    /* The object referred to by tag doesn't exist */
     showObjNotExistError(tag, arg, typ)
     {
         "<<typ>> <<arg>> for (actor = <<respondingActor.name>> was not added to
         conversationManager.objNameTab or does not exist. Check that you have
-        spelled the <<typ>> <<arg>> name correctly or try adding a dummy
-        (unused) topic entry that uses &lt;.<<tag>> <<arg>>&gt;. ";
+        spelled the <<typ>> <<arg>> name correctly. ";
     }
     
+    /* The object referred to by tag is the wrong sort of object */
     showWrongKindofObjectError(tag, arg, typ)
     {
         "<tag> is not <<typ>> so can't be used in a <<tag>> tag (see
         TopicEntries for <<respondingActor.theName>> ";
     }
     
+    /* The object referred to by tag doesn't belong to the actor in question */
     showObjDoesNotBelongToActorError(tag, arg, typ)
     {
         "<<typ>> <<tag>> does not belong to
@@ -3288,11 +4619,11 @@ conversationManager: OutputFilter, PreinitObject
     execute()
     {
         
-        /*  Add ourselves to the list of output filters. */
-        
+        /*  Add ourselves to the list of output filters. */        
         mainOutputStream.addOutputFilter(self);
+        
         /* 
-         *   set up the prompt daemon that makes automatic topic inventory
+         *   Set up the prompt daemon that makes automatic topic inventory
          *   suggestions when appropriate 
          */
         new PromptDaemon(self, &topicInventoryDaemon);
@@ -3337,25 +4668,28 @@ conversationManager: OutputFilter, PreinitObject
 
 /* 
  *   Base class for items (Actors and DefaultAgendaTopics) that can handle
- *   AgendaItems
- */
+ *   AgendaItems */
 
 class AgendaManager: object
+    
+    /* 
+     *   Our agendaList is the list of AgendaItems we're ready to execute when
+     *   they're isReady property is true.
+     */
     agendaList = nil
     
     /* 
      *   add an agenda item. We try to make this as author-proof as possible so
      *   that the method will accept addToAgenda(item), addToAgenda(item1,
      *   item2, ...) or addToAgenda([item1, item2,..])
-     */
-     
+     */     
     addToAgenda([lst])
     {
         /* if we don't have an agenda list yet, create one */
         if (agendaList == nil)
             agendaList = new Vector(10);
         
-        /* add the item or items */
+        /* add the item or items. */
         foreach(local val in lst)
         {    
             foreach(local cur in valToList(val))
@@ -3368,13 +4702,11 @@ class AgendaManager: object
         }
         
         /* 
-         *   keep the list in ascending order of agendaOrder values - this will
+         *   Keep the list in ascending order of agendaOrder values - this will
          *   ensure that we'll always choose the earliest item that's ready to
          *   run
          */
-        agendaList.sort(SortAsc, {a, b: a.agendaOrder - b.agendaOrder});
-
-       
+        agendaList.sort(SortAsc, {a, b: a.agendaOrder - b.agendaOrder});       
     }
 
     /* remove one or more agenda items */
@@ -3461,9 +4793,7 @@ class AgendaManager: object
             /* tell the caller we found no agenda item */
             return nil;
         }
-    }
-    
-    
+    }    
 ;
 
 
@@ -3551,7 +4881,10 @@ class AgendaItem: object
      */
     invokeItemBase(caller)
     {
+        /* Note what object we were called from */
         calledBy = caller;
+        
+        /* Then carry out our invokeItem() method */
         invokeItem();
     }
     
@@ -3559,18 +4892,18 @@ class AgendaItem: object
      *   invokeItem can test the invokedByActor property to decide whether what
      *   the actor says should be a conversational gambit started on the actor's
      *   own initiative or as a (default) response to something the pc has just
-     *   tried to say.
-     */
+     *   tried to say.     */
     
     invokedByActor = (calledBy == getActor)
     
+    /* The object from whose agendaList this AgendaItem was invoked */
     calledBy = nil
+    
     /*
      *   Execute this item.  This is invoked during the actor's turn when the
      *   item is the first item that's ready to execute in the actor's agenda
      *   list.  We do nothing by default.
-     *
-    
+     *    
      */
     invokeItem() { }
 
@@ -3591,6 +4924,12 @@ class AgendaItem: object
     /* An optional tag, specified as a single-quoted string. */    
     name = nil
     
+    /* 
+     *   A convenience method that can be used from within our invokeItem to
+     *   display some text only if the player character can see us (or, if the
+     *   optional second parameter is supplied, sense us through some other
+     *   sense, e.g. &canHear or &canSmell).
+     */
     report(msg, prop=&canSee) { senseSay(msg, getActor, prop); }
 ;
 
@@ -3613,6 +4952,7 @@ class ConvAgendaItem: AgendaItem
      */
     otherActor = (gPlayerChar)
     
+    /* There's more work to do on a ConvAgendaItem when it's invoked */
     invokeItemBase(caller)
     {
         /* 
@@ -3620,20 +4960,47 @@ class ConvAgendaItem: AgendaItem
          *   (normally gPlayerChar) and attempt an actor greeting, if one has
          *   been defined. It's useful to do this here since a ConvAgendaItem
          *   might very well initiate a conversation.
-         */
-        
+         */        
         local actor = getActor();
         
+        /* Set a flag to show why this ConvAgendaItem has just been invoked */
         if(otherActor == gPlayerChar)                    
         {
+            /* 
+             *   If our actor is not already the player character's current
+             *   interlocutor, then we've been invoked to start a new
+             *   conversation
+             */
             if(gPlayerChar.currentInterlocutor != actor)
-                reasonInvoked = 1;
-            else if(caller == actor)
-                reasonInvoked = 2;
-            else
-                reasonInvoked = 3;
+                reasonInvoked = InitiateConversationReason;
             
+            /*  
+             *   Otherwise if we've been invoked from the actor object, note
+             *   that we've been invoked from our actor's agendaList during a
+             *   lull in the conversation.
+             */
+            else if(caller == actor)
+                reasonInvoked = ConversationLullReason;
+            
+            /*  
+             *   Otherwise note that we've been invoked from a
+             *   DefaultAgendaTopic
+             */
+            else
+                reasonInvoked = DefaultTopicReason;
+            
+            /* 
+             *   Give the actor the chance to say hello, and note whether this
+             *   resulted in any greeting being displayed. Note that
+             *   Actor.actorSayHello() won't actually attempt to do anything if
+             *   a conversation is already in progress.
+             */
             greetingDisplayed = actor.actorSayHello();    
+            
+            /* 
+             *   Note that our actor has conversed with the player character on
+             *   this turn.
+             */
             actor.noteConversed();
         }
         else
@@ -3648,10 +5015,13 @@ class ConvAgendaItem: AgendaItem
          *   handleTopic method, it won't have moved any pendingKeys into the
          *   activeKeys, so we need to do that now. At the same time we need to
          *   tell the actor not to keep the pending keys beyond the next
-         *   conversational turn.
+         *   conversational turn. But we don't need to do any of this if we've
+         *   been invoked from a DefaultAgendaTopic, since in that case we're
+         *   being invoked as part of a conversational turn, which will handle
+         *   the pending and active keys in any case.
          */
         
-        if(reasonInvoked < 3)
+        if(reasonInvoked != DefaultTopicReason)
         {
             actor.activeKeys = actor.pendingKeys;        
             actor.keepPendingKeys = nil;
@@ -3661,17 +5031,15 @@ class ConvAgendaItem: AgendaItem
     /* 
      *   Flag; did invoking this item result in the display of a greeting (from
      *   an ActorHelloTopic)?
-     */
-    
+     */    
     greetingDisplayed = nil
     
     /* 
      *   Why was this ConvAgenda Item invoked?
-     *.    1 = Actor initiating new conversation
-     *.    2 = Actor using lull in conversation
-     *.    3 = Actor responding DefaultAgendaTopic
-     */
-            
+     *.    1 = InitiateConversationReason = Actor initiating new conversation
+     *.    2 = ConversationLullReason = Actor using lull in conversation
+     *.    3 = DefaultTopicReason = Actor responding to DefaultAgendaTopic
+     */            
     reasonInvoked = 0
     
 ;
@@ -3767,8 +5135,7 @@ class BoredomAgendaItem: AgendaItem
  *   An AgendaItem that can be used to trigger actor travel when the actor is
  *   waiting for the player character to follow him/her/it.
  */
-class FollowAgendaItem: AgendaItem
-    
+class FollowAgendaItem: AgendaItem    
     
     invokeItem()
     {
@@ -3810,6 +5177,10 @@ class FollowAgendaItem: AgendaItem
             isDone == (nextConnNum >= connectorList.length);
         }
         
+        /* 
+         *   Otherwise display a message to say that our actor is waiting for
+         *   the player character to follow him/her.
+         */
         else
             sayWaiting(conn);
     }
@@ -3890,7 +5261,6 @@ PreinitObject
  *   Create and store a table of string representation of object names that
  *   might be needed in conversation tags.
  */
-
 objTablePreinit: PreinitObject
     execute()
     {
@@ -3910,125 +5280,24 @@ objTablePreinit: PreinitObject
 
 
 
- /* 
-  *   The problem with the smart quotes <q> </q> is that if one is missing, 
-  *   or a spurious one is added, the error is perpetrated throughout the 
-  *   rest of the game (or until a compensating error is located). The 
-  *   purpose of quoteFilter is (a) to report such errors (to make them 
-  *   easier to fix) and (b) to prevent them being propagated beyond a 
-  *   single turn. In the main this works by having quoteFilter take over 
-  *   responsibility for turning the <q> and </q> tags into the appropriate 
-  *   HTML entities rather than leaving it to the HTML rendering engine in 
-  *   the interpreter. The quoteFilter OutputFilter keeps its own track of 
-  *   whether a double quote or a single quote is rquired next, and resets 
-  *   this count at the start of each turn.
-  */
-
-
-quoteFilter: OutputFilter, InitObject
-    filterText(ostr, txt) 
-    { 
-        local quoteRes, quoteStr;
-        do
-        {
-            quoteRes = rexSearch(quotePat, txt);
-            if(quoteRes)
-            {   
-                quoteStr = quoteRes[3];
-                if(quoteStr.toLower() == '<q>')
-                {
-                    txt = txt.findReplace(quoteStr, quoteCount % 2 == 0 
-                                          ? '&ldquo;' : '&lsquo;', ReplaceOnce);
-                   quoteCount ++;                
-                }
-                else
-                {
-                    
-                    txt = txt.findReplace(quoteStr, quoteCount % 2 == 1 
-                                          ? '&rdquo;' : '&rsquo;', ReplaceOnce);
-                    quoteCount --;                   
-                    
-                }
-            }      
-                
-                
-        } while(quoteRes);
-
-        return txt; 
-    }
-    
-    quoteCount = 0 
-    
-    quotePat = static new RexPattern('<NoCase><langle>(q|/q)<rangle>')
-    
-    
-    
-    execute()
-    {
-        mainOutputStream.addOutputFilter(self);
-        
-        if(showWarnings)
-            new PromptDaemon(self, &quoteCheck);
-       
-    }
-    
-    /* 
-     *   Should I show a warning when I find unmatched smart quotes over the 
-     *   course of a turn? Displaying such a warning would probably look 
-     *   intrusive in a released version, but might well be useful in a 
-     *   version sent out to beta-testers (so it shouldn't be tied to a 
-     *   version compiled for debugging). The showWarnings flag thus allows 
-     *   the warning messages to be turned on and off as desired.
-     */
-    
-    showWarnings = true
-    
-    /* 
-     *   The PromptDaemon set up in our execute() method at Initialization 
-     *   runs this method at the end of each turn. It checks to see if the 
-     *   number of opening smart quotes over the course of the turn just 
-     *   completed is the same as the number of closing smart quotes, and 
-     *   optionally prints a warning message if it is not.
-     */
-    
-    
-    quoteCheck()
-    {
-        if(quoteFilter.quoteCount != 0 && showWarnings)
-            "<FONT COLOR=RED><b>WARNING!!</b></FONT> Unmatched quotes on
-            this turn; quoteCount = <<quoteCount>>. ";      
-        
-        /* 
-         *   In any case we want to zeroize the quoteCount at the start of 
-         *   each turn so that the first smart quote we encounter on the 
-         *   turn will display correctly no matter what went before.
-         */
-        quoteCount = 0;
-    }
-    
-;
-
 
 /* 
  *   A special lister to display a topic inventory list from a list of topics
  *   provided in the lst parameter.
  */
-
 suggestedTopicLister: object
     show(lst, explicit = true)
     {
         /* 
          *   first exclude all items that don't have a name property, since
          *   there won't be anything to show.
-         */
-        
+         */        
         lst = lst.subset({x: x.name != nil && x.name.length > 0});
         
         /* 
          *   if the list is empty there's nothing for us to say, so say so and
          *   finish
-         */
-        
+         */        
         if(lst.length == 0)
         {
             if(explicit)
@@ -4040,140 +5309,303 @@ suggestedTopicLister: object
         }
         
         
-        /* next we need to divide the list according to category */   
-        
-        
         /* 
-         *   Go through the list assigning each topic entry to the user
-         *   specified type, where the user has specified it.
+         *   Next we need to divide the list according to category
+         *
+         *
+         *
+         *   First we go through the list of suggestion types assigning each
+         *   topic entry to the user specified type where the user has specified
+         *   that it should be suggested at a specific type of Topic Entry (as
+         *   opposed to the library default).
          */
         
         foreach(local cur in typeInfo)
         {
+            /* 
+             *   For each item in our typeInfo list (for which see below),
+             *   extract that subset of topic entries from our main list for
+             *   which the suggestAs property matches the suggestAs property in
+             *   cur (which is the third element of cur). Set the corresponding
+             *   list on this lister object (for which we obtain a property
+             *   pointer from the first element of cur) to be that subset.
+             */
             self.(cur[1]) = lst.subset({t: t.suggestAs == cur[3]});
+            
+            /* 
+             *   Then remove the subset we've just identified from the list of
+             *   topic entries to be processed, since we've just accounted for
+             *   them
+             */
             lst -= self.(cur[1]);
         }
         
         /* 
-         *   then go through every remaining item in our main list, assigning it
+         *   Then go through every remaining item in our main list, assigning it
          *   to a sublist on the basis of which type of topic entry it is, which
-         *   we'll determine on the basis of its includeInList.
-         */
-        
+         *   we'll determine on the basis of the property pointers in its
+         *   includeInList.
+         */        
         foreach(local cur in typeInfo)
         {
+            /* 
+             *   For each entry in our typeInfo list, find that subset of our
+             *   list of topic entries that corresponds to the typeInfo. A topic
+             *   entry will correspond to the cur typeInfo if the second element
+             *   of cur (a property pointer such as &askTopics) can be found in
+             *   the includeInList of the topic entry, which we can test with
+             *   our includes method (defined below). Add the subset thus
+             *   created to the list contained in the property defined by the
+             *   property pointer held in the first element of cur (e.g.
+             *   &sayList), which will be a property of this lister object.
+             */
             self.(cur[1]) += lst.subset({t: includes(t, cur[2])});
+            
+            /* 
+             *   Remove the sublist we've just created from our overall list of
+             *   topic entries, since it's now accounted for.
+             */
             lst -= self.(cur[1]);
         }
       
         
-        /* Introduce the list */
+        /* 
+         *   Introduce the list. If it wasn't explicitly requested start by
+         *   outputting a paragraph break and an opening parenthesis. 
+         */
         if(!explicit)
             "<.p>(";
         
+        /* 
+         *   Then introduce the list of suggestions with the appropriate form of
+         *   'You could' (suitably adjusted for the person of the player
+         *   character and the tense of the narrative)
+         */
         DMsg(suggestion list intro, '{I} could ');
         
+        /* Note that we haven't listed any items yet */
         local listStarted = nil;
+        
+        /* 
+         *   Note that the actor we're listing suggestions for is the player
+         *   character's current interlocutor.
+         */
         local interlocutor = gPlayerChar.currentInterlocutor;
+        
+        /* Create a message parameter substitution for the interlocutor */
         gMessageParams(interlocutor);
         
+        
+        /* 
+         *   We then output our list of suggestions category by category
+         *
+         *   We start with suggested SayTopics, if there are any to display.
+         */        
         if(sayList.length > 0)
         {
+            /* List our suggested SayTopics */
             showList(sayList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested QueryTopics, if we have any */
         if(queryList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of QueryTopics */
             DMsg(ask query, 'ask {him interlocutor} ');
+            
+            /* Show the list of suggested QueryTopics */
             showList(queryList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;                
         }
         
+        /* Next list our suggested AskTopics, if we have any */
         if(askList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of AskTopics */
             DMsg(ask about, 'ask {him interlocutor} about ');
+            
+            /* Show the list of suggested AskTopics */
             showList(askList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested TellTopics, if we have any */
         if(tellList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */            
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of AskTopics */
             DMsg(tell about, 'tell {him interlocutor} about ');
+
+            /* Show the list of suggested TellTopics */
             showList(tellList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested TalkTopics, if we have any */
         if(talkList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of TalkTopics */
             DMsg(talk about, 'talk about ');
+            
+            /* Show the list of suggested TalkTopics */
             showList(talkList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested GiveTopics, if we have any */
         if(giveList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+
+            /* Output an introduction to our list of GiveTopics */
             DMsg(give, 'give {him interlocutor} ');
+            
+            /* Show the list of suggested GiveTopics */
             showList(giveList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested ShowTopics, if we have any */
         if(showToList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of ShowTopics */
             DMsg(show, 'show {him interlocutor} ');
+            
+            /* Show the list of suggested ShowTopics */
             showList(showToList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
+        /* Next list our suggested AskForTopics, if we have any */
         if(askForList.length > 0)
         {
+             /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of AskForTopics */
             DMsg(ask for, 'ask {him interlocutor} for ');
+            
+            /* Show the list of suggested AskForTopics */
             showList(askForList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true; 
         }
         
         if(yesList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
             
+            /* Show our list of YesTopics (typically, just 'say yes') */
             showList(yesList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
         if(noList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
             
+            /* Show our list of NoTopics (typically, just 'say no') */
             showList(noList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true;
         }
         
         if(commandList.length > 0)
         {
+            /* 
+             *   If we've already listed some suggestions, output a list
+             *   separator before starting the next group.
+             */
             if(listStarted)
                 say(orListSep);
+            
+            /* Output an introduction to our list of CommandTopics */
             DMsg(ask for, 'tell {him interlocutor} to ');
-            showList(askForList);
+            
+            /* Show the list of suggested CommandTopics */
+            showList(commandList);
+            
+            /* Note that we have now started listing topics */
             listStarted = true; 
         }
         
-        /* finish the list. */
+        /* 
+         *   Finish the list. If it was explicitly requested we finish it with a
+         *   full stop and a newline, otherwise we finish it with a closing
+         *   parenthesis and a newline.
+         */
         if(explicit)
             ".\n";
         else
@@ -4181,13 +5613,25 @@ suggestedTopicLister: object
         
     }
     
+    /* Show one of our sublists of particular kinds of suggest topics */
     showList(lst)
     {
+        /* For each element in the list */
         for(local cur in lst, local i = 1 ;; ++i)
         {
+            /* 
+             *   If the current topic entry wants to include a sayPrefix,
+             *   displat the sayPrefix. In practice this only applies to
+             *   SayTopics which may or may not want to introduce the name of a
+             *   suggestion with 'say'.
+             */
             if(cur.includeSayInName)
                 say(sayPrefix);
+            
+            /* Display the name of the current suggestion */
             say(cur.name);
+            
+            /* Output a comma or 'or', depending where we are in the list */
             if(i == lst.length - 1)
                 DMsg(or, ' or ');
             if(i < lst.length - 1)
@@ -4196,6 +5640,16 @@ suggestedTopicLister: object
         }
     }
     
+    /* 
+     *   The typeInfo contains a list of lists that are used by the show method
+     *   to build our various sublists. The first element of each list is a
+     *   pointer to the list property to use on this lister object to hold the
+     *   particular sublist. The second element of each list is a property
+     *   pointer used to identify which sublist a TopicEntry belongs in,
+     *   according to its own includeInList property. The third element is the
+     *   type of topic entry a topic entry should be suggested as if it is
+     *   explicitly requested in its suggestAs property.
+     */
     typeInfo = [
         [&sayList, &sayTopics, SayTopic],
         [&queryList, &queryTopics, QueryTopic],
@@ -4211,6 +5665,7 @@ suggestedTopicLister: object
         
     ]
     
+    /* Sublists of each kind of suggestion which can be listed in turn */
     sayList = []
     queryList = []
     askList = []
@@ -4221,21 +5676,24 @@ suggestedTopicLister: object
     yesList = []
     noList = []
     askForList = []
-    commandList = []
+    commandList = []    
     
-    doneList = nil
     
     /* 
-     *   Test whether the topicEntry t includes prop in its includeInList and
-     *   hasn't already been included in a previous list.
-     */
-    
+     *   Test whether the topicEntry t includes prop in its includeInList.
+     */    
     includes(t, prop)
     {
         return t.includeInList.indexOf(prop) != nil;
     }
     
+    /* 
+     *   The prefix to use when suggesting a SayTopic, if it explicitly wants
+     *   the suggestion to start with 'say'.
+     */
     sayPrefix = BMsg(say prefix, 'say ')
+    
+    /*  The conjunction to use at the end of a list of alternatives */
     orListSep = BMsg(or list separator, '; or ')
 
 ;

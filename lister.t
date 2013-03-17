@@ -1,5 +1,16 @@
 #include "advlite.h"
 
+
+/*
+ *   ***************************************************************************
+ *   lister.t
+ *
+ *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, and is
+ *   substantially borrowed from the Mercury library (c) 2012 Michael J.
+ *   Roberts.
+ */
+
+
 /*
  *   Lister is the class that displays lists of objects.  This is used in
  *   room descriptions, inventory lists, and EXAMINE descriptions of
@@ -19,6 +30,10 @@ class Lister: object
      *   Show a list of objects.  'lst' is the list of objects to show;
      *   'paraCnt' is the number of paragraph-style descriptions that we've
      *   already shown as part of this description.
+     *
+     *   Note that many specifio listers replaced the 'paraCnt' parameter with a
+     *   more useful 'parent' parameter, containing the identity of the object
+     *   whose contents are being listed.
      */
     show(lst, paraCnt, paraBrk = true)
     {
@@ -37,11 +52,13 @@ class Lister: object
              */
             local pl = (lst.length() > 1 || lst[1].plural);
             
+            /* Show the list prefix */
             showListPrefix(lst, pl, paraCnt);
             
             /* show the items */
             showList(lst, pl, paraCnt);
             
+            /* Show the list suffix. */
             showListSuffix(lst, pl, paraCnt);
             
             /* add a paragraph break at the end, if it's requested */
@@ -175,12 +192,25 @@ class Lister: object
     
 ;
 
-/* An Item Lister is a lister used for listing physical items. */
-
+/* 
+ *   An Item Lister is a lister used for listing physical items. Notice that
+ *   most of the specifics of the listers defined below are language-specific,
+ *   and so are defined in the language-specific part of the library (e.g. in
+ *   english.t).
+ */
 class ItemLister: Lister
+    
+    /*
+     *   Show a list of objects.  'lst' is the list of objects to show; 'parent'
+     *   parameter is the object whose contents are being listed, 'paraBrk'
+     *   defines whether or not we want a paragraph break after the list.
+     */
     show(lst, parent, paraBrk = true)
     {
+        /* Carry out the inherited handling */
         inherited(lst, parent, paraBrk);
+        
+        /* Note that every item in our list has been mentioned and seen */
         foreach(local cur in lst)
         {
             cur.mentioned = true;
@@ -205,7 +235,10 @@ lookLister: ItemLister
     listed(obj) { return obj.lookListed; }
 ;
 
-
+/* 
+ *   lookContentsLister is used to display a list of the contents of objects in
+ *   a room description.
+ */
 lookContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
     listed(obj) { return obj.lookListed; }
@@ -221,6 +254,7 @@ inventoryLister: ItemLister
     listed(obj) { return obj.inventoryListed; }
 ;
 
+/* wornLister displays a list of items being worn. */
 wornLister: ItemLister
      /* is the object listed in an inventory list? */
     listed(obj) { return obj.inventoryListed; }
@@ -240,16 +274,10 @@ descContentsLister: ItemLister
     contentsListedProp = &contentsListedInExamine
 ;
 
-
-
-//openableContentsLister: ItemLister
-//    /* is the object listed in an EXAMINE description of its container? */
-//    listed(obj) { return obj.examineListed || obj.lookListed; }
-//
-//    /* show the paragraph-style description of a child object */
-//    desc(obj, pov) { return obj.childDesc(pov); }   
-//;
-//
+/* 
+ *   openingContentsLister displays the contents of an openable container when
+ *   it is first opened.
+ */
 openingContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
     listed(obj) { return obj.examineListed; }
@@ -258,6 +286,10 @@ openingContentsLister: ItemLister
     desc(obj, pov) { return obj.childDesc(pov); }   
 ;
 
+/* 
+ *   lookInLister is used to list the contents of an object in response to LOOK
+ *   IN/UNDER/BEHIND
+ */
 lookInLister: ItemLister
     /* 
      *   is the object listed in a SEARCH/LOOK IN/UNDER/BEHIND description of
@@ -272,15 +304,14 @@ lookInLister: ItemLister
 
 ;
 
-
-
-
+/* A lister used to list the items attached to a SimpleAttachable */
 simpleAttachmentLister: ItemLister
     /* an object is listed if it's attached */
     listed(obj) { return obj.attachedTo != nil; }
     
 ;
 
+/*  A lister used to list the items plugged into a PlugAttachable */
 plugAttachableLister: simpleAttachmentLister
 ;
 
@@ -288,7 +319,6 @@ plugAttachableLister: simpleAttachmentLister
  *   A lister that can be readily customized to tailor the text before and after
  *   a list of miscellaneous items in a room description.
  */
-
 class CustomRoomLister: ItemLister
     
     /* is the object listed in a LOOK AROUND description? */

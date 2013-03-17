@@ -1,13 +1,31 @@
 #charset "us-ascii"
 #include "advlite.h"
 
+
+/*
+ *   *************************************************************************
+ *   events.t This module forms an optional part of the adv3Lite library. Note,
+ *   however, that it must be present for certain other modules such as actor.t
+ *   and scene.t to function properly, so it must be included if any of them
+ *   are.
+ *
+ *   (c) 2012-13 Eric Eve (but based largely on code borrowed from the adv3
+ *   library (c) Michael J. Roberts).
+ */
+
+/* 
+ *   The eventManager is the object that manages the execution of Events such as
+ *   Fuses and Daemons.
+ */
 eventManager: object
     
+    /* Add an event to the list of events to be executed. */
     addEvent(event)
     {
         eventList.append(event);
     }
     
+    /* Remove an event from the list of events to be executed. */
     removeEvent(event)
     {
         eventList.removeElement(event); 
@@ -162,22 +180,40 @@ eventManager: object
     
 ;
 
+/* 
+ *   An Event is an object such as a Fuse or Daemon that is executed according
+ *   to certain conditions. Game code will normally use one of its subclasses
+ *   rather than the Event class directly.
+ */
 class Event: object
-    
+   
+    /* Construct a new Event */
     construct(obj, prop)
     {
+        /* 
+         *   Note the object we refer to and the property of that object to
+         *   execute.
+         */
         obj_ = obj;
         prop_ = prop;
         
+        /* Add this Event to the eventManager's list of events/ */
         eventManager.addEvent(self);
     }
     
-    
-    
+    /* The object we're associated with */    
     obj_ = nil
+    
+    /* A pointer to the property of that object to execute */
     prop_ = nil
+    
+    /* The interval at which this Event is to be executed. */
     interval_ = nil
     
+    /* 
+     *   Get the next run time, i.e. the next turn on which this Event should
+     *   execute obj_.(prop_).
+     */
     getNextRunTime()
     {
         return nextRunTime;
@@ -216,11 +252,20 @@ class Event: object
     /* by default, we're not a per-command-prompt daemon */
     isPromptDaemon = nil   
     
+    /* Call the method this Event should execute when it's ready to do so */
     callMethod()
     {
+        /* 
+         *   If we don't define a senseObj_ or the player character can sense
+         *   our senseObj_ via the appropriate sense, simply execute the prop_
+         *   method on our obj_. This check allows game code to ensure that the
+         *   player doesn't see messages relating to events the player character
+         *   cannot perceive.
+         */
         if(senseObj_ == nil || Q.(senseProp_)(gPlayerChar, senseObj_))
             obj_.(prop_);
         
+        /* Otherwise capture the output from executing obj_.(prop_) */
         else
         {
             captureText = gOutStream.captureOutput({: obj_.(prop_) });
@@ -229,20 +274,34 @@ class Event: object
              *   It's possible that executing the Event changes the sensory
              *   context, so we need to check whether the object in question can
              *   now be sensed, and if so, display the text we've just captured.
-             */
-            
+             */            
             if(Q.(senseProp_)(gPlayerChar, senseObj_))
                 say(captureText);
         }
     }
     
+    /* Remove this event from the eventManager's list of events. */
     removeEvent()
     {
         eventManager.removeEvent(self);
     }
     
+    /* 
+     *   If the senseObj_ property is defined (normally via our constructor),
+     *   the player character must be able to sense the senseObj_ via the sense
+     *   defined in senseProp_ for any textual output from obj_.(prop_) to be
+     *   displayed when this Event is executed.
+     */
     senseObj_ = nil
+    
+    /*   
+     *   The sense via which we test whether senseObj_ can be sensed by the
+     *   player character. This must be given as an appropriate property of the
+     *   Query object, e.g. &canSee or &canHear.
+     */
     senseProp_ = nil
+    
+    /*   Text captured from callMethod() */
     captureText = nil
 ;
 
@@ -285,7 +344,6 @@ class Fuse: Event
  *   execution is only displayed if the player char is able to sense the
  *   relevant object either at the start or at the end of the Fuse's execution.
  */
-
 class SenseFuse: Fuse
     
     /* 
@@ -306,6 +364,7 @@ class SenseFuse: Fuse
     
 ;
 
+/*  A Daemon is an Event that executes once every defined number of turns. */
 class Daemon: Event
      /*
      *   Creation.  'interval' is the number of turns between invocations
@@ -353,7 +412,22 @@ class Daemon: Event
 ;
 
 
+/* 
+ *   A SenseDaemon is just like a Daemon except that any text produced during
+ *   its execution is only displayed if the player char is able to sense the
+ *   relevant object either at the start or at the end of the Daemon's
+ *   execution.
+ */
 class SenseDaemon: Daemon
+    
+    /* 
+     *   Creation: in addition to the parameters passed to Daemon's constructor,
+     *   senseObj is the object which must be sensed for this Daemon's text to
+     *   be displayed. senseProp is one of &canSee, &canReach, &canHear,
+     *   &canSmell. If these parameters are omitted then the senseObj will be
+     *   the same as the obj whose prop property is executed by the Daemon, and
+     *   the senseProp will be &canSee, probably the most common case.
+     */
     construct(obj, prop, interval, senseProp = &canSee, senseObj = obj)
     {
         inherited(obj, prop, interval);
