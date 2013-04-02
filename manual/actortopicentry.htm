@@ -26,7 +26,7 @@ ActorTopicEntry
 <ol>
 <li>Those it derives from the <a href="topicentry.htm">TopicEntry</a> class, which we have already covered, such as matchScore, matchObj, topicResponse and isActive.</li>
 <li>Those relating to <a href="suggest.htm">suggesting</a> topics of conversation to the player, which we'll discuss in the next section. These include name, autoname, timesToSuggest, curiositySatisfied, curiosityAroused, suggestAs, timesInvoked, keyTopics and showKeyTopics().</li>
-<li>The rest, including isConversational, impliesGreeting, getActor(), convKeys, nodeActive() and activated, which we'll deal with now.</li>
+<li>The rest, including isConversational, impliesGreeting, getActor(), convKeys, nodeActive(), activated and deactivate, which we'll deal with now.</li>
 </ol>
 
 <p>The <strong>isConversational</strong> property is used to determine whether the response defined on this ActorTopicEntry should count as conversational and hence make the current turn the latest turn on which the player character conversed with the NPC. In most cases the response will be conversational, but occasionally it may not (for example, if you define a topicResponse that simply says that the NPC is unresponsive, e.g. because he's asleep, or ignoring the player character). Certain types of ActorTopicEntry (KissTopic and HitTopic) also don't count as conversational.</p>
@@ -37,7 +37,7 @@ ActorTopicEntry
 
 <p>The <strong>nodeActive()</strong> method can be used to determine whether this ActorTopicEntry belongs to the current <a href="convnode.htm">Conversation Node</a>. This will be explained more fully in the section on Converation Nodes.</p>
 
-<p>The remaining two require slightly fuller explanations here.</p>
+<p>The remaining three require slightly fuller explanations here.</p>
 
 <h3>convKeys</h3>
 
@@ -65,13 +65,13 @@ ActorTopicEntry
 <p>One final point: the namespace for convKeys is the individual actor. That is to say, if you have several NPCs, Bob, Bill, Betty and Belinda, say, then the convKeys you define on Bob have nothing to do with those you use for Bill, Betty and Belinda, so you are free to use the same conv key on different actors with different meanings.</p>
 
 
-<h3>activated</h3>
+<h3><a name="activated">activated and deactivate()</a></h3>
 
 <p>The <strong>activated</strong> property provides the first of several ways in which we can restrict the flow of conversation, in this case by making a TopicEntry or a group of TopicEntries unavailable until we wish them to become active.</p>
 
-<p>Of itself, the <strong>activated</strong> property does nothing &mdash; unless you make it. It simply starts out at nil and becomes true in response to some string in your game code outputting '&lt;.activate key&gt;' where <em>key</em> is one of the keys in the convKeys property of one or more ActorTopicEntries. In otherwords, if whenever the tag &lt;.activate key&gt; is output the effect is to set the activated property to true on every ActorTopicEntry belonging to the player character's current interlocutor which has <em>key</em> among the keys on its convKeys property. Exactly the same happens if you call makeActivated(key) on the Actor object (which is precisely what the &lt;.activate key&gt; tag does).</p>
+<p>For an ActorTopicEntry to be active, both its <span class="code">isActive</span> and its <span class="code">activated</span> properties must be true. The <span class="code">activated</span> property starts out true by default, so if you don't want to make use of it you can simply ignore it, but you can define <span class="code">activated = nil</span> on selected ActorTopicEntries and then activate them later using an <span class="code">&lt;.activate key&gt;</span> tag. When your game code outputs '&lt;.activate key&gt;' the effect is to set the activated property to true on every ActorTopicEntry belonging to the player character's current interlocutor which has <em>key</em> among the keys on its convKeys property. Exactly the same happens if you call makeActivated(key) on the Actor object (which is precisely what the &lt;.activate key&gt; tag does).</p>
 
-<p>The purpose of this is to allow you to use the activated property of an ActorTopicEntry on its isActive property, so that you can make one or a whole group of ActorTopicEntries active at once. For example:</p>
+<p>The main purpose of this is to allow you to activate a whole set of ActorTopicEntries at once, when they share a common convKey. For example:</p>
 
  <p><div class="code"><pre>
 + AskTopic @darkTower
@@ -84,21 +84,21 @@ ActorTopicEntry
    &quot;&lt;q&gt;Tell me about the troubles... &quot;
    
    convKeys = ['troubles']
-   isActive = activated
+   activated = nil
 ;
 
 + AskTopic @tMassacre
    &quot;&lt;q&gt;Tell me about the massacre...&quot;
  
    convKeys = ['troubles']
-   isActive = activated
+   activated = nil
 ;
 
 + AskTopic @tLongacre
    &quot;&lt;q&gt;What happened at Longacre Farm?...&quot;
    
    convKeys = ['troubles', 'farm']
-   isActive = activated
+   activated = nil
 ;
 </pre></div>
 
@@ -107,11 +107,10 @@ ActorTopicEntry
 <p>A more immediate question might be, why bother with the activated property at all? Why not simply have the &lt;.activate&gt; tag set the isActive property of all the relevant ActorTopicEntries to true? There are three reasons for making use of a separate activated property:</p>
 
 <ol>
-<li>The recommended style of coding TopicEntry objects is to make them declarative as far as possible. It makes for cleaner and more readable code if the conditions that make a TopicEntry active are shown declaratively on their isActive property. If isActive properties were manipulated by code outside the TopicEntries to which they relate it would become that much harder to see what was causing a TopicEntry to become active or inactive, making your code that much harder to understand and debug. It may seem a little more effort to write <span class="code">isActive = activated</span>, but you can then see at a glance that the TopicEntry in question is being activated by an &lt;.activate&gt; tag somewhere.</li>
-<li>The use of a separate activated property allows you to specify additional conditions, e.g. <span class="code">isActive = activated &amp;&amp; me.hasSeen(darkTower)</span> or <span class="code">isActive = activated || me.hasSeen(farm)</span>.</li>
-<li>The isActive property of ActorTopicEntry is true by default (since this is by far the most common case), so if the &lt;.activate&gt; tag acted directly on the isActive property you'd have to remember to set it to nil first; quite apart from the fact that this might be easier to forget to do than setting <span class="code">isActive = activated</span>, if you would otherwise have to type <span class="code">isActive = nil</span> then given the other considerations above you might just as well type <span class="code">isActive = activated</span>.</li>
+<li>The recommended style of coding TopicEntry objects is to make them declarative as far as possible. It makes for cleaner and more readable code if the conditions that make a TopicEntry active are shown declaratively on their isActive property. If isActive properties were manipulated by code outside the TopicEntries to which they relate it would become that much harder to see what was causing a TopicEntry to become active or inactive, making your code that much harder to understand and debug. It may seem a little more effort to write <span class="code">activated = nil</span>, but you can then see at a glance that the TopicEntry in question needs to be activated by an &lt;.activate&gt; tag somewhere.</li>
+<li>The use of a separate activated property allows you to specify additional conditions, e.g. <span class="code">isActive = me.hasSeen(darkTower)</span>.</li>
+<li>The <span class="code">activated</span> property is also useful for a secondary purpose: calling the <strong>deactivate()</strong></span> method from with a topicResponse method sets the <span class="code">activated</span> property of its ActorTopicEntry method to nil, thereby deactivating that ActorTopicEntry. This can be useful in an ActorTopicEntry that you want to be available only once (the first time it is viewed), or in the last item in the eventList of an ActorTopicEntry that's also a StopEventList to disable the TopicEntry once all the items in the list have been viewed. There's also a <span class="code">&lt;.deactivate key&gt; </span>tag that does the opposite of the <span class="code">&lt;.activate key&gt;</span> tag, namely setting <span class="code">activated</span> to nil on every ActorTopicEntry whose convKeys property matches <em>key</em>.</li>
 </ol>
-
 <br>
 
 <h2><a name="types">The Different Types of ActorTopicEntry</a></h2>
@@ -131,13 +130,14 @@ ActorTopicEntry
 <li><strong>TellTalkTopic</strong>: responds to TELL X ABOUT Y or T Y or TALK ABOUT Y</li>
 <li><strong>AskTalkTopic</strong>: responds to ASK X ABOUT Y or ASK ABOUT Y or A Y or TALK ABOUT Y</li>
 <li><strong>AskTellTalkTopic</strong>: responds to ASK ABOUT Y or TELL X ABOUT Y or TALK ABOUT Y</li>
+<li><strong>TellTalkShowTopic</strong>responds to TELL X ABOUT Y or TALK ABOUT Y or SHOW Y</li>
 <li><strong>SayTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to SAY WHATEVER or just WHATEVER (for further details see <a href="specialtopic.htm#saytopic">below</a>).</li>
 <li><strong>QueryTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to questions like ASK WHERE|WHEN|WHY|HOW|WHY|WHO SUCH-AND-SUCH (for further details see <a href="querytopic.htm#saytopic">below</a>).</li>
 <li><strong>YesTopic</strong>: responds to YES or SAY YES</li>
 <li><strong>NoTopic</strong>: responds to NO or SAY NO</li>
 <li><strong>YesNoTopic</strong>: responds to YES or NO</li>
 <li><strong>KissTopic</strong>: responds to KISS X, <em>but only if <strong>allowKiss</strong> on the actor is true</em>.</li>
-<li><strong>HitTopic</strong>: responds to HIT X, ATTACK X and the like<em>but only if <strong>allowAttack</strong> on the actor is true</em>.</li>
+<li><strong>HitTopic</strong>: responds to HIT X, ATTACK X and the like <em>but only if <strong>allowAttack</strong> on the actor is true</em>.</li>
 <li><strong>InitiateTopic</strong>: an actor-initiated TopicEntry (see the section on <a href="initiate.htm">NPC-Initiated Conversation</a> below).</li>
 <li><strong>NodeContinuationTopic</strong>: a special kind of InitiateTopic for use in <a href="convnode.htm">Conversation Nodes</a>.</li>
 <li><strong>NodeEndCheck</strong>: another special kind of InitiateTopic for use in <a href="convnode.htm">Conversation Nodes</a>.</li>

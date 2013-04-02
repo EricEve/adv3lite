@@ -146,9 +146,12 @@ class Action: ReplaceRedirector
          */
         gActor.actorAction();
         
-        /* Call roomBeforeAction() on the current actor's location. */        
-        gActor.getOutermostRoom.roomBeforeAction();
-        
+        /* 
+         *   Call roomBeforeAction() on the current actor's location, and
+         *   regionBeforeAction() on all the regions it's in.
+         */        
+        gActor.getOutermostRoom.notifyBefore();
+               
         /* 
          *   If we don't already have a scope list for the current action, build
          *   it now.
@@ -207,8 +210,11 @@ class Action: ReplaceRedirector
         }
         "<.p>";
         
-        /* Call the afterAction notification on the current room. */
-        gActor.getOutermostRoom.roomAfterAction();
+        /* 
+         *   Call the afterAction notification on the current room and its
+         *   regions.
+         */
+        gActor.getOutermostRoom.notifyAfter();
         
         /* 
          *   Call the afterAction notification on every object in scope. Note
@@ -1409,18 +1415,17 @@ class TAction: Action
     checkAction(cmd)
     {
         /* 
-         *   Try the check method on the current direct object. If it fails
-         *   return nil to indicate failure of the entire check stage.
+         *   Try the check phase of any preconditions. If that fails return nil
+         *   to indicate failure of the entire check stage.
          */        
-        if(!check(curDobj, checkDobjProp))
+        if(!checkPreCond(curDobj, preCondDobjProp))
             return nil;
         
         /* 
-         *   Finally try the check phase of any preconditions and return the
-         *   result.
-         */        
-        return checkPreCond(curDobj, preCondDobjProp);          
-                
+         *   Then try the check method on the current direct object and return
+         *   the result.
+         */                                     
+        return check(curDobj, checkDobjProp);
     }
     
     /* 
@@ -1437,7 +1442,7 @@ class TAction: Action
         /* Run the check method on the object and capture its output */
         try
         {
-            checkMsg = gOutStream.captureOutput({: obj.(checkProp)});
+            checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
         }
         
         /* 
@@ -1517,18 +1522,29 @@ class TAction: Action
         preCondList = preCondList.sort(nil,
                                        {a, b: a.preCondOrder - b.preCondOrder});
         
-        /* Iterate through the list to see if all the checks are satisfied */
-        foreach(local cur in preCondList)              
-        {          
-            /* 
-             *   If we fail the check method on any precondition object, note
-             *   the failure and stop the iteration.
-             */
-            if(cur.checkPreCondition(obj, true) == nil)
-            {
-                checkOkay = nil;
-                break;
-            }                
+        try
+        {
+            /* Iterate through the list to see if all the checks are satisfied */
+            foreach(local cur in preCondList)              
+            {          
+                /* 
+                 *   If we fail the check method on any precondition object,
+                 *   note the failure and stop the iteration.
+                 */
+                if(cur.checkPreCondition(obj, true) == nil)
+                {
+                    checkOkay = nil;
+                    break;
+                }                
+            }
+        }
+        /* 
+         *   Game authors aren't meant to use the exit macro in check methods,
+         *   but in case they do we handle it here.
+         */
+        catch (ExitSignal ex)
+        {
+            checkOkay = nil;
         }
         
         /* 
@@ -1799,24 +1815,23 @@ class TIAction: TAction
     /* Carry out the check phase for this command. */   
     checkAction(cmd)
     {
-           
+        
         /* 
-         *   If we don't pass the check phase on both the indirect and the
-         *   direct objects, then return nil to tell our caller we've failed
-         *   this stage.
+         *   If we don't pass the check stage on both the iobj and the dobj's
+         *   preconditions, then return nil to tell our caller we've failed this
+         *   stage.
          */
-        if(!((check(curIobj, checkIobjProp) && check(curDobj,
-            checkDobjProp))))
+        if(!(checkPreCond(curIobj, preCondIobjProp) 
+             && checkPreCond(curDobj, preCondDobjProp)))           
             return nil;
         
         /* 
-         *   Return the result of running the check stage on both the iobj and
-         *   the dobj's preconditions.
+         *   Return the result of running the check phase on both the indirect
+         *   and the direct objects.
          */        
-        return checkPreCond(curIobj, preCondIobjProp) 
-            && checkPreCond(curDobj, preCondDobjProp);
+        return check(curIobj, checkIobjProp) && check(curDobj, checkDobjProp);
         
-
+        
     }
     
     
@@ -2637,7 +2652,7 @@ notePronounAntecedent([objlist])
             cur = cur.location;
         
         /* If the object is plural, it's a possible antecedent for 'them' */
-        if(cur.plural)
+        if(cur.plural || cur.ambiguouslyPlural)
             themList += cur;
         
         /* 
@@ -2648,7 +2663,7 @@ notePronounAntecedent([objlist])
             himList += cur;
         if(cur.isHer)
             herList += cur;
-        if(cur.isIt && !cur.plural)
+        if(cur.isIt && (!cur.plural || cur.ambiguouslyPlural))
             itList += cur;        
         
     }

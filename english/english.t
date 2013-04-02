@@ -231,20 +231,7 @@ class LMentionable: object
          */
          
         return theName + ' ' + conjugateBe(object {subj = obj; }, nil);
-        
-//        switch(person)
-//        {
-//        case 1:
-//            return plural ? tSel('we are', 'we were') : tSel('I am', 'I was
-//                ');
-//        case 2:
-//            return tSel('you are', 'you were');
-//        default:
-//            if(plural)
-//                return theName + tSel(' are', ' were');
-//            else
-//                return theName + tSel(' is', ' was');
-//        }
+
     }
     
     /*
@@ -344,10 +331,10 @@ class LMentionable: object
          *.  - If we're gendered, we'll match Him or Her as appropriate
          *.  - If we have singular neuter usage, we'll match It
          */
-        return (p == Them && plural
+        return (p == Them && (plural || ambiguouslyPlural)
                 || p == Him && isHim
                 || p == Her && isHer
-                || p == It && isIt && !plural);
+                || p == It && isIt && (!plural || ambiguouslyPlural));
     }
 
     /*
@@ -702,21 +689,49 @@ class LMentionable: object
 
 
             
-        /* the fourth section is the list of pronouns */
-        if (parts.length() >= 4 && parts[4] != '')
-        {
-            local map = ['it', &isIt,
-                         'him', &isHim,
-                         'her', &isHer,
-                         'them', &plural];
-
-            parts[4].split(' ').forEach(function(x) {
-
-                local i = map.indexOf(x.trim());
-                if (i != nil)
-                    self.(map[i+1]) = true;
-            });
-        }
+            /* the fourth section is the list of pronouns */
+            if (parts.length() >= 4 && parts[4] != '')
+            {
+                local map = ['it', &isIt,
+                    'him', &isHim,
+                    'her', &isHer,
+                    'them', &plural];
+                
+                local explicitlySingular = nil;
+                
+                               
+                parts[4].split(' ').forEach(function(x) {
+                    
+                    local i = map.indexOf(x.trim());
+                    if (i != nil)
+                        self.(map[i+1]) = true;
+                    
+                    if(x.trim() != 'them')                    
+                        explicitlySingular = true;     
+                                          
+                });
+                
+                /* 
+                 *   If we're both explicitly singular and plural (i.e. both a
+                 *   singular pronoun and 'them' have appeared in our pronoun
+                 *   list) we must be ambiguously plural.
+                 */
+                
+                if(explicitlySingular && plural)
+                {
+                    ambiguouslyPlural = true;
+                    
+                    /* 
+                     *   We're actually plural only if 'them' is the first
+                     *   pronoun encountered; so if it's not we're actually
+                     *   singular.
+                     */
+                    
+                    if(!parts[4].trim().startsWith('them'))
+                        plural = nil;
+                    
+                }
+            }
 
         /* turn vocabWords back into a list */
         vocabWords = vocabWords.toList();
@@ -728,12 +743,7 @@ class LMentionable: object
      */
     properNamePat = R'(<upper><^space>*)(<space>+<upper><^space>*)*'
 
-    /* 
-     *   Flag; have we inherited any vocab from our superclasses yet? If so, we
-     *   don't need to do it again.
-     */
-    vocabInherited = nil
-    
+       
     /*   
      *   Inherit vocab from our superclasses according to the following scheme:
      *.  1. A + sign in the name section will be replaced with the name from our
@@ -747,10 +757,9 @@ class LMentionable: object
     inheritVocab()
     {
         /* 
-         *   If we've already inherited vocab from our superclasses, or we don't
-         *   have any vocab, there's no work to do.
+         *   If we don't have any vocab, there's no work to do.
          */
-        if(vocabInherited || vocab == nil || vocab == '')            
+        if(vocab == nil || vocab == '')            
             return;
         
         
@@ -766,9 +775,7 @@ class LMentionable: object
             if(cls.vocab not in (nil, ''))        
                 cls.inheritVocab();
         }
-        
-        /* Note that we have run this method for this object or class */
-        vocabInherited = true;
+          
         
         /* 
          *   If we don't define our own vocab property directly, there's no more
@@ -2323,6 +2330,7 @@ englishCustomVocab: CustomVocab
         'clean/cleans/cleaned',
         'climb/climbs/climbed',
         'close/closes/closed',
+        'come/comes/came',
         'consult/consults/consulted',
         'contain/contains/contained',
         'cut/cuts/cut',
@@ -2349,6 +2357,7 @@ englishCustomVocab: CustomVocab
         'go/goes/went/gone',
         'happen/happens/happened',
         'have/has/had',
+        'head/heads/headed',
         'hear/hears/heard',
         'hit/hits/hit',
         'hold/holds/held',

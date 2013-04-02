@@ -26,11 +26,24 @@ Change Log
 </ul>
 
 <h2><a name="v0.7">Version 0.7</a></h2>
+<p><strong>Risk of incompatibity:</strong> The way the <strong>activated</strong> property of an <span class="code">ActorTopicEntry</span> works has been substantially changed. The activated property now starts out true by default on all ActorTopicEntries; if it becomes nil the ActorTopicEntry becomes inactive regardless of the value of its <span class="code">isActive</span> property. Thus, for an ActorTopicEntry to be active, both its <span class="code">isActive</span> property and its <span class="code">activated</span> property must be true.</p>
+
+<p>The <span class="code">&lt;.activate key&gt;</span> tag works as before, setting the <span class="code">activated</span> property to true of all ActorTopicEntries whose convKeys match <em>tag</em>. There is now also a <span class="code">&lt;.deactivate key&gt;</span> tag which does the reverse, i.e. setting the <span class="code">activated</span> property to nil of all ActorTopicEntries whose convKeys match <em>tag</em>. The <span class="code">topicResponse</span> method of an ActorTopicEntry can also call the new <strong>deactivate()</strong> method to deactivate itself, which may be useful, for example, in making an ActorTopicEntry no longer available once it has been viewed.</p>
+
+<p>If you have used the <span class="code">activated</span> property in existing code, search for every ActorTopicEntry in your game that uses the activated property as part of its isActive condition, then remove activated from the <span class="code">isActive</span> condition (or remove the <span class="code">isActive</span> condition altogether if it simply defines <span class="code">isActive = activated</span>) and instead defined <span class="code">activated = nil</span> on the ActorTopicEntry in question.</p>
+
+<p>While this change might be a minor nuisance, it should hopefully make it easier to activate and deactivate ActorTopicEntries in future. For further details see the discussion in the section on <a href="actortopicentry.htm#activated">ActorTopicEntry</a>.</p>
+<hr>
 <p><strong>Risk of incompatibity:</strong> As many library messages as can be have now been moved off the libMessages object (to make use of BMsg() or DMsg() at the points where they are actually needed in the library). This makes the library message system more consistent, since the libMessages object was largely a historical hang-over. Game code should not be affected unless you have specifically referred to the libMessages object in your code.</p>
 <p>It has nevertheless proved necessary to retain the libMessages object for use with the webUI (part of which expects it to be present) and the menu system (which also makes use of it in ways that would be too fiddly to be worth changing). It should not now be used for any other purpose.</p>
 <hr>
+
 <p><strong>Slight risk of incompatibity:</strong> A number of redundant methods, properties, and functions have been removed from the library, many of them on Thing or LMentionable. These were methods etc. that were not being used anywhere else in the library and looked unnecessary for author game code. None of them was documented (in the manual or tutorial) and so game code should not have used them.</p>
 <hr>
+<p><strong>Slight risk of incompatibity:</strong>: At the check stage the preconditions are now checked before the check routines on the direct/indirect object. Previously it was the other way round, but checking the preconditions first seems a more logical order (for example, it means when the player character tries to open an obejct we now check whether the object is touchable before determining whether it's locked, which makes better sense since if the PC can't touch an object s/he may not be able to determine whether it's locked by trying to open it).</p>
+
+<hr>
+
 <p>A new <strong>extraReport()</strong> macro has been added, for use in action() methods. This is to allow an action method to output a brief message like "(with the brass key)" without suppressing the default message from the report stage. It's now used on<span class="code"> dobjFor(Lock)</span> and <span class="code">dobjFor(Unlock)</span> to allow the default messages for these actions to be moved to the report stage, which is more consistent with how other actions work.</p>
 <hr>
 <p>Actor-initiated conversation via a ConvAgendaItem or TopicEntry now notes the initiating actor as a possible pronoun antecedent (so that, for example, if Bob addresses the player character the player can refer to Bob as 'him' on the next turn).</p>
@@ -60,8 +73,25 @@ Change Log
 <hr>
 <p>When a SpecialTopic is about to create a new Topic object from its matchPattern property (to allow matching Topics to be created on the fly in game code), it first checks that that an equivalent Topic doesn't already exist; if one does exist, the SpecialTopic uses it as its matchObj instead of creating a new Topic for the purpose. This may make for more efficient topic matching.</p>
 <hr>
+<p>The library now defines an <strong>TellTalkShowTopic</strong> class, which responds to TELL X ABOUT Y or TALK ABOUT Y or SHOW Y</p>
+<hr>
+<p>The <strong>keyTopics</strong> list property of an ActorTopicEntry can now contain control tags (such as &lt;.arouse key&gt; or &lt;.activate key&gt;) as well as convKeys strings. This is to allow a group of topic entries to be activated or aroused just prior to being suggested; e.g. <span class="code">keyTopics = ['&lt;.activate bob-info&gt;', bob-info]</span>.</p>
+<hr>
 <p>The library now defines an <strong>ObjectPreCondition</strong> class, which can be used to construct custom preconditions that apply to specific, pre-determined objects,
  rather than the direct/indirect object of the command.</p>
+<hr>
+<p>The library now defines two new methods on the <span class="code">Region</span> class: <strong>regionBeforeAction</strong> and <strong>regionAfterAction</strong>. These methods are called just before and just after an action takes place in any room in the region.</p>
+<hr>
+<p>The <span class="code">Mentionable</span> class now defines the <strong>ambiguouslyPlural</strong> property which allows objects with names like 'pair of shoes' or 'flight of stairs' to be referred to as either 'it' or 'them'.</p>
+
+<p>In the English library the <span class="code">ambiguouslyPlural</span> property can be set automatically from the vocab property by including both 'it' and 'them' in the pronoun property. To make the object actually plural, put 'them' first.</p>
+<hr>
+<p>The new Room method <strong>getDirection(conn)</strong> returns the direction in which one would have to travel from the room in order to travel via <em>conn</em> (i.e. the direction corresponding to the direction property on which <em>conn</em> is defined). For example, if frontDoor was assigned to the north property of a room called hall, <span class="code">hall.getDirection(frontDoor)</span> would return northDir.</p>
+<hr>
+<p>The new outputFilter method <strong>captureOutputIgnoreExit()</strong> works the same as <span class="code">captureOutput()</span> but attempts to ignore any exit signal thrown by the function whose output it's capturing. This is principally to allow for the use of <span class="code">exit</span> macros in check routines, where they are not needed but may be used by authors used to adv3.</p>
+<hr>
+
+<p>The Q.reachProblem() method now builds its list of reach problems by calling two new Query methods in succession: reachProblemVerify() and reachProblemCheck(). This allows the touchObj PreCondition to call Q.reachProblemVerify() at the verify stage and Q.reachProblemCheck() at the check stage, which avoids the code relating to the check stage being called twice (with possibly undesirable side-effects). The check code was called twice before since it was part of reachProblem, which was called from the verify stage of touchObj, which is called twice (once for disambiguation, and once when seeing if the action can go ahead).</p>
 <hr>
 <p>Bug fixed in which included an article ('a' or 'the') in the name of a topic (e.g. ASK BILL FOR THE TIME) could confuse the parser. The English library now strips any articles from the tokens it's trying to match before attempting to match a Topic.</p>
 <hr>
@@ -85,8 +115,21 @@ Change Log
 <hr>
 <p>Bug fixed whereby the suggestedTopicLister would have output a list of AskForTopics twice instead of a list of suggested AskForTopics followed by a list of suggested CommandTopics.</p>
 <hr>
-
-
+<p>Bug fixed whereby making a Component part of something that's not a SimpleAttachment could cause a run-time error at preinit.</p>
+<hr>
+<p>Bug fixed which stopped the verifyReach() method working properly.</p>
+<hr>
+<p>Bug fixed whereby an UnlistedProxyConnector (one created using the <span class="code">asExit()</span> macro) might be treated as invisible in the dark even when the connector it was a proxy for was visible.</p>
+<hr>
+<p>Bug fixed which prevented inheritance of vocab from superclasses after the first member of the class.</p>
+<hr>
+<p>Bug fixed whereby nothing at all (not even a contents listing) would be shown after the room name for a Room whose desc property had not been defined.</p>
+<hr>
+<p>Bug fixed whereby the valToList() function failed to return the correct value when its argument was a Vector; it now converts a Vector to a List.</p>
+<hr>
+<p>Bug fixed whereby use of the <span class="code">exit</span> macro in the checkPreCondition method of a PreCondition would cause the game to terminate with an unknown exception. There is actually no need to use an <span class="code">exit</span> macro in this situation, and game code should avoid doing so, but authors used to adv3 might include one and it is as well for the adv3Lite library to handle it gracefully.</p>
+<hr>
+<br>
 
 <h2><a name="v0.6">Version 0.6</a> (2 March 2013)</h2>
 <p><strong>Risk of incompatibity:</strong> The long form of remap (using <span class="code">remapTo()</span> or <span class="code">maybeRemapTo()</span> or a list defined on a remap property) has been withdrawn. This feature was deprecated from the first, and we said we might withdraw it all along. The same functionality is better implemented using a Doer (see below on the new Doer <span class="code">doInstead()</span> method).</p>
@@ -115,17 +158,17 @@ Change Log
 <p><strong>Slight risk of incompatibity:</strong> The behaviour of GetOff and GetOutOf has now been decoupled. Previously a GetOff action was simply redirected to a GetOutOf action. The two actions now work very slightly differently, respecting the difference between something an actor is on and something an actor is in. This gives slightly better implicit action reports; it also allows these two (now separate) actions to make proper use of the remapIn and remapOn properties (as Board and Enter now do also) in cases where the object in question implements multiple containment. The TravelAction has also been modified to choose the appropriate action (GetOff or GetOutOf) when responding to an OUT commmand or using an implicit action to get the actor out of his or her immediate container before attempting travel.</p>
 
 <hr>
-<p><strong>Very slight risk of incompatibity:</strong> The action handling for a TI action now adds the direct object of a command to it actionList even if the action is dealt with on the indirect object. This is probably better behaviour that what was there before, and means that <span class="code">gActionListStr</span> returns a useful value for report() methods (usually defined on the direct object) even when the action handling has taken place on the indirect object (as may sometimes be more appropriate).</p>
+<p><strong>Very slight risk of incompatibility:</strong> The action handling for a TI action now adds the direct object of a command to it actionList even if the action is dealt with on the indirect object. This is probably better behaviour that what was there before, and means that <span class="code">gActionListStr</span> returns a useful value for report() methods (usually defined on the direct object) even when the action handling has taken place on the indirect object (as may sometimes be more appropriate).</p>
 <hr>
-<p><strong>Very slight risk of incompatibity:</strong> The action handling for PutIn, PutOn, PutUnder and PutBehind has been moved from the direct object to the indirect object of the action, since game code is more likely to want to customize the effects of the action there (for example, a Container is more likely to behave in a non-standard way to having things inserted in it than the things being inserted in it are).</p>
+<p><strong>Very slight risk of incompatibility:</strong> The action handling for PutIn, PutOn, PutUnder and PutBehind has been moved from the direct object to the indirect object of the action, since game code is more likely to want to customize the effects of the action there (for example, a Container is more likely to behave in a non-standard way to having things inserted in it than the things being inserted in it are).</p>
 
 
 <hr>
-<p><strong>Very slight risk of incompatibity:</strong> The action handling for a number of actions on Thing and one or two other classes has been tweaked to produce a more consistent scheme. Wherever possible, actions that need to be blocked are blocked at the verify stage rather than the check stage, and actions are reported on at the report stage rather than the action stage. This scheme was more or less followed before, but not quite as consistently as it might have been.</p>
+<p><strong>Very slight risk of incompatibility:</strong> The action handling for a number of actions on Thing and one or two other classes has been tweaked to produce a more consistent scheme. Wherever possible, actions that need to be blocked are blocked at the verify stage rather than the check stage, and actions are reported on at the report stage rather than the action stage. This scheme was more or less followed before, but not quite as consistently as it might have been.</p>
 
 <p>Note that there are still some exceptions where (in the first case) it still seems appropriate to perform some additional checks at the check stage and perhaps rule an action out there and (in the second case) where the main point of an action (e.g. EXAMINE, LOOK IN) is the output it produces, which is then best left at the action stage.</p>
 <hr>
-<p><strong>Very slight risk of incompatibity:</strong> The <strong>scoreObjects()</strong> method of Action now multiplies the verify score by 100 when calculating the overall score for each object in its matchList. This is to allow other scoreObject() methods along the way to tweak the scores of particular objects by small amounts to allow fine tuning of the parser's choice of object while giving priority to the verify results.</p>
+<p><strong>Very slight risk of incompatibility:</strong> The <strong>scoreObjects()</strong> method of Action now multiplies the verify score by 100 when calculating the overall score for each object in its matchList. This is to allow other scoreObject() methods along the way to tweak the scores of particular objects by small amounts to allow fine tuning of the parser's choice of object while giving priority to the verify results.</p>
 
 <hr>
 

@@ -248,7 +248,24 @@ class StairwayUp: TravelConnector, Thing
         DMsg(say departing up stairs, '{The subj traveler} {goes} up
             {1}. ', theName);
     }
+    
+    
+    /* 
+     *   Display message announcing that follower is following leader up
+     *   this staircase.
+     */
+    sayActorFollowing(follower, leader)
+    {
+        /* Create message parameter substitutions for the follower and leader */
+        gMessageParams(follower, leader);  
+        
+        DMsg(say following up staircase, '{The subj follower} {follows} {the
+            leader} up {1}. ', theName);
+    }
+    
+    traversalMsg = BMsg(traverse stairway up, 'up {1}', theName)
 ;
+
 
 /*  
  *   A StairwayDown is Thing the player character can climb down. It might
@@ -283,6 +300,21 @@ class StairwayDown: TravelConnector, Thing
         DMsg(say departing down stairs, '{The subj traveler} {goes} down
             {1}. ', theName);
     }
+    
+    /* 
+     *   Display message announcing that follower is following leader down
+     *   this staircase.
+     */
+    sayActorFollowing(follower, leader)
+    {
+        /* Create message parameter substitutions for the follower and leader */
+        gMessageParams(follower, leader);  
+        
+        DMsg(say following down staircase, '{The subj follower} {follows} {the
+            leader} down {1}. ', theName);
+    }
+    
+    traversalMsg = BMsg(traverse stairway down, 'down {1}', theName)
 ;
 
 

@@ -99,8 +99,41 @@ hall: Room, ShuffledEventList 'Hall' 'hall'
 <li>nil (or any other value not listed above), in which case nothing happens; it might be useful to use nil when you want an eventList to do nothing for one step.</li>
 </ul>
 
+<p><FONT COLOR="red"?><strong>WARNING!</strong></font> Be very careful about using embedded expressions inside single-string elements of an EventList, since this can very easily lead to odd and hard-to-find bugs. The full reasons for this are explained in the section on "More on evaluation timing, and a warning on side effects" in the "String Literals" chapter of Part III of the <em>TADS 3 System Manual</em>, but in essence the problem is that such embedded expressions will be evaluated at times you do not expect and rather more often than you expect. It is safe to include an embedded expression in a single quoted string in this kind of situation if and only if evaluating it won't change the value of anything. So for example, the following would all be quite safe:</p>
+
+<p><div class="code"><pre>
+eventList = [
+  '&lt;q&gt;What do you think about&lt;&lt;me.hasSeen(mary)&gt;&gt; Mary&lt;&lt;else&gt;&gt; Jane?&lt;&lt;end&gt;&gt; you ask. '
+  
+  '&lt;q&gt;I personally don\'t care for &lt;&lt;oddBloke.theName&gt;&gt; you say. &lt;.inform dislike-oddbloke&gt; '
+]
+</pre></div></p>
+
+<p>But the following most certainly would NOT:</p>
+
+<p><div class="code"><pre>
+eventList = [
+   '&lt;q&gt;Tell me about &lt;&lt;one of&gt;&gt; Jane&lt;&lt;or&gt;&gt; Martha&lt;&lt;or&gt;&gt; green cheese&lt;&lt;cycling&gt;&gt;, you request. ',
+   
+   '&lt;q&gt;I have now said this &lt;&lt;++count&gt;&gt; times!&lt;/q&gt; you declare. '
+]
+</pre></div></p>
+
+<p>You can make the second version safe by using anonymous functions in place of single-quoted strings:</p>
+
+<p><div class="code"><pre>
+eventList = [
+   {: "&lt;q&gt;Tell me about &lt;&lt;one of&gt;&gt; Jane&lt;&lt;or&gt;&gt; Martha&lt;&lt;or&gt;&gt; green cheese&lt;&lt;cycling&gt;&gt;, you request. " },
+   
+   {: "&lt;q&gt;I have now said this &lt;&lt;++count&gt;&gt; times!&lt;/q&gt; you declare. " }
+]
+</pre></div></p>
+
+<p>Note that this is far from being the <em>only</em> situation in which you can get caught out by the unexpected evaluation of embedded expressions in single-quoted strings, but it's probably the situation that's most likely to constitute a trap for even fairly experienced game authors. For the full story, consult the aforementioned chapter of the <em>TADS 3 System Manual</em>.</p>
+
 
 </div>
+
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 

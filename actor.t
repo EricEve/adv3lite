@@ -71,10 +71,24 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     /*   
      *   Our specialDesc (used to describe us in room listing). By default we
      *   use our ActorState's specialDesc if we have a current ActorState or
-     *   else our actorSpecialDesc if our current ActorState is nil
+     *   else our actorSpecialDesc if our current ActorState is nil. But if
+     *   there's a current FollowAgendaItem we let it handle the specialDesc
+     *   instead.
      */
-    specialDesc = (curState != nil ? curState.specialDesc : actorSpecialDesc)
-
+    specialDesc()
+    {
+        /* If we have a current followAgendaItem, use its specialDesc */
+        if(followAgendaItem != nil)
+            followAgendaItem.showSpecialDesc();
+        
+        /* 
+         *   Otherwise use our current ActorState's specialDesc if we have one
+         *   or our our actorSpecialDesc if not.
+         */
+        else
+            curState != nil ? curState.specialDesc : actorSpecialDesc;
+    }
+    
     
     /*   The specialDesc to use if we don't have a current ActorState */
     actorSpecialDesc = nil
@@ -566,6 +580,15 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     beforeTravel(traveler, connector) 
     {
         /* 
+         *   If we have a current FollowAgendaItem, start by executing its
+         *   beforeTravel() method.
+         */
+        
+        if(followAgendaItem != nil && followAgendaItem.isReady)
+            followAgendaItem.beforeTravel(traveler, connector);
+        
+        
+        /* 
          *   Execute the beforeTravel() method on our current ActorState, if we
          *   have one.
          */
@@ -577,21 +600,17 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         /*  
          *   If the actor is waiting for the traveler to follow the actor via
-         *   connector, then execute the appropriate FollowAgendaItem instead of
-         *   the actor's travel command.
-         */
-        
-        local followAgenda =        
-                    valToList(agendaList).valWhich({a: a.ofKind(FollowAgendaItem)
-                                  && a.nextConnNum < a.connectorList.length 
-                                  && a.connectorList[a.nextConnNum + 1] == connector});
-        
-        if(followAgenda != nil && traveler == gPlayerChar)
+         *   connector, then set the follow fuse instead of executing the
+         *   actor's travel command.
+         */        
+        if(followAgendaItem != nil 
+           && traveler == gPlayerChar 
+           && followAgendaItem.isReady
+           && followAgendaItem.nextConnector == connector)
         {
-            followFuseID = true;
-            followAgenda.invokeItem();
-            say(followActorMsg);
-            followFuseID = nil;
+
+            setFollowMeFuse();
+            exit;
         }
         
         
@@ -623,6 +642,19 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   contains a two-element list comprising the room the actor was seen
      *   travelling from and the connector by which the actor was seen
      *   travelling.
+     *
+     *   Note that if you move an actor by authorial fiat using moveInto() (say)
+     *   when the player character can see the actor, you might want to update
+     *   lastTravelInfo manually to ensure that any subsequent FOLLOW command
+     *   still works properly, e.g.:
+     *.
+     *.   "Bob storms out through the front door, slamming it behind him. ";
+     *.   bob.moveInto(nil);
+     *.   bob.lastTravelInfo = [hall, frontDoor];
+     *.
+     *   (If instead of or before bob.moveInto(nil) you had written
+     *   frontDoor.travelVia(bob), this wouldn't be necessary, since it would be
+     *   handled for you by frontDoor.travelVia()).
      */
     lastTravelInfo = nil
     
@@ -744,7 +776,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */    
     followDaemon()
     {
-        /* First note which room we're currentlt in */
+        /* First note which room we're currently in */
         local oldLoc = getOutermostRoom;
         
         /* 
@@ -773,7 +805,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             
             /* 
              *   Carry out any additional handling we want to do on arriving in
-             *   out new location.
+             *   our new location.
              */
             arrivingTurn();            
         }        
@@ -920,8 +952,9 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          */
         if(lastTravelInfo)
         {
+                        
             /* Display a message saying that we're following this actor. */
-            say(followActorMsg);
+            sayActorFollowingMe(lastTravelInfo[2]);
             
             /* 
              *   Make the following actor travel via the TravelConnector last
@@ -936,9 +969,22 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         /* Reset the following fuse ID to nil */
         followFuseID = nil;
+        
+        /* 
+         *   If we have a current FollowAgendaItem and it's finished with, note
+         *   that we no longer have a current FollowAgendaItem.
+         */
+        if(followAgendaItem != nil && followAgendaItem.isDone)
+            followAgendaItem = nil;
     }
 
     /* The message to display when another actor follows this one. */
+    sayActorFollowingMe(conn)
+    {        
+        /* By default, let the connector handle it. */
+        conn.sayActorFollowing(gActor, self);
+    }
+    
     followActorMsg = BMsg(follow actor, '{I} {follow} {1}. ', theName)
     
     /* 
@@ -947,6 +993,10 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     actorStaysPutMsg = BMsg(actor stays put, '{I} {wait} in vain for {1} to
         go anywhere. ', theName)
+    
+    
+    /* Our currently executing FollowAgendaItem, if we have one. */
+    followAgendaItem = nil
     
     /* 
      *   Display a message describing this actor's departure via conn. This
@@ -1213,9 +1263,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     /* 
      *   Set the activated flag to true for all topic entries with this convKey.
-     *   Note that this does not actually make any of these topic entries
-     *   active, it simply sets a flag (activated) that their isActive
-     *   properties can test.
+     *  
      */    
     makeActivated(key)    
     {
@@ -1224,6 +1272,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
          *   before we attempt to use them.
          */
         if(convKeyTab != nil)
+        {
             /* 
              *   If we do then go through every TopicEntry that has key amongst
              *   its convKeys (which we can obtain by looking up the list of suh
@@ -1231,8 +1280,31 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
              *   to true.
              */
             foreach(local cur in valToList(convKeyTab[key]))
+                cur.activate();
+        }
+    }
+    
+    
+    /* 
+     *   Set the activated flag to nil for all topic entries with this convKey.
+     *  
+     */    
+    makeDeactivated(key)    
+    {
+        /* 
+         *   First check that we actually have any entries in our convKeyTab
+         *   before we attempt to use them.
+         */
+        if(convKeyTab != nil)
         {
-            cur.activated = true;
+            /* 
+             *   If we do then go through every TopicEntry that has key amongst
+             *   its convKeys (which we can obtain by looking up the list of suh
+             *   TopicEntries in our convKeysTab) and set its activated property
+             *   to nil.
+             */
+            foreach(local cur in valToList(convKeyTab[key]))
+                cur.deactivate();
         }
     }
     
@@ -1867,7 +1939,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             else if(lastTravelInfo)
             {
                 /* Display a message to say we're following this actor */
-                say(followActorDirMsg);
+                sayHeadAfterActor(lastTravelInfo[2]);
                 
                 /* 
                  *   Then travel via the connector this actor was seen to leave
@@ -1884,12 +1956,16 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         }
         
     }
+   
+    sayHeadAfterActor(conn)
+    {
+        DMsg(say head after actor, '{I} {head} off {1} after {2}. ',
+             conn.traversalMsg, theName);
+    }
     
     waitToSeeMsg = BMsg(wait to see, '{I} {wait} to see where {he dobj}
         {goes}. ')
-    
-    followActorDirMsg = BMsg(follow actor dir, '{I} {follow} in the direction
-        {he actor} saw {the dobj} go. ')
+     
 
     dontKnowWhereGoneMsg = BMsg(dont know where gone, '{I} {don\'t know} where
         {the subj dobj} {has} gone. ')
@@ -2636,10 +2712,24 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
         /* 
          *   For each key value in our keyTopics list, look up the associated
-         *   TopicEntries in our actor's convKeyTab and add them to our list.
+         *   TopicEntries in our actor's convKeyTab and add them to our list. If
+         *   however a key value looks like a <. > tag, output the tag (this
+         *   could be use to activate or arouse a group of topics just prior to
+         *   suggesting them).
          */
         foreach(local ky in valToList(keyTopics))
-            lst += actor.convKeyTab[ky];
+        {
+            /* 
+             *   If this value looks like a control tag, output it straight
+             *   away.
+             */
+            if(ky.startsWith('<.'))
+                say(ky.trim);
+            
+            /* Otherwise add it to our list. */
+            else                
+                lst += actor.convKeyTab[ky];
+        }
         
         /*   
          *   Reduce our list to a subset that only contains those TopicEntries
@@ -2660,20 +2750,37 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
        
     
     /* 
-     *   A flag that can be set with an <.activate> tag and tested with
-     *   isActive. Unless it is explicitly tested by isActive is has no effect.
+     *   A flag that can be set with an <.activate> tag. It must be true for
+     *   this TopicEntry to be active, regardless of the value of isActive. It
+     *   starts out true by default, but it can be set to nil on TopicEntries
+     *   that you want to start out as inactive subsequently activate via an
+     *   activate tag.
      */
-    activated = nil
+    activated = true
     
     
     /* 
-     *   This TopicEntry is active if its own isActive property is true and if
-     *   its location is active. This allows the isActive conditions of
-     *   individual TopicEntries to be combined with that of any TopicGroups
-     *   they're in. This property should not normally be overridden in game
-     *   code.
+     *   Activate this TopicEntry. This would normally be called in game code
+     *   via an <.activate> tag. 
      */
-    active = (isActive && location.active)
+    activate() { activated = true; }
+    
+    /*  
+     *   Deactivate this topic. This could typically be used from within the
+     *   topicResponse of an ActorTopicEntry you only want to use once (or in
+     *   the last entry in a StopEventList of an ActorTopicEntry). It can also
+     *   be called via a <.deactivate key> tag in combination with the convKeys.
+     */
+    deactivate() { activated = nil; }
+    
+    /* 
+     *   This TopicEntry is active if its own isActive property is true and its
+     *   activated property is true and if its location is active. This allows
+     *   the isActive conditions of individual TopicEntries to be combined with
+     *   that of any TopicGroups they're in. This property should not normally
+     *   be overridden in game code.
+     */
+    active = (isActive && activated && location.active)
     
     
     /* 
@@ -3501,6 +3608,10 @@ class GiveShowTopic: ActorTopicEntry
     includeInList = [&giveTopics, &showTopics]
 ;
 
+class TellTalkShowTopic: ActorTopicEntry
+    includeInList = [&tellTopics, &talkTopics, &showTopics]   
+;
+
 /* 
  *   SpecialTopic is the base class for two kinds of TopicEntry that extend the
  *   conversation system beyong basic ask/tell: SayTopic and QueryTopic. The
@@ -3537,19 +3648,20 @@ class SpecialTopic: ActorTopicEntry
             if(matchObj != nil)
             {
                 /* set the matchPattern to nil, since we shan't be using it. */
+                matchPattern = nil;               
+            }
+            else
+            {
+                
+                /* create a new Topic object using the matchPattern as its vocab */
+                matchObj = new Topic(matchPattern);
+                
+                /* then set the matchPattern to nil, since we shan't be using it. */
                 matchPattern = nil;
                 
-                return;
+                /* add the new matchObj to the universal scope list */
+                World.universalScope += matchObj;
             }
-            
-            /* create a new Topic object using the matchPattern as its vocab */
-            matchObj = new Topic(matchPattern);
-            
-            /* then set the matchPattern to nil, since we shan't be using it. */
-            matchPattern = nil;
-            
-            /* add the new matchObj to the universal scope list */
-            World.universalScope += matchObj;
         }
         
         /* 
@@ -4313,6 +4425,15 @@ conversationManager: OutputFilter, PreinitObject
                     respondingActor.makeActivated(arg);
                 break;
                 
+            case 'deactivate':
+                /* 
+                 *   Set the activated property to true for all Topic Entries
+                 *   with the appropriate key.
+                 */
+                if (respondingActor != nil)
+                    respondingActor.makeDeactivated(arg);
+                break;
+                
             case 'agenda':
                 /* add an agenda item to all relevant objects */
                 
@@ -4451,7 +4572,7 @@ conversationManager: OutputFilter, PreinitObject
         '<nocase><langle><dot>'
         + '(reveal|agenda|remove|state|known|activate|inform|convstay|topics'
         + (customTags != nil ? '|' + customTags : '')
-        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt)'
+        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate)'
         + '(<space>+(<^rangle>+))?'
         + '<rangle>')
 
@@ -4719,7 +4840,7 @@ class AgendaManager: object
             {
                 foreach(local item in valToList(val))
                 {
-                    agendaList.removeElement(item);
+                    agendaList.removeElement(item);                    
                 }
             }
         }
@@ -5139,51 +5260,57 @@ class FollowAgendaItem: AgendaItem
     
     invokeItem()
     {
+         /* Note our actor */
+        local actor = getActor;
+        
         /* If we've exhausted our list of connectors, then we're done. */
         if(nextConnNum >= connectorList.length)    
         {
-            isDone = true;                  
+            isDone = true;    
+            actor.followAgendaItem = nil;
             return;
         }
         
         /* Get our next connector */
-        local conn = connectorList[nextConnNum + 1];
+        local conn = nextConnector;       
+        
+        /* Let pur actor know we're its currently active FollowAgendaItem */
+        actor.followAgendaItem = self;
         
         /* 
-         *   Otherwise travel via the next connector in our list if we're ready
-         *   to move; we're ready to move when the player character has just
-         *   issues a Follow command, which in turn sets the fuse to move the
-         *   player character when we move.
+         *   Travel via the next connector in our list if we're ready to move;
+         *   we're ready to move when the player character has just issued a
+         *   Follow command, which in turn sets the fuse to move the player
+         *   character when we move.
          */
         if(getActor.followFuseID != nil) 
-        {
-            /* Note our actor */
-            local actor = getActor;
-                                    
-            /* Say that we're departing via it, provided the PC can see us */
-            if(Q.canSee(gPlayerChar, actor))
-                sayDeparting(conn);
-            
+        {           
             /* Travel via the connector. */
             conn.travelVia(actor);
             
             /* Increment our next connector number. */
             nextConnNum++;
             
+            /* Note that we've traveled on this turn */
+            traveledThisTurn = libGlobal.totalTurns;
+            
             /* 
-             *   Mark this Agenda Item as done if we've exhausted out list of
+             *   Mark this Agenda Item as done if we've exhausted our list of
              *   connectors
              */
-            isDone == (nextConnNum >= connectorList.length);
+            if(nextConnNum >= connectorList.length)
+            {
+                isDone = true;
+             
+                /* Note that we've arrived at our destination */
+                noteArrival();               
+            }
         }
-        
-        /* 
-         *   Otherwise display a message to say that our actor is waiting for
-         *   the player character to follow him/her.
-         */
-        else
-            sayWaiting(conn);
+
     }
+    
+    /* Which turn did this FollowAgendaItem last cause our NPC to travel on? */
+    traveledThisTurn = nil
     
     /* A pointer to the next connector to use */
     nextConnNum = 0
@@ -5195,38 +5322,106 @@ class FollowAgendaItem: AgendaItem
      */
     connectorList = []
     
-    /*  
-     *   Display a message announcing our actor's travel; by default we simply
-     *   use our actor's sayDeparting message, but we call this out as a
-     *   separate method on the FollowAgendaItem to make it easy to
-     *   customise.
-     */
-    sayDeparting(conn) { getActor.sayDeparting(conn); }    
+    /*  The next connector our NPC wants to lead the PC via */
+    nextConnector = connectorList.element(nextConnNum + 1)
     
     
     /*   
-     *   Display a message announcing that our actor is waiting for the player
-     *   character to follow him/her/it.
+     *   This method is invoked when our NPC arrives at his/her destination. By
+     *   default we do nothing, but instances can override to provide code to
+     *   handle the arrival, e.g. by changing the NPC's ActorState.
      */
-    sayWaiting(conn) 
-    { 
-        local leader = getActor;
-        gMessageParams(leader);
-        DMsg(waiting for follow, '{The subj leader} {is} waiting for {1} to
-            follow {him leader}{2}. ', gPlayerChar.theObjName,
-             followWhereMsg(conn)); 
+    noteArrival() { }
+    
+    resetItem()
+    {
+        /* Carry out the inherited handling. */
+        inherited;
         
-        notePronounAntecedent(leader);
+        /* Let our actor know we're now its active FollowAgendaItem. */
+        getActor.followAgendaItem = self;
+        
+        /* Reset our next connector pointer */
+        nextConnNum = 0;
     }
     
     /* 
-     *   An additional piece of text that can optionally be added to the
-     *   sayWaiting() message to indicate where the actor want the player
-     *   character to follow. Any text returned (other than an empty string)
-     *   should start with a space.
+     *   The specialDesc to display when our actor is waiting for the PC to
+     *   follow it. By default we just show a plain vanilla message to the
+     *   effect, "The NPC is waiting for you to follow him/her north" or
+     *   whatever, but game code may wish to override this to provide a more
+     *   customized message.
      */
-    followWhereMsg(conn) { return ''; }
+    specialDesc()
+    {
+        /* 
+         *   Note our actor and the player character and create a couple of
+         *   useful message parameter substitutions.
+         */
+        local myactor = getActor;
+        local pc = gPlayerChar;       
+        gMessageParams(myactor, pc);
+        
+        /*   
+         *   Display our default message. We make use there is a nextDirection
+         *   before we attempt to use it in our message, otherwise we simply use
+         *   a bland "X is here."
+         */
+        local nd = nextDirection;
+        
+        if(nd != nil)
+            DMsg(waiting for follow, '{The subj myactor} {is} waiting for {the
+                pc} to follow {him myactor} {1}. ', nd.departureName);
+        else
+            DMsg(actor is here, '{The subj myactor} {is} {here}. '); 
+    }
+        
+    nextDirection = getActor.getOutermostRoom.getDirection(nextConnector)
     
+    /* 
+     *   The specialDesc to use when our NPC has just traveled as a result of
+     *   this TravelAgendaItem. By default we just show our specialDesc, but
+     *   game code might want to customize this to something like "Bob crosses
+     *   the room and waits for you to follow him through the green door."
+     */
+    arrivingDesc() { specialDesc; }
+    
+    /* 
+     *   Show a specialDesc for this NPC when this TravelAgendaItem is active.
+     *   If we've just moved this turn we display the arrivingDesc(), otherwise
+     *   we show the specialDesc.
+     */
+    showSpecialDesc()
+    {
+        if(traveledThisTurn == libGlobal.totalTurns)
+            arrivingDesc();
+        else
+            specialDesc();        
+    }
+    
+    /* 
+     *   Give this AgendaItem the opportunity to react to travel; in particular
+     *   this might be used to allow the NPC to react to or even forbid travel
+     *   in a direction other than the one s/he's trying to lead the PC.
+     */
+    beforeTravel(traveler, connector) { }
+    
+    /* Cancel this FollowAgendaItem before its normal termination. */
+    cancel()
+    {
+        /* Note our actor */
+        local actor = getActor;
+        
+        /* Note that we're done. */
+        isDone = true;        
+        
+        /* Note that we're no longer our actor's current FollowAgendaItem */
+        if(actor.followAgendaItem == self)
+            actor.followAgendaItem = nil;
+        
+        /* Remove us from all agenda lists. */
+        actor.removeFromAllAgendas(self);        
+    }
     
     /*   
      *   Give this agendaItem a high priority to make sure it is used in

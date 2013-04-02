@@ -25,7 +25,7 @@ AgendaItems
  
 <p>AgendaItems are a convenient way of controlling complex behavior. Each agenda item defines its own condition for when the actor can pursue the item, and each item defines what the actor does when pursuing the item.  AgendaItems can improve the code structure for an NPC's behavior, since they nicely isolate a single background action and group it with the conditions that trigger it.  But the main benefit of agenda items is the one-per-turn pacing - by executing at most one agenda item per turn, we ensure that the NPC will carry out its self-initiated actions at a measured pace, rather than as a jumble of random actions on a single turn.</p>
 
-<p>Note that AgendaItems are not invoked when conversation has taken place on the same turn, except in the special case of a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> which can be used to allow an NPC to pursue its own conversational agenda rather than giving a bland default response to something the player character says (this will be discussed more fully in a later section). Apart from the special case of DefaultAgendaTopics, AgendaItems in adv3Lite work identically to those in adv3.</p>
+<p>Note that AgendaItems are not invoked when conversation has taken place on the same turn, except in the special case of a <a href="initiate.htm#defaultagenda">DefaultAgendaTopic</a> which can be used to allow an NPC to pursue its own conversational agenda rather than giving a bland default response to something the player character says (this will be discussed more fully in a later section). Apart from the special case of DefaultAgendaTopics, AgendaItems in adv3Lite work identically to those in adv3.</p>
 
 <br>
 <h2>Defining AgendaItems</h2>
@@ -101,7 +101,7 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
 
 <br>
 
-<p>The second specialized kind of AgendaItem is the <strong>ConvAgendaItem</strong>, which can be used to allow an NPC either to initiate a conversation or to seize the conversational initiative during a lull in the conversation. By default it is invoked when the actor can speak to the player character (they're within audible distance of each other), and there isn't a current <a href="convnode.htm">conversation node</a>, and either the player character hasn't conversed on the same turn or the play character has said something that triggers a <a href="defaultagendatopic.htm">DefaultAgendaTopic</a> (for which see below). Once again, if you need to define a further condition on the isReady property of a ConvAgendaItem you need to <em>and</em> it with the inherited handling, for example:</p>
+<p>The second specialized kind of AgendaItem is the <strong>ConvAgendaItem</strong>, which can be used to allow an NPC either to initiate a conversation or to seize the conversational initiative during a lull in the conversation. By default it is invoked when the actor can speak to the player character (they're within audible distance of each other), and there isn't a current <a href="convnode.htm">conversation node</a>, and either the player character hasn't conversed on the same turn or the play character has said something that triggers a <a href="initiate.htm#defaultagenda">DefaultAgendaTopic</a> (for which see below). Once again, if you need to define a further condition on the isReady property of a ConvAgendaItem you need to <em>and</em> it with the inherited handling, for example:</p>
  
  <p><div class="code"><pre>
 + clerkPartyAgenda: ConvAgendaItem
@@ -137,28 +137,56 @@ guard: Actor 'burly guard; strong powerful; man; him' @doorway
     clerk.addToAgenda(clerkJacketAgenda.setDelay(10));
 </pre></div>
     
-<p>The third special kind of AgendaItem is the <strong><a name="followagenda">FollowAgendaItem</a></strong>. This is used when an actor want the player character to follow him/her/it. To define a <span class="code">FollowAgendaItem</span> you need to define its <strong>connectorList</strong> property, which is a list of connectors (which in the simplest case could just be rooms, but might need to include doors, stairways and other TravelConnectors) through which the actor wishes to lead the player character. You can optionally also override the <strong>followWhereMsg(conn)</strong> method to provide snippets of extra text describing where the actor wants to lead the player character; these should be appropriate for following the message "X is waiting for you to follow him"; for example:</p>
+<p>The third special kind of AgendaItem is the <strong><a name="followagenda">FollowAgendaItem</a></strong>. This is used when an actor want the player character to follow him/her/it. To define a <span class="code">FollowAgendaItem</span> you need to define its <strong>connectorList</strong> property, which is a list of connectors (which in the simplest case could just be rooms, but might need to include doors, stairways and other TravelConnectors) through which the actor wishes to lead the player character. You can optionally also override the <strong>specialDesc</strong> method to provide a description of where the actor wants to lead the player character, and an <strong>arrivingDesc</strong> method to describe the leading actor arriving in a new destination having just led the player character there; for example:</p>
 
  <p><div class="code"><pre>    
 + FollowAgendaItem
     initiallyActive = true
     
-    connectorList = [study, hall, kitchen]
+    connectorList = [hall, kitchen, diningRoom]
     
-    followWhereMsg(conn)
+    specialDesc()
     {
-        switch(conn)
-        {
-            case study: return ' south';
-            case hall: return ' back to the hall';
-            case kitchen: return ' off to the east';
-        }
-        return inherited(conn);
+       "Bob is waiting for you to follow him ";
+       switch(getActor.getOutermostRoom)
+       {
+          case study:
+            "north into the hall. ";
+            break;
+          case hall:
+            "east into the kitchen. ";
+            break;
+          case kitchen:
+            "north into the diningRoom. ";
+            break;
+       }
+    }
+    
+    arrivingDesc()
+    {
+       "Bob crosses the room and waits for you to follow him
+        &lt;&lt;nextDirection.departureName&gt;&gt;. ";
     }
 ;
 </pre></div>
 
-<p>To vary the 'waiting to follow' messages more thoroughly, you can override the <strong>sayWaiting(conn)</strong> method, which is responsible for producing the complete text; this is another method of the FollowAgendaItem. </p>
+<p>The full list of additional properties and methods that FollowAgendaItem defines is as follows:</p>
+
+<ul>
+<li><strong>connectorList</strong>: the list of connectors via which the NPC wants to lead the player character.</li>
+<li><strong>nextConnNum</strong>: an index into the list of connectors indicating the next one to be used; this is used internally by the invokeItem method but it could also be used in specialDesc and arrivingDesc to determine how far along the path the NPC has traveled and customize the description accordingly.</li>
+<li><strong>nextConnector</strong>: the connector the NPC is currently waiting to lead the Player Character through.</li>
+<li><strong>nextDirection</strong>: the direction the NPC is currently waiting to lead the Player Character to (e.g. northDir).</li>
+<li><strong>specialDesc</strong>: while this FollowAgendaItem is active its specialDesc property is used instead of that on the current ActorState (or the actor's actorSpecialDesc). It can be used to describe the fact that the actor is waiting for the Player Character to follow him/her; e.g. "Bob is waiting for you to follow him north through the blue door". You can use <span class="code">nextConnector</span> or <span class="code">nextConnNum</span> or <span class="code">getActor.getOutermostRoom</span> to determine where along the path the actor is and so customize this property accordingly. By default specialDesc displays a 'plain vanilla' description ("Bob is waiting for you to follow him to the north") but game code will usually want to override this.</li>
+<li><strong>arrivingDesc</strong>: this is displayed instead of <span class="code">specialDesc</span> on the turn on which the lead actor arrives in a new destination when the Player Character is following him/her. By default the method just displays the <span class="code">specialDesc</span>, but game code will generally want to override it to something more appropriate, e.g. "Bob crosses the lounge and waits for you to follow him out through the french windows."</li>
+<li><strong>traveledThisTurn</strong>: the last turn on which this FollowAgendaItem caused the NPC to travel; this is used by <span class="code">showSpecialDesc()</span> to decide whether to display <span class="code">specialDesc</span> or <span class="code">arrivingDesc</span>.</li>
+<li><strong>sayDeparting(conn)</strong>: Display a message announcing our actor's travel; by default we simply use our actor's sayDeparting message, but we call this out as a
+separate method on the FollowAgendaItem to make it easy to customise.</li>
+<li><strong>noteArrival()</strong>: This method is invoked when our NPC arrives at his/her final destination (having traveled via the last connector in <span class="code">connectorList</span>). By default we do nothing, but instances can override to provide code to handle the arrival, e.g. by changing the NPC's ActorState.</li>
+<li><strong>cancel()</strong>: Cancel this FollowAgendaItem before its normal termination (and remove it from all AgendaLists). Use this method rather than <span class="code">Actor.removeAgendaItem()</span> for a FollowAgendaItem.</li>
+<li><strong>beforeTravel(traveler, connector)</strong>: Notification that <em>traveler</em> is about to travel via <em>connector</em> while this FollowAgendaItem is active. Game  code could use this, for example, to have the actor complain if the Player Character tries to travel in some direction other than the one the actor is trying to lead the PC.</li>
+</ul>
+
 
 </div>
 <hr class="navb"><div class="navb">

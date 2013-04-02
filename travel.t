@@ -166,6 +166,34 @@ class Room: TravelConnector, Thing
      */    
     allowDarkTravel = nil
     
+    /* Call the before action notifications on this room and its regions */
+    notifyBefore()
+    {
+        /* Call our own roomBeforeAction() */
+        roomBeforeAction();
+        
+        /* 
+         *   Notify all the regions we're in of the action that's about to take
+         *   place.
+         */
+        foreach(local reg in valToList(regions))
+            reg.notifyBefore();
+    }
+    
+    /* Call the after action notifications on this room and its regions */
+    notifyAfter()
+    {
+        /* Call our own roomAfterAction() */
+        roomAfterAction();
+        
+        /* 
+         *   Notify all the regions we're in of the action that's just taken
+         *   place.
+         */
+        foreach(local reg in valToList(regions))
+            reg.notifyAfter();
+    }
+    
     
     /* 
      *   roomBeforeAction and roomAfterAction are called just before and after
@@ -405,6 +433,31 @@ class Room: TravelConnector, Thing
     {
         libGlobal.addExtraDestInfo(self, dirn, dest);
     }
+    
+    /* 
+     *   The getDirection method returns the direction by which one would need
+     *   to travel from this room to travel via the connector conn (or nil if
+     *   none of the room's direction properties point to conn).
+     */
+    getDirection(conn)
+    {
+        for(local dir = firstObj(Direction); dir != nil; dir = nextObj(dir,
+            Direction))
+        {
+            if(propType(dir.dirProp) == TypeObject && self.(dir.dirProp) == conn)
+                return dir;
+        }
+        
+        return nil;
+    }
+    
+    /* 
+     *   By default we don't want the examineStatus method of a Room to do
+     *   anything except displaying the stateDesc, should we have defined one.
+     *   In particular we don't want it to list the contents of the Room, since
+     *   Looking Around will do this anyway.
+     */
+    examineStatus() { display(&stateDesc); }
 
     /*  Examining a Room is the same as looking around within it. */
     dobjFor(Examine)
@@ -431,6 +484,7 @@ class Room: TravelConnector, Thing
             PushTravelDir.execAction(gCommand);
         }
     }
+ 
     
 ;
 
@@ -666,6 +720,21 @@ class Door: TravelConnector, Thing
         DMsg(say departing through door, '{The subj traveler} {leaves} through
             {1}. ', theName);
     }
+    
+    /* 
+     *   Display message announcing that follower is following leader through
+     *   this door.
+     */
+    sayActorFollowing(follower, leader)
+    {
+        /* Create message parameter substitutions for the follower and leader */
+        gMessageParams(follower, leader);  
+        
+        DMsg(say following through door, '{The subj follower} {follows} {the
+            leader} through {1}. ', theName);
+    }
+    
+    traversalMsg = BMsg(traverse door, 'through {1}', theName)
 ;
 
   /* 
@@ -901,39 +970,66 @@ class TravelConnector: object
      *   via a compass direction.
      */
     sayDeparting(traveler)
-    {
-        local depdir = nil;
-        
-        /* Note what room the traveler is in prior to departure */
-        local room = traveler.getOutermostRoom;
-        
+    {       
         /* Create a message parameter substitution for the traveler */
-        gMessageParams(traveler);
+        gMessageParams(traveler);        
         
-        /*  
-         *   Go through each available direction until we find the one this
-         *   TravelConnector is attached to.
-         */
-        foreach(local dir in Direction.allDirections)
-        {
-            if(room.(dir.dirProp) == self)
-            {
-                /* Note that we've found the departure direction */
-                depdir = dir;
-                
-                /* Stop looking */
-                break;
-            }
-        }
-        
+        /* Find the direction to which this connector is attached. */
+        local depdir = getDepartingDirection(traveler);
         
         if(depdir == nil)
             DMsg(say departing vague, '<.p>{The subj traveler} {leaves} the
                 area. ');
         else        
-            DMsg(say departing dir, '<.p>{The subj traveler} {leaves} {1}. '
+            DMsg(say departing dir, '<.p>{The subj traveler} {goes} {1}. '
                  , depdir.departureName);
                         
+    }
+    
+    /* 
+     *   Display a message to say that follower is following leader in the
+     *   direction of this connector.
+     */
+    sayActorFollowing(follower, leader)
+    {
+        /* Create a message parameter substitution for the traveler */
+        gMessageParams(follower, leader);        
+        
+        /* Find the direction to which this connector is attached. */
+        local depdir = getDepartingDirection(follower);
+        
+        if(depdir == nil)
+            DMsg(say following vague, '<.p>{The subj follower} {follows} {the
+                leader}. ');
+        else        
+            DMsg(say following dir, '<.p>{The subj follower} {follows} {the
+                leader} {1}. ', depdir.departureName);
+        
+    }
+    
+    /* 
+     *   Create a phrase describing the direction of travel through this
+     *   connector (e.g. 'to the north')
+     */
+    traversalMsg()
+    {
+        local depDir = getDepartingDirection(gActor);
+        
+        return  BMsg(traverse connector, '{1}', depDir.departureName);
+    }
+    
+   
+    /* 
+     *   Get the direction traveler needs to go in to traverse this connector
+     *   from traveler's current location.
+     */
+    getDepartingDirection(traveler)
+    {                
+        /* Note what room the traveler is in prior to departure */
+        local room = traveler.getOutermostRoom;
+        
+        /* Return the direction to which this connector is attached. */
+        return room.getDirection(self);
     }
 ;
 
@@ -947,6 +1043,13 @@ class UnlistedProxyConnector: TravelConnector
     
     /* An UnlistedProxyConnector is never listed as an exit in its own right. */
     isConnectorListed = nil
+    
+    /* 
+     *   We'll assume an UnlistedProxyListedConnector is always 'visible', since
+     *   it's a proxy for some other connector which will handle the actual
+     *   visibility conditions.
+     */
+    isConnectorVisible = true
     
     /* Carry out travel via this connector. */
     travelVia(actor)
@@ -972,6 +1075,7 @@ class UnlistedProxyConnector: TravelConnector
     {
         /* Note the direction this connector is a proxy for. */
         direction = dir_;        
+        
     }
     
   
@@ -1167,28 +1271,28 @@ southwestDir: Direction
 downDir: Direction
     dirProp = &down
     name = BMsg(down, 'down')
-    departureName = BMsg(depart down, 'downwards')
+    departureName = BMsg(depart down, 'down')
     sortingOrder = 2000
 ;
 
 upDir: Direction
     dirProp = &up
     name = BMsg(up, 'up')
-    departureName = BMsg(depart up, 'upwards')
+    departureName = BMsg(depart up, 'up')
     sortingOrder = 2100
 ;
 
 inDir: Direction
     dirProp = &in
     name = BMsg(in, 'in')
-    departureName = BMsg(depart in, 'by going inside')
+    departureName = BMsg(depart in, 'inside')
     sortingOrder = 3000
 ;
 
 outDir: Direction
     dirProp = &out
     name = BMsg(out, 'out')
-    departureName = BMsg(depart out, 'by going out')
+    departureName = BMsg(depart out, 'out')
     sortingOrder = 3100
 ;
 
@@ -1212,14 +1316,14 @@ starboardDir: ShipboardDirection
 foreDir: ShipboardDirection
     dirProp = &fore
     name = BMsg(forward, 'forward')
-    departureName = BMsg(depart forward, 'going forward')
+    departureName = BMsg(depart forward, 'forward')
     sortingOrder = 4200
 ;
 
 aftDir: ShipboardDirection
     dirProp = &aft
     name = BMsg(aft, 'aft')
-    departureName = BMsg(depart aft, 'going aft')
+    departureName = BMsg(depart aft, 'aft')
     sortingOrder = 4300
 ;
 
@@ -1414,6 +1518,43 @@ class Region: object
       *   go to dest (the destination room).
       */    
     travelerEntering(traveler, dest) { }
+    
+    /* Carry out before notifications on the region */
+    notifyBefore()
+    {
+        /* First call our own regionBeforeAction() method */
+        regionBeforeAction();
+        
+        /* 
+         *   Then call the beforeAction notification on all the regions we're
+         *   in.
+         */
+        foreach(local reg in valToList(regions))
+            reg.notifyBefore();
+    }
+    
+    /* 
+     *   This method is called just before an action takes places in this
+     *   region.
+     */
+    regionBeforeAction() { }
+    
+    /* Carry out after notifications on the region */
+    notifyAfter()
+    {
+        /* First call our own regionAfterAction() method */
+        regionAfterAction();
+        
+        /* 
+         *   Then call the afterAction notification on all the regions we're
+         *   in.
+         */
+        foreach(local reg in valToList(regions))
+            reg.notifyAfter();
+    }
+    
+    /* Method called just after an action has taken place in this region. */
+    regionAfterAction() { }
 ;
 
 /* 

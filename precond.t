@@ -460,12 +460,7 @@ objAudible: PreCondition
  *   farms out as much of the detailed checking as possible to the Query object. 
  */
 touchObj: PreCondition
-    /* 
-     *   The issues, if any, that are causing difficulty with reaching. This
-     *   list is populated at the verify stage but can also be used at the check
-     *   stage.
-     */
-    reachIssues = []
+    
     
     verifyPreCondition(obj)
     {
@@ -473,7 +468,7 @@ touchObj: PreCondition
          *   Store any issues that the Query object finds with reaching obj from
          *   gActor
          */
-        reachIssues = Q.reachProblem(gActor, obj);
+        local reachIssues = Q.reachProblemVerify(gActor, obj);
         
         /*  Run the verify method of any issues we found */
         foreach(local issue in reachIssues)        
@@ -484,6 +479,13 @@ touchObj: PreCondition
     
     checkPreCondition(obj, allowImplicit)
     {
+        /* 
+         *   Obtain any issues the Query object finds with reaching obj from
+         *   gActor at the check stage.
+         */
+        
+        local reachIssues = Q.reachProblemCheck(gActor, obj);
+        
         /* 
          *   Go through each stored issue in turn running its check method; if
          *   any of the check methods return nil, exit and return nil.

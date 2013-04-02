@@ -218,6 +218,13 @@ class Mentionable: LMentionable
      *   pronoun for the object in the 'vocab' property.  
      */
     plural = nil
+    
+    /*   
+     *   Some objects, such as a pair of shoes or a flight of stairs could be
+     *   regarded as either singular or plural and referred to as either 'it' or
+     *   'them'. Set ambiguouslyPlural to true for such objects.
+     */
+    ambiguouslyPlural = nil
 
     /*
      *   The object's name is a mass noun.  A mass noun is a word that has
@@ -264,44 +271,43 @@ class Mentionable: LMentionable
     distinguishByContents = nil
 
     /*
-     *   Match the object to a noun phrase in the player's input.  If the
-     *   given token list is a valid name for this object, we return a
-     *   combination of MatchXxx flag values describing the match.  If the
-     *   token list isn't a valid name for this object, we return 0.
-     *   
-     *   By default, we call simpleMatchName(), which matches the name if
-     *   all of the words in the token list are in the object's vocabulary
-     *   list, regardless of word order.
-     *   
-     *   In most cases, an unordered word match works just fine.  The
-     *   obvious drawback with this approach is that it's far too generous
-     *   at matching nonsense phrases to object names - DUSTY OLD SPELL
-     *   BOOK and BOOK DUSTY SPELL OLD are treated the same.  In most
-     *   cases, users won't enter nonsense phrases like that anyway, so
-     *   they'll probably never notice that we accept them.  If they enter
-     *   something like that intentionally, we can plead Garbage In/Garbage
-     *   Out: a user who willfully types a nonsense command has only
-     *   himself to blame for a nonsense reply.
-     *   
-     *   Occasionally, though, there are reasons to be pickier.  When these
-     *   come up, you can override matchName() to be as picky as you like.
-     *   
-     *   The most common situation where pickiness is called for is when
-     *   two objects happen to share some of the same vocabulary words, but
-     *   certain words orderings clearly refer to only one or the other.
-     *   With the unordered approach, this can be a nuisance for the player
-     *   because it can trigger disambiguation questions that seem
-     *   unnecessary.  Overriding matchName() to be picky about word order
-     *   for those specific objects can often fix this.
-     *   
-     *   Another example is ensuring the user knows the correct full name
-     *   of an object as part of a puzzle: you can override matchName() to
-     *   make sure the user doesn't accidentally stumble on the object by
-     *   using one of its vocabulary words to refer to something else
-     *   nearby.  Another example is matching words that aren't in the
-     *   vocabulary list, such as a game object that represents a group of
-     *   apparent objects that have a whole range of labels ("post office
-     *   box 123", say).  
+     *   Match the object to a noun phrase in the player's input.  If the given
+     *   token list is a valid name for this object, we return a combination of
+     *   MatchXxx flag values describing the match.  If the token list isn't a
+     *   valid name for this object, we return 0.
+     *
+     *   By default, we call simpleMatchName(), which matches the name if all of
+     *   the words in the token list are in the object's vocabulary list,
+     *   regardless of word order.
+     *
+     *   In most cases, an unordered word match works just fine.  The obvious
+     *   drawback with this approach is that it's far too generous at matching
+     *   nonsense phrases to object names - DUSTY OLD SPELL BOOK and BOOK DUSTY
+     *   SPELL OLD are treated the same.  In most cases, users won't enter
+     *   nonsense phrases like that anyway, so they'll probably never notice
+     *   that we accept them.  If they enter something like that intentionally,
+     *   we can plead Garbage In/Garbage Out: a user who willfully types a
+     *   nonsense command has only himself to blame for a nonsense reply.
+     *
+     *   Occasionally, though, there are reasons to be pickier.  When these come
+     *   up, you can override matchName() to be as picky as you like.
+     *
+     *   The most common situation where pickiness is called for is when two
+     *   objects happen to share some of the same vocabulary words, but certain
+     *   words orderings clearly refer to only one or the other. With the
+     *   unordered approach, this can be a nuisance for the player because it
+     *   can trigger disambiguation questions that seem unnecessary.  Overriding
+     *   matchName() to be picky about word order for those specific objects can
+     *   often fix this. In this implementation the matchPhrases property can be
+     *   used for this purpose.
+     *
+     *   Another example is ensuring the user knows the correct full name of an
+     *   object as part of a puzzle: you can override matchName() to make sure
+     *   the user doesn't accidentally stumble on the object by using one of its
+     *   vocabulary words to refer to something else nearby.  Another example is
+     *   matching words that aren't in the vocabulary list, such as a game
+     *   object that represents a group of apparent objects that have a whole
+     *   range of labels ("post office box 123", say).
      */
     matchName(tokens)
     {        
@@ -317,17 +323,29 @@ class Mentionable: LMentionable
      */    
     matchNameCommon(tokens, phrases, excludes)
     {
-         /* 
+        /* 
          *   First try the phrase-match matcher; if this fails return 0 to
          *   indicate that we don't match. If it succeeds in matching a phrase
          *   of more than one word, return MatchPhrase (we found a match).
-         */
-        
+         */        
         local phraseMatch = 0;
         
+        /* 
+         *   We only need to test for phrase matching if there are any phrases
+         *   to match,
+         */
         if(phrases != nil)
         {    
+            /* See if our list of tokens matches any of our phrases. */           
             phraseMatch = phraseMatchName(phrases, tokens);
+            
+            /* 
+             *   If there's a mismatch between our phrases and our tokens,
+             *   return 0 to indicate we don't have a match overall. A mismatch
+             *   only occurs if one or more of our tokens appears in one or more
+             *   of our phrases but there's no match between a phrase and the
+             *   succession of tokens.
+             */
             if(phraseMatch is in (0, nil) && excludes)    
                 return 0;
             
@@ -340,6 +358,10 @@ class Mentionable: LMentionable
                 phraseMatch = 0;
         }
         
+        /* 
+         *   Now compute our simple match score (based on our individual tokens
+         *   without regard to their ordering or to their matching any phrases).
+         */
         local simpleMatch = simpleMatchName(tokens);
         
         /* 
@@ -515,7 +537,10 @@ class Mentionable: LMentionable
         /* Start by assuming we won't find a mismatch */
         local ok = true;
         
+        /* Note the number of tokens to check */
         local tokLen = tokens.length;
+        
+        /* Note the string comparator to use. */
         local cmp = Mentionable.dictComp;
         
         /* 
@@ -537,8 +562,7 @@ class Mentionable: LMentionable
                 /* 
                  *   See if we can find a list equivalent to the phraseMatch
                  *   list as a sublist of the tokens list.
-                 */
-                
+                 */                
                 local pmLength = pmList.length();
                 for(local i in 1 .. tokLen - pmLength + 1)
                 {
@@ -573,7 +597,7 @@ class Mentionable: LMentionable
      *   player input. Note that words defined here should also be defined in
      *   the vocab property; the purpose of the phraseMatches property is to
      *   limit matches. Note also that object will be matched if any of the
-     *   phrases in the list are matched.
+     *   phrases in the list is matched.
      */
     matchPhrases = nil
     
@@ -900,13 +924,17 @@ class State: LState
  *   A ReplaceRedirector is a Redirector that uses replaceAction (or its
  *   execNestedAction equivalent) to redirect one action to another.
  */
-
 class ReplaceRedirector: Redirector
+    
     /* 
      *   User code should normally call this method via doInstead rather than
-     *   directly.
-     */
-    
+     *   directly. cmd is the current command object, altAction is the action we
+     *   want to perform instead of the current action, dobj and iobj are the
+     *   direct and indirect objects of the new action, and isReplacement
+     *   determines whether the new action replaces the original one (if true)
+     *   or merely takes place during the execution of the original one, which
+     *   then resumes when the new action is complete (if isReplacement is nil).
+     */    
     redirect(cmd, altAction, dobj:?, iobj:?, isReplacement: = true)
     {
         if(iobj != nil && dobj != nil)
@@ -918,6 +946,11 @@ class ReplaceRedirector: Redirector
     }
 ;
 
+/* 
+ *   Thing is the base class for all game objects that represent physical
+ *   objects which can be interacted with in the game world. All such physical
+ *   objects are either Things or based on a subclass of Thing.
+ */
 class Thing:  ReplaceRedirector, Mentionable
    
     /* 
@@ -931,12 +964,17 @@ class Thing:  ReplaceRedirector, Mentionable
         /* 
          *   Only display the 'nothing special' message if there's no status
          *   description.
-         */
-        
+         *
+         *   First check whether examineStatus() produces any output.
+         */        
         local str = gOutStream.captureOutput({: examineStatus()});
         
         str = str == nil ? '' : str.trim();
         
+        /* 
+         *   If there's no output from examineStatus, display our 'nothing
+         *   special' message.
+         */
         if(str == '')            
             DMsg(nothing special,  '{I} {see} nothing special about {1}. ', 
                  theName); 
@@ -949,27 +987,43 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     stateDesc = ''
     
-    lookDesc(pov) { desc; }
-    childDesc(pov) { desc; }
+    
+//    lookDesc(pov) { desc; }
+//    childDesc(pov) { desc; }
     
     
     /* 
      *   Attempt to display prop appropriately according to it data type
-     *   (single-quoted string, double-quoted string, integer or code )
+     *   (single-quoted string, double-quoted string, integer or code). The prop
+     *   parameter must be provided as a property pointer.
      */
     display(prop)
     {
         switch(propType(prop))
         {
+            /* 
+             *   If prop is a single-quoted string or an integer, simply display
+             *   it.
+             */
         case TypeSString:
         case TypeInt:    
             say(self.(prop));
             break;
+            
+            /* If prop is a double-quoted string, display it by executing it. */
         case TypeDString:
             self.(prop);
             break;
+            
+            /* if prop is a method, execute it. */
         case TypeCode:
+            /* 
+             *   In case prop is a method that returns a single-quoted string,
+             *   note the return value from executing prop.
+             */
             local str = self.(prop);
+            
+            /* If it's a string, display it. */
             if(dataType(str) == TypeSString)
                 say(str);
             break;
@@ -994,9 +1048,16 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Thing in case the player char finds itself in a closed Booth.
      */
     
+    /*   
+     *   The title of this room to be displayed at the start of a room
+     *   description, or in the status line.
+     */
     roomHeadline(pov)
     {
-        /* start with the room title */
+        /* 
+         *   start with the room title; if this room is illuminated use the
+         *   standard roomTitle, otherwise use our darkName. 
+         */
         say(isIlluminated ? roomTitle : darkName);
 
         /* if the actor is in an intermediate container, add the container */
@@ -1036,36 +1097,47 @@ class Thing:  ReplaceRedirector, Mentionable
      *   ordinary EXAMINE description.  For a top-level room, you don't usually
      *   override this, since the only description needed for a room is normally
      *   the LOOK AROUND perspective.
-     */
-    
+     */    
     interiorDesc = (desc)
 
-    
+    /*  
+     *   If we're a room, are we illuminated (is there enough light for an actor
+     *   within us to see by)?
+     */
     isIlluminated
     {
         /* 
          *   If the room itself is lit, then it's self-illuminating and we don't
          *   need to check anything else.
-         */
-        
+         */        
         if(isLit)
             return true;
             
         /* 
          *   Otherwise we need to see if there's anything visible in the room's
          *   contents that's lit.
-         */
-        
+         */        
         return isThereALightSourceIn(contents);
     }
     
+    /* 
+     *   Determine (recursively) whether lst contains a light source; i.e.
+     *   whether any of the items within list is lit or whether any of the
+     *   visible contents of any of the items in lst it lit.
+     */
     isThereALightSourceIn(lst)
     {
         foreach(local obj in lst)
         {
+            /* If we find an object that's lit, return true. */
             if(obj.isLit)
                 return true;
             
+            /* 
+             *   If we have any contents and our contents are visible from
+             *   outside us, return true if there's a light source among our
+             *   contents.
+             */
             if(obj.contents.length > 0 
                && (obj.isOpen || obj.contType != In || obj.isTransparent)
                && isThereALightSourceIn(obj.contents))
@@ -1073,8 +1145,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
         }
         
-        /* If we get this far we haven't found a light source. */
-        
+        /* If we get this far we haven't found a light source. */        
         return nil;
     }
     
@@ -1086,27 +1157,53 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     roomContentsLister = lookLister
     
-    
+    /* 
+     *   Look around within this Thing (Room or Booth) to provide a full
+     *   description of this location as seen from within, including our
+     *   headline name, our internal description, and a listing of our visible
+     *   contents.
+     */
     lookAroundWithin()
     {
          /* Reset everything in the room to not mentioned. */
         unmention(contents);
         
-        /* Reset everything in remote rooms we're connected to */
-        
+        /* Reset everything in any remote rooms we're connected to */        
         unmentionRemoteContents();
         
+        /* Begin by displaying our name */
         "<.roomname><<statusName(gPlayerChar)>><./roomname>\n";
+        
+        /* If we're illuminate show our description and list our contents. */
         if(isIlluminated)
         {
+            /* Display our interior description. */
             "<<interiorDesc>><.p>";
+            
+            /* List our contents. */
             listContents();
+            
+            /* Note that we've been seen and visited. */
             seen = true;
             visited = true;
         }
+        
+        /* 
+         *   Otherwise, if there's not enough light to see by, just show our
+         *   dark description.
+         */
         else
         {
+            /* Display the darkDesc */
             "<<darkDesc>>";
+            
+            /* 
+             *   If this location is recognizable to the player character in the
+             *   dark despite the poor lighting (for example, the PC knows it's
+             *   a cellar because s/he's just descended a flight of steps that
+             *   clearly lead to a cellar), note that we've been visited and
+             *   that we're now known about (the pc knows of our existence).
+             */
             if(recognizableInDark)
             {
                 visited = true;
@@ -1116,11 +1213,12 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         "<.p>";
         
-
+        /* If the game includes an exit lister, list our exits. */        
         if(gExitLister != nil)
             gExitLister.lookAroundShowExits(gActor, self, isIlluminated);
     }
     
+    /* List the contents of this object using lister. */
     listContents(lister = roomContentsLister)
     {    
         
@@ -1128,16 +1226,26 @@ class Thing:  ReplaceRedirector, Mentionable
         if(!canSeeIn())
             return;
         
+        /* 
+         *   Set up a variable to contain the list of objects with specialDescs
+         *   to be shown before the list of miscellaneous contents.
+         */
         local firstSpecialList = [];
+        
+        /* Set up a variable to contain of list of miscellaneous contents. */
         local miscContentsList = [];
+        
+        /* 
+         *   Set up a variable to contain the list of objects with specialDescs
+         *   to be shown after the list of miscellaneous contents.
+         */
         local secondSpecialList = [];
           
         /* 
          *   First mention the actor's immediate container, if it isn't the
          *   object we're looking around within. Then list the oontainer's
          *   contents immediately after.
-         */
-        
+         */        
         local loc = gActor.location;        
         
         if(loc != self && lister == roomContentsLister)
@@ -1388,15 +1496,18 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The next four methods are provided so that listContents() can call
      *   them, but they do nothing in the core library. They are overridden in
      *   senseRegion.t (for use if senseRegion.t is included in the build).
-     */
-    
+     */    
     unmentionRemoteContents() {}
     showFirstConnectedSpecials(pov) {}
     showConnectedMiscContents(pov) {}
     showSecondConnectedSpecials(pov) {}
     
 //------------------------------------------------------------------------------  
-
+    /* 
+     *   From here on we have properties and methods relating to Things in
+     *   general rather than Rooms and Booths.
+     */
+    
     /* Do we want this object to report whether it's open? */
 
     openStatusReportable = (isOpenable && isOpen)
@@ -3123,7 +3234,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(Taste)
     {
-        preCond = [objHeld]
+        preCond = [touchObj]
         
         verify()
         {
@@ -3539,7 +3650,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
              
         
-        action() { moveInto(getOutermostRoom); }
+        action() { actionMoveInto(getOutermostRoom); }
         
         report()
         {
@@ -4115,7 +4226,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotLookThroughMsg);            
         }
         
-        action() { say(lookThroughMsg); }
+        action() { display(&lookThroughMsg); }
     }
     
     cannotLookThroughMsg = BMsg(cannot look through, '{I} {can\'t} look through
@@ -5075,7 +5186,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            moveInto(getOutermostRoom);            
+            actionMoveInto(getOutermostRoom);            
         }
         
         report()
@@ -5835,7 +5946,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {            
-            gDobj.moveInto(getOutermostRoom);
+            gDobj.actionMoveInto(getOutermostRoom);
         }
         
         report()
@@ -7122,6 +7233,8 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             moveInto(gActor);
+            if(gPlayerChar.canSee(self))
+                gSetSeen(self);
         }
         
         report()

@@ -67,6 +67,7 @@ tVisit: Topic '()your visit; my;' ;
 
 <ol>
 <li>The <strong>isActive</strong> property must be true.</li>
+<li>The <strong>activated</strong> property must be true.</li>
 <li>The <strong>curiosityAroused</strong> property must be true (it is true by default).</li>
 <li>The <strong>curiositySatisfied</strong> method must return nil.</li>
 <li>The ActorTopicEntry in question must be reachable.</li>
@@ -82,6 +83,7 @@ tVisit: Topic '()your visit; my;' ;
 
 <ul>
 <li>The isActive property is nil.</li>
+<li>The activated property is nil.</li>
 <li>The player character does not know about the matchObj.</li>
 <li>The ActorTopicEntry is masked by another ActorTopicEntry (possibly a DefaultTopic) defined under the current ActorState.</li>
 <li>The ActorTopicEntry is masked by another ActorTopicEntry with a higher matchScore.</li>
@@ -152,6 +154,32 @@ bob: Actor 'Bob; worried; man; him' @store
 <p>Note that if you do this, bob's suggestionKey isn't set in stone; it can be changed at run-time to anything else (including nil, which removes the restriction on what topics to suggest) simply by executing the statement <span class="code">bob.suggestionKey = 'another-key'</span> or <span class="code">bob.suggestionKey = nil</span>, or equivalently using the tag <strong>&lt;.sugkey another-key&gt;</strong> or <strong>&lt;.sugkey nil&gt;</strong>.</p>
 
 <p>It should be emphasized once again that there is absolutely no reason to use this scheme if you don't want to; in many games it probably wouldn't be convenient; but it is one of the reasons for introducing a separate TalkTopic (for use at the top-level of such a scheme in a way that clearly distinguishes top-level topics and suggestions from the sub-topics that fall underneath). It should also be emphasized that game authors are, of course, free to use the tools described here in any way they wish; they are certainly not restricted to this particular scheme.</p>
+
+<p>One alternative to using a scheme involving top-level topics is to activate or arouse curiosity concerning a group of topics just prior to suggesting them via keyTopics. To facilitate this the list of strings defined on a keyTopics property is allowed to include control tags such as &lt;.activate key&gt; or &lt;.arouse key&gt; that can activate or arouse curiosity concerning a group of topics just before they're due to be suggested. This avoids the need to use a top-level suggestion key, but also makes the suggested sub-topics permanently available once they have been suggested (which may be what you want). For example, instead of defining a top-level suggestionKey on bob, we could make the dark tower's subtopics initially inactive and then have the darkTower activate them just prior to suggesting them, like this:</p>
+
+<p><div class="code"><pre>
+bob: Actor 'Bob; worried; man; him' @store
+  ...
+  
+;
+ 
++ AskTellTalkTopic @darkTower
+    keyTopics = ['&lt;.activate dark-tower&gt;', 'dark-tower']
+    
+    autoName = true
+;
+
++ TellTopic @tVisit
+   "&lt;q&gt;I visited the dark tower earlier..."
+ 
+    convKeys = 'dark-tower'
+    autoName = true
+    activated = nil    
+; 
+... 
+</pre></div>
+
+<p>This would cause all the topic entries with 'dark-tower' as one of their convKeys to be activated just prior to their being suggested from the darkTower topic entry. Unless we took steps to make things work differently, they would then remain activated and would hence be suggested in any future topic inventory.</p>
 
 <br>
 

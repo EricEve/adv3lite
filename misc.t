@@ -1325,6 +1325,11 @@ valToList(val)
         return [];
     case TypeList:
         return val;
+    case TypeObject:
+        if(val.ofKind(Vector))
+            return val.toList;
+        else
+            return [val];
     default:
         return [val];
     }

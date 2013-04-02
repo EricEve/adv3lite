@@ -424,7 +424,18 @@ class Component: SimpleAttachable
          */
         if(initiallyAttached)
         {
+            /* A Component is attached to its immediate location. */
             attachedTo = location;
+            
+            /* 
+             *   It's possible that we're a component of something that isn't an
+             *   Attachable and doesn't provide the attachments property; in
+             *   which case, initialize its attachments property now.
+             */
+            if(location.attachments == nil)
+                location.attachments = [];
+            
+            /* Add ourselves to our locations list of attachments. */
             location.attachments += self;
         }
     }

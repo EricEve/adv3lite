@@ -103,6 +103,12 @@ Q: object
     reachProblem(a, b)
        { return Special.first(&reachProblem).reachProblem(a, b); }
     
+    reachProblemVerify(a, b)
+       { return Special.first(&reachProblem).reachProblemVerify(a, b); }
+    
+    reachProblemCheck(a, b)
+       { return Special.first(&reachProblem).reachProblemCheck(a, b); }
+    
     /*
      *   Can A hear B?  
      */
@@ -295,9 +301,28 @@ QDefaults: Special
      *   must return either an empty list (to indicate that there are no
      *   problems with reaching from A to B) or a list of one or more
      *   ReachProblem objects describing what is preventing A from reaching B.
+     *
+     *   Your own Special should normally leave reachProblem() alone and
+     *   override reachProblemVerify() and/or reachProblemCheck().
      */
     
     reachProblem(a, b)
+    {
+        /* 
+         *   A list of issues that might prevent reaching from A to B. If we
+         *   encounter a fatal one we return the list straight away rather than
+         *   carrying out more checks.
+         */
+        local issues = reachProblemVerify(a, b);
+        if(issues.length > 0)
+            return issues;
+        
+        return reachProblemCheck(a, b);      
+        
+    }
+    
+    /* Return a list of reach issues that might occur at the verify stage. */
+    reachProblemVerify(a, b)
     {
         /* 
          *   A list of issues that might prevent reaching from A to B. If we
@@ -344,13 +369,26 @@ QDefaults: Special
          *   object.
          */
         
-        if(a.propDefined(&verifyReach))
+        if(b.propDefined(&verifyReach))
         {
             local tabCount = gAction.verifyTab.getEntryCount();
-            a.verifyReach(b);
+            b.verifyReach(a);
             if(gAction.verifyTab.getEntryCount > tabCount)
                issues += new ReachProblemVerifyReach(a, b);
         }
+       
+        /* Return our list of issues. */
+        return issues;
+    }
+    
+    reachProblemCheck(a, b)
+    {
+        /* 
+         *   A list of issues that might prevent reaching from A to B. If we
+         *   encounter a fatal one we return the list straight away rather than
+         *   carrying out more checks.
+         */
+        local issues = [];
         
         local checkMsg = nil;
         
@@ -366,43 +404,64 @@ QDefaults: Special
             issues += new ReachProblemReachOut(b);
         
         
-        /*  
-         *   Determine whether there's any problem with b reached from a defined
-         *   in b's checkReach (from a) method.
-         */
-        checkMsg = gOutStream.captureOutput({: b.checkReach(a)});
-        
-        
-        /*   
-         *   If the checkReach method generates a non-empty string, return a new
-         *   ReachProblemCheckReach object that encapsulates it
-         */
-        if(checkMsg not in (nil, ''))
-            issues += new ReachProblemCheckReach(b, checkMsg);
-        
+       
+        try
+        {
+            /*  
+             *   Determine whether there's any problem with b reached from a
+             *   defined in b's checkReach (from a) method.
+             */            
+            checkMsg = gOutStream.captureOutputIgnoreExit({: b.checkReach(a)});
+                        
+            
+            /*   
+             *   If the checkReach method generates a non-empty string, add a
+             *   new ReachProblemCheckReach object that encapsulates it
+             */
+            if(checkMsg not in (nil, ''))
+                issues += new ReachProblemCheckReach(b, checkMsg);
+            
+            
+            /* 
+             *   Next check whether there's any problem reaching inside B from A
+             *   defined in B's checkReachIn method or the checkReach in method
+             *   of anything that contains B.
+             */
+            local cpar = b.commonInteriorParent(a);
+            
+            if(cpar != nil)
+            {
+                for(loc = b.location; loc != cpar; loc = loc.location)
+                {
+                    checkMsg = gOutStream.captureOutputIgnoreExit(
+                        {: loc.checkReachIn(a, b)});
+                    if(checkMsg not in (nil, ''))
+                        issues += new ReachProblemCheckReach(b, checkMsg);
+                }
+                
+            }
+        }
         
         /* 
-         *   Next check whether there's any problem reaching inside B from A
-         *   defined in B's checkReachIn method or the checkReach in method of
-         *   anything that contains B.
+         *   Game authors aren't meant to use the exit macro in check methods,
+         *   but in case they do we handle it here.
          */
-        local cpar = b.commonInteriorParent(a);
-        
-        if(cpar != nil)
+        catch (ExitSignal ex)
         {
-            for(loc = b.location; loc != cpar; loc = loc.location)
-            {
-                checkMsg = gOutStream.captureOutput({: loc.checkReachIn(a, b)});
-                if(checkMsg not in (nil, ''))
-                    issues += new ReachProblemCheckReach(b, checkMsg);
-            }
+            /* 
+             *   If for some reason a check method uses exit without displaying
+             *   a method, we supply a dummy failure message at this point.
+             */
             
+            if(checkMsg is in (nil, ''))
+                checkMsg = gAction.failCheckMsg;
+            
+            issues += new ReachProblemCheckReach(b, checkMsg);
         }
         
         /* Return our list of issues */
         return issues;
     }
-    
     
     /*
      *   Determine if A can reach B, and if not, what stands in the way. Returns

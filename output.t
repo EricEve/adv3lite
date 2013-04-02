@@ -270,12 +270,49 @@ class OutputStream: PreinitObject
             /* return the text that we captured */
             return filter.txt_;
         }
+                     
+        
         finally
         {
             /* we're done with our filter, so remove it */
             removeOutputFilter(filter);
         }
     }
+    
+    /* 
+     *   A Version of captureOutput that ignores an Exit Exception. This can be
+     *   used to attempt to retrieve the string value of an output filter that
+     *   threw an exit exeption.
+     */
+    captureOutputIgnoreExit(func, [args])    
+    {
+        /* install a string capture filter */
+        local filter = new StringCaptureFilter();
+        addOutputFilter(filter);
+
+        /* make sure we don't leave without removing our capturer */
+        try
+        {
+            /* invoke the function */
+            (func)(args...);
+
+            /* return the text that we captured */
+            return filter.txt_;
+        }
+              
+        catch(ExitSignal ex)
+        {
+            return filter.txt_;
+        }
+        
+        finally
+        {
+            /* we're done with our filter, so remove it */
+            removeOutputFilter(filter);
+        }
+    }
+    
+    
 
     /* my associated input manager, if I have one */
     myInputManager = nil
