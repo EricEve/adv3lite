@@ -953,94 +953,6 @@ class ReplaceRedirector: Redirector
  */
 class Thing:  ReplaceRedirector, Mentionable
    
-    /* 
-     *   The description of this Thing that's displayed when it's examined.
-     *   Normally this would be defined as a double-quoted string, but in more
-     *   complicated cases you could also define it as a method that displays
-     *   some text.
-     */
-    desc() 
-    { 
-        /* 
-         *   Only display the 'nothing special' message if there's no status
-         *   description.
-         *
-         *   First check whether examineStatus() produces any output.
-         */        
-        local str = gOutStream.captureOutput({: examineStatus()});
-        
-        str = str == nil ? '' : str.trim();
-        
-        /* 
-         *   If there's no output from examineStatus, display our 'nothing
-         *   special' message.
-         */
-        if(str == '')            
-            DMsg(nothing special,  '{I} {see} nothing special about {1}. ', 
-                 theName); 
-    }
-    
-    /* 
-     *   The state-specific description of this object, which is appended to its
-     *   desc when examined. This is defined as a single-quoted string to make
-     *   it easy to change at run-time.
-     */
-    stateDesc = ''
-    
-    
-//    lookDesc(pov) { desc; }
-//    childDesc(pov) { desc; }
-    
-    
-    /* 
-     *   Attempt to display prop appropriately according to it data type
-     *   (single-quoted string, double-quoted string, integer or code). The prop
-     *   parameter must be provided as a property pointer.
-     */
-    display(prop)
-    {
-        switch(propType(prop))
-        {
-            /* 
-             *   If prop is a single-quoted string or an integer, simply display
-             *   it.
-             */
-        case TypeSString:
-        case TypeInt:    
-            say(self.(prop));
-            break;
-            
-            /* If prop is a double-quoted string, display it by executing it. */
-        case TypeDString:
-            self.(prop);
-            break;
-            
-            /* if prop is a method, execute it. */
-        case TypeCode:
-            /* 
-             *   In case prop is a method that returns a single-quoted string,
-             *   note the return value from executing prop.
-             */
-            local str = self.(prop);
-            
-            /* If it's a string, display it. */
-            if(dataType(str) == TypeSString)
-                say(str);
-            break;
-        default:
-            /* do nothing */
-            break;
-        }
-    }
-    
-    
-    /* 
-     *   Has this item been mentioned yet in a room description. Note that this
-     *   flag is used internally by the library; it shouldn't normally be
-     *   necessary to manipulate it directly from game code.
-     */
-    mentioned = nil
-    
     
     /* 
      *   Most of the following properties and methods down to the next dashed
@@ -1246,46 +1158,91 @@ class Thing:  ReplaceRedirector, Mentionable
          *   object we're looking around within. Then list the oontainer's
          *   contents immediately after.
          */        
-        local loc = gActor.location;        
+        local loc = gActor.location;                
         
+        /* 
+         *   If we're not the pc's immediate container and we're looking around,
+         *   start by describing the pc's immediate container and listing its
+         *   contents.
+         */
         if(loc != self && lister == roomContentsLister)
         {
+            /* 
+             *   If there isn't a current action (e.g. because we're showing a
+             *   room description before the first turn) create a Look Action to
+             *   provide an action context for the gMessageParams() call that
+             *   follows.
+             */
             if(gAction == nil)
                 gAction = Look.createInstance();
             
+            /* Create a message parameter substitution. */
             gMessageParams(loc);
+            
+            /* Start by mentioning the PC's immediate container. */            
             DMsg(list immediate container, '{I} {am} {in loc}. <.p>');
+            
+            /* Note that the pc's immediate container has been mentioned. */
             loc.mentioned = true;
+            
+            /* 
+             *   If the pc's immediate container is a subcomponent (of a complex
+             *   container object), note that its lexical parent has been
+             *   mentioned.
+             */
             if(loc.ofKind(SubComponent) && loc.lexicalParent != nil)
                 loc.lexicalParent.mentioned = true;
                 
+            /* List the contents of the pc's immediate container. */
             listSubcontentsOf([loc]);
         }
         
+        /* List every listable item in our contents. */
         foreach(local obj in contents)
         {            
+            /* 
+             *   If the object has an initSpecialDesc or a specialDesc which is
+             *   currently in use, add it to the appropriate list.
+             */
             if((obj.propType(&initSpecialDesc) != TypeNil &&
                obj.useInitSpecialDesc()) ||
                (obj.propType(&specialDesc) != TypeNil && obj.useSpecialDesc()))
             {
+                /* 
+                 *   If the specialDesc should be shown before the list of
+                 *   miscellaneous items, add this object to the first list of
+                 *   specials.
+                 */
                 if(obj.specialDescBeforeContents)
                     firstSpecialList += obj;
+                
+                /* Otherwise add it to the second list of specials. */
                 else
                     secondSpecialList += obj;
             }
+            /* 
+             *   Otherwise add it to the list of miscellaneous items, provided
+             *   it should be listed when looking around.
+             */
             else if(obj.lookListed)
                 miscContentsList += obj;
                       
+            /* Note that the object has been seen by the pc. */
             obj.noteSeen();
         }
         
+        /* Sort the first list of specials in order of their specialDescOrder */
         firstSpecialList = firstSpecialList.sort(nil, {a, b: a.specialDescOrder -
                                                  b.specialDescOrder});
                  
-        
+        /* Sort the second list of specials in order of their specialDescOrder */
         secondSpecialList = secondSpecialList.sort(nil, {a, b: a.specialDescOrder -
                                                  b.specialDescOrder});
-        
+
+        /* 
+         *   Show the specialDesc (or initSpecialDesc) of all the objects in the
+         *   first specials list.
+         */
         foreach(local obj in firstSpecialList)        
             obj.showSpecialDesc();                
         
@@ -1293,16 +1250,23 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If we're listing the contents of a room, then show the specialDescs
          *   of any items in the other rooms in our SenseRegions, where
          *   specialDescBeforeContents is true
-         */
-        
+         */        
         if(lister == roomContentsLister)
             showFirstConnectedSpecials(gPlayerChar);
         
-        
+        /* 
+         *   Remove any items from the miscellaneous list that have already been
+         *   mentioned.
+         */
         miscContentsList = miscContentsList.subset({o: o.mentioned == nil});
-                        
+                
+        /* 
+         *   Display the list of miscellaneous items using the lister passed as
+         *   parameter to this method.         
+         */
         lister.show(miscContentsList, self);
                
+        /*   List the contents of our contents. */
         listSubcontentsOf(contents, lookContentsLister);
         
          /* 
@@ -1321,6 +1285,10 @@ class Thing:  ReplaceRedirector, Mentionable
         if(lister == roomContentsLister)        
             showConnectedMiscContents(gPlayerChar);
                 
+        /* 
+         *   Show the specialDesc (or initSpecialDesc) of every object in our
+         *   second list of specials.
+         */
         foreach(local obj in secondSpecialList)
             obj.showSpecialDesc();
         
@@ -1462,8 +1430,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   object that's just been opened.
              */
             if(obj.contents.length > 0 && lister != openingContentsLister)
-                listSubcontentsOf(obj.contents, lister);          
-            
+                listSubcontentsOf(obj.contents, lister);                     
             
         }
         
@@ -1487,6 +1454,8 @@ class Thing:  ReplaceRedirector, Mentionable
         foreach(local obj in lst)
         {
             obj.mentioned = nil;
+            
+            /* If obj has any contents, unmention every item in is contents */
             if(obj.contents.length > 0)
                 unmention(obj.contents);
         }
@@ -1502,42 +1471,200 @@ class Thing:  ReplaceRedirector, Mentionable
     showConnectedMiscContents(pov) {}
     showSecondConnectedSpecials(pov) {}
     
+    /*
+     *   Display the "status line" name of the room.  This is normally a
+     *   brief, single-line description.
+     *   
+     *   By long-standing convention, each location in a game usually has a
+     *   distinctive name that's displayed here.  Players usually find
+     *   these names helpful in forming a mental map of the game.
+     *   
+     *   By default, if we have an enclosing location, and the actor can
+     *   see the enclosing location, we'll defer to the location.
+     *   Otherwise, we'll display our roo interior name.  
+     */
+    statusName(actor)
+    {
+        /* 
+         *   use the enclosing location's status name if there is an
+         *   enclosing location and its visible; otherwise, show our
+         *   interior room name 
+         */
+        if (location != nil && Q.canSee(actor, location))
+            location.statusName(actor);
+        else
+        {
+            roomHeadline(actor);
+        }
+    }
+    
+    /* 
+     *   Get the estimated height, in lines of text, of the exits display's
+     *   contribution to the status line.  This is used to calculate the
+     *   extra height we need in the status line, if any, to display the
+     *   exit list.  If we're not configured to display exits in the status
+     *   line, this should return zero. 
+     */
+    getStatuslineExitsHeight()
+    {
+        if (gExitLister != nil)
+            return gExitLister.getStatuslineExitsHeight();
+        else
+            return 0;
+    }
+    
+    /* Show our exits in the status line */
+    showStatuslineExits()
+    {
+        location.showStatuslineExits();
+    }
+    
+    /* 
+     *   Would this location be lit for actor. By default it would if it's
+     *   illuminated.
+     */
+    wouldBeLitFor(actor)   
+    {
+        return getOutermostRoom.isIlluminated;
+    }
+    
 //------------------------------------------------------------------------------  
     /* 
      *   From here on we have properties and methods relating to Things in
-     *   general rather than Rooms and Booths.
+     *   general rather than just Rooms and Booths.
      */
     
-    /* Do we want this object to report whether it's open? */
-
-    openStatusReportable = (isOpenable && isOpen)
-    
-    examineStatus()
-    {        
-        display(&stateDesc);
+    /* 
+     *   The description of this Thing that's displayed when it's examined.
+     *   Normally this would be defined as a double-quoted string, but in more
+     *   complicated cases you could also define it as a method that displays
+     *   some text.
+     */
+    desc() 
+    { 
+        /* 
+         *   Only display the 'nothing special' message if there's no status
+         *   description.
+         *
+         *   First check whether examineStatus() produces any output.
+         */        
+        local str = gOutStream.captureOutput({: examineStatus()});
         
-        if(contType != Carrier && contentsListedInExamine)
-        {          
-            unmention(contents);
-            listSubcontentsOf(self, examineLister);            
-        }           
-           
+        str = str == nil ? '' : str.trim();
+        
+        /* 
+         *   If there's no output from examineStatus, display our 'nothing
+         *   special' message.
+         */
+        if(str == '')            
+            DMsg(nothing special,  '{I} {see} nothing special about {1}. ', 
+                 theName); 
     }
     
-    /* The lister to use to list an item's contents when it's examined. */
+    /* 
+     *   The state-specific description of this object, which is appended to its
+     *   desc when examined. This is defined as a single-quoted string to make
+     *   it easy to change at run-time.
+     */
+    stateDesc = ''
     
+    /* 
+     *   Additional information to display after our desc in response to an
+     *   EXAMINE command.
+     */
+    examineStatus()
+    {        
+        /* First display our stateDesc (our state-specific information) */
+        display(&stateDesc);
+        
+        /* 
+         *   Then display our list of contents, unless we're a Carrier (an actor
+         *   carrying our oontents) or our contentsListedInExamine is nil.
+         */
+        if(contType != Carrier && contentsListedInExamine)
+        {          
+            /* 
+             *   Start by marking our contents as not mentioned to ensure that
+             *   they all get listed.
+             */
+            unmention(contents);
+            
+            /* Then list our contents using our examineLister. */
+            listSubcontentsOf(self, examineLister);            
+        }                   
+    }
+    
+    /* The lister to use to list an item's contents when it's examined. */    
     examineLister = descContentsLister
     
+//    lookDesc(pov) { desc; }
+//    childDesc(pov) { desc; }
     
     
+    /* 
+     *   Attempt to display prop appropriately according to it data type
+     *   (single-quoted string, double-quoted string, integer or code). The prop
+     *   parameter must be provided as a property pointer.
+     */
+    display(prop)
+    {
+        switch(propType(prop))
+        {
+            /* 
+             *   If prop is a single-quoted string or an integer, simply display
+             *   it.
+             */
+        case TypeSString:
+        case TypeInt:    
+            say(self.(prop));
+            break;
+            
+            /* If prop is a double-quoted string, display it by executing it. */
+        case TypeDString:
+            self.(prop);
+            break;
+            
+            /* if prop is a method, execute it. */
+        case TypeCode:
+            /* 
+             *   In case prop is a method that returns a single-quoted string,
+             *   note the return value from executing prop.
+             */
+            local str = self.(prop);
+            
+            /* If it's a string, display it. */
+            if(dataType(str) == TypeSString)
+                say(str);
+            break;
+        default:
+            /* do nothing */
+            break;
+        }
+    }
     
+    
+    /* 
+     *   Has this item been mentioned yet in a room description. Note that this
+     *   flag is used internally by the library; it shouldn't normally be
+     *   necessary to manipulate it directly from game code.
+     */
+    mentioned = nil
+    
+   
+    
+    /* 
+     *   Do we want this object to report whether it's open? By default we do if
+     *   it's both openable and open.
+     */
+    openStatusReportable = (isOpenable && isOpen)
+    
+        
     /* 
      *   If present, a description of this object shown in a separate paragraph
      *   in the listing of the contents of a Room. If specialDesc is defined
      *   then this paragraph will be displayed regardless of the value of
      *   isListed.
-     */
-    
+     */    
     specialDesc = nil
     
     /* 
@@ -1547,8 +1674,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   moved we could define useSpecialDesc = (!moved) [making it equivalent
      *   to initSpecialDesc]. Note that the useSpecialDesc property only
      *   has any effect if specialDesc is not nil.
-     */
- 
+     */ 
     useSpecialDesc = true
     
     
@@ -1583,7 +1709,7 @@ class Thing:  ReplaceRedirector, Mentionable
     specialDescListWith = nil
     
     
-    /* Show our specialDesc */
+    /* Show our specialDesc or initSpecialDesc, as appropriate */
     showSpecialDesc()
     {
         /* 
@@ -1605,8 +1731,10 @@ class Thing:  ReplaceRedirector, Mentionable
         else
             specialDesc;
            
+        /*  Add a paragraph break. */
         "<.p>";
         
+        /* Note that we've been seen. */
         noteSeen();
     }
     
@@ -1616,8 +1744,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Flag to indicate whether this item is portable (nil) or fixed in place
      *   (true). If it's fixed in place it can't be picked up or moved around
      *   (by player commands).
-     */
-    
+     */    
     isFixed = (isDecoration)
     
     /* 
@@ -1625,23 +1752,59 @@ class Thing:  ReplaceRedirector, Mentionable
      *   portable items but not those fixed in place, so we make this the
      *   default.
      */
+    
+    /*   
+     *   A global isListed property that can be used to set the value of all the
+     *   others. By default we're listed if we're not fixed in place.
+     */
     isListed = (!isFixed)
+    
+    /*  
+     *   Flag: is this item listed in a room description (when looking around).
+     */
     lookListed = (isListed)
+    
+    /* Flag: is this item listed in an inventory listing. */
     inventoryListed = (isListed)
+    
+    /* Flag: is this item listed when its container is examined. */    
     examineListed = (isListed)
+    
+    /* 
+     *   Flag: is this item listed when is container is searched (or looked in).
+     */
     searchListed = (isListed)
     
+    /*  
+     *   Flag: should this item's contents be listed? This can be used to
+     *   control both contentsListedInLook and contentsListedInExamine.
+     */
     contentsListed = true
+    
+    /*  
+     *   Flag: should this item's contents be listed as part of a room
+     *   description (when looking around).
+     */
     contentsListedInLook = (contentsListed)
+    
+    /*  
+     *   Flag: should this item's contents be listed when its container is
+     *   examined.
+     */
     contentsListedInExamine = (contentsListed)
+    
+    /*  
+     *   Flag, should this item's contents be listed when it is searched (by
+     *   default this is simply true, since it would be odd to have a container
+     *   that failed to reveal its contents when searched).
+     */
     contentsListedInSearch = true
     
     
     /*
      *   The text we display in response to a READ command. This can be nil
      *   (if we're not readable), a single-quoted string, a double-quoted string
-     *   or a routine to display a string.
-     */
+     *   or a routine to display a string.     */
     
     readDesc = nil
     
@@ -1674,6 +1837,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /*  The subset of our contents that should be listed. */
     listableContents = (contents.subset({x: x.lookListed}))
     
+    /* The subset of the contents of cont that should be listed. */
     listableContentsOf(cont)
     {
         local lst = [];
@@ -1685,6 +1849,12 @@ class Thing:  ReplaceRedirector, Mentionable
         return lst;    
     }
     
+    /* 
+     *   Our globalParamName is an arbitrary string value that can be used to
+     *   refer to this thing in a message substitution parameter; for code
+     *   readability it may be a good idea to make this a string representation
+     *   of our programmatic name (where we want to define it at all).
+     */
     globalParamName = nil
     
    
@@ -1698,8 +1868,8 @@ class Thing:  ReplaceRedirector, Mentionable
     makeLit(stat) { isLit = stat; }
     
     /* 
-     *   Set this to true for an object that is visible in the dark but does not
-     *   provide enough light to see anything else by, e.g. the night sky.
+     *   Is this object visible in the dark without (necessarily) providing
+     *   enough light to see anything else by, e.g. the night sky.
      */
     visibleInDark = nil
     
@@ -1773,31 +1943,64 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     checkInsert(obj)
     {
+        /* Create a message parameter substitution. */
         gMessageParams(obj);
+        
+        /* 
+         *   If the bulk of obj is greater than the maxSingleBulk this Thing can
+         *   take, or greater than its overall bulk capacity then display a
+         *   message to say it's too big to fit inside ue.
+         */
         if(obj.bulk > maxSingleBulk || obj.bulk > bulkCapacity)
             DMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
                  objInPrep, theName);
             
+        /* 
+         *   Otherwise if the bulk of obj is greater than the remaining bulk
+         *   capacity of this Thing allowing for what it already contains,
+         *   display a message saying there's not enough room for obj.
+         */
         else if(obj.bulk > bulkCapacity - getBulkWithin())
             DMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
                 obj). ', objInPrep, theName);            
     }
     
     
-    
-    /* Remap LOOK IN, PUT IN etc. to the following objects if they're not nil */
-    
+    /* 
+     *   If remapIn is not nil, a LOOK IN, PUT IN, OPEN, CLOSE, LOCK or UNLOCK
+     *   command performed on this Thing will be redirected to the object
+     *   specified on remapIn. In other words, remapIn specifies the object that
+     *   acts as our proxy container.
+     */
     remapIn = nil
+    
+    /* 
+     *   If non-nil, remapOn speficies the object that acts as our proxy
+     *   surface, in other words the object to which PUT ON will be redirected.
+     */
     remapOn = nil
+    
+    /*  
+     *   If non-nil, remapUnder specified the object that acts as our proxy
+     *   underside, i.e. the object to which any PUT UNDER or LOOK UNDER action
+     *   directed at us will be redirected.
+     */
     remapUnder = nil
+    
+    /*  
+     *   If non-nil, remapUnder specified the object that acts as our proxy
+     *   rear, i.e. the object to which any PUT BEHIND or LOOK BEHIND action
+     *   directed at us will be redirected.
+     */
     remapBehind = nil
     
     
     /* 
-     *   my notional total contents is my normal contents plus anything from my
-     *   remapXX contents lists, assuming they're visible
-     */
-    
+     *   Our notional total contents is our normal contents plus anything
+     *   contained in any of our remapXX objects representing our associated
+     *   proxy container, surface, underside and rear, excluding anything in a
+     *   closed opaque container (which would not be visible).
+     */    
     notionalContents()
     {
         local nc = [];
@@ -1824,10 +2027,26 @@ class Thing:  ReplaceRedirector, Mentionable
      *   wanting items to be placed under things (i.e. to hide them). Note, the
      *   items in the hiddenUnder property should also be revealed when the
      *   player moves the hiding item.
-     */
-    
+     */    
     hiddenUnder = []
+    
+    /* 
+     *   A list of objects that are treated as hidden behind this one. A LOOK
+     *   BEHIND command will list them and move them into the enclosing room. It
+     *   follows that objects placed in this property should not be given an
+     *   initial location. This should deal with the most common reason for
+     *   wanting items to be placed behind things (i.e. to hide them). Note, the
+     *   items in the hiddenBehind property should also be revealed when the
+     *   player moves the hiding item.
+     */   
     hiddenBehind = []
+    
+    /* 
+     *   A list of objects that are treated as hidden inside this one. A LOOK IN
+     *   command will list them and move them into the enclosing room (or in
+     *   this one if we're a container). It follows that objects placed in this
+     *   property should not be given an initial location.
+     */   
     hiddenIn = []
     
     
@@ -1837,14 +2056,12 @@ class Thing:  ReplaceRedirector, Mentionable
      *   only affects what the player can place there with PUT IN, PUT UNDER and
      *   PUT BEHIND commands, not what can be defined there initially or moved
      *   there programmatically.
-     */
-    
+     */    
     maxBulkHiddenUnder = 100
     maxBulkHiddenBehind = 100
     maxBulkHiddenIn = 100
     
-    /* The total bulk of items hidden in, under or behind this object */
-    
+    /* The total bulk of items hidden in, under or behind this object */    
     getBulkHiddenUnder = (totalBulkIn(hiddenUnder))
     getBulkHiddenIn = (totalBulkIn(hiddenIn))
     getBulkHiddenBehind = (totalBulkIn(hiddenBehind))
@@ -1865,19 +2082,17 @@ class Thing:  ReplaceRedirector, Mentionable
      *   The lockability property determines whether this object is lockable and
      *   if so how. The possible values are notLockable, lockableWithoutKey,
      *   lockableWithKey and indirectLockable.
-     */
-    
+     */    
     lockability = notLockable
     
-    /* Is this object currently locked */
+    /* Flag: is this object currently locked */
     isLocked = nil
     
     /* 
      *   Make us locked or ublocked. We define this as a method so that
      *   subclasses such as Door can override to produce side effects (such as
      *   locking or unlocking the other side).
-     */
-    
+     */    
     makeLocked(stat)
     {
         isLocked = stat;
@@ -1903,14 +2118,20 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     wornBy = nil
     
-    /* If this object is worn, presumably it's worn by its immediate location */    
+    /* 
+     *   Make this object worn or not worn. If this object is worn, presumably
+     *   it's worn by its immediate location
+     */    
     makeWorn(stat)  { wornBy = stat ? location : nil; }
     
     /* are we directly held by the given object? */
     isDirectlyHeldBy(obj) { return location == obj && !obj.isFixed &&
             obj.wornBy == nil; }
 
-    /* get everything I'm directly holding */
+    /* 
+     *   Get everything I'm directly holding, which is everything in my
+     *   immediate contents which is neither fixed in place nor being worn.
+     */
     directlyHeld = (contents.subset({ obj: !obj.isFixed &&
             obj.wornBy == nil }))
 
@@ -1928,32 +2149,41 @@ class Thing:  ReplaceRedirector, Mentionable
     directlyWorn = (contents.subset({ obj: obj.wornBy = self }))
     
     
+    
     /* 
-     *   Although there are (or may be) mechanisms that would allow objects to
-     *   be put under other objects, in general we probably don't want to allow
-     *   it.
+     *   Flag: can under objects be placed under us? By default they can if our
+     *   contType is Under. If this is set to true and our contType is not
+     *   Under, anything placed under us will be treated as hidden under.
      */
-    
     canPutUnderMe = (contType == Under)
-    canPutBehindMe = (contType == Behind)
-    canPutInMe = (contType == In)
     
+    /* 
+     *   Flag: can under objects be placed behind us? By default they can if our
+     *   contType is Behind. If this is set to true and our contType is not
+     *   Behind, anything placed behind us will be treated as hidden behind.
+     */
+    canPutBehindMe = (contType == Behind)    
+    
+    /* 
+     *   Flag: can under objects be placed inside us? By default they can if our
+     *   contType is In. If this is set to true and our contType is not
+     *   In, anything placed in us will be treated as hidden in.
+     */
+    canPutInMe = (contType == In)    
     
     
     /* 
      *   Can an actor enter (get in or on) this object. Note that for such an
-     *   action to be allowing the objInPrep must also match the proposed
-     *   action.
-     */
-    
+     *   action to be allowing the contType must also match the proposed action.
+     */    
     isBoardable = nil
     
-    /* Can this thing be eaten */
+    /* Flag: Can this thing be eaten */
     
     isEdible = nil  
    
     
-     /*
+    /*
      *   My nominal contents is the special contents item we can use in
      *   naming the object.  This is useful for containers whose identities
      *   come primarily from their contents, such as a vessel for liquids
@@ -1982,7 +2212,7 @@ class Thing:  ReplaceRedirector, Mentionable
       /*
        *   This object's containment type - that is, the locType for direct
        *   children.  This is given as one of the spatial relation types (In,
-       *   On, etc).      
+       *   On, Under, Behind etc).      
        */
     contType = Outside
     
@@ -2001,6 +2231,13 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     location = nil
     
+    /*  
+     *   Add an item to this object's contents. Normally this method is used
+     *   internally in the library than directly by game code. If the vec
+     *   parameter is supplied, the object added to our contents is also added
+     *   to vec; again this is intended primarily for internal use by the
+     *   library.
+     */
     addToContents(obj, vec?)
     {
         contents = contents.appendUnique([obj]);
@@ -2008,6 +2245,13 @@ class Thing:  ReplaceRedirector, Mentionable
             vec.appendUnique(self);
     }
     
+    /*  
+     *   Remove an item to this object's contents. Normally this method is used
+     *   internally in the library than directly by game code. If the vec
+     *   parameter is supplied, the object removed from our contents is also
+     *   removed from vec; again this is intended primarily for internal use by
+     *   the library.
+     */
     removeFromContents(obj, vec?)
     {
         local idx = contents.indexOf(obj);
@@ -2020,16 +2264,21 @@ class Thing:  ReplaceRedirector, Mentionable
 
     /* 
      *   Basic moveInto for moving an object from one container to another by
-     *   program fiat.
-     */
-    
+     *   programmatic fiat.
+     */    
     moveInto(newCont)
     {
+        /* If we a location, remove us from its list of contents. */
         if(location != nil)            
             location.removeFromContents(self);
                
+        /* Set our new location. */
         location = newCont;
                
+        /* 
+         *   Provided our new location isn't nil, add us to our new location's
+         *   list of contents.
+         */
         if(location != nil)
             location.addToContents(self);        
     }
@@ -2037,27 +2286,55 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Move into generated by a user action, which includes notifications */
     actionMoveInto(newCont)
     {
+        /* 
+         *   If we have a location, notify our existing location that we're
+         *   about to be removed from it.
+         */
         if(location != nil)
             location.notifyRemove(self);            
         
+        /* 
+         *   If the location we're about to be moved into is non-nil, notify our
+         *   new location that we're about to be moved into it. Note that both
+         *   this and the previous notification can veto the move with an exit
+         *   command.
+         */
         if(newCont != nil)
             newCont.notifyInsert(self); 
         
+        /* Carry out the move. */
         moveInto(newCont);
         
+        /* Note that we have been moved. */
         moved = true;
         
+        /* If the player character can now see us, note that we've been seen */
         if(Q.canSee(gPlayerChar, self))
             noteSeen();
     }
     
-    
+    /* 
+     *   Receive notification that obj is about to be removed from inside us; by
+     *   default we do nothing.
+     */
     notifyRemove(obj) { }
+    
+    /* 
+     *   Receive notification that obj is about to be inserted into us; by
+     *   default we do nothing.
+     */
     notifyInsert(obj) { }
     
+    /* Is obj visible from us? */
     canSee(obj) { return Q.canSee(self, obj); }
+    
+    /* Is obj audible from us? */
     canHear(obj) { return Q.canHear(self, obj); }
+    
+    /* Is obj smellable from us? */
     canSmell(obj) { return Q.canSmell(self, obj); }
+    
+    /* Is obj reachable (by touch) from us? */
     canReach(obj) { return Q.canReach(self, obj); }
     
     
@@ -2071,41 +2348,70 @@ class Thing:  ReplaceRedirector, Mentionable
      *   If it's nil, we'll return true if we have any containment
      *   relationship to 'obj'.  
      */
-    isChild(obj, typ)
+    isChild(obj, typ)    
     {
+        /* 
+         *   If the typ we're testing for is neither nil nor the containment
+         *   type of obj, return nil.
+         */
+        if(typ not in (nil, obj.contType))
+            return nil;
+        
+        /* Otherwise return whether or not we're in obj. */
         return isIn(obj);
     }
 
     /* 
-     *   Are a a direct containment child of the given object with the
+     *   Are we a direct containment child of the given object with the
      *   given containment type?  'typ' is a LocType giving the
      *   relationship to test for, or nil.  If it's nil, we'll return true
      *   if we have any direct containment relationship with 'obj'. 
      */
     isDirectChild(obj, typ)
     {
+        /* 
+         *   If the typ we're testing for is neither nil nor the containment
+         *   type of obj, return nil.
+         */
+        if(typ not in (nil, obj.contType))
+            return nil;
+        
+        /* Otherwise return whether or not we're directly in obj. */
         return isDirectlyIn(obj);
     }
     
+    
+    /*  Are we directly in cont? */
     isDirectlyIn(cont)
     {
+        /* If cont is nil then we're in cont if our location is nil. */
         if(cont == nil)
             return location == nil;
         
+        /* 
+         *   Otherwise we're directly in cont either if our location is cont or
+         *   if we're in cont's contents list (the latter test caters for
+         *   MultiLocs).
+         */
         return location == cont || valToList(cont.contents).indexOf(self) != nil;
     }
     
+    /* Are we in cont? */
     isIn(cont)
     {
+        /* If we're directly in cont, then we're certainly in cont. */
         if(isDirectlyIn(cont))
             return true;
         
+        /* Otherwise if out location is nil, we're not in cont */
         if(location == nil)
             return nil;
         
+        /* Otherwise we're in cont if our location is in cont. */
         return location.isIn(cont);
     }
     
+    /* Are either oont or in cont ? */
     isOrIsIn(cont)
     {
         return self == cont || isIn(cont);
@@ -2124,12 +2430,19 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     extContents = ( contType == In ? [] : contents)
     
-    
+    /* Carry out the preinitialization of a Thing */
     preinitThing()
     {
+        /* 
+         *   If we have both a location and a subLocation (which should be a
+         *   property pointer if it's not nil), change our location to the
+         *   object defined on the subLocation property of our location; this is
+         *   used to place objects in the SubComponents of their parent objects.
+         */
         if(subLocation != nil && location != nil)
             location = location.(subLocation);
         
+        /*   If we have a location, add ourselves to its contents list. */
         if(location != nil)
             location.addToContents(self);
         
@@ -2138,6 +2451,10 @@ class Thing:  ReplaceRedirector, Mentionable
             libGlobal.nameTable_[globalParamName] = self;
     }
     
+    /* 
+     *   Our outermost room, i.e. the top level Room in which we are indirectly
+     *   or directly contained.
+     */
     getOutermostRoom = (location == nil ? nil : location.getOutermostRoom)
     
     
@@ -2392,27 +2709,41 @@ class Thing:  ReplaceRedirector, Mentionable
 
     }
     
-    
+    /* 
+     *   Our location type with respect to our immediate container; e.g. are we
+     *   In, On, Under or Behind it?
+     */
     locType()
     {
-        /* My locType depends on the contType of my immediate parent */
-        
+        /* If we don't have a location we can't have a locType */        
         if(location == nil)
             return nil;
         
+        /* 
+         *   If our location is a Carrier then our locType depends on other
+         *   factors.
+         */
         if(location.contType == Carrier)
         {
+            /* If we're worn by our location then our locType is Worn. */
             if(wornBy == location)
                 return Worn;
             
+            /* 
+             *   Otherwise, if we're fixed in place we're a component of our
+             *   location (i.e. a part of the actor that's our location), so our
+             *   locType is Outside (we're attached to but external to our
+             *   location
+             */
             if(isFixed)
                 return Outside;
             
+            /*  Otherwise, if we're a portable object, we're being carried. */
             return Held;
         }
-        else return location.contType;
         
-       
+        /* Otherwise our locType is simply our location's contType. */
+        else return location.contType;      
     }
     
      /*
@@ -2454,7 +2785,7 @@ class Thing:  ReplaceRedirector, Mentionable
     // roomSubhead(pov) { }
 
    
-      /*
+    /*
      *   Listing order.  This is an integer giving the relative position of
      *   this item in a miscellaneous item list.  The list is sorted in
      *   ascending order of this value.  
@@ -2462,7 +2793,8 @@ class Thing:  ReplaceRedirector, Mentionable
     listOrder = 100
 
     /*
-     *   List group.  
+     *   List group.  At the moment this does nothing, but it has been retained
+     *   from the Mercury library for possible future use.
      */
     listWith = nil
 
@@ -2473,57 +2805,7 @@ class Thing:  ReplaceRedirector, Mentionable
     groupOrder = 100
 
      
-     /*
-     *   Display the "status line" name of the room.  This is normally a
-     *   brief, single-line description.
-     *   
-     *   By long-standing convention, each location in a game usually has a
-     *   distinctive name that's displayed here.  Players usually find
-     *   these names helpful in forming a mental map of the game.
-     *   
-     *   By default, if we have an enclosing location, and the actor can
-     *   see the enclosing location, we'll defer to the location.
-     *   Otherwise, we'll display our roo interior name.  
-     */
-    statusName(actor)
-    {
-        /* 
-         *   use the enclosing location's status name if there is an
-         *   enclosing location and its visible; otherwise, show our
-         *   interior room name 
-         */
-        if (location != nil && Q.canSee(actor, location))
-            location.statusName(actor);
-        else
-        {
-            roomHeadline(actor);
-        }
-    }
     
-    /* 
-     *   Get the estimated height, in lines of text, of the exits display's
-     *   contribution to the status line.  This is used to calculate the
-     *   extra height we need in the status line, if any, to display the
-     *   exit list.  If we're not configured to display exits in the status
-     *   line, this should return zero. 
-     */
-    getStatuslineExitsHeight()
-    {
-        if (gExitLister != nil)
-            return gExitLister.getStatuslineExitsHeight();
-        else
-            return 0;
-    }
-    
-    showStatuslineExits()
-    {
-        location.showStatuslineExits();
-    }
-    
-    wouldBeLitFor(actor)   
-    {
-        return getOutermostRoom.isIlluminated;
-    }
     
     /*
      *   The owner or owners of the object.  This is for resolving
@@ -2613,6 +2895,10 @@ class Thing:  ReplaceRedirector, Mentionable
         return nil;
     }
 
+    /* 
+     *   Return a list of everything that's directly or indirectly contained
+     *   within us.
+     */
     allContents()
     {
         local vec = new Vector(20);
@@ -2633,9 +2919,11 @@ class Thing:  ReplaceRedirector, Mentionable
     /* get everything that's directly in me */
     directlyIn = (contents.subset({ obj: obj.locType == In }))
     
-    
-    
-    /* Run the check method and return any string it tried to display */
+        
+    /* 
+     *   Run a check method passed as a property pointer in the prop parameter
+     *   and return any string it tried to display
+     */
     tryCheck(prop)
     {
         local ret;
@@ -2735,7 +3023,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   By default, we can hear out for all containers, since most
      *   materials transmit at least some sound even if they're opaque to
      *   light.  For a soundproof material (a glass both, say), you could
-     *   overridet his to make it (!enclosing) instead.  
+     *   override this to make it (!enclosing) instead.  
      */
     canHearOut = true
 
@@ -2814,8 +3102,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Check whether the actor can reach out of this object to touch obj, if
      *   obj is not in this object.
-     */
-    
+     */    
     allowReachOut(obj) { return true; }
     
      
@@ -2823,8 +3110,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /*  
      *   If an actor within me cannot reach an object from me, should the actor
      *   automatically try to get out of me?
-     */    
-    
+     */        
     autoGetOutToReach = true
     
     /*
@@ -2920,8 +3206,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     lastSeenAt = nil
 
-    /* Note that we've been seen and where we were last seen */
-    
+    /* Note that we've been seen and where we were last seen */    
     noteSeen()
     {
         gPlayerChar.setHasSeen(self);
@@ -2933,39 +3218,60 @@ class Thing:  ReplaceRedirector, Mentionable
      *   if it hasn't been seen. Set to true for objects that the player
      *   character should be familiar with at the start of play, or make true
      *   when the PC learns of them.
-     */
-    
+     */    
     familiar = nil
     
     /* 
      *   Properties to set and test whether an object is known about or has been
      *   seen; we define these on Thing to allow the player char to be a Thing.
+     *   In what follows 'this Thing' is the object on which the method is
+     *   called (which would typically be an Actor, the player character, or
+     *   some other object representing an NPC) and obj is the object that is
+     *   potentially known about or seen.
      */
+    
+    /*  Mark this Thing as knowing about obj. */
     setKnowsAbout(obj) { obj.(knownProp) = true; }
+    
+    /*  Mark the player character as knowing about us (i.e. this Thing) */
     setKnown() { gPlayerChar(setKnowsAbout(self)); }
+    
+    /*  Mark this Thing as having seen obj. */
     setHasSeen(obj) { obj.(seenProp) = true; }
+    
+    /*  Mark the player character as having seen this Thing. */
     setSeen() { gPlayerChar(setHasSeen(self)); }
+    
+    /*  Test whether this Thing has seen obbj. */
     hasSeen(obj) { return obj.(seenProp); }
+       
+    /*  
+     *   Test whether this Thing knows about obj, which it does either if it has
+     *   seen this obj or its knownProp (by default, familiar) is true.
+     */   
     knowsAbout(obj) {return hasSeen(obj) || obj.(knownProp); }
-    knownProp = &familiar
-    seenProp = &seen
     
     /* 
-     *   The player character knows about this object either if it has been seen
-     *   or if it is familiar.
+     *   Test whether this Thing is known to the player character.
      */
-    
-   
     known = (gPlayerChar.knowsAbout(self)) 
     
+    
+     /*  
+      *   If we want to track whether characters other than than the player char
+      *   know about or have seen this object, we can define knownProp and
+      *   seenProp as the properties used by this Thing to track what it knows
+      *   about and has seen.
+      */
+    knownProp = &familiar
+    seenProp = &seen
     
     /*   
      *   The currentInterlocutor is the Actor this object is currently in
      *   conversation with. This property is only relevant on gPlayerChar, but
      *   it is defined here rather than on Actor since the player char can be of
      *   kind Thing.
-     */
-    
+     */    
     currentInterlocutor = nil
     
     
@@ -3041,10 +3347,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
 
+    /*  
+     *   A property that can be used to boost this object being chosen by the
+     *   parser, other things being equal; it can be used as a tie-breaker
+     *   between two objects that otherwise have the same verification scores.
+     *   Game code should normally use fairly small values for this property,
+     *   say between -20 and +20, to prevent overriding the verification score.
+     */
     vocabLikelihood = 0
     
-    /* before and after travel notifications. By default we do nothing */
-    
+    /* before and after travel notifications. By default we do nothing */    
     beforeTravel(traveler, connector) {}
     afterTravel(traveler, connector) {}
     
@@ -3054,8 +3366,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   a message announcing the futility of issuing one. This method is
      *   overridden on Actor to allow Actors to respond to commands via
      *   CommandTopics.
-     */
-    
+     */    
     handleCommand(action)
     {
         DMsg(cant command thing, 'There{dummy}\'s no point trying to give
@@ -3070,48 +3381,56 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     actorAction() { }
     
+    /* 
+     *   Before action notification on this Thing; this is triggered whenever an
+     *   action is about to be performed when we're in scope (and could be used
+     *   to veto the action with an exit macro). The action we'd test for here
+     *   would normally be one that *doesn't* involve this Thing.
+     */    
+    beforeAction() { }
+    
+    /* 
+     *   After action notification on this Thing; this is triggered whenever an
+     *   action has just been performed when we're in scope. The action we'd
+     *   test for here would normally be one that *doesn't* involve this Thing.
+     */  
+    afterAction() { }
     
     /* Is this object the player character? */
     isPlayerChar = (gPlayerChar == self)
     
     
     /*
-     *   *******************************************************************
+     *   ******************************************************************
      *   ACTION HANDLING
+     *
+     *   Here follows code relating to the handling of specific actions
      */
     
      /* 
-     *   If I declare this object to be a decoration (i.e. isDecoration = true)
-     *   then its default behaviour will be to display its notImportantMsg for
-     *   every action except Examine. We can extend the actions it will respond
-     *   to by adding them to the list in the decorationActions property.
-     */
-    
+      *   If I declare this object to be a decoration (i.e. isDecoration = true)
+      *   then its default behaviour will be to display its notImportantMsg for
+      *   every action except Examine or GoTo. We can extend the actions it will
+      *   respond to by adding them to the list in the decorationActions
+      *   property.
+      */    
     isDecoration = nil
     
     /*   
      *   The list of actions this object will respond to specifically if
      *   isDecoration is true. All other actions will be handled by
-     *   dobjFor(Default) and/or iobjFor(Default).
-     */
-    
+     *   dobjFor(Default) and/or iobjFor(Default). Game code can override this
+     *   list (usually to expand it) for decorations that are required to handle
+     *   additional actions.
+     */    
     decorationActions = [Examine, GoTo]
-    /* 
-     *   The verify routines to be used if this object is a deooration
-     *   (isDecoration is true). Note that (at least in this version of the
-     *   library) it's only meaningful to define verify routines here.
-     */
     
-    
-    /* 
-     *   Allow this object to respond to an action just before or just after it
-     *   takes place.
-     */
-    
-    beforeAction() { }
-    
-    afterAction() { }
-    
+    /*   
+     *   Our handling of any action of which we're the direct or indirect action
+     *   that's not in our list of decorationActions when our isDecoration
+     *   property is true. By default we just stop the action at the verify
+     *   stage and display our notImportantMsg.
+     */    
     dobjFor(Default)
     {
         verify
@@ -3135,10 +3454,14 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Next deal with what happens if this object is being tested as a
      *   potential actor
-     */
-    
+     */    
     verifyActor()
     {
+       /* 
+        *   If our contType isn't Carrier we're unlikely to be an actor, so
+        *   we're a poor choice of object if the parser has to select an actor,
+        *   typically when the player has entered a command targeted at an NPC.
+        */
         if(contType != Carrier)
             logicalRank(70);
     }
@@ -3166,9 +3489,22 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   Display our description. Normally the desc property will be
+             *   specified as a double-quoted string or a routine that displays
+             *   a string, but by using the display() message we ensure that it
+             *   will still be shown even desc has been defined a single-quoted
+             *   string.
+             */
             display(&desc);
             
+            /*   
+             *   Display any additional information, such as our stateDesc (if
+             *   we have one) and our contents (if we have any).
+             */
             examineStatus();
+            
+            /*   Note that we've now been examined. */
             examined = true;
             "\n";
         }
@@ -3320,10 +3656,20 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If we have any contents hidden behind us or under us, reveal it
              *   now
              */
-            revealOnMove();           
+            revealOnMove();     
+            
+            /* 
+             *   move us into the actor who is taking us, triggering the
+             *   appropriate notifications.
+             */
             actionMoveInto(gActor);
         }
         
+        /* 
+         *   Report that we've been taken. Note that if the action causes
+         *   several items to be taken, this method will only be called on the
+         *   final item, and will need to report on all the items taken.
+         */
         report()
         {            
             DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
@@ -3351,48 +3697,56 @@ class Thing:  ReplaceRedirector, Mentionable
      *   on the assumption that items hidden in something may well stay there
      *   when it's moved; but this method can always be overridden to provide
      *   custom behaviour.
-     */
-    
+     */    
     revealOnMove()
     {
         local moveReport = '';
+        
+        /* 
+         *   If anything is hidden under us, add a report saying that it's just
+         *   been revealed moved and then move the previously hidden items to
+         *   our location.
+         */
         if(hiddenUnder.length > 0)
         {
             moveReport += 
-                BMsg(reveal move under,'Moving {1} reveals {2} that {3}
-                    hidden under {4}. ',
-                     theName, makeListStr(hiddenUnder), 
-                     (hiddenUnder.length > 1 || hiddenUnder[1].plural) ?
-                     'were' : 'was', himName);
+                BMsg(reveal move under,'Moving {1} {dummy} {reveals} {2}
+                    previously hidden under {3}. ',
+                     theName, makeListStr(hiddenUnder), himName);
                      
             moveHidden(&hiddenUnder, location);
             
         }
         
+        
+        /* 
+         *   If anything is hidden behind us, add a report saying that's just
+         *   been revealed and then move the previously hidden items to our
+         *   location.
+         */
         if(hiddenBehind.length > 0)
         {
             moveReport += 
-                BMsg(reveal move behind,'Moving {1} reveals {2} that {3}
-                    hidden behind {4}. ',
-                     theName, makeListStr(hiddenBehind), 
-                     (hiddenBehind.length > 1 || hiddenBehind[1].plural) ?
-                     'were' : 'was', himName);
-            
-            
+                BMsg(reveal move behind,'Moving {1} {dummy} {reveals} {2}
+                    previously hidden behind {3}. ',
+                     theName, makeListStr(hiddenBehind), himName);
+                        
             moveHidden(&hiddenBehind, location);            
         }
         
         
-        
+        /* 
+         *   If anything has been reported as being revealed, report the
+         *   discovery after reporting the action that caused it.
+         */
         if(moveReport != '' )
             reportAfter(moveReport);
     }
     
     /* 
      *   Service method: move everything in the prop property to loc and mark it
-     *   as seen
-     */
-    
+     *   as seen.
+     */    
     moveHidden(prop, loc)
     {
         foreach(local cur in self.(prop))
@@ -3407,13 +3761,12 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Check that the actor has enough spare bulkCapacity to add this item to
      *   his/her inventory. Since by default everything has a bulk of zero and a
-     *   very large bulkCapacity by default there will be no effective
+     *   very large bulkCapacity, by default there will be no effective
      *   restriction on what an actor (and in particular the player char) can
      *   carry, but game authors may often wish to give portable items bulk in
      *   the interests of realism and may wish to impose an inventory limit by
      *   bulk by reducing the bulkCapacity of the player char.
-     */
-    
+     */    
     checkRoomToHold()
     {
         /* 
@@ -3435,6 +3788,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* By default we can drop anything that's held */
     isDroppable = true
     
+    /* The message to display if something can't be dropped. */
     cannotDropMsg = BMsg(cannot drop, '{The subj dobj} {can\'t} be dropped. ')
     
     /* The location in which something dropped in me should land. */
@@ -3446,12 +3800,21 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            /* I can't drop something I'm not holding */
             if(!isDirectlyIn(gActor))
                 illogicalNow(notHoldingMsg);
             
+            /* 
+             *   Even if something is directly in me, I can't drop it if it's
+             *   fixed in place (since it's then presumably a part of me).
+             */
             else if(isFixed)
                 illogical(partOfYouMsg);
             
+            /*  
+             *   And I can't drop something that game code has deemed to be not
+             *   droppable for some other reason.
+             */
             else if(!isDroppable)
                 illogical(cannotDropMsg);
             
@@ -3499,7 +3862,10 @@ class Thing:  ReplaceRedirector, Mentionable
         {the dobj}. ')
     
 
-    
+    /* 
+     *   Flag: can this object be followed? Most inanimate objects cannot, so
+     *   the default value is nil.
+     */
     isFollowable = nil
     
     dobjFor(Follow)
@@ -3523,9 +3889,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotFollowSelfMsg = BMsg(cannot follow self, '{I} {can\'t} follow
         {myself}. ')
 
-
-    
-    
+   
     /* 
      *   Although in theory we can attack almost anything, in practice there's
      *   seldom reason to do so.
@@ -3595,8 +3959,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    /* By default we can't use most things as weapons */
-    
+    /* By default we can't use most things as weapons */    
     canAttackWithMe = nil
     
     cannotAttackWithSelfMsg = BMsg(cannot attack with self, '{I} {can\'t}
@@ -3649,8 +4012,11 @@ class Thing:  ReplaceRedirector, Mentionable
                
         }
              
-        
-        action() { actionMoveInto(getOutermostRoom); }
+        /* 
+         *   The default result of throwing something in a compass direction is
+         *   that it lands in the dropLocation of its outermost room.
+         */
+        action() { actionMoveInto(getOutermostRoom.dropLocation); }
         
         report()
         {
@@ -3687,8 +4053,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Make us open or closed. We define this as a method so that subclasses
      *   such as Door can override to produce side effects (such as opening or
      *   closing the other side).
-     */
-    
+     */    
     makeOpen(stat)
     {
         isOpen = stat;
@@ -3699,6 +4064,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
+        /* 
+         *   If this object is not itself openable, but its remapIn property
+         *   points to an associated object that is, remap this action to use
+         *   the remapIn object instead of us.
+         */
         remap()
         {
             if(!isOpenable && remapIn != nil && remapIn.isOpenable)
@@ -3718,6 +4088,11 @@ class Thing:  ReplaceRedirector, Mentionable
             logical;                          
         }
         
+        /* 
+         *   An object can't be open if it's locked. We test this at check
+         *   rather than verify since it may not be obvious that an object's
+         *   locked until someone tries to open it.
+         */
         check()
         {
             if(isLocked)
@@ -3727,13 +4102,17 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             makeOpen(true);
+            
+            /* 
+             *   If opening us is not being performed as an implicit action,
+             *   list the contents that are revealed as a result of our being
+             *   opened.
+             */
             if(!gAction.isImplicit)
             {              
                 unmention(contents);
                 listSubcontentsOf(self, openingContentsLister);
-            }
-            
-            
+            }           
         }
         
         report()
@@ -3751,8 +4130,7 @@ class Thing:  ReplaceRedirector, Mentionable
     lockedMsg = BMsg(locked, '{The subj dobj} {is} locked. ')
  
     
-    /* By default something is closeable if it's openable */
-         
+    /* By default something is closeable if it's openable */         
     isCloseable = (isOpenable)
     
     dobjFor(Close)
@@ -3761,7 +4139,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         remap()
         {
-            if(!isOpenable && remapIn != nil && remapIn.isOpenable)
+            if(!isCloseable && remapIn != nil && remapIn.isCloseable)
                 return remapIn;
             else
                 return self;
@@ -3941,70 +4319,80 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objVisible, containerOpen]
         
-        remap()
-        {
-            if(contType != In && remapIn != nil && remapIn.contType == In)
-                return remapIn;
-            else
-                return self;
-        }
-        
-        
+        remap = remapIn
+                
         verify()
         {
-            if(contType == In)
+            if(contType == In || remapIn != nil)
                 logicalRank(120);
-            
-            if(remapIn != nil)
-                logicalRank(120);
-            
+                        
             logical;
         }
         
         action()
-        {
-            local obj = remapIn ?? self;
-            gMessageParams(obj);
-                       
-            if(obj.contType == In)
-            {
-            
+        {       
+           /* 
+            *   If we're actually a container-type object, i.e. if our contType
+            *   is In, try to determine what's inside us and display a list of
+            *   it; if there's nothing inside us just display a message to that
+            *   effect.
+            */
+            if(contType == In)
+            {            
                 /* 
                  *   If there's anything hidden inside us move it into us before
                  *   doing anything else
                  */
-                if(obj.hiddenIn.length > 0)
-                {
-                    for(local item in obj.hiddenIn)
-                        item.moveInto(obj);
-                    
-                    hiddenIn = [];
-                }
+                if(hiddenIn.length > 0)                
+                    moveHidden(&hiddenIn, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookInMsg);                    
+                
+                /* If there's nothing inside us, simply display our lookInMsg */
+                if(contents.length == 0)
+                    display(&lookInMsg);                    
+                
+                /* Otherwise display a list of our contents */
                 else
                 {
-                    obj.unmention(contents);
-                    if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
-                      say(obj.lookInMsg);  
+                    /* Start by marking our contents as not mentioned. */
+                    unmention(contents);
                     
+                    /* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookInMsg
+                     *   instead.
+                     */
+                    if(gOutStream.watchForOutput(
+                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                      display(&lookInMsg);       
 
                 }
             }
-            else if(obj.hiddenIn.length > 0)
-            {
-                obj.findHiddenIn();               
-            }            
+            
+            /* 
+             *   Otherwise, if we're not a container-type object (our contType
+             *   is not In), if there's anything in our hiddenIn list move it
+             *   into scope and display a list of it.
+             */
+            else if(hiddenIn.length > 0)            
+                findHidden(&hiddenIn, In);                               
+                        
+            
+            /*  Otherwise just display our lookInMsg */
             else
-                say(obj.lookInMsg);
+                display(&lookInMsg);
         }
         
     }
     
     
-    
+    /* 
+     *   By default our lookInMsg just says the actor finds nothing of interest
+     *   in us; this could be overridden for an objecy with a more interesting
+     *   interior.
+     */
     lookInMsg = BMsg(look in, '{I} {see} nothing interesting in {the
         dobj}. ')
     
@@ -4014,34 +4402,29 @@ class Thing:  ReplaceRedirector, Mentionable
      *   to then by default we move everything from the hiddenIn list to the
      *   actor's inventory and announce that the actor has taken it. We call
      *   this out as a separate method to make it easy to override if desired.
-     */
-    
-    findHiddenIn()
+     */    
+    findHidden(prop, prep)
     {
-        DMsg(find in, 'In {the dobj} {i} {find} {1}<<if findHiddenDest ==
+        DMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
               gActor>>, which {i} {take}<<end>>. ',
-             makeListStr(hiddenIn));
+             prep.prep, makeListStr(self.(prop)));
         
-        foreach(local cur in hiddenIn)
-        {
-            cur.moveInto(findHiddenDest);
-            cur.noteSeen();
-        }
-        
-        hiddenIn = [];
+        moveHidden(prop, findHiddenDest);        
     }
     
     /* 
      *   We can look under most things, but there are some things (houses, the
      *   ground, sunlight) it might not make much sense to try looking under.
      */
-    canLookUnderMe = true
-    
+    canLookUnderMe = true  
     
     
     dobjFor(LookUnder)
     {
         preCond = [objVisible, touchObj]
+        
+        remap = remapUnder
+        
         
         verify()
         {
@@ -4052,39 +4435,57 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {            
-            local obj = remapUnder ?? self;
-            gMessageParams(obj);
-                       
-            if(obj.contType == Under)
+            /* 
+             *   If we're actually an underside-type object, i.e. if our
+             *   contType is Under, try to determine what's under us and display
+             *   a list of it; if there's nothing under us just display a
+             *   message to that effect.
+             */                       
+            if(contType == Under)
             {
                 
                 /* 
                  *   If there's anything hidden under us move it into us before
                  *   doing anything else
                  */
-                if(obj.hiddenUnder.length > 0)
-                {
-                    for(local item in obj.hiddenUnder)
-                        item.moveInto(obj);
-                    
-                    obj.hiddenUnder = [];
-                }
+                if(hiddenUnder.length > 0)                
+                    moveHidden(&hiddenUnder, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookUnderMsg);                
+                /* If there's nothing under us, simply display our lookUnerMsg */
+                if(contents.length == 0)
+                    display(&lookUnderMsg);  
+                
+                /* Otherwise display a list of our contents */
                 else
                 {
-                    obj.unmention(contents);
+                    /* Start by marking our contents as not mentioned. */
+                    unmention(contents);
+                    
+                    /* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookUnderMsg
+                     *   instead.
+                     */
                     if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
-                        say(obj.lookUnderMsg);  
+                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                        display(&lookUnderMsg);  
                     
                 }
             }
-            else if(obj.hiddenUnder.length > 0)            
-                obj.findHiddenUnder();               
+            
+            /* 
+             *   Otherwise, if we're not an underside-type object (our contType
+             *   is not Under), if there's anything in our hiddenUnder list move
+             *   it into scope and display a list of it.
+             */
+            else if(hiddenUnder.length > 0)            
+                findHidden(&hiddenUnder, Under);      
+            
+            /*  Otherwise just display our lookUnderMsg */
             else
-                say(obj.lookUnderMsg);           
+                display(&lookUnderMsg);           
             
         }
     }
@@ -4095,40 +4496,19 @@ class Thing:  ReplaceRedirector, Mentionable
     lookUnderMsg = BMsg(look under, '{I} {find} nothing of interest under
         {the dobj}. ')
     
-     /* 
-      *   If there's something hidden under the dobj but nowhere obvious to move
-      *   it to then by default we move everything from the hiddenUnder list to
-      *   the actor's inventory and announce that the actor has taken it. We
-      *   call this out as a separate method to make it easy to override if
-      *   desired.
-      */
-    
-    findHiddenUnder()
-    {
-        DMsg(find under, 'Under {the dobj} {i} {find} {1}<<if findHiddenDest ==
-              gActor>>, which {i} {take}<<end>>. ',
-             makeListStr(hiddenUnder));
-        
-        foreach(local cur in hiddenUnder)
-        {
-            cur.moveInto(findHiddenDest);
-            cur.noteSeen();
-        }
-        
-        hiddenUnder = [];
-    }
-    
+     
     
     /* 
      *   By default we make it possible to look behind things, but there could
      *   be many things it makes no sense to try to look behind.
-     */
-    
+     */    
     canLookBehindMe = true    
     
     dobjFor(LookBehind)
     {
         preCond = [objVisible, touchObj]
+        
+        remap = remapBehind        
         
         verify()
         {
@@ -4138,41 +4518,61 @@ class Thing:  ReplaceRedirector, Mentionable
         
         
         action()
-        {
-            
-            local obj = remapBehind ?? self;
-            gMessageParams(obj);
-            
-            if(obj.contType == Behind)
+        {            
+            /* 
+             *   If we're actually a rear-type object, i.e. if our contType is
+             *   Behind, try to determine what's behind us and display a list of
+             *   it; if there's nothing behind us just display a message to that
+             *   effect.
+             */
+            if(contType == Behind)
             {
                 
                 /* 
                  *   If there's anything hidden under us move it into us before
                  *   doing anything else
                  */
-                if(obj.hiddenBehind.length > 0)
-                {
-                    for(local item in obj.hiddenBehind)
-                        item.moveInto(obj);
-                    
-                    obj.hiddenBehind = [];
-                }
+                if(hiddenBehind.length > 0)                
+                    moveHidden(&hiddenBehind, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookBehindMsg);                
+                /* 
+                 *   If there's nothing behind us, simply display our
+                 *   lookBehindMsg
+                 */
+                if(contents.length == 0)
+                    display(&lookBehindMsg);  
+                
+                /* Otherwise display a list of our contents */
                 else
                 {
-                    obj.unmention(contents);
+                    /* Start by marking our contents as not mentioned. */
+                    unmention(contents);
+                    
+                    /* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookBehindMsg
+                     *   instead.
+                     */
                     if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)                        
-                        say(obj.lookBehindMsg); 
+                        {: listSubcontentsOf(self, lookInLister) }) == nil)                        
+                        display(&lookBehindMsg); 
 
                 }
             }
-            else if(obj.hiddenBehind.length > 0)            
-                obj.findHiddenBehind();               
+            
+            /* 
+             *   Otherwise, if we're not a rear-type object (our contType is not
+             *   Behind), if there's anything in our hiddenBehind list move it
+             *   into scope and display a list of it.
+             */
+            else if(hiddenBehind.length > 0)            
+                findHidden(&hiddenBehind, Behind);     
+            
+            /*  Otherwise just display our lookBehindMsg */
             else
-                say(obj.lookBehindMsg);           
+                display(&lookBehindMsg);           
             
             
         }
@@ -4184,31 +4584,7 @@ class Thing:  ReplaceRedirector, Mentionable
     lookBehindMsg = BMsg(look behind, '{I} {find} nothing behind {the
         dobj}. ')
     
-    
-     /* 
-      *   If there's something hidden under the dobj but nowhere obvious to move
-      *   it to then by default we move everything from the hiddenUnder list to
-      *   the actor's inventory and announce that the actor has taken it. We
-      *   call this out as a separate method to make it easy to override if
-      *   desired.
-      */
-    
-    findHiddenBehind()
-    {
-        DMsg(find behind, 'Behind {the dobj} {i} {find} {1}<<if findHiddenDest
-              == gActor>>, which {i} {take}<<end>>. ',
-             makeListStr(hiddenBehind));
-        
-        foreach(local cur in hiddenBehind)
-        {
-            cur.moveInto(findHiddenDest);
-            cur.noteSeen();
-        }
-        
-        hiddenBehind = [];
-    }
-        
-        
+           
     
     /* 
      *   By default we make it possible to look through things, but there may
@@ -4274,7 +4650,7 @@ class Thing:  ReplaceRedirector, Mentionable
     pushNoEffectMsg = BMsg(push no effect, 'Pushing {1} {dummy} {has} no
         effect. ', gActionListStr)
     
-    /* We can at least try to push most things. */
+    /* We can at least try to pull most things. */
     isPullable = true
     
     dobjFor(Pull)
@@ -4344,14 +4720,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
-        remap()
-        {
-            if(contType != On && remapOn != nil)
-                return remapOn;
-            else
-                return self;
-        }
-        
+        remap = remapOn         
         
         verify()
         {
@@ -4393,8 +4762,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             if(gIobj != nil && gIobj.isIn(self))
                 illogicalNow(circularlyInMsg);    
-            
-            
+                        
             
             logical;
         }
@@ -4417,13 +4785,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [containerOpen, touchObj]
         
-        remap()
-        {
-            if(contType != In && remapIn != nil)
-                return remapIn;
-            else
-                return self;
-        }
+        remap = remapIn
+        
         
         verify()
         {
@@ -4435,8 +4798,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
+            /* 
+             *   If we're actually a container-like object (our contType is In),
+             *   check whether there's enough room inside us to contain the
+             *   direct object.
+             */
             if(contType == In)
                checkInsert(gDobj);
+            
+            /*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenIn list would exceed the amount of bulk allowed there.
+             */
             else if(gDobj.bulk > maxBulkHiddenIn - getBulkHiddenIn)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} in {the iobj}. ');            
@@ -4444,6 +4817,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   If we're actually a container-like object (i.e. if our contType
+             *   is In) then something put in us can be moved inside us.
+             *   Otherwise, all we can do with something put in us is to add it
+             *   to our hiddenIn list and move it off-stage.
+             */            
             if(contType == In)
                 gDobj.actionMoveInto(self);
             else
@@ -4462,6 +4841,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objHeld, objNotWorn]
         
+                
         verify()
         {
             if(gIobj != nil && self == gIobj)
@@ -4498,6 +4878,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        remap = remapUnder
+        
         verify()
         {
             if(!canPutUnderMe)
@@ -4508,8 +4890,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         { 
+            /* 
+             *   If we're actually an underside-like object (our contType is
+             *   Under), check whether there's enough room under us to contain
+             *   the direct object.
+             */
             if(contType == Under)
                checkInsert(gDobj); 
+            
+            /*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenUnder list would exceed the amount of bulk allowed there.
+             */
             else if(gDobj.bulk > maxBulkHiddenUnder - getBulkHiddenUnder)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} under {the iobj}. ');    
@@ -4517,6 +4909,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   If we're actually an underside-like object (i.e. if our
+             *   contType is Under) then something put under us can be moved
+             *   inside us. Otherwise, all we can do with something put under us
+             *   is to add it to our hiddenUnder list and move it off-stage.
+             */
             if(contType == Under)
                 gDobj.actionMoveInto(self);
             else
@@ -4572,6 +4970,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        remap = remapBehind
+        
         verify()
         {
             if(!canPutBehindMe)
@@ -4582,8 +4982,19 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         { 
+            /* 
+             *   If we're actually a rear-like object (our contType is Behind),
+             *   check whether there's enough room behind us to contain the
+             *   direct object.
+             */
             if(contType == Behind)
                 checkInsert(gDobj);
+            
+            /*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenBehind list would exceed the amount of bulk allowed
+             *   there.
+             */
              else if(gDobj.bulk > maxBulkHiddenBehind - getBulkHiddenBehind)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} behind {the iobj}. ');    
@@ -4591,6 +5002,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   If we're actually a rear-like object (i.e. if our contType is
+             *   Behind) then something put behind us can be moved inside us.
+             *   Otherwise, all we can do with something put behind us is to add
+             *   it to our hiddenBehind list and move it off-stage.
+             */
             if(contType == Behind)
                 gDobj.actionMoveInto(self);
             else
@@ -4618,6 +5035,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
+        /* 
+         *   Remap the unlock action to our remapIn object if we're not lockable
+         *   but we have a lockable remapIn object (i.e. an associated
+         *   container).
+         */
         remap()
         {
             if(lockability == notLockable && remapIn != nil &&
@@ -4629,15 +5051,30 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            /* 
+             *   If we're not lockable at all, we're a very poor choice of
+             *   direct object for an UnlockWith action.
+             */
             if(lockability == notLockable || lockability == nil)
                 illogical(notLockableMsg);
             
+            /*  
+             *   If we're lockable, but not with a key (either because we don't
+             *   need one at all or because we use some other form of locking
+             *   mechanism) then we're still a bad choice of object for an
+             *   UnlockWith action, but not so bad as if we weren't lockable at
+             *   all.
+             */
             if(lockability == lockableWithoutKey)
                 implausible(keyNotNeededMsg);
             
             if(lockability == indirectLockable)
                 implausible(indirectLockableMsg);
             
+            /*  
+             *   If we are lockable with key, then were a good choice of object
+             *   for an UnlockWith action provided we're currently locked.
+             */
             if(lockability == lockableWithKey)
             {
                 if(isLocked)
@@ -4684,6 +5121,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond  = [objClosed, touchObj]
         
+         /* 
+          *   Remap the lock action to our remapIn object if we're not lockable
+          *   but we have a lockable remapIn object (i.e. an associated
+          *   container).
+          */
         remap()
         {
             if(lockability == notLockable && remapIn != nil &&
@@ -4748,6 +5190,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+         /* 
+         *   Remap the unlock action to our remapIn object if we're not lockable
+         *   but we have a lockable remapIn object (i.e. an associated
+         *   container).
+         */
         remap()
         {
             if(lockability == notLockable && remapIn != nil &&
@@ -4775,20 +5222,34 @@ class Thing:  ReplaceRedirector, Mentionable
              *   if we need a key to be unlocked with, check whether the player
              *   is holding a suitable one.
              */
-            if(lockability == lockableWithKey)
-            {
+            if(lockability == lockableWithKey)            
                 findPlausibleKey();                
-            }
+            
                
         }
         
         action()
         {
+            /* 
+             *   The useKey_ property will have been set by the
+             *   findPlausibleKey() method at the check stage. If it's non-nil
+             *   it's the key we're going to use to try to unlock this object
+             *   with, so we display a parenthetical note to the player that
+             *   we're using this key. (Note: the action would have failed at
+             *   the check stage if useKey_ wasn't the right key for the job).
+             */
             if(useKey_ != nil)
                 extraReport(withKeyMsg);
+            
+            /* 
+             *   Otherwise, if we need a key to unlock this object with, ask the
+             *   player to specify it and then execute an UnlockWith action
+             *   using that key.
+             */ 
             else if(lockability == lockableWithKey)
                 askForIobj(UnlockWith);
             
+            /*  Make us unlocked. */
             makeLocked(nil);               
         }
         
@@ -4805,6 +5266,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objClosed, touchObj]
         
+         /* 
+          *   Remap the lock action to our remapIn object if we're not lockable
+          *   but we have a lockable remapIn object (i.e. an associated
+          *   container).
+          */
         remap()
         {
             if(lockability == notLockable && remapIn != nil &&
@@ -4830,23 +5296,37 @@ class Thing:  ReplaceRedirector, Mentionable
         check()
         {
             /* 
-             *   if we need a key to be unlocked with, check whether the player
+             *   if we need a key to be locked with, check whether the player
              *   is holding a suitable one.
              */
-            if(lockability == lockableWithKey)
-            {
+            if(lockability == lockableWithKey)            
                 findPlausibleKey();                
-            }
+            
                
         }
         
         action()
         {
+            /* 
+             *   The useKey_ property will have been set by the
+             *   findPlausibleKey() method at the check stage. If it's non-nil
+             *   it's the key we're going to use to try to lock this object
+             *   with, so we display a parenthetical note to the player that
+             *   we're using this key. (Note: the action would have failed at
+             *   the check stage if useKey_ wasn't the right key for the job).
+             */
             if(useKey_ != nil)
                 extraReport(withKeyMsg);
+                
+            /* 
+             *   Otherwise, if we need a key to unlock this object with, ask the
+             *   player to specify it and then execute a LockWith action
+             *   using that key.
+             */    
             else if(lockability == lockableWithKey)
                 askForIobj(LockWith);
          
+            /*  Make us locked. */
             makeLocked(true);              
         }
         
@@ -4959,7 +5439,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     notSwitchableMsg = BMsg(not switchable, '{The subj dobj} {can\'t} be
         switched on and off. ')
-    alreadyOnMsg = Msg(already switched on, '{The subj dobj} {is} already
+    alreadyOnMsg = BMsg(already switched on, '{The subj dobj} {is} already
         switched on. ')
     
     dobjFor(SwitchOff)
@@ -5186,7 +5666,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            actionMoveInto(getOutermostRoom);            
+            actionMoveInto(getOutermostRoom.dropLocation);            
         }
         
         report()
@@ -5241,8 +5721,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Since we don't track postures in this library we'll treat STAND ON as
      *   equivalent to BOARD
-     */
-    
+     */    
     dobjFor(StandOn) asDobjWithoutVerifyFor(Board)
     dobjFor(SitOn) asDobjWithoutVerifyFor(Board)
     dobjFor(LieOn) asDobjWithoutVerifyFor(Board)
@@ -5365,11 +5844,18 @@ class Thing:  ReplaceRedirector, Mentionable
         dobj} while {i}{\'m} carrying {him dobj}. ')
     
     
+    /* 
+     *   By default we'll treat standing, sitting or lying IN something as
+     *   simply equivalent to entering it.
+     */
     dobjFor(StandIn) asDobjFor(Enter)
     dobjFor(SitIn) asDobjFor(Enter)
     dobjFor(LieIn) asDobjFor(Enter)
     
-    
+    /* 
+     *   Our exitLocation is the location an actor should be moved to when s/he
+     *   gets off/out of us.
+     */
     exitLocation = (lexicalParent == nil ? location : lexicalParent.location)
     
     dobjFor(GetOff)
@@ -5461,11 +5947,21 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotRemoveMsg = BMsg(cannot remove, '{The subj dobj} {cannot} be removed.
         ')
     
+    /* Treat SEARCH as equivalent to LOOK IN */
     dobjFor(Search) asDobjFor(LookIn)
     
-    /* By default we assume anything fixed isn't moveable */
+    /* 
+     *   By default we assume anything fixed isn't moveable. That's not
+     *   necessarily the case since we may be able to move something by pushing
+     *   it around (say) even if we can't pick it up.     
+     */
     isMoveable = (!isFixed)
     
+    /* 
+     *   Moving an object is generally possible if the object is portable, but
+     *   there's no obvious effect, so by default this action does nothing
+     *   except say it's done nothing.
+     */
     dobjFor(Move)
     {
         preCond = [touchObj]
@@ -5535,6 +6031,19 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotMoveWithSelfMsg = BMsg(cannot move with self, '{The subj dobj}
         {can\'t} be used to move {itself dobj}. ')
     
+    
+    /*  
+     *   MoveTo is a more complex case than MOVE or MOVE WITH. In this
+     *   implementation we assume that it represents moving the direct object to
+     *   the vicinity of the indirect object, and so we track the object it's
+     *   been moved to.
+     *
+     *   This might be useful, say, if you wanted the player to have to MOVE the
+     *   chair TO the bookcase before being able to reach the top shelf by
+     *   standing on the chair, since you could then check the value of the
+     *   chair's movedTo property before deciding whether the top shelf was
+     *   accesssible.
+     */
     dobjFor(MoveTo)
     {
         preCond = [touchObj]
@@ -5552,7 +6061,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(move no effect, 'Moving {1} {dummy} {has} no effect. ',
+            DMsg(okay move to, '{I} {move} {1} {dummy} to {the iobj}. ',
                  gActionListStr);
         }
     }
@@ -5563,6 +6072,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     movedTo = nil
     
+    /* Cause this object to be moved to loc */
     makeMovedTo(loc) { movedTo = loc; }
     
     /* In general there's no reason why most objects can't be moved to. */
@@ -5596,7 +6106,10 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyMovedToMsg = BMsg(already moved to, '{The subj dobj} {has} already
         been moved to {the iobj}. ')
     
-    
+    /* 
+     *   Lighting an object makes it a light source by making its isLit property
+     *   true.
+     */
     dobjFor(Light)
     {
         preCond = [touchObj]
@@ -5710,7 +6223,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   Most things probably could be cleaned, even if they're not worth
-     *   cleaning in practice
+     *   cleaning in practice. Some things like a mountain or the moon probably
+     *   can't be cleaned and good reasonably define isCleanable = nil.
      */
     isCleanable = true
     
@@ -5726,6 +6240,21 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     mustBeCleanedWith = nil
     
+    
+    /*  
+     *   The handling of the Clean action is possibly more elaborate than it
+     *   needs to be by default, and game code may wish to override it with a
+     *   different implementation, but the aim is to provide a framework that
+     *   covers some common cases.
+     *
+     *   An object starts out with isClean = nil. Cleaning the object makes
+     *   isClean true (at which point it doesn't need cleaning again).
+     *
+     *   If an object needs another object to be cleaned with (e.g. if in order
+     *   to clean the window you need a wet sponge to clean it with), this can
+     *   be defined by setting mustBeCleanedWith to an object or a list of
+     *   objects that can be used to clean this direct object.
+     */
     dobjFor(Clean)
     {
         preCond = [touchObj]
@@ -5739,14 +6268,18 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalNow(alreadyCleanMsg);        
         
             else if(!needsCleaning)
-                implausible(noNeedToCleanMsg);
+                implausible(noNeedToCleanMsg);           
             
-            else if(mustBeCleanedWith != nil)
-                implausible(cleanWithObjNeededMsg);
         }
         
         
-        action() { makeCleaned(true); }
+        action() 
+        {
+            if(mustBeCleanedWith != nil)
+                askForIobj(CleanWith);
+            
+            makeCleaned(true); 
+        }
         
         report()
         {
@@ -5754,6 +6287,12 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
+    /* 
+     *   Carry out the effects of cleaning. By default we just set the value of
+     *   the isClean property, but game code could override this to carry out
+     *   any side effects of cleaning, such as revealing the inscription on a
+     *   dirty old gravestone.
+     */
     makeCleaned(stat) { isClean = stat; }
     
     cannotCleanMsg = BMsg(cannot clean, '{The subj dobj} {is} not something {i}
@@ -5764,9 +6303,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {doesn\'t need} cleaning.
         ')
-    
-    cleanWithObjNeededMsg = BMsg(clean with obj needed, '{I} {need} something to
-        clean {it dobj} with. ')
+        
     
     dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need}
         anything to clean {the dobj} with. ')
@@ -5789,6 +6326,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             else if(mustBeCleanedWith == nil)
                 implausible(dontNeedCleaningObjMsg);
+            
             else if(valToList(mustBeCleanedWith).indexOf(gIobj) == nil)
                 implausible(cannotCleanWithMsg);
         }
@@ -5808,8 +6346,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   checks whether the proposed iobj is suitable for cleaning gDobj; but a
      *   better way of doing it might be to list suitable objects in the
      *   mustBeCleanedWith property.
-     */
-      
+     */      
     canCleanWithMe = nil
     
     iobjFor(CleanWith)
@@ -5837,12 +6374,24 @@ class Thing:  ReplaceRedirector, Mentionable
                illogical(cannotDigMsg); 
         }
         
+        /* 
+         *   If digging is allowed, then most likely we need an implement like a
+         *   spade to dig with, so our default action is to ask for one. This
+         *   can be overridden on objects in which the actors can effectively
+         *   dig with their bare hands.
+         */
         action() { askForIobj(DigWith); }
     }
     
     /* Most objects aren't suitable digging instruments */
     canDigWithMe = nil
     
+    /* 
+     *   For DigWith we merely provide verify handlers that rule out the action
+     *   wih the default values of isDiggable and canDigWithMe. The library
+     *   cannot model the effect of digging in general, so it's up to game code
+     *   to implement this on particular objects as required.
+     */
     dobjFor(DigWith)
     {
         preCond = [touchObj]
@@ -5872,7 +6421,12 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotDigWithSelfMsg = BMsg(cannot dig with self, '{I} {can\'t} dig {the
         dobj} with {itself dobj}. ')
     
-        
+    
+    /* 
+     *   We treat TAKE FROM as equivalent to TAKE except at the verify stage,
+     *   where we first check that the direct object is actually in the indirect
+     *   object.
+     */
     dobjFor(TakeFrom) asDobjWithoutVerifyFor(Take)
     
     dobjFor(TakeFrom)
@@ -5946,7 +6500,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {            
-            gDobj.actionMoveInto(getOutermostRoom);
+            gDobj.actionMoveInto(getOutermostRoom.dropLocation);
         }
         
         report()
@@ -6009,6 +6563,11 @@ class Thing:  ReplaceRedirector, Mentionable
     
     canTurnMeTo = nil
     
+    
+    /* 
+     *   Turning something To is setting it to a value by rotating it, such as
+     *   turning a dial to point to a particular number.
+     */
     dobjFor(TurnTo)
     {
         preCond = [touchObj]
@@ -6038,11 +6597,13 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   If the setting is valid, do nothing. If it's invalid display a message
-     *   explaining why.
-     */
-    
+     *   explaining why. We do nothing here but this is overridden on the
+     *   Settable class, which may be easier to use than providing your own
+     *   implementation on Thing.
+     */    
     checkSetting(val) { }
     
+    /* The value we're currently set to. */
     curSetting = ''
     
     cannotTurnToMsg = BMsg(cannot turn to, '{I} {cannot} turn {that dobj} to
@@ -6084,31 +6645,79 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotSetToMsg = BMsg(cannot set to, '{I} {cannot} set {that dobj} to
         anything. ')
     
+    
+    /* 
+     *   The GoTo action allows the player character to navigate the map through
+     *   the use of commands such as GO TO LOUNGE.
+     */
     dobjFor(GoTo)
     {
         verify()
         {
+            /* 
+             *   If the actor is already in the direct object, there's no need
+             *   to move any further.
+             */
             if(gActor.isIn(self))
                 illogicalNow(alreadyThereMsg);
             
+            /*  
+             *   If the direct object is in the actor's location, there's no
+             *   need for the actor to move to get to it.
+             */
             if(isIn(gActor.getOutermostRoom))
                 illogicalNow(alreadyPresentMsg);
             
+            /*  
+             *   It's legal to GO TO a decoration object, but given the choice,
+             *   it's probably best to let the parser choose a non-decoration in
+             *   cases of ambiguity, so we'll decorations a slightly lower
+             *   logical rank.
+             */
             if(isDecoration)
                 logicalRank(90);
         }
         
+        /* 
+         *   The purpose of the GO TO action is to take the player char along
+         *   the shortest route to the destination. The action routine
+         *   calculates the route and takes the first step.
+         */
         action()
         {
+            /* 
+             *   Calculate the route from the actor's current room to the
+             *   location where the target object was last seen, using the
+             *   pcRouteFinder to carry out the calculations if it is present.
+             */
             local route = defined(pcRouteFinder) && lastSeenAt != nil 
                 ? pcRouteFinder.findPath(
                 gActor.getOutermostRoom, lastSeenAt.getOutermostRoom) : nil;
             
+            /*  
+             *   If we don't find a route, just display a message saying we
+             *   don't know how to get to our destination.
+             */
             if(route == nil)
                 DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+            
+            /*  
+             *   If the route we find has only one element in its list, that
+             *   means that we're where we last saw the target but it's no
+             *   longer there, so we don't know where it's gone. In which case
+             *   we display a message saying we don't know how to reach our
+             *   target.
+             */
             else if(route.length == 1)
                 DMsg(destination unknown, '{I} {don\'t know} how to reach
                     {him dobj}.' );
+            
+            /*  
+             *   If the route we found has at least two elements, then use the
+             *   first element of the second element as the direction in which
+             *   we need to travel, and use the Continue action to take a step
+             *   in that direction.
+             */
             else
             {
                 local dir = route[2][1];
@@ -6121,7 +6730,12 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyPresentMsg = BMsg(already present, '{The subj dobj} {is} right
         {here}. ')    
     
-    
+    /* 
+     *   By default most things can't be attached to any things. The base
+     *   handling of ATTACH and DETACH on Thing merely rules them out at the
+     *   verify stage. The SimpleAttachable and NearbyAttachable classes define
+     *   in the optional attachables.t module provide fuller handling.
+     */
     isAttachable = nil
     
     dobjFor(Attach)
@@ -6217,10 +6831,21 @@ class Thing:  ReplaceRedirector, Mentionable
         {can\'t} be detached from {itself dobj}. ')
     
     
-    /* Fasten by itself presumably refers to objects like seat-belts */
-    
+    /* 
+     *   Fasten by itself presumably refers to objects like seat-belts. There
+     *   are not many such fastenable objects so we may things not fastenable by
+     *   default.
+     */    
     isFastenable = nil
+    
+    /*   Most things start out unfastened. */
     isFastened = nil
+    
+    /*  
+     *   Make something fastened or unfastened. By default we just change the
+     *   value of its isFastened property, but game code could override this to
+     *   provide further side-effects on particular objects.
+     */
     makeFastened(stat) { isFastened = stat; }
     
     dobjFor(Fasten)
@@ -6291,8 +6916,13 @@ class Thing:  ReplaceRedirector, Mentionable
         { 
             if(!isUnfastenable)
                illogical(cannotUnfastenMsg); 
+            
+            if(!isFastened)
+                illogicalNow(notFastenedMsg);
         }
     }
+    
+    
     
     
     dobjFor(UnfastenFrom)
@@ -6329,10 +6959,21 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotUnfastenFromSelfMsg = BMsg(cannot unfasten from self, '{I} {can\'t}
         unfasten {the dobj} from {itself dobj}. ')
 
+    notFastenedMsg = BMsg(not fastened, '{The subj dobj} {isn\'t} fastened. ')
     
+    /* 
+     *   Most things can't be plugged into other things or have other things
+     *   plugged into them.
+     */
     isPlugable = nil
     canPlugIntoMe = nil
     
+                          
+    /* 
+     *   The base handling of PlugInto on Thing merely rules it out at the
+     *   verify stage. A fuller implementation is provided by the PlugAttachable
+     *   class in the optional attachables module.
+     */                      
     dobjFor(PlugInto)
     {
         preCond = [touchObj]
@@ -6433,12 +7074,17 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(Kiss)
     {
         preCond = [touchObj]
-        /* if we create an actor class it'll be more logical to kiss actors */
+        
+        
         verify() 
         { 
             if(!isKissable)
                 illogical(cannotKissMsg);
-                
+             
+            /* 
+             *   It's more logical to kiss actors, so we give the Kiss action a
+             *   lower logical rank on ordinary things.
+             */
             logicalRank(80); 
         }
         
@@ -6452,6 +7098,11 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotKissMsg = BMsg(cannot kiss, '{I} really {can\'t} kiss {that dobj}. ')
 
     
+    
+    /* 
+     *   It should be possible to jump off something if and only if the actor is
+     *   on it in the first place.
+     */
     canJumpOffMe = (gActor.location == self && contType == On)
     
     dobjFor(JumpOff)
@@ -6466,7 +7117,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            gActor.actionMoveInto(location);
+            /* 
+             *   Jumping off something has much the same effect as getting off
+             *   it, i.e. moving the actor to our exitLocation.
+             */
+            gActor.actionMoveInto(exitLocation);
         }
         
         report()
@@ -6478,9 +7133,13 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotJumpOffMsg = BMsg(cannot jump off, '{I}{\'m} not on {the dobj}. ')
     
-    
+    /* It usually isn't possible (or at least useful) to jump over things. */
     canJumpOverMe = nil
     
+    /* 
+     *   The base handling of JumpOver is simply to rule it out at the verify
+     *   stage.
+     */
     dobjFor(JumpOver)
     {
         preCond = [touchObj]
@@ -6495,8 +7154,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotJumpOverMsg = BMsg(pointless to jump over, 'It {dummy}{is}
         pointless to try to jump over {the dobj}. ')
     
+    
+    /* Most things aren't settable. */
     isSettable = nil
     
+    /* 
+     *   The Set command by itself doesn't do much. By default we just rule it
+     *   out at the verify stage.
+     */
     dobjFor(Set)
     {
         preCond = [touchObj]
@@ -6510,9 +7175,15 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotSetMsg = BMsg(cannot set, '{The subj dobj} {is} not something {i}
         {can} set. ')
     
-    
+    /* Most things can't be typed on. */
     canTypeOnMe = nil
     
+    /* 
+     *   The base handling of both the vague (TYPE ON X) and specific (TYPE FOO
+     *   ON X) forms of TypeOn is simply to rule them out at the verify stage.
+     *   Game code that needs objects that can be typed on is responsible for
+     *   handling these actions in custom code.
+     */
     dobjFor(TypeOnVague)
     {
         preCond = [touchObj]
@@ -6536,8 +7207,20 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTypeOnMsg = BMsg(cannot type on, '{I} {can\'t} type anything on {the
         dobj}. ')
     
+    
+    /* 
+     *   Entering something on means ENTER FOO ON BAR where FOO is a string
+     *   literal and BAR is an object such as a computer terminal. Most objects
+     *   can't be entered on in this sense.
+     */
     canEnterOnMe = nil
     
+    
+    /*   
+     *   The base handling is simply to rule out EnterOn at verify. There's no
+     *   further handling the library can provide for a 'general' case so it's
+     *   up to game code to define it for specific cases.
+     */
     dobjFor(EnterOn)
     {
         preCond = [touchObj]
@@ -6552,8 +7235,10 @@ class Thing:  ReplaceRedirector, Mentionable
         {the dobj}. ')
     
     
+    /*  Most things can't be written on. */
     canWriteOnMe = nil
     
+    /*  By default we simply rule out writing on things at the verify stage. */
     dobjFor(WriteOn)
     {
         preCond = [touchObj]
@@ -6568,9 +7253,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotWriteOnMsg = BMsg(cannot write on, '{I} {can\'t} write anything on
         {the dobj}. ')
     
-    
+    /* Most things aren't consultable */
     isConsultable = nil
     
+    /* 
+     *   The base handling on Thing merely rules out the Consult action at the
+     *   verify stage. For a fuller implementation that allows consulting use
+     *   the Consultable class.
+     */
     dobjFor(ConsultAbout)
     {
         preCond = [touchObj]
@@ -6585,6 +7275,10 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotConsultMsg = BMsg(cannot consult, '{The subj dobj} {is} not a
         provider of information. ')
     
+    /* 
+     *   Most things aren't pourable (they can't be poured into or onto other
+     *   things.
+     */
     isPourable = nil
     
     
@@ -6597,6 +7291,12 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     fluidName = theName
     
+    /*  
+     *   The base handling of Pour, PourOnto and PourInto is simply to rule out
+     *   all three actions at the verify stage. Game code that wants to allow
+     *   these actions on specific objects will need to provide further handling
+     *   for them.
+     */
     dobjFor(Pour)
     {
         preCond = [touchObj]
@@ -6620,10 +7320,16 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   Most things can probably have something poured onto them in principle,
-     *   though we might want to prevent it in practice.
+     *   though we might want to prevent it in practice. The canPourOntoMe
+     *   property controls whether it's possible to pour onto this thing.
      */
-    
+      
     canPourOntoMe = true
+    
+    /* 
+     *   The allowPourOntoMe property controls whether we want allow anything to
+     *   be poured onto this thing (even if it's possible). By default we don't.
+     */
     allowPourOntoMe = nil
     
     
@@ -6644,9 +7350,7 @@ class Thing:  ReplaceRedirector, Mentionable
             else if(!allowPourOntoMe)
                 implausible(shouldNotPourOntoMsg);
            
-        }
-        
-       
+        }    
     }
     
     
@@ -6711,9 +7415,17 @@ class Thing:  ReplaceRedirector, Mentionable
         to pour {1} onto {the iobj}. ', gDobj.fluidName)  
     
     
+    /* Most things can't be screwed */
     isScrewable = nil
+    
+    /* Most things can't be used to screw other things with. */
     canScrewWithMe = nil
     
+    /* 
+     *   In the base handling we simply rule out Screw and Unscrew actions at
+     *   the verify stage. It's up to game code to provide specific handling for
+     *   objects that can be screwed and unscrewed.
+     */
     dobjFor(Screw)
     {
         preCond = [touchObj]
@@ -6795,9 +7507,15 @@ class Thing:  ReplaceRedirector, Mentionable
         unscrew {the iobj} with {itself iobj}. ')
     
     
-    
+    /* 
+     *   Common handler for verifying push travel actions. The via parameter may
+     *   be a preposition object (such as Through) defining what kind of push
+     *   traveling the actor is trying to do (e.g. through a door or up some
+     *   stairs).
+     */
     verifyPushTravel(via)
     {
+        /* Note the mode of push travel (a preposition) for use in messages. */
         viaMode = via;
         
         if(!canPushTravel)
@@ -6819,8 +7537,16 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
         dobj} {1} {itself dobj}. ', viaMode.prep)
     
+    /* 
+     *   By default we can't push travel most things. Push Travel means pushing
+     *   an object from one place to another and traveling with it.
+     */
     canPushTravel = nil
     
+    /* 
+     *   PushTravelDir handles pushing an object in a particular direction, e.g.
+     *   PUSH BOX NORTH
+     */
     dobjFor(PushTravelDir)
     {
         preCond = [touchObj]
@@ -6830,8 +7556,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   Most of the action is carried out by the PushTravel Action. All
+             *   we need to do here is to tell the action that we're allowing
+             *   push travel and reveal any items that come to light as a result
+             *   of moving this object.
+             */
             gAction.travelAllowed = true;
             
+            /*  
+             *   Reveal items previously under or behind us that now become
+             *   visible.
+             */
             pushTravelRevealItems();            
         }
     }
@@ -6848,9 +7584,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         /* 
          *   If moving this item did reveal any hidden items, we want to see the
-         *   report of them now, before moving to another location./
-         */
-        
+         *   report of them now, before moving to another location.
+         */        
         gCommand.afterReport();
         
         /* 
@@ -6861,9 +7596,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    
-   
-      
+    /* Display a message explaining that push travel is not possible */     
     cannotPushTravelMsg()
     {
         if(isFixed)
@@ -6889,7 +7622,11 @@ class Thing:  ReplaceRedirector, Mentionable
          *   current one to reveal any items it was concealing.
          */
         pushTravelRevealItems();       
-                        
+                 
+        /*   
+         *   Use the travelVia() method of the iobj to move the iobj to its new
+         *   location.
+         */
         gIobj.travelVia(gDobj);
         
         /* 
@@ -6907,6 +7644,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
+    /* 
+     *   PushTravelThrough handles pushing something through something, such as
+     *   a door or archway. Most of the actual handling is dealt with by the
+     *   common routines defined above.
+     */
     dobjFor(PushTravelThrough)    
     {
         preCond = [touchObj]
@@ -6924,15 +7666,20 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotPushThroughMsg);
         }
         
-        check() { checkPushTravel(); }
-                
-        
+        check() { checkPushTravel(); }       
     }
     
     cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {push}
         anything through {the iobj}. ')
     
     
+    /* 
+     *   PushTravelEnter handles commands like PUSH BOX INTO COFFIN, where the
+     *   indirect object is a Booth-like object. The syntactically identical
+     *   command for pushing things into an Enterable (e.g. PUSH BOX INTO HOUSE
+     *   where HOUSE represents the outside of a separate location) is handled
+     *   on the Enterable class.
+     */         
     dobjFor(PushTravelEnter)
     {
         preCond = [touchObj]
@@ -6962,6 +7709,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             gDobj.actionMoveInto(self);
             gActor.actionMoveInto(self);
+            
             if(gDobj.isIn(self))
                 say(okayPushIntoMsg);
         }
@@ -7064,6 +7812,11 @@ class Thing:  ReplaceRedirector, Mentionable
      *   use the Actor class to allow conversation. In any case since there's
      *   never any difficult in talking about oneself, the various illogicalSelf
      *   checks aren't needed.
+     *
+     *   Indeed, the handling of conversational commands on Thing is minimal;
+     *   they are simply ruled out at the verify stage, since most Things can't
+     *   converse. The implementation of these actions that allows conversation
+     *   to take place is on the Actor class.
      */
     
     dobjFor(AskAbout)
@@ -7206,6 +7959,14 @@ class Thing:  ReplaceRedirector, Mentionable
         longer talking to anyone. ')
     
  #ifdef __DEBUG
+    /* Handling of Debugging actions. */
+    
+    
+    /* 
+     *   PURLOIN allows the player to move any portable object in the game
+     *   directly into his/her inventory, wherever it is currently. We don't
+     *   allow absolutely anything to be purloined, as this could cause chaos.
+     */
     dobjFor(Purloin)
     {
         verify()
@@ -7215,7 +7976,7 @@ class Thing:  ReplaceRedirector, Mentionable
 
             if(self == gActor)
                 illogicalSelf(cannotPurloinSelfMsg);
-            
+                        
             if(isFixed)
                 illogical(cannotTakeMsg);
             
@@ -7232,7 +7993,19 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   We use moveInto() rather than actionMoveInto() to move the item
+             *   into the player's inventory since this isn't a regular take and
+             *   we don't want the side-effects of movement notifications,
+             *   neither to we want a notifyRemove() routine to veto a Purloin.
+             */
             moveInto(gActor);
+            
+            /*  
+             *   Note that the player char has seen the purloined item. Not
+             *   doing this can make it appear that the player character doesn't
+             *   know about an object that's in his/her inventory.
+             */
             if(gPlayerChar.canSee(self))
                 gSetSeen(self);
         }
@@ -7251,8 +8024,13 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPurloinContainerMsg = BMsg(cannot purloin container, '{I} {can\'t}
         purloin something {i}{\'m} contained within. ')
     
+    
+    /* 
+     *   The GoNear action allows the player character to teleport around the
+     *   map.
+     */
     dobjFor(GoNear)
-    {
+    {       
         verify()
         {
             if(getOutermostRoom == nil)
@@ -7278,9 +8056,6 @@ class Thing:  ReplaceRedirector, Mentionable
  #endif
 ;
 
-
-
-
 thingPreinit: PreinitObject
     execute()
     {
@@ -7298,23 +8073,61 @@ thingPreinit: PreinitObject
     execBeforeMe = [pronounPreinit]
 ;
 
-
+/*  
+ *   A Key is any object that can be used to lock or lock selected items whose
+ *   lockabilty is lockableWithKey. We define all the special handling on the
+ *   Key class rather than on the items to be locked and/or unlocked.
+ */
 class Key: Thing
+    
+    /* The list of things this key can actually be used to lock and unlock. */
     actualLockList = []
+    
+    /* 
+     *   The list of things this key plausibly looks like it might lock and
+     *   unlock (e.g. if we're a yale key, we might list all the doors in the
+     *   game that have yale locks here).
+     */
     plausibleLockList = []
+    
+    /* 
+     *   The list of all the things the player character knows this key can lock
+     *   and unlock. Items are automatically added to this list when this key is
+     *   successfully used to lock or unlock them, but game code can also use
+     *   this property to list items the player character starts out knowing,
+     *   such as the door locked by his/her own front door key.
+     */
     knownLockList = []
     
+    /*  
+     *   Determine whether we're a possible key for obj (i.e. whether we might
+     *   be able to lock or unlock obj).
+     */
     isPossibleKeyFor(obj)
     {
+        /* 
+         *   First test if we've been defined as a plausible or known key for
+         *   our lexicalParent in the case that we're the remapIn object for our
+         *   lexicalParent. If so return true. We do this because game code
+         *   might easily define the plausibleKeyList and/or knownKeyList on our
+         *   lexicalParent intending to refer to what keys might unlock is
+         *   associated container (i.e. ourselves if we're our lexicalParent's
+         *   remapIn object).
+         */        
         if(obj.lexicalParent != nil && obj.lexicalParent.remapIn == obj
            &&(knownLockList.indexOf(obj.lexicalParent) != nil
               || plausibleLockList.indexOf(obj.lexicalParent) != nil))
             return true;
         
+        /* 
+         *   Otherwise return true if obj is in either our knownLockList or our
+         *   plausibleLockList or nil otherwise.
+         */
         return knownLockList.indexOf(obj) != nil ||
             plausibleLockList.indexOf(obj) != nil;
     }
     
+    /* A key is something we can unlock with. */
     canUnlockWithMe = true
     
     iobjFor(UnlockWith)
@@ -7326,14 +8139,36 @@ class Key: Thing
         {
             inherited;
             
+            /* 
+             *   We're a logical choice of key if we're a possible key for the
+             *   direct object.
+             */
             if(isPossibleKeyFor(gDobj))
                 logical;
+            
+            /* Otherwise we're not a very good choice. */
             else
                 implausible(notAPlausibleKeyMsg);            
         }
         
         check()
         {
+            /* 
+             *   Check whether this key *actually* fits the direct object, and
+             *   if not display a message to say it doesn't (which halts the
+             *   action).
+             *
+             *   This is complicated by the fact that if the direct object is a
+             *   SubComponent the game author may have listed the dobj's
+             *   lexicalParent in our actualLockList property instead of the
+             *   actual dobj (e.g. the fridge object itself instead of the
+             *   SubComponent representing the interior of the fridge). So in
+             *   addition to seeing if the dobj is included in our
+             *   actuallockList we need to check whether, if the dobj has a
+             *   lexicalParent of which it's the remapIn object, dobj's
+             *   lexicalParent is in our actualLockList.
+             */
+            
             if(actualLockList.indexOf(gDobj) == nil
                && (gDobj.lexicalParent == nil
                || gDobj.lexicalParent.remapIn != gDobj
@@ -7343,7 +8178,10 @@ class Key: Thing
         
         action()
         {
+            /* Make the dobj unlocked. */
             gDobj.makeLocked(nil);
+            
+            /* If the dobj is not already in our knownLockList, add it there. */
             if(knownLockList.indexOf(gDobj) == nil)
                 knownLockList += gDobj;
         }
@@ -7373,6 +8211,21 @@ class Key: Thing
         
         check()
         {
+            /* 
+             *   Check whether this key *actually* fits the direct object, and
+             *   if not display a message to say it doesn't (which halts the
+             *   action).
+             *
+             *   This is complicated by the fact that if the direct object is a
+             *   SubComponent the game author may have listed the dobj's
+             *   lexicalParent in our actualLockList property instead of the
+             *   actual dobj (e.g. the fridge object itself instead of the
+             *   SubComponent representing the interior of the fridge). So in
+             *   addition to seeing if the dobj is included in our
+             *   actuallockList we need to check whether, if the dobj has a
+             *   lexicalParent of which it's the remapIn object, dobj's
+             *   lexicalParent is in our actualLockList.
+             */
              if(actualLockList.indexOf(gDobj) == nil
                && (gDobj.lexicalParent == nil
                || gDobj.lexicalParent.remapIn != gDobj
@@ -7382,7 +8235,10 @@ class Key: Thing
         
         action()
         {
+            /*Make the dobj locked. */
             gDobj.makeLocked(true);
+            
+            /* If the dobj is not already in our knownLockList, add it there. */
             if(knownLockList.indexOf(gDobj) == nil)
                 knownLockList += gDobj;
         }
@@ -7393,36 +8249,87 @@ class Key: Thing
         }
     }
     
-    
+    /* The message to say that the actor has lock the dobj with this key. */
     okayLockWithMsg = '{I} {lock} {the dobj} with {the iobj}. '
     
+    /* 
+     *   The message to say that this key clearly won\'t work on the dobj
+     *   (because it\'s the wrong sort of key for the lock; e.g. a yale key
+     *   clearly won\'t fit the lock on a small jewel box).
+     */
     notAPlausibleKeyMsg = '\^<<theName>> clearly won\'t work on <<gDobj.theName>>. '
     
+    /*  The message to say that this key doesn\'t in fact fit the dobj. */
     keyDoesntFitMsg = '\^<<theName>> won\'t fit <<gDobj.theName>>. '
-    
-    
-   
     
 ;
 
+/* 
+ *   A SubComponent is a Thing that is part of something else and represents the
+ *   surface, container, underside or rear of the object to which it's attached.
+ *   This allows a Thing to model several types of containment at once, by
+ *   having (say) one SubComponent that represents its top (on which things can
+ *   be placed) and another to represent its interior (in which things can be
+ *   placed.
+ *
+ *   A SubComponent is normally defined as a nested anonymous object on the
+ *   remapOn, remapIn, remapUnder or remapBehind property of a Thing. There's no
+ *   need to further specify whether a SubComponent is also a Surface,
+ *   Container, Underside or RearContainer, since the library can work this out
+ *   from the property on which it is defined.
+ */
 class SubComponent: Thing
-    
+   
+    /* 
+     *   A SubComponent is always fixed in place since it represents a fixed
+     *   part of its lexicalParent.
+     */
     isFixed = true
+    
+    /* Preinitialize a SubComponent. */
     preinitThing()
     {
+        /* 
+         *   Carry out the particular initialization of a SubComponent (see next
+         *   method); this sets up the proper relation between the SubComponent
+         *   and its lexicalParent.
+         */
         initializeSubComponent(lexicalParent);
+        
+        /*  Note any vocab defined on this SubComponent */
         origVocab = vocab;
+        
+        /* Carry out the inherited handling. */
         inherited;
     }
     
+    /* 
+     *   Initialize this SubComponent. This sets up the necessary relations
+     *   between the SubCompononent and the object of which it is a part,
+     *   usually its lexicalParent (passed as the parent parameter).
+     */
     initializeSubComponent(parent)
     {
+        /* 
+         *   If for any reason we don't have a parent (normally, our
+         *   lexicalParent), stop here because there's nothing we can do.
+         */
         if(parent == nil)
             return;
         
+        /* A SubComponent is located in its parent. */
         location = parent;
+        
+        /* 
+         *   A SubComponent takes its name from its parent, since it's
+         *   effectively an aspect of its parent.
+         */
         name = parent.name;
         
+        /* 
+         *   Determine the contType of this SubComponent from the property to
+         *   which it's attached. The contType must match the remapXX type.
+         */
         if(parent.remapIn == self)
             contType = In;
         
@@ -7435,6 +8342,7 @@ class SubComponent: Thing
         if(parent.remapBehind == self)
             contType = Behind;
         
+        /* If we have a contType, set our listOrder to that of our contType. */
         if(contType != nil)
             listOrder = contType.listOrder;
     }
@@ -7446,24 +8354,49 @@ class SubComponent: Thing
         /* 
          *   If we close this item when the playerChar is inside it, the player
          *   will need to be able to refer to it with the vocab of its
-         *   lexicalParent
+         *   lexicalParent, since the lexicalParent will no longer be in scope
          */
         if(lexicalParent != nil && gPlayerChar.isIn(self))
         {
             if(stat)
             {
+                /* 
+                 *   If this object is being opened, replace our vocab with the
+                 *   vocab we started out with (which will normally be none),
+                 *   since we no longer want the player to be able to refer
+                 *   directly* to us using our lexicalParent's vocab once we're
+                 *   open.
+                 */
                 replaceVocab(origVocab);
+                
+                /*   Restore our name to our lexicalParent's name. */
                 name = lexicalParent.name;
             }
             else
+                /* 
+                 *   If this object is being closed, replace our vocab with that
+                 *   of our lexicalParent (which is no longer in scope once
+                 *   we're closed with the playerChar inside us) so that the PC
+                 *   can still refer to us (e.g. to open us again).
+                 */
                 addVocab(lexicalParent.vocab);
         }
     }
     
+    /* 
+     *   Our original vocab. We need to store this in case makrOpen() wants to
+     *   restore it.
+     */
     origVocab = nil
     
 ;
 
+
+/*  
+ *   A MultiLoc is an object that can exist in several locations at once.
+ *   MultiLoc is a mix-in class that should be used in conjunction with Thing or
+ *   a Thing-derived class.
+ */
 class MultiLoc: object
     
     /* 
@@ -7484,9 +8417,8 @@ class MultiLoc: object
     /* 
      *   A list of locations this object is not to be present in. This is
      *   intended mainly to allow certain rooms to be excepted from a specified
-     *   region
-     */
-    
+     *   region.
+     */    
     exceptions = []
     
     
@@ -7513,9 +8445,7 @@ class MultiLoc: object
      *   its locationList and every object of class initialLocationClass (if
      *   this is not nil) and then remove it from the contents list of every
      *   item in its exceptions list.
-     */
-       
-    
+     */    
     addToLocations()
     {
         /* 
@@ -7533,13 +8463,25 @@ class MultiLoc: object
             locationList = [];               
         }
         
+        /* Create a new Vector to keep track of our list of locations. */
         local locationVec = new Vector(10);
         
+        /* 
+         *   Add ourselves to the content property of all the items listed in
+         *   our initialLocationList. At the same time append each item listed
+         *   to our locationVec vector.
+         */
         foreach(local loc in valToList(initialLocationList))
         {           
             loc.addToContents(self, locationVec);             
         }
         
+        /* 
+         *   If we have an initialLocationClass, add ourselves to the location
+         *   list of every object of that class for which our isInitiallyIn(obj)
+         *   method returns true; at the last time add all such objects to our
+         *   locationVec vector.
+         */
         if(initialLocationClass != nil)
         {
             for(local obj = firstObj(initialLocationClass); obj != nil; obj =
@@ -7550,19 +8492,26 @@ class MultiLoc: object
             }
         }
         
+        /*  
+         *   Now remove ourselves from the contents list of all objects listed
+         *   as exceptions in our exceptions property, and remove those objects
+         *   from our locationVec vector.
+         */
         foreach(local loc in valToList(exceptions))            
         {
             loc.removeFromContents(self, locationVec); 
         }
         
+        /* 
+         *   Store our resulting list of locations in our locationList property.
+         */
         locationList = locationVec.toList();
     }
       
     /* 
      *   Move this MultiLoc into an additional location by adding it to that
      *   location's contents list and adding that location to our locationList.
-     */  
-    
+     */      
     moveIntoAdd(loc)
     {
         if(loc.contents.indexOf(self) == nil)
@@ -7576,22 +8525,19 @@ class MultiLoc: object
     /* 
      *   Remove this MultiLoc from location by removing it from that location's
      *   contents list and removing that locationg from our locationList.
-     */ 
-    
-    
+     */         
     moveOutOf(loc)
     {
         loc.removeFromContents(self);  
-        locationList -= loc;
         
+        locationList -= loc;        
     }
     
     /* 
      *   To move a MultiLoc into a single location, first remove it from every
      *   location in its location list, then add it to the single location it's
      *   now in.
-     */
-    
+     */    
     moveInto(loc)
     {
         foreach(local cur in locationList)
@@ -7606,26 +8552,29 @@ class MultiLoc: object
         
     /* 
      *   A MultiLoc is directly in another object if it's listed in that other
-     *   object's contents list
-     */
-    
+     *   object's contents list.     
+     */    
     isDirectlyIn(loc)
     {
         if(loc != nil)
             return loc.contents.indexOf(self) != nil;
         
+        /* 
+         *   We only reach this point if loc is nil, in which case we're testing
+         *   whether this MultiLoc is in nil, i.e. nowhere at all. This will be
+         *   the case if and only if its location list is empty.
+         */
         return locationList == [];
     }
     
     /* 
      *   A MultiLoc is in another object either if it's directly in that object
      *   or if one of the items in its location list is in that object.
-     */
-    
+     */    
     isIn(loc)
     {
-        return isDirectlyIn(loc) || locationList.indexWhich({x: x.isIn(loc)}) !=
-            nil;    
+        return isDirectlyIn(loc) 
+            || locationList.indexWhich({x: x.isIn(loc)}) != nil;    
     }
     
     
@@ -7633,40 +8582,96 @@ class MultiLoc: object
     /* 
      *   For certain purposes, such as sense path calculations, a Multiloc needs
      *   a notional location. We assume the enquiry is made from the perspective
-     *   of the current actor, or, failing that, the player char.
-     */
-    
+     *   of the current actor, or, failing that, the player char, so we return
+     *   the current actor's (or the player char's) current location if the
+     *   MultiLoc is present there, or the last place where the MultiLoc was
+     *   seen otherwise. The intention is to select the most currently
+     *   significant location where we're present.
+     */    
     location()
     {
+        /* 
+         *   If our locationList is empty, then we aren't anywhere, so our
+         *   location is nil.
+         */
+         if(locationList.length == 0)
+            return nil;       
+        
+        /* 
+         *   Get the room either of the current actor (if there is one) or else
+         *   of the player char.
+         */
         local rm = gActor == nil ? gPlayerChar.getOutermostRoom :
         gActor.getOutermostRoom;
-        local loc;
+             
         
-        /* First see if we're directly in the actor's enclosing room. */
-        
+        /* 
+         *   First see if we're directly in the actor's enclosing room. If so,
+         *   return that room as our location.
+         */        
         if(isDirectlyIn(rm))
             return rm;
         
         /* 
          *   If that doesn't work, check if anything in our location list is in
          *   the actor's room; if so, use that.
-         */
-        
-        loc = locationList.valWhich({x: x.isIn(loc)});
+         */        
+        local loc = locationList.valWhich({x: x.isIn(rm)});
         
         if(loc != nil)
             return loc;
         
-        /* if all else fails, return the location we were last seen at */
+        /* 
+         *   If that doesn't work, return the location we were last seen at,
+         *   provided we have one and we're still there.
+         */
+        if(lastSeenAt != nil && locationList.indexOf(lastSeenAt) != nil)        
+            return lastSeenAt;    
         
-        return lastSeenAt;
-        
+         /* 
+          *   If all else fails, return the first location from our locationList
+          *   (if we've reached this point we know for sure there is one, since
+          *   if our locationList were empty this method would have already
+          *   returned nil).
+          */         
+        return locationList[1];
     }   
+    
+    /* 
+     *   If we're a MultiLoc we don't want to carry out any of the normal
+     *   preinitialization related to our location.
+     */
+    preinitThing()
+    {
+        /* if we have a global parameter name, add it to the global table */
+        if (globalParamName != nil)
+            libGlobal.nameTable_[globalParamName] = self;
+    }
 ;
 
+/*  
+ *   The Floor Class is used to provide a floor or ground object to each room
+ *   that wants one (by default, every Room). While this serves the secondary
+ *   purpose of allowing the player to refer to the ground/floor of the current
+ *   location (which is nearly always implicitly present), it's primary purpose
+ *   is to allow the parser to refer to the floor/ground when it wants to
+ *   distinguish items directly in a Room (and hence notionally on the ground)
+ *   from those in or on some other object.
+ */
 class Floor: MultiLoc, Decoration
+    
+    /* By default, every room has a floor. */
     initialLocationClass = Room
+    
+    /* A Floor is something we can put things on. */
     contType = On
+    
+    /* 
+     *   We narrow down our list of locations to those Rooms that actually
+     *   define this Floor as their floorObj. Some rooms may wish to define a
+     *   custom floorObj, and some (e.g. those representing the top of a mast or
+     *   tree) may want to have no floorObj at all.
+     */
     isInitiallyIn(obj) { return obj.floorObj == self; }
     
     /* 
@@ -7677,6 +8682,11 @@ class Floor: MultiLoc, Decoration
      */
     contents = (gActor.outermostVisibleParent().contents - self)
     
+    /*   
+     *   We can examine a Floor or take something from it, but other actions are
+     *   ruled out. A Floor should generally be treated as a Decoration object
+     *   rather than something with which any extensive interaction is allowed.
+     */
     decorationActions = [Examine, TakeFrom]
     
     
@@ -7685,27 +8695,48 @@ class Floor: MultiLoc, Decoration
      *   as minimalistic as possible to discourage players from trying to
      *   interact with it, so we won't listed the 'contents' of a Floor when
      *   it's examined. This can of course be overridden if desired.
-     */
-    
-    contentsListed = nil
-        
+     */    
+    contentsListed = nil        
 ;
 
+
+/* 
+ *   The defaultGround object is the specific Floor object that's present in
+ *   every Room by default.
+ */
 defaultGround: Floor
 ;
 
+/* Preinitilizer for MultiLocs */
 multiLocInitiator: PreinitObject
     execute()
     {
+        /* 
+         *   Add every MultiLoc to the contents list of all its locations. This
+         *   also builds each MultiLoc's locationList as it goes.
+         */
         for(local cur = firstObj(MultiLoc); cur !=nil ; cur = nextObj(cur,
             MultiLoc))
             
             cur.addToLocations();
     }
+    
+    /* 
+     *   Make sure we've preinitialized Regions first, so that their roomLists
+     *   are ready when we want to use them.
+     */
     execBeforeMe = [regionPreinit]
 ;
 
 
+/*  
+ *   A Topic is something that the player character can refer to in the course
+ *   of conversation or look up in a book, but which is not implemented as a
+ *   physical object in the game. Topics can be used for abstract concepts such
+ *   as life, liberty and happiness, or for physical objects that are referred
+ *   to but not actually implemented as Things in the game, such as Alfred the
+ *   Great or the Great Wall of China.
+ */
 class Topic: Mentionable
     construct(name_)
     {        
@@ -7714,21 +8745,21 @@ class Topic: Mentionable
     }
     
     /*
-     *   Whether the player character knows of the existence of this topic, if
-     *   By default we assume this is true.
-     */
-    
+     *   Whether the player character knows of the existence of this topic. By
+     *   default we assume this is true.
+     */    
     familiar = true
     
-    /* 
-     *   Properties to set and test whether a topic is known about
-     *   
-     */
-        
-    
+    /*   Make this topic known to the player character */   
     setKnown() { gPlayerChar(setKnowsAbout(self)); }
+    
+    /* Test whether this topic is known to the player character */
     known = (gPlayerChar.knowsAbout(self)) 
     
+    /* 
+     *   Return a textual description of this topic, which will normally be just
+     *   its name. We use the vocab as fall-back alternative.
+     */
     getTopicText()
     {
         return name == nil ? vocab : name;
@@ -7825,7 +8856,6 @@ Worn: ExtLocType
  *   "Attached" location type - specifies that an object is attached to its
  *   container.
  */
-
 Attached: ExtLocType
 ;
     
@@ -7833,14 +8863,23 @@ Attached: ExtLocType
  *   "PartOf" location type - specifies that an object is part of -- a component
  *   of -- its container.
  */
-
 PartOf: ExtLocType
 ;
 
+/*  
+ *   "Carrier" location type - specifies that the object is being carried by its
+ *   container (which will then normally be the actor holding this object). Any
+ *   actor-type object should define Carrier as its contType.
+ */
 Carrier: ExtLocType
 ;
 
-
+/* 
+ *   A ViaType is an object used to define the preposition to use to describe
+ *   various kinds of PushTravel. The language-specific part of the libary needs
+ *   to override the various ViaType objects to give the names of the
+ *   prepositions in the target language.
+ */
 class ViaType: object
     prep = ''
 ;

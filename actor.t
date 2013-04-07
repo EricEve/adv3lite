@@ -1800,6 +1800,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     }
     
+    dobjFor(AttackWith) asDobjFor(Attack)
+    
     iobjFor(GiveTo)
     {
         verify() {}
