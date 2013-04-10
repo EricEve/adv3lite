@@ -75,90 +75,7 @@ class Lister: object
     
     showListEmpty(paraCnt)  { }
     
-    /*
-     *   Show the contents of an object.  This displays the paragraph-style
-     *   descriptions for any direct contents of the object that have them,
-     *   followed by a simple list of the items that don't have paragraph
-     *   descriptions.
-     */
-//    listInside(parent, pov, vis, done)
-//    {
-//        /* 
-//         *   Get the list of direct contents of 'c' that are visible and haven't
-//         *   yet been displayed.  Skip showing the object that contains the
-//         *   actor, since we'll instead show its inside description on the next
-//         *   iteration of the main room display loop.
-//         */
-//        local lst;
-//        if (vis != nil)
-//        {
-//            /* we have a visible list, so subset it to get our list */
-//            lst = vis.subset({ o: o.isDirectChild(parent, nil) });
-//        }
-//        else
-//        {
-//            /* there's no visible list; simply use all contents */
-//            lst = parent.contents;
-//        }
-//        
-//        /* keep only the objects that aren't marked as done */
-//        lst = lst.subset({ o: !done[o] });
-//        
-//        /* if we have a POV, exclude the POV and its containers */
-//        if (pov != nil)
-//            lst = lst.subset({ o: o != pov && !pov.isChild(o, nil) });
-//        
-//        /* we haven't showed any paragraph descriptions yet */
-//        local cnt = 0;
-//        
-//        /* show paragraph-style descriptions for objects that have them */
-//        foreach (local o in lst)
-//        {
-//            /* try showing a paragraph description; count it if so */
-//            if (childPara(o, pov, vis, done))
-//                ++cnt;
-//        }
-//        
-//        /* 
-//         *   Now show miscellaneous items that didn't have paragraph
-//         *   descriptions.  Anything that was listed in a paragraph description
-//         *   will be marked in the 'done' table.
-//         */
-//        lst = lst.subset({ o: !done[o] });
-//        show(lst, cnt);
-//        
-//        /* mark these items as done */
-//        lst.forEach({ o: done[o] = true });
-//    }
-//    
-//    /*
-//     *   Show an object's paragraph-style description as part of a LOOK AROUND
-//     *   room description.
-//     */
-//    childPara(obj, pov, vis, done)
-//    {
-//        /* if the object hasn't already been described, check lookDesc */
-//        if (!done[obj] && desc(obj, pov))
-//        {
-//            /* we generated a message - add a paragraph break */
-//            "<p>";
-//            
-//            /* mark the object as described */
-//            done[obj] = true;
-//            
-//            /* recursively process this object's contents */
-//            listInside(obj, pov, vis, done);
-//            
-//            /* we showed a paragraph description */
-//            return true;
-//        }
-//        else
-//        {
-//            /* we didn't show a paragraph description */
-//            return nil;
-//        }
-//    }
-//    
+     
     /*
      *   Should 'obj' be listed in this list?  Returns true if so, nil if not.
      *   By default, we list any object whose 'listed' property is true.
@@ -173,11 +90,7 @@ class Lister: object
      */
     listOrder(obj) { return obj.listOrder; }
     
-    /*
-     *   For listInside(), show the paragraph-style description of a child
-     *   object.
-     */
-//    desc(obj, pov) { return obj.lookDesc(pov); }
+    
     
     /* 
      *   Return a string containing what this lister would display, minus the
@@ -268,9 +181,6 @@ descContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
     listed(obj) { return obj.examineListed; }
 
-    /* show the paragraph-style description of a child object */
-//    desc(obj, pov) { return obj.childDesc(pov); }
-    
     contentsListedProp = &contentsListedInExamine
 ;
 
@@ -281,9 +191,6 @@ descContentsLister: ItemLister
 openingContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
     listed(obj) { return obj.examineListed; }
-
-    /* show the paragraph-style description of a child object */
-//    desc(obj, pov) { return obj.childDesc(pov); }   
 ;
 
 /* 
@@ -296,9 +203,6 @@ lookInLister: ItemLister
      *   its container?
      */
     listed(obj) { return obj.searchListed; }
-
-    /* show the paragraph-style description of a child object */
-//    desc(obj, pov) { return obj.childDesc(pov); }   
 
     contentsListedProp = &contentsListedInSearch
 

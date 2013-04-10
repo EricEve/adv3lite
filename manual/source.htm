@@ -840,11 +840,23 @@ class Thing:  ReplaceRedirector, Mentionable
      */</span>
     checkInsert(obj)
     {
+        <span class="comment">/* Create a message parameter substitution. */</span>
         gMessageParams(obj);
+        
+        <span class="comment">/* 
+         *   If the bulk of obj is greater than the maxSingleBulk this Thing can
+         *   take, or greater than its overall bulk capacity then display a
+         *   message to say it's too big to fit inside ue.
+         */</span>
         if(obj.bulk &gt; maxSingleBulk || obj.bulk &gt; bulkCapacity)
             DMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
                  objInPrep, theName);
-            
+        
+        <span class="comment">/* 
+         *   Otherwise if the bulk of obj is greater than the remaining bulk
+         *   capacity of this Thing allowing for what it already contains,
+         *   display a message saying there's not enough room for obj.
+         */</span>
         else if(obj.bulk &gt; bulkCapacity - <a href="#Thing:getBulkWithin">getBulkWithin</a>())
             DMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
                 obj). ', objInPrep, theName);            
@@ -856,37 +868,70 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Attempt to display prop appropriately according to it data type
      *   (single-quoted string, double-quoted string, integer or code )
      */</span>
-    <a name="Thing:display">display</a>(prop)
+    <a name="Thing:display">display</a>(prop)    
     {
         switch(propType(prop))
         {
+            <span class="comment">/* 
+             *   If prop is a single-quoted string or an integer, simply display
+             *   it.
+             */</span>
         case TypeSString:
         case TypeInt:    
             say(self.(prop));
             break;
+            
+            <span class="comment">/* If prop is a double-quoted string, display it by executing it. */</span>
         case TypeDString:
-        case TypeCode:
             self.(prop);
             break;
+            
+            <span class="comment">/* if prop is a method, execute it. */</span>
+        case TypeCode:
+            <span class="comment">/* 
+             *   In case prop is a method that returns a single-quoted string,
+             *   note the return value from executing prop.
+             */</span>
+            local str = self.(prop);
+            
+            <span class="comment">/* If it's a string, display it. */</span>
+            if(dataType(str) == TypeSString)
+                say(str);
+            break;
         default:
-            /* do nothing */
+            <span class="comment">/* do nothing */</span>
             break;
         }
     }
-
+    
+    <span class="comment">/* 
+     *   Additional information to display after our desc in response to an
+     *   EXAMINE command.
+     */ </span>
     <a name="Thing:examineStatus">examineStatus</a>()
     {        
+        <span class="comment">/* First display our stateDesc (our state-specific information) */</span>
         <a href="#Thing:display">display</a>(&amp;stateDesc);
         
-        if(contType != Carrier && contentsListedInExamine)
+       <span class="comment"> /* 
+         *   Then display our list of contents, unless we're a Carrier (an actor
+         *   carrying our oontents) or our contentsListedInExamine is nil.
+         */</span>
+        if(contType != Carrier && contentsListedInExamine)        
         {          
+            <span class="comment">/* 
+             *   Start by marking our contents as not mentioned to ensure that
+             *   they all get listed.
+             */</span>
             <a href="#Thing:unmention">unmention</a>(contents);
+            
+            <span class="comment">/* Then list our contents using our examineLister. */</span>
             listSubcontentsOf(self, examineLister);            
         }           
            
     }
     
-     <a href="Thing:getBulkWithin"><span class="comment">/*   Calculate the total bulk of the items contained within this object. */</span></a>
+     <a name="Thing:getBulkWithin"><span class="comment">/*   Calculate the total bulk of the items contained within this object. */</span></a>
     getBulkWithin()
     {
         local totalBulk = 0;
@@ -919,11 +964,17 @@ class Thing:  ReplaceRedirector, Mentionable
     
     moveInto(newCont)
     {
+        <span class="comment">/* If we have a location, remove us from its list of contents. */</span>
         if(location != nil)            
             location.removeFromContents(self);
-               
+           
+        <span class="comment"> /* Set our new location. */</span>           
         location = newCont;
-               
+         
+        <span class="comment">/* 
+         *   Provided our new location isn't nil, add us to our new location's
+         *   list of contents.
+         */</span>         
         if(location != nil)
             location.addToContents(self);        
     }
@@ -931,22 +982,43 @@ class Thing:  ReplaceRedirector, Mentionable
     <span class="comment">/* <a name="Thing:actionMoveInto">Move into generated by a user action</a>, which includes notifications */</span>
     actionMoveInto(newCont)
     {
+        <span class="comment">/* 
+         *   If we have a location, notify our existing location that we're
+         *   about to be removed from it.
+         */</span>
         if(location != nil)
             location.notifyRemove(self);            
         
+        <span class="comment">/* 
+         *   If the location we're about to be moved into is non-nil, notify our
+         *   new location that we're about to be moved into it. Note that both
+         *   this and the previous notification can veto the move with an exit
+         *   command.
+         */</span>
         if(newCont != nil)
             newCont.notifyInsert(self); 
         
+        <span class="comment">/* Carry out the move. */</span>
         moveInto(newCont);
         
+        <span class="comment">/* Note that we have been moved. */</span>
         moved = true;
         
+        <span class="comment">/* If the player character can now see us, note that we've been seen */</span>
         if(Q.canSee(gPlayerChar, self))
             <a href="#Thing:noteSeen">noteSeen</a>();
     }
     
-    
+    <span class="comment">/* 
+     *   Receive notification that obj is about to be removed from inside us; by
+     *   default we do nothing.
+     */</span>
     notifyRemove(obj) { }
+    
+    <span class="comment">/* 
+     *   Receive notification that obj is about to be inserted into us; by
+     *   default we do nothing.
+     */</span>
     notifyInsert(obj) { }
     
     
@@ -983,6 +1055,8 @@ class Thing:  ReplaceRedirector, Mentionable
         foreach(local obj in lst)
         {
             obj.mentioned = nil;
+            
+            <span class="comment">/* If obj has any contents, unmention every item in is contents */</span>
             if(obj.contents.length > 0)
                 unmention(obj.contents);
         }
@@ -992,8 +1066,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   CLOSE
      ********************************************/</span>
     
-    <span class="comment">/* <a name="Thing:Close">By default something is closeable if it's openable</a> */</span>
-         
+    <span class="comment">/* <a name="Thing:Close">By default something is closeable if it's openable</a> */</span>         
     isCloseable = (isOpenable)
     
     dobjFor(Close)
@@ -1002,7 +1075,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         remap()
         {
-            if(!isOpenable &amp;&amp; remapIn != nil &amp;&amp; remapIn.isOpenable)
+            if(!isCloseable &amp;&amp; remapIn != nil &amp;&amp; remapIn.isClosable)
                 return remapIn;
             else
                 return self;
@@ -1083,12 +1156,21 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            <span class="comment">/* I can't drop something I'm not holding */</span>
             if(!isDirectlyIn(gActor))
                 illogicalNow(notHoldingMsg);
             
+            <span class="comment">/* 
+             *   Even if something is directly in me, I can't drop it if it's
+             *   fixed in place (since it's then presumably a part of me).
+             */</span>
             else if(isFixed)
                 illogical(partOfYouMsg);
             
+            <span class="comment">/*  
+             *   And I can't drop something that game code has deemed to be not
+             *   droppable for some other reason.
+             */</span>
             else if(!isDroppable)
                 illogical(cannotDropMsg);
             
@@ -1138,9 +1220,22 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   Display our description. Normally the desc property will be
+             *   specified as a double-quoted string or a routine that displays
+             *   a string, but by using the display() message we ensure that it
+             *   will still be shown even desc has been defined a single-quoted
+             *   string.
+             */ </span>
             <a href="#Thing:display">display</a>(&amp;desc);
             
+            <span class="comment">/*   
+             *   Display any additional information, such as our stateDesc (if
+             *   we have one) and our contents (if we have any).
+             */</span>
             <a href="#Thing:examineStatus">examineStatus</a>();
+            
+            <span class="comment">/*   Note that we've now been examined. */</span>
             examined = true;
             "\n";
         }
@@ -1151,6 +1246,10 @@ class Thing:  ReplaceRedirector, Mentionable
      *   GONEAR
      ********************************************/</span>
     
+    <span class="comment">/* 
+     *   The GoNear action allows the player character to teleport around the
+     *   map.
+     */</span>
     dobjFor(<a name="Thing:GoNear">GoNear</a>)
     {
         verify()
@@ -1179,29 +1278,78 @@ class Thing:  ReplaceRedirector, Mentionable
      *   GOTO
      ********************************************/</span>
     
-    
+    <span class="comment">/* 
+     *   The GoTo action allows the player character to navigate the map through
+     *   the use of commands such as GO TO LOUNGE.
+     */</span>
     dobjFor(<a name="Thing:GoTo">GoTo</a>)
     {
         verify()
         {
+           <span class="comment"> /* 
+             *   If the actor is already in the direct object, there's no need
+             *   to move any further.
+             */</span>
             if(gActor.isIn(self))
                 illogicalNow(alreadyThereMsg);
             
+            <span class="comment">/*  
+             *   If the direct object is in the actor's location, there's no
+             *   need for the actor to move to get to it.
+             */</span>
             if(isIn(gActor.getOutermostRoom))
                 illogicalNow(alreadyPresentMsg);
+                
+            <span class="comment">/*  
+             *   It's legal to GO TO a decoration object, but given the choice,
+             *   it's probably best to let the parser choose a non-decoration in
+             *   cases of ambiguity, so we'll decorations a slightly lower
+             *   logical rank.
+             */</span>
+            if(isDecoration)
+                logicalRank(90);    
         }
         
+        <span class="comment">/* 
+         *   The purpose of the GO TO action is to take the player char along
+         *   the shortest route to the destination. The action routine
+         *   calculates the route and takes the first step.
+         */</span>
         action()
         {
+            <span class="comment">/* 
+             *   Calculate the route from the actor's current room to the
+             *   location where the target object was last seen, using the
+             *   pcRouteFinder to carry out the calculations if it is present.
+             */</span>
             local route = defined(pcRouteFinder) &amp;&amp; lastSeenAt != nil 
                 ? pcRouteFinder.findPath(
                 gActor.getOutermostRoom, lastSeenAt.getOutermostRoom) : nil;
             
-            if(route == nil)
+            <span class="comment">/*  
+             *   If we don't find a route, just display a message saying we
+             *   don't know how to get to our destination.
+             */</span>
+            if(route == nil)            
                 DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+                
+            <span class="comment">/*  
+             *   If the route we find has only one element in its list, that
+             *   means that we're where we last saw the target but it's no
+             *   longer there, so we don't know where it's gone. In which case
+             *   we display a message saying we don't know how to reach our
+             *   target.
+             */</span>    
             else if(route.length == 1)
                 DMsg(destination unknown, '{I} {don\'t know} how to reach
                     {him dobj}.' );
+                    
+            <span class="comment">/*  
+             *   If the route we found has at least two elements, then use the
+             *   first element of the second element as the direction in which
+             *   we need to travel, and use the Continue action to take a step
+             *   in that direction.
+             */</span>        
             else
             {
                 local dir = route[2][1];
@@ -1226,8 +1374,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   there are different kings of lockability and defining an isLockable
      *   property in addition would only confuse things and might break the
      *   logic.
-     */</span>
-    
+     */</span>    
     lockability = notLockable
     
     <span class="comment">/* Is this object currently locked */</span>
@@ -1237,8 +1384,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   <a name="Thing:makeLocked">Make us locked or ublocked</a>. We define this as a method so that
      *   subclasses such as Door can override to produce side effects (such as
      *   locking or unlocking the other side).
-     */</span>
-    
+     */</span>    
     makeLocked(stat)
     {
         isLocked = stat;
@@ -1253,6 +1399,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objClosed, touchObj]
         
+         <span class="comment">/* 
+          *   Remap the lock action to our remapIn object if we're not lockable
+          *   but we have a lockable remapIn object (i.e. an associated
+          *   container).
+          */</span>
         remap()
         {
             if(<a href="#Thing:lockability">lockability</a> == notLockable &amp;&amp; remapIn != nil &amp;&amp;
@@ -1289,11 +1440,26 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   The useKey_ property will have been set by the
+             *   findPlausibleKey() method at the check stage. If it's non-nil
+             *   it's the key we're going to use to try to lock this object
+             *   with, so we display a parenthetical note to the player that
+             *   we're using this key. (Note: the action would have failed at
+             *   the check stage if useKey_ wasn't the right key for the job).
+             */</span>
             if(useKey_ != nil)
                 extraReport(withKeyMsg);
+                
+            <span class="comment">/* 
+             *   Otherwise, if we need a key to unlock this object with, ask the
+             *   player to specify it and then execute a LockWith action
+             *   using that key.
+             */ </span>    
             else
                 askForIobj(LockWith);
             
+            <span class="comment">/*  Make us locked. */</span>
             <a href="#Thing:makeLocked">makeLocked</a>(true);                        
         }
         
@@ -1307,6 +1473,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     withKeyMsg = BMsg(with key, '(with {1})\n', useKey_.theName)
     
+    <span class="comment">/* 
+     *   Find a key among the actor's possessions that might plausibly lock or
+     *   unlock us.
+     */</span>
     <a name="Thing:findPlausibleKey">findPlausibleKey</a>()
     {
       
@@ -1382,6 +1552,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond  = [objClosed, touchObj]
         
+        <span class="comment">/* 
+         *   Remap the lock action to our remapIn object if we're not lockable
+         *   but we have a lockable remapIn object (i.e. an associated
+         *   container).
+         */</span>
         remap()
         {
             if(<a href="#Thing:lockability">lockability</a> == notLockable && remapIn != nil &&
@@ -1438,6 +1613,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objVisible, touchObj]
         
+        remap = remapBehind
+        
         verify()
         {
             if(!canLookBehindMe)
@@ -1448,39 +1625,55 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             
-            local obj = remapBehind ?? self;
-            gMessageParams(obj);
-            
-            if(obj.contType == Behind)
-            {
-                
+            <span class="comment">/* 
+             *   If we're actually a rear-type object, i.e. if our contType is
+             *   Behind, try to determine what's behind us and display a list of
+             *   it; if there's nothing behind us just display a message to that
+             *   effect.
+             */</span>
+            if(contType == Behind)
+            {                
                 <span class="comment">/* 
-                 *   If there's anything hidden under us move it into us before
+                 *   If there's anything hidden behind us move it into us before
                  *   doing anything else
                  */</span>
-                if(obj.hiddenBehind.length &gt; 0)
-                {
-                    for(local item in obj.hiddenBehind)
-                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
-                    
-                    obj.hiddenBehind = [];
-                }
+                if(hiddenBehind.length > 0)                
+                    <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenBehind, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookBehindMsg);                
+                <span class="comment">/* 
+                 *   If there's nothing behind us, simply display our
+                 *   lookBehindMsg
+                 */</span>
+                if(contents.length == 0)
+                    <a href="#Thing:display">display</a>(&amp;lookBehindMsg); 
                 else
                 {
                     obj.<a href="#Thing:unmention">unmention</a>(contents);
+                    
+                    <span class="comment">/* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookBehindMsg
+                     *   instead.
+                     */</span>
                     if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)                        
-                        say(obj.lookBehindMsg); 
+                        {: obj.listSubcontentsOf(self, lookInLister) }) == nil)                        
+                        display(&amp;lookBehindMsg); 
 
                 }
             }
-            else if(obj.hiddenBehind.length &gt; 0)            
-                obj.<a href="#Thing:findHiddenBehind">findHiddenBehind()</a>;               
+            <span class="comment">/* 
+             *   Otherwise, if we're not a rear-type object (our contType is not
+             *   Behind), if there's anything in our hiddenBehind list move it
+             *   into scope and display a list of it.
+             */</span>
+            else if(hiddenBehind.length > 0)            
+                <a href="#Thing:findHidden">findHidden</a>(&amp;hiddenBehind, Behind);   
+
+             <span class="comment">/*  Otherwise just display our lookBehindMsg */</span>
             else
-                say(obj.lookBehindMsg);           
+                <a href="#Thing:display">display</a>(&amp;lookBehindMsg);           
             
             
         }
@@ -1492,29 +1685,22 @@ class Thing:  ReplaceRedirector, Mentionable
     lookBehindMsg = BMsg(look behind, '{I} {find} nothing behind {the
         dobj}. ')
     
-    
-     <span class="comment">/* 
-      *   <a name="Thing:findHiddenBehind">If</a> there's something hidden under the dobj but nowhere obvious to move
-      *   it to then by default we move everything from the hiddenUnder list to
-      *   the actor's inventory and announce that the actor has taken it. We
-      *   call this out as a separate method to make it easy to override if
-      *   desired.
-      */</span>
-    
-    findHiddenBehind()
+    <span class="comment">/* 
+     *   If there's something hidden in the dobj but nowhere obvious to move it
+     *   to then by default we move everything from the hiddenIn list to the
+     *   actor's inventory and announce that the actor has taken it. We call
+     *   this out as a separate method to make it easy to override if desired.
+     */ </span>   
+    <a name="Thing:findHidden">findHidden</a>(prop, prep)
     {
-        DMsg(find behind, 'Behind {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest
-              == gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
-             makeListStr(hiddenBehind));
+        DMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
+              gActor>>, which {i} {take}<<end>>. ',
+             prep.prep, makeListStr(self.(prop)));
         
-        foreach(local cur in hiddenBehind)
-        {
-            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
-            cur.<a href="#Thing:noteSeen">noteSeen</a>();
-        }
-        
-        hiddenBehind = [];
+        <a href="#Thing:moveHidden">moveHidden</a>(prop, <a href="#Thing:findHiddenDest">findHiddenDest</a>);        
     }
+    
+     
    
     <span class="comment">/* 
      *   <a name="Thing:findHiddenDest">If</a>  the actor finds something in a hiddenPrep list and there's nowhere
@@ -1530,6 +1716,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   in/under/behind.
      */</span>
     findHiddenDest = (autoTakeOnFindHidden ? gActor : location)
+    
+    
+    
       
     <span class="comment"> /********************************************
      *   LOOKIN
@@ -1539,64 +1728,70 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objVisible, containerOpen]
         
-        remap()
-        {
-            if(contType != In &amp;&amp; remapIn != nil &amp;&amp; remapIn.contType == In)
-                return remapIn;
-            else
-                return self;
-        }
-        
+        remap = remapIn        
         
         verify()
         {
-            if(contType == In)
+            if(contType == In || remapIn != nil)
                 logicalRank(120);
-            
-            if(remapIn != nil)
-                logicalRank(120);
-            
+                        
             logical;
         }
         
         action()
         {
-            local obj = remapIn ?? self;
-            gMessageParams(obj);
-                       
-            if(obj.contType == In)
-            {
-            
-                /* 
+           <span class="comment">/* 
+            *   If we're actually a container-type object, i.e. if our contType
+            *   is In, try to determine what's inside us and display a list of
+            *   it; if there's nothing inside us just display a message to that
+            *   effect.
+            */</span>
+            if(contType == In)
+            {            
+                <span class="comment">/* 
                  *   If there's anything hidden inside us move it into us before
                  *   doing anything else
-                 */
-                if(obj.hiddenIn.length &gt; 0)
-                {
-                    for(local item in obj.hiddenIn)
-                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
-                    
-                    hiddenIn = [];
-                }
+                 */</span>
+                if(hiddenIn.length > 0)                
+                    <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenIn, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookInMsg);                    
+                
+                <span class="comment">/* If there's nothing inside us, simply display our lookInMsg */</span>
+                if(contents.length == 0)
+                    <a href="#Thing:display">display</a>(&amp;lookInMsg);                    
+                
+                <span class="comment">/* Otherwise display a list of our contents */</span>
                 else
                 {
-                    obj.<a href="#Thing:unmention">unmention</a>(contents);
-                    if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
-                      say(obj.lookInMsg);  
+                    /* Start by marking our contents as not mentioned. */
+                    <a href="#Thing:unmention">unmention</a>(contents);
                     
+                    <span class="comment">/* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookInMsg
+                     *   instead.
+                     */</span>
+                    if(gOutStream.watchForOutput(
+                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                      display(&amp;lookInMsg);       
 
                 }
             }
-            else if(obj.hiddenIn.length &gt; 0)
-            {
-                obj.<a href="#Thing:findHiddenIn">findHiddenIn</a>();               
-            }            
+            
+            <span class="comment">/* 
+             *   Otherwise, if we're not a container-type object (our contType
+             *   is not In), if there's anything in our hiddenIn list move it
+             *   into scope and display a list of it.
+             */</span>
+            else if(hiddenIn.length > 0)            
+                <a href="#Thing:findHidden">findHidden</a>(&amp;hiddenIn, In);                               
+                        
+            
+            <span class="comment">/*  Otherwise just display our lookInMsg */</span>
             else
-                say(obj.lookInMsg);
+                <a href="#Thing:display">display</a>(&amp;lookInMsg);
         }
         
     }
@@ -1607,27 +1802,6 @@ class Thing:  ReplaceRedirector, Mentionable
         dobj}. ')
     
     
-    <span class="code">/* 
-     *   <a name="Thing:findHiddenIn">If there's</a> something hidden in the dobj but nowhere obvious to move it
-     *   to then by default we move everything from the hiddenIn list to the
-     *   actor's inventory and announce that the actor has taken it. We call
-     *   this out as a separate method to make it easy to override if desired.
-     */</span>
-    
-    findHiddenIn()
-    {
-        DMsg(find in, 'In {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest ==
-              gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
-             makeListStr(hiddenIn));
-        
-        foreach(local cur in hiddenIn)
-        {
-            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
-            cur.<a href="#Thing:noteSeen">noteSeen</a>();
-        }
-        
-        hiddenIn = [];
-    }
 
     <span class="comment"> /********************************************
      *   LOOKUNDER
@@ -1644,6 +1818,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objVisible, touchObj]
         
+        remap = remapUnder
+        
         verify()
         {
             if(!canLookUnderMe)
@@ -1653,39 +1829,57 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {            
-            local obj = remapUnder ?? self;
-            gMessageParams(obj);
-                       
-            if(obj.contType == Under)
+            <span class="comment">/* 
+             *   If we're actually an underside-type object, i.e. if our
+             *   contType is Under, try to determine what's under us and display
+             *   a list of it; if there's nothing under us just display a
+             *   message to that effect.
+             */</span>                       
+            if(contType == Under)
             {
                 
-               <span class="comment"> /* 
+                <span class="comment">/* 
                  *   If there's anything hidden under us move it into us before
                  *   doing anything else
                  */</span>
-                if(obj.hiddenUnder.length &gt; 0)
-                {
-                    for(local item in obj.hiddenUnder)
-                        item.<a href="#Thing:moveInto">moveInto</a>(obj);
-                    
-                    obj.hiddenUnder = [];
-                }
+                if(hiddenUnder.length > 0)                
+                    <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenUnder, self);                    
                 
-                if(obj.contents.length == 0)
-                    say(obj.lookUnderMsg);                
+                <span class="comment">/* If there's nothing under us, simply display our lookUnerMsg */</span>
+                if(contents.length == 0)
+                    <a href="#Thing:display">display</a>(&amp;lookUnderMsg);  
+                
+                <span class="comment">/* Otherwise display a list of our contents */</span>
                 else
                 {
-                    obj.<a href="#Thing:unmention">unmention</a>(contents);
+                    <span class="comment">/* Start by marking our contents as not mentioned. */</span>
+                    <a href="#Thing:unmention">unmention</a>(contents);
+                    
+                    <span class="comment">/* 
+                     *   It's possible that we have contents but nothing in our
+                     *   contents is listable, so instead of just displaying a
+                     *   list of contents we also watch to see if anything is
+                     *   displayed; if nothing was we display our lookUnderMsg
+                     *   instead.
+                     */</span>
                     if(gOutStream.watchForOutput(
-                        {: obj.listSubcontentsOf(obj, lookInLister) }) == nil)
-                        say(obj.lookUnderMsg);  
+                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                        <a href="#Thing:display">display</a>(&amp;lookUnderMsg);  
                     
                 }
             }
-            else if(obj.hiddenUnder.length &gt; 0)            
-                obj.<a href="#Thing:findHiddenUnder">findHiddenUnder</a>();               
+            
+            <span class="comment">/* 
+             *   Otherwise, if we're not an underside-type object (our contType
+             *   is not Under), if there's anything in our hiddenUnder list move
+             *   it into scope and display a list of it.
+             */</span>
+            else if(hiddenUnder.length > 0)            
+                <a href="#Thing:findHidden">findHidden</a>(&amp;hiddenUnder, Under);      
+            
+            <span class="comment">/*  Otherwise just display our lookUnderMsg */</span>
             else
-                say(obj.lookUnderMsg);           
+                <a href="#Thing:display">display</a>(&amp;lookUnderMsg);           
             
         }
     }
@@ -1696,29 +1890,7 @@ class Thing:  ReplaceRedirector, Mentionable
     lookUnderMsg = BMsg(look under, '{I} {find} nothing of interest under
         {the dobj}. ')
     
-     <span class="comment">/* 
-      *   If there's something <a name="Thing:findHiddenUnder">hidden under</a> the dobj but nowhere obvious to move
-      *   it to then by default we move everything from the hiddenUnder list to
-      *   the actor's inventory and announce that the actor has taken it. We
-      *   call this out as a separate method to make it easy to override if
-      *   desired.
-      */</span>
-    
-    findHiddenUnder()
-    {
-        DMsg(find under, 'Under {the dobj} {i} {find} {1}&lt;&lt;if findHiddenDest ==
-              gActor&gt;&gt;, which {i} {take}&lt;&lt;end&gt;&gt;. ',
-             makeListStr(hiddenUnder));
-        
-        foreach(local cur in hiddenUnder)
-        {
-            cur.<a href="#Thing:moveInto">moveInto</a>(<a href="#Thing:findHiddenDest">findHiddenDest</a>);
-            cur.<a href="#Thing:noteSeen">noteSeen</a>();
-        }
-        
-        hiddenUnder = [];
-    }
-    
+     
     
     <span class="comment"> /********************************************
      *   OPEN
@@ -1756,6 +1928,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
+        <span class="comment">/* 
+         *   If this object is not itself openable, but its remapIn property
+         *   points to an associated object that is, remap this action to use
+         *   the remapIn object instead of us.
+         */</span>
         remap()
         {
             if(!isOpenable &amp;&amp; remapIn != nil &amp;&amp; remapIn.isOpenable)
@@ -1775,6 +1952,11 @@ class Thing:  ReplaceRedirector, Mentionable
             logical;                          
         }
         
+        <span class="comment">/* 
+         *   An object can't be open if it's locked. We test this at check
+         *   rather than verify since it may not be obvious that an object's
+         *   locked until someone tries to open it.
+         */</span>
         check()
         {
             if(isLocked)
@@ -1787,6 +1969,12 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!gAction.isImplicit)
             {              
                 <a href="#Thing:unmention">unmention</a>(contents);
+                
+               <span class="comment">/* 
+                *   If opening us is not being performed as an implicit action,
+                *   list the contents that are revealed as a result of our being
+                *   opened.
+                */</span>
                 listSubcontentsOf(self, openingContentsLister);
             }           
         }
@@ -1811,8 +1999,15 @@ class Thing:  ReplaceRedirector, Mentionable
      *   PUSH TRAVEL
      ********************************************/</span>
     
+    <span class="comment">/* 
+     *   Common handler for verifying push travel actions. The via parameter may
+     *   be a preposition object (such as Through) defining what kind of push
+     *   traveling the actor is trying to do (e.g. through a door or up some
+     *   stairs).
+     */</span>
     <a name="Thing:verifyPushTravel">verifyPushTravel</a>(via)
     {
+       <span class="comment"> /* Note the mode of push travel (a preposition) for use in messages. */ </span>
         viaMode = via;
         
         if(!allowPushTravel)
@@ -1834,12 +2029,20 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
         dobj} {1} {itself dobj}. ', viaMode.prep)
     
+    <span class="comment">/* 
+     *   By default we can't push travel most things. Push Travel means pushing
+     *   an object from one place to another and traveling with it.
+     */</span>
     allowPushTravel = nil
     
     <span class="comment"> /********************************************
      *   PUSHTRAVELDIR
      ********************************************/</span>
     
+    <span class="comment">/* 
+     *   PushTravelDir handles pushing an object in a particular direction, e.g.
+     *   PUSH BOX NORTH
+     */</span>
     dobjFor(<a name="Thing:PushTravelDir">PushTravelDir</a>)
     {
         preCond = [touchObj]
@@ -1849,8 +2052,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   Most of the action is carried out by the PushTravel Action. All
+             *   we need to do here is to tell the action that we're allowing
+             *   push travel and reveal any items that come to light as a result
+             *   of moving this object.
+             */</span> 
             gAction.travelAllowed = true;
             
+           <span class="comment"> /*  
+             *   Reveal items previously under or behind us that now become
+             *   visible.
+             */</span>
             <a href="#Thing:pushTravelRevealItems">pushTravelRevealItems</a>();            
         }
     }
@@ -1879,7 +2092,7 @@ class Thing:  ReplaceRedirector, Mentionable
         gCommand.afterReports = [];   
     }
     
-      
+    <span class="comment">/* Display a message explaining that push travel is not possible */</span>  
     cannotPushTravelMsg()
     {
         if(isFixed)
@@ -1905,7 +2118,11 @@ class Thing:  ReplaceRedirector, Mentionable
          *   current one to reveal any items it was concealing.
          */</span>
         pushTravelRevealItems();       
-                        
+        
+        <span class="comment">/*   
+         *   Use the travelVia() method of the iobj to move the iobj to its new
+         *   location.
+         */</span>        
         gIobj.travelVia(gDobj);
         
         <span class="comment">/* 
@@ -1927,7 +2144,11 @@ class Thing:  ReplaceRedirector, Mentionable
      *   PUSHTRAVELTHROUGH
      ********************************************/</span>
    
-    
+    <span class="comment">/* 
+     *   PushTravelThrough handles pushing something through something, such as
+     *   a door or archway. Most of the actual handling is dealt with by the
+     *   common routines defined above.
+     */</span>
     dobjFor(<a name="Thing:PushTravelThrough">PushTravelThrough</a>)    
     {
         preCond = [touchObj]
@@ -1958,6 +2179,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   PUSHTRAVELENTER
      ********************************************/</span>
     
+    <span class="comment">/* 
+     *   PushTravelEnter handles commands like PUSH BOX INTO COFFIN, where the
+     *   indirect object is a Booth-like object. The syntactically identical
+     *   command for pushing things into an Enterable (e.g. PUSH BOX INTO HOUSE
+     *   where HOUSE represents the outside of a separate location) is handled
+     *   on the Enterable class.
+     */</span>
     dobjFor(<a name="Thing:PushTravelEnter">PushTravelEnter</a>)
     {
         preCond = [touchObj]
@@ -2008,10 +2236,7 @@ class Thing:  ReplaceRedirector, Mentionable
             <a href="#Thing:verifyPushTravel">verifyPushTravel</a>(OutOf);
             if(!self.isIn(gIobj))
                 illogicalNow(notInMsg);
-        }
-        
-        
-        
+        }       
     }
     
     
@@ -2022,8 +2247,7 @@ class Thing:  ReplaceRedirector, Mentionable
         verify() 
         {  
             if(!gActor.isIn(self))
-                illogicalNow(actorNotInMsg);   
-            
+                illogicalNow(actorNotInMsg);               
         }
         
         action()
@@ -2142,6 +2366,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        remap = remapBehind
+        
         verify()
         {
             if(!canPutBehindMe)
@@ -2152,8 +2378,19 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         { 
+            <span class="comment">/* 
+             *   If we're actually a rear-like object (our contType is Behind),
+             *   check whether there's enough room behind us to contain the
+             *   direct object.
+             */</span>
             if(contType == Behind)
                 <a href="#Thing:checkInsert">checkInsert</a>(gDobj);
+                
+            <span class="comment">/*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenBehind list would exceed the amount of bulk allowed
+             *   there.
+             */</span>   
              else if(gDobj.bulk &gt; maxBulkHiddenBehind - getBulkHiddenBehind)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} behind {the iobj}. ');    
@@ -2161,8 +2398,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   If we're actually a rear-like object (i.e. if our contType is
+             *   Behind) then something put behind us can be moved inside us.
+             *   Otherwise, all we can do with something put behind us is to add
+             *   it to our hiddenBehind list and move it off-stage.
+             */</span>       
             if(contType == Behind)
-                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
+                gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);               
             else
             {
                 hiddenBehind += gDobj;
@@ -2223,13 +2466,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [containerOpen, touchObj]
         
-        remap()
-        {
-            if(contType != In && remapIn != nil)
-                return remapIn;
-            else
-                return self;
-        }
+        remap = remapIn 
         
         verify()
         {
@@ -2240,9 +2477,19 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         
         check()
-        {
+        {   
+            <span class="comment">/* 
+             *   If we're actually a container-like object (our contType is In),
+             *   check whether there's enough room inside us to contain the
+             *   direct object.
+             */</span>
             if(contType == In)
                <a href="#Thing:checkInsert">checkInsert</a>(gDobj);
+               
+            <span class="comment">/*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenIn list would exceed the amount of bulk allowed there.
+             */ </span>  
             else if(gDobj.bulk &gt; maxBulkHiddenIn - getBulkHiddenIn)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} in {the iobj}. ');            
@@ -2250,6 +2497,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   If we're actually a container-like object (i.e. if our contType
+             *   is In) then something put in us can be moved inside us.
+             *   Otherwise, all we can do with something put in us is to add it
+             *   to our hiddenIn list and move it off-stage.
+             */</span>
             if(contType == In)
                 gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
             else
@@ -2315,14 +2568,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
-        remap()
-        {
-            if(contType != On &amp;&amp; remapOn != nil)
-                return remapOn;
-            else
-                return self;
-        }
-        
+        remap = remapOn        
         
         verify()
         {
@@ -2393,6 +2639,8 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        remap = remapUnder
+        
         verify()
         {
             if(!canPutUnderMe)
@@ -2403,8 +2651,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         { 
+            <span class="comment">/* 
+             *   If we're actually an underside-like object (our contType is
+             *   Under), check whether there's enough room under us to contain
+             *   the direct object.
+             */</span>
             if(contType == Under)
                <a href="#Thing:checkInsert">checkInsert</a>(gDobj); 
+               
+            <span class="comment">/*  
+             *   Otherwise check whether adding the direct object to our
+             *   hiddenUnder list would exceed the amount of bulk allowed there.
+             */</span>   
             else if(gDobj.bulk &gt; maxBulkHiddenUnder - getBulkHiddenUnder)
                 DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
                     dobj} under {the iobj}. ');    
@@ -2412,6 +2670,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   If we're actually an underside-like object (i.e. if our
+             *   contType is Under) then something put under us can be moved
+             *   inside us. Otherwise, all we can do with something put under us
+             *   is to add it to our hiddenUnder list and move it off-stage.
+             */</span>
             if(contType == Under)
                 gDobj.<a href="#Thing:actionMoveInto">actionMoveInto</a>(self);
             else
@@ -2470,10 +2734,20 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If we have any contents hidden behind us or under us, reveal it
              *   now
              */</span>
-            <a href="#Thing:revealOnMove">revealOnMove</a>();           
+            <a href="#Thing:revealOnMove">revealOnMove</a>();   
+
+            <span class="comment">/* 
+             *   move us into the actor who is taking us, triggering the
+             *   appropriate notifications.
+             */</span>            
             <a href="#Thing:actionMoveInto">actionMoveInto</a>(gActor);
         }
         
+        <span class="comment">/* 
+         *   Report that we've been taken. Note that if the action causes
+         *   several items to be taken, this method will only be called on the
+         *   final item, and will need to report on all the items taken.
+         */</span>
         report()
         {            
             DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
@@ -2509,6 +2783,12 @@ class Thing:  ReplaceRedirector, Mentionable
     revealOnMove()
     {
         local moveReport = '';
+        
+        <span class="comment">/* 
+         *   If anything is hidden under us, add a report saying that it's just
+         *   been revealed moved and then move the previously hidden items to
+         *   our location.
+         */</span>
         if(hiddenUnder.length > 0)
         {
             moveReport += 
@@ -2522,6 +2802,11 @@ class Thing:  ReplaceRedirector, Mentionable
             
         }
         
+        <span class="comment">/* 
+         *   If anything is hidden behind us, add a report saying that's just
+         *   been revealed and then move the previously hidden items to our
+         *   location.
+         */</span>
         if(hiddenBehind.length &gt; 0)
         {
             moveReport += 
@@ -2534,9 +2819,11 @@ class Thing:  ReplaceRedirector, Mentionable
             
             <a href="#Thing:moveHidden">moveHidden</a>(&amp;hiddenBehind, location);            
         }
-        
-        
-        
+                
+        <span class="comment">/* 
+         *   If anything has been reported as being revealed, report the
+         *   discovery after reporting the action that caused it.
+         */</span>
         if(moveReport != '' )
             reportAfter(moveReport);
     }
@@ -2544,8 +2831,7 @@ class Thing:  ReplaceRedirector, Mentionable
     <span class="comment">/* 
      *  <a name="Thing:moveHidden"> Service method</a>: move everything in the prop property to loc and mark it
      *   as seen
-     */</span>
-    
+     */</span>    
     moveHidden(prop, loc)
     {
         foreach(local cur in self.(prop))
@@ -2565,8 +2851,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   carry, but game authors may often wish to give portable items bulk in
      *   the interests of realism and may wish to impose an inventory limit by
      *   bulk by reducing the bulkCapacity of the player char.
-     */</span>
-    
+     */</span>    
     checkRoomToHold()
     {
         <span class="comment">/* 
@@ -2589,7 +2874,11 @@ class Thing:  ReplaceRedirector, Mentionable
      *   TAKEFROM
      ********************************************/</span>
     
-    
+    <span class="comment">/* 
+     *   We treat TAKE FROM as equivalent to TAKE except at the verify stage,
+     *   where we first check that the direct object is actually in the indirect
+     *   object.
+     */</span>
     dobjFor(<a name="Thing:dobjTakeFrom">TakeFrom</a>) asDobjWithoutVerifyFor(<a href="#Thing:Take">Take</a>)
     
     dobjFor(TakeFrom)
@@ -2641,6 +2930,11 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
+        <span class="comment">/* 
+         *   Remap the unlock action to our remapIn object if we're not lockable
+         *   but we have a lockable remapIn object (i.e. an associated
+         *   container).
+         */</span>
         remap()
         {
             if(<a href="#Thing:lockability">lockability</a> == notLockable && remapIn != nil &&
@@ -2678,11 +2972,26 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* 
+             *   The useKey_ property will have been set by the
+             *   findPlausibleKey() method at the check stage. If it's non-nil
+             *   it's the key we're going to use to try to unlock this object
+             *   with, so we display a parenthetical note to the player that
+             *   we're using this key. (Note: the action would have failed at
+             *   the check stage if useKey_ wasn't the right key for the job).
+             */</span>
             if(useKey_ != nil)
                 extraReport(withKeyMsg);
+                
+            <span class="comment">/* 
+             *   Otherwise, if we need a key to unlock this object with, ask the
+             *   player to specify it and then execute an UnlockWith action
+             *   using that key.
+             */</span>
             else
                 askForIobj(UnlockWith);
             
+            <span class="comment">/*  Make us unlocked. */</span>
             <a href="#Thing:makeLocked">makeLocked</a>(nil);                        
         }
         
@@ -2704,6 +3013,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         preCond = [touchObj]
         
+        <span class="comment">/* 
+         *   Remap the unlock action to our remapIn object if we're not lockable
+         *   but we have a lockable remapIn object (i.e. an associated
+         *   container).
+         */</span>
         remap()
         {
             if(<a href="#Thing:lockability">lockability</a> == notLockable &amp;&amp; remapIn != nil &amp;&amp;
@@ -2715,15 +3029,30 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            <span class="comment">/* 
+             *   If we're not lockable at all, we're a very poor choice of
+             *   direct object for an UnlockWith action.
+             */</span>
             if(lockability == notLockable || lockability == nil)
                 illogical(notLockableMsg);
             
+            <span class="comment">/*  
+             *   If we're lockable, but not with a key (either because we don't
+             *   need one at all or because we use some other form of locking
+             *   mechanism) then we're still a bad choice of object for an
+             *   UnlockWith action, but not so bad as if we weren't lockable at
+             *   all.
+             */</span>
             if(lockability == lockableWithoutKey)
                 implausible(keyNotNeededMsg);
             
             if(lockability == indirectLockable)
                 implausible(indirectLockableMsg);
             
+            <span class="comment">/*  
+             *   If we are lockable with key, then were a good choice of object
+             *   for an UnlockWith action provided we're currently locked.
+             */</span>
             if(lockability == lockableWithKey)
             {
                 if(isLocked)
@@ -2774,22 +3103,61 @@ class Thing:  ReplaceRedirector, Mentionable
 
 
  <p><div class="code"><pre>
+ <span class="comment">/*  
+ *   A Key is any object that can be used to lock or lock selected items whose
+ *   lockabilty is lockableWithKey. We define all the special handling on the
+ *   Key class rather than on the items to be locked and/or unlocked.
+ */</span>
 <strong>class Key: Thing</strong>
+
+    <span class="comment">/* The list of things this key can actually be used to lock and unlock. */</span>    
     actualLockList = []
+    
+    <span class="comment">/* 
+     *   The list of things this key plausibly looks like it might lock and
+     *   unlock (e.g. if we're a yale key, we might list all the doors in the
+     *   game that have yale locks here).
+     */</span>
     plausibleLockList = []
+    
+    <span class="comment">/* 
+     *   The list of all the things the player character knows this key can lock
+     *   and unlock. Items are automatically added to this list when this key is
+     *   successfully used to lock or unlock them, but game code can also use
+     *   this property to list items the player character starts out knowing,
+     *   such as the door locked by his/her own front door key.
+     */</span>
     knownLockList = []
     
+    <span class="comment">/*  
+     *   Determine whether we're a possible key for obj (i.e. whether we might
+     *   be able to lock or unlock obj).
+     */</span>
     <a name="Key:isPossibleKeyFor">isPossibleKeyFor</a>(obj)
     {
+        <span class="comment">/* 
+         *   First test if we've been defined as a plausible or known key for
+         *   our lexicalParent in the case that we're the remapIn object for our
+         *   lexicalParent. If so return true. We do this because game code
+         *   might easily define the plausibleKeyList and/or knownKeyList on our
+         *   lexicalParent intending to refer to what keys might unlock is
+         *   associated container (i.e. ourselves if we're our lexicalParent's
+         *   remapIn object).
+         */</span> 
         if(obj.lexicalParent != nil &amp;&amp; obj.lexicalParent.remapIn == obj
            &amp;&amp;(knownLockList.indexOf(obj.lexicalParent) != nil
               || plausibleLockList.indexOf(obj.lexicalParent) != nil))
             return true;
         
+        <span class="comment">/* 
+         *   Otherwise return true if obj is in either our knownLockList or our
+         *   plausibleLockList or nil otherwise.
+         */</span>
         return knownLockList.indexOf(obj) != nil ||
             plausibleLockList.indexOf(obj) != nil;
     }
     
+    <span class="comment">/* A key is something we can unlock with. */</span>
     canUnlockWithMe = true
     
     iobjFor(<a name="Key:UnlockWith">UnlockWith</a>)
@@ -2801,14 +3169,35 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             inherited;
             
+            <span class="comment">/* 
+             *   We're a logical choice of key if we're a possible key for the
+             *   direct object.
+             */</span>
             if(<a href="#Key:isPossibleKeyFor">isPossibleKeyFor</a>(gDobj))
                 logical;
+                
+            <span class="comment">/* Otherwise we're not a very good choice. */ </span>   
             else
                 implausible(notAPlausibleKeyMsg);            
         }
         
         check()
         {
+            <span class="comment">/* 
+             *   Check whether this key *actually* fits the direct object, and
+             *   if not display a message to say it doesn't (which halts the
+             *   action).
+             *
+             *   This is complicated by the fact that if the direct object is a
+             *   SubComponent the game author may have listed the dobj's
+             *   lexicalParent in our actualLockList property instead of the
+             *   actual dobj (e.g. the fridge object itself instead of the
+             *   SubComponent representing the interior of the fridge). So in
+             *   addition to seeing if the dobj is included in our
+             *   actuallockList we need to check whether, if the dobj has a
+             *   lexicalParent of which it's the remapIn object, dobj's
+             *   lexicalParent is in our actualLockList.
+             */</span>
             if(actualLockList.indexOf(gDobj) == nil
                &amp;&amp; (gDobj.lexicalParent == nil
                || gDobj.lexicalParent.remapIn != gDobj
@@ -2818,7 +3207,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/* Make the dobj unlocked. */</span>
             gDobj.<a href="#Thing:makeLocked">makeLocked</a>(nil);
+            
+            <span class="comment">/* If the dobj is not already in our knownLockList, add it there. */</span>
             if(knownLockList.indexOf(gDobj) == nil)
                 knownLockList += gDobj;
         }
@@ -2848,6 +3240,21 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
+            <span class="comment">/* 
+             *   Check whether this key *actually* fits the direct object, and
+             *   if not display a message to say it doesn't (which halts the
+             *   action).
+             *
+             *   This is complicated by the fact that if the direct object is a
+             *   SubComponent the game author may have listed the dobj's
+             *   lexicalParent in our actualLockList property instead of the
+             *   actual dobj (e.g. the fridge object itself instead of the
+             *   SubComponent representing the interior of the fridge). So in
+             *   addition to seeing if the dobj is included in our
+             *   actuallockList we need to check whether, if the dobj has a
+             *   lexicalParent of which it's the remapIn object, dobj's
+             *   lexicalParent is in our actualLockList.
+             */</span>
              if(actualLockList.indexOf(gDobj) == nil
                &amp;&amp; (gDobj.lexicalParent == nil
                || gDobj.lexicalParent.remapIn != gDobj
@@ -2857,7 +3264,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            <span class="comment">/*Make the dobj locked. */</span>
             gDobj.<a href="#Thing:makeLocked">makeLocked</a>(true);
+            
+            <span class="comment">/* If the dobj is not already in our knownLockList, add it there. */</span>
             if(knownLockList.indexOf(gDobj) == nil)
                 knownLockList += gDobj;
         }
@@ -2868,17 +3278,20 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    
+    <span class="comment">/* The message to say that the actor has lock the dobj with this key. */</span>
     okayLockWithMsg = '{I} {lock} {the dobj} with {the iobj}. '
     
+    <span class="comment">/* 
+     *   The message to say that this key clearly won\'t work on the dobj
+     *   (because it\'s the wrong sort of key for the lock; e.g. a yale key
+     *   clearly won\'t fit the lock on a small jewel box).
+     *</span>/
     notAPlausibleKeyMsg = '\^&lt;&lt;theName&gt;&gt; clearly won\'t work on &lt;&lt;gDobj.theName&gt;&gt;. '
     
+    <span class="comment">/*  The message to say that this key doesn\'t in fact fit the dobj. */</span>
     keyDoesntFitMsg = '\^&lt;&lt;theName&gt;&gt; won\'t fit &lt;&lt;gDobj.theName&gt;&gt;. '   
 ;
 </pre></div>
-
-<h2>travel.t</h2>
-
 
 
 

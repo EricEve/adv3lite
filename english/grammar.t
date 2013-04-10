@@ -1525,7 +1525,7 @@ VerbRule(LookIn)
     : VerbProduction
     action = LookIn
     verbPhrase = 'look/looking (in what)'
-    missingQ = 'what do you want to look in'
+    missingQ = 'what do you want to look in'   
 ;
 
 VerbRule(Search)

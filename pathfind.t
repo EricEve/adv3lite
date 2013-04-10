@@ -2,7 +2,6 @@
 #include "advlite.h"
 
 /* Abstract pathfinder */
-
 class Pathfinder: object
     
     /* 
@@ -130,7 +129,6 @@ class Pathfinder: object
  *   includes direction properties attached to Rooms, Doors and other
  *   TravelConnectors).
  */
-
 routeFinder: Pathfinder    
     
     findDestinations(cur)
@@ -217,7 +215,6 @@ routeFinder: Pathfinder
  *   except that it finds routes only through TravelConnectors whose
  *   destinations are known.
  */
-
 pcRouteFinder: Pathfinder
     findDestinations(cur)
     {
@@ -294,9 +291,7 @@ pcRouteFinder: Pathfinder
                 {
                     newPath.append([dir, dest]);
                     pathsFound.append(newPath);
-                }
-                
-                
+                }                
             }
         }  
         

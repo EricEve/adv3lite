@@ -1597,9 +1597,6 @@ class Thing:  ReplaceRedirector, Mentionable
     /* The lister to use to list an item's contents when it's examined. */    
     examineLister = descContentsLister
     
-//    lookDesc(pov) { desc; }
-//    childDesc(pov) { desc; }
-    
     
     /* 
      *   Attempt to display prop appropriately according to it data type
@@ -2268,7 +2265,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     moveInto(newCont)
     {
-        /* If we a location, remove us from its list of contents. */
+        /* If we have a location, remove us from its list of contents. */
         if(location != nil)            
             location.removeFromContents(self);
                
@@ -4423,8 +4420,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objVisible, touchObj]
         
-        remap = remapUnder
-        
+        remap = remapUnder        
         
         verify()
         {
@@ -4529,7 +4525,7 @@ class Thing:  ReplaceRedirector, Mentionable
             {
                 
                 /* 
-                 *   If there's anything hidden under us move it into us before
+                 *   If there's anything hidden behind us move it into us before
                  *   doing anything else
                  */
                 if(hiddenBehind.length > 0)                
@@ -4785,8 +4781,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [containerOpen, touchObj]
         
-        remap = remapIn
-        
+        remap = remapIn        
         
         verify()
         {
@@ -5190,7 +5185,7 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [touchObj]
         
-         /* 
+        /* 
          *   Remap the unlock action to our remapIn object if we're not lockable
          *   but we have a lockable remapIn object (i.e. an associated
          *   container).
@@ -5343,6 +5338,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     withKeyMsg = BMsg(with key, '(with {1})\n', useKey_.theName)
     
+    /* 
+     *   Find a key among the actor's possessions that might plausibly lock or
+     *   unlock us.
+     */
     findPlausibleKey()
     {
       
@@ -6460,9 +6459,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(gTentativeDobj.overlapsWith(notionalContents) == nil)
                 logicalRank(80);        
         
-        }
-        
-       
+        }      
     }
     
     notInMsg = BMsg(not inside, '{The dobj} {is}n\'t {in iobj}. ')
@@ -8389,6 +8386,37 @@ class SubComponent: Thing
      */
     origVocab = nil
     
+    matchNameDisambig(tokens)
+    {
+        local match = inherited(tokens);
+        
+        /* 
+         *   If we're being matched at a disambig prompt and we don't have any
+         *   vocabWords of our own, try matching us against our lexicalParent's
+         *   vocab instead, provided we have a lexicalParent.
+         *
+         *   This is necessary because SubComponents don't normally have any
+         *   vocab of their own, but a SubComponent may end up as one of the
+         *   objects that notionally matched the vocab of its lexicalParent
+         *   among which the parser now wishes the player to disambiguate. For
+         *   example, if the player types LOOK IN BOX and there's more than one
+         *   box in scope, and the red box (say) has a SubComponent defined on
+         *   its remapIn property, then since the LOOK IN action will have been
+         *   redirected to the SubComponent, the parser will list the
+         *   SubComponent as the object corresponding to "red box", but the
+         *   SubComponent doesn't have any vocab of its own for the player's
+         *   response "red" to match; when disambiguating we therefore need to
+         *   try to match against our lexicalParent's vocab.
+         */        
+        if(match == 0 && lexicalParent != nil)
+            return lexicalParent.matchNameDisambig(tokens);
+        
+        /* 
+         *   Otherwise just return our normal match
+         */        
+        return match;
+           
+    }
 ;
 
 
