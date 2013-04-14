@@ -1335,7 +1335,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     attentionSpan = nil
     
     /* Our look up table for things we've been informed about */    
-    informedNameTab = static new LookupTable(32, 32)
+    informedNameTab = nil
     
     
     /* 
@@ -1345,6 +1345,9 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */    
     setInformed(tag)
     {
+        if(informedNameTab == nil)
+            informedNameTab = new LookupTable(32, 32);
+        
         informedNameTab[tag] = true;
     }
     
@@ -1352,8 +1355,28 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   Determine whether this actor has been informed about tag. We return
      *   true if there is a corresponding non-nil entry in our informedNameTab
      */
-    informedAbout(tag) { return informedNameTab[tag] != nil; }
+    informedAbout(tag) 
+    {        
+        return informedNameTab == nil ? nil : informedNameTab[tag] != nil;     
+    }
     
+    /*  
+     *   Should other actors who can notionally hear the PC talking to us
+     *   overhear when information is imparted to us? I.e. should their
+     *   setInform() methods be called too? If we have a curState we use its
+     *   setting, otherwise we use the value of actorInformOverheard.
+     */
+    informOverheard = (curState == nil ? actorInformOverheard :
+    curState.informOverheard)
+    
+    /*  
+     *   Should other actors who can notionally hear the PC talking to us
+     *   overhear when information is imparted to us when our current ActorState
+     *   is nil? By default they should.
+     */
+    actorInformOverheard =  true
+
+
     /* 
      *   Say hello to the actor (when the greetin is initiated by the player
      *   character)
@@ -2272,6 +2295,14 @@ class ActorState: ActorTopicDatabase
          */
         return inherited(myList, requestedList);
     }
+    
+    /*  
+     *   Should other actors who can notionally hear the PC talking to us
+     *   overhear when information is imparted to us and we're in this
+     *   ActorState? I.e. should their setInform() methods be called too? By
+     *   default they should.
+     */
+    informOverheard = true
 ;
 
 /*  
@@ -4624,13 +4655,21 @@ conversationManager: OutputFilter, PreinitObject
          *   is one; if there isn't then the revealed tag is presumably being
          *   used for a non-conversational purpose, so we don't try to inform
          *   any other actors).
+         *
+         *   Note that we only do this if our respondingActor wants to allow it
+         *   through its informOverheard property. If we want to model a private
+         *   conversation that other people present don't pick up, we can
+         *   override informOverheard on the the current ActorState or
+         *   actorInformedOverhead on the Actor.
          */                
-        if(respondingActor != nil)
+        if(respondingActor != nil && respondingActor.informOverheard )
         {
+            
             forEachInstance(Actor, new function(a) {
                 if(a != gPlayerChar && Q.canHear(a, respondingActor))
                     a.setInformed(tag);
             } );
+            
         }
     }
 
@@ -4640,10 +4679,30 @@ conversationManager: OutputFilter, PreinitObject
      */
     setInformed(tag)
     {
-        forEachInstance(Actor, new function(a) {
-            if(a != gPlayerChar && Q.canHear(a, gPlayerChar))
-                a.setInformed(tag);
-        } );
+        /*
+         *   Note that we only do this if our respondingActor wants to allow it
+         *   through its informOverheard property. If we want to model a private
+         *   conversation that other people present don't pick up, we can
+         *   override informOverheard on the the current ActorState or
+         *   actorInformedOverhead on the Actor.
+         */
+        if(respondingActor.informOverheard)
+        {
+            forEachInstance(Actor, new function(a) {
+                if(a != gPlayerChar && Q.canHear(a, gPlayerChar))
+                    a.setInformed(tag);
+            } );
+        }
+        
+        /* 
+         *   If this is a private conversation (informOverheard = nil), just set
+         *   the informed tage on our respondingActor alone.
+         */
+        else
+        {
+            respondingActor.setInformed(tag);
+        }
+        
     }
     
     /* 
@@ -5276,7 +5335,7 @@ class FollowAgendaItem: AgendaItem
         /* Get our next connector */
         local conn = nextConnector;       
         
-        /* Let pur actor know we're its currently active FollowAgendaItem */
+        /* Let our actor know we're its currently active FollowAgendaItem */
         actor.followAgendaItem = self;
         
         /* 
