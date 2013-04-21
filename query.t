@@ -427,7 +427,7 @@ QDefaults: Special
              *   defined in B's checkReachIn method or the checkReach in method
              *   of anything that contains B.
              */
-            local cpar = b.commonInteriorParent(a);
+            local cpar = b.commonContainingParent(a);
             
             if(cpar != nil)
             {

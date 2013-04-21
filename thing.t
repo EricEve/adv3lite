@@ -2526,6 +2526,47 @@ class Thing:  ReplaceRedirector, Mentionable
         return (child != nil ? child.locType : nil);
     }
     
+    /* 
+     *   Find the nearest common containing parent of self and other. Unlike
+     *   commonInteriorParent this doesn't take account of the type of
+     *   containment (it can be In, On, Under, Behind or anything else) just so
+     *   long as we find a common parent in the containment hierarchy.
+     */    
+    commonContainingParent(other)
+    {
+        /* start at each object's nearest direct parent */
+        local l1 = location;
+        local l2 = other.location;
+        
+         /* 
+          *   if one or the other doesn't have a location, there's no common
+          *   parent.
+          */
+        
+        if(l1 == nil || l2 == nil)
+            return nil;
+        
+         /* work up the containment tree one parent at a time */
+        while (l1 != nil || l2 != nil)
+        {
+            /* if I'm inside the current other parent, that's the common one */
+            if (l2 != nil && isIn(l2))
+                return l2;
+
+            /* if other is in my current parent, that's the nearest one */
+            if (l1 != nil && other.isIn(l1))
+                return l1;
+            
+            /* move up one level */
+            l1 = (l1 != nil ? l1.location : nil);
+            l2 = (l2 != nil ? l2.location : nil);
+        }
+
+        /* there's no common parent */
+        return nil;
+    }
+    
+    
    /*
      *   Find the nearest common interior parent of self and other.  This
      *   finds the nearest parent that both self and other are inside of.  
