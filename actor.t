@@ -980,9 +980,17 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
 
     /* The message to display when another actor follows this one. */
     sayActorFollowingMe(conn)
-    {        
-        /* By default, let the connector handle it. */
-        conn.sayActorFollowing(gActor, self);
+    {       
+        /* 
+         *   If we have a current followAgendaItem, let it handle it in the
+         *   first instance.
+         */
+        if(followAgendaItem != nil)
+            followAgendaItem.sayDeparting(conn);
+        
+        /* Otherwise, let the connector handle it. */
+        else                
+            conn.sayActorFollowing(gActor, self);
     }
     
     followActorMsg = BMsg(follow actor, '{I} {follow} {1}. ', theName)
@@ -1058,6 +1066,68 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     actorArrivingTurn() { }
         
+    /* 
+     *   The message to display when the player char sees this actor arriving
+     *   after traveling from loc.
+     */
+    sayArriving(fromLoc)
+    {
+       /* If we have a current ActorState, call its sayArriving() method */
+        if(curState != nil)
+            curState.sayArriving(fromLoc);
+        
+        /* Otherwise, call our own sayActorArriving() method */
+        else
+            sayActorArriving(fromLoc);   
+    }
+    
+    /* 
+     *   Default message to display when the player character sees this actor
+     *   arriving. We use a very plain-vanilla message here, since in practice
+     *   game code will generally want to override this.
+     */
+    sayActorArriving(fromLoc)
+    {
+        local traveler = self;
+        gMessageParams(traveler);
+        
+        DMsg(actor arriving, '{The subj traveler} {arrives} in the area. ');
+    }
+    
+    
+    /* 
+     *   Make this actor travel via the connector conn and report its departure.
+     *   If announceArrival is true (the default) we also announce the actor's
+     *   arrival (if it's visible to the player char).
+     *
+     *   To suppress the default arrival announcement altogether, supply the
+     *   second optional parameter as nil. In some cases it may be easier to do
+     *   this and supply your own custom arrival message after calling
+     *   travelVia() than to juggle with the various sayArriving() methods.
+     */     
+    travelVia(conn, announceArrival = true)
+    {
+        local wasSeenLeaving = nil;
+        local oldLoc = location;
+        
+        /* 
+         *   If the player character can see this actor, display a message
+         *   indicating this player's departure.
+         */
+        if(Q.canSee(gPlayerChar, self))
+        {
+            sayDeparting(conn);
+            
+            /* Note that we were seen leaving. */
+            wasSeenLeaving = true;
+        }
+        
+        /* Move this actor via conn. */
+        conn.travelVia(self);
+        
+        if(announceArrival && !wasSeenLeaving && Q.canSee(gPlayerChar, self))
+            sayArriving(oldLoc);
+    }
        
     /*  
      *   The takeTurn() method is called on every Actor every turn to carry out
@@ -2112,6 +2182,14 @@ class ActorState: ActorTopicDatabase
      *   method.
      */
     sayDeparting(conn) { getActor.sayActorDeparting(conn); }
+    
+    /* 
+     *   The message to display when the player char sees this actor arriving
+     *   after traveling from loc. By default we simply use our actor's
+     *   sayActorArriving(fromLoc) method.
+     */
+    sayArriving(fromLoc) { getActor.sayActorArriving(fromLoc); }
+    
     
     /*   
      *   Our associated actor. This is set to our location at preinit by our
@@ -5459,6 +5537,20 @@ class FollowAgendaItem: AgendaItem
         else
             specialDesc();        
     }
+    
+    /* 
+     *   Display a message to say that our actor is leaving via conn. This would
+     *   normally describe the player character following our actor via conn.
+     */
+    sayDeparting(conn)
+    {
+        /* 
+         *   By default we use the connector's standard sayActorFollowing()
+         *   method.
+         */
+        conn.sayActorFollowing(gActor, getActor);
+    }
+    
     
     /* 
      *   Give this AgendaItem the opportunity to react to travel; in particular

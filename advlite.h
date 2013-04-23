@@ -917,7 +917,10 @@ MenuLongTopicItem template 'title' 'heading'? 'menuContents';
 Goal template ->closeWhenAchieved? 'title' 'heading'? [menuContents];
 Hint template 'hintText' [referencedGoals]?;
 
+/* templates for EventLists */
 
+EventList template [eventList];
+ShuffledEventList template [firstEvents] [eventList];
 
 
 /* ------------------------------------------------------------------------ */

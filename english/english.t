@@ -527,6 +527,14 @@ class LMentionable: object
      */
     initVocab()
     {
+        /* If we're a singular first-person object, our name is 'I' or 'we' */
+        if(person == 1)
+            name = plural ? 'we' : 'I';
+        
+        /* If we're a second-person object, our name is 'you' */
+        if(person == 2)
+            name = 'you';
+        
         /* if we don't have a vocab string, there's nothing to do */
         if (vocab == nil || vocab == '')
             return;
@@ -2322,6 +2330,7 @@ englishCustomVocab: CustomVocab
         'appear/appears/appeared',
         'ask/asks/asked',
         'attach/attaches/attached',
+        'arrive/arrives/arrived',
         'board/boards/boarded',
         'bounce/bounces/bounced',
         'burn/burns/burned',
