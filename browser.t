@@ -18,7 +18,7 @@
  */
 
 /* include the library header */
-#include "advLite.h"
+#include "advlite.h"
 
 
 /* ------------------------------------------------------------------------ */

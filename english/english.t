@@ -1662,7 +1662,7 @@ class LMentionable: object
          *   between each letter.  
          */
         if (rexMatch(apostPluralPat, str) != nil)
-            return '<<str>>\'s';
+            return '<<str>><<apost>>s';
 
         /* for any other single letter, return the letter + 's' */
         if (len == 1)
@@ -1670,7 +1670,7 @@ class LMentionable: object
 
         /* for all-capital words (CPA, PC) or numbers, just add -s */
         if (rexMatch(acronymPluralPat, str) != nil)
-            return '<<str>><<apost>>s';
+            return '<<str>>s';
 
         /* check for -es plurals */
         if (rexMatch(esPluralPat, str) != nil)
@@ -1883,13 +1883,12 @@ modify ResolvedTopic
  *   storing the name (which undoes the effect on building the name of what the
  *   English-language tokenizer does with apostrophe-S).
  */
-
 modify Topic
     construct(name_)
     {
         name_ = name_.findReplace(' \'s', '\'s', ReplaceAll);
         inherited(name_);
-    }
+   }
     
 ;
 
@@ -2545,7 +2544,6 @@ spellNumber(n)
 /*
  *   List display routines
  */
-
 modify Lister
     /* 
      *   Show the list as an 'and' list, that is a list of the aNames of each
@@ -3167,8 +3165,8 @@ genList(lst, conj)
 
 /* 
  *   Take a list of strings of the form ['a book', 'a cat', 'a book'] and merge
- *   the duplicate items to return a list of the form ['two books', 'a cat'] */     
-
+ *   the duplicate items to return a list of the form ['two books', 'a cat']
+ */     
 mergeDuplicates(lst)
 {
     /* A vector to store items that have duplicates */
@@ -4484,11 +4482,10 @@ conjugateMust(ctx, params)
 }
 
 
-/*
- *   ---------------------------------------------------------------------------
+/* 
  *   Language-specific modifications to Action classes principally to enable the
- *   construction of implicit action announcements. */
-
+ *   construction of implicit action announcements.
+ */
 modify Action
      getVerbPhrase(inf, ctx)
      {

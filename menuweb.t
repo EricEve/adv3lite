@@ -6,7 +6,7 @@
  *   This implements the menusys user interface for the traditional
  *   console-mode interpreters.  
  */
-#include "advLite.h"
+#include "advlite.h"
 
 
 /* ------------------------------------------------------------------------ */

@@ -204,7 +204,36 @@ class TravelAction: Action
         case TypeDString:
         case TypeCode:
             if(illum)
-            {
+            {            
+                <span class="comment">/* 
+                 *   Call the before travel notifications on every object that's
+                 *   in scope for the actor. Since we don't have a connector
+                 *   object to pass to the beforeTravel notifications, we use
+                 *   the direction object instead.
+                 */</span>
+                Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
+                    direction)});
+                                   
+                <span class="comment">/*  
+                 *   If going this way would take us to a known destination
+                 *   that's a Room (so that executing the travel should take the
+                 *   actor out of his/her current room) notify the current room
+                 *   that the actor is about to depart.
+                 */</span>                
+                local dest;
+                
+                if(loc.propType(direction.dirProp) == TypeCode)                
+                    dest = libGlobal.extraDestInfo[[loc, direction]];
+                else
+                    dest = nil;
+                
+                if(dest &amp;&amp; dest.ofKind(Room))
+                    loc.notifyDeparture(gActor, dest);
+                                   
+                <span class="comment">/*  
+                 *   Then execute the method or display the double-quoted
+                 *   string.
+                 */</span>             
                 loc.(direction.dirProp);
                 
                 <span class="comment">/* 
