@@ -135,9 +135,30 @@ jetway: Room 'Jetway' 'jetway;short enclosed; walkway'
 
 <p>Note also how we use [n] and [adj] in the vocab properties of the three gates, where the usual order of adjective and noun is reversed, so we have to mark which is which. The use of &lt;FONT COLOR=GREEN&gt;BOARDING GATE 3&lt;/FONT&gt; and the like in the description of the display board illustrate how we can use (a subset of) HTML markup to format the text we display to the player.  The difference between \b and \n in the same description is that \b leaves a blank line following while \n just moves to a new line.</p>
 
-<p>Also noteworthy is our first use of the Distant class. This is almost identical to the Decoration class, except that it responds to any command except examine with "The Whatever is too far away"; here we're using this to represent the fact that the display board is mounted high up on the wall.</p>
+<p>Also noteworthy is our first use of the Distant class. This is almost identical to the Decoration class, except that it responds to any command except Examine with "The Whatever is too far away"; here we're using this to represent the fact that the display board is mounted high up on the wall.</p>
 
-<p>Overall the implementation here is a little sparse; we shall be returning to parts of it later to fill in more details, but the description of the seats and passengers at Gate 1 is left as an exercise for the reader. Instead we'll introduce something quite new at this point: a series of announcements over the public address system (most of them the last call for passengers boarding at Gate 3, in a variety of languages, just to add a little more sense of urgency to the proceedings. To do this we'll define a special object just to provide the announcements; this can be put right at the end of the gatearea.t file:</p>
+<p>Let's think a moment more about this Distant display board. As things stand the player can EXAMINE it, and that's all, but you may think that players should equally well be able to READ it and get the same response as they do for examining. But if you try adding <span class="code">dobjFor(Read) asDobjFor(Examine)</span> to the definition of the display board you'll find that nothing has changed. That's because the handling for all actions apart from Examine is carried out by dobjFor(Default) before any more specific action-handling gets a look-in.</p>
+
+<p>To change this, we need to override the <strong>decorationActions</strong> property of the display board. This contains the list of actions the display board will respond to specifically, instead of simply using the dobjFor(Default) handling (which displays the "too far away" message). The display board should then look like this:</p>
+
+ <p><div class="code"><pre>
++ Distant 'display board; departure'
+    "The display imparts the following information:\b
+    TI 179 to Buenos Aires &lt;FONT COLOR=GREEN&gt;BOARDING GATE 3&lt;/FONT&gt;\n
+    RO 359 to Mexico City &lt;FONT COLOR=RED&gt;DELAYED&lt;/FONT&gt;\n
+    PZ 87 to Houston &lt;FONT COLOR=RED&gt;DELAYED&lt;/FONT&gt;\n
+    BU 4567 to Bogota &lt;FONT COLOR=RED&gt;DELAYED&lt;/FONT&gt;"
+    
+    <strong>decorationActions = [Examine, GoTo, Read]
+    
+    readDesc = desc</strong>
+;
+</pre></div>
+
+<p>We have included GoTo in the list of decorationActions because a player might reasonably issue the command GO TO DISPLAY BOARD from another location, and there's no reason why we should not allow it to work. The Decoration class includes GoTo in its decorationActions list by default (since players may often wish to go to the location of a Decoration), but the Distant class does not, since it's often used to represetnt something that's too far away for the player character to go to (such as the sun, moon, sky or a distant mountain). For the display board, however, it is appropriate to include GoTo among the actions that can be handled. Where a Distant object is used to represent an object in a neighbouring location, handling the GoTo action on it may require more care, since it may be that GO TO CABIN (when the cabin is a Distant object representing a cabin in a neighbouring location) should take the player character to that neighbouring location; it may well be easiest to handle such cases with Doers.</p>
+
+
+<p>Overall the implementation of this part of the airport is a little sparse; we shall be returning to parts of it later to fill in more details, but the description of the seats and passengers at Gate 1 is left as an exercise for the reader. Instead we'll introduce something quite new at this point: a series of announcements over the public address system (most of them the last call for passengers boarding at Gate 3, in a variety of languages, just to add a little more sense of urgency to the proceedings. To do this we'll define a special object just to provide the announcements; this can be put right at the end of the gatearea.t file:</p>
 
  <p><div class="code"><pre>
 announcementObj: ShuffledEventList

@@ -2400,7 +2400,9 @@ VerbRule(Continue)
     verbPhrase = 'continue/continuing journey'
 ;
 
-VerbRule(VagueTravel) 'go' | 'walk' : VerbProduction
+VerbRule(VagueTravel) 
+    'go' | 'walk' | 'run' 
+    : VerbProduction
     action = VagueTravel
     verbPhrase = 'go/going'
 
@@ -2408,8 +2410,7 @@ VerbRule(VagueTravel) 'go' | 'walk' : VerbProduction
 ;
 
 VerbRule(Travel)
-//    (('go' | 'walk') ('to' ('the' |) | ) singleDir) | singleDir
-    (('go' | 'walk')  singleDir) | singleDir
+    (('go' | 'walk' | 'run')  singleDir) | singleDir
     : VerbProduction
     action = Travel
     verbPhrase = 'go/going {where)'  

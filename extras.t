@@ -176,9 +176,20 @@ class Decoration: Fixture
  *   A Distant is a Decoration that's considered too far away to be interacted
  *   with by any command other than EXAMINE
  */
-
 class Distant: Decoration
+   
+    /* Message to say that this object is too far away. */
     notImportantMsg = BMsg(distant, '{The subj cobj} {is} too far away. ')
+    
+    /* 
+     *   The base Decoration class includes GoTo as a decorationAction. For a
+     *   Distant object (e.g. the sun or moon or a distanct mountain) this will
+     *   often be inappropriate. Where an object is 'locally distant' as it
+     *   were, i.e. a sign mounted high up on a wall, you may want to override
+     *   decorationActions to include GoTo, since GO TO SIGN would then be a
+     *   reasonable way for the player to get to the location of the sign.
+     */
+    decorationActions = [Examine]
 ;
 
 /* 
