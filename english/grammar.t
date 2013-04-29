@@ -1526,6 +1526,7 @@ VerbRule(LookIn)
     action = LookIn
     verbPhrase = 'look/looking (in what)'
     missingQ = 'what do you want to look in'   
+    priority = 60
 ;
 
 VerbRule(Search)
@@ -2191,7 +2192,7 @@ VerbRule(Look)
     'look' | 'look' 'around' | 'l' | 'l' 'around'
     : VerbProduction
     action = Look
-    verbPhrase = 'look/looking around'
+    verbPhrase = 'look/looking around'    
 ;
 
 VerbRule(Quit)

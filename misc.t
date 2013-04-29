@@ -582,7 +582,7 @@ libGlobal: object
     /*
      *   The current player character 
      */
-    playerChar = me   
+    playerChar = nil   
 
     /* 
      *   The global score object.  We use a global for this, rather than

@@ -660,6 +660,8 @@ NodeContinuationTopic template [firstEvents] [eventList];
 
 Doer template 'cmd';
 
+Test template 'testName' [testList];
+
 /* Define convenient named constants for use with ConvAgendaItem */
 
 #define InitiateConversationReason 1

@@ -285,4 +285,185 @@ modify TadsObject
     
 ;
 
-#endif
+
+/* 
+ *   Adaptation of the tests extension based on work by Ben Cressy and Eric Eve,
+ *   for use with adv3Lite
+ */
+
+/*
+ *   To use this facility, define Test objects like so:
+ *
+ *. foo: Test
+ *.    testName = 'foo'
+ *.    testList =
+ *.    [
+ *.        'x me',
+ *.        'i'
+ *.    ]
+ *. ;
+ *
+ *. bar: Test
+ *.     testName = 'bar'
+ *.     testList =
+ *.     [
+ *.         'look',
+ *.         'listen'
+ *.     ]
+ *. ;
+ *
+ *. allTests: Test
+ *.     testName = 'all'
+ *.     testList =
+ *.     [
+ *.         'test foo',
+ *.         'test bar'
+ *.     ]
+ *   ;
+ *
+ *   Alternatively,  use the template structure to create your test objects more
+ *   conveniently:
+ *
+ *.  someTest: Test 'foo' ['x me', 'i'];
+ *
+ *   Unless you're planning to refer to the Test object in some other part of
+ *   your code, you can save a bit of typing by making it an anonymous object:
+ *
+ *. Test 'foo' ['x me', 'i'];
+ *
+ */
+    
+/*
+ *   The 'list tests' and 'list tests fully' commands can be used to list your
+ *   test scripts from within the running game.
+ */   
+DefineSystemAction(ListTests)
+    execAction(cmd)
+    {
+
+        if(allTests.lst.length == 0)
+        {
+            "There are no test scripts defined in this game. ";
+            exit;
+        }
+
+        fully = cmd.verbProd.fully;
+        
+        foreach(local testObj in allTests.lst)
+        {
+            "<<testObj.testName>>";
+            if(gAction.fully)               
+            {
+                ": ";
+                foreach(local txt in testObj.testList)
+                    "<<txt>>/";
+            }
+            "\n";
+        }
+    }
+    fully = nil
+;
+
+VerbRule(ListTests)
+    ('list' | 'l') 'tests' (| 'fully' -> fully)
+    : VerbProduction
+    action = ListTests
+    verbPhrase = 'list/listing test scripts'
+;
+
+/*
+ *   The 'test X' command can be used with any Test object defined in the source
+ *   code:
+ */
+DefineLiteralAction(DoTest)
+   execAction(cmd)
+   {
+      local target = gLiteral.toLower();
+      local script = allTests.valWhich({x: x.testName.toLower == target});
+      if (script)
+         script.run();
+      else
+         "Test sequence not found. ";
+   }
+;
+
+VerbRule(Test)
+   'test' literalDobj
+   : VerbProduction
+   action = DoTest
+   verbPhrase = 'test/testing (what)'
+;
+
+/* 
+ *   A Test object can be used to create a series of testing commands in your
+ *   game, for example:
+ *
+ *.  Test 'foo' ['x me', 'i];
+ *
+ *   Would cause the commands X ME and then I to be executed in response to TEST
+ *   FOO.
+ */     
+class Test: object
+    /* The name of this test */
+    testName = 'nil'
+    
+    /* The list commands to be executed when running this test. */
+    testList = [ 'z' ]
+    
+    /* The file name of the script file to create for running this test */
+    testFile = 'TEST_' + testName + '.TCMD'
+    
+    /* 
+     *   Run this test by sending the commands in testList to a script file and
+     *   then running the script file.
+     */
+    run
+    {
+        "Testing sequence: \"<<testName>>\". ";
+        local out = File.openTextFile(testFile, FileAccessWrite);
+        testList.forEach({x: out.writeFile('>' + x + '\n')});
+        out.closeFile();
+        setScriptFile(testFile);
+    }
+;
+
+/* 
+ *   The allTests object contains a list of Test objects for listing via the
+ *   LIST TESTS command, and for finding the test that corresponds to a
+ *   particular testName.
+ */
+allTests: object
+   lst()
+   {
+      if (lst_ == nil)
+         initLst();
+      return lst_;
+   }
+
+   initLst()
+   {
+      lst_ = new Vector(50);
+      local obj = firstObj();
+      while (obj != nil)
+      {
+         if(obj.ofKind(Test))
+            lst_.append(obj);
+         obj = nextObj(obj);
+      }
+      lst_ = lst_.toList();
+   }
+
+   valWhich(cond)
+   {
+      if (lst_ == nil)
+         initLst();
+      return lst_.valWhich(cond);
+   }
+
+   lst_ = nil
+;
+
+
+#endif // __DEBUG
+
+

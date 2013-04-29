@@ -353,7 +353,7 @@ class Action: ReplaceRedirector
             break;    
         } 
            
-        /* first check if we need to remap this action. */        
+        /* first check if we need to remap this action. */           
         remapResult = obj.(remapProp);
         
         /* 
@@ -856,7 +856,7 @@ class Action: ReplaceRedirector
  *   The SystemAction class is for actions not affecting the game world but
  *   rather acting on the game session, such as SAVE, RESTORE and QUIT.
  */
-class SystemAction: Action
+class SystemAction: IAction
     /* A SystemAction is not normally undo-able */
     includeInUndo = nil
     
@@ -943,6 +943,28 @@ class IAction: Action
      *   since there are no objects to have changed.
      */
     againRepeatsParse = nil
+    
+    /* 
+     *   For an IAction there's no point in trying to score anything but the
+     *   Actor object; attempting to score objects via their verify properties
+     *   will cause a run-time error, since IActions don't define verify
+     *   properties and the like.
+     */
+    scoreObjects(cmd, role, lst)
+    {
+        if(role == ActorRole)
+            inherited(cmd, role, lst);
+        else
+        {
+            /* apply verb-specific adjustments */
+            foreach (local i in lst)
+                scoreObject(cmd, role, lst, i);
+            
+            /* apply object-specific adjustments */
+            foreach (local i in lst)
+                i.obj.scoreObject(cmd, role, lst, i);
+        }
+    }
 ;
 
 /* 
@@ -2077,7 +2099,7 @@ class TIAction: TAction
  *   A LiteralAction is an action that acts on a single literal object, e.g.
  *   TYPE HELLO
  */
-class LiteralAction: Action
+class LiteralAction: IAction
     exec(cmd)
     {
         /* Note the literal string associated with this command. */

@@ -15,7 +15,7 @@ World: PreinitObject
         local s = scope_;
 
         if (s == nil)
-            scope_ = s = Q.scopeList(playerChar);
+            scope_ = s = Q.scopeList(gPlayerChar);
 
         return s;
     }
@@ -23,10 +23,6 @@ World: PreinitObject
     /* cached scope list */
     scope_ = nil
 
-    /* the current player character object */
-    playerChar = me
-    
-    
     /* 
      *   A list of all Mentionables in the game, useful for building scope lists
      *   for resolving Topics.
