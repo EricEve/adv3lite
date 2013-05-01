@@ -468,8 +468,10 @@ class SpellingHistory: object
             return nil;
 
         /* if we've exhausted the spelling correction time limit, give up */
+        #ifndef __DEBUG
         if (getTime(GetTimeTicks) > startTime + parser.spellTimeLimit)
             return nil;
+        #endif
 
         /* check for an obvious typo - i.e., a word not in the dictionary */
         local idx = spellingCorrector.findUnknownWord(toks);
@@ -768,6 +770,17 @@ class SpellingHistory: object
      *   correction candidate.  
      */
     cstack = perInstance(new Vector(10))
+    
+    /*
+     *   Clear the history
+     */
+    clear()
+    {
+        corrections = [];
+        
+        cstack = new Vector(10);
+    }
+
 ;
 
 /* ------------------------------------------------------------------------ */

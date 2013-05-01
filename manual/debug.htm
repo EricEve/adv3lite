@@ -42,6 +42,8 @@ Scope
 
 <p><strong>DEBUG STATUS</strong>: the command DEBUG STATUS lists whether the various debugging options are currently on or off.</p>
 
+<p><strong>TEST <em>XXX</em></strong>: the TEST command can be used to run test scripts, on which see further <a href="#tests">below</a>.</p>
+
 <p><strong>EVAL</strong>: The command EVAL <em>expression</em> (where <em>expression</em> is any valid TADS 3 expression) evaluates the expression and displays the result. If the expression evaluates to an object EVAL diplays the name property of the object (if it has one) together with its superclass list. For example:</p>
 
 <p><div class="cmdline"><pre>
@@ -129,11 +131,68 @@ modify Thing
 
 <br>
 
+<h2><a name="tests">Test Scripts</a></h2>
+
+<p>When testing a game it's often useful to be able to run a set of commands to test a particular feature. In adv3Lite you can set up named test scripts to help automate this task. To define a test script, define an object of the Test class (it can be an anonymous object). Use the <strong>testName</strong> property to give the test script a name by which it can be referred to with a TEST command. Then define the list of commands to be performed by the test script in the <strong>testList</strong> property. For example:</p>
+
+ <p><div class="code"><pre>
+ Test 
+    testName = 'foo'
+    testList = ['x me', 'i', 'look']
+ ; 
+ </pre></div>
+
+<p>With this definition in place you can use the command TEST FOO to carry out X ME followed by I followed by LOOK. You can also abbreviate the definition of the Test object by using the built-in template, so:</p>
+ 
+ <p><div class="code"><pre> 
+ Test 'foo' ['x me', 'i', 'look'];
+</pre></div> 
+ 
+<p>For some scripts to work as required it may be necessary for the actor to be in a particular location, or to have particular items in his/her inventory. For example, to have the player character unlock the golden door with the diamond key and then enter the throne room of the mystic queen, you may first need to move the player character to the tulip passage and ensure that the right key is in his inventory. The player character may also need to have the yellow rose in his inventory if he is then to present it to the mystic queen. We could set up these conditions by using gonear and purloin commands in the script, but we can also do so using the <strong>location</strong> and <strong>testHolding</strong> properties of our Test object, thus:</p>
+
+ <p><div class="code"><pre><p></p>
+Test 
+   testName = 'queen'
+   testList = ['unlock golden door with diamond key', 'n', 'x queen', 'give yellow rose to queen']
+   location = tulipPassage
+   testHolding = [diamondKey, yellowRose]   
+;
+</pre></div>
+
+<p>Again, this may be abbreviated via use of the template to:</p>
+ 
+<p><div class="code"><pre>
+Test 'queen' ['unlock golden door with diamond key', 'n', 'x queen', 'give yellow rose to queen']
+  @tulipPassage [diamondKey, yellowRose]
+;
+</pre></div>
+
+<p>The command TEST QUEEN will then move the player character to tulipPassage, move the diamondKey and the yellowRose into his inventory, and then execute the defined sequence of commands. By default a room description will be displayed following the move, but if you wish you can disable this by setting the <strong>reportMove</strong> property of the Test to nil (it's true by default to remind you of the effect of the TEST command). Similarly, by default the TEST command will notify you of items it moves into the player character's inventory, but this notification can be suppressed by setting the <strong>reportHolding</strong> property to nil.</p>
+
+<p>You can remind yourself of what Tests you've defined in your game by using the LIST TESTS command. The command LIST TESTS FULLY also shows the list of commands associated with each test name.</p>
+
+<p>Finally, the TEST class and its associated actions are only defined in a debug build, so you need to make sure that you surround any TEST definitions with <span class="code">#ifdef _DEBUG</span> and <span class="code">#endif</span> so that they don't cause compilation errors in a release build; for example:</p>
+
+<p><div class="code"><pre>
+#ifdef __DEBUG
+
+Test 'foo' ['x me', 'i', 'look'];
+
+Test 'queen' ['unlock golden door with diamond key', 'n', 'x queen', 'give yellow rose to queen']
+  @tulipPassage [diamondKey, yellowRose]
+;
+ 
+#endif 
+ </pre></div>
+
+
+ <br>
 <h2>Additional Debugging Resources</h2>
 
 <p>The adv3Library has one or two built-in checks to help with various kinds of common situations. For example, when writing conversational responses it's very easy to mismatch the smart quote tags &lt;q&gt; and &lt;/q&gt;; the adv3Lite thus looks out for any smart quotes that are mismatched over the course of a single turn and displays a warning whenever mismatched smart quotes are displayed, so the game author can correct them (it also tries to prevent the effect of mismatched smart quotes propagating to successive turns). If you want to suppress the warning messages in the released version of your game you can override quoteFilter.showWarnings to nil; however, you might find it useful to leave the warnings on for versions of the game you sent to beta-testers, which is why this isn't simply tied to whether or not you compiled for debugging.</p>
 
-<p>The Mercury library defines a DEBUG command (in the file debug.t) that doesn't actually do anything. I've left it there for now pending later versions of the adv3Library and suggestions from users on what additional debugging facilities might be useful.</p>
+
+
 
 </div>
 <hr class="navb"><div class="navb">

@@ -130,7 +130,7 @@ message(id, txt, [args])
  */
 buildMessage(id, txt, [args])
 {
-   
+    
     /* look for a customized version of the message */
     local cm = nil;
     foreach (local c in CustomMessages.all)
@@ -155,8 +155,65 @@ buildMessage(id, txt, [args])
     /* set up a sentence context for the expansion */
     local ctx = new MessageCtx(args);
 
+    /* 
+     *   First look for a tense-swithing message substitution of the form
+     *   {present-string|past-string} and choose whichever is appropriate to the
+     *   tense of the game.
+     */   
+    local bar, openBrace = 0, closeBrace = 0, newTxt = txt;
+    for(;;)
+    {
+        /* Find the next opening brace */
+        openBrace = txt.find('{', closeBrace + 1);
+        
+        /* If there isn't one, we're done, so leave the loop. */
+        if(openBrace == nil)
+            break;
+        
+        /* Find the next vertical bar that follows the opening brace */
+        bar = txt.find('|', openBrace);
+        
+        /* If there isn't one, we're done, so leace the loop. */
+        if(bar == nil)
+            break;
+        
+        /* Find the next closing brace that follows the vertical bar */
+        closeBrace = txt.find('}', bar);
+        
+        /* If there isn't one, we're done, so leace the loop. */
+        if(closeBrace == nil)
+            break;
+        
+        /* 
+         *   Extract the string that starts with the opening brace we found and
+         *   ends with the closing brace we found.
+         */
+        local pString = txt.substr(openBrace, closeBrace - openBrace + 1);
+        
+        /*   
+         *   If the game is in the past tense, extract the second part of this
+         *   above string (that following the bar up to but not including the
+         *   closing brace). Otherwise extract the first part (that following
+         *   but not including the opening brace up to but not including the
+         *   bar)
+         */
+        local subString = (gameMain.usePastTense || Narrator.tense == Past) ?
+            txt.substr(bar + 1, closeBrace - bar - 1) : txt.substr(openBrace +
+                1, bar - openBrace - 1);
+        
+        /* 
+         *   In the copy of our original text string, replace the string in
+         *   braces with the substring we just extracted from it.
+         */
+        newTxt = newTxt.findReplace(pString, subString, ReplaceOnce);
+        
+    }
+    
+    /* Copy our adjusted string back to our original string */
+    txt = newTxt;
+    
     /* check for separate PC and NPC messages */
-    local bar = txt.find('|');
+    bar = txt.find('|');
     if (bar != nil)
     {
         /* there's a bar - check to see if the terse format can be used */

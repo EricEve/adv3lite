@@ -287,8 +287,8 @@ modify TadsObject
 
 
 /* 
- *   Adaptation of the tests extension based on work by Ben Cressy and Eric Eve,
- *   for use with adv3Lite
+ *   Adaptation for use with adv3Lite of the tests extension based on work by
+ *   Ben Cressy, Eric Eve, and N.R.Turner
  */
 
 /*
@@ -398,10 +398,11 @@ VerbRule(Test)
  *   A Test object can be used to create a series of testing commands in your
  *   game, for example:
  *
- *.  Test 'foo' ['x me', 'i];
+ *.  Test 'foo' ['x me', 'i', 'wear uniform'] [uniform];
  *
- *   Would cause the commands X ME and then I to be executed in response to TEST
- *   FOO.
+ *   Would cause the uniform to be moved into the player character's inventory
+ *   and then the commands X ME and then I and WEAR UNIFORM to be executed in
+ *   response to TEST FOO.
  */     
 class Test: object
     /* The name of this test */
@@ -410,20 +411,79 @@ class Test: object
     /* The list commands to be executed when running this test. */
     testList = [ 'z' ]
     
+    /* 
+     *   The location to move the player character to before running the test
+     *   script
+     */
+    location = nil
+	
+    /* 
+     *   Flag: Do we want to report any change of location by looking around in
+     *   the new one? By default we will.
+     */
+    reportMove = true
+    
+    /*   
+     *   The objects to move into the player character's inventory before
+     *   running the test script.
+     */
+    testHolding = []
+    
+    /*  
+     *   Flag: do we want to report on what items were added to inventory? By
+     *   default we do.
+     */
+    reportHolding = true
     /* The file name of the script file to create for running this test */
-    testFile = 'TEST_' + testName + '.TCMD'
+//    testFile = 'TEST_' + testName + '.TCMD'
+    
+    /* Move everything in the testHolding list into the actor's inventory */
+    getHolding()
+    {
+        testHolding.forEach({x: x.moveInto(gActor)});
+        
+        /* 
+         *   If we want to report on the effect of moving additional items into
+         *   the player character's inventory, and if we specified any items to
+         *   move, report that the actor is now holding those items.
+         */
+        if(reportHolding && testHolding.length > 0)
+            DMsg(debug test now holding, '{I} {am} {now} holding {1}.\n',
+                 makeListStr(testHolding, &theName));
+    }
     
     /* 
-     *   Run this test by sending the commands in testList to a script file and
-     *   then running the script file.
+     *   Run this test by passing the commands in testList through
+     *   Parser.parse().
      */
     run
     {
-        "Testing sequence: \"<<testName>>\". ";
-        local out = File.openTextFile(testFile, FileAccessWrite);
-        testList.forEach({x: out.writeFile('>' + x + '\n')});
-        out.closeFile();
-        setScriptFile(testFile);
+        "Testing sequence: \"<<testName>>\".\n";
+        
+        /* 
+         *   If a location is specified, first move the actor into that
+         *   location.
+         */
+        if (location && !gActor.location == location)
+        {
+            gActor.moveInto(location);	
+            
+            /* If we want to report the move, show the new room description */
+            if(reportMove)
+                gActor.getOutermostRoom.lookAroundWithin();
+        }
+        
+        /*   Move any required objects into the actor's inventory */
+        getHolding();
+        
+//        local out = File.openTextFile(testFile, FileAccessWrite);
+//        testList.forEach({x: out.writeFile('>' + x + '\n')});
+//        out.closeFile();
+//        setScriptFile(testFile);
+        testList.forEach(new function(x)  {
+            "<b>><<x>></b>\n";
+            Parser.parse(x);
+        });
     }
 ;
 

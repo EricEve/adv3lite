@@ -658,12 +658,14 @@ MiscTopic template [firstEvents] [eventList];
 NodeContinuationTopic template "topicResponse" | [eventList];
 NodeContinuationTopic template [firstEvents] [eventList];
 
+
 Doer template 'cmd';
 
-Test template 'testName' [testList];
+/* Templates for use with test sequences */
+Test template 'testName' [testList] @location? [testHolding]?;
+Test template 'testName' [testList] [testHolding]? @location?;
 
 /* Define convenient named constants for use with ConvAgendaItem */
-
 #define InitiateConversationReason 1
 #define ConversationLullReason 2
 #define DefaultTopicReason 3

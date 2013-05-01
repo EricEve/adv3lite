@@ -87,6 +87,26 @@ grammar commandPhrase(ambiguousConj):
     : CommandProduction
 ;
 
+/*
+ *   Default command phrase - the root grammar rule for an implicit command
+ *   without a verb.  In the English version, this is simply a noun phrase,
+ *   which implicitly means "examine <noun phrase>".  Other languages might
+ *   wish to use particular noun phrase forms for this (e.g., an inflected
+ *   language might want to use the accusative form here).
+ */
+grammar defaultCommandPhrase(examine):
+    defaultVerbPhrase->cmd_
+    : CommandProduction
+;
+
+grammar defaultVerbPhrase(noun):
+    singleDobj
+    : VerbProduction
+    action = Parser.DefaultAction
+    verbPhrase = 'examine/examining (what)'
+    missingQ = 'what do you want to examine'
+;
+
 grammar actorBadCommandPhrase(main):
     singleNounOnly->actor_ ',' miscWordList
     | ('ask' | 'tell' | 'a' | 't') singleNounOnly->actor_ 'to' miscWordList
@@ -1505,12 +1525,27 @@ VerbRule(Drop)
 ;
 
 VerbRule(Examine)
-    ('examine' | 'inspect' | 'x' | 'look' ('at'|) | 'l' ('at'|)) multiDobj
+    ('examine' | 'inspect' | 'x' | 'look' 'at' | 'l' 'at') multiDobj
     : VerbProduction
     action = Examine
     verbPhrase = 'examine/examining (what)'
     missingQ = 'what do you want to examine'
 ;
+
+VerbRule(LookX)
+    ('look'|'l') multiDobj
+    : VerbProduction
+    action = Examine
+    verbPhrase = 'examine/examining (what)'
+    missingQ = 'what do you want to look at'
+    
+    /* 
+     *   We give this a lower priority to ensure that LOOK AT FOO is parsed as
+     *   (LOOK AT) FOO rather than LOOK (AT FOO).
+     */
+    priority = 40
+;
+
 
 VerbRule(Read)
     'read' multiDobj

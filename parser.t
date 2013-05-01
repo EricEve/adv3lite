@@ -103,7 +103,7 @@ class Parser: object
      *   some rather odd parser behaviour.
      */
     
-    defaultActions = nil
+    defaultActions = true
 
     /*
      *   Should we attempt automatic spelling correction?  If this is true,
@@ -396,18 +396,17 @@ class Parser: object
                      *   provided defaultActions are enabled (which they aren't
                      *   by default).
                      */
-                    else if(defaultActions)                        
-                    {
+                    else if(defaultActions)                                                
                         l = new CommandList(
-                            singleNoun, toks, cmdDict,
-                            { p: new Command(DefaultAction, p) });
-                    }
+                            defaultCommandPhrase, toks, cmdDict,
+                            { p: new Command(p) });                       
                     
-                    if(l != nil)   
-                    {   
-                        /* accept a curable reply */
-                        if (l.acceptCurable() != nil)
-                            cmdLst = l;
+                    
+                       
+                    /* accept a curable reply */
+                    if (l != nil && l.acceptCurable() != nil)
+                    {
+                        cmdLst = l;
                         
                         /* note any resolution error */
                         defErr = l.getResErr();
@@ -499,8 +498,18 @@ class Parser: object
                             toks = newToks;
                             continue;
                         }
-                    }
                     
+                        
+                        /* 
+                         *   We didn't find any spelling corrections this time
+                         *   through.  Since we're rolling back to the
+                         *   not-understood error, discard any spelling
+                         *   corrections we attempted with other
+                         *   interpretations.
+                         */
+                        history.clear();                   
+                    }
+                
                     /* fail with the error */
                     throw err;
                 }
