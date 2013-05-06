@@ -194,7 +194,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         /* exclude SystemActions as a matter of course */
         else if(action.ofKind(SystemAction))
         {
-            DMsg(cant command system action, 'Only the player can carry out
+            DMsg(cannot command system action, 'Only the player can carry out
                 that kind of command. ');
         }
         
@@ -1831,7 +1831,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   The default response of the actor to an attempt to kiss him/her/it
      *   where this is not handled anywhere else, but allowKiss is true.
      */
-    kissResponseMsg = BMsg(kiss, '{The subj dobj} {does}n\'t like that. ')
+    kissResponseMsg = BMsg(kiss response, '{The subj dobj} {does}n\'t like
+        that. ')
     
     dobjFor(Kiss)
     {
@@ -2064,9 +2065,9 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
 
     dontKnowWhereGoneMsg = BMsg(dont know where gone, '{I} {don\'t know} where
         {the subj dobj} {has} gone. ')
-    cantStartFromHereMsg = BMsg(cant start from here, '{I}{\'m} not where {i}
+    cantStartFromHereMsg = BMsg(cannot start from here, '{I}{\'m} not where {i}
         last saw {the dobj}. ')
-    cantFollowFromHereMsg = BMsg(cant follow from here, '{I} {can\'t} follow
+    cantFollowFromHereMsg = BMsg(cannot follow from here, '{I} {can\'t} follow
         {him dobj} from {here}. ')
 ;
 
@@ -2173,7 +2174,7 @@ class ActorState: ActorTopicDatabase
         gMessageParams(follower);
         
         /* Display the message */
-        DMsg(follow, '{The follower} {follows} behind {me}. ');
+        DMsg(state follow, '{The follower} {follows} behind {me}. ');
     }
     
     /*  
@@ -5940,7 +5941,7 @@ suggestedTopicLister: object
                 say(orListSep);
             
             /* Output an introduction to our list of CommandTopics */
-            DMsg(ask for, 'tell {him interlocutor} to ');
+            DMsg(tell to, 'tell {him interlocutor} to ');
             
             /* Show the list of suggested CommandTopics */
             showList(commandList);

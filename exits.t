@@ -346,17 +346,19 @@ ExitLister: Lister
     }
     
     listerShowsDest = nil
+    
+    exitsPrefix = BMsg(exits, 'Exits:');
 ;
 
 
 statuslineExitLister: ExitLister
     showListEmpty(pov, parent)
     {
-        "<<statusHTML(3)>><b>Exits:</b> <i>None</i><<statusHTML(4)>>";
+        "<<statusHTML(3)>><b><<exitsPrefix>></b> <i>None</i><<statusHTML(4)>>";
     }
     showListPrefixWide(cnt, pov, parent)
     {
-        "<<statusHTML(3)>><b>Exits:</b> ";
+        "<<statusHTML(3)>><b><<exitsPrefix>></b> ";
     }
     showListSuffixWide(cnt, pov, parent)
     {
@@ -388,17 +390,13 @@ statuslineExitLister: ExitLister
 
 lookAroundExitLister: ExitLister
     showListEmpty(pov, parent)
-    {
-        local obj = object: Thing {plural = true; name = 'There'; proper =
-                true;}
-        gMessageParams(obj);
-        
-        DMsg(no exits, '{The subj obj} {is} no exits from {here}. ');
+    {        
+        DMsg(no exits from here, 'There {plural} {are} no exits from {here}. ');
     }
     
     showListPrefixWide(cnt, pov, parent)
     {
-        DMsg(exits, 'Exits: ');
+        "<<exitsPrefix>> ";
     }
     showListSuffixWide(cnt, pov, parent)
     {
@@ -421,17 +419,13 @@ lookAroundExitLister: ExitLister
 
 lookAroundTerseExitLister: ExitLister
     showListEmpty(pov, parent)
-    {
-        local obj = object: Thing {plural = true; name = 'There'; proper =
-                true;}
-        gMessageParams(obj);
-        
+    {        
         DMsg(no exits, 'Exits: none. ');
     }
     
     showListPrefixWide(cnt, pov, parent)
     {
-        DMsg(exits, 'Exits: ');
+        "<<exitsPrefix>> ";
     }
     showListSuffixWide(cnt, pov, parent)
     {
@@ -462,7 +456,7 @@ explicitExitLister: ExitLister
     
     showListPrefixWide(cnt, pov, parent)
     {
-        DMsg(exits, 'From {here} {i} could go ');
+        DMsg(exits from here, 'From {here} {i} could go ');
     }
     showListSuffixWide(cnt, pov, parent)
     {

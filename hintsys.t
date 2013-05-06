@@ -591,8 +591,7 @@ hintManager: PreinitObject
         /* if there is no top-level hint menu, no hints are available */
         if (topHintMenuObj == nil)
         {
-            DMsg(hints not present, '<.parser>Sorry, this story doesn&rsquo;t
-                have any built-in hints.<./parser> ');
+            Hints.sayHintsNotPresent();
             return;
         }
 

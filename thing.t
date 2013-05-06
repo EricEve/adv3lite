@@ -3407,7 +3407,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     handleCommand(action)
     {
-        DMsg(cant command thing, 'There{dummy}\'s no point trying to give
+        DMsg(cannot command thing, 'There{dummy}\'s no point trying to give
             orders to {1}. ', aName);
     }
     
@@ -3588,7 +3588,8 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(propType(&listenDesc) == TypeNil)            
-                DMsg(hear nothing, '{I} {hear} nothing out of the ordinary.<.p>');
+                DMsg(hear nothing listen to, '{I} hear{s/d} nothing out of the
+                    ordinary.<.p>');
             else
                 display(&listenDesc);
             
@@ -3619,7 +3620,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(propType(&tasteDesc) == TypeNil)           
-                DMsg(hear nothing, '{I} {taste} nothing unexpected.<.p>');
+                DMsg(taste nothing, '{I} taste{s/d} nothing unexpected.<.p>');
             else
                 display(&tasteDesc);      
         }
@@ -3649,7 +3650,7 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {
             if(propType(&feelDesc) == TypeNil)            
-                DMsg(hear nothing, '{I} {feel} nothing unexpected.<.p>');
+                DMsg(feel nothing, '{I} {feel} nothing unexpected.<.p>');
             else
                 display(&feelDesc);
         }
@@ -3819,7 +3820,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   capacity.
          */
         else if(bulk > gActor.bulkCapacity - gActor.getCarriedBulk())
-            DMsg(cant carry any more, '{I} {can\'t} carry any more than
+            DMsg(cannot carry any more, '{I} {can\'t} carry any more than
                 {i}{\'m} already carrying. ');
     }
     
@@ -3951,11 +3952,11 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         report()
         {
-            DMsg(futile attack, futileToAttackMsg, gActionListStr); 
+            say(futileToAttackMsg); 
         }
     }
    
-   
+ 
     
     cannotAttackMsg = BMsg(cannot attack, 'It{dummy}{\'s} best to avoid
         pointless violence. ')
@@ -3977,11 +3978,12 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         report()
         {
-            DMsg(futile attack, futileToAttackMsg,  gActionListStr); 
+            say(futileToAttackMsg); 
         }       
     }
     
-    futileToAttackMsg = 'Attacking {1} {dummy}{proves} futile. '
+    futileToAttackMsg = BMsg(futile attack, 'Attacking {1} prove{s/d} futile. ', 
+                             gActionListStr)
     
     iobjFor(AttackWith)
     {
@@ -4334,8 +4336,8 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotCutMsg = BMsg(cannot cut, '{I} {can\'t} cut {the dobj}. ')
     cannotCutWithMsg = BMsg(cannot cut with, '{I} {can\'t} cut anything with
         {that iobj}. ')
-    cannotCutWithSelfMsg = BMsg(cut self, '{I} {cannot} cut anything with
-        itself. ')
+    cannotCutWithSelfMsg = BMsg(cannot cut with self, '{I} {cannot} cut anything
+        with itself. ')
                      
     
     /* 
@@ -4939,7 +4941,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   hiddenUnder list would exceed the amount of bulk allowed there.
              */
             else if(gDobj.bulk > maxBulkHiddenUnder - getBulkHiddenUnder)
-                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                DMsg(no room under, 'There {dummy}{isn\'t} enough room for {the
                     dobj} under {the iobj}. ');    
         }
         
@@ -5032,7 +5034,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   there.
              */
              else if(gDobj.bulk > maxBulkHiddenBehind - getBulkHiddenBehind)
-                DMsg(no room in, 'There {dummy}{isn\'t} enough room for {the
+                DMsg(no room behind, 'There {dummy}{isn\'t} enough room for {the
                     dobj} behind {the iobj}. ');    
         }
         
@@ -5439,7 +5441,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         if(useKey_ && useKey_.actualLockList.indexOf(lockObj) == nil)
         {
-            DMsg(with key, '(with {1})\n', useKey_.theName);
+            say(withKeyMsg);
             say(keyDoesntWorkMsg);            
         }
         
@@ -5878,7 +5880,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotEnterMsg = BMsg(cannot enter, '{The subj dobj} {is} not something {i}
         {can} enter. ')
-    actorAlreadyInMsg = BMsg(already in, '{I}{\'m} already {in dobj}. ')
+    actorAlreadyInMsg = BMsg(actor already in, '{I}{\'m} already {in dobj}. ')
      
     cannotGetInCarriedMsg = BMsg(cannot enter carried, '{I} {can\'t} get in {the
         dobj} while {i}{\'m} carrying {him dobj}. ')
@@ -6016,8 +6018,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(move no effect, 'Moving {1} {dummy} {has} no effect. ',
-                 gActionListStr);
+            say(moveNoEffectMsg);
         }
     }
     
@@ -6038,10 +6039,12 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(move no effect, 'Moving {1} {dummy} {has} no effect. ',
-                 gActionListStr);
+            say(moveNoEffectMsg);
         }
     }
+    
+    moveNoEffectMsg = BMsg(move no effect, 'Moving {1} {dummy} {has} no effect. ',
+                 gActionListStr)
     
     /* 
      *   Most things can't be used to move other things with. Note that since
@@ -6323,7 +6326,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay clean, 'Cleaned|{I} {clean} {1}. ', gActionListStr);
+            say(okayCleanMsg);
         }
     }
     
@@ -6348,6 +6351,8 @@ class Thing:  ReplaceRedirector, Mentionable
     dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need}
         anything to clean {the dobj} with. ')
     
+    okayCleanMsg = DMsg(okay clean, 'Cleaned|{I} {clean} {1}. ',
+                        gActionListStr)
     
     dobjFor(CleanWith)
     {
@@ -6376,7 +6381,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay clean, 'Cleaned|{I} {clean} {1}. ', gActionListStr);
+            say(okayCleanMsg);
         }
     }
     
@@ -6593,7 +6598,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotThrowToMsg = BMsg(cannot throw to, '{The subj dobj} {can\'t} catch
         anything. ')
     
-    cannotThrowToSelfMsg = BMsg(cannot throw at self, '{The subj dobj} {can\'t}
+    cannotThrowToSelfMsg = BMsg(cannot throw to self, '{The subj dobj} {can\'t}
         be thrown to {itself dobj}. ')
     
     throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} {lands} far
@@ -7128,8 +7133,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(kiss, 'Kissing {1} {dummy}{proves} remarkably unrewarding. ',
-                 gActionListStr); 
+            DMsg(report kiss, 'Kissing {1} {dummy}{proves} remarkably
+                unrewarding. ',  gActionListStr); 
         }
     }
     
@@ -7449,7 +7454,7 @@ class Thing:  ReplaceRedirector, Mentionable
     shouldNotPourIntoMsg = BMsg(should not pour into, 'It{dummy}{\'s} better not
         to pour {1} into {the iobj}. ', gDobj.fluidName)
     
-    shouldNotPourOntoMsg = BMsg(cannot pour onto, 'It{dummy}{\'s} better not
+    shouldNotPourOntoMsg = BMsg(should not pour onto, 'It{dummy}{\'s} better not
         to pour {1} onto {the iobj}. ', gDobj.fluidName)  
     
     

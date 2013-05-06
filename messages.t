@@ -156,6 +156,12 @@ buildMessage(id, txt, [args])
     local ctx = new MessageCtx(args);
 
     /* 
+     *   Carry out any language-specific adjustments to the text prior to any
+     *   further processing
+     */
+    txt = langAdjust(txt);
+    
+    /* 
      *   First look for a tense-swithing message substitution of the form
      *   {present-string|past-string} and choose whichever is appropriate to the
      *   tense of the game.
@@ -173,16 +179,25 @@ buildMessage(id, txt, [args])
         /* Find the next vertical bar that follows the opening brace */
         bar = txt.find('|', openBrace);
         
-        /* If there isn't one, we're done, so leace the loop. */
+        /* If there isn't one, we're done, so leave the loop. */
         if(bar == nil)
             break;
         
-        /* Find the next closing brace that follows the vertical bar */
-        closeBrace = txt.find('}', bar);
+        /* Find the next closing brace that follows the opening brace */
+        closeBrace = txt.find('}', openBrace);
         
         /* If there isn't one, we're done, so leace the loop. */
         if(closeBrace == nil)
             break;
+        
+        /* 
+         *   If the bar doesn't come before the closing brace, then it's not
+         *   between the two braces, so we don't want to process it in this
+         *   circuit of the loop. Instead we need to see if there's another
+         *   opening brace on the next iteration.
+         */
+        if(bar > closeBrace)
+            continue;
         
         /* 
          *   Extract the string that starts with the opening brace we found and
@@ -871,6 +886,14 @@ class MessageParams: object
         local txt = nil;
         if (t != nil)
         {
+            /* 
+             *   If we have not previously identified a subject for this
+             *   context, use the dummy_ object, which provides a dummy third
+             *   person singular noun as a default subject for the verb.
+             */
+            if(ctx.subj == nil)
+                ctx.subj = dummy_;
+            
             /* we found the parameter - get the translation */
             txt = t[2](ctx, params);
             

@@ -376,22 +376,33 @@ VerbRule(ListTests)
  *   code:
  */
 DefineLiteralAction(DoTest)
-   execAction(cmd)
-   {
-      local target = gLiteral.toLower();
-      local script = allTests.valWhich({x: x.testName.toLower == target});
-      if (script)
-         script.run();
-      else
-         "Test sequence not found. ";
-   }
+    /* 
+     *   We override exec() rather than exeAction() here, since we want to skip
+     *   all the normal turn sequence routines such as before and after
+     *   notifications and advancing the turn count.
+     */
+    exec(cmd)
+    {
+        local target = cmd.dobj.name.toLower();
+        local script = allTests.valWhich({x: x.testName.toLower == target});
+        if (script)
+            script.run();
+        else
+            DMsg(test sequence not found, 'Test sequence not found. ');
+    }
+    
+    /* Do nothing after the main action */
+    afterAction() { }
+      
+    turnSequence() { }
 ;
 
 VerbRule(Test)
-   'test' literalDobj
-   : VerbProduction
-   action = DoTest
-   verbPhrase = 'test/testing (what)'
+    'test' literalDobj
+    : VerbProduction
+    action = DoTest
+    verbPhrase = 'test/testing (what)'
+    missingQ = 'which sequence do you want to test'
 ;
 
 /* 
@@ -434,8 +445,7 @@ class Test: object
      *   default we do.
      */
     reportHolding = true
-    /* The file name of the script file to create for running this test */
-//    testFile = 'TEST_' + testName + '.TCMD'
+    
     
     /* Move everything in the testHolding list into the actor's inventory */
     getHolding()
@@ -456,7 +466,7 @@ class Test: object
      *   Run this test by passing the commands in testList through
      *   Parser.parse().
      */
-    run
+    run()
     {
         "Testing sequence: \"<<testName>>\".\n";
         
@@ -475,11 +485,7 @@ class Test: object
         
         /*   Move any required objects into the actor's inventory */
         getHolding();
-        
-//        local out = File.openTextFile(testFile, FileAccessWrite);
-//        testList.forEach({x: out.writeFile('>' + x + '\n')});
-//        out.closeFile();
-//        setScriptFile(testFile);
+
         testList.forEach(new function(x)  {
             "<b>><<x>></b>\n";
             Parser.parse(x);

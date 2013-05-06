@@ -120,8 +120,7 @@ DefineSystemAction(Exits)
     execAction(cmd)
     {
         if(gExitLister == nil)
-            DMsg(no exit lister, 'Sorry, that command is not available in this
-                game, since there\'s no exit lister. ');
+            sayNoExitLister();
         else
             gExitLister.showExitsCommand();
     }
@@ -132,8 +131,7 @@ DefineSystemAction(ExitsMode)
     {
         if(gExitLister == nil)
         {
-             DMsg(no exit lister, 'Sorry, that command is not available in this
-                game, since there\'s no exit lister. ');
+            sayNoExitLister();
             return;
         }
         
@@ -157,8 +155,7 @@ DefineSystemAction(ExitsColour)
     {
         if(gExitLister == nil)
         {
-             DMsg(no exit lister, 'Sorry, that command is not available in this
-                game, since there\'s no exit lister. ');
+            sayNoExitLister(); 
             return;
         }
         
@@ -180,6 +177,13 @@ DefineSystemAction(ExitsColour)
         }
     }
 ;
+
+sayNoExitLister()
+{
+    DMsg(no exit lister, 'Sorry, that command is not available in this
+                game, since there\'s no exit lister. ');    
+}
+
 
 DefineSystemAction(Score)
     execAction(cmd)
@@ -293,11 +297,16 @@ DefineSystemAction(Hints)
     execAction(cmd)
     {
         if(gHintManager == nil)
-            DMsg(hints not present, '<.parser>Sorry, this story doesn&rsquo;t
-                have any built-in hints.<./parser> ');
+            sayHintsNotPresent();
         else        
             gHintManager.showHints();
         
+    }
+    
+    sayHintsNotPresent() 
+    {
+        DMsg(hints not present, '<.parser>Sorry, this story doesn&rsquo;t
+                have any built-in hints.<./parser> ');
     }
 ;
         
@@ -422,7 +431,8 @@ DefineIAction(Smell)
         
         /*  If both lists are empty report that there is nothing to smell */
         if(s_list.length + r_list.length == 0)            
-            DMsg(smell nothing, '{I} {smell} nothing out of the ordinary.<.p>');
+            DMsg(smell nothing intransitive, '{I} {smell} nothing out of the
+                ordinary.<.p>');
         else
         {
             /* 
@@ -457,7 +467,8 @@ DefineIAction(Listen)
         local r_list = getRemoteSoundList();
         
         if(s_list.length + r_list.length == 0)
-            DMsg(hear nothing, '{I} {hear} nothing out of the ordinary.<.p>');
+            DMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
+                ordinary.<.p>');
         else
         {
             foreach(local cur in s_list)
@@ -608,13 +619,13 @@ DefineIAction(GoBack)
         
         if(pathBack.length == 1)
         {
-            DMsg(already there, '{I}{\'m} already there. ');
+            DMsg(already back there, '{I}{\'m} already there. ');
             return;
         }
         
         local dir = pathBack[2][1];
         
-        DMsg(going dir, '(going {1})\n', dir.name);
+        DMsg(going back dir, '(going {1})\n', dir.name);
         
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
         
@@ -662,7 +673,7 @@ DefineIAction(Continue)
         
         if(idx == path.length)
         {
-            DMsg(already there, '{I}{\'m} already there. ');
+            say(gActor.getOutermostRoom.alreadyThereMsg);
             return;
         }
         
@@ -1412,7 +1423,7 @@ class MiscConvAction: IAction
     {
         if(gPlayerChar.currentInterlocutor == nil 
            || !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
-             DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+            sayNotTalking();
         else
         {           
             curObj = gPlayerChar.currentInterlocutor;
@@ -1444,6 +1455,11 @@ class MiscConvAction: IAction
     responseProp = nil
     topicObj = nil
 ;
+
+sayNotTalking()
+{
+    DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+}
 
 SayYes: MiscConvAction
     baseActionClass = SayYes
@@ -1478,7 +1494,7 @@ Goodbye: IAction
     
         if(gPlayerChar.currentInterlocutor == nil ||
            !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
-             DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+            sayNotTalking();
         else
             gPlayerChar.currentInterlocutor.endConversation(endConvBye);
     }    
@@ -1655,7 +1671,7 @@ class ImplicitConversationAction: TopicAction
         
         if(gPlayerChar.currentInterlocutor == nil ||
            !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
-            DMsg(not talking, '{I}{\'m} not talking to anyone. ');
+            sayNotTalking();
         else
         {
             resolvePronouns();

@@ -386,7 +386,7 @@ objNotWorn: PreCondition
          *   try to take it off; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(cant do that while wearing, '{I} {can\'t} do that while
+        DMsg(cannot do that while wearing, '{I} {can\'t} do that while
             {he actor}{\'m} wearing {the obj). ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -436,8 +436,8 @@ objAudible: PreCondition
              *   too far away.
              */
             if(lst[1].ofKind(Room))
-                errMsg = BMsg(too far away to hear, '{The subj obj} {is} too far
-                    away to hear. ');
+                errMsg = BMsg(too far away to hear obj, '{The subj obj} {is} too
+                    far away to hear. ');
             
             /* 
              *   Otherwise the reason the actor can't hear obj is that the first
@@ -565,7 +565,7 @@ objDetached: PreCondition
         local att = obj.attachedTo;
         gMessageParams(obj, att);
         
-        DMsg(cant do that while attached, '{I} {can\'t} do that while {the subj
+        DMsg(cannot do that while attached, '{I} {can\'t} do that while {the subj
             obj} is attached to {the att). ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */

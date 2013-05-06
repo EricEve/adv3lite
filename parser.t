@@ -223,7 +223,7 @@ class Parser: object
              *   The tokenizer found a character (usually a punctuation
              *   mark) that doesn't fit any of the token rules.  
              */
-            DMsg('token error', 'I don\'t understand the punctuation {1}',
+            DMsg(token error, 'I don\'t understand the punctuation {1}',
                  err.curChar_);
 
            
@@ -5175,7 +5175,7 @@ class UnmatchedNounError: ActorResolutionError
          *   in scope.  Since we didn't find an object, all we have is the
          *   text of the noun phrase from the player's input.  
          */
-        DMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, txt);
+        DMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, stripArticle(txt));
     }
 ;
 

@@ -4,16 +4,14 @@
 #include "advlite.h"
 
 versionInfo: GameID
-    IFID = '' // obtain IFID from http://www.tads.org/ifidgen/ifidgen
-    name = 'My Game'
-    byline = 'by A.N. Author'
-    htmlByline = 'by <a href="mailto:an.author@somemail.com">
-                  A.N. Author</a>'
+    IFID = '$IFID$'
+    name = '$TITLE$'
+    byline = 'by $AUTHOR$'
+    htmlByline = 'by <a href="mailto:$EMAIL$">$AUTHOR$</a>'
     version = '1'
-    authorEmail = 'A.N. Author <an.author@somemail.com>'
-    desc = 'Your blurb here.'
-    htmlDesc = 'Your blurb here.'    
-    
+    authorEmail = '$AUTHOR$ <$EMAIL$>'
+    desc = '$DESC$'
+    htmlDesc = '$HTMLDESC$'
 ;
 
 gameMain: GameMainDef
@@ -35,9 +33,7 @@ startroom: Room 'The Starting Location'
  */
 
 + me: Thing 'you'   
-    isFixed = true    
-    proper = true
-    ownsContents = true
-    person = 2   
+    isFixed = true       
+    person = 2  // change to 1 for a first-person game
     contType = Carrier    
 ;

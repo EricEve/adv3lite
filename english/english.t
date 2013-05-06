@@ -5,7 +5,7 @@
  *   
  *   This is the English implementation of the generic language interfaces.
  *   All of the code here is English-specific, so other language modules
- *   will replace the actual implementation.  However, some of the methods
+ *   will replace the actual implementation.  However, somef of the methods
  *   and properties are part of the generic interface - this means that
  *   each language module must define methods and properties with these
  *   names, and with the abstract behavior described.  How they actually
@@ -2324,109 +2324,254 @@ englishCustomVocab: CustomVocab
     ]
 
     /* verb parameters, for {xxx} tokens in message strings */
-    verbParams = [
+    verbParams = [        
         'achieve/achieves/achieved',
         'appear/appears/appeared',
+        'arise/arises/arose/arisen',
         'ask/asks/asked',
+        'awake/awakes/awoke/awoken',
         'attach/attaches/attached',
         'arrive/arrives/arrived',
+        'bear/bears/bore/born',
+        'beat/beats/beat/beaten',
+        'become/becomes/became/become',
+        'begin/begins/began/begun',
+        'behold/beholds/beheld',
+        'bend/bends/bent',
+        'bet/bets/bet',
+        'bid/bids/bade/bidden',
+        'bind/binds/bound',
+        'bite/bites/bit/bitten',
+        'bleed/bleeds/bled',
+        'blow/blows/blew/blown',
         'board/boards/boarded',
-        'bounce/bounces/bounced',
-        'burn/burns/burned',
+        'bounce/bounces/bounced',        
         'break/breaks/broke/broken',
+        'breed/breeds/bred',
+        'bring/brings/brought',
+        'build/builds/built',
+        'burn/burns/burnt',
+        'bust/busts/bust',
+        'buy/buys/bought',
+        'cast/casts/cast',
         'catch/catches/caught',
+        'choose/chooses/chose/chosen',
+        'clap/claps/clapt',
         'clean/cleans/cleaned',
         'climb/climbs/climbed',
+        'cling/clings/clung',
         'close/closes/closed',
         'come/comes/came',
         'consult/consults/consulted',
         'contain/contains/contained',
+        'cost/costs/costed',
+        'creep/creeps/crept',
         'cut/cuts/cut',
+        'deal/deals/dealt',
         'detach/detaches/detached',
         'dig/digs/dug',
+        'dive/dives/dove/dived',
         'do/does/did',
         'doff/doffs/doffed',
         'douse/douses/doused',
+        'draw/draws/drew/drawn',
+        'dream/dreams/dreamt',
         'drink/drinks/drank/drunk',
+        'drive/drives/drove/driven',
         'drop/drops/dropped',
+        'dwell/dwells/dwelt',
         'eat/eats/ate/eaten',
         'enter/enters/entered',
         'extinguish/extinguishes/extinguished',
         'fall/falls/fell/fallen',
         'fail/fails/failed',
         'fasten/fastens/fastened',
+        'feed/feeds/fed',
         'feel/feels/felt',
+        'fight/fights/fought',
         'find/finds/found',
+        'fling/flings/flung',
         'flip/flips/flipped',
+        'fly/flies/flew/flown',
         'follow/follows/followed',
+        'forbid/forbids/forbade/forbidden',
         'freeze/freezes/froze/frozen',
         'get/gets/got/gotten',
         'give/gives/gave/given',
         'go/goes/went/gone',
+        'grind/grinds/ground',
+        'grow/grows/grew/grown',
+        'handwrite/handwrites/handwrote/handwritten',
         'happen/happens/happened',
+        'hang/hangs/hung',
         'have/has/had',
         'head/heads/headed',
         'hear/hears/heard',
+        'hide/hides/hid/hidden',
         'hit/hits/hit',
         'hold/holds/held',
+        'hurt/hurts/hurt',
+        'inlay/inlays/inlaid',
+        'input/inputs/input',
+        'interlay/interlays/interlaid',
         'jump/jumps/jumped',
+        'keep/keeps/kept',
+        'kneel/kneels/knelt',
+        'knit/knits/knit',
+        'know/knows/knew/known',
         'land/lands/landed',
         'lay/lays/laid',
+        'lead/leads/led',
+        'leans/leans/leant',
+        'leap/leaps/leapt',
+        'learn/learns/learnt',
         'leave/leaves/left',
+        'lend/lends/lent',
+        'let/lets/let',
         'lie/lies/lay/lain',
         'light/lights/lit',
         'lock/locks/locked',
         'look/looks/looked',
+        'lose/loses/lost',
+        'make/makes/made',
+        'mean/means/meant',
+        'meet/meets/met',
+        'melt/melts/melted/molten',
+        'mislead/misleads/misled',
+        'mistake/mistakes/mistook/mistaken',
+        'misunderstand/misunderstands/misunderstood',
+        'miswed/misweds/miswed',
         'move/moves/moved',
+        'mow/mows/mowed/mown',
         'need/needs/needed',
         'open/opens/opened',
+        'overdraw/overdraws/overdrew/overdrawn',
+        'overhear/overhears/overheard',
+        'overtake/overtakes/overtook/overtaken',
         'pass/passes/passed',
+        'pay/pays/paid',
         'pick/picks/picked',
         'plug/plugs/plugged',
         'pour/pours/poured',
-        'prove/proves/proved',
+        'preset/presets/preset',
+        'prove/proves/proved/proven',
         'pull/pulls/pulled',
         'push/pushes/pushed',
         'put/puts/put',
+        'quit/quits/quit',
         'reach/reaches/reached',
+        'read/reads/read',
         'remove/removes/removed',
         'reveal/reveals/revealed',
+        'rid/rids/rid',
+        'ride/rides/rode/ridden',
+        'ring/rings/rang/rung',
+        'rise/rises/rose/risen',
+        'rive/rives/rived/riven',
         'rotate/rotates/rotated',
+        'run/runs/ran/run',
         'sail/sails/sailed',
+        'saw/saws/sawed/sawn',
+        'sew/sews/sewed/sewn',
         'say/says/said',
         'screw/screws/screwed',
         'search/searches/searched',
         'see/sees/saw/seen',
         'seem/seems/seemed',
         'set/sets/set',
+        'shake/shakes/shook/shaken',
+        'shave/shaves/shaved/shaven',
+        'shear/shears/shore',
+        'shed/sheds/shed',
+        'shine/shines/shone',
+        'shoe/shoes/shod',
+        'shoot/shoots/shot',
         'shout/shouts/shouted',
+        'show/shows/showed/shown',
+        'shrink/shrinks/shrank/shrunk',
+        'shut/shuts/shut',
+        'sing/sings/sang/sung',
         'sit/sits/sat',
+        'slay/slays/slew/slain',
         'sleep/sleeps/slept',
-        'smell/smells/smelled',
+        'slide/slides/slid',
+        'sling/slings/slung',
+        'slink/slinks/slunk',
+        'slit/slits/slit',
+        'smell/smells/smelt',
+        'sneak/sneaks/snuck',
+        'soothsay/soothsays/soothsaid',
+        'sow/sows/sowed/sown',
+        'speak/speaks/spoke/spoken',
+        'speed/speeds/sped',
+        'spell/spells/spelt',
+        'spend/spends/spent',
+        'spill/spills/spilt',
+        'spin/spins/span/spun',
+        'spit/spits/spat',
+        'split/splits/split',
+        'spoil/spoils/spoilt',
+        'spread/spreads/spread',
+        'spring/springs/sprang/sprung',
         'stand/stands/stood',
+        'steal/steals/stole/stolen',
+        'stick/sticks/stuck',
+        'sting/stings/stung',
+        'stink/stinks/stank/stunk',
+        'stride/strides/strode/stridden',
         'strike/strikes/struck/stricken',
+        'strive/strives/strove/striven',
+        'sublet/sublets/sublet',
+        'sunburn/sunburns/sunburnt',
+        'swear/swears/swore/sworn',
+        'sweat/sweats/sweat',
+        'sweep/sweeps/swept',
+        'swell/swells/swelled/swollen',
+        'swim/swims/swam/swum',
+        'swing/swings/swung',
         'switch/switches/switched',
         'talk/talks/talked',
         'take/takes/took/taken',
         'taste/tastes/tasted',
+        'teach/teaches/taught',
+        'tear/tears/tore/torn',
         'tell/tells/told',
         'think/thinks/thought',
+        'thrive/thrives/throve/thrived',
         'throw/throws/threw/thrown',
+        'thrust/thrusts/thrust',
+        'tread/treads/trod/trodden',
         'turn/turns/turned',
         'type/types/typed',
+        'undergo/undergoes/underwent/undergone',
+        'understand/understands/understood',
+        'undertake/undertakes/undertook/undertaken',
         'unfasten/unfastens/unfastened',
         'unlock/unlocks/unlocked',
         'unplug/unplugs/unplugged',
         'unscrew/unscrews/unscrewed',
-        'wait/waits/waited',
-        'want/wants/wanted',
+        'upset/upsets/upset',
+        'vex/vexes/vext',
+        'wait/waits/waited',        
         'wake/wakes/woke/woken',
+        'want/wants/wanted',
         'wear/wears/wore/worn',
+        'weave/weaves/wove/woven',
+        'wed/weds/wed',
+        'weep/weeps/wept',
+        'wend/wends/went',
+        'wet/wets/wet',
         'will/will/would',
+        'win/wins/won',
+        'wind/wind/wound',
+        'withdraw/withdraws/withdrew/withdrawn',
+        'withhold/withholds/withheld',
+        'withstand/withstands/withstood',
         'won\'t/won\'t/would not',
         'work/works/worked',
-        'write/writes/wrote'
-                
+        'wring/wrings/wrung',
+        'write/writes/wrote',
+        'zinc/zincks/zincked'        
     ]
 ;
 
@@ -3267,6 +3412,19 @@ makeCountedPlural(str, num)
     return LMentionable.pluralNameFrom(strList.join(' '));
 }
 
+/* 
+ *   Remove any definite or indefinite article that occurs at the beginning of
+ *   txt, and return the resultant string in lower case.
+ */
+stripArticle(txt)
+{
+    txt = txt.toLower();
+    
+    txt = txt.findReplace(R'^(the|a|an|some) ','');
+    return txt;
+}
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   finishGame options.  We provide descriptions and keywords for the
@@ -4045,6 +4203,12 @@ englishMessageParams: MessageParams
         [ '\'m', conjugateIm ],
         [ '\'re', conjugateIm ],
         [ '\'s', conjugateIm ],
+        [ 'was', conjugateWas],
+        [ 'were', conjugateWas],
+        [ 'wasn\'t', conjugateWasnt],
+        [ 'weren\'t', conjugateWasnt],
+        [ 'wasnot', conjugateWasnot],
+        [ 'werenot', conjugateWasnot], 
 
         /* {don't <verb>} - the second token is the verb infinitive */
         [ 'don\'t', conjugateDont ],
@@ -4061,7 +4225,10 @@ englishMessageParams: MessageParams
         /* {must <verb>} - the second token is a verb infinitive */
         [ 'must', { ctx, params: conjugateMust(ctx, params) } ],
         
-        [ 'actionliststr', {ctx, params: gActionListStr } ]
+        [ 'actionliststr', {ctx, params: gActionListStr } ],
+
+        /* conj <verb> <type> congugate a regular verb */
+        ['conj', {ctx, params: conjugateRegular(ctx, params) } ]
 
     ]
 
@@ -4196,6 +4363,110 @@ conjugate(ctx, params)
     return nil;
 }
 
+/* 
+ *   Language specific adjustments to a string applied before the message
+ *   processor looks for parameter substitutions. Here we scan txt for sequences
+ *   like 'verb{s/d}' and convert them to '{conj verb s/d}', which the parameter
+ *   substitution mechanism can then deal with.
+ */
+langAdjust(txt)
+{
+    for(;;)
+    {
+        local rf = rexSearch(
+                   R'<lbrace>(s/d|s/ed|es/ed|ies/ied|s/<question>ed)<rbrace>',
+            txt);
+    
+        if(rf == nil)
+            break;
+    
+        local idx = rf[1];
+        
+        local str = rf[3];
+    
+        local rootStart = idx;
+        while(rootStart > 1)
+        {
+            if(txt.substr(--rootStart, 1) == ' ')
+                break;
+        }
+            
+        local verbRoot = txt.substr(rootStart + 1, idx - rootStart - 1);
+        txt = txt.findReplace(verbRoot+str, '{conj ' + verbRoot + ' '
+                              + str.substr(2));
+    }
+    
+    return txt;
+}
+
+/* Conjugate a regular verb */
+conjugateRegular(ctx, params)
+{    
+    local thirdPresentEnding = '';
+    local participleEnding = '';
+    local root = params[2];
+    
+    switch(params[3])
+    {
+    case 's/d':
+        thirdPresentEnding = 's';
+        participleEnding = 'd';
+        break;
+        
+    case 's/ed':      
+        thirdPresentEnding = 's';
+        participleEnding = 'ed';
+        break;
+        
+    case 'es/ed':      
+        thirdPresentEnding = 'es';
+        participleEnding = 'ed';
+        break;
+        
+    case 'ies/ied':      
+        thirdPresentEnding = 'ies';
+        participleEnding = 'ied';    
+        if(root.endsWith('y'))
+            root = root.substr(1, root.length - 1);
+        else
+            params[2] = root + 'y';
+        break;
+        
+    case 's/?ed':      
+        thirdPresentEnding = 's';
+        participleEnding = root.substr(root.length, 1) + 'ed';    
+        break;
+            
+    }
+    
+    switch (Narrator.tense)
+    {
+        
+        
+    case Present:
+        return !ctx.subj.plural && ctx.subj.person == 3 ? root +
+            thirdPresentEnding : params[2];
+        
+    case Past:
+        return root + participleEnding;
+        
+    case Perfect:
+        return (!ctx.subj.plural && ctx.subj.person == 3 ? 'has ' : 'have ') +
+            root + participleEnding;
+        
+    case PastPerfect:
+        return 'had ' + root + participleEnding;
+        
+    case Future:
+        return (ctx.subj.person == 1 ? 'shall ' : 'will ') + params[2];
+    
+    case FuturePerfect:
+        return (ctx.subj.person == 1 ? 'shall have ' : 'will have ') + params[2];
+        
+    }
+    
+    return nil;
+}
 
 /*
  *   Conjugate "to be".  This is a handler function for message parameter
@@ -4373,6 +4644,72 @@ conjugateIm(ctx, params)
         return '\'ll have been';
     }
 
+    return nil;
+}
+
+/* 
+ *   Conjugate the past tense of "to be" where we want to use the past tense in
+ *   a present context (e.g. "You can see that Kilroy was here. "). This is a
+ *   handler function for {was} or {were}.
+ */
+
+conjugateWas(ctx, params)
+{ 
+    switch (Narrator.tense)
+    {
+    case Present:
+        return ctx.subj.plural || ctx.subj.person == 2 ? 'were' : 'was';
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return 'had been';
+        
+    case Future:
+    case FuturePerfect:
+        return 'will have been';
+    }
+    
+    return nil;
+}
+
+conjugateWasnt(ctx, params)
+{ 
+    switch (Narrator.tense)
+    {
+    case Present:
+        return ctx.subj.plural || ctx.subj.person == 2 ? 'weren\'t' : 'wasn\'t';
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return 'hadn\'t been';
+        
+    case Future:
+    case FuturePerfect:
+        return 'won\'t have been';
+    }
+    
+    return nil;
+}
+    
+conjugateWasnot(ctx, params)
+{ 
+    switch (Narrator.tense)
+    {
+    case Present:
+        return ctx.subj.plural || ctx.subj.person == 2 ? 'were not' : 'was not';
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return 'had not been';
+        
+    case Future:
+    case FuturePerfect:
+        return 'will not have been';
+    }
+    
     return nil;
 }
 
