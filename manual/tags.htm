@@ -22,6 +22,69 @@ String Tags and Object Tags
 
 <p>Earlier versions of adv3Lite offered a choice of two methods for building this table, but the supposedly 'economical' option turned out to be not that economical and not very reliable, and so was withdrawn. Provided actor.t is included in the build, the library now just stores an entry in the table for every instance of every class that could be used in an object tag (i.e. Mentionables, AgendaItems and ActorStates.</p>
 
+<h2><a name="actor-tag-idx">Actor-Specific and General Tags</a></h2>
+
+<p>In addition to being string-based or object-based, conversation tags can be either <em>actor-specific</em> or <em>general</em>.</p>
+
+<p>There are only two general tags: &lt;.reveal key&gt; and &lt;.known obj&gt;. These are general insofar as they relate to the player character's knowledge, and not to any specific NPC. It is therefore safe to use these tags in any string anywhere in your code, since their effect is to update (in the one case) a specific table and (in the other) a specific property.</p>
+
+<p>All the remaining conversation tags are <em>actor-specific</em>, which means that at any one time they all relate to a specific NPC, but which NPC they relate to can vary from time to time. More specifically, they all relate to the <em>current interlocutor</em>, which means the NPC the player character in currently in conversation with. If the player character isn't currently talking to anyone, then there's no NPC for these tags to refer to, in which case none of these actor-specific tags will have any effect. When there is a current interlocutor, then &lt;.convnode node&gt; means change the current interlocutor's conversation node to <em>node</em>; &lt;.state actorstate&gt; means change the current interlocutor's ActorState to <em>actorstate</em>, and so on for all the rest. This means that all these actor-specific conversation tags can only safely and meaningfully be used in situations where it's quite clear who the current interlocutor is. In adv3Lite, there are only three such situations:</p>
+
+<ol>
+<li>The topicResponse() method or eventList property of an ActorTopicEntry;</li>
+<li>The invokeItem() method of a ConvAgendaItem;</li>
+<li>A call to the actorSay(txt) method of an Actor (where a conversation tag can be used in the <em>txt</em> parameter).</li>
+</ol>
+
+<p>Attempting to use an actor-specific conversation tag in any other context is likely both not to work as expected and to give rise to hard-to-find bugs. For example, it might be tempting to write:</p>
+
+ <p><div class="code"><pre>
+bob: Actor 'Bob;;man;him' @somewhere
+;
+
++ bobWatchingState: ActorState
+    isInitState = true
+    
+    afterAction()
+    {
+        if(gActionIs(Take) &amp;&amp; gDobj == crown)
+           "&lt;q&gt;Hey!&lt;/q&gt; cries Bob. &lt;q&gt;Only the lawful king can take that crown!
+            Are you claiming to be our king?&lt;/q&gt; &lt;.convnodet you-king&gt; ";  
+    }
+;
+</pre></div>
+
+<p>It's tempting to do this because it's so much shorter and easier than going through the long-winded process of triggering a ConvAgendaItem or an InitiateTopic in the afterAction method; <em>but it won't work!</em>. The two reasons it won't work are:</p>
+
+<ol>
+<li>Contrary to what some game authors might unreflectively wish and imagine, an IF library cannot work either by magic or telepathy, but only by executing a controlled sequence of methods that keeps everything in order. Using an actor-specific conversation tag in one of the three legal contexts ensures that the proper sequence of methods is invoked that is needed to make eveything work. Using them anywhere else bypasses these mechanisms &mdash; with the result that not everything will work.</li>
+<li>Someone who writes code like that above almost certainly intends to set <em>Bob's</em> current conversation node to 'you-king', but that's not what the code actually does; assuming it manages to do anything at all it will attempt to set <em>the current interlocutor's</em> current conversation node to 'you-king', and Bob may or may not be the current interlocutor when this code is triggered.</li>
+</ol>
+
+<p>It is primarily for this type of situation that the <strong>actorSay()</strong> method has been introduced into the library. The correct (and safe) way to write the code fragment above would be:</p>
+
+ <p><div class="code"><pre>
+bob: Actor 'Bob;;man;him' @somewhere
+;
+
++ bobWatchingState: ActorState
+    isInitState = true
+    
+    afterAction()
+    {
+        if(gActionIs(Take) &amp;&amp; gDobj == crown)
+           getActor.actorSay('&lt;q&gt;Hey!&lt;/q&gt; cries Bob. &lt;q&gt;Only the lawful king
+            can take that crown! Are you claiming to be our king?&lt;/q&gt; 
+            &lt;.convnodet you-king&gt; ');  
+    }
+;
+</pre></div>
+
+<p>This is safe because it's now clear which actor's conversation node will be updated, since we're calling a method on the action in question (getActor, i.e. bob), and because <span class="code">actorSay()</span> takes care of all the necessary housekeeping. It first makes the actor it's called on the current interlocutor and notes that this actor has conversed with the player character on this turn, then displays the string that was passed to it as an argument, and finally shuffles the actor's conv keys around in the way needed to set them up for use on the next turn. In fact, this would be the way to do it even if we weren't using any conversation tags, since we'd probably want to make Bob the current interlocutor after such an interjection.</p>
+
+
+
+
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

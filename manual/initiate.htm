@@ -16,7 +16,7 @@ NPC-Initiated Conversation
 <div class="main">
 <h1>NPC-Initiated Conversation</h1>
 
-<p>All the conversational features of the adv3Lite library we have looked at so far have been aimed at providing ways for NPCs to respond to the player's conversational commands. But truly life-like NPCs will sometimes try to seize the conversational initiative. The adv3Lite provides two tools to help you achieve this: <a href="#convagendaitem">ConvAgendaItems</a> and <a href="#initiatetopic">InitiateTopics</a>. The former can also be used in conjunction with <a href="#defaultagenda">DefaultAgendaTopics</a> to allow NPCs to take the conversational initiative when the player character tries to talk about something they don't want to talk about. </p>
+<p>All the conversational features of the adv3Lite library we have looked at so far have been aimed at providing ways for NPCs to respond to the player's conversational commands. But truly life-like NPCs will sometimes try to seize the conversational initiative. The adv3Lite provides two tools to help you achieve this: <a href="#convagendaitem">ConvAgendaItems</a> and <a href="#initiatetopic">InitiateTopics</a>. The former can also be used in conjunction with <a href="#defaultagenda">DefaultAgendaTopics</a> to allow NPCs to take the conversational initiative when the player character tries to talk about something they don't want to talk about. In certain circumstances it may also prove useful to use the <a href="#actorsay_idx">actorSay</a> method (though this should only be used sparingly).</p>
 
 <h2><a name="initiatetopic">InitiateTopic</a></h2>
 <p>An InitiateTopic is defined like any other ActorTopicEntry object, but instead of representing the actor's response to a conversational command from the player, it can be used to represent something an NPC chooses to say spontaneously (or in reaction to something in his/her environment). InitiateTopics are triggered by calling <span class="code">initiateTopic(obj)</span> on the actor. If there's one or more InitiateTopics defined on the actor (or the actor's current ActorState) that have <em>obj</em> as one of the objects on their matchObj property, then the InitiateTopic that's the best match (i.e. the one with the highest matchScore that has isActive = true) is selected and its topicResponse is displayed (much as would be the case for any other kind of ActorTopicEntry).</p>
@@ -273,7 +273,35 @@ Bob mutters something inaudible in reply.
 
 <p>The &lt;.agenda&gt; and &lt;.remove&gt; tags can only be used while a conversation is in progess (i.e. while the player character has a currentInterlocutor), but this is probably the best time to add ConvAgendaItems to the agendaLists of DefaultAgendaTopics in any case. To make this a bit easier you can use the<strong> addToPendingAgenda(item)</strong> method of the Actor to store a list of ConvAgendaItems the NPC might want to use once a conversation is under way. and then call the Actor's <strong>activatePendingAgenda()</strong> method every time a conversation begins; a HelloTopic, ImpHelloTopic or ActorHelloTopic will do the latter for you. This scheme should ensure that activatePendingAgenda() will only update the NPC's agendaList with items that are currently relevant. You can use <strong>removeFromPendingAgenda(item)</strong> on the Actor to remove agenda items that are no longer relevant, but AgendaItems are automatically removed from the pending agenda once they're done (isDone = true).</p>
 
+<br>
+
+<h2><a name="actorsay_idx">actorSay()</a></h2>
+
+<p>In certain circumstances using a ConvAgendaItem or InitiateTopic to make an NPC initiate a conversation may seem a little cumbersome. A typical situation where this may be the case is where you want an NPC to say something in response to a particular player character action, which is most conveniently triggered from an afterAction method, such as:</p>
+ <p><div class="code"><pre>
+martha: Actor 'Martha;;woman;her' @lounge
+;
+
++ marthaSittingState: ActorState
+   isInitState = true
+   specialDesc = "Aunt Martha is sitting in her favourite armchair, watching you closely. "
+   
+   afterAction()
+   {
+      if(gDobj == vase &amp;&amp; !gActionIs(Examine))
+         getActor.actorSay('&lt;q&gt;Careful what you are doing with that vase, Bertie!&lt;/q&gt;
+          your aunt admonishes you sternly. ');
+   }
+;
+</pre></div>
+
+
+<p>The advantage of using <span class="code">actorSay()</span> here instead of just using a double-quoted string to display the text is that this makes Martha the current interlocutor if she wasn't before and notes that she has conversed with the player character on this turn. For further examples of and reasons for using <span class="code">actorSay()</span> in this kind of situation see the discussion of <a href="tags.htm#actor-tag-idx">actor-specific tags</a>.</p>
+
+<p>The actorSay() method should, however, be used sparingly, and not as the normal way of initiating or carrying on a conversation. For one thing, it does not trigger any greeting protocols (saying hello and goodbye), and for another it does not offer the same level of control as using TopicEntries and/or ConvAgendaItems. There may, however, occasionally be situations such as the one illustrated here where it is convenient.</p>
+
 </div>
+
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 

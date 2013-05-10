@@ -187,7 +187,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
              */
             gCommand.actor = gPlayerChar;
             
-            /* Handle the command as AskFor */
+            /* Handle the command as AskFor */ 
             handleTopic(&askTopics, gCommand.iobj.topicList);
         }
         
@@ -363,6 +363,13 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
     {
+	    /* Reset the keysManaged flag to nil so that we can end this method
+		 * by carrying out the necessary keys management unless this is
+		 * handled indirectly through the call to response.handleTopic()
+		 * below, which may set this flag to true.
+		 */
+	    keysManaged = nil;
+	
         /* 
          *   Note the best response we can find; i.e. the TopicEntry from the
          *   prop list that best matches topic.
@@ -438,7 +445,29 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
            
         }
         
+        /* 
+         *   Carry out the key management if it hasn't already been carried out
+         *   on this turn. It may already have been by a tag handled by the
+         *   conversationManager object processed via the call to
+         *   response.handleTopic() above.
+         */
+        if(!keysManaged)
+            manageKeys();
         
+         /* 
+          *   Return true or nil depending on whether we found a matching
+          *   response to display
+          */        
+        return response != nil;
+    }
+    
+    /* 
+     *   Move pending keys to active keys and clear pending keys if need be. We
+     *   call this out as a separate method to allow it to be directly called
+     *   from elsewhere.
+     */
+    manageKeys()
+    {
         /* 
          *   Reset the pending keys to nil unless we've been requested to retain
          *   them. (The pendingKeys are the set of convKeys that a previous
@@ -451,15 +480,18 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         activeKeys = pendingKeys;
         
         /*  Reset the flag that tells us to keep our pending keys */
-        keepPendingKeys = nil;
+        keepPendingKeys = nil;  
         
-         /* 
-          *   Return true or nil depending on whether we found a matching
-          *   response to display
-          */        
-        return response != nil;
+        /* Note that we have now managed our keys. */ 
+        keysManaged = true;		
     }
     
+    /* 
+     *   Flag; has the active/pending key management already been carried out on
+     *   this turn?
+     */
+    keysManaged = nil
+	
     /* Convenience method to note that conversation has occurred on this turn */    
     noteConversed()
     {
@@ -473,6 +505,33 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         notePronounAntecedent(self);
     }
     
+    /* 
+     *   This method can be called on the actor when we want to display the text
+     *   of one or both sides of a conversational exchange with the actor
+     *   without going through the TopicEntry mechanism to do so.
+     */ 
+    actorSay(str)
+    {
+        /* 
+         *   Reset the keysManaged flag to nil so that we can end this method by
+         *   carrying out the necessary keys management unless this is handled
+         *   indirectly through the call to say(str) below, which may set this
+         *   flag to true.
+         */
+        keysManaged = nil;
+        
+        /* Not that we have conversed with the actor this turn */		
+        noteConversed();
+        
+        /* Display the text of the conversational exchange. */
+        say(str);
+        
+        /* Carry out the keys management if it hasn't already been carried out. */
+        if(!keysManaged)
+            manageKeys();
+    }
+    
+	
     /* 
      *   The last turn on which this actor conversed with the player character.
      *   We start out with a value of -1 to mean that we haven't conversed at
@@ -2810,7 +2869,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          */
         else
             DMsg(nothing to discuss on that topic, '{I} {have} nothing to
-                discuss on that topic just {now}. '); 
+                discuss on that topic just {then}. '); 
     }
     
     /* Obtain a list of the TopicEntries that match our keyTopics property. */
@@ -4391,6 +4450,35 @@ conversationManager: OutputFilter, PreinitObject
             /* pick out the tag */
             tag = rexGroup(1)[3].toLower();
 
+            #ifdef __DEBUG
+            
+//            if(tag not in ('known', 'reveal'))
+//            {
+//                local frame = t3GetStackTrace(8);
+//                local warningPrefix = '<b><FONT COLOR=RED>WARNING!</FONT></b> 
+//                    &lt;.<<tag>> <<arg>>&gt;';
+//                
+//                if(frame.obj_ == nil)
+//                    "<<warningPrefix>> invoked outside object context. ";
+//                else
+//                {
+//                    if(!((frame.self_ == respondingActor && frame.prop_ ==
+//                         &actorSay)
+//                         || (frame.self_.ofKind(ConvAgendaItem) &&
+//                         frame.self_.getActor == respondingActor 
+//                             && frame.prop_ == &invokeItem)
+//                         || (frame.self_.ofKind(ActorTopicEntry) &&
+//                             frame.self_.getActor == respondingActor)))
+//                        "<<warningPrefix>> invoked in unsafe context from
+//                        <<frame.self_.theName>>. <<if frame.self_.getActor !=
+//                          respondingActor>> This is not the current
+//                        interlocutor. <<end>>\b";
+//                }
+//            }                
+//            
+            #endif
+            
+            
             /* check which tag we have */
             switch (tag)
             {
@@ -4688,6 +4776,13 @@ conversationManager: OutputFilter, PreinitObject
         + '(<space>+(<^rangle>+))?'
         + '<rangle>')
 
+	/* Provided we have a respondingActor, call its manageKeys method. */	
+    manageKeys()
+    {
+	   if(respondingActor != nil)
+	      respondingActor.manageKeys();
+    }	
+		
     /*
      *   Schedule a topic inventory request.  Game code can call this at
      *   any time to request that the player character's topic inventory
@@ -5635,11 +5730,53 @@ objTablePreinit: PreinitObject
  *   provided in the lst parameter.
  */
 suggestedTopicLister: object
+
+    /* Introduce the topic inventory listing */
+    showListPrefix(lst, pl, explicit)  
+    { 
+        /* 
+         *   Introduce the list. If it wasn't explicitly requested start by
+         *   outputting a paragraph break and an opening parenthesis.
+         */
+        if(!explicit)
+            "<.p>(";
+        
+        /* 
+         *   Then introduce the list of suggestions with the appropriate form of
+         *   'You could' (suitably adjusted for the person of the player
+         *   character)
+         */
+        DMsg(suggestion list intro, '{I} could ');
+    }
+    
+    /* End the list with a closing parenthesis or full stop as appropriate */
+    showListSuffix(lst, pl, explicit)  
+    { 
+        /* 
+         *   Finish the list. If it was explicitly requested we finish it with a
+         *   full stop and a newline, otherwise we finish it with a closing
+         *   parenthesis and a newline.
+         */
+        if(explicit)
+            ".\n";
+        else
+            ")\n";
+    }
+    
+    /* The message to display if there are no topics to suggest. */
+    showListEmpty(explicit)  
+    { 
+        if(explicit)
+            DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
+                with {1} just {then}. ',
+                 gPlayerChar.currentInterlocutor.theObjName);
+    }
+    
     show(lst, explicit = true)
     {
         /* 
-         *   first exclude all items that don't have a name property, since
-         *   there won't be anything to show.
+             *   first exclude all items that don't have a name property, since
+             *   there won't be anything to show.
          */        
         lst = lst.subset({x: x.name != nil && x.name.length > 0});
         
@@ -5649,11 +5786,7 @@ suggestedTopicLister: object
          */        
         if(lst.length == 0)
         {
-            if(explicit)
-                DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
-                    with {1} just {now}. ',
-                     gPlayerChar.currentInterlocutor.theObjName);
-                
+            showListEmpty(explicit);                
             return;
         }
         
@@ -5719,19 +5852,10 @@ suggestedTopicLister: object
       
         
         /* 
-         *   Introduce the list. If it wasn't explicitly requested start by
-         *   outputting a paragraph break and an opening parenthesis. 
+         *   Introduce the list. 
          */
-        if(!explicit)
-            "<.p>(";
-        
-        /* 
-         *   Then introduce the list of suggestions with the appropriate form of
-         *   'You could' (suitably adjusted for the person of the player
-         *   character and the tense of the narrative)
-         */
-        DMsg(suggestion list intro, '{I} could ');
-        
+		showListPrefix(lst, nil, explicit);
+		        
         /* Note that we haven't listed any items yet */
         local listStarted = nil;
         
@@ -5951,14 +6075,9 @@ suggestedTopicLister: object
         }
         
         /* 
-         *   Finish the list. If it was explicitly requested we finish it with a
-         *   full stop and a newline, otherwise we finish it with a closing
-         *   parenthesis and a newline.
+         *   Finish the list by appending its suffix 
          */
-        if(explicit)
-            ".\n";
-        else
-            ")\n";
+        showListSuffix(lst, nil, explicit);
         
     }
     

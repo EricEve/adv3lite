@@ -4251,8 +4251,8 @@ englishMessageParams: MessageParams
          *   Note, this seems to produce rather odd results, so I'll try
          *   commenting it out.
          */        
-//        if (ctx.reflexiveAnte.indexOf(srcObj) != nil)
-//            return srcObj.pronoun().reflexive.name;
+        if (ctx.reflexiveAnte.indexOf(srcObj) != nil)
+            return srcObj.pronoun().reflexive.name;
 
         /* it's not reflexive - use the normal noun or pronoun */
         return nil;
@@ -4387,7 +4387,7 @@ langAdjust(txt)
         local rootStart = idx;
         while(rootStart > 1)
         {
-            if(txt.substr(--rootStart, 1) == ' ')
+            if(txt.substr(--rootStart, 1) is in (' ', '}'))
                 break;
         }
             

@@ -610,6 +610,14 @@ class MessageCtx: object
             vobj = obj;
 
         /* 
+         *   Only record the reflexive antecent for the subject, so that the
+         *   reflexive pronoun is used when an actor or object tries to act on
+         *   itself.
+         */
+        if(role != vSubject)
+            return;
+        
+        /* 
          *   If there's nothing in the reflexive antecedent list that uses
          *   the same pronoun, add this to the list.  Otherwise, replace
          *   the object that used the same antecedent. 

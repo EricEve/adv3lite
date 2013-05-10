@@ -343,7 +343,8 @@ DefineSystemAction(ListTests)
 
         if(allTests.lst.length == 0)
         {
-            "There are no test scripts defined in this game. ";
+            DMsg(no test scripts, 'There are no test scripts defined in this
+                game. ');
             exit;
         }
 
