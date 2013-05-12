@@ -20,7 +20,7 @@ Things
 
 <p>We shall start with the basic properties you'll need to define on just about any thing, then discuss the <a href="#containment">containment properties</a>, and then the other <a href="#behaviour">behavioural properties</a>,  <a href="#sensory">sensory properties</a> and a few other <a href="#misc">miscellanoeus properties</a>. We shall not go into any depth on most of the properties and methods principally intended for internal use by the library; instead, we shall try to keep things as simple as we can.</q>
 
-<h2>Basic Properties</h2>
+<a name="basicprops"></a><h2>Basic Properties</h2>
 
 <p>The basic properties you need to define for a Thing in adv3Lite are its name, the vocabulary used to describe it, and its description. In the adv3Lite library the first two of these can be defined in single property, the vocab property. So, for example, to define a red ball you might write:</p>
 
@@ -56,7 +56,7 @@ redBall: Thing 'red ball;bouncy rubber; sphere'
 <p>Normally, though, this should not be necessary.</p>
 
 <p>We can also define the following properties broadly related to the object's name, although judicious use of the <a href='#vocab'>vocab</a> property will normally make it unnecessary to do so:</p>
-
+<a name='thingprops'></a>
 <ul>
 <li><b>name</b> Explicity defining the name (short name) property will override any name the library would otherwise have inferred from the vocab property.</li>
 <li><b>proper</b> Signifies that the object has a proper name (e.g. John Smith). If the first part of the vocab property is defined entirely with capitalized words this will set to true automatically.</li>
@@ -71,7 +71,7 @@ redBall: Thing 'red ball;bouncy rubber; sphere'
 no explicit owner, it can still be implicitly owned by an actor carrying it, or by another suitable container.  (Note that this only applies as a default.  When an item in our contents has an explicit owner, that will override the implied container ownership for that item.  So, for example, Bob can be carrying Bill's wallet wallet, and as long as the wallet has its explicit owner set, we'll still describe it as Bill's despite its location.) By default, most objects are not nominal owners.  Actors generally should set this to true, so that (for example) anything Bob is carrying can be described as Bob's. ownsContents is thus nil by default on Thing but true by default on Actor.</li>
 <li><strong>matchName(toks)</strong> Normally the parser will match this object if the player's command refers to it with one or more words defined in this object's vocab object, regardless of the order in which the words appear, but preferring nouns to adjectives. In most cases this will be absolutely fine, but if you should want to enforce some other way of matching the name of this object (for example, because the precise order of words is important or you want to match a particular phrase), then this is method to override on that particular object. For details, see the comments on Mentionable.matchName() in thing.t. In brief, if you want to signal that a particular set of tokens represents a good match as a noun phrase, your custom matchName(toks) nethod should return (MatchNoTrunc | MatchNoApprox | MatchNoun); return 0 to indicate that there's no match.</li>
 </ul>
-
+<a name="otherthingprops"></a>
 <p>The other basic properties of Thing you will commonly use are:</p>
 <ul>
 <li><b>isFixed</b> Determines whether this object is portable (isFixed = nil) or portable (isFixed = true).</li>
@@ -153,7 +153,7 @@ hall: Room 'Hall'
 <p>Note that while you need to use one of these methods to set the initial location of an object, you should not (normally) change the location property of an object in game code thereafter. To move an object around under programmatical control, use either the moveInto(loc) or actionMoveInto(loc) methods. The difference between the two is that moveInto(loc) simply moves the object into a new location and adjusts the contents properties of the old and new locations accordingly, without triggering any notifications. It is the method you will typically want to use to move things about by authorial fiat. The actionMoveInto(loc) method additionally triggers the notifyRemove(obj) and notifyInsert(obj) on the old and new locations respectively and sets the object's moved property to true. This is the method you would typically use to move an object in direct response to a player command that explicitly requests the object to be moved (such as TAKE or DROP). Note that in this case the notifyInsert(obj) and/or notifyRemove(obj) method can prevent the movement via use of the exit macro if for some reason it should not go ahead.</p>
 <p>As in the adv3 library it is perfectly legal to move an object into nil to move it off-stage, or to leave its initial location as nil if it is meant to start out off-stage.</p>
 
-<h3>Defining containment type with the contType property</h3>
+<a name="defining_containment"></a><h3>Defining containment type with the contType property</h3>
 
 <p>The type of containment an object implements is defined by its <b>contType</b> property. This can be one of:</p>
 <ul>
@@ -191,6 +191,7 @@ rug: Platform 'persian rug; old worn'
 ;
 </pre></div>
 
+<a name="canput"></a>
 <p>Three further related properties are <strong>canPutInMe</strong>, <b>canPutBehindMe</b> and <b>canPutUnderMe</b>, which are by default are true if the object in question has the appropriate contType and nil otherwise. If they are true, then the player will be allowed to PUT something IN, BEHIND or UNDER this object. If the object has the appropriate contType (In, Behind or Under respectively) then the item in question will be moved into the object (its location will be set to the object and it will be added to the object's contents list). If not, the item in question will be moved into nil (i.e. off-stage) and the item will be added to the hiddenIn, hiddenBehind or hiddenUnder property list as appropriate. (Note: hiddenIn might be used for something concealed in an object like a pile of junk or a haystack that isn't a container in the normal sense, but semi acts as one for this kind of purpose). Note that there is no canPutOnMe property, since the hiddenOn property that would then be needed wouldn't make much sense, and it wouldn't make any sense to allow game authors to override the rule that items can be put on an object if and only if its contType is On.</p>
 
 
@@ -272,7 +273,7 @@ cooker: Thing 'cooker;blackened;oven stove top'
 
 <p>Unlike the adv3 library, adv3Lite does not define a weight property and does not attempt to keep track of the total weight carried or contained. For most games, tracking bulk is usually sufficient.</p>
 
-<h3>Containment Properties and Methods</h3>
+<a name="containmentprops"></a><h3>Containment Properties and Methods</h3>
 <p>At this point it's worth noting a handful of properties methods that can be used to check for containment:</p>
 <ul>
 <li><b>isIn(obj)</b> Returns true if this object is directly or indirectly contained by obj (i.e. if obj is this object's container, or this object's container's container, or this object's container's container's container and so on). This method can also be used to test whether an object is in a particular <a href="region.htm">Region</a>.</li>
@@ -284,7 +285,7 @@ cooker: Thing 'cooker;blackened;oven stove top'
 <li><b>allContents</b> A list of everything directly or indirectly within this object (i.e. its contents plus its contents' contents and so on).</li>
 </ul>
 
-<h3>Reaching In and Out</h3>
+<a name="reaching"></a><h3>Reaching In and Out</h3>
 
 <p>The method <strong>checkReach(actor)</strong> can be used to make an object inaccessible to an actor, for reasons other than being in a closed container. The <span class="code">checkReach()</span> method can, for example, be used to model an object that's too hot too touch or else out of reach on a high shelf. The library considers an object to be untouchable by <em>actor</em> if its <span class="code">checkReach(actor)</span> method displays anything. Note, this only takes effect if the touchObj precondition is defined for the action on the object in question.</p>
 
@@ -566,7 +567,7 @@ true (otherwise it will be nil).</p>
     matchPhrasesExclude = nil    
 ;
 </pre></div>
-
+<a name="matchphraseexcludes"></a>
 <p>In this example the <span class="code">matchPhrases</span> distinguish between the order in which the words 'broad' and 'green' must appear in the player's input for the match to occur. Note, incidentally, that if we only want to specify one phrase we can specify it as a single-quoted string; in that instance it doesn't have to be a list. Note also the use of the <span class="code">matchPhrasesExcludes</span> property here.</p>
 
 <p>If <strong>matchPhrasesExcludes</strong> is true (the default), then failure to match one of the phrases in the <span class="code">matchPhrases</span> property will cause the match to fail (as in the dark green bottle example). If it is nil as here, however, then instead of the <span class="code">matchPhrases</span> property ruling out a match when it fails to match, it enhances the match when it does match. That means when only one bean is in scope it can be referred to as 'bean', 'green bean', 'broad bean' and so forth without any difficultly, but if both beans are in scope the player will get a disambiguation prompt unless s/he specifies either the 'broad green' bean or the 'green broad' bean. (This, incidentally, avoids a potentialy misleading  'You see no green bean here' response if the player types X GREEN BEAN). Note, however, that this score-boosting behaviour only applies to the original command; any disambiguation will still use the exluding behaviour (otherwise disambiguation would never succeed).</p>
@@ -676,6 +677,7 @@ WetDryDamp: State
 
 <p>The <span class="code">WetDryDamp</span> state will then be applicable to any object that defines the <span class="code">wetness</span> property, allowing it to be referred to as 'dry', 'damp' or 'wet' according to its state.</p>
 
+<a name="manipvocabmethods"></a>
 <p>Sometimes, though, you may encounter cases which fall outside what the State mechanism can readily do. For example, if a secret panel slides open to reveal a passage beyond, you may want both the name and the vocabulary referring to the panel to change to 'dark passage' once the panel is open (in fact the <span class="code">SecretDoor</span> class can do this for you, but it does so using one of the mechanisms we're about to describe). For such purposes the library provides four methods that can be used to adjust the vocabulary (and possibly the name) of an object at run-time: <strong>addVocabWord(word, matchFlags</strong>), <strong>removeVocabWord(word, matchFlags?)</strong>, <strong>addVocab(voc)</strong> and <strong>replaceVocab(voc)</strong>.</p>
 
 <p><strong>addVocabWord(word, matchFlags</strong>) adds <em>word</em> (given as a single-quoted string) to the words that can be used to refer to the object as the part of speech defined by <em>matchFlags</em>, which can be one of <span class="code">MatchPrep</span>, <span class="code">MatchAdj</span>. <span class="code">MatchNoun</span> or <span class="code">MatchPlural</span>.</p>

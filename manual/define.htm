@@ -18,7 +18,7 @@ Defining New Actions
 
 <p>Although adv3Lite comes with a fairly substantial range of built-in actions (almost as many as adv3), most games will want to define at least one or two additional ones, and in this section we discuss how. Here we'll focus on some of the basics, and concentrate on how to define new <a href="#iaction">IActions</a>, <a href="#taction">TActions</a> and <a href="#tiaction">TIActions</a> (actions that take no objects, a direct object that's a physical game object, or a direct object and an indirect object that are both physical game objects). Actions involving <a href="literalact.htm">literals</a> and <a href="topicact.htm">topics</a> raise additional issues that we'll look at in the sections to follow.</p>
 
-<h2>Synonyms for Existing Actions</h2>
+<a name="synonyms"></a><h2>Synonyms for Existing Actions</h2>
 <p>Before discussing how to define new actions, we should first consider how to go about defining synonyms for existing actions, for in some cases that may be all you need to do. There are basically two ways to define synonyms for an existing action: either modify an existing VerbRule or create a new one. In either case you'll probably want to find the existing VerbRule defined in the adveLite library and then copy it and paste it into your own code to use as a model. <a href="#verbrule">VerbRules</a> (the grammar rules that define how a player can describe an action to the parser) are found in the file grammar.t under the english directory (that is, in the folder called 'english') within the adv3Lite library directory. To find the one you want, search on a word that describes the action (e.g. 'take') or on the name of the action (e.g. 'LockWith') if you know it.</p>
 
 <p>Suppose, for example, you wanted to make the commands GRAB and SNATCH work just like TAKE. Here's how you'd do it by modifying a VerbRule:</p>
@@ -92,7 +92,7 @@ VerbRule(Grab)
 </pre></div>
 
 
- 
+<a name="vrprops"></a>
 <p>From this point on eEach VerbRule has several properties and methods that it either can or must define:</p>
 
 <ul>  
@@ -111,7 +111,7 @@ VerbRule(Grab)
  
 <li><strong>dobjReply, iobjReply, accReply</strong> - the noun phrase production to use for parsing a reply to the missing-object question for the corresponding role.  Players sometimes reply to a question like "What do you want to put it in?" by starting the answer with the same preposition in the question: "in the box".  To support this, you can specify a noun phrase production that starts with the appropriate preposition (inSingleNoun, onSingleNoun, etc).</li> 
 
-<li>priority - The predicate priority is a small number, 0-99.  The default is 50, which should apply to most normal, complete verb phrases.  For incomplete phrases (with a missing object, which will force the   parser to assume a default or ask the player for the missing information), use 25.  Other values are for fine-tuning as needed in the individual grammar rules.  A higher value means higher priority. One example where this is used in the adv3Library is in the grammer for the Hello, Yes and Say commands. The Say command allows the player to say anything (this is used in the conversation system), such as SAY YOU DON'T BELIEVE HIM. One of the possible grammars for the Hello command is SAY HELLO, and one of the possible grammars for the Yes command is SAY YES. The trouble then is that SAY HELLO and SAY YES both match the grammar for the SAY command as well as a Hello or Yes command. To make sure the parser matches the corrent command in these cases the adv3Lite library gives VerbRule(Yes) and VerbRule(Hello) a priority of 60 to ensure that they're both matched in preference to VerbRule(Say).</li>
+<li><strong>priority</strong> - The predicate priority is a small number, 0-99.  The default is 50, which should apply to most normal, complete verb phrases.  For incomplete phrases (with a missing object, which will force the   parser to assume a default or ask the player for the missing information), use 25.  Other values are for fine-tuning as needed in the individual grammar rules.  A higher value means higher priority. One example where this is used in the adv3Library is in the grammer for the Hello, Yes and Say commands. The Say command allows the player to say anything (this is used in the conversation system), such as SAY YOU DON'T BELIEVE HIM. One of the possible grammars for the Hello command is SAY HELLO, and one of the possible grammars for the Yes command is SAY YES. The trouble then is that SAY HELLO and SAY YES both match the grammar for the SAY command as well as a Hello or Yes command. To make sure the parser matches the corrent command in these cases the adv3Lite library gives VerbRule(Yes) and VerbRule(Hello) a priority of 60 to ensure that they're both matched in preference to VerbRule(Say).</li>
 </ul>
 
 <p>Note that for the most part when defining your own actions you'll mostly only have to worry about the first two or three of these properties (and occasionally the last), but there may occasionally be times when you need to know about the others, so they're included here for completeness. Note also that although it's possible to define a VerbRule for an action that takes three objects (direct object, indirect object amd accessory), the adv3Lite library has no direct support for such actions. One way of handling them in your own code if your game really needs them might be to define a <a href="doer.htm">Doer</a> that carries out whatever checks are needed on the accessory object and then redirects the command to an appropriate <a href="#tiaction">TIAction</a>.</p>
@@ -223,7 +223,7 @@ DefineTAction(Repair)
 </pre></div>
 
 <p>This stops TAKE ALL from trying to take objects the actor is already holding (which is unlikely to be what the player intended) or objects that are fixed in place (which again is unlikely to be what the player intended), and so avoids a whole lot of failure messages from objects that obviously can't be taken.</p>
-
+<a name="announce"></a>
 <p>One other property you might want to define on your action object is <strong>announceMultiAction</strong>. This is nil by default, but if it's true and the action applies to more than one direct object (e.g. EXAMINE ALL) then it will announce the name of the object each time it runs the actions routine, so you could get an output like:</p>
 
 <p><div class="cmdline"><pre>
@@ -350,7 +350,7 @@ DefineTIAction(RepairWith)
    resolveIobjFirst = nil
 ;
 </pre></div>
-
+<a name="resolvefirst"></a>
 <p>The additional point to note here is the use of the <strong>resolveIobjFirst</strong> property. In adv3Lite the verify() properties are only consulted once (at most) during object resolution; the resolveIobjFirst property controls whether the indirect object's verify() method is consulted first (the default, resolveIobjFirst = true), or whether the direct object's verify() method is run first (as here). The significance is that whichever property is run first has no access to the identity of the other object. So when resolveIobjFirst is true, the direct object is not known when the indirect object is resolved, but the indirect object is known when the direct object is resolved, so the direct object's verify() method can make use of the identity of the indirect object to decide whether or not the direct object is a logical choice. When resolveIobjFirst is false, it's the other way about. For actions like PutIn and PutOn, resolveIobjFirst = true is a good choice, since it's helpful to know what we want to put something in or on before deciding whether it's logical to put a particular object in it or on it. For our new RubWith and RepairWith actions, however, it's probably better to resolve the direct object first, so that when the parser comes to resolve the indirect object the the potential indirect objects' verify() routines can see what it is that's to be rubbed or repaired before deciding with the proposed indirect object is a logical choice to rub or repair it with.</p>
 
 <p>The third step proceeds as before, except that we now have to define the iobjFor(Action) methods as well as the dobjFor(Action) methods:</p>
@@ -402,7 +402,7 @@ modify Thing
 </pre></div>
 
 <p>Here we're assuming that we've previously defined a Repair action as above, so we can re-use the cannotRepairMsg on the direct object of a RepairWith action (another reason for defining it on a message property) along with the isRepairable property. Note too how we take advantage of the fact that the direct object is resolved first to test that we're not trying to repair anything with itself on the indirect object; if there's a red box and a red screwdriver, REPAIR BOX WITH RED will then result in the red screwdriver being selected as the indirect choice since even if the red box doesn't need repairing and the screwdriver couldn't repair it in any case, attempting to repair the box with the screwdriver is less illogical than attempting to repair the box with itself. Note too the definition of a new cannotRepairWithMe property (following the naming convention used in the library). This simplifies writing the code for objects that can be used to repair other ones with, since we can then simply define <span class="code">canRepairWithMe = true</span> without having to override the verify() method again and remembering to copy the code to block the attempt to repair something with itself.</p>
-
+<a name="valtolist"></a>
 <p>In addition to defining particular objects in our game that can be repaired, we might want to define a Tool class for objects we can reasonably attempt repairs with:</p>
 
  <p><div class="code"><pre>

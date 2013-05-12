@@ -213,7 +213,7 @@ class SimpleAttachable: Thing
     okayDetachFromMsg = BMsg(okay detach from, '{I} {detach} {1} from {the iobj}. ', 
                  gActionListStr)
     
-    cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj) {cannot} be
+    cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj} {cannot} be
         detached from {1}. ', location.theName)
     
     iobjFor(DetachFrom)
