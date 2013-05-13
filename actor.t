@@ -4450,35 +4450,7 @@ conversationManager: OutputFilter, PreinitObject
             /* pick out the tag */
             tag = rexGroup(1)[3].toLower();
 
-            #ifdef __DEBUG
-            
-//            if(tag not in ('known', 'reveal'))
-//            {
-//                local frame = t3GetStackTrace(8);
-//                local warningPrefix = '<b><FONT COLOR=RED>WARNING!</FONT></b> 
-//                    &lt;.<<tag>> <<arg>>&gt;';
-//                
-//                if(frame.obj_ == nil)
-//                    "<<warningPrefix>> invoked outside object context. ";
-//                else
-//                {
-//                    if(!((frame.self_ == respondingActor && frame.prop_ ==
-//                         &actorSay)
-//                         || (frame.self_.ofKind(ConvAgendaItem) &&
-//                         frame.self_.getActor == respondingActor 
-//                             && frame.prop_ == &invokeItem)
-//                         || (frame.self_.ofKind(ActorTopicEntry) &&
-//                             frame.self_.getActor == respondingActor)))
-//                        "<<warningPrefix>> invoked in unsafe context from
-//                        <<frame.self_.theName>>. <<if frame.self_.getActor !=
-//                          respondingActor>> This is not the current
-//                        interlocutor. <<end>>\b";
-//                }
-//            }                
-//            
-            #endif
-            
-            
+                       
             /* check which tag we have */
             switch (tag)
             {
