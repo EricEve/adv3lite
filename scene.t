@@ -20,6 +20,12 @@ sceneManager: InitObject
         
         /* Run the scene manager late in the daemon sequence. */
         daem.eventOrder = 1000;
+        
+        /* 
+         *   Run the doScenes() method for the first time to set up any scenes
+         *   that should be active at the start of play.
+         */
+        doScenes();
     }
     
     /* The doScenes() method is run each turn to drive the Scenes mechanism */
@@ -52,6 +58,8 @@ sceneManager: InitObject
                 scene.eachTurn();
         }        
     }  
+    
+    execBeforeMe = [adv3LibInit]
 ;
 
 

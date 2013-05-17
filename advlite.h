@@ -295,11 +295,8 @@ dictionary property noun, nounApostS;
 /* get the current player character Actor object */
 #define gPlayerChar (libGlobal.playerChar)
 
-#define objForCheck(which, action)
 
-#define objFor(which, action) \
-    objForCheck(which, action) \
-    propertyset '*' ## #@which ## #@action
+#define objFor(which, action) propertyset '*' ## #@which ## #@action
 
 #define dobjFor(action) objFor(Dobj, action)
 #define iobjFor(action) objFor(Iobj, action)

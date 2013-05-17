@@ -1557,8 +1557,8 @@ class Thing:  ReplaceRedirector, Mentionable
          *   special' message.
          */
         if(str == '')            
-            DMsg(nothing special,  '{I} {see} nothing special about {1}. ', 
-                 theName); 
+            DMsg(nothing special,  '{I} {see} nothing special about 
+                {the dobj}. '); 
     }
     
     /* 
