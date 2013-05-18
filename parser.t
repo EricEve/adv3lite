@@ -5285,7 +5285,7 @@ class NoneInOwnerError: ActorResolutionError
              *   present, but neither of them has a sword (not that's in
              *   scope, anyway).  
              */
-            DMsg(none in owners, 'No {2} {dummy}{appears} to have any {3}.',
+            DMsg(none in owners, 'No {2} {dummy}appear{s/ed} to have any {3}.',
                  cmd, possQual.prod.getText(), txt);
         }
         else
@@ -5301,8 +5301,8 @@ class NoneInOwnerError: ActorResolutionError
             local obj = possQual.matches[1].obj;
             gMessageParams(obj);
             
-            DMsg(none in owner, '{The subj obj} {doesn\'t appear} to have any
-                {2}.',  cmd,  txt);
+            DMsg(none in owner, '{The subj obj} {doesn\'t appear[ed]} to have
+                any {2}.',  cmd,  txt);
                       
         }
     }    

@@ -604,7 +604,7 @@ class Door: TravelConnector, Thing
              *   to go to, so simply report that travel isn't possible.
              */
             if(destination == nil)
-                DMsg(leads nowhere, 'Unfortunately {1} {dummy} {does}n\'t lead
+                DMsg(leads nowhere, 'Unfortunately {1} {dummy} {doesn\'t lead}
                     anywhere. ', theName);
             
             /*  
@@ -730,7 +730,7 @@ class Door: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following through door, '{The subj follower} {follows} {the
+        DMsg(say following through door, '{The subj follower} follow{s/ed} {the
             leader} through {1}. ', theName);
     }
     
@@ -999,10 +999,10 @@ class TravelConnector: object
         local depdir = getDepartingDirection(follower);
         
         if(depdir == nil)
-            DMsg(say following vague, '<.p>{The subj follower} {follows} {the
+            DMsg(say following vague, '<.p>{The subj follower} follow{s/ed} {the
                 leader}. ');
         else        
-            DMsg(say following dir, '<.p>{The subj follower} {follows} {the
+            DMsg(say following dir, '<.p>{The subj follower} follow{s/ed} {the
                 leader} {1}. ', depdir.departureName);
         
     }

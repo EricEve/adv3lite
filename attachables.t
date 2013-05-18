@@ -103,7 +103,7 @@ class SimpleAttachable: Thing
         }
     }
     
-    okayAttachMsg = BMsg(okay attach, '{I} {attach} {1} to {the iobj}. ',
+    okayAttachMsg = BMsg(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
                          gActionListStr) 
     
     alreadyAttachedMsg = BMsg(already attached, '{The subj dobj} {is} already
@@ -163,7 +163,7 @@ class SimpleAttachable: Thing
         
     }
     
-    okayDetachMsg = BMsg(okay detach, '{I} detach {1}. ', gActionListStr)
+    okayDetachMsg = BMsg(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
     
     
     dobjFor(DetachFrom)
@@ -210,8 +210,8 @@ class SimpleAttachable: Thing
         }
     }
     
-    okayDetachFromMsg = BMsg(okay detach from, '{I} {detach} {1} from {the iobj}. ', 
-                 gActionListStr)
+    okayDetachFromMsg = BMsg(okay detach from, '{I} detach{es/ed} {1} from
+        {the iobj}. ',  gActionListStr)
     
     cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj} {cannot} be
         detached from {1}. ', location.theName)
@@ -589,7 +589,7 @@ class PlugAttachable: object
         report() { reportDobjAttachTo(); }        
     }
     
-    okayAttachMsg = BMsg(okay plug, '{I} {plug} {1} into {the iobj}. ',
+    okayAttachMsg = BMsg(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
                          gActionListStr) 
     
     alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
@@ -682,8 +682,8 @@ class PlugAttachable: object
         report() { reportDobjDetachFrom(); }
     }
     
-    okayDetachFromMsg = BMsg(okay unplug from, '{I} {unplug} {1} from {the iobj}. ', 
-                 gActionListStr)
+    okayDetachFromMsg = BMsg(okay unplug from, '{I} unplug{s/?ed} {1} from
+        {the iobj}. ', gActionListStr)
     
     notAttachedMsg = BMsg(not plugged in, '{The subj dobj} {isn\'t} plugged into
         anything. ') 
@@ -721,7 +721,7 @@ class PlugAttachable: object
         report() { say(okayDetachMsg); }
     }
     
-    okayDetachMsg = BMsg(okay unplug, '{I} {unplug} {1}. ', gActionListStr)
+    okayDetachMsg = BMsg(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
     
     dobjFor(PlugIn)
     {
@@ -757,7 +757,7 @@ class PlugAttachable: object
             
         }
         
-        report() { DMsg(okay plug in, '{I} {plug} in {1}. ', gActionListStr); }
+        report() { DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); }
         
     }
 ;

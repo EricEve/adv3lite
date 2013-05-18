@@ -395,7 +395,7 @@ DefineIAction(Look)
 DefineIAction(Wait)
     execAction(cmd)
     {
-        DMsg(wait, 'Time {dummy} {passes}. ');
+        DMsg(wait, 'Time {dummy} pass{es/ed}. ');
     }
    
 ;
@@ -403,14 +403,14 @@ DefineIAction(Wait)
 DefineIAction(Jump)
     execAction(cmd)
     {
-        DMsg(jump, '{I} {jump} on the spot, fruitlessly. ');
+        DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');
     }
 ;
 
 DefineIAction(Yell)
     execAction(cmd)
     {
-        DMsg(yell, '{I} {shout} very loudly. ');
+        DMsg(yell, '{I} shout{s/ed} very loudly. ');
     }
 ;
 
@@ -1383,7 +1383,7 @@ DefineTAction(PushTravelDir)
             if(oldLoc != gActor.getOutermostRoom)
             {
                 curDobj.moveInto(gActor.getOutermostRoom);
-                DMsg(push travel, '{I} {push} {the dobj} into {1}. ',
+                DMsg(push travel, '{I} push{es/ed} {the dobj} into {1}. ',
                      gActor.getOutermostRoom.name != nil ?
                      gActor.getOutermostRoom.theName : 'the area');
             }

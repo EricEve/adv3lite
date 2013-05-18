@@ -302,7 +302,6 @@ dictionary property noun, nounApostS;
 #define iobjFor(action) objFor(Iobj, action)
 
 #define reportAfter(msg) gCommand.afterReports += msg
-#define extraReport(msg) gOutStream.writeFromStream(msg)
 
 /*
  *   Treat an object definition as equivalent to another object definition.

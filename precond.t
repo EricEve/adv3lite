@@ -121,8 +121,8 @@ containerOpen: PreCondition
          *   open it; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(container needs to be open, '{The subj obj} {needs} to be open for
-            that. ');
+        DMsg(container needs to be open, '{The subj obj} need{s/ed} to be open
+            for that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        
@@ -186,7 +186,7 @@ objOpen: PreCondition
          *   open it; display a message explaining the problem.
          */
         gMessageParams(obj);
-        DMsg(object needs to be open, '{The subj obj} {needs} to be open for
+        DMsg(object needs to be open, '{The subj obj} need{s/ed} to be open for
             that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -255,7 +255,7 @@ objClosed: PreCondition
          *   close it; display a message explaining the problem.
          */
         gMessageParams(obj);        
-        DMsg(obj needs to be closed, '{The subj obj} {needs} to be closed for
+        DMsg(obj needs to be closed, '{The subj obj} need{s/ed} to be closed for
             that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
@@ -333,7 +333,7 @@ objHeld: PreCondition
          *   problem.
          */
         gMessageParams(obj);
-        DMsg(need to hold, '{I} {need} to be holding {the obj} to do that. ');
+        DMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        

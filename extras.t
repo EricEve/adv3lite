@@ -270,7 +270,7 @@ class StairwayUp: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following up staircase, '{The subj follower} {follows} {the
+        DMsg(say following up staircase, '{The subj follower} follow{s/ed} {the
             leader} up {1}. ', theName);
     }
     
@@ -321,8 +321,8 @@ class StairwayDown: TravelConnector, Thing
         /* Create message parameter substitutions for the follower and leader */
         gMessageParams(follower, leader);  
         
-        DMsg(say following down staircase, '{The subj follower} {follows} {the
-            leader} down {1}. ', theName);
+        DMsg(say following down staircase, '{The subj follower} follow{s/ed}
+            {the leader} down {1}. ', theName);
     }
     
     traversalMsg = BMsg(traverse stairway down, 'down {1}', theName)

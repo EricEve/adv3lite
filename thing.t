@@ -1558,7 +1558,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         if(str == '')            
             DMsg(nothing special,  '{I} {see} nothing special about 
-                {the dobj}. '); 
+                {1}. ', theName); 
     }
     
     /* 
@@ -3749,7 +3749,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(hiddenUnder.length > 0)
         {
             moveReport += 
-                BMsg(reveal move under,'Moving {1} {dummy} {reveals} {2}
+                BMsg(reveal move under,'Moving {1} {dummy} reveal{s/ed} {2}
                     previously hidden under {3}. ',
                      theName, makeListStr(hiddenUnder), himName);
                      
@@ -3766,7 +3766,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(hiddenBehind.length > 0)
         {
             moveReport += 
-                BMsg(reveal move behind,'Moving {1} {dummy} {reveals} {2}
+                BMsg(reveal move behind,'Moving {1} {dummy} reveal{s/ed} {2}
                     previously hidden behind {3}. ',
                      theName, makeListStr(hiddenBehind), himName);
                         
@@ -3868,7 +3868,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report drop, 'Dropped. |{I} {drop} {1}. ', gActionListStr);            
+            DMsg(report drop, 'Dropped. |{I} drop{s/?ed} {1}. ', gActionListStr);            
         }
     }
     
@@ -4064,8 +4064,8 @@ class Thing:  ReplaceRedirector, Mentionable
             
             gMessageParams(obj);
             
-            DMsg(throw dir, '{I} {throw} {the obj} {1}wards and {he obj} {lands}
-                on the ground. ', gAction.direction.name );
+            DMsg(throw dir, '{I} {throw} {the obj} {1}wards and {he obj}
+                land{s/ed} on the ground. ', gAction.direction.name );
         }
     }
     
@@ -4203,7 +4203,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report close, 'Done |{I} {close} <<theName>>. ');
+            DMsg(report close, 'Done |{I} close{s/d} {1}. ',  gActionListStr);
         }
     }
     
@@ -4244,7 +4244,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotTurnMsg = BMsg(cannot turn, '{The subj dobj} {can\'t} be turned. ')
     
-    turnNoEffectMsg = BMsg(turn useless, 'Turning {1} {dummy} {achieves}
+    turnNoEffectMsg = BMsg(turn useless, 'Turning {1} {dummy} achieve{s/d}
         nothing. ', gActionListStr)
     
     dobjFor(TurnWith)
@@ -4683,7 +4683,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report() { say(pushNoEffectMsg); }
     }
         
-    cannotPushMsg = BMsg(cannot push, '{There}{\'s} no point trying to push
+    cannotPushMsg = BMsg(cannot push, 'There{\'s} no point trying to push
         {that dobj}. ')
     
     pushNoEffectMsg = BMsg(push no effect, 'Pushing {1} {dummy} {has} no
@@ -4705,7 +4705,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report() { say(pullNoEffectMsg); }
     }
     
-    cannotPullMsg = BMsg(cannot pull, '{There}{\'s} no point trying to pull
+    cannotPullMsg = BMsg(cannot pull, 'There{\'s} no point trying to pull
         {that dobj}. ')
     
     pullNoEffectMsg = BMsg(pull no effect, 'Pulling {1} {dummy} {has} no
@@ -5124,9 +5124,9 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     notLockableMsg = BMsg(not lockable, '{The subj dobj} {isn\'t} lockable. ')
-    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t need} a key to lock and
-        unlock {the dobj}. ')
-    indirectLockableMsg = BMsg(indirect lockable,'{The dobj} {appears} to use
+    keyNotNeededMsg = BMsg(key not needed,'{I} {don\'t need[ed]} a key to lock
+        and unlock {the dobj}. ')
+    indirectLockableMsg = BMsg(indirect lockable,'{The dobj} appear{s/ed} to use
         some other kind of locking mechanism. ')
     notLockedMsg = BMsg(not locked, '{The subj dobj} {isn\'t} locked. ')
     
@@ -5449,7 +5449,7 @@ class Thing:  ReplaceRedirector, Mentionable
   
     
     keyDoesntWorkMsg = BMsg(key doesnt work, 'Unfortunately {1} {dummy}
-        {doesn\'t work} on {the dobj}. ', useKey_.theName)
+        {doesn\'t work[ed]} on {the dobj}. ', useKey_.theName)
     
     useKey_ = nil
     
@@ -5475,7 +5475,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report turn on, 'Done.|{I} {turn} on {the dobj}. ');
+            DMsg(report turn on, 'Done.|{I} turn{s/ed} on {the dobj}. ');
         } 
     }
     
@@ -5503,7 +5503,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report turn off, 'Done.|{I} {turn} off {the dobj}. ');
+            DMsg(report turn off, 'Done.|{I} turn{s/ed} off {the dobj}. ');
         } 
     }
     
@@ -5526,8 +5526,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report switch, 'Okay, you turn {1} {the dobj}. ', isOn ? 'on' :
-                 'off');
+            DMsg(report switch, 'Okay, {I} turn{s/ed} {1} {the dobj}. ', isOn ? 
+                 'on' : 'off');
         }
     }
     
@@ -5715,7 +5715,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             local obj = gActionListObj;
             gMessageParams(obj);
-            DMsg(throw, '{The subj obj} {sails} through the air and {lands}
+            DMsg(throw, '{The subj obj} sail{s/ed} through the air and land{s/ed}
                 on the ground. ' );
         }
         
@@ -6104,7 +6104,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay move to, '{I} {move} {1} {dummy} to {the iobj}. ',
+            DMsg(okay move to, '{I} move{s/d} {1} {dummy} to {the iobj}. ',
                  gActionListStr);
         }
     }
@@ -6344,14 +6344,14 @@ class Thing:  ReplaceRedirector, Mentionable
     alreadyCleanMsg = BMsg(already clean, '{The subj dobj} {is} already quite
         clean enough. ')
     
-    noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {doesn\'t need} cleaning.
-        ')
+    noNeedToCleanMsg = BMsg(no clean, '{The subj dobj} {doesn\'t need[ed]}
+        cleaning. ')
         
     
-    dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need}
+    dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need[ed]}
         anything to clean {the dobj} with. ')
     
-    okayCleanMsg = DMsg(okay clean, 'Cleaned|{I} {clean} {1}. ',
+    okayCleanMsg = DMsg(okay clean, 'Cleaned|{I} clean{s/ed} {1}. ',
                         gActionListStr)
     
     dobjFor(CleanWith)
@@ -6550,7 +6550,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             local obj = gActionListObj;
             gMessageParams(obj);
-            DMsg(throw at, '{The subj obj} {strikes} {the iobj} and {lands}
+            DMsg(throw at, '{The subj obj} {strikes} {the iobj} and land{s/ed}
                 on the ground. ');            
         }
         
@@ -6601,7 +6601,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotThrowToSelfMsg = BMsg(cannot throw to self, '{The subj dobj} {can\'t}
         be thrown to {itself dobj}. ')
     
-    throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} {lands} far
+    throwFallsShortMsg = BMsg(throw falls short, '{The subj dobj} land{s/ed} far
         short of {the iobj}. ')
     
     canTurnMeTo = nil
@@ -6633,7 +6633,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay turn to, 'Okay, {I} {turn} {1} to {2}', gActionListStr, 
+            DMsg(okay turn to, 'Okay, {I} turn{s/ed} {1} to {2}', gActionListStr, 
                  gLiteral);
         }
     }
@@ -6907,7 +6907,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay fasten, 'Done|{I} {fasten} {1}. ', gActionListStr);
+            DMsg(okay fasten, 'Done|{I} fasten{s/ed} {1}. ', gActionListStr);
         }
     }
     
@@ -7133,7 +7133,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report kiss, 'Kissing {1} {dummy}{proves} remarkably
+            DMsg(report kiss, 'Kissing {1} {dummy}prove{s/d} remarkably
                 unrewarding. ',  gActionListStr); 
         }
     }
@@ -7169,7 +7169,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(jump off, '{I} {jump} off {1} and {land} on the ground', 
+            DMsg(jump off, '{I} jump{s/ed} off {1} and land{s/ed} on the ground', 
                  gActionListStr);
         }
     }
@@ -7680,7 +7680,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         if(location == gIobj.destination)
         {
-            DMsg(push travel somewhere, '{I} {push} {the dobj} {1} {the iobj}. ',
+            DMsg(push travel somewhere, '{I} push{es/ed} {the dobj} {1} {the iobj}. ',
                  via.prep);        
             gIobj.travelVia(gActor);
         }       
@@ -7712,7 +7712,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }       
     }
     
-    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {push}
+    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} push
         anything through {the iobj}. ')
     
     
@@ -7730,7 +7730,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    okayPushIntoMsg = BMsg(okay push into, '{I} {push} {the dobj} into {the
+    okayPushIntoMsg = BMsg(okay push into, '{I} push{es/ed} {the dobj} into {the
         iobj}. ')
     
     iobjFor(PushTravelEnter)
@@ -7758,7 +7758,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {push}
+    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} push
         anything into {the iobj}. ')
     
     dobjFor(PushTravelGetOutOf)
@@ -7798,7 +7798,7 @@ class Thing:  ReplaceRedirector, Mentionable
        
     }
     
-    okayPushOutOfMsg = BMsg(okay push out of, '{I} {push} {the dobj} {outof
+    okayPushOutOfMsg = BMsg(okay push out of, '{I} push{es/ed} {the dobj} {outof
         iobj}. ')
     
     dobjFor(PushTravelClimbUp)
@@ -7822,7 +7822,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {push}
+    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} push
         anything up {the iobj}. ')
     
     dobjFor(PushTravelClimbDown)
@@ -7846,7 +7846,7 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} {push}
+    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} push
         anything down {the iobj}. ')
     
     /* 
@@ -8236,7 +8236,7 @@ class Key: Thing
         
     }
     
-    okayUnlockWithMsg = '{I} {unlock} {the dobj} with {the iobj}. '
+    okayUnlockWithMsg = '{I} unlock{s/ed} {the dobj} with {the iobj}. '
     
     iobjFor(LockWith)
     {
@@ -8293,7 +8293,7 @@ class Key: Thing
     }
     
     /* The message to say that the actor has lock the dobj with this key. */
-    okayLockWithMsg = '{I} {lock} {the dobj} with {the iobj}. '
+    okayLockWithMsg = '{I} lock{s/ed} {the dobj} with {the iobj}. '
     
     /* 
      *   The message to say that this key clearly won\'t work on the dobj

@@ -144,7 +144,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   The default response of the actor to a conversational command that is
      *   not handled anywhere else.
      */
-    noResponseMsg = BMsg(no response, '{The subj cobj} {does} not respond. ')
+    noResponseMsg = BMsg(no response, '{The subj cobj} {doesnot respond[ed]}. ')
     
     
     /* Handle a command (e.g. BOB, JUMP) directed at this actor. */
@@ -950,7 +950,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         gMessageParams(follower);
         
         /* Display our default following message */
-        DMsg(follow, '<.p>{The follower} {follows} behind {me}. ');
+        DMsg(follow, '<.p>{The follower} follow{s/ed} behind {me}. ');
     }
     
     
@@ -1052,13 +1052,13 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
             conn.sayActorFollowing(gActor, self);
     }
     
-    followActorMsg = BMsg(follow actor, '{I} {follow} {1}. ', theName)
+    followActorMsg = BMsg(follow actor, '{I} follow{s/ed} {1}. ', theName)
     
     /* 
      *   The message to display when this actor doesn't go anywhere when the
      *   player character tries to follow this actor.
      */
-    actorStaysPutMsg = BMsg(actor stays put, '{I} {wait} in vain for {1} to
+    actorStaysPutMsg = BMsg(actor stays put, '{I} wait{s/ed} in vain for {1} to
         go anywhere. ', theName)
     
     
@@ -1150,7 +1150,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         local traveler = self;
         gMessageParams(traveler);
         
-        DMsg(actor arriving, '{The subj traveler} {arrives} in the area. ');
+        DMsg(actor arriving, '{The subj traveler} arrive{s/d} in the area. ');
     }
     
     
@@ -1890,7 +1890,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   The default response of the actor to an attempt to kiss him/her/it
      *   where this is not handled anywhere else, but allowKiss is true.
      */
-    kissResponseMsg = BMsg(kiss response, '{The subj dobj} {does}n\'t like
+    kissResponseMsg = BMsg(kiss response, '{The subj dobj} {doesn\'t like[d]}
         that. ')
     
     dobjFor(Kiss)
@@ -1932,7 +1932,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     allowAttack = nil
     
     /* The message to display if allowAttack is nil */
-    shouldNotAttackMsg = BMsg(should not attack, 'That hardly {dummy} {seems}
+    shouldNotAttackMsg = BMsg(should not attack, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
     
     
@@ -2041,8 +2041,8 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     sayActorDropsCatch(obj)
     {
         gMessageParams(obj);
-        DMsg(drop catch, '{The subj iobj} {fails} to catch {the obj},
-                    so that {he obj} {lands} on the ground instead. ');
+        DMsg(drop catch, '{The subj iobj} fail{s/ed} to catch {the obj},
+            so that {he obj} land{s/ed} on the ground instead. ');
     }
     
     dobjFor(Follow)
@@ -2114,11 +2114,11 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
    
     sayHeadAfterActor(conn)
     {
-        DMsg(say head after actor, '{I} {head} off {1} after {2}. ',
+        DMsg(say head after actor, '{I} head{s/ed} off {1} after {2}. ',
              conn.traversalMsg, theName);
     }
     
-    waitToSeeMsg = BMsg(wait to see, '{I} {wait} to see where {he dobj}
+    waitToSeeMsg = BMsg(wait to see, '{I} wait{s/ed} to see where {he dobj}
         {goes}. ')
      
 
@@ -2233,7 +2233,7 @@ class ActorState: ActorTopicDatabase
         gMessageParams(follower);
         
         /* Display the message */
-        DMsg(state follow, '{The follower} {follows} behind {me}. ');
+        DMsg(state follow, '{The follower} follow{s/ed} behind {me}. ');
     }
     
     /*  

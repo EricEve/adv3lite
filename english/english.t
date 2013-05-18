@@ -2324,14 +2324,9 @@ englishCustomVocab: CustomVocab
     ]
 
     /* verb parameters, for {xxx} tokens in message strings */
-    verbParams = [        
-        'achieve/achieves/achieved',
-        'appear/appears/appeared',
-        'arise/arises/arose/arisen',
-        'ask/asks/asked',
-        'awake/awakes/awoke/awoken',
-        'attach/attaches/attached',
-        'arrive/arrives/arrived',
+    verbParams = [                
+        'arise/arises/arose/arisen',        
+        'awake/awakes/awoke/awoken',        
         'bear/bears/bore/born',
         'beat/beats/beat/beaten',
         'become/becomes/became/become',
@@ -2343,9 +2338,7 @@ englishCustomVocab: CustomVocab
         'bind/binds/bound',
         'bite/bites/bit/bitten',
         'bleed/bleeds/bled',
-        'blow/blows/blew/blown',
-        'board/boards/boarded',
-        'bounce/bounces/bounced',        
+        'blow/blows/blew/blown',                
         'break/breaks/broke/broken',
         'breed/breeds/bred',
         'bring/brings/brought',
@@ -2356,44 +2349,28 @@ englishCustomVocab: CustomVocab
         'cast/casts/cast',
         'catch/catches/caught',
         'choose/chooses/chose/chosen',
-        'clap/claps/clapt',
-        'clean/cleans/cleaned',
-        'climb/climbs/climbed',
-        'cling/clings/clung',
-        'close/closes/closed',
-        'come/comes/came',
-        'consult/consults/consulted',
-        'contain/contains/contained',
-        'cost/costs/costed',
+        'clap/claps/clapt',        
+        'cling/clings/clung',        
+        'come/comes/came',        
         'creep/creeps/crept',
         'cut/cuts/cut',
-        'deal/deals/dealt',
-        'detach/detaches/detached',
+        'deal/deals/dealt',        
         'dig/digs/dug',
         'dive/dives/dove/dived',
-        'do/does/did',
-        'doff/doffs/doffed',
-        'douse/douses/doused',
+        'do/does/did',        
         'draw/draws/drew/drawn',
         'dream/dreams/dreamt',
         'drink/drinks/drank/drunk',
-        'drive/drives/drove/driven',
-        'drop/drops/dropped',
+        'drive/drives/drove/driven',        
         'dwell/dwells/dwelt',
-        'eat/eats/ate/eaten',
-        'enter/enters/entered',
-        'extinguish/extinguishes/extinguished',
-        'fall/falls/fell/fallen',
-        'fail/fails/failed',
-        'fasten/fastens/fastened',
+        'eat/eats/ate/eaten',        
+        'fall/falls/fell/fallen',        
         'feed/feeds/fed',
         'feel/feels/felt',
         'fight/fights/fought',
         'find/finds/found',
-        'fling/flings/flung',
-        'flip/flips/flipped',
-        'fly/flies/flew/flown',
-        'follow/follows/followed',
+        'fling/flings/flung',        
+        'fly/flies/flew/flown',        
         'forbid/forbids/forbade/forbidden',
         'freeze/freezes/froze/frozen',
         'get/gets/got/gotten',
@@ -2401,25 +2378,20 @@ englishCustomVocab: CustomVocab
         'go/goes/went/gone',
         'grind/grinds/ground',
         'grow/grows/grew/grown',
-        'handwrite/handwrites/handwrote/handwritten',
-        'happen/happens/happened',
+        'handwrite/handwrites/handwrote/handwritten',        
         'hang/hangs/hung',
         'have/has/had',
-        'head/heads/headed',
-        'hear/hears/heard',
         'hide/hides/hid/hidden',
         'hit/hits/hit',
         'hold/holds/held',
         'hurt/hurts/hurt',
         'inlay/inlays/inlaid',
         'input/inputs/input',
-        'interlay/interlays/interlaid',
-        'jump/jumps/jumped',
+        'interlay/interlays/interlaid',        
         'keep/keeps/kept',
         'kneel/kneels/knelt',
         'knit/knits/knit',
-        'know/knows/knew/known',
-        'land/lands/landed',
+        'know/knows/knew/known',        
         'lay/lays/laid',
         'lead/leads/led',
         'leans/leans/leant',
@@ -2429,9 +2401,7 @@ englishCustomVocab: CustomVocab
         'lend/lends/lent',
         'let/lets/let',
         'lie/lies/lay/lain',
-        'light/lights/lit',
-        'lock/locks/locked',
-        'look/looks/looked',
+        'light/lights/lit',        
         'lose/loses/lost',
         'make/makes/made',
         'mean/means/meant',
@@ -2440,44 +2410,27 @@ englishCustomVocab: CustomVocab
         'mislead/misleads/misled',
         'mistake/mistakes/mistook/mistaken',
         'misunderstand/misunderstands/misunderstood',
-        'miswed/misweds/miswed',
-        'move/moves/moved',
-        'mow/mows/mowed/mown',
-        'need/needs/needed',
-        'open/opens/opened',
+        'miswed/misweds/miswed',        
+        'mow/mows/mowed/mown',        
         'overdraw/overdraws/overdrew/overdrawn',
         'overhear/overhears/overheard',
-        'overtake/overtakes/overtook/overtaken',
-        'pass/passes/passed',
-        'pay/pays/paid',
-        'pick/picks/picked',
-        'plug/plugs/plugged',
-        'pour/pours/poured',
+        'overtake/overtakes/overtook/overtaken',        
+        'pay/pays/paid',        
         'preset/presets/preset',
         'prove/proves/proved/proven',
-        'pull/pulls/pulled',
-        'push/pushes/pushed',
         'put/puts/put',
-        'quit/quits/quit',
-        'reach/reaches/reached',
+        'quit/quits/quit',        
         'read/reads/read',
-        'remove/removes/removed',
-        'reveal/reveals/revealed',
         'rid/rids/rid',
         'ride/rides/rode/ridden',
         'ring/rings/rang/rung',
         'rise/rises/rose/risen',
-        'rive/rives/rived/riven',
-        'rotate/rotates/rotated',
-        'run/runs/ran/run',
-        'sail/sails/sailed',
+        'rive/rives/rived/riven',        
+        'run/runs/ran/run',        
         'saw/saws/sawed/sawn',
         'sew/sews/sewed/sewn',
         'say/says/said',
-        'screw/screws/screwed',
-        'search/searches/searched',
-        'see/sees/saw/seen',
-        'seem/seems/seemed',
+        'see/sees/saw/seen',        
         'set/sets/set',
         'shake/shakes/shook/shaken',
         'shave/shaves/shaved/shaven',
@@ -2485,8 +2438,7 @@ englishCustomVocab: CustomVocab
         'shed/sheds/shed',
         'shine/shines/shone',
         'shoe/shoes/shod',
-        'shoot/shoots/shot',
-        'shout/shouts/shouted',
+        'shoot/shoots/shot',        
         'show/shows/showed/shown',
         'shrink/shrinks/shrank/shrunk',
         'shut/shuts/shut',
@@ -2528,11 +2480,8 @@ englishCustomVocab: CustomVocab
         'sweep/sweeps/swept',
         'swell/swells/swelled/swollen',
         'swim/swims/swam/swum',
-        'swing/swings/swung',
-        'switch/switches/switched',
-        'talk/talks/talked',
-        'take/takes/took/taken',
-        'taste/tastes/tasted',
+        'swing/swings/swung',        
+        'take/takes/took/taken',        
         'teach/teaches/taught',
         'tear/tears/tore/torn',
         'tell/tells/told',
@@ -2540,21 +2489,13 @@ englishCustomVocab: CustomVocab
         'thrive/thrives/throve/thrived',
         'throw/throws/threw/thrown',
         'thrust/thrusts/thrust',
-        'tread/treads/trod/trodden',
-        'turn/turns/turned',
-        'type/types/typed',
+        'tread/treads/trod/trodden',        
         'undergo/undergoes/underwent/undergone',
         'understand/understands/understood',
-        'undertake/undertakes/undertook/undertaken',
-        'unfasten/unfastens/unfastened',
-        'unlock/unlocks/unlocked',
-        'unplug/unplugs/unplugged',
-        'unscrew/unscrews/unscrewed',
+        'undertake/undertakes/undertook/undertaken',        
         'upset/upsets/upset',
-        'vex/vexes/vext',
-        'wait/waits/waited',        
-        'wake/wakes/woke/woken',
-        'want/wants/wanted',
+        'vex/vexes/vext',      
+        'wake/wakes/woke/woken',        
         'wear/wears/wore/worn',
         'weave/weaves/wove/woven',
         'wed/weds/wed',
@@ -2567,8 +2508,7 @@ englishCustomVocab: CustomVocab
         'withdraw/withdraws/withdrew/withdrawn',
         'withhold/withholds/withheld',
         'withstand/withstands/withstood',
-        'won\'t/won\'t/would not',
-        'work/works/worked',
+        'won\'t/won\'t/would not',        
         'wring/wrings/wrung',
         'write/writes/wrote',
         'zinc/zincks/zincked'        
@@ -4213,6 +4153,8 @@ englishMessageParams: MessageParams
         /* {don't <verb>} - the second token is the verb infinitive */
         [ 'don\'t', conjugateDont ],
         [ 'doesn\'t', conjugateDont ],
+        [ 'doesnot', conjugateDoNot],
+        [ 'donot', conjugateDoNot],
 
         /* {can}, {cannot}, {can't} */
         [ 'can', { ctx, params: conjugateCan(
@@ -4467,6 +4409,44 @@ conjugateRegular(ctx, params)
     
     return nil;
 }
+
+/* 
+ *   Form the past participle of a verb, which may either be given in the form
+ *   xxx, in which case we assume it's an irregular verb to be looked up in the
+ *   table of irregular verbs, or in the form xxx[y/z], in which case we assume
+ *   it's a regular verb to be conjugated according to the [y/z] ending.
+ */
+pastParticiple(verb)
+{
+    local b1 = verb.find('[');
+    local b2 = verb.find(']');
+    
+    
+    if(b1 != nil && b2 != nil && b2 > b1)
+    {
+        local stem = verb.substr(1, b1 - 1);
+        local suffix = verb.substr(b1 + 1, b2 - b1 - 1);
+        local dash = suffix.find('/');
+        local ending = suffix;
+        if(dash)
+        {    
+            ending = suffix.substr(dash + 1, suffix.length - 2);
+            
+        }
+        
+        if(ending.startsWith('?'))
+        {
+            stem = stem + stem.substr(-1, 1);
+            ending = ending.substr(2);
+        }
+        return stem + ending;
+                                     
+    }
+    else
+        return englishMessageParams.verbTab[verb][4];
+    
+}
+
 
 /*
  *   Conjugate "to be".  This is a handler function for message parameter
@@ -4723,38 +4703,90 @@ conjugateDont(ctx, params)
 {
     /* get the present index - don't vs doesn't */
     local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    
+    /* get the infinitive form by splitting off any [x/y] ending */
+    local inf = params[2].split('[')[1];
 
     /* look up the conjugation in the current tense */
     switch (Narrator.tense)
     {
     case Present:
         /* I don't see that here */
-        return ['don\'t ', 'doesn\'t '][idx] + params[2];
+        return ['don\'t ', 'doesn\'t '][idx] + inf;
 
     case Past:
         /* I didn't see that here */
-        return 'didn\'t <<params[2]>>';
+        return 'didn\'t <<inf>>';
 
     case Perfect:
         /* I don't see -> I haven't seen */
         return ['haven\'t ', 'hasn\'t '][idx]
-            + englishMessageParams.verbTab[params[2]][4];
+            + pastParticiple(params[2]);
+//            
 
     case PastPerfect:
         /* I don't see -> I hadn't seen */
-        return 'hadn\'t <<englishMessageParams.verbTab[params[2]][4]>>';
+        return 'hadn\'t <<pastParticiple(params[2])>>';
 
     case Future:
         /* I don't see -> I won't see */
-        return 'won\'t <<params[2]>>';
+        return 'won\'t <<inf>>';
 
     case FuturePerfect:
         /* I don't see -> I won't have seen */
-        return 'won\'t have <<englishMessageParams.verbTab[params[2]][4]>>';
+        return 'won\'t have <<pastParticiple(params[2])>>';
     }
 
     return nil;
 }
+
+/*
+ *   Conjugate "do not" plus a verb.  "Do not" is always an auxiliary in
+ *   English, and has an irregular structure in different tenses.  The
+ *   second token in the {donot x} phrase is the main verb we're
+ *   auxiliarizing.  
+ */
+conjugateDoNot(ctx, params)
+{
+    /* get the present index - don't vs doesn't */
+    local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    
+    /* get the infinitive form by splitting off any [x/y] ending */
+    local inf = params[2].split('[')[1];
+
+    /* look up the conjugation in the current tense */
+    switch (Narrator.tense)
+    {
+    case Present:
+        /* I do not see that here */
+        return ['do not ', 'does not '][idx] + inf;
+
+    case Past:
+        /* I did not see that here */
+        return 'did not <<inf>>';
+
+    case Perfect:
+        /* I do not see -> I have not seen */
+        return ['have not ', 'has not '][idx]
+            + pastParticiple(params[2]);
+//            
+
+    case PastPerfect:
+        /* I do not see -> I had not seen */
+        return 'had not <<pastParticiple(params[2])>>';
+
+    case Future:
+        /* I do not see -> I will not see */
+        return 'will not <<inf>>';
+
+    case FuturePerfect:
+        /* I do not see -> I will not have seen */
+        return 'will not have <<pastParticiple(params[2])>>';
+    }
+
+    return nil;
+}
+
 
 /*
  *   Conjugate 'can', 'can\'t', or 'cannot'.  In the present, these are
@@ -4790,8 +4822,9 @@ conjugateCan(ctx, params, beFunc, present, past)
  */
 conjugateMust(ctx, params)
 {
-    local inf = params[2];
-    local part = englishMessageParams.verbTab[inf][4];
+    local inf = params[2].split('[')[1];    
+    
+    local part = pastParticiple(params[2]);
     local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
 
     switch (Narrator.tense)

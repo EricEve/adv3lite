@@ -1979,4 +1979,16 @@ withTense(usePastTense, callback)
     return ret;
 }
 
+/* 
+ *   Display msg bypassing all filters except for the massage parameter
+ *   substitutions; these may also be bypassed if the second (optional)
+ *   parameter is nil.
+ */
 
+extraReport(msg, expandParam = true)
+{
+    if(expandParam)
+        msg = buildMessage(nil, msg);
+    
+    gOutStream.writeFromStream(msg);
+}
