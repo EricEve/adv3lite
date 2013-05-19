@@ -1706,8 +1706,15 @@ class LMentionable: object
     acronymPluralPat = R'<case>^<upper|digit>+$'
 
     /* class property: the main dictionary StringComparator */
-    dictComp = static new StringComparator(8, nil, nil)
+    dictComp = static new StringComparator(truncationLength, nil, nil)
 
+    /* 
+     *   class property: the truncation length to use for the main dictionary
+     *   StringComparator. 
+     */
+    truncationLength = 8
+    
+    
     /* class property: pronoun lookup table (built during preinit) */
     pronounMap = nil
  
