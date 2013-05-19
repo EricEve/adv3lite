@@ -5311,16 +5311,38 @@ class LCommandTopicHelper: object
     }
 ;
     
-/* 
- *   Does the token list for this command contain the word 'ALL'? This is a
- *   language-specific question so we define this function here. */
 
-mentionsAll(cmd)
+/* ------------------------------------------------------------------------ */
+/*
+ *   Simple yes/no confirmation.  The caller must display a prompt; we'll
+ *   read a command line response, then return true if it's an affirmative
+ *   response, nil if not.
+ */
+yesOrNo()
 {
-    local toks = cmd.verbProd.tokenList;
-    return toks.indexWhich({t: t[1].toLower()=='all'}) != nil;
-}
+    /* switch to no-command mode for the interactive input */
+    "<.commandnone>";
 
+    /*
+     *   Read a line of input.  Do not allow real-time event processing;
+     *   this type of prompt is used in the middle of a command, so we
+     *   don't want any interruptions.  Note that the caller must display
+     *   any desired prompt, and since we don't allow interruptions, we
+     *   won't need to redisplay the prompt, so we pass nil for the prompt
+     *   callback.
+     */
+    local str = inputManager.getInputLine(nil, nil);
+
+    /* switch back to mid-command mode */
+    "<.commandmid>";
+
+    /*
+     *   If they answered with something starting with 'Y', it's
+     *   affirmative, otherwise it's negative.  In reading the response,
+     *   ignore any leading whitespace.
+     */
+    return rexMatch('<space>*[yY]', str) != nil;
+}
 
 
 /* 

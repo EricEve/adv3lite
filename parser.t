@@ -1685,7 +1685,7 @@ class NounPhrase: object
         else if (determiner == All && tokens == [])
         {
             /* ALL - use everything in scope applicable to the verb */
-            addMatches(v, cmd.action.getAll(cmd, role), 0);
+            addMatches(v, cmd.action.getAllUnhidden(cmd, role), 0);
             cmd.matchedAll = true;
         }
         else
@@ -5240,14 +5240,26 @@ class AntecedentScopeError: PronounError
  */
 class InsufficientNounsError: ActorResolutionError
     display()
-    {
-        /*
-         *   The player used a noun phrase that specifically calls for some
-         *   number of objects (such as FIVE COINS or BOTH BOOKS), but
-         *   there aren't enough of those objects present.  
-         */
-        DMsg(not enough nouns,
-             '{I} {don\'t see} that many {2} {here}.', cmd, txt);       
+    { 
+        
+        if(cmd.matchedAll)
+            
+            /* 
+             *   The player used ALL when there's nothing suitable for all to
+             *   refer to.
+             */
+            DMsg(nothing suitable for all, 'There{\'s} nothing suitable for        
+                ALL to refer to. ');
+        
+        else
+            
+            /*
+             *   The player used a noun phrase that specifically calls for some
+             *   number of objects (such as FIVE COINS or BOTH BOOKS), but there
+             *   aren't enough of those objects present.
+             */
+            DMsg(not enough nouns,
+                 '{I} {don\'t see} that many {2} {here}.', cmd, txt);       
 
     }
 ;

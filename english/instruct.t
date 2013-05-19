@@ -364,7 +364,7 @@ DefineSystemAction(Instructions)
                 == str.length())
             {
                 /* try setting up a scripting file */
-                ScriptAction.setUpScripting(nil);
+                ScriptOn.setUpScripting(nil);
 
                 /* if that failed, don't proceed */
                 if (scriptStatus.scriptFile == nil)
@@ -415,7 +415,7 @@ DefineSystemAction(Instructions)
 
         /* if we started a script file, close it */
         if (startedScript)
-            ScriptOffAction.turnOffScripting(nil);
+            ScriptOff.turnOffScripting(nil);
     }
 
 #endif /* INSTRUCTIONS_MENU */

@@ -3437,6 +3437,21 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Is this object the player character? */
     isPlayerChar = (gPlayerChar == self)
     
+    /* 
+     *   To exclude this item from the list of objects to be acted upon when the
+     *   player types a command with ALL for action, override this method to
+     *   return true for the action or actions concerned. Note that this
+     *   exclusion is applied after the action has constructed its own list of
+     *   objects that ALL should apply to, and can only be used to make further
+     *   exclusions.
+     *
+     *   It shouldn't be necessary to use this method very often, since the
+     *   normal approach will be to override the getAll() method on the
+     *   appropriate action. It may be useful to use this method to handle
+     *   exceptional cases, however.
+     */
+    hideFromAll(action) { return nil; }
+    
     
     /*
      *   ******************************************************************
@@ -3722,7 +3737,7 @@ class Thing:  ReplaceRedirector, Mentionable
         ')
     
     cannotTakeMyContainerMsg = BMsg(cannot take my container, '{I} {can\'t}
-        {take} {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
+        take {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
     
     cannotTakeSelfMsg = BMsg(cannot take self, '{I} {can} hardly take {myself}. ')
     

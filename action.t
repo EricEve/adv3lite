@@ -648,12 +648,27 @@ class Action: ReplaceRedirector
     /* 
      *   Get a list of all the objects that this action should act on if the
      *   player typed ALL for role (DirectObject, IndirectObject, or perhaps in
-     *   some future version of the library, AccessoryObject.
+     *   some future version of the library, AccessoryObject. This is the method
+     *   that can be overridden on subclasses to give action-specific
+     *   definitions of ALL.
      */
     getAll(cmd, role)
     {
         /* by default, return everything in scope */
         return World.scope.toList();
+    }
+    
+    /* 
+     *   Get a list of all the objects this action will act on if the player
+     *   types ALL for role (DirectObject or IndirectObject). This is the method
+     *   actually called by the Parser. We first obtain the list of objects
+     *   returned by getAll() and then filter out any objects for which
+     *   hideFromAll(action) is true for this action. Subclasses should normally
+     *   override getAll() rather than this method.
+     */
+    getAllUnhidden(cmd, role)
+    {
+        return getAll(cmd, role).subset({x: x.hideFromAll(self) == nil});
     }
     
      /*
@@ -1339,7 +1354,7 @@ class TAction: Action
          *   cmd.matchedAll is also true) we all test for the presence of 'all'
          *   among the command tokens.
          */        
-        if(cmd.matchedAll && !(allowAll || parentAllowAll) && mentionsAll(cmd))
+        if(cmd.matchedAll && !(allowAll || parentAllowAll) )
         {
             DMsg(all not allowed, 'Sorry; ALL is not allowed with this command.
                 ');
