@@ -264,6 +264,109 @@ objClosed: PreCondition
     
 ;  
     
+/* 
+ *   A PreCondition to check whether an object is unlocked, and to attempt to
+ *   unlock it if it seems possible to do so.
+ */
+objUnlocked: PreCondition
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   If the object is already unlocked, we're already done. If the
+         *   object is neither lockableWithKey nor lockableWithoutKey there's
+         *   nothing we can do here.
+         */
+        if (obj == nil || ! obj.isLocked 
+            || obj.lockability not in (lockableWithoutKey, lockableWithKey) )
+            return true;
+        
+        /* 
+         *   If the object can be unlocked without a Key, try unlocking it
+         *   implicitly
+         */
+        if(allowImplicit && obj.lockability == lockableWithoutKey)
+        {
+            /* 
+             *   Try unlocking obj implicitly and note if we were allowed to make
+             *   the attempt.
+             */
+            local tried = tryImplicitAction(Unlock, obj);
+            
+             /*  
+              *   If obj is now unlocked return true to signal that this
+              *   precondition has now been met.
+              */            
+            if(!obj.isLocked)
+                return true;
+            
+            /* 
+             *   Otherwise, if we tried but failed to unlock obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to unlock obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;
+        }
+        
+        
+        /* 
+         *   If the object needs a key to unlock it, attempt to unlock it with a
+         *   plausible key if there is one, otherwise return true to let the
+         *   OPEN action go ahead and fail.
+         */
+        
+        if(allowImplicit && obj.lockability == lockableWithKey)
+        {
+            /* 
+             *   Try to find a key held by the actor that may unlock this
+             *   object; the result will be stored in the useKey_ property of
+             *   the object.
+             */
+            obj.findPlausibleKey(true);
+            
+            /* 
+             *   If we don't find a key, return TRUE to let the OPEN action go
+             *   ahead and report that the object is locked, since there's
+             *   nothing else we can do here.
+             */
+            if(obj.useKey_ == nil)
+                return true;
+            
+            /* 
+             *   Try unlocking obj with useKey_ implicitly and note if we were
+             *   allowed to make the attempt.
+             */
+            local tried = tryImplicitAction(UnlockWith, obj, obj.useKey_);
+            
+             /*  
+              *   If obj is now unlocked return true to signal that this
+              *   precondition has now been met.
+              */            
+            if(!obj.isLocked)
+                return true;
+            
+            /* 
+             *   Otherwise, if we tried but failed to unlock obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to unlock obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;
+        }
+        
+        /* 
+         *   Although the PreCondition hasn't been met, we'll return true at
+         *   this point to let the OPEN action go ahead and report the problem.
+         */
+        
+        return true;
+    }
+;
+
     
 /* A PreCondition to check whether an object is currently held by the actor. */
 objHeld: PreCondition

@@ -212,8 +212,8 @@ DefineTAction(Rub)
 DefineTAction(Repair)
 ;
 </pre></div>
-
-<p>And normally that's all there is to it. Occasionally, though, you might want do define the method <strong>getAll(cmd, role)</strong> which defines which objects should match ALL in a command like RUB ALL (here <em>cmd</em> is the current Command object and role is either DirectObject or IndirectObject). The default behaviour is to return every object in scope, but for some actions you may want to restrict this. For example on the Take action the adv3Lite library defines:</p>
+<a name="all"></a>
+<p>And normally that's all there is to it. Occasionally, though, you might want do define the method <strong>getAll(cmd, role)</strong> which defines which objects should match <a name="all_idx">ALL</a> in a command like RUB ALL (here <em>cmd</em> is the current Command object and role is either DirectObject or IndirectObject). The default behaviour is to return every object in scope, but for some actions you may want to restrict this. For example on the Take action the adv3Lite library defines:</p>
 
  <p><div class="code"><pre>
     getAll(cmd, role)
@@ -223,6 +223,37 @@ DefineTAction(Repair)
 </pre></div>
 
 <p>This stops TAKE ALL from trying to take objects the actor is already holding (which is unlikely to be what the player intended) or objects that are fixed in place (which again is unlikely to be what the player intended), and so avoids a whole lot of failure messages from objects that obviously can't be taken.</p>
+
+<p>To prevent an action accepting ALL altogether you can set its <strong>allowAll</strong> property to nil. Any action you do this on will respond to FOO ALL with "Sorry; ALL is not allowed with this command." You can also set this globally for most actions using <span class="code">gameMain.allActionsAllowAll</span>; see the description of the <a href="beginning.htm#gamemain">gameMain</a> object.</p>
+
+<p>Both these ways of modifying what ALL does can be used on both new and existing actions (in the case of existing ones you'd need to use a <span class="code">modify</span> statement). A third method that can be applied to both is the <strong>hideFromAll(action)</strong> method of Thing. If this method returns true for <em>action</em>, then the Thing in question will be excluded from the list of things FOO ALL applies to (when FOO is the relevant action). For example, if our game includes a bottle of deadly poison, we may want to prevent the player from accidentally killing the player character with a DRINK ALL or EAT ALL command by doing something like the following:</p>
+
+ <p><div class="code"><pre>
+poisonBottle: Thing 'dark green bottle; of[prep]; poison'
+  "It's labeled POISON. "
+  isDrinkable = true
+  
+  hideFromAll(action)
+  {
+     return action is in (Eat, Drink, Taste);
+  }
+  
+  dobjFor(Drink)
+  {
+     action()
+     {
+         "It tastes foul, but that's the least of your worries...";
+         finishGameMsg(ftDeath, [finishOptionUndo]);
+     }
+  }
+  
+  dobjFor(Taste) asDobjFor(Drink)
+;
+</pre></div>
+
+<p>Note that while making <span class="code">hideFromAll(action)</span> return true will certainly exclude the item from ALL, having it return nil does not necessarily mean that the item will be included in ALL, since it may already have been excluded by the action's <span class="code">allowAll</span> setting or <span class="code">getAll()</span> method. In particular, the <span class="code">hideFromAll()</span> method is used to filter out items from the list returned by the current action's <span class="code">getAll()</span> method; it cannot be used to add any items back in.</p>
+
+
 <a name="announce"></a>
 <p>One other property you might want to define on your action object is <strong>announceMultiAction</strong>. This is nil by default, but if it's true and the action applies to more than one direct object (e.g. EXAMINE ALL) then it will announce the name of the object each time it runs the actions routine, so you could get an output like:</p>
 

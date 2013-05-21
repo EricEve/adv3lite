@@ -2951,7 +2951,7 @@ modify openingContentsLister
     showListPrefix(lst, pl, parent)
     {
         gMessageParams(parent);
-        "Opening {the parent} {dummy} {reveals} ";        
+        "Opening {the parent} {dummy} reveal{s/ed} ";        
     }
 
     showListSuffix(lst, pl, paraCnt)
@@ -2961,7 +2961,7 @@ modify openingContentsLister
     
     showListEmpty(parent)  
     {
-        "{I} {open} {the dobj}. ";
+        "{I} open{s/ed} {the dobj}. ";
     }
     
     showSubListing = (gameMain.useParentheticalListing)
@@ -4918,8 +4918,9 @@ modify Action
         
         /* 
          *   If this implicit action failed we need to report this implicit
-         *   action. If we're not an implicit action we need to report
-         *   the previous set of implicit actions, if there are any.         */
+         *   action. If we're not an implicit action we need to report the
+         *   previous set of implicit actions, if there are any.
+         */
         
         if((success == nil || !isImplicit) &&
            gCommand.implicitActionReports.length > 0)

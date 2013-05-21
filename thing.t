@@ -5398,9 +5398,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   Find a key among the actor's possessions that might plausibly lock or
-     *   unlock us.
+     *   unlock us. If the silent parameter is true, then don't report a failed
+     *   attempt.
      */
-    findPlausibleKey()
+    findPlausibleKey(silent = nil)
     {
       
         useKey_ = nil;   
@@ -5454,7 +5455,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If we've found a possible key but it doesn't actually work on this
          *   object, report that we're trying this key but it doesn't work.
          */
-        if(useKey_ && useKey_.actualLockList.indexOf(lockObj) == nil)
+        if(useKey_ && useKey_.actualLockList.indexOf(lockObj) == nil && !silent)
         {
             say(withKeyMsg);
             say(keyDoesntWorkMsg);            
