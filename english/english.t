@@ -90,7 +90,7 @@ class LMentionable: object
      *   to see if it's a pronoun, and apply the correct pronoun mapping if
      *   so.
      */
-    possAdj = (ifPronoun(&possAdj, '<<name>>&rsquo;s'))
+    possAdj = (ifPronoun(&possAdj, '<<theName>>&rsquo;s'))
 
     /*
      *   Get the possessive noun-like form of the name.  This is the form
@@ -105,7 +105,7 @@ class LMentionable: object
      *   the name to see if it's a pronoun, and apply the appropriate
      *   pronoun mapping if so.  
      */
-    possNoun = (ifPronoun(&possNoun, '<<name>>&rsquo;s'))
+    possNoun = (ifPronoun(&possNoun, '<<theName>>&rsquo;s'))
 
     /*
      *   The subjective-case pronoun for this object.  We'll try to infer
@@ -187,14 +187,26 @@ class LMentionable: object
      */
     emptyVocabWords = static [new VocabWord('empty', MatchAdj)]
 
+    
+    /* 
+     *   Flag, do we want our theName to be constructed from our owner's name,
+     *   e.g. "Bob's wallet" rather than "the wallet".
+     */
+    ownerNamed = nil
+    
     /*
      *   Get the definite form of the name, given the name string under
-     *   construction.  The English default is "the <name>", unless the
-     *   object is already qualified, in which case it's just the base
-     *   name.
+     *   construction.  The English default is "the <name>", unless the object
+     *   is already qualified, in which case it's just the base name. If,
+     *   however, we're ownerNamed and we have a nominalOwner, return our
+     *   owner's possessive adjective followed by our name (e.g. "Bob's
+     *   wallet").
      */
     theNameFrom(str)
     {
+        if(ownerNamed && nominalOwner != nil)
+            return nominalOwner.possAdj + ' ' + str;
+        
         if (qualified)
             return str;
         else
@@ -918,6 +930,9 @@ class LMentionable: object
          */
         if (rexMatch(apostSPat, w))
         {
+            /* note the existing value of w*/
+            local wOld = w;
+            
             /* 
              *   strip off the apostrophe-S, since the tokenizer will do
              *   this when parsing the input 
@@ -926,6 +941,10 @@ class LMentionable: object
 
             /* mark it as an apostrophe-S word in the dictionary */
             partOfSpeech = &nounApostS;
+                      
+            w += '^s';
+            
+            apostropheSPreParser.addEntry(wOld, w);
         }
 
         /* if there's a plural annotation, note it */
@@ -2883,7 +2902,7 @@ modify descContentsLister
          *   open and then say 'and contains'
          */
         if(parent.openStatusReportable)
-            "{The subj parent} {is} open and {contains} ";  
+            "{The subj parent} {is} open and contain{s/ed} ";  
         
         /*  
          *   Otherwise start the listing without explicitly mentioning that the
@@ -5429,3 +5448,43 @@ takePathDoer: Doer 'take PathPassage'
     strict = true
 ;
     
+/* 
+ *   Possibly a temporary measure to replace the apostrophe in possessives in
+ *   certain words in the player's input with a carat in order to enable
+ *   matching vocab.
+ */
+apostropheSPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        /* 
+         *   If we haven't created a LookupTable there aren't any words to check
+         *   for, so we can just return the string unaltered.
+         */
+        if(possTab == nil)
+            return str;
+        
+        str = str.toLower;
+        local lst = str.split(' ');
+        
+        
+        for(local tok in lst, local i=1 ;;i++)
+        {
+            local aposWord = possTab[tok];
+            if(aposWord != nil)
+                lst[i] = aposWord;
+        }
+    
+        return lst.join(' ');
+    }
+    
+    
+    possTab = nil
+    
+    addEntry(key, val)
+    {
+        if(possTab == nil)
+            possTab = new LookupTable();
+        
+        possTab[key] = val;       
+    }
+;
