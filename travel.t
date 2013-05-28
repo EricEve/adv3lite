@@ -552,7 +552,11 @@ class Door: TravelConnector, Thing
          *   both sides of the Door stay in sync.
          */
         if(otherSide != nil)
+        {
             otherSide.isOpen = stat;
+            if(stat)
+                otherSide.opened = true;
+        }
     }
     
     /*  Make a Door locked (stat = true) or unlocked (stat = nil) */

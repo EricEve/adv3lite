@@ -69,6 +69,7 @@ redBall: Thing 'red ball;bouncy rubber; sphere'
 <li><b>owner</b> A list containing the owner or owners of the object.  This is for resolving possessives in the player's input, such as BOB'S WALLET.  By default, an object has no explicit owner, so this is an empty list. This should only return the <i>explicit</i> owner(s), not an implied locational owner.  For example, if Bob is holding a key, it's implicitly BOB'S KEY.  However, the key may or may not still be Bob's after he drops it.  If the key is something that's understood to belong to Bob, whether it's currently in his physical possession or not, then this routine would return Bob; otherwise it would return nil. An object can have multiple explicit owners, in which case it'll be recognized with a possessive qualifier for any of the owners. The first owner in the list is the nominal owner, meaning its the one we'll use if we're called upon to display the object's name with a possessive phrase.  </li>
 <li><b>ownsContents</b>  Are we the nominal owner of the objects we contain?  This controls whether or not we can be chosen as the nominal owner of a contained object for display purposes.  If a contained object has
 no explicit owner, it can still be implicitly owned by an actor carrying it, or by another suitable container.  (Note that this only applies as a default.  When an item in our contents has an explicit owner, that will override the implied container ownership for that item.  So, for example, Bob can be carrying Bill's wallet wallet, and as long as the wallet has its explicit owner set, we'll still describe it as Bill's despite its location.) By default, most objects are not nominal owners.  Actors generally should set this to true, so that (for example) anything Bob is carrying can be described as Bob's. ownsContents is thus nil by default on Thing but true by default on Actor.</li>
+<li><b>ownerNamed</b>: if this is true then the theName (but not the aName) property of this object will be followed by its name preceded by the possessive form of its owner's name, e.g. "Bob's wallet" or "Jane's mouth". This may be particularly useful in defining body parts, but is potentially useful in any situation where an object has a specific owner (do can in any case be referred to as "Bob's wallet" or "Jane's mouth" by the player) and we want to include the name of the owner when referring to the specific object in game output, e.g. "You take Bob's wallet" (it was lying on the table) but "Bob is carrying a wallet".</li>
 <li><strong>matchName(toks)</strong> Normally the parser will match this object if the player's command refers to it with one or more words defined in this object's vocab object, regardless of the order in which the words appear, but preferring nouns to adjectives. In most cases this will be absolutely fine, but if you should want to enforce some other way of matching the name of this object (for example, because the precise order of words is important or you want to match a particular phrase), then this is method to override on that particular object. For details, see the comments on Mentionable.matchName() in thing.t. In brief, if you want to signal that a particular set of tokens represents a good match as a noun phrase, your custom matchName(toks) nethod should return (MatchNoTrunc | MatchNoApprox | MatchNoun); return 0 to indicate that there's no match.</li>
 </ul>
 <a name="otherthingprops"></a>
@@ -81,6 +82,7 @@ no explicit owner, it can still be implicitly owned by an actor carrying it, or 
 <li><b>moved</b> Becomes true when the object has been moved as a direct result of a player command such as TAKE, DROP or PUT IN. Note that using moveInto(loc) to move an object does <i>not</i> change the value of this property; it is set automatically only by actionMoveInto(loc).</li>
 <li><b>seen</b> Becomes true when the object has been seen by the player character (the library should track this automatically, but there may be odd occasions when you need to set this manually).</li>
 <li><b>examined</b> Becomes true when this object has been examined (NB this is equivalent to the described property in the adv3 library).</li>
+<li><b>opened</b> Becomes true when this object has been opened (via the makeOpen()) method; note that if an object starts out open its <span class="code">opened</span> property won't become true unless and until it's closed and opened again.</li>
 <li><b>desc</b> The description of this object displayed in response to an EXAMINE command. This should be defined as a double-quoted string (or a method that displays some text) and is normally defined via the Thing template (as in the redBall example above.</li>
 <li><b>stateDesc</b> This is a single-quoted string that can be used to display additional information (in response to an EXAMINE command) about an object that can change its state (e.g. become open or closed, or switched on and off). By default this is simply a null string on Thing, so it's up to game authors to define any state-specific information they want here.</li>
 <li><b>familiar</b> This determines whether the player character knows of the existence of this object even if s/he has not yet seen it. This is relevant to whether the object can be referred to in Topic-related actions such as THINK ABOUT MAGIC ORB, LOOK UP ORB IN DICTIONARY OF MAGIC or ASK WIZARD ABOUT MAGIC ORB. Set this property to true for objects the player char is meant to know about at the start of the game, or use the gSetKnown(obj) macro to set it to true for objects the player char learns about during the course of the game.</li>
@@ -365,6 +367,8 @@ class Odor: Thing
 <li><b>listenDesc</b> A double-quoted string that contains the response to LISTEN TO obj.</li>
 <li><b>feelDesc</b> A double-quoted string that contains the response to FEEL obj.</li>
 <li><b>tasteDesc</b> A double-quoted string that contains the response to TASTE obj.</li>
+<li><b>isHidden</b> A true/nil flag. Setting this flag to true hides the object from view (by making it impossible for the player to refer to it and ensuring it doesn't appear in any listings)</li>
+<li><b>discover()</b> Calling this method sets <span class="code">isHidden</span> to nil, unless the method is called as <span class="code">discover(nil)</span>, in which case isHidden will be set to true. The parameter is optional; calling <span class="code">discover()</span> is equivalent to calling <span class="code">discover(true)</span>.</li>
 </ul>
 <p>This may be a convenient point to note that any double-quoted string property can alternatively be implemented as a method that displays some text. This would allow you, for example, to write a method that varied what listenDesc (or any of the others) displayed according to circumstances.</p>
 <p>A further point to note is that smellDesc and listenDesc are also used to provide responses to intransitive SMELL and LISTEN commands. In response to these commands the library displays the smellDesc or listenDesc of every object in scope (including the Room) for which the smellDesc or listenDesc is not nil. For this reason it is a good idea to write your smellDesc and listenDesc descriptions in a manner than identifies which objects they refer to.</p>
@@ -452,14 +456,24 @@ as a proper name if you don't want it to be.</p>
  of speech immediately after a word (with no spaces) in square
  brackets: 'John[n] Smith' overrides the assumption that 'John' is
  an adjective.  Use [n] to make a word a noun, [adj] to make it an
- adjective, [prep] to make it a preposition, and [pl] to make it a
+ adjective, [prep] to make it a preposition, [weak] to make it a <a name="weaktok-idx">weak token</a>
+ and [pl] to make it a
  plural.  These annotations are stripped out of the name when it's
  displayed.</p>
-     
+ 
+<p>A <em>weak token</em> is a word that an object will allow in a match,
+but is not sufficient for a match if it appears alone. For example, the
+vocab string 'his[weak] head' would be matched by 'head' or 'his head'
+but not by 'his' alone. You can also specify weak tokens the adv3 way
+by enclosing them in parentheses, for example '(his) head'. Which way you
+do it makes no difference: the libary simply converts '(his) head' into 
+'his[weak] head' before continuing to process the vocab string.</p>
+ 
  <p>We consider ALL of the words in the short name's second and
  subsequent phrases (the prepositional phrases) to be adjectives,
  except for the preposition words themselves, which we consider to
- be prepositions.  This is because these phrases all effectively
+ be prepositions (and the weak tokens, which we consider simply to be
+ weak).  This is because these phrases all effectively
  qualify the main phrase, so we don't consider them as "important"
  to the object's name.  This helps the parser be smarter about
  disambiguation, without bothering the user with clarifying

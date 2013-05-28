@@ -324,6 +324,14 @@ class Mentionable: LMentionable
     matchNameCommon(tokens, phrases, excludes)
     {
         /* 
+         *   If an item is hidden, the player character either shouldn't know of
+         *   its existence, or at least shouldn't be able to interact with it,
+         *   so it shouldn't match any vocab.
+         */
+        if(isHidden)
+            return 0;
+        
+        /* 
          *   First try the phrase-match matcher; if this fails return 0 to
          *   indicate that we don't match. If it succeeds in matching a phrase
          *   of more than one word, return MatchPhrase (we found a match).
@@ -620,6 +628,21 @@ class Mentionable: LMentionable
     matchPhrasesExclude = true
    
     
+    /* 
+     *   Flag, do we want to treat this object as hidden from view (so that the
+     *   player can't interact with it)?
+     */
+    isHidden = nil
+    
+    /* 
+     *   Make a hidden item unhidden. If the method is called with the optional
+     *   parameter and the parameter is nil, i.e. discover(nil), the method
+     *   instead hides the object.
+     */
+    discover(stat = true)
+    {
+        isHidden = !stat;
+    }
     
     /* 
      *   On dynamically creating a new object, do the automatic vocabulary
@@ -1090,10 +1113,12 @@ class Thing:  ReplaceRedirector, Mentionable
         if(isIlluminated)
         {
             /* Display our interior description. */
-            "<<interiorDesc>><.p>";
+            "<.roomdesc><<interiorDesc>><./roomdesc><.p>";
             
             /* List our contents. */
+            "<.roomcontents>";
             listContents();
+            "<./roomcontents>";
             
             /* Note that we've been seen and visited. */
             seen = true;
@@ -1107,7 +1132,7 @@ class Thing:  ReplaceRedirector, Mentionable
         else
         {
             /* Display the darkDesc */
-            "<<darkDesc>>";
+            "<.roomdesc><<darkDesc>><./roomdesc>";
             
             /* 
              *   If this location is recognizable to the player character in the
@@ -1559,6 +1584,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(str == '')            
             DMsg(nothing special,  '{I} {see} nothing special about 
                 {1}. ', theName); 
+        
     }
     
     /* 
@@ -4112,7 +4138,15 @@ class Thing:  ReplaceRedirector, Mentionable
     makeOpen(stat)
     {
         isOpen = stat;
+        if(stat)
+            opened = true;
     }
+    
+    /* 
+     *   Flag, has this object ever been opened. Note that this is nil for an
+     *   object that starts out open but has never been closed and opened again.
+     */
+    opened = nil
     
     dobjFor(Open)
     {

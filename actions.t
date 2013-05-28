@@ -322,6 +322,52 @@ DefineSystemAction(HintsOff)
     }
 ;
 
+DefineSystemAction(ExtraHints)
+    execAction(cmd)
+    {
+        if(gExtraHintManager == nil || !gExtraHintManager.extraHintsExist())
+        {
+            DMsg(no extra hints, 'Sorry, there are no extra hints in this game.
+                ');
+            return;
+        }
+        
+        onOff = cmd.verbProd.onOff;
+        
+        if(onOff == nil)
+        {
+            local cmd = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
+            
+            DMsg(extra hints status,            
+            'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
+            them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmd,
+                cmd, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ');
+            return;
+                    
+        }
+        onOff = onOff.toLower();
+        
+        if(onOff == hintsOff)
+            gExtraHintManager.stopDaemon();
+        else
+            gExtraHintManager.startDaemon();
+        
+        DMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
+    }
+    
+    extraHintsActive = (gExtraHintManager != nil && gExtraHintManager.activated)
+    
+    onOrOff(stat) { return stat ? hintsOn : hintsOff; }
+    
+    onOff = nil
+    
+    hintsOff = BMsg(extra hints off, 'off')
+    hintsOn = BMsg(extra hints on, 'on')
+    
+    extraHintsCmd = BMsg(extra hints command, 'EXTRA ')
+;
+
+
 
 DefineIAction(Inventory)
     execAction(cmd)

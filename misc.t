@@ -660,6 +660,9 @@ libGlobal: object
 
     /* the hint manager, if included in the build */
     hintManagerObj = nil
+    
+    /* the extra hint manager, if included in the build */
+    extraHintManagerObj = nil
 
     /*
      *   The game's IFID, as defined in the game's main module ID object.

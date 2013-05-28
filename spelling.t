@@ -739,6 +739,14 @@ class SpellingHistory: object
         IfDebug(spelling, "\nElapsed spelling time: <<
               getTime(GetTimeTicks) - startTime>> ms\n");
 
+        /* 
+         *   While we're using the ^ for ' substitution trick to deal with
+         *   certain apostrophe-S words, we need to change ^s back to 's in the
+         *   spelling checker's output.
+         */
+        str = str.findReplace('^s', '\'s');
+        
+        
         /*
          *   Announce a correction made by the spelling corrector.  The
          *   corrected string includes HTML markups to highlight the word

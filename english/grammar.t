@@ -3380,6 +3380,15 @@ VerbRule(Hints)
     verbPhrase = 'show/showing hints'
 ;
 
+/* Command for enabling or disabling extra hints */
+VerbRule(ExtraHints)
+    ('extra' | 'extras'| 'bonus') ('hint' | 'hints' |'tips' |'tip'| ) 
+    ('on'->onOff | 'off'->onOff | )
+    : VerbProduction
+    action = ExtraHints
+    verbPhrase = ('turn/turning extra hints ' + onOff)
+;
+
 
 #ifdef __DEBUG
 

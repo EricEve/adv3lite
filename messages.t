@@ -622,8 +622,20 @@ class MessageCtx: object
          *   the same pronoun, add this to the list.  Otherwise, replace
          *   the object that used the same antecedent. 
          */
-        local p = obj.pronoun();
-        local idx = reflexiveAnte.indexWhich({ o: o.pronoun() == p });
+//        local p = obj.pronoun();
+//        local idx = reflexiveAnte.indexWhich({ o: o.pronoun() == p });
+        
+        /* 
+         *   The foregoing rule seems to generate false positives (that is, it
+         *   can result in reflexive pronouns where they're not appropriate), so
+         *   we'll try the different strategy of looking for anything in the
+         *   reflexive ante list. The reason for this is that if a new
+         *   subject is introduced into the sentence, it doesn't have to be the
+         *   same gender as the previous subject to become the most likely
+         *   antecedent for a reflexive.
+         */
+        local idx = reflexiveAnte.indexWhich({ o: o.ofKind(Thing) });
+        
         if (idx == nil)
         {
             /* 
@@ -1139,11 +1151,11 @@ class MessageParams: object
 
 /* Dummy object to use as a fallback when a parameter can't be identified */
 
-dummy_: Mentionable
+dummy_: Thing
     noteName(src) { }
 ;
 
-pluralDummy_: Mentionable
+pluralDummy_: Thing
     noteName(src) { }
 ;
 

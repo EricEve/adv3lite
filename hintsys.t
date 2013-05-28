@@ -705,3 +705,237 @@ gameHintStatus: object
     /* flag: we've warned about the hint system in this session */
     hintWarning = nil
 ;
+
+property achieved;
+
+//==============================================================================
+/*
+ *   FRAMEWORK FOR THE EXTRA HINTS MECHANISM
+ *
+ *   The ExtraHint class provides a framework for providing players (especially
+ *   novice players) with extra hints, nudges, and tips during the course of
+ *   play. When it is activated (either at player request, or because the player
+ *   appears to be having trouble), a hint or tip can be displayed at the end of
+ *   the turn in response to what the player has just typed, or some condition
+ *   that has just become true, or which became true a certain number of turns
+ *   ago.
+ *
+ *   It is also possible to define conditions (typically the achievement of some
+ *   goal) that render a particular ExtraHint otiose, so that it is not
+ *   displayed if it is no longer needed.
+ *
+ *   We simply need to define objects of the ExtraHint class to encapsulate the
+ *   extra hints we want displayed.
+ *
+ *   A series of ExtraHints can be defined using a template if desired.
+ *
+ *   The first (optional) element in the template (e.g. ->doorAchievement) is
+ *   the achievement we check to see if this ExtraHint has become redundant. For
+ *   example, if the player has already taken the flyer, flyer.achievement has
+ *   been achieved, and so we don't need this first ExtraHint.
+ *
+ *   The second (optional) element in the template (e.g. +1) is the hintDelay;
+ *   this is number of turns that should elapse between the openWhen condition
+ *   (see below) becoming true and the hint being offered. This optionally
+ *   allows the player a few turns to work on the solution before being offered
+ *   a gratuitous hint.
+ *
+ *   The third element in the template is simply the text of the extra hint to
+ *   display.
+ *
+ *   The openWhen property holds the condition that must be true before this
+ *   ExtraHint is displayed. In the case of the first ExtraHint, the condition
+ *   is that the player char has visited the location that contains the
+ *   telephone pole.
+ */
+class ExtraHint: object
+    location = extraHintManager
+    
+    /* 
+     *   The condition under which we close this ExtraHint. By default we close
+     *   it if either hint done becomes true or if our associated achievement is
+     *   achieved. If neither of those is the case we close this ExtraHint if
+     *   its checkClose method/property returns true.
+     */
+    closeWhen()
+    {
+        if(hintDone || (achievement && achievement.achieved))
+            return true;
+        
+        return checkClose();
+    }
+    /* The achievement whose fulfilment we monitor */
+    achievement = nil
+    
+    /* The condition that needs to be true for us to offer this hint */
+    openWhen = nil
+        
+    /*  
+     *   The number of turns between openWhen becoming true and this hint 
+     *   being displayed.
+     */
+    hintDelay = 0
+    
+    /*  Alternative condition for closing this ExtraHint */
+    checkClose = nil   
+       
+    
+    /*  
+     *   If the closeWhen condition is true we remove this ExtraHint from the
+     *   list of potentially active ExtraHints and return nil to tell the 
+     *   caller that this ExtraHint was not displayed. Otherwise we check if 
+     *   this ExtraHint (a) meets its openWhen conditions to be displayed 
+     *   and (b) is due to be displayed because hintDelay turns have passed 
+     *   since it was open. If both conditions are met we show our text and 
+     *   return true to tell our caller that an ExtraHint has been displayed 
+     *   (important since we display at most one ExtraHint per turn). 
+     *   Otherwise we return nil.
+     */    
+    doHint()
+    {
+        if(closeWhen)
+        {
+            extraHintManager.removeFromContents(self);
+            return nil;
+        }
+        
+        if(openWhen)
+        {
+            if(openedWhen == nil)
+                openedWhen = libGlobal.totalTurns;
+            
+            if(libGlobal.totalTurns < (openedWhen + hintDelay))
+               return nil;
+               
+            showHint();
+            return true;
+        }           
+        return nil;
+    }
+    
+    /* The text to display in relation to this ExtraHint */
+    hintText = ""
+    
+    /* Show the test related to this ExtraHint */
+    showHint()
+    {
+        "<.extrahint>";hintText();"<./extrahint>";
+        
+        /* Mark this hint as done now we've shown it */
+        hintDone = true;
+    }
+    
+    /* 
+     *   For internal use only: Flag; have we done with this hint (because we've
+     *   displayed it)?
+     */
+    hintDone = nil
+    
+    /* The turn on which this ExtraHint was first opened */
+    openedWhen = nil
+    
+    /* 
+     *   Our priority. When two ExtraHints become available on the same term,
+     *   the one with the higher priority will be displayed.
+     */
+    priority = 100
+;
+
+extraHintStyleTag: StyleTag 'extrahint' '<.p><i>' '</i><.p>';
+
+
+/*  
+ *   The extraHintManager carries out the work of starting and stopping the 
+ *   display of ExtraHints, and determing which, if any, ExtraHint is ready 
+ *   to be displayed.
+ */
+extraHintManager: PreinitObject
+    
+    /* Start the Daemon that checks whether to display any ExtraHints. */
+    startDaemon()  
+    { 
+        /* 
+         *   First check that our daemonID is nil so we don't start another
+         *   Daemon if one is already running.
+         */
+        if(daemonID == nil)
+            daemonID = new Daemon(self, &hintDaemon, 1);  
+    }
+    
+    /* 
+     *   Even if this module is included, there may be no ExtraHints defined in
+     *   the game, in which case we might want to check whether any ExtraHints
+     *   exist before offering them to the player.
+     */
+    extraHintsExist() 
+    {
+        return firstObj(ExtraHint) != nil;
+    }
+    
+    stopDaemon()
+    {
+        if(daemonID)
+        {
+            daemonID.removeEvent();
+            daemonID = nil;
+        }
+    }
+    
+    daemonID = nil
+    
+    /* The extraHintManager is activated if it has a running daemon */
+    activated = (daemonID != nil)
+    
+    /* 
+     *   When we're active we run through every ExtraHint object in our 
+     *   contents and run its doHint() method till either we run out of 
+     *   ExtraHint objects or we find one that displays an extra hint, and 
+     *   so returns true.
+     */
+    hintDaemon()
+    {
+        foreach(local obj in contents)
+        {
+            if(obj.doHint())
+                break;
+        }
+    }
+    
+    contents = []
+    
+    addToContents(obj)   {  contents += obj; }
+    
+    removeFromContents(obj) {  contents -= obj; }
+    
+    /* Build a list of all ExtraHints in our contents property at PreInit */
+    execute() 
+    { 
+        /* First register our existence */
+        gExtraHintManager = self;
+        
+        /* Then add every ExtraHint to our contents */
+        forEachInstance(ExtraHint, {x: addToContents(x) });  
+        
+        /* Finally sort the ExtraHints in descending order of priority */
+        contents = contents.sort(SortDesc, {a, b: a.priority - b.priority });
+    }
+    
+    explainExtraHints()
+    {
+        DMsg(explain extra hints, 'If you\'re new to Interactive Fiction and
+            would like to read a few extra hints and tips that will pop up here
+            and there as you explore the story, type <<cmdStr('ON')>>. If you
+            decide you don\'t want any more of these bonus tips, simply type
+            <<cmdStr('OFF')>>. ' );
+    }
+    
+    cmdStr(stat)
+    {
+        return BMsg(extra hint cmd str, 
+        '<<aHref('EXTRA ' + stat, 'EXTRA ' + stat, 'Turning extra hints ' +
+                stat.toLower)>>');
+    }
+;
+
+
+

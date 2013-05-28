@@ -175,6 +175,13 @@ class Achievement: object
         return addToScoreOnce(points);
     }
     
+    /* 
+     *   Has this achievement been achieved? By default it has if our scoreCount
+     *   is greater than 0 (i.e. if points have been awarded for this
+     *   achievement at least once.
+     */
+    achieved = (scoreCount > 0)
+    
     listOrder = 0
     
     lastListOrder = 0

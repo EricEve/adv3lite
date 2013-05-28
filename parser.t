@@ -2993,7 +2993,15 @@ class TopicPhrase: NounPhrase
 class ResolvedTopic: object
     construct(lst, toks)
     {
-        topicList = lst;    
+        /* 
+         *   if our list of topics has more than one entry, sort it in ascending
+         *   order of length of name. That's because the shorter the name, the
+         *   closer it may be to what the player actually typed.
+         */
+        if(lst != nil && lst.length > 1)
+            topicList = lst.sort(SortAsc, {a, b: a.name.length - b.name.length});
+        else       
+            topicList = lst;    
         tokens = toks;
     }    
     
@@ -3813,6 +3821,12 @@ class VerbProduction: Production
      */
     priority = 50
 
+    /* 
+     *   Do we want to consider this production to be active; we may want some
+     *   VerbRules to be active only under certain circumstanes.
+     */
+    isActive = true
+    
     /* build the command */
     build(cmd, np)
     {
@@ -3820,6 +3834,7 @@ class VerbProduction: Production
         cmd.action = action;
         cmd.verbProd = self;
         cmd.predPriority = priority;
+        cmd.predActive = isActive;;
 
         /* do the standard work */
         inherited(cmd, np);

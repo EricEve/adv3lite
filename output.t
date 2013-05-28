@@ -906,6 +906,9 @@ roomnameStyleTag: StyleTag 'roomname' '\n<b>' '</b><br>\n';
 /* <.roomdesc> - we use this to display a room's long description */
 roomdescStyleTag: StyleTag 'roomdesc' '' '';
 
+/* <.roomcontents> - we use this to display a room's contents */
+roomcontentsStyleTag: StyleTag 'roomcontents' '' '';
+
 /* 
  *   <.roompara> - we use this to separate paragraphs within a room's long
  *   description 
@@ -1886,13 +1889,13 @@ cquoteOutputFilter: OutputFilter
     aggressive = true
 
     // Patterns for our searches
-    patIsHTMLTag = static new RexPattern('<langle><^rangle>+<squote><^rangle>*<rangle>')
+    patIsHTMLTag = static new RexPattern('<langle><^rangle>+<squote|dquote><^rangle>*<rangle>')
     patIsFormatTag = static new RexPattern('{[^}]+<squote>[^}]*}')
     patAggressive = static new RexPattern('(<alphanum|punct>)<squote>')
     patIsCont1Tag = static new RexPattern('(<alpha>)<squote>(s|m|d|ve|re|ll)')
     patIsCont2Tag = static new RexPattern('(<alpha>)n<squote>t')
     patIsPossTag = static new RexPattern('(<alpha>)s<squote>')
-
+    
     filterText(ostr, val) {
 	local ret;
         
@@ -1906,6 +1909,8 @@ cquoteOutputFilter: OutputFilter
 	    // Look for a formatting tag
 	    ret = rexSearch(patIsFormatTag, val);
 	}
+            
+        
 	// If we got a match either from the HTML or the formatting
 	// tag, ignore that match recursively; that is, run the output
 	// filter on the text before and after the match. This is

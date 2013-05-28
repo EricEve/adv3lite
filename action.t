@@ -2198,11 +2198,13 @@ class TopicTAction: TAction
         {        
             curDobj = cmd.dobj;
             curIobj = cmd.iobj;
+            curTopic = cmd.iobj;
         }
         else
         {
             curDobj = cmd.iobj;
             curIobj = cmd.dobj;
+            curTopic = cmd.dobj;
         }
         
         /* Note the direct object as a potential pronoun antecedent. */
@@ -2222,6 +2224,12 @@ class TopicTAction: TAction
      *   command.
      */
     curIobj = nil
+    
+    /*   
+     *   We also store the current ResolvedTopic in the curTopic property so it
+     *   can be found by the gTopic macro.
+     */
+    curTopic = nil
     
     /* 
      *   This is a bit of a kludge to deal with the fact that the Parser doesn't
@@ -2275,6 +2283,21 @@ class TopicTAction: TAction
  */
 
 class TopicAction: IAction    
+    exec(cmd)
+    {
+        /* 
+         *   For a TopicAction the ResolvedTopic will be in the dobj property of
+         *   the cmd object. Store it in the curTopic property.
+         */
+        curTopic = cmd.dobj;
+        
+        /* Then carry out the inherited handling. */
+        inherited(cmd);
+    }
+    
+    
+    /* The ResolvedTopic object associated with this action. */
+    curTopic = nil
 ;
 
 /* Try action as an implicit action with [objs] as its objects */

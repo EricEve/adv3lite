@@ -192,6 +192,56 @@ class Distant: Decoration
     decorationActions = [Examine]
 ;
 
+/* An Unthing is an object that represents the absence of a thing */
+class Unthing: Decoration
+    
+    /* An Unthing can't respond to any actions, as it isn't there */
+    decorationActions = []
+    
+    /* 
+     *   The message to display when the player character tries to interact with
+     *   this object; by default we just say it isn't there, but game code will
+     *   normally want to override this message to explain the reason for the
+     *   absence.
+     */  
+    notImportantMsg = BMsg(unthing absent, '{The subj cobj} {isn\'t} {here}. ')
+                   
+    /* 
+     *   Users coming from adv3 may be used to Unthings having a notHereMsg, so
+     *   we'll define this to be the same as the notImportantMsg
+     */
+    notHereMsg = notImportantMsg
+    
+    
+    /* An Unthing should never be included in ALL */
+    hideFromAll(action) { return true; }
+    
+    /* 
+     *   A player is more likely to be trying to refer to something that is
+     *   present than something that isn't, so we give Unthings a substantially
+     *   reduced vocabLikelihood
+     */
+    vocabLikelihood = -100
+                          
+    
+    /* Make Unthings verify with the lowest possible score */         
+    dobjFor(Default)
+    {
+        verify()
+        {
+            inaccessible(notHereMsg);               
+        }
+    }
+    
+    iobjFor(Default)
+    {
+        verify()
+        {
+            inaccessible(notHereMsg);               
+        }
+    }
+;
+
 /* 
  *   A Heavy is a Fixture that's too heavy to be picked up. We make Heavy a
  *   Fixture rather than an Immovable since it should normally be obvious that

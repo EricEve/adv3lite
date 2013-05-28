@@ -145,7 +145,7 @@ class ItemLister: Lister
  */
 lookLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
-    listed(obj) { return obj.lookListed; }
+    listed(obj) { return obj.lookListed && !obj.isHidden; }
 ;
 
 /* 
@@ -154,7 +154,7 @@ lookLister: ItemLister
  */
 lookContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
-    listed(obj) { return obj.lookListed; }
+    listed(obj) { return obj.lookListed && !obj.isHidden; }
     
     contentsListedProp = &contentsListedInLook
 ;
@@ -164,13 +164,13 @@ lookContentsLister: ItemLister
  */
 inventoryLister: ItemLister
     /* is the object listed in an inventory list? */
-    listed(obj) { return obj.inventoryListed; }
+    listed(obj) { return obj.inventoryListed && !obj.isHidden; }
 ;
 
 /* wornLister displays a list of items being worn. */
 wornLister: ItemLister
      /* is the object listed in an inventory list? */
-    listed(obj) { return obj.inventoryListed; }
+    listed(obj) { return obj.inventoryListed && !obj.isHidden; }
 ;
 
 /*
@@ -179,7 +179,7 @@ wornLister: ItemLister
  */
 descContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
-    listed(obj) { return obj.examineListed; }
+    listed(obj) { return obj.examineListed && !obj.isHidden; }
 
     contentsListedProp = &contentsListedInExamine
 ;
@@ -190,7 +190,7 @@ descContentsLister: ItemLister
  */
 openingContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
-    listed(obj) { return obj.examineListed; }
+    listed(obj) { return obj.examineListed && !obj.isHidden; }
 ;
 
 /* 
@@ -202,7 +202,7 @@ lookInLister: ItemLister
      *   is the object listed in a SEARCH/LOOK IN/UNDER/BEHIND description of
      *   its container?
      */
-    listed(obj) { return obj.searchListed; }
+    listed(obj) { return obj.searchListed && !obj.isHidden; }
 
     contentsListedProp = &contentsListedInSearch
 
@@ -211,7 +211,7 @@ lookInLister: ItemLister
 /* A lister used to list the items attached to a SimpleAttachable */
 simpleAttachmentLister: ItemLister
     /* an object is listed if it's attached */
-    listed(obj) { return obj.attachedTo != nil; }
+    listed(obj) { return obj.attachedTo != nil && !obj.isHidden; }
     
 ;
 
@@ -226,7 +226,7 @@ plugAttachableLister: simpleAttachmentLister
 class CustomRoomLister: ItemLister
     
     /* is the object listed in a LOOK AROUND description? */
-    listed(obj) { return obj.lookListed; }
+    listed(obj) { return obj.lookListed && !obj.isHidden; }
     
     /* 
      *   In the simple form of the constructor, we just supply a string that

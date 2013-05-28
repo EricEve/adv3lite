@@ -403,139 +403,133 @@ class LMentionable: object
     
     
     /*
-     *   initVocab() - Parse the 'vocab' string.  This is called during
-     *   preinit and on dynamically constructing a new Mentionable, to
-     *   initialize up the object's vocabulary for use by the parser.
-     *   
-     *   The vocab string is designed to make it as quick and easy as
-     *   possible to define an object's name and vocabulary.  To the extent
-     *   possible, we derive the vocabulary from the name, so for many
-     *   objects the whole definition will just look like the object name.
-     *   However, we also make it possible to define as much extra
-     *   vocabulary beyond the name as needed, and to control the way the
-     *   words making up the name are handled in terms of their parts of
-     *   speech.
-     *   
+     *   initVocab() - Parse the 'vocab' string.  This is called during preinit
+     *   and on dynamically constructing a new Mentionable, to initialize up the
+     *   object's vocabulary for use by the parser.
+     *
+     *   The vocab string is designed to make it as quick and easy as possible
+     *   to define an object's name and vocabulary.  To the extent possible, we
+     *   derive the vocabulary from the name, so for many objects the whole
+     *   definition will just look like the object name. However, we also make
+     *   it possible to define as much extra vocabulary beyond the name as
+     *   needed, and to control the way the words making up the name are handled
+     *   in terms of their parts of speech.
+     *
      *   The 'vocab' string has this overall syntax:
-     *   
+     *
      *.    vocab = 'article short name; adjectives; nouns; pronouns'
-     *   
-     *   You don't have to include all of the parts; you can simply stop
-     *   when you're done, so it's valid, for example, to just write the
-     *   'short name' part.  It's also fine to include an empty part: if
-     *   you have extra nouns to list, but no adjectives, you can say
-     *   'short name;;nouns'.
-     *   
-     *   The 'article' is optional.  This can be one of 'a', 'an', 'some',
-     *   or '()'.  If it's 'a' or 'an', and this differs from what we'd
-     *   automatically generate based on the first word of the short name,
-     *   we automatically enter the first word into the list of special
-     *   cases for a/an words.  If it's 'some', we automatically set
-     *   massNoun=true for the object.  If it's '-', we set qualified=true
-     *   ('()' means that the name doesn't take an article at all).
-     *   
-     *   Note that if you want to use 'a', 'an', 'some', or '()' as the
-     *   first word of the actual short name, you simply need to add the
-     *   desired article in front of it: 'an a tile from a scrabble set'.
-     *   
-     *   The short name gives name that we display whenever the parser
-     *   needs to show the object in a list, an announcement, etc.
-     *   
-     *   If the short name consists entirely of capitalized words (that is,
-     *   if every word starts with a capital letter), and the 'proper'
-     *   property isn't explicitly set for this object, we'll set 'proper'
-     *   to true to indicate that this is a proper name.
-     *   
-     *   We also try to infer the object's vocabulary words from the short
-     *   name.  We first break off any prepositional phrases, if we see the
-     *   prepositions 'to', 'of', 'from', 'with', or 'for'.  We then assume
-     *   that the FIRST phrase is of the form 'adj adj adj... noun' - that
-     *   is, zero or more adjectives followed by a noun; and that the
-     *   SECOND and subsequent phrases are entirely adjectives.  You can
-     *   override the part-of-speech inference by putting the actual part
-     *   of speech immediately after a word (with no spaces) in square
-     *   brackets: 'John[n] Smith' overrides the assumption that 'John' is
-     *   an adjective.  Use [n] to make a word a noun, [adj] to make it an
-     *   adjective, [prep] to make it a preposition, and [pl] to make it a
-     *   plural.  These annotations are stripped out of the name when it's
-     *   displayed.
-     *   
-     *   We consider ALL of the words in the short name's second and
-     *   subsequent phrases (the prepositional phrases) to be adjectives,
-     *   except for the preposition words themselves, which we consider to
-     *   be prepositions.  This is because these phrases all effectively
-     *   qualify the main phrase, so we don't consider them as "important"
-     *   to the object's name.  This helps the parser be smarter about
-     *   disambiguation, without bothering the user with clarifying
-     *   questions all the time.  When the player types "garage", we'll
-     *   match the "key to the garage" object as well as the "garage"
-     *   object, but if both objects are present, we'll know to choose the
-     *   garage over the key because the noun usage is a better match to
+     *
+     *   You don't have to include all of the parts; you can simply stop when
+     *   you're done, so it's valid, for example, to just write the 'short name'
+     *   part.  It's also fine to include an empty part: if you have extra nouns
+     *   to list, but no adjectives, you can say 'short name;;nouns'.
+     *
+     *   The 'article' is optional.  This can be one of 'a', 'an', 'some', or
+     *   '()'.  If it's 'a' or 'an', and this differs from what we'd
+     *   automatically generate based on the first word of the short name, we
+     *   automatically enter the first word into the list of special cases for
+     *   a/an words.  If it's 'some', we automatically set massNoun=true for the
+     *   object.  If it's '-', we set qualified=true ('()' means that the name
+     *   doesn't take an article at all).
+     *
+     *   Note that if you want to use 'a', 'an', 'some', or '()' as the first
+     *   word of the actual short name, you simply need to add the desired
+     *   article in front of it: 'an a tile from a scrabble set'.
+     *
+     *   The short name gives name that we display whenever the parser needs to
+     *   show the object in a list, an announcement, etc.
+     *
+     *   If the short name consists entirely of capitalized words (that is, if
+     *   every word starts with a capital letter), and the 'proper' property
+     *   isn't explicitly set for this object, we'll set 'proper' to true to
+     *   indicate that this is a proper name.
+     *
+     *   We also try to infer the object's vocabulary words from the short name.
+     *   We first break off any prepositional phrases, if we see the
+     *   prepositions 'to', 'of', 'from', 'with', or 'for'.  We then assume that
+     *   the FIRST phrase is of the form 'adj adj adj... noun' - that is, zero
+     *   or more adjectives followed by a noun; and that the SECOND and
+     *   subsequent phrases are entirely adjectives.  You can override the
+     *   part-of-speech inference by putting the actual part of speech
+     *   immediately after a word (with no spaces) in square brackets: 'John[n]
+     *   Smith' overrides the assumption that 'John' is an adjective.  Use [n]
+     *   to make a word a noun, [adj] to make it an adjective, [prep] to make it
+     *   a preposition, and [pl] to make it a plural. You can also add [weak] to
+     *   make it a weak token (one on which the object won't be matched alone),
+     *   or equivalently, enclose the word in parentheses. These annotations
+     *   are stripped out of the name when it's displayed.
+     *
+     *   We consider ALL of the words in the short name's second and subsequent
+     *   phrases (the prepositional phrases) to be adjectives, except for the
+     *   preposition words themselves, which we consider to be prepositions.
+     *   This is because these phrases all effectively qualify the main phrase,
+     *   so we don't consider them as "important" to the object's name.  This
+     *   helps the parser be smarter about disambiguation, without bothering the
+     *   user with clarifying questions all the time.  When the player types
+     *   "garage", we'll match the "key to the garage" object as well as the
+     *   "garage" object, but if both objects are present, we'll know to choose
+     *   the garage over the key because the noun usage is a better match to
      *   what the user typed.
-     *   
-     *   We automatically ignore articles (a, an, the, and some) as
-     *   vocabulary words when they immediately follow prepositions in the
-     *   short name.  For example, in 'key to the garage', we omit 'the' as
-     *   a vocabulary word for the object because it immediately follows
-     *   'to'.  We also omit 'to', since we don't enter the prepositions as
-     *   vocabulary.  We do the complementary work on parsing, by ignoring
-     *   these words when we see them in the command input in the proper
-     *   positions.  These words are really structural parts of the grammar
-     *   rather than parts of the object names, so the parser can do a
-     *   better job of recognizing noun phrases by considering the
-     *   grammatical functions of these words.
-     *   
-     *   For many (if not most) objects, the short name won't be enough to
-     *   state all of the vocabulary words you want to recognize for the
-     *   object in command input.  Trying to cram every possible vocabulary
-     *   word into the short name would usually make for an unwieldy
-     *   display name.  Fortunately, it's easy to add input vocabulary
-     *   words that aren't displayed in the name.  Just add a semicolon,
-     *   then the adjectives, then another semicolon, then the nouns.
-     *   
-     *   Note that there's no section for adding extra prepositions, but
-     *   you can still add them.  Put the prepositions in the adjective
-     *   list, and explicitly annotate each one as a preposition by adding
-     *   "[prep]" at the end, as in "to[prep]".
-     *   
+     *
+     *   We automatically ignore articles (a, an, the, and some) as vocabulary
+     *   words when they immediately follow prepositions in the short name.  For
+     *   example, in 'key to the garage', we omit 'the' as a vocabulary word for
+     *   the object because it immediately follows 'to'.  We also omit 'to',
+     *   since we don't enter the prepositions as vocabulary.  We do the
+     *   complementary work on parsing, by ignoring these words when we see them
+     *   in the command input in the proper positions.  These words are really
+     *   structural parts of the grammar rather than parts of the object names,
+     *   so the parser can do a better job of recognizing noun phrases by
+     *   considering the grammatical functions of these words.
+     *
+     *   For many (if not most) objects, the short name won't be enough to state
+     *   all of the vocabulary words you want to recognize for the object in
+     *   command input.  Trying to cram every possible vocabulary word into the
+     *   short name would usually make for an unwieldy display name.
+     *   Fortunately, it's easy to add input vocabulary words that aren't
+     *   displayed in the name.  Just add a semicolon, then the adjectives, then
+     *   another semicolon, then the nouns.
+     *
+     *   Note that there's no section for adding extra prepositions, but you can
+     *   still add them.  Put the prepositions in the adjective list, and
+     *   explicitly annotate each one as a preposition by adding "[prep]" at the
+     *   end, as in "to[prep]".
+     *
      *   Next, there's the matter of plurals.  For each noun, we'll try to
-     *   automatically infer a plural according to the spelling pattern.
-     *   We also have a table of common irregular plurals that we'll apply.
-     *   For irregular words that aren't in the table, you can override the
+     *   automatically infer a plural according to the spelling pattern. We also
+     *   have a table of common irregular plurals that we'll apply. For
+     *   irregular words that aren't in the table, you can override the
      *   spelling-based plural by putting the real plural in parentheses
-     *   immediately after the noun, with no spaces.  Start with a hyphen
-     *   to specify a suffix; otherwise just write the entire plural word.
-     *   For example, you could write 'man(men)' or 'child(-ren)' (although
-     *   these particular irregular plurals are already in our special-case
-     *   list, so the custom plurals aren't actually needed in these
-     *   cases).  You can use plural annotations in the short name as well
-     *   as the extra noun list; they'll be removed from the short name
-     *   when it's displayed.  We don't try to generate a plural for a
-     *   proper noun (a noun that starts with a capital letter), but you
-     *   can provide explicit plurals.
-     *   
-     *   For words longer than the truncation length in the string
-     *   comparator, you can set the word to match exactly by adding '=' as
-     *   the last character.  This also requires exact character matching,
-     *   rather than allowing accented character approximations (e.g.,
-     *   matching 'a' in the input to 'a-umlaut' in the dictionary).
-     *   
+     *   immediately after the noun, with no spaces.  Start with a hyphen to
+     *   specify a suffix; otherwise just write the entire plural word. For
+     *   example, you could write 'man(men)' or 'child(-ren)' (although these
+     *   particular irregular plurals are already in our special-case list, so
+     *   the custom plurals aren't actually needed in these cases).  You can use
+     *   plural annotations in the short name as well as the extra noun list;
+     *   they'll be removed from the short name when it's displayed.  We don't
+     *   try to generate a plural for a proper noun (a noun that starts with a
+     *   capital letter), but you can provide explicit plurals.
+     *
+     *   For words longer than the truncation length in the string comparator,
+     *   you can set the word to match exactly by adding '=' as the last
+     *   character.  This also requires exact character matching, rather than
+     *   allowing accented character approximations (e.g., matching 'a' in the
+     *   input to 'a-umlaut' in the dictionary).
+     *
      *   We automatically assume that plurals should be matched without
-     *   truncation.  This is because English plurals are usually formed
-     *   with suffixes; if the user wants to enter a plural, they'll have
-     *   to type the whole word anyway, because that's the only way you
-     *   make it all the way to the suffix.  You can override this
-     *   assumption for a given plural by adding '~' at the end of the
-     *   plural.  This explicitly allows truncated and character
-     *   approximation matches.
-     *   
-     *   Finally, the 'pronouns' section gives a list of the pronouns that
-     *   this word can match.  You can include 'it', 'him', 'her', and
-     *   'them' in this section.  We'll automatically set the isIt, isHim,
-     *   isHer, and plural properties to true when we see the corresponding
-     *   pronouns.  
-     *   
-     *   [Required] 
+     *   truncation.  This is because English plurals are usually formed with
+     *   suffixes; if the user wants to enter a plural, they'll have to type the
+     *   whole word anyway, because that's the only way you make it all the way
+     *   to the suffix.  You can override this assumption for a given plural by
+     *   adding '~' at the end of the plural.  This explicitly allows truncated
+     *   and character approximation matches.
+     *
+     *   Finally, the 'pronouns' section gives a list of the pronouns that this
+     *   word can match.  You can include 'it', 'him', 'her', and 'them' in this
+     *   section.  We'll automatically set the isIt, isHim, isHer, and plural
+     *   properties to true when we see the corresponding pronouns.
+     *
+     *   [Required]
      */
     initVocab()
     {
@@ -558,8 +552,15 @@ class LMentionable: object
         vocabWords = new Vector(10);
 
         
-        /* get the initial string; we'll break it down as we work */
-        local str = vocab;
+        /* 
+         *   get the initial string; we'll break it down as we work
+         *   At the same time change any weak tokens of the form
+         *   (tok) into tok[prep], so that they're effectively treated
+         *   as prepositions (i.e. they won't match alone)
+         */
+        local str = vocab.findReplace(R'<lparen>.*?<rparen>', 
+                                      {s: s.substr(2, s.length - 2) +
+                                      (s == '()' ? '()' : '[weak]')});
 
         /* pull out the major parts, delimited by semicolons */
         local parts = str.split(';').mapAll({x: x.trim()});
@@ -672,6 +673,12 @@ class LMentionable: object
                 if (wnxt is in ('a', 'an', 'the', 'some'))
                     ++i;
             }
+            else if (rexMatch(weakWordPat, w) != nil)
+            {
+                /* It's a weak token */
+                pos = MatchWeak;
+            }
+            
             else if (firstPhrase
                      && (wnxt == nil || rexMatch(prepWordPat, wnxt) != nil))
             {
@@ -898,7 +905,8 @@ class LMentionable: object
         if (w.find(posPat) != nil)
         {
             /* clear the old part-of-speech flags */
-            matchFlags &= ~(MatchPrep | MatchAdj | MatchNoun | MatchPlural);
+            matchFlags &= ~(MatchPrep | MatchAdj | MatchNoun | MatchPlural |
+                            MatchWeak);
             
             /* note the new part of speech */
             switch (rexGroup(1)[3])
@@ -910,8 +918,12 @@ class LMentionable: object
             case 'adj':
                 matchFlags |= MatchAdj;
                 break;
-
-            case 'prep':
+ 
+            case 'weak':    
+                matchFlags |= MatchWeak;
+                break;
+                
+            case 'prep':                
                 matchFlags |= MatchPrep;
                 break;
 
@@ -1149,6 +1161,9 @@ class LMentionable: object
      */
     prepWordPat = static new RexPattern(
         '^(<<prepList>>)$|.*<lsquare>prep<rsquare>$')
+    
+    weakWordPat = static new RexPattern(
+        '.*<lsquare>weak<rsquare>$')
 
     /* preposition list, as a regular expression OR pattern */
     prepList = 'to|of|from|with|for'
@@ -1158,7 +1173,7 @@ class LMentionable: object
         R"<lsquare><alpha>+<rsquare>|<lparen><alphanum|-|'|,|~|=>+<rparen>"
 
     /* pattern for part-of-speech annotations */
-    posPat = R'<lsquare>(n|adj|pl|prep)<rsquare>'
+    posPat = R'<lsquare>(n|adj|pl|prep|weak)<rsquare>'
 
     /* pattern for plural annotations */
     pluralPat = R"<lparen>(<alphanum|-|'|space|,|~|=>+)<rparen>"
@@ -2709,7 +2724,7 @@ modify ItemLister
          *   objects being worn, add ' (being worn)' to the name
          */
         if(o.wornBy != nil && showWornInfo)
-            lName += ' (being worn)';
+            lName += BMsg(being worn, ' (being worn)');
         
         /* 
          *   If the object being listed has visible contents, list its visible
@@ -2829,8 +2844,8 @@ modify wornLister
 subLister: ItemLister
     showListPrefix(lst, pl, paraCnt)
     {
-        " (<<lst[1].location.objInPrep>> which <<pl ? tSel('are', 'were') :
-          tSel('is', 'was')>> ";
+        " (<<lst[1].location.objInPrep>> which <<pl ? '{plural}' :
+          '{dummy}'>> {is}";
     }
     
     showListSuffix(lst, pl, paraCnt) { ")"; }

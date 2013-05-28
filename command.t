@@ -926,9 +926,15 @@ class Command: object
      */
     sortList(cmdLst)
     {
+        
+        /* First reduce the list to those with active predicates */
+        cmdLst = cmdLst.subset({c: c.predActive});
+        
         /* pre-calculate the priorities, to save work during the sort */
         foreach (local cmd in cmdLst)
             cmd.fixPriority();
+        
+        
 
         /* sort in descending order of priority */
         return cmdLst.sort(SortDesc, {a, b: a.priority - b.priority});
@@ -1091,6 +1097,9 @@ class Command: object
 
     /* the predicate priority (see VerbProduction.priority) */
     predPriority = 0
+    
+    /* is our predicate currently active (see VerbProduction.isActive) */
+    predActive = true
 
     /*
      *   The parse tree (the root of the grammar match), if applicable.

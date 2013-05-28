@@ -1,0 +1,144 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Newbie Help</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Newbie Help
+<br><span class="navnp"><a class="nav" href="instruct.htm"><i>Prev:</i> Instructions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="pathfind.htm"><i>Next:</i> Path Finding</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Help for New Players</h1>
+
+<p>Players familiar with Interactive Fiction generally have a good idea what sort of thing is worth typing at the command prompt. Players new to IF may be totally unfamiliar with the conventions. They see a command prompt with the implied promise that it will understand anything they type at it, and may quickly become frustrated when the game seems to understand nothing they type but simply responds with a series of standard parser error messages along the lines of "I don't understand you". This situation can be at least alleviated somewhat by providing aids to new players.</p>
+
+<p>One such aid is the instructions for playing IF that can be displayed in response to an <a href="instruct.htm">INSTRUCTIONS</a> command. Another is the <a href="hint.htm#extra">ExtraHint</a> mechanism that can provide hints to players who seem to be getting stuck. The trouble is that many people aren't all that good at reading instructions (or at least, all that eager to do so) and many new players may not be aware that such facilities even exist, let alone how to get at them. If you include the file newbie.t in your build, it provides four additional kinds of assistance that will be displayed below. The newbie.t module is included in the English-specific part of the library as so much of it is language specific.</p>
+
+<a name="helpmsg"></a><h2>The helpMessage object</h2>
+
+<p>The helpMessage object enables three new commands:</p>
+
+<ul>
+<li><strong>Help</strong>: this executes helpMessage.printMsg(), which in turn displays a brief message explaining the use of the INSTRUCTIONS, INTRO, SAMPLE and HINT commands (provided these are all available in the game).</li>
+<li><strong>Intro</strong>: this executes helpMessage.briefIntro(), which displays a very brief set of instructions for playing IF, mentioning some of the most commonly used commands.</li>
+<li><strong>Sample</strong>: this executes helpMessage.showSample(), which shows a short sample transcript.</li>
+</ul>
+
+<p>If you don't like the text any of these displays, you can modify the helpMessage object in your own code to override one or more of these methods. For example, you might want to display a transcript that's more relevant to your own game you might do something like this:</p>
+ <p><div class="code"><pre>
+modify helpMsg
+  showSample()
+  {
+    "A typical game (not this particular one) might start something like
+        this:\b";
+        inputManager.pauseForMore();
+        &quot;&lt;b&gt;&gt;x me&lt;/b&gt;\n
+        You're a fearsome dragon, the last of the Galvanax clan.\b
+        &lt;b&gt;&gt;i&lt;/b&gt;\n
+        Dragons carry nothing but their scales and their claws.\b   
+        &lt;b&gt;&gt;fly&lt;/b&gt;\n
+        Which way do you want to fly?\b
+        &lt;b&gt;&gt;N&lt;/b&gt;\v
+        With a great flapping of wings you soar up into the sky...";
+        inputManager.pauseForMore();
+        "And now back to the game you\'re actually playing....\b";
+        gPlayerChar.getOutermostRoom.lookAroundWithin();          
+  }
+;
+</pre></div>
+
+<a name="trapping"></a><h2>Trapping badly-formed commands</h2>
+
+<p>New players unfamiliar with the form often try to type commands like WHERE AM I, WHAT DO I DO NOW, PLEASE GO NORTH, or WHAT'S THIS GAME ABOUT? Such commands may look eminently sensible to the person who types them, but most IF parsers will simply respond with a "Command not understood" message, which can make the parser seem stupid and inflexible to new players (indeed, it's part of what gives the IF parser a bad name).</p>
+
+<p>Some time ago Emily Short wrote an Inform 6 extension to handle such badly-formed commands more gracefully. Some time after that I adapted Emily's work for a game called <em>Mrs Pepper's Nasty Secret</em> I wrote jointly with Jim Aikin, hiving much of this work off into a separate extension file. The present newbie.t module is based directly on this work, and contains a number of VerbRules, action definitions and StringPreParsers designed to trap such common badly-formed commands, carry them out if there's a reasonably plausible interpretation of what the player probably meant, and explain what's wrong with them and/or point the player towards the correct form of the command. Hopefully, this will seem much more user-friendly than a standard "command not understood" message.</p>
+
+<p>The reason that there's a mixture of StringPreParsers and new actions/VerbRules is that (in the main) the StringPreParsers are used to field commands that are too badly formulated for a plausible interpretation to be possible (so there's nothing to execute), while the additional commands/VerbRules generally attempt to interpret the command and execute it before explaining the more conventional way of phrasing the command. For example WHERE AM I is treated as a LOOK command, WHO AM I as an X ME command, and KEEP GOING NORTH as a NORTH command, while commands like I WOULD REALLY LIKE TO THROW THE KNIFE or YOU ARE A REALLY STUPID GAME are fielded by a StringPreParser that recommends use of the HELP command.</p>
+
+<p>Both the VerbRules and the StringPreParsers defined in this module have an isActive property defined as <span class="code">isActive = (gPlayerChar.currentInterlocutor == nil)</span>. The reason for this is that commands that might be badly formed in the context of normal play could conceivably be perfectly legitimate conversational responses, so we don't want any of these special actions or StringPreParsers to be active while a conversation is in progress.</p>
+
+<a name="bodyparts"></a><h2>Body Parts</h2>
+
+<p>Many if not most IF games don't need the player to refer explicitly to Body Parts with commands like WEAR SHOES ON FEET or OPEN DOOR WITH RIGHT HAND. To field commands of this sort the newbie.t provides a <strong>bodyParts</strong> object that matches the vocab of most common body parts (e.g. 'your feet' or 'my right hand'). This object is a <a href="multiloc.htm">MultiLoc</a> that's defined to be everywhere by default, and an <a href="extra.htm#unthing">Unthing</a> so that if your game actually does contain any body parts the parser will prefer them to the bodyParts Unthing. If you find the bodyParts object a nuisance (perhaps because your game actually uses a lot of body parts) you can banish it altogether like so:</p>
+ 
+ <p><div class="code"><pre>
+modify bodyParts
+  initialLocationClass = nil
+;
+</pre></div>
+
+<a name="playerhelper"></a><h2>The playerHelper object</h2>
+
+<p>The three previous facilities for new players offered in newbie.t can just be left to get on with their job, without much &mdash; possibly without any &mdash; intervention from the game author. The fourth, the playerHelper object, will almost certainly require some customization if it's to work to best advantage in your particular game. The basic function of the playerHelper object is to track (a) whether the player is making any progress and (b) whether the player is typing a lot of rejected commands and offer help if insufficient progress is being made or too many rejected commands are being entered.</p>
+
+<p>We'll start by listing its principal properties and methods:</p>
+
+<ul>
+<li><strong>ceaseCheckingErrorLevel</strong>: the proportion of rejected commands to turns, expressed as a percentage, below which we stop checking for errors. The default is 5 (in other words if less than 5 per cent of the player's commands are being rejected, the player presumably knows what s/he's doing, so we don't need to keep checking).</li>
+<li><strong>errorCheckInterval</strong>: the number of turns between each check on whether the player is entering too many erroneous commands. The default value is 20.</li>
+<li><strong>errorThreshold</strong>: the proportion of rejected commands to turns (i.e. accepted 
+     commands) that will trigger an offer of help. We express this number as a percentage, the default being 50.</li>
+    
+<li><strong>firstCheckAfter</strong>: this is the number of turns that must elapse from the start of the game before the playerHelper first tries to offer any help if the player appears not to be making any progress. The default is 10.</li>
+<li><strong>firstCheckCriterion()</strong>: the condition that must be true to count as the player having made no progress after the first <em>firstCheckAfter</em> turns. If this condition is still true (or this method returns true) at that point we display the <em>firstCheckMsg</em>. By default we simply return nil (so that the condition is never met), since we don't know what's appropriate for particular games, but many games will want to override this to something more suitable.</li>
+<li><strong>firstCheckMsg</strong>: the message to display if no progress has been made after <em>firstCheckAfter</em> turns. The default is a message inviting the player to use the HELP command.</li>
+<li><strong>offerHelp</strong>: this method is designed to be called at the end of gameMain.showAbout: it asks "Have you played this kind of game before?" and calls helpMessage.printMsg() is the player replies NO, thus ensuring that new players (or at least, honest new players) are informed up front about the help available to them.</li>
+<li><strong>startLocation</strong>: the location in which the player character starts out. It can be used to check whether the player character has moved at all.</li>
+</ul>
+
+<p>The playerHelper has a number of other properties and methods that are primarily intended for the library's internal use, and which are accordingly less likely to be worth customizing. Interested readers can look these up in the <a href="../libref/index.html">Library Reference Manual</a>. For now let's concentrate on the firstCheck mechanism, which is what game code will most often need to customize via the <span class="code">firstCheckCriterion</span> and <span class="code">firstCheckAfter</span> properties. Basically what happens is that at the start of play the playerHelper object sets up a Fuse to execute the <span class="code">firstCheck()</span> method after <em>firstCheckAfter</em> turns. The <span class="code">firstCheck</span> method then looks to see if the <span class="code">firstCheckCriterion</span> is true. If it is, then it displays a message saying that the player doesn't seem to be making much progress and suggesting use of the HELP command (firstCheckMsg). It also sets a Fuse to start the error Daemon after a decent interval. Otherwise, if the player does seem to have made reasonable progress (<span class="code">firstCheckCriterion</span> returns nil), <span class="code">firstCheck</span> starts the error checking Daemon straight away.</p>
+
+<p>What game code is most likely to need to customize here are the <span class="code">firstCheckCriterion</span> (the condition that must be true if the player seems not to be making much progress) and, perhaps, the <span class="code">firstCheckAfter</span> interval (the number of turns into the game at which it's reasonable to make the check). Both these values may need a bit of trial and error to get right (perhaps with the help of feedback from beta-testers), but we can at least illustrate the principle here.</p>
+
+<p>In a game in which exploration plays an important role, or where the starting location is of little intrinsic interest other than as a threshold to somewhere else, the simplest check might be whether the player character is still in his/her starting location, for which we can just write this:</p>
+
+ <p><div class="code"><pre>
+modify playerHelper
+    firstCheckCriterion() { return gLocation == startLocation; }
+;
+</pre></div>
+
+<p>This would, however, be quite inappropriate in a one-room game or a game where there's a lot to interact with in the starting location. In such a situation a better alternative might be to test whether the player has started interacting constructively with his/her environment. Suppose, for example, that the player starts out carrying a document and that there's a chest (an openable container) in the starting location. One might expect the player to begin by examining himself, the document and the chest and then opening the chest to see what's inside. We might then decide that the player isn't making satisfactory progress at the start of the game if s/he hasn't managed at least two out of those four obvious actions after ten turns. We might then write the firstCheckCriterion thus:</p>
+
+ <p><div class="code"><pre>
+modify playerHelper
+    firstCheckCriterion() 
+    { 
+        local checkList = [gPlayerChar.examined, document.examined,
+            chest.examined, chest.opened ];
+            
+        return checkList.countWhich({x: x == true}) &lt; 2; 
+    }    
+;
+</pre></div>
+
+<p>One other thing we can do if the player appears to be getting stuck is to start the <a href="hint.htm#extra">ExtraHints</a> mechanism, if we are using it in our game, by calling extraHintManager.startDaemon(). We could, for example, override firstCheckMsg to do this rather than displaying a message telling players that they're not making much progress:</p>
+
+ <p><div class="code"><pre>
+modify playerHelper
+    firstCheckMsg() 
+    { 
+        extraHintManager.startDaemon();
+    }    
+;
+</pre></div>
+
+<p>Some game authors may prefer this as a less intrusive (or less belittling) approach.</p>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Newbie Help
+<br><span class="navnp"><a class="nav" href="instruct.htm"><i>Prev:</i> Instuctions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="pathfind.htm"><i>Next: </i>Path Finding </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

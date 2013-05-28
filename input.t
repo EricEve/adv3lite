@@ -759,8 +759,9 @@ class StringPreParser: PreinitObject
         /* run each preparser */
         foreach (local cur in regList)
         {
-            /* run this preparser */
-            str = cur.doParsing(str, which);
+            /* run this preparser, provided it's active */
+            if(cur.isActive)
+                str = cur.doParsing(str, which);
 
             /* 
              *   if the result is nil, it means that the string has been
@@ -779,6 +780,9 @@ class StringPreParser: PreinitObject
 
     /* class property - the registration list has been sorted */
     regListSorted = nil
+    
+    /* Flag, is this PreParser active? */
+    isActive = true
 ;
 
 /* ------------------------------------------------------------------------ */

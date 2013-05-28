@@ -110,6 +110,12 @@ dictionary property noun, nounApostS;
 /* matched a preposition (the phrase contains at least one preposition) */
 #define MatchPrep      0x0001
 
+/* 
+ *   matched a weak token (which we'll treat as equivalent to matchimg a
+ *   preposition).
+ */
+#define MatchWeak      0x0001
+
 /* matched an adjective (the phrase contains at least one adjective) */
 #define MatchAdj       0x0002
 
@@ -125,9 +131,6 @@ dictionary property noun, nounApostS;
 /* mask to select only the part-of-speech flags */
 #define MatchPartMask  0x0FFF
 
-
-/* mask to select only the part-of-speech flags */
-#define MatchPartMask  0x0FFF
 
 /* 
  *   all words were matched WITHOUT character approximations (such as
@@ -246,6 +249,10 @@ dictionary property noun, nounApostS;
 #define gTentativeDobj (gCommand.dobjs.mapAll({x: x.obj}).toList)
 #define gTentativeIobj (gCommand.iobjs.mapAll({x: x.obj}).toList)
 
+/* The previous action and command */
+#define gLastAction (libGlobal.lastAction)
+#define gLastCommand (libGlobal.lastCommand)
+
 /*
  *   Determine if the current global action is the specified action.  Only
  *   the action prefix is needed - so use "Take" rather than "TakeAction"
@@ -295,11 +302,22 @@ dictionary property noun, nounApostS;
 /* get the current player character Actor object */
 #define gPlayerChar (libGlobal.playerChar)
 
+/* get the player character's location */
+#define gLocation (gPlayerChar.location)
+
+/* 
+ *   get the player character's current room (which may or may not be the same
+ *   as his/her location)
+ */
+#define gRoom (gPlayerChar.getOutermostRoom)
 
 #define objFor(which, action) propertyset '*' ## #@which ## #@action
 
 #define dobjFor(action) objFor(Dobj, action)
 #define iobjFor(action) objFor(Iobj, action)
+#define gTopic (gAction.curTopic)
+#define gTopioText (gTopic.getTopicText)
+#define gTopicMatch (gTopic.getBestMatch)
 
 #define reportAfter(msg) gCommand.afterReports += msg
 
@@ -582,6 +600,8 @@ Topic template 'vocab' @familiar?;
 Room template 'roomTitle' 'vocab' "desc"?;
 Room template 'roomTitle' "desc"?;
 
+Unthing template 'vocab' @location? 'notHereMsg'?;
+
 TopicGroup template +boostScore? 'convKeys' | [convKeys] ? ;
 
 
@@ -720,6 +740,13 @@ enum masculine, feminine, neuter;
  *   game, this will be nil 
  */
 #define gHintManager (libGlobal.hintManagerObj)
+
+
+/*
+ *   the extra hint manager object - if the hints module isn't included in the
+ *   game, this will be nil 
+ */
+#define gExtraHintManager (libGlobal.extraHintManagerObj)
 
 
 /* ------------------------------------------------------------------------ */
@@ -916,6 +943,14 @@ MenuLongTopicItem template 'title' 'heading'? 'menuContents';
 /* templates for hint system objects */
 Goal template ->closeWhenAchieved? 'title' 'heading'? [menuContents];
 Hint template 'hintText' [referencedGoals]?;
+
+/* 
+ *   A Template to facilitate the definition of ExtraHints. We can define it 
+ *   here and not in a header file since ExtraHints are only defined in this 
+ *   source file. */
+
+ExtraHint template ->achievement? +hintDelay? "hintText";
+
 
 /* templates for EventLists */
 
