@@ -949,7 +949,7 @@ Hint template 'hintText' [referencedGoals]?;
  *   here and not in a header file since ExtraHints are only defined in this 
  *   source file. */
 
-ExtraHint template ->achievement? +hintDelay? "hintText";
+ExtraHint template +hintDelay? "hintText" | [eventList];
 
 
 /* templates for EventLists */

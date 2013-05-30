@@ -20,120 +20,16 @@
 /*
  *   We refer to some properties defined primarily in score.t - that's an
  *   optional module, though, so make sure the compiler has heard of these. 
+ *   We do the same for some properties in eventList.t
  */
 property scoreCount;
+property achieved;
+property eventList;
 
-
-/* ------------------------------------------------------------------------ */
-/*
- *   A basic hint menu object.  This is an abstract base class that
- *   encapsulates some behavior common to different hint menu classes.  
+/* HintOpener provides some properties common to Goal and ExtraHint, in particuar
+ * those relating to opening and closing Goals and ExtraHints.
  */
-class HintMenuObject: object
-    /*
-     *   The topic order.  When we're about to show a list of open topics,
-     *   we'll sort the list in ascending order of this property, then in
-     *   ascending order of title.  By default, we set this order value to
-     *   1000; if individual goals don't override this, then they'll
-     *   simply be sorted lexically by topic name.  This can be used if
-     *   there's some basis other than alphabetical order for sorting the
-     *   list.  
-     */
-    topicOrder = 1000
-
-    /*
-     *   Compare this goal to another, for the purposes of sorting a list
-     *   of topics.  Returns a positive number if this goal sorts after
-     *   the other one, a negative number if this goal sorts before the
-     *   other one, 0 if the relative order is arbitrary.
-     *   
-     *   By default, we'll sort by topicOrder if the topicOrder values are
-     *   different, otherwise alphabetically by title.  
-     */
-    compareForTopicSort(other)
-    {
-        /* if the topicOrder values are different, sort by topicOrder */
-        if (topicOrder != other.topicOrder)
-            return topicOrder - other.topicOrder;
-
-        /* the topicOrder values are the same, so sort by title */
-        if (title > other.title)
-            return 1;
-        else if (title < other.title)
-            return -1;
-        else
-            return 0;
-    }
-;
-
-/*
- *   A Goal represents an open task: something that the player is trying
- *   to achieve.  A Goal is an abstract object, not part of the simulated
- *   world of the game.
- *   
- *   Each goal is associated with a hint topic (usually shown as a
- *   question, such as "How do I get past the guard?") and an ordered list
- *   of hints.  The hints are usually ordered from most general to most
- *   specific.  The idea is to let the player control how big a hint they
- *   get; we start with a small nudge and work towards giving away the
- *   puzzle completely, so the player can stop as soon as they see
- *   something that helps.
- *   
- *   At any given time, a goal can be in one of three states:
- *   
- *   - Open: this means that the player is (or ought to be) aware of the
- *   goal, but the goal hasn't yet been achieved.  Determining this
- *   awareness is up to the goal.  In some cases, a goal is opened as soon
- *   as the player has seen a particular object or entered a particular
- *   area; in other cases, a goal might be opened by a scripted event,
- *   such as a speech by an NPC telling the player they have to accomplish
- *   something.  A goal could even be opened by viewing a hint for another
- *   goal, because that hint could explain a gating goal that the player
- *   might not otherwise been able to know about.
- *   
- *   - Undiscovered: this means that the player doesn't yet have any
- *   reason to know about the goal.
- *   
- *   - Closed: this means that the player has accomplished the goal, or in
- *   some cases that the goal has become irrelevant. 
- *   
- *   The hint system only shows goals that are Open.  We don't show Closed
- *   goals because the player presumably has no need of them any longer;
- *   we don't show Undiscovered goals to avoid giving away developments
- *   later in the game before they become relevant.  
- */
-enum OpenGoal, ClosedGoal, UndiscoveredGoal;
-class Goal: MenuTopicItem, HintMenuObject
-    /*
-     *   The topic question associated with the goal.  The hint system
-     *   shows a list of the topics for the goals that are currently open,
-     *   so that the player can decide what area they want help on.  
-     */
-    title = ''
-
-    /*
-     *   Our parent menu - this is usually a HintMenu object.  In very
-     *   simple hint systems, this could simply be a top-level hint menu
-     *   container; more typically, the hint system will be structured
-     *   into a menu tree that organizes the hint topics into several
-     *   different submenus, for easier navigatino.  
-     */
-    location = nil
-
-    /*
-     *   The list of hints for this topic.  This should be ordered from
-     *   most general to most specific; we offer the hints in the order
-     *   they appear in this list, so the earlier hints should give away
-     *   as little as possible, while the later hints should get
-     *   progressively closer to just outright giving away the answer.
-     *   
-     *   Each entry in the list can be a simple (single-quoted) string, or
-     *   it can be a Hint object.  In most cases, a string will do.  A
-     *   Hint object is only needed when displaying the hint has some side
-     *   effect, such as opening a new Goal.  
-     */
-    menuContents = []
-
+class HintOpener: object
     /*
      *   An optional object that, when seen by the player character, opens
      *   this goal.  It's often convenient to declare a goal open as soon
@@ -274,6 +170,121 @@ class Goal: MenuTopicItem, HintMenuObject
         || (closeWhenRevealed != nil && gRevealed(closeWhenRevealed))
         || closeWhenTrue)
 
+;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   A basic hint menu object.  This is an abstract base class that
+ *   encapsulates some behavior common to different hint menu classes.  
+ */
+class HintMenuObject: object
+    /*
+     *   The topic order.  When we're about to show a list of open topics,
+     *   we'll sort the list in ascending order of this property, then in
+     *   ascending order of title.  By default, we set this order value to
+     *   1000; if individual goals don't override this, then they'll
+     *   simply be sorted lexically by topic name.  This can be used if
+     *   there's some basis other than alphabetical order for sorting the
+     *   list.  
+     */
+    topicOrder = 1000
+
+    /*
+     *   Compare this goal to another, for the purposes of sorting a list
+     *   of topics.  Returns a positive number if this goal sorts after
+     *   the other one, a negative number if this goal sorts before the
+     *   other one, 0 if the relative order is arbitrary.
+     *   
+     *   By default, we'll sort by topicOrder if the topicOrder values are
+     *   different, otherwise alphabetically by title.  
+     */
+    compareForTopicSort(other)
+    {
+        /* if the topicOrder values are different, sort by topicOrder */
+        if (topicOrder != other.topicOrder)
+            return topicOrder - other.topicOrder;
+
+        /* the topicOrder values are the same, so sort by title */
+        if (title > other.title)
+            return 1;
+        else if (title < other.title)
+            return -1;
+        else
+            return 0;
+    }
+;
+
+/*
+ *   A Goal represents an open task: something that the player is trying
+ *   to achieve.  A Goal is an abstract object, not part of the simulated
+ *   world of the game.
+ *   
+ *   Each goal is associated with a hint topic (usually shown as a
+ *   question, such as "How do I get past the guard?") and an ordered list
+ *   of hints.  The hints are usually ordered from most general to most
+ *   specific.  The idea is to let the player control how big a hint they
+ *   get; we start with a small nudge and work towards giving away the
+ *   puzzle completely, so the player can stop as soon as they see
+ *   something that helps.
+ *   
+ *   At any given time, a goal can be in one of three states:
+ *   
+ *   - Open: this means that the player is (or ought to be) aware of the
+ *   goal, but the goal hasn't yet been achieved.  Determining this
+ *   awareness is up to the goal.  In some cases, a goal is opened as soon
+ *   as the player has seen a particular object or entered a particular
+ *   area; in other cases, a goal might be opened by a scripted event,
+ *   such as a speech by an NPC telling the player they have to accomplish
+ *   something.  A goal could even be opened by viewing a hint for another
+ *   goal, because that hint could explain a gating goal that the player
+ *   might not otherwise been able to know about.
+ *   
+ *   - Undiscovered: this means that the player doesn't yet have any
+ *   reason to know about the goal.
+ *   
+ *   - Closed: this means that the player has accomplished the goal, or in
+ *   some cases that the goal has become irrelevant. 
+ *   
+ *   The hint system only shows goals that are Open.  We don't show Closed
+ *   goals because the player presumably has no need of them any longer;
+ *   we don't show Undiscovered goals to avoid giving away developments
+ *   later in the game before they become relevant.  
+ */
+enum OpenGoal, ClosedGoal, UndiscoveredGoal;
+
+class Goal: MenuTopicItem, HintMenuObject, HintOpener
+    /*
+     *   The topic question associated with the goal.  The hint system
+     *   shows a list of the topics for the goals that are currently open,
+     *   so that the player can decide what area they want help on.  
+     */
+    title = ''
+
+    /*
+     *   Our parent menu - this is usually a HintMenu object.  In very
+     *   simple hint systems, this could simply be a top-level hint menu
+     *   container; more typically, the hint system will be structured
+     *   into a menu tree that organizes the hint topics into several
+     *   different submenus, for easier navigatino.  
+     */
+    location = nil
+
+    /*
+     *   The list of hints for this topic.  This should be ordered from
+     *   most general to most specific; we offer the hints in the order
+     *   they appear in this list, so the earlier hints should give away
+     *   as little as possible, while the later hints should get
+     *   progressively closer to just outright giving away the answer.
+     *   
+     *   Each entry in the list can be a simple (single-quoted) string, or
+     *   it can be a Hint object.  In most cases, a string will do.  A
+     *   Hint object is only needed when displaying the hint has some side
+     *   effect, such as opening a new Goal.  
+     */
+    menuContents = []
+
+    
     /*
      *   Has this goal been fully displayed?  The hint system automatically
      *   sets this to true when the last item in our hint list is
@@ -748,38 +759,25 @@ property achieved;
  *   is that the player char has visited the location that contains the
  *   telephone pole.
  */
-class ExtraHint: object
+class ExtraHint: HintOpener
     location = extraHintManager
     
     /* 
      *   The condition under which we close this ExtraHint. By default we close
-     *   it if either hint done becomes true or if our associated achievement is
-     *   achieved. If neither of those is the case we close this ExtraHint if
-     *   its checkClose method/property returns true.
+     *   it if either hintDone becomes true or our closeWhen condition is true.
      */
-    closeWhen()
-    {
-        if(hintDone || (achievement && achievement.achieved))
-            return true;
-        
-        return checkClose();
+    checkClose()
+    {       
+        return hintDone || closeWhen;
     }
-    /* The achievement whose fulfilment we monitor */
-    achievement = nil
-    
-    /* The condition that needs to be true for us to offer this hint */
-    openWhen = nil
-        
+       
+            
     /*  
      *   The number of turns between openWhen becoming true and this hint 
      *   being displayed.
      */
     hintDelay = 0
-    
-    /*  Alternative condition for closing this ExtraHint */
-    checkClose = nil   
        
-    
     /*  
      *   If the closeWhen condition is true we remove this ExtraHint from the
      *   list of potentially active ExtraHints and return nil to tell the 
@@ -793,7 +791,7 @@ class ExtraHint: object
      */    
     doHint()
     {
-        if(closeWhen)
+        if(checkClose())
         {
             extraHintManager.removeFromContents(self);
             return nil;
@@ -816,13 +814,40 @@ class ExtraHint: object
     /* The text to display in relation to this ExtraHint */
     hintText = ""
     
-    /* Show the test related to this ExtraHint */
+    /* Show the text related to this ExtraHint */
     showHint()
     {
-        "<.extrahint>";hintText();"<./extrahint>";
+        "<.extrahint>";
+        if(ofKind(Script))	
+        {	    
+            doScript();		
+            
+            /*  
+             *   Reset openedWhen so that we don't display this hint again until
+             *   after another hintDelay turns.
+             */  
+            openedWhen = libGlobal.totalTurns;
+        }	
+        else
+            hintText();
         
-        /* Mark this hint as done now we've shown it */
-        hintDone = true;
+        "<./extrahint>";	
+        
+        /* 
+         *   Mark this hint as done now we've shown it, unless we're an
+         *   EventList with more items to show.
+         */
+        if(eventList == nil || getScriptState() > eventList.length)		
+            hintDone = true;
+        
+	
+    }
+    
+    /* Set the number of turns that must elapse before we display this hint */
+    setDelay(val)
+    {
+        hintDone = nil;
+        hintDelay = val;
     }
     
     /* 
@@ -852,7 +877,7 @@ extraHintStyleTag: StyleTag 'extrahint' '<.p><i>' '</i><.p>';
 extraHintManager: PreinitObject
     
     /* Start the Daemon that checks whether to display any ExtraHints. */
-    startDaemon()  
+    activate()  
     { 
         /* 
          *   First check that our daemonID is nil so we don't start another
@@ -872,7 +897,8 @@ extraHintManager: PreinitObject
         return firstObj(ExtraHint) != nil;
     }
     
-    stopDaemon()
+	/* Stop the Daemon that checks whether to display any ExtraHints. */
+    deactivate()
     {
         if(daemonID)
         {

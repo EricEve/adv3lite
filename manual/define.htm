@@ -203,7 +203,7 @@ VerbRule(Repair)
 
 <p>Note how we use the bar (|) symbol to define alternative phrasings and the brackets to group them. We want the command to match REPAIR FOO, MEND FOO or FIX FOO; without the brackets it would match: REPAIR or MEND, or FIX FOO.</p>
 
-<p>The second step is usually very simple indeed; we just define the new action using the <strong>DefineIAction(<em>action-name</em>)</strong> macro, for example: </p>
+<p>The second step is usually very simple indeed; we just define the new action using the <strong>DefineTAction(<em>action-name</em>)</strong> macro, for example: </p>
 
 <p><div class="code"><pre>
 DefineTAction(Rub)
@@ -213,7 +213,7 @@ DefineTAction(Repair)
 ;
 </pre></div>
 <a name="all"></a>
-<p>And normally that's all there is to it. Occasionally, though, you might want do define the method <strong>getAll(cmd, role)</strong> which defines which objects should match <a name="all_idx">ALL</a> in a command like RUB ALL (here <em>cmd</em> is the current Command object and role is either DirectObject or IndirectObject). The default behaviour is to return every object in scope, but for some actions you may want to restrict this. For example on the Take action the adv3Lite library defines:</p>
+<p>And normally that's all there is to it; note in particular that when defining a <span class="code">TAction</span> (or <span class="code">TIAction</span>) we <em>don't</em> override its <span class="code">execAction(cmd)</span> method, since the library already makes it own use for this for TActions and TIActions, and overriding it will stop things working properly (<em>especially</em> if you override it without calling <span class="code">inherited(cmd)</span> in the overridden method, but there normally shouldn't be any reason to override it at all). Occasionally, though, you might want do define the method <strong>getAll(cmd, role)</strong> which defines which objects should match <a name="all_idx">ALL</a> in a command like RUB ALL (here <em>cmd</em> is the current Command object and role is either DirectObject or IndirectObject). The default behaviour is to return every object in scope, but for some actions you may want to restrict this. For example on the Take action the adv3Lite library defines:</p>
 
  <p><div class="code"><pre>
     getAll(cmd, role)
@@ -264,7 +264,7 @@ poisonBottle: Thing 'dark green bottle; of[prep]; poison'
 <strong>me:</strong> You look as bedraggled as you feel.
 </pre></div>
 
-<p>The reason annountMultiAction is nil by default is that more most actions you'd use the report method to show a summary of the action (e.g. "You the red ball and blue ball") so that announcing each direct object as above would be superfluous (although in the case of the examine action it would be wanted to do).</p>
+<p>The reason announceMultiAction is nil by default is that for most actions you'd use the report method to show a summary of the action (e.g. "You the red ball and blue ball") so that announcing each direct object as above would be superfluous (although the examine action is one exception to this).</p>
 
 <p>The third step is defining the appropriate action handling methods on Thing (and on any subclass of Thing for which you want different default behaviour). For this step you basically need to follow the principles already explained in the <a href="actres.htm">Action Results</a> section above. So for our Rub and Repair actions we might define: </p>
 
@@ -274,7 +274,7 @@ modify Thing
    {
       preCond = [touchObj, objVisible]
       
-      report() { "{I} {rub} &lt;&lt;gActionListStr&gt;&gt;. "; }
+      report() { "{I} rub{s/?ed} &lt;&lt;gActionListStr&gt;&gt;. "; }
    }
 
    isRepairable = nil
@@ -290,15 +290,12 @@ modify Thing
       }      
    }
    
-   cannotRepairMsg = '{The subj dobj} {does}n\'t need mending. ')
+   cannotRepairMsg = '{The subj dobj} {doesn\'t need} mending. '
 ;
 
-CustomVocab
-    verbParams = ['rub/rubs/rubbed']
-;
 </pre></div>
 
-<p>We could have defined the message '{The subj dobj} {does}n\'t need mending. ' directly in the illogical() macro, but by taking the extra step of going via a cannotRepairMsg property we make it much easier to customise the failure response on individual objects. Likewise we don't strictly need to define the new isRepairable property and test it in the verify() method, but the library follows this coding pattern by and large and it makes it that much easier when it comes to defining objects that do need repairing (we just define isRepairable = true rather than having to override the complete verify method). We need to define the extra CustomVocab object so that the parser knows how to conjugate 'rub', but if we knew that the Rub action was only ever going to be performed by the player character and the game was never going to change tense, then we could skip this step and simply define:  </p>
+<p>We could have defined the message '{The subj dobj} {doesn\'t need} mending. ' directly in the illogical() macro, but by taking the extra step of going via a cannotRepairMsg property we make it much easier to customise the failure response on individual objects; either way note that this message must be defined as a single-quoted string, not a double-quoted one. We don't strictly need to define the new isRepairable property and test it in the verify() method, but the library follows this coding pattern by and large and it makes it that much easier when it comes to defining objects that do need repairing (we just define isRepairable = true rather than having to override the complete verify method). Note how we define the message parameter substitution 'rub{s/?ed}' to tell the parser how to conjugate 'rub', but if we knew that the Rub action was only ever going to be performed by the player character and the game was never going to change tense, then we could skip this step and simply define:  </p>
 
  <p><div class="code"><pre>
    report() { "You rub &lt;&lt;gActionListStr&gt;&gt;. "; }
@@ -382,7 +379,7 @@ DefineTIAction(RepairWith)
 ;
 </pre></div>
 <a name="resolvefirst"></a>
-<p>The additional point to note here is the use of the <strong>resolveIobjFirst</strong> property. In adv3Lite the verify() properties are only consulted once (at most) during object resolution; the resolveIobjFirst property controls whether the indirect object's verify() method is consulted first (the default, resolveIobjFirst = true), or whether the direct object's verify() method is run first (as here). The significance is that whichever property is run first has no access to the identity of the other object. So when resolveIobjFirst is true, the direct object is not known when the indirect object is resolved, but the indirect object is known when the direct object is resolved, so the direct object's verify() method can make use of the identity of the indirect object to decide whether or not the direct object is a logical choice. When resolveIobjFirst is false, it's the other way about. For actions like PutIn and PutOn, resolveIobjFirst = true is a good choice, since it's helpful to know what we want to put something in or on before deciding whether it's logical to put a particular object in it or on it. For our new RubWith and RepairWith actions, however, it's probably better to resolve the direct object first, so that when the parser comes to resolve the indirect object the the potential indirect objects' verify() routines can see what it is that's to be rubbed or repaired before deciding with the proposed indirect object is a logical choice to rub or repair it with.</p>
+<p>Note that we once again <em>don't</em> override the <span class="code">execAction(cmd)</span> method when defining a new TIAction. An additional point to note here is the use of the <strong>resolveIobjFirst</strong> property. In adv3Lite the verify() properties are only consulted once (at most) during object resolution; the resolveIobjFirst property controls whether the indirect object's verify() method is consulted first (the default, resolveIobjFirst = true), or whether the direct object's verify() method is run first (as here). The significance is that whichever property is run first has no access to the identity of the other object. So when resolveIobjFirst is true, the direct object is not known when the indirect object is resolved, but the indirect object is known when the direct object is resolved, so the direct object's verify() method can make use of the identity of the indirect object to decide whether or not the direct object is a logical choice. When resolveIobjFirst is false, it's the other way about. For actions like PutIn and PutOn, resolveIobjFirst = true is a good choice, since it's helpful to know what we want to put something in or on before deciding whether it's logical to put a particular object in it or on it. For our new RubWith and RepairWith actions, however, it's probably better to resolve the direct object first, so that when the parser comes to resolve the indirect object the the potential indirect objects' verify() routines can see what it is that's to be rubbed or repaired before deciding with the proposed indirect object is a logical choice to rub or repair it with.</p>
 
 <p>The third step proceeds as before, except that we now have to define the iobjFor(Action) methods as well as the dobjFor(Action) methods:</p>
 

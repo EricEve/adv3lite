@@ -91,14 +91,81 @@ fountainHint: Hint 'What\'s the temperature like in the fountain? ' [fountainGoa
 <p>To provide ExtraHints in your game, just define one or more objects of the ExtraHint class. These don't need to be located anywhere special; they'll automatically be associated with the extraHintManager object that controls them. The properties and methods of an ExtraHint that control when and what it displays are:</p>
 
 <ul>
-<li><strong>openWhen</strong>: the condition that needs to be true for this ExtraHint to be displayed.</li>
+
 <li><strong>hintDelay</strong>: the number of turns that must elapse after openWhen becomes true before this ExtraHint is displayed; the default is 0 but a higher number could be used to allow players to figure out a solution for themselves before being given a nudge.</li>
 <li><strong>hintText</strong>: the text of the hint to display; this should be defined as a double-quoted string or as method that displays some text.</li>
 <li><strong>priority</strong>: only one ExtraHint will be displayed on any one turn, so if more than one become available at the same time, the ExtraHint with the highest priority is the one that will be used. The default value of <span class="code">priority</span> is 100.</li>
-<li><strong>checkClose</strong>: an ExtraHint is automatically closed after it is displayed (so that it is only displayed once), but you may want to close it before it's displayed (especially if hintDelay is greater than zero and the player may have solved the problem for himself/herself). The checkClose property/method can be used to close the ExtraHint in this kind of situation. It should be set to a condition or a method that returns true if and when the ExtraHint is no longer needed.</li>
-<li><strong>achievement</strong>: another way to signal that an ExtraHint is no longer needed is to set its <span class="code">achievement</span> property to an Achievement object which, when achieved, indicates that the ExtraHint is no longer necessary (this is only relevant if the scoring system is used).</li>
+
 </ul>
 
+<p>In addition there are the properties that are used to decide when an ExtraHint become relevant and when it ceases to be relevant. The ExtraHint becomes applicable when its <strong>openWhen</strong> property becomes true, but game code would not normally use this property directly. Instead you should define one or more of <strong>openWhenSeen</strong>, <strong>openWhenExamined</strong>, <strong>openWhenMoved</strong>, <strong>openWhenKnown</strong>, <strong>openWhenAchieved</strong>, <strong>openWhenRevealed</strong> or <strong>openWhenTrue</strong>, which have the same meaning, and work the same way, as the same properties on <a href="#goal">Goal</a>. Similarly you can use one of more of <strong>closeWhenSeen</strong>, <strong>closeWhenExamined</strong>, <strong>closeWhenMoved</strong>, <strong>closeWhenKnown</strong>, <strong>closeWhenAchieved</strong>, <strong>closeWhenRevealed</strong> or <strong>closeWhenTrue</strong> to close off an ExtraHint that ceased to be relevant because the player has already done what it would prompt him or her to do. An ExtraHint is in any case closed off once it is fully displayed (more on which below), so the chief function of the closeWhenXXX properties is to prevent the display of unnecessary ExtraHints (bearing in mind not least that for ExtraHints there may be a delay between the openWhen condition becoming true and the display of the ExtraHint, as defined by the <span class="code">hintDelay</span> property).</p>
+
+
+<p>The way you would use ExtraHints is to define a number of them at some convenient place in your code; they can probably all be defined as anonymous objects, for example:</p>
+
+ <p><div class="code"><pre>
+ExtraHint +7 "Try taking the document. "
+    openWhenSeen = study
+    closeWhenMoved = document    
+;
+
+ExtraHint +7 "Have you examined the desk yet?"
+    openWhenSeen = study
+    closeWhenExamined = desk
+    
+    priority = 110
+;
+</pre></div>
+
+<p>Note how we can make use of the ExtraHint template to define the hintDelay and hintText properties of these ExtraHints. In this instance we're assuming that the game has a room called study in which, among other things, there are a desk and a document, and that once the player character has seen the study examining the desk and taking the document are two actions that should follow. Since these might well occur to the player in any case, we here allow a seven-turn delay before offering the hint. Since both hints might then want to be displayed on the same turn, we give the hint about examining the desk a higher priority so that it will take precedence. This is, to be sure, a somewhat artificial example, but it should serve to illustrate how ExtraHints might be used.</p>
+
+<p>Although ExtraHints are displayed under circumstances determined by the game author, it's normally up to players to decide whether they want them at all, through issuing the commands EXTRA ON and EXTRA OFF. If you want your game to display extra hints even though the player hasn't asked for them, perhaps because your game has determined that the player is floundering (see the discussion of the <a href="newbie.htm#playerhelper">playerHelper</a> object for one way to determine that), you can call <span class="code">extraHintManager.activate()</span> to force the display of extra hints. If players don't like them, they can still banish them with an EXTRA OFF command, but this may be a tactic of last resort to use with a stubbornly struggling player who refused to ask for help!</p>
+
+<p>Often, you'll only want to give the player a single nudge, and once the ExtraHint is displayed it will be closed off and not used again. But there may be some cases where you feel that a player may need more than one nudge, particularly if s/he fails to respond to the first. In such a case you can mix the ExtraHint in with an EventList class to provide a series of nudges, for example:</p>
+
+ <p><div class="code"><pre>
+ExtraHint, EventList +7 
+    [
+       'Try taking the document. ',
+       'You really should take the document, you know. ',
+       'To take the documemnt, use the command TAKE DOCUMENT. '
+    ]
+    openWhenSeen = study
+    closeWhenMoved = document  
+;
+</pre></div>
+<a name="setdelay"></a>
+<p>In most cases you won't want these three hints to be displayed on successive terms, since you'd instead want to give players the opportunity to respond to the first nudge before giving them the second. In fact each of the hints in the list will be displayed <em>hintDelay</em> turns afer the last. But what happens if we want to vary the interval between hints? We can do this by means of the <strong>setDelay()</strong> method: calling <span class="code">setDelay(val)</span> will change the value of <span class="code">hintDelay</span> to <span class="code">val</span>, thereby reducing or increasing the number of turns that must elapse until the next hint in the series is displayed. But how and where can one call this method? Because single-quoted strings can contained embedded expressions, you might be tempted to make the following mistake: </p>
+
+<p><div class="code"><pre>
+ExtraHint, EventList +7 
+    [
+       'Try taking the document. &lt;&lt;setDelay(6)&gt;&gt;',  <b><FONT COLOR=RED>// DON'T DO THIS!</FONT></b>
+       'You really should take the document, you know. &lt;&lt;setDelay(5)&gt;&gt;',
+       'To take the documemnt, use the command TAKE DOCUMENT. '
+    ]
+    openWhenSeen = study
+    closeWhenMoved = document  
+;
+</pre></div>
+
+<p>The problem with code like this is that all the list elements are evaluated the first time the list is referenced, so that it will most likely result in the hintDelay being set to 5 all the way through. One way to avoid this is to embed the calls to setDelay in double-quoted strings inside anonymous functions, like this:</p>
+
+<p><div class="code"><pre>
+ExtraHint, EventList +7 
+    [
+       {: "Try taking the document. &lt;&lt;setDelay(6)&gt;&gt;" },  <b><FONT COLOR=GREEN>// DO THIS INSTEAD</FONT></b>
+       {: "You really should take the document, you know. &lt;&lt;setDelay(5)&gt;&gt;"},
+       'To take the documemnt, use the command TAKE DOCUMENT. '
+    ]
+    openWhenSeen = study
+    closeWhenMoved = document  
+;
+</pre></div>
+
+<p>If you use an EventList, as in the foregoing examples, then the ExtraHint will automatically close itself off after the last hint in the list has been displayed. If you want to keep repeating the final hint until the player acts on it you could use a StopEventList instead.</p>
+
+<a name="ehstylytag"></a>
 <p>By default extra hints are shown in italics. If you like you can change this by modifying the <strong>extraHintStyleTag</strong>. For example, to make the hints appear in bold blue, you'd define the following:</p>
 
  <p><div class="code"><pre>
@@ -116,26 +183,6 @@ modify extraHintStyleTag
 ;</pre></div>
 
 <p>Of course, you can simply stick with the default italics here and not bother with modifying extraHintStyleTag at all.</p>
-
-<p>The way you would use ExtraHints is to define a number of them at some convenient place in your code; they can probably all be defined as anonymous objects, for example:</p>
-
- <p><div class="code"><pre>
-ExtraHint +7 "Try taking the document. "
-    openWhen = gPlayerChar.hasSeen(study)
-    checkClose = document.moved    
-;
-
-ExtraHint +7 "Have you examined the desk yet?"
-    openWhen = gPlayerChar.hasSeen(study)
-    checkClose = desk.examined
-    
-    priority = 110
-;
-</pre></div>
-
-<p>Note how we can make use of the ExtraHint template to define the hintDelay and hintText properties of these ExtraHints. In this instance we're assuming that the game has a room called study in which, among other things, there are a desk and a document, and that once the player character has seen the study examining the desk and taking the document are two actions that should follow. Since these might well occur to the player in any case, we here allow a seven-turn delay before offering the hint. Since both hints might then want to be displayed on the same turn, we give the hint about examining the desk a higher priority so that it will take precedence. This is, to be sure, a somewhat artificial example, but it should serve to illustrate how ExtraHints might be used.</p>
-
-<p>Although ExtraHints are displayed under circumstances determined by the game author, it's normally up to players to decide whether they want them at all, through issuing the commands EXTRA ON and EXTRA OFF. If you want your game to display extra hints even though the player hasn't asked for them, perhaps because your game has determined that the player is floundering (see the discussion of the <a href="newbie.htm#playerhelper">playerHelper</a> object for one way to determine that), you can call <span class="code">extraHintManager.startDaemon()</span> to force the display of extra hints. If players don't like them, they can still banish them with an EXTRA OFF command, but this may be a tactic of last resort to use with a stubbornly struggling player who refused to ask for help!</p>
 
 
 <hr class="navb"><div class="navb">

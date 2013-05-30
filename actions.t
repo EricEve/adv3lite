@@ -348,9 +348,9 @@ DefineSystemAction(ExtraHints)
         onOff = onOff.toLower();
         
         if(onOff == hintsOff)
-            gExtraHintManager.stopDaemon();
+            gExtraHintManager.deactivate();
         else
-            gExtraHintManager.startDaemon();
+            gExtraHintManager.activate();
         
         DMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
     }
