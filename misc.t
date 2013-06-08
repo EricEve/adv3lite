@@ -447,8 +447,7 @@ adv3LibPreinit: PreinitObject
         gPlayerChar = gameMain.initialPlayerChar;
         
 
-        /* initialize the master direction list */
-        Direction.initializeDirectionClass();
+        
 
         /* 
          *   Attach the command sequencer output filter, the
@@ -481,6 +480,7 @@ adv3LibPreinit: PreinitObject
         statusRightOutputStream.addOutputFilter(styleTagFilter);
 
     }
+
 
 ;
 //

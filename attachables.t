@@ -66,6 +66,44 @@ class SimpleAttachable: Thing
      */
     detachedLocation = (attachedTo.location)
     
+    /* Attach this object to obj */
+    attachTo(obj)
+    {
+        /* Note that we're now attached to the iobj of the attach action */
+        attachedTo = obj;
+        
+        /* 
+         *   If we're already in our attached location, there's no need to move,
+         *   otherwise move us into our attached location.
+         */
+        if(location != attachedLocation)
+            actionMoveInto(attachedLocation);
+        
+        /* Add us to the iobj's list of attachments. */
+        obj.attachments += self;
+    }
+    
+    /* Detach this item from obj */
+    detachFrom(obj)
+    {
+        /* If we're not attached to obj, then there's nothing to do */
+        if(obj != attachedTo || obj == nil)
+            return;
+        
+        /* If we're not already in our detachedLocation, move us there. */
+        if(location != detachedLocation)
+            moveInto(detachedLocation);
+        
+        /* 
+         *   Remove us from the list of attachements of the object to which we
+         *   were formerly attached.
+         */
+        attachedTo.attachments -= self;
+        
+        /* Note that we're no longer attached to anything. */
+        attachedTo = nil;
+    }
+    
     /*  Handling for the ATTACH TO action */
     dobjFor(AttachTo)
     {
@@ -83,18 +121,7 @@ class SimpleAttachable: Thing
         
         action()
         {            
-            /* Note that we're now attached to the iobj of the attach action */
-            attachedTo = gIobj;
-            
-            /* 
-             *   If we're already in our attached location, there's no need to
-             *   move, otherwise move us into our attached location.
-             */
-            if(location != attachedLocation)
-                actionMoveInto(attachedLocation);
-            
-            /* Add us to the iobj's list of attachments. */
-            gIobj.attachments += self;
+            attachTo(gIobj);
         }
         
         report()
@@ -102,6 +129,9 @@ class SimpleAttachable: Thing
             say(okayAttachMsg);
         }
     }
+    
+   
+    
     
     okayAttachMsg = BMsg(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
                          gActionListStr) 
@@ -145,18 +175,7 @@ class SimpleAttachable: Thing
         
         action()
         { 
-            /* 
-             *   If we're already in our detached location, there's no need to
-             *   move, otherwise move us into our detached location
-             */            
-            if(location != detachedLocation)
-                moveInto(detachedLocation);
-            
-            /* Remove us from our former attachment's list of attachements. */
-            attachedTo.attachments -= self;
-            
-            /* Note that we're no longer attached to anything. */
-            attachedTo = nil;          
+            detachFrom(attachedTo);                   
         }
         
         report()   {  say(okayDetachMsg);   }
@@ -189,19 +208,7 @@ class SimpleAttachable: Thing
         
         action()
         {
-            /* If we're not already in our detachedLocation, move us there. */
-            if(location != detachedLocation)
-               moveInto(detachedLocation);
-            
-            /* 
-             *   Remove us from the list of attachements of the object to which
-             *   we were formerly attached.
-             */
-            attachedTo.attachments -= self;
-            
-            /* Note that we're no longer attached to anything. */
-            attachedTo = nil;
-            
+            detachFrom(gIobj);            
         }
         
         report()

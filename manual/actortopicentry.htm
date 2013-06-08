@@ -187,8 +187,190 @@ about your visit, or say you think he's exaggerating.
 </ul>
 
 <p>Note that there is a hierarchy among the various kinds of DefaultTopics, such that the more specific types are defined with a higher matchScore than the more general ones. So, for example, if you define a DefaultAskTopic, a DefaultAskTellTopic, and a DefaultAnyTopic on the same actor, the DefaultAskTopic will responde to commands of the form ASK X ABOUT Y, the DefaultAskTellTopic to commands of the form TELL X ABOUT Y, and the DefaultAnyTopic to anything else (in the absence of more specific responses). The one apparent exception to this is the DefaultAgendaTopic, which takes precedence over all other types of DefaultTopics, but only when there's anything in its agendaList; this is to allow NPC's to pursue their own conversational agendas (if and when they have them) in preference to giving canned default responses.</p>
+<br>
 
+<a name="summarizing"></a><h2>Summarizing Give and Show</h2>
 
+<p>When a GIVE or SHOW command is issued, it is possible that it could be given more than one direct object. For example GIVE BELL, BOOK and CANDLE TO PRIEST. The normal behaviour in such a situation would be for the appropriate TopicEntries to be triggered in turn for each of the bell, the book and the candle, resulting in three separare reports, e.g.</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;give bell, book and candle to priest</strong>
+<q>Thank you,</q> says the priest, taking the bell.
+
+The priest takes the book.
+
+<q>No, I don't need that,</q> he says, waving the candle away.
+</pre></div>
+
+<p>In a case where you want a different response to each object, this is absolutely fine. There may be some cases, however, in which it is less optimal, especially when the GIVE command relates to handing over money to someone, for example, suppose you had created a PieceOfSilverClass and given the player character thirty instances of it, and had defined a GiveTopic like so for the priest:</p>
+
+ <p><div class="code"><pre>
+ + GiveTopic @PieceOfSilver
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      "The priest takes the piece of silver and nods in acknowledgement. ";
+   }
+; 
+ </pre></div>
+
+<p>This could lead to an interchange like this:</p> 
+<p><div class="cmdline"><pre>
+<strong>&gt;give thirty pieces of silver to priest</strong>
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+The priest takes the piece of silver and nods in acknowledgement.
+
+</pre></div>
+<a name="summaryreport"></a>
+<p>In this case it would be <em>much</em> better if we could get:</p>
+
+<p><div class="cmdline"><pre>
+<strong>&gt;give thirty pieces of silver to priest</strong>
+The priest takes thirty pieces of silver and nods in acknowledgement.
+</pre></div>
+
+<p>We can do this by making use of the current action's <strong>summaryReport</strong> property in our definition of the GiveTopic. Instead of directly outputting some text, we set the current action's <span class="code">summaryReport</span> property to a single-quoted string to be used to generate a summary report at the action's report stage, like this:</p>
+
+<p><div class="code"><pre>
+ + GiveTopic @PieceOfSilver
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      gAction.summaryReport = 'The priest takes {1} and nods in acknowledgement. ';
+   }
+; 
+ </pre></div>
+
+<p>Once the GIVE command has been executed on all thirty pieces of silver, this report will be displayed with <span class="code">{1}</span> replaced by a list of the objects just affected, which will automatically list all identical objects together into 'thirty pieces of silver'. It works like this: when it comes to the report stage, we have:</p> 
+ 
+  <p><div class="code"><pre>
+        report()
+        {
+            if(gAction.summaryReport != nil)
+                dmsg(gAction.summaryReport, gActionListStr); 
+        }
+</pre></div>
+
+<p>Since summaryReport is now non-nil this becomes in effect:</p>        
+        
+ <p><div class="code"><pre>
+    dmsg(The priest takes {1} and nods in acknowledgement. ', gActionListStr);
+ </pre></div>        
+ 
+<p>The macro <span class="code">gActionListStr</span> expands to a list of the objects just acted on ('thirty pieces of silver') and is inserted into the report text in place of <span class="code">{1}</span>.</p>
+ 
+<a name="sumprop"></a> 
+<p>This is certainly an improvement, but we may need a little more. In particular the priest may react differently according to how many pieces of silver he's been given. If he's expecting thirty, he won't be content with thirty-nine. We can therefore make use of the <strong>summaryProp</strong> property of the current action to define a method on the priest that should be executed just after the display of our summary report. We'd typically do it like this:</p> 
+ 
+ <p><div class="code"><pre>
+ + GiveTopic @PieceOfSilver
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      gAction.summaryReport = 'The priest takes {1} and nods in acknowledgement. ';
+      gAction.summaryProp = &amp;silverCount
+   }
+; 
+ </pre></div>
+ 
+<p>We'd then need to define a suitable <span class="code">silverCount()</span> method on the priest, taking advantage of the fact that <span class="code">gAction.reportList</span> will contain a list of the objects that have just been reported on:</p> 
+ 
+ <p><div class="code"><pre>
+ priest: Actor 'priest; tall thin ascetic; man; him'
+    "He's a tall, thin ascetic-looking man. "
+    
+    silverPieces = 0
+    
+    silverCount()
+    {
+       local count = gAction.reportList.countWhich(x:
+         x.ofKind(PieceOfSilver)});
+         
+       silverPieces += count;
+       
+       if(silverPieces &gt;= 30)
+         "The priest nods in satisfaction. &lt;q&gt;That will do,&lt;/q&gt; he says.
+         &lt;q&gt;Very well, I shall carry out my part of the bargain.&lt;/q&gt; &lt;.reveal priest-satisfied&gt;. ";
+       else
+         "&lt;q&gt;We agreed thirty pieces of silver,&lt;/q&gt; the priest insists. &lt;q&gt;So far you have only
+          given me &lt;&lt;spellNumber(silverPieces)&gt;&gt;.&lt;/q&gt; ";
+    }
+;
+ </pre></div> 
+ 
+<p>This technique can be used with GiveTopics, ShowTopics or GiveShowTopics, but it does come with a limitation: the system can only deal with one summaryReport and one summaryProp on any given turn, so, for example, you <em>mustn't</em> do this if there's any possibility that the player character could hand over a mix of gold and silver coins on any one turn:</p> 
+
+<p><div class="code"><pre>
+ + GiveTopic @GoldCoin
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      gAction.summaryReport = 'You give the priest {1}. ';
+      gAction.summaryProp = &amp;goldCount
+   }
+; 
+
+ + GiveTopic @SilverCoin
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      gAction.summaryReport = 'You hand over {1} to the priest. ';
+      gAction.summaryProp = &amp;silverCount
+   }
+;
+ </pre></div>
+ 
+ <p>Since if you do do something like this the value of <span class="code">summaryReport</span> and <span class="code">summaryProp</span> will be that set by the last GiveTopic to be triggered, which may not give you the result you want if the player types GIVE PRIEST THREE SILVER COINS AND FIVE GOLD COINS. Instead you need to combine both sets of coins into a single set of properties to ensure a predictable outcome:</p>
+ 
+ <p><div class="code"><pre>
+ + GiveTopic [GoldCoin, SilverCoin]
+   topicResponse()
+   {
+      gDobj.moveInto(getActor);
+      gAction.summaryReport = 'You give the priest {1}. ';
+      gAction.summaryProp = &amp;coinCount
+   }
+; 
+ </pre></div>
+ 
+<p>This will work fine provided you define your coinCount() method to check <span class="code">gAction.reportList</span> for both gold and silver coins and react accordingly.</p>
+
+<p>One final point: it's possible that the player could include some extraneous items in a give command, such as GIVE TEN COLD COINS AND OLD TWIG TO PRIEST. This shouldn't present too much of a problem provided your code can handle the extraneous old twig gracefully. This may be as simple as defining a suitable DefaultGiveShowTopic that names the item that triggers it:</p>
+ 
+ <p><div class="code"><pre>
+ + DefaultGiveShowTopic 
+   "The priest has no interest in {the dobj}. "
+; 
+ </pre></div>
+ 
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

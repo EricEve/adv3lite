@@ -278,6 +278,15 @@ class Doer: Redirector
      */
     exec(curCmd)
     {        
+        /*
+         *   If the command specifies a direction, check that the direction is
+         *   valid for the actor's location. This will rule out meaningless
+         *   commands like THROW BALL PORT, GO AFT or PUSH TROLLEY STARBOARD
+         *   when we're not aboard a vessel.
+         */
+        if(curCmd.verbProd && curCmd.verbProd.dirMatch != nil)
+            checkDirection(curCmd);
+	
         /*   
          *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
          *   so that they're available to be passed as parameters
@@ -315,6 +324,39 @@ class Doer: Redirector
         curCmd.action.exec(curCmd);
     }
     
+    /* 
+     *   Check whether the direction associatated with this command is valid for
+     *   the actor's current location.
+     */
+    checkDirection(curCmd)
+    {
+        local dirn = curCmd.verbProd.dirMatch.dir;
+        local loc = curCmd.actor.getOutermostRoom();
+        
+        /* 
+         *   Rule out a command involving a shipboard direction where shipboard
+         *   directions aren't allowed.
+         */
+        if(dirn.ofKind(ShipboardDirection) && !loc.allowShipboardDirections())
+        {
+            DMsg(no shipboard directions, 'Shipboard directions {plural} {have}
+                no meaning {here}, ');
+            abort;
+        }
+        
+        
+        /*
+         *   Rule out a command involving a compass direction where compass
+         *   directions aren't allowed.
+         */
+        if(dirn.ofKind(CompassDirection) && !loc.allowCompassDirections)
+        {
+            DMsg(no compass directions, 'Compass directions {plural} {have}
+                no meaning {here}, ');
+            abort;
+        }
+        
+    }
     
     /* 
      *   Utility method that can be called from execAction() to redirect the
@@ -678,7 +720,8 @@ class DoerCmd: object
          *   If the command is a travel action and a direction has been
          *   specified, check that we match the direction.
          */
-        if(doer.propDefined(&direction) && cmd[1] == Travel)
+        if(doer.propDefined(&direction) && cmd[1] is in (Travel,
+            PushTravelDir, ThrowDir))
             return valToList(doer.direction).indexOf(
                 gCommand.verbProd.dirMatch.dir) != nil;
         
@@ -790,9 +833,10 @@ class DoerParserTable: object
  *   Initialize the Doer objects.  This parses each Doer's command string
  *   to generate a list of command templates.  
  */
-PreinitObject
+doerPreinit: PreinitObject
     execute()
-    {
+    {              
+               
         /* initialize the DoerParser objects */
         local ptab = new DoerParserTable();
         initDoerParsers(ptab);
@@ -833,10 +877,23 @@ PreinitObject
              *   commands 
              */
             local clst = c.split(';');
-
+  
+                        
             /* process each command */
             foreach (c in clst)
             {
+                /* check for direction names in the command */
+                local tokList = c.split(R'<space|vbar>');
+                
+                foreach(local tok in tokList)
+                {
+                    local dir = Direction.nameTab[tok];
+                    if(dir != nil)
+                    {                        
+                        d.direction = valToList(d.direction) + dir;
+                    }
+                }
+                
                 /* pull out the first word of the command */
                 rexMatch(R'<space>*(<alphanum|star>+)', c);
 
@@ -983,6 +1040,8 @@ PreinitObject
             expandNounLists(gtab, d, tlst, stpl, idx + 1);
         }
     }
+    
+    
 ;
 
 /* 

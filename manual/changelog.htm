@@ -27,12 +27,16 @@ Change Log
 <li><a href="#v0.2">Version 0.2</a></li>
 </ul>
 
-<h2><a name="v0.9">Version 0.9</a></h2>
+<h2><a name="v0.9">Version 0.9 (08 Jun 2013)</a></h2>
 <p><strong>Slight risk of incompatibity:</strong> The <strong>mentionsAll()</strong> function has been withdrawn, since it's no longer needed, and it wasn't a good way of doing what in did anyway. Instead of testing <span class="code">mentionsAll(cmd)</span> test <span class="code">cmd.matchedAll</span>.</p>
 <hr>
 <p><strong>Slight risk of incompatibity:</strong> The regular verbs have been removed from the <span class="code">englishCustomVocab.verbParams</span> list, since they are no longer needed. If you have any code that still uses message parameters like <span class="code">{appears}</span> or <span class="code">{opens}</span> with regular verbs, you'll need to change them to the regular form (<span class="code">appear{s/ed}</span> or open<span class="code">{s/ed}</span>). Irregular verbs like <span class="code">{think}</span> or <span class="code">{take}</span> are not affected. </p>
 <hr>
 <p><strong>Very slight risk of incompatibity:</strong> In a few cases the withdrawal of regular verbs from the verbParams list might have caused problems with the <span class="code">{don't verb}</span> and <span class="code">{must verb}</span> parameter substitutions that required the past participle of <em>verb</em> in some tenses. To deal with this regular verbs in these constructions should now be followed by the appropriate past participle in square brackets; e.g. <span class="code">{don't open[ed]}</span> or <span class="code">{don't close[d]}</span> or <span class="code">{must stop[?ed]}</span>. This will only effect games in fairly unusual tenses, so it's quite likely that know existing game will actually be affected, although it has been necessary to change a few library messages to cater for this. Once again, irregular verbs (e.g. <span class="code">{must take}</span> or <span class="code">{don't know}</span>) are not affected.</p>
+<hr>
+<p><strong>Very slight risk of incompatibity:</strong> The properties <strong>showReport</strong> and <strong>giveReport</strong> have both been renamed to <strong>summaryReport</strong>, in the interests of consistency and ease of use. Since the use of these properties wasn't documented anywhere and they didn't quite work properly anyway, it's unlikely that any existing game code will be affected, but if any existing game code does make use of them it will need to rename them accordingly.</p>
+<hr>
+<p>It is now possible to summarize the results of a GIVE or SHOW command acting on a set of objects, rather than getting an individual report for each object. The newly-named <strong>summaryReport</strong> property is now correctly reset in the <span class="code">execGroup()</span> method of Give, Show, GiveImplicit and ShowImplicit and correctly used in the report phases of dobjFor(Give), dobjFor(Show), dobjFor(GiveImplicit) and dobjFor(ShowImplicit) on Thing. It is joined by a new property <strong>summaryProp</strong> defined and deployed in the same places. <span class="code">summaryProp</span> can be set to a property pointer to execute a method on the current interlocutor at the end of a GIVE or SHOW command executed on a set of objects. Instructions on how to use these properties can be found in the new section on <a href="actortopicentry.htm#summarizing">Summarizing Give and Show.</a>
 <hr>
 <p>A number of library messages that were found to be erroneous when making the foregoing changes have now been corrected.</p>
 <hr>
@@ -48,6 +52,8 @@ Change Log
 <hr>
 <p>The English part of the library now contains a <strong>yesOrNo()</strong> function which simply reads a command-line response and returns true for an affirmative response and nil otherwise. The Instructions module makes use of this, and it seemed worth adding it for general use.</p>
 <hr>
+<p>The SimpleAttachable class now has <strong>attachTo(obj)</strong> and <strong>detachFrom(obj)</strong> methods, which should make it easier and to attach and detach objects by programmatic fiat (e.g. when a magnet attracts a small item to itself).</p>
+<hr>
 <p>Thing now has a new <strong>hideFromAll(action)</strong> method, which can be used to exclude an object from the list of things the parser chooses in response to <em>ACTION</em> ALL.</p>
 <hr>
 <p>Thing now has a new <b>ownerNamed</b> property (in the English-specific part of the library). If this is true then the theName (but not the aName) property of this object will be followed by its name preceded by the possessive form of its owner's name, e.g. "Bob's wallet" or "Jane's mouth". This may be particularly useful in defining body parts, but is potentially useful in any situation where an object has a specific owner (do can in any case be referred to as "Bob's wallet" or "Jane's mouth" by the player) and we want to include the name of the owner when referring to the specific object in game output, e.g. "You take Bob's wallet" (it was lying on the table) but "Bob is carrying a wallet".</p>
@@ -56,7 +62,7 @@ Change Log
 <hr>
 <p>There is now an <a href="extra.htm#unthing">Unthing</a> class which can be used to represent objects that are absent.</p>
 <hr>
-<p>The Thing class now as an <strong>isHidden</strong> property which can be used to hide things from view.</p>
+<p>The Thing class now as an <strong>isHidden</strong> property which can be used to hide things from view. TravelConnector now accordingly defines <span class="code">isConnectorApparent = !isHidden</span>, so that a hidden TravelConnector (such as a concealed Door) is automatically not apparent.</p>
 <hr>
 <p>It's now possible to define weak tokens in a vocab string by placing them in parentheses. E.g. '(her) foot' would match 'her foot' or 'foot' but not 'her', or alternatively by following the word with the special token '[weak]', e.g. 'her[weak] foot'. These two methods are currently functionally equivalent to defining the vocab as 'her[prep] foot' but having a special syntax for weak tokens looks more intuitive and should allow for weak tokens and prepositions to be treated differently in the future should this turn out to be necessary.</p>
 <hr>
@@ -64,9 +70,39 @@ Change Log
 <hr>
 <p>The library defines two new macros <strong>gLocation</strong> and <strong>gRoom</strong> to get the player character's current location and current room respectively (often these will be the same, but they need not be if the player character's immediate location is something other than a Room, such as a bed or chair). It also defines a new trio of macros <strong>gTopic</strong>, <strong>gTopicText</strong> and <strong>gTopicMatch</strong>, which give the ResolvedTopic of any current TopicAction or TopicTAction, the text corresponding to that ResolvedTopic (i.e. the text it attempted to match) and the getBestMatch property of that ResolvedTopic (the Topic object it best matches).</p>
 <hr>
+<p>The library now attempts to be a bit smarter about combining implicit action reports, so that, for example:</p>
+<p>(first taking the coin)<br>
+(first taking the coin)<br>
+(first taking the coin)</p>
+<p>should become:</p>
+<p>(first taking three coins)</p>
+<hr>
+<p>The Actor class now provided some default output in <strong>actorSpecialDesc</strong>. This is to ensure that NPCs are listed in room descriptions even if the game author doesn't define this property or a specialDesc.</p>
+<hr>
+<p>There has been some rearrangement of the verify methods of conversational commands. These are now all defined on Thing and not overridden on Actor. The new property <span class="code">canTalkToMe</span> is nil on Thing and true on Actor (and normally shouldn't be overridden by game code); this allows conversational commands on Actor but not Thing. The main purpose of this is to allow Actor to inherit the new verify tests on Thing preventing people talking to themselves (or giving or showing things to themselves).</p>
+<hr>
 <p>The new Thing property <strong>opened</strong> tracks whether an object has ever been opened. This will be nil for an object that starts out open and has never been closed and reopened.</p>
 <hr>
-<p>The &lt;.roomdesc&gt; <a href="room.htm#styletag">style tag</a> now works (it was ignored before), and a new &lt;.roomcontents&gt; sty;e tag has been added for formatting the listing of a rooms's contents.</p>
+<p>If one side of a Door starts out open, the library now assumes that the other side should start out open too.</p>
+<hr>
+<p>Thing now has a <strong>getFacets</strong> property, which can be set to a list of other Things that are facets of the object it's defined on (and which can thus be regarded as potential pronoun antecedents of the same object). The only objects for which this is automatically set by the library are the two sides of the same door.</p>
+<hr>
+<p>The <strong>getCarriedBulk()</strong> method now excludes anything fixed in place from its calculation of total bulk as well as anything worn. The reason is that anything fixed in place inside an actor is likely to be a body part, not something carried.</p>
+<hr>
+<p>The TravelConnector class now has a <strong>noteTraversal(actor)</strong> method which is invoked when it is traversed by <em>actor</em>. The <span class="code">travelDesc</span> method is now called via <span class="code">noteTraversal()</span>. This gives game authors a little more flexibility in defining the side-effects of travel when the traveler is not the player character.</p>
+<hr>
+<p>TravelConnector's <strong>travelDesc()</strong> method now calls <span class="code">doScript()</span> by default if the TravelConnector in question is also a Script (i.e. EventList). This makes it straightforward to vary the message that is shown when the player character traverses the connector.</p>
+<hr>
+<p>Room's <strong>roomDaemon()</strong> method now likewise calls <span class="code">doScript()</span> by default if the Room is also a Script. This makes it easy to define a series of atmospheric messages on the Room (simply by mixing it in with an EventList class and giving it an <span class="code">eventList</span> property) </p>
+<hr>
+
+<p>The new Thing method <strong>isVehicle</strong> allows a Booth or Platform to be used as a vehicle. If the player issues a travel command while the player character is in (or on) an object for which isVehicle is true, then that object will travel with the player character in (or on) it.</p>
+<hr>
+<p>It's now possible for Doer's cmd strings to match commands like 'go south' or 'go east|west' and to work as expected (i.e. matching GO SOUTH in the first case and GO EAST or GO WEST in the second). The former method of defining matching directions on the Doer's direction property still remains, both for backward compatibility and because internally the library still uses it (it simply scans the cmd string for direction names and adds the corresponding directions to the Doer's direction property).</p>
+<hr>
+<p>The Room class now defines two new properties/methods <strong>allowCompassDirections</strong> and <strong>allowShipboardDirections</strong>. If either of these is nil then referring to a compass or shipboard direction respectively in a command will result in the command being blocked with "Compass/Shipboard directions have no meaning here." This check enforced by the new Doer method <strong>checkDirection()</strong>, which is invoked from <span class="code">Doer.exec()</span> if the command refers to a direction. By default allowCompassDirection is true for all rooms (although game code can, of course, override this) whereas <span class="code">allowShipboardDirections</span> is true only on rooms that actually define a non-nil shipboard direction exit (fore, aft, port or starboard). This should make it easier for games to block the execution of seemingly meaningless commands like THROW BALL PORT in locations where PORT has no meaning.</p>
+<hr>
+<p>The &lt;.roomdesc&gt; <a href="room.htm#styletag">style tag</a> now works (it was ignored before), and a new &lt;.roomcontents&gt; style tag has been added for formatting the listing of a rooms's contents.</p>
 <hr>
 <p>Bug fixed whereby one got an inappropriate response to FOO ALL when there was nothing available to foo.</p>
 <hr>
@@ -75,6 +111,9 @@ Change Log
 <p>Bug fixed whereby the cquoteOutputFilter failed to recognize (and so ignore) HTML tags containing double quote marks (e.g. '&lt;a href="foo" &lt;/a&gt;'. It now does so does not attempt to replace any quotation marks within them. This makes it easier to output strings using the aHref() function or explicit anchor tags. HTML tags containing single quote marks were already recognized before.</p>
 <hr>
 <p>Bug fixed whereby message parameter substitutions were still a bit too eager to use reflexive pronouns. Reflexive pronouns should now occur only (a) when the parameter explicitly requests them (e.g. {himself dobj}) or when the noun/pronoun being substituted for refers to the same object as the last grammatical subject encountered in the sentence.</p>
+<hr>
+<p>The subLister (responsible for messages like '(in which was a gold coin)') previous omitted a space after the introductory text (thus producing text like '(in which wasa coin').) This has now been corrected. </p>
+<hr>
 <br>
 
 <h2><a name="v0.8">Version 0.8 (17 May 2013)</a></h2>

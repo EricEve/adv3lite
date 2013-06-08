@@ -182,6 +182,14 @@ class OutputStream: PreinitObject
      */
     writeToStream(val)
     {
+        
+        /* if we have any prefix text, output it first */
+        if(prefix != nil)
+        {
+            writeFromStream(prefix);
+            prefix = nil;
+        }
+        
         /* convert the value to a string */
         switch(dataType(val))
         {
@@ -485,6 +493,15 @@ class OutputStream: PreinitObject
      *   won't suppress any other characters.  
      */
     justDidParaSuppressor = nil
+    
+    /*  Text to be output before anything else */
+    prefix = nil
+    
+    /* Set the prefix to txt */
+    setPrefix(txt)
+    {
+        prefix = txt;
+    }
 ;
 
 /*
@@ -816,7 +833,7 @@ class SwitchableCaptureFilter: CaptureFilter
 class StringCaptureFilter: CaptureFilter
     /* filter text */
     filterText(ostr, txt)
-    {
+    {        
         /* add the text to my captured text so far */
         addText(txt);
     }

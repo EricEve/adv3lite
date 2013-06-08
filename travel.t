@@ -47,8 +47,34 @@ class Room: TravelConnector, Thing
     starboard = nil
     aft = nil
     fore = nil
-
     
+    /*
+     *   Are compass directions allowed for travel from this room? By default
+     *   we'll allow thema anywhere, but game code may wish to override this for
+     *   rooms that are aboard a vessel.
+     */
+    allowCompassDirections = true
+    
+    /*
+     *   Are shipboard directions meaningful in this room? By default we'll make
+     *   them so if and  only if this room defines at least one shipboard
+     *   directional exit. Game code may wish to modify this, for example, on
+     *   the hold of a ship that only defines an up direction but where
+     *   shipboard directions would still in principle be meaningful.
+     */
+    allowShipboardDirections()
+    {
+        for(local dir in ShipboardDirection.shipboardDirections)
+        {
+            if(propType(dir.dirProp) != TypeNil)
+                return true;
+        }
+        
+        return nil;
+    }
+    
+	
+	
     /* 
      *   A Room is normally lit, but if we want a dark room we can override
      *   isLit to nil.
@@ -104,7 +130,7 @@ class Room: TravelConnector, Thing
     execTravel(obj)
     {
         obj.actionMoveInto(destination);
-        if(obj == gPlayerChar)
+        if(gPlayerChar.isOrIsIn(obj))
            destination.lookAroundWithin();
     }
     
@@ -165,6 +191,8 @@ class Room: TravelConnector, Thing
      *   case set allowDarkTravel to true.
      */    
     allowDarkTravel = nil
+    
+       
     
     /* Call the before action notifications on this room and its regions */
     notifyBefore()
@@ -260,9 +288,15 @@ class Room: TravelConnector, Thing
     
     /* 
      *   This method is invoked on the player char's current room at the end of
-     *   every action.
+     *   every action. By default we run our doScript() method if we're also a
+     *   Script (that is, if the Room has been mixed in with an EventList
+     *   class), thereby facilitating the display of atmospheric messages.
      */    
-    roomDaemon() { }
+    roomDaemon() 
+    {
+        if(ofKind(Script))
+            doScript();
+    }
     
     
     /* 
@@ -688,6 +722,17 @@ class Door: TravelConnector, Thing
             if(isLocked)
                 otherSide.isLocked = true;
             
+            
+            /*   
+             *   Likewise, if we've made one side of the door open, the chances
+             *   are we intend the other side of the door to start out open too.
+             */
+            if(isOpen)
+                otherSide.isOpen = true;
+            
+            /*  Add the other side to our list of facets. */
+            getFacets += otherSide;
+            
         }       
     }
     
@@ -760,25 +805,27 @@ class TravelConnector: object
      *   Is this connector apparent? That is, would it be apparent to an
      *   observer under normal lighting conditions, as opposed to being
      *   concealed? By default we'll suppose a TravelConnector is apparent
+     *   unless it's explicitly hidden.
      */
-    isConnectorApparent = true
+    isConnectorApparent = !isHidden
     
     /* 
      *   Should this exit be shown in the exit lister? By default we'll assumed
-     *   it should be it it's apparent. 
+     *   it should be it it's visible. 
      */
-    isConnectorListed = isConnectorApparent
+    isConnectorListed = isConnectorVisible
     
     
     /*  
      *   A TravelConnector (or at least, the exit it represents) is visible if
      *   it's apparent (i.e. not concealed in some way) and if the lighting
-     *   conditions are adequate.
+     *   conditions are adequate, or if it's visible in the dark.
      */
     isConnectorVisible = (isConnectorApparent && 
                           (gPlayerChar.getOutermostRoom.isIlluminated
                               || (destination != nil &&
-                                  destination.isIlluminated)))
+                                  destination.isIlluminated)
+                           || visibleInDark))
     
     /* The room to which this TravelConnector leads when it is traversed */    
     destination = nil
@@ -804,10 +851,17 @@ class TravelConnector: object
     travelVia(actor, suppressBeforeNotifications?)
     {
         /* 
+         *   The traveler is the object actually doing the travelling; usually
+         *   it's just the actor, but if the actor is in a vehicle, it will be
+         *   the vehicle.
+         */
+        local traveler = getTraveler(actor);       
+        
+        /* 
          *   Check the travel barriers on this TravelConnector to ensure that
          *   travel is permitted
          */
-        if(checkTravelBarriers(actor))
+        if(checkTravelBarriers(traveler))
         {
             /*  
              *   Carry out the before travel notifications provided
@@ -819,21 +873,18 @@ class TravelConnector: object
              *   travel notifications triggered for the same travel action.
              */
             if(!suppressBeforeNotifications)
-                beforeTravelNotifications(actor);
+                beforeTravelNotifications(traveler);
                                    
 
-            /*  
-             *   If the actor doing the traveling is the player character,
-             *   display the travelDesc. Note that although this might normally
-             *   be a simple description of the travel, the travelDesc method
-             *   could also be used to carry out any other side-effects of the
-             *   travel via this connector.
+            /*   
+             *   Note that actor is traversing this Travel Connector. This can
+             *   be used to carry out any side-effects of the travel, such as
+             *   describing it.
              */
+            noteTraversal(traveler);                    
+                       
             if(actor == gPlayerChar)
-            {                
-                travelDesc;
-                "<.p>";
-                
+            {                  
                 /* 
                  *   Before carrying out the travel make a note of the room the
                  *   player character is about to leave.
@@ -852,12 +903,53 @@ class TravelConnector: object
             
             
             /* Carry out the travel */
-            execTravel(actor);
+            execTravel(traveler);
             
             /*  Execute the after travel notifications */
-            afterTravelNotifications(actor);
+            afterTravelNotifications(traveler);
         }        
     }
+    
+    /* 
+     *   Get the traveler associated with this actor. Normally the traveler will
+     *   be the same as the actor, but if the actor is in a vehicle, then the
+     *   traveler will be the vehicle.
+     */
+    getTraveler(actor)
+    {
+        
+        local loc = actor.location;
+        
+        while(loc != nil && !loc.ofKind(Room))
+        {
+            if(loc.isVehicle)
+                return loc;
+            
+            loc = loc.location;
+        }
+        
+        
+        return actor;
+    }
+    
+    
+    
+    
+    /*  
+     *   If the actor doing the traveling is the player character, display the
+     *   travelDesc. Note that although this might normally be a simple
+     *   description of the travel, the travelDesc method could also be used to
+     *   carry out any other side-effects of the travel via this connector.
+     */
+    noteTraversal(actor)
+    {
+        if(actor == gPlayerChar)
+        {                
+            travelDesc;
+            "<.p>";
+        }
+    }
+    
     
     /* Carry out the before travel notifications for this actor. */
     beforeTravelNotifications(actor)
@@ -925,9 +1017,15 @@ class TravelConnector: object
      *   Carry out any side effects of travel if the traveler is the player
      *   character. Typically we might just display some text describing the
      *   travel here, but this method could be used for any side-effects of the
-     *   travel.
+     *   travel. If the TravelConnector is mixed in with an EventList class then
+     *   the default behaviour is to call the doScript() method here to drive
+     *   the EventList.
      */
-    travelDesc {}
+    travelDesc() 
+    { 
+        if(ofKind(Script))
+            doScript();
+    }
     
     /* 
      *   an additional TravelBarrier or a list of TravelBarriers to check on
@@ -1161,6 +1259,9 @@ class Direction: object
      */
     name = nil
     
+    /*   Class property: a LookupTable matching names to direction objects. */
+    nameTab = static new LookupTable()
+    
     /*  
      *   The name to use when departing via this direction, e.g. 'to the north'
      */
@@ -1175,6 +1276,9 @@ class Direction: object
     {
         /* add myself to the master direction list */
         Direction.allDirections.append(self);
+        
+        /* add myself to the master direction table */
+        Direction.nameTab[name] = self;			  
     }
 
     /*
@@ -1182,7 +1286,7 @@ class Direction: object
      *   We'll build our master list of all of the Direction objects in
      *   the game, and then sort the list using the sorting order.  
      */
-    initializeDirectionClass()
+    classInit()
     {
         /* initialize each individual Direction object */
         forEachInstance(Direction, { dir: dir.initializeDirection() });
@@ -1213,59 +1317,78 @@ class Direction: object
      */
     allDirections = static new Vector(12)
     
+	
+;
+
+/* The compass directions */
+class CompassDirection: Direction
+    initializeDirection()
+	{
+	   /* Carry out the inherited handling */
+	   inherited();
+	   
+	   /* Add myself to the list of compass directions */
+	   CompassDirection.compassDirections.append(self);
+	}
+	
+	/* 
+	  * A Class property containing a Vector of all the compass
+	  * directions defined in the game.
+	  */
+	compassDirections = static new Vector(8)
 ;
 
 /*  The sixteen directions defined in the library */
-northDir: Direction
+northDir: CompassDirection
     dirProp = &north
     name = BMsg(north, 'north')
     departureName = BMsg(depart north, 'to the north')
     sortingOrder = 1000
 ;
 
-eastDir: Direction
+eastDir: CompassDirection
     dirProp = &east
     name = BMsg(east, 'east')
     departureName = BMsg(depart east, 'to the east')
     sortingOrder = 1100
 ;
 
-southDir: Direction
+southDir: CompassDirection
     dirProp = &south
     name = BMsg(south, 'south')
     departureName = BMsg(depart south, 'to the south')
     sortingOrder = 1200
 ;
 
-westDir: Direction
+westDir: CompassDirection
     dirProp = &west
     name = BMsg(west, 'west')
     departureName = BMsg(depart west, 'to the west')
     sortingOrder = 1300
 ;
 
-northeastDir: Direction
+northeastDir: CompassDirection
     dirProp = &northeast
     name = BMsg(northeast, 'northeast')
     departureName = BMsg(depart northeast, 'to the northeast')
     sortingOrder = 1400
 ;
 
-northwestDir: Direction
+northwestDir: CompassDirection
     dirProp = &northwest
     name = BMsg(northwest, 'northwest')
     departureName = BMsg(depart northwest, 'to the northwest')
     sortingOrder = 1500
 ;
 
-southeastDir: Direction
+southeastDir: CompassDirection
     dirProp = &southeast
     name = BMsg(southeast, 'southeast')
     departureName = BMsg(depart southeast, 'to the southeast')
     sortingOrder = 1600
 ;
 
-southwestDir: Direction
+southwestDir: CompassDirection
     dirProp = &southwest
     name = BMsg(southwest, 'southwest')
     departureName = BMsg(depart southwest, 'to the southwest')
@@ -1301,7 +1424,23 @@ outDir: Direction
 ;
 
 /* Directions for use aboard a vessel such as a ship */
-class ShipboardDirection: Direction;
+class ShipboardDirection: Direction
+    initializeDirection()
+	{
+	   /* Carry out the inherited handling */
+	   inherited();
+	   
+	   /* Add myself to the list of shipboard directions */
+	   ShipboardDirection.shipboardDirections.append(self);
+	} 
+    
+
+    /* 
+	  * A Class property containing a Vector of all the shipboard
+	  * directions defined in the game.
+	  */
+	shipboardDirections = static new Vector (4)
+;
 
 portDir: ShipboardDirection
     dirProp = &port

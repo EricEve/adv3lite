@@ -178,23 +178,3 @@ mainCommandLoop()
 
 
 
-/* Exception thrown by exit macro */
-ExitSignal: Exception
-;
-
-/* Exception thrown by abortImplicit macro */
-AbortImplicitSignal: Exception
-;
-
-/* Exception thrown by abort macro */
-AbortActionSignal: Exception
-;
-
-/* Exception thrown by exitAction macro */
-ExitActionSignal: Exception  
-;
-
-/* Exception thrown to terminate a command. */
-TerminateCommandException: Exception
-;
-

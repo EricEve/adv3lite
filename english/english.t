@@ -376,13 +376,13 @@ class LMentionable: object
     /* The appropriate pronoun for leaving (getting out of) this object */
     objOutOfPrep
     {
-        switch(objInPrep)
+        switch(contType)
         {
-        case 'on':
+        case On:
             return 'off';
-        case 'under':
+        case Under:
             return 'out from under';
-        case 'behind':
+        case Behind:
             return 'out from behind';
         default:
             return 'out of';
@@ -1136,7 +1136,7 @@ class LMentionable: object
     
     /* 
      *   Remove a word from this object's vocabulary. If the matchFlags
-     *   parameter is supplies it should be one of MatchNoun, MatchAdj,
+     *   parameter is supplied it should be one of MatchNoun, MatchAdj,
      *   MatchPrep or MatchPlural, in which case only VocabWords matching the
      *   corresponding part of speech (as well as word) will be removed.
      */
@@ -2845,7 +2845,7 @@ subLister: ItemLister
     showListPrefix(lst, pl, paraCnt)
     {
         " (<<lst[1].location.objInPrep>> which <<pl ? '{plural}' :
-          '{dummy}'>> {is}";
+          '{dummy}'>> {is} ";
     }
     
     showListSuffix(lst, pl, paraCnt) { ")"; }
@@ -3334,7 +3334,7 @@ mergeDuplicates(lst)
         {
             /* 
              *   If the makeCountedPlural() function returned the current value
-             *   unchangedm simply add it to the processed list, otherwise add
+             *   unchanged simply add it to the processed list, otherwise add
              *   the plural form to the processed list and the current form to
              *   the list of duplicated items.
              */
@@ -3356,7 +3356,10 @@ mergeDuplicates(lst)
 /* 
  *   Take the string representation of a name (str) and a number (num) and
  *   return a string with the number spelled out and the name pluralised, e.g.
- *   makeCountPlural('a cat', 3) -> 'three cats'
+ *   makeCountPlural('a cat', 3) -> 'three cats' Amended to deal with the more
+ *   complex case ('taking the coin'), 3) -> 'taking three coins'); i.e. the
+ *   method now substitutes the number for the first occurrence of an article,
+ *   if there is one.
  */
 makeCountedPlural(str, num)
 {
@@ -3364,14 +3367,16 @@ makeCountedPlural(str, num)
     local strList = str.split(' ');
     
     /* 
-     *   Don't attempt to pluralize the name unless it begins with the singular
+     *   Don't attempt to pluralize the name unless it contains the singular
      *   indefinite article or the definite article
      */
-    if(strList[1] not in ('a', 'an', 'the'))
+    local idx = strList.indexWhich({s: s is in ('a', 'an', 'the')});
+    if(idx == nil)
         return str;
 
     /*  Substitute the number for the article */
-    strList[1] = spellNumber(num);
+    strList[idx] = spellNumber(num);
+    
     
     /* Look for any part of the name in parentheses */
     local idx1 = strList.indexWhich({x: x.startsWith('(')});
@@ -4928,7 +4933,7 @@ modify Action
      *   Construct the announcement of an implicit action according to whether
      *   the implict action succeeds (success = true) or fails (success = nil)
      */
-    buildImplicitActionAnnouncement(success)
+    buildImplicitActionAnnouncement(success, clearReports = true)
     {
                
         local rep = '';
@@ -4959,6 +4964,10 @@ modify Action
         if((success == nil || !isImplicit) &&
            gCommand.implicitActionReports.length > 0)
         {
+            
+            local lst = mergeDuplicates(gCommand.implicitActionReports);
+            
+            
             /* 
              *   Begin our report with an opening parenthesis and the word
              *   'first'
@@ -4969,7 +4978,7 @@ modify Action
              *   Then go through all the implicit action reports on the current
              *   Command object, adding them to our report string.
              */
-            for (cur in gCommand.implicitActionReports, local i = 1 ;; ++i)
+            for (cur in lst, local i = 1 ;; ++i)
             {    
                 rep += cur;
                 
@@ -4977,12 +4986,13 @@ modify Action
                  *   if we haven't reached the last report, add ', then ' to
                  *   separate one report from the next
                  */
-                if(i < gCommand.implicitActionReports.length)
+                if(i < lst.length)
                     rep += ', then ';
             }
             
-            /* We're done with this list of reports, so clear them out */
-            gCommand.implicitActionReports = [];
+            if(clearReports)
+                /* We're done with this list of reports, so clear them out */
+                gCommand.implicitActionReports = [];
             
             /* Return the completed implicit action report */
             return rep + ')\n';
@@ -5478,13 +5488,13 @@ apostropheSPreParser: StringPreParser
         if(possTab == nil)
             return str;
         
-        str = str.toLower;
+        
         local lst = str.split(' ');
         
         
         for(local tok in lst, local i=1 ;;i++)
         {
-            local aposWord = possTab[tok];
+            local aposWord = possTab[tok.toLower];
             if(aposWord != nil)
                 lst[i] = aposWord;
         }

@@ -44,17 +44,32 @@ noun-and-adjective phrase as the player would type it, but the program symbol na
 <p>You can also write a command that matches ANY verb, by using "*" as the verb.  You can follow the "*" with any number of objects; the first is the direct object, the second is the indirect, and the third is the accessory (note, the adv3Lite library does not currently make any use of the third, accessory, object, but the Mercury parser can, and Doer comes from the Mercury library and there seemed no reason to take this feature out, in case it proves useful in future).  This phrasing will match any verb that matches the given objects AND the given number of objects. For example, '* Thing' will match any verb with a direct object
 that's of class Thing, but it won't match verbs without any objects or verbs with an indirect object.  Using "*" as a noun will match any object as well as no object at all.</p>
 
-<p>Note, however, that there are some limitations with the kinds of objects a Doer's command string can match. The matching currently only works properly on objects derived from Thing (i.e. for TActions and TIActions, along with IActions). It does not, for example, work with directions. So although a Doer defined like this will indeed match a GO NORTH command:</p>
+<a name="doerdir"></a>
+<p>Note, however, that there are some limitations with the kinds of objects a Doer's command string can match. The matching currently only works properly on objects derived from Thing (i.e. for TActions and TIActions, along with IActions). It can, however, be made to appear to work with directions to a limited extent. For example, a Doer defined like this will match a GO NORTH command:</p>
 
  <p><div class="code"><pre>
 Doer
-   cmd = 'go northDir'
+   cmd = 'go north'
    ...
 ;</pre></div>
 
-<p>It will also match at attempt to go in any other direction, which probably isn't what's wanted.</p>
+<p>We can also define a Doer that will match an attempt to move in one of several directions, for example:</p>
 
-<p>In the case of a movement command we can work round this by defining a direction property on the Doer:</p>
+ <p><div class="code"><pre>
+Doer
+   cmd = 'go north|south'
+   ...
+;</pre></div>
+
+<p>This will match both GO NORTH or GO SOUTH (or just N or S for that matter). But the way it works isn't quite the way it works with commands referring to physical objects, like the TAKE SKULL example. If you defined a Doer like this:</p>
+
+ <p><div class="code"><pre>
+Doer
+   cmd = 'go xxx'
+   ...
+;</pre></div>
+
+<p>You'd find it would match an attempt to move in any direction (whatever xxx was, provided it wasn't the name of a direction). In the case of a movement command we could work round this by defining a <strong>direction</strong> property on the Doer:</p>
 
  <p><div class="code"><pre>
 Doer 'go dir'
@@ -65,10 +80,10 @@ Doer 'go dir'
 
 <p>Note the use of the <a name="doertemplate-idx">Doer template</a> here. Since the cmd property has to be defined for every Doer and it's usually a relatively short single-quoted string, it makes sense to use a template for it like this.</p>
 
-<p>When the first word of the command string is 'go', it doesn't matter what the second word is provided it's alphanumeric. It could as well have been 'banana' or 'kangaroo' for all the difference it makes to the way the library interprets the command string in this special case; for the travel command it's simply matching the pattern 'go' followed by one other word. This is a consequence of the fact that at this point the Mercury implementation is set up only to recognize the verb, direct object, indirect object, and accessory object names in a command string, and its parser doesn't treat a direction as any of these (and so far as I can see it would be more trouble than it's worth to try to change this). At least for the time being, and probably for the forseeable future as well, we are therefore stuck with this slightly kludgy way of specifying a travel command for a Doer to match. On the positive side the direction property can also contain a list of directions, so we could, example, use a Doer to inform the player that shipboard directions aren't available if our game never uses them:</p>
+<p>When the first word of the command string is 'go', in a sensed it doesn't matter what the second word is provided it's alphanumeric. It could as well have been 'banana' or 'kangaroo' for all the difference it makes to the way the library interprets the command string in this special case; for the travel command it's simply matching the pattern 'go' followed by one other word. This is a consequence of the fact that at this point the Mercury implementation is set up only to recognize the verb, direct object, indirect object, and accessory object names in a command string, and its parser doesn't treat a direction as any of these (and so far as I can see it would be more trouble than it's worth to try to change this). However, the library now uses a workaround to conceal this kludge from game authors. It scans the cmd strings of every Doer and, if it finds the name of a direction (e.g. 'north') it adds the corresponding direction object (e.g. <span class="code">northDir</span>) to the Doer's <span class="code">direction</span> property. </p>
 
 <p><div class="code"><pre>
-Doer 'go dir'
+Doer 'go port|starboard|forward|aft'
     exec(curCmd)
     {
         "Shipboard directions have no meaning in this game. ";
@@ -80,13 +95,49 @@ Doer 'go dir'
          */
         abort;
     }
-    direction = [portDir, starboardDir, foreDir, aftDir]
+    
 ;
 </pre></div>
  
-<p>This would block any command to go Port, Starboard, Fore or Aft with the message shown (rather than printing the normal "You can't go that way" message, which could be taken as implying that the Shipboard Directions might be usable in a different room).</p>
+<p>This would block any command to go Port, Starboard, Forward or Aft with the message shown (rather than printing the normal "You can't go that way" message, which could be taken as implying that the Shipboard Directions might be usable in a different room).</p>
 
-<p>Incidentally, Doers work even less well at matching commands involving literals or topics (conversational commands and the like), but this is probably not much of a restriction in practice since it is hard to envisage a situation where it would be useful to have a Doer intercept such commands.</p>
+<p>Incidentally, Doers work even less well at matching commands involving literals or topics (conversational commands and the like), but this is probably not much of a restriction in practice since it is hard to envisage a situation where it would be useful to have a Doer intercept such commands. It is just about possible to get a Doer to match a command involving a Topic, but the way of doing it may seem a bit counterintuitive: you have to use <a name="resolvedtop_idx">ResolvedTopic</a> as the name of the object or class to be matched. For example this works:</p>
+
+ <p><div class="code"><pre>
+Doer 'think about ResolvedTopic'
+    execAction(c)
+    {
+        if(c.dobj.name == 'relativity')
+            "That's quite beyond you. ";
+        else
+            inherited(c);
+    }    
+;
+</pre></div>
+
+<p>Or you could do it this way:</p>
+
+ <p><div class="code"><pre>
+Doer 'think about ResolvedTopic'
+    execAction(c)
+    {
+        "That's quite beyond you. ";
+    }
+    when = gCommand.dobj.name == 'relativity'
+;
+</pre></div>
+
+<p>For a LiteralAction you can do a similar trick using <a name="literalobj_idx">LiteralObject</a>:</p>
+ <p><div class="code"><pre>
+Doer 'write LiteralObject'
+    execAction(c)
+    {
+        "You write &lt;q&gt;&lt;&lt;c.dobj.name&gt;&gt;&lt;/q&gt; on the first thing that comes
+        to hand. ";
+    }
+;
+</pre></div>
+
 
 <br>
 <a name="matching"></a><h3>Matching Special Conditions</h3>

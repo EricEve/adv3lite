@@ -150,7 +150,7 @@ class Wearable: Thing
     isWearable = true
 ;
 
-/*  A Food is a Thing that an be eaten */
+/*  A Food is a Thing that can be eaten */
 class Food: Thing
     isEdible = true
 ;
@@ -264,7 +264,7 @@ class Immovable: Thing
     /* Respond to an attempt to TAKE by ruling it out at the check stage. */
     dobjFor(Take)
     {
-        check() { say(cannotTakeMsg); }                
+        check() { say(cannotPutMsg); }                
     }
     
     /* The message to display to explain why this object can't be taken. */

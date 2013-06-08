@@ -1657,23 +1657,47 @@ DefineTopicTAction(QueryAbout)
 DefineTopicTAction(SayTo)    
 ;
 
-DefineTIAction(GiveTo)   
-    giveReport = nil
+DefineTIAction(GiveTo)     
+    /* 
+     *   The summaryReport can be set by a GiveTopic to a single-quoted string in
+     *   BMsg format, with {1} standing in for gActionListStr, in order to
+     *   report on a whole set of objects given at once; e.g. '{I} {give} Bob
+     *   {1}. '
+     */
+    summaryReport = nil
     
-    execAction(cmd)
-    {
-        giveReport = nil;
-        inherited(cmd);
+    /* 
+     *   The summaryProp can be a propertyPointer to a method on the Actor being
+     *   conversed with that's called at once a whole set of objects has been
+     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   statement in a GiveTopic.
+     */
+    summaryProp = nil
+    
+    /* 
+     *   Reset the summaryReport and the summaryProp to nil for the whole group
+     *   of objects this action may act on, so that they're only used if they're
+     *   explicitly requested this turn.
+     */
+    execGroup(cmd) 
+    { 
+        summaryReport = nil; 
+        summaryProp = nil;
     }
 ;
 
 DefineTIAction(ShowTo)   
-    giveReport = nil
+    showReport = nil
+    summaryProp = nil
     
-    execAction(cmd)
-    {
-        giveReport = nil;
-        inherited(cmd);
+    /* 
+     *   Reset the showReport to nil for the whole group of objects this action
+     *   may act on.
+     */
+    execGroup(cmd) 
+    { 
+        summaryReport = nil; 
+        summaryProp = nil;
     }
 ;
 
@@ -1776,9 +1800,46 @@ TalkAboutImplicit: ImplicitConversationAction
 ;
 
 DefineTAction(ShowToImplicit)
+    showReport = nil
+    
+    /* 
+     *   The summaryProp can be a propertyPointer to a method on the Actor being
+     *   conversed with that's called at once a whole set of objects has been
+     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   statement in a ShowTopic.
+     */
+    summaryProp = nil
+    
+    /* 
+     *   Reset the showReport to nil for the whole group of objects this action
+     *   may act on.
+     */
+    execGroup(cmd) 
+    { 
+        summaryReport = nil; 
+        summaryProp = nil;
+    }
 ;
 
 DefineTAction(GiveToImplicit)
+    showReport = nil
+    
+    /* 
+     *   The summaryProp can be a propertyPointer to a method on the Actor being
+     *   conversed with that's called at once a whole set of objects has been
+     *   given. It will normally be set by a gAction.summaryProp = &prop
+     *   statement in a GiveTopic.
+     */
+    summaryProp = nil
+    /* 
+     *   Reset the showReport to nil for the whole group of objects this action
+     *   may act on.
+     */
+    execGroup(cmd) 
+    { 
+        summaryReport = nil; 
+        summaryProp = nil;
+    }
 ;
               
 

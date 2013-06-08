@@ -316,7 +316,7 @@ dictionary property noun, nounApostS;
 #define dobjFor(action) objFor(Dobj, action)
 #define iobjFor(action) objFor(Iobj, action)
 #define gTopic (gAction.curTopic)
-#define gTopioText (gTopic.getTopicText)
+#define gTopicText (gTopic.getTopicText)
 #define gTopicMatch (gTopic.getBestMatch)
 
 #define reportAfter(msg) gCommand.afterReports += msg
@@ -599,6 +599,10 @@ Topic template 'vocab' @familiar?;
 
 Room template 'roomTitle' 'vocab' "desc"?;
 Room template 'roomTitle' "desc"?;
+
+Door template  'vocab' @location? "desc"? ->otherSide;
+TravelConnector template 'vocab'? @location? "desc"? ->destination;
+Enterable template inherited ->connector;
 
 Unthing template 'vocab' @location? 'notHereMsg'?;
 

@@ -3025,10 +3025,8 @@ class LiteralPhrase: NounPhrase
         local v = new Vector(2);
         
         /* Recreate the literal text */
-        local litName = '';
-        foreach(local tok in tokens)
-            litName += (tok + ' ');
-        
+        local litName = tokens.join(' ');
+               
         /* Create a dummy object to represent the literal text */
         local obj = new LiteralObject(litName.trim());
         
@@ -5583,3 +5581,24 @@ class OrdinalRangeError: ResolutionError
 dictionaryPlaceholder: object
 ;
 
+
+
+/* Exception thrown by exit macro */
+class ExitSignal: Exception
+;
+
+/* Exception thrown by abortImplicit macro */
+class AbortImplicitSignal: Exception
+;
+
+/* Exception thrown by abort macro */
+class AbortActionSignal: Exception
+;
+
+/* Exception thrown by exitAction macro */
+class ExitActionSignal: Exception  
+;
+
+/* Exception thrown to terminate a command. */
+class TerminateCommandException: Exception
+;

@@ -2759,6 +2759,7 @@ VerbRule(SwitchOff)
     action = SwitchOff
     verbPhrase = 'turn/turning off (what)'
     missingQ = 'what do you want to turn off'
+    priority = 60
 ;
 
 VerbRule(Light)
@@ -3544,8 +3545,8 @@ initDoerParsers(ptab)
                 {
                     /* it's a direction */
                     t += '(direction)';
-                    pt += '<alphanum>+';
-                   
+//                    pt += '<alphanum>+';
+                   pt += '(<alphanum|_|vbar|dot|star>+)';
                 }
                 else
                 {

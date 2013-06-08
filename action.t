@@ -1042,9 +1042,13 @@ class TravelAction: Action
              
         /* 
          *   If the actor is not directly in the room, make him/her get out of
-         *   his immediate container(s) before attempting travel.
+         *   his immediate container(s) before attempting travel, unless the
+         *   actor is in a vehicle.
          */        
-        while(!gActor.location.ofKind(Room))
+        
+        local traveler = TravelConnector.getTraveler(gActor);
+        
+        while(!gActor.location.ofKind(Room) && traveler == gActor)
         {
             /* Note the actor's current location. */
             local loc = gActor.location;
@@ -1628,6 +1632,7 @@ class TAction: Action
     /* Carry out the action phase on the direct object */
     doActionOnce()
     {
+        local msg;
         
         /* 
          *   If we're iterating over several objects and we're the kind of
@@ -1636,15 +1641,20 @@ class TAction: Action
          if(announceMultiAction && gCommand.dobjs.length > 1)
             announceObject(curDobj);
         
-        /* 
-         *   If we're an implicit action, add this action to the list of
-         *   implicit actions to be reported in due course. If we're not, show
-         *   the list of implicit actions (if any) leading to this action.
-         */
-            "<<buildImplicitActionAnnouncement(true)>>";        
+         
+            
         
         /* Note that the current object is the direct object */
-         curObj = curDobj;
+        curObj = curDobj;
+        
+        /* 
+         *   Add any pending implicit action announcements to the output stream
+         *   so they'll appear before anything else that's output.
+         */
+        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
+        
+        if(!isEmptyStr(impAnnounce))
+            gOutStream.setPrefix(impAnnounce);
         
         /* 
          *   If the action method displays anything then we don't add this
@@ -1654,15 +1664,37 @@ class TAction: Action
          *   action. If, however, the action is carried out silently then we'll
          *   add this object to the list of objects to be reported on at the
          *   report stage.
+         *
+         *   NOTE TO SELF: Don't try making this work with captureOutput(); it
+         *   creates far more hassle than it's worth!!!!
          */            
-        local msg = gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
-                
+        try
+        {
+            msg = gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+        }
+        finally
+        {
+            /* Remove any implicit action announcement from the output stream */
+            gOutStream.setPrefix(nil);
+        }
+        
+        
         /* 
          *   If there's no output from the action method, add this object to the
          *   list of objects to be reported on at the report stage.
          */
-        if(msg==nil)    
-            reportList += curDobj;       
+        if(!(msg)) 
+        {
+            reportList += curDobj;                  
+        }
+        else if(!isImplicit)
+        {
+            /* 
+             *   Otherwise, if we're not an implicit action, clear out the
+             *   implicit action reports which we should now have displayed.
+             */
+            gCommand.implicitActionReports = [];              
+        }
         
         /* Note that we've carried out the action on this object. */
         actionList += curDobj;
@@ -1750,7 +1782,13 @@ class TAction: Action
          *   list to report on, execute the report stage of this action.
          */
         if(!isImplicit && reportList.length > 0)
+        {
+            
+            /* Output any pending implicit action reports */
+            "<<buildImplicitActionAnnouncement(true)>>";
+            
             curDobj.(reportDobjProp);            
+        }
 
     }
     
@@ -1930,20 +1968,19 @@ class TIAction: TAction
      *   objects involved in the command.
      */
     reportAction()
-    {
-        /* 
-         *   If we're not an implicit action and there's something to report on,
-         *   carry out the report stage on our indirect object.
-         */
-        if(!isImplicit && ioActionList.length > 0)
-            curIobj.(reportIobjProp);
+    {       
         
         /* 
          *   Carry out the inherited handling, which executes the report stage
          *   on the direct object.
          */
         inherited;
-        
+        /* 
+         *   If we're not an implicit action and there's something to report on,
+         *   carry out the report stage on our indirect object.
+         */
+        if(!isImplicit && ioActionList.length > 0)
+            curIobj.(reportIobjProp);
     }
     
     /* Get the message parameters relating to this action */
@@ -2042,6 +2079,8 @@ class TIAction: TAction
     doActionOnce()
     {
         
+        local msgForDobj, msgForIobj;
+        
         /* 
          *   If we're iterating over several objects and we're the kind of
          *   action which wants to announce objects in this context, do so.
@@ -2049,8 +2088,7 @@ class TIAction: TAction
         if(announceMultiAction && gCommand.dobjs.length > 1)
             announceObject(curDobj);
         
-        /* Display any pending implicit action announcements. */
-         "<<buildImplicitActionAnnouncement(true)>>";
+        
         
         /* 
          *   Note that the current object we're dealing with is the direct
@@ -2058,34 +2096,55 @@ class TIAction: TAction
          */
         curObj = curDobj;     
         
-        
         /* 
-         *   Run the action routine on the current direct object and capture the
-         *   output for later use. If the output is null direct object can be
-         *   added to the list of objects to be reported on at the report stage,
-         *   provided the iobj action routine doesn't report anything either.
+         *   Add any pending implicit action announcements to the output stream
+         *   so they'll appear before anything else that's output.
          */
-        local msgForDobj =
-            gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
-           
-               
+        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
         
-        /* Note that we've acted on this direct object. */
-        actionList += curDobj;
+        if(!isEmptyStr(impAnnounce))
+            gOutStream.setPrefix(impAnnounce);
         
-        /* Note that the current object is now the indirect object. */
-        curObj = curIobj;
+        try
+        {
+            /* 
+             *   Run the action routine on the current direct object and capture
+             *   the output for later use. If the output is null direct object
+             *   can be added to the list of objects to be reported on at the
+             *   report stage, provided the iobj action routine doesn't report
+             *   anything either.
+             *
+             *   NOTE TO SELF: Don't try making this work with captureOutput();
+             *   it creates far more hassle than it's worth!!!!
+             */
+            msgForDobj =
+                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+            
+            
+            
+            /* Note that we've acted on this direct object. */
+            actionList += curDobj;
+            
+            /* Note that the current object is now the indirect object. */
+            curObj = curIobj;
+            
+            /* 
+             *   Execute the action method on the indirect object. If it doesn't
+             *   output anything, add the current indirect object to
+             *   ioActionList in case the report phase wants to do anything with
+             *   it, and add the dobj to the reportList if it's not already
+             *   there so that a report method on the dobj can report on actions
+             *   handled on the iobj.
+             */        
+            msgForIobj =
+                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+        }
         
-        /* 
-         *   Execute the action method on the indirect object. If it doesn't
-         *   output anything, add the current indirect object to ioActionList in
-         *   case the report phase wants to do anything with it, and add the
-         *   dobj to the reportList if it's not already there so that a report
-         *   method on the dobj can report on actions handled on the iobj.
-         */        
-        local msgForIobj =
-            gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
-        
+        finally
+        {
+            /* Remove any implicit action announcement from the output stream */
+            gOutStream.setPrefix(nil);   
+        }
        
         /* 
          *   If neither the action stage for the direct object nor the action
@@ -2094,11 +2153,20 @@ class TIAction: TAction
          *   reported on, and add the current direct object to the list of
          *   direct objects to be reported on at the report stage.
          */
-        if(!msgForDobj&& !msgForIobj)
+        if(!(msgForDobj) && !(msgForIobj))
         {
             ioActionList += curIobj;
-            reportList = reportList.appendUnique([curDobj]);
+            reportList = reportList.appendUnique([curDobj]);            
+        }    
+        else if(!isImplicit)
+        {
+            /* 
+             *   Otherwise, if we're not an implicit action, clear out the
+             *   implicit action reports which we should now have displayed.
+             */
+            gCommand.implicitActionReports = [];              
         }
+        
         
         /* 
          *   Return true to tell our caller we completed the action
@@ -2729,7 +2797,7 @@ notePronounAntecedent([objlist])
     local herList = [];
     
     /* 
-     *   Go through each object in objlist and add it to the appropriate pronoub
+     *   Go through each object in objlist and add it to the appropriate pronoun
      *   list
      */
     foreach(local cur in objlist)
@@ -2746,16 +2814,29 @@ notePronounAntecedent([objlist])
             themList += cur;
         
         /* 
-         *   Add the object to the himList, herList and itList according to
-         *   whether it's isHim, isHer or isIt property is true.
+         *   Add the object and any of its facets to the himList, herList and
+         *   itList according to whether it's isHim, isHer or isIt property is
+         *   true.
          */
-        if(cur.isHim)
-            himList += cur;
-        if(cur.isHer)
-            herList += cur;
-        if(cur.isIt && (!cur.plural || cur.ambiguouslyPlural))
-            itList += cur;        
+        local lst = valToList(cur.getFacets) + cur;
         
+        if(cur.isHim)
+        {   
+            for(local obj in lst)
+                himList += obj;
+        }
+        
+        if(cur.isHer)
+        {
+            for(local obj in lst)
+                herList += obj;
+        }
+        
+        if(cur.isIt && (!cur.plural || cur.ambiguouslyPlural))
+        {
+            for(local obj in lst)
+                itList += obj;        
+        }
     }
     
     /* 

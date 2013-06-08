@@ -90,8 +90,25 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     
-    /*   The specialDesc to use if we don't have a current ActorState */
-    actorSpecialDesc = nil
+    /*   
+     *   The specialDesc to use if we don't have a current ActorState By default
+     *   we just display a message saying the actor is here or that the actor is
+     *   in a nested room.
+     */
+    actorSpecialDesc()
+    {	    
+        /* 
+         *   If this actor is the player character then we don't want to display
+         *   anything by default here.
+         */
+        if(isPlayerChar)
+            return;
+        
+        if(location == getOutermostRoom)
+            DMsg(actor here, '\^<<theNameIs>> {here}. ');
+        else
+            DMsg(actor in location, '\^<<theNameIs>> <<location.objInName>>. ');        		
+    }
     
     /*   
      *   We normally list any actors after the miscellaneous contents of a room
@@ -129,7 +146,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     /*   The message to display when someone tries to take this actor. */
     cannotTakeMsg = BMsg(cannot take actor, '{The subj dobj} {won\'t} let {me}
-        pick {him dobj} up. ')
+        {dummy} pick {him dobj} up. ')
     
     /*   The (portable) contents of an actor are regarded as being carried. */
     contType = Carrier
@@ -363,12 +380,13 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      */
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
     {
-	    /* Reset the keysManaged flag to nil so that we can end this method
-		 * by carrying out the necessary keys management unless this is
-		 * handled indirectly through the call to response.handleTopic()
-		 * below, which may set this flag to true.
-		 */
-	    keysManaged = nil;
+        /* 
+         *   Reset the keysManaged flag to nil so that we can end this method by
+         *   carrying out the necessary keys management unless this is handled
+         *   indirectly through the call to response.handleTopic() below, which
+         *   may set this flag to true.
+         */
+        keysManaged = nil;
 	
         /* 
          *   Note the best response we can find; i.e. the TopicEntry from the
@@ -1809,10 +1827,11 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
      *   ACTION HANDLING
      *****************************************************************/
          
+    /* In general we can talk to actors */
+    canTalkToMe = true
+    
     dobjFor(TalkTo)
-    {
-        verify() {}
-        
+    {  
         action()
         {
             sayHello();
@@ -1820,8 +1839,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     dobjFor(AskAbout)
-    {
-        verify() {}
+    {     
         action()
         {
             handleTopic(&askTopics, gIobj.topicList);
@@ -1829,8 +1847,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     dobjFor(AskFor)
-    {
-        verify() {}
+    {     
         action()
         {
             handleTopic(&askForTopics, gIobj.topicList);
@@ -1839,7 +1856,6 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     
     dobjFor(TellAbout)
     {
-        verify() {}
         action()
         {
             handleTopic(&tellTopics, gIobj.topicList);
@@ -1847,8 +1863,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     dobjFor(TalkAbout)
-    {
-        verify() {}
+    {        
         action()
         {
             handleTopic(&talkTopics, gIobj.topicList);
@@ -1858,8 +1873,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
        
     
     dobjFor(SayTo)
-    {
-        verify() {}
+    {        
         action()
         {
             handleTopic(&sayTopics, gIobj.topicList);
@@ -1867,8 +1881,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     dobjFor(QueryAbout)
-    {
-        verify() {}
+    {        
         action()
         {
             handleTopic(&queryTopics, gIobj.topicList);
@@ -1883,7 +1896,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     allowKiss = nil
     
     /* The message to display if allowKiss is nil */
-    shouldNotKissMsg = BMsg(should not kiss, 'That hardly {dummy} {seems}
+    shouldNotKissMsg = BMsg(should not kiss, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
     
     /*   
@@ -1956,8 +1969,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     dobjFor(AttackWith) asDobjFor(Attack)
     
     iobjFor(GiveTo)
-    {
-        verify() {}
+    {        
         action()
         {
             handleTopic(&giveTopics, [gDobj]);
@@ -1965,8 +1977,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
     }
     
     iobjFor(ShowTo)
-    {
-        verify() {}
+    {        
         action()
         {
             handleTopic(&showTopics, [gDobj]);

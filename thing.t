@@ -627,22 +627,7 @@ class Mentionable: LMentionable
      */
     matchPhrasesExclude = true
    
-    
-    /* 
-     *   Flag, do we want to treat this object as hidden from view (so that the
-     *   player can't interact with it)?
-     */
-    isHidden = nil
-    
-    /* 
-     *   Make a hidden item unhidden. If the method is called with the optional
-     *   parameter and the parameter is nil, i.e. discover(nil), the method
-     *   instead hides the object.
-     */
-    discover(stat = true)
-    {
-        isHidden = !stat;
-    }
+     
     
     /* 
      *   On dynamically creating a new object, do the automatic vocabulary
@@ -1945,15 +1930,14 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /*  
      *   Calculate the total bulk carried by an actor, which excludes the bulk
-     *   of any items currently worn.
+     *   of any items currently worn or anything fixed in place.
      */
     getCarriedBulk()
     {
         local totalBulk = 0;
-        foreach(local cur in contents)
-        {
-            if(cur.wornBy == nil)
-               totalBulk += cur.bulk;
+        foreach(local cur in directlyHeld)
+        {           
+            totalBulk += cur.bulk;
         }
         
         return totalBulk;
@@ -2099,7 +2083,21 @@ class Thing:  ReplaceRedirector, Mentionable
         return totBulk;
     }
                           
+    /* 
+     *   Flag, do we want to treat this object as hidden from view (so that the
+     *   player can't interact with it)?
+     */
+    isHidden = nil
     
+    /* 
+     *   Make a hidden item unhidden. If the method is called with the optional
+     *   parameter and the parameter is nil, i.e. discover(nil), the method
+     *   instead hides the object.
+     */
+    discover(stat = true)
+    {
+        isHidden = !stat;
+    }
        
     /* 
      *   The lockability property determines whether this object is lockable and
@@ -2472,6 +2470,9 @@ class Thing:  ReplaceRedirector, Mentionable
         /* if we have a global parameter name, add it to the global table */
         if (globalParamName != nil)
             libGlobal.nameTable_[globalParamName] = self;
+        
+        /* If our owner property isn't already a list, convert it to one. */
+        owner = valToList(owner);
     }
     
     /* 
@@ -2835,6 +2836,12 @@ class Thing:  ReplaceRedirector, Mentionable
     }
 
 
+    /* 
+     *   Flag; is this Thing a vehicle for an actor? If so then issuing a travel
+     *   command while in this vehicle will call this vehicle to travel
+     */
+    isVehicle = nil
+    
     /*
      *   The nested room subhead.  This shows a little addendum to the room
      *   headline when the point-of-view actor is inside an object within
@@ -3419,6 +3426,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   say between -20 and +20, to prevent overriding the verification score.
      */
     vocabLikelihood = 0
+    
+    /*   
+     *   A list of objects that are facets of this object, and so can be
+     *   referred to with the same pronoun.
+     */
+    getFacets = []
+    
     
     /* before and after travel notifications. By default we do nothing */    
     beforeTravel(traveler, connector) {}
@@ -4105,7 +4119,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             gMessageParams(obj);
             
-            DMsg(throw dir, '{I} {throw} {the obj} {1}wards and {he obj}
+            DMsg(throw dir, '{I} {throw} {the obj} {1} and {he obj}
                 land{s/ed} on the ground. ', gAction.direction.name );
         }
     }
@@ -4760,6 +4774,13 @@ class Thing:  ReplaceRedirector, Mentionable
     pullNoEffectMsg = BMsg(pull no effect, 'Pulling {1} {dummy} {has} no
         effect. ', gActionListStr)
     
+    /* 
+     *   The most usual reason why we can't put something somewhere is that we
+     *   can't pick it up in the first place, so by default we'll just copy
+     *   cannotPutMsg from cannotTakeMsg.
+     */
+    cannotPutMsg = cannotTakeMsg
+    
     dobjFor(PutOn)
     {
         preCond = [objHeld, objNotWorn]
@@ -4770,7 +4791,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalSelf(cannotPutInSelfMsg);  
             
             if(isFixed)
-                illogical(cannotTakeMsg);
+                illogical(cannotPutMsg);
             
             if(gIobj != nil && isDirectlyIn(gIobj))
                 illogicalNow(alreadyInMsg);
@@ -4843,7 +4864,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalSelf(cannotPutInSelfMsg);   
             
             if(isFixed)
-                illogical(cannotTakeMsg);
+                illogical(cannotPutMsg);
             
             if(gIobj != nil && isDirectlyIn(gIobj))
                 illogicalNow(alreadyInMsg);
@@ -4935,7 +4956,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
-                illogical(cannotTakeMsg);
+                illogical(cannotPutMsg);
             
             if(gIobj != nil && (isDirectlyIn(gIobj)))
                 illogicalNow(alreadyInMsg);
@@ -5027,7 +5048,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
-                illogical(cannotTakeMsg);
+                illogical(cannotPutMsg);
             
             if(gIobj != nil && (isDirectlyIn(gIobj)))
                 illogicalNow(alreadyInMsg);
@@ -5347,7 +5368,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    okayUnlockMsg = 'Unlocked.|{I} {unlock} {1}. '
+    okayUnlockMsg = 'Unlocked.|{I} unlock{s/ed} {1}. '
     
     dobjFor(Lock)
     {
@@ -5576,8 +5597,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report switch, 'Okay, {I} turn{s/ed} {1} {the dobj}. ', isOn ? 
-                 'on' : 'off');
+            DMsg(report switch, 'Okay, {i} turn{s/ed} {1} {2}. ', isOn ? 
+                 'on' : 'off', gActionListStr);
         }
     }
     
@@ -6317,7 +6338,7 @@ class Thing:  ReplaceRedirector, Mentionable
     /* 
      *   Most things probably could be cleaned, even if they're not worth
      *   cleaning in practice. Some things like a mountain or the moon probably
-     *   can't be cleaned and good reasonably define isCleanable = nil.
+     *   can't be cleaned and could reasonably define isCleanable = nil.
      */
     isCleanable = true
     
@@ -7909,55 +7930,115 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Indeed, the handling of conversational commands on Thing is minimal;
      *   they are simply ruled out at the verify stage, since most Things can't
      *   converse. The implementation of these actions that allows conversation
-     *   to take place is on the Actor class.
+     *   to take place is on the Actor class. We do however define a canTalkToMe
+     *   property so that Actor can use the verify handling defined on Thing by
+     *   just overriding it.
+     *
+     *   Things can't be talked to, so game code shouldn't normally override
+     *   this property; it's there to be overridden on the Actor class.
      */
+    canTalkToMe = nil
+    
     
     dobjFor(AskAbout)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     dobjFor(AskFor)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     
     dobjFor(TellAbout)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
         
     dobjFor(SayTo)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     dobjFor(QueryAbout)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     dobjFor(TalkAbout)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     dobjFor(TalkTo)
     {
         preCond = [objAudible]
-        verify() { illogical(cannotTalkToMsg); }
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotTalkToSelfMsg);
+            
+            else if(!canTalkToMe)
+              illogical(cannotTalkToMsg); 
+        }
     }
     
     cannotTalkToMsg = BMsg(cannot talk, 'There{dummy}{\'s} no point trying to
         talk to {the cobj}. ')
+    
+    cannotTalkToSelfMsg = BMsg(cannot talk to self, 'Talking to oneself {dummy}
+        {is} generally pointless. ')
+        
     
     dobjFor(GiveTo)
     {
@@ -7968,6 +8049,14 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(alreadyHasMsg);
         }
     
+        report()
+        {
+            if(gAction.summaryReport != nil)
+                dmsg(gAction.summaryReport, gActionListStr);
+            
+            if(gAction.summaryProp != nil)
+                gIobj.(gAction.summaryProp);
+        }
     }
     
     alreadyHasMsg = BMsg(already has, '{The subj iobj} already {has}
@@ -7976,35 +8065,52 @@ class Thing:  ReplaceRedirector, Mentionable
     iobjFor(GiveTo)
     {
         preCond = [touchObj]
-        verify() { illogical(cannotGiveToMsg); }
-        report()
-        {
-            if(gAction.giveReport != nil)
-                dmsg(gAction.giveReport, gActionListStr);
+        verify() 
+        { 
+            if(gActor == self)
+                illogicalSelf(cannotGiveToSelfMsg);
+            if(!canTalkToMe)
+                illogical(cannotGiveToMsg); 
         }
+        
     }
     
     cannotGiveToMsg = BMsg(cannot give to, '{I} {can\'t} give anything to {that
         iobj}. ')
+    
+    cannotGiveToSelfMsg = BMsg(cannot give to self, '{I} {can\'t} give anything
+        to {himself actor}. ')
     
     dobjFor(ShowTo)
     {
         preCond = isFixed ? [objVisible] : [objHeld]  
         report()
         {
-            if(gAction.giveReport != nil)
-                dmsg(gAction.giveReport, gActionListStr);
+            if(gAction.summaryReport != nil)
+                dmsg(gAction.summaryReport, gActionListStr);
+            
+            if(gAction.summaryProp != nil)
+                gIobj.(gAction.summaryProp);
         }
     }
     
     iobjFor(ShowTo)
     {
         preCond = [touchObj]
-        verify() { illogical(cannotShowToMsg); }
+        verify() 
+        {
+            if(gActor == self)
+                illogicalSelf(cannotShowToSelfMsg);
+            else if(!canTalkToMe)
+                illogical(cannotShowToMsg);
+        }
     }
     
     cannotShowToMsg = BMsg(cannot show to, '{I} {can\'t} show anything to {that
         iobj}. ')
+    
+    cannotShowToSelfMsg = BMsg(cannot show to self, '{I} {can\'t} show anything
+        to {himself actor}. ')
     
     
     dobjFor(ShowToImplicit)
@@ -8013,16 +8119,25 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {
-            if(gPlayerChar.currentInterlocutor == nil)
+            if(gActor.currentInterlocutor == nil)
                 illogical(notTalkingToAnyoneMsg);
-            else if(!Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
+            else if(!Q.canTalkTo(gActor, gActor.currentInterlocutor))
                 illogicalNow(noLongerTalkingToAnyoneMsg);            
             
         }
         
         action()
         {
-            gPlayerChar.currentInterlocutor.handleTopic(&showTopics, [self]);
+            gActor.currentInterlocutor.handleTopic(&showTopics, [self]);
+        }
+        
+        report()
+        {
+            if(gAction.summaryReport != nil)
+                dmsg(gAction.summaryReport, gActionListStr);
+            
+            if(gAction.summaryProp != nil)
+                gActor.currentInterlocutor.(gAction.summaryProp);
         }
     }
     
@@ -8032,16 +8147,25 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify() 
         {
-            if(gPlayerChar.currentInterlocutor == nil)
+            if(gActor.currentInterlocutor == nil)
                 illogical(notTalkingToAnyoneMsg);
-            else if(!Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))
+            else if(!Q.canTalkTo(gActor, gActor.currentInterlocutor))
                 illogicalNow(noLongerTalkingToAnyoneMsg);            
             
         }
         
         action()
         {
-             gPlayerChar.currentInterlocutor.handleTopic(&giveTopics, [self]);
+             gActor.currentInterlocutor.handleTopic(&giveTopics, [self]);
+        }
+        
+        report()
+        {
+            if(gAction.summaryReport != nil)
+                dmsg(gAction.summaryReport, gActionListStr);
+            
+            if(gAction.summaryProp != nil)
+                gActor.currentInterlocutor.(gAction.summaryProp);
         }
     }
     
