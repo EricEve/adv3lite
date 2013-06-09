@@ -1026,6 +1026,17 @@ enum medium;
  */
 enum small;
 
+/* ------------------------------------------------------------------------- */
+/*
+ *   Communication Link Types
+ *
+ *   AudioLink means audio communication only is available VideoLink means both
+ *   audio and visual links are available.
+ */
+#define AudioLink 1
+#define VideoLink 2
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Conversation manager macros

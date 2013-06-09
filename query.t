@@ -691,6 +691,190 @@ class Special: object
     all = []
 ;
 
+/*------------------------------------------------------------------------- */
+/*
+ *   A commLink is a Special that establishes a communications link between the
+ *   player character and one or more actors in remote locations.
+ *
+ *   To activate the commLink with another actor, call
+ *   commLink.connectTo(other). To make it a video link as well as an audio
+ *   link, call commLink.connectTo(other, true).
+ *
+ *   To disconnect the call with a specific actor,  call
+ *   commLink.disconnectFrom(other); to terminate the commLink with all actors,
+ *   call commLink.disconnect()
+ *
+ */
+commLink: Special
+   
+    /* 
+     *   Our scope list must include all the actors we're currently connected
+     *   to.
+     */
+    scopeList(actor)
+    {
+        local s = next();
+        
+        s.vec_ += connectionList.mapAll({x: x[1]});
+        
+        s.vec_ = s.vec_.getUnique();
+        
+        return s;
+    }
+    
+    /* We can hear an actor if s/he's in our connection list */
+    canHear(a, b)
+    {
+        /* 
+         *   We assume that if a can hear b, b can hear a, but the link is only
+         *   between the player character an another actor. If b is the player
+         *   character swap a and b so that the tests that follow will still
+         *   apply.
+         */
+        if(b == gPlayerChar)
+        {
+            b = a;
+            a = gPlayerChar;
+        }
+        
+        /* 
+         *   If one of the actors is the player character and the other is in
+         *   our connection list, then they can hear each other.
+         */
+        if(a == gPlayerChar && isConnectedTo(b))
+            return true;
+        
+        /* Otherwise use the next special. */
+        return next();
+    }
+    
+    canSee(a, b)
+    {
+        /* 
+         *   We assume that if a can see b, b can see a, but the link is only
+         *   between the player character an another actor. If b is the player
+         *   character swap a and b so that the tests that follow will still
+         *   apply.
+         */
+        if(b == gPlayerChar)
+        {
+            b = a;
+            a = gPlayerChar;
+        }
+        
+        /* 
+         *   If one of the actors is the player character and the other is in
+         *   our connection list with a video value of true, then they can see
+         *   each other.
+         */
+        if(a == gPlayerChar && isConnectedTo(b) == VideoLink)
+            return true;
+        
+        /* Otherwise use the next special. */
+        return next();
+    }
+    
+    canTalkTo(a, b)   
+    {
+        /* 
+         *   We assume that if a can talk to b, b can talk to a, but the link is
+         *   only between the player character an another actor. If b is the
+         *   player character swap a and b so that the tests that follow will
+         *   still apply.
+         */
+        if(b == gPlayerChar)
+        {
+            b = a;
+            a = gPlayerChar;
+        }
+        
+        /* 
+         *   If one of the actors is the player character and the other is in
+         *   our connection list, then they can talk to each other.
+         */
+        if(a == gPlayerChar && isConnectedTo(b))
+            return true;
+        
+        /* Otherwise use the next special. */
+        return next();
+    }
+    
+    /* 
+     *   The list of actors we're currently connected to. This is a list of two
+     *   element lists in the form [actor, video], where actor is the actor
+     *   we're connected to and video is true or nil according to whether the
+     *   link to that actor is a video link as well as an audio link.
+     */
+    connectionList = []
+    
+    /* This Special is active is there's anything in its connectionList. */
+    active = connectionList.length > 0
+    
+    /* 
+     *   Connect this comms link to other; if video is specified and is true,
+     *   the comms links is also a video link.
+     */
+    connectTo(other, video = nil)
+    {
+        /* Add other to our connection list. */
+        connectionList = connectionList.append([other, video]);
+        
+        /* Force the Special class to rebuild its list of active Specials. */
+        Special.allActive_ = nil;
+    }
+    
+    /* Disconnect this commLink from everyone */
+    disconnect()
+    {
+        /* Empty our out connectionList */
+        connectionList = [];
+        
+        /* Force the Special class to rebuild its list of active Specials. */
+        Special.allActive_ = nil;
+    }
+    
+    /* 
+     *   Disconnect this commLink from lst, where lst may be a single actor or a
+     *   list of actors.
+     */
+    disconnectFrom(lst)
+    {
+        /* Convert the lst parameter to a list if it isn't one already */
+        lst = valToList(lst);
+        
+        /* 
+         *   Reduce our connectionList to a subset of members that aren't in
+         *   lst.
+         */
+        connectionList = connectionList.subset({x: lst.indexOf(x[1]) == nil});
+        
+        /* Force the Special class to rebuild its list of active Specials. */
+        Special.allActive_ = nil;
+    }
+ 
+    /* 
+     *   Is there a communications link with obj? Return nil if there is none,
+     *   AudioLink if there's an audio connection only and VideoLink if there's
+     *   a video connection as well.
+     */
+    isConnectedTo(obj)
+    {
+        local conn = connectionList.valWhich({x: x[1] == obj});
+        if(conn == nil)
+            return nil;
+        
+        return conn[2] ? VideoLink : AudioLink;
+    }
+    
+    
+    /* 
+     *   Give this Special a higher priority that the QSenseRegion Special so
+     *   that it takes precedence when its active.
+     */
+    priority = 5
+;
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   A ScopeList is a helper object used to build the list of objects in

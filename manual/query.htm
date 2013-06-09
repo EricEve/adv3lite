@@ -67,6 +67,88 @@ the Special with the highest priority takes precedence, and can override any low
 
 <br>
 
+<a name="commlink"></a><h2>The Communications Link Special</h2>
+<p>The function of a Special is to change the rules that govern sensory connections and scope. One pertinent situation that quite often occurs in Interactive Fiction is where we want to establish a remote communication link between the player character and another actor in a remote location, typically to represent a telephone conversation or a videolink. To facilitate this the library defines a <strong>commLink</strong> Special which can be used for precisely this purpose.</p>
+
+<p>The following methods of the commLink object are the ones you need to know about to make use of it:</p>
+
+<ul>
+<li><strong>connectTo(other, video?)</strong>: establishes a remote communications link between the player character and <em>other</em>. The second, <em>video</em>, parameter is optional. If it is either not supplied or nil the link will be an audio one only. If it is true then the link with be an audiovisual one.</li>
+<li><strong>disconnectFrom(other)</strong>: removes the remote communications link between the player character and <em>other</em>, where <em>other</em> can either be a single actor or a list of actors.</li>
+<li><strong>disconnect()</strong>: severs the remote communications link between the player character and all the other actors it was established with.</li>
+<li><strong>isConnectedTo(obj)</strong>: returns the nature of the current remote comms link with <em>obj</em>. A value of nil means there's currently no link. A value of <strong>AudioLink</strong> means there's an audio connection only. A value of <strong>VideoLink</strong> means there's both an audio and a video connection. (Note: <span class="code">AudioLink</span> and <span class="code">VideoLink</span> are simply macros that expand to 1 and 2 respectively).</li>
+</ul>
+
+<p>Note that this mechanism allows the player character to be in remote communications with several actors at once and in audio communication with some and audiovisual communication with others.</p>
+
+<p>Further considerations may apply if the <a href="senseregion.htm">SenseRegion</a> module is present and you establish a remote audiovisual link. Since the other actor will normally be in a remote location, the default response to trying to examine him/her will be that s/he's too far away to make out any detail, which probably isn't what you want for a remote audiovisual link. To fix that you'd either need to set <span class="code">sightSize = large</span> on the remote actor or define its <span class="code">remoteDesc(pov)</span> method. For further details see the discussion of <a href="senseregion.htm#remotecomm">Remote Communications</a> in the SenseRegion chapter.</p>
+
+<p>As an example, suppose we want to define a Phone command that can be used to phone other actors. We need to ensure that potential callees are in scope, so we need to add all known actors to scope in our Phone action's <span class="code">addExtraScopeItems()</span> method. We then need a response to attempts to trying to phone things that aren't actors, and another response to phoning actors. Some actors may not be contactable by phone so we need to defined a <span class="code">canPhoneMe</span> property on the Actor class that determines this. If phoning is allowed then we want it to establish a link with the other actor and say hello to him or her. Conversely, we want ending a conversation with another actor to sever any communications link there may have been. A fairly basic scheme to do all this might be as follows:</p>
+
+ <p><div class="code"><pre>
+ DefineTAction(Phone)
+    addExtraScopeItems(role)
+    {
+        inherited(role);
+        
+        scopeList = scopeList.appendUnique(Q.knownScopeList.subset({x:
+            x.ofKind(Actor)}));
+    }
+;
+
+VerbRule(Phone)
+    ('phone' | 'call') singleDobj
+    : VerbProduction
+    action = Phone
+    verbPhrase = 'phone/phoning (whom)'
+    missingQ = 'who do you want to phone'
+;
+
+modify Thing
+    dobjFor(Phone)
+    {
+        verify()
+        {
+            illogical('{I} {can\'t} phone {that dobj}. ');
+        }
+    }
+;
+
+modify Actor
+    dobjFor(Phone)
+    {
+        verify()
+        {
+            if(commLink.isConnectedTo(self))
+                illogicalNow('{I} {am} already connected to {the dobj}. ');
+            
+        }
+        
+        check()
+        {
+            if(!canBePhoned)
+                "{The dobj} {doesn\'t answer[ed]} {her actor} call. ";  
+        }
+        
+        action()
+        {
+            commLink.connectTo(self);
+            sayHello();
+        }
+    }
+    
+    sayGoodbye(reason = endConvBye)
+    {
+        inherited(reason);
+        commLink.disconnectFrom(self);
+    }
+    
+    canBePhoned = true
+; 
+ </pre></div>
+
+<p>If you want to try this out for yourself, bear in mind that the way we've tried it allows the player character to phone only those actors already known to him or her, so you may need to define <span class="code">familiar = true</span> on the remote actor for it to work.</p> 
+ 
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

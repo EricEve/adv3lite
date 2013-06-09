@@ -521,6 +521,10 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
         
         /* Note that this actor is a possible antecedent for a pronoun */
         notePronounAntecedent(self);
+        
+        /* Add our boredomAgendaItem to our agenda if it isn't already there */
+        if(valToList(agendaList).indexOf(boredomAgendaItem) == nil)
+            addToAgenda(boredomAgendaItem);
     }
     
     /* 
