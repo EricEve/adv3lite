@@ -390,10 +390,10 @@ class Room: TravelConnector, Thing
         
         /* Notify any regions I'm about to enter of my impending arrival. */
         foreach(local reg in regsEntered)
-            reg.travelerEntering(traveler, dest);
+            reg.travelerEntering(traveler, self);
         
         /* notify the destination room of the impending arrival */        
-        dest.travelerEntering(traveler, dest);
+        dest.travelerEntering(traveler, self);
     }
     
     
@@ -404,10 +404,10 @@ class Room: TravelConnector, Thing
     travelerLeaving(traveler, dest) { }
     
     /* 
-     *   This method is invoked when traveler is about to enter this room and go
-     *   to dest.
+     *   This method is invoked when traveler is about to enter this room 
+     *   from origin.
      */
-    travelerEntering(traveler, dest) { }
+    travelerEntering(traveler, origin) { }
     
    
     /*    A Room has no interiorParent since it's a top-level container. */
@@ -1657,10 +1657,10 @@ class Region: object
     travelerLeaving(traveler, dest) { }
     
      /* 
-      *   This method is invoked when traveler is about to enter this region and
-      *   go to dest (the destination room).
+      *   This method is invoked when traveler is about to enter this region
+      *   from origin (the room traveled from.
       */    
-    travelerEntering(traveler, dest) { }
+    travelerEntering(traveler, origin) { }
     
     /* Carry out before notifications on the region */
     notifyBefore()

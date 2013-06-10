@@ -499,10 +499,10 @@ class LMentionable: object
      *   automatically infer a plural according to the spelling pattern. We also
      *   have a table of common irregular plurals that we'll apply. For
      *   irregular words that aren't in the table, you can override the
-     *   spelling-based plural by putting the real plural in parentheses
+     *   spelling-based plural by putting the real plural in braces
      *   immediately after the noun, with no spaces.  Start with a hyphen to
      *   specify a suffix; otherwise just write the entire plural word. For
-     *   example, you could write 'man(men)' or 'child(-ren)' (although these
+     *   example, you could write 'man{men}' or 'child{-ren}' (although these
      *   particular irregular plurals are already in our special-case list, so
      *   the custom plurals aren't actually needed in these cases).  You can use
      *   plural annotations in the short name as well as the extra noun list;
@@ -1176,7 +1176,7 @@ class LMentionable: object
     posPat = R'<lsquare>(n|adj|pl|prep|weak)<rsquare>'
 
     /* pattern for plural annotations */
-    pluralPat = R"<lparen>(<alphanum|-|'|space|,|~|=>+)<rparen>"
+    pluralPat = R"<lbrace>(<alphanum|-|'|space|,|~|=>+)<rbrace>"
 
     /* 
      *   pattern for proper nouns: starts with a capital, and at least one
@@ -4149,6 +4149,14 @@ englishMessageParams: MessageParams
 
         /* {her obj} - possessive adjective pronoun (my, his, her) */
         [ 'her',
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ],
+
+        /* {his obj} - possessive adjective pronoun (my, his, her) */
+        [ 'his',
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ], 
+
+        /* {its obj} - possessive adjective pronoun (my, his, her) */
+        [ 'its',
          { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ],
 
         /* {hers obj} - possessive noun pronoun (mine, his, hers) */

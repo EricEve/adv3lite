@@ -5464,6 +5464,11 @@ class BoredomAgendaItem: AgendaItem
         /* tell the actor to end the conversation */
         actor.endConversation(endConvBoredom);
        
+        /* 
+         *   Mark us as done; we'll be reinstated the next time someone
+         *   converses with our actor.
+         */
+        isDone = true;
     }
 
     /* 
