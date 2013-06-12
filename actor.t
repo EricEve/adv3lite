@@ -4191,7 +4191,7 @@ class NodeContinuationTopic: InitiateTopic
      *   We're only active when one or more of our keys is active (having been
      *   activated through an <.convnode> tag).
      */
-    isActive = nodeActive    
+    active = (nodeActive && inherited)
     
     /* 
      *   Particular instances must override this property to stipulate which
@@ -4230,7 +4230,7 @@ class NodeEndCheck: InitiateTopic
      *   We're only active when one or more of our keys is active (having been
      *   activated through an <.convnode> tag).
      */
-    isActive = nodeActive
+    active = (nodeActive && inherited)
     
     
     /* 

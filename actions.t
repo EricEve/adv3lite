@@ -697,6 +697,7 @@ DefineIAction(Continue)
         if(path == nil)
         {
             DMsg(no journey, '{I}{\'m} not going anywhere. ');
+            return;
         }
         
         local idx = path.indexWhich({x: x[2] == gActor.getOutermostRoom});
