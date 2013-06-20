@@ -1026,6 +1026,9 @@ enum medium;
  */
 enum small;
 
+/*  Enums for Goals in the Hint system */
+enum OpenGoal, ClosedGoal, UndiscoveredGoal;
+
 /* ------------------------------------------------------------------------- */
 /*
  *   Communication Link Types

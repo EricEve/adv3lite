@@ -605,7 +605,7 @@ modify Thing
     }
 
     tooFarAwayToHearMsg = BMsg(too far away to hear, '{The subj dobj} {is} too
-        far away to hear. ')
+        far away to hear distinctly. ')
 
     
     /* 
@@ -679,7 +679,7 @@ modify Thing
     }
     
     tooFarAwayToSmellMsg = BMsg(too far away to smell, '{The subj dobj} {is} too
-        far away to smell. ')
+        far away to smell distinctly. ')
     
     /* Modify the effects of throwing something at this object */
     iobjFor(ThrowAt)

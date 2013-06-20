@@ -2625,8 +2625,19 @@ execNestedAction(isReplacement, actor, action, [objs])
  */
 askMissingObject(action, role)
 {
+     /* 
+      *   Store the current objects of the current action in the new action, in
+      *   case action.scoreObjects() needs to refer to them below.
+      */
+    action.curDobj = gDobj;
+    action.curIobj = gIobj;
+    
     /* Make action the current action for the current Command. */
     gCommand.action = action;
+    gCommand.dobj = gDobj;
+    gCommand.iobj = gIobj;
+    
+   
     
     /* 
      *   Make the action the original action for the current Command; we need to
@@ -2707,13 +2718,17 @@ askMissingObject(action, role)
                         
             
             /* Execute the new action with the new set of objects. */
+
+            
             gCommand.execDoer([action, gCommand.dobj, gCommand.iobj]);            
+
             
             /* 
              *   If we were able to execute the new action with the new set of
-             *   objects, we're done.
+             *   objects, we're done; and we don't want to continue with the
+             *   original action.
              */
-            return;
+            exit;
         }        
     }
     
@@ -2744,6 +2759,59 @@ askMissingObject(action, role)
     
     /* Skip to the next command line so the player can enter a response */
     abort;        
+}
+
+/* 
+ *   This function displays msg, which should be a message inviting the player
+ *   to choose a suitable object for action in role (DirectObject or
+ *   IndirecObject). The action will then be performed using the selected object
+ *   in role.
+ */
+askChooseObject(action, role, msg)
+{
+    /* 
+     *   Store the current objects of the current action in the new action, in
+     *   case action.scoreObjects() needs to refer to them below.
+     */
+    action.curDobj = gDobj;
+    action.curIobj = gIobj;
+    
+    /* Make action the current action for the current Command. */
+    gCommand.action = action;
+    gCommand.dobj = (role == DirectObject ? nil : gDobj);
+    gCommand.iobj = (role == IndirectObject ? nil : gIobj);
+    
+    if(role == DirectObject)
+    {
+        gCommand.dobjNPs = [];
+        gCommand.dobjs = new Vector();        
+    }
+    
+    if(role == IndirectObject)
+    {
+        gCommand.iobjNPs = [];
+        gCommand.iobjs = new Vector();        
+    }
+    /* 
+     *   Make the action the original action for the current Command; we need to
+     *   do this because otherwise the Command object will overwrite our new
+     *   action with its original one before we're done.
+     */
+    gCommand.originalAction = action;
+  
+    /* 
+     *   Slot the new action's verbRule into the Command's verbProd, so that the
+     *   Command has a verbProd appropriate to the action.
+     */
+    gCommand.verbProd = action.verbRule;
+    
+    local err = new EmptyNounError(gCommand, role);
+    
+    say(msg);
+    
+    Parser.question = new ParseErrorQuestion(err);
+    
+    abort;
 }
 
 //------------------------------------------------------------------------------

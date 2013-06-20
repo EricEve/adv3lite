@@ -20,7 +20,7 @@ property eventList;
  *   pursue his/her/its own agenda. This class is intended for the
  *   implementation of NPCs (non-player characters).
  */
-class Actor: AgendaManager, ActorTopicDatabase, Thing
+class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     
     /* 
      *   Our current ActorState. This should normally be treated as a read-only
@@ -2154,7 +2154,7 @@ class Actor: AgendaManager, ActorTopicDatabase, Thing
  *   belong.
  */
 
-class ActorState: ActorTopicDatabase
+class ActorState: EndConvBlocker, ActorTopicDatabase
     
     /* 
      *   The stateDesc from the actor's current ActorState is appended to the
@@ -3628,7 +3628,7 @@ class DefaultAgendaTopic: AgendaManager, DefaultAnyTopic
      *   This kind of Default Topic is active only when it has any agenda items
      *   to process.
      */
-    isActive = (agendaList != nil && agendaList.length > 0)
+    active = (inherited && agendaList != nil && agendaList.length > 0)
     
     /* 
      *   When this DefaultTopic is active we want it to take priority over over
@@ -4223,7 +4223,7 @@ class NodeContinuationTopic: InitiateTopic
  *   it under all circumstances.
  */
 
-class NodeEndCheck: InitiateTopic
+class NodeEndCheck: EndConvBlocker, InitiateTopic
     matchObj = nodeEndCheckObj
     
     /* 
@@ -4261,6 +4261,15 @@ class NodeEndCheck: InitiateTopic
      */    
     handleTopic() { }
     
+    
+    
+;
+
+/* 
+ *   EndConvBlocker is a mix-in class whose sole function is to define the
+ *   blockEndConv method common to Actor, ActorState and NodeEndCheck
+ */
+EndConvBlocker: object
     /* 
      *   Convenience method that notes that conversation has occurred on this
      *   turn and returns nil. This is to allow us to use:
@@ -4281,7 +4290,6 @@ class NodeEndCheck: InitiateTopic
          */
         return nil;
     }
-    
 ;
 
 /* Singleton object to allow initiateTopic to trigger a NodeContinuationTopic */

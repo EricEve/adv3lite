@@ -2794,7 +2794,7 @@ modify lookLister
 modify inventoryLister
     showListPrefix(lst, pl, paraCnt)
     {
-        "{I} {am} carrying ";
+        "<<if paraCnt == 0>>{I} {am}<<else>>, and<<end>> carrying ";
     }
     
     showListSuffix(lst, pl, paraCnt)

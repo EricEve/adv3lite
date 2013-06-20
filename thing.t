@@ -3618,6 +3618,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(SmellSomething)
     {
+        preCond = [objSmellable]
+        
         verify()
         {
             if(!isSmellable)

@@ -556,6 +556,48 @@ objAudible: PreCondition
     }
 ;
 
+/* A PreCondition to check that an object is smellable. */
+objSmellable: PreCondition
+    verifyPreCondition(obj)
+    {
+       /* 
+        *   Construct a list of objects that are blocking the scent path between
+        *   the actor and obj.
+        */
+        local lst = Q.scentBlocker(gActor, obj);
+        
+        /* 
+         *   If the actor cannot hear obj and there's at least one object
+         *   blocking the sound path between them, construct an appropriate
+         *   error message and block the action.
+         */      
+        if(!Q.canSmell(gActor, obj) && lst.length > 0)
+        {            
+            local errMsg;
+            gMessageParams(obj);
+         
+            /* 
+             *   If the blocking object is a Room, then obj is in a remote
+             *   location, so the reason the actor can't hear it is that it's
+             *   too far away.
+             */
+            if(lst[1].ofKind(Room))
+                errMsg = BMsg(too far away to smell obj, '{The subj obj} {is}
+                    too far away to smell. ');
+            
+            /* 
+             *   Otherwise the reason the actor can't hear obj is that the first
+             *   blocking object is in the way.
+             */
+            else           
+                errMsg = BMsg(cannot smell, '{I} {can\'t} smell {1} 
+                through {2}. ', obj.theName, lst[1].theName);
+                
+            /* Declare obj to be inaccessible to hearing. */
+            inaccessible(errMsg);
+        }        
+    }
+;
 
 /* 
  *   A PreCondition to check that an object can be touched (which is likely to

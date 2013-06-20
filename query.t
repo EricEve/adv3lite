@@ -816,6 +816,18 @@ commLink: Special
      */
     connectTo(other, video = nil)
     {
+        /* 
+         *   In case the video parameter is supplied as AudioLink or VideoLink
+         *   (some game authors may try this even though it's not documented),
+         *   we should first translate the video parameter into true or nil as
+         *   appropriate.
+         */
+        if(video == AudioLink)
+            video = nil;
+        
+        if(video == VideoLink)
+            video = true;
+        
         /* Add other to our connection list. */
         connectionList = connectionList.append([other, video]);
         

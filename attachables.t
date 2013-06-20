@@ -33,7 +33,7 @@ class SimpleAttachable: Thing
      */
     allowAttach(obj)
     {
-        return valToList(allowableAttachments.indexOf(obj)) != nil;
+        return valToList(allowableAttachments).indexOf(obj) != nil;
     }
     
     /* A list of the objects that can be attached to me */
@@ -451,7 +451,7 @@ class Component: SimpleAttachable
      *   We can't normally detach a Component with a straightforward DETACH
      *   command.
      */
-    allowDetach = nil
+    isDetachable = nil
     
     /* 
      *   A Component is generally fixed in place (i.e. not separately takeable)

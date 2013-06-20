@@ -1898,7 +1898,7 @@ VerbRule(TellAbout)
 ;
 
 VerbRule(TellAboutImplicit)
-    't' topicIobj
+    ('t' | 'tell') topicIobj
     : VerbProduction
     action = TellAboutImplicit
     verbPhrase = 'tell/telling (whom) (about what)'
@@ -1917,7 +1917,7 @@ VerbRule(TellAboutWhat)
     dobjReply = singleNoun
     iobjReply = aboutTopicPhrase
 
-    priority = 25
+    priority = 25    
 ;
 
 VerbRule(TellTo)
@@ -1957,7 +1957,7 @@ VerbRule(AskVague)
 ;
 
 VerbRule(TellVague)
-    [badness 500] 'tell' singleDobj topicIobj
+    ('tell'|'t') singleDobj topicIobj
     : VerbProduction
     action = TellAbout
     verbPhrase = 'tell/telling (whom)'

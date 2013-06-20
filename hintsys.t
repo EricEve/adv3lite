@@ -251,7 +251,6 @@ class HintMenuObject: object
  *   we don't show Undiscovered goals to avoid giving away developments
  *   later in the game before they become relevant.  
  */
-enum OpenGoal, ClosedGoal, UndiscoveredGoal;
 
 class Goal: MenuTopicItem, HintMenuObject, HintOpener
     /*

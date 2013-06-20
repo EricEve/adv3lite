@@ -113,12 +113,16 @@ class Pathfinder: object
             findDestinations(cur);
     }
     
+    /* Find all the destinations one step away from cur */
     findDestinations(cur)
     {
         /* Specific instances must define how this is done */
     }
     
+    /* The most recently calculated route */
     cachedRoute = nil
+    
+    /* The destination of the most recently calculated route. */
     currentDestination = nil
     
 ;

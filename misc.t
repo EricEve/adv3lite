@@ -584,6 +584,9 @@ libGlobal: object
      */
     playerChar = nil   
 
+    /*   The name of the current player character */
+    playerCharName = nil
+    
     /* 
      *   The global score object.  We use a global for this, rather than
      *   referencing libScore directly, to allow the score module to be
@@ -1415,7 +1418,49 @@ findMatchingTopic(voc, cls = Topic)
     return nil;
 }
 
-
+/* 
+ *   Set the player character to another actor. If the optional second parameter
+ *   is supplied, it sets the person of the player character; otherwise it
+ *   default to the second person.
+ */
+setPlayer(actor, person = 2)
+{    
+    /* Note the old player character */
+    local other = gPlayerChar;
+    
+    /* Note the name of the actor the pc is about to become */
+    local newName = actor.theName;
+    
+    /* Change the player character to actor */
+    gPlayerChar = actor;
+    
+    /* Change the player character person to person. */
+    gPlayerChar.person = person;
+    
+    /* Change the person of the previous player character to 3 */
+    other.person = 3;
+    
+    /* 
+     *   Change the names of both actors involved in the swap to nil, so that
+     *   they can be reinitialized.
+     */
+    other.name = nil;
+    gPlayerChar.name = nil;
+    
+    /*   
+     *   Reinitialize the names of both actors, so that the player character can
+     *   become 'I' or 'You' as appropriate, and the previous PC acquires
+     *   his/her third-person name.
+     */
+    other.initVocab();
+    gPlayerChar.initVocab();
+    
+    /*   Note the name (e.g. 'Bob' or 'Mary') of the new player character */
+    libGlobal.playerCharName = newName;
+    
+    /* Return the (third-person) name of the new player character */
+    return newName;
+}
 
 /* ------------------------------------------------------------------------ */
 /*

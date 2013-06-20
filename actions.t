@@ -384,6 +384,9 @@ DefineIAction(Inventory)
             
             /* Construst a list of what the actor is carrying */
             local carriedList = gActor.contents.subset({o: o.wornBy == nil });
+			
+			/* Note whether we've displayed the worn list */
+			local wornListShown = 0;
 
             /* 
              *   If anything is being worn, get a list of it minus the final
@@ -401,11 +404,9 @@ DefineIAction(Inventory)
                     ".<.p>";
                 
                 /*  
-                 *   Otherwise prepare to append the list of what's being
-                 *   carried.
+                 *   Note that the worn list has been shown.                 
                  */
-                else
-                    DMsg(inventory list conjunction, ', and \v');
+                wornListShown = 1;
                 
             }
             /* 
@@ -415,7 +416,7 @@ DefineIAction(Inventory)
              *   message.
              */
             if(carriedList.length > 0 || wornList.length == 0)
-                inventoryLister.show(carriedList, 0);
+                inventoryLister.show(carriedList, wornListShown);
         }
         else
         {
@@ -1353,7 +1354,8 @@ DefineTAction(Unfasten)
 DefineTIAction(UnfastenFrom)    
 ;
 
-DefineTIAction(PlugInto)      
+DefineTIAction(PlugInto)   
+    resolveIobjFirst = nil
 ;
 
 DefineTAction(PlugIn)    

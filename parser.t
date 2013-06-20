@@ -5070,6 +5070,7 @@ class EmptyNounError: CommandError
 ;
 
 
+
 /*
  *   Noun phrase resolution error.  This is a special type of parsing error
  *   that indicates that the problem is with resolving a noun phrase to
@@ -5522,16 +5523,17 @@ class AmbiguousError: ResolutionError
 class AmbiguousMultiDefiniteError: UnmatchedNounError
     display()
     {
-        DMsg(be more specific, 'I don\'t know which ones you mean.  Can you be more specific?');
+        DMsg(be more specific, 'I don\'t know which ones you mean.  
+            Can you be more specific?');
     }
 
     /* 
-     *   this is not really curable, but we need to say it is curable so that our custom
-     *   message is displayed.  Would like to find a way to do this where curable=nil
+     *   this is not really curable, but we need to say it is curable so that
+     *   our custom message is displayed.  Would like to find a way to do this
+     *   where curable=nil
      */
     curable = true
 ;
-
 
 
 /*
