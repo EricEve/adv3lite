@@ -426,10 +426,7 @@ class Mentionable: LMentionable
         return matchNameCommon(tokens, disambigMatchPhrases, true);
            
     }
-
-    
-    
-    
+   
     /*
      *   Simple implementation of matchName(), which simply checks to see
      *   if all of the tokens are associated with the object.  The "simple"
@@ -655,6 +652,23 @@ class Mentionable: LMentionable
 
     /* the State objects applying to this object */
     states = []
+    
+    /*  
+     *   The filterResolveList method allows this object to remove itself or
+     *   other objects from the list of resolved objects.
+     *
+     *   np is the noun phrase, so np.matches gives the current list of matches,
+     *   and np.matches[i].obj gives the ith object match. To change the list of
+     *   matches, manipulate the np.matches list.
+     *
+     *   cmd is the command object, so that cmd.action gives the action about to
+     *   be executed.
+     *
+     *   mode is the match mode.
+     *
+     *   By default we do nothing here.
+     */
+    filterResolveList(np, cmd, mode) { }
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -2875,8 +2889,11 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     groupOrder = 100
 
-     
-    
+     /*   
+      *   CollectiveGrop, or a list of CollectiveGroups, to which this item
+      *   belongs.
+      */
+    collectiveGroups = nil
     
     /*
      *   The owner or owners of the object.  This is for resolving
@@ -3426,6 +3443,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   say between -20 and +20, to prevent overriding the verification score.
      */
     vocabLikelihood = 0
+          
     
     /*   
      *   A list of objects that are facets of this object, and so can be

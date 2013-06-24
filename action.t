@@ -2905,6 +2905,7 @@ notePronounAntecedent([objlist])
             for(local obj in lst)
                 itList += obj;        
         }
+                
     }
     
     /* 

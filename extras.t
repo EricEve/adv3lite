@@ -222,7 +222,17 @@ class Unthing: Decoration
      *   reduced vocabLikelihood
      */
     vocabLikelihood = -100
-                          
+             
+    /* 
+     *   If there's anything else in the match list, remove myself from the
+     *   matches
+     */
+    filterResolveList(np, cmd, mode)
+    {
+        if(np.matches.length > 1)
+            np.matches = np.matches.subset({m: m.obj != self});
+    }
+    
     
     /* Make Unthings verify with the lowest possible score */         
     dobjFor(Default)
@@ -241,6 +251,105 @@ class Unthing: Decoration
         }
     }
 ;
+
+/*  
+ *   A CollectiveGroup is a an object that can represent a set of other objects
+ *   for particular actions. For any of the objects in the myObjects list the
+ *   CollectiveGroup will handle any of the actions in the myActions list; all
+ *   the other actions will be handled by the individual objects.
+ */
+class CollectiveGroup: Fixture
+    
+    /* 
+     *   The list of actions this CollectiveGroup will handle; all the rest will
+     *   be handled by the individual objects.
+     */
+    collectiveActions = [Examine]
+    
+    /* 
+     *   Is action to be treated as a collective action by this group (i.e.
+     *   handled by this CollectiveGroup object); by default it is if it's one
+     *   of the actions listed in our collectiveActions property.
+     */
+    isCollectiveAction(action)
+    {
+        return collectiveActions.indexWhich({a: action.ofKind(a)}) != nil;
+    }
+    
+    /* 
+     *   If the current action is one of the collective Actions, then filter all
+     *   myObjects from the resolve list; otherwise filter myself out from the
+     *   resolve list.
+     */
+    filterResolveList(np, cmd, mode)
+    {
+        /* If there are fewer than two matches, don't do any filtering */
+        if(np.matches.length < 2)
+            return;
+        
+        if(isCollectiveAction(cmd.action))
+           np.matches = np.matches.subset(
+               {m: valToList(m.obj.collectiveGroups).indexOf(self) == nil});
+        else
+            np.matches = np.matches.subset({m: m.obj != self });           
+           
+    }    
+    
+    /* Obtain the list of the objects belonging to me that are in scope. */
+    myScopeObjects()
+    {
+        return Q.scopeList(gActor).toList.subset(
+            {o: valToList(o.collectiveGroups).indexOf(self) != nil});
+    }
+    
+    /* 
+     *   The default descriptions of a CollectiveGroup: By default we just list
+     *   those of our members that are in scope.
+     */
+    desc()
+    {
+        /* 
+         *   Get a list of all the objects in scope that belong to this
+         *   Collective Group.
+         */
+        local lst = myScopeObjects();
+        
+        /*  
+         *   Obtain the sublist of these that are currently held by the player
+         *   character
+         */
+        local heldLst = lst.subset({o: o.isIn(gPlayerChar)});
+        
+        /*  
+         *   Subtract the list of held items from the list of in-scope items to
+         *   obtain a list of other items in scope.
+         */
+        lst -= heldLst;
+        
+        /*   If none of our items are in scope, say so */
+        if(nilToList(lst).length == 0 && nilToList(heldLst).length == 0)
+            DMsg(collective group empty, 'There{\'s} no {1} {here}. ', name);
+        
+        /*  
+         *   Otherwise display lists of which of my members the player character
+         *   is carrying and which others are also present.
+         */
+        else
+        {
+            if(heldLst.length > 0)
+                DMsg(carrying collective group, '{I} {am} carrying {1}. ',
+                     makeListStr(heldLst));
+            
+            if(lst.length > 0)            
+                DMsg(collective group members, 'There{\'s} {1} {here}. ',       
+                     makeListStr(lst));
+        }
+    }
+    
+    /* A CollectiveGroup isn't normally listed as an item in its own right. */
+    isListed = nil
+;
+
 
 /* 
  *   A Heavy is a Fixture that's too heavy to be picked up. We make Heavy a

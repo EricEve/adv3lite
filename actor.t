@@ -2775,7 +2775,14 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      *   this topic entry to go on being suggested ad infinitum, set
      *   timesToSuggest to nil.
      */    
-    timesToSuggest = static (ofKind(Script) ? eventList.length : 1)
+    timesToSuggest()
+    {
+        local t = (ofKind(Script) ? eventList.length : 1);
+        
+        timesToSuggest = t;
+        
+        return t;        
+    }
     
     /* 
      *   Assuming this topic entry is ever suggested, it will continue to be

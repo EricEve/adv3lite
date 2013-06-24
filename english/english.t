@@ -940,25 +940,44 @@ class LMentionable: object
          *   if this is an adjective ending in apostrophe-S, use that form
          *   of the word 
          */
+//        if (rexMatch(apostSPat, w))
+//        {
+//            /* note the existing value of w*/
+//            local wOld = w;
+//            
+//            /* 
+//             *   strip off the apostrophe-S, since the tokenizer will do
+//             *   this when parsing the input 
+//             */
+//            w = rexGroup(1)[3];
+//
+//            /* mark it as an apostrophe-S word in the dictionary */
+//            partOfSpeech = &nounApostS;
+//                      
+//            w += '^s';
+//            
+//            apostropheSPreParser.addEntry(wOld, w);
+//        }
+        
         if (rexMatch(apostSPat, w))
         {
-            /* note the existing value of w*/
-            local wOld = w;
-            
-            /* 
-             *   strip off the apostrophe-S, since the tokenizer will do
-             *   this when parsing the input 
-             */
-            w = rexGroup(1)[3];
-
             /* mark it as an apostrophe-S word in the dictionary */
             partOfSpeech = &nounApostS;
-                      
-            w += '^s';
             
-            apostropheSPreParser.addEntry(wOld, w);
+            /* 
+             *   Add a dictionary word without the apostrophe-S, since the
+             *   tokenizer will separate the apostrophe-S as a separate token,
+             *   hence we need to be able to look up the base word in the
+             *   dictionary.  But then proceed with our regular handling with
+             *   the full word as well, since the parser will reassemble the
+             *   full token with the apostrophe-S for the actual noun phrase
+             *   matching.
+             */
+            cmdDict.addWord(dictionaryPlaceholder, rexGroup(1)[3],
+                            partOfSpeech);
         }
-
+        
+        
         /* if there's a plural annotation, note it */
         if ((matchFlags & MatchPlural) != 0
             || partOfSpeech == &nounApostS)
@@ -3104,6 +3123,7 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and')
     local lst = [];
     local i = 0;
     local obj;
+    objList = valToList(objList);
     
     /* 
      *   Sort the list by listOrder, but only if the items it contains provide
@@ -5486,38 +5506,38 @@ takePathDoer: Doer 'take PathPassage'
  *   certain words in the player's input with a carat in order to enable
  *   matching vocab.
  */
-apostropheSPreParser: StringPreParser
-    doParsing(str, which)
-    {
-        /* 
-         *   If we haven't created a LookupTable there aren't any words to check
-         *   for, so we can just return the string unaltered.
-         */
-        if(possTab == nil)
-            return str;
-        
-        
-        local lst = str.split(' ');
-        
-        
-        for(local tok in lst, local i=1 ;;i++)
-        {
-            local aposWord = possTab[tok.toLower];
-            if(aposWord != nil)
-                lst[i] = aposWord;
-        }
-    
-        return lst.join(' ');
-    }
-    
-    
-    possTab = nil
-    
-    addEntry(key, val)
-    {
-        if(possTab == nil)
-            possTab = new LookupTable();
-        
-        possTab[key] = val;       
-    }
-;
+//apostropheSPreParser: StringPreParser
+//    doParsing(str, which)
+//    {
+//        /* 
+//         *   If we haven't created a LookupTable there aren't any words to check
+//         *   for, so we can just return the string unaltered.
+//         */
+//        if(possTab == nil)
+//            return str;
+//        
+//        
+//        local lst = str.split(' ');
+//        
+//        
+//        for(local tok in lst, local i=1 ;;i++)
+//        {
+//            local aposWord = possTab[tok.toLower];
+//            if(aposWord != nil)
+//                lst[i] = aposWord;
+//        }
+//    
+//        return lst.join(' ');
+//    }
+//    
+//    
+//    possTab = nil
+//    
+//    addEntry(key, val)
+//    {
+//        if(possTab == nil)
+//            possTab = new LookupTable();
+//        
+//        possTab[key] = val;       
+//    }
+//;

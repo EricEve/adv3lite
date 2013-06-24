@@ -788,6 +788,12 @@ grammar nounWord(noun): noun->noun_ : Production
 
 grammar nounWord(nounApostS): nounApostS->noun_ tokApostropheS->apost_
     : Production
+    grammarInfoForBuild()
+    {
+        /* recombine the noun and apostrophe-S into a single token */
+        local gi = grammarInfo();
+        return [gi[1], noun_ + apost_];
+    }
 ;
 
 grammar nounWord(nounAbbr): noun->noun_ tokAbbrPeriod->period_
@@ -952,7 +958,7 @@ grammar miscWordList(wordOrNumber):
 ;
 
 grammar miscWordList(list):
-    (tokWord->txt_ | tokInt->txt_ | tokApostropheS->tok_ | tokAbbrPeriod->txt_
+    (tokWord->txt_ | tokInt->txt_ | tokApostropheS->txt_ | tokAbbrPeriod->txt_
      | tokPoundInt->txt_ | tokString->txt_) miscWordList->lst_
     : MiscWordListProduction
 ;
@@ -1962,6 +1968,7 @@ VerbRule(TellVague)
     action = TellAbout
     verbPhrase = 'tell/telling (whom)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
+    priority = 40
 ;
 
 VerbRule(TalkTo)

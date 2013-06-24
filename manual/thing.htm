@@ -82,7 +82,9 @@ redBall: Thing 'red ball;bouncy rubber; sphere'
 no explicit owner, it can still be implicitly owned by an actor carrying it, or by another suitable container.  (Note that this only applies as a default.  When an item in our contents has an explicit owner, that will override the implied container ownership for that item.  So, for example, Bob can be carrying Bill's wallet wallet, and as long as the wallet has its explicit owner set, we'll still describe it as Bill's despite its location.) By default, most objects are not nominal owners.  Actors generally should set this to true, so that (for example) anything Bob is carrying can be described as Bob's. ownsContents is thus nil by default on Thing but true by default on Actor.</li>
 <li><b>ownerNamed</b> (true or nil) if this is true then the theName (but not the aName) property of this object will be followed by its name preceded by the possessive form of its owner's name, e.g. "Bob's wallet" or "Jane's mouth". This may be particularly useful in defining body parts, but is potentially useful in any situation where an object has a specific owner (do can in any case be referred to as "Bob's wallet" or "Jane's mouth" by the player) and we want to include the name of the owner when referring to the specific object in game output, e.g. "You take Bob's wallet" (it was lying on the table) but "Bob is carrying a wallet".</li>
 <li><strong>matchName(toks)</strong> (method returning an integer) Normally the parser will match this object if the player's command refers to it with one or more words defined in this object's vocab object, regardless of the order in which the words appear, but preferring nouns to adjectives. In most cases this will be absolutely fine, but if you should want to enforce some other way of matching the name of this object (for example, because the precise order of words is important or you want to match a particular phrase), then this is method to override on that particular object. For details, see the comments on Mentionable.matchName() in thing.t. In brief, if you want to signal that a particular set of tokens represents a good match as a noun phrase, your custom matchName(toks) nethod should return (MatchNoTrunc | MatchNoApprox | MatchNoun); return 0 to indicate that there's no match.</li>
+<li><a name="filter"></a><strong>filterResolveList(np, cmd, mode)</strong> (method returning nothing) Allows a Thing (or Topic) to filter itself or other objects out of the list of possible matches while the parser is in the process of selecting the object or objects to which a command refers. The list of matches under consideration is given in <span class="code">np.matches</span>, so this would be the list to manipulate (the actual objects are found in the obj property of each item in the matches list). The <span class="code">cmd</span> parameter is the current Command object, so <span class="code">cmd.action</span> would give the action about to be performed. The <span class="code">mode</span> parameter refers to the type of match being sought, and can be one of <span class="code">Definite</span> (the command ask for a specific object or objects, such as TAKE THE RED BALL), <span class="code">Indefinite</span> (the command asks for a non-specific object, such as TAKE A BALL) or <span class="code">All</span> (the command asks for all objects meeting a specification such as TAKE ALL or TAKE BALLS). For a fuller explanation see <a href="#filterresolve">below</a>.</li>
 </ul>
+
 <a name="otherthingprops"></a>
 <p>The other basic properties of Thing you will commonly use are:</p>
 <ul>
@@ -106,6 +108,41 @@ no explicit owner, it can still be implicitly owned by an actor carrying it, or 
 
 <p>Note that the account of known, seen and familiar given above is slightly simplified. If you wish, you can define seenProp and knownProp just as in the adv3 library in order to distinguish player character knowledge from that of other actors. If you do so, make sure that you set and test the seen, known and familiar properties through setKnowsAbout(obj), setKnown(), setHasSeen(obj), setSeen(), hasSeen(obj), and knowsAbout(obj). The setSeen() and setKnown() methods would be called on the object that has just been seen or become familiar (and would make them seen by or known to the player character). The other methods would be called on the actor who has just seen or learned about the object in question.</p>
 <p>
+<br>
+<a name="filterresolve"><h3>filterResolveList()</h3>
+
+<p>The <span class="code">filterResolveList()</span> method probably needs a bit more explanation (although you can probably skip this first time through, since it's not often you'll need to use it). It's occasionally useful for an object to rule itself or other objects out of selection when the parser is choosing an object (or objects) to match the command entered by the player. In the course of making the selection the parser runs the <span class="code">selectObjects()</span>method on the NounPhrase object it's created to represent the noun phrase entered as part of the player's command (e.g. 'the blue ball'). We don't need to worry too much about this, except to note (a) that the selectObjects() routine calls <span class="code">filterResolveList(np, cmd, mode</span>) on all the objects the parser is considering as possible matches and (b) that the NounPhrase parameter is passed as the <em>np</em> parameter. This NounPhrase object passed as the <em>np</em> parameter has at least three useful properties:</p>
+<ul>
+<li><strong>role</strong> either DirectObject or IndirectObject; the role (direct or indirect object) the noun phrase is being considered for.</li>
+<li><strong>tokens</strong> a list of the tokens (e.g. <span class="code">['blue', 'ball']</span>) being matched by this noun phrase.</li>
+<li><strong>matches</strong> a list of the NPMatch objects being considered as possible matches.</li>
+</ul>
+<p>In turn the NPMatch objects have a number of properties, of which the most relevant is <strong>obj</strong>, the actual simulation object (Thing) being matched. So, for example, from within a  filterResolveList() method, the first game simulation object being considered for a match would be <span class="code">np.matches[1].obj</span>.</p>
+<p>Suppose, for example, we wanted an object to rule itself out of being matched. We could do this by making it adjust the <span class="code">np.matches</span> list to remove the NPMatch object corresponding to itself:</p>
+
+<p><div class="code"><pre>
+filterResolveList(np, cmd, mode)
+{
+   np.matches = np.matches.subset({m: m.obj != self});
+}
+</pre></div></p>
+
+<p>Here we change the <span class="code">np.matches</span> list to a subset of that list that contains everything except the NPMatch corresponding to the <span class="code">self</span> object; in other words we remove <span class="code">self</span> from the <span class="code">np.matches</span> list. Remember that np.matches doesn't directly contain a list of Things, but rather a list of NPMatch objects whose <span class="code">obj</span> property actually contains the matching Thing.</p>
+
+<p>You may wonder why we'd want an object to rule itself out like this. There's probably no case in which we'd want to do it unconditionally, as in the simple example above, but we might want to do it conditionally. For example, the <a href="extra.htm#unthing">Unthing</a> class, which we'll meet later, represents the absence of something. We only ever want to match an Unthing if nothing else in scope will match, so we want the filterResolveList() method of an Unthing to rule itself out if there are any other matches:</p>
+
+<p><div class="code"><pre>
+class Unthing: Decoration
+    ...
+    filterResolveList(np, cmd, mode)
+    {
+        if(np.matches.length > 1)
+            np.matches = np.matches.subset({m: m.obj != self});
+    }
+;    
+</pre></div></p>
+
+<p>In other situations we may want to filter according to what action is being considered and/or what role (direct object or indirect object) the potential matches are being considered for. The cmd and np parameters can give us both pieces of information: <span class="code">cmd.action</span> gives us the proposed action and <span class="code">np.role</span> the proposed role (DirectObject or IndirectObject)..</p>
 
 <h2><a name=containment>Containment Properties</a></h2>
 
