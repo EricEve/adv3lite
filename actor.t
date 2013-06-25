@@ -908,7 +908,8 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   Create a new Daemon to carry out the following and make a note of
          *   it
          */
-        fDaemon = new Daemon(self, &followDaemon, 1);
+        if(fDaemon == nil)
+            fDaemon = new Daemon(self, &followDaemon, 1);
     }
     
     /* 
@@ -4305,15 +4306,6 @@ nodeObj: object;
 /* Singleton object to allow initiateTopic to trigger a NodeEndCheck */
 nodeEndCheckObj: object;
 
-/* 
- *   Singleton object used to trigger a YesTopic; we must make it familiar so
- *   that YesTopics can be listed as suggested topics.
- */
-yesTopicObj: object familiar = true;
-
-/* Singleton object used to trigger a NoTopic */
-noTopicObj: object familiar = true;
-
 
 /* 
  *   Preinitialize all the Actors in the game and the objects associated with
@@ -4329,13 +4321,20 @@ actorPreinit:PreinitObject
         forEachInstance(ActorTopicEntry, {a: a.initializeTopicEntry() });
         
         /* 
-         *   Set up a new Daemon in the game to run our eachTurn method each
+         *   Set up a new Schedulable in the game to run our eachTurn method each
          *   turn
          */
-        local actorDaemon = new Daemon(self, &eachTurn, 1);
-        
-        /*   Give the actorDaemon a relatively late running order */
-        actorDaemon.eventOrder = 300;
+        local actorSchedule = object {           
+            eventOrder = 100;
+            executeEvent() { actorPreinit.eachTurn(); }
+        };
+            
+        eventManager.schedulableList += actorSchedule;
+            
+//            new Daemon(self, &eachTurn, 1);
+//        
+//        /*   Give the actorDaemon a relatively late running order */
+//        actorDaemon.eventOrder = 300;
     }
     
     /* 

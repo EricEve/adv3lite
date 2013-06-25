@@ -3,6 +3,7 @@
 
 property handleTopic;
 property showSuggestions;
+property sayHello;
 
 DefineSystemAction(Quit)
    
@@ -1510,6 +1511,18 @@ sayNotTalking()
     DMsg(not talking, '{I}{\'m} not talking to anyone. ');
 }
 
+
+/* 
+ *   Singleton object used to trigger a YesTopic; we must make it familiar so
+ *   that YesTopics can be listed as suggested topics. We define this as
+ *   noTopicObj in actions.t rather than actor.t so that the SayYes and SayNo
+ *   actions in actions.t will compile even if actor.t is absent from the build.
+ */
+yesTopicObj: object familiar = true;
+
+/* Singleton object used to trigger a NoTopic */
+noTopicObj: object familiar = true;
+
 SayYes: MiscConvAction
     baseActionClass = SayYes
     responseProp = &miscTopics
@@ -1544,13 +1557,11 @@ Goodbye: IAction
         if(gPlayerChar.currentInterlocutor == nil ||
            !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
             sayNotTalking();
-        else
+        else if(defined(endConvBye))
             gPlayerChar.currentInterlocutor.endConversation(endConvBye);
     }    
     
-    curObj = nil
-    
-    
+    curObj = nil   
 ;
 
 Hello: IAction
@@ -1572,8 +1583,19 @@ Hello: IAction
              *   scope (and thus potentially greetable.
              */
 
-            local greetList = scopeList.subset(
-                    { x: x.ofKind(Actor) && x != gPlayerChar });
+            local greetList;
+            
+            /* 
+             *   We do this a slightly roundabout way to avoid compilation
+             *   errors and warnings when actor.t is omitted from the build.
+             */
+            local cls = (defined(Actor) ? Actor : nil);
+            
+            if(cls)                
+                greetList = scopeList.subset(
+                    { x: x.ofKind(cls) && x != gPlayerChar });            
+            else
+                greetList = [];
             
             local greetCount = greetList.length;
             

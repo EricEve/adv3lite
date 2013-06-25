@@ -100,6 +100,14 @@ eventManager: object
         local lst;
         
         /* 
+         *   first execute all the 'Schedulables' that need to run each turn. In
+         *   practice this will be all the actor takeTurn routines that will be
+         *   registered by the actor module if present.
+         */
+        executeList(schedulableList);
+        
+        
+        /* 
          *   build a list of all of our events with the current game clock
          *   time - these are the events that are currently schedulable 
          */
@@ -177,7 +185,15 @@ eventManager: object
     
     eventList = static new Vector(20)
     
-    
+    /* 
+     *   A list of 'schedulables'. These are objects whose executeEvent() method
+     *   should be called each turn prior to other events such as Fuses and
+     *   Daemons. The main use for this in the library is to provide a mechanism
+     *   for the takeTurn method of each Actor to be called before Fuses and
+     *   Daemons are run, mainly in case an AgendaItem sets up a Fuse or Daemon
+     *   that may need to execute on the same turn.
+     */
+    schedulableList = []
 ;
 
 /* 

@@ -9,6 +9,8 @@
  *    (c) 2012-13 Eric Eve
  */
 
+property lastTravelInfo;
+
 /* 
  *   A Room is a top location in which the player character, other actors and
  *   other objects may be located. It may represent any discrete unit of space,
