@@ -8499,6 +8499,18 @@ class Key: Thing
     /*  The message to say that this key doesn\'t in fact fit the dobj. */
     keyDoesntFitMsg = '\^<<theName>> won\'t fit <<gDobj.theName>>. '
     
+    preinitThing()
+    {
+        inherited;
+        
+        /* 
+         *   Add the actualLockList to the plausibleLockList if it's not already
+         *   there to ensure that this key will work on anything in its
+         *   actualLockList.
+         */
+        plausibleLockList = plausibleLockList.appendUnique(actualLockList);
+    }
+    
 ;
 
 /* 
