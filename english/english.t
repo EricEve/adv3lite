@@ -4960,6 +4960,8 @@ modify Action
     /* 
      *   Construct the announcement of an implicit action according to whether
      *   the implict action succeeds (success = true) or fails (success = nil)
+     *
+     *   [Required]
      */
     buildImplicitActionAnnouncement(success, clearReports = true)
     {
@@ -4977,9 +4979,10 @@ modify Action
          */
         if(isImplicit)
         {    
-            cur = success ? getVerbPhrase(nil, nil) : 
-              'trying to ' + getVerbPhrase(true, nil);
-             gCommand.implicitActionReports += cur;
+            cur = implicitAnnouncement(success);
+            
+            if(cur != nil)
+                gCommand.implicitActionReports += cur;
         }    
             
         
@@ -5034,6 +5037,24 @@ modify Action
         
         return '';
     }
+    
+    /*  
+     *   Return a string giving the implicit action announcement for the current
+     *   action according to whether it's a success (e.g. "taking the spoon") or
+     *   a failure (e.g. "trying to take the spoon"). We make this a separate
+     *   method to make it a little easier for game code to customize implicit
+     *   action announcements.
+     *
+     *   A return value of nil will suppress the implicit action report for this
+     *   action altogeher.
+     */
+    implicitAnnouncement(success)
+    {
+        return success ? getVerbPhrase(nil, nil) : 
+              'trying to ' + getVerbPhrase(true, nil);
+    }
+    
+    
     
     /* add a space prefix/suffix to a string if the string is non-empty */
     spPrefix(str) { return (str == '' ? str : ' ' + str); }

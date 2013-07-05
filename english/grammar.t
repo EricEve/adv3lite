@@ -1870,7 +1870,7 @@ VerbRule(AskAbout)
 ;
 
 VerbRule(AskAboutImplicit)
-    ('a' | ('ask' | 'tell' 'me') 'about') topicIobj
+    ('a' | ('ask' | 'tell' 'me') ('about' |)) topicIobj
     : VerbProduction
     action = AskAboutImplicit
     verbPhrase = 'ask/asking (whom) (about what)'

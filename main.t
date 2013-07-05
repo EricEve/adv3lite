@@ -147,7 +147,8 @@ mainCommandLoop()
             "<.p>";
             
             /* Read a new command from the keyboard. */
-            "<.inputline>>";
+            "<.inputline>";
+            DMsg(command prompt, '>');
             txt = inputManager.getInputLine();
             "<./inputline>\n";   
             
