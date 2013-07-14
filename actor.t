@@ -133,9 +133,16 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         
     /* 
      *   The remoteSpecialDesc to use if we don't have a current ActorState
-     *   (i.e. if curState is nil). By default we just use our actorSpecialDesc.
+     *   (i.e. if curState is nil). By default we say the actor is in the remote
+     *   location.
+     *
      */
-    actorRemoteSpecialDesc(pov) { actorSpecialDesc; }
+    actorRemoteSpecialDesc(pov) 
+    { 
+        if(fDaemon == nil)
+            DMsg(actor in remote location, '\^<<theNameIs>> 
+                <<getOutermostRoom.inRoomName(pov)>>. ');
+    }
        
     /*   
      *   By default actors can't be picked up and carried around by other actors
@@ -375,11 +382,32 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     /* 
      *   Handle a conversational command where prop is a pointer to the property
      *   containing the appropriate list of TopicEntries to search (e.g.
-     *   &askTopics), topic is the Topic to match, and defaultProp is pointer to
-     *   the property to invoke if we can't find a match.
+     *   &askTopics), topic is the list of Topics to match, and defaultProp is
+     *   pointer to the property to invoke if we can't find a match.
      */
     handleTopic(prop, topic, defaultProp = &noResponseMsg)
     {
+        /* 
+         *   If the actor's current ActorState defines a noResponse property
+         *   then we display it rather than trying to match any TopicEntries.
+         */       
+        if(curState && curState.propType(&noResponse) != TypeNil)
+        {
+            switch(curState.propType(&noResponse))
+            {
+            case TypeDString:
+                curState.noResponse();
+                return nil;
+            case TypeSString:
+                say(curState.noResponse);
+                return nil;
+            case TypeCode:
+                if(gOutStream.watchForOutput({:curState.noResponse}))
+                    return nil;               
+            }
+            
+        }
+        
         /* 
          *   Reset the keysManaged flag to nil so that we can end this method by
          *   carrying out the necessary keys management unless this is handled
@@ -387,12 +415,51 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   may set this flag to true.
          */
         keysManaged = nil;
+        
+        /*  Note if we need a greeting response */
+        local greetingResponse = nil;
+        
+        /*  Note our current actor state */
+        local oldState = curState;
+        
+        /*   
+         *   If we're not already in conversation with this actor, see if
+         *   there's a HelloTopic or ImpHelloTopic that might change the
+         *   ActorState
+         */
+        
+        if(gPlayerChar.currentInterlocutor != self &&
+           valToList(topic)[1] not in (helloTopicObj, impHelloTopicObj, 
+                                       actorHelloTopicObj ))
+        {
+            /* Find a greeting response for an ImpHelloTopic/HelloTopic */
+            greetingResponse = findBestResponse(&miscTopics, [impHelloTopicObj]);
+            
+            /* 
+             *   If there is a greeting response and it wants to change state,
+             *   temporarily change state before looking for the best match for
+             *   the topic we're acually looking for
+             */
+            if(greetingResponse && greetingResponse.changeToState != nil)
+                curState = greetingResponse.changeToState;
+            
+        }
+        
 	
         /* 
          *   Note the best response we can find; i.e. the TopicEntry from the
          *   prop list that best matches topic.
          */
         local response = findBestResponse(prop, topic);
+        
+        /*   
+         *   Change back to our original state, since if the response we found
+         *   isn't conversational or doesn't imply a greeting, we won't want to
+         *   change state; if we have found a conversational response that
+         *   implies a greeting, executing the greeting will change the state
+         *   to the new state.
+         */
+        curState = oldState;
         
         /* 
          *   If we find a response, carry out an implied greeting if we need
@@ -416,16 +483,17 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
                 /* 
                  *   Only try an implicit greeting if the response we've found
                  *   implies one (this prevents an implicit greeting from
-                 *   forever trying to trigger itself, for example).
+                 *   forever trying to trigger itself, for example) and if we
+                 *   found one to show.                 
                  */
-                if(response.impliesGreeting)
+                if(response.impliesGreeting && greetingResponse != nil)
                 {
                     /* 
                      *   Carry out an implicit greeting. If this does anything
                      *   add a paragraph break to separate it from the
                      *   conversational exchange that follows.
                      */
-                    if(handleTopic(&miscTopics, [impHelloTopicObj]))
+                    greetingResponse.handleTopic();
                       "<.p>";
                 }
             }
@@ -446,7 +514,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         
         /* Otherwise, if we haven't found a matching response... */
         else
-        {
+        {         
             /* 
              *   If we were speculatively trying an initiateTopic that doesn't
              *   actually find anything, don't count this as a conversational
@@ -457,9 +525,11 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             if(prop == &initiateTopics || topic == [impHelloTopicObj])
                 return nil;
             
-            /* Otherwise, use our defaultProp to display a default message */
-            else
+            /* Otherwise, show the default response */
+            else                
+            {               
                 say(self.(defaultProp));    
+            }
            
         }
         
@@ -882,7 +952,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             /*  
              *   Display our message to say we're following the player character
              */
-            sayFollowing(oldLoc);
+            sayFollowing(oldLoc, pcConnector);
             
             /* 
              *   Carry out any additional handling we want to do on arriving in
@@ -946,7 +1016,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      *   Display a message to say that we've just followed the player character
      *   to a new location from oldLoc.
      */
-    sayFollowing(oldLoc)
+    sayFollowing(oldLoc, conn)
     {
         /* 
          *   If we don't have a current ActorState, use our own
@@ -954,11 +1024,11 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   character.
          */
         if(curState == nil)
-            sayActorFollowing(oldLoc);
+            sayActorFollowing(oldLoc, conn);
         
         /*  Othewise call the sayFollowing() method on our current ActorState */
         else
-            curState.sayFollowing(oldLoc);
+            curState.sayFollowing(oldLoc, conn);
     }
     
     /*  
@@ -966,7 +1036,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      *   to a new location from oldLoc. The library provides a default message
      *   but this can be overridded as desired.
      */
-    sayActorFollowing(oldLoc)
+    sayActorFollowing(oldLoc, conn)
     {
         /* Create a local variable to use as a message substitution parameter */
         local follower = self;
@@ -1057,7 +1127,12 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   that we no longer have a current FollowAgendaItem.
          */
         if(followAgendaItem != nil && followAgendaItem.isDone)
+        {     
+            /* Finally note that we've arrived at our destination */
+            followAgendaItem.noteArrival();
+            
             followAgendaItem = nil;
+        }
     }
 
     /* The message to display when another actor follows this one. */
@@ -2242,7 +2317,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   oldLoc when our actor is in this ActorState (and the actor is following
      *   the player character)
      */
-    sayFollowing(oldLoc)
+    sayFollowing(oldLoc, conn)
     {
         /* Create a convenient message substitution parameter */
         local follower = getActor;
@@ -2340,6 +2415,20 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   located in TopicGroups, ActorStates or Actors.
      */    
     active = (location.active)
+    
+    /*   
+     *   If the noResponse method is defined (i.e. non-nil) then this ActorState
+     *   will behave like a TADS 3 HermitActorState, i.e. the noResponse message
+     *   will be displayed in response to any conversational command
+     *
+     *   noResponse can be either a single-quoted string, a double-quoted string
+     *   or a method. If it's a string then it will be displayed instead of any
+     *   TopicEntry. It it's a method it will be executed; if it then displays
+     *   anything no attempt will be made to match a TopicEntry, but it if
+     *   doesn't display anything the conversational command will go on to be
+     *   handled as normal.
+     */
+    noResponse = nil
    
     /* 
      *   The getBestMatch() method is already defined on TopicDatabase, from
@@ -2856,7 +2945,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     }
         
     /* 
-     *   The keyTopios can contain a convKey or a list of convKeys, in which
+     *   The keyTopics can contain a convKey or a list of convKeys, in which
      *   case when this TopicEntry is triggered instead of responding directly
      *   it will list topic suggestions that correspond to the convKeys defined
      *   here. For example, a TopicEntry that responded to ASK BOB ABOUT
@@ -3581,7 +3670,7 @@ endConvActor: object;
  */
 class DefaultTopic: ActorTopicEntry       
     /* A DefaultTopic matches any Thing or Topic or yes or no */
-    matchObj = [Thing, Topic, yesTopicObj, noTopicObj]
+    matchObj = [Thing, Topic, yesTopicObj, noTopicObj, helloTopicObj]
     
     /* 
      *   A DefaultTopic has a very low matchScore to allow anything more
@@ -3710,6 +3799,7 @@ class DefaultSayTopic: DefaultTopic
     matchScore = 5
 ;
 
+
 /* Default Topic to match ASK (WHO/WHAT/WHY/WHERE/WHEN/HOW/IF) */
 class DefaultQueryTopic: DefaultTopic
     includeInList = [&queryTopics]
@@ -3777,6 +3867,16 @@ class AskTellTopic: ActorTopicEntry
     includeInList = [&askTopics, &tellTopics]
 ;
 
+/* A TopicEntry that matches ASK ABOUT or TELL ABOUT or SHOW*/
+class AskTellShowTopic: ActorTopicEntry
+    includeInList = [&askTopics, &tellTopics, &showTopics]
+;
+
+/* A TopicEntry that matches ASK ABOUT or TELL ABOUT or GIVE or SHOW*/
+class AskTellGiveShowTopic: ActorTopicEntry
+    includeInList = [&askTopics, &tellTopics, &giveTopics, &showTopics]   
+;
+
 /* A TopicEntry that matches ASK FOR */
 class AskForTopic: ActorTopicEntry
     includeInList = [&askForTopics]
@@ -3806,6 +3906,7 @@ class TellTalkShowTopic: ActorTopicEntry
     includeInList = [&tellTopics, &talkTopics, &showTopics]   
 ;
 
+
 /* 
  *   SpecialTopic is the base class for two kinds of TopicEntry that extend the
  *   conversation system beyong basic ask/tell: SayTopic and QueryTopic. The
@@ -3816,7 +3917,7 @@ class SpecialTopic: ActorTopicEntry
     
     /* 
      *   Carry out the initialization (actually preinitialization) of a
-     *   SpecialToipc
+     *   SpecialTopic
      */
     initializeTopicEntry()
     {
@@ -4184,6 +4285,50 @@ class AskTalkTopic: TalkTopic
 class InitiateTopic: ActorTopicEntry
     includeInList = [&initiateTopics]
 ;
+
+/*  
+ *   An AltTopic is a TopicEntry that can be located inside another TopicEntry;
+ *   to provide an alternative response to the same conversational commands when
+ *   its isActive property is true. An AltTopic takes precedence over its
+ *   enclosing TopicEntry when its active property is true, but otherwise takes
+ *   most of its properties (apart from its topicResponse) from the TopicEntry
+ *   in which it is located. You can have as many AltTopics as you like
+ *   associated with any given TopicEntry; the one that will be used will be the
+ *   last to be defined for which isActive is true.
+ */
+class AltTopic: ActorTopicEntry
+    
+    /* 
+     *   By default we take most of our property values from the corresponding
+     *   property on the TopicEntry we're located in
+     */
+    getActor = location.getActor
+      
+    convKeys = location.convKeys    
+    includeInList = location.includeInList
+    name = location.name
+    suggestAs = location.suggestAs 
+ 
+    allowAction = location.allowAction
+    myAction = location.myAction
+    actionPhrase = (location.actionPhrase)
+    
+    /* 
+     *   We match if our location matches, but if it does match we add our
+     *   relative source text order to our location's match score to give us a
+     *   higher score the later we're defined after our associated TopicEntry.
+     */
+    matchTopic(top)
+    {
+        local score = location.matchTopic(top);
+        
+        return score == nil ? nil : score + sourceTextOrder -
+            location.sourceTextOrder;
+    }
+    
+
+;
+
 
 /* 
  *   A NodeContinuationTopic is aspecial kind of InitiateTopic that can be used
@@ -5541,10 +5686,7 @@ class FollowAgendaItem: AgendaItem
              */
             if(nextConnNum >= connectorList.length)
             {
-                isDone = true;
-             
-                /* Note that we've arrived at our destination */
-                noteArrival();               
+                isDone = true;                           
             }
         }
 
@@ -5612,7 +5754,7 @@ class FollowAgendaItem: AgendaItem
         
         if(nd != nil)
             DMsg(waiting for follow, '{The subj myactor} {is} waiting for {the
-                pc} to follow {him myactor} {1}. ', nd.departureName);
+                pc} {dummy} to follow {him myactor} {1}. ', nd.departureName);
         else
             DMsg(actor is here, '{The subj myactor} {is} {here}. '); 
     }

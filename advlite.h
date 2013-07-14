@@ -79,6 +79,9 @@
 #define literalAcc     literalPhrase->accMatch
 #define singleDir      directionName->dirMatch
 
+/* Also add a couple of synonyms familiar froma adv3 */
+#define dobjList      nounList->dobjMatch
+#define iobjList      nounList->iobjMatch
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -601,6 +604,8 @@ Room template 'roomTitle' 'vocab' "desc"?;
 Room template 'roomTitle' "desc"?;
 
 Door template  'vocab' @location? "desc"? ->otherSide;
+Door template  ->otherSide 'vocab' @location? "desc"?;
+
 TravelConnector template 'vocab'? @location? "desc"? ->destination;
 Enterable template inherited ->connector;
 
@@ -678,6 +683,9 @@ MiscTopic template [firstEvents] [eventList];
 NodeContinuationTopic template "topicResponse" | [eventList];
 NodeContinuationTopic template [firstEvents] [eventList];
 
+/* AltTopics just specify the response text or list */
+AltTopic template "topicResponse" | [eventList];
+AltTopic template [firstEvents] [eventList];
 
 Doer template 'cmd';
 

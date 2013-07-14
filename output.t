@@ -1590,7 +1590,7 @@ quoteFilter: OutputFilter, InitObject
         *   Set up a new prompt daemon to display a warning message about any
         *   unmatched quotes and zeroize our quoteCount each turn.
         */        
-        new PromptDaemon(self, &quoteCheck);
+        if(defined(PromptDaemon) && new PromptDaemon(self, &quoteCheck));
        
     }
     

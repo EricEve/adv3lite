@@ -40,7 +40,9 @@ class Odor: Thing
     notImportantMsg = BMsg(only smell, '{I} {can\'t} do that to a smell. ')
     
     /*   Treat Smelling an Odor as equivalent to Examining it. */
-    dobjFor(SmellSomething) asDobjFor(Examine)    
+    dobjFor(SmellSomething) asDobjFor(Examine)   
+    
+    dobjFor(Examine) { preCond = [objSmellable] }
 ;
 
 
@@ -67,6 +69,8 @@ class Noise: Thing
     
     /*   Treat Listening to a Noise as equivalent to Examining it. */
     dobjFor(ListenTo) asDobjFor(Examine)    
+    
+    dobjFor(Examine) { preCond = [objAudible] }
 ;
 
 /* A Container is a Thing that other things can be put inside */
@@ -97,6 +101,9 @@ class OpenableContainer: Container
  */
 class LockableContainer: OpenableContainer
     lockability = lockableWithoutKey
+    
+    /* We usually want a LockableContainer to start out locked. */
+    isLocked = true
 ;
 
 /*  
@@ -105,6 +112,9 @@ class LockableContainer: OpenableContainer
  */
 class KeyedContainer: OpenableContainer
     lockability = lockableWithKey
+    
+    /* We usually want a KeyedContainer to start out locked. */
+    isLocked = true
 ;
 
 /*  A Surface is a Thing that other things can be placed on top of */
@@ -523,6 +533,9 @@ class Passage: TravelConnector, Thing
 class PathPassage: Passage
     dobjFor(Follow) asDobjFor(GoThrough)
     dobjFor(ClimbDown) asDobjFor(GoThrough)
+    
+    /* One most naturally talks of going 'down' a path */
+    traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
 ;
 
 /*  
@@ -723,6 +736,30 @@ class Flashlight: Switch
     /* Extinguishing a Flashlight is equivalent to switching it off */
     dobjFor(Extinguish) asDobjFor(SwitchOff)
 ;
+
+/* 
+ *   A ContainerDoor can be used as part of a multiply-containing object to
+ *   represent the door of the container-like object defined on its remapIn
+ *   property. A ContainerDoor is open or closed if the underlying container is
+ *   open or closed, and remaps all container-appropriate actions to the remapIn
+ *   object of its location.
+ */
+class ContainerDoor: Fixture
+    /* We're open if our location's container is open */
+    isOpen = (location.remapIn.isOpen)
+    
+    /* 
+     *   Redirect all container-appropriate actions to the remapIn object of our
+     *   location, so that opening, closing, locking and unlocking this door
+     *   will perform the equivalent action on our container object.
+     */
+    remapIn = location.remapIn
+    
+    cannotTakeMsg = BMsg(cannot take container door, '{I} {can\'t} have {the
+        dobj}; {he dobj}{\'s} part of {1}. ', location.theName)
+;
+
+
 
 
 

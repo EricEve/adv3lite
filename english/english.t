@@ -390,10 +390,17 @@ class LMentionable: object
     }
     
     /* 
-     *   The pronominal phrase for something located inside this object, e.g.
+     *   The prepositional phrase for something located inside this object, e.g.
      *   'in the box' or 'on the table
      */
     objInName = (objInPrep + ' ' + theName)
+    
+    
+    /* 
+     *   The prepositional phrase for something being moved inside this object, e.g.
+     *   'into the box' or 'onto the table
+     */
+    objIntoName = (objIntoPrep + ' ' + theName)
     
     /*   
      *   The pronominal phrase for something leaving this object, e.g. 'out of
@@ -2863,8 +2870,8 @@ modify wornLister
 subLister: ItemLister
     showListPrefix(lst, pl, paraCnt)
     {
-        " (<<lst[1].location.objInPrep>> which <<pl ? '{plural}' :
-          '{dummy}'>> {is} ";
+        " (<<lst[1].location.objInPrep>> which <<pl ? '{plural} {is}' :
+          '{dummy} {is}'>> ";
     }
     
     showListSuffix(lst, pl, paraCnt) { ")"; }
@@ -4020,10 +4027,10 @@ englishMessageParams: MessageParams
         [ 'me', { ctx, params: cmdInfo(ctx, &actor, &theObjName, vObject) } ],
 
         /* {my} is a possessive adjective for the addressee */
-        [ 'my', { ctx, params: cmdInfo(ctx, &actor, &possAdj, vObject) } ],
+        [ 'my', { ctx, params: cmdInfo(ctx, &actor, &possAdj, vPossessive) } ],
         
         /* {mine} is a possessive noun for the addressee */
-        [ 'mine', { ctx, params: cmdInfo(ctx, &actor, &possNoun, vAmbig) } ],
+        [ 'mine', { ctx, params: cmdInfo(ctx, &actor, &possNoun, vPossessive) } ],
         
         /* {myself} is the reflexive pronoun for the addressee */
         [ 'myself', { ctx, params: cmdInfo(ctx, &actor, &reflexiveName, vObject) } ],
@@ -4152,6 +4159,12 @@ englishMessageParams: MessageParams
 
     /* {inprep obj} the objInPrep (in, on, under or behind) of obj */
     ['inprep' , { ctx, params: cmdInfo(ctx, params[2], &objInPrep, vObject) } ], 
+
+/* 
+ *   {into obj} - the appropriate movement preposition (inro, onto, under or
+ *   behind) followed by the theName of the object (e.g. 'into the bath')
+ */
+    [ 'into', { ctx, params: cmdInfo(ctx, params[2], &objIntoName, vObject) } ],
     
 /* 
  *   {outof obj} the appropriate exit preposition followed the theName of the
@@ -4169,19 +4182,19 @@ englishMessageParams: MessageParams
 
         /* {her obj} - possessive adjective pronoun (my, his, her) */
         [ 'her',
-         { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ],
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vPossessive) } ],
 
         /* {his obj} - possessive adjective pronoun (my, his, her) */
         [ 'his',
-         { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ], 
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vPossessive) } ], 
 
         /* {its obj} - possessive adjective pronoun (my, his, her) */
         [ 'its',
-         { ctx, params: cmdInfo(ctx, params[2], &herName, vSubject) } ],
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vPossessive) } ],
 
         /* {hers obj} - possessive noun pronoun (mine, his, hers) */
         [ 'hers',
-         { ctx, params: cmdInfo(ctx, params[2], &hersName, vAmbig) } ],
+         { ctx, params: cmdInfo(ctx, params[2], &hersName, vPossessive) } ],
     
     /* {herself obj} - reflexive pronouns (itself, herself, himself) */
     
@@ -5262,9 +5275,15 @@ modify TIAction
  *   them with an appropriate English name in their prep properties.
  */
 
+modify LocType
+    prep = ''
+    intoPrep = prep
+;
+
 
 modify In
-    prep = 'in'    
+    prep = 'in'  
+    intoPrep = 'into'
 ;
 
 
@@ -5275,6 +5294,7 @@ modify Outside
 
 modify On
     prep = 'on'    
+    intoPrep = 'into'
 ;
 
 modify Under
@@ -5365,7 +5385,7 @@ class LCommandTopicHelper: object
         }
         
         /* 
-         *   If the matched action has a direct object, replacc the string
+         *   If the matched action has a direct object, replace the string
          *   'dobj' in our txt string with the name of the direct object
          */
         if(myAction.curDobj != nil)            
@@ -5378,6 +5398,9 @@ class LCommandTopicHelper: object
         if(myAction.curIobj != nil)        
             txt = txt.findReplace('(iobj)', getName(myAction.curIobj));
         
+        
+        txt = txt.findReplace('(direction)',
+                              gCommand.verbProd.dirMatch.dir.name);
         
         return txt;
     }

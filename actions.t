@@ -4,6 +4,13 @@
 property handleTopic;
 property showSuggestions;
 property sayHello;
+property showScore;
+property scoreNotify;
+property showHints;
+property disableHints;
+property activated;
+property extraHintsExist;
+
 
 DefineSystemAction(Quit)
    
@@ -384,13 +391,14 @@ DefineIAction(Inventory)
             local wornList = gActor.contents.subset({o: o.wornBy == gActor });
             
             /* Construst a list of what the actor is carrying */
-            local carriedList = gActor.contents.subset({o: o.wornBy == nil });
-			
-			/* Note whether we've displayed the worn list */
-			local wornListShown = 0;
-
+            local carriedList = gActor.contents.subset({o: o.wornBy == nil &&
+                o.isFixed == nil});
+            
+            /* Note whether we've displayed the worn list */
+            local wornListShown = 0;
+            
             /* 
-             *   If anything is being worn, get a list of it minus the final
+                 *   If anything is being worn, get a list of it minus the final
              *   paragraph break and then display it.
              */
             if(wornList.length > 0)
@@ -470,13 +478,15 @@ DefineIAction(Smell)
          *   non-nil smellDesc property and (2) whose isProminentSmell property
          *   is true
          */
-        local s_list = Q.scopeList(gActor).toList.subset(
-            {x: Q.canSmell(gActor,x) && x.propDefined(&smellDesc) && 
-            x.propType(&smellDesc) != TypeNil && x.isProminentSmell});
+        local s_list = gActor.getOutermostRoom.allContents.subset(
+            {x: Q.canSmell(gActor, x)  && 
+            x.checkDisplay(&smellDesc) != nil && x.isProminentSmell});
+        
+        s_list = s_list.getUnique();
         
         /*  Obtain the corresponding list for remote rooms */
-        local r_list = getRemoteSmellList();
-        
+        local r_list = getRemoteSmellList().getUnique() - s_list;
+               
         /*  If both lists are empty report that there is nothing to smell */
         if(s_list.length + r_list.length == 0)            
             DMsg(smell nothing intransitive, '{I} {smell} nothing out of the
@@ -508,11 +518,17 @@ DefineIAction(Smell)
 DefineIAction(Listen)
     execAction(cmd)
     {
-        local s_list = Q.scopeList(gActor).toList.subset(
-            {x: Q.canHear(gActor,x) && x.propType(&listenDesc) != TypeNil &&
+        /* 
+         *   I may be able to hear things that aren't technically in scope,
+         *   since they may be hidden in containers that allow sound through.
+         */        
+        local s_list = gActor.getOutermostRoom.allContents.subset(
+            {x: Q.canHear(gActor,x) && x.checkDisplay(&listenDesc) != nil &&
             x.isProminentNoise});
         
-        local r_list = getRemoteSoundList();
+        s_list = s_list.getUnique();
+        
+        local r_list = getRemoteSoundList().getUnique() - s_list;
         
         if(s_list.length + r_list.length == 0)
             DMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
@@ -789,9 +805,9 @@ DefineTAction(Examine)
    
 DefineTAction(ExamineOrGoTo)
     exec(cmd)
-    {
-        local obj = cmd.dobj;
-        if(defined(pcRouteFinder) && obj.ofKind(Room) && !cmd.actor.isIn(obj))        
+    {        
+        if(defined(pcRouteFinder) && cmd.dobj.ofKind(Room)
+           && !cmd.actor.isIn(cmd.dobj))        
             cmd.action = GoTo;
         else
             cmd.action = Examine;
@@ -832,11 +848,30 @@ DefineTAction(SmellSomething)
     announceMultiAction = true
     againRepeatsParse = nil
     
+    /* Add any Odors the actor can smell */
+    addExtraScopeItems(whichRole?)
+    {
+        local odorList = gActor.getOutermostRoom.allContents.subset(
+            { o: o.ofKind(Odor) && Q.canSmell(gActor, o) } );
+        
+        scopeList = scopeList.appendUnique(odorList);
+    }
+    
 ;
 
 DefineTAction(ListenTo)
     announceMultAction = true
     againRepeatsParse = nil
+    
+    /* Add any Noises the actor can hear */
+    addExtraScopeItems(whichRole?)
+    {
+        local noiseList = gActor.getOutermostRoom.allContents.subset(
+            { n: n.ofKind(Noise) && Q.canHear(gActor, n) } );
+        
+        scopeList = scopeList.appendUnique(noiseList);
+    }    
+    
 ;
 
 DefineTAction(Taste)
@@ -1372,6 +1407,8 @@ DefineTAction(Unplug)
 DefineTAction(PushTravelDir)
     execAction(cmd)
     {
+        local conn;
+        
         /* Note whether travel is allowed. This can be adjusted by the dobj */
         travelAllowed = nil;
         
@@ -1398,7 +1435,7 @@ DefineTAction(PushTravelDir)
            if(oldLoc.propType(direction.dirProp) == TypeObject)
            {
                 /* Note the connector object in the relevant direstion */
-                local conn = oldLoc.(direction.dirProp);
+                conn = oldLoc.(direction.dirProp);
                 
                 /*  
                  *   If the connector object defines a PushTravelVia action,
@@ -1410,9 +1447,10 @@ DefineTAction(PushTravelDir)
                                
                 /* 
                  *   Otherwise, if the travel barriers would not allow the dobj
-                 *   to pass, stop the action here.
+                 *   to pass or the actor to pass, stop the action here.
                  */
-                if(!conn.checkTravelBarriers(curDobj))
+                if(!conn.checkTravelBarriers(curDobj) 
+                   || !conn.checkTravelBarriers(gActor))
                 {                    
                     return;
                 }
@@ -1420,10 +1458,39 @@ DefineTAction(PushTravelDir)
             }
             
             /* 
-             *   Carry out the standard handling of TravelAction to move the
-             *   actor in the appropriate direction
-             */ 
-            delegated TravelAction(cmd);
+             *   If the direction property isn't attached to an object, the
+             *   chances are that travel won't be allowed, so in that case we
+             *   don't want to display a message about attempting to push the
+             *   direct object anywhere, but if it is, then the chances are that
+             *   travel is possible (unless it's already been ruled out) so we
+             *   display a suitable message.
+             */
+            if(oldLoc.propType(direction.dirProp) == TypeObject)
+                gDobj.beforeMovePushable(conn, direction);
+            
+            /* 
+             *   Temporarily set the isListedInLook property of the direct
+             *   object to nil so we don't see it listed in its old location if
+             *   there's a sight path to it there from the actor's new location.
+             */
+            
+            local wasLookListed;
+            try
+            {
+                wasLookListed = gDobj.getMethod(&lookListed);
+                
+                gDobj.lookListed = nil;
+                
+                /* 
+                 *   Carry out the standard handling of TravelAction to move the
+                 *   actor in the appropriate direction
+                 */ 
+                delegated TravelAction(cmd);
+            }
+            finally
+            {
+                gDobj.setMethod(&lookListed, wasLookListed);
+            }
             
             
             /* 
@@ -1433,15 +1500,15 @@ DefineTAction(PushTravelDir)
             if(oldLoc != gActor.getOutermostRoom)
             {
                 curDobj.moveInto(gActor.getOutermostRoom);
-                DMsg(push travel, '{I} push{es/ed} {the dobj} into {1}. ',
-                     gActor.getOutermostRoom.name != nil ?
-                     gActor.getOutermostRoom.theName : 'the area');
+                curDobj.describeMovePushable(conn, gActor.getOutermostRoom);
             }
         }
     }
     
     travelAllowed = nil
     direction = nil
+    curIobj = nil
+    
     
     doTravel() { delegated TravelAction(); }
 ;
@@ -1557,8 +1624,8 @@ Goodbye: IAction
         if(gPlayerChar.currentInterlocutor == nil ||
            !Q.canTalkTo(gPlayerChar, gPlayerChar.currentInterlocutor))	
             sayNotTalking();
-        else if(defined(endConvBye))
-            gPlayerChar.currentInterlocutor.endConversation(endConvBye);
+        else if(defined(endConvBye) &&
+            gPlayerChar.currentInterlocutor.endConversation(endConvBye));
     }    
     
     curObj = nil   

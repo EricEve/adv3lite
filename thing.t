@@ -1106,7 +1106,8 @@ class Thing:  ReplaceRedirector, Mentionable
         unmentionRemoteContents();
         
         /* Begin by displaying our name */
-        "<.roomname><<statusName(gPlayerChar)>><./roomname>\n";
+//        "<.roomname><<statusName(gPlayerChar)>><./roomname>\n";
+        "<.roomname><<roomHeadline(gPlayerChar)>><./roomname>\n";
         
         /* If we're illuminate show our description and list our contents. */
         if(isIlluminated)
@@ -1664,6 +1665,15 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
+    /* Check if displaying prop would produce any output. */
+    checkDisplay(prop)
+    {
+        local str = gOutStream.captureOutput({: display(prop)} );
+        
+        return str not in (nil, '');
+    }
+    
+    
     
     /* 
      *   Has this item been mentioned yet in a room description. Note that this
@@ -1906,10 +1916,17 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /*   
      *   The preposition that should be used to describe containment within this
-     *   thing (e.g. 'in', 'on' , 'under' or 'behimnd'). By default we get this
+     *   thing (e.g. 'in', 'on' , 'under' or 'behind'). By default we get this
      *   from our contType.
      */
     objInPrep = (contType.prep)
+    
+    /*   
+     *   The preposition that should be used to describe movement to within this
+     *   thing (e.g. 'into', 'onto' , 'under' or 'behind'). By default we get
+     *   this from our contType.
+     */
+    objIntoPrep = (contType.intoPrep)
     
     /*   
      *   This object's bulk, in arbitrary units (game authors should devise
@@ -2120,9 +2137,12 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     lockability = notLockable
     
-    /* Flag: is this object currently locked */
-    isLocked = nil
-    
+    /* 
+     *   Flag: is this object currently locked. By default we start out locked
+     *   if we're lockable.
+     */
+    isLocked = lockability not in (nil, notLockable)
+        
     /* 
      *   Make us locked or ublocked. We define this as a method so that
      *   subclasses such as Door can override to produce side effects (such as
@@ -2998,7 +3018,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     addToAllContents(vec, lst)
     {
-        vec.appendAll(lst);
+        vec.appendUnique(lst);
         foreach(local cur in lst)
             addToAllContents(vec, cur.contents);
     }
@@ -3802,6 +3822,19 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTakeSelfMsg = BMsg(cannot take self, '{I} {can} hardly take {myself}. ')
     
     /* 
+     *   Flag, should any items behind me be left behind when I'm moved; by
+     *   default, they should.
+     */
+    dropItemsBehind = true
+    
+    /* 
+     *   Flag, should any items behind me be left behind when I'm moved; by
+     *   default, they should.
+     */
+    dropItemsUnder = true
+    
+    
+    /* 
      *   List and move into an appropriate location any item that was hidden
      *   behind or under us. We place this in a separate method so it can be
      *   conveniently called by other actions that move an object, or overridden
@@ -3815,6 +3848,29 @@ class Thing:  ReplaceRedirector, Mentionable
     revealOnMove()
     {
         local moveReport = '';
+        local underLoc = location;
+        local behindLoc = location;
+        
+        /* 
+         *   If I don't want to leave items under me behind when I'm moved, and
+         *   I am or have an underside, change the location to move items hidden
+         *   under me to accordingly.
+         */
+        if(contType == Under && dropItemsUnder == nil)
+            underLoc = self;
+        else if(remapUnder != nil && dropItemsUnder == nil)
+            underLoc = remapUnder;
+        
+         /* 
+          *   If I don't want to leave items behind me behind when I'm moved,
+          *   and I am or have a RearContainer, change the location to move
+          *   items hidden under me to accordingly.
+          */
+        if(contType == Behind && dropItemsBehind == nil)
+            behindLoc = self;
+        else if(remapBehind != nil && dropItemsBehind == nil)
+            behindLoc = remapBehind;
+        
         
         /* 
          *   If anything is hidden under us, add a report saying that it's just
@@ -3828,7 +3884,7 @@ class Thing:  ReplaceRedirector, Mentionable
                     previously hidden under {3}. ',
                      theName, makeListStr(hiddenUnder), himName);
                      
-            moveHidden(&hiddenUnder, location);
+            moveHidden(&hiddenUnder, underLoc);
             
         }
         
@@ -3845,7 +3901,38 @@ class Thing:  ReplaceRedirector, Mentionable
                     previously hidden behind {3}. ',
                      theName, makeListStr(hiddenBehind), himName);
                         
-            moveHidden(&hiddenBehind, location);            
+            moveHidden(&hiddenBehind, behindLoc);            
+        }
+        
+        local lst = [];
+        
+        if(dropItemsUnder)
+        {
+            if(contType == Under)
+                lst = contents;
+            else if(remapUnder)
+                lst = remapUnder.contents;                    
+        }
+               
+        if(dropItemsBehind)
+        {
+            if(contType == Behind)
+                lst += contents;
+            else if(remapBehind)
+                lst += remapBehind.contents;           
+        }
+        
+        lst = lst.subset({o: !o.isFixed});
+        
+        if(lst.length > 0)
+        {
+            foreach(local cur in lst)
+                cur.moveInto(location);                
+         
+            moveReport +=
+                BMsg(report left behind, '<<if moveReport == ''>>Moving {1}
+                    <<else>>It also <<end>> {dummy} {leaves} {2} behind. ',
+                     theName, makeListStr(lst));
         }
         
         
@@ -3890,6 +3977,17 @@ class Thing:  ReplaceRedirector, Mentionable
         if(bulk > gActor.maxSingleBulk)
             DMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
                 carry. ');
+        
+        /* 
+         *   If the BagOfHolding class is defined and the actor doesn't have
+         *   enough spare bulk capacity, see if the BagOfHolding class can deal
+         *   with it by moving something to a BagOfHolding.
+         */
+        if(defined(BagOfHolding) 
+           && bulk > gActor.bulkCapacity - gActor.getCarriedBulk
+           && BagOfHolding.tryHolding(self));
+        
+        
         /* 
          *   otherwise check that the actor has sufficient spare carrying
          *   capacity.
@@ -5815,7 +5913,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(Board)
     {
-        preCond = [touchObj]
+        preCond = [touchObj, actorInStagingLocation]
         
         remap = remapOn
         
@@ -5891,8 +5989,9 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canStandOnMe)
                 illogical(cannotStandOnMsg);
-            if(gActor.isIn(self))
-                illogicalNow(actorAlreadyOnMsg);
+            else
+                verifyDobjBoard();
+            
             logicalRank(standOnScore);
         }
     }
@@ -5903,8 +6002,9 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canSitOnMe)
                 illogical(cannotSitOnMsg);
-            if(gActor.isIn(self))
-                illogicalNow(actorAlreadyOnMsg);
+            else
+                verifyDobjBoard();            
+            
             logicalRank(sitOnScore);
         }
     }
@@ -5915,8 +6015,9 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canLieOnMe)
                 illogical(cannotLieOnMsg);
-            if(gActor.isIn(self))
-                illogicalNow(actorAlreadyOnMsg);
+            else
+                verifyDobjBoard();
+            
             logicalRank(lieOnScore);
         }
     }
@@ -5939,7 +6040,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(Enter) 
     {
-        preCond = [touchObj, containerOpen]
+        preCond = [touchObj, containerOpen, actorInStagingLocation]
         
         remap = remapIn
         
@@ -5990,6 +6091,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   gets off/out of us.
      */
     exitLocation = (lexicalParent == nil ? location : lexicalParent.location)
+    
+    /*   Our staging location is where we need to be to get on/in us */
+    stagingLocation = (exitLocation)
     
     dobjFor(GetOff)
     {
@@ -7757,26 +7861,72 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         pushTravelRevealItems();       
                  
+        if(!gIobj.isLocked)
+            describePushTravel(via); 
+        
+        local wasLookListed;
+        try
+        {
+            wasLookListed = getMethod(&lookListed); 
+            lookListed = nil;
+            gIobj.travelVia(gActor);
+        }
+        finally
+        {
+            setMethod(&lookListed, wasLookListed);
+        }
+              
+        
         /*   
          *   Use the travelVia() method of the iobj to move the iobj to its new
          *   location.
-         */
-        gIobj.travelVia(gDobj);
+         */        
         
-        /* 
-         *   The travel of the object being pushed might fail, e.g. if we're
-         *   trying to push it through a locked door, so we only complete the
-         *   travel and report on it if the object being pushed arrives at its
-         *   destination.
-         */
-        if(location == gIobj.destination)
+        if(gActor.isIn(gIobj.destination))
         {
-            DMsg(push travel somewhere, '{I} push{es/ed} {the dobj} {1} {the iobj}. ',
-                 via.prep);        
-            gIobj.travelVia(gActor);
-        }       
+            gIobj.travelVia(gDobj);
+            gDobj.describeMovePushable(self, gActor.location);
+        }
+    }
+    
+    beforeMovePushable(connector, dir)
+    {
+        if(connector == nil || connector.ofKind(Room))
+            DMsg(before push travel dir, '{I} push{es/ed} {the dobj} {1}. ',
+                 dir.departureName);
+        else
+            describePushTravel(viaMode);      
         
     }
+    
+    describeMovePushable (connector, dest)
+    {
+        local obj = self;
+        gMessageParams(obj, dest);
+        DMsg(describe move pushable, '{The subj obj} {comes} to a halt. ' );
+        
+    }
+    
+    /* 
+     *   This message, called on the direct object of a PushTravel command (i.e.
+     *   the object being pushed) is displayed just before travel takes place.
+     *   It is used when the PushTravel command also involves an indirect
+     *   object, e.g. a Passage, Door or Stairway the direct object is being
+     *   pushed through, up or down. The via parameter is the preposition
+     *   relevant to the kind of pushing, e.g. Into, Through or Up.
+     */
+    describePushTravel(via)
+    {
+        /* If I have a traversalMsg, use it */
+        if(gIobj && gIobj.propType(&traversalMsg) != TypeNil)
+            DMsg(push travel traversal, '{I} push{es/ed} {the dobj} {1}. ',
+                 gIobj.traversalMsg);
+        else
+            DMsg(push travel somewhere, '{I} push{es/ed} {the dobj} {1}
+                {the iobj}. ', via.prep); 
+    }
+    
+   
     
     /* 
      *   PushTravelThrough handles pushing something through something, such as
@@ -8835,9 +8985,9 @@ class MultiLoc: object
      *   object's contents list.     
      */    
     isDirectlyIn(loc)
-    {
+    {               
         if(loc != nil)
-            return loc.contents.indexOf(self) != nil;
+            return valToList(loc.contents).indexOf(self) != nil;
         
         /* 
          *   We only reach this point if loc is nil, in which case we're testing

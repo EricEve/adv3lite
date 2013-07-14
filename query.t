@@ -264,7 +264,9 @@ QDefaults: Special
             return nil;
         
         /* we can see it if it's in light and there's a clear path to it */
-        return inLight(b) && sightBlocker(a, b).length() == 0;
+        return inLight(b)
+            && sightBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
+                              
     }
 
     /*
@@ -484,7 +486,7 @@ QDefaults: Special
         if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
-        return soundBlocker(a, b).length() == 0;
+        return soundBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
     }
 
     /*
@@ -508,7 +510,7 @@ QDefaults: Special
         if(a.isIn(nil) || b.isIn(nil))
             return nil;
         
-        return scentBlocker(a, b).length() == 0;
+        return scentBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
     }
 
     /*

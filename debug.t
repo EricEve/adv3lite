@@ -267,7 +267,7 @@ modify TadsObject
         if(isClass)
             return symTab.symbolToVal(self);
         
-        local str;
+        local str = '';
         
         /* 
          *   If the object has a name property, start the string with this

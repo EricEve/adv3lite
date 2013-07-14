@@ -24,7 +24,7 @@ class SenseRegion: Region
     canSeeAcross = true
     
     /* 
-     *   Is it possible to hear (but not necessarily converse) sounds in one
+     *   Is it possible to hear sounds (but not necessarily converse) in one
      *   room from another in this SenseRegion?
      */
     canHearAcross = true
@@ -140,7 +140,7 @@ modify Room
     
     /* 
      *   The list of rooms that are visible from this room. Ordinarily this list
-     *   is constructed at Preinit by any Sense Regions this room belongs to, o
+     *   is constructed at Preinit by any Sense Regions this room belongs to, so
      *   shouldn't normally be manually adjusted by game code. It's conceivable
      *   that game code could tweak these lists after Preinit, though, perhaps
      *   to create a one-way connection (e.g. to model a high room that
@@ -261,10 +261,9 @@ modify Room
             }
             /* 
              *   Otherwise, if obj doesn't define a currently usable specialDesc
-             *   or initSpecialDesc, but its lookListed property is true, add it
-             *   to the list of miscellaneous items.
+             *   or initSpecialDesc, add it to the list of miscellaneous items.
              */
-            else if(obj.lookListed)
+            else 
                 miscVec.append(obj);
         }
         
@@ -279,25 +278,35 @@ modify Room
          *   specialDescs to be shown before the miscellaneous items.
          */
         foreach(local obj in specialVec1)        
+        {
             obj.showRemoteSpecialDesc(pov);      
+            listRemoteContents(obj.contents, remoteSubContentsLister, pov);
+        }
+        
         
         
         /* Store the other two lists for later use by other methods. */
         remoteSecondSpecialList = specialVec2.toList();
-        remoteMiscContentsList = miscVec.toList();
+        remoteMiscContentsList = miscVec.toList().subset({o:
+            o.location.ofKind(Room)});
     }
     
     /* Show the removeSpecialDesc of each item in the second list of specials */
     showSecondRemoteSpecials(pov)
     {
         foreach(local obj in remoteSecondSpecialList)
+        {
             obj.showRemoteSpecialDesc(pov); 
+            listRemoteContents(obj.contents, remoteSubContentsLister, pov);
+        }
     }
     
     /* List the miscellaneous list of items in this remote location */
     showRemoteMiscContents(pov)
     {        
-        remoteContentsLister.show(remoteMiscContentsList, inRoomName(pov));        
+        remoteContentsLister.show(remoteMiscContentsList, inRoomName(pov));  
+        listRemoteContents(remoteMiscContentsList, remoteSubContentsLister,
+                           pov);
     }
     
     /* 
@@ -313,7 +322,7 @@ modify Room
     unmentionRemoteContents()
     {
         foreach(local rm in visibleRooms)
-            unmention(rm.contents);
+            unmention(rm.allContents);
     }
     
     /* 
@@ -330,7 +339,7 @@ modify Room
 /* 
  *   The default Lister for listing miscellaneous objects in a remote location.
  */
-remoteRoomContentsLister: Lister
+remoteRoomContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
     listed(obj) { return obj.lookListed; }    
     
@@ -347,6 +356,30 @@ remoteRoomContentsLister: Lister
     { 
         DMsg(remote contents suffix, '. '); 
     }
+    
+    contentsListedProp = &contentsListedInLook
+;
+
+remoteSubContentsLister: ItemLister
+    /* is the object listed in a LOOK AROUND description? */
+    listed(obj) { return obj.lookListed; }    
+    
+    /* 
+     *   Show the list prefix. The irName parameter is the inRoomName(pov)
+     *   passed from Room.showRemoteMiscContents(pov).
+     */
+    showListPrefix(lst, pl, inParentName)  
+    {        
+        DMsg(remote subcontents prefix, '<.p>\^{1} <<pl ? '{plural}
+                {is}' : '{dummy} {is}'>> ', inParentName); 
+    }
+    
+    showListSuffix(lst, pl, irName)  
+    { 
+        DMsg(remote subcontents suffix, '. '); 
+    }
+    
+    contentsListedProp = &contentsListedInLook
 ;
 
 
@@ -387,6 +420,142 @@ modify Thing
         /* Then add a paragraph break */
         "<.p>";
     }
+    
+    /* List contents as seen from a remote location */
+    listRemoteContents(lst, lister, pov)
+    {
+        local contList = lst.subset({o: o.isVisibleFrom(pov)});
+        
+        /* 
+         *   Sort the contList in listOrder. Although we're listing the contents
+         *   of each item in the contList, it seems good to mention each item's
+         *   contents in the listOrder order of the item. Amongst other things
+         *   this helps give a consistent ordering for the listing of 
+         *   SubComponents.
+         */
+        contList = contList.sort(nil, {a, b: a.listOrder - b.listOrder});
+                     
+        
+        foreach(local obj in contList)
+        {
+            /* 
+             *   Don't list the inventory of any actors, or of any items that
+             *   don't want their contents listed, or any items we can't see in,
+             *   or of any items that don't have any contents to list.
+             */
+            if(obj.contType == Carrier 
+               || obj.(lister.contentsListedProp) == nil
+               || obj.canSeeIn() == nil
+               || obj.contents.length == 0)
+                continue;
+            
+                      
+            /* 
+             *   Don't list any items that have already been mentioned or which
+             *   aren't visible from the pov.
+             */ 
+            local objList = obj.contents.subset({x: x.mentioned == nil &&
+                                                x.isVisibleFrom(pov)});
+            
+            
+            /* 
+             *   Extract the list of items that have active specialDescs or
+             *   initSpecial Descs
+             */
+            local firstSpecialList = objList.subset(
+                {o: (o.propType(&specialDesc) != TypeNil && o.useSpecialDesc())
+                || (o.propType(&initSpecialDesc) != TypeNil &&
+                    o.useInitSpecialDesc() )
+                }
+                );
+            
+            
+            /* 
+             *   Remove items with specialDescs or initSpecialDescs from the
+             *   list of miscellaneous items.
+             */
+            objList = objList - firstSpecialList;
+            
+            
+            /*   
+             *   From the list of items with specialDescs, extract those whose
+             *   specialDescs should be listed after any miscellaneous items
+             */
+            local secondSpecialList = firstSpecialList.subset(
+                { o: o.specialDescBeforeContents == nil });
+            
+            
+            /* 
+             *   Remove the items whose specialDescs should be listed after the
+             *   miscellaneous items from the list of all items with
+             *   specialDescs to give the list of items with specialDescs that
+             *   should be listed before the miscellaneous items.
+             */
+            firstSpecialList = firstSpecialList - secondSpecialList;
+            
+            /*   
+             *   Sort the list of items with specialDescs to be displayed before
+             *   miscellaneous items by specialDescOrder
+             */
+            firstSpecialList = firstSpecialList.sort(nil, {a, b: a.specialDescOrder -
+                b.specialDescOrder});
+            
+            /*   
+             *   Sort the list of items with specialDescs to be displayed after
+             *   miscellaneous items by specialDescOrder
+             */
+            secondSpecialList = secondSpecialList.sort(nil, {a, b: a.specialDescOrder -
+                b.specialDescOrder});
+            
+            
+            /*  
+             *   Show the specialDescs of items whose specialDescs should be
+             *   shown before the list of miscellaneous items.
+             */
+            foreach(local cur in firstSpecialList)                    
+                cur.showRemoteSpecialDesc(pov); 
+            
+            
+            /*   List the miscellaneous items */
+            if(objList.length > 0)   
+            {
+                lister.show(objList, obj.remoteObjInName(pov),
+                            paraBrksBtwnSubcontents);                      
+                objList.forEach({o: o.mentioned = true });
+            }
+            
+            /* 
+             *   If we're not putting paragraph breaks between each subcontents
+             *   listing sentence, insert a space instead.
+             */
+            if(!paraBrksBtwnSubcontents)
+                " ";
+            
+            
+            /*  
+             *   Show the specialDescs of items whose specialDescs should be
+             *   shown after the list of miscellaneous items.
+             */
+            foreach(local cur in secondSpecialList)        
+                cur.showRemoteSpecialDesc(pov); 
+            
+            
+            /* 
+             *   Recursively list the contents of each item in this object's
+             *   contents, if it has any; but don't list recursively for an
+             *   object that's just been opened.
+             */
+            if(obj.contents.length > 0 && lister != openingContentsLister)
+                listRemoteContents(obj.contents, lister, pov);                     
+            
+        }
+        
+         
+    }
+        
+        
+ 
+    
     
     /* 
      *   Our remoteSpecialDesc is the paragraph describing this item in a room
@@ -497,6 +666,13 @@ modify Thing
      *   the remoteSmellDesc will be used in either case.
      */
 //    remoteSmellDesc(pov) { smellDesc; }
+    
+    /*   
+     *   The name given to this object when its the container for another object
+     *   removed remotely, e.g. 'in the distant bucket' as opposed to just 'in
+     *   the bucket'. By default we just use the objInName.
+     */
+    remoteObjInName(pov) { return objInName; }
     
     
     /* 
@@ -737,15 +913,12 @@ modify Smell
          */
         foreach(local rm in loc.smellableRooms)
         {
-            /* Move the scopeProbe_ object into the room */
-            scopeProbe_.moveInto(rm);
             
             /* 
-             *   Create a list of objects that are in scope for the scope probe
-             *   and that can also be smelt by the actor.
+             *   Create a list of objects that are in rm that can be smelt by
+             *   the actor.
              */
-            local sList = (Q.scopeList(scopeProbe_).toList).subset(
-                {o: Q.canSmell(gActor, o)});
+            local sList = rm.allContents.subset({o: Q.canSmell(gActor, o)});
             
             /* 
              *   Create a sublist of that list containing all the items with a
@@ -754,14 +927,12 @@ modify Smell
              *   that the item's isProminentSmell is true. Then append this
              *   sublist to our vector.
              */
-            vec.appendAll(sList.subset({o: ((o.smellSize == large &&
-                                            o.propType(&smellDesc) != TypeNil) ||
+            vec.appendUnique(sList.subset({o: ((o.smellSize == large &&
+                                            o.checkDisplay(&smellDesc) != nil) ||
                                        o.propDefined(&remoteSmellDesc))
                                        && o.isProminentSmell} ));
         }
         
-        /* Remove the sense probe from the map. */
-        scopeProbe_.moveInto(nil);
         
         /* Convert the vector to a list and return it. */
         return vec.toList();
@@ -786,6 +957,8 @@ modify Smell
             }
         }
     }
+    
+    
 ;
 
     /* 
@@ -812,15 +985,12 @@ modify Listen
          */
         foreach(local rm in loc.audibleRooms)
         {
-            /* Move the scopeProbe_ object into the room */
-            scopeProbe_.moveInto(rm);
-            
+           
             /* 
-             *   Create a list of objects that are in scope for the scope probe
-             *   and that can also be heard by the actor.
+             *   Create a list of objects in the room that can be heard by the
+             *   actor.
              */
-            local sList = (Q.scopeList(scopeProbe_).toList).subset(
-                {o: Q.canHear(gActor, o)});
+            local sList = rm.allContents.subset({o: Q.canHear(gActor, o)});
             
             /* 
              *   Create a sublist of that list containing all the items with a
@@ -829,15 +999,13 @@ modify Listen
              *   that the item's isProminentNoise is true. Then append this
              *   sublist to our vector.
              */
-            vec.appendAll(sList.subset({o: ((o.soundSize == large &&
-                                       o.propType(&listenDesc) != TypeNil) ||
+            vec.appendUnique(sList.subset({o: ((o.soundSize == large &&
+                                       o.checkDisplay(&listenDesc) != nil) ||
                                        o.propDefined(&remoteListenDesc))
                                        && o.isProminentNoise} ));
         }
         
-        /* Remove the sense probe from the map. */
-        scopeProbe_.moveInto(nil);
-        
+       
         /* Convert the vector to a list and return it. */
         return vec.toList();
     }
@@ -865,7 +1033,35 @@ modify Listen
     }      
 ;
 
+modify SmellSomething
+    /* Add any Odors the actor can smell */
+    addExtraScopeItems(whichRole?)
+    {
+        inherited(whichRole);
+        
+        local odorList = [];
+        for(local rm in gActor.getOutermostRoom.smellableRooms)            
+            odorList += rm.allContents.subset(
+            { o: o.ofKind(Odor) && Q.canSmell(gActor, o) } );
+        
+        scopeList = scopeList.appendUnique(odorList);
+    }
+;
 
+modify ListenTo
+    /* Add any Noises the actor can hear */
+    addExtraScopeItems(whichRole?)
+    {
+        inherited(whichRole);
+        
+        local noiseList = [];
+        for(local rm in gActor.getOutermostRoom.smellableRooms)            
+            noiseList += rm.allContents.subset(
+            { o: o.ofKind(Noise) && Q.canHear(gActor, o) } );
+        
+        scopeList = scopeList.appendUnique(noiseList);
+    }
+;
 
 /* 
  *   This Special redefines canHear, canSee, canSmell, canTalkTo and canThrowTo

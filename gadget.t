@@ -252,3 +252,166 @@ class NumberedDial: Dial
         return val >= minSetting && val <= maxSetting;            
     }        
 ;
+
+
+/* 
+ *   Mix-in class to help with inventory management. A BagOfHolding can be mixed
+ *   in with a Container (or, less usually, Surface, RearContainer or Underside)
+ *   to provide an object which, if held by the player character, will be used
+ *   to move objects in the player character's inventory to if his/her hands
+ *   become too full to pick up another object.
+ */
+class BagOfHolding: object
+    
+    /* 
+     *   The affinity for this BagOfHolding for obj. This can be used to
+     *   determined how 'willing' a particular BagOfHolding is to contain obj. A
+     *   value of less than 1 means that the BagOfHolding can't contain obj at
+     *   all. The higher the affinity, the better the choice this BagOfHolding
+     *   is for obj. The default value is 100, or 0 for a BagOfHolding's
+     *   affinity for itself.
+     */
+    affinityFor(obj)
+    {
+        return obj == self ? 0 : 100;
+    }
+    
+    /* 
+     *   To be suitable to contain obj a BagOfHolding must have enough spare
+     *   capacity for it. If it has, its suitability is its affinity for obj;
+     *   otherwise it's 0. A BagOfHolding is also unsuitable if it's locked.
+     */
+    suitabilityFor(obj)
+    {
+        if(obj.bulk > bulkCapacity - getBulkWithin || obj.bulk > maxSingleBulk
+           || isLocked || obj.isFixed)
+            return 0;
+        
+        return affinityFor(obj);
+    }
+    
+    /* 
+     *   Class method to determine whether the actor is carrying a suitable
+     *   BagOfHolding that could be used to move something from his inventory
+     *   into, and then to move items from the actor's inventory into an
+     *   appropriate bag of holding.
+     */
+    tryHolding(obj)
+    {
+        /* Obtain a Vector containing the BagsOfHolding carried by the actor. */
+        local bohVec = gActor.contents.subset({x: x.ofKind(BagOfHolding)});
+        
+        /* 
+         *   If the actor is not carrying a BagOfHolding, there's nothing more
+         *   we can do, so just stop here.
+         */
+        if(bohVec.length == 0)
+            return;
+        
+        /*  The amount of bulk we need to free up */
+        local bulkToFree = gActor.getCarriedBulk + obj.bulk -
+            gActor.bulkCapacity;
+        
+        local idx = 1;
+        local carriedList = gActor.contents.subset({o: o.wornBy == nil
+                                                   && o.isFixed == nil});
+        
+        while(bulkToFree > 0 && carriedList.length >= idx)
+        {
+            local objToMove = carriedList[idx];
+            
+            /* 
+             *   If we have more than one BagOfHolding available, sort our
+             *   vector of BagsOfHolding in descending order of suitability
+             */
+            if(bohVec.length > 1)
+                bohVec.sort(SortDesc, {a, b: a.suitabilityFor(objToMove) -
+                            b.suitabilityFor(objToMove) });
+            
+            /* 
+             *   Choose the first one in the Vector, which will be the most
+             *   suitable.
+             */
+            local bagToUse = bohVec[1];
+            
+            /* 
+             *   If the most suitable bag of holding for the object we're trying
+             *   to move isn't suitable, try again with another object.
+             */
+            if(bagToUse.suitabilityFor(objToMove) < 1)
+            {
+                idx++;
+                continue;
+            }
+            
+            /* 
+             *   Get the action needed to move an object into the selected
+             *   BagOfHolding.
+             */
+            local action = bagToUse.moveAction();
+            
+            /*  
+             *   If the action is nil, then there's something wrong with the
+             *   selected BagOfHolding. Break of of the loop so we don't get
+             *   stuck in an infinite loop.
+             */
+            
+            if(action == nil)
+                break;
+            
+            /* 
+             *   Try moving the selected object into the selected bag using the
+             *   appropriate action depending on the bag's contType
+             */
+            tryImplicitAction(action, objToMove, bagToUse);
+            
+            /* 
+             *   Reset the index into the contents list to 1 so that if we need
+             *   to select another object we start from the beginning again.
+             */
+            idx = 1;
+            
+            /*  Recalculate the amount of bulk left to free */
+            
+            bulkToFree = gActor.getCarriedBulk + obj.bulk -
+            gActor.bulkCapacity;        
+            
+            /* 
+             *   Remove objToMove from the carried list. (Even if it wasn't
+             *   actually moved for any reason, we don't want to try moving it
+             *   again).
+             */
+            carriedList -= objToMove;
+        }
+        
+    }
+    
+    /* The action needed to move an object into me. */
+    moveAction()
+    {
+        switch(contType)
+        {
+        case In:
+            return PutIn;
+        case On:
+            return PutOn;
+        case Under:
+            return PutUnder;
+        case Behind:
+            return PutBehind;
+        }
+        
+        if(remapIn)
+            return PutIn;
+        if(remapOn)
+            return PutOn;
+        if(remapUnder)
+            return PutUnder;
+        if(remapBehind)
+            return PutBehind;
+        
+        return nil;
+    }
+       
+;
+

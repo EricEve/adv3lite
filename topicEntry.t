@@ -149,6 +149,11 @@ class TopicEntry: object
      */
     active = isActive
     
+    /*  
+     *   If something located in us wants us to add it to our topic database,
+     *   pass the request up to our location (this is used by AltTopic).
+     */
+    addTopic(top) { location.addTopic(top); }
 ;
 
 

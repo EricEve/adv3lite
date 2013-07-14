@@ -213,7 +213,8 @@ DefineSystemAction(Instructions)
      *   We'll include information on special topics if there are any
      *   SpecialTopic objects defined.  
      */
-    conversationInstructions =
+    conversationInstructions()
+    {
         "You can talk to other characters by asking or
         telling them about things in the story.  For example, you might
         ASK WIZARD ABOUT WAND or TELL GUARD ABOUT ALARM.  You should
@@ -234,17 +235,17 @@ DefineSystemAction(Instructions)
         ASK ABOUT to A, and TELL ABOUT to T.  For example, once you&rsquo;re
         talking to the wizard, you can abbreviate ASK WIZARD ABOUT AMULET
         to simply A AMULET.  This addresses the question to the same
-        character as in the last ASK or TELL.
+        character as in the last ASK or TELL. ";
 
-        <<if defined(ActorState) && firstObj(ActorState, ObjInstances) != nil>>
-          \bTo greet another character, type TALK TO (Person).  This
+        if(defined(ActorState) && firstObj(ActorState, ObjInstances) != nil)
+          "\bTo greet another character, type TALK TO (Person).  This
           tries to get the other character&rsquo;s attention and start a
           conversation.  TALK TO is always optional, since you can start
-          in with ASK or TELL directly if you prefer. <<end>>
+          in with ASK or TELL directly if you prefer. ";
 
-        <<if defined(SpecialTopic) && firstObj(SpecialTopic, ObjInstances) !=
-          nil>>
-          \bThe story might occasionally suggest some special conversation
+        if(defined(SpecialTopic) && firstObj(SpecialTopic, ObjInstances) !=
+          nil)
+          "\bThe story might occasionally suggest some special conversation
           commands, like this:
 
           \b\t(You could apologize, or explain about the aliens, or ask how to
@@ -266,18 +267,18 @@ DefineSystemAction(Instructions)
           let you know when they&rsquo;re available.  When the story offers
           suggestions like this, they don&rsquo;t limit what you can do; you
           can still type any ordinary command instead of one of the
-          suggestions. <<end>>
+          suggestions. ";
 
-        <<if defined(ActorTopicEntry) && firstObj(ActorTopicEntry, ObjInstances) 
-          != nil>>
-          \bIf you&rsquo;re not sure what to discuss, you can type TOPICS any
+        if(defined(ActorTopicEntry) && firstObj(ActorTopicEntry, ObjInstances) 
+          != nil)
+          "\bIf you&rsquo;re not sure what to discuss, you can type TOPICS any
           time you&rsquo;re talking to someone.  This will show you a list of
           things that your character might be interested in discussing
           with the other person.  The TOPICS command usually won&rsquo;t list
           everything that you can discuss, so feel free to explore other
-          topics even if they&rsquo;re not listed.<<end>>
+          topics even if they&rsquo;re not listed. ";
 
-        \bYou can also interact with other characters using physical
+        "\bYou can also interact with other characters using physical
         objects.  For example, you might be able to give something to
         another character, as in GIVE MONEY TO CLERK, or show an object
         to someone, as in SHOW IDOL TO PROFESSOR.  You might also be
@@ -295,7 +296,8 @@ DefineSystemAction(Instructions)
         \bKeep in mind, though, that there&rsquo;s no guarantee that other
         characters will always obey your orders.  Most characters have
         minds of their own and won&rsquo;t automatically do whatever you
-        ask. "
+        ask. ";
+    }
 
     /* execute the command */
     execAction(cmd)

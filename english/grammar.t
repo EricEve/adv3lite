@@ -3149,8 +3149,8 @@ VerbRule(Board)
     singleDobj
     : VerbProduction
     action = Board
-    verbPhrase = 'get/getting (in what)'
-    missingQ = 'what do you want to get in'
+    verbPhrase = 'get/getting (on what)'
+    missingQ = 'what do you want to get on'
     dobjReply = singleNoun
 ;
 

@@ -16,10 +16,21 @@ sceneManager: InitObject
     execute()
     {
         /* Set up a daemon to start, stop and run scenes each turn.  */        
-        local daem = new Daemon(self, &doScenes, 1);
+//        local daem = new Daemon(self, &doScenes, 1);
         
         /* Run the scene manager late in the daemon sequence. */
-        daem.eventOrder = 1000;
+//        daem.eventOrder = 1000;
+        
+         /* 
+         *   Set up a new Schedulable in the game to run our doScene method each
+         *   turn
+         */
+        local sceneSchedule = object {           
+            eventOrder = 200;
+            executeEvent() { sceneManager.doScenes(); }
+        };
+            
+        eventManager.schedulableList += sceneSchedule;
         
         /* 
          *   Run the doScenes() method for the first time to set up any scenes

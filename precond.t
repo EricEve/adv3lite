@@ -648,6 +648,8 @@ touchObj: PreCondition
         return true;
     }
     
+    
+    preCondOrder = 80    
 ;
 
 /* Declare attachedTo as a property since the attachables module is optional. */
@@ -756,4 +758,78 @@ class ObjectPreCondition: PreCondition
 
     /* the pre-condition we check */
     cond_ = nil
+;
+
+/* -------------------------------------------------------------------------- */
+
+actorInStagingLocation: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        local loc = gActor.location;
+        local stagingLoc = obj.stagingLocation;
+        
+        /* If the actor's location is the staging location then we're done. */
+        if(loc == stagingLoc)
+            return true;
+        
+        if(stagingLoc == nil)
+        {
+            gMessageParams(obj);
+            DMsg(no staging loc, '{The subj obj} {can\'t} be reached. ');
+            return nil;
+        }
+        
+        if(allowImplicit)
+        {
+            local tried = nil;
+            
+            while(!stagingLoc.isOrIsIn(loc))
+            {
+                local action = loc.contType == In ? GetOutOf : GetOff;
+                tried = tryImplicitAction(action, loc);
+                if(gActor.location == loc)
+                    break;
+                
+                loc = gActor.location;
+            }
+                                  
+            if(stagingLoc == loc)
+                return true;
+            
+            local path = [];
+            local step = stagingLoc;
+            
+            while(step != loc)
+            {
+                path = [step] + path;
+                step = step.location;
+            }
+            
+            foreach(step in path)
+            {
+                action = step.contType == In ? Enter : Board;
+                tried = tryImplicitAction(action, step);                
+                if(!gActor.location != step)
+                    break;
+            }
+            
+            if(stagingLoc == gActor.location)
+                return true;
+            
+            if(tried)
+                return nil;
+            
+            
+        }
+        
+        gMessageParams(stagingLoc);
+        
+        DMsg(not in staging location, '{I} need{s/ed} to be <<if
+              stagingLoc.ofKind(Room)>> directly <<end>>
+            {in stagingloc} to do that. ');
+    
+         /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil;  
+        
+    }    
 ;

@@ -191,7 +191,8 @@ eventManager: object
      *   Daemons. The main use for this in the library is to provide a mechanism
      *   for the takeTurn method of each Actor to be called before Fuses and
      *   Daemons are run, mainly in case an AgendaItem sets up a Fuse or Daemon
-     *   that may need to execute on the same turn.
+     *   that may need to execute on the same turn, or if a Scene wants to do
+     *   so.
      */
     schedulableList = []
 ;

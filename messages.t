@@ -399,6 +399,8 @@ enum vObject;
  */
 enum vAmbig;
 
+/* the noun is a possessive, not the subject or the object */
+enum vPossessive;
 /* ------------------------------------------------------------------------ */
 /*
  *   Message expansion sentence context.  This keeps track of the parts of
@@ -1034,7 +1036,7 @@ class MessageParams: object
                 srcObj = src;
 
             /* check for reflexivity */
-            if (srcObj != nil && role != vSubject && !ctx.prescan)
+            if (srcObj != nil && role == vObject && !ctx.prescan)
             {
                 local r = cmdInfoReflexive(ctx, srcObj, objProp);
                 if (r != nil)
