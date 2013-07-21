@@ -1,0 +1,131 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Fueled Light Source</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fueled Light Source
+<br><span class="navnp"><a class="nav" href="../../docs/manual/extensions.htm"><i>Prev:</i> Extensions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="postures.htm"><i>Next:</i> Postures</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Fueled Light Source</h1>
+<h2>Overview</h2>
+
+<p>The purpose of the <a href="../fueled.t">fueled.t</a> extension is to enable the definition of light sources that have a finite life due to a limited fuel supply. Once the fuel supply is exhausted a FueledLightSource goes out and can't be relit (unless it's refueled).</p>
+
+
+<br>
+
+<h2>New Classes, Objects and Properties</h2>
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new class and properties:</p>
+
+<ul>
+<li><em>New Mix-in Class</em>: <strong>FueledLightSource</strong></li>
+<li><em>Properties/Methods</em>: <span class="code">fuelSource</span>, <span class="code">fuelLevel</span>, <span class="code">showWarning()</span>, <span class="code">sayBurnedOut()</span>, <span class="code">burnedOutMsg</span>, <span class="code">plungedIntoDarknessMsg</span>, <span class="code">wontLightMsg</span>, <span class="code">removeFuelSource()</span></li>
+</ul>
+<br>
+
+<h2>Usage</h2>
+<p>Include the fueled.t file after the library files but before your game source files. FueledLightSource is a mix-in class, so that it must be included first in the list of classes when you define an object that uses it, such as a flashlight or something that's lit in some other way.</p>
+
+<p>The FueledLight source class gives a light source a finite life. One unit of fuel is consumed every turn the light source is lit. When the fuel is exhausted the light goes out and cannot be re-lit (unless fuel is added again). The properties and methods of FueledLightSource that contril this behaviour are:</p>
+
+<ul>
+<li><strong>fuelSource</strong>: The object providing the fuel. By default this is nil, but for an object that uses an external fuel source, this could be the external fuel source (such as a battery for a flashlight); if so then the external fuel source must supply the <span class="code">fuelLevel</span> property.</li>
+<li><strong>fuelLevel</strong>: this is the amount of fuel remaining in the fuel source. One unit of fuel is consumed for every turn that the FueledLightSource is lit. The default starting value for a FueledLightSource is 20, but of course you can override this to any value you like (or define whatever numerical value you like on an external fuel source).</li>
+<li><strong>showWarning()</strong>: this method can be optionally overridden to display warning messages when the fuelLevel is getting low. Such a method would typically display a different message depending on the fuelLevel.</li>
+<li><strong>sayBurnedOut()</strong>: this is the message that's displayed when the light source runs out of fuel. You can override the message in full, but to make it easier to customize you can override either or both of the following:
+<ul>
+<li><strong>burnedOutMsg</strong>: this is the start of the message; it shouldn't be a complete sentence but something of the form, '{The subj obj} {goes} out' or 'The torch dies'; if the mesage parameter substition form is used, <span class="code">{the subj obj}</span> will be replaced with the name of the object that's just gone out.</li>
+<li><strong>plungedIntoDarknessMsg</strong>: this should be a fragment of a sentence describing what happens if the player character is left in darkness as a result of the light source going out. It should be of the form ', leaving you in darkness' (i.e. something that can follow on directly from the <span class="code">burnedOutMsg</span>).</li>
+</ul>
+</li>
+<li><strong>wontLightMsg</strong>: the message to display (as a single-quoted string) if the FueledLightSource won't light because it has no fuel.</li>
+<li><strong>removeFuelSource()</strong>: a message that can be called from game code when a fuel source is disconnected or removed from a FueledLightSource. It carries out useful housekeeping such as noting that the FueledLightSource no longer has a fuel source, extinguishing the light if it was on, and stopping the daemon that consumes the fuel.</li>
+</ul>
+
+<p>As an example to illustrate all of this, here's how we might implement a flashlight (or torch in British parlance) that requires a battery:</p>
+
+ <p><div class="code"><pre>
++ torch: FueledLightSource, OpenableContainer, Flashlight 'torch; heavy black; flashlight'
+    "It's a heavy black torch. "
+    
+    fuelSource = battery
+    
+    showWarning()
+    {
+        switch(fuelSource.fuelLevel)
+        {
+        case 2:
+            "The torch is starting to grow dim. ";
+            break;
+        case 1:
+            "The torch is getting very dim. ";
+            break;
+        }
+    }
+    
+    plungedIntoDarknessMsg = ', leaving you in total darkness'
+    
+    notifyRemove(obj)
+    {
+        if(obj == battery)
+            removeFuelSource();
+        inherited(obj);            
+    }
+    
+    notifyInsert(obj)
+    {
+        inherited(obj);
+        
+        <span class="comment">/* 
+         *  If we reinsert a battery when the torch is on, and there's still life in the battery,
+         *  we need to relight the torch and restart the fuel-consumption daemon. 
+         */</span>
+        if(obj.ofKind(Battery))
+        {
+            fuelSource = obj;
+            if(isOn &amp;&amp; fuelSource.fuelLevel &gt; 1)
+            {
+               "The torch comes on again. ";
+            
+               <span class="comment">/* call makeLit to make sure we also restart the fuel daemon here. */</span>
+               makeLit(true); 
+           }
+        }
+    }
+        
+;
+
+++ battery: Battery 
+    fuelLevel = 10    
+;
+
+class Battery: Thing 'battery'
+   fuelLevel = 200
+;
+</pre></div>
+
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../fueled.t">fueled.t</a> file.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fueled Light Source
+<br><span class="navnp"><a class="nav" href="../../docs/manual/extensions.htm"><i>Prev:</i> Extensions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="postures.htm"><i>Next:</i> Postures</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

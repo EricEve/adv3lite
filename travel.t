@@ -907,8 +907,12 @@ class TravelConnector: object
             /* Carry out the travel */
             execTravel(traveler);
             
-            /*  Execute the after travel notifications */
-            afterTravelNotifications(traveler);
+            /*  
+             *   Execute the after travel notifications, provided this connector
+             *   actually went somewhere to notify.
+             */
+            if(destination != nil)
+                afterTravelNotifications(traveler);
         }        
     }
     

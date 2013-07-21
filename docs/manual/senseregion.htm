@@ -73,6 +73,43 @@ riverbank: Room 'Riverbank' 'riverbank;;bank'
 
 <p>Note that it is perfectly legal for SenseRegions to overlap (the same Room can be in two or more SenseRegions), but that SenseRegions cannot normally be changed during the course of a game, since they are initialized by the library at the pre-init stage.</p>
 
+<a name="inoutprops"></a>
+<p>The properties listed above establish the sensory connections between rooms within SenseRegions for the duration of the game. If we want to change these sensory connections dynamically during the course of the game we can use the following set of methods defined on <span class="code">Room</span>. Note that the six methods listed below take effect only if there would otherwise be a sensory connection between the rooms concerned thanks to their being in a common SenseRegion that allows this type of connection globally:</p>
+
+<ul>
+<li><strong>canSeeInFrom(loc)</strong>: Can we see into this room from <em>loc</em>?</li>
+<li><strong>canSeeOutTo(loc)</strong>: Can we see out of this room to <em>loc</em>?</li>
+<li><strong>canHearInFrom(loc)</strong>: Can we hear into this room from <em>loc</em> (i.e. can an actor in <em>loc</em> hear something in this room?</li>
+<li><strong>canHearOutTo(loc)</strong>: Can we hear out from this room to <em>loc</em> (i.e. can an actor in this room hear something in <em>loc</em>)?</li>
+<li><strong>canSmellInFrom(loc)</strong>: Can we smell into this room from <em>loc</em> (i.e. can an actor in <em>loc</em> smell something in this room?</li>
+<li><strong>canSmellOutTo(loc)</strong>: Can we smell out from this room to <em>loc</em> (i.e. can an actor in this room smell something in <em>loc</em>)?</li>
+</ul>
+
+<p>By default all the canXXXOutTo methods simply return true, while all the canXXXInFrom methods return the value of the corresponding canXXXOutFrom method. There's little need to override any of them unless a sensory connection can change according to some other factor, such as whether a door or window is open or closed. If a window between two rooms blocked sound and smell when it was closed you might define:</p>
+
+ <p><div class="code"><pre>
+ hall: Room 'Hall'
+   "A window looks out to the east. "
+   canHearOutTo(loc) { return window.isOpen; }
+   canSmellOutTo(loc) { return window.isOpen; }
+   
+   regions = [windowRegion]
+;
+
++ window: Fixture 'window'
+   "The window looks out over the lawn. "
+   isOpenable = true
+;
+
+lawn: Room 'Lawn'
+   regions = [windowRegion]
+;
+
+windowRegion: SenseRegion
+;
+ </pre></div>
+
+
 <br>
 <h2>Remote <a name="sensing">Sensing</a></h2>
 <p>Although the global possibility of seeing, hearing and smelling across rooms is determined by the canSeeAcross, canHearAcross and canSmellAcross properties of the SenseRegion, the possibility of seeing, smelling and hearing individual objects in remote locations is further determined by their xxxSize and canXXXFrom(pov) properties.</p>
@@ -252,8 +289,11 @@ A blue ball, a red box, and a red ball lie abandoned down by the riverbank.
 </pre></div>
 <p>This incidentally illustrates that it doesn't make any difference to the output whether or not we use the <em>static</em> keyword when defining the CustomRoomLister; doing so is arguably more efficient since it creates the CustomRoomLister in question once and for all at the preinitialization stage.</p>
 
-<p>Finally, we may well wish to customize the description of an object that's examined, listened to or smelled remotely. We can do this by defining the following methods on the object in question:</p>
 <a name="remoteprops"></a>
+<p>If the red box in this example had anything in it, we might want to customize how its contents were listed; a listing that began "In the red box you see..." wouldn't make it very clear that the red box was in a remote location. For this purpose we can use the <strong>remoteObjInName(pov)</strong> method; by default this just returns <span class="code">objInName</span> (e.g. 'in the red box') but it can be customized as required (e.g. to return 'in the distant red box').</p>
+
+<p>Finally, we may well wish to customize the description of an object that's examined, listened to or smelled remotely. We can do this by defining the following methods on the object in question:</p>
+
 <ul>
 <li><strong>remoteDesc(pov)</strong>: the description of the object when examined remotely by the pov object (normally the player character)</li>
 <li><strong>remoteListenDesc(pov)</strong>: the description of the object when listened to remotely by the pov object (normally the player character)</li>

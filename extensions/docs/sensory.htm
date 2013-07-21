@@ -1,0 +1,125 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Sensory</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Sensory
+<br><span class="navnp"><a class="nav" href="roomparts.htm"><i>Prev:</i> Room Parts</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="../../docs/manual/extensions.htm"><i>Next:</i> Extensions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Sensory</h1>
+<h2>Overview</h2>
+<p>The purpose of the <a href="../sensory.t">sensory.t</a> extension is first to provide more sophisticated handling of sounds and smells, and second to add SensoryEvents, which can represent sudden noises, smells or visible events that nearby objects (and actors) can react to.</p>
+<br>
+
+<h2>New Classes, Objects and Properties</h2>
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, objects and properties:</p>
+<ul>
+<li><em>Classes</em>: <strong>SensoryEmanation</strong>, <strong>SensoryEvent</strong>, <strong>SoundEvent</strong>, <strong>SmellEvent</strong> and <strong>SightEvent</strong>.</li>
+<li><em>Redefined Classes</em>: <strong>Noise</strong> and <strong>Odor</strong> (now both descended from SensoryEmanation)</li>
+<li><em>Objects</em>: emanationControl.</li>
+<li><em>Additional properties/methods on Thing</em>: <span class="code">smellDescWithSource</span>, <span class="code">smellDescWithoutSource</span>, <span class="code">listenDescWithSource</span>, <span class="code">listenDescWithoutSource</span>, <span class="code">notifySoundEvent(event, source)</span>, <span class="code">notifySmellEvent(event, source)</span>, <span class="code">notifySightEvent(event, source)</span>, <span class="code">notifyEvent(event, source)</span>.</li>
+<li><em>Properties/methods on SensoryEmanation</em>: <span class="code">descWithSource</span>, <span class="code">descWithoutSource</span>, <span class="code">isEmanating</span>, <span class="code">emanationDesc()</span>, <span class="code">schedule</span>.</li>
+<li><em>Methods on SensoryEmanation</em>: <span class="code">triggerEvent(obj)</span></li>
+</ul>
+
+<h2>Usage</h2>
+<p>Include the sensory.t file after the library files but before your game source files.</p>
+
+<h3>Noises and Odors</h3>
+
+<p>With this extension in place you now have more control over the workings of sounds and smells in your game.</p>
+
+<p>First, if the player characters smells or listens to an object, you can distinguish the response the player gets depending on whether the object being smelt or listened to is visible to the player character, for example "The clock is ticking loudly" when the clock is visible and "The sound of loud ticking is coming from somewhere" when it's not. To do this, use <strong>smellDescWithSource</strong> or <strong>soundDescWithSource</strong> to describe the smell or sound when the object is visible, and <strong>smellDescWithoutSource</strong> or <strong>soundDescWithoutSource</strong> to describe the smell or sound when it's not. Where you don't need to make this distinction, you can just define the <strong>soundDesc</strong> and/or <strong>smellDesc</strong> directly as before. </p>
+
+<p>You can make a similar distinction on <span class="code">Odor</span> and <span class="code">Noise</span> objects by using the <strong>descWithSource</strong> and <strong>descWithoutSource</strong> properties. Remember these are the responses to examining or listening to/smelling the Noise/Odor itself, rather than the object that's causing the smell or sound. Here the with or without source distinction refers to whether the source of the smell or sound is visible to the player character, this source being the location of the Odor or Noise. Again, if you don't need this distinction, you can just define the <strong>desc</strong> property directly as before.</p>
+
+<p>You can control whether the Noise or Odor is effectively present at all through its <strong>isEmanating</strong> property. If <span class="code">isEmanating</span> is nil then the Noise or Odor can't be sensed and, moreover, the object in which the Noise or Odor is located will be treated as no longer having a noise/smell. Note, for this to work, <em><strong>don't</strong></em> override the <strong>isProminentNoise</strong> or <strong>isProminentSmell</strong> properties of an object to be just true, though it's safe to override these properties to be nil if you never want the object to show up in response to an intranstive LISTEN or SMELL command. (Remember that isProminentNoise and isProminentSmell are properties of ordinary Things that might be listened to or smelled, not of Noise or Odor).</p>
+
+<p>The other thing a Noise or Odor can do is to display a message every so many turns announcing the presence of a noise or smell. The message that's shown is that defined in the <strong>emanationDesc</strong> property. You can override this with your own message if you wish, or you may find the default perfectly acceptable. The default is either to show the smellDesc/listenDesc of the Odor's/Noise's location, or to display the next item in the Odor's/Noise's <strong>eventList</strong> if the Odor/Noise is also an EventList of some sort.</p>
+
+<p>The frequency with which the <span class="code">emanationDesc</span> is displayed is controlled by the <strong>schedule</strong> property. This can either be nil (in which case no emanation messages are displayed at all) or a list of numbers, which can optionally end in nil. If schedule were defined, say, as [1, 1, 2, 2, 4] then the interval between the display of the emanationDesc would be one turn each for the first two times it was displayed, then two turns each for the next two turns, and then four turns thereafter. If the schedule list ends in nil then the emanationDesc will stop being displayed when the end of the schedule is reached.</p>
+
+<p>Emanation desc messages are only displayed when the player is in a position to hear/smell the object in question. Once the player character leaves the room, all SensoryEmanations in the room are reset to their initial state (this works a little differently if there's a SenseRegion present, in which case it's all the SensoryEmanations the player can no longer sense that are reset).</p>
+
+<h3>SensoryEvents</h3>
+
+<p>A SensoryEvent is an event that occurs at a particular point in time and which can cause objects and actors that can sense the event to react to it. There are three kinds of SensoryEvent: <strong>SoundEvent</strong>, <strong>SmellEvent</strong> and <strong>SightEvent</strong>. To define such events we just need to give them a name and class, e.g.:</p>
+
+ <p><div class="code"><pre>
+ bangEvent: SoundEvent;
+ stinkEvent: SmellEvent;
+ doorOpeningEvent: SightEvent; 
+ </pre></div>
+
+<p>It's up to game code to define when SensoryEvents actually take place; we do this by calling their triggerEvent(obj) method, where obj is the physical game object with which the event is associated, for example:</p> 
+ 
+ <p><div class="code"><pre>
+ bangEvent.triggerEvent(table); <span class="comment">// the player just struck the table</span>
+ stinkEvent.triggerEvent(stinkBomb);
+ doorOpeningEvent.triggerEvent(self);
+ 
+ ...
+ + loungeDoor: Door 'door'
+    ...
+    makeOpen(stat)
+    {
+       inherited(stat);
+       if(stat)
+          doorOpeningEvent.triggerEvent(self);
+    }
+;    
+ </pre></div> 
+ 
+<p>When any of these events is triggered, the appropriate notify routine is called on any object that can sense them. In particular:</p> 
+<ul>
+<li><strong>notifySoundEvent(event, source)</strong> is called on every object that can hear <em>source</em> when <em>event</em> is the SoundEvent that's just been triggered.</li>
+<li><strong>notifySmellEvent(event, source)</strong> is called on every object that can smell <em>source</em> when <em>event</em> is the SmellEvent that's just been triggered.</li>
+<li><strong>notifySightEvent(event, source)</strong> is called on every object that can see <em>source</em> when <em>event</em> is the SightEvent that's just been triggered.</li>
+</ul> 
+ 
+<p>The default behaviour of each of these notify methods is simply to call notifyEvent(event, source), so, if you want, you can have a single handler for all of them. One pattern might be to use the event to trigger an InitiateTopic on the sensing actor, for example:</p> 
+ 
+  <p><div class="code"><pre>
+mavis: Actor 'Aunt Mavis; old; woman; her' @lounge
+  ...
+  notifyEvent(event, source)
+  {
+      initiateTopic(event);
+  }
+
+;
+
++ InitiateTopic @doorOpeningEvent
+   "&lt;q&gt;Close that door! There's a draft in here!&lt;/q&gt; Aunt Mavis commands
+    imperiously. "
+;
+  
+  </pre></div>
+ 
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../sensory.t">sensory.t</a> file.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Sensory
+<br><span class="navnp"><a class="nav" href="roomparts.htm"><i>Prev:</i> Room Parts</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="../../docs/manual/extensions.htm"><i>Next:</i> Extensions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

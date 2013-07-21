@@ -654,6 +654,7 @@ touchObj: PreCondition
 
 /* Declare attachedTo as a property since the attachables module is optional. */
 property attachedTo;
+property attachedToList;
 
 
 /* A PreCondition to check that an object isn't attached to anything. */
@@ -671,7 +672,7 @@ objDetached: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
         /* If the object isn't attached, we're done */
-        if(obj.attachedTo == nil)
+        if(obj.attachedToList.length == 0)
             return true;
         
          /* 
@@ -684,13 +685,16 @@ objDetached: PreCondition
              *   Try detaching obj implicitly and note if we were allowed to
              *   make the attempt.
              */
-            local tried = tryImplicitAction(DetachFrom, obj, obj.attachedTo);
+            local tried = nil;
+                
+            foreach(local cur in obj.attachedToList)
+                tried = tryImplicitAction(DetachFrom, obj, cur);
             
             /*  
              *   If obj is now not attached to anything return true to signal
              *   that this precondition has now been met.
              */
-            if(obj.attachedTo == nil)
+            if(obj.attachedToList.length == 0)
                return true;
             
             /* 
@@ -767,6 +771,7 @@ actorInStagingLocation: PreCondition
     {
         local loc = gActor.location;
         local stagingLoc = obj.stagingLocation;
+        local action;
         
         /* If the actor's location is the staging location then we're done. */
         if(loc == stagingLoc)
@@ -785,7 +790,7 @@ actorInStagingLocation: PreCondition
             
             while(!stagingLoc.isOrIsIn(loc))
             {
-                local action = loc.contType == In ? GetOutOf : GetOff;
+                action = loc.contType == In ? GetOutOf : GetOff;
                 tried = tryImplicitAction(action, loc);
                 if(gActor.location == loc)
                     break;
@@ -802,14 +807,14 @@ actorInStagingLocation: PreCondition
             while(step != loc)
             {
                 path = [step] + path;
-                step = step.location;
+                step = step.stagingLocation;
             }
             
             foreach(step in path)
             {
                 action = step.contType == In ? Enter : Board;
                 tried = tryImplicitAction(action, step);                
-                if(!gActor.location != step)
+                if(gActor.location != step)
                     break;
             }
             

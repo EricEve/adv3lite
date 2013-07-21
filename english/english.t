@@ -1994,7 +1994,7 @@ modify Room
          *   If our vocab property isn't already defined, take it from our
          *   roomTitle, converting it to lower case, provided proper is false.
          */
-        if(vocab == nil && autoName)            
+        if(vocab == nil && autoName && roomTitle)            
             vocab = proper ? roomTitle : roomTitle.toLower() ;
         
         /* Carry out the inherited handling */

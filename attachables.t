@@ -28,15 +28,16 @@
 class SimpleAttachable: Thing
     
     /* 
-     *   Can an object be attached to this one? By default we return true if obh
+     *   Can an object be attached to this one? By default we return true if obj
      *   is on our list of allowableAttachments.
      */
     allowAttach(obj)
     {
-        return valToList(allowableAttachments).indexOf(obj) != nil;
+        return valToList(allowableAttachments).indexWhich(
+            {o: o.ofKind(obj) != nil});
     }
     
-    /* A list of the objects that can be attached to me */
+    /* A list of the objects or classes of objects that can be attached to me */
     allowableAttachments = []
     
     /* A list of the objects that are attached to me */
@@ -70,7 +71,7 @@ class SimpleAttachable: Thing
     attachTo(obj)
     {
         /* Note that we're now attached to the iobj of the attach action */
-        attachedTo = obj;
+        makeAttachedTo(obj);
         
         /* 
          *   If we're already in our attached location, there's no need to move,
@@ -81,6 +82,12 @@ class SimpleAttachable: Thing
         
         /* Add us to the iobj's list of attachments. */
         obj.attachments += self;
+    }
+    
+    /* For a SimpleAttachable we just make obj the item we're attached to */
+    makeAttachedTo(obj)
+    {
+        attachedTo = obj;
     }
     
     /* Detach this item from obj */
@@ -101,8 +108,15 @@ class SimpleAttachable: Thing
         attachedTo.attachments -= self;
         
         /* Note that we're no longer attached to anything. */
+        makeDetachedFrom(obj);
+    }
+    
+    /* For a SimpleAttachable detachment reduces our attachedTo to nil */
+    makeDetachedFrom(obj)
+    {
         attachedTo = nil;
     }
+    
     
     /*  Handling for the ATTACH TO action */
     dobjFor(AttachTo)
@@ -165,7 +179,7 @@ class SimpleAttachable: Thing
         verify()
         {                   
             /* We can't be detached if we're not attached to anything */
-            if(attachedTo == nil)
+            if(attachedToList.length == 0)
                 illogicalNow(notAttachedMsg);           
         
             /* We can't be detached if we're not detachable */
@@ -175,7 +189,8 @@ class SimpleAttachable: Thing
         
         action()
         { 
-            detachFrom(attachedTo);                   
+            for(local cur in attachedToList)
+               detachFrom(cur);                   
         }
         
         report()   {  say(okayDetachMsg);   }
@@ -193,11 +208,11 @@ class SimpleAttachable: Thing
              *   We can't be detached from anything if we're not attached to
              *   anything.
              */
-            if(attachedTo == nil)
+            if(attachedToList.length == 0)
                 illogicalNow(notAttachedMsg);  
             
             /* We can't be detached from the iobj if we're not attached to it */
-            else if(attachedTo != gIobj)
+            else if(attachedToList.indexOf(gIobj) == nil)
                 illogicalNow(notAttachedToThatMsg);
             
             /* Carry out the inherited handling. */
@@ -303,6 +318,8 @@ class SimpleAttachable: Thing
             exit;
         }
         
+        
+        
         /* Carry out the inherited handling */   
         inherited(loc);
     }
@@ -325,6 +342,9 @@ class SimpleAttachable: Thing
     /* Am I currently attached to anything? */
     attachedTo = nil
     
+    /* The list of things I'm attached to */
+    attachedToList = (attachedTo == nil ? [] : [attachedTo])
+    
     /* 
      *   By default I'm not listed as a separate object if I'm attached to
      *   something else.
@@ -338,6 +358,16 @@ class SimpleAttachable: Thing
     isAttachedToMe(obj)
     {
         return attachments.indexOf(obj) != nil;
+    }
+    
+    
+    /* 
+     *   Is there an attachment relationship between myself and obj; there is
+     *   either is obj is attach to me or if I'm attached to obj.
+     */
+    isAttachedTo(obj)
+    {
+        return isAttachedToMe(obj) || attachedTo == obj;
     }
     
     
@@ -402,10 +432,11 @@ class SimpleAttachable: Thing
 ;
 
 /* 
- *   A component is an item that effectively becomes a component of the object
- *   it's attached to, or is treated as a component if it starts out attached.
+ *   An AttachableComponent is an item that effectively becomes a component of
+ *   the object it's attached to, or is treated as a component if it starts out
+ *   attached.
  */
-class Component: SimpleAttachable
+class AttachableComponent: SimpleAttachable
    
     /* A Component if firmly attached to its parent. */
     isFirmAttachment = true
@@ -467,8 +498,7 @@ class Component: SimpleAttachable
     /* The object to which this Component is attached. */
     attachedTo = nil
     
-    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that dobj},
-        {he dobj}{\'s} part of {1}. ', location.theName)  
+    cannotTakeMsg = (delegated Component) 
     
 ;
 
@@ -521,13 +551,124 @@ class NearbyAttachable: SimpleAttachable
 ;
 
 /* 
+ *   An Attachable is a NearbyAttachable that can be attached to more than one
+ *   thing at a time, like a length of cable connecting two devices.
+ */
+class Attachable: NearbyAttachable
+    /* 
+     *   Strictly speaking, the attachedTo property of an Attachable is a bit
+     *   arbitrary when the Attachable is attached to more than one thing; we
+     *   arbitrarily choose the first thing in its attachedToList.
+     */
+    attachedTo = (attachedToList.length == 0 ? nil : attachedToList[1])
+    
+    /* 
+     *   The list of things to which I'm attached (as opposed to things attached
+     *   to me).
+     */
+    attachedToList = []
+    
+    /* 
+     *   The maximum number of things I can be attached to at once. By default
+     *   this is 2, since probably the most commonly use for an Attachable is to
+     *   join or link two other things, but this can easily be overridden as
+     *   required. If you want there to be no limit to the number of things I
+     *   can be attached to at once, make maxAttachedTo nil.
+     */
+    maxAttachedTo = 2
+    
+    /* To make me attached to obj, add obj to my attachedTo list. */
+    makeAttachedTo(obj)
+    {
+        attachedToList += obj;
+    }
+    
+    /* 
+     *   To make something detached from me, remove obj from my attachedTo list.
+     */
+    makeDetachedFrom(obj)    
+    {
+        attachedToList -= obj;
+    }
+        
+    
+    /* 
+     *   Since an ATTACHABLE could potentially be in a many-to-many
+     *   relationship, we may sometimes want to control the order of connection
+     *   (i.e. which is considered to be the connected object and which the
+     *   object it's connected to). If reverseConnect(obj) returns true then
+     *   we'll turn CONNECT obj TO self into CONNECT self TO obj.
+     */
+    reverseConnect(obj)
+    {
+        return nil;
+    }
+    
+    /*   
+     *   We allow attachment to another obj either for the inherited reason
+     *   (that obh is in my list of allowable attachements) or, if we want to
+     *   reverse the connection with obj, that obj can be attached to us.
+     */
+    allowAttach(obj)
+    {
+        return inherited(obj) 
+            || (reverseConnect(obj) && obj.allowAttach(self));
+    }
+    
+    dobjFor(AttachTo)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            inherited Thing;  
+            
+            if(maxAttachedTo != nil && attachedToList.length >= maxAttachedTo)
+                illogical(cannotAttachToMoreMsg);
+        }       
+        
+    }        
+   
+    cannotAttachToMoreMsg = BMsg(cannot attach to more, '{I} {can\'t} attach
+        {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
+                                 makeListStr(attachedToList, &theName))                        
+    
+    
+    /* 
+     *   I'm attached to obj in the broad sense of having an attachement
+     *   relationship with obj either if obj is attached to me or if obj is in
+     *   the list of things to which I'm attached.
+     */
+    isAttachedTo(obj)
+    {
+        return isAttachedToMe(obj) || attachedToList.indexOf(obj);
+    }
+    
+    /* 
+     *   By default an Attachable can be plugged into more than one thing at a
+     *   time
+     */
+    multiPluggable = true
+;
+
+reverseAttachableDoer: Doer 'attach SimpleAttachable to Attachable'
+    execAction(c)
+    {
+        if(gIobj.reverseConnect(gDobj))
+            doInstead(Attach, gIobj, gDobj);
+        else
+            inherited(c);            
+    }    
+;
+
+
+/* 
  *   PlugAttachable is a mix-in class for use in conjunction with either
  *   SimpleAttachable or NearbyAttachable, enabling the commands PLUG X INTO Y,
  *   UNPLUG X FROM Y, PLUG X IN and UNPLUG X, treating ATTACH and DETACH
  *   commands as equivalent to these, and describing an object's attachments as
  *   being plugged into it.
  */
-
 class PlugAttachable: object
     
     /* A PlugAttachable can be plugged into things. */
@@ -576,7 +717,7 @@ class PlugAttachable: object
             inherited;
             
             /* We can't be plugged in if we're already plugged in. */
-            if(isPluggedIn)
+            if(isPluggedIn && !multiPluggable)
                 illogicalNow(alreadyAttachedMsg);
             
         }

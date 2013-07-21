@@ -4469,11 +4469,7 @@ actorPreinit:PreinitObject
          *   Set up a new Schedulable in the game to run our eachTurn method each
          *   turn
          */
-        local actorSchedule = object {           
-            eventOrder = 100;
-            executeEvent() { actorPreinit.eachTurn(); }
-        };
-            
+                    
         eventManager.schedulableList += actorSchedule;
             
 //            new Daemon(self, &eachTurn, 1);
@@ -4487,20 +4483,13 @@ actorPreinit:PreinitObject
      *   have been carried out before ours
      */
     execBeforeMe = [World, libObjectInitializer, pronounPreinit]
-
-    /* 
-     *   Our eachTurn method is called every turn by the Daemon set up in out
-     *   preinitialization
-     */
-    eachTurn()
-    {
-        /* Call the takeTurn() method on every Actor in the game */
-        forEachInstance(Actor, {a: a.takeTurn() });
-    }
-    
+   
 ;
 
-
+actorSchedule: Event
+    eventOrder = 100
+    executeEvent() { forEachInstance(Actor, {a: a.takeTurn() }); }
+;
 
 
 /* ------------------------------------------------------------------------ */

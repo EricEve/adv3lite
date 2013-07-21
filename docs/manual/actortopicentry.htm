@@ -131,6 +131,8 @@ ActorTopicEntry
 <li><strong>AskTalkTopic</strong>: responds to ASK X ABOUT Y or ASK ABOUT Y or A Y or TALK ABOUT Y</li>
 <li><strong>AskTellTalkTopic</strong>: responds to ASK ABOUT Y or TELL X ABOUT Y or TALK ABOUT Y</li>
 <li><strong>TellTalkShowTopic</strong>responds to TELL X ABOUT Y or TALK ABOUT Y or SHOW Y</li>
+<li><strong>AskTellShowTopic</strong>: responds to ASK ABOUT Y or TELL X ABOUT Y or SHOW X TO Y</li>
+<li><strong>AskTellGiveShowTopic</strong>: responds to ASK ABOUT Y or TELL X ABOUT Y or GIVE X TO Y OR SHOW X TO Y</li>
 <li><strong>SayTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to SAY WHATEVER or just WHATEVER (for further details see <a href="specialtopic.htm#saytopic">below</a>).</li>
 <li><strong>QueryTopic</strong>: a kind of <a href="specialtopic.htm">SpecialTopic</a> that responds to questions like ASK WHERE|WHEN|WHY|HOW|WHY|WHO SUCH-AND-SUCH (for further details see <a href="querytopic.htm#saytopic">below</a>).</li>
 <li><strong>YesTopic</strong>: responds to YES or SAY YES</li>
@@ -146,6 +148,7 @@ ActorTopicEntry
 <li><strong>ByeTopic</strong>: responds to BYE or X, BYE (see the section on <a href="hello.htm">Hello and Goodbye</a> below)</li>
 <li><strong>HelloGoodbyeTopic</strong>: responds to HELLO or BYE</li>
 <li><strong>ImpHelloTopic</strong>, <strong>ActorHelloTopic</strong>, <strong>ImpByeTopic</strong>, <strong>BoredByeTopic</strong>, <strong>LeaveByeTopic</strong>, <strong>ActorByeTopic</strong>: used for various kinds of implicit or actor-initiated Hellos and Goodbyes (see the section on <a href="hello.htm">Hello and Goodbye</a> below)</li>
+<li><strong>AltTopic</strong>: used to provide one or more alternative responses to conversational commands (see the section on <a href="#alttopic">AltTopic</a> below)</li>
 </ul>
 
 <p>Note that for certain of these kinds of ActorTopicEntry, such as YesTopic, NoTopic, YesNoTopic, KissTopic, HitTopic, NodeInitiateTopic, and the various kinds of HelloTopic and ByeTopic game code should not normally attempt to define the matchObj property (since none of them rely on the player specifying a topic they might match).</p>
@@ -188,7 +191,47 @@ about your visit, or say you think he's exaggerating.
 
 <p>Note that there is a hierarchy among the various kinds of DefaultTopics, such that the more specific types are defined with a higher matchScore than the more general ones. So, for example, if you define a DefaultAskTopic, a DefaultAskTellTopic, and a DefaultAnyTopic on the same actor, the DefaultAskTopic will responde to commands of the form ASK X ABOUT Y, the DefaultAskTellTopic to commands of the form TELL X ABOUT Y, and the DefaultAnyTopic to anything else (in the absence of more specific responses). The one apparent exception to this is the DefaultAgendaTopic, which takes precedence over all other types of DefaultTopics, but only when there's anything in its agendaList; this is to allow NPC's to pursue their own conversational agendas (if and when they have them) in preference to giving canned default responses.</p>
 <br>
+<a name="alttopic"></a><h2>AltTopic</h2>
 
+<p>Sometimes we may want an NPC to give different responses to conversational commands depending on context, for example what the player character already knows. We could do this with a number of if...else statements within the topicResponse of a single TopicEntry, but this can quickly become cumbersome. A better alternative would be to define a sequence of ActorTopicEntries with increasing matchScores, which will work perfectly well but is perhaps just a little long-winded. In adv3Lite (as in adv3), the best solution is to use one or more <span class="code">AltTopics</span>.</p>
+
+<p>To use an AltTopic, just locate it directly (with the + notation) in ActorTopicEntry to which it is to provide an alternative response. Don't define a matchObj for it, since it will simply match whatever it's location matches, but do define its <span class="code">isActive</span> property to be different from that of its location, then, when its isActive property is true, it will be used instead of its parent ActorTopicEntry.</p>
+
+<p>You can also define a whole series of AltTopics located in an ActorTopicEntry, in which case the one that will be used will be the last of those for which isActive is true. For example, we might define:</p>
+ <p><div class="code"><pre>
++ AskTellTopic @lighthouse 
+   "&lt;q&gt;What can you tell me about the lighthouse?&lt;/q&gt; you ask.
+    &lt;q&gt;I hear it has quite a history.&lt;/q&gt;\b
+    &lt;q&gt;Nothing you want to know about,&lt;/q&gt; Bob mutters darkly.
+    
+    name = 'the lighthouse'
+;
+
+++ AltTopic
+   "&lt;q&gt;I hear the lighthouse was caught up in the troubles,&lt;/q&gt; you remark.\b
+    &lt;q&gt;So they say -- but you don't want to go poking your nose into them
+     -- or the lighthouse,&lt;/q&gt; Bob warns you. "
+     
+    isActive = gRevealed('troubles') 
+;
+
+++ AltTopic
+   "&lt;q&gt;I've been to see the lighthouse,&lt;/q&gt; you tell him. &lt;q&gt;I don't know what
+    all the fuss is about -- I didn't see anything!&lt;/q&gt;\b
+    Bob looks momentarily relieved. &lt;q&gt;Just because you didn't see it doesn't
+    mean it aint there,&lt;/q&gt; he replies. "
+   
+   isActive = gPlayerChar.hasSeen(lighthouse)
+;
+</pre></div>
+
+<p>If the player types ASK BOB ABOUT LIGHTHOUSE or TELL BOB ABOUT LIGHTHOUSE then the response that will be used will depend on whether the player character has seen the lighthouse or 'troubles' has been revealed. If the player character has seen the lighthouse then the "I've been to the lighthouse..." response will be use. Otherwise, if 'troubles' has been revealed the "I hear the lighthouse was caught..." response will be used. Otherwise the  "What can you tell me..." response will be used.</p>
+
+<p>One further point to note is that the two AltTopics will also copy their name property from their location, so whichever of them is available at any one time will be suggested as "You could ask Bob about the lighthouse", provided the curiosity hasn't been satsified on them yet. If you don't want an AltTopic to be suggested in the same way as its parent TopicEntry, you can simply override its name property to be something different or nil.</p>
+
+<p>Finally, it may help to know that internally AltTopics work by incrementing their matchScore in relation to their parent topic or a previous AltTopic. Normally you won't need to worry about this, but if you did have an ActorTopicEntry with a lot of AltTopics, and you also defined another ActorTopicEntry that might match the same object as the first, you might need to give it a substantially higher matchScore to be sure of its being used in preference to any of the AltTopics of the first TopicEntry.</p>
+
+<br>
 <a name="summarizing"></a><h2>Summarizing Give and Show</h2>
 
 <p>When a GIVE or SHOW command is issued, it is possible that it could be given more than one direct object. For example GIVE BELL, BOOK and CANDLE TO PRIEST. The normal behaviour in such a situation would be for the appropriate TopicEntries to be triggered in turn for each of the bell, the book and the candle, resulting in three separare reports, e.g.</p>

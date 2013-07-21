@@ -1469,17 +1469,18 @@ DefineTAction(PushTravelDir)
                 gDobj.beforeMovePushable(conn, direction);
             
             /* 
-             *   Temporarily set the isListedInLook property of the direct
-             *   object to nil so we don't see it listed in its old location if
+             *   Temporarily set the isHidden property of the direct
+             *   object to true so we don't see it listed in its old location if
              *   there's a sight path to it there from the actor's new location.
              */
             
-            local wasLookListed;
+            local wasHidden;
             try
             {
-                wasLookListed = gDobj.getMethod(&lookListed);
+                wasHidden = gDobj.propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
+                    gDobj.getMethod(&isHidden) : isHidden;
                 
-                gDobj.lookListed = nil;
+                gDobj.isHidden = true;
                 
                 /* 
                  *   Carry out the standard handling of TravelAction to move the
@@ -1489,7 +1490,10 @@ DefineTAction(PushTravelDir)
             }
             finally
             {
-                gDobj.setMethod(&lookListed, wasLookListed);
+                if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
+                    gDobj.setMethod(&isHidden, wasHidden);
+                else
+                    gDobj.isHidden = wasHidden;
             }
             
             

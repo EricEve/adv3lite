@@ -889,13 +889,18 @@ VerbRule(WhereGo)
  */
 
 seekPreParser: StringPreParser
-    doParsing(str, which)
-    {
-        if(rexMatch(pat, str) && gPlayerChar.getOutermostRoom.allContents.indexWhich({ x:
-            x.ofKind(Consultable)}) == nil)
+    doParsing(str, which) 
+    {        
+        local doReplacement = true;
+        
+        if(defined(Consultable) && firstObj(Consultable))
         {
-            str = rexReplace(pat, str, 'seek', ReplaceOnce);            
+            doReplacement = nil; 
         }
+        
+        if(doReplacement && rexMatch(pat, str))  
+           str = rexReplace(pat, str, 'seek', ReplaceOnce); 
+        
         return str;
     }
     pat = static new RexPattern('^<NoCase>(find|look for|search for|hunt for)')

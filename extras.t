@@ -18,6 +18,11 @@
  *   improves the clarity of their code.
  */
 
+property tooFarAwayToHearMsg;
+property tooFarAwayToSmellMsg;
+property smellSize;
+property soundSize;
+
 /* 
  *   An Odor is an object representing a smell (as opposed to the object that
  *   might be emitting that smell). The desc property of an Odor is displayed in
@@ -43,6 +48,18 @@ class Odor: Thing
     dobjFor(SmellSomething) asDobjFor(Examine)   
     
     dobjFor(Examine) { preCond = [objSmellable] }
+    
+    /* 
+     *   Since we turn SMELL into EXAMINE we want our sightSize to be our
+     *   smellSize.
+     */
+    sightSize = smellSize
+    
+    /*   
+     *   For the same reason we want to use our tooFarAwayToSmellMsg for our
+     *   tooFarWayToSeeDetailMsg.
+     */
+    tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg    
 ;
 
 
@@ -71,6 +88,18 @@ class Noise: Thing
     dobjFor(ListenTo) asDobjFor(Examine)    
     
     dobjFor(Examine) { preCond = [objAudible] }
+    
+    /* 
+     *   Since we turn LISTEN TO into EXAMINE we want our sightSize to be our
+     *   soundSize.
+     */
+    sightSize = soundSize
+    
+    /*   
+     *   For the same reason we want to use our tooFarAwayToHearlMsg for our
+     *   tooFarWayToSeeDetailMsg.
+     */
+    tooFarAwayToSeeDetailMsg = tooFarAwayToHearMsg
 ;
 
 /* A Container is a Thing that other things can be put inside */
@@ -181,6 +210,18 @@ class Fixture: Thing
 class Decoration: Fixture
     isDecoration = true
 ;
+
+/* 
+ *   A Component is an object that's (usually permanently) part of something
+ *   else, like the handle of a suitcase or a dial on a safe.
+ */
+class Component: Fixture    
+    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that dobj},
+        {he dobj}{\'s} part of {1}. ', location.theName)
+    
+    locType = PartOf
+;
+
 
 /*  
  *   A Distant is a Decoration that's considered too far away to be interacted

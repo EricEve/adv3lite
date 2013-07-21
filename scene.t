@@ -12,35 +12,30 @@
  *   The sceneManager object is used to control the scene-switching and
  *   execution mechanism.
  */
-sceneManager: InitObject
+sceneManager: InitObject, Event
     execute()
     {
-        /* Set up a daemon to start, stop and run scenes each turn.  */        
-//        local daem = new Daemon(self, &doScenes, 1);
-        
-        /* Run the scene manager late in the daemon sequence. */
-//        daem.eventOrder = 1000;
-        
-         /* 
+                
+        /* 
          *   Set up a new Schedulable in the game to run our doScene method each
          *   turn
          */
-        local sceneSchedule = object {           
-            eventOrder = 200;
-            executeEvent() { sceneManager.doScenes(); }
-        };
-            
-        eventManager.schedulableList += sceneSchedule;
+       
+        eventManager.schedulableList += self;
         
         /* 
-         *   Run the doScenes() method for the first time to set up any scenes
-         *   that should be active at the start of play.
+         *   Run the executeEvent() method for the first time to set up any
+         *   scenes that should be active at the start of play.
          */
-        doScenes();
+        executeEvent();
     }
     
-    /* The doScenes() method is run each turn to drive the Scenes mechanism */
-    doScenes()
+    eventOrder = 200
+    
+    
+    
+    /* The executeEvent() method is run each turn to drive the Scenes mechanism */
+    executeEvent()
     {
         /* Go through each Scene defined in the game in turn. */
         for(local scene = firstObj(Scene); scene != nil ; scene = nextObj(scene,

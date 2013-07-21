@@ -608,6 +608,7 @@ Door template  ->otherSide 'vocab' @location? "desc"?;
 
 TravelConnector template 'vocab'? @location? "desc"? ->destination;
 Enterable template inherited ->connector;
+Enterable template ->connector inherited;
 
 Unthing template 'vocab' @location? 'notHereMsg'?;
 

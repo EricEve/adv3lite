@@ -1106,7 +1106,6 @@ class Thing:  ReplaceRedirector, Mentionable
         unmentionRemoteContents();
         
         /* Begin by displaying our name */
-//        "<.roomname><<statusName(gPlayerChar)>><./roomname>\n";
         "<.roomname><<roomHeadline(gPlayerChar)>><./roomname>\n";
         
         /* If we're illuminate show our description and list our contents. */
@@ -1225,6 +1224,10 @@ class Thing:  ReplaceRedirector, Mentionable
         /* List every listable item in our contents. */
         foreach(local obj in contents)
         {            
+            /* Don't include any hidden items in the listing */
+            if(obj.isHidden)
+                continue;
+            
             /* 
              *   If the object has an initSpecialDesc or a specialDesc which is
              *   currently in use, add it to the appropriate list.
@@ -1314,6 +1317,8 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Show the specialDesc (or initSpecialDesc) of every object in our
          *   second list of specials.
          */
+        secondSpecialList = secondSpecialList.subset({o: o.mentioned == nil});
+        
         foreach(local obj in secondSpecialList)
             obj.showSpecialDesc();
         
@@ -1339,6 +1344,8 @@ class Thing:  ReplaceRedirector, Mentionable
          *   list, otherwise retain the list that's been passed.
          */
         contList = valToList(contList);
+        
+        
                 
         /* 
          *   Sort the contList in listOrder. Although we're listing the contents
@@ -1364,8 +1371,12 @@ class Thing:  ReplaceRedirector, Mentionable
                 continue;
             
                       
-            /* Don't list any items that have already been mentioned */ 
-            local objList = obj.contents.subset({x: x.mentioned == nil});
+            /* 
+             *   Don't list any items that have already been mentioned or which
+             *   are hidden.
+             */ 
+            local objList = obj.contents.subset({x: x.mentioned == nil 
+                                                && x.isHidden == nil});
             
             
             /* 
@@ -1422,10 +1433,12 @@ class Thing:  ReplaceRedirector, Mentionable
              *   Show the specialDescs of items whose specialDescs should be
              *   shown before the list of miscellaneous items.
              */
+            firstSpecialList = firstSpecialList.subset({o: o.mentioned == nil});
             foreach(local cur in firstSpecialList)                    
                 cur.showSpecialDesc(); 
             
             
+            objList = objList.subset({o: o.mentioned == nil});
             /*   List the miscellaneous items */
             if(objList.length > 0)   
             {
@@ -1445,6 +1458,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   Show the specialDescs of items whose specialDescs should be
              *   shown after the list of miscellaneous items.
              */
+            secondSpecialList = secondSpecialList.subset({o: o.mentioned == nil});
             foreach(local cur in secondSpecialList)        
                 cur.showSpecialDesc(); 
             
@@ -3666,14 +3680,15 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(propType(&smellDesc) == TypeNil)
-               DMsg(smell nothing, '{I} {smell} nothing out of the
-                    ordinary.<.p>');
+            if(checkDisplay(&smellDesc) == nil)
+                say(smellNothingMsg);
             else
                 display(&smellDesc);
         }
     }
     
+    smellNothingMsg = BMsg(smell nothing, '{I} {smell} nothing out of the
+                    ordinary.<.p>')
     
     dobjFor(ListenTo)
     {
@@ -3682,15 +3697,15 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(propType(&listenDesc) == TypeNil)            
-                DMsg(hear nothing listen to, '{I} hear{s/d} nothing out of the
-                    ordinary.<.p>');
+            if(checkDisplay(&listenDesc) == nil)            
+                say(hearNothingMsg);
             else
-                display(&listenDesc);
-            
+                display(&listenDesc);            
         }
     }
     
+    hearNothingMsg = BMsg(hear nothing listen to, '{I} hear{s/d} nothing out of
+        the ordinary.<.p>')
     
     /* 
      *   By default everything is tasteable, but there might well be things the
@@ -7864,16 +7879,28 @@ class Thing:  ReplaceRedirector, Mentionable
         if(!gIobj.isLocked)
             describePushTravel(via); 
         
-        local wasLookListed;
+        /*  
+         *   We temporarily make the push traveler item hidden before moving it
+         *   to the new location so that it doesn't show up listed in its former
+         *   location when actor moves to the new location and there's a sight
+         *   path between the two.
+         */
+        local wasHidden;
         try
         {
-            wasLookListed = getMethod(&lookListed); 
-            lookListed = nil;
+            wasHidden = propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
+                    getMethod(&isHidden) : isHidden;
+            
+            isHidden = true;
+            
             gIobj.travelVia(gActor);
         }
         finally
         {
-            setMethod(&lookListed, wasLookListed);
+            if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
+                setMethod(&isHidden, wasHidden);
+            else
+                isHidden = wasHidden;
         }
               
         
@@ -9320,4 +9347,3 @@ Down: ViaType;
 Up: ViaType;
 Through: ViaType;
 
-    

@@ -108,11 +108,16 @@ eventManager: object
         
         
         /* 
-         *   build a list of all of our events with the current game clock
-         *   time - these are the events that are currently schedulable 
+         *   build a list of all of our events with the current game clock time
+         *   - these are the events that are currently schedulable. Also include
+         *   any events that have never been executed but whose next run time is
+         *   greater than the current turn count (otherwise these events will
+         *   never be executed).
          */
-        lst = eventList.subset({x: x.getNextRunTime()
-                                 == libGlobal.totalTurns});
+        lst = eventList.subset({x: x.getNextRunTime() == libGlobal.totalTurns
+                               || (x.executed == nil 
+                                   && x.getNextRunTime() > libGlobal.totalTurns)
+                                   });
 
         /* execute the items in this list */
         executeList(lst);
@@ -153,6 +158,9 @@ eventManager: object
             {
                 /* execute the event */
                 cur.executeEvent();
+                
+                /* note that the event has been executed */
+                cur.executed = true;
 
             }
             catch (Exception exc)
@@ -320,6 +328,9 @@ class Event: object
     
     /*   Text captured from callMethod() */
     captureText = nil
+    
+    /*   Flag - has this event ever been executed */
+    executed = nil
 ;
 
 /*

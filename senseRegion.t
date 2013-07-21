@@ -227,7 +227,7 @@ modify Room
          *   Reduce our list to that subset of the list that is visible to the
          *   pov object.
          */
-        local lst = contents.subset({o: o.isVisibleFrom(pov)});
+        local lst = contents.subset({o: o.isVisibleFrom(pov) && !o.isHidden});
         
         /* 
          *   Sort the objects to be listed into three separate lists: those with
@@ -334,6 +334,42 @@ modify Room
     {
         return BMsg(in room name, 'in {1}', theName);
     }   
+    
+    /* 
+     *   The following six methods take effect only if there would otherwise be
+     *   a sensory connection between the current room and loc due to their
+     *   being in the same SenseRegion.
+     *
+     *   Can we see into this room from loc?
+     */    
+    canSeeInFrom(loc) { return canSeeOutTo(loc); }
+    
+    /*   Can we see out of this room to loc? */
+    canSeeOutTo(loc) { return true; }
+    
+    /*   
+     *   Can we hear into this room from loc (i.e. can an actor in loc hear
+     *   something in this room?
+     */
+    canHearInFrom(loc) { return canHearOutTo(loc); }
+    
+    /*   
+     *   Can we hear out from this room to loc (i.e. can an actor in this room
+     *   hear something in loc)?
+     */
+    canHearOutTo(loc) { return true; }
+    
+    /*   
+     *   Can we smell into this room from loc (i.e. can an actor in loc smell
+     *   something in this room?
+     */
+    canSmellInFrom(loc) { return canSmellOutTo(loc); }
+    
+    /*   
+     *   Can we hear out from this room to loc (i.e. can an actor in this room
+     *   hear something in loc)?
+     */
+    canSmellOutTo(loc) { return true; }    
 ;
     
 /* 
@@ -341,7 +377,7 @@ modify Room
  */
 remoteRoomContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
-    listed(obj) { return obj.lookListed; }    
+    listed(obj) { return obj.lookListed && !obj.isHidden; }    
     
     /* 
      *   Show the list prefix. The irName parameter is the inRoomName(pov)
@@ -362,7 +398,7 @@ remoteRoomContentsLister: ItemLister
 
 remoteSubContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
-    listed(obj) { return obj.lookListed; }    
+    listed(obj) { return obj.lookListed && !obj.isHidden; }    
     
     /* 
      *   Show the list prefix. The irName parameter is the inRoomName(pov)
@@ -424,7 +460,7 @@ modify Thing
     /* List contents as seen from a remote location */
     listRemoteContents(lst, lister, pov)
     {
-        local contList = lst.subset({o: o.isVisibleFrom(pov)});
+        local contList = lst.subset({o: o.isVisibleFrom(pov) && !o.isHidden});
         
         /* 
          *   Sort the contList in listOrder. Although we're listing the contents
@@ -668,9 +704,9 @@ modify Thing
 //    remoteSmellDesc(pov) { smellDesc; }
     
     /*   
-     *   The name given to this object when its the container for another object
-     *   removed remotely, e.g. 'in the distant bucket' as opposed to just 'in
-     *   the bucket'. By default we just use the objInName.
+     *   The name given to this object when it's the container for another
+     *   object viewed remotely, e.g. 'in the distant bucket' as opposed to just
+     *   'in the bucket'. By default we just use the objInName.
      */
     remoteObjInName(pov) { return objInName; }
     
@@ -1055,7 +1091,7 @@ modify ListenTo
         inherited(whichRole);
         
         local noiseList = [];
-        for(local rm in gActor.getOutermostRoom.smellableRooms)            
+        for(local rm in gActor.getOutermostRoom.audibleRooms)            
             noiseList += rm.allContents.subset(
             { o: o.ofKind(Noise) && Q.canHear(gActor, o) } );
         
@@ -1113,11 +1149,14 @@ QSenseRegion: Special
          *   the rooms in A's room's visibleRoom's list and B can be seen
          *   remotely from A's pov.
          */           
-        local c = a.getOutermostRoom();
+        local ar = a.getOutermostRoom(), br = b.getOutermostRoom();    
+             
         
-        return b.isOrIsIn(c) || (b.isVisibleFrom(a) &&
-                             c.visibleRooms.indexOf(b.getOutermostRoom));        
-        
+        return b.isOrIsIn(ar) || (b.isVisibleFrom(a) &&
+                             ar.visibleRooms.indexOf(br)
+                                  && ar.canSeeOutTo(br)
+                                  && br.canSeeInFrom(ar));
+               
         
     }
 
@@ -1156,10 +1195,13 @@ QSenseRegion: Special
          *   the rooms in A's room's audibleRoom's list and B can be heard
          *   remotely from A's pov.
          */           
-        local c = a.getOutermostRoom();
+        local ar = a.getOutermostRoom(), br = b.getOutermostRoom();    
+             
         
-        return b.isOrIsIn(c) || (b.isAudibleFrom(a) &&
-                             c.audibleRooms.indexOf(b.getOutermostRoom));
+        return b.isOrIsIn(ar) || (b.isAudibleFrom(a) &&
+                             ar.audibleRooms.indexOf(br)
+                                  && ar.canHearOutTo(br)
+                                  && br.canHearInFrom(ar));
     }
 
     
@@ -1197,10 +1239,15 @@ QSenseRegion: Special
          *   the rooms in A's room's smelablelRoom's list and B can be seen
          *   remotely from A's pov.
          */           
-        local c = a.getOutermostRoom();
+        local ar = a.getOutermostRoom(), br = b.getOutermostRoom();    
+             
         
-        return b.isOrIsIn(c) || (b.isSmellableFrom(a) &&
-                             c.smellableRooms.indexOf(b.getOutermostRoom));
+        return b.isOrIsIn(ar) || (b.isSmellableFrom(a) &&
+                             ar.smellableRooms.indexOf(br)
+                                  && ar.canSmellOutTo(br)
+                                  && br.canSmellInFrom(ar));
+        
+        
     }
 
     /* 
