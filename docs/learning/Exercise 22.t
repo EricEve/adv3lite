@@ -127,6 +127,7 @@ modify Room
     isLit = (powerSwitch.isOn)
 ;
 
+/* The floor of a ship is called the deck */
 modify Floor
     vocab = 'deck;;floor ground'
 ;
@@ -160,21 +161,12 @@ InitObject
  */
 
 class IndirectDoor: Door
-//    dobjFor(Open) { verify { illogical (cannotOpenMsg); } }
-//    dobjFor(Close) { verify { illogical(cannotCloseMsg); } }
-//    dobjFor(Lock) { verify { illogical(cannotLockMsg); } }
-//    dobjFor(LockWith) { verify { illogical(cannotLockMsg); } }
-//    dobjFor(Unlock) { verify { illogical(cannotUnlockMsg); } }
-//    dobjFor(UnlockWith) { verify { illogical(cannotUnlockMsg); } }
-    
     isOpenable = nil
     lockability = notLockable
     
     cannotOpenMsg = '{The subj dobj} {is} operated with a lever. '
     cannotCloseMsg = (cannotOpenMsg)
-    cannotLockMsg = '{The subj dobj} {has} no lock. '
-    cannotUnlockMsg = (cannotLockMsg)
-    
+    notLockableMsg = '{The subj dobj} {has} no lock. ' 
 ;
 
 /*  
@@ -287,6 +279,14 @@ airlock: Room 'Main Airlock'
     collectiveGroups = [leverGroup]
 ;
 
+/* 
+ *   COLLECTIVE GROUP
+ *
+ *   Using this CollectiveGroup allows us to provide a collective description of
+ *   the two levers as a pair, rather than two individual descriptions, in
+ *   response to EXAMINE.
+ */
+
 + leverGroup: CollectiveGroup, Fixture 'levers'
     "There's a red lever (controlling the outer door), and a green lever
     (controlling the inner door). "
@@ -309,6 +309,13 @@ airlock: Room 'Main Airlock'
     door, it currenly registers <<storageCompartment.pressure>> bar."
     collectiveGroups = [dialGroup]
 ;
+
+/* 
+ *   COLLECTIVE GROUP
+ *
+ *   This CollectiveGroup similarly allows the three dials to be described
+ *   together.
+ */
 
 + dialGroup: CollectiveGroup, Fixture 'dials'
    "The port dial indicates that air pressure beyond the port (outer) door is
@@ -349,23 +356,23 @@ airlock: Room 'Main Airlock'
 /*  
  *   SIMPLE ATTACHABLE
  *
- *   SimpleAttachable is a custom class defined in the accompanying file. 
+ *   SimpleAttachable is a custom class defined in the accompanying file.
  *
- *   We make the spaceSuit a SimpleAttachable so that an OxygenTank can be 
+ *   We make the spaceSuit a SimpleAttachable so that an OxygenTank can be
  *   attached to it.
  *
- *   SimpleAttachable is designed to model an asymmetric attachment, where 
- *   one of the attached objects is the major attachment and all the others 
- *   are its minor attachments (we'd consider a limpet mine to be attached 
- *   to a battleship, not the other way round - the battleship would be the 
- *   major attachment and the mine the minor attachment). If the major 
- *   attachment is moved, its minor attachments move with it. If a minor 
- *   attachment is moved (e.g. by the player character taking it) it becomes 
- *   detached from the major attachment (think of a magnet attached to a 
- *   fridge). 
+ *   SimpleAttachable is designed to model an asymmetric attachment, where one
+ *   of the attached objects is the major attachment and all the others are its
+ *   minor attachments (we'd consider a limpet mine to be attached to a
+ *   battleship, not the other way round - the battleship would be the major
+ *   attachment and the mine the minor attachment). If the major attachment is
+ *   moved, its minor attachments (those listed in its attachments property)
+ *   move with it. If a minor attachment is moved (e.g. by the player character
+ *   taking it) it becomes detached from the major attachment (think of a magnet
+ *   attached to a fridge).
  *
- *   By default, a SimpleAttachment is designed to be used with other 
- *   SimpleAttachments: both the major attachment and its minor attachments 
+ *   By default, a SimpleAttachable is designed to be used with other
+ *   SimpleAttacables: both the major attachment and its minor attachments
  *   should be of class SimpleAttachable.
  */
 ++ spaceSuit: SimpleAttachable, Wearable 'spacesuit; dark blue (space); suit'     
@@ -529,14 +536,17 @@ airlock: Room 'Main Airlock'
 /*  
  *   PLUG ATTACHABLE
  *
- *   PlugAttachable is a mix-in class for use with other Attachable classes 
- *   to make PLUG INTO and UNPLUG FROM behave like ATTACH TO and DETACH FROM.
+ *   PlugAttachable is a mix-in class for use with other Attachable classes to
+ *   make PLUG INTO and UNPLUG FROM behave like ATTACH TO and DETACH FROM.
  *
- *   We make the lamp a PlugAttachable so it can be plugged into a charging 
- *   socket. 
+ *   We make the lamp a PlugAttachable so it can be plugged into a charging
+ *   socket.
  *
- *   It's also a SimpleAttachable. It can be attached either to the helmet 
- *   or to the charging socket, but that's defined on them.
+ *   It's also a SimpleAttachable. It can be attached either to the helmet or to
+ *   the charging socket, but that's defined on them.
+ *
+ *   Had we wanted to, we could have saved ourselves a bit of work here by using
+ *   the FueledLightSource class from the FueledLightSource extension.
  */
 
 +++ lamp: PlugAttachable, SimpleAttachable, Flashlight 'lamp; (helmet)'
@@ -683,6 +693,7 @@ class OxygenTank: SimpleAttachable 'oxygen tank; silver metal air; cylinder'
 
 //------------------------------------------------------------------------------
 
+
 storageCompartment: Room 'Storage Compartment'
     "<<first time>>This area seems to have been largely undamaged by the blast
     from the enemy warship, although anything not nailed down was probably swept
@@ -702,6 +713,10 @@ storageCompartment: Room 'Storage Compartment'
     lockability = indirectLockable
 ;
 
+/* 
+ *   In sdv3Lite a Button is fixed in place by default, since it's usually part
+ *   of something else.
+ */
 + Button 'red button' 
     dobjFor(Push)
     {
@@ -781,13 +796,12 @@ storageCompartment: Room 'Storage Compartment'
 ;
 
 /*  
- *   PLUG ATTACHABLE
+ *   PLUG ATTACHABLE / ATTACHABLE
  *
- *   The black cable is a PlugAttachable so it can be plugged into things. 
- *   It's also of class Cable, which is defined below. Cable derives from 
- *   NearbyAttachable, which creates a slight complication in that we also 
- *   want to be able to attach the black cable to the charging socket, which 
- *   is a SimpleAttachable. This is dealt with in the canAttachTo() method.
+ *   The black cable is a PlugAttachable so it can be plugged into things. It's
+ *   also of class Cable, which is defined below. Cable derives from Attachable
+ *   so that it can be connected to two things at once to establish an
+ *   electrical connection between them.
  */
 
 ++ blackCable: PlugAttachable, Attachable, Cable 'length of black cable[n]'
@@ -828,6 +842,10 @@ storageCompartment: Room 'Storage Compartment'
         }
         action()
         {
+            /* 
+             *   The fabric object, representing a square of fabric cut from
+             *   this roll, is defined below.
+             */
             fabric.actionMoveInto(gActor);
             "You unroll the fabric, cut of a square of the size you need,
             and return the roll to the locker. ";
@@ -991,33 +1009,7 @@ class CableConnector: ElectricalConnector
     'cable connector; plastic; ring'    
     "In appearance, it lools like a plastic ring. Its function is to join one
     length of cable to another. "
-    
-    /* 
-     *   The getNearbyAttachmentLocs() method is defined in the library for 
-     *   NearbyAttachable. It controls where a NearbyAttachable ends up when 
-     *   its attached to something. For a full description, see the comment 
-     *   in blackCable above. 
-     *
-     *   In this case we need the two cable connectors to end up connected 
-     *   to the two segments of cable in the conduit, so if what we're 
-     *   connecting to is in the conduit, that's where we want everything to 
-     *   end up. We define getNearbyAttachmentLocs accordingly. 
-     */
-    getNearbyAttachmentLocs(other)
-    {
-        if (other.isIn(conduit))
-        {
-            /* the other is where we want it, so use its location */
-            return [other.location, other.location, 5];
-        }
-        else
-        {
-            /* 
-             *   the other can be moved, so use our own location.
-             */
-            return [location, location, 0];
-        }
-    }    
+        
     
     allowableAttachments = [blackCable]
 ;
@@ -1026,7 +1018,7 @@ class CableConnector: ElectricalConnector
  *   Definition of the custom CABLE class.
  *
  *   Cable derives from our custom ElectricalConnector class (defined 
- *   immediately below). The only customizetion required on this class is to 
+ *   immediately below). The only customization required on this class is to 
  *   define what a Cable can connect to: Cables can connect to 
  *   CableConnectors.
  */
@@ -1045,7 +1037,7 @@ class Cable: ElectricalConnector
  *   enforces the condition that the attached objects must be in a 
  *   particular location. By default this is the location that one of the 
  *   objects is already in, but this can be customised by overriding 
- *   getNearbyAttachmentLocs(). 
+ *   attachedLocation. 
  */
 class ElectricalConnector: NearbyAttachable
     
@@ -1073,38 +1065,7 @@ class ElectricalConnector: NearbyAttachable
         return nil;
     }
     
-    /* 
-     *   movedWhileAttached() is a library method defined on the Attachable 
-     *   class. It's overridden on the NearbyAttachable class to detach 
-     *   objects if one of them is moved while they're attached to each 
-     *   other. This could be irritating in this game: if, for example the 
-     *   player first attached the cable connectors to the black cable and 
-     *   then tried to attach the cable connectors to the cable ends in the 
-     *   counduit, the cable connectors would become detached from the black 
-     *   cable. In this case we'd rather the cable connectors remained 
-     *   attached to the black cable and the black cable moved into the 
-     *   conduit along with the cable connectors, so we override 
-     *   moveWhileAttached() accordingly. 
-     */    
-    moveWhileAttached(movedObj, newCont)
-    {
-        /* 
-         *   If anything is being moved into the conduit, move its 
-         *   attachments there as well, because that's where we want them 
-         *   all to end up.
-         */
-        if(newCont == conduit)
-        {
-            if(movedObj != self)
-                /* Don't trigger any more movement notifications! */
-                moveInto(newCont);
-        }
-        else
-            inherited(movedObj, newCont);
         
-    }
-    
-    
 ;
 
 //------------------------------------------------------------------------------
@@ -1251,12 +1212,12 @@ livingQuarters: Room 'Living Quarters'
     lockability = lockableWithoutKey
     
     /*  
-     *   Normally making both sides of a Door a Lockable (as opposed to 
-     *   LockableWithKey or IndirectLockable) doesn't achieve much, since 
-     *   the door is simply unlocked with an implicit action when it's 
-     *   opened. In this case, however, we can achieve a significant effect 
-     *   by using a check condition to restrict unlocking the door - the 
-     *   door won't unlock until the ship has been pressurized.
+     *   Normally making both sides of a Door a Lockable (as opposed to
+     *   LockableWithKey or IndirectLockable) doesn't achieve much, since the
+     *   door csn simply be unlocked an UNLOCK command. In this case, however,
+     *   we can achieve a significant effect by using a check condition to
+     *   restrict unlocking the door - the door won't unlock until the ship has
+     *   been pressurized.
      */         
     dobjFor(Unlock)
     {
@@ -1293,12 +1254,10 @@ livingQuarters: Room 'Living Quarters'
  *   ATTACHABLE COMPONENT
  *
  *   An AttachableComponent is something that would normally be part of
- something else, but which may either start out detached from it or may later
- become detached (such as a handle that can be unscrewed, perhaps). For this
- example we use a sign that would normally be fixed to a door.  
+ *   something else, but which may either start out detached from it or may
+ *   later become detached (such as a handle that can be unscrewed, perhaps).
+ *   For this example we use a sign that would normally be fixed to a door.
  */
-     
-
 
 + sign: AttachableComponent 'sign' 
     "The sign says <q>CAPTAIN</q>. "    
@@ -1308,10 +1267,14 @@ livingQuarters: Room 'Living Quarters'
     initiallyAttached = nil
 ;
 
+/* 
+ *   The conduit running along the floor of the living quarters starts out
+ *   covered with debris which needs to be moved before it can be accessed.
+ */
 
 + conduit: Container, Fixture 'cable conduit' 
     
-    isInInitState = (!aftCable.isElectricallyConnectedTo(foreCable))
+    useInitSpecialDesc = (!aftCable.isElectricallyConnectedTo(foreCable))
     initSpecialDesc = "Amongst other things, the blast has exposed the main
         power conduit running along the floor, showing that part of the main
         power cable has been burned away completely. <<unless debris.moved>>
@@ -1326,14 +1289,17 @@ livingQuarters: Room 'Living Quarters'
     examineLister: descContentsLister 
     {
         showListSuffix(lst, pl, paraCnt)
-        { lexicalParent.showListSuffix(); }              
+        { 
+            /* 
+             *   Note the use of lexicalParent here: we want to refer to the
+             *   isInInitState property of the conduit, not the examineLister.
+             */
+             "<< lexicalParent.useInitSpecialDesc ? '' : ', with all the cables
+                 now joined together in a continuous run'>>. ";
+        }              
     }
 
-    showListSuffix()
-    {
-        "<< isInInitState ? '' : ', with all the cables now joined together in
-            a continuous run'>>. ";
-    }
+    
     
     /* 
      *   The conduit starts off covered with debris that makes it difficult to
@@ -1352,19 +1318,26 @@ livingQuarters: Room 'Living Quarters'
 
 
 /* 
- *   FixedCable is a custom class defined below (inheriting from 
- *   NearbyAttachable). Since the fore and aft sections of the cable are 
- *   meant to be a couple of metres apart, the same CableConnector can't be 
- *   simultaneously attached to both the foreCable and the aftCable.
+ *   FixedCable is a custom class defined below (inheriting from
+ *   NearbyAttachable). Since the fore and aft sections of the cable are meant
+ *   to be a couple of metres apart, the same CableConnector can't be
+ *   simultaneously attached to both the foreCable and the aftCable. But since a
+ *   CableConnector is a SimpleAttachable, this constraint is enforced in any
+ *   case: a SimpleAttachable can only be attached to one thing at at time.
  */
 ++ aftCable: FixedCable 'aft +' 
     "It's a short length of cable running from the aft end of the conduit until
     it ends about two metres short of the fore end, the central part of the
     cable having been burned away. "
 
+    /* 
+     *   We use the initSpecialDesc of the aftCable to describe the foreCable as
+     *   well, so we include <<exclude foreCable>> in this description to ensure
+     *   that foreCable doesn't get a separate listing.
+     */
     initSpecialDesc = "At either end of the conduit you see the severed ends
         of the cable running fore and aft. <<exclude foreCable>>"
-    isInInitState = (location.isInInitState)
+    useInitSpecialDesc = (location.useInitSpecialDesc)
     
     specialDescBeforeContents = true
 ;
@@ -1596,7 +1569,7 @@ bridge: Room 'Bridge'
  *   SIMPLE ATTACHMENT 
  *
  *   Another SimpleAttachment that's actuall simple. We just define the 
- *   minorAttachementItems property to contain the list of things that can be
+ *   allowableAttachments property to contain the list of things that can be
  *   attached to it: in this case, just the securityCard.
  */
 + cardReader: SimpleAttachable, Fixture 'card reader' 

@@ -460,8 +460,133 @@ class Tool: Thing
 <p>This assumes that you've defined a suitable makeRepaired(stat) method on the various things that might need mending over the course of your game. Note the use of a custom itemsRepaires property to define which objects a particular Tool can be used to repair. Note too the use of the <strong>valToList()</strong> function to conver this property into a list (if it isn't a list already) regardless of whether it's defined as nil, a single object, or a list of objects, so that the check() method can treat it as a list no matter how it's defined on individual objects. Finally, note that you'd have to define the conjugation of 'manage' in a CustomVocab object.</p>
 
 <p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two sections will discuss how to deal with such commands.</p>
+<br>
+<h2><a name="threeobjects"></a>Actions with Three Objects</h2>
 
+<p>Actions involving three objects are relatively rare in Interactive Fiction, (a) because they are seldom necessary and (b) because players don't expect them and would be unlikely to hit on the relevant commands without being heavily prompted. Actions involving a direct object, indirect object and accessory object (e.g. PUT COIN IN SLOT WITH TWEEZERS) are not directly supported in the main adv3Lite library but can be implemented with the use of the <a href="../../extensions/docs/tiaaction.htm">TIAAction</a> extension. Actions involving two simulation objects and a literal or topic can, however, in principle be implemented with the tools in the main library by using a couple of tricks.</p>
 
+<p>The main trick is to use one of the existing action classes, such as TIAction to define the action. The subsidiary trick is to define the action and its accompanying VerbRule such that the physical objects involved in the action are the direct and indirect objects and the topic or literal takes the third object slot (the accessory object). This doesn't mean that it has to come last in the VerbRule, but simply that we match it to <strong>literalAobj</strong> or <strong>topicAobj</strong> when we construct the VerbRule, and then assign it to the literal/topic property of the action when we define the action.</p>
+
+<p>This may be clearer with the aid of an example. Suppose we want to allow an action like WRITE TEXT IN NOTEBOOK WITH PEN. We could define the action and its VerbRule thus:</p>
+
+ <p><div class="code"><pre>
+<span class="comment">/* 
+ * Although it takes three objects, we can define this action as a TIAction
+ * since the third object is a literal.
+ */</span>
+DefineTIAction(WriteOnWith)    
+    execAction(cmd)
+    {
+        <span class="comment">/* 
+         *  Store the literal value from the aobj (or acc) property of
+         *  the current command object.
+         */</span>  
+       
+        literal = cmd.aobj.theName;
+        
+        <span class="comment">/* Then carry out the inherited handling. */</span>
+        inherited(cmd);
+    }
+    
+;
+
+<span class="comment">/*
+ *  Note that when we define the VerbRule we assign the literal text to
+ *  be entered as the third (literalAobj) object so that the the physical
+ *  objects involved occupy the dobj and iobj slots.
+ */</span>
+ 
+VerbRule(WriteOnWith)
+    'write' literalAobj ('on' | 'in') singleDobj 'with' singleIobj
+    : VerbProduction
+    action = WriteOnWith
+    verbPhrase = 'write/writing (on what) (with what) (what)'
+    missingQ = 'what do you want to write on; what do you want to write with;
+        what do you want to write'
+;
+ 
+ </pre></div>
+
+ <p>This allows us define the default handling on Thing in the normal way:</p>
+
+  <p><div class="code"><pre>
+  modify Thing    
+    dobjFor(WriteOnWith)
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            if(!canWriteOnMe)
+                illogical(cannotWriteOnMsg); 
+        }
+    }
+    
+    iobjFor(WriteOnWith)
+    {
+        preCond = [objHeld]
+        verify()
+        {
+            if(!canWriteWithMe)
+                illogical(cannotWriteWithMsg);
+        }
+    }
+    
+    canWriteWithMe = nil
+    cannotWriteWithMsg = '{I} {can\'t} write anything with {the iobj}. '   
+; 
+  </pre></div>
+ 
+ <p>Finally, we can define a couple of objects, a notebook and pen, say, that do allow writing with the WriteOnWith action. In this case we probably want the existing WriteOn command to insist on a writing implement. In outline the code might look something like this:</p>
+ 
+ <p><div class="code"><pre>
+ 
++ notebook: Thing 'notebook'
+    canWriteOnMe = true
+    
+    readDesc
+    {
+        if(inscription == '')
+            "The notebook is blank. ";
+        else
+            "On the notebook is written:\n&lt;&lt;inscription&gt;&gt; ";
+    }
+    
+    inscription = ''
+    
+    dobjFor(WriteOn)
+    {
+        action()
+        {
+            <span class="comment">/* 
+             *   We need to swap the roles around before asking for a writing
+             *   implement, so that the aobj, dobj, and iobj will be the right
+             *   way round for the new WriteOnWith action.
+             */</span>
+            gAobj = gCommand.dobj;
+            gDobj = gCommand.iobj;
+            askForIobj(WriteOnWith);
+        }
+    }
+    
+    dobjFor(WriteOnWith)
+    {
+        action()
+        {
+            inscription += (gLiteral + '\n');
+            "{I} {write} &lt;&lt;gLiteral&gt;&gt; on the notebook. ";
+        }
+    }
+;
+    
++ pen: Thing 'pen'
+    
+    canWriteWithMe = true    
+;  
+  
+  </pre></div>
+ 
+<p>The treatment here has deliberately been kept brief, but hopefully it will be enough to illustrate the principle. Game authors may need to adapt what's been shown here to the particular cases they want to implement, but this is unlikely to occur very often in practice.</p> 
+ 
 
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

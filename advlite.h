@@ -67,16 +67,22 @@
 #define singleDobj     singleNoun->dobjMatch
 #define singleIobj     singleNoun->iobjMatch
 #define singleAcc      singleNoun->accMatch
+#define singleAobj     singleNoun->accMatch
 #define multiDobj      nounList->dobjMatch
 #define multiIobj      nounList->iobjMatch
 #define accList        nounList->accMatch
+#define aobjList       nounList->accMatch
+#define multiAcc       nounList->accMatch
+#define multiAobj      nounList->accMatch
 #define numberDobj     numberPhrase->dobjMatch
 #define topicDobj      topicPhrase->dobjMatch
 #define topicIobj      topicPhrase->iobjMatch
 #define topicAcc       topicPhrase->accMatch
+#define topicAobj      topicPhrase->accMatch
 #define literalDobj    literalPhrase->dobjMatch
 #define literalIobj    literalPhrase->iobjMatch
 #define literalAcc     literalPhrase->accMatch
+#define literalAobj    literalPhrase->accMatch
 #define singleDir      directionName->dirMatch
 
 /* Also add a couple of synonyms familiar froma adv3 */
@@ -407,6 +413,8 @@ dictionary property noun, nounApostS;
 
 #define askForDobj(action)  askMissingObject(action, DirectObject)
 #define askForIobj(action)  askMissingObject(action, IndirectObject)
+#define askForAobj(action)  askMissingObject(action, AccessoryObject)
+#define askForAcc(action)   askMissingObject(action, AccessoryObject) 
 
 /*  Convenience macros for synthesizing travel in a given compass direction */
 
@@ -516,6 +524,53 @@ dictionary property noun, nounApostS;
     reportDobjProp = &reportDobj##name \
     reportIobjProp = &reportIobj##name \
 
+/*
+ *   The following macros relating to the TIAAction class are only relevant when
+ *   the TIAAction extension is used. The macros are nevertheless included here
+ *   for convenience when using the TIAAction extension.
+ *
+ *   Define a concrete TIAAction, given the root name for the action.  We'll
+ *   automatically generate a class with name XxxAction, a verDobjProp with name
+ *   verDobjXxx, a verIobjProp with name verIobjxxx, a checkDobjProp with name
+ *   checkDobjXxx, a checkIobjProp with name checkIobjXxx, an actionDobjProp
+ *   with name actionDobjXxx, and an actionIobjProp with name actionIobjXxx.
+ */
+#define DefineTIAAction(name) \
+    DefineTIAActionSub(name, TIAAction)
+
+/*
+ *   Define a concrete TIAction with a specific base class.  
+ */
+#define DefineTIAActionSub(name, cls) \
+    DefineAction(name, cls) \
+    verDobjProp = &verifyDobj##name \
+    verIobjProp = &verifyIobj##name \
+    verAobjProp = &verifyAobj##name \
+    remapDobjProp = &remapDobj##name \
+    remapIobjProp = &remapIobj##name \
+    remapAobjProp = &remapAobj##name \
+    preCondDobjProp = &preCondDobj##name \
+    preCondIobjProp = &preCondIobj##name \
+    preCondAobjProp = &preCondAobj##name \
+    checkDobjProp = &checkDobj##name \
+    checkIobjProp = &checkIobj##name \
+    checkAobjProp = &checkAobj##name \
+    actionDobjProp  = &actionDobj##name \
+    actionIobjProp = &actionIobj##name \
+    actionAobjProp = &actionAobj##name \
+    reportDobjProp = &reportDobj##name \
+    reportIobjProp = &reportIobj##name \
+    reportAobjProp = &reportAobj##name \
+
+
+#define aobjFor(action) objFor(Aobj, action)
+#define asAobjFor(action) asObjFor(Aobj, action)
+#define accFor(action) objFor(Aobj, action)
+#define asAccFor(action) asObjFor(Aobj, action)
+#define gAobj gAction.curAobj
+#define gAcc gAction.curAobj
+
+
 /* 
  *   Macros for use in verify routines, returning various kinds of verify
  *   results
@@ -602,6 +657,8 @@ Topic template 'vocab' @familiar?;
 
 Room template 'roomTitle' 'vocab' "desc"?;
 Room template 'roomTitle' "desc"?;
+
+Region template [rooms];
 
 Door template  'vocab' @location? "desc"? ->otherSide;
 Door template  ->otherSide 'vocab' @location? "desc"?;

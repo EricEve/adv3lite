@@ -271,9 +271,7 @@ startRoom: Room 'Living Room'
     /*   The message to display each turn once the bomb has been defused. */
     safeMessage = "<.p>Now that you've disabled the bomb, you'd better go out
         and tell everyone it's safe. "
-    
-    /*   Allow the cap, but only the cap, to be put on the bomb. */
-    validContents = [cap2]
+     
     
     specialDesc = "An unexploded bomb lies in the middle of the room. "
     listenDesc = ticking.desc
@@ -757,7 +755,7 @@ hall: Room 'Hall'
  *   CONSULT MANUAL ABOUT BOMB or LOOK UP BOMBS IN MANUAL. It's an ideal 
  *   class to use for something like a bomb-disposal manual.
  *
- *   We also make the manual a Readable, both because it's obviously 
+ *   We also givee the manual a readDesc, both because it's obviously 
  *   something that the player might try to read, and also so that reading 
  *   can provide information on how to use it. 
  */

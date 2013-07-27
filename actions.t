@@ -324,7 +324,7 @@ DefineSystemAction(HintsOff)
     {
         if(gHintManager == nil)
             DMsg(no hints to disable, '<.parser>This game doesn\'t have any
-                hints to turn off. ');
+                hints to turn off.<./parser> ');
         else
             gHintManager.disableHints();
     }
@@ -475,8 +475,8 @@ DefineIAction(Smell)
     {
         /* 
          *   Build a list of all the objects in scope that both (1) define a
-         *   non-nil smellDesc property and (2) whose isProminentSmell property
-         *   is true
+         *   nsmellDesc property that will display something and (2) whose
+         *   isProminentSmell property is true
          */
         local s_list = gActor.getOutermostRoom.allContents.subset(
             {x: Q.canSmell(gActor, x)  && 
@@ -2282,7 +2282,7 @@ DefineAction(Record, FileOpAction)
                               '<.parser>Commands will now be recorded.  Type
                      <<aHref('record off', 'RECORD OFF',
                              'Turn off recording')>>
-                              to stop recording commands.<.parser> '));                
+                              to stop recording commands.<./parser> '));                
                 
         }
         else

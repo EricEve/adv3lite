@@ -4,7 +4,7 @@
 #include "advlite.h"
 
 /*   
- *   EXERCISE.T
+ *   EXERCISE 11.T
  *
  *   Demonstration of Room and Connector classes. A real game would be much 
  *   more fully implemented. Here we've kept the number of 
@@ -50,6 +50,8 @@ versionInfo: GameID
 gameMain: GameMainDef
     /* the initial player character is 'me' */
     initialPlayerChar = me
+    
+    /* Display some introductory text at the start of the game */
     showIntro()
     {
         "You've just bought a new property, so you thought you'd take a quick
@@ -139,7 +141,6 @@ hall: Room 'Hall'
  *   of stairs' is grammatically singular ('it') the player may think of the
  *   stairs as plural and refer to them as 'them'.
  */
-
 
 + hallStairs: StairwayDown 'flight of stairs;;;it them'
     travelBarriers = [bikeBarrier, trolleyBarrier]
@@ -249,7 +250,7 @@ kitchen: Room 'Kitchen'
 ;
 
 /* 
- *   THROUGH PASSAGE (again)
+ *   PASSAGE (again)
  *
  *   This is the other end of the passage that leads from the hall. 
  */
@@ -276,6 +277,11 @@ kitchen: Room 'Kitchen'
     into as well. "
     
     specialDesc = "A laundry chute is set in the west wall. "
+    
+    /* 
+     *   We can't ride the bike or push the trolley through the laundry chute.
+     *   To enforce this we can use a couple ot travel barriers.
+     */
     travelBarriers = [bikeBarrier, trolleyBarrier]
     
     travelDesc = "You find yourself tumbling rapidly down the laundry chute
@@ -359,15 +365,23 @@ cellar: Room 'Cellar'
   *   block the attempt to do so.
   */
 + cellarChute: Passage 'laundry chute; of[prep]; end'
-    
-    canTravelerPass(traveler) { return nil; }
-    explainTravelBarrier(traveler)
-    {    
-        say(cannotClimbMsg);
-    }
+ 
+    /* 
+     *   Since we don't give this Passage a destination the player character
+     *   won't be able to traverse it, but the travelDesc will still be
+     *   displayed, so we can use the travelDesc to explain why the PC can't go
+     *   back up the chute. Since CLIMB CHUTE is another possible phrasing,
+     *   we'll use the cannotClimbMsg to explain the failure of both types of
+     *   attempt.
+     */
+    travelDesc = "<<cannotClimbMsg>>"
     
     cannotClimbMsg = 'There\'s no way you can climb back up the chute.'
     
+    /* 
+     *   This specialDesc will be displayed in the room description (when the
+     *   room is lit).
+     */
     specialDesc = "The end of the laundry chute protrudes from the west wall. "
 ;
 
@@ -392,6 +406,12 @@ lounge: Room 'Lounge'
     west: TravelConnector 
     { 
         destination = hall 
+        
+        /* 
+         *   travelMethod() is a custom function we define below; it displays
+         *   either 'walk' or 'cycle' depending on whether or not the player
+         *   character is on the bicycle.
+         */    
         travelDesc = "You <<travelMethod()>> back out into the hall. "     
     }
        
@@ -543,8 +563,10 @@ study: Room 'Study'
 /* 
  *   OUTDOOR ROOM
  *
- *   The drive is the first Outdoor Room defined in this game. In adv3Lite
- *   there's no special OutdoorRoom class, so we just use a Room.
+ *   The drive is the first Outdoor Room defined in this game. In the adv3Lite
+ *   main library there's no special OutdoorRoom class, so we just use a Room.
+ *   If you were using the roomparts.t extension, however, you would use the
+ *   OutdoorRoom class here.
  */
 
 drive: Room, ShuffledEventList 'Front Drive'
@@ -599,8 +621,7 @@ drive: Room, ShuffledEventList 'Front Drive'
      *   we include an EventList class (such as ShuffledEventList) in its class
      *   list and then define its  eventList property to contain a list of
      *   messages.
-     */   
-    
+     */       
     eventList =     
     [
         'A lorry rumbles past on the road. ',
@@ -687,14 +708,16 @@ drive: Room, ShuffledEventList 'Front Drive'
     
     isVehicle = true
     /* 
-     *   The bike is perfectly usable without the following action handling, 
-     *   but RIDE BIKE and RIDE BIKE <direction> (e.g. RIDE BIKE NORTH) are 
-     *   such obvious commands to try that it seems worth implementing them.
+     *   The bike is perfectly usable without the following action handling, but
+     *   RIDE BIKE and RIDE BIKE <direction> (e.g. RIDE BIKE NORTH) are such
+     *   obvious commands to try that it seems worth implementing them.
      *
-     *   We start by implementing RIDE BIKE. If the player character is not 
-     *   already on the bike we make this equivalent to SIT ON BIKE, 
-     *   otherwise we ask the player which direction the bike should be 
-     *   ridden in. 
+     *   We start by implementing RIDE BIKE. If the player character is not
+     *   already on the bike we make this equivalent to SIT ON BIKE, otherwise
+     *   we ask the player which direction the bike should be ridden in.
+     *
+     *   RIDE and RIDE DIR are not actions defined in the library; we define
+     *   them below.
      */
     
     dobjFor(Ride)
@@ -825,7 +848,7 @@ lawn: Room 'Lawn'
 /* 
  *   ENTERABLE
  *
- *   We'll provide a boat here in order to give examples of Shipnoard rooms. */
+ *   We'll provide a boat here in order to give examples of Shipboard rooms. */
 
 
 + boat: Enterable 'large boat'
@@ -1012,9 +1035,10 @@ mainDeck: Room 'Main Deck'
 /*  
  *   SHIPBOARD ROOMS
  *
- *   Both the main cabin and the sleeping cabin are effectively indoor 
- *   locations aboard the boat, that is they have walls, floor and ceiling, 
- *   so we can use the ShipboardRoom class for both of them.
+ *   Both the main cabin and the sleeping cabin are Rooms aboard the boat. The
+ *   library will recognize them as shipboard rooms (that is, rooms in which the
+ *   shipboard directions port, starboard, fore and aft are valid) because we
+ *   define at least one of these as an exit on each of these rooms.
  */
 
 mainCabin: Room 'Main Cabin'
@@ -1039,7 +1063,7 @@ sleepingCabin: Room 'Sleeping Cabin'
 /* 
  *   TRAVEL BARRIERS
  *
- *   We define a TravelBarrier and a VehicleBarier for use on a number of 
+ *   We define two TravelBarriers for use on a number of 
  *   TravelConnectors.
  */
 

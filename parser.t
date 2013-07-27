@@ -3016,6 +3016,7 @@ class ResolvedTopic: object
     getTopicText = tokens.join(' ').trim()
     theName = (getTopicText)
     name = (topicList != nil ? topicList[1].name : theName)
+    person = 3
 ;
 
 /*
@@ -3057,6 +3058,7 @@ class LiteralObject: object
     
     name = nil
     theName = (name)
+    person = 3
 ;
     
 /*

@@ -957,9 +957,11 @@ class ReplaceRedirector: Redirector
      *   or merely takes place during the execution of the original one, which
      *   then resumes when the new action is complete (if isReplacement is nil).
      */    
-    redirect(cmd, altAction, dobj:?, iobj:?, isReplacement: = true)
+    redirect(cmd, altAction, dobj:?, iobj:?, aobj:?, isReplacement: = true)
     {
-        if(iobj != nil && dobj != nil)
+        if(iobj != nil && dobj != nil && aobj != nil)
+            execNestedAction(isReplacement, gActor, altAction, dobj, iobj, aobj); 
+        else if(iobj != nil && dobj != nil)    
             execNestedAction(isReplacement, gActor, altAction, dobj, iobj);
         else if(dobj != nil)
             execNestedAction(isReplacement, gActor, altAction, dobj);
@@ -2149,7 +2151,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   if so how. The possible values are notLockable, lockableWithoutKey,
      *   lockableWithKey and indirectLockable.
      */    
-    lockability = notLockable
+    lockability = keyList == nil ? notLockable : lockableWithKey
     
     /* 
      *   Flag: is this object currently locked. By default we start out locked
@@ -2521,6 +2523,28 @@ class Thing:  ReplaceRedirector, Mentionable
         
         /* If our owner property isn't already a list, convert it to one. */
         owner = valToList(owner);
+        
+        /* If we have a keyList, add ourselves to every key in the list */
+        if(keyList != nil)
+        {
+            foreach(local key in valToList(keyList))
+            {
+                if(key.ofKind(Key))
+                {
+                    key.actualLockList = key.actualLockList.appendUnique([self]);
+                    key.plausibleLockList = key.plausibleLockList.appendUnique([self]);
+                }
+            }
+            
+            foreach(local key in valToList(knownKeyList))
+            {
+                if(key.ofKind(Key))
+                {
+                    key.knownLockList = key.knownLockList.appendUnique([self]);                    
+                }
+            }       
+                    
+        }
     }
     
     /* 
@@ -3919,6 +3943,10 @@ class Thing:  ReplaceRedirector, Mentionable
             moveHidden(&hiddenBehind, behindLoc);            
         }
         
+        /* 
+         *   Construct a list of anything left behind from under or behind us
+         *   when we're moved.
+         */
         local lst = [];
         
         if(dropItemsUnder)
@@ -5265,12 +5293,25 @@ class Thing:  ReplaceRedirector, Mentionable
         behind {the iobj}. ')
     
     /* 
+     *   A list of Keys that can be used to lock or unlock this Thing. Any Keys
+     *   in this list will cause this Thing to be added to the plausible and
+     *   actual lock lists of that Key at PreInit. This provides an alternative
+     *   way of specifying the relation between locks and keys.
+     */        
+    keyList = nil
+       
+    /*   
+     *   A list of Keys that the player character starts out knowing at the
+     *   start of the game can lock our unlock this Thing.
+     */
+    knownKeyList = nil
+    
+    /* 
      *   Note: we don't use isLockable, because this is not a binary property;
      *   there are different kings of lockability and defining an isLockable
      *   property in addition would only confuse things and might break the
      *   logic.
-     */
-    
+     */    
     dobjFor(UnlockWith)
     {
         
@@ -7657,7 +7698,7 @@ class Thing:  ReplaceRedirector, Mentionable
         dobj} onto {itself dobj}. ')
     cannotPourIntoSelfMsg = BMsg(cannot pour in self, '{I} {can\'t} pour {the
         dobj} into {itself dobj}. ')
-    cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {1)
+    cannotPourIntoMsg = BMsg(cannot pour into, '{I} {can\'t} pour {1}
         into {that dobj}. ', gDobj.fluidName)
     cannotPourOntoMsg = BMsg(cannot pour onto, '{I} {can\'t} pour {1}
         into {that dobj}. ', gDobj.fluidName)

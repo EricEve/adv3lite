@@ -115,8 +115,8 @@ eventManager: object
          *   never be executed).
          */
         lst = eventList.subset({x: x.getNextRunTime() == libGlobal.totalTurns
-                               || (x.executed == nil 
-                                   && x.getNextRunTime() > libGlobal.totalTurns)
+                               || (x.executed == nil && x.getNextRunTime() 
+                                   && x.getNextRunTime() < libGlobal.totalTurns)
                                    });
 
         /* execute the items in this list */

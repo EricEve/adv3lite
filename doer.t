@@ -48,7 +48,8 @@ class Redirector: object
         
         /* Extract our dobj and our iobj from the args parameter. */
         local dobj = args.element(1);
-        local iobj = args.element(2);        
+        local iobj = args.element(2);    
+        local aobj = args.element(3);
         
         /* 
          *   If the action involves a Literal argument and one of the arguments
@@ -91,6 +92,7 @@ class Redirector: object
         }
         
         
+               
         /*  
          *   If the new action is of a kind that requires two objects, call the
          *   redirect method with both objects
@@ -98,7 +100,7 @@ class Redirector: object
         if(altAction.ofKind(TIAction) || altAction.ofKind(LiteralTAction) ||
            altAction.ofKind(TopicTAction))
         {
-            redirect(gCommand, altAction, dobj: dobj, iobj: iobj,
+            redirect(gCommand, altAction, dobj: dobj, iobj: iobj, aobj: aobj,
                      isReplacement: isReplacement);
             return;
         }
@@ -364,7 +366,8 @@ class Doer: Redirector
      *   normally be called via the doInstead()/doNested() interface defined on
      *   our Redirector superclass.
      */    
-    redirect(curCmd, altAction, dobj: = 0, iobj: = 0, isReplacement: = true)
+    redirect(curCmd, altAction, dobj: = 0, iobj: = 0, aobj: = 0,
+             isReplacement: = true)
     {
         
         /* 
@@ -374,13 +377,14 @@ class Doer: Redirector
          */             
         dobj = dobj == 0 ? curCmd.dobj : dobj;
         iobj = iobj == 0 ? curCmd.iobj : iobj;
+        aobj = iobj == 0 ? curCmd.acc : aobj;
         
         /* 
          *   Get the current command to change its current action to altAction
          *   performed on dobj and iobj. Note that this will change gAction to
          *   altAction.
          */
-        curCmd.changeAction(altAction, dobj, iobj);
+        curCmd.changeAction(altAction, dobj, iobj, aobj);
         
         /* Execute the command on our new action. */
         gAction.exec(curCmd);

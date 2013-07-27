@@ -3,6 +3,13 @@
 #include <tads.h>
 #include "advlite.h"
 
+/*
+ *   EXERCISE 13 - CONTAINERS
+ *
+ *   A small 'game' implementing a kitchen as an illustration of adv3Lite
+ *   containers.
+ */
+
 versionInfo: GameID
     IFID = '13cb0798-2be6-4082-87e1-aa077cb36bb7'
     name = 'Exercise 13'
@@ -157,9 +164,7 @@ kitchen: Room 'Kitchen'
             exit;
         }
     }
-    
-    /* Allow only Pencils to be put in me. */
-    canPutIn(obj) { return obj.ofKind(Pencil); }
+        
     bulkCapacity = 1
     bulk = 2   
 ;
@@ -563,7 +568,13 @@ class SugarCube: Food 'sugar cube'
     tasteDesc = "It tastes just as sweet as you'd expect. "
 ;
 
-/*  These ten SugarCubes will be in the glassJar, not the SugarCube class! */
+/*  
+ *   These ten SugarCubes will be in the glassJar, not the SugarCube class! Note
+ *   that when we first examine the glass jar the sugar cubes will be listed as
+ *   'ten sugar cubes' not 'a sugar cube, a sugar cube, ... and a sugar cube'.
+ *   Adv3Lite automatically groups items like this if their names are identical.
+ */
+ 
 
 +++ SugarCube;
 +++ SugarCube;
@@ -691,20 +702,20 @@ class SugarCube: Food 'sugar cube'
 
 
 /*   
- *   DISPENSER AND DISPENSABLES 
+ *   DISPENSER AND DISPENSABLES
  *
- *   A Dispenser is a container for a special type of item. By default its 
- *   contents can be taken but not returned. A roll of kitchen towels 
- *   provides a good example of this; you can take a towel from the roll, 
- *   but you can't but it back.
- 
- The adv3Lite library doesn't define Dispenser and Dispensable classes; here we
- instead implement the equivalent by making the roll a Container you can't put
- things in and which doesn't list its contents.
- 
+ *   A Dispenser is a container for a special type of item. By default its
+ *   contents can be taken but not returned. A roll of kitchen towels provides a
+ *   good example of this; you can take a towel from the roll, but you can't but
+ *   it back.
  *
- *   We'll make the roll an Immovable; it's not obvious that you 
- *   couldn't tale the whole roll, but in this case we won't allow it.
+ *   The adv3Lite library doesn't define Dispenser and Dispensable classes; here
+ *   we instead implement the equivalent by making the roll a Container you
+ *   can't put things in and which doesn't list its contents.
+ *
+ *
+ *   We'll make the roll an Immovable; it's not obvious that you couldn't tale
+ *   the whole roll, but in this case we won't allow it.
  */
  
 
@@ -854,8 +865,10 @@ class PaperTowel: Thing 'paper towel; plain paper white square (kitchen)'
 
 
    
-
-
+/* 
+ *   Make PUT SOMETHING ON CLOCK or ATTACH SOMETHING TO CLOCK behave like PUT
+ *   SOMETHING BEHIND CLOCK by defining a DOER
+ */
 Doer 'put Thing on clock; attach Thing to clock'
     execAction(c)
     {
@@ -895,7 +908,7 @@ leaflet: Thing 'leaflet; (cooker) instruction'
 
 
 /*
- *   An example of a Doer: If the player tries to turn the sharpener when
+ *   Another example of a DOER: If the player tries to turn the sharpener when
  *   there's a pencil in it, turn the pencil instead.
  *
  *   The property matched in the template, the single-quoted string, is the cmd

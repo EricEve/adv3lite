@@ -1336,6 +1336,7 @@ class TAction: Action
     #ifdef __DEBUG
     dqinfo = ''
     iqinfo = ''
+    aqinfo = ''
     #endif
     
     /* 
@@ -1350,7 +1351,9 @@ class TAction: Action
         IfDebug(actions, 
                 "[Executing <<actionTab.symbolToVal(baseActionClass)>> :
                     <<dqinfo>> <<cmd.dobj.name>> <<if cmd.iobj != nil>>
-                    : <i><<iqinfo>></i> <<cmd.iobj.name>> <<end>>]\n" );
+                    : <i><<iqinfo>></i> <<cmd.iobj.name>> <<end>>
+                <<if cmd.acc != nil>>
+                    : <i><<aqinfo>></i> <<cmd.acc.name>> <<end>>]\n" );
         
         /* 
          *   Disallow ALL (e.g. EXAMINE ALL) if the action does not permit it.
@@ -2529,7 +2532,8 @@ execNestedAction(isReplacement, actor, action, [objs])
      *   Change the current Command object's action to the new action with its
      *   new objects.
      */
-    gCommand.changeAction(action, objs.element(1), objs.element(2));
+    gCommand.changeAction(action, objs.element(1), objs.element(2),
+                          objs.element(3));
     
     /* If our objects aren't in scope we can't proceed with the action. */ 
     if (objs.length > 0 && !action.resolvedObjectsInScope())
@@ -2631,11 +2635,13 @@ askMissingObject(action, role)
       */
     action.curDobj = gDobj;
     action.curIobj = gIobj;
+    action.curAobj = gAobj;
     
     /* Make action the current action for the current Command. */
     gCommand.action = action;
     gCommand.dobj = gDobj;
     gCommand.iobj = gIobj;
+    gCommand.acc = gAobj;
     
    
     
@@ -2775,11 +2781,13 @@ askChooseObject(action, role, msg)
      */
     action.curDobj = gDobj;
     action.curIobj = gIobj;
+    action.curAobj = gAobj;
     
     /* Make action the current action for the current Command. */
     gCommand.action = action;
     gCommand.dobj = (role == DirectObject ? nil : gDobj);
     gCommand.iobj = (role == IndirectObject ? nil : gIobj);
+    gCommand.acc = (role == AccessoryObject ? nil : gAobj);
     
     if(role == DirectObject)
     {
@@ -2792,6 +2800,13 @@ askChooseObject(action, role, msg)
         gCommand.iobjNPs = [];
         gCommand.iobjs = new Vector();        
     }
+    
+    if(role == AccessoryObject)
+    {
+        gCommand.accNPs = [];
+        gCommand.accs = new Vector();        
+    }
+    
     /* 
      *   Make the action the original action for the current Command; we need to
      *   do this because otherwise the Command object will overwrite our new

@@ -454,7 +454,7 @@ class Command: object
     }
     
     /* Change the action to a new action with a new set of objects */
-    changeAction(newAct, newDo, newIo)
+    changeAction(newAct, newDo, newIo, newAo)
     {
         action = newAct;
         
@@ -467,8 +467,10 @@ class Command: object
         
         dobj = newDo;
         iobj = newIo;
+        acc = newAo;
         action.curDobj = newDo;
         action.curIobj = newIo;
+        action.curAobj = newAo;
         gAction = action;
         gAction.redirectParent = originalAction;
     }
@@ -1175,6 +1177,9 @@ class Command: object
     /* the accessory object for the current iteration */
     acc = nil
 
+    /* synonym for the accessory object */
+    aobj = (acc)
+    
     /* the NPMatch object for the current accessory */
     accInfo = nil
 

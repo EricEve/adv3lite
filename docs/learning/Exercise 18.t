@@ -525,16 +525,12 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
 ;
 
 /*  
- *   HIGH NESTED ROOM
+ *   MAKING A NESTED ROOM TOO HIGH TOO REACH
  *
- *   A HighNestedRoom is a NestedRoom that's regarded as being too high up to
- *   reach except via a special staging location (such as a ladder). Here 
- *   we'll use it to implement a bunk high up on the east wall which can 
- *   only be reached via the ladder once the ladder has been placed against 
- *   the bunk.
- *
- *   We'll also make the bunk a RoomPartItem so it's mentioned when the 
- *   player examines the east wall. 
+ *   We can created a NestedRoom that's regarded as being too high up to reach
+ *   except via a special staging location (such as a ladder). The example here
+ *   is a bunk high up on the east wall which can only be reached via the ladder
+ *   once the ladder has been placed against the bunk.
  */
 
 + bunk: Platform, Fixture 'narrow bunk; hard; beds[pl]'     

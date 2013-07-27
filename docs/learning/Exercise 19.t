@@ -282,7 +282,7 @@ drive: Room 'Front Drive'
 +++ skeletonKey: Key 'skeleton key; thin  metal'
     "It's a thin metal key, with cunningly designed teeth. "
     
-    actualLockList = [frontDoorOutside, frontDoorInside, whiteBox, drawer]
+    actualLockList = [frontDoorOutside, frontDoorInside, whiteBox]
 ;
 
 
@@ -467,6 +467,15 @@ hall: Room 'Hall'
     front door. "
     cannotTakeMsg = 'The box is firmly fixed to the wall. '
         
+    /* 
+     *   Listening to the box should give the sound of the beep, but only if the
+     *   alarm panel is on.
+     */
+    listenDesc()
+    {
+        if(alarmPanel.isOn)
+            beep.desc;
+    }
 ;
 
 /*  
@@ -575,26 +584,32 @@ hall: Room 'Hall'
 /*  
  *   NOISE
  *
- *   Until the alarm is switched off it beeps continuously. The SimpleNoise 
- *   represents the beep. Until the alarm is switched off the player will be 
- *   told that "A beeping comes from the white box" on every turn. This will 
- *   also be the response to LISTEN, or LISTEN TO BEEP or LISTEN TO BOX.
+ *   Until the alarm is switched off it beeps continuously. The Noise represents
+ *   the beep. Until the alarm is switched off the player will be told that "A
+ *   beeping comes from the white box" on every turn. This will also be the
+ *   response to LISTEN, or LISTEN TO BEEP or LISTEN TO BOX.
+ *
+ *   Note that in this case we don't locate the beep in the box, or it will be
+ *   out of scope when the box is closed.
  */
 
-++ Noise 'beeping sound;;beep' 
++ beep: Noise 'beeping sound;;beep' 
     "A beeping sound comes from the white box. "
-    
-    /* 
-     *   We want this sound to be mention even when the player doesn't 
-     *   explicitly LISTEN.
-     */
-    isAmbient = nil
-    
+      
     /*  We want this sound to stop once the alarm is switched off. */
     isEmanating = (alarmPanel.isOn)
     
-    /*  We want this sound to be mentioned every turn that the alarm is on.*/
-    displaySchedule = [1]
+    /*  
+     *   We want this sound to be mentioned every turn that the alarm is on.
+     *   Here we'll just use the beep's afterAction method to do the trick; a
+     *   more sophisticated implementation could make use of the sensory
+     *   extension.
+     */
+    afterAction()
+    {
+        if(!gActionIn(Listen, ListenTo) && isEmanating)
+            desc;
+    }
 ;
 
 /*  
@@ -649,9 +664,6 @@ hall: Room 'Hall'
 
 /*  
  *   Another KEY. 
- *
- *   By making the silver key also a PresentLater, we can make it appear on 
- *   the scene only when the peg is first pulled.
  */
 
 silverKey: Key 'small silver key'    
@@ -712,8 +724,10 @@ study: Room 'Study'
 /*  
  *   KEYED CONTAINER
  *
- *   The drawer is another KeyedContainer. Again it can be unlocked either 
- *   with its own key or with the PC's skeleton key.
+ *   The drawer is another KeyedContainer. Again it can be unlocked either with
+ *   its own key or with the PC's skeleton key. This time we'll show the other
+ *   way of defining the relationship between locks and keys by listing the keys
+ *   that can unlock it in its keyList property.
  */
 
 ++ drawer: KeyedContainer, Component 'drawer; small'
@@ -726,11 +740,11 @@ study: Room 'Study'
 ;
 
 /*  
- *   OPENABLE 
+ *   AN OPENABLE NOTEBOOK
  *
  *   Most openable objects will be either doors or containers, but a few 
  *   other things can be opened as well, such as books. To illustrate this 
- *   we'll make this notebook an Openable.
+ *   we'll make this notebook openable.
  */
 
 +++ notebook: Thing 'small red notebook;; book'
@@ -778,12 +792,13 @@ study: Room 'Study'
 /*  
  *   KEY
  *
- *   Inside the small wooden box we put the key to the desk drawer. 
+ *   Inside the small wooden box we put the key to the desk drawer. Since we've
+ *   listed this key in the keyList property of the drawer, we don't need to
+ *   define this key's actualLockList property.
  */
 
 +++ drawerKey: Key 'small gold key' 
-    subLocation = &remapIn
-    actualLockList = [drawer]
+    subLocation = &remapIn    
 ;
 
 /*   
@@ -971,12 +986,10 @@ study: Room 'Study'
 
 
 /*  
- *   LABELED DIAL
+ *   DIAL
  *
- *   A LabeledDial is a specialization of Settable, representing a dial that 
- *   can be turned to a number of author-defined settings. In general 
- *   there's less work in defining a LabeledDial than a Settable, since more 
- *   of the work is already done by the library.
+ *   A Dial is a specialization of Settable, representing a dial that 
+ *   can be turned to a number of author-defined settings. 
  */
 
 ++ tvDial: Dial, Component 'dial'
@@ -1080,10 +1093,10 @@ cubbyHole: Room 'Cubby Hole'
 
 
 /*  
- *   COMPLEX CONTAINER
+ *   MULTIPLEX CONTAINER
  *
  *   Like the small wooden box on the desk above, the safe needs to be 
- *   implemented as a ComplexContainer since it has an exterior component, in
+ *   implemented as a Mutiplex Container since it has an exterior component, in
  *   this case the dial used to unlock it.
  */
 
@@ -1104,9 +1117,9 @@ cubbyHole: Room 'Cubby Hole'
 /*   
  *   NUMBERED DIAL
  *
- *   NumberedDial is another specialization of Settable. As its name 
- *   suggests it can be used to represent a dial that can be turned to a 
- *   range of mumeric values. Here we use it for a classic combination lock.
+ *   NumberedDial is a specialization of Dial. As its name suggests it can be
+ *   used to represent a dial that can be turned to a range of mumeric values.
+ *   Here we use it for a classic combination lock.
  */
 
 
@@ -1160,7 +1173,7 @@ cubbyHole: Room 'Cubby Hole'
             {
                 safe.remapIn.makeLocked(nil);
                 "As you turn the dial to <<curSetting>>, a satisfying
-                <i>click</i> comes from the safe. .";
+                <i>click</i> comes from the safe. ";
             }
             else if(!safe.remapIn.isOpen)
             {
@@ -1185,6 +1198,9 @@ cubbyHole: Room 'Cubby Hole'
     have no desire to read it through; merely remembering it is quite
     embarrassing enough. Once you're out of here you'll destroy it. "
     subLocation = &remapIn
+    
+    readDesc = "You have no desire to read it right now. You know all too well
+        what it says. "
 ;
 
 //==============================================================================

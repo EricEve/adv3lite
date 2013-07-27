@@ -233,13 +233,13 @@ largeCave: DarkRoom 'Large Cave'
 
 
 /*  
- *   FUELED LIGHT SOURCE 
+ *   FUELED LIGHT SOURCE
  *
- *   A FueledLightSource is a light source that consumes fuel as it burns. 
- *   The Library provides quite a bit of the implementation for this class, 
- *   but we need to do more work to make it function in a particular object 
- *   (unless we use the Candle subclass). Here we'll use a FueledLightSource 
- *   to implement an oil lamp. 
+ *   A FueledLightSource is a light source that consumes fuel as it burns. The
+ *   Library provides quite a bit of the implementation for this class, but we
+ *   need to do more work to make it function in a particular object (unless we
+ *   use the Candle subclass). Here we'll use a FueledLightSource to implement
+ *   an oil lamp.
  */
 
 + oilLamp: FueledLightSource 'oil lamp; fine old brass'
@@ -510,6 +510,10 @@ class FueledLightSource: Thing
     /* 
      *   The current fuelLevel of our light source, representing the number of
      *   turns until it burns out.
+     *
+     *   Note that while we're defining our own FueledLightSource class here we
+     *   could instead use the one that comes in the Fueled Light Source
+     *   extension.
      */
     fuelLevel = 10
         

@@ -40,13 +40,13 @@ gameMain: GameMainDef
         get more than you bargained for.\b";
     }
     
-//    showGoodbye()
-//    {
-//        if(me.hasSeen(horrorChamber))
-//            "<.p>Sorry, that's all folks! ";
-//        else
-//            "<.p>Perhaps you should try a bit harder next time! ";
-//    }
+    showGoodbye()
+    {
+        if(me.hasSeen(horrorChamber))
+            "<.p>Sorry, that's all folks! ";
+        else
+            "<.p>Perhaps you should try a bit harder next time! ";
+    }
 ;
 
 
@@ -415,7 +415,7 @@ modify Actor
     theName = (timesMentioned++ ? inherited : aName)
     
     /*  
-     *   There aren\'t many portable objects in this game (unless the player 
+     *   There aren't many portable objects in this game (unless the player 
      *   start collecting cans from Bob), but the standard library response 
      *   for throwing things at things is quite inappropriate when the 
      *   target is a person, (e.g. "The can hits Bob without any obvious 
@@ -542,12 +542,13 @@ bob: Actor 'tall man;;people[pl]; him'  @shop
  *   HELLO TOPIC
  *
  *   A HelloTopic is used to handle Bob's response to BOB, HI, or TALK TO BOB,
- *   when Bob is in this ConversationReadyState. Since we're not also defining
- *   an ImpHelloTopic it will also be used when the PC addresses any
- *   conversational command to Bob (e.g. ASK MAN ABOUT THE WEATHER) while he's
- *   in the ConversationReadyState, in which case the conversational exchange
- *   defined in the HelloTopic will occur before the specific topic asked about
- *   is handled (and Bob will then switch into his InConversationState.
+ *   when Bob is in this ActorState. Since we're not also defining an
+ *   ImpHelloTopic it will also be used when the PC addresses any conversational
+ *   command to Bob (e.g. ASK MAN ABOUT THE WEATHER) while he's in the
+ *   ActorState, in which case the conversational exchange defined in the
+ *   HelloTopic will occur before the specific topic asked about is handled (and
+ *   Bob will then switch into the bobTalkingState, as defined on this
+ *   HelloTopic).
  *
  *   Note that HelloTopics are normally located in the ActorState the actor's in
  *   just prior to the start of the conversation.
@@ -577,11 +578,11 @@ bob: Actor 'tall man;;people[pl]; him'  @shop
 ;
 
 /*   
- *   IN CONVERSATION STATE
+ *   ACTOR STATE WHILE BOB IS IN CONVERSATION
  *
  *   To implement a conversation with Bob, we also define the the ActorState
- *   he's in when conversing with the player character */
-
+ *   he's in when conversing with the player character
+ */
 
 + bobTalking: ActorState
     /* 
@@ -598,11 +599,11 @@ bob: Actor 'tall man;;people[pl]; him'  @shop
 /*
  *   BYE TOPIC
  *
- *   We use a ByeTopic to end a conversation just as we use a HelloTopic to 
+ *   We use a ByeTopic to end a conversation just as we use a HelloTopic to
  *   begin with. Since we're also defining an ImpByeTopic, this ByeTopic will
- *   only be triggered in the player explicitly bids Bob goodbye (e.g. with 
- *   a BYE command). Note that like HelloTopics, ByeTopics are normally 
- *   located in the state the actor is in while talking. 
+ *   only be triggered in the player explicitly bids Bob goodbye (e.g. with a
+ *   BYE command). Note that ByeTopics are normally located in the state the
+ *   actor is in while talking.
  */    
 ++ ByeTopic
     "<q>Well, cheerio then!</q> you say.\b
@@ -1022,27 +1023,26 @@ bob: Actor 'tall man;;people[pl]; him'  @shop
 
 //==============================================================================
 /*  
- *   CODE FOR THE SALLY NPC 
+ *   CODE FOR THE SALLY NPC
  *
- *   Sally is a more complex NPC than Bob, in that she'll lead the PC to the 
- *   lighthouse and then follow him around. We also use her to illustrate 
- *   ConvNodes and AgendaItems. 
+ *   Sally is a more complex NPC than Bob, in that she'll lead the PC to the
+ *   lighthouse and then follow him around. We also use her to illustrate
+ *   ConvNodes and AgendaItems.
  *
- *   To begin with a summary: Sally starts out in the shop looking for 
- *   clothes, but can't be talked to while she's in that state. As soon as 
- *   she hears Bob mention the troubles she goes outside the shop to wait 
- *   for the PC. When the PC emerges from the shop she offers to take him to 
- *   the lighthouse. If he refuses, the game ends then and there. If he 
- *   accepts she leads him to the lighthouse (she acts as 'TourGuide' so he 
- *   can follow her). Once they arrive at the lighthouse she will follow the 
- *   PC (there's no particular reason for this swap of leading character 
- *   other than to demonstrate the two different ways in which an NPC can be 
- *   made to accompany the PC). Once they start to explore the lighthouse 
- *   together they come face to face with the origin of the troubles.
- * 
+ *   To begin with a summary: Sally starts out in the shop looking for clothes,
+ *   but can't be talked to while she's in that state. As soon as she hears Bob
+ *   mention the troubles she goes outside the shop to wait for the PC. When the
+ *   PC emerges from the shop she offers to take him to the lighthouse. If he
+ *   refuses, the game ends then and there. If he accepts she leads him to the
+ *   lighthouse. Once they arrive at the lighthouse she will follow the PC
+ *   (there's no particular reason for this swap of leading character other than
+ *   to demonstrate the two different ways in which an NPC can be made to
+ *   accompany the PC). Once they start to explore the lighthouse together they
+ *   come face to face with the origin of the troubles.
+ *
  */
 
-sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
+sally: Actor 'blonde woman; petite pretty; people[pl]; her' @shop
     "She's a petite blonde, with a pretty round face. "
     
     properName = 'Sally'
@@ -1462,6 +1462,16 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
     timesToSuggest = 3
 ;
 
+/*
+ *   ALTTOPIC
+ *
+ *   An AltTopic can be used to provide an alternative response to a
+ *   conversational command. It responds to the same command as the TopicEntry
+ *   it's located in (in this case ASK SALLY ABOUT HERSELF) but is used in
+ *   preference to its parent TopicEntry when its own isActive property is true;
+ *   in this case when the player character doesn't know Sally's name.
+ */
+
 +++ AltTopic
     "<q>I'm sorry, I don't think we've been introduced,</q> you say, <q>You
     are...?</q>\b
@@ -1721,13 +1731,9 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
     topicResponse()
     {
         /*  
-         *   If the player replies YES, we want to leave this ConvNode. 
-         *   Since the ConvNode is sticky we can only do that by changing to 
-         *   another ConvNode. There's no ConvNode called 'nil' so the tag 
-         *   <.convnode nil> takes us out of this ConvNode without 
-         *   activating another one. Using any non-existent node name would 
-         *   have done just as well, but 'nil' makes it clear what we're 
-         *   doing -- provided we never use 'nil' as a ConvNode name!
+         *   If the player replies YES, we want to leave this ConvNode. This
+         *   will happen in any case unless we include a <.convstay> or
+         *   <.convstayt> tag in the response, which we don't want to do here.
          */
         "<q>Yes, all right, take me to the lighthouse,</q> you say.\b
         <q>Follow me,</q> she replies, starting towards the east.";
@@ -1778,6 +1784,9 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
  *   'why', which enables the parser to match the QueryTopic to ASK WHY... or
  *   just WHY... The second string is the vocab property of the Topic object the
  *   library will create for us to act as this QueryTopic's matchObj.
+ *
+ *   Note that in this case we do use <.convstay> tag so the the conversation
+ *   will remain at this ConvNode even after this TopicEntry has been triggered.
  */
 ++ QueryTopic, StopEventList 'why' 'she\'s offering; (she) (is) (you) (are)'   
     [
@@ -1809,14 +1818,16 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
 /*   
  *   DEFAULT ANY TOPIC
  *
- *   This DefaultAnyTopic ensures that this ConvNode remains 'closed', since 
- *   it will be triggered in response to any conversational command except 
- *   for the four explicitly handled above. Without one or more 
- *   DefaultTopics to trap other conversational commands, they would be 
- *   handled by the next TopicDatabase (ActorState or Actor) in the 
- *   hierarchy, and we'd slip straight out of the ConvNode.
+ *   This DefaultAnyTopic ensures that this ConvNode remains 'closed', since it
+ *   will be triggered in response to any conversational command except for the
+ *   four explicitly handled above. Without one or more DefaultTopics to trap
+ *   other conversational commands, they would be handled by the next
+ *   TopicDatabase (ActorState or Actor) in the hierarchy, and we'd slip
+ *   straight out of the ConvNode. Note that to make this DefaultTopic 'close'
+ *   the node we have to add a <.convstay> tag to the response so that we stay
+ *   at this ConvNode each time this DefaultAnyTopic is triggered.
  *
- *   In a real game we'd probably want to make the DefaultAnyTopic a 
+ *   In a real game we'd probably want to make the DefaultAnyTopic a
  *   ShuffledEventList to vary the responses.
  */ 
 ++ DefaultAnyTopic
@@ -1828,14 +1839,14 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
     
 //------------------------------------------------------------------------------
 /*   
- *   AN 'OPEN' CONVERSATION NODE 
+ *   AN 'OPEN' CONVERSATION NODE
  *
- *   This is the conversation node that's triggered when Sally and the PC 
- *   arrive outside the lighthouse. She asks the PC whether they should go 
- *   inside, but that's an invitation to action rather than a demand for a 
- *   verbal response, so though we should cater for a verbal response, we 
- *   shouldn't demand one. So we can use the much simpler 'open' ConvNode 
- *   coding structure here.
+ *   This is the conversation node that's triggered when Sally and the PC arrive
+ *   outside the lighthouse. She asks the PC whether they should go inside, but
+ *   that's an invitation to action rather than a demand for a verbal response,
+ *   so though we should cater for a verbal response, we shouldn't demand one.
+ *   So we can use the much simpler 'open' ConvNode coding structure here. This
+ *   is marked by the absence of any catchall DefaultTopics.
  */
 + ConvNode 'lighthouse'     
 ;
@@ -1881,12 +1892,7 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
  *   reasonable model of how such a conversation might proceed.
  */
 
-+ ConvNode 'family'
-    /* 
-     *   Note that we don't have to define any other properties of this 
-     *   ConvNode. Sally has already asked the question that triggered this 
-     *   ConvNode so we don't even need to supply an npcGreetingMsg.
-     */
++ ConvNode 'family'   
 ;
 
 ++ YesTopic
@@ -1908,6 +1914,10 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
 + ConvNode 'drink'
 ;
 
+/*  
+ *   Likewise the <.convnode date> tag will take the conversation to the next
+ *   ConvNode (called 'date')
+ */
 ++ YesTopic
     "<q>Yes, I'd like that,</q> you say.\b
     <q>Good!</q> she smiles, <q>How about tonight? I know a great little place
@@ -1929,6 +1939,14 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
     <q>It's a date!</q> she declares with a broad grin. "
 ;
 
+/* 
+ *   The <.convnodet other> tag takes the conversation to the ConvNode 'other'
+ *   immediately below, but this time, since we're not just looking for a simple
+ *   yes or no answer, we need to inform the player what responses are now
+ *   possible. By using <.convnodet other> rather than <.convnode other> we're
+ *   asking for a topic inventory (list of suggested topics) to be displayed on
+ *   entering the new ConvNode.
+ */
 ++ NoTopic
     "<q>No, I'm busy tonight,</q> you reply, <q>just moved it, so many things to
     attend to...</q>\b
@@ -2057,7 +2075,13 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her'   @shop
 + sallyStreetAgenda: ConvAgendaItem
     invokeItem()
     {           
-        
+        /* 
+         *   Here we have Sally ask a question and then wait for a reply. The
+         *   possible responses are defined in the 'troubles' ConvNode to which
+         *   the conversation is moved by the <.convnodet troubles> tag. Note
+         *   that there are restrictions on where such tags can be used, but
+         *   they can be used in ConvAgendaItems as well as TopicEntries.
+         */
         "{The subj sally} walks up to you and says, <q>Excuse me,
         but I couldn't help hearing you asking about the troubles. Would you
         like me to show you the lighthouse?</q> <.convnodet troubles>";       

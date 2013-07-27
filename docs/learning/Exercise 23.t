@@ -102,7 +102,7 @@ startroom: Room, ShuffledEventList 'Deep in the Forest'
     southeast = clearing
     
     /*  
-     *   STOP EVENT LIST      DEAD END CONNECTOR
+     *   STOP EVENT LIST      TRAVEL CONNECTOR TO NOWHERE
      *
      *   A StopEventList displays (or executes) each of its elements in turn
      *   till it reaches the last one, which it will then just repeat. If we
@@ -604,9 +604,9 @@ cave: Room 'Cave'
         back out is to the west. <.reveal dark-cave>"
     
     /*   
-     *   EVENT LIST        TRAVEL MESSAGE
+     *   EVENT LIST        TRAVEL CONNECTOR
      *
-     *   We can mix an EventList with a TravelMessage to provide a sequence 
+     *   We can mix an EventList with a TravelConnector to provide a sequence 
      *   of different responses each time the PC goes this way. Since the PC 
      *   cannot in any case traverse this travel connector after the third 
      *   traversal blocks the entrance to the cave, a simple EventList will 
@@ -732,10 +732,7 @@ cave: Room 'Cave'
     initSpecialDesc = "A bucket has been left on the ground near the rear of the
         cave. "
     bulkCapacity = 4
-    
-    
-    /* When the bucket's full of water we'll say so when the bucket's listed. */
-    listName = (water.isIn(self) ? inherited + ' (full of water)' : inherited)
+     
     
     achievement: Achievement { +2 "filling the bucket with water" }
 ;
@@ -997,6 +994,10 @@ clearing: Room 'Clearing'
     dir2 = 'south'
 ;
 
+/* 
+ *   A State object applied to the bonfire to give it different adjectives by
+ *   which it can be referred to according to whether it's lit or unlit.
+ */
 fireLitUnlitState: State
     appliesTo(obj) { return obj == bonfire; }
     stateProp = &isLit
@@ -1017,6 +1018,12 @@ bonfireLitScene: Scene
     /* This Scene is active from the start of the game */
     startsWhen = true
     
+    /* 
+     *   Every turn when the player character is in the clearing during the
+     *   scene we'll drive the smokeSmell script; if the player isn't in the
+     *   clearing we reset the counter for the script instead, so it always
+     *   starts out at 1 when the player character returns to the clearing.
+     */
     eachTurn()
     {
         if(gPlayerChar.isIn(clearing))
@@ -1028,6 +1035,7 @@ bonfireLitScene: Scene
             smokeSmell.displayCount = 1;
     }
     
+    /* This Scene ends when the bonfire has been put out. */
     endsWhen = !bonfire.isLit
 ;
 
@@ -1038,6 +1046,10 @@ bonfireLitScene: Scene
  *   to some condition becoming true.
  */
 manComplainingScene: Scene
+    /* 
+     *   The Scene starts when the rockfall happens, which is when the rockfall
+     *   object becomes visible.
+     */
     startsWhen = !rockfall.isHidden
     
     whenStarting()
@@ -1291,7 +1303,7 @@ helpMenu: MenuItem 'Help Menu'
  */
 + MenuLongTopicItem 'About This Game'
     menuContents = "<<versionInfo.name>> is a demonstration of EventLists,
-        menus, hints and scoring in TADS 3.\b
+        menus, hints and scoring in adv3Lite.\b
         As games go, it's neither long nor taxing. After rushing through to a
         winning ending first time round, you might want to go back and explore
         it at a more leisurely pace, to see how the various EventLists are

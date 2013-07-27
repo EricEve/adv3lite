@@ -37,7 +37,9 @@ gameMain: GameMainDef
  *   CUSTOM SOUND EVENT CLASS
  *
  *   We define a custom SoundEvent class to allow certain objects to respond to
- *   'sound events' that are triggered in their hearing.
+ *   'sound events' that are triggered in their hearing. An alternative would
+ *   have been to use the SoundEvent class defined in the sensory.t extension,
+ *   but here we show how to build one from scratch.
  */
 class SoundEvent: object
     /* 
@@ -49,13 +51,22 @@ class SoundEvent: object
      */
     triggerEvent(obj) 
     {
+        /* Get a list of everything in obj's Room */
         local lst = obj.getOutermostRoom.allContents;
         
+        /* Add all the items in rooms with an audio connection to obj's room */
         foreach(local rm in obj.getOutermostRoom.audibleRooms)
             lst = lst.appendUnique(rm.allContents);
         
+        /* 
+         *   Reduce the list to the subset of objects that can actually hear obj
+         */
         lst = lst.subset({o: Q.canHear(o, obj)});
         
+        /*   
+         *   Call the notifySoundEvent event method on every item in our reduced
+         *   list.
+         */
         foreach(local cur in lst)
             cur.notifySoundEvent(self, obj);    
         
@@ -605,28 +616,6 @@ window: MultiLoc, Fixture 'window; small'
     cannotEnterMsg = (cannotGoThroughMsg)
 ;
 
-/* 
- *   SPECIAL
- *
- *   A Special can be used to change the rules by which one thing can be sensed
- *   by another. Here we define a Special to enforce the rule that something on
- *   one side of the window can only hear something on the other if the window
- *   is open.
- */
-windowSpecial: Special
-    priority = 10
-    
-    canHear(a, b)
-    {
-        if(a.isIn(windowRegion) && b.isIn(windowRegion) &&
-           !a.isIn(b.getOutermostRoom) && window.isOpen == nil)
-            return nil;
-        
-        return next;
-    }
-    
-    active = true
-;
 
 
 //------------------------------------------------------------------------------
@@ -650,6 +639,25 @@ chamber: Room 'Chamber'
         else
             return inherited(pov);
     }
+    
+    /* 
+     *   We have put the chamber and the northwest corner of the square in a
+     *   common SenseRegion, since they're connected by a window, but we only
+     *   want sound to pass through the window when the window is open. To
+     *   enforce this we can use the canHearOutTo() method of the hall, so that
+     *   it returns true only when the window is open. By default this will mean
+     *   that canHearInFrom(loc) on the hall will follow the same condition.
+     *   Note that these methods can only be used to impose additional
+     *   restrictions on sense passing - they can't be used to provide sensory
+     *   connections that aren't already provided by a SenseRegion.
+     */
+    canHearOutTo(loc)
+    {
+        return window.isOpen;
+    }
+    
+    /* Logically it makes sense that a closed window would block smells too. */
+    canSmellOutTo(loc) { return window.isOpen; }
 ;
 
 + Decoration 'wallpaper; green striped'
@@ -713,13 +721,18 @@ chamber: Room 'Chamber'
  *   NOISE
  *
  *   We can create a Noise object to represent the sound the radio makes when
- *   it's turned on. Note the distinction between this Noise (which 
- *   represents the ongoing Sensory Emanation that occurs for as long as the 
- *   radio is on) and the musicEvent SensoryEvent which represents the event 
- *   of the radio being turned on (a continuously playing radio might fade 
- *   into the background of our consciousness; a radio suddenly turned on is 
- *   likely to burst in on our consciousness; the Noise represents the 
- *   former and the SoundEvent the latter.
+ *   it's turned on. Note the distinction between this Noise (which represents
+ *   the ongoing Sensory Emanation that occurs for as long as the radio is on)
+ *   and the musicEvent SensoryEvent which represents the event of the radio
+ *   being turned on (a continuously playing radio might fade into the
+ *   background of our consciousness; a radio suddenly turned on is likely to
+ *   burst in on our consciousness; the Noise represents the former and the
+ *   SoundEvent the latter.
+ *
+ *   Note that it would probably have been easier to do this by using the
+ *   definition of Noise provided in the sensory.t extension (which does quite a
+ *   bit of the work for us), but here we're sticking to features provided in
+ *   the main library.
  */
 +++ Noise '() music; loud operatic; sound noise wagner'
     "<<if Q.canSee(gPlayerChar, self)>> <<descWithSource>> <<else>>
@@ -801,10 +814,10 @@ parkS: Room 'Park (South)'
 ;
 
 /*  
- *   VAPOROUS
+ *   A DECORATION USED TO REPRESENT SMOKE
  *
- *   Vaporous is just the class to use for visible not quite tangible things 
- *   like smoke. 
+ *   Smoke is only marginally tangible, but for our purposes it can be quite 
+ *   adequately represented by a Decoration. 
  */
 ++ Decoration 'smoke; billowing thick'
     "Thick smoke is billowing up from the smouldering fire. "
@@ -825,12 +838,13 @@ parkS: Room 'Park (South)'
 ;
 
 /*  
- *   SIMPLE ODOR
+ *   ODOR
  *
- *   We can use the same description for the smell of the smoke under any 
- *   circumstances we want to describe it (as a response to SMELL, SMELL 
- *   SMOKE or SMELL ACRID SMELL), so a SimpleOdor will do to represent the 
- *   smell of the smoke.
+ *   We use the same description for the smell of the as for the smoke itself.
+ *   The Odor object is used to represent the smell as opposed to the object
+ *   emitting the smell, but in the case of smoke that's arguably a distinction
+ *   scarcely worth making. Still, we'll use an Odor object here to provide
+ *   another example of its use.
  */
 +++ Odor 'smell; acrid'
     desc = location.smellDesc
@@ -866,21 +880,26 @@ parkN: Room 'Park (North)' 'north end of the park'
 
 
 /*  
- *   OUT OF REACH
+ *   PUTTING SOMETHING OUT OF REACH
  *
- *   We don't want the player character to be able to reach the trumpet 
- *   without the ladder, so we can put it out of reach using the OutOfReach 
- *   class, mixed in with a Surface and Fixture used to represent the branch.
+ *   We don't want the player character to be able to reach the trumpet without
+ *   the ladder, so we can put it out of reach using the checkReach() method of
+ *   the branch, which also restricts access to the contents of the branch.
  */
 ++ Surface, Fixture 'branch' 
     "It's about half way up the tree. "
     
     /*  
-     *   The PC can only reach this branch if s/he's standing and on the 
-     *   ladder/
+     *   The PC can only reach this branch if s/he's standing on the 
+     *   ladder.
      */
     checkReach(obj)
     {
+        /* 
+         *   Note that the checkReach method only needs to display some text to
+         *   prevent reaching the object, so we use the method to explain why
+         *   the branch can't be reached if the actor isn't on the ladder.
+         */
         if(!obj.isIn(ladder))
             "The branch is too high up to reach. ";
     }
@@ -933,10 +952,7 @@ parkN: Room 'Park (North)' 'north end of the park'
 
 + basket: OpenableContainer 'small wicker basket'
     "It looks like the sort of basket that might be used by a fisherman. "
-    /* 
-     *   By specifying the material of the basket as paper we make it 
-     *   possible to smell what's inside even when the basket is closed.
-     */
+    
 
     bulkCapacity = 2
     initSpecialDesc = "A small wicker basket lies abandoned by the river. "
@@ -951,6 +967,14 @@ parkN: Room 'Park (North)' 'north end of the park'
         a basket sitting by the river in the far end of the park. ";
     }
     
+    /*  
+     *   We wan't to be able to smell the fish even when the basket is closed,
+     *   on the basis that the smell of rotting fish would probably manage to
+     *   seep through the weave of the basket. We can do that by setting its
+     *   canSmellIn property to true. There's also a canSmellOut property, but
+     *   we don't need it here since the player character will never be inside
+     *   the basket.
+     */
     canSmellIn = true
 ;
 
@@ -969,9 +993,13 @@ parkN: Room 'Park (North)' 'north end of the park'
 /*  
  *   ODOR
  *
- *   We use an Odor object to represent the smell of the fish. This object 
- *   can describe the smell of the fish in a number of ways, as illustrated 
- *   below.
+ *   We use an Odor object to represent the smell of the fish. This object can
+ *   describe the smell of the fish in a number of ways, as illustrated below.
+ *
+ *   Once again, we could have saved ourselves a little bit of work here by
+ *   using the Odor class defined in the sensory.t extension, which already
+ *   implements the descWithSource/descWithoutSource distinction in its
+ *   definition of the desc property.
  */
 
 +++ Odor 'terrible rotting smell; ; stink stench'
@@ -1019,8 +1047,7 @@ MultiLoc, Fixture 'river; fast flowing; bank water'
 ;
 
 /*  
- *   MULTILOC
- 
+ *   MULTILOC DECORATION 
  */
 
 MultiLoc, Decoration 'trees, shrubs and bushes;;; them'

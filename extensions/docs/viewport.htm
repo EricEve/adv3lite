@@ -1,0 +1,122 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Viewport</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Viewport
+<br><span class="navnp"><a class="nav" href="tiaaction.htm"><i>Prev:</i> TIAAction</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="../../docs/manual/extensions.htm"><i>Next:</i> Extensions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Viewport</h1>
+<h2>Overview</h2>
+<p>The purpose of the <a href="../viewport.t">viewport.t</a> extension is to allow game authors to define objects such as windows or CCTV screens that can be used to view remote locations and their contents when they're looked through or examined, without having a listing of the remote locations in question appearing in the room listing of the current room. This can be useful for implementing objects such as windows and CCTV screens where the player only becomes aware of what they show when s/he uses them.</p>
+<br>
+
+<h2>New Classes, Objects and Properties</h2>
+
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, objects and properties:</p>
+<ul>
+<li><em>Classes</em>: <strong>Viewport</strong> and <strong>SwitchableViewport</strong>.</li>
+
+<li><em>Objects</em>: <strong>QViewport</strong>.</li>
+<li><em>Additional properties/methods on Room</em>: <span class="code">roomRemoteDesc(pov)</span>, <span class="code">roomsViewed</span>.</li>
+<li><em>Properties/methods on Viewport</em>: <span class="code">describeVisibleRooms()</span>, <span class="code">visibleRooms</span>, <span class="code">lookThroughToView</span>, <span class="code">examineToView</span>, <span class="code">isViewing</span>.</li>
+
+</ul>
+
+
+<h2>Usage</h2>
+<p>Include the viewport.t file after the library files but before your game source files. Make sure that senseRegion.t is also included in the build.</p>
+ 
+<p><span class="code">Viewport</span> and <span class="code">SwitchableViewport</span> are mix-in classes that can be used to define objects such as windows and CCTV screens that can be used to view remote locations. The only difference between them is that a <span class="code">SwitchableViewport</span> can be turned on and off, so that the remote room and its contents can only be viewed while it's on. </p> 
+ 
+<p>Looking through or at a <span class="code">Viewport</span>, or looking at a <span class="code">SwitchableViewport</span> displays a description of the room it provides a view of, including any listable contents (for which isVisibleFrom(pov) is true when <em>pov</em> is the actor doing the looking). Once the player character has used the Viewport, the player can refer to the contents of the remote room just viewed, until the player character leaves the room (when the list of rooms viewed is reset). This models the notion that the player character would only become aware of the contents of the items in the remote location after using the Viewport, but that having seen, say, a statue standing out in the street when looking through the window, the player character might reasonably try to examine the statue. On the other hand the contents of the remote locations seen through Viewports are never listed in the description of the current room, on the basis that they're not objects that the player character would actively notice when s/he's not looking through the Viewport.</p> 
+
+<p>To define what room or rooms a Viewport allows sight of, list them in the Viewport's <strong>visibleRooms</strong> property.</p>
+
+<p>To describe what the remote room looks like through the Viewport, define its <strong>roomRemoteDesc(pov)</strong> method (where <em>pov</em> will be the actor viewing the room). By default this does nothing, so that if a Viewport overlooks more than one room you can use the roomRemoteDesc(pov) method of the first room to describe the entire view (should you so wish).</p>
+ 
+<p>The <strong>describeVisibleRooms()</strong> method of a Viewport is the method that actually described the remote location(s) visible by virtue of the Viewport. If <strong>lookThroughToView</strong> is true (as it is by default on Viewport but not SwitchableViewport) then this method will be called when LOOKING THROUGH the Viewport. If <strong>examineToView</strong> is true (as it is by default on both Viewport and SwitchableViewport), then it is called when EXAMINING the Viewport.</p> 
+ 
+<p>The <strong>isViewing</strong> property defines whether the Viewport currently affords a view of the rooms in its visibleRooms list. On Viewport <span class="code">isViewing</span> is true by default, whereas on SwitchableViewport <span class="code">isViewing</span> follows the value of <span class="code">IsOn</span>.</p> 
+ 
+<p>The <strong>roomsViewed</strong> property of a Room keeps track of which rooms have been viewed via Viewports from within the Room, so that their contents can subsequently be referred to in commands. The <span class="code">roomsViewed</span> property is reset to an empty list when the player character leaves the room, on the basis that on returning the pc would need to use the Viewport again in order to become aware of what it shows. Switching off a SwitchableViewport also removes its list of <span class="code">visibleRooms</span> from its enclosing room's <span class="code">roomsViewed</span> list, since they're no longer visible. If anything else affects what can be seen via a Viewport, you may need to adjust the room's <span class="code">roomsViewed</span> list in your own code.</p> 
+ 
+<p>Note that you wouldn't normally use a SenseRegion as well to provide a sensory connection between the room a Viewport's in and the room it overlooks.</p>
+
+<p>To define a window the player character can look through you can just do this:</p>
+
+ <p><div class="code"><pre>
+ + window: Viewport, Fixture 'window'   
+    isOpenable = true   
+    visibleRooms = [alley]       
+;
+ </pre></div>
+
+<p>Then you'd also want to define an appropriate roomRemoteDesc() on the alley:</p> 
+ 
+ <p><div class="code"><pre>
+ alley: Room 'Alley'
+    "A narrow east/west alley, ...<.p>"
+      
+    roomRemoteDesc(pov)
+    {
+        "Through the window {i} {can} see a narrow east/west alley.<.p>";
+    }
+;
+ 
+ </pre></div> 
+ 
+<p>To define a CCTV monitor that provides a view into a cell, in outline we could do something like this:</p> 
+
+ <p><div class="code"><pre>
+ + tv: SwitchableViewport, Heavy 'cctv monitor'
+    specialDesc = "A cctv monitor lurks in the corner. "
+    visibleRooms = [cell]
+;
+
+...
+
+cell: Room 'Cell'
+     "This small square cell is almost bare apart from a
+      bunk along wall. "
+
+    roomRemoteDesc(pov)
+    {
+        "The screen shows a small, square cell, with a
+        bunk hard against the far wall.<.p>";
+    }    
+;
+
++ clothes: Wearable 'pile of clothes'
+    "Quite a mixture. "
+    sightSize = large
+;
+ </pre></div>
+
+
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../viewport.t">viewport.t</a> file.</p>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Viewport
+<br><span class="navnp"><a class="nav" href="tiaaction.htm"><i>Prev:</i> TIAAction</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="../../docs/manual/extensions.htm"><i>Next:</i> Extensions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

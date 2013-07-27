@@ -1032,7 +1032,9 @@ class MessageParams: object
             if (dataType(src) == TypeProp)
                 srcObj = ctx.cmd.(src);
             else if (dataType(src) == TypeObject 
-                     && (src.ofKind(Mentionable) || src.ofKind(Pronoun)))
+                     && (src.ofKind(Mentionable) || src.ofKind(Pronoun)
+                         || src.ofKind(LiteralObject) ||
+                         src.ofKind(ResolvedTopic)))
                 srcObj = src;
 
             /* check for reflexivity */

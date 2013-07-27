@@ -232,7 +232,7 @@ DefineLiteralAction(Evaluate)
     turnSequence() { }
 ;
 
-/* An object to store class names */
+/* An object to store class and object names */
 symTab: PreinitObject
     symbolToVal(val)
     {
@@ -250,6 +250,13 @@ symTab: PreinitObject
         t3GetGlobalSymbols().forEachAssoc( new function(key, value)
         {
             if(dataType(value) == TypeObject && value.isClass)
+                ctab[value] = key;
+            
+            if(dataType(value) == TypeObject && (value.ofKind(Region)))               
+                ctab[value] = key;
+            
+            if(defined(Actor) && dataType(value) == TypeObject &&
+               (value.ofKind(ActorState) || value.ofKind(AgendaItem)))
                 ctab[value] = key;
         });
     }
@@ -275,6 +282,12 @@ modify TadsObject
          */
         if(name != nil)
             str = name + ' ';
+        /* 
+         *   Otherwise if we have an identifier for this object stored in our
+         *   symbol table, use that
+         */
+        else if(symTab.symbolToVal(self) != '???')
+            str = symTab.symbolToVal(self) + ' ';
         
         /*  Append this object's superclass list in parentheses*/
         str  += '(' + getSuperclassList + ')';

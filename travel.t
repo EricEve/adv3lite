@@ -1527,33 +1527,31 @@ class Region: object
     
     /* 
      *   A list of all the rooms in this region. This is built automatically at
-     *   preinit and shouldn't be altered by the user/author. 
+     *   preinit and shouldn't be altered by the user/author.
      */    
     roomList = nil
     
+    /*   
+     *   A user-defined list of the rooms in this region. At Preinit this will
+     *   be used along with the regions property of any rooms to build the
+     *   roomList of this Region.
+     */
+    rooms = nil
+       
     /* 
-     *   Build the list of rooms in this region by going through every room
-     *   defined in the game and adding it if it's (directly or indirectly) in
-     *   this region.
+     *   Build the list of regions in all the rooms in this this region by going
+     *   through every room defined in the roomList and adding us to its list of
+     *   regions. Note that this is provided as an alternative way to define
+     *   what rooms start out in which regions.     
      */
     
-    buildRoomList()
-    {
-        /* Create a new empty Vector */
-        local vec = new Vector(20);
-        
-        /* 
-         *   Go through every Room defined in the game, adding it to the vector
-         *   if it's in this Region.
-         */
-        for(local r = firstObj(Room) ; r != nil; r = nextObj(r, Room))
+    makeRegionLists()
+    {       
+        if(rooms != nil)
         {
-            if(r.isIn(self))
-                vec.append(r);
-        }
-        
-        /* Convert the vector to a list, eliminating any duplicate entries */
-        roomList = vec.getUnique().toList();
+            foreach(local r in rooms)
+                r.regions = valToList(r.regions).appendUnique([self]);
+        }       
     }
     
     /* 
@@ -1714,6 +1712,8 @@ class Region: object
 regionPreinit: PreinitObject    
     execute()
     {
+        forEachInstance(Region, {r: r.makeRegionLists });
+        
         forEachInstance(Room, {r: r.addToRegions()} );
         
         forEachInstance(Region, { r: r.setFamiliarRooms() } );
