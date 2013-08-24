@@ -2,6 +2,7 @@
 #include "advlite.h"
 
 property subLocation;
+property lookAroundShowExits;
 
 /*
  *   Mentionable is the base class for objects that the player can refer to
@@ -4386,7 +4387,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
 
-    okayOpenMsg = 'Opened.|{I} {open} {1}. '
+    okayOpenMsg = 'Opened.|{I} open{s/ed} {1}. '
     
     cannotOpenMsg = BMsg(cannot open, '{The subj dobj} {is} not something {i}
         {can} open. ')
@@ -9156,7 +9157,14 @@ class MultiLoc: object
  *   distinguish items directly in a Room (and hence notionally on the ground)
  *   from those in or on some other object.
  */
-class Floor: MultiLoc, Decoration
+class Floor: MultiLoc, Thing
+    /* 
+     *   A Floor is a Decoration, but since the extras.t module is optional we
+     *   have to define is as isFixed = true and isDecoration = true.
+     */
+    isFixed = true
+    
+    isDecoration = true
     
     /* By default, every room has a floor. */
     initialLocationClass = Room

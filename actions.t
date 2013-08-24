@@ -10,6 +10,10 @@ property showHints;
 property disableHints;
 property activated;
 property extraHintsExist;
+property showExitsCommand;
+property exitsOnOffCommand;
+property isOdor;
+property isNoise;
 
 
 DefineSystemAction(Quit)
@@ -167,7 +171,7 @@ DefineSystemAction(ExitsColour)
             return;
         }
         
-        if(cmd.verbProd.on_ != nil)
+        if(defined(statuslineExitLister) && cmd.verbProd.on_ != nil)
         {
             statuslineExitLister.highlightUnvisitedExits = 
                 (cmd.verbProd.on_ == 'on');
@@ -176,7 +180,7 @@ DefineSystemAction(ExitsColour)
                 {1}.<.p>', cmd.verbProd.on_);
         }
         
-        if(cmd.verbProd.colour_ != nil)
+        if(defined(statuslineExitLister) && cmd.verbProd.colour_ != nil)
         {
             statuslineExitLister.unvisitedExitColour = cmd.verbProd.colour_;
             statuslineExitLister.highlightUnvisitedExits = true;
@@ -851,10 +855,13 @@ DefineTAction(SmellSomething)
     /* Add any Odors the actor can smell */
     addExtraScopeItems(whichRole?)
     {
-        local odorList = gActor.getOutermostRoom.allContents.subset(
-            { o: o.ofKind(Odor) && Q.canSmell(gActor, o) } );
-        
-        scopeList = scopeList.appendUnique(odorList);
+        if(defined(Odor))
+        {
+            local odorList = gActor.getOutermostRoom.allContents.subset(
+                { o: o.isOdor && Q.canSmell(gActor, o) } );
+            
+            scopeList = scopeList.appendUnique(odorList);
+        }
     }
     
 ;
@@ -866,10 +873,13 @@ DefineTAction(ListenTo)
     /* Add any Noises the actor can hear */
     addExtraScopeItems(whichRole?)
     {
-        local noiseList = gActor.getOutermostRoom.allContents.subset(
-            { n: n.ofKind(Noise) && Q.canHear(gActor, n) } );
-        
-        scopeList = scopeList.appendUnique(noiseList);
+        if(defined(Noise))
+        {
+            local noiseList = gActor.getOutermostRoom.allContents.subset(
+                { n: n.isNoise && Q.canHear(gActor, n) } );
+            
+            scopeList = scopeList.appendUnique(noiseList);
+        }
     }    
     
 ;
@@ -1840,6 +1850,7 @@ class ImplicitConversationAction: TopicAction
             sayNotTalking();
         else
         {
+            notePronounAntecedent(gPlayerChar.currentInterlocutor);
             resolvePronouns();
             curObj = gPlayerChar.currentInterlocutor;
             gPlayerChar.currentInterlocutor.handleTopic(topicListProperty, 

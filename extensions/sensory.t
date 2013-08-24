@@ -214,6 +214,8 @@ replace class Odor: SensoryEmanation
     sightSize = smellSize
         
     tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg
+    
+    isOdor = true
 ;
 
 replace class Noise: SensoryEmanation
@@ -270,6 +272,8 @@ replace class Noise: SensoryEmanation
     sightSize = soundSize
         
     tooFarAwayToSeeDetailMsg = tooFarAwayToHearMsg
+    
+    isNoise = true
 ;
 
 /* The object which drives emanation messages for Odors and Noises */

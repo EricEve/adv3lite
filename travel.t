@@ -10,6 +10,7 @@
  */
 
 property lastTravelInfo;
+property cannotGoShowExits;
 
 /* 
  *   A Room is a top location in which the player character, other actors and

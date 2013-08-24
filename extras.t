@@ -60,6 +60,8 @@ class Odor: Thing
      *   tooFarWayToSeeDetailMsg.
      */
     tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg    
+    
+    isOdor = true
 ;
 
 
@@ -100,6 +102,8 @@ class Noise: Thing
      *   tooFarWayToSeeDetailMsg.
      */
     tooFarAwayToSeeDetailMsg = tooFarAwayToHearMsg
+    
+    isNoise = true
 ;
 
 /* A Container is a Thing that other things can be put inside */

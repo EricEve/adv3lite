@@ -5398,9 +5398,9 @@ class LCommandTopicHelper: object
         if(myAction.curIobj != nil)        
             txt = txt.findReplace('(iobj)', getName(myAction.curIobj));
         
-        
-        txt = txt.findReplace('(direction)',
-                              gCommand.verbProd.dirMatch.dir.name);
+        if(gCommand.verbProd.dirMatch)
+            txt = txt.findReplace('(direction)',
+                                  gCommand.verbProd.dirMatch.dir.name);
         
         return txt;
     }
@@ -5543,6 +5543,12 @@ takePathDoer: Doer 'take PathPassage'
      *   synonymn like 'get' or 'pick up'
      */
     strict = true
+    
+    /* 
+     *   Ignore an error report for this Doer in PreInit, since it only means
+     *   that extras.t hasn't been included.
+     */
+    ignoreError = true
 ;
     
 /* 

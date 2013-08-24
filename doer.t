@@ -397,6 +397,13 @@ class Doer: Redirector
      */
     
     strict = nil
+    
+    /*  
+     *   Flag, do we want to ignore (i.e. not report) an error in the
+     *   construction of this Doer. We may want to do this when the error is
+     *   simply due to the exclusion of a module like extras.t
+     */
+    ignoreError = nil
 ;
 
 /* Define isHappening as a property in case the scenes module is not included */
@@ -966,7 +973,7 @@ doerPreinit: PreinitObject
                 }
 
                 /* if we didn't a match, note the error */
-                if (!found)
+                if (!found && d.ignoreError == nil)
                 {
                     "Error in Doer command phrase \"<<d.cmd>>\": this
                     command syntax doesn't match any known verb grammar.";
@@ -1028,10 +1035,11 @@ doerPreinit: PreinitObject
             if (obj == nil && item != '*')
             {
                 /* explain the problem */
-                "Error in Doer command phrase \"<<d.cmd>>\": the word \"<<
-                  item>>\" is not a known object or class name.
-                Each noun must be the source code name of an object
-                or class.\n";
+                if(!d.ignoreError)
+                    "Error in Doer command phrase \"<<d.cmd>>\": the word \"<<
+                      item>>\" is not a known object or class name.
+                    Each noun must be the source code name of an object
+                    or class.\n";
 
                 /* abort processing this template */
                 return;

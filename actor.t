@@ -13,6 +13,9 @@
 /* Declare the eventList property in case the eventList module isn't included */
 property eventList;
 
+/* Declare the inRoomName property in case the senseRegion module isn't included */
+property inRoomName;
+
 /*    
  *   An Actor is an object representing a living being (or something that
  *   behaves like a living being, such as an intelligent robot), with which the
@@ -5709,10 +5712,7 @@ class FollowAgendaItem: AgendaItem
     {
         /* Carry out the inherited handling. */
         inherited;
-        
-        /* Let our actor know we're now its active FollowAgendaItem. */
-        getActor.followAgendaItem = self;
-        
+              
         /* Reset our next connector pointer */
         nextConnNum = 0;
     }

@@ -1870,13 +1870,13 @@ VerbRule(AskAbout)
 ;
 
 VerbRule(AskAboutImplicit)
-    ('a' | ('ask' | 'tell' 'me') ('about' |)) topicIobj
+    ('a' | ('ask' | 'tell' 'me') ('about')) topicIobj
     : VerbProduction
     action = AskAboutImplicit
     verbPhrase = 'ask/asking (whom) (about what)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
     iobjReply = topicPhrase
-    priority = 60
+    priority = 45
 ;
 
 VerbRule(AskAboutWhat)
