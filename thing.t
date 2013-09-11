@@ -2546,6 +2546,32 @@ class Thing:  ReplaceRedirector, Mentionable
             }       
                     
         }
+
+        /* 
+         *   If we're compiling for debug, warn the user if s/he's used the
+         *   canSitOn, canLieOn or canStand on properties in an inconsistent
+         *   manner.
+         */
+#ifdef __DEBUG
+        if(isBoardable == nil && contType != On)
+        {
+            if(canSitOnMe)
+                "WARNING! canSitOnMe is true on <<theName>> when <<theName>>
+                cannot be boarded.\n";
+            if(canStandOnMe)
+                "WARNING! canStandOnMe is true on <<theName>> when <<theName>>
+                cannot be boarded.\n";
+            if(canLieOnMe)
+                "WARNING! canLieOnMe is true on <<theName>> when <<theName>>
+                cannot be boarded.\n";
+            
+            if(canSitOnMe || canStandOnMe || canLieOnMe)
+                "You either need to make <<objToString()>> a Platform or remove
+                your override on its canSit/Stand/LieOnMe properties\b";
+        }
+        
+        
+#endif
     }
     
     /* 
@@ -6019,6 +6045,11 @@ class Thing:  ReplaceRedirector, Mentionable
      *   choices than other for sitting on (e.g. chairs), lying on (e.g. beds)
      *   and standing on (e.g. rugs), so we allow these to be tested for
      *   individually at the verify stage.
+     *
+     *   Note that none of these three properties (canSitOnMe, canLieOnMe,
+     *   canStandOnMe) should normally be overridden to simply true, since they
+     *   cannot make it possible to sit, lie or stand on something for which
+     *   isBoardable is not true (or which contType is not On).
      */
     canSitOnMe = isBoardable
     canLieOnMe = isBoardable
@@ -8728,6 +8759,7 @@ class Key: Thing
          *   actualLockList.
          */
         plausibleLockList = plausibleLockList.appendUnique(actualLockList);
+        
     }
     
 ;

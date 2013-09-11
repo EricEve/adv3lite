@@ -80,6 +80,18 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      */
     specialDesc()
     {
+        
+        local followItem;
+        
+        /* 
+         *   Check whether we have a FollowAgendaItem that's ready to be used,
+         *   and if so, register it as our current followAgendaItem.
+         */
+        if(agendaList != nil &&
+           (followItem = agendaList.valWhich({x: x.ofKind(FollowAgendaItem) &&
+                                            x.isReady && !x.isDone})) != nil)
+            followAgendaItem = followItem;
+        
         /* If we have a current followAgendaItem, use its specialDesc */
         if(followAgendaItem != nil)
             followAgendaItem.showSpecialDesc();

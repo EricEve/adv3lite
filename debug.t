@@ -488,7 +488,7 @@ class Test: object
          *   If a location is specified, first move the actor into that
          *   location.
          */
-        if (location && !gActor.location == location)
+        if (location && gActor.location != location)
         {
             gActor.moveInto(location);	
             
