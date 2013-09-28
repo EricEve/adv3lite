@@ -1196,7 +1196,7 @@ class LMentionable: object
 
     /* regular expression for removing annotations from a short name */
     deannotatePat =
-        R"<lsquare><alpha>+<rsquare>|<lparen><alphanum|-|'|,|~|=>+<rparen>"
+        R"<lsquare><alpha>+<rsquare>|<lbrace><alphanum|-|'|,|~|=>+<rbrace>"
 
     /* pattern for part-of-speech annotations */
     posPat = R'<lsquare>(n|adj|pl|prep|weak)<rsquare>'

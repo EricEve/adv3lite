@@ -355,8 +355,17 @@ buildMessage(id, txt, [args])
 #ifdef __DEBUG
 debugMessage(id, txt, cm, args)
 {
-    if(id is in (nil,''))
+    if(id is in (nil,'','command results prefix', 'command prompt', 'command
+        results suffix') 
+       || outputManager.curOutputStream != mainOutputStream)
         return;
+    
+    local idchk = [id, libGlobal.totalTurns];
+    
+    if(DebugCtl.messageIDs[idchk] != nil)
+        return;
+    else
+        DebugCtl.messageIDs[idchk] = true; 
     
     oSay('\nmessage(id=<<id>>, default text=\'<<txt>>\' ');
     if (cm != nil)

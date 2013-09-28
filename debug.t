@@ -38,6 +38,8 @@ DebugCtl: object
         foreach (local opt in opts)
             "\t<<opt>> = <<enabled[opt] ? 'on' : 'off'>>\n";
     }
+    
+    messageIDs = static (new LookupTable(32, 64))
 ;
 
 /*

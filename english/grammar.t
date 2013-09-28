@@ -1904,7 +1904,7 @@ VerbRule(TellAbout)
 ;
 
 VerbRule(TellAboutImplicit)
-    ('t' | 'tell') topicIobj
+    ('tell' | 't') ('about' |) topicIobj
     : VerbProduction
     action = TellAboutImplicit
     verbPhrase = 'tell/telling (whom) (about what)'
@@ -3413,6 +3413,7 @@ VerbRule(GoNear)
     : VerbProduction
     action = GoNear
     verbPhrase = 'go near/going near (what)'
+    missingQ = 'what do you want to go near'
 ;
 
 
@@ -3428,6 +3429,7 @@ VerbRule(Evaluate)
     : VerbProduction
     action = Evaluate
     verbPhrase = 'evaluate/evaluating (what)'
+    missingQ = 'what do you want to evaluate'
 ;
 
 /* 

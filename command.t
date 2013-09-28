@@ -448,7 +448,7 @@ class Command: object
         /* find the list of matching Doers */
         local dlst = DoerCmd.findDoers(lst);
       
-        IfDebug(doers, "[Executing Doer; cmd = '<<dlst[1].cmd>>']\n" );        
+        IfDebug(doers, oSay('''[Executing Doer; cmd = '<<dlst[1].cmd>>']\n'''));       
         dlst[1].exec(self);
         
     }
