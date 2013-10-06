@@ -129,8 +129,8 @@ class Lever: Thing
  *   slider control or a dial. Various types of dial descending from Settable
  *   are defined below.
  */
-class Settable: Fixture
-    
+class Settable: Thing
+      
     /* 
      *   a list of the valid settings this Settable can have, given as list of
      *   single-quoted strings.

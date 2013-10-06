@@ -248,7 +248,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         else if(action.ofKind(Goodbye))
         {
             gCommand.actor = gPlayerChar;
-            sayGoodbye();
+            endConversation(endConvBye);
         }    
         
         /* treat Actor, question as directing a question to the actor */
@@ -3704,7 +3704,10 @@ class DefaultAnyTopic: DefaultTopic
      *   that contain lists of conversational responses.
      */
     includeInList = [&sayTopics, &queryTopics, &askTopics, &tellTopics,
-        &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics]
+        &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics,
+    &commandTopics]
+    
+    matchObj = static inherited + Action
 ;
 
 /* 

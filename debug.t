@@ -39,7 +39,8 @@ DebugCtl: object
             "\t<<opt>> = <<enabled[opt] ? 'on' : 'off'>>\n";
     }
     
-    messageIDs = static (new LookupTable(32, 64))
+    /* LookupTable used to avoid duplicate debug message reports */
+    messageIDs = static (new LookupTable(32, 64))    
 ;
 
 /*

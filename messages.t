@@ -87,40 +87,42 @@ FuturePerfect: VerbTense
 /* ------------------------------------------------------------------------ */
 /*
  *   Show a message.
- *   
+ *
  *   This looks for a customized version of the message text, as defined in
- *   CustomMessages objects.  If we don't find one, we use the provided
- *   default message text.
- *   
- *   Substitution parameters take the form {x y z} - curly braces with one
- *   or more space-delimited tokens.  The first token is the parameter
- *   name, and any additional tokens are arguments.  The parameter names
- *   and their arguments are up to the language module to define.
- *   
- *   In addition to the parameters, the string itself can have two
- *   sections, separated by a vertical bar, '|'.  The first section (before
- *   the bar) is the "terse" string, which is for a straightforward
- *   acknowledgment of a simple, ordinary action: "Taken", "Dropped", etc.
- *   The terse string is used only if the Command argument's actor is the
- *   player character, AND the command doesn't have any disambiguated
- *   objects.  If these conditions aren't met, the second half of the
- *   string, the "verbose" version, is used.
- *   
+ *   CustomMessages objects.  If we don't find one, we use the provided default
+ *   message text.
+ *
+ *   Substitution parameters take the form {x y z} - curly braces with one or
+ *   more space-delimited tokens.  The first token is the parameter name, and
+ *   any additional tokens are arguments.  The parameter names and their
+ *   arguments are up to the language module to define.
+ *
+ *   In addition to the parameters, the string itself can have two sections,
+ *   separated by a vertical bar, '|'.  The first section (before the bar) is
+ *   the "terse" string, which is for a straightforward acknowledgment of a
+ *   simple, ordinary action: "Taken", "Dropped", etc. The terse string is used
+ *   only if the Command argument's actor is the player character, AND the
+ *   command doesn't have any disambiguated objects.  If these conditions aren't
+ *   met, the second half of the string, the "verbose" version, is used.
+ *
  *   Once we have the message text, we perform parameter substitutions.
- *   Parameters can be provided as strings, which are substituted in
- *   literally; or as objects, whose names are inserted according to the
- *   grammar in the template text.   */
+ *   Parameters can be provided as strings, which are substituted in literally;
+ *   or as objects, whose names are inserted according to the grammar in the
+ *   template text.
+ */
 
-message(id, txt, [args])
-{
-    txt = buildMessage(id, txt, args...);
-    /* 
-     *   use the oSay function to output the text to avoid an infinite recursive
-     *   call through say.
-     */
-    
-    oSay(txt);
-}
+message(id, txt, [args])    
+    {
+        
+        txt = buildMessage(id, txt, args...);
+        
+        
+        /* 
+         *   use the oSay function to output the text to avoid an infinite
+         *   recursive call through say.
+         */        
+        oSay(txt);       
+    }
 
 /* 
  *   Build a message to be shown by message()
@@ -357,7 +359,7 @@ debugMessage(id, txt, cm, args)
 {
     if(id is in (nil,'','command results prefix', 'command prompt', 'command
         results suffix') 
-       || outputManager.curOutputStream != mainOutputStream)
+       || outputManager.curOutputStream != mainOutputStream)       
         return;
     
     local idchk = [id, libGlobal.totalTurns];
@@ -377,7 +379,7 @@ debugMessage(id, txt, cm, args)
         for (local i = 1 ; i <= args.length() ; ++i)
         {
             local a = args[i];
-            if (a > 1)
+            if (i > 1)
                 oSay(', ');
             if (dataType(a) == TypeSString)
                 oSay(''''<<args[i]>>'''');

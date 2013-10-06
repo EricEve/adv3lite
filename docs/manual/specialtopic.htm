@@ -18,9 +18,9 @@ Special Topics
 
 <p>On the face of it, between them AskTopic, TellTopic, AskForTopic and TalkTopic (together with YesTopic and NoTopic) offer a reasonable range of TopicEntry classes for responding to conversational commands, but they are somewhat limited in expressiveness. If I type TELL BOB ABOUT MAVIS do I want to tell him about her appearance, her career, about the conversation I've just had with her or what? If I type ASK BOB ABOUT THE TOWER do I want to enquire when the tower was built, how long people have been afraid of it, why it's considered so scary, or what? Even more, if Bob asks the player character 'What do you think of Mavis?' the player is rather restricted in his choice of reply if all he can type is TELL BOB ABOUT MAVIS.</p>
 
-<p>To alleviate this problem, the adv3Lite library defines two types of SpecialTopic: <a href="#saytopic">SayTopic</a> and <a href="#querytopic">QueryTopic</a>. A SayTopic allows the player character to say just about anything (in principle, at any rate; in practice we'd be constrained by the need to keep commands reasonably brief). A QueryTopic increases the range of questions that can be asked from ASK ABOUT to ASK WHAT. ASK WHO, ASK WHERE, ASK WHY, ASK WHEN, ASK HOW, ASK WHETHER and ASK IF. But before going into the specifics of each type of SpecialTopic, it will be helpful to outline their common features.</p>
+<p>To alleviate this problem, the adv3Lite library defines two types of SpecialTopic: <a href="#saytopic">SayTopic</a> and <a href="#querytopic">QueryTopic</a>. A SayTopic allows the player character to say just about anything (in principle, at any rate; in practice we'd be constrained by the need to keep commands reasonably brief). A QueryTopic increases the range of questions that can be asked from ASK ABOUT to ASK WHAT, ASK WHO, ASK WHERE, ASK WHY, ASK WHEN, ASK HOW, ASK WHETHER and ASK IF. But before going into the specifics of each type of SpecialTopic, it will be helpful to outline their common features.</p>
 
-<p>First, both types of SpecialTopic have their <strong>autoName</strong> property set to true by default. This is necessary since players can scarcely be expected to guess the wording that will trigger a SayTopic or a QueryTopic, so they always need to be suggested, at least in the appropriate context. With a SpecialTopic, however, the name used the name property of the matchObj, not the theName property, since in this case the name property is nearly always more appropriate (note, however, that if you supply your own definition of the name property of a SayTopic or SpecialTopic, the library won't override it).</p>
+<p>First, both types of SpecialTopic have their <strong>autoName</strong> property set to true by default. This is necessary since players can scarcely be expected to guess the wording that will trigger a SayTopic or a QueryTopic, so they always need to be suggested, at least in the appropriate context. With a SpecialTopic, however, the name used is the <span class="code">name</span> property of the matchObj, not the <span class="code">theName</span> property, since in this case the <span class="code">name</span> property is nearly always more appropriate (note, however, that if you supply your own definition of the <span class="code">name</span> property of a SayTopic or SpecialTopic, the library won't override it).</p>
 
 <p>Second, both types of SpecialTopic provide a short-cut way of defining the Topic they match. Instead of having to define a Topic object just to match a single SayTopic or QueryTopic, you can define the vocabProperty of the Topic object you would otherwise need to have defined and the library will create it for you. This will be illustrated when we come to look at SayTopic and QueryTopic.</p>
 
@@ -60,7 +60,7 @@ tNotAfraid: Topic 'you\'re not afraid; you are i\'m i am'
 ;
 </pre></div>
 
-<p>Note that this has the same effect behind the scenes. What happens is that the library preinit creates an anonymous Topic object with the vocab you define and then attaches it to the matchObj property of the SayTopic. Note that this anonymous Topic object won't be directly matched anywhere else. If you define two SayTopics with precisely the same vocab in this way, you'll end up with two distinct Topic objects that just happen to have the same vocab.</p>
+<p>Note that this has the same effect behind the scenes. What happens is that the library preinitialization creates an anonymous Topic object with the vocab you define and then attaches it to the matchObj property of the SayTopic.</p>
 
 <p>If you look at the template for TopicEntry you'll see that the property you should be defining here according to the template definition is the SayTopic's matchPattern, which can be used to match a regular expression. This is in fact the case. What happens is that the preinit code on SpecialTopic looks at the contents of the matchPattern property to see if it looks more like a regular expression (containing characters like &lt;&gt;|*$%^) or more like a vocab property (containing one or more semicolons), and then deals with it accordingly. In the absence of any firm evidence to the contrary it'll assume it's intended as the vocab property of an implicitly-defined Topic, so if you want to force it to a matchPattern you need to include one or more of the special regex characters.</p>
 
@@ -81,18 +81,19 @@ tNotAfraid: Topic 'you\'re not afraid; you are i\'m i am'
 <p>You're not restricted to using SayTopics for responses that could start with SAY. Suppose, for example, you want to include options to lie or to prevaricate in response to a question Bob asks the player character. Since the player does not need to begin a command with SAY to have it match a SayTopic this is perfectly possible. You'd do it like this: </p>
 
  <p><div class="code"><pre>
-/* Bob has just asked 'Have you been to the dark tower?' */
+<span class="comment">/* Bob has just asked 'Have you been to the dark tower?' */</span>
 
 + YesTopic
   &quot;&lt;q&gt;Yes, I have,&lt;/q&gt; you confess.\b
    &lt;q&gt;You fool!&lt;/q&gt; he groans. &quot;
 ;
 
-+ SayTopic 'lie; tell a'
++ SayTopic @tLie
    &quot;&lt;q&gt;No, of course not,&lt;/q&gt; you lie hastily. &lt;q&gt;After all,
     you did warn me.&lt;/q&gt;\b
     &lt;q&gt;I did,&lt;/q&gt; Bob agrees, just a little warily. &quot;
     
+    tellMatchObj = tLie
     includeSayInName = nil
 ;
 
@@ -103,9 +104,11 @@ tNotAfraid: Topic 'you\'re not afraid; you are i\'m i am'
      
      includeSayInName = nil
 ;
+
+tLie: Topic 'lie';
 </pre></div>   
 
-<p>Note the use of the <strong>includeSayInName</strong> property to suppress the inclusion of 'say' in the way the topic is suggested when includeSayInName is set to nil.</p>
+<p>Note the use of the <strong>includeSayInName</strong> property to suppress the inclusion of 'say' in the way the topic is suggested when includeSayInName is set to nil. Note also how we define a SayTopic that will respond either to LIE or TELL A LIE; we need to do it this way since if the player types a command beginning with TELL the parser will try to match it to a TellTopic.</p>
 
 <p>You can use SayTopics wherever you like, but the best use is probably just after the NPC the player character is in conversation with has just asked a question to which they might form an appropriate reply, which means you'll typically use SayTopics in <a href="convnode.htm">Conversation Nodes</a>.</p>
 
@@ -121,10 +124,10 @@ tNotAfraid: Topic 'you\'re not afraid; you are i\'m i am'
     &lt;q&gt;None of your damned business,&lt;/q&gt; he replies. &lt;q&gt;Would you like someone
     asking you about your age?&lt;/q&gt; &quot;
     
-    /* 
+    <span class="comment">/* 
      *   specifying the askMatchObj property allows Bob to respond to ASK
-     *   BOB ABOUT HIS AGE in the same well as ASK BOB HOW OLD HE IS.
-     */
+     *   BOB ABOUT HIS AGE in the same way as ASK BOB HOW OLD HE IS.
+     */</span>
     askMatchObj = tAge    
 ;
 ...
@@ -149,7 +152,7 @@ tAge: Topic 'his age'
 ;
 </pre></div>
 
-<p>This, by the way, is part of the reason we need to define <a name="qtype-idx">qtype</a> as a separate property, and not simply as part of the topic vocab. The 'how/what/who/why/when' is part of the verb grammar, which both allows the parser to recognize questions of this sort (and to distinguish them from attempts to ask someone about something) and allows the parser to recognize the short-form questions lacking the initial ASK. However, when defining a QueryTopic using the template form above we can, if we wish, run the qtype and the topic vocab together into a single string like this:</p>
+<p>This, by the way, is part of the reason we need to define <a name="qtype-idx">qtype</a> as a separate property, and not simply as part of the topic vocab. The 'how/what/who/why/when' is part of the verb grammar, which both allows the parser to recognize questions of this sort (and to distinguish them from attempts to ask someone <em>about</em> something) and allows the parser to recognize the short-form questions lacking the initial ASK. However, when defining a QueryTopic using the template form above we can, if we wish, run the qtype and the topic vocab together into a single string like this:</p>
 
 <p><div class="code"><pre>
 + QueryTopic 'how old he is; are you'
@@ -179,7 +182,7 @@ tAge: Topic 'his age'
     &lt;q&gt;Of course,&lt;/q&gt; he replies. &lt;q&gt;Doesn't everyone?&lt;/q&gt;&quot;
 ;</pre></div>
 
-<p>Note here the appearance of 'you like' as additional words in the vocab property after the 'he likes chocolate' in the name part. This is to allow players to type DO YOU LIKE CHOCOLATE and have the command still work. Faced with a prompt like 'You could ask if he likes chocolate' at least 50% of players <em>will</em> type DO YOU LIKE CHOCOLATE and regard it as a bug of guess-the-verb proportions if the game doesn't recognize it, complaining like mad that they couldn't possibly be expected to guess that they need to type ASK IF HE LIKES CHOCOLATE when the suggestion is 'you could ask if he likes chocolate' (no, really, I have encountered this!). The (English-language) parser recognizes commands beginning DO, DOES or DID as equivalent to commands beginning ASK IF, but your topic vocab needs to cope with the rest.</p>
+<p>Note here the appearance of 'you like' as additional words in the vocab property after the 'he likes chocolate' in the name part. This is to allow players to type DO YOU LIKE CHOCOLATE and have the command still work. Faced with a prompt like 'You could ask if he likes chocolate' at least 50% of players <em>will</em> type DO YOU LIKE CHOCOLATE and regard it as a bug of guess-the-verb proportions if the game doesn't recognize it, complaining like mad that they couldn't possibly be expected to guess that they need to type ASK IF HE LIKES CHOCOLATE when the suggestion is 'you could ask if he likes chocolate' (no, really, I have encountered this kind of thing!). The (English-language) parser recognizes commands beginning DO, DOES or DID as equivalent to commands beginning ASK IF, but your topic vocab needs to cope with the rest.</p>
 
 </div>
 <hr class="navb"><div class="navb">
