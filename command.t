@@ -380,9 +380,25 @@ class Command: object
             /* set the current object and selection flags for this role */
             self.(role.objProp) = obj.obj;
             self.(role.objMatchProp) = obj;
-
-            /* create a new list that includes the new object */
-            local nlst = lst + obj.obj;
+            
+            /* 
+             *   get the index at which the new object needs to be placed in the
+             *   list.
+             */
+            local idx = role.order + 1;
+            
+            /* 
+             *   create a new list that includes the new object at the
+             *   appropriate place.
+             */            
+            local nlst = lst;
+            
+            /* Pad out nlst to the length required */
+            while(nlst.length < idx)
+                nlst += nil;
+            
+            /* insert the new object at the index appropriate to its role */
+            nlst[idx] = obj.obj;
 
             /* 
              *   if there are more noun roles, recursively iterate over
