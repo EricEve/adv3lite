@@ -503,9 +503,19 @@ class Test: object
         /*   Move any required objects into the actor's inventory */
         getHolding();
 
+        /*   Preparse and execute each command in the list */
         testList.forEach(new function(x)  {
+            /* Display the command to be executed */
             "<b>><<x>></b>\n";
-            Parser.parse(x);
+            
+            /* Preparse the command */
+            x = StringPreParser.runAll(x, nil);                          
+            
+            /* 
+             *   Execute the preparsed command if it is not nil after preparsing
+             */
+            if(x)
+              Parser.parse(x);
         });
     }
 ;
