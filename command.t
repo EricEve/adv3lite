@@ -266,6 +266,11 @@ class Command: object
                 }
                 
                 /* 
+                 *   Sort the preRoles into canonical order (typically
+                 *   DirectObject, IndirectObject, AccessoryObject)
+                 */
+                predRoles = predRoles.sort(SortAsc, {a, b: a.order - b.order});
+                                /* 
                  *   execute for each combination of objects, starting with the
                  *   objects in the first role list
                  */
@@ -364,10 +369,13 @@ class Command: object
     implicitActionReports = []
 
     /*
-     *   Execute the command for each combination of objects for noun role
-     *   index 'n' and above.  'lst' is a list containing a partial object
-     *   combination for roles at lower indices.  We iterate over each
-     *   combination of the remaining objects.  
+     *   Execute the command for each combination of objects for noun role index
+     *   'n' and above.  'lst' is a list containing a partial object combination
+     *   for roles at lower indices.  We iterate over each combination of the
+     *   remaining objects. predRoles is a list containing predicate roles (such
+     *   DirectObject, IndirectObject, AccessoryObject) relating to this action.
+     *   Callers are responsible for sorting predRoles into the correct order
+     *   before calling this method.
      */
     execCombos(predRoles, n, lst)
     {
@@ -381,25 +389,28 @@ class Command: object
             self.(role.objProp) = obj.obj;
             self.(role.objMatchProp) = obj;
             
-            /* 
-             *   get the index at which the new object needs to be placed in the
-             *   list.
-             */
-            local idx = role.order + 1;
+//            /* 
+//             *   get the index at which the new object needs to be placed in the
+//             *   list.
+//             */
+//            local idx = role.order + 1;
             
             /* 
              *   create a new list that includes the new object at the
              *   appropriate place.
              */            
             local nlst = lst;
-            
-            /* Pad out nlst to the length required */
-            while(nlst.length < idx)
-                nlst += nil;
-            
-            /* insert the new object at the index appropriate to its role */
-            nlst[idx] = obj.obj;
+//            
+//            /* Pad out nlst to the length required */
+//            while(nlst.length < idx)
+//                nlst += nil;
+//            
+//            /* insert the new object at the index appropriate to its role */
+//            nlst[idx] = obj.obj;
 
+            /* add the object to the list */
+            nlst += obj.obj;
+            
             /* 
              *   if there are more noun roles, recursively iterate over
              *   combinations of the remaining roles 
