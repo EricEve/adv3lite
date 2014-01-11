@@ -1,3 +1,4 @@
+#charset "us-ascii"
 #include "advlite.h"
 
 

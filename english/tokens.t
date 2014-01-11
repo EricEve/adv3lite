@@ -1,3 +1,4 @@
+#charset "us-ascii"
 #include <dict.h>
 #include <strcomp.h>
 #include <tok.h>
