@@ -3286,6 +3286,21 @@ class Thing:  ReplaceRedirector, Mentionable
      */        
     autoGetOutToReach = true
     
+    /* 
+     *   Return a message explaining why an object outside me can't reach one
+     *   inside (or vice versa); this will normally be triggered by an attempt
+     *   to reach an object inside a closed transparent container. The method is
+     *   defined here to make it easier to customize the message on the
+     *   container that's doing the blocking.
+     */
+    reachBlockedMsg(target)
+    {
+        local obj = self;
+        gMessageParams(obj, target);
+        return  BMsg(cannot reach, '{I} {can\'t} reach {the target} through
+            {the obj}. ');
+    }
+    
     /*
      *   Does this object shine light outwards?  This determines if the
      *   object is a light source to objects outside of it.  Light shines
@@ -4454,7 +4469,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(report close, 'Done |{I} close{s/d} {1}. ',  gActionListStr);
+            DMsg(report close, 'Done. |{I} close{s/d} {1}. ',  gActionListStr);
         }
     }
     
@@ -8825,7 +8840,14 @@ class SubComponent: Thing
          *   effectively an aspect of its parent.
          */
         name = parent.name;
-        
+        proper = parent.proper;
+        qualified = parent.qualified;
+        person = parent.person;
+        plural = parent.plural;
+        massNoun = parent.massNoun;
+        isHim = parent.isHim;
+        isHer = parent.isHer;
+        isIt = parent.isIt;
         /* 
          *   Determine the contType of this SubComponent from the property to
          *   which it's attached. The contType must match the remapXX type.
@@ -9218,7 +9240,7 @@ class Floor: MultiLoc, Thing
      *   (such as disambiguating by container or the TakeFrom command), but
      *   nothing is really moved into or out of a Floor).
      */
-    contents = (gActor.outermostVisibleParent().contents - self)
+    contents = (gPlayerChar.outermostVisibleParent().contents - self)
     
     /*   
      *   We can examine a Floor or take something from it, but other actions are

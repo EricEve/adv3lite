@@ -521,6 +521,40 @@ class Parser: object
                     /* get the winning Command */
                     local cmd = cmdLst.cmd;
                     
+                    /* 
+                     *   We next have to ensure that the player hasn't entered
+                     *   multiple nouns in a slot that only allows a single noun
+                     *   in the grammar. If the player has entered two objects
+                     *   like "the bat and the ball" in such a case, the
+                     *   badMulti flag will be set on the command object, so we
+                     *   first test for that and abort the command with a
+                     *   suitable error message if badMulti is not nil (by
+                     *   throwing a BadMultiError
+                     *
+                     *   Unfortunately the badMulti flag doesn't get set if the
+                     *   player enters a multiple object as a plural (e.g.
+                     *   "bats"), so we need to trap this case too. We do that
+                     *   by checking whether there's multiple objects in the
+                     *   direct, indirect and accessory object slots at the same
+                     *   time as the grammar tag matching the slot in question
+                     *   is 'normal', which it is only for a single noun match.
+                     */
+                     
+                    if(cmd.badMulti != nil 
+                       || (cmd.verbProd.dobjMatch != nil &&
+                           cmd.verbProd.dobjMatch.grammarTag == 'normal'
+                           && cmd.dobjs.length > 1)
+                       ||
+                       (cmd.verbProd.iobjMatch != nil &&
+                           cmd.verbProd.iobjMatch.grammarTag == 'normal'
+                           && cmd.iobjs.length > 1)                          
+                        ||
+                       (cmd.verbProd.accMatch != nil &&
+                           cmd.verbProd.accMatch.grammarTag == 'normal'
+                           && cmd.accs.length > 1)
+                           )
+                        cmd.cmdErr = new BadMultiError(cmd.np);
+                    
                     /* if this command has a pending error, throw it */
                     if (cmd.cmdErr != nil)
                         throw cmd.cmdErr;
@@ -5582,6 +5616,14 @@ class OrdinalRangeError: ResolutionError
 
     /* the ordinal, as an integer value (1=first, 2=second, etc) */
     ordinal = nil
+;
+
+class BadMultiError: ParseError
+    display() 
+    { 
+        DMsg(multi not allowed, 'Sorry; multiple objects aren\'t allowed with
+            that command.'); 
+    }
 ;
 
 /* ------------------------------------------------------------------------ */

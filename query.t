@@ -1093,15 +1093,19 @@ class ReachProblemBlocker: ReachProblem
         inaccessible(reachBlockedMsg);
     }
     
+    /* 
+     *   Delegate defining the message explaining that blocking is reached to
+     *   the blocking object.
+     */
     reachBlockedMsg()
-    {
-        local b = target_;
-        local obj = obstructor_;
-        gMessageParams(b, obj);
-        return BMsg(cannot reach, '{I} {can\'t} reach {the b} through
-            {the obj}. ');
+    {        
+        return obstructor_.reachBlockedMsg(target_);
     }
     
+    /* 
+     *   The closed container that is preventing access to the target object the
+     *   actor is trying to reach.
+     */
     obstructor_ = nil
     
     construct(target, obstructor)
