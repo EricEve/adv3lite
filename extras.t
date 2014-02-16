@@ -155,6 +155,51 @@ class Surface: Thing
     
     /* The contents of a Surface are considered to be on the Surface */
     contType = On
+    
+    /* 
+     *   Searching a Surface may involve look for what's on it as well as what's
+     *   in it.
+     *
+     *   We put this code here rather than checking for contType == On on a
+     *   Thing to avoid burdening Thing with overcomplicated code for a rather
+     *   special case.
+     */
+    
+    dobjFor(Search)
+    {
+        preCond = [objVisible, touchObj]
+        verify() {}
+        check() {}
+        action()
+        {
+            if(hiddenIn.length == 0 
+               && contents.countWhich({x: x.searchListed}) == 0)
+            {
+                say(nothingOnMsg);
+                return;
+            }
+            
+            local onList = contents.subset({x: x.searchListed});
+            
+            if(onList.length > 0)
+                listContentsOn(onList);
+            
+            if(hiddenIn.length > 0)            
+                findHidden(&hiddenIn, In);
+        }
+    }
+    
+    nothingOnMsg = BMsg(nothing on, '{I} {find} nothing of interest on
+        {the dobj}. ')
+    
+    /* 
+     *   List what's on me. We put this in a separate method to make it easier
+     *   to customise on a per object basis.
+     */
+    listContentsOn(lst)
+    {
+        lookInLister.show(lst, self, true);
+    }    
 ;
 
 /* 

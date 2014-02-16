@@ -39,17 +39,19 @@ Querying the World Model
 <p>Note that for your convenience Thing defines the methods canSee(obj), canHear(obj), canSmell(obj) and canReach(obj) which all simply call the corresponding methods on Q.</p>
 <br>
 
+<p>It is very unlikely that you would ever need to modify the Q object in your own game code; you would simply call its various methods if you needed to (or rely on other parts of the library to call them as needed to perform the necessary reality checks). To modify what the Q object does you might want to define an object of the Special class, which is explained immediately below.</p>
+
 <h2><a name="special">Specials</a></h2>
 
-<p>A Special is an object that's used by Q to implement the queries that might be put to it. The library-defined QDefaults provides the answers that result from the standard world model and will be used if you don't define anything else; if your game only needs to use the standard model you don't need to worry about Specials.</p>
+<p>A Special is an object that's used by the Q object to implement the queries that might be put to it. The library-defined Special called <strong>QDefaults</strong> provides the answers that result from the standard world model and will be used if you don't define anything else; if your game only needs to use the standard model you don't need to worry about Specials.</p>
 
 <p>For any query, there are two sources of answers.  First, there's the standard answer based on the basic "physics" of the adventure world model.  Second, there are any number of custom answers from Special objects, which define customizations that apply to specific combinations of actors, locations, objects, times, or just about anything else that the game can model.</p> 
 
-<p>The standard physics-based answer is the default.  It provides the answer if there are no active Special objects that provide custom answers.</p>
+<p>The standard physics-based answer (provided by the QDefaults object) is the default.  It provides the answer if there are no (other) active Special objects that provide custom answers. The <a href="senseregion.htm">senseRegion</a> module defines its own Special object called <strong>QSenseRegion</strong> which modifies the basic physics of QDefaults to allow sensory connections between rooms in the same SenserRegion. Again this is not normally something you will need to worry about as a game author, since including the senseRegion.t module in your game will take care of it for you. It is very unlikelt that you would ever need to modify QDefaults or QSenseRegion, and it is (normally) best not to try, since there would be a risk of breaking code elsewhere that relies on how these two objects behave.</p>
  
-<p>If there are active Specials, the only ones that matter for a particular query are the ones that define that query's method.  If there are any active Special objects that define a query method, calling Q.foo() actually calls the highest-priority Special's version of the foo() method.  That Special method can in turn call the next lower priority Special using next().  If there are no active Special objects defining a query method, the default handler in QDefaults will be used automatically.</p>
+<p>If there are other active Specials, the only ones that matter for a particular query are the ones that define that query's method.  If there are any active Special objects that define a query method, calling Q.foo() actually calls the highest-priority Special's version of the foo() method.  That Special method can in turn call the next lower priority Special using next().  If there are no active Special objects defining a query method, the default handler in QDefaults will be used automatically.</p>
 
-<p>A Special can thus define any or all of the methods that are defined on Q. It additionally defines:</p>
+<p>A Special can thus define any or all of the methods that are defined on Q (see the list above). It additionally defines:</p>
 
 <p><strong>isActive</strong>: At any given time, a Special is either active or inactive.  This is determined by the active() method. Each instance should therefore override this to define the conditions that activate this Special.</p>
 
@@ -66,7 +68,38 @@ the Special with the highest priority takes precedence, and can override any low
 <p>Note that priorities can't change while running.  This is a permanent feature of the object.  The Mercury code incorporated into adv3Lite takes advantage of this to avoid re-sorting the active list every time it builds it.  It sorts the master list at initialization and assume it stays sorted, so that any subset is inherently sorted.  If it's important to the game to dynamically change priorities, you just need to re-sort the allActive_ list at appropriate times.  If priorities can only change when the game-world state changes, you can simply sort the list in allActive() each time it's rebuilt.  If priorities can change at other times (which doesn't seem like it'd be useful, but just in case), you'd need to re-sort the list on every call to allActive(), even when the list isn't rebuilt.</p>
 
 <br>
+<a name="touchobj"></a>
+<h2>Specials and the touchObj PreCondition: Customizing Failure Messages</h2>
 
+<p>One place in the library where the workings of Specials becomes particularly complicated is where they are used in conjunction with the <strong>touchObj</strong> PreCondition. The touchObj <a href="actres.htm#precond">PreCondition</a> is used to enforce the need to be able to touch an object before physically manipulating it (e.g. by feeling it, picking it up, or hitting it with something). This is needed to prevent players from physically manipulating objects they shouldn't be able to touch, because they're too far away or enclosed within a closed container. It's actually quite complicated to test whether the player can touch any given object, since any of the following conditions might prevent it:</p>
+
+<ol>
+<li>The object is in a remote location (a room other than that the player character is in).</li>
+<li>The object is in a closed (transparent) container; the player character can see it but can't touch it.</li>
+<li>The object is out of reach (because the game author has defined it to be so through its <span class="code">checkReach()</span> or <span class="code">verifyReach()</span> method).</li>
+<li>The player character is in a nested room (located on a chair, say) and the game author has made it so that an actor on the chair can't reach out to other objects in the room without leaving the chair.</li>
+</ol>
+
+<p>The touchObj PreCondition has to test for all these possibilities and, in the case of number 4, also has to test whether to take the player character out of the nested room (say by standing up from the chair via an implicit action). But in order to ensure everything works consistently, the touchObj PreCondition has to do this via appropriate methods of the Q object (which then farm the queries out to QDefaults or QSenseRegion as appropriate). To complicate matters further, if reaching from the actor to the object that needs to be touched is not possible, the game needs to explain why, so it's not good enough just to call Q.canReach(gActor, obj) and return nil if reaching is impossible.</p>
+
+<p>To cater for this, the <span class="code">verifyPreCondition()</span> and <span class="code">checkPreCondition()</span> call <span class="code">Q.reachProblemVerify(gActor, obj)</span> and <span class="code">Q.reachProblemCheck(gActor, obj)</span> respectively to build lists of issues that might prevent <span class="code">gActor</span> from reaching (i.e. touching) <span class="code">obj</span>. These lists contain objects of the <strong>ReachProblem</strong> class (or one of its subclasses) that define the nature of the problem that prevents the actor from reaching the object. The <span class="code">verifyPreCondition()</span> method then calls the <span class="code">verify()</span> method of every item in the list it has built while the <span class="code">checkPreCondition()</span> method calls the <span class="code">check()</span> method on everything in its list. If the lists are empty, or the verify()/check methods allow touching to go ahead, then the whole action can go ahead; otherwise the action will be prevented and an appropriate explanatory message displayed.</p>
+
+<p>In the first instance, then, these explanatory messages come from the <span class="code">verify()</span> and/or <span class="code">check()</span> methods of some <span class="code">ReachProblem</span> object. If you've followed the discussion so far, you may have surmised that this isn't the easiest place for such messages to be customized if they aren't what you want in your game. If you haven't followed the discussion all that well up to this point you may be even more convinced that these messages aren't easy to customize. But don't worry; to make things easier the relevant <span class="code">ReachProblem</span> objects farm the production of messages out to one of the objects causing the problem where you can easily customize it.</p>
+
+<p>This is perhaps best explained by listing the methods you can customize (each of which should return a single-quoted string), together with the default message they relate to and the game object's they're defined on:</p>
+
+<ol>
+<li><strong>reachBlockedMsg(target)</strong>: By default this generates the message "<strong>You can't reach the <em>target</em> through the <em>container</em></strong>", where <em>target</em> is the object the actor is trying to touch and <em>container</em> is the closed container that's getting in the way (because you can't reach through glass, or whatever other transparent material the container is made of). This method is defined on the <em>container</em>.</li>
+<li><strong>cannotReachOutMsg(target)</strong>: By default this generates the message "<strong>You can't reach the <em>target</em> from the <em>loc</em></strong>", where <em>target</em> is the object the actor is trying to touch and <em>loc</em> is the nested room (e.g. a chair) the actor is trying to reach it from. This method needs to be defined on the <em>loc</em> object  in question (e.g. the chair containing the actor).</li>
+<li><strong>tooFarAwayMsg</strong>: By default this generates the message "<strong>The <em>target</em> is too far away</strong>", where <em>target</em> is the object the actor is trying to touch. It normally arises when the actor and the target are in different rooms. Note that this method takes no parameters, and could simply be defined as a property. Either way it should be defined on the <em>target</em> object.</li>
+<li><strong>cannotReachTargetMsg(target)</strong>: By default this method (called on the actor's room) returns the value of <span class="code">target.tooFarAwayMsg</span>, which in turn generates the message "<strong>The <em>target</em> is too far away</strong>" as in (3) above. This may be a more convenient point at which to customize messages of this sort, since this method allows you to customize the message on the room the actor is trying to reach the <em>target</em> from, rather than having to do so on each potential target. Note that overriding this method will normally suppress the use of the target's <span class="code">tooFarAwayMsg</span>. As in (3) above this method will normally be invoked when the player character is trying to touch an object in a different room.</li>
+</ol>
+
+
+<p>Don't worry if you don't follow all the details of this admittedly somewhat complex mechanism. In all probability all you really need to know is that if you want to customize one of the messages in the list above, you can do so by overriding the corresponding method in that list.</p>
+
+
+<br>
 <a name="commlink"></a><h2>The Communications Link Special</h2>
 <p>The function of a Special is to change the rules that govern sensory connections and scope. One pertinent situation that quite often occurs in Interactive Fiction is where we want to establish a remote communication link between the player character and another actor in a remote location, typically to represent a telephone conversation or a videolink. To facilitate this the library defines a <strong>commLink</strong> Special which can be used for precisely this purpose.</p>
 

@@ -2218,7 +2218,7 @@ class Thing:  ReplaceRedirector, Mentionable
     isDirectlyWornBy(obj) { return location == obj && wornBy == obj; }
 
     /* get everything I'm directly wearing */
-    directlyWorn = (contents.subset({ obj: obj.wornBy = self }))
+    directlyWorn = (contents.subset({ obj: obj.wornBy == self }))
     
     
     
@@ -3301,6 +3301,31 @@ class Thing:  ReplaceRedirector, Mentionable
             {the obj}. ');
     }
     
+    /*  
+     *   Return a message (single-quoted string) explaining why we can't be
+     *   reached by the actor (typically because we're in a different room).
+     */
+    tooFarAwayMsg
+    {
+        local obj = self;
+        gMessageParams(obj);
+        return BMsg(too far away, '{The subj obj} {is} too far away. ');
+    }
+    
+    /* 
+     *   Return a message (single-quoted string) explaining why target can't be
+     *   reached from inside this Thing (when this Thing is typically some kind
+     *   of nested room such as a Booth or Platform).
+     */
+    cannotReachOutMsg(target)
+    {
+        local loc = self;
+        gMessageParams(loc, target);
+        return BMsg(cannot reach out, '{I} {can\'t} reach {the target} from
+                    {the loc}. ');
+    }
+    
+    
     /*
      *   Does this object shine light outwards?  This determines if the
      *   object is a light source to objects outside of it.  Light shines
@@ -3633,9 +3658,18 @@ class Thing:  ReplaceRedirector, Mentionable
      *   dobjFor(Default) and/or iobjFor(Default). Game code can override this
      *   list (usually to expand it) for decorations that are required to handle
      *   additional actions.
+     *
+     *   If we're compiling for debugging, it will be useful to allow the GONEAR
+     *   command with Decorations for testing purposes, but this can't be
+     *   included in a release build without causing a compilation error, so we
+     *   define the decorationActions property with different lists of actions
+     *   depending on whether we're compliling for debugging or release.
      */    
+#ifdef __DEGUG
+    decorationActions = [Examine, GoTo, GoNear]
+#else
     decorationActions = [Examine, GoTo]
-    
+#endif
     /*   
      *   Our handling of any action of which we're the direct or indirect action
      *   that's not in our list of decorationActions when our isDecoration

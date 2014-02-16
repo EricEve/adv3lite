@@ -522,7 +522,19 @@ class Room: TravelConnector, Thing
         }
     }
  
-    
+    /* 
+     *   Optional method that returns a single-quoted string explaining why
+     *   target (normally an object in a remote location) cannot be reached from
+     *   this room. By default we just return the target's tooFarAwayMsg but
+     *   this can be overridden, for example, to return the same format of
+     *   message for every target that can't be reached from this room (e.g.
+     *   "You can't reach [the target] from the meadow. ") ]
+     */        
+        
+    cannotReachTargetMsg(target)
+    { 
+        return target.tooFarAwayMsg;
+    }
 ;
 
 /* 

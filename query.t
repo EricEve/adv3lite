@@ -11,7 +11,6 @@
  *   Michael J. Roberts.
  */
 
-
 /* ------------------------------------------------------------------------ */
 /*
  *   Q is the general-purpose global Query object.  Its various methods are
@@ -37,6 +36,7 @@
  *   objects defining a query method, the default handler in QDefaults will
  *   be used automatically.  
  */
+
 Q: object
     /*
      *   Get the list of objects that are in scope for the given actor.
@@ -335,7 +335,7 @@ QDefaults: Special
         
         if(a.isIn(nil) || b.isIn(nil))
         {
-            issues += new ReachProblemDistance(b);
+            issues += new ReachProblemDistance(a, b);
             return issues;
         }
         
@@ -356,7 +356,7 @@ QDefaults: Special
              *   other object is too far away.
              */
             if(lst[1].ofKind(Room))
-                issues += new ReachProblemDistance(b);        
+                issues += new ReachProblemDistance(a, b);        
             /* Otherwise some enclosing object is in the way */
             else          
                 issues += new ReachProblemBlocker(b, lst[1]);                
@@ -1077,10 +1077,17 @@ class ReachProblemDistance: ReachProblem
     
     tooFarAwayMsg()
     {
-        local b = target_;
-        gMessageParams(b);
-        return BMsg(too far away, '{The subj b} {is} too far away. ');
+        return source_.getOutermostRoom.cannotReachTargetMsg(target_);              
     }
+    
+    construct(source, target)
+    {
+        source_ = source;
+        inherited(target);
+    }
+    
+    /* The object that's trying to reach the target */
+    source_ = nil;
 ;
     
 /*  
@@ -1221,9 +1228,7 @@ class ReachProblemReachOut: ReachProblem
              */
             else
             {
-                gMessageParams(obj, loc);
-                DMsg(cannot reach out, '{I} {can\'t} reach {the obj} from
-                    {the loc}. ');
+                say(loc.cannotReachOutMsg(obj));               
                 return nil;
             }
                        

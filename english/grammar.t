@@ -1588,7 +1588,7 @@ VerbRule(LookThrough)
 ;
 
 VerbRule(LookUnder)
-    ('look' | 'l') 'under' multiDobj
+    ('search' | 'look' | 'l') 'under' multiDobj
     : VerbProduction
     action = LookUnder
     verbPhrase = 'look/looking (under what)'
@@ -1596,7 +1596,7 @@ VerbRule(LookUnder)
 ;
 
 VerbRule(LookBehind)
-    ('look' | 'l') 'behind' multiDobj
+    ('search' | 'look' | 'l') 'behind' multiDobj
     : VerbProduction
     action = LookBehind
     verbPhrase = 'look/looking (behind what)'
