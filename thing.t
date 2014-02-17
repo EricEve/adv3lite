@@ -8873,15 +8873,8 @@ class SubComponent: Thing
          *   A SubComponent takes its name from its parent, since it's
          *   effectively an aspect of its parent.
          */
-        name = parent.name;
-        proper = parent.proper;
-        qualified = parent.qualified;
-        person = parent.person;
-        plural = parent.plural;
-        massNoun = parent.massNoun;
-        isHim = parent.isHim;
-        isHer = parent.isHer;
-        isIt = parent.isIt;
+        nameAs(parent);
+       
         /* 
          *   Determine the contType of this SubComponent from the property to
          *   which it's attached. The contType must match the remapXX type.
@@ -8901,6 +8894,28 @@ class SubComponent: Thing
         /* If we have a contType, set our listOrder to that of our contType. */
         if(contType != nil)
             listOrder = contType.listOrder;
+    }
+    
+    /* 
+     *   Take each of our name-related properties from the corresponding
+     *   properties of our lexicalParent. Language-specific modules may need to
+     *   override this method to cater for additional properties.
+     *
+     *   Note that if the lexicalParent is renamed at any point during the game,
+     *   this nameAs() method should be called on any openable SubComponent at
+     *   the same time to ensure the names stay in sync.
+     */
+    nameAs(parent)
+    {
+        name = parent.name;
+        proper = parent.proper;
+        qualified = parent.qualified;
+        person = parent.person;
+        plural = parent.plural;
+        massNoun = parent.massNoun;
+        isHim = parent.isHim;
+        isHer = parent.isHer;
+        isIt = parent.isIt;
     }
     
     makeOpen(stat)
@@ -8926,16 +8941,19 @@ class SubComponent: Thing
                 replaceVocab(origVocab);
                 
                 /*   Restore our name to our lexicalParent's name. */
-                name = lexicalParent.name;
+                nameAs(lexicalParent);
             }
             else
+            {
                 /* 
                  *   If this object is being closed, replace our vocab with that
                  *   of our lexicalParent (which is no longer in scope once
                  *   we're closed with the playerChar inside us) so that the PC
                  *   can still refer to us (e.g. to open us again).
                  */
-                addVocab(lexicalParent.vocab);
+                addVocab(lexicalParent.vocab);               
+                
+            }
         }
     }
     

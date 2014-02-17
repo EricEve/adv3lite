@@ -1789,6 +1789,33 @@ class LMentionable: object
 ;
 
 
+modify SubComponent
+    /* 
+     *   In addition to the properties copied on the original definition of this
+     *   class in his method, we need to copy all the other name related
+     *   properties of the parent object that game authors might conceivably
+     *   customize.
+     */
+    nameAs(parent)
+    {
+        /* Carry out the inherited handling. */
+        inherited(parent);
+        
+        /* Then copy all the other name-related properties. */
+        aName = parent.aName;
+        theName = parent.theName;
+        theObjName = parent.theObjName;
+        objName = parent.objName;
+        possAdj = parent.possAdj;
+        possNoun = parent.possNoun;
+        objInName = parent.objInName;
+        objIntoName = parent.objIntoName;
+        objOutOfName = parent.objOutOfName;
+        
+    }
+    
+;
+
 
 /* ------------------------------------------------------------------------ */
 /*
