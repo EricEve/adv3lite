@@ -1,0 +1,149 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Final Moves &mdash; Utility Functiona</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Utility Functions
+<br><span class="navnp"><a class="nav" href="output.htm"><i>Prev:</i> Some Output Issues</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Utility Functions</h1>
+<p>The library defines a number of <a href="#utility">utility functions</a> and <a href="#intrinsic">intrinsic class extensions</a> for both internal and game author use. Some of these will be of more use to game authors than others, since a number of them are primarily designed to carry out specialized functions in the library. They are nevertheless all available for game authors to use, and are described below. Note that most of them were simply taken over from the Mercury library, but a few have been added in adv3Lite.</p>
+
+<a name="functions"></a>
+<h2>Functions</h2>  
+
+<p>The following functions (some quite general, some special-purpose) are defined in misc.t:</p>
+
+<ul>  
+<li><strong>tryInt(val)</strong>: if val is an integer or a string or BigNumber that can be converted to an integer, returns the integer equivalent of val; otherwise returns nil.</li>  
+<li><strong>tryNumber(val)</strong>: if val is an number (integer or BigNumber) or a string or BigNumber that can be converted to a number, returns the numerical (integer or BigNumber) equivalent of val; otherwise returns nil.</li>   
+<li><strong>nilToList(val)</strong>: if val is a list, returns val unchanged; if val is nil, returns an empty list.</li>
+<li><strong>valToList(val)</strong>: if val is a list, returns val unchanged; if val is nil, returns an empty list; if val is a Vector returns val converted to a list; if val is any other singleton value returns a list with one element containing val.</li>
+<li><strong>makeMentioned(obj)</strong>: Set the mentioned property of obj to true. If obj is supplied as a list, set every object's mentioned property in the list to true. This can be used
+ in room and object descriptions to mark an object as mentioned so it won't be included in the listing.</li>
+<li><strong>partitionList(lst, fn)</strong>: partitionList - partition a list into a pair of two lists, the first containing items that match the predicate 'fn', the second containing items that don't match 'fn'.  'fn' is a function pointer (usually an anonymous function) that takes a single argument - a list element - and returns true or nil. The return value is a list with two elements.  The first element is a list giving the elements of the original list for which 'fn' returns true, the second element is a list giving the elements for which 'fn' returns nil.</li>
+<li><strong>isListSubset(a, b)</strong>:  Determine if list a is a subset of list b.  a is a subset of b if every element of a is in b. </li>
+<li><strong>findMatchingTopic(voc, cls = Topic)</strong>:  Find an existing Topic whose vocab is voc. If the cls parameter is supplied it can be used to find a match in some other class, such as
+ Thing or Mentionable.</li>
+<li><strong>setPlayer(actor, person = 2)</strong>:  Set the player character to another actor. If the optional second parameter is supplied, it sets the person of the player character; otherwise it defaults to the second person. </li>
+<li><strong>isEmptyStr(str)</strong>: returns true if <em>str</em> is either nil or the empty string ''.</li>
+</ul>
+
+<p>The <span class="code">tryInt(val)</span> and <span class="code">tryNumber(val)</span> functions can be useful when you want to parse user input to see whether something is a valid number and, if so, do something with the numerical value it returns. The following table further illustrate how these two functions work (with the output from the intrinsic functions <span class="code">toInteger()</span> and <span class="code">toNumber()</span> also supplied for comparison):</p>
+
+<table  width=50% border=1>
+<tr><td>val</td><td>tryInt(val)</td><td>tryNum(val)</td><td>toInteger()</td><td>toNumber()</td></tr>
+<tr><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>'1'</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>1.1</td><td>1</td><td>1.1</td><td>1</td><td>1.1</td></tr>
+<tr><td>'1.1'</td><td>nil</td><td>1.1</td><td>1</td><td>1.1</td></tr>
+<tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>'foobar'</td><td>nil</td><td>nil</td><td>0</td><td>0</td></tr>
+<tr><td>true</td><td>nil</td><td>nil</td><td>1</td><td>1</td></tr>
+<tr><td>'5a5'</td><td>nil</td><td>nil</td><td>5</td><td>5</td></tr>
+<tr><td>'15b'</td><td>nil</td><td>nil</td><td>15</td><td>15</td></tr>
+<tr><td>'b15'</td><td>nil</td><td>nil</td><td>0</td><td>0</td></tr>
+<tr><td>'3e'</td><td>nil</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>'3e3'</td><td>nil</td><td>3000</td><td>3</td><td>3000</td></tr>
+<tr><td>'1.2E2'</td><td>nil</td><td>120</td><td>1</td><td>120</td></tr>
+<tr><td>'+4'</td><td>4</td><td>4</td><td>4</td><td>4</td></tr>
+<tr><td>'-3'</td><td>-3</td><td>-3</td><td>-3</td><td>-3</td></tr>
+<tr><td>'-3.2e4'</td><td>nil</td><td>-32000</td><td>-3</td><td>-32000</td></tr>
+
+</table>
+
+<p>You can see from this that <span class="code">tryInt(val)</span> and <span class="code">tryNumber(val)</span> are both stricter than <span class="code">toInteger(val)</span> and <span class="code">toNumber(val)</span> (which, for example, would have returned numeric values when val was true, '15b' or '5a5'), and that <span class="code">tryInt(val)</span> is 'stricter' than <span class="code">tryNum(val)</span>; <span class="code">tryInt(val)</span> only returns a non-nil value either if it's passed a number or if it's passed a string containing only digits optionally preceded by + or -, whereas <span class="code">tryNum(val</span>) will also accept strings with decimal point and exponent notation (such as '1.2E2').</p>
+<br>
+
+<a name="intrinsic"></a>
+<h2>Intrinsic Class Extensions</h2>  
+  
+<p>In addition, the misc.t module (which must be included in every adv3Lite game) defines a number of additional methods on the intrinsic classes <a href="#string">String</a>, <a href="#vector">Vector</a>, <a href="#list">List</a> and <a href="#object">Object</a>:</p>  
+  
+<h3><a name="string">String</a></h3>  
+<p>The String class gains the following additional methods, each of which returns a new string:</p>
+
+<ul>
+<li><strong>trim()</strong>: Trim spaces.  Removes leading and trailing spaces from the string.</li>
+<li><strong>firstChar()</strong>: returns the first character in the string.</li>
+<li><strong>lastChar()</strong>: returns the last character of the string.</li>
+<li><strong>delFirst()</strong>: removes the first character (i.e. returns the string minus its first character)</li>
+<li><strong>delLast()</strong>: removes the last character (i.e. returns the string minus its final character)</li>
+<li><strong>left(n)</strong>: returns a string containing the leftmost n characters of the original string; if n is negative, returns the leftmost (length-n) characters).</li>
+<li><strong>right(n)</strong>: returns a string containing the rightmost n characters of the original string; if n is negative, returns the rightmost (length-n).</li>
+
+</ul>
+<br>
+<h3><a name="vector">Vector</a></h3>  
+<p>The Vector class gains the following additional methods:</p>
+
+<ul>
+<li><strong>isEmpty()</strong>: returns true if the Vector is empty (i.e. if its length is zero).</li>
+<li><strong>clear()</strong>: clears (i.e. empties) the Vector.</li>
+<li><strong>getTop()</strong>: get the "top" (i.e. last) item, treating the Vector as a stack.</li>
+<li><strong>push(val)</strong>: push a value (append it to the end of the Vector).</li>
+<li><strong>pop()</strong>: pop a value (remove and return the value at the end of the Vector).</li>
+<li><strong>unshift(val)</strong>: unshift a value (insert it at the start of the Vector).</li>
+<li><strong>shift()</strong>: shift a value (remove and return the first value).</li>
+<li><strong>groupSort(func)</strong>: Perform a "group sort" on the vector.  This sorts the items into groups, then sorts by an ordering value within each group. The groups are determined by group keys, which are arbitrary values.  Each group is simply the set of objects with a like value for the key.  Within the group, we sort by an integer ordering key. 'func' is a function that takes two parameters: func(entry, idx), where 'entry' is a list element and 'idx' is an index in the list. This returns a list, [group, order], giving the group key and ordering key for the entry.</li>
+<li><strong>find(ele)</strong>: find a list element - synonym for indexOf(ele).</li>
+<li><strong>shuffle()</strong>: shuffle the elements of the Vector into a random order.</li>
+</ul>
+
+<br>
+
+<h3><a name="list">List</a></h3>
+<p>The List class gains the following additional methods:</p>
+<ul>
+<li><strong>matchProto(proto)</strong>: Check the list against a prototype (a list of data types).  This is useful for checking a varargs list to see if it matches a given prototype. Each prototype element can be a TypeXxx type code, to match a value of the given native type; an object class, to match an instance of that class; 'any', to match a value of any type; or the special value '...', to match zero or more additional arguments.  If '...' is present, it must be the last prototype element.</li>
+<li><strong>toList()</strong>: toList() on a list simply returns the same list (this seemingly pointless method presumably makes it easier to call the toList() method on something that might be either a List or a Vector and get a list returned either way).</li>
+<li><strong>find(ele)</strong>: find a list element - synonym for indexOf(ele).</li>
+<li><strong>shuffle()</strong>: shuffle the list: return a new list with the elements of this list rearranged into a random order.</li>
+<li><strong>overlapsWith(lst)</strong>: Determine whether this list has any elements in common with a second list <em>lst</em>; returns true if it does and nil otherwise.</li>
+<li><strong>element(i)</strong>: Returns the <em>i</em>th element of the list if there is one, or nil otherwise (i.e. if the list has less than <em>i</em> elements).</li>
+<li><strong>strComp(lst, cmp)</strong>: Compare two lists of strings (in this list and <em>lst</em>) using the <em>cmp</em> StringComparator; return true if all the corresponding strings in the two lists are the same (according to <em>cmp</em>) and nil otherwise.</li>
+</ul>
+<br>
+
+<h3><a name="object">Object</a></h3>
+<p>Some methods have been added to the base Object class to make it <em>somewhat</em> interchangeable with lists and vectors.  Certain operations that are normally specific to the collection types have obvious degenerations for the singleton case.  In particular, a singleton can be thought of as a collection consisting of one value, so operations that iterate over a collection degenerate to one iteration on a singleton.</p>
+
+<ul>
+<li><strong>mapAll(func)</strong>: mapAll for an object simply applies a function to the object.</li>
+<li><strong>forEach(func)</strong>: forEach on an object simply calls the function on the object.</li>
+<li><strong>createIterator()</strong>: create an iterator of the <strong>SingletonIterator</strong> class, which is an implementation of the Iterator interface for singleton values.  This allows 'foreach' to be used with arbitrary objects, or even primitive values.  The effect of iterating over a singleton value with 'foreach' using this iterator is simply to invoke  the loop once with the loop variable set to the singleton value.</li>
+<li><strong>createLiveIterator():</strong> create a live iterator (this allows 'foreach' to be used with an arbitrary object, iterating once over the loop with the object value). </li>
+<li><strong>callInherited(cl, prop, [args])</strong>: Call an inherited method directly.  This has the same effect that calling 'inherited cl.prop' would from within a method, but allows you to do this from an arbitrary point <em>outside</em> the object's own code.  I.e., you can say 'obj.callInherited(cl, &amp;prop)' and get the effect that 'inherited c.prop' would have had from within an 'obj' method. </li>
+</ul>
+
+<p>The createLiveIterator() method thus allows us to write code like this:</p>
+
+ <p><div class="code"><pre>
+  local a = 'Hello World! ';
+  foreach(local cur in a)
+     "&lt;&lt;cur&gt;&gt;\n"; 
+ </pre></div>
+
+<p>Executing this will then indeed result in a display of the string 'Hello World!'. This will principally be useful when we want to iterate over some variable (or property) that may contain either a collection (List or Vector) or a singleton value.</p> 
+ 
+ 
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Utility Functions
+<br><span class="navnp"><a class="nav" href="output.htm"><i>Prev:</i> Some Output Issues</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
