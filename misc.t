@@ -1305,6 +1305,109 @@ finishOptionAmusing: FinishOption
  *   Utility functions 
  */
 
+/* 
+ *   Try converting val to an integer. If this results in an integer value,
+ *   return it, otherwise return nil.
+ */
+
+tryInt(val)
+{
+    /* 
+     *   If the value passed to the function is neither an integer nor a string
+     *   nor a BigNumber, return nil, since there can be no valid integer
+     *   representation of it.
+     */    
+    if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
+       || (dataType(val) == TypeObject && !(val.ofKind(BigNumber))))
+        return nil;
+    
+    /* Try converting val to an integer. */
+    local res = toInteger(val);
+   
+    /*   
+     *   If val is a string then res is a valid number if val is a string that
+     *   contains one or more zeroes perhaps preceded by + or -.
+     */
+    
+    if(dataType(val) == TypeSString)    
+    {
+        /* 
+         *   Strip out all the spaces from val.         
+         */
+        val = val.findReplace(' ', '').trim();
+        
+        if(val.match(R'(<plus>|-)?<digit>+$'))
+            return res;       
+        
+    }
+    
+       
+    /* 
+     *   If val is a BigNumber or an integer, this is also a valid result, so
+     *   return it. Note that we need only test for whether val is an object,
+     *   since if it was any other kind of object than a BigNumber, this
+     *   function would have returned nil at the first test.
+     */     
+    if(dataType(val) is in (TypeInt, TypeObject))
+        return res;
+    
+   
+    
+    /* 
+     *   We can't find a valid interpretation of val as a number, so return nil.
+     */
+    return nil;
+}
+
+/* 
+ *   Try converting val to a number (integer or BigNumber); return the number if
+ *   there is one, otherwise return nil.
+ */
+tryNum(val)
+{
+     /* 
+     *   If the value passed to the function is neither an integer nor a string
+     *   nor a BigNumber, return nil, since there can be no valid numerical
+     *   representation of it.
+     */    
+    if(dataType(val) not in (TypeInt, TypeSString, TypeObject)
+       || (dataType(val) == TypeObject && !val.ofKind(BigNumber)))
+        return nil;
+    
+    /* If val is already a BigNumber, return it unchanged. */
+    if(dataType(val) == TypeObject && val.ofKind(BigNumber))
+        return val;
+    
+    /* Try converting val to a number */
+    local res = toNumber(val);
+
+    /*  
+     *   If val is a string then test whether it matches a valid numerical
+     *   pattern.
+     */
+    if(dataType(val) == TypeSString)
+    {
+        val = val.findReplace(' ','');
+        
+        if(val.match(R'(<plus>|-)?<digit>+$'))
+            return res;
+        
+        if(val.match(R'(<plus>|-)?<digit>*<dot><digit>+$'))
+            return res;
+        
+        if(val.match(R'(<plus>|-)?<digit>+(<dot><digit>+)?[eE]<digit>?+$'))
+            return res;
+    }
+    
+
+    /* Otherwise use the tryInt() function to return the result */
+    return tryInt(val);
+}
+
+
+
+
+
 /*
  *   nilToList - convert a 'nil' value to an empty list.  This can be
  *   useful for mix-in classes that will be used in different inheritance
@@ -1421,7 +1524,7 @@ findMatchingTopic(voc, cls = Topic)
 /* 
  *   Set the player character to another actor. If the optional second parameter
  *   is supplied, it sets the person of the player character; otherwise it
- *   default to the second person.
+ *   defaults to the second person.
  */
 setPlayer(actor, person = 2)
 {    
@@ -1551,7 +1654,7 @@ class SingletonIterator: object
     val_ = nil
     
     /* do we have any more values to fetch? */
-    more_ = nil
+    more_ = true
 ;
 
 /*
@@ -1585,11 +1688,8 @@ modify String
     left(n) { return n >= 0 ? substr(1, n) : substr(1, length() + n); }
 
     /* rightmost n characters; if n is negative, rightmost (length-n) */
-    right(n) { return n >= 0 ? substr(-n) : substr(n + length()); }
-    
-    
-    
-;
+    right(n) { return n >= 0 ? substr(-n) : substr(n + length()); }    
+    ;
 
 /* A string is empty if it's nil or if when trimmed it's '' */
 isEmptyStr(str) {  return (str == nil || str.trim() == ''); }
@@ -1637,7 +1737,7 @@ modify Vector
         }
     }
 
-    /* unshift a value (insert it at the start of the array) */
+    /* unshift a value (insert it at the start of the Vector) */
     unshift(val) { prepend(val); }
 
     /* shift a value (remove and return the first value) */

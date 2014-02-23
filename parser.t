@@ -817,7 +817,12 @@ class CommandList: object
                     c.resolveNouns();
                     
                     /* success - take this as the result; look no further */
-                    cmd = c;
+                    /* 
+                     *   But only if we haven't yet got a command or the new
+                     *   command didn't have to create a new Topic object.
+                     */
+                    if(cmd == nil || !c.madeTopic)
+                        cmd = c;
                     
                     /* 
                      *   But if this command had to create a new Topic object,
