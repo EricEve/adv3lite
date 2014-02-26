@@ -1808,9 +1808,9 @@ modify SubComponent
         objName = parent.objName;
         possAdj = parent.possAdj;
         possNoun = parent.possNoun;
-        objInName = parent.objInName;
-        objIntoName = parent.objIntoName;
-        objOutOfName = parent.objOutOfName;
+//        objInName = parent.objInName;
+//        objIntoName = parent.objIntoName;
+//        objOutOfName = parent.objOutOfName;
         
     }
     

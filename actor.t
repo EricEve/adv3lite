@@ -198,6 +198,14 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             /* Change the current actor to the player char */
             gCommand.actor = gPlayerChar;
             
+            /* Change the current action to AskFor */
+            gAction = AskFor.createInstance();
+            
+            /* Install the appropriate objects in the new action. */
+            gAction.curDobj == self;
+            gAction.curIobj == gCommand.dobj;
+            gAction.curObj = self;            
+            
             /* 
              *   Handle the command as if the player had issued an AskFor
              *   command
@@ -225,6 +233,15 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
              *   effective actor is now the player char.
              */
             gCommand.actor = gPlayerChar;
+            
+            /* Change the current action to AskFor */
+            gAction = AskAbout.createInstance();
+            
+            /* Install the appropriate objects in the new action. */
+            gAction.curDobj == self;
+            gAction.curIobj == gCommand.dobj;
+            gAction.curObj = self;
+            
             
             /* Handle the command as AskFor */ 
             handleTopic(&askTopics, gCommand.iobj.topicList);
