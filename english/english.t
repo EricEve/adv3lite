@@ -1985,8 +1985,25 @@ modify Topic
     {
         name_ = name_.findReplace(' \'s', '\'s', ReplaceAll);
         inherited(name_);
-   }
+    }
     
+;
+
+/* 
+ *   Modification to the Command class so that when reconstructing a command
+ *   string from its tokens a separate apostrophe-S token is concatenated with
+ *   the previous word when storing the name (which undoes the effect on
+ *   building the name of what the English-language tokenizer does with
+ *   apostrophe-S).
+ */
+modify Command
+    buildCommandString()
+    {
+        local str = valToList(verbProd.tokenList).mapAll({x:        
+            getTokVal(x)}).join(' ');
+        str = str.findReplace(' \'s', '\'s', ReplaceAll);
+        return str;         
+    }
 ;
 
 

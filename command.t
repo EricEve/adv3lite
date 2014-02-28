@@ -192,9 +192,8 @@ class Command: object
             actions = [];
             
             if(verbProd != nil)
-                local lastCommandStr = valToList(verbProd.tokenList).mapAll({x:
-                    getTokVal(x)}).join(' ');
-           
+                local lastCommandStr = buildCommandString();
+                           
             if(gameMain.autoSwitchAgain && action != Again)           
             {                
                 gameMain.againRepeatsParse = action.againRepeatsParse;
@@ -322,6 +321,16 @@ class Command: object
              *   the command from the point it's issued.
              */
         }
+    }
+    
+    /* 
+     *   Rebuild the original command string from the tokens. We call this out
+     *   as a separate method so language-specific code can override it.
+     */
+    buildCommandString()
+    {
+        return valToList(verbProd.tokenList).mapAll({x:        
+            getTokVal(x)}).join(' ');
     }
     
     /*  A list of actions executed directly by this command or via a Doer */
