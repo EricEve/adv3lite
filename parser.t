@@ -540,7 +540,8 @@ class Parser: object
                      *   is 'normal', which it is only for a single noun match.
                      */
                      
-                    if(cmd.badMulti != nil 
+                    if(cmd && cmd.verbProd != nil &&                        
+                        (cmd.badMulti != nil 
                        || (cmd.verbProd.dobjMatch != nil &&
                            cmd.verbProd.dobjMatch.grammarTag == 'normal'
                            && cmd.dobjs.length > 1)
@@ -552,7 +553,7 @@ class Parser: object
                        (cmd.verbProd.accMatch != nil &&
                            cmd.verbProd.accMatch.grammarTag == 'normal'
                            && cmd.accs.length > 1)
-                           )
+                           ))
                         cmd.cmdErr = new BadMultiError(cmd.np);
                     
                     /* if this command has a pending error, throw it */
