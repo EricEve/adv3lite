@@ -254,13 +254,14 @@ QDefaults: Special
     }
 
     /*
-     *   Can A see B?  We return true if and only if B is in light and
-     *   there's a clear sight path from A to B.  
+     *   Can A see B?  We return true if and only if B is in light and there's a
+     *   clear sight path from A to B. Also A can't see B is B is explicitly
+     *   hidden.
      */
     canSee(a, b)
     {
         
-        if(a.isIn(nil) || b.isIn(nil))
+        if(a.isIn(nil) || b.isIn(nil) || b.isHidden)
             return nil;
         
         /* we can see it if it's in light and there's a clear path to it */
@@ -754,7 +755,7 @@ commLink: Special
     {
         /* 
          *   We assume that if a can see b, b can see a, but the link is only
-         *   between the player character an another actor. If b is the player
+         *   between the player character and another actor. If b is the player
          *   character swap a and b so that the tests that follow will still
          *   apply.
          */

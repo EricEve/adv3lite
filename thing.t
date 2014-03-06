@@ -1123,7 +1123,7 @@ class Thing:  ReplaceRedirector, Mentionable
             "<./roomcontents>";
             
             /* Note that we've been seen and visited. */
-            seen = true;
+            setSeen();
             visited = true;
         }
         
@@ -1362,6 +1362,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         foreach(local obj in contList)
         {
+            /* 
+             *   We don't explicitly list things in actors' inventory, but we
+             *   should note them as seen if the player can see them.
+             */            
+            if(obj.contType == Carrier)
+                obj.allContents.subset({o: gPlayerChar.canSee(o) }).forEach( {o:
+                    o.noteSeen() });           
+            
             /* 
              *   Don't list the inventory of any actors, or of any items that
              *   don't want their contents listed, or any items we can't see in,
@@ -2145,6 +2153,13 @@ class Thing:  ReplaceRedirector, Mentionable
     discover(stat = true)
     {
         isHidden = !stat;
+        
+        /* 
+         *   If the player character can see me when I'm hidden, note that the
+         *   player character has now seen me.
+         */
+        if(stat && Q.canSee(gPlayerChar, self))
+            noteSeen();
     }
        
     /* 
@@ -2197,8 +2212,7 @@ class Thing:  ReplaceRedirector, Mentionable
     makeWorn(stat)  { wornBy = stat ? location : nil; }
     
     /* are we directly held by the given object? */
-    isDirectlyHeldBy(obj) { return location == obj && !obj.isFixed &&
-            obj.wornBy == nil; }
+    isDirectlyHeldBy(obj) { return location == obj && !isFixed && wornBy == nil; }
 
     /* 
      *   Get everything I'm directly holding, which is everything in my
@@ -3453,7 +3467,7 @@ class Thing:  ReplaceRedirector, Mentionable
     setHasSeen(obj) { obj.(seenProp) = true; }
     
     /*  Mark the player character as having seen this Thing. */
-    setSeen() { gPlayerChar(setHasSeen(self)); }
+    setSeen() { gPlayerChar.setHasSeen(self); }
     
     /*  Test whether this Thing has seen obbj. */
     hasSeen(obj) { return obj.(seenProp); }
@@ -4451,7 +4465,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!gAction.isImplicit)
             {              
                 unmention(contents);
-                listSubcontentsOf(self, openingContentsLister);
+                listSubcontentsOf(self, myOpeningContentsLister);
             }           
         }
         
@@ -4461,6 +4475,11 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
+    /* 
+     *   The lister to use when listing my contents when I'm opened. By default
+     *   we use the openingContentsLister.
+     */
+    myOpeningContentsLister = openingContentsLister
 
     okayOpenMsg = 'Opened.|{I} open{s/ed} {1}. '
     
@@ -4705,7 +4724,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                        {: listSubcontentsOf(self, myLookInLister) }) == nil)
                       display(&lookInMsg);       
 
                 }
@@ -4726,6 +4745,12 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         
     }
+    
+    /* 
+     *   The lister to use when listing the objects inside me in response to a
+     *   LOOK IN command. By default we use the lookInLister.
+     */
+    myLookInLister = lookInLister
     
     
     /* 
@@ -4808,7 +4833,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, lookInLister) }) == nil)
+                        {: listSubcontentsOf(self, myLookUnderLister) }) == nil)
                         display(&lookUnderMsg);  
                     
                 }
@@ -4828,6 +4853,12 @@ class Thing:  ReplaceRedirector, Mentionable
             
         }
     }
+    
+    /* 
+     *   The lister to use when listing the objects under me in response to a
+     *   LOOK UNDER command. By default we use the lookInLister.
+     */
+    myLookUnderLister = lookInLister
     
     cannotLookUnderMsg = BMsg(cannot look under, '{I} {can\'t} look under {that
         dobj}. ')
@@ -4895,7 +4926,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, lookInLister) }) == nil)                        
+                        {: listSubcontentsOf(self, myLookBehindLister) }) == nil)                        
                         display(&lookBehindMsg); 
 
                 }
@@ -4916,6 +4947,14 @@ class Thing:  ReplaceRedirector, Mentionable
             
         }
     }
+    
+    
+    /* 
+     *   The lister to use when listing the objects behind me in response to a
+     *   LOOK BEHIND command. By default we use the lookInLister.
+     */
+    myLookBehindLister = lookInLister
+    
     
     cannotLookBehindMsg = BMsg(cannot look behind, '{I} {can\'t} look behind
         {that dobj}. ')
@@ -6850,6 +6889,18 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [objHeld]
         
         verify() { verifyDobjThrow(); }
+        
+        action()
+        {
+            /* 
+             *   Normally the action handling for the ThrowAt action is dealt
+             *   with on the indirect object - iobjFor(ThrowAt) - but if for
+             *   particular objects you want to handle it on the direct object
+             *   and you don't want the iobj handling as well, then you need to
+             *   end your dobj action method with exitAction to suppress the
+             *   iobj action method.
+             */
+        }
     }
     
     

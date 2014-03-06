@@ -511,7 +511,11 @@ class StairwayUp: TravelConnector, Thing
      */
     PushTravelVia = PushTravelClimbUp
     
-    /*  Display message announcing that traveler has left via this staircase. */
+    /*  
+     *   Display message announcing that traveler (typically an NPC whose
+     *   departure is witnessed by the player character) has left via this
+     *   staircase.
+     */
     sayDeparting(traveler)
     {
         gMessageParams(traveler);
@@ -563,7 +567,11 @@ class StairwayDown: TravelConnector, Thing
      */
     PushTravelVia = PushTravelClimbDown
     
-    /*  Display message announcing that traveler has left via this staircase. */
+    /*  
+     *   Display message announcing that traveler (typically an NPC whose
+     *   departure is witnessed by the player character)has left via this
+     *   staircase.
+     */
     sayDeparting(traveler)
     {
         gMessageParams(traveler);

@@ -777,7 +777,10 @@ class Door: TravelConnector, Thing
      */
     PushTravelVia = PushTravelThrough
     
-    /*  Display message announcing that traveler has left via this door. */
+    /*  
+     *   Display message announcing that traveler has left via this door. The
+     *   traveler would normally be an NPC visible to the player character.
+     */
     sayDeparting(traveler)
     {
         gMessageParams(traveler);
@@ -1088,7 +1091,8 @@ class TravelConnector: object
     /* 
      *   Display a message to say that an actor is departing via this connector.
      *   On the base class the default behaviour is to describe the departure
-     *   via a compass direction.
+     *   via a compass direction. The actor in question would normally be an NPC
+     *   visible to the player character.
      */
     sayDeparting(traveler)
     {       

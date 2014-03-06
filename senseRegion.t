@@ -1125,9 +1125,9 @@ QSenseRegion: Special
         /* 
          *   If either a or b is not on the map, assume we can't see from A to
          *   B and return nil (otherwise we'd probably get a run-time error
-         *   further down the line.
+         *   further down the line). Also A can't see B if B is hidden.
          */
-        if(a.isIn(nil) || b.isIn(nil))
+        if(a.isIn(nil) || b.isIn(nil) || b.isHidden)
             return nil;
         
         /* 

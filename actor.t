@@ -1205,7 +1205,9 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      *   colourless default. Note, however, that game code shouldn't normally
      *   override the actor's sayDeparting() method, but should instead
      *   intervene either on the ActorState or on the actor's
-     *   sayActorDeparting() method.
+     *   sayActorDeparting() method. Note also that the purpose of this method
+     *   is to describe an NPC's departure from the point of view of the player
+     *   character, not to describe the player character's movements.
      */
     sayDeparting(conn)
     {
@@ -1219,9 +1221,10 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     }
     
     /*  
-     *   Method to display a message saying that this actor is departing via
-     *   conn (a TravelConnector object, which may be a Room as well as a Door
-     *   or other kind of connector). Note that the default behaviour of
+     *   Method to display a message saying that this actor (normally an NPC
+     *   visible to the player character) is departing via conn (a
+     *   TravelConnector object, which may be a Room as well as a Door or other
+     *   kind of connector). Note that the default behaviour of
      *   ActorState.sayDeparting is simply to call this method.
      */
     sayActorDeparting(conn)
@@ -2360,8 +2363,9 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
     }
     
     /*  
-     *   Display a message saying that our associated actor is departing via
-     *   conn. By default we simply use our actor's sayActorDeparting(conn)
+     *   Display a message saying that our associated actor (typically an NPC
+     *   whose departure is being viewed by the player character) is departing
+     *   via conn. By default we simply use our actor's sayActorDeparting(conn)
      *   method.
      */
     sayDeparting(conn) { getActor.sayActorDeparting(conn); }

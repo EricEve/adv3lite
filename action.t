@@ -2066,7 +2066,7 @@ class TIAction: TAction
         catch (ExitActionSignal ex)            
         {
                
-            actionFailed = true;
+//            actionFailed = true;
             
             return nil;
         }   
