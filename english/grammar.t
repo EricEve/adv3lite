@@ -2952,16 +2952,14 @@ VerbRule(AttachTo)
                + 'what do you want to attach it to'
 ;
 
-VerbRule(AttachToWhat)
-    [badness 500] ('attach' | 'connect') multiDobj
+VerbRule(Attach)
+    ('attach' | 'connect') multiDobj
     : VerbProduction
     action = Attach
-    verbPhrase = 'attach/attaching (what) (to what)'
-    missingQ = 'what do you want to attach (to it);'
-               + 'what do you want to attach it to'
-
-    missingRole = IndirectObject
-    iobjReply = toSingleNoun
+    verbPhrase = 'attach/attaching (what)'
+    missingQ = 'what do you want to attach'
+    
+    priority = 40
 ;
 
 VerbRule(DetachFrom)

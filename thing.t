@@ -1366,7 +1366,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   We don't explicitly list things in actors' inventory, but we
              *   should note them as seen if the player can see them.
              */            
-            if(obj.contType == Carrier)
+            if(obj.contType == Carrier && markInventoryAsSeen)
                 obj.allContents.subset({o: gPlayerChar.canSee(o) }).forEach( {o:
                     o.noteSeen() });           
             
@@ -1857,6 +1857,13 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     contentsListedInSearch = true
     
+    /*
+     *   Flag, if our contType is Carrier (i.e. we're an Actor), should our
+     *   contents be marked as seen even though it hasn't been listed in a room
+     *   description? By default this is set to true, on the basis that the
+     *   inventory (and parts) of an actor would normally be in plain sight.
+     */    
+    markInventoryAsSeen = true
     
     /*
      *   The text we display in response to a READ command. This can be nil
@@ -3765,6 +3772,17 @@ class Thing:  ReplaceRedirector, Mentionable
             
             /*   Note that we've now been examined. */
             examined = true;
+            
+            /*   
+             *   Note that the player character has seen us. 99 times out a
+             *   hundred this probably won't be necessary, but it may catch the
+             *   odd case where something is examined that hasn't yet been set
+             *   as seen.
+             */
+            if(gActor == gPlayerChar)
+                noteSeen();
+            
+            
             "\n";
         }
     }

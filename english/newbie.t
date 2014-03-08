@@ -681,6 +681,7 @@ modify Examine
             "[You can do this in future by using <<aHref('X '+ obj.name.toUpper,
                 'X ' + obj.name.toUpper, 'Examine ' + obj.theName)>>, which is
             quicker and more standard.]\b";
+            playerHelper.errorCount++;
         }            
     }   
 ;
@@ -711,6 +712,7 @@ modify Inventory
                 'INVENTORY', 'Take Inventory')>> or just
             <<aHref('I', 'I', 'Take Inventory')>>, which is
             quicker and more standard.]\b";
+            playerHelper.errorCount++;
         }            
     } 
 ;
@@ -767,6 +769,8 @@ DefineIAction(GoSomewhere)
     {
         "If you want to go somewhere, use one of the compass directions (NORTH,
         EAST, SW, W, S etc). ";
+        
+        playerHelper.errorCount++;
         
         if(defined(exitLister) &&
            exitLister.cannotGoShowExits(gActor, gActor.getOutermostRoom));        
@@ -835,6 +839,7 @@ DefineIAction(WhoAmI)
         future by typing <<aHref('X ME','X ME','Examine me')>>], which is
         quicker and more standard.]\b";
         replaceAction(Examine, gPlayerChar);
+        playerHelper.errorCount++;
     }
 ;
 

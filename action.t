@@ -353,7 +353,7 @@ class Action: ReplaceRedirector
             break;    
         } 
            
-        /* first check if we need to remap this action. */           
+        /* first check if we need to remap this action. */                 
         remapResult = obj.(remapProp);
         
         /* 

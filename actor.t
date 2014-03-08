@@ -2922,7 +2922,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         if(keyTopics == nil)
             return( timesToSuggest != nil && timesInvoked >= timesToSuggest);
         else
-            return getKeyTopics.length == 0;
+            return getKeyTopics(nil).length == 0;
     }
     
     /* The number of times this topic entry has been invoked. */
@@ -3002,7 +3002,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   First construct a list of TopicEntries that match the keys in our
          *   keyTopics.
          */
-        local lst = getKeyTopics();
+        local lst = getKeyTopics(true);
         
         /*   
          *   If the list contains any entries, display the list of suggestions
@@ -3021,7 +3021,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     }
     
     /* Obtain a list of the TopicEntries that match our keyTopics property. */
-    getKeyTopics()
+    getKeyTopics(updateStatus)
     {
         /* Make a note of our associated actor. */
         local actor = getActor();
@@ -3043,8 +3043,10 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
              *   away.
              */
             if(ky.startsWith('<.'))
-                say(ky.trim);
-            
+            {
+                if(updateStatus)
+                    say(ky.trim);
+            }
             /* Otherwise add it to our list. */
             else                
                 lst += actor.convKeyTab[ky];
@@ -3055,10 +3057,17 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   that (1) are active, (2) don't yet have their curiosity satisfied,
          *   (3) have their curiosity aroused and (4) are reachable (i.e. they
          *   would actually be triggered if the player were to follow the
-         *   suggestion).
+         *   suggestion). If we're trying simply to determine whether this
+         *   TopicEntry should be suggested (i.e. when updateStatus = nil) we
+         *   need to use slightly less stringent criteria to determine the list
+         *   of items that we might key, since our keyed items may not have been
+         *   activated yet.
          */
-        lst = lst.subset({t: t.active && !t.curiositySatisfied &&
-                         t.curiosityAroused && t.isReachable });
+        if(updateStatus)
+            lst = lst.subset({t: t.active && !t.curiositySatisfied &&
+                             t.curiosityAroused && t.isReachable });
+        else
+            lst = lst.subset({t:t.isActive && !t.curiositySatisfied});
             
         /* Remove any duplicate entries from the list. */
         lst = nilToList(lst).getUnique();
