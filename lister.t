@@ -32,7 +32,7 @@ class Lister: object
      *   'paraCnt' is the number of paragraph-style descriptions that we've
      *   already shown as part of this description.
      *
-     *   Note that many specifio listers replaced the 'paraCnt' parameter with a
+     *   Note that many specific listers replaced the 'paraCnt' parameter with a
      *   more useful 'parent' parameter, containing the identity of the object
      *   whose contents are being listed.
      */

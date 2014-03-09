@@ -407,7 +407,7 @@ DefineIAction(Inventory)
              */
             if(wornList.length > 0)
             {               
-                wornLister.show(wornList, 0, nil);
+                gActor.myWornLister.show(wornList, 0, nil);
                 
                 /* 
                  *   If nothing is being carried, terminate the list with a full
@@ -429,11 +429,11 @@ DefineIAction(Inventory)
              *   message.
              */
             if(carriedList.length > 0 || wornList.length == 0)
-                inventoryLister.show(carriedList, wornListShown);
+                gActor.myInventoryLister.show(carriedList, wornListShown);
         }
         else
         {
-            inventoryLister.show(gActor.contents, 0);
+            gActor.myInventoryLister.show(gActor.contents, 0);
         }
         
         /* Mark eveything just listed as having been seen. */

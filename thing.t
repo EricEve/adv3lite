@@ -2996,7 +2996,7 @@ class Thing:  ReplaceRedirector, Mentionable
     groupOrder = 100
 
      /*   
-      *   CollectiveGrop, or a list of CollectiveGroups, to which this item
+      *   CollectiveGroup, or a list of CollectiveGroups, to which this item
       *   belongs.
       */
     collectiveGroups = nil
@@ -3518,6 +3518,11 @@ class Thing:  ReplaceRedirector, Mentionable
         return Q.canTalkTo(self, other);
     }
    
+    /* The lister to use when listing this object's inventory. */
+    myInventoryLister = inventoryLister
+    
+    /* The lister to use when listing what this object is wearing. */
+    myWornLister = wornLister
     
     /*
      *   Score this object for disambiguation.  When a noun phrase is

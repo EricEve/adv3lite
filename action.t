@@ -2636,7 +2636,7 @@ askMissingObject(action, role)
     action.curDobj = gDobj;
     action.curIobj = gIobj;
     action.curAobj = gAobj;
-    
+        
     /* Make action the current action for the current Command. */
     gCommand.action = action;
     gCommand.dobj = gDobj;

@@ -57,12 +57,15 @@ class Redirector: object
          *   is supplied as a single-quoted string, wrap it in a LiteralObject
          *   before passing it.
          */
-        if(altAction.ofKind(LiteralAction) || altAction.ofKind(LiteralTAction))
+        if(altAction.ofKind(LiteralAction) || altAction.ofKind(LiteralTAction)
+           || aobj != nil)
         {
             if(dataType(dobj) == TypeSString)
                 dobj = new LiteralObject(dobj);
             if(dataType(iobj) == TypeSString)
                 iobj = new LiteralObject(iobj);
+            if(dataType(aobj) == TypeSString)
+                aobj = new LiteralObject(aobj);
         }
         
         /*  
@@ -70,12 +73,15 @@ class Redirector: object
          *   supplied as a single-quoted string, wrap it in a Topic before using
          *   it.
          */                
-        if(altAction.ofKind(TopicAction) || altAction.ofKind(TopicTAction))
+        if(altAction.ofKind(TopicAction) || altAction.ofKind(TopicTAction)
+           || aobj != nil)
         {
             if(dataType(dobj) == TypeSString)
                 dobj = new Topic(dobj);
             if(dataType(iobj) == TypeSString)
                 iobj = new Topic(iobj);
+            if(dataType(aobj) == TypeSString)
+                aobj = new Topic(aobj);
         }
         
         /*   
@@ -90,6 +96,9 @@ class Redirector: object
             
             if(!altAction.topicIsGrammaticalIobj && !dobj.ofKind(ResolvedTopic))
                 dobj = new ResolvedTopic([dobj], dobj.name.split(' '));
+            
+//            if(!altAction.topicIsGrammaticalAobj && !aobj.ofKind(ResolvedTopic))
+//                dobj = new ResolvedTopic([aobj], aobj.name.split(' '));
         }
         
         

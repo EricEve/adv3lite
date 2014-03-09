@@ -2768,7 +2768,7 @@ modify ItemLister
      *   allows the lister to add status-specific information like '(providing
      *   light)' or '(being worn)' to the name as it appears in the list.
      */
-    showList(lst, pl, paraCnt)   
+    showList(lst, pl, parent)   
     {        
         "<<andList(lst.mapAll({ o: listName(o) }))>>";        
     }
@@ -2821,7 +2821,7 @@ modify ItemLister
     
     /* 
      *   Flag: do we want to show additional information such as '(providing
-     *   light)' or '(being worn)' after the names of items listed in inventory.
+     *   light)' after the names of items listed in inventory.
      *   By default we do.
      */
     showAdditionalInfo = true
@@ -2912,7 +2912,7 @@ modify wornLister
  *   The subLister is used by other listers such as inventoryLister and
  *   wornLister to show the contents of listed items in parentheses (e.g. '(in
  *   which is a pen, a pencil and a piece of paper). The depth of nesting is
- *   limited by the maxNestingDepth property. I
+ *   limited by the maxNestingDepth property. 
  */
 subLister: ItemLister
     showListPrefix(lst, pl, paraCnt)

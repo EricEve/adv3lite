@@ -1,0 +1,159 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Final Moves &mdash; Lists and Listers</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Lists and Listers
+<br><span class="navnp"><a class="nav" href="utility.htm"><i>Prev:</i> Utility Functions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Lists and Listers</h1>
+ 
+<p>Works of Interactive Fiction often need to display lists. Typically these may be lists of objects visible in a room or a container, or a list of items held in the player character's inventory. There are generally two stages involved in displaying a list:</p> 
+ 
+<ol>
+<li>Generating the list of items (usually objects) that need to be displayed.</li>
+<li>Formatting the list and displaying it on the screen. This stage may also include further filtering of the list.</li>
+</ol> 
+ 
+<p>The first stage is generally carried out by a method such as <span class="code">listContents()</span> or <span class="code">listSubcontentsOf()</span>, defined on Thing, or else a method define on the appropriate Action object, such as the <span class="code">execAction()</span> method of the Inventory action. More will be said about such methods below. The second stage is carried out by a Lister, and it is Listers that we shall look at next.</p> 
+<br>
+
+<a name="listers" id="listers"></a> 
+<h2>Listers</h2> 
+<p>The purpose of a Lister is to format and display a list. The various types of lister all descend from the <span class="code">Lister</span> class, which defines the following methods:</p> 
+ 
+<ul>
+<li><strong>show(lst, paraCnt, paraBrk = true)</strong>: Show a list of objects.  <em>lst</em> is the list of objects to show; <em>paraCnt</em> is the number of paragraph-style descriptions that we've already shown as part of this description. Note, however, that many specific listers replace the <em>paraCnt</em> parameter with a more useful <em>parent</em> parameter, containing the identity of the object whose contents are being listed. If the optional <em>paraBrk</em> parameter is supplied it determines whether or not a paragraph break is added at the end of the list (if this parameter is not specified it defaults to true). The actual work of formatting and displaying the list of items (as opposed to the prefix and suffix text surrounding it) is carried out by a <strong>showList()</strong> method defined in the language-specific part of the library.</li>
+<li><strong>showListPrefix(lst, pl, paraCnt)</strong>: Display the list prefix, that is the text that introduces a list (e.g. "In the oven you can see "). The <em>pl</em> parameter defines whether the list should be treated as singular or plural (so that any verb used can agree in number, e.g. "In the oven is/are "). many specific listers replace the <em>paraCnt</em> parameter with a more useful <em>parent</em> parameter, containing the identity of the object whose contents are being listed.</li>
+<li><strong>showListSuffix(lst, pl, paraCnt)</strong>: Display the list suffix, that is the text that concludes a list (often that may simply be a full-stop/period, but it may be a longer piece of text if the list is displayed as a sentence with the list itself as the subject, e.g. "A ball, a pencil and a diamond are in the blue box. " where the suffix would be " are in the blue box. ")</li>
+<li><strong>showListEmpty(paraCnt)</strong>: The text to display when the list of items to be displayed is empty (e.g. "The oven is empty. " or "You see nothing of interest in the red box. ")
+</li>
+<li><strong>listed(obj)</strong>: Determine whether <em>obj</em> should be listed in this list. Returns true if so, nil if not. By default, we list any object whose <span class="code">listed</span> property is true.</li>
+<li><strong>listOrder(obj)</strong>: Get an item's sorting order.  This returns an integer that gives the relative position in the list; we order the list in ascending order of this value.  By default, we return the <span class="code">listOrder</span> property of the object.</li>
+<li><strong>buildList(lst)</strong>:  Returns a string containing what this lister would display, minus the terminating paragraph break.</li>
+</ul>
+
+<p>From this you can able to see that the <span class="code">show()</span> and <span class="code">buildList() </span>methods are for use with an existing Lister (to make it display a list, or else return the list it would display in a single-quoted string), while all the rest are used when defining a Lister.</p> 
+ 
+<a name="itemlister" id="itemlister"></a> 
+<h3>ItemLister</h3>
+<p>Many of the Listers actually used in a game are based on a subclass of Lister called <strong>ItemLister</strong>. This is base class of all the Listers used to list physical objects in a game. Several of the features of this Lister are defined in the language-specific part of the library, but the principal way in which an <span class="code">ItemLister</span> customizes the base <span class="code">Lister</span> class are as follows:</p> 
+
+<ul>
+<li><strong>show(lst, parent, paraBrk = true)</strong>: On the <span class="code">ItemLister</span> class the <em>paraCnt</em> parameter of the <span class="code">show()</span> method is replaced with a more useful <em>parent</em> parameter, which refers to the items whose contents are being listed. On ItemLister this method also marks every item in the list as <em>mentioned</em> (so that it won't get mentioned again in the same list) and notes that and where the player character has seen it.</li>
+<li><strong>contentsListedProp</strong>: This property should contain a property pointer (the default value is <em>&amp;contentsListed</em>) that determines whether an item listed by this lister should have its contents listed in turn. Note that is it actually the Thing method <span class="code">listSubcontentsOf()</span> that makes use of this property when it is constructing a list of items to pass to a lister.</li>
+</ul>
+ 
+<p>The language-specific part of the library in english.t defines the following additional methods on <span class="code">ItemLister</span>:</p> 
+ 
+<ul>
+<li><strong>showList(lst, pl, parent)</strong>: This method actually displays the body of the list (e.g. "a ball, a pencil and a diamond"). It is used by the <span class="code">showList()</span> method and in turn (by default) calls the <span class="code">andList()</span> function (see below) to format the list.</li>
+<li><strong>listName(o)</strong>: This method is used to define how the name of an individual item should be shown in the list (e.g. "a ball"). This is more complex than it seems since this method is also responsible for displaying further status-related information about in item, such as '(being worn)' or a list of the item's contents (e.g. "a small red box (in which is a tie-pin and a paperclip)").</li>
+<li><strong>showAdditionalInfo</strong>: flag - do we want to show additional information (such as 'providing light') after the name of items in this list. The default value is true.</li>
+<li><strong>showWornInfo</strong>: flag - do we want to show '(being worn)' after the names of items in this list that are being worn. By default we use the value of <span class="code">showAdditionalInfo</span>. Note that the text ' (being worn)' can be customized by using a <a href="message.htm#custmessage_idx">CustomMessages</a> object to change the text of the <span class="code">being worn</span> BMsg.</li>
+<li><strong>showSubListing</strong>: flag - do we want to show the contents of items listed in inventory (in parentheses after the name, e.g. 'a bag (in which is a blue ball)'). The default value on ItemLister is true but <span class="code">lookLister</span>, <span class="code">descContentsLister</span>, <span class="code">lookContentsLister</span>, <span class="code">lookInLister</span> and <span class="code">simpleAttachmentLister</span> all take the value of this property from <span class="code">gameMain.useParentheticalListing</span>.</li>
+</ul> 
+ 
+<a name="lister-types" id="lister-types"></a> 
+<h3>Types of Lister</h3> 
+ 
+<p>The adv3Lite defines a number of different types of Lister for various specific purposes. The definition of these listers is split between lister.t (which defines the base functionality) and english.t (which defines the language-specific aspects). The lister modifications in english.t generally do not use the BMsg()/DMsg() mechanism to generate text, since such indirection would be superfluous in a part of the library which is in any case language-specific and where modification may be more simply achieved by overriding the relevant methods such as <span class="code">showList()</span>, <span class="code">showListPrefix()</span>, <span class="code">showListSuffix()</span> and <span class="code">showListEmpty()</span>. </p> 
+
+<p>The specific kinds of Lister defined in the library are:</p>
+ 
+<ul>
+<li><strong>lookLister</strong>: displays a list of top-level miscellaneous objects (i.e. those without a <span class="code">specialDesc</span> or <span class="code">initSpecialDesc</span>) in a room description.</li>
+<li><strong>lookContentsLister</strong>: displays a list of the contents of objects in a room description (e.g. if the room description mentions a box, the <span class="code">lookContentsLister</span> would be used to list the contents of that box in the room description).</li>
+<li><strong>inventoryLister</strong>: displays an inventory listing (i.e. a list of objects carried by the player character, or perhaps by an NPC).</li>
+<li><strong>wornLister</strong>: displays a list of items being worn (usually by the player character).</li>
+<li><strong>descContentsLister</strong>: displays a list of the miscellaneous contents (items without a <span class="code">specialDesc</span> or <span class="code">initSpecialDesc</span>) of an object that is being examined. Note that if the item being examined is an openable container this lister also reports whether it is open or closed, even if it doesn't contain anything, unless the item's <strong>openStatusReportable</strong> property is nil.</li>
+<li><strong>openingContentsLister</strong>: displays the contents of an openable container when it is first opened. Note that in the English-specific part of the library (english.t) this lister is also responsible for reporting that the item has been opened when it is empty.</li>
+<li><strong>lookInLister</strong>: lists the contents of an object in response to LOOK IN/UNDER/BEHIND.</li>
+<li><strong>simpleAttachmentLister</strong>: lists the items attached to a <a href="attachable.htm">SimpleAttachable</a>.</li>
+<li><strong>plugAttachableLister</strong>: lists the items plugged into a <a href="attachable.htm#plug">PlugAttachable</a>.</li>
+<li><strong>CustomRoomLister</strong>:  A lister that can be readily customized to tailor the text before and after the list of miscellaneous items in a room description. For further details see the chapter on <a href="roomdesc.htm#customroomlister">Room Descriptions</a>.</li>
+<li><strong>subLister</strong>: The subLister is used by other listers such as <span class="code">inventoryLister</span> and <span class="code">wornLister</span> to show the contents of listed items in parentheses (e.g. '(in which is a pen, a pencil and a piece of paper)'). The depth of nesting is limited by the subLister's <strong>maxNestingDepth</strong> property (which defaults to 1). Note that this lister is defined in english.t, not lister.t.</li>
+<li><strong>finishOptionsLister</strong>: The lister used to list the options from which the player can choose when the game comes to an end. Note that this is defined in english.t, not lister.t, and that it descends from Lister but not ItemLister.</li>
+</ul> 
+<p>Note that all but the last of the above descend from ItemLister.</p>
+ 
+<a name="custom" id="custom"></a> 
+<h3>Customizing Listers</h3> 
+
+<p>Customizing a lister is basically a matter of overriding one or more of the methods and properties described above. Most typically you might want to change the way a list is introduced or concluded by overriding <span class="code">showListPrefix()</span> or <span class="code">showListSuffix()</span>. You might want to do this globally, in which case you can just modify the lister concerned, for example:</p>
+
+ <p><div class="code"><pre>
+ modify lookLister
+    showListPrefix(lst, pl, parent)
+    {
+        "Lying on the floor &lt;&lt;if pl&gt;&gt;are&lt;&lt;else&gt;&gt;is&lt;&lt;end&gt;&gt; ";
+    }
+    
+    showListSuffix(lst, pl, parent)
+    {
+        ". ";
+    }    
+; 
+ </pre></div>
+ 
+<p>This would then affect the way in which miscellaneous items were listed in every room in the game. More typically, though, we might want to affect the way things are listed in a particular room or on a particular object, in which case we can override the appropriate property of Thing to point to a custom Lister object:</p> 
+ 
+<ul>
+<li><strong>roomContentsLister</strong>: The contents lister to use for listing this room's miscellaneous contents. By default we use the standard <span class="code">lookLister</span> but this can be overridden to use a CustomRoomLister (say) to provide just about any wording we like.</li>
+<li><strong>examineLister</strong>: The lister to use to list this item's contents when it's examined. By default we use <span class="code">descContentsLister</span>.</li>
+<li><strong>myOpeningContentsLister</strong>:  The lister to use when listing this item's contents when it's opened. By default we use the <span class="code">openingContentsLister</span>.</li>
+<li><strong>myLookInLister</strong>:  The lister to use when listing the objects inside this item in response to a LOOK IN or SEARCH command. By default we use the <span class="code">lookInLister</span>.</li>
+<li><strong>myLookUnderLister</strong>: The lister to use when listing the objects under this item in response to a LOOK UNDER command. By default we use the <span class="code">lookInLister</span> (note this is not an error; the default lookInLister uses whatever preposition is appropriate to the item).</li>
+<li><strong>myLookBehindLister</strong>: The lister to use when listing the objects behind this item in response to a LOOK BEHIND command. By default we use the <span class="code">lookInLister</span> (note this is not an error; the default lookInLister uses whatever preposition is appropriate to the item).</li>
+<li><strong>myInventoryLister</strong>: The lister to use when listing this object's inventory. By default we use <span class="code">inventoryLister</span>.</li>
+<li><strong>myWornLister</strong>: The lister to use when listing what this object is wearing. By default we use <span class="code">wornLister</span>.</li>
+<li><strong>attachmentLister</strong>: The lister to use when listing what is attached to a <span class="code">SimpleAttachable</span>. By default we use <span class="code">simpleAttachmentLister</span>. On a <span class="code">PlugAttachable</span> we instead use <span class="code">plugAttachableLister</span>.</li> 
+</ul> 
+ 
+<p>To make use of these properties, you'd typically define your own custom lister based on the appropriate one from the library, and then attach it to the relevant property, probably as an anonymous object (unless you wanted to use the same custom lister on a number of different objects). For example, to customize the lister used when opening or looking in a box you could do something like this:</p> 
+ 
+ <p><div class="code"><pre>
+ + largeBox: OpenableContainer 'large box'
+    
+    myOpeningContentsLister: openingContentsLister
+    {
+        showListPrefix(lst, pl, parent)
+        {
+            "On ripping open the box {i} discover{s/ed} ";
+        }
+    }
+    
+    myLookInLister: lookInLister
+    {
+        showListPrefix(lst, pl, parent)
+        {
+            "Lurking inside the box &lt;&lt;if pl&gt;&gt;are&lt;&lt;else&gt;&gt;is&lt;&lt;end&gt;&gt; ";
+        }
+    }
+;
+ </pre></div> 
+ 
+ 
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Lists and Listers
+<br><span class="navnp"><a class="nav" href="utility.htm"><i>Prev:</i> Utility Functions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+
+
+
+</div>
+</body>
+</html>
