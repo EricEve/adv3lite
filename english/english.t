@@ -5597,7 +5597,25 @@ takePathDoer: Doer 'take PathPassage'
      */
     ignoreError = true
 ;
-    
+/* 
+ *   Preparser to catch numbers entered with a decimal point, so that the
+ *   decimal point is not treated as terminating a sentence in the command. This
+ *   works by wrapping the number in double quote marks, so any code that wants
+ *   to do anything with the decimal number will first have to strip off the
+ *   quotes.
+ */
+
+decimalPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        str = str.findReplace( R'<digit>+<period><digit>+',
+                              { match, index, orig: '"'+match+'"' }  );
+        
+        return str;
+    }
+;
+
+
 /* 
  *   Possibly a temporary measure to replace the apostrophe in possessives in
  *   certain words in the player's input with a carat in order to enable

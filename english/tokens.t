@@ -96,6 +96,9 @@ cmdTokenizer: Tokenizer
         /* integer numbers */
         ['integer', new RexPattern('[0-9]+' + endAssert),
          tokInt, nil, nil],
+        
+        ['real', new RexPattern('[0-9]+<period>[0-9]+' + endAssert), tokReal,
+            nil, nil],
 
         /* numbers with a '#' preceding */
         ['integer with #', new RexPattern('#[0-9]+' + endAssert),

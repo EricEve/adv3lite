@@ -7085,7 +7085,7 @@ class Thing:  ReplaceRedirector, Mentionable
         report()
         {
             DMsg(okay set to, 'Okay, {i} {set} {1} to {2}', gActionListStr, 
-                 gLiteral); 
+                 curSetting); 
         }
     }
        

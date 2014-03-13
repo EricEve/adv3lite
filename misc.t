@@ -1378,8 +1378,7 @@ tryNum(val)
     if(dataType(val) == TypeObject && val.ofKind(BigNumber))
         return val;
     
-    /* Try converting val to a number */
-    local res = toNumber(val);
+   
 
     /*  
      *   If val is a string then test whether it matches a valid numerical
@@ -1387,7 +1386,10 @@ tryNum(val)
      */
     if(dataType(val) == TypeSString)
     {
-        val = val.findReplace(' ','');
+        val = stripQuotesFrom(val.findReplace(' ',''));
+        
+        /* Try converting val to a number */
+        local res = toNumber(val);
         
         if(val.match(R'(<plus>|-)?<digit>+$'))
             return res;

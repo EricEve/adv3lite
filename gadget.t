@@ -143,11 +143,13 @@ class Settable: Thing
     /* 
      *   Put the setting into a standard form so it can be checked for validity.
      *   By default we turn it into lower case so that it doesn't matter what
-     *   case the player types the desired setting in.
+     *   case the player types the desired setting in. We also strip any
+     *   enclosing quotes that might have been used to pass an awkward value
+     *   like "1.4" that the parser would otherwise misinterpret.
      */    
     canonicalizeSetting(val)
     {
-        return val.toLower();
+        return stripQuotesFrom(val.toLower());
     }
     
     /*  Set this Settable to its new setting, val */
@@ -237,20 +239,21 @@ class NumberedDial: Dial
     
     /* Is val a valid setting for this dial? */
     isValidSetting(val)
-    {                
-        /* if it doesn't look like a number, it's not valid */
-        if (rexMatch('<digit>+', val) != val.length())
-            return nil;
-        
-        /* Convert val to an integer */
-        val = toInteger(val);
+    {   
+        /* 
+         *   Try converting val to either a real number or an integer depending
+         *   on whether allowDecimal is true or nil.
+         */        
+        val = allowDecimal ? tryNum(val) : tryInt(val);
         
         /* 
          *   Val is valid if it lies between our minimum and maximum settings
          *   (inclusively)
          */
-        return val >= minSetting && val <= maxSetting;            
+        return val != nil && (val >= minSetting && val <= maxSetting);            
     }        
+    
+    allowDecimal = nil
 ;
 
 
