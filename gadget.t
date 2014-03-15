@@ -237,9 +237,36 @@ class NumberedDial: Dial
     /* The highest number to which this dial can be turned. */
     maxSetting = 100
     
+    /* 
+     *   If the spelledToInt() function is defined then allow the dial to be
+     *   turned to a spelt-out number as well as a number given in digits, e.g.
+     *   TURN DIAL TO FORTY-THREE as well as TURN DIAL TO 43.
+     */
+    canonicalizeSetting(val)
+    {
+        /* Get the inherited value */
+        val = inherited(val);
+        
+        /* Try to convert it to a number */
+        local num = defined(spelledToInt) ? spelledToInt(val) : nil;
+        
+        /* 
+         *   If the conversion was successful, convert val to a string
+         *   representation of the number (e.g. '43').
+         */
+        if(num)
+            val = toString(num);
+        
+        /* Return val, changed as need be. */
+        return val;
+    }
+    
     /* Is val a valid setting for this dial? */
     isValidSetting(val)
     {   
+        /* Convert val into its canonicalized equivalent. */
+        val = canonicalizeSetting(val);
+        
         /* 
          *   Try converting val to either a real number or an integer depending
          *   on whether allowDecimal is true or nil.

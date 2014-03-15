@@ -2739,6 +2739,30 @@ spellNumber(n)
     return s;
 }
 
+/* 
+ *   Try to convert a spelled out number (e.g. 'ninety-six') to its integer
+ *   representation. If this fails, return nil.
+ */
+spelledToInt(str)
+{
+    /* Tokenize the input string */
+    local toks = cmdTokenizer.tokenize(str);
+    
+    /* Try parsing the tokens against the spelledNumber production */
+    local lst = spelledNumber.parseTokens(toks, cmdDict);
+    
+    /*  If there's a vlid result, convert it to an integer. */
+    if(lst.length > 0)
+        return lst[1].numval();
+    
+    /* Otherwise return nil */
+    return nil;
+}
+
+  
+   
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   List display routines

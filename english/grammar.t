@@ -1221,8 +1221,13 @@ grammar spelledSmallNumber(tensAndUnits):
     tensWord->tens_ '-'->sep_ digitWord->units_
     | tensWord->tens_ digitWord->units_
     : Production
-
-    numval = (tens_.numval + units_.numval)
+    
+    //    numval = (tens_.numval + units_.numval)
+    numval()
+    {
+        return cmdDict.findWord(tens_, &tensWord)[1].numval +
+            cmdDict.findWord(units_, &digitWord)[1].numval;
+    }
 ;
 
 grammar spelledSmallNumber(zero): 'zero' : Production
@@ -1244,7 +1249,7 @@ grammar spelledHundred(hundredsPlus):
     | spelledSmallNumber->hun_ 'hundred' 'and'->and_ spelledSmallNumber->num_
     : Production
 
-    numval = (hun_*100 + num_.numval)
+    numval = (hun_.numval*100 + num_.numval)
 ;
 
 grammar spelledHundred(aHundred): 'a' 'hundred' : Production
