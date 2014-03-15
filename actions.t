@@ -379,6 +379,37 @@ DefineSystemAction(ExtraHints)
     extraHintsCmd = BMsg(extra hints command, 'EXTRA ')
 ;
 
+DefineSystemAction(Brief)
+    execAction(cmd)
+    {
+        if(gameMain.verbose)
+        {
+            gameMain.verbose = nil;
+            DMsg(game now brief, 'The game is now in BRIEF mode. <<first
+                  time>>Full room descriptions will now only be shown on the
+                first visit to a room or in response to an explict
+                <<aHref('LOOK', 'LOOK', 'Look
+                    around')>> command.<<only>> ');
+        }
+        else
+            DMsg(game already brief, 'The game is already in BRIEF mode. ');
+    }
+;
+
+DefineSystemAction(Verbose)
+    execAction(cmd)
+    {
+        if(gameMain.verbose)            
+            DMsg(game already verbose, 'The game is already in VERBOSE mode. ');        
+        else
+        {
+            gameMain.verbose = true;
+            DMsg(game now brief, 'The game is now in VERBOSE mode. <<first
+                  time>>Full room descriptions be shown each time a room is
+                visited.<<only>> ');
+        }            
+    }
+;
 
 
 DefineIAction(Inventory)

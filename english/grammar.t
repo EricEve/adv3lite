@@ -3396,6 +3396,20 @@ VerbRule(ExtraHints)
     verbPhrase = ('turn/turning extra hints ' + onOff)
 ;
 
+VerbRule(Brief)
+    'brief' | 'terse'
+    : VerbProduction
+    action = Brief
+    verbPhrase = 'set/setting brief mode'
+;
+
+VerbRule(Verbose)
+    'verbose' | 'wordy'
+    : VerbProduction
+    action = Verbose
+    verbPhrase = 'set/setting verbose mode'
+;
+
 
 #ifdef __DEBUG
 

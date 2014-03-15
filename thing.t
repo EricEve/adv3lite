@@ -1115,7 +1115,8 @@ class Thing:  ReplaceRedirector, Mentionable
         if(isIlluminated)
         {
             /* Display our interior description. */
-            "<.roomdesc><<interiorDesc>><./roomdesc><.p>";
+            if(gameMain.verbose || !visited || gActionIs(Look))
+                "<.roomdesc><<interiorDesc>><./roomdesc><.p>";
             
             /* List our contents. */
             "<.roomcontents>";

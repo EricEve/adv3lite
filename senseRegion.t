@@ -396,6 +396,10 @@ remoteRoomContentsLister: ItemLister
     contentsListedProp = &contentsListedInLook
 ;
 
+/* 
+ *   The default Lister for listing the miscellaneous contents of objects in a
+ *   remote location.
+ */
 remoteSubContentsLister: ItemLister
     /* is the object listed in a LOOK AROUND description? */
     listed(obj) { return obj.lookListed && !obj.isHidden; }    

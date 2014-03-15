@@ -387,6 +387,12 @@ class GameMainDef: object
      *   experimental for now.
      */
     autoSwitchAgain = true    
+    
+    /* 
+     *   Is this game in verbose mode? By default we make it so, but players can
+     *   change this with the BRIEF/TERSE command.
+     */
+    verbose = true
 ;
 
 /* ------------------------------------------------------------------------ */
