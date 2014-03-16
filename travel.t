@@ -571,8 +571,8 @@ class Door: TravelConnector, Thing
      *   A physical door is represented by two objects in code, each
      *   representing one side of the door and each present in one of the two
      *   locations the door connects. Each side needs to point to the other side
-     *   through its otherSide property.     */
-    
+     *   through its otherSide property.
+     */    
     otherSide = nil
 
     /* 
@@ -757,6 +757,7 @@ class Door: TravelConnector, Thing
         /*  If we don't have an other side, then we don't lead anywhere. */
         if(otherSide == nil)
             return nil;
+            
         
         /* Otherwise this door leads to the room containing its other side */
         return otherSide.getOutermostRoom;
