@@ -304,7 +304,7 @@ class Room: TravelConnector, Thing
     
     /* 
      *   This room can optionally be in one or more regions. The regions
-     *   property hold the region or a the list of regions I'm in.
+     *   property hold the region or a list of regions I'm in.
      */    
     regions = nil
     
@@ -990,6 +990,14 @@ class TravelConnector: object
          */
         if(destination && destination.ofKind(Room))
            actor.getOutermostRoom.notifyDeparture(actor, destination);
+        
+        
+         /* 
+          *   Finall, carry out before travel notifications in all the regions
+          *   the traveler starts out in.
+          */
+        foreach(local reg in actor.getOutermostRoom.allRegions)
+            reg.regionBeforeTravel(actor, self);
     }
     
     /* Carry out the after travel notifications for this actor */
@@ -1000,6 +1008,14 @@ class TravelConnector: object
          *   for this actor.
          */
         Q.scopeList(actor).toList.forEach({x: x.afterTravel(actor, self)});
+        
+        /*   
+         *   Finally, carry out after travel notifications in all the regions
+         *   the traveler ends up in.
+         */
+        foreach(local reg in actor.getOutermostRoom.allRegions)
+            reg.regionAfterTravel(actor, self); 
+        
     }
 
     /* 
@@ -1629,7 +1645,8 @@ class Region: object
     
     /* 
      *   Add an additional room (passed as the rm parameter) to our list of
-     *   rooms.
+     *   rooms. This method is intended for internal library use at PreInit
+     *   only.
      */
     addToRoomList(rm)
     {
@@ -1720,6 +1737,19 @@ class Region: object
     
     /* Method called just after an action has taken place in this region. */
     regionAfterAction() { }
+    
+    /* 
+     *   This method is called just before travel takes places in this
+     *   region (when traveler is about to travel via connector).
+     */
+    regionBeforeTravel(traveler, connector) { }       
+   
+    
+    /* 
+     *   Method called just after travel has taken place in this region (when
+     *   traveler has just traveled via connector).
+     */
+    regionAfterTravel(traveler, connector) { }
 ;
 
 /* 

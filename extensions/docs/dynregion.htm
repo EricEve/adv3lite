@@ -1,0 +1,158 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Dynamic Region</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fueled Light Source
+<br><span class="navnp"><a class="nav" href="../../docs/manual/extensions.htm"><i>Prev:</i> Extensions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="fueled.htm"><i>Next:</i> Fueled Light Source</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>DynamicRegion</h1>
+<h2>Overview</h2>
+
+<p>The purpose of the <a href="../dynamicRegion.t">dynamicRegion.t</a> extension is to enable the definition of <a href="../../docs/manual/room.htm#regions">Regions</a> (of the <span class="code">DynamicRegion</span> class) that can be expanded or contracted during the course of a game (a normal Region is fixed and can't be changed). This ability comes with certain restrictions, however.</p>
+
+
+<br>
+
+<h2>New Classes, Objects and Properties</h2>
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new class and properties:</p>
+
+<ul>
+<li><em>New Class</em>: <strong>DynamicRegion</strong></li>
+<li><em>Properties/Methods</em>: <span class="code">expandRegion()</span>, <span class="code">contractRegion()</span>, <span class="code">isCurrentlyWithin()</span>, <span class="code">extraAdjustments()</span>.</li>
+</ul>
+<br>
+
+<h2>Usage</h2>
+<p>Include the dynamicRegion.t file after the library files but before your game source files..</p>
+
+<p>With certain restrictions (to be described further below) you can use a DynamicRegion in the same way as a normal Region, with the addition of the following methods:</p>
+
+<ul>
+<li><strong>expandRegion(rm)</strong>: Adds <em>rm</em> to the rooms in this DynamicRegion, where <em>rm</em> may be a single room, a list of room, or a list of rooms and/or regions.</li>
+<li><strong>contractRegion(rm)</strong>: Removes <em>rm</em> from the rooms in this DynamicRegion, where <em>rm</em> may be a single room, a list of room, or a list of rooms and/or regions.</li>
+<li><strong>isCurrentlyWithin(region)</strong>: returns true if and only if all our rooms are also in <em>region</em>; note that this extension also adds this method to the base Region class.</li>
+<li><strong>extraAdjustments(rm, expanded)</strong>: Carry out any additional adjustments that need to be made as side-effects to adding or removing rooms. By default we do nothing here but game code can override as necessary. The <em>rm</em> parameter is the list of rooms and/or regions that have just been added to (if <em>expanded</em> is true) or removed from (if <em>expanded </em>is nil) this DynamicRegion.</li>
+</ul>
+
+
+<p>To create a Dynamic SenseRegion, just define an object as being of both the <span class="code">DynamicRegion</span> and the <span class="code">SenseRegion</span> class, but note that the DynamicRegion class must then be listed first in such a definition, for example:</p>
+
+ <p><div class="code"><pre>
+ myDynamicSenseRegion: DynamicRegion, SenseRegion
+ ;
+ </pre></div>
+
+
+<h2>Restrictions and Workarounds</h2>
+
+<p>Since a DynamicRegion may gain or lose rooms, it cannot be in any permanent relation with any other Regions. In particular this means:</p>
+
+<ul>
+<li>A DynamicRegion cannot be part of (located in) any other Region.</li>
+<li>No other Region can be part of (located in) a DynamicRegion.</li>
+</ul>
+
+<p>This does not prevent your <em>defining</em> a DynamicRegion as part of the contents of another Region, or another Region as part of the contents of a DynamicRegion (for example, through its <span class="code">expandRegion(rm, expanded)</span> method), but these are just shorthand ways of listing the contents (i.e. list of rooms) of the enclosed Region/DynamicRegion in the enclosing DynamicRegion/Region as part of the initial contents of the enclosing Region. It does not set up any relation between the Regions themselves.</p>
+
+<p>For example, suppose we have a DynamicRegion X that initially starts out containing rooms A, B and C and we define it to be part of a larger region Y that also contains Rooms D, E and F. If we later added Room G to X and took away room C from X, would we also have to change region Y so that it now contained Rooms A, B, D, E, F, G? But then what if Region Y also contained Region Z that started out overlapping with Region X so that Region Z also contained Room C? Shouldn't Room C then be retained in Region Y even when it's removed from Region X?</p>
+
+<p>If this sounds a bit complicated and confusing, that's because it is; once changes to one region are allowed to cause changes to other reasons, it's both unclear what ought to happen and horribly complex to keep track of. For that reason it seems better to keep things reasonably simple and not allow a DynamicRegion to contain or be contained by any other Region. Of course a DynamicRegion could happen to contain rooms that are all in some other Region as well, but we don't <em>count</em> this as the DynamicRegion being <em>in</em> the other Region since there's no guarantee that this relation will continue to hold. We can, however, test for <em>temporary</em> containment with the <span class="code">isCurrentlyWithin(region)</span> method; <span class="code">X.isCurrentlyWithin(Y)</span> returns true if all the rooms in X are also in Y.</p>
+
+<p>But note the distinction. If X is a DynamicRegion that contains rooms A, B and C, while Y is some other Region that contains rooms A, B, C, D and E, although <span class="code">X.isCurrentlyIn(Y)</span> will then be true, <span class="code">X.isIn(Y)</span> will be nil (i.e. false), since there is no <em>intrinsic</em> relation between the Regions X and Y.</p>
+
+<p>Additionally, DynamicRegions don't do the following:</p>
+
+<ul>
+<li>If the initial location of a MultiLoc is defined as being a DynamicRegion, adding or subtracting rooms to or from the DynamicRegion does not change the location of the MultiLoc.</li>
+<li>If a DynamicRegion is defined as being familiar, changing its list of rooms doesn't make the added rooms familiar if they weren't before or unfamiliar if they were before.</li>
+</ul>
+
+<p>These limitations are there partly because it would be too complex to keep track of all such cases, and partly because each game's requirements may be different in every particular case. However, in game code it may be relatively straightforward to work round these limitations provided it's clear what's wanted. To help with this, the DynamicRegion class defines the <span class="code">extraAdjustments()</span> method which is executed at the end of any call to <span class="code">expandRegion()</span> or <span class="code">contractRegion()</span>. By default it does nothing, and is thus available to be overridden to do whatever might be needed.</p>
+
+<p>For example, suppose we had an overcastArea DynamicRegion that can expand or shrink, and that a MultiLoc clouds object should be present in every room of that DynamicRegion at all times. Initially we might define:</p>
+
+ <p><div class="code"><pre>
+clouds: MultiLoc, Distant 'clouds; dark grey;;them'
+   "Dark grey clouds cover the sky. "
+   
+   locationList = [overcastArea]
+;   
+ 
+ </pre></div>
+
+<p>This is fine for defining the initial locations of the clouds object, but these need to be updated when overcastArea gains or loses rooms. To achieve this we can use its <span class="code">extraAdjustments()</span> method to recalculate where the clouds object should be when the overcastArea grows or shrinks:</p>
+
+ <p><div class="code"><pre>
+ overcastArea: DynamicRegion
+     extraAdjustments(rm, expanded)
+     {
+         <span class="comment">/* Re-initialize clouds' location list */</span>
+         clouds.moveInto(nil);
+         clouds.moveIntoLocations();
+     }
+ ; 
+ </pre></div>
+
+<p>We could use a similar technique for making one DynamicRegion expand or contract in line with another. Suppose, for example, that we have a forestRegion and a meadowRegion next to each other, such that one shrinks if the other grows (as trees are cut down or planted). We could then make the meadowRegion automatically grow or shrink as the forestRegion shrinks or grows:</p> 
+ 
+ <p><div class="code"><pre>
+meadowRegion: DynamicRegion
+;
+
+forestRegion: DynamicRegion
+    extraAdjustments(rm, expanded)
+    {
+        if(expanded)
+           meadowRegion.contractRegion(rm);
+        else
+           meadowRegion.expandRegion(rm);
+    }
+; 
+ </pre></div> 
+ 
+<p>Alternatively, if the meadowRegion were notionally part of an outdoorRegion, we might want both to expand or contract together:</p> 
+ 
+ <p><div class="code"><pre>
+ meadowRegion: DynamicRegion
+    extraAdjustments(rm, expanded)
+    {
+        if(expanded)
+           outdoorRegion.expandRegion(rm);
+        else
+           outdoorRegion.contractRegion(rm);
+    }
+ ;
+ 
+ outdoorRegion: DynamicRegion
+ ; 
+ </pre></div> 
+ 
+ 
+ 
+<p>As can be seen from these examples, such things are quite easy to arrange in game code on a case by case basis, but would be almost impossible to provide for in library code, since it would become at best horribly cumbersome for library code to attempt to cater for all the possibilities that game authors might want.</p> 
+ 
+ 
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fueled Light Source
+<br><span class="navnp"><a class="nav" href="../../docs/manual/extensions.htm"><i>Prev:</i> Extensions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="fueled.htm"><i>Next:</i> Fueled Light Source</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
