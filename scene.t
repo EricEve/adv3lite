@@ -28,7 +28,7 @@ sceneManager: InitObject, Event
          *   Run the executeEvent() method for the first time to set up any
          *   scenes that should be active at the start of play.
          */
-        executeEvent();
+//        executeEvent();
     }
     
     eventOrder = 200

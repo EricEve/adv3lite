@@ -104,6 +104,13 @@ runGame(look)
         gActor = gPlayerChar;
         /* run the initial "look around" in a dummy command context */
         gPlayerChar.outermostVisibleParent().lookAroundWithin();
+        
+        /* 
+         *   execute the sceneManager (if it exists) to for any Scene that's
+         *   meant to start with the game.
+         */
+        if(defined(sceneManager))
+            sceneManager.executeEvent();
     }
 
     /* run the main command loop until the game ends */
