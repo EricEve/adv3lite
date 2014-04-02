@@ -368,6 +368,14 @@ class Doer: Redirector
             abort;
         }
         
+        /* 
+         *   Set the direction property of the current Command's association
+         *   Action object to the direction determined by its
+         *   verbProd.dirMatch.dir property in case the game author tries to use
+         *   action.direction to get at the direction entered.
+         */
+        curCmd.action.direction = dirn;
+        
     }
     
     /* 
