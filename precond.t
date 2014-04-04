@@ -804,7 +804,7 @@ actorInStagingLocation: PreCondition
             local path = [];
             local step = stagingLoc;
             
-            while(step != loc)
+            while(step && step != loc)
             {
                 path = [step] + path;
                 step = step.stagingLocation;

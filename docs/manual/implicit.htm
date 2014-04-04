@@ -1,0 +1,122 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Implicit Actions</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Implicit Actions
+<br><span class="navnp"><a class="nav" href="doer.htm"><i>Prev:</i> Doers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="react.htm"><i>Next:</i> Reacting to Actions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Implicit Actions</h1>
+ 
+<p>An implicit action is an action that the game carries out for the player to allow the explicitly commanded action to proceed. For example, if the player types THROW BALL AT STONE when the player character is not holding the ball, but the ball is within reach, rather than having the parser respond with "You need to be holding the ball before you can throw it", the game simply has the player character take the ball as an <em>implicit action</em> (i.e. an action not explicitly requested by the player but necessary to carry out the command the player did type), and reports the result with a message like '(first taking the ball)'. Similarly, LOOK IN BOX when the box is closed would result in an implicit open action and the report '(first opening the box)'. If, however, the box can't be opened, because it's locked, say, the parser will instead report the failed attempt to perform the requisite implicit action (opening the box) with a message like '(first trying to open the box)'. Here the word 'trying' is intended to convey to the player that it is necessary to open the box before looking inside it, but that in this instance the attempt to open it did not succeed.</p> 
+<br>
+<a name="trigger"></a>
+<h2>Triggering Implicit Actions</h2>
+
+<p>The commonest way for an implicit action to be triggered is via a <a href="actres.htm#precond">PreCondition</a>, that is an object used to define what conditions must hold in order for a particular action to go ahead (as discussed in the section on <a href="actres.htm#precond">Action Results</a>). You can, however, trigger an implicit action explicitly in your own code using the <strong>tryImplicitAction()</strong> macro. This takes the form <span class="code">tryImplicitAction(<em>action-name</em>, <em>objs...</em>)</span>, where <em>action-name</em> is the name of the action you wish to be explicitly performed, such as <span class="code">Take</span>, and objs... is the object or objects you want the implicit action to apply to. So, for example, to trigger an implicit TAKE RED BALL action in your own code you might write:</p>
+ 
+ <p><div class="code"><pre>
+ tryImplicitAction(Take, redBall); 
+ </pre></div> 
+ 
+<p>The place where you might typically write such code is in the action section of a dobjFor() or iobjFor() block in your own code. For example, suppose that you are implementing the response to the WriteOn action for a sheet of paper, but in order to write on the piece of paper the player character has to be holding a pen. Rather than just preventing the action if the pen isn't held, you could make the player character take the pen automatically via an implicit action provided the pen is within reach, something like:</p> 
+ 
+ <p><div class="code"><pre>
+ pieceOfPaper: Thing 'piece of paper'
+    ...
+    dobjFor(WriteOn)
+    {
+        check()
+        {
+           if(!gActor.canReach(pen))
+             "You need a pen to do that. ";
+        }
+        
+        action()
+        {
+           if(!pen.isDirectlyHeldBy(gActor))
+             tryImplicitAction(Take, pen);
+             
+           ...  
+        }
+    }
+ </pre></div> 
+ <br>
+ 
+ 
+<a name="reporting"></a> 
+<h2>Reporting Implicit Actions</h2> 
+
+<p>As stated above, the library normally reports implicit actions with text such as '(first taking the pen)' (when the implicit action succeeds) or '(first trying to take the pen)' (when the implicit action fails. The library also attempts to group implicit action reports as far as possible, to give reports like '(first taking the gold key, then unlocking the small box with the gold key, then opening the small box)' rather than giving three separate implicit action reports relating to the same command. To do this it stores the implicit action reports it needs to produce in the <strong>implicitActionReports</strong> of the current Command object (<span class="code">gCommand</span>) until they are ready (or need) to be displayed. This mechanism make the handling of implicit action reports by the library a fairly complex matter, the details of which most game authors probably won't want to concern themselves with.</p>
+ 
+<p>On the other hand, game authors may wish to customize these reports or control whether and when they appear. Whether an implicit action report is produced at all is controlled by the <strong>reportImplicitActions</strong> property of the <span class="code">Action</span> class. Usually, it's a good idea to display implicit action reports so that players can see what actions have been performed on their behalf, otherwise they may not be aware that the pen has been taken or the box opened as a side-effect of the command they actually entered, but some game authors dislike implicit action reports, and since it's your game you're writing you can, if you like, banish all implicit action reports with the following few lines of code:</p> 
+ 
+<p><div class="code"><pre>
+modify Take
+    reportImplicitActions = nil
+;
+</pre></div>
+
+<p>You can also do this on a per action basis. For example, the following code would suppress implicit take reports but allow all other implicit actions to be reported:</p>  
+  
+ <p><div class="code"><pre>
+ modify Take
+    reportImplicitActions = nil
+;
+ </pre></div>
+
+<p>To suppress the implicit action reports that would stem from a particular action applied to particular objects, we can use a <a href="doer.htm">Doer</a>, like so:</p> 
+
+ <p><div class="code"><pre>
+ Doer 'look in octopusTank'
+    execAction(c)
+    {
+        try
+        {
+            Action.reportImplicitActions = nil;
+            inherited(c);
+        }
+        finally
+        {
+            Action.reportImplicitActions = true;
+        }
+    }       
+;
+ </pre></div>
+  
+<p>This would prevent any implicit action reports appearing in response to the command LOOK IN OCTOPUS TANK. We could also, of course, use a Doer in a similar way with a class (such as <span class="code">Thing</span>) in place of a particular object (such as <span class="code">octopusTank</span>) to suppress the implicit actions reports for an action applied to a whole class of objects.</p>  
+
+<p>Finally, we can customize some of the fragments of text that go to build up implicit action reports by using a <a href="message.htm#custmessage_idx">CustomMessages</a> object like so:</p>
+
+ <p><div class="code"><pre>
+ CustomMessages
+    messages = [
+        Msg(implicit action report start, '[after '),
+        Msg(implicit action report failure, 'failing to '),
+        Msg(implicit action report separator, ' and next '),
+        Msg(implicit action report terminator, ']\n')   
+    ]
+;
+ </pre></div>
+
+<p>This example would turn a report like '(first taking the ball)' into '[after taking the ball]', '(first trying to open the box)' into '[after failing to open the box]' and '(first opening the box then taking the ball)' into '[after opening the box and next taking the ball]'. Note where the spaces need to occur in these textual fragments.</p>  
+  
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Implicit Actions
+<br><span class="navnp"><a class="nav" href="doer.htm"><i>Prev:</i> Doers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="react.htm"><i>Next: </i>Reacting to Actions </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

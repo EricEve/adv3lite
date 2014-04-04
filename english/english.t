@@ -572,6 +572,17 @@ class LMentionable: object
 
         /* pull out the major parts, delimited by semicolons */
         local parts = str.split(';').mapAll({x: x.trim()});
+        
+        
+ #ifdef __DEBUG
+
+        if(parts.length > 4)
+        {
+            "<b><FONT COLOR=RED>WARNING!</b></FONT> ";
+            "Too many semicolons in vocab string '<<vocab>>'; there should be a
+            maximum of three separating four different sections.\n";
+        }
+ #endif
 
         /* the first part is the short name */
         local shortName = parts[1].trim();
@@ -712,6 +723,26 @@ class LMentionable: object
         {
             parts[2].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchAdj)});
+            
+#ifdef __DEBUG
+            /* 
+             *   If we're compiling for debugging, issue a warning if a pronoun
+             *   appears in the adjective section. We exclude 'her' from the
+             *   list of pronouns we test for here since 'her' in the adjective
+             *   section could be intended as the female possessive pronoun.
+             */
+            parts[2].split(' ').forEach(function(x){
+                if(x is in ('him', 'it', 'them'))
+                {
+                    "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
+                    "Pronoun '<<x>>' appears in adjective section (after first
+                    semicolon) of vocab string '<<vocab>>'. This may mean the
+                    vocab string has too few semicolons.\n";
+                }
+                
+            });
+#endif
+            
         }
 
 
@@ -720,6 +751,23 @@ class LMentionable: object
         {            
             parts[3].split(' ').forEach(
                 {x: initVocabWord(x.trim(), MatchNoun)});
+            
+#ifdef __DEBUG
+            /* 
+             *   If we're compiling for debugging, issue a warning if a pronoun
+             *   appears in the noun section.
+             */
+            parts[3].split(' ').forEach(function(x){
+                if(x is in ('him', 'her', 'it', 'them'))
+                {
+                    "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
+                    "Pronoun '<<x>>' appears in noun section (after second
+                    semicolon) of vocab string '<<vocab>>'. This probably
+                    mean this vocab string has too few semicolons.\n";
+                }
+                
+            });
+#endif
         }
 
 
@@ -766,8 +814,27 @@ class LMentionable: object
                         plural = nil;
                     
                 }
+#ifdef __DEBUG
+            /* 
+             *   If we're compiling for debugging, issue a warning if a
+             *   something other than a pronoun appears in the pronoun section.
+             */
+            parts[4].split(' ').forEach(function(x){
+                if(x not in ('him', 'her', 'it', 'them'))
+                {
+                    "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
+                    "Non-Pronoun '<<x>>' appears in pronoun section (after third
+                    semicolon) of vocab string '<<vocab>>'. Check that this
+                    vocab string doesn't have too many semicolons.\n";
+                }
+                
+            });
+#endif
             }
 
+
+        
+        
         /* turn vocabWords back into a list */
         vocabWords = vocabWords.toList();
     }
@@ -943,6 +1010,21 @@ class LMentionable: object
             /* strip the annotation from the word string */
             w = w.findReplace(posPat, '', ReplaceOnce);
         }
+        
+        /* 
+         *   If we're compiling for debug, try to warn the author of any illegal
+         *   part-of-speech tags that may have inadvertently crept into a vocab
+         *   string.
+         */
+#ifdef __DEBUG
+    else if(w.find(R'<lsquare>.*<rsquare>') != nil && !w.endsWith('s'))
+    {
+        "<B><FONT COLOR=RED>WARNING!</FONT></B> ";
+        "Illegal part of speech tag for '<<w>>' in vocab string '<<vocab>>'\n";
+    }
+        
+#endif        
+        
 
         /* 
          *   if this is an adjective ending in apostrophe-S, use that form
@@ -5039,7 +5121,12 @@ modify Action
         }
     }
   
-
+    /* 
+     *   Flag - do we want to show implicit action reports for this action? By
+     *   default we do.
+     */
+    reportImplicitActions = true
+    
     
     /* 
      *   Construct the announcement of an implicit action according to whether
@@ -5049,7 +5136,15 @@ modify Action
      */
     buildImplicitActionAnnouncement(success, clearReports = true)
     {
-               
+        
+        /* 
+         *   If we don't want to show implicit action reports for this action,
+         *   then don't do anything at all here; simply return an empty string
+         *   at once.
+         */       
+        if(!reportImplicitActions)
+            return '';
+        
         local rep = '';
         local cur;
         
@@ -5087,7 +5182,7 @@ modify Action
              *   Begin our report with an opening parenthesis and the word
              *   'first'
              */
-            rep = '(first ';
+            rep = BMsg(implicit action report start, '(first ');
             
             /* 
              *   Then go through all the implicit action reports on the current
@@ -5102,7 +5197,7 @@ modify Action
                  *   separate one report from the next
                  */
                 if(i < lst.length)
-                    rep += ', then ';
+                    rep += BMsg(implicit action report separator, 'then ');
             }
             
             if(clearReports)
@@ -5110,7 +5205,7 @@ modify Action
                 gCommand.implicitActionReports = [];
             
             /* Return the completed implicit action report */
-            return rep + ')\n';
+            return rep + BMsg(implicit action report terminator, ')\n');
         }
         
         /* 
@@ -5135,7 +5230,8 @@ modify Action
     implicitAnnouncement(success)
     {
         return success ? getVerbPhrase(nil, nil) : 
-              'trying to ' + getVerbPhrase(true, nil);
+              BMsg(implicit action report failure, 'trying to ') 
+            + getVerbPhrase(true, nil);
     }
     
     

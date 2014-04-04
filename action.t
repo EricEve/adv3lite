@@ -1654,10 +1654,13 @@ class TAction: Action
          *   Add any pending implicit action announcements to the output stream
          *   so they'll appear before anything else that's output.
          */
+        
+        
         local impAnnounce = buildImplicitActionAnnouncement(true, nil);
         
         if(!isEmptyStr(impAnnounce))
             gOutStream.setPrefix(impAnnounce);
+        
         
         /* 
          *   If the action method displays anything then we don't add this
@@ -2103,10 +2106,13 @@ class TIAction: TAction
          *   Add any pending implicit action announcements to the output stream
          *   so they'll appear before anything else that's output.
          */
+       
+        
         local impAnnounce = buildImplicitActionAnnouncement(true, nil);
         
         if(!isEmptyStr(impAnnounce))
             gOutStream.setPrefix(impAnnounce);
+        
         
         try
         {

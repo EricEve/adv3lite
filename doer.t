@@ -578,7 +578,8 @@ class DoerCmd: object
              *   if the template object is non-nil, we have to match the
              *   object or class 
              */
-            if (tobj != nil && cobj != tobj && !cobj.ofKind(tobj))
+            if (tobj != nil && cobj != tobj && !cobj.ofKind(tobj) 
+                && cobj.lexicalParent != tobj)
                 return nil;
         }
 
