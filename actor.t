@@ -1070,12 +1070,15 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      */
     sayActorFollowing(oldLoc, conn)
     {
-        /* Create a local variable to use as a message substitution parameter */
-        local follower = self;
-        gMessageParams(follower);
+        /* 
+         *   Create some local variables to use as message substitution
+         *   parameters.
+         */
+        local follower = self, pc = gPlayerChar;
+        gMessageParams(follower, pc);
         
         /* Display our default following message */
-        DMsg(follow, '<.p>{The follower} follow{s/ed} behind {me}. ');
+        DMsg(follow, '<.p>{The follower} follow{s/ed} behind {the pc}. ');
     }
     
     
@@ -2354,12 +2357,12 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      */
     sayFollowing(oldLoc, conn)
     {
-        /* Create a convenient message substitution parameter */
-        local follower = getActor;
-        gMessageParams(follower);
+        /* Create some convenient message substitution parameters */
+        local follower = getActor, pc = gPlayerChar;
+        gMessageParams(follower, pc);
         
         /* Display the message */
-        DMsg(state follow, '{The follower} follow{s/ed} behind {me}. ');
+        DMsg(state follow, '{The follower} follow{s/ed} behind {the pc}. ');
     }
     
     /*  
