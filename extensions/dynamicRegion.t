@@ -150,7 +150,7 @@ modify Region
     /* A DynamicRegion cannot contain other regions */
     isIn(region)
     {
-        if(region.ofKind(DynamicRegion))
+        if(region && region.ofKind(DynamicRegion))
             return nil;
         
         return inherited(region);
