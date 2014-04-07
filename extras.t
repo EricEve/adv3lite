@@ -593,6 +593,9 @@ class StairwayDown: TravelConnector, Thing
     }
     
     traversalMsg = BMsg(traverse stairway down, 'down {1}', theName)
+    
+    cannotClimbMsg = BMsg(cannot climb stairway down, '{I} {can\'t} climb {the
+        dobj}, but {i} could go down {him dobj}. ')
 ;
 
 
