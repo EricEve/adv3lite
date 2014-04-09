@@ -24,6 +24,12 @@ class TopicEntry: object
     matchTopic(top)
     {
         /* 
+         *   Note the topic we're trying to match so that topicResponse() can
+         *   make use if it, if it wants to.
+         */
+        topicMatched = top;
+        
+        /* 
          *   If top is nil we're programmatically passing a topic that will
          *   match anything. Otherwise test if top matches the matchObj, where
          *   match means that top is one of items in the matchObj list or else
@@ -102,6 +108,11 @@ class TopicEntry: object
      *   matches.
      */
     matchObj = nil
+    
+    /*   
+     *   The topic that this TopicEntry actually matched (set by matchTopic()).
+     */
+    topicMatched = nil
     
     /*  
      *   A regular expression that this TopicEntry might match, if it doesn't
@@ -341,6 +352,13 @@ class DefaultConsultTopic: ConsultTopic
     /* A DefaultConsultTopic matches anything, so just return our matchScore */
     matchTopic(top)
     {
+        /* Note the Topic we matched. */
+        topicMatched = top;
+        
+        /* 
+         *   Since we can match anything, simply return the sum of our
+         *   matchScore and our scoreBoost.
+         */
         return matchScore + scoreBoost;
     }
     

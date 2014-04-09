@@ -3234,7 +3234,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
             
     }
 ;
-
+ 
 
 /* 
  *   CommandTopicHelper is a mix-in class for use with CommandTopic and
@@ -3333,6 +3333,9 @@ class MiscTopic: ActorTopicEntry
      */    
     matchTopic(obj)
     {
+        /* Note the topic we're trying to match. */
+        topicMatched = obj;
+        
         /* 
          *   if it's one of our matching topics, return our match score,
          *   otherwise return a nil score to indicate failure 
@@ -4371,6 +4374,9 @@ class AltTopic: ActorTopicEntry
      */
     matchTopic(top)
     {
+        /* Note the topic we're trying to match. */
+        topicMatched = top;
+        
         local score = location.matchTopic(top);
         
         return score == nil ? nil : score + sourceTextOrder -
