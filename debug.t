@@ -159,6 +159,8 @@ DefineTAction(Purloin)
     afterAction() { }
     turnSequence() { }
     
+    /* The Purloin action should work even on a hidden item  */
+    unhides = true
 ;    
 
 /* 
@@ -176,6 +178,9 @@ DefineTAction(GoNear)
     beforeAction() { }
     afterAction() { }
     turnSequence() { }
+    
+    /* The GoNear action should work even on a hidden item  */
+    unhides = true
 ;
 
 /*  

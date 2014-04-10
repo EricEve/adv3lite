@@ -740,6 +740,11 @@ class Command: object
     /* resolve the noun phrases */
     resolveNouns()
     {
+        /* 
+         *   Note that we're the current command, in case anything wants to know
+         */
+        gCommand = self;
+        
         /* we don't have an error for this resolution pass yet */
         cmdErr = nil;
 

@@ -864,6 +864,12 @@ class Action: ReplaceRedirector
         DMsg(acknowledge notify status, '<.parser>Score notifications are now
         <<stat ? 'on' : 'off'>>.<./parser> ');
     }
+    
+    /* 
+     *   Flag: is this an action that acts on an object even if it is hidden;
+     *   normally this will only apply to debugging actions.
+     */
+    unhides = nil
 ;
 
 

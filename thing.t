@@ -329,7 +329,7 @@ class Mentionable: LMentionable
          *   its existence, or at least shouldn't be able to interact with it,
          *   so it shouldn't match any vocab.
          */
-        if(isHidden)
+        if(isHidden && !gCommand.action.unhides)
             return 0;
         
         /* 
@@ -8611,6 +8611,12 @@ class Thing:  ReplaceRedirector, Mentionable
              *   neither to we want a notifyRemove() routine to veto a Purloin.
              */
             moveInto(gActor);
+            
+            /*   
+             *   Make this item unhidden even if it was hidden before, otherwise
+             *   it won't show up in inventory and we can't interact with it.
+             */
+            isHidden = nil;
             
             /*  
              *   Note that the player char has seen the purloined item. Not
