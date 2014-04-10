@@ -153,6 +153,10 @@ buildMessage(id, txt, [args])
     /* if we found an override, use it instead of the provided text */
     if (cm != nil)
         txt = cm.msgTab[id];
+    
+    /* if txt is a function pointer, retrieve the value it returns */
+    if(dataType(txt) == TypeFuncPtr)
+        txt = txt();
 
     /* set up a sentence context for the expansion */
     local ctx = new MessageCtx(args);
