@@ -1478,9 +1478,10 @@ class Thing:  ReplaceRedirector, Mentionable
             /* 
              *   Recursively list the contents of each item in this object's
              *   contents, if it has any; but don't list recursively for an
-             *   object that's just been opened.
+             *   object that's just been opened (for which the lister's
+             *   listRecursively property should be nil.
              */
-            if(obj.contents.length > 0 && lister != openingContentsLister)
+            if(obj.contents.length > 0 && lister.listRecursively)
                 listSubcontentsOf(obj.contents, lister);                     
             
         }

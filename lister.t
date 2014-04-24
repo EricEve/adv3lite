@@ -138,6 +138,12 @@ class ItemLister: Lister
      *   should be listed when listing with this lister
      */
     contentsListedProp = &contentsListed
+    
+    /* 
+     *   Flag, so we want to list contents of contents when using this lister;
+     *   by default we do.
+     */
+    listRecursively = true
 ;
 
 
@@ -192,6 +198,12 @@ descContentsLister: ItemLister
 openingContentsLister: ItemLister
     /* is the object listed in an EXAMINE description of its container? */
     listed(obj) { return obj.examineListed && !obj.isHidden; }
+    
+    /* 
+     *   We don't want recursive listing with the openingContentsLister, since
+     *   this can produce odd results.
+     */
+    listRecursively = nil
 ;
 
 /* 
