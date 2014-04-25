@@ -1479,9 +1479,11 @@ class Thing:  ReplaceRedirector, Mentionable
              *   Recursively list the contents of each item in this object's
              *   contents, if it has any; but don't list recursively for an
              *   object that's just been opened (for which the lister's
-             *   listRecursively property should be nil.
+             *   listRecursively property should be nil) or for which there are
+             *   no listable contents.
              */
-            if(obj.contents.length > 0 && lister.listRecursively)
+            if(obj.contents.length > 0 && lister.listRecursively
+               && obj.contents.countWhich({x: lister.listed(x)}) > 0)
                 listSubcontentsOf(obj.contents, lister);                     
             
         }
