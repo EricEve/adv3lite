@@ -1660,6 +1660,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     display(prop)
     {
+        local str;
         switch(propType(prop))
         {
             /* 
@@ -1682,10 +1683,10 @@ class Thing:  ReplaceRedirector, Mentionable
              *   In case prop is a method that returns a single-quoted string,
              *   note the return value from executing prop.
              */
-            local str = self.(prop);
+            str = self.(prop);
             
             /* If it's a string, display it. */
-            if(dataType(str) == TypeSString)
+            if(dataType(str) == TypeSString && str > '')
                 say(str);
             break;
         default:
@@ -1694,12 +1695,21 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    /* Check if displaying prop would produce any output. */
+    /* 
+     *   Check if displaying prop would produce any output. Note that the
+     *   previous test used here interfered with the use of embedded expressions
+     *   (sucn as <<one of>>... constructions) in the property being tested. The
+     *   previous test was probably over-cautious and so has been replaced here
+     *   with a less stringest test that does not interfere with embedded
+     *   expressions.
+     */
     checkDisplay(prop)
     {
-        local str = gOutStream.captureOutput({: display(prop)} );
+//        local str = gOutStream.captureOutput({: display(prop)} );
+//        
+//        return str not in (nil, '');
         
-        return str not in (nil, '');
+        return propType(prop) != TypeNil;
     }
     
     

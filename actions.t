@@ -510,7 +510,7 @@ DefineIAction(Smell)
     {
         /* 
          *   Build a list of all the objects in scope that both (1) define a
-         *   nsmellDesc property that will display something and (2) whose
+         *   smellDesc property that will display something and (2) whose
          *   isProminentSmell property is true
          */
         local s_list = gActor.getOutermostRoom.allContents.subset(

@@ -380,7 +380,8 @@ class Parser: object
                     if(gPlayerChar.currentInterlocutor != nil
                        && cmdLst.length == 0 
                        && Q.canTalkTo(gPlayerChar,
-                                       gPlayerChar.currentInterlocutor))
+                                       gPlayerChar.currentInterlocutor)
+                       && str.find(',') == nil)
                     {
                          l = new CommandList(
                             topicPhrase, toks, cmdDict,
