@@ -1757,7 +1757,7 @@ DefineLiteralTAction(TellTo)
          *   Take a command of the form of TELL FOO TO BAR, turn it into FOO,
          *   BAR and then send it back to parser to execute
          */
-        local str = cmd.dobj.theName + ', ' + cmd.iobj.name;
+        local str = cmd.dobj.name + ', ' + cmd.iobj.name;
         Parser.parse(str);
     }
     afterAction() {}

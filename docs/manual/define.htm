@@ -109,13 +109,58 @@ VerbRule(Grab)
 <li><strong>answerMissing(cmd, np)</strong> - the base library calls this when the player answers the parser's question asking for the missing noun phrase.'cmd' is the Command, and 'np' is the noun phrase parsed from the user's answer to the query.  This is called from the base library but isn't required, in that it's purely advisory.  The point of this routine is to let the verb change the command according to the reply.
  For example, in English, we have a generic Put <dobj> verb that asks where to put the dobj.  If the user says "in the box", we can change the action to Put In; if the user says "on the table", we can change the action to Put On.</li>
  
-<li><strong>dobjReply, iobjReply, accReply</strong> - the noun phrase production to use for parsing a reply to the missing-object question for the corresponding role.  Players sometimes reply to a question like "What do you want to put it in?" by starting the answer with the same preposition in the question: "in the box".  To support this, you can specify a noun phrase production that starts with the appropriate preposition (inSingleNoun, onSingleNoun, etc).</li> 
+<li><strong>dobjReply, iobjReply, accReply</strong> - the noun phrase production to use for parsing a reply to the missing-object question for the corresponding role.  Players sometimes reply to a question like "What do you want to put it in?" by starting the answer with the same preposition in the question: "in the box".  To support this, you can specify a noun phrase production that starts with the appropriate preposition (inSingleNoun, onSingleNoun, etc). We'll go into this a bit more below.</li> 
 
 <li><strong>priority</strong> - The predicate priority is a small number, 0-99.  The default is 50, which should apply to most normal, complete verb phrases.  For incomplete phrases (with a missing object, which will force the   parser to assume a default or ask the player for the missing information), use 25.  Other values are for fine-tuning as needed in the individual grammar rules.  A higher value means higher priority. One example where this is used in the adv3Lite Library is in the grammar for the Hello, Yes and Say commands. The Say command allows the player to say anything (this is used in the conversation system), such as SAY YOU DON'T BELIEVE HIM. One of the possible grammars for the Hello command is SAY HELLO, and one of the possible grammars for the Yes command is SAY YES. The trouble then is that SAY HELLO and SAY YES both match the grammar for the SAY command as well as a Hello or Yes command. To make sure the parser matches the corrent command in these cases the adv3Lite library gives VerbRule(Yes) and VerbRule(Hello) a priority of 60 to ensure that they're both matched in preference to VerbRule(Say).</li>
 </ul>
 
 <p>Note that for the most part when defining your own actions you'll mostly only have to worry about the first two or three of these properties (and occasionally the last), but there may occasionally be times when you need to know about the others, so they're included here for completeness. Note also that although it's possible to define a VerbRule for an action that takes three objects (direct object, indirect object and accessory), the adv3Lite library has no direct support for such actions unless you include the <a href="../../extensions/docs/tiaaction.htm">TIAAction</a> extension.</p>
 
+<p>Sometimes you may want to define a command with one or more optional words; for example you might want HANG COAT ON HOOK or HANG COAT UP ON HOOK to mean the same thing. To achieve this you can define options between parentheses leaving one of them empty thus: <span class="code">('up'| )</span>. The complete VerbRule for Hang On (let us suppose for the sake of argument that it simply performs a PutOn action here) might then look like this:</p>
+
+ <p><div class="code"><pre>
+ VerbRule(HangOn)
+    'hang' ('up'|) singleDobj ('up'|) 'on' singleIobj
+    : VerbProduction
+    action = PutOn
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang; what do you want to hang it on'    
+ ;
+ </pre></div>
+
+ <p>This would then respond to commands like HANG COAT ON PEG, HANG UP COAT ON PEG, HANG COAT UP ON PEG or even HANG UP COAT UP ON PEG.</p>
+
+<p>In the case like our <span class="code">VerbRule(Grab)</span> example above, i.e. a VerbRule for an action that takes only one, direct, object, the parser will automatically take care of incomplete commands like GRAB or SNATCH by posing the question defined in the missingQ property: "What do you want to grab?". When we define a VerbRule for an action that takes two objects (direct and indirect), however, we need to do a bit more work to make this happen, since we need to tell the parser which object to ask for and how to interpret the reply). So, for example, if we want the parser also to respond to a command like HANG COAT or HANG UP COAT or HANG COAT UP with a response like "What do you want to hang it on?" we need to provide an additional VerbRule to field the incomplete command. Such a VerbRule would take the form:</p>
+
+<p><div class="code"><pre>
+ VerbRule(HangOnWhat)
+    [badness 500] 'hang' ('up'|) singleDobj ('up'|)
+    : VerbProduction
+    action = PutOn
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang; what do you want to hang it on'   
+    missingRole = IndirectObject
+    iobjReply = onSingleNoun    
+ ;
+ </pre></div>
+<a name="badness"></a>
+<p>(HangOnWhat) is simply an arbitrary name (or tag) we give this VerbRule which has to be unique among VerbRules (although it's usually a good idea to use something reasonably meaningful). The additional features here are <span class="code">[badness 500]</span>, <span class="code">missingRole</span>, and <span class="code">iobjReply</span>. We'll explain each in turn.</p> 
+ 
+<p>The <strong>badness</strong> tag is simply a way of telling the parser that this is potentially a badly-formed command, so that, for example, if a player types a command HANG X ON Y the parser should try to match this to hanging X on another object Y before it tries to match it to an attempt to hang a single object called 'X ON Y' without another object specified. The number 500 is a more or less arbitrary value that makes a defective HANG X command (without an indirect object) that much a less preferred interpretation compared with a fully specified HANG X ON Y command.</p> 
+
+<p>The <strong>missingRole</strong> property allows us to specify which role (DirectObject or IndirectObject) is missing in a command like HANG CLOAK. In this case it's the IndirectObject (such as the peg or hook the player might want to hang the cloak on).</p>
+ 
+<p>Finally, <strong>iobjReply</strong> tells the parser what kind of phrase to expect in response to the missingQ question "What do you want to hang it on?". In this case <strong>onSingleNoun</strong> means that the parser should expect an answer of the form ON THE PEG or just THE PEG (i.e. 'on' followed by a noun phrase or just a noun phrase). Other common possibilities include <strong>inSingleNoun</strong>, <strong>forSingleNoun</strong>, <strong>toSingleNoun</strong>, <strong>throughSingleNoun</strong>, <strong>fromSingleNoun</strong>, <strong>onSingleNoun</strong>, <strong>withSingleNoun</strong>, <strong>atSingleNoun</strong> and <strong>outOfSingleNoun</strong>, all of which work analogously (i.e. they can match either just a noun phrase or the relevant preposition followed by a noun phrase). In fact the first of these, <span class="code">inSingleNoun</span>, can match several related phrases, such as IN X, INTO X or IN TO X, where X is any noun phrase (such as PEG, WOODEN PEG or THE BIG WOODEN PEG). If we needed something that didn't match any of these we could simply define our own <strong>grammar</strong> entity like so:</p> 
+
+ <p><div class="code"><pre>
+grammar underSingleNoun(main):
+   singleNoun->np_ | 'under' singleNoun->np_ : Production
+;
+</pre></div>
+
+<p>This would then match either a plain noun phrase (e.g. just BED) or a noun phrase preceded by 'under' (e.g. UNDER THE BED).</p>
+
+<br>
 
 <h2><a name="iaction">Defining New IActions</a></h2>
 
