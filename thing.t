@@ -7162,7 +7162,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   don't know how to get to our destination.
              */
             if(route == nil)
-                DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+                sayDontKnowHowToGetThere();
             
             /*  
              *   If the route we find has only one element in its list, that
@@ -7172,8 +7172,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   target.
              */
             else if(route.length == 1)
-                DMsg(destination unknown, '{I} {don\'t know} how to reach
-                    {him dobj}.' );
+                sayDontKnowHowToReach();
             
             /*  
              *   If the route we found has at least two elements, then use the
@@ -7188,6 +7187,19 @@ class Thing:  ReplaceRedirector, Mentionable
             }
         }
     }
+    
+    /* 
+     *   We make these two sayDontKnowHowTo... methods separate methods so that
+     *   they can be reused on the Distant class without having to repeat the
+     *   DMsg() definitions.
+     */
+    sayDontKnowHowToGetThere() 
+        { DMsg(route unknown, '{I} {don\'t know} how to get there. ');}
+   
+    sayDontKnowHowToReach()
+        {  DMsg(destination unknown, '{I} {don\'t know} how to reach
+            {him dobj}.' );}
+    
     
     alreadyThereMsg = BMsg(already there, '{I}{\'m} already there. ')
     alreadyPresentMsg = BMsg(already present, '{The subj dobj} {is} right

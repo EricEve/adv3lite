@@ -130,6 +130,34 @@ class SenseRegion: Region
         /* Remove the scopeProbe_ from the map */
         scopeProbe_.moveInto(nil);
     }   
+    
+    /* 
+     *   Since the PC should be able to see round the whole of a SenseRegion,
+     *   presumably the PC should also be able to find their way around a
+     *   SenseRegion once any of its rooms has been visited, even if the PC is
+     *   yet to visit the other rooms. We can achieve this effect by making the
+     *   SenseRegion familiar once any of its rooms has been visited, provided
+     *   there's line of sight across the rooms in the SenseRegion and the PC is
+     *   in a room in the SenseRegion which has light.
+     */
+    familiar()
+    {
+        local fam = nil;
+        local loc = gPlayerChar.getOutermostRoom;
+        
+        if(canSeeAcross && loc.isIn(self) && loc.isIlluminated)
+            fam = true;
+        
+        /* 
+         *   Once our familiar property becomes true it should never become nil
+         *   again, so we can simply convert familiar to the constant value true
+         *   and avoid the need to keep recalculating it.
+         */
+        if(fam)
+            familiar = fam;
+        
+        return fam;
+    }
 ;
     
 

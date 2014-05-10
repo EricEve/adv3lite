@@ -852,7 +852,7 @@ class TravelConnector: object
     /* 
      *   Does the player char know where this travel connector leads? By default
      *   s/he doesn't until s/he's visited its destination, but this could be
-     *   overridden for an ares the PC is supposed to know well when the game
+     *   overridden for an area the PC is supposed to know well when the game
      *   starts, such as their own house.
      */    
     isDestinationKnown = (destination != nil && destination.visited)

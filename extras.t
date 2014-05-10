@@ -276,7 +276,7 @@ class Component: Fixture
  *   A Distant is a Decoration that's considered too far away to be interacted
  *   with by any command other than EXAMINE
  */
-class Distant: Decoration
+class Distant: ProxyDest, Decoration
    
     /* Message to say that this object is too far away. */
     notImportantMsg = BMsg(distant, '{The subj cobj} {is} too far away. ')
@@ -285,12 +285,98 @@ class Distant: Decoration
      *   The base Decoration class includes GoTo as a decorationAction. For a
      *   Distant object (e.g. the sun or moon or a distanct mountain) this will
      *   often be inappropriate. Where an object is 'locally distant' as it
-     *   were, i.e. a sign mounted high up on a wall, you may want to override
-     *   decorationActions to include GoTo, since GO TO SIGN would then be a
-     *   reasonable way for the player to get to the location of the sign.
+     *   were, i.e. a sign mounted high up on a wall, you can override the
+     *   destination property to give the location that a GO TO action should
+     *   take the player character to; decorationActions will then include GoTo,
+     *   since GO TO SIGN would then be a reasonable way for the player to get
+     *   to the location of the sign.
      */
-    decorationActions = [Examine]
+    decorationActions = destination ? [Examine, GoTo] : [Examine]
+    
+    /* 
+     *   If this Distant represents an object that's notionally in another
+     *   location, setting destination to that location will allow the GO TO
+     *   command to take the actor to that location. If destination is specified
+     *   it should normally be a room (usually one adjacent to that this Distant
+     *   object is located in. For an object like the sky, the sun or a distant
+     *   mountain this should be left as nil.
+     */
+    destination = nil
+    
+    
+    /* 
+     *   Going To a Distant object is unlike a normal GoTo, since if the object
+     *   is meant to be Distant, going to its location (the normal response to a
+     *   GO TO command) is precisely what we don't want to happen. We therefore
+     *   need to provide custom GoTo handling on a Distant object.
+     */
+    dobjFor(GoTo) 
+    {
+        verify()
+        {
+            /* 
+             *   Unless the actor is in our location and we have a destination,
+             *   we don't want to field a GoTo command, so we make it as
+             *   illogical as possible. If we don't have a destination we
+             *   shouldn't reach this point anyway since GoTo shouldn't be one
+             *   of our decorationActions, but writing the test this way will
+             *   make this verify routine prevent the action even if
+             *   decorationActions is overridden, if there's a nil destination.
+             */
+            if(!gActor.isIn(getOutermostRoom) || destination == nil)
+                inaccessible(notImportantMsg);
+        }
+        
+        action() 
+        {
+            /* 
+             *   Calculate the route from the actor's current room to the
+             *   location where the target object was last seen, using the
+             *   routeFinder to carry out the calculations if it is present. In
+             *   this case we use routeFinder rather than pcRouteFinder since
+             *   the PC can presumably see the way s/he needs to go even if s/he
+             *   hasn't gone that way before.
+             */
+            local route = defined(routeFinder)? routeFinder.findPath(
+                gActor.getOutermostRoom, destination.getOutermostRoom) : nil;
+            
+            /*  
+             *   If we don't find a route, just display a message saying we
+             *   don't know how to get to our destination.
+             */
+            if(route == nil)
+                sayDontKnowHowToGetThere();
+            
+            /*  
+             *   If the route we find has only one element in its list, that
+             *   means that we're where we last saw the target but it's no
+             *   longer there, so we don't know where it's gone. In which case
+             *   we display a message saying we don't know how to reach our
+             *   target.
+             */
+            else if(route.length == 1)
+                sayDontKnowHowToReach();
+            
+            /*  
+             *   If the route we found has at least two elements, then use the
+             *   first element of the second element as the direction in which
+             *   we need to travel, and use the Continue action to take a step
+             *   in that direction.
+             */
+            else
+            {
+                local dir = route[2][1];
+                Continue.takeStep(dir, destination.getOutermostRoom);               
+            }; 
+        }
+    }
+       
+    
 ;
+
+
+
+  
 
 /* An Unthing is an object that represents the absence of a thing */
 class Unthing: Decoration
@@ -639,12 +725,34 @@ class PathPassage: Passage
     traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
 ;
 
+/* 
+ *   ProxyDest is a mix-in class for use with an object that represents the
+ *   exterior of a room, such as a hut in a field. Its purpose is to remove such
+ *   an object as the possible target of a GO TO command provided there's
+ *   another alternative. This prevents a GO TO command from taking the player
+ *   character from the appropriate room to an inappropriate destination.
+ */
+class ProxyDest: object
+    filterResolveList(np, cmd, mode) 
+    {
+        /* Carry out the inherited handling. */
+        inherited(np, cmd, mode);
+        
+        /* 
+         *   If we're the potential target of a GO TO command and there are
+         *   other possible matches, remove ourselves from the list of matches.
+         */
+        if(cmd.action == GoTo && np.matches.length > 1)
+            np.matches = np.matches.subset({m: m.obj != self});
+    }   
+;
+
 /*  
  *   An Enterable is a Thing one can go inside. It is usually used to represent
  *   the exterior of an object like a building, so that going inside will take
  *   the actor to a new location representing the interior.
  */
-class Enterable: Fixture
+class Enterable: ProxyDest, Fixture
     
     /* To enter an Enterable the actor must travel via its connector. */
     dobjFor(Enter)
