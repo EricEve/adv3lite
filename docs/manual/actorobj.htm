@@ -99,6 +99,31 @@ george: Actor 'George; tall thin; man; him' @hall
 </ul>
 <p>The purpose of some of the above should become more apparent when we get deeper into the conversation system. There are also a number of methods used for manipulated the Actor's agenda, whioh will be explained in the section on <a href="agenda.htm">AgendaItems</a>. Most of the other methods and properties of Actor are intended for internal use by the library, and would not normally be directly employed in game code.</p>
 
+<a name="hitkiss"></a>
+<h2>Attacking, Touching and Kissing</h2>
+<p>The way Actor (and to some extent Thing) handles responses to ATTACK, TOUCH and KISS is slightly unusual. This is because while attacking, touching or kissing someone is not exactly the same as conversing with them, it is nevertheless a potentially complex form of interpersonal behaviour.</p>
+
+<p>All three actions can be ruled out at the verify stage (on Thing or Actor) by setting <strong>isAttackable</strong>, <strong>isFeelable</strong> or <strong>isKissable</strong> respectively to nil. By default these are all true, except for isAttackable on Thing (on the basis that it doesn't normally make much sense to go around attacking inanimate objects).</p>
+
+<p>All three actions can also be ruled out at the check stage (on both Thing and Actor) by setting <strong>checkAttackMsg</strong>, <strong>checkFeelMsg</strong> or <strong>checkKissMsg</strong> to some non-nil value (normally a single-quoted string, although a double-quoted string or a method that displays some text will also work). This will cause the action to be stopped at the check stage with a display of the message defined on the relevant property. The default value of all three properties is nil.</p>
+
+<p>At the action stage, all three commands work differently on Actor from the way they do on Thing (since attacking, kissing or touching an inanimate object is rather different from attacking, kissing or touching a person). On the Thing class the result is to display the <strong>futileToAttackMsg</strong> (if attacking is allowed at all, by default it isn't since it's stopped at the verify stage so we'd normally see the <span class="code">cannotAttackMsg</span> instead), the <strong>feelDesc</strong>, or the <strong>futileToKissMsg</strong> if it is non-nil (by default it's nil) or else the default message generated at the report stage, respectively.</p>
+
+<p>On the Actor class, however, if any of these commands reach the action stage they are handled quite differently, on the grounds that a person will react very differently to being attacked, touched or kissed than an inanimate object. In the first instance, the ATTACK, TOUCH or KISS command will be handled by a <a href="actortopicentry.htm#types">HitTopic</a>, <a href="actortopicentry.htm#types">TouchTopic</a> or <a href="actortopicentry.htm#types">KissTopic</a> if one is available; otherwise the <strong>attackResponseMsg</strong>, <strong>touchResponseMsg</strong> or <strong>kissResponseMsg</strong> (all of which should be defined as single-quoted strings) is displayed.</p>
+
+<p>At first sight it may seem a bit confusing that some properties refer to 'feel' (e.g. <span class="code">feelDesc</span>, <span class="code">checkFeelMsg</span>) while others refer to 'touch' (e.g. <span class="code">touchResponseMsg</span>). The pattern is that properties defined on Thing use 'feel' while those peculiar to Actor use 'touch'; the rationale of this is that the naming of the Thing properties follows the convention of using the action name, which is actually Feel, but that it's rather more natural to talk in terms of touching someone than feeling someone (hence <span class="code">touchResponseMsg</span> and <span class="code">TouchTopic</span>). However, to alleviate any confusion that might arise the library defines a number of macros that convert the plausible but wrong form of the property name into the correct one:</p>
+
+<ul>
+<li><span class="code">checkTouchMsg</span> into <span class="code">checkFeelMsg</span></li>
+<li><span class="code">feelResponseMsg</span> into <span class="code">touchResponseMsg</span></li>
+<li><span class="code">isTouchable</span> into <span class="code">isFeelable</span></li>
+<li><span class="code">cannotTouchMsg</span> into <span class="code">cannotFeelMsg</span></li>
+<li><span class="code">touchDesc</span> into <span class="code">feelDesc</span></li>
+<li><span class="code">checkHitMsg</span> into <span class="code">checkAttackMsg</span></li>
+<li><span class="code">hitResponseMsg</span> <span class="code">attackResponseMsg</span></li>
+</ul>
+
+<p>While these can't be relied upon in every single case, and it's better to use the correct names, these macros will probably cover the great majority of cases where the plausibly wrong property name is used, so that most of the time it won't matter whether, for instance, you use <span class="code">feelResponseMsg</span> or <span class="code">touchResponseMsg</span> as the property name, since in most common cases they'll end up meaning exactly the same thing.</p>
 
 </div>
 <hr class="navb"><div class="navb">

@@ -2006,15 +2006,9 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         }
     }
     
-    /* 
-     *   By default we'll respond to KISS ACTOR with the shouldNotKissMsg; to
-     *   enable responses to KISS via KissTopics (or some other custom handling
-     *   in the action stage) set allowKiss to true.
-     */       
-    allowKiss = nil
-    
-    /* The message to display if allowKiss is nil */
-    shouldNotKissMsg = BMsg(should not kiss, 'That hardly {dummy} seem{s/ed}
+        
+    /* The message to display if isKissable is nil */
+    cannotKissMsg = BMsg(should not kiss, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
     
     /*   
@@ -2024,15 +2018,14 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     kissResponseMsg = BMsg(kiss response, '{The subj dobj} {doesn\'t like[d]}
         that. ')
     
+    /*  
+     *   An Actor is a more likely target of a KISS action than is an animate
+     *   object.
+     */
+    kissRank = 100
+    
     dobjFor(Kiss)
-    {
-        verify() 
-        {
-            if(!allowKiss)
-                implausible(shouldNotKissMsg);
-        }
-                
-        
+    {       
         action()
         {
             handleTopic(&miscTopics, [kissTopicObj], &kissResponseMsg);
@@ -2053,38 +2046,48 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
       *   to enable responses to ATTACK via HitTopics (or some other custom
       *   handling in the action stage) set allowAttack to true.
       *
-      *   Leave allowAttack at nil for actors the player character will never
-      *   want to attack (because their friendly or harmless, for instance) and
-      *   for which the refusal to attack message will never vary. Override
-      *   allowAttack to true for actor the player character may want to attack
-      *   under some circumstances, or where the response to ATTACKing this
-      *   actor might vary.
+      *   If there are actors the player character will never want to attack
+      *   (because their friendly or harmless, for instance) but which
+      *   nevertheless could in principle could be attacked, the checkAttackMsg
+      *   property can be defined (as on Thing) to stop the attack at the check
+      *   stage.
       */       
-    allowAttack = nil
     
-    /* The message to display if allowAttack is nil */
-    shouldNotAttackMsg = BMsg(should not attack, 'That hardly {dummy} seem{s/ed}
+    
+    /* The message to display if isAttackable is nil */
+    cannotAttackMsg = BMsg(cannot attack actor, 'That hardly {dummy} seem{s/ed}
         appropriate. ')
-    
-    
+       
+    /* 
+     *   The message to display if attacking goes ahead but no HitTopics have
+     *   been defined.
+     */
+    attackResponseMsg = cannotAttackMsg
     
     dobjFor(Attack)
     {       
-        
-        verify()  
-        {
-            if(!allowAttack)
-                implausible(shouldNotAttackMsg);
-        }
-        
         action()
         {
-            handleTopic(&miscTopics, [hitTopicObj], &shouldNotAttackMsg);
+            handleTopic(&miscTopics, [hitTopicObj], &attackResponseMsg);
         }
     
     }
     
     dobjFor(AttackWith) asDobjFor(Attack)
+    
+    
+    touchResponseMsg = BMsg(should not touch actor, '{The subj dobj} {doesn\'t
+        appreciate[d]} being touched. ')
+    
+    dobjFor(Feel)
+    {
+        action()
+        {
+            handleTopic(&miscTopics, [touchTopicObj], &touchResponseMsg);
+        }
+    }
+    
+    
     
     iobjFor(GiveTo)
     {        
@@ -3401,6 +3404,29 @@ class HitTopic: MiscTopic
 
 /* The hitTopicObj exists solely as something for HitTopics to match. */
 hitTopicObj: object;
+
+class TouchTopic: MiscTopic
+    /* 
+     *   TouchTopics should be included in the miscTopics list of their
+     *   TopicDatabase (Actor or ActorState)
+     */
+    includeInList = [&miscTopics]
+    
+    /* TouchTopics match the hitTopicObj */
+    matchObj = touchTopicObj
+    
+    /* 
+     *   Touching someone is not normally regarded as form of conversational
+     *   exchange.
+     */
+    isConversational = nil
+    
+    /*  Touching someone does not trigger a greeting */
+    impliesGreeting = nil
+;
+
+/* The touchTopicObj exists solely as something for HitTopics to match. */
+touchTopicObj: object;
 
 /* A YesTopic is a TopicEntry that responds to YES or SAY YES */
 class YesTopic: MiscTopic

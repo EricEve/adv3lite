@@ -1125,7 +1125,17 @@ enum OpenGoal, ClosedGoal, UndiscoveredGoal;
 #define gInformed(key) (getActor.informedAbout(key))
 
 
+/* ------------------------------------------------------------------------- */
+/*
+ *   Define some synonyms for potentially confusing property names
+ */
 
-
+#define checkTouchMsg checkFeelMsg
+#define feelResponseMsg touchResponseMsg
+#define isTouchable isFeelable
+#define cannotTouchMsg cannotFeelMsg
+#define touchDesc feelDesc
+#define checkHitMsg checkAttackMsg
+#define hitResponseMsg attackResponseMsg
 
 #endif

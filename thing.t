@@ -3898,6 +3898,14 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotFeelMsg = BMsg(cannot feel, 'It{\'s} hardly a good idea to try feeling
         {the dobj}. ')
     
+    /* 
+     *   This property can be defined to display a message at the check stage
+     *   (and so stop the FEEL action there). Normally checkFeelMsg would be
+     *   defined as a double-quoted string, but it can also be defined as a
+     *   double-quoted string or a method that displays some text.
+     */
+    checkFeelMsg = nil
+    
     dobjFor(Feel)    
     {
         preCond = [touchObj]
@@ -3906,6 +3914,13 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!isFeelable)
                 illogical(cannotFeelMsg);
+        }
+        
+        check()
+        {
+            if(dataType(&checkFeelMsg) != TypeNil)
+                display(&checkFeelMsg);
+        
         }
         
         action()
@@ -4271,6 +4286,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotFollowSelfMsg = BMsg(cannot follow self, '{I} {can\'t} follow
         {myself}. ')
 
+    
    
     /* 
      *   Although in theory we can attack almost anything, in practice there's
@@ -4288,6 +4304,11 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogical(cannotAttackMsg);
         }
         
+        check()
+        {
+            if(dataType(&checkAttackMsg) != TypeNil)
+                display(&checkAttackMsg);
+        }
         
         /* 
          *   In case isAttackable is changed to true but no other handling is
@@ -4299,7 +4320,11 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
    
- 
+    /* 
+     *   If we want Attack to fail at the check stage we can supply a message
+     *   explaining why.
+     */ 
+    checkAttackMsg = nil
     
     cannotAttackMsg = BMsg(cannot attack, 'It{dummy}{\'s} best to avoid
         pointless violence. ')
@@ -7546,6 +7571,12 @@ class Thing:  ReplaceRedirector, Mentionable
     /* We can try kissing most things, even if it isn't very rewarding */
     isKissable = true
     
+    /* 
+     *   The logical rank assigned to kissing this object if kissing is allowed.
+     *   Kissing an inanimate object is less likely than kissing an Actor.
+     */
+    kissRank = 80
+    
     dobjFor(Kiss)
     {
         preCond = [touchObj]
@@ -7563,6 +7594,19 @@ class Thing:  ReplaceRedirector, Mentionable
             logicalRank(80); 
         }
         
+        check()
+        {
+            if(dataType(&checkKissMsg) != TypeNil)
+                display(&checkKissMsg);
+        }
+        
+        action()
+        {
+            if(dataType(&futileToKissMsg) != TypeNil)
+                display(&futileToKissMsg);
+        }
+        
+        
         report()
         {
             DMsg(report kiss, 'Kissing {1} {dummy}prove{s/d} remarkably
@@ -7570,9 +7614,16 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
+    futileToKissMsg = nil
+    
     cannotKissMsg = BMsg(cannot kiss, '{I} really {can\'t} kiss {that dobj}. ')
 
-    
+    /* 
+     *   If we want Kissing to fail at the check stage we can supply a message
+     *   here explaining why. This is most simply given as a single-quoted
+     *   string, but a double-quoted string or method will also work.
+     */
+    checkKissMsg = nil
     
     /* 
      *   It should be possible to jump off something if and only if the actor is
