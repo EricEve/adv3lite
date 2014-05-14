@@ -790,15 +790,14 @@ DefineIAction(Continue)
         
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
         
-        if(!gActor.isIn(dest))
-        {
-            local contMsg = BMsg(explain continue, 'To continue the journey
-                use the command
-                <<aHref('Continue','CONTINUE','Continue')>> or C. ');
+        if(!gActor.isIn(dest) && !gameMain.fastGoTo)           
             htmlSay(contMsg);
-        }
+        
     }
     
+    contMsg =  BMsg(explain continue, 'To continue the journey
+                use the command
+                <<aHref('Continue','CONTINUE','Continue')>> or C. ')
 ;
 
 DefineSystemAction(Topics)

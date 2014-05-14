@@ -360,7 +360,7 @@ DefineSystemAction(Instructions)
             <<aHref('script', 'SCRIPT')>> to capture to a file) &gt; ";
 
             /* ask for input */
-            str = inputManager.getInputLine(nil, nil);
+            str = inputManager.getInputLine(nil);
 
             /* if they want to capture them to a file, set up scripting */
             if (rexMatch('<nocase><space>*s(c(r(i(pt?)?)?)?)?<space>*', str)

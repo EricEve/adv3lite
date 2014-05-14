@@ -231,7 +231,7 @@ class LMentionable: object
      *   followed by the appropriate form of the verb 'to be'. This can be
      *   useful for producing sentences of which this object is the subject.
      */
-    theNameIs
+    theNameIs()
     {
         local obj = self;
         
@@ -5615,7 +5615,7 @@ yesOrNo()
      *   won't need to redisplay the prompt, so we pass nil for the prompt
      *   callback.
      */
-    local str = inputManager.getInputLine(nil, nil);
+    local str = inputManager.getInputLine(nil);
 
     /* switch back to mid-command mode */
     "<.commandmid>";

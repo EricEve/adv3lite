@@ -29,13 +29,7 @@ class InputDef: object
      */
     promptFunc = nil
 
-    /* 
-     *   Allow real-time events.  If this is true, we'll allow real-time
-     *   events to interrupt the input; if it's nil, we'll freeze the
-     *   real-time clock while reading input.  
-     */
-    allowRealTime = nil
-
+    
     /* 
      *   Begin the input style.  This should do anything required to set
      *   the font to the desired attributes for the input text.  By
@@ -57,9 +51,8 @@ class InputDef: object
  *   function specified via the constructor.  
  */
 class BasicInputDef: InputDef
-    construct(allowRealTime, promptFunc)
+    construct(promptFunc)   
     {
-        self.allowRealTime = allowRealTime;
         self.promptFunc = promptFunc;
     }
 ;
@@ -72,29 +65,21 @@ class BasicInputDef: InputDef
 inputManager: PostRestoreObject
     /*
      *   Read a line of input from the keyboard.
-     *   
-     *   If allowRealTime is true, we'll execute any real-time events that
-     *   are already due to run, and then we'll allow the input to be
-     *   interrupted by real-time events, if interrupted input is
-     *   supported on the local platform.  Otherwise, we will not process
-     *   any real-time events.
-     *   
-     *   promptFunc is a callback function to invoke to display the
-     *   prompt.  This is provided as a callback so that we can re-display
-     *   the prompt as necessary after real-time event interruptions.
-     *   Note that if real-time interruption is not to be allowed, the
-     *   caller can simply display the prompt before calling this routine
-     *   rather than passing in a prompt callback, if desired.
-     *   
-     *   If we're in HTML mode, this will switch into the 'tads-input'
-     *   font while reading the line, so this routine should be used
-     *   wherever possible rather than calling inputLine() or
-     *   inputLineTimeout() directly.  
+     *
+     *   promptFunc can either be a callback function to invoke to display the
+     *   prompt, or a single-quoted string containing the prompt. Of course, the
+     *   caller can simply display the prompt before calling this routine rather
+     *   than passing in a prompt callback, if desired.
+     *
+     *   If we're in HTML mode, this will switch into the 'tads-input' font
+     *   while reading the line, so this routine should be used wherever
+     *   possible rather than calling inputLine() or inputLineTimeout()
+     *   directly.
      */
-    getInputLine(allowRealTime?, promptFunc?)
+    getInputLine(promptFunc?)
     {
         /* read input using a basic InputDef for the given parameters */
-        return getInputLineExt(new BasicInputDef(allowRealTime, promptFunc));
+        return getInputLineExt(new BasicInputDef(promptFunc));
     }
 
     /*
@@ -244,27 +229,7 @@ inputManager: PostRestoreObject
     }
 
     /*
-     *   Pause for a MORE prompt.  If freezeRealTime is true, we'll stop
-     *   the real-time clock; otherwise we'll let it keep running.  Even if
-     *   we don't freeze the clock, we won't actually process any real-time
-     *   events while waiting: the point of the MORE prompt is to allow the
-     *   player to read and acknowledge the on-screen display before
-     *   showing anything new, so we don't want to allow any output to
-     *   result from real-time events that occur while waiting for user
-     *   input.  If any real-time events come due while we're waiting,
-     *   we'll process them when we're done.
-     *   
-     *   In order to ensure that the display makes sense to the user, we
-     *   flush any captured input in the transcript before pausing.  We
-     *   re-activate transcript capture after the pause if it was active
-     *   before.  Note that in some cases, this could affect the overall
-     *   output for the command, since some commands wait until the very
-     *   end of the command to go back and process the entire transcript
-     *   for the command.  Since we interrupt the transcript, flushing any
-     *   output that occurred before the pause, a command that goes back
-     *   over its entire output stream at the end of the turn won't be able
-     *   to see or modify any of the output that occurred prior to the
-     *   pause, since we will have flushed the output to that point.  
+     *   Pause for a MORE prompt.            
      */
     pauseForMore()
     {
@@ -273,8 +238,7 @@ inputManager: PostRestoreObject
     }
 
     /*
-     *   Ask for an input file.  Freezes the real-time event clock for the
-     *   duration of reading the event.  
+     *   Ask for an input file. 
      */
     getInputFile(prompt, dialogType, fileType, flags)
     {
@@ -287,9 +251,8 @@ inputManager: PostRestoreObject
     }
 
     /*
-     *   Ask for input through a dialog.  Freezes the real-time clock for
-     *   the duration of the dialog display.  The arguments are the same as
-     *   for the built-in inputDialog() function.  
+     *   Ask for input through a dialog.    The arguments are the same as for
+     *   the built-in inputDialog() function.
      */
     getInputDialog(icon, prompt, buttons, defaultButton, cancelButton)
     {       
@@ -303,16 +266,15 @@ inputManager: PostRestoreObject
     
 
     /*
-     *   Read a keystroke, processing real-time events while waiting, if
-     *   desired.  'allowRealTime' and 'promptFunc' work the same way they
-     *   do with getInputLine().  
+     *   Read a keystroke, processing real-time events while waiting.
+     *   'promptFunc' works the same way it does with getInputLine().
      */
-    getKey(allowRealTime?, promptFunc?)
+    getKey(promptFunc?)
     {
         local evt;
         
         /* get an event */
-        evt = getEventOrKey(allowRealTime, promptFunc, true);
+        evt = getEventOrKey(promptFunc, true);
 
         /* 
          *   the only event that getEventOrKey will return is a keystroke,
@@ -326,23 +288,22 @@ inputManager: PostRestoreObject
      *   desired.  'allowRealTime' and 'promptFunc' work the same way they
      *   do with getInputLine().  
      */
-    getEvent(allowRealTime?, promptFunc?)
+    getEvent(promptFunc?)
     {
         /* read and return an event */
-        return getEventOrKey(allowRealTime, promptFunc, nil);
+        return getEventOrKey(promptFunc, nil);
     }
 
     /*
-     *   Read an event or keystroke.  'allowRealTime' and 'promptFunc' work
-     *   the same way they do in getInputLine().  If 'keyOnly' is true,
-     *   then we're only interested in keystroke events, and we'll ignore
-     *   any other events entered.
-     *   
-     *   Note that this routine is not generally called directly; callers
-     *   should usually call the convenience routines getKey() or
-     *   getEvent(), as needed.  
+     *   Read an event or keystroke.  'promptFunc' works the same way it does in
+     *   getInputLine().  If 'keyOnly' is true, then we're only interested in
+     *   keystroke events, and we'll ignore any other events entered.
+     *
+     *   Note that this routine is not generally called directly; callers should
+     *   usually call the convenience routines getKey() or getEvent(), as
+     *   needed.
      */
-    getEventOrKey(allowRealTime, promptFunc, keyOnly)
+    getEventOrKey(promptFunc, keyOnly)
     {
         
         /* 
@@ -470,27 +431,7 @@ inputManager: PostRestoreObject
         }
     }
 
-    /*
-     *   Process any real-time events that are ready to run, and return the
-     *   timeout until the next real-time event.
-     *   
-     *   If allowRealTime is nil, we won't process real-time events at all;
-     *   we'll merely return nil for the timeout to indicate to the caller
-     *   that any user input interaction about to be attempted should wait
-     *   indefinitely.  
-     */
-    processRealTimeEvents(allowRealTime)
-    {
-        local timeout;
-        
-        /* presume we will not use a timeout */
-        timeout = nil;
-
-       
-
-        /* return the timeout until the next real-time event */
-        return timeout;
-    }
+    
 
     /*
      *   Begin reading key/event input.  We'll cancel any report gatherer
@@ -583,12 +524,21 @@ inputManager: PostRestoreObject
      */
     inputBegin(promptFunc)
     {        
-
-        /* if we have a prompt, display it */
-        if (promptFunc != nil)
+        switch(dataTypeXlat(promptFunc))
+        {
+            /* if we have a prompt, display it */
+        case TypeSString:
+            say(promptFunc);
+            break;
+        case TypeFuncPtr:         
             (promptFunc)();
+            break;
+        default:
+            /* Do nothing */
+            break;
+        }
     }
-
+    
     /* receive post-restore notification */
     execute()
     {

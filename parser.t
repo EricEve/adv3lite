@@ -217,6 +217,11 @@ class Parser: object
         {
             /* run the command tokenizer over the input string */
             toks = cmdTokenizer.tokenize(str);
+            
+            /* Dispose of any unwanted terminal punctuation */
+            while(toks.length > 0 && getTokType(toks[toks.length]) == tokPunct)
+                toks = toks.removeElementAt(toks.length);
+            
         }
         catch (TokErrorNoMatch err)
         {

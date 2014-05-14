@@ -393,6 +393,16 @@ class GameMainDef: object
      *   change this with the BRIEF/TERSE command.
      */
     verbose = true
+    
+    /* 
+     *   Is this game in fast GO TO mode? By default we make it not, so that the
+     *   GO TO command moves the player character only one step of the way at a
+     *   time, but if this is set to true the GO TO command will keep moving the
+     *   player until either the destination is reached or an obstacle is
+     *   encountered.
+     */
+    fastGoTo = nil
+      
 ;
 
 /* ------------------------------------------------------------------------ */

@@ -314,6 +314,9 @@ dictionary property noun, nounApostS;
 /* get the player character's location */
 #define gLocation (gPlayerChar.location)
 
+/* get the current turn count */
+#define gTurns (libGlobal.totalTurns)
+
 /* 
  *   get the player character's current room (which may or may not be the same
  *   as his/her location)
@@ -1137,5 +1140,14 @@ enum OpenGoal, ClosedGoal, UndiscoveredGoal;
 #define touchDesc feelDesc
 #define checkHitMsg checkAttackMsg
 #define hitResponseMsg attackResponseMsg
+
+/*--------------------------------------------------------------------------- */
+/* 
+ *   Define some macros to give abbreviated synonyms to inputManager method
+ */
+
+#define more inputManager.pauseForMore()
+#define input(x) inputManager.getInputLine(x)
+#define waitKey(x) inputManager.getKey(x)
 
 #endif

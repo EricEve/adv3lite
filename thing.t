@@ -7207,8 +7207,24 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             else
             {
+                local idx = 2;
                 local dir = route[2][1];
-                Continue.takeStep(dir, getOutermostRoom);               
+                local oldLoc = gPlayerChar.getOutermostRoom();
+                Continue.takeStep(dir, getOutermostRoom); 
+                               
+                
+                /* 
+                 *   If the fastGoTo option is active, continue moving towards
+                 *   the destination until either we reach it our we're
+                 *   prevented from going any further.
+                 */
+                while(gameMain.fastGoTo 
+                      && oldLoc != gPlayerChar.getOutermostRoom 
+                      && idx < route.length)
+                {
+                    local dir = route[++idx][1];
+                    Continue.takeStep(dir, getOutermostRoom);
+                }               
             }
         }
     }

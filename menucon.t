@@ -172,7 +172,7 @@ modify MenuItem
                  *   Do not allow real-time interruptions, as menus are
                  *   meta-game interactions. 
                  */
-                key = inputManager.getKey(nil, nil).toLower();
+                key = inputManager.getKey(nil).toLower();
 
                 /* check for a command key */
                 loc = topMenu.keyList.indexWhich({x: x.indexOf(key) != nil});
@@ -359,7 +359,7 @@ modify MenuItem
                  *   event rather than just a keystroke, because we want
                  *   to let the user click on a menu item's HREF.  
                  */
-                events = inputManager.getEvent(nil, nil);
+                events = inputManager.getEvent(nil);
 
                 /* check the event type */
                 switch (events[1])
@@ -625,7 +625,7 @@ modify MenuTopicItem
             local key;
             
             /* read a keystroke */
-            key = inputManager.getKey(nil, nil).toLower();
+            key = inputManager.getKey(nil).toLower();
 
             /* look it up in the key list */
             loc = topMenu.keyList.indexWhich({x: x.indexOf(key) != nil});
@@ -691,7 +691,7 @@ modify MenuTopicItem
                 local key;
                 
                 /* read an event */
-                events = inputManager.getEvent(nil, nil);
+                events = inputManager.getEvent(nil);
                 switch(events[1])
                 {
                 case InEvtHref:
@@ -1089,7 +1089,7 @@ modify MenuLongTopicItem
         /* wait for an event */
         for (;;)
         {
-            evt = inputManager.getEvent(nil, nil);
+            evt = inputManager.getEvent(nil);
             switch(evt[1])
             {
             case InEvtHref:

@@ -34,13 +34,31 @@ Change Log
 
 <h2><a name="v1.2">Version 1.2 (tbd)</a></h2>
 
+<p><strong>Risk of Incompatibility</strong>: The code for the <strong>inputManager</strong> object was largely copied from the adv3 library, but this included provisions for handling real-time processing, which adv3Lite doesn't have. This in turn resulted in several methods of <span class="code">inputManager</span> taking a wholly redundant <span class="code">allowRealTime</span> argument. This argument has now been removed from all the affected methods. Since the arguments to these methods were optional, some code may not be affected by the change, but any code that calls these methods with the arguments supplied will need to change them to match the new argument signature:</p>
+<ul>
+<li><span class="code">getInputLine(allowRealTime?, promptFunc?)</span> becomes <span class="code">getInputLine(promptFunc?)</span>.</li>
+<li><span class="code">getEvent(allowRealTime?, promptFunc?)</span> becomes <span class="code">getEvent(promptFunc?)</span>.</li>
+<li><span class="code">getKey(allowRealTime?, promptFunc?)</span> becomes <span class="code">getKey(promptFunc?)</span>.</li>
+<li><span class="code">getEventOrKey(allowRealTime, promptFunc, keyOnly)</span> becomes <span class="code">getEventOrKey(promptFunc, keyOnly)</span>.</li>
+</ul>
+<p>The <span class="code">promptFunc</span> parameter can now be supplied as a single-quoted string instead of a function pointer (previously it could only be a function pointer; now it can be either).</p>
+<p>The inputManager method processRealTimeEvents() has been removed (it didn't do anything and wasn't used anyway).</p>
+<p>The library now defines a number of macros that can be used as abbreviations for inputManager methods:</p>
+<ul>
+<li>#define <strong>more</strong> <span class="code">inputManager.pauseForMore()</span></li>
+<li>#define <strong>input(x)</strong> <span class="code">inputManager.getInputLine(x)</span></li>
+<li>#define <strong>waitKey(x)</strong> <span class="code">inputManager.getKey(x)</span></li>
+</ul>
+
+<br>
+<hr>
 <p><strong>Risk of Incompatibility</strong>: the way the ATTACK and KISS commands are handled has been slightly altered, mainly to remove an inconsistency that had crept into the library. Previously ATTACK could be ruled on Thing by setting <strong>isAttackable</strong> to nil, but on Actor by setting <strong>allowAttack</strong> to nil; likewise KISS previously used <strong>isKissable</strong> and <strong>allowKiss</strong>. The properties <strong>allowAttack</strong> and <strong>allowKiss</strong> have now been abolished, so that Actor uses the same <strong>isAttackable</strong> and <strong>isKissable</strong> properties as Thing. Moreover, in the interests of consistency, the <strong>shouldNotAttackMsg</strong> property of Actor has been renamed <strong>attackResponseMsg</strong>.</p>
 
 <p>At the same time two new properties have been introduced on Thing: <strong>checkAttackMsg</strong> and <strong>checkKissMsg</strong>. These provide an easy way to stop ATTACK or KISS at the check stage. By default they are both nil, but if they are defined (typically as a single-quoted string, though a double-quoted string or a method that displays some text should also work) then the message they define is displayed at the check stage, causing the action to halt there.</p>
 <p>Thing also now defines a <strong>kissRank</strong> property. This is basically to allow the verify routine for KISS to give a higher logical rank to an Actor than to a Thing without having to override Thing's verify routine on Actor. It could also be used in game code if there are certain Actors the PC is more likely to want to kiss than others; these more kiss-desirable Actors could be given a higher <span class="code">kissRank</span>, making the parser more likely to choose them in case of ambiguity.</p>
 <p>The rationale for the slightly special treatment of ATTACK and KISS is that they are forms of interpersonal interaction that may require more nuanced treatment than most typical IF actions, even though they are not exactly conversational. The same would seem to apply to TOUCH, so this is now handled in an analogous fashion, and a new <strong>TouchTopic</strong> class has been added to allow the handling of TOUCH commands in a similar manner to <span class="code">HitTopic</span> and <span class="code">KissTopic</span> for ATTACK and KISS. There is likewise a corresponding new checkFeelMsg property on Thing (and hence on Actor) and a new <strong>touchResponseMsg</strong> property on Actor, both of which work in the same way as <span class="code">checkAttackMsg</span> and <span class="code">attackResponseMsg</span>. </p>
 
-<p>To help cover possible confusion between HIT and ATTACK and between TOUCH and FEEL the library now defines four macros which convert:</p>
+<p>To help cover possible confusion between HIT and ATTACK and between TOUCH and FEEL the library now defines seven macros which convert:</p>
 <ul>
 <li><span class="code">checkTouchMsg</span> into <span class="code">checkFeelMsg</span></li>
 <li><span class="code">feelResponseMsg</span> into <span class="code">touchResponseMsg</span></li>
@@ -52,11 +70,14 @@ Change Log
 </ul>
 
 <p>For the full story see the section on <a href="actorobj.htm#hitkiss">Attacking, Touching and Kissing</a> in the chapter on the Actor object.</p>
-
+<hr>
+<p>The library now defines the macro <strong>gTurns</strong>, which expands to <span class="code">libGlobal.totalTurns</span>, as a convenient abbreviation for getting at the current turn count.</p>
 <hr>
 <p>Various changes have been made to improve the way the GO TO command works in certain edge cases. A new <a href="pathfind.htm#proxy">ProxyDest</a> class has been defined to prevent the parser perversely choosing an Enterable or Distant object as the target of a GO TO command when, for instance, the player is already at the destination specified, and the handling of the GoTo action on the <a href="pathfind.htm#distant">Distant</a> class has been altered so that an attempt to GO TO a Distant object can be interpreted as a request to go to the location specified in the Distant object's <strong>destination</strong> property.</p>
 
 <p>The <a href="pathfind.htm#senseregion">familiar</a> property of <strong>SenseRegion</strong> has been changed so that it now becomes true once the player character has visited any room in the SenseRegion. This allows the player character to navigate to other objects in the SenseRegion using the GO TO command even without having previously visited their locations; this models the fact that the PC can presumably see how to get there since there's a line-of-sight connection between all the rooms in the SenseRegion.</p>
+
+<p>The <span class="code">gameMain</span> object has a new property <strong>fastGoTo</strong>; if this is true then the GO TO X command will carry on moving the player character either until s/he reaches the destination or until some obstacle prevents it. This allows players to go straight to the desired destination without needing to use the CONTINUE command (unless something blocks their journey). The default value of <span class="code">fastGoTo</span> is nil, so that by default the behaviour of the GO TO command remains as before.</p>
 <hr>
 <p>The TopicEntry class now as a <strong>topicMatched</strong> property which is set to the topic being tested for a match by the <span class="code">matchTopic()</span> method. This is intended for use by the <span class="code">topicResponse()</span> method which can then access the Topic that was actually matched.</p>
 <hr>
@@ -77,6 +98,8 @@ Change Log
 <p>Bug fixed which could cause inappropriate recursive listing (attempted listing of contents of contents) when using a user-defined openingContentsLister.</p>
 <hr>
 <p>Bug fixed which would case an invalid command directed to the current interlocutor to be misinterpreted as two implicit SAY commands (e.g. BOB, FLY would be misinterpreted as SAY BOB followed by SAY FLY). Now no command containing a comma will be treated as potential implicit SAY command.</p>
+<hr>
+<p>Bug fixed whereby ending a command with a comma (e.g. Z,Z,) would cause a spurious "You can't use multiple objects with that command" response. If the last token in a command string is a punctuation mark, it is now removed from the list of tokens before the command is processed.</p>
 <hr>
 <br>
 <h2><a name="v1.1">Version 1.1 (04-Apr-2014)</a></h2>
