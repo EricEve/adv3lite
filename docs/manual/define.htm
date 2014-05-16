@@ -130,35 +130,7 @@ VerbRule(Grab)
 
  <p>This would then respond to commands like HANG COAT ON PEG, HANG UP COAT ON PEG, HANG COAT UP ON PEG or even HANG UP COAT UP ON PEG.</p>
 
-<p>In the case like our <span class="code">VerbRule(Grab)</span> example above, i.e. a VerbRule for an action that takes only one, direct, object, the parser will automatically take care of incomplete commands like GRAB or SNATCH by posing the question defined in the missingQ property: "What do you want to grab?". When we define a VerbRule for an action that takes two objects (direct and indirect), however, we need to do a bit more work to make this happen, since we need to tell the parser which object to ask for and how to interpret the reply). So, for example, if we want the parser also to respond to a command like HANG COAT or HANG UP COAT or HANG COAT UP with a response like "What do you want to hang it on?" we need to provide an additional VerbRule to field the incomplete command. Such a VerbRule would take the form:</p>
-
-<p><div class="code"><pre>
- VerbRule(HangOnWhat)
-    [badness 500] 'hang' ('up'|) singleDobj ('up'|)
-    : VerbProduction
-    action = PutOn
-    verbPhrase = 'hang/hanging (what) (on what)'
-    missingQ = 'what do you want to hang; what do you want to hang it on'   
-    missingRole = IndirectObject
-    iobjReply = onSingleNoun    
- ;
- </pre></div>
-<a name="badness"></a>
-<p>(HangOnWhat) is simply an arbitrary name (or tag) we give this VerbRule which has to be unique among VerbRules (although it's usually a good idea to use something reasonably meaningful). The additional features here are <span class="code">[badness 500]</span>, <span class="code">missingRole</span>, and <span class="code">iobjReply</span>. We'll explain each in turn.</p> 
- 
-<p>The <strong>badness</strong> tag is simply a way of telling the parser that this is potentially a badly-formed command, so that, for example, if a player types a command HANG X ON Y the parser should try to match this to hanging X on another object Y before it tries to match it to an attempt to hang a single object called 'X ON Y' without another object specified. The number 500 is a more or less arbitrary value that makes a defective HANG X command (without an indirect object) that much a less preferred interpretation compared with a fully specified HANG X ON Y command.</p> 
-
-<p>The <strong>missingRole</strong> property allows us to specify which role (DirectObject or IndirectObject) is missing in a command like HANG CLOAK. In this case it's the IndirectObject (such as the peg or hook the player might want to hang the cloak on).</p>
- 
-<p>Finally, <strong>iobjReply</strong> tells the parser what kind of phrase to expect in response to the missingQ question "What do you want to hang it on?". In this case <strong>onSingleNoun</strong> means that the parser should expect an answer of the form ON THE PEG or just THE PEG (i.e. 'on' followed by a noun phrase or just a noun phrase). Other common possibilities include <strong>inSingleNoun</strong>, <strong>forSingleNoun</strong>, <strong>toSingleNoun</strong>, <strong>throughSingleNoun</strong>, <strong>fromSingleNoun</strong>, <strong>onSingleNoun</strong>, <strong>withSingleNoun</strong>, <strong>atSingleNoun</strong> and <strong>outOfSingleNoun</strong>, all of which work analogously (i.e. they can match either just a noun phrase or the relevant preposition followed by a noun phrase). In fact the first of these, <span class="code">inSingleNoun</span>, can match several related phrases, such as IN X, INTO X or IN TO X, where X is any noun phrase (such as PEG, WOODEN PEG or THE BIG WOODEN PEG). If we needed something that didn't match any of these we could simply define our own <strong>grammar</strong> entity like so:</p> 
-
- <p><div class="code"><pre>
-grammar underSingleNoun(main):
-   singleNoun->np_ | 'under' singleNoun->np_ : Production
-;
-</pre></div>
-
-<p>This would then match either a plain noun phrase (e.g. just BED) or a noun phrase preceded by 'under' (e.g. UNDER THE BED).</p>
+<p>In the case like our <span class="code">VerbRule(Grab)</span> example above, i.e. a VerbRule for an action that takes only one, direct, object, the parser will automatically take care of incomplete commands like GRAB or SNATCH by posing the question defined in the missingQ property: "What do you want to grab?". But in some cases, such as the HangOn example above, we may need to do a bit more work with the VerbRule for such a TIAction where the player may type an incomplete command (like HANG CLOAK). We'll defer discussion of this, however, until we come to look more closely at <a href="#tiaction">TIActions</a> <a href="#verbrule2">below</a>. In the meantime, note that it's <em>not</em> an issue where there are in fact two underlying actions, a TAction (such as Attack, as in ATTACK THE TROLL) and a TIAction (such as ATTACK THE TROLL WITH THE SWORD), since in such a case ATTACK THE TROLL is a complete Attack command, not an incomplete AttackWith command.</p>
 
 <br>
 
@@ -504,7 +476,39 @@ class Tool: Thing
 
 <p>This assumes that you've defined a suitable makeRepaired(stat) method on the various things that might need mending over the course of your game. Note the use of a custom itemsRepaires property to define which objects a particular Tool can be used to repair. Note too the use of the <strong>valToList()</strong> function to convert this property into a list (if it isn't a list already) regardless of whether it's defined as nil, a single object, or a list of objects, so that the check() method can treat it as a list no matter how it's defined on individual objects.</p>
 
-<p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two sections will discuss how to deal with such commands.</p>
+<a name="verbrule2"></a>
+<p>As noted above in the section on <a href="#verbrule">VerbRules</a>, in some cases we may need to do a bit more work with the VerbRule for a TIAction where the player may type an incomplete command. In such cases we need to tell the parser which object to ask for and how to interpret the reply. So, for example, if we want the parser also to respond to a command like HANG COAT or HANG UP COAT or HANG COAT UP with a response like "What do you want to hang it on?" we need to provide an additional VerbRule to field the incomplete command. Such a VerbRule would take the form:</p>
+
+<p><div class="code"><pre>
+ VerbRule(HangOnWhat)
+    [badness 500] 'hang' ('up'|) singleDobj ('up'|)
+    : VerbProduction
+    action = PutOn
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang; what do you want to hang it on'   
+    missingRole = IndirectObject
+    iobjReply = onSingleNoun    
+ ;
+ </pre></div>
+<a name="badness"></a>
+<p>(HangOnWhat) is simply an arbitrary name (or tag) we give this VerbRule which has to be unique among VerbRules (although it's usually a good idea to use something reasonably meaningful). The additional features here are <span class="code">[badness 500]</span>, <span class="code">missingRole</span>, and <span class="code">iobjReply</span>. We'll explain each in turn.</p> 
+ 
+<p>The <strong>badness</strong> tag is simply a way of telling the parser that this is potentially a badly-formed command, so that, for example, if a player types a command HANG X ON Y the parser should try to match this to hanging X on another object Y before it tries to match it to an attempt to hang a single object called 'X ON Y' without another object specified. The number 500 is a more or less arbitrary value that makes a defective HANG X command (without an indirect object) that much a less preferred interpretation compared with a fully specified HANG X ON Y command.</p> 
+
+<p>The <strong>missingRole</strong> property allows us to specify which role (DirectObject or IndirectObject) is missing in a command like HANG CLOAK. In this case it's the IndirectObject (such as the peg or hook the player might want to hang the cloak on).</p>
+ 
+<p>Finally, <strong>iobjReply</strong> tells the parser what kind of phrase to expect in response to the missingQ question "What do you want to hang it on?". In this case <strong>onSingleNoun</strong> means that the parser should expect an answer of the form ON THE PEG or just THE PEG (i.e. 'on' followed by a noun phrase or just a noun phrase). Other common possibilities include <strong>inSingleNoun</strong>, <strong>forSingleNoun</strong>, <strong>toSingleNoun</strong>, <strong>throughSingleNoun</strong>, <strong>fromSingleNoun</strong>, <strong>onSingleNoun</strong>, <strong>withSingleNoun</strong>, <strong>atSingleNoun</strong> and <strong>outOfSingleNoun</strong>, all of which work analogously (i.e. they can match either just a noun phrase or the relevant preposition followed by a noun phrase). In fact the first of these, <span class="code">inSingleNoun</span>, can match several related phrases, such as IN X, INTO X or IN TO X, where X is any noun phrase (such as PEG, WOODEN PEG or THE BIG WOODEN PEG). If we needed something that didn't match any of these we could simply define our own <strong>grammar</strong> entity like so:</p> 
+
+ <p><div class="code"><pre>
+grammar underSingleNoun(main):
+   singleNoun->np_ | 'under' singleNoun->np_ : Production
+;
+</pre></div>
+
+<p>This would then match either a plain noun phrase (e.g. just BED) or a noun phrase preceded by 'under' (e.g. UNDER THE BED).</p>
+
+<p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two chapters will discuss how to deal with such commands, but first we'll take a quick look at actions that take more than two objects.</p>
+
 <br>
 <h2><a name="threeobjects"></a>Actions with Three Objects</h2>
 

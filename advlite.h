@@ -1147,7 +1147,7 @@ enum OpenGoal, ClosedGoal, UndiscoveredGoal;
  */
 
 #define more inputManager.pauseForMore()
-#define input(x) inputManager.getInputLine(x)
-#define waitKey(x) inputManager.getKey(x)
+#define input(x...) inputManager.getInputLine(x)
+#define waitKey(x...) inputManager.getKey(x)
 
 #endif
