@@ -104,10 +104,10 @@ Q: object
        { return Special.first(&reachProblem).reachProblem(a, b); }
     
     reachProblemVerify(a, b)
-       { return Special.first(&reachProblem).reachProblemVerify(a, b); }
+       { return Special.first(&reachProblemVerify).reachProblemVerify(a, b); }
     
     reachProblemCheck(a, b)
-       { return Special.first(&reachProblem).reachProblemCheck(a, b); }
+       { return Special.first(&reachProblemCheck).reachProblemCheck(a, b); }
     
     /*
      *   Can A hear B?  
@@ -291,7 +291,7 @@ QDefaults: Special
      */
     canReach(a, b)
     {
-        return reachProblem(a, b) == [];
+        return Q.reachProblem(a, b) == [];
     }
     
     /* 
@@ -316,11 +316,11 @@ QDefaults: Special
          *   encounter a fatal one we return the list straight away rather than
          *   carrying out more checks.
          */
-        local issues = reachProblemVerify(a, b);
+        local issues = Q.reachProblemVerify(a, b);
         if(issues.length > 0)
             return issues;
         
-        return reachProblemCheck(a, b);      
+        return Q.reachProblemCheck(a, b);      
         
     }
     

@@ -740,6 +740,8 @@ DefineTAction(GoTo)
     }
     
     againRepeatsParse = nil
+    
+    reportImplicitActions = nil
 ;
 
 DefineIAction(Continue)
@@ -784,13 +786,13 @@ DefineIAction(Continue)
         
     }
     
-    takeStep(dir, dest)
+    takeStep(dir, dest, fastGo?)
     {
         DMsg(going dir, '(going {1})\n', dir.name);
         
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
         
-        if(!gActor.isIn(dest) && !gameMain.fastGoTo)           
+        if(!gActor.isIn(dest) && !fastGo)           
             htmlSay(contMsg);
         
     }

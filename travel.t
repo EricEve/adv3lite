@@ -1750,6 +1750,15 @@ class Region: object
      *   traveler has just traveled via connector).
      */
     regionAfterTravel(traveler, connector) { }
+    
+    /*   
+     *   Should the fastGoTo option be used in this region (i.e. traveling from
+     *   one room in the region to another is all done in one turn without the
+     *   need for CONTINUE, even if several steps are involved)? Note that the
+     *   value of this setting has no effect if gameMain.fastGoTo is true, since
+     *   then the fastGoTo setting is always in effect.
+     */
+    fastGoTo = nil
 ;
 
 /* 

@@ -7173,6 +7173,9 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         action()
         {
+            /* Get our destination. */
+            local dest = lastSeenAt ? lastSeenAt.getOutermostRoom : nil;
+            
             /* 
              *   Calculate the route from the actor's current room to the
              *   location where the target object was last seen, using the
@@ -7180,7 +7183,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             local route = defined(pcRouteFinder) && lastSeenAt != nil 
                 ? pcRouteFinder.findPath(
-                gActor.getOutermostRoom, lastSeenAt.getOutermostRoom) : nil;
+                gActor.getOutermostRoom, dest) : nil;
             
             /*  
              *   If we don't find a route, just display a message saying we
@@ -7210,20 +7213,29 @@ class Thing:  ReplaceRedirector, Mentionable
                 local idx = 2;
                 local dir = route[2][1];
                 local oldLoc = gPlayerChar.getOutermostRoom();
-                Continue.takeStep(dir, getOutermostRoom); 
-                               
+                
+                local commonRegions =
+                    gPlayerChar.getOutermostRoom.regionsInCommonWith(dest);
+                
+                local regionFastGoTo = 
+                    commonRegions.indexWhich({r: r.fastGoTo }) != nil;
+                
+                local fastGo = regionFastGoTo || gameMain.fastGoTo;
+                
+                Continue.takeStep(dir, getOutermostRoom, fastGo);                
+                
                 
                 /* 
                  *   If the fastGoTo option is active, continue moving towards
                  *   the destination until either we reach it our we're
                  *   prevented from going any further.
                  */
-                while(gameMain.fastGoTo 
+                while((fastGo)
                       && oldLoc != gPlayerChar.getOutermostRoom 
                       && idx < route.length)
                 {
                     local dir = route[++idx][1];
-                    Continue.takeStep(dir, getOutermostRoom);
+                    Continue.takeStep(dir, getOutermostRoom, true);
                 }               
             }
         }

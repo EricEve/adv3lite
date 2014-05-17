@@ -158,6 +158,23 @@ class SenseRegion: Region
         
         return fam;
     }
+    
+    /* 
+     *   Flag: do we want the touchObj PreCondition to move the actor from one
+     *   Room in the SenseRegion to another by implicit action to allow an actio
+     *   to proceed?
+     */
+    autoGoTo = nil
+    
+    /*   
+     *   If our autoGoTo flag is set, our fastGoTo flag should normally also be
+     *   set so that autoGoTo works smoothly without breaks for CONTINUE
+     *   commands impeding the workings of an implicit GoTo. Note, however, that
+     *   it's perfectly okay to override fastGoTo to true on a SenseRegion for
+     *   which autoGoTo is nil; it just may not be such a good idea to do it the
+     *   other way round.
+     */
+    fastGoTo = autoGoTo
 ;
     
 
@@ -1331,6 +1348,179 @@ QSenseRegion: Special
         return b.isOrIsIn(c) 
             || c.throwableRooms.indexOf(b.getOutermostRoom) != nil; 
     }
+    
+    /*
+     *   Determine if A can reach B, and if not, what stands in the way. Returns
+     *   a list of containers along the path between A and B that obstruct the
+     *   reach.  If the two objects are in separate rooms, the top-level room
+     *   containing A is in the list to represent the room separation.  If
+     *   there's no obstruction, we return an empty list.
+     */
+    reachBlocker(a, b)
+    {
+        local blockList = a.containerPathBlock(b, &canReachOut, &canReachIn);
+        
+        /* 
+         *   ignore any blocking objects that are Rooms in the same SenseRegion
+         *   where the SenseRegion's autoGoTo property is true.
+         */
+        blockList = blockList.subset({o: nonBlocker(o, b) == nil });
+        
+        
+        return blockList;
+    }
+    
+    /* 
+     *   Is o the kind of object that would block movement from one room to the
+     *   room containing b? It is unless o is a room and the room and b are both
+     *   in a SenseRegion for which autoGoTo is true.
+     */
+    nonBlocker(o, b)
+    {
+        /* If o isn't a Room, it's something that blocks movement */
+        if(!o.ofKind(Room))
+            return nil;
+        
+        /* Get the Room in which b is located. */
+        local bLoc = b.getOutermostRoom;
+        
+        /* Get the list of Regions containing both o and bLoc. */
+        local regList = o.regionsInCommonWith(bLoc);
+        
+        /* Reduce it to the list of Regions for which autoToGo is true */
+        regList = regList.subset({r: r.autoGoTo} );
+        
+        /* 
+         *   If this list is not empty, we're a non-blocker so return true,
+         *   otherwise return nil
+         */
+        return regList.length > 0;
+        
+    }
+    
+    /* 
+     *   Prepend a ReachProblemRemote to move the actor to the location of the
+     *   target object if it's in a remote location, then add any issues we
+     *   would have obtained from the next Special in line.
+     */
+//    reachProblemCheck(a, b)
+//    {
+//        local issues = [];
+//        
+//        if(a.getOutermostRoom != b.getOutermostRoom)
+//            issues += new ReachProblemRemote(a, b);
+//        
+//        return issues + next();
+//    }
 ;
 
+/* 
+ *   The ReachProblemRemote should only be brought into play when an actor in
+ *   one room in a SenseRegion tries to touch an object in another room in the
+ *   SenseRegion when the SenseRegion defines autoGoTo as true. The
+ *   ReachProblemRemote will then be responsible for trying to move the actor
+ *   into the room containing the target object.
+ */
+class ReachProblemRemote: ReachProblem
+    construct(a, b)
+    {
+        startRoom = a.getOutermostRoom;
+        destRoom = b.getOutermostRoom;
+        target = b;
+    }
+    
+    startRoom = nil
+    destRoom = nil
+    target = nil
+    
+    /* 
+     *   This check method may be called by the checkPreCondition method of the
+     *   touchObj PreCondition. Its effect is to try to move the actor into the
+     *   location of the object the actor is trying to touch.
+     */
+    check(allowImplicit)   
+    {
+        /* 
+         *   If the actor is already in the location of the target object,
+         *   there's nothing to do here. This should never be the case when this
+         *   method is called, but we include the check just to be sure.
+         */
+        if(startRoom == destRoom)
+            return true;    
+        
+        
+        
+        /* 
+         *   If implicit actions are allowed, try moving the actor to the
+         *   destination room (the room containing the object to be touched).
+         */
+        if(allowImplicit && sayGoTo(destRoom) &&
+           tryImplicitAction(GoTo, destRoom))
+        {
+            /* 
+             *   If the actor isn't in the destination room, return nil to tell
+             *   our caller we failed.
+             */
+            if(!gActor.isIn(destRoom))
+                return nil;               
+        }
+        else
+        {
+            /* 
+             *   If the implicit GoTo action can't be attempted, simply display
+             *   a message to say that the target object is too far away.
+             */
+            say(tooFarAwayMsg);
+            
+            /* Then return nil to tell our caller we failed. */
+            return nil;
+        }
+        
+        /* 
+         *   If we reached this point, all is well, so return true to tell our
+         *   caller we succeeded.
+         */
+        return true;
+        
+        
+    }
+    
+    /* 
+     *   The failure message to display if we can't attempt an implicit GoTo
+     *   action to move the actor.
+     */
+    tooFarAwayMsg()
+    {
+        /* Let the actor's room provide the message. */
+        return startRoom.cannotReachTargetMsg(target);              
+    }
+    
+    /* 
+     *   Report that we are trying to head to destRoom via an implicit action.
+     *   We do this separately from the normal implicit action report mechanism
+     *   so that this report is display before travel begins, not at the end of
+     *   it as it otherwise would be.
+     */
+    sayGoTo(destRoom)
+    {        
+        DMsg(implicit go, '(first heading for {1})\n', destRoom.theName);
+        return true;
+    }
+;
 
+modify touchObj
+    checkPreCondition(obj, allowImplicit)
+    {
+        /* 
+         *   We first try moving to a new room as a separate exercise before
+         *   checking for any other obstacles, since if the move is successful
+         *   it may change the status of other potential obstacles.
+         */
+        local remoteCheck = new ReachProblemRemote(gActor, obj);
+        
+        if(!remoteCheck.check(allowImplicit))
+            return nil;
+        
+        return inherited(obj, allowImplicit);
+    }
+;
