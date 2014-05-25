@@ -436,6 +436,15 @@ class Unthing: Decoration
             inaccessible(notHereMsg);               
         }
     }
+    
+    /* 
+     *   Giving an order to an Unthing should give the same response as any
+     *   other command involving an Unthing.
+     */
+    handleCommand(action)
+    {
+        say(notHereMsg);
+    }
 ;
 
 /*  

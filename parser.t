@@ -239,6 +239,9 @@ class Parser: object
             return;
         }
 
+        /* Assume initially that the actor is the player character */
+        gActor = gPlayerChar;        
+        
         /* no spelling corrections have been attempted yet */
         local history = new transient SpellingHistory(self);
 
