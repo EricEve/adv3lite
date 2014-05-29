@@ -128,14 +128,20 @@ class Room: TravelConnector, Thing
     
     /* 
      *   When travelling via a room we move the traveler into the room. Then, if
-     *   the traveler is the player char we perform a look around in the room
+     *   the traveler is the player char we perform a look around in the room,
+     *   provided we should look around on entering the room.
      */    
     execTravel(obj)
-    {
+    {        
         obj.actionMoveInto(destination);
-        if(gPlayerChar.isOrIsIn(obj))
+        if(gPlayerChar.isOrIsIn(obj) && lookAroundOnEntering)
            destination.lookAroundWithin();
     }
+    
+    /* 
+     *   Flag, should we look around on entering this room? By default we should
+     */
+    lookAroundOnEntering = true
     
     /*  A Room's outermost room is itself. */
     getOutermostRoom { return self; }

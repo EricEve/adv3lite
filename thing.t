@@ -3482,7 +3482,7 @@ class Thing:  ReplaceRedirector, Mentionable
     setKnowsAbout(obj) { obj.(knownProp) = true; }
     
     /*  Mark the player character as knowing about us (i.e. this Thing) */
-    setKnown() { gPlayerChar(setKnowsAbout(self)); }
+    setKnown() { gPlayerChar.setKnowsAbout(self); }
     
     /*  Mark this Thing as having seen obj. */
     setHasSeen(obj) { obj.(seenProp) = true; }
@@ -9548,7 +9548,7 @@ class Topic: Mentionable
     familiar = true
     
     /*   Make this topic known to the player character */   
-    setKnown() { gPlayerChar(setKnowsAbout(self)); }
+    setKnown() { gPlayerChar.setKnowsAbout(self); }
     
     /* Test whether this topic is known to the player character */
     known = (gPlayerChar.knowsAbout(self)) 
