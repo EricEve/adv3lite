@@ -133,15 +133,23 @@ class Room: TravelConnector, Thing
      */    
     execTravel(obj)
     {        
+        local lookAroundOnEntering = lookOnEnter(obj);
         obj.actionMoveInto(destination);
         if(gPlayerChar.isOrIsIn(obj) && lookAroundOnEntering)
            destination.lookAroundWithin();
     }
     
     /* 
-     *   Flag, should we look around on entering this room? By default we should
+     *   Should we look around on entering this room? By default we should; this
+     *   is overridden in senseRegion.t to provide for the possibility of a
+     *   "continuous space" implementation.
      */
-    lookAroundOnEntering = true
+    lookOnEnter(obj)
+    {
+        return true;
+    }
+    
+    
     
     /*  A Room's outermost room is itself. */
     getOutermostRoom { return self; }

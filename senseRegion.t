@@ -162,9 +162,13 @@ class SenseRegion: Region
     /* 
      *   Flag: do we want the touchObj PreCondition to move the actor from one
      *   Room in the SenseRegion to another by implicit action to allow an actio
-     *   to proceed?
+     *   to proceed? By default we set this to the value of contSpace, since if
+     *   contSpace is true (i.e. we're using this SenseRegion to model a fairly
+     *   small continuous space, such as a room) it probably makes sense for
+     *   autoGoTo to be true as well, but it's nonetheless perfectly all right
+     *   to override the values of autoGoTo and contSpace independently.
      */
-    autoGoTo = nil
+    autoGoTo = contSpace
     
     /*   
      *   If our autoGoTo flag is set, our fastGoTo flag should normally also be
@@ -175,6 +179,19 @@ class SenseRegion: Region
      *   other way round.
      */
     fastGoTo = autoGoTo
+    
+    
+    /* 
+     *   Flag, do we want this SenseRegion to act as a continuous space (e.g.
+     *   representing parts of the same room, so that moving from one room to
+     *   another within this SenseRegion does not trigger a new room
+     *   description, thereby creating the impression that we have moved within
+     *   the same room rather than to another. This should probably be used
+     *   sparingly and only for SenseRegions representing a relatively small
+     *   area, otherwise the lack of a new room description (i.e. a LOOK AROUND)
+     *   could be confusing to the player.
+     */
+    contSpace = nil
 ;
     
 
@@ -415,6 +432,18 @@ modify Room
      *   hear something in loc)?
      */
     canSmellOutTo(loc) { return true; }    
+    
+    /* 
+     *   Should we look around on entering this room? Normally we should, unless
+     *   both the room obj is travelling from and the room it's travelling to
+     *   (normally this room) both belong in a SenseRegion whose contSpace
+     *   proparty is true.
+     */
+    lookOnEnter(obj)
+    {
+        return obj.getOutermostRoom.regionsInCommonWith(destination).indexWhich(
+            { reg: reg.contSpace } ) == nil;
+    }
 ;
     
 /* 
