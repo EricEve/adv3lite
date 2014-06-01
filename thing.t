@@ -2046,7 +2046,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         else if(obj.bulk > bulkCapacity - getBulkWithin())
             DMsg(no room, 'There {dummy} {is} not enough room {1} {2} for {the
-                obj). ', objInPrep, theName);            
+                obj}. ', objInPrep, theName);            
     }
     
     

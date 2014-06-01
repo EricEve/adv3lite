@@ -67,6 +67,26 @@ sceneManager: InitObject, Event
     }  
     
     execBeforeMe = [adv3LibInit]
+    
+    /* Run the beforeAction method on every currently active Scene */
+    notifyBefore()
+    {
+        forEachInstance(Scene, function(scene) 
+        {
+            if(scene.isHappening)
+                scene.beforeAction(); 
+        });
+    }
+
+    
+    notifyAfter()
+    {
+         forEachInstance(Scene, function(scene) 
+        {
+            if(scene.isHappening)
+                scene.afterAction(); 
+        });
+    }
 ;
 
 
@@ -169,5 +189,17 @@ class Scene: object
     
     /*  A user defined flag showing how the scene ended */
     howEnded = nil    
+    
+    /* 
+     *   This method is called on every active Scene just before an action is
+     *   about to take place. By default we do nothing here.
+     */
+    beforeAction() { }
+    
+    /* 
+     *   This method is called on every active Scene just after an action has
+     *   taken place. By default we do nothing here.
+     */
+    afterAction() { }
 ;
 

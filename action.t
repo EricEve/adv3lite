@@ -146,6 +146,14 @@ class Action: ReplaceRedirector
          */
         gActor.actorAction();
         
+        
+        /* 
+         *   If the sceneManager is present then send a before action
+         *   notification to every currently active Scene.
+         */
+        if(defined(sceneManager))
+            sceneManager.notifyBefore();
+        
         /* 
          *   Call roomBeforeAction() on the current actor's location, and
          *   regionBeforeAction() on all the regions it's in.
@@ -209,6 +217,11 @@ class Action: ReplaceRedirector
             }
         }
         "<.p>";
+        
+        /* Call the afterAction notifications on all currently active scenes. */
+        if(defined(sceneManager))
+           sceneManager.notifyAfter();
+        
         
         /* 
          *   Call the afterAction notification on the current room and its
