@@ -1055,21 +1055,35 @@ modify Smell
     /* List smells in remote locations */
     listRemoteSmells(lst) 
     { 
+        local somethingDisplayed = nil;
+        local remoteDisplayed = nil;
+        
         /* For each item in lst */
         foreach(local cur in lst)
         {
             /* If the item defined a remoteSmellDesc property, display it */
             if(cur.propDefined(&remoteSmellDesc))
             {
-                cur.remoteSmellDesc(gActor);
+                remoteDisplayed = gOutStream.watchForOutput(
+                    {:
+                    cur.remoteSmellDesc(gActor)
+                    });
+                
+                if(remoteDisplayed)
+                    somethingDisplayed = true;
+                
             }
             
             /* Othewise display its smellDesc */
             else
             {
-                cur.display(&smellDesc);                
+                if(cur.display(&smellDesc))
+                    somethingDisplayed = true;
             }
         }
+        
+        /* Tell our caller whether we actually displayed anything */
+        return somethingDisplayed;
     }
     
     
@@ -1129,21 +1143,34 @@ modify Listen
     /* List smells in remote locations */
     listRemoteSounds(lst) 
     { 
+        local somethingDisplayed = nil;
+        local remoteDisplayed = nil;
+        
          /* For each item in lst */
         foreach(local cur in lst)
         {
             /* If the item defined a remoteListenDesc property, display it */
             if(cur.propDefined(&remoteListenDesc))
             {
-                cur.remoteListenDesc(gActor);
+                remoteDisplayed = gOutStream.watchForOutput(
+                    {:
+                    cur.remoteListenDesc(gActor)
+                    });
+                
+                if(remoteDisplayed)
+                    somethingDisplayed = true;
             }
             
             /* Othewise display its listenDesc */
             else
             {
-                cur.display(&listenDesc);                
+                if(cur.displayAlt(&listenDesc))
+                    somethingDisplayed = true;
             }
         }
+        
+        /* Tell our caller whether we actually displayed anything */
+        return somethingDisplayed;
     }      
 ;
 

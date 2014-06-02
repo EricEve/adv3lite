@@ -514,39 +514,48 @@ DefineIAction(Smell)
          *   isProminentSmell property is true
          */
         local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canSmell(gActor, x)  && 
-            x.checkDisplay(&smellDesc) != nil && x.isProminentSmell});
+            {x: Q.canSmell(gActor, x)  &&  x.isProminentSmell});
         
         s_list = s_list.getUnique();
         
         /*  Obtain the corresponding list for remote rooms */
         local r_list = getRemoteSmellList().getUnique() - s_list;
                
-        /*  If both lists are empty report that there is nothing to smell */
-        if(s_list.length + r_list.length == 0)            
+        /* 
+         *   Create a local variable to keep track of whether we've displayed
+         *   anything.
+         */
+        local somethingDisplayed = nil;
+        
+        
+        /* 
+         *   Display the smellDesc of every item in our local smell list,
+         *   keeping track of whether anything has actually been displayed as a
+         *   result.
+         */
+        foreach(local cur in s_list)
+        {
+            if(cur.displayAlt(&smellDesc))
+                somethingDisplayed = true;
+        }
+        
+        /* Then list any smells from remote locations */
+        if(listRemoteSmells(r_list))
+            somethingDisplayed = true;
+        
+        
+        /*  If nothing has been displayed report that there is nothing to smell */        
+        if(!somethingDisplayed)            
             DMsg(smell nothing intransitive, '{I} {smell} nothing out of the
                 ordinary.<.p>');
-        else
-        {
-            /* 
-             *   Otherwise display the smellDesc of every item in our local
-             *   smell list
-             */
-            foreach(local cur in s_list)
-            {
-                cur.display(&smellDesc);               
-            }
-            
-            /* Then list any smells from remote locations */
-            listRemoteSmells(r_list);
-        }
+
     }
     
     /* Do nothing in the core library; senseRegion.t will override if present */
     getRemoteSmellList() { return []; }
     
     /* Do nothing in the core library; senseRegion.t will override if present */
-    listRemoteSmells(lst) { }
+    listRemoteSmells(lst) { return nil; }
 ;
 
 
@@ -558,32 +567,40 @@ DefineIAction(Listen)
          *   since they may be hidden in containers that allow sound through.
          */        
         local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canHear(gActor,x) && x.checkDisplay(&listenDesc) != nil &&
-            x.isProminentNoise});
+            {x: Q.canHear(gActor,x) && x.isProminentNoise});
         
         s_list = s_list.getUnique();
         
         local r_list = getRemoteSoundList().getUnique() - s_list;
         
-        if(s_list.length + r_list.length == 0)
+        /* 
+         *   Create a local variable to keep track of whether we've displayed
+         *   anything.
+         */
+        local somethingDisplayed = nil;
+        
+        foreach(local cur in s_list)
+        {
+            if(cur.displayAlt(&listenDesc))
+                somethingDisplayed = true;
+        }
+        
+        if(listRemoteSounds(r_list))
+            somethingDisplayed = true;
+        
+        
+        if(!somethingDisplayed)
             DMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
                 ordinary.<.p>');
-        else
-        {
-            foreach(local cur in s_list)
-            {
-                cur.display(&listenDesc);               
-            }
-            
-            listRemoteSounds(r_list);
-        }
+
+        
     }
     
     /* Do nothing in the core library; senseRegion.t will override if present */
     getRemoteSoundList() { return []; }
     
     /* Do nothing in the core library; senseRegion.t will override if present */
-    listRemoteSounds(lst) { }
+    listRemoteSounds(lst) { return nil; }
 ;
 
 DefineIAction(Sleep)

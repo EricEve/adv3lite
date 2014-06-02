@@ -1696,19 +1696,54 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /* 
-     *   Check if displaying prop would produce any output. Note that the
-     *   previous test used here interfered with the use of embedded expressions
-     *   (sucn as <<one of>>... constructions) in the property being tested. The
-     *   previous test was probably over-cautious and so has been replaced here
-     *   with a less stringest test that does not interfere with embedded
-     *   expressions.
+     *   Attempt to display the message defined in the property prop, and return
+     *   true if anything is displayed. Otherwise, if the altMsg parameter is
+     *   supplied (either as a single-quoted string or as a property pointer)
+     *   display it instead, and then in any case return nil to tell the caller
+     *   that nothing was displayed by prop.
+     *
+     *   This method is primarily for use with properties such as smellDesc and
+     *   listenDesc for which alternatives may need to be displayed if they
+     *   don't display anything.
      */
-    checkDisplay(prop)
-    {
-//        local str = gOutStream.captureOutput({: display(prop)} );
-//        
-//        return str not in (nil, '');
+    
+    displayAlt(prop, altMsg?)
+    {        
+        /* 
+         *   If attempting to display the prop property results in some output,
+         *   return true to inform our caller of the fact.
+         */
+        if(gOutStream.watchForOutput({: display(prop) }))
+            return true;
         
+        
+        /* 
+         *   If we reach this point, prop failed to produce any output, so if
+         *   altMsg has been provided as a single-quoted string, display it.
+         */
+        if(dataType(altMsg) == TypeSString)
+            say(altMsg);
+        
+        /*  
+         *   Otherwise, if altMsg has been provided as a property pointer,
+         *   display it using the display() method.
+         */        
+        if(dataType(altMsg) == TypeProp)
+            display(altMsg);
+        
+        /* 
+         *   Tell our caller that there was no output from attempting to display
+         *   prop.
+         */
+        return nil;
+    }
+    
+    /* 
+     *   Check if displaying prop could possibly produce any output. The only
+     *   tests we apply here is that prop is not defined as nil.
+     */
+    checkDisplay(prop)    
+    {          
         return propType(prop) != TypeNil;
     }
     
@@ -3831,10 +3866,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(checkDisplay(&smellDesc) == nil)
-                say(smellNothingMsg);
-            else
-                display(&smellDesc);
+            displayAlt(&smellDesc, &smellNothingMsg);            
         }
     }
     
@@ -3848,10 +3880,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(checkDisplay(&listenDesc) == nil)            
-                say(hearNothingMsg);
-            else
-                display(&listenDesc);            
+            displayAlt(&listenDesc, &hearNothingMsg);           
         }
     }
     
@@ -9687,3 +9716,12 @@ Down: ViaType;
 Up: ViaType;
 Through: ViaType;
 
+/* 
+ *   The displayProbe object is used to store the result of capturing text in
+ *   Thing.checkDisplay() before undoing the trial display of the string. By
+ *   making displayProbe transient we preserve the value of its displayed
+ *   property across the undo.
+ */
+transient displayProbe: object
+    displayed = nil
+;

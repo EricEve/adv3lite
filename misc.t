@@ -1579,6 +1579,9 @@ setPlayer(actor, person = 2)
     /*   Note the name (e.g. 'Bob' or 'Mary') of the new player character */
     libGlobal.playerCharName = newName;
     
+    /*   Make the current actor the new player character */
+    gActor = gPlayerChar;
+    
     /* Return the (third-person) name of the new player character */
     return newName;
 }
