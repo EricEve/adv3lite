@@ -2467,6 +2467,35 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     notifyInsert(obj) { }
     
+    
+    /* 
+     *   Move a MultiLoc (ml) into this additional Thing or Room, by adding it
+     *   to this thing's contents list and adding the Thing to ml's
+     *   locationList.
+     */
+    moveMLIntoAdd(ml)
+    {
+        if(contents.indexOf(ml) == nil)
+            addToContents(ml);     
+        
+        
+        if(ml.locationList.indexOf(self) == nil)
+            ml.locationList += self;
+    }
+    
+    /*  
+     *   Move a MultiLoc (ml) out of this object, by removing it from our
+     *   contents list and removing us from its locationList.
+     */
+    moveMLOutOf(ml)
+    {
+        removeFromContents(ml);  
+        
+        ml.locationList -= self;    
+    }
+    
+    
+    
     /* Is obj visible from us? */
     canSee(obj) { return Q.canSee(self, obj); }
     
@@ -9328,28 +9357,28 @@ class MultiLoc: object
     }
       
     /* 
-     *   Move this MultiLoc into an additional location by adding it to that
-     *   location's contents list and adding that location to our locationList.
+     *   Move this MultiLoc into an additional location.
      */      
     moveIntoAdd(loc)
     {
-        if(loc.contents.indexOf(self) == nil)
-            loc.addToContents(self);     
+        /* 
+         *   Let the new location handle it, so it will work whether the new
+         *   location is a Thing, a Room or a Region.
+         */
+        loc.moveMLIntoAdd(self);
         
-        
-        if(locationList.indexOf(loc) == nil)
-            locationList += loc;
     }
     
     /* 
-     *   Remove this MultiLoc from location by removing it from that location's
-     *   contents list and removing that locationg from our locationList.
+     *   Remove this MultiLoc from loc.
      */         
     moveOutOf(loc)
     {
-        loc.removeFromContents(self);  
-        
-        locationList -= loc;        
+        /* 
+         *   Let the new location handle it, so it will work whether the new
+         *   location is a Thing, a Room or a Region.
+         */
+        loc.moveMLOutOf(self);        
     }
     
     /* 

@@ -1773,6 +1773,24 @@ class Region: object
      *   then the fastGoTo setting is always in effect.
      */
     fastGoTo = nil
+    
+    /* 
+     *   Move a MultiLoc (ml) into this region, by moving it into every room in
+     *   this Region.
+     */
+    moveMLIntoAdd(ml)
+    {
+        roomList.forEach({r: ml.moveIntoAdd(r)});
+    }
+    
+    /*  
+     *   Move a MultiLoc (ml) out of this region, by moving it out of every room
+     *   in the Region.
+     */
+    moveMLOutOf(ml)
+    {
+        roomList.forEach({r: ml.moveOutOf(r)});
+    }
 ;
 
 /* 
