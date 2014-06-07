@@ -1480,12 +1480,12 @@ QSenseRegion: Special
 class ReachProblemRemote: ReachProblem
     construct(a, b)
     {
-        startRoom = a.getOutermostRoom;
+        origRoom = a.getOutermostRoom;
         destRoom = b.getOutermostRoom;
         target = b;
     }
     
-    startRoom = nil
+    origRoom = nil
     destRoom = nil
     target = nil
     
@@ -1501,7 +1501,7 @@ class ReachProblemRemote: ReachProblem
          *   there's nothing to do here. This should never be the case when this
          *   method is called, but we include the check just to be sure.
          */
-        if(startRoom == destRoom)
+        if(origRoom == destRoom)
             return true;    
         
         
@@ -1548,7 +1548,7 @@ class ReachProblemRemote: ReachProblem
     tooFarAwayMsg()
     {
         /* Let the actor's room provide the message. */
-        return startRoom.cannotReachTargetMsg(target);              
+        return origRoom.cannotReachTargetMsg(target);              
     }
     
     /* 

@@ -1095,6 +1095,13 @@ class Thing:  ReplaceRedirector, Mentionable
     roomContentsLister = lookLister
     
     /* 
+     *   The contents lister to use for listing this room's miscellaneous
+     *   subcontents. By default we use the standard lookContentsLister but this
+     *   can be overridden.
+     */
+    roomSubContentsLister = lookContentsLister
+    
+    /* 
      *   Look around within this Thing (Room or Booth) to provide a full
      *   description of this location as seen from within, including our
      *   headline name, our internal description, and a listing of our visible
@@ -1159,7 +1166,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /* List the contents of this object using lister. */
-    listContents(lister = roomContentsLister)
+    listContents(lister = &roomContentsLister)
     {    
         
         /* Don't list the contents if we can't see in */
@@ -1193,7 +1200,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   start by describing the pc's immediate container and listing its
          *   contents.
          */
-        if(loc != self && lister == roomContentsLister)
+        if(loc != self && lister == &roomContentsLister)
         {
             /* 
              *   If there isn't a current action (e.g. because we're showing a
@@ -1283,7 +1290,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   of any items in the other rooms in our SenseRegions, where
          *   specialDescBeforeContents is true
          */        
-        if(lister == roomContentsLister)
+        if(lister == &roomContentsLister)
             showFirstConnectedSpecials(gPlayerChar);
         
         /* 
@@ -1296,10 +1303,10 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Display the list of miscellaneous items using the lister passed as
          *   parameter to this method.         
          */
-        lister.show(miscContentsList, self);
+        self.(lister).show(miscContentsList, self);
                
         /*   List the contents of our contents. */
-        listSubcontentsOf(contents, lookContentsLister);
+        listSubcontentsOf(contents, &roomSubContentsLister);
         
          /* 
           *   If we're not putting paragraph breaks between each subcontents
@@ -1314,7 +1321,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If we're listing the contents of a room, then show the
          *   miscellaneous contents of other rooms in our sense regions
          */
-        if(lister == roomContentsLister)        
+        if(lister == &roomContentsLister)        
             showConnectedMiscContents(gPlayerChar);
                 
         /* 
@@ -1331,7 +1338,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Show the specialDescs of any items in the other rooms in our
          *   SenseRegions, where specialDescBeforeContents is nil
          */
-       if(lister == roomContentsLister)
+       if(lister == &roomContentsLister)
            showSecondConnectedSpecials(gPlayerChar);
     }
     
@@ -1340,7 +1347,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   contents of contents all the way down the containment tree. The
      *   contList parameter can also be passed as a singleton object.
      */
-    listSubcontentsOf(contList, lister = examineLister)
+    listSubcontentsOf(contList, lister = &examineLister)
     {
        
         /* 
@@ -1377,7 +1384,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   or of any items that don't have any contents to list.
              */
             if(obj.contType == Carrier 
-               || obj.(lister.contentsListedProp) == nil
+               || obj.(lister).contentsListedProp == nil
                || obj.canSeeIn() == nil
                || obj.contents.length == 0)
                 continue;
@@ -1454,7 +1461,7 @@ class Thing:  ReplaceRedirector, Mentionable
             /*   List the miscellaneous items */
             if(objList.length > 0)   
             {
-                lister.show(objList, obj, paraBrksBtwnSubcontents);                      
+                obj.(lister).show(objList, obj, paraBrksBtwnSubcontents);                      
                 objList.forEach({o: o.mentioned = true });
             }
             
@@ -1482,8 +1489,10 @@ class Thing:  ReplaceRedirector, Mentionable
              *   listRecursively property should be nil) or for which there are
              *   no listable contents.
              */
-            if(obj.contents.length > 0 && lister.listRecursively
-               && obj.contents.countWhich({x: lister.listed(x)}) > 0)
+            local lstr = obj.(lister);
+            
+            if(obj.contents.length > 0 && lstr.listRecursively
+               && obj.contents.countWhich({x: lstr.listed(x)}) > 0)
                 listSubcontentsOf(obj.contents, lister);                     
             
         }
@@ -1645,7 +1654,7 @@ class Thing:  ReplaceRedirector, Mentionable
             unmention(contents);
             
             /* Then list our contents using our examineLister. */
-            listSubcontentsOf(self, examineLister);            
+            listSubcontentsOf(self, &examineLister);            
         }                   
     }
     
@@ -4585,7 +4594,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!gAction.isImplicit)
             {              
                 unmention(contents);
-                listSubcontentsOf(self, myOpeningContentsLister);
+                listSubcontentsOf(self, &myOpeningContentsLister);
             }           
         }
         
@@ -4844,7 +4853,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, myLookInLister) }) == nil)
+                        {: listSubcontentsOf(self, &myLookInLister) }) == nil)
                       display(&lookInMsg);       
 
                 }
@@ -4953,7 +4962,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, myLookUnderLister) }) == nil)
+                        {: listSubcontentsOf(self, &myLookUnderLister) }) == nil)
                         display(&lookUnderMsg);  
                     
                 }
@@ -5046,7 +5055,7 @@ class Thing:  ReplaceRedirector, Mentionable
                      *   instead.
                      */
                     if(gOutStream.watchForOutput(
-                        {: listSubcontentsOf(self, myLookBehindLister) }) == nil)                        
+                        {: listSubcontentsOf(self, &myLookBehindLister) }) == nil)                        
                         display(&lookBehindMsg); 
 
                 }
