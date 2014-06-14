@@ -343,21 +343,18 @@ class GameMainDef: object
 
     
     /*
-     *   Should the "before" notifications (beforeAction, roomBeforeAction,
-     *   and actorAction) run before or after the "check" phase?
-     *   
-     *   The library traditionally ran the "before" notifiers first, so
-     *   this is the default.  However, in many ways it's more logical and
-     *   useful to run "check" first.  That way, you can consider the
-     *   action to be more or less committed by the time the "before"
-     *   notifiers are invoked.  Of course, a command is never *truly*
-     *   committed until it's actually been executed, since a "before"
-     *   handler could always cancel it.  But this is relatively rare -
-     *   "before" handlers usually carry out side effects, so it's very
-     *   useful to be able to know that the command has already passed all
-     *   of its own internal checks by the time "before" is invoked - that
-     *   way, you can invoke side effects without worrying that the command
-     *   will subsequently fail.  
+     *   Should the "before" notifications (beforeAction, roomBeforeAction, and
+     *   actorAction) run before or after the "check" phase?
+     *
+     *   In many ways it's more logical and useful to run "check" first.  That
+     *   way, you can consider the action to be more or less committed by the
+     *   time the "before" notifiers are invoked.  Of course, a command is never
+     *   truly* committed until it's actually been executed, since a "before"
+     *   handler could always cancel it.  But this is relatively rare - "before"
+     *   handlers usually carry out side effects, so it's very useful to be able
+     *   to know that the command has already passed all of its own internal
+     *   checks by the time "before" is invoked - that way, you can invoke side
+     *   effects without worrying that the command will subsequently fail.
      */
     beforeRunsBeforeCheck = nil
     

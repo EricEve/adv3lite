@@ -604,9 +604,7 @@ objSmellable: PreCondition
  *   be needed for any action that manipulated the object). This Precondition
  *   farms out as much of the detailed checking as possible to the Query object. 
  */
-touchObj: PreCondition
-    
-    
+touchObj: PreCondition    
     verifyPreCondition(obj)
     {
         /* 
@@ -837,4 +835,53 @@ actorInStagingLocation: PreCondition
         return nil;  
         
     }    
+;
+
+/* 
+ *   A PreCondition to make sure that the actor is out of any nested rooms
+ *   before the action takes place.
+ */
+actorOutOfNested: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        local loc = gActor.location;
+        local action;
+        
+        /* 
+         *   If the Actor's location is a room, then there's nothing to be done.
+         */
+        if(loc.ofKind(Room))
+            return true;
+        
+        if(allowImplicit)
+        {
+            local tried = nil;
+            while(!loc.ofKind(Room))
+            {
+                action = loc.contType == In ? GetOutOf : GetOff;
+                tried = tryImplicitAction(action, loc);
+                if(gActor.location == loc)
+                    break;
+                
+                loc = gActor.location;                
+            }
+            
+            /* If the actor is now in a Room, we've succeeded. */
+            if(loc.ofKind(Room))
+                return true;
+            
+            /* 
+             *   Otherwise, if we tried but failed to get out into the Room,
+             *   return nil to tell our caller we failed.
+             */
+            if(tried)
+                return nil;            
+        }
+        
+        gMessageParams(loc);
+        DMsg(still in nested, '{I} {can\'t} do that while {he actor} {is} 
+            {in loc}. ');
+        return nil;
+    }
+    
 ;

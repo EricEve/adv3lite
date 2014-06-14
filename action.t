@@ -138,9 +138,85 @@ class Action: ReplaceRedirector
     /* Flag to indicate whether the actor's location started out illuminated */
     wasIlluminated = nil
     
+    /* 
+     *   A list of any PreConditions that apply to this action as a whole, as
+     *   opposed to any of its objects. This is most likely to be relevant to an
+     *   IAction.
+     */
+    preCond = nil
+    
+    checkActionPreconditions()
+    {
+        local preCondList;
+        local checkOkay = true;
+        
+        /* 
+         *   Construct a list or preCondition objects on the appropriate object
+         *   property.
+         */
+        preCondList = valToList(preCond);       
+        
+        /* Sort the list in preCondOrder */
+        preCondList = preCondList.sort(nil,
+                                       {a, b: a.preCondOrder - b.preCondOrder});
+        
+        try
+        {
+            /* Iterate through the list to see if all the checks are satisfied */
+            foreach(local cur in preCondList)              
+            {          
+                /* 
+                 *   If we fail the check method on any precondition object,
+                 *   note the failure and stop the iteration.
+                 */
+                if(cur.checkPreCondition(gActor, true) == nil)
+                {
+                    checkOkay = nil;
+                    break;
+                }                
+            }
+        }
+        /* 
+         *   Game authors aren't meant to use the exit macro in check methods,
+         *   but in case they do we handle it here.
+         */
+        catch (ExitSignal ex)
+        {
+            checkOkay = nil;
+        }
+        
+        /* 
+         *   If the check method failed on any of our precondition objects note
+         *   that the action is a failure.
+         */
+        if(checkOkay == nil)
+            actionFailed = true;
+        
+        /* 
+         *   Otherwise, if we're not an implicit action, display any pending
+         *   implicit action announcements.
+         */
+        else if(!isImplicit)
+            "<<buildImplicitActionAnnouncement(true, true)>>";
+        
+        
+        /* Return our overall check result. */
+        return checkOkay;        
+        
+    }
+    
+    
     beforeAction()
     {
+        
         /* 
+         *   Check any Preconditions relating to the action as a whole (as
+         *   opposed to any of its objects.
+         */
+        if(!checkActionPreconditions())
+            exit;
+        
+        /*  
          *   Call the before action handling on the current actor (in its
          *   capacity as actor/
          */

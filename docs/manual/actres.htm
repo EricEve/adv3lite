@@ -224,6 +224,7 @@ Done.
 <li><b>objDetached</b> This object must be detached from any other object before this action can go ahead. If it isn't, the library attempts an implicit detach command.</li>
 <li><b>objUnlocked</b> The object must be unlocked before the action (typically opening) can go ahead. This PreCondition isn't actually used anywhere in the library, but game code is free to use it. It would normally only be meaningful to do so in the dobjFor(Open) preCond list of objects with a lockability of either lockableWithoutKey or lockableWithKey. In the latter case the objUnlocked PreCondition will only attempt to unlock the object if the actor is carrying a key that might plausibly work.</li>
 <li><b>actorInStagingLocation</b> The actor must be in this object's stagingLocation before the action can proceed. If the condition is not met the library attempts to carry out the appropriate implicit actions (getting in/out/off or on various objects) to bring it about.</li>
+<li><b>actorOutOfNested</b> The actor must be in a top level room (out of any nested room) before the action can proceed. If the condition is not met the library attempts to remove the actor from the nested room(s) it's it via the appropriate implicit actions.</li>
 <li><b>touchObj</b> The actor must be able to touch this object before the action can proceed. If the condition is not met the library does not attempt to correct it.</li>
 
 </ul>
@@ -232,7 +233,8 @@ Done.
 
 <p>This incidentally highlights the point that a PreCondition has a verify stage (when it can apply further verify results) and a check stage (which is normally the stage at which it would attempt any implicit actions, though touchObj is a bit of an exception here).</p>
 
-<p>To apply PreConditions to objects involved in particular actions we simply list the appropriate precondition objects in the appropriate preCond property, for example:</p>
+<a name="precondprop"></a>
+<p>To apply PreConditions to objects involved in particular actions we simply list the appropriate precondition objects in the appropriate <strong>preCond</strong> property, for example:</p>
 
 <p><div class=code><pre>
 class Thing: Mentionable
@@ -305,6 +307,24 @@ class Thing: Mentionable
     cannotBurnMsg = 'The saucepan\'s quite burnt enough already! '
 ;
 </pre></div></p>
+
+<p>Occasionally it can be useful to list a PreCondition in the <span class="code">preCond</span> property of an Action object, particularly when the Action is an IAction and we want the actor to be in a particular state before the action can take place. For example the library defines the Jump action thus:</p>
+
+ <p><div class="code"><pre>
+ DefineIAction(Jump)
+    execAction(cmd)
+    {
+        DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');
+    }
+    
+    preCond = (gActor.location &amp;&amp; gActor.location.getOutToJump ?
+    [actorOutOfNested]: nil)
+;
+ 
+ </pre></div>
+
+<p>This ensures that the actor is removed from any nested room it's in before attempting to JUMP (unless it starts out in a nested room for which <span class="code">getOutToJump</span> is nil).</p> 
+ 
 <br>
 
 <h2><a name="check">Check</a></h2>

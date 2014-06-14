@@ -496,6 +496,9 @@ DefineIAction(Jump)
     {
         DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');
     }
+    
+    preCond = (gActor.location && gActor.location.getOutToJump ?
+    [actorOutOfNested]: nil)
 ;
 
 DefineIAction(Yell)
@@ -817,6 +820,8 @@ DefineIAction(Continue)
     contMsg =  BMsg(explain continue, 'To continue the journey
                 use the command
                 <<aHref('Continue','CONTINUE','Continue')>> or C. ')
+    
+    
 ;
 
 DefineSystemAction(Topics)

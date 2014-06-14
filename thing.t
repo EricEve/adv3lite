@@ -7721,6 +7721,12 @@ class Thing:  ReplaceRedirector, Mentionable
     checkKissMsg = nil
     
     /* 
+     *   Flag, if this is a nested room, should an actor get out of it before
+     *   executing an intransitive Jump command. By default it should.
+     */
+    getOutToJump = true
+    
+    /* 
      *   It should be possible to jump off something if and only if the actor is
      *   on it in the first place.
      */
