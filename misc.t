@@ -826,7 +826,8 @@ libGlobal: object
      *   our name table for parameter substitutions - a LookupTable that we set
      *   up during preinit
      */
-    nameTable_ = static new LookupTable()
+    nameTable_ = static new LookupTable()  
+    
 ;
 
 

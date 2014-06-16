@@ -411,7 +411,6 @@ DefineSystemAction(Verbose)
     }
 ;
 
-
 DefineIAction(Inventory)
     execAction(cmd)
     {

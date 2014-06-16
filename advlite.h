@@ -1098,6 +1098,15 @@ enum small;
 /*  Enums for Goals in the Hint system */
 enum OpenGoal, ClosedGoal, UndiscoveredGoal;
 
+/* Enums for Footnotes */
+enum FootnotesFull, FootnotesMedium, FootnotesOff;
+
+/* Template for Footnotes */
+Footnote template "desc";
+
+/* Template for ClockEvent */
+ClockEvent template [eventTime];
+
 /* ------------------------------------------------------------------------- */
 /*
  *   Communication Link Types
