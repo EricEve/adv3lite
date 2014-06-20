@@ -2633,7 +2633,8 @@ class ActorTopicDatabase: TopicDatabase
          *   they're never a response to a conversational command).
          */
         local lst = miscTopics + askTopics + tellTopics + sayTopics +
-            queryTopics + giveTopics + askForTopics + talkTopics;
+            queryTopics + giveTopics + askForTopics + talkTopics + showTopics
+            + commandTopics;
         
         /*  Note our actor. */
         local actor = getActor;
@@ -2955,6 +2956,14 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     suggestAs = nil
     
     /*   
+     *   The order this TopicEntry appears in within its group in a list of
+     *   suggested topics. The higher this number, the later this topic will be
+     *   suggested. Note that this does not override the grouping of suggestions
+     *   into AskTopics, TellTopics, etc.
+     */
+    listOrder = 100
+    
+    /*   
      *   Handle this topic (if we're the ActorTopicEntry selected to respond to
      *   a conversational command.
      */
@@ -3138,10 +3147,11 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
                     
         /* 
-         *   If we don't have a matchObj assume we're reachable unless certain
-         *   conditions apply (e.g. we're blocked by a DefaultTopic).
+         *   If we don't have a matchObj (or our matchObj is an Action) assume
+         *   we're reachable unless certain conditions apply (e.g. we're blocked
+         *   by a DefaultTopic).
          */        
-        if(matchObj == nil)
+        if(matchObj == nil || matchObj.ofKind(Action))
         {
             /* 
              *   if the actor doesn't have a current actor state or we're in the
@@ -3181,7 +3191,8 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
         /* 
          *   We're not reachable if the player char doesn't know about our
-         *   matchObj         */
+         *   matchObj
+         */
         
         if(valToList(matchObj).indexWhich({ x: x.isClass() 
                                           || gPlayerChar.knowsAbout(x)}) == nil)         
@@ -3456,6 +3467,12 @@ class NoTopic: MiscTopic
      *   request to display a list of suggested topics.
      */
     name = BMsg(say no, 'say no')
+    
+    /* 
+     *   We define the suggestAs property of the NoTopic so that the
+     *   suggestedTopicLister can readily separate it from YesTopics
+     */
+    suggestAs = NoTopic
 ;
 
 /* A YesNoTopic is a TopicEntry that responds to either YES or NO */
@@ -6069,10 +6086,10 @@ suggestedTopicLister: object
       
         
         /* 
-         *   Introduce the list. 
+         *   Introduce the list.
          */
-		showListPrefix(lst, nil, explicit);
-		        
+        showListPrefix(lst, nil, explicit);
+        
         /* Note that we haven't listed any items yet */
         local listStarted = nil;
         
@@ -6085,211 +6102,218 @@ suggestedTopicLister: object
         /* Create a message parameter substitution for the interlocutor */
         gMessageParams(interlocutor);
         
-        
-        /* 
-         *   We then output our list of suggestions category by category
-         *
-         *   We start with suggested SayTopics, if there are any to display.
-         */        
-        if(sayList.length > 0)
+        foreach(local cur in typeInfo)
         {
-            /* List our suggested SayTopics */
-            showList(sayList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
+            listStarted = showSection(cur[1], listStarted, cur[4]) ||
+                listStarted;
         }
         
-        /* Next list our suggested QueryTopics, if we have any */
-        if(queryList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of QueryTopics */
-            DMsg(ask query, 'ask {him interlocutor} ');
-            
-            /* Show the list of suggested QueryTopics */
-            showList(queryList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;                
-        }
         
-        /* Next list our suggested AskTopics, if we have any */
-        if(askList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of AskTopics */
-            DMsg(ask about, 'ask {him interlocutor} about ');
-            
-            /* Show the list of suggested AskTopics */
-            showList(askList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
         
-        /* Next list our suggested TellTopics, if we have any */
-        if(tellList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */            
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of AskTopics */
-            DMsg(tell about, 'tell {him interlocutor} about ');
-
-            /* Show the list of suggested TellTopics */
-            showList(tellList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        /* Next list our suggested TalkTopics, if we have any */
-        if(talkList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of TalkTopics */
-            DMsg(talk about, 'talk about ');
-            
-            /* Show the list of suggested TalkTopics */
-            showList(talkList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        /* Next list our suggested GiveTopics, if we have any */
-        if(giveList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-
-            /* Output an introduction to our list of GiveTopics */
-            DMsg(give, 'give {him interlocutor} ');
-            
-            /* Show the list of suggested GiveTopics */
-            showList(giveList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        /* Next list our suggested ShowTopics, if we have any */
-        if(showToList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of ShowTopics */
-            DMsg(show, 'show {him interlocutor} ');
-            
-            /* Show the list of suggested ShowTopics */
-            showList(showToList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        /* Next list our suggested AskForTopics, if we have any */
-        if(askForList.length > 0)
-        {
-             /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of AskForTopics */
-            DMsg(ask for, 'ask {him interlocutor} for ');
-            
-            /* Show the list of suggested AskForTopics */
-            showList(askForList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true; 
-        }
-        
-        if(yesList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Show our list of YesTopics (typically, just 'say yes') */
-            showList(yesList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        if(noList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Show our list of NoTopics (typically, just 'say no') */
-            showList(noList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true;
-        }
-        
-        if(commandList.length > 0)
-        {
-            /* 
-             *   If we've already listed some suggestions, output a list
-             *   separator before starting the next group.
-             */
-            if(listStarted)
-                say(orListSep);
-            
-            /* Output an introduction to our list of CommandTopics */
-            DMsg(tell to, 'tell {him interlocutor} to ');
-            
-            /* Show the list of suggested CommandTopics */
-            showList(commandList);
-            
-            /* Note that we have now started listing topics */
-            listStarted = true; 
-        }
+//        /* 
+//         *   We then output our list of suggestions category by category
+//         *
+//         *   We start with suggested SayTopics, if there are any to display.
+//         */        
+//        if(sayList.length > 0)
+//        {
+//            /* List our suggested SayTopics */
+//            showList(sayList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested QueryTopics, if we have any */
+//        if(queryList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of QueryTopics */
+//            DMsg(ask query, 'ask {him interlocutor} ');
+//            
+//            /* Show the list of suggested QueryTopics */
+//            showList(queryList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;                
+//        }
+//        
+//        /* Next list our suggested AskTopics, if we have any */
+//        if(askList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of AskTopics */
+//            DMsg(ask about, 'ask {him interlocutor} about ');
+//            
+//            /* Show the list of suggested AskTopics */
+//            showList(askList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested TellTopics, if we have any */
+//        if(tellList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */            
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of AskTopics */
+//            DMsg(tell about, 'tell {him interlocutor} about ');
+//
+//            /* Show the list of suggested TellTopics */
+//            showList(tellList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested TalkTopics, if we have any */
+//        if(talkList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of TalkTopics */
+//            DMsg(talk about, 'talk about ');
+//            
+//            /* Show the list of suggested TalkTopics */
+//            showList(talkList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested GiveTopics, if we have any */
+//        if(giveList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//
+//            /* Output an introduction to our list of GiveTopics */
+//            DMsg(give, 'give {him interlocutor} ');
+//            
+//            /* Show the list of suggested GiveTopics */
+//            showList(giveList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested ShowTopics, if we have any */
+//        if(showToList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of ShowTopics */
+//            DMsg(show, 'show {him interlocutor} ');
+//            
+//            /* Show the list of suggested ShowTopics */
+//            showList(showToList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        /* Next list our suggested AskForTopics, if we have any */
+//        if(askForList.length > 0)
+//        {
+//             /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of AskForTopics */
+//            DMsg(ask for, 'ask {him interlocutor} for ');
+//            
+//            /* Show the list of suggested AskForTopics */
+//            showList(askForList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true; 
+//        }
+//        
+//        if(yesList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Show our list of YesTopics (typically, just 'say yes') */
+//            showList(yesList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        if(noList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Show our list of NoTopics (typically, just 'say no') */
+//            showList(noList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true;
+//        }
+//        
+//        if(commandList.length > 0)
+//        {
+//            /* 
+//             *   If we've already listed some suggestions, output a list
+//             *   separator before starting the next group.
+//             */
+//            if(listStarted)
+//                say(orListSep);
+//            
+//            /* Output an introduction to our list of CommandTopics */
+//            DMsg(tell to, 'tell {him interlocutor} to ');
+//            
+//            /* Show the list of suggested CommandTopics */
+//            showList(commandList);
+//            
+//            /* Note that we have now started listing topics */
+//            listStarted = true; 
+//        }
         
         /* 
          *   Finish the list by appending its suffix 
@@ -6298,9 +6322,41 @@ suggestedTopicLister: object
         
     }
     
+    
+    showSection(prop, listStarted, sectionIntro)
+    {
+        local lst = self.(prop);
+        
+        /* 
+         *   If the list is empty return nil to tell our caller we haven't
+         *   displayed anything.
+         */
+        if(lst.length == 0)
+            return nil;
+        
+        /* If the list has already begun, show our list separator */
+        if(listStarted)
+            say(orListSep);
+        
+        /* Show the appropriate into for this section. */
+        if(sectionIntro)
+            say(sectionIntro);
+        
+        /* Show the list */
+        showList(lst);
+        
+        /* Tell our caller we've displayed something. */
+        return true;       
+    }
+    
+    
     /* Show one of our sublists of particular kinds of suggest topics */
     showList(lst)
     {
+        /* Sort the list */
+        lst = lst.sort(SortAsc, {x, y: x.listOrder - y.listOrder});
+        
+        
         /* For each element in the list */
         for(local cur in lst, local i = 1 ;; ++i)
         {
@@ -6333,20 +6389,23 @@ suggestedTopicLister: object
      *   pointer used to identify which sublist a TopicEntry belongs in,
      *   according to its own includeInList property. The third element is the
      *   type of topic entry a topic entry should be suggested as if it is
-     *   explicitly requested in its suggestAs property.
+     *   explicitly requested in its suggestAs property. The fourth element is
+     *   the text to use when introducing the corresponding section of the list
+     *   (or nil if no introductory text is required).
+     *
      */
     typeInfo = [
-        [&sayList, &sayTopics, SayTopic],
-        [&queryList, &queryTopics, QueryTopic],
-        [&askForList, &askForTopics, AskForTopic],
-        [&askList, &askTopics, AskTopic],
-        [&tellList, &tellTopics, TellTopic],
-        [&talkList, &talkTopics, TalkTopic],
-        [&giveList, &giveTopics, GiveTopic],
-        [&showToList, &showTopics, ShowTopic],
-        [&yesList, &miscTopics, YesTopic],
-        [&nolist, &miscTopics, NoTopic],
-        [&commandList, &commandTopics, CommandTopic]
+        [&sayList, &sayTopics, SayTopic, nil],
+        [&queryList, &queryTopics, QueryTopic, BMsg(ask query, 'ask {him interlocutor} ')],        
+        [&askList, &askTopics, AskTopic, BMsg(ask about, 'ask {him interlocutor} about ')],
+        [&tellList, &tellTopics, TellTopic, BMsg(tell about, 'tell {him interlocutor} about ')],
+        [&talkList, &talkTopics, TalkTopic, BMsg(talk about, 'talk about ')], 
+        [&giveList, &giveTopics, GiveTopic, BMsg(give, 'give {him interlocutor} ')],
+        [&showToList, &showTopics, ShowTopic, BMsg(show, 'show {him interlocutor} ')],
+        [&askForList, &askForTopics, AskForTopic, BMsg(ask for, 'ask {him interlocutor} for ')],
+        [&yesList, &miscTopics, YesTopic, nil],
+        [&noList, &miscTopics, NoTopic, nil],
+        [&commandList, &commandTopics, CommandTopic, BMsg(tell to, 'tell {him interlocutor} to ')]
         
     ]
     

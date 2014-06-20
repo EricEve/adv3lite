@@ -670,24 +670,33 @@ DefineIAction(<a name="Listen">Listen</a>)
          *   since they may be hidden in containers that allow sound through.
          */</span>        
         local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canHear(gActor,x) &amp;&amp; x.checkDisplay(&amp;listenDesc) != nil &amp;&amp;
-            x.isProminentNoise});
+            {x: Q.canHear(gActor,x) &amp;&amp; x.isProminentNoise});
         
         s_list = s_list.getUnique();
         
         local r_list = getRemoteSoundList().getUnique() - s_list;
         
-        if(s_list.length + r_list.length == 0)
-            DMsg(hear nothing, '{I} {hear} nothing out of the ordinary.&lt;.p&gt;');
-        else
+        <span class="comment">/* 
+         *   Create a local variable to keep track of whether we've displayed
+         *   anything.
+         */</span>
+        local somethingDisplayed = nil;
+        
+        foreach(local cur in s_list)
         {
-            foreach(local cur in s_list)
-            {
-                cur.<a href="#Thing:display">display</a>(&amp;listenDesc);               
-            }
-            
-            listRemoteSounds(r_list);
+            if(cur.displayAlt(&amp;listenDesc))
+                somethingDisplayed = true;
         }
+        
+        if(listRemoteSounds(r_list))
+            somethingDisplayed = true;
+        
+        
+        if(!somethingDisplayed)
+            DMsg(hear nothing listen, '{I} hear{s/d} nothing out of the
+                ordinary.<.p>');
+
+        
     }
     
     <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
@@ -821,31 +830,39 @@ DefineIAction(<a name="Smell">Smell</a>)
          *   isProminentSmell property is true
          */</span>
         local s_list = gActor.getOutermostRoom.allContents.subset(
-            {x: Q.canSmell(gActor, x)  &amp;&amp; 
-            x.checkDisplay(&amp;smellDesc) != nil && x.isProminentSmell});
+            {x: Q.canSmell(gActor, x)  &amp;&amp;  x.isProminentSmell});
         
         local r_list = getRemoteSmellList().getUnique() - s_list;
         
        <span class="comment"> /*  Obtain the corresponding list for remote rooms */</span>
         local r_list = getRemoteSmellList();
         
-        <span class="comment">/*  If both lists are empty report that there is nothing to smell */</span>
-        if(s_list.length + r_list.length == 0)            
-            DMsg(smell nothing, '{I} {smell} nothing out of the ordinary.<.p>');
-        else
+        <span class="comment">/* 
+         *   Create a local variable to keep track of whether we've displayed
+         *   anything.
+         */</span>
+        local somethingDisplayed = nil;
+        
+        <span class="comment">/* 
+         *   Display the smellDesc of every item in our local smell list,
+         *   keeping track of whether anything has actually been displayed as a
+         *   result.
+         */</span>
+        foreach(local cur in s_list)
         {
-            <span class="comment">/* 
-             *   Otherwise display the smellDesc of every item in our local
-             *   smell list
-             */</span>
-            foreach(local cur in s_list)
-            {
-                cur.<a href="#Thing:display">display</a>(&amp;smellDesc);               
-            }
-            
-            <span class="comment">/* Then list any smells from remote locations */</span>
-            listRemoteSmells(r_list);
+            if(cur.displayAlt(&amp;smellDesc))
+                somethingDisplayed = true;
         }
+        
+        <span class="comment">/* Then list any smells from remote locations */</span>
+        if(listRemoteSmells(r_list))
+            somethingDisplayed = true;
+        
+        
+        <span class="comment">/*  If nothing has been displayed report that there is nothing to smell */ </span>       
+        if(!somethingDisplayed)            
+            DMsg(smell nothing intransitive, '{I} {smell} nothing out of the
+                ordinary.<.p>');
     }
     
     <span class="comment">/* Do nothing in the core library; senseRegion.t will override if present */</span>
@@ -1401,7 +1418,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   don't know how to get to our destination.
              */</span>
             if(route == nil)            
-                DMsg(route unknown, '{I} {don\'t know} how to get there. ');
+                sayDontKnowHowToGetThere();
                 
             <span class="comment">/*  
              *   If the route we find has only one element in its list, that
@@ -1411,8 +1428,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   target.
              */</span>    
             else if(route.length == 1)
-                DMsg(destination unknown, '{I} {don\'t know} how to reach
-                    {him dobj}.' );
+                sayDontKnowHowToReach();
                     
             <span class="comment">/*  
              *   If the route we found has at least two elements, then use the
@@ -1422,8 +1438,33 @@ class Thing:  ReplaceRedirector, Mentionable
              */</span>        
             else
             {
+                local idx = 2;
                 local dir = route[2][1];
-                Continue.takeStep(dir, getOutermostRoom);               
+                local oldLoc = gPlayerChar.getOutermostRoom();
+                
+                local commonRegions =
+                    gPlayerChar.getOutermostRoom.regionsInCommonWith(dest);
+                
+                local regionFastGoTo = 
+                    commonRegions.indexWhich({r: r.fastGoTo }) != nil;
+                
+                local fastGo = regionFastGoTo || gameMain.fastGoTo;
+                
+                Continue.takeStep(dir, getOutermostRoom, fastGo);                
+                
+                
+                <span class="comment">/* 
+                 *   If the fastGoTo option is active, continue moving towards
+                 *   the destination until either we reach it our we're
+                 *   prevented from going any further.
+                 */</span>
+                while((fastGo)
+                      &amp;&amp; oldLoc != gPlayerChar.getOutermostRoom 
+                      &amp;&amp; idx &lt; route.length)
+                {
+                    local dir = route[++idx][1];
+                    Continue.takeStep(dir, getOutermostRoom, true);
+                }               
             }
         }
     }
