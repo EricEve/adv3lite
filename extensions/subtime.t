@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#include "advlite.h"
 /*
  *   Copyright 2003, 2006 Michael J. Roberts
  *
@@ -37,6 +38,7 @@ clockManager: PreinitObject
     {
         local turns;
         local mm;
+        local sdmm;
         
         /* 
          *   Determine how many turns it's been since we last committed to
@@ -53,8 +55,21 @@ clockManager: PreinitObject
          */
         mm = (turns * baseScaleFactor) / 100;
 
+        
+        /*   
+         *   In Mike Roberts's version of subtime, the clock is slowed down if
+         *   the base scaled time would take us within two hours of the next
+         *   event time, but this may be inappropriate if the game is working to
+         *   a much shorter or longer timescale. So we instead compute the time
+         *   at which slowing down should occur in a separate method to make it
+         *   easy for game code to override it. By default, the slow-down time
+         *   will be half-way between the previous event and the next one.
+         */
+        sdmm = slowDownTime();
+        
+        
         /*
-         *   If the base scaled time would take us within two hours of the
+         *   If the base scaled time would take us within sdmm of the
          *   next event time, slow the clock down from our base scaling
          *   factor so that we always leave ourselves room to advance the
          *   clock further on the next check.  Reduce the passage of time
@@ -66,20 +81,19 @@ clockManager: PreinitObject
             /* get the minutes between now and the next scheduled event */
             local delta = diffMinutes(nextTime, curTime);
 
-            /* check to see if the raw increment would leave under 2 hours */
-            if (delta - mm < 120)
+            /* check to see if the raw increment would leave under sdmm minutes */
+            if (delta - mm < sdmm)
             {
                 /*
-                 *   The raw time increment would leave us under two hours
-                 *   away.  If we have under two hours to go before the
+                 *   The raw time increment would leave us under sdmm minutes
+                 *   away.  If we have under sdmm to go before the
                  *   next event, scale down the rate of time in proportion
-                 *   to our share under two hours.  (Note that we might
-                 *   have more than two hours to go and still be here,
-                 *   because the raw adjusted time leaves under two
-                 *   hours.)  
+                 *   to our share under sdmm.  (Note that we might
+                 *   have more than sdmm to go and still be here,
+                 *   because the raw adjusted time leaves under sdmm minutes.)  
                  */
-                if (delta < 120)
-                    mm = (mm * delta) / 120;
+                if (delta < sdmm)
+                    mm = (mm * delta) / sdmm;
 
                 /* 
                  *   In any case, cap it at half the remaining time, to
@@ -108,12 +122,34 @@ clockManager: PreinitObject
         curTime = addMinutes(curTime, mm);
 
         /* the current turn is now the last commit point */
-        turnLastCommitted = Schedulable.gameClockTime;
-
+        turnLastCommitted = gTurns;
+                
         /* return the new time */
         return curTime;
     }
 
+    /* 
+     *   Compute the time remaining until the next event at which we start to
+     *   slow down the clock. By default we make this half the time from the
+     *   previous event to the next. Game code can override if some other value
+     *   is preferred.
+     */
+    slowDownTime()
+    {
+        /*  
+         *   If we have a lastEvent, get its eventTime; otherwise assume the
+         *   last event was at midnight on day 1.
+         */
+        local lastEventTime = lastEvent == nil ? [1,0,0] : lastEvent.eventTime;
+        
+        /*   
+         *   Return half the difference between the next event time and the last
+         *   event time.
+         */
+        return diffMinutes(nextTime, lastEventTime)/2;
+    }
+    
+    
     /*
      *   The base scaling factor: this is the number of minutes per hundred
      *   turns when we have unlimited time until the next event.  This
@@ -379,7 +415,7 @@ clockManager: PreinitObject
          *   we're committing to an exact wall-clock time, so remember the
          *   current turn counter as the last commit point 
          */
-        turnLastCommitted = Schedulable.gameClockTime;
+        turnLastCommitted = gTurns;
     }
 
     /* add minutes to a [dd,hh,mm] value, returning a new [dd,hh,mm] value */

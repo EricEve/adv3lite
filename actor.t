@@ -6338,7 +6338,7 @@ suggestedTopicLister: object
         if(listStarted)
             say(orListSep);
         
-        /* Show the appropriate into for this section. */
+        /* Show the appropriate intro for this section. */
         if(sectionIntro)
             say(sectionIntro);
         
