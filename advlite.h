@@ -1107,6 +1107,18 @@ Footnote template "desc";
 /* Template for ClockEvent */
 ClockEvent template [eventTime];
 
+/* String Templates for Objective Time module */
+string template <<take * seconds>> takeTime;
+string template <<take * second>> takeTime;
+string template <<take * sec>> takeTime;
+string template <<take * secs>> takeTime;
+
+string template <<add * seconds>> addTime;
+string template <<add * second>> addTime;
+string template <<add * sec>> addTime;
+string template <<add * secs>> addTime;
+
+
 /* ------------------------------------------------------------------------- */
 /*
  *   Communication Link Types
