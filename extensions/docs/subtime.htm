@@ -35,7 +35,7 @@ Subtime
 <li><em>Classes</em>: <strong>ClockEvent</strong>.</li>
 <li><em>Objects</em>: <strong>clockManager</strong>.</li>
 <li><em>Properties/methods on clockManager</em>: <span class="code">checkTime()</span>, <span class="code">baseScaleFactor</span>, <span class="code">checkTimeFmt(fmt)</span>, <span class="code">formatTime(t, fmt)</span>, <span class="code">eventReached(evt)</span>.</li>
-<li><em>Properties/methods on ClockEvent</em>: <span class="code">eventTime</span>, <span class="code">formatTime(fmt)</span>, <span class="code">eventReached()</span>.</li>
+<li><em>Properties/methods on ClockEvent</em>: <span class="code">eventTime</span>, <span class="code">formatTime(fmt)</span>, <span class="code">eventReached()</span>, <span class="code">reachedWhen</span>, <span class="code">scaleFactor</span>, <span class="code">turnsToEvent</span>.</li>
 </ul>
 
 <h2>Usage</h2>
@@ -46,7 +46,8 @@ a list of all of these objects during pre-initialization, so you don't
 have to explicitly tell the clock manager about these.   
 Whenever the story reaches one of these events, you should call the
 <span class="code">eventReached()</span> method of the event object.  This will set the clock
-time to the event's current time, and take note of how long we have until the next plot event.</p>
+time to the event's current time, and take note of how long we have until the next plot event.
+Alternatively, you can define the ClockEvent's <span class="code">reachedWhen</span> property as a condition that becomes true (or a method that returns true) when this ClockEvent is reached. For this to work, the events.t module must be present in the game. If several ClockEvents have <span class="code">reachedWhen</span> conditions that become true on the same turn, only the first one (i.e. the one with the earliest <span class="code">eventTime</span>) will be reached on that turn (the next one will be reached on the next turn, and so on).</p>
 
 <p>To create a <span class="code">ClockEvent</span> object you need to give it a programmatic name and define its <span class="code">eventTime</span> property. The eventTime property specifies the time at which this event occurs.  This is expressed as a list
 with three elements: the day number, the hour (on a 24-hour
@@ -85,6 +86,13 @@ meetBobEvent: ClockEvent [2, 14, 10];
      unnecessarily; call it only when you actually have to tell the
      player what time it is - and don't tell the player what time it
      is unless they ask, or there's some other good reason.</p>
+     
+<p>You must create at least one ClockEvent in your game, or this module will cause a run-time error. You should in any case create a ClockEvent to set the time at the start of play. This will be the ClockEvent with the earliest eventTime; the earliest ClockEvent is automatically marked as reached at the start of the game; you don't need to call its <span class="code">eventReached()</span> method or set its <span class="code">reachedWhen</span> property.</p>     
+     
+<p>The <span class="code">clockManager</span> works by advancing the notional time by 60 minutes per hundred turns (by default) until half the time until the next ClockEvent is reached. The passage of time per turn is then progressively slowed down to prevent the time of the next ClockEvent being reached prematurely. Note that time is only computed when <span class="code">clockManager.checkTime()</span> is called (either directly or via <span class="code">clockManager.checkTimeFmt(fmt)</span>).</p>
+
+<p>If the notional rate of 60 minutes per 100 turns doesn't suit the pace of your game there are various ways in which you can change it. To change it globally for the entire game you can override the <strong>baseScaleFactor</strong> of <span class="code">clockManager</span> to some other number of minutes per hundred turns. For finer-grained control you can override either the <strong>scaleFactor</strong> or the <strong>turnsToEvent</strong> property of one or more ClockEvents. The <strong>scaleFactor</strong> determines the <span class="code">baseScaleFactor</span> the clockManager will use when the game is between the previous event and this ClockEvent. Alternatively, you can get the game to calculate a suitable <span class="code">scaleFactor</span> for you by defining the ClockEvent's <span class="code">turnsToEvent</span> property. This can be set to an estimate of the number of turns you expect a typical player to take to get from the previous ClockEvent to this one; the <span class="code">scaleFactor</span> will then be calculated accordingly (on the basis of the estimated number of turns and the number of minutes between the two ClockEvents). It may well be difficult to estimate the number of turns a "typical" player will take, but given the way the clockManager works, it's probably better to underestimate than to overestimate this number.</p>     
+     
 
 <h3>Formatting the Time</h2>     
 <p>If you want a string-formatted version of the time (as in '9:05pm'), you can call <span class="code">clockManager.checkTimeFmt(<em>fmt</em>)</span>, where <em>fmt</em> is a string specifying how you want the time to appear. Note that this method does not display anything; rather it returns a single-quoted string containing the current game time formatted in the way specified by <em>fmt</em>.</p>   

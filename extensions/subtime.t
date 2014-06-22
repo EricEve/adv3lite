@@ -54,30 +54,29 @@ clockManager: PreinitObject
          *   absence of the constraint of running up against the next event
          */
         mm = (turns * baseScaleFactor) / 100;
-
-        
-        /*   
-         *   In Mike Roberts's version of subtime, the clock is slowed down if
-         *   the base scaled time would take us within two hours of the next
-         *   event time, but this may be inappropriate if the game is working to
-         *   a much shorter or longer timescale. So we instead compute the time
-         *   at which slowing down should occur in a separate method to make it
-         *   easy for game code to override it. By default, the slow-down time
-         *   will be half-way between the previous event and the next one.
-         */
-        sdmm = slowDownTime();
-        
         
         /*
-         *   If the base scaled time would take us within sdmm of the
-         *   next event time, slow the clock down from our base scaling
-         *   factor so that we always leave ourselves room to advance the
-         *   clock further on the next check.  Reduce the passage of time
-         *   in proportion to our reduced window - so if we have only 60
-         *   minutes left, advance time at half the normal pace.  
+         *   If the base scaled time would take us within sdmm of the next event
+         *   time, slow the clock down from our base scaling factor so that we
+         *   always leave ourselves room to advance the clock further on the
+         *   next check.  Reduce the passage of time in proportion to our
+         *   reduced window - so if we have only 60 minutes left, advance time
+         *   at half the normal pace.
          */
         if (nextTime != nil)
         {
+            /*   
+             *   In Mike Roberts's version of subtime, the clock is slowed down
+             *   if the base scaled time would take us within two hours of the
+             *   next event time, but this may be inappropriate if the game is
+             *   working to a much shorter or longer timescale. So we instead
+             *   compute the time at which slowing down should occur in a
+             *   separate method to make it easy for game code to override it.
+             *   By default, the slow-down time will be half-way between the
+             *   previous event and the next one.
+             */
+            sdmm = slowDownTime();
+            
             /* get the minutes between now and the next scheduled event */
             local delta = diffMinutes(nextTime, curTime);
 
@@ -152,15 +151,20 @@ clockManager: PreinitObject
     
     /*
      *   The base scaling factor: this is the number of minutes per hundred
-     *   turns when we have unlimited time until the next event.  This
-     *   number is pretty arbitrary, since we're depending so much on the
-     *   player's uncertainty about just how long things take, and also
-     *   because we'll adjust it anyway when we're running out of time
-     *   before the next event.  Even so, you might want to adjust this
-     *   value up or down according to your sense of the pacing of your
-     *   game.  
+     *   turns when we have unlimited time until the next event.  This number is
+     *   pretty arbitrary, since we're depending so much on the player's
+     *   uncertainty about just how long things take, and also because we'll
+     *   adjust it anyway when we're running out of time before the next event.
+     *   Even so, you might want to adjust this value up or down according to
+     *   your sense of the pacing of your game.
+     *
+     *   In Mike Roberts's implementation, the baseScaleFactor was defined as a
+     *   constant value of 60. This is still the default value, but if there is
+     *   a next event we take the scale factor from that event's scaleFactor so
+     *   that we can vary the pace of time according to the spacing of events if
+     *   we wish.
      */
-    baseScaleFactor = 60
+    baseScaleFactor = (nextEvent == nil ? 60 : nextEvent.scaleFactor)
 
     /*
      *   Get the current game-clock time, formatted into a string with the
@@ -376,6 +380,13 @@ clockManager: PreinitObject
          *   did.)  
          */
         vec[1].eventReached();
+        
+        /*  
+         *   If the events module is present, set up a PromptDaemon to check
+         *   each turn whether a new ClockEvent has been reached.
+         */
+        if(defined(eventManager))
+            new PromptDaemon(self, &reachCheck);
     }
 
     /* 
@@ -405,17 +416,30 @@ clockManager: PreinitObject
         /* note the current time */
         curTime = evt.eventTime;
 
-        /* if there's another event following, note the next time */
+        /* 
+         *   if there's another event following, note the next time and the next
+         *   event, and get the next event to calculate its scale factor.
+         */
         if (idx < eventList.length())
-            nextTime = eventList[idx + 1].eventTime;
+        {
+            nextEvent = eventList[idx + 1];
+            nextTime = nextEvent.eventTime;
+            nextEvent.calcScaleFactor();
+        }
         else
+        {
+            nextEvent = nil;
             nextTime = nil;
+        }
 
         /* 
          *   we're committing to an exact wall-clock time, so remember the
          *   current turn counter as the last commit point 
          */
         turnLastCommitted = gTurns;
+        
+        /*   Note that the event has been reached */
+        evt.hasBeenReached = true;
     }
 
     /* add minutes to a [dd,hh,mm] value, returning a new [dd,hh,mm] value */
@@ -485,6 +509,34 @@ clockManager: PreinitObject
     }
 
     /* 
+     *   Check each turn whether another ClockEvent has been reached. Note that
+     *   this requires the events.t module to be present to work.
+     */
+    reachCheck()
+    {
+        /* Go through every ClockEvent in our eventList */
+        foreach(local cur in eventList)
+        {
+            /* 
+             *   If we find one that hasn't been reached before, but whose
+             *   reachedWhen condition is now true, note that it has now been
+             *   reached.
+             */
+            if(!cur.hasBeenReached && cur.reachedWhen)
+            {
+                eventReached(cur);
+                
+                /* 
+                 *   Don't continue searching for ClockEvents on this turn; we
+                 *   don't want more than one ClockEvent to be reached at a
+                 *   time.
+                 */
+                break;
+            }
+        }
+    }
+    
+    /* 
      *   our list of clock events (we build this automatically during
      *   pre-initialization) 
      */
@@ -499,6 +551,10 @@ clockManager: PreinitObject
     /* the next event's game clock time */
     nextTime = nil
 
+    /* the next event we're due to reach */
+    nextEvent = nil
+    
+    
     /* 
      *   The turn counter (Schedulable.gameClockTime) on the last turn
      *   where committed to a specific time.  Each time we check the time,
@@ -565,6 +621,66 @@ class ClockEvent: object
         /* notify the clock manager */
         clockManager.eventReached(self);
     }
+    
+    /*   
+     *   This is the number of minutes per hundred turns when we have unlimited
+     *   time until this next event.  This number is pretty arbitrary, since
+     *   we're depending so much on the player's uncertainty about just how long
+     *   things take, and also because we'll adjust it anyway when we're running
+     *   out of time before the next event.  Even so, you might want to adjust
+     *   this value up or down according to your sense of the pacing of your
+     *   game.
+     *
+     *   Alternatively you can define the turnsToEvent property (see below) and
+     *   the game will calculate an appropriate scaleFactor for you.
+     */
+    scaleFactor = 60
+    
+    /*   
+     *   Optional: if specified this should contain an estimate of the number of
+     *   turns a player is typically likely to take to get to this event from
+     *   the previous one; the game will then calculate an appropriate
+     *   scaleFactor. Alternatively this can be left at nil and the scaleFactor
+     *   specified directly.
+     */       
+    turnsToEvent = nil
+    
+    /* 
+     *   If the turnsToEvent property is not nil and the clockManager has
+     *   recorded a previous event, calculate the scaleFactor for this event.
+     */
+    calcScaleFactor()
+    {        
+        if(turnsToEvent && clockManager.lastEvent)
+        {
+            /* 
+             *   Calculate the number of minutes between this event and the
+             *   previous event.
+             */
+            local delta = clockManager.diffMinutes(
+                eventTime, clockManager.lastEvent.eventTime);
+            
+            /*  
+             *   Calculate the scaleFactor such that 100 turns will take
+             *   scaleFactor minutes.
+             */
+            scaleFactor = (delta * 100)/turnsToEvent;
+            
+        }
+    }
+    
+    /* 
+     *   A condition (or a method that returns true or nil) that causes this
+     *   event to be reached when it becomes true. This provides an alternative
+     *   way of reaching events (instead of calling the eventReached method).
+     */
+    reachedWhen = nil
+    
+    /*   
+     *   Flag: has this event been reached? This is used internally by the
+     *   library and shouldn't normally be changed in game code.
+     */
+    hasBeenReached = nil
 ;
 
 /* ------------------------------------------------------------------------ */
