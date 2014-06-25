@@ -2012,6 +2012,25 @@ modify List
     }
 ;
 
+/* Add a method to Date as a workaround for a library bug */
+modify Date
+    /* 
+     *   Get the Hours, Minutes, Seconds and Milliseconds of the current time as
+     *   a four-element list; Date.getClockTime() is meant to do this, but
+     *   doesn't work properly.
+     */
+    getHMS()
+    {
+        local hh = toInteger(formatDate('%H'));
+        local mm = toInteger(formatDate('%M'));
+        local ss = toInteger(formatDate('%S'));
+        local ms = toInteger(formatDate('%N'));
+        
+        return [hh, mm, ss, ms];
+    }
+    
+;
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Library error.  This is a base class for internal errors within the

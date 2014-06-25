@@ -1,0 +1,355 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Objtime</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Objtime
+<br><span class="navnp"><a class="nav" href="sensory.htm"><i>Prev:</i> Sensory</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="postures.htm"><i>Next:</i> Postures</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Objective Time</h1>
+<h2>Overview</h2>
+<p>"Objective Time" module.  This implements a form of in-game
+ time-keeping that advances the clock by so much per turn. By default each turn is reckoned to take one minute, but this can be changed in as fine-grained a manner as game authors wish, for example to make some actions take longer than others.</p>
+ 
+
+<br>
+
+<h2>New Classes, Objects and Properties</h2>
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, functions, objects and properties for use by game authors:</p>
+<ul>
+<li><em>Classes</em>: <strong>TimeFuse</strong>, <strong>SenseTimeFuse</strong>.</li>
+<li><em>Objects</em>: <strong>timeManager</strong>.</li>
+<li><em>Properties/methods on timeManager</em>: <span class="code">currentTime</span>, <span class="code">formatDate(fmt)</span>, <span class="code">setTime([args])</span>, <span class="code">addInterval(interval)</span>.</li>
+<li><em>Properties/methods added to Action</em>: <span class="code">advanceOnFailure</span>, <span class="code">timeTaken</span>, <span class="code">implicitTimeTaken</span>.</li>
+<li><em>Properties added to GameMainDef</em>: <span class="code">gameStartTime</span>.</li>
+<li><em>Properties/methods added to TravelConnector</em>: <span class="code">traversalTime</span>, <span class="code">traversalTimeFrom(origin)</span>.</li>
+<li><em>Functions</em>: <span class="code">addTime(secs)</span>, <span class="code">takeTime(secs)</span>.</li>
+</ul>
+
+<h2>Usage</h2>
+<p>Include the objtime.t file after the library files but before your game source files.</p>
+
+<p>When defining your <strong>gameMain</strong> object, you now need to define its <strong>gameStartTime</strong> to set the date and time of day at which your game notionally starts. This should be set to a list of numbers in the format <span class="code">[year, month, day, hour, minute, second, millisecond]</span>. Trailing zero elements may be omitted. For example setting <span class="code">gameStartTime</span> to <span class="code">[2014, 7, 23, 15, 30]</span> would setting the starting time of your game clock to 3.30pm on 23rd July 2014. Alternatively the <span class="code">gameStartTime</span> may be specified as a Date object (for details of which consult the TADS 3 System Manual), for example:</p>
+
+ <p><div class="code"><pre>
+gameMain: GameMainDef
+    initialPlayerChar = me   
+   
+    gameStartTime = static new Date(2014, 6, 22, 15, 30, 0, 0)
+;
+ </pre></div>
+ 
+<p>This is all you actually <em>need</em> to do to use the extension, but it won't be very useful if it's simply updating the time each turn unless you do something with the information. We shall now go on to discuss the things you can do with it.</p> 
+<br>
+
+<h3>Displaying the Time</h3>
+<p>One of the most basic and obvious things you can do with the time is to display it somewhere. To do this you can use the <strong>formatDate(fmt)</strong> method of the <span class="code">dateManager</span> to return a string containing the date, time, or date in time in a suitable format defined by the <em>fmt</em> parameter. For example, to display the date and time at the right-hand end of the status line you could do this:</p>
+
+ <p><div class="code"><pre>
+ modify statusLine
+    showStatusRight()
+    {
+        "&lt;&lt;timeManager.formatDate('%c')&gt;&gt;";
+    }
+; 
+ </pre></div>
+
+<p>For a full list of possible format strings, consult the chapter on the Date intrinsic class in the TADS 3 System Manual. A few of the more convenient ones are listed below:</p>
+
+<ul>
+<li><span class="code">%r</span> 	the full 12-hour clock time, e.g. '3:30:00 PM'</li>
+<li><span class="code">%R</span> 	the 24-hour clock time with minutes, e.g. '15:30'</li>
+<li><span class="code">%T</span> 	the 24-hour clock time with seconds, e.g. '15:30:00' </li>
+<li><span class="code">%X</span> 	the preferred time representation according to the locale settings; e.g. '15:30:00'</li>
+
+<li><span class="code">%c</span> 	the preferred date and time stamp for the locale, e.g.'Sun Jun 22 15:30:00 2014'</li>
+<li><span class="code">%D</span> 	the short date (in American format), e.g. to '06/22/14'</li>
+<li><span class="code">%d/%m/%y</span> the short date (in European format), e.g. '22/06/14'</li>
+<li><span class="code">%d-%b-%y</span> the short date in dd-mmm-yy format, e,g, '22-Jun-14' (probably the best format to use to avoid USA/Europe ambiguity)</li>
+<li><span class="code">%Y</span> the four-digit year number, e.g. 2014; use in place of <span class="code">%y</span> in any of the above when a four-digit year is required.</li>
+<li><span class="code">%I:%M %P</span> the 12-hour clock time with minutes, e.g. '03:30 PM'</li>
+<li><span class="code">%a </span>	the abbreviated weekday name ('Mon')</li>
+<li><span class="code">%A</span> 	the full weekday name ('Monday') </li>
+</ul>
+
+<p>Note that these can be combined as needed, for example <span class="code">timeManager.formatDate('%A, %d-%b-%y %I:%M %P')</span> might return the string 'Sunday, 22-Jun-14 03:30 PM', and of course this method may be used wherever you like in your game code, not just in the status line.</p>
+<br>
+
+<h3>Scheduling Events &mdash; TimeFuse and SenseTimeFuse</h3>
+
+<p>We can use the standard <a href="../../docs/manual/event.htm">Fuse</a> class to make something happen so many turns in the future. But what if we want something to occur not after so many turns, but after a certain amount of time (or indeed, at a certain time)? Since the objtime extension allows us to keep track of time, we may sometimes find this a more useful way to specify when something should happen than in terms of so many turns. To that end the objtime extension defines a <strong>TimeFuse</strong> class that works just like a <span class="code">Fuse</span>, but is specified in terms of time rather than turns.</p>
+
+<p>To create set up a TimeFuse, just create a new TimeFuse object thus:</p>
+
+<p><dt><span class=synLit>new TimeFuse(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>interval</span><span class=synLit><span class=synLit>)</span></dt></p>
+<p>This defines a TimeFuse that will call <span class=code>obj.(prop)</span>, i.e. the prop method of obj, after an interval of <i>interval</i> turns or at the time specified by <i>interval</i>. How <em>interval</em> is interpreted depends on how it is specified. It can be any of the following:</p>
+
+<ul>
+<li>A list in the format <span class="code">[years, months, days, hours,
+minutes, seconds]</span> (trailing elements can be omitted if they are zero). The
+TimeFuse will then execute <em>after</em> the interval specified by the list.</li>
+
+<li>An integer, in which case the TimeFuse will execute after that number of minutes.</li>
+
+<li>A BigNumber (which can be specified by simply including a decimal point), in which case the TimeFuse will execute after than number of hours. For example, an <span class="code">interval</span> of 1.25 will cause the TimeFuse to execute 1 hour and 15 minutes after the TimeFuse is created. Note than an <span class="code">interval</span> of 1.0 thus means one hour an while <span class="code">interval</span> of 1 means one minute.</li>
+
+<li>A Date (i.e. an object of the Date class), in which case the TimeFuse will execute at the Date specified.</li>
+
+<li>A single-quoted string, in which case the TimeFuse will execute at the time specified by the string. This can be either in the format 'hh:mm' (e.g. '15:34') or 'hh:mm:ss' (e.g. '15:34:30') to specify a time in the current day, or the format 'yyyy:mm:dd hh:mm:ss' (e.g. '2014:06:22 15:34:00', meaning 15:34 on 22nd June 2014), or in any of the other formats accepted by the parseDate method of the Date class (for which see the SystemManual); in practice the examples just given here are probably the easiest to work with and should cover anything you're likely to need.</li>
+</ul>
+
+<p>Note, therefore, that to specify how far into the future (the amount of time <em>after which</em>) a TimeFuse should execute, the <em>interval</em> parameter needs to be a number or a list of numbers, while to specify the date/time <em>at which</em> a TimeFuse should execute, the <em>interval</em> parameter needs to be a Date object or a string.</p>
+
+<p>The SenseTimeFuse works just like a SenseFuse, except that the interval parameter works in the same way as for a TimeFuse, i.e.:</p>
+
+<p><dt><span class=synLit>new <a name="sensefuse-idx">SenseTimeFuse</a>(</span><span class=synPar>obj</span><span class=synLit>, </span><span class=synPar>prop</span><span class=synLit>, </span><span class=synPar>interval</span><span class=synMark>[, senseProp, senseObj]</span><span class=synLit><span class=synLit>)</span></dt></p>
+
+<p>Where <i>senseProp</i> must be one of &amp;canSee, &amp;canHear or &amp;canSmell (or conceivably &amp;canReach) and <i>senseObj</i> is the object that must be sensed appropriately. Note that you can just supply the <i>senseProp</i> parameter if you want to test whether <i>obj</i> can be heard or smelled, but that if you supply the <i>senseObj</i> parameter you have to supply the <i>senseProp</i> parameter as well.
+
+<p>Finally, note that since Fuses (including TimeFuses and SenseTimeFuses) are only checked for execution once per turn, a turn may conceivably carry the game time beyond the time at which a TimeFuse (or SenseTimeFuse) was set to execute. If that happens, it will still be executed at the end of the turn. In other words, towards the end of turn cycle, every TimeFuse (and SenseTimeFuse) that has either reached or passed the time at which it is due to execute will be executed.</p>
+<br>
+
+<h3>Varying the Rate at which Time Passes</h3>
+<p>Used straight out of the box, the objtime extension simply advances the game time by one minute every turn. This may not be want you want, in which case there are several ways you can customize it to your requirements.</p>
+
+<h4>Failed Actions</h4>
+<p>Probably the simplest of these is to prevent failed actions (e.g. those that are stopped at the verify stage) from taking any time at all, since in this case nothing has actually been accomplished and the player has simply been informed why the proposed action can't be carried out. To do this we simply need to set the Action property <strong>advanceOnFailure</strong> to nil, e.g.: </p>
+
+ <p><div class="code"><pre>
+modify Action
+    advanceOnFailure = nil
+; 
+ </pre></div>
+
+<h4>Action Times</h4> 
+<p>The next simplest adjustment is to change the time taken by various actions, by overriding their <strong>timeTaken</strong> property (which is specified in seconds). You could do this globally for all actions, if you wished; for example to make every action in the game take 20 seconds:</p> 
+ 
+ <p><div class="code"><pre>
+modify Action
+    timeTaken = 20
+; 
+ </pre></div>
+ 
+<p>Or you may want different actions to take different amounts of time. For example, to make examining something take 15 seconds and taking something take 30 seconds you could do this:</p> 
+ 
+ <p><div class="code"><pre>
+modify Examine
+    timeTaken = 15
+;
+ 
+modify Take
+    timeTaken = 40
+;    
+ </pre></div> 
+ 
+<p>And so on for as many action times as you care to customize.</p> 
+ 
+<h4>Adjusting Time Taken on Particular Turns</h4> 
+<p>For even finer-grained control you can tweak the time taken for particular actions with particular objects under particular circumstances by using the <strong>addTime(secs)</strong> and <strong>takeTime(secs)</strong> functions. The addTime(secs) function adds <em>secs</em> seconds to the time taken for the turn. It can also reduce the time taken for the turn if <em>secs</em> is negative, but it can never reduce it below zero. You can use the <span class="code">addTime(secs) </span>function as many times as you like in the course of a turn, and its effect will be cumulative.</p> 
+
+<p>The <span class="code">takeTime(secs)</span> function, on the other hand, <span class="code">replaces</span> whatever the time taken for turn would have been with <em>secs</em>. If <span class="code">takeTime()</span> is used more than once in a turn, it will be the latest one that takes effect, and if <span class="code">takeTime()</span> is used on a turn, both the <span class="code">timeTaken</span> property for the action and any calls to <span class="code">addTime()</span> on the same turn will simply be ignored.</p>
+ 
+<p>As an alternative to calling <span class="code">addTime(n)</span> and <span class="code">takeTime(n) </span>from within an embedded expression you can use <span class="code">&lt;&lt;add n secs&gt;&gt;</span> and <span class="code">&lt;&lt;take n secs&gt;&gt; </span>respectively, together with some obvious variants.</p> 
+
+<p>In particular all these do the same thing:</p>
+
+ <p><div class="code"><pre>
+ "&lt;&lt;takeTime(n)&gt;&gt;";
+ "&lt;&lt;take n seconds&gt;&gt;";
+ "&lt;&lt;take n secs&gt;&gt;";
+ "&lt;&lt;take n second&gt;&gt;";
+ "&lt;&lt;take n sec&gt;&gt;"; 
+ </pre></div> 
+ 
+<p>And all these do the same thing as one another:</p>
+
+ <p><div class="code"><pre>
+ "&lt;&lt;addTime(n)&gt;&gt;";
+ "&lt;&lt;add n seconds&gt;&gt;";
+ "&lt;&lt;add n secs&gt;&gt;";
+ "&lt;&lt;add n second&gt;&gt;";
+ "&lt;&lt;add n sec&gt;&gt;"; 
+ </pre></div> 
+ 
+<p>So, for example, if unlocking a door involves shifting a particularly rusty bolt you could write:</p> 
+ 
+ <p><div class="code"><pre>
+ + oldDoor: Door 'old oak door'
+   ...
+   lockability = lockableWithoutKey
+   isLocked = true
+   
+   dobjFor(Unlock)
+   {
+      inherited();
+      "The bolt is covered with rust and feels incredibly stiff, but after 
+      wrestling with it a while you finally manage to unlock the door.
+      &lt;&lt;take 150 seconds&gt;&gt; ";
+   }
+ 
+ </pre></div> 
+ 
+<h4>Implicit Action Times</h4> 
+<p>Another facet of time-keeping you may want to control is whether implicit actions should count towards the time taken for the turn in which they occur. By default they don't since the default behaviour is simply to take one minute per turn, but you may think it perverse that the commands TAKE BALL, PUT BALL IN BOX should take two minutes in total if both are given explicitly, but only one minute in total if TAKE BOX is performed as implicit action in response to PUT BALL IN BOX. To change this behaviour you can override the <strong>implicitTimeTaken</strong> property of an Action to be the number of seconds that Action should take when performed implicitly. To have every Action take the same time when performed implicitly as it does when carried out in response to an explicit command you can simply write:</p> 
+ 
+ <p><div class="code"><pre>
+modify Action    
+    implicitTimeTaken = timeTaken
+;</pre></div>
+
+<h4>Travel Times</h4>
+<p>As things stand, every travel action will take one minute, whether it's going from the kitchen to the hall or crossing a large field to enter a wood on the far side. Moreover, if fastGoTo is enabled (either globally or in a particular region) then a GO TO command could whip the player character across the field, through the wood, up a path and over a bridge all in one go, and the turn would still only take a minute.</p>
+
+<p>If you want to change this, the best way is probably to turn off the time taken by travel actions and instead make traversing TravelConnectors take time instead, which you can do by setting their <strong>traversalTime</strong> property. As a start you might do something like this:</p>
+
+ <p><div class="code"><pre>
+ modify TravelAction
+    timeTaken = 0    
+;
+
+modify GoTo
+    timeTaken = 0
+;
+
+modify Continue
+    timeTaken = 0
+;
+
+modify TravelConnector
+    traversalTime = 120
+;
+ </pre></div>
+
+<p>This assumes that you reckon that in your game world, travel from one place to the next should typically take two minutes. If your map was on a smaller scale, you'd obviously choose a smaller number, perhaps only 30 seconds. Of course, it may be that not all distances on your game map are equal. You can deal with this by assigning different <span class="code">traversalTime</span> values to different TravelConnectors.</p> 
+
+<p>That's all very well up to a point, but what if many (if not most) of your connections are direct from one room to another, without any other TravelConnector object intervening? Since Room inherits from TravelConnector, you can give a Room a <span class="code">traversalTime</span>, but then that will be the time taken to enter the room from any other room (unless the travel is carried out via some intermediate TravelConnector such as a Door, Stairway or Passage, in which case that intermediary TravelConnector's <span class="code">traversalTime</span> will apply instead). You probably won't want to create a lot of extra TravelConnector objects just to vary the TravelTime, however, so fortunately there's another way to handle this situation. Instead of overriding the room's <span class="code">traversalTime</span> property, you can override its <strong>traversalTimeFrom(origin)</strong> method (where <em>origin</em> is the other room the traveler is coming from) to return different traversal times depending on the origin. For example, suppose you think it should take 30 seconds to reach the meadow from the road, a minute to reach the meadow from the river bank, and two minutes to reach it from the wood, you could define the meadow's <span class="code">traversalTimeFrom()</span> method accordingly:</p>
+
+ <p><div class="code"><pre>
+ meadow: Room 'Meadow'
+    "The road lies just to the south..."
+    south = road
+    north = wood
+    east = riverbank
+    
+    traversalTimeFrom(origin)
+    {
+        switch(origin)
+        {
+           case road:
+              return 30;
+           case riverbank:
+              return 60;
+           case wood:
+              return 120;
+           default:
+              return traversalTime;
+        }
+    }
+;    
+ </pre></div>
+ 
+<p>The default in the switch statement may not be strictly necessary, but it may be as well to put in for safety; if you were later to add another connection to the meadow and forget to change the <span class="code">traversalTimeFrom()</span> method, it would at least then handle it reasonably gracefully. Perhaps a more serious problem is that this method of specifying travel times between different rooms could quickly become quite tedious and long-winded if there were a lot to specify. One way to alleviate this would be to use some kind of data structure, perhaps a LookupTable, to store the different traversal times between pairs of rooms and then define the traversalTimeFrom() method to make use of it, e.g.:</p> 
+ 
+ <p><div class="code"><pre>
+ modify Room
+    traversalTab = static [
+        [road, meadow] -> 30,
+        [riverbank, meadow] -> 60,
+        [wood, meadow] -> 120,
+        ...
+    ]
+    
+    traversalTimeFrom(origin)
+    {
+        local tim = traversalTab[[origin, self]];
+        return tim == nil ? traversalTime : tim;
+    }
+; 
+ </pre></div>
+ 
+<p>One alternative would be to use a list defined on each room of the travel times from other rooms, something like:</p> 
+ 
+ <p><div class="code"><pre>
+ modify Room
+    timeFrom = []
+    
+    traversalTimeFrom(origin)
+    {
+        local idx = timeFrom.indexOf(origin);
+        return idx == nil ? traversalTime : timeFrom[idx + 1];
+    }
+;
+
+ meadow: Room 'Meadow'
+    "The road lies just to the south..."
+    south = road
+    north = wood
+    east = riverbank
+    
+    timeFrom = [road, 30, riverbank, 60, wood, 120]    
+;    
+ </pre></div> 
+ 
+<p>This may well be easier to work with, since the relevant data is kept with the room it relates to. Either way you would, of course, only have to specify the exceptions, since for any route not otherwise specified the room's <span class="code">traversalTime</span> would be used.</p> 
+ 
+<h4>Time Leaps</h4> 
+ 
+<p>The final kind of time adjustment you may want to deal with is leaps in time. These may occur in your game if it contains a flashback, for example, or if you cut from one scene to another that takes place hours or even days later. In principle this is simple enough to do: you just call the <strong>setTime()</strong> method of the <span class="code">timeManager</span> object, or else update <span class="code">timeManager.currentTime</span> directly. If you use the <span class="code">setTime()</span> method the arguments to pass to it are the same as those you'd pass to the Date constructor (for which see the TADS 3 System Manual). The two simplest formats to use are probably:</p> 
+ 
+<ul>
+<li><span class="code">timeManager.setTime(year, month, day, hour, minutes, seconds, ms)</span>: possibly the best bet if you want to change both the date and the time. <em>year</em> is the year number (e.g., 2012), <em>month</em> is the month (1 to 12), <em>day</em> is the day of the month (1 to 31). <em>hour</em> is the clock hour (0 for midnight to 23 for 11 PM), <em>minutes</em> is the number of minutes past the hour (0 to 59), <em>seconds</em> is the number of seconds past the minute (0 to 59), and <em>ms</em> is the number of milliseconds past the second (0 to 999).</li>
+<li><span class="code">timeManager.setTime('hour:minutes:seconds')</span> or <span class="code">timeManager.setTime('hour:minutes')</span>, where <em>hour</em>, <em>minutes</em> and <em>seconds</em> have the same meaning as before. This is probably the best option to use if you simply want to jump to a different time on the same day. (Note that if you were using the Date constructor directly you would need to supply a couple of extra arguments to make sure the day did stay the same, but the <span class="code">setTime()</span> method takes care of this for you.)</li>
+</ul> 
+ 
+<p>If you want to jump <em>by</em> a certain amount you can use the <strong>addInterval(interval)</strong> method of timeManager, where <em>interval</em> can be one of:</p> 
+
+<ul>
+<li>A list of numbers in the form <span class="code">[years, months, days, hours, minutes, seconds]</span>; trailing zero elements may be omitted.</li>
+<li>A single integer, in which case this will be taken as the number of minutes to advance the time.</li>
+<li>A single BigNumber (a number containing a decimal point), in which case this will be taken as the number of hours to advance the time.</li>
+</ul>
+
+<p>Thus calling <span class="code">timeManager.addInterval(15)</span> and <span class="code">timeManager.addInterval(0.25)</span> would both advance the time by a quarter of an hour. Note that these numbers can be negative as well as positive, so that, for example, <span class="code">timeManager.addInterval(-24.0)</span> would send the time a day into the past. A further subtlety to note is that unless you do something to prevent it, calling <span class="code">timeManager.addInterval()</span> won't prevent the normal advance of time that takes place in any case on each turn. So, for example, if each turn would normally take one minute and you call <span class="code">timeManager.addInterval(1)</span> you'll find that the game time has advanced by <em>two</em> minutes at the end of the turn, one minute from <span class="code">addInterval()</span> and the other from the normal turn handling.</p>
+<br>
+ 
+<h2>Final Considerations</h2>
+ 
+<h3>Is it worth it?</h3>
+<p>The Object Time extension is capable of providing you with extensive control over the passage of time in your game, but to do so in any great detail will probably involve you in a large amount of work. Do you really need it? After all, most Interactive Fiction gets by perfectly well without giving players any explicit notification of the passage of time, and if all you need is a few vague indications of time, to mark the occurrence of major plot events, say, you're probably better off using the Subjective Time extension (<a href="subtime.htm">subtime</a>), which will cause you a lot less work. So why might you need to use objtime at all?</p>
+
+<p>The kind of circumstance in which objtime might be useful are when:</p>
+
+<ul>
+<li>You want to display the game time in the status line (subtime is quite unsuitable for this).</li>
+<li>Your game contains a number of puzzles for which timing is crucial and needs to be measured with a plausible degree of accuracy.</li>
+<li>For dramatic reasons you want to create a sense of urgency by making the player aware of the passage of time.</li>
+</ul>
+
+<br> 
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../objtime.t">objtime.t</a> file.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Objtime
+<br><span class="navnp"><a class="nav" href="sensory.htm"><i>Prev:</i> Sensory</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="postures.htm"><i>Next:</i> Postures</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

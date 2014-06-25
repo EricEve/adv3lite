@@ -959,6 +959,12 @@ class Action: ReplaceRedirector
      *   normally this will only apply to debugging actions.
      */
     unhides = nil
+    
+    /*  
+     *   This does nothing in the main library but is provided as a hook for the
+     *   objtime extension to use to add to the time taken by implicit actions.
+     */
+    addImplicitTime() { }
 ;
 
 
@@ -1075,6 +1081,24 @@ class IAction: Action
                 i.obj.scoreObject(cmd, role, lst, i);
         }
     }
+    
+    /* 
+     *   These methods are provided to allow an IAction to be invoked as an
+     *   implicit action.
+     */
+    execResolvedAction()
+    {
+        execAction(gCommand);
+    }
+    
+    /* Nothing to do here. */
+    setResolvedObjects([objs]) { }
+    
+    /* 
+     *   An IAction has no resolved objects, so we simply return true to
+     *   indicate that scope is not a problem.
+     */
+    resolvedObjectsInScope()  { return true;  }
 ;
 
 /* 
@@ -2517,6 +2541,9 @@ tryImplicitAction(action, [objs])
     {
         /* Execute our new action. */
         action.execResolvedAction();
+             
+        /* Provide a hook for the objtime extension to use. */
+        action.addImplicitTime();
         
         /* 
          *   If all went well, return true to indicate that we were able to

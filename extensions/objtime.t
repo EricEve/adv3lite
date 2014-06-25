@@ -1,6 +1,6 @@
 #charset "us-ascii"
 #include "advlite.h"
-#include "date.h"
+
 
 /* Objective Time module */
 
@@ -16,8 +16,17 @@ timeManager: InitObject
     
     execute()
     {
-        /* Get our starting time from the gameMain object */
-        currentTime = new Date(gameMain.gameStartTime...);
+        /* 
+         *   Get our starting time from the gameMain object, unless we're
+         *   getting it from the clockManager.
+         */
+        if(defined(clockManager) && clockManager.lastEvent)
+            ;
+        else if(gameMain.propType(&gameStartTime) == TypeList)
+            currentTime = new Date(gameMain.gameStartTime...);
+        else if(gameMain.propType(&gameStartTime) == TypeObject 
+                && gameMain.gameStartTime.ofKind(Date))
+            currentTime = gameMain.gameStartTime;
         
         /* Set up the PromptDaemon to reset certain values each turn. */
         new PromptDaemon(self, &reset);
@@ -32,8 +41,17 @@ timeManager: InitObject
         replacementTime = nil;       
     }
     
+    /* 
+     *   The number of seconds to add to the time taken on the current turn in
+     *   addition to the standard time for this action.
+     */
     additionalTime = 0
     
+    /*   
+     *   If this is not nil, use this as the number of seconds taken by the
+     *   current turn instead of the number computed from the action plus
+     *   additionalTime.
+     */
     replacementTime = nil
     
     /* 
@@ -74,7 +92,51 @@ timeManager: InitObject
      */
     setTime([args])
     {
-        currentTime = new Date(args...);
+        /* 
+         *   If the only argument supplied is a single string, add a nil
+         *   timezone and the current date to make the reference date come out
+         *   as the current date; this ensures that if the string specifies a
+         *   time it will be interpreted as a time on the current in-game date,
+         *   rather than the real-world date.
+         */
+        if(args.length == 1 && dataType(args[1] == TypeSString))
+            currentTime = new Date(args[1], nil, currentTime);
+        /* 
+         *   Otherwise just pass all the arguments straight through to the Date
+         *   constructor
+         */
+        else
+            currentTime = new Date(args...);
+    }
+    
+   /* 
+    *   Adjust the currentDate by interval, where interval is specified as for
+    *   the interval argument for the addInterval method of the Date class, i.e.
+    *   as a list in the format [years, months, days, hours, minutes, seconds],
+    *   from which trailing zeroes may be omitted.
+    *
+    *   interval may also be specified as an integer (in which case it will be
+    *   taken as the number of minutes to advance) or as a BigNumber (in which
+    *   case it will be taken as the number of hours).
+    */    
+    addInterval(interval)
+    {   
+        /* 
+         *   If the interval is specified as a BigNumber, take that to be the
+         *   number of hours.
+         */
+        if(dataType(interval) == TypeObject && interval.ofKind(BigNumber))
+           interval = [0, 0, 0, interval];
+        
+        /* 
+         *   If the interval is specified as an integer, take that to be the
+         *   number of hours.
+         */
+        if(dataType(interval) == TypeInt)
+            interval = [0, 0, 0, 0, interval];
+           
+        
+        currentTime = currentTime.addInterval(interval);
     }
 ;
 
@@ -106,23 +168,9 @@ modify Action
         if(advanceOnFailure || !actionFailed)
         {
             timeManager.advanceTime(timeTaken);
-        }
+        } 
     }
-    
-    execCycle(cmd)
-    {
-        /* Carry out the inherited handling */
-        inherited(cmd);
-        
-        /* 
-         *   If we're an implicit action then add the time we take as an
-         *   implicit action to the total time taken for this turn.
-         */
-        if(isImplicit)
-            addTime(implicitTimeTaken);
-    }
-    
-    
+       
     
     /* 
      *   Flag: should the game time be advanced if this action fails? By default
@@ -146,6 +194,12 @@ modify Action
      *   actions were felt to give an unfair advantage to timed puzzles.
      */
     implicitTimeTaken = 0
+    
+    /*  Add our implicitTimeTaken to the total time taken for the turn. */
+    addImplicitTime() 
+    { 
+        addTime(implicitTimeTaken);
+    }
     
 ;
 
@@ -263,8 +317,21 @@ modify TravelConnector
      */
     traversalTime = 0
     
+    /*  
+     *   If we want to vary the time to go through this TravelConnector
+     *   depending on where the traveler is starting from (only really relevant
+     *   for rooms), we can override this method instead.
+     */
+    traversalTimeFrom(origin)
+    {
+        return traversalTime;
+    }
+    
     travelVia(actor, suppressBeforeNotifications?)
     {
+        /* Note the actor's starting location */
+        local origin = actor.getOutermostRoom();
+        
         /* Carry out the inherited handling */
         inherited(actor, suppressBeforeNotifications);
         
@@ -274,8 +341,9 @@ modify TravelConnector
          *   don't want to count the travel time twice.
          */
         if(!suppressBeforeNotifications)
-            addTime(traversalTime);
+            addTime(traversalTimeFrom(origin));
     }
+    
 ;
     
 

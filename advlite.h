@@ -33,6 +33,7 @@
 #include <gramprod.h>
 #include <strcomp.h>
 
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Turn on sourceTextGroup property generation in the compiler.  (This lets
@@ -1170,5 +1171,12 @@ string template <<add * secs>> addTime;
 #define more inputManager.pauseForMore()
 #define input(x...) inputManager.getInputLine(x)
 #define waitKey(x...) inputManager.getKey(x)
+
+/*----------------------------------------------------------------------------*/
+/*
+ *   Include the header for the Date intrinsic class. For some reason the
+ *   compiler seems to prefer this to be at the end of this header file.
+ */
+#include <date.h>
 
 #endif
