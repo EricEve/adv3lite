@@ -2,7 +2,7 @@
 <!-- DERIVED FILE - DO NOT EDIT -->
 
 <head>
-<title>Final Moves &mdash; Some Output Issues</title>
+<title>Final Moves &mdash; Some Output and Input Issues</title>
 <link rel="stylesheet" href="sysman.css" type="text/css">
 </head>
 <body>
@@ -10,7 +10,7 @@
 <div class="nav">
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="final.htm">Final Moves</a> &gt; 
-Some Output Issues
+Some Output and Input Issues
 <br><span class="navnp"><a class="nav" href="final.htm"><i>Prev:</i> Final Moves</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="utility.htm"><i>Next:</i> Utility Functions</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
@@ -48,14 +48,174 @@ cquoteOutputFilter.activate();
 </pre></div>
 <p>When we don't know in advance what output doSomething() will produce.</p>  
 
-<p>You may also want to look at the <a href="webui.htm#inputmanager">inputManager</a> methods for ways of pausing output and requesting input.</p>
+<a name="input"></a>
+<h1>Some Input Issues</h1>
+<h2>inputManager</h2>
 
+<p>You may want to look at the <a href="webui.htm#inputmanager">inputManager</a> methods for ways of pausing output and requesting input.</p>
+<br>
+
+<h2>StringPreParser</h2>
+
+<p>It is sometimes useful to alter the player's input before passing it to the Parser to interpret. For this purpose you can use a <span class="code">StringPreParser</span> and define its <strong>doParsing()</strong> method:</p>
+
+ <p><div class="code"><pre>
+ myPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        <span class="comment">/* do stuff here */</span>
+        
+        return str;
+    }
+ 
+ </pre></div>
+
+<p>Here, <em>str</em> is the string typed by the player (possibly adjusted by one or more previous StringPreParsers). The <em>which</em> parameter gives some indication of the context of what the player just typed and can be one of:</p>
+ 
+<ul>
+<li><strong>rmcDisambig</strong>: the player has just responded to a disambiguation prompt.</li>
+<li><strong>rmcAskObject</strong>: the player has just responded to a request to supply a missing object to complete a command.</li>
+<li><strong>rmcCommand</strong>: the player has entered a new command at the command prompt.</li>
+</ul> 
+
+<p>Note that even if <em>which</em> is <span class="code">rmcDisambig</span> or <span class="code">rmcAskObject</span> the player may have entered a complete new command instead of responding to the request to disambiguate or to supply a missing noun. You code will need to check for this possibility.</p> 
+<a name="comment"></a>
+<p>The <span class="code">doParsing()</span> method should then return the (same or adjusted) string which will passed on to the Parser to interpret. Alternatively it can return nil to signal that the StringPreParser has dealt with the player's input in full, so the Parser can ignore it. For example, the adv3Lite library defines a <strong>commentPreParser</strong> thus (in order to field play-testers' comments on beta versions of your game):</p>
+ 
+ <p><div class="code"><pre>
+<span class="comment"> /* ------------------------------------------------------------------------ */
+/*
+ *   The "comment" pre-parser.  If the command line starts with a special
+ *   prefix string (by default, "*", but this can be changed via our
+ *   commentPrefix property), this pre-parser intercepts the command,
+ *   treating it as a comment from the player and otherwise ignoring the
+ *   entire input line.  The main purpose is to give players a way to put
+ *   comments into recorded transcripts, as notes to themselves when later
+ *   reviewing the transcripts or as notes to the author when submitting
+ *   play-testing feedback.  
+ */</span>
+commentPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        <span class="comment">/* get the amount of leading whitespace, so we can ignore it */</span>
+        local sp = rexMatch(leadPat, str);
+        
+        <span class="comment">/* 
+         *   if the command line starts with the comment prefix, treat it
+         *   as a comment 
+         */</span>
+        if (str.substr(sp + 1, commentPrefix.length()) == commentPrefix)
+        {
+           <span class="comment"> /*
+             *   It's a comment.
+             *   
+             *   If a transcript is being recorded, simply acknowledge the
+             *   comment; if not, acknowledge it, but with a warning that
+             *   the comment isn't being saved anywhere 
+             */</span>
+            if (scriptStatus.scriptFile != nil)
+                DMsg(note with script, 'Comment recorded. ');
+            else if (warningCount++ == 0)
+                DMsg(note without script warning, 'Comment NOT recorded. ');
+            else
+                DMsg(note without script, 'Comment NOT recorded. ');
+
+           <span class="comment"> /* 
+             *   Otherwise completely ignore the command line.  To do this,
+             *   simply return nil: this tells the parser that the command
+             *   has been fully handled by the preparser. 
+             */</span>
+            return nil;
+        }
+        else
+        {
+           <span class="code"> /* it's not a command - return the string unchanged */</span>
+            return str;
+        }
+    }
+
+    <span class="comment">/* 
+     *   The comment prefix.  You can change this to any character, or to
+     *   any sequence of characters (longer sequences, such as '//', will
+     *   work fine).  If a command line starts with this exact string (or
+     *   starts with whitespace followed by this string), we'll consider
+     *   the line to be a comment.  
+     */</span>
+    commentPrefix = '*'
+    
+    <span class="comment">/* 
+     *   The leading-whitespace pattern.  We skip any text that matches
+     *   this pattern at the start of a command line before looking for the
+     *   comment prefix.
+     *   
+     *   If you don't want to allow leading whitespace before the comment
+     *   prefix, you can simply change this to '' - a pattern consisting of
+     *   an empty string always matches zero characters, so it will prevent
+     *   us from skipping any leading charactres in the player's input.  
+     */</span>
+    leadPat = static new RexPattern('&lt;space&gt;*')
+
+    <span class="comment">/* warning count for entering comments without SCRIPT in effect */</span>
+    warningCount = 0
+
+    <span class="comment">/*
+     *   Use a lower execution order than the default, so that we run
+     *   before most other pre-parsers.  Most other pre-parsers are written
+     *   to handle actual commands, so it's usually just a waste of time to
+     *   have them look at comments at all - and can occasionally be
+     *   problematic, since the free-form text of a comment could confuse a
+     *   pre-parser that's expecting a more conventional command format.
+     *   When the comment pre-parser detects a comment, it halts any
+     *   further processing of the command - so by running ahead of other
+     *   pre-parsers, we'll effectively bypass other pre-parsers when we
+     *   detect a comment.  
+     */</span>
+    runOrder = 50
+ </pre></div> 
+ 
+<p>Note the use of the <strong>runOrder</strong> property to determine the order in which this StringPreParser is consulted in relation to any other StringPreParsers that have been defined. StringPreParsers are run in ascending order of their <span class="code">runOrder</span> property (i.e. lowest first); the default value of <span class="code">runOrder</span> is 100.</p> 
+
+<p>Note that StringPreParsers also have an <strong>isActive</strong> property; this can be set to nil on individual StringPreParsers if you want to temporarily disable them.</p>
+
+<p>Finally, note how the <strong>commentPrefix</strong> property of the <span class="code">commentPreParser</span> defined above can be overridden to change the character (or characters) used to introduce a play-tester's comments.</p>
+
+<p>As an example of a StringPreParser that (sometimes) changes the text passed to it into something else, here's the <span class="code">queryPreParser</span> defined in the adv3Lite library (its function is to change commands like WHERE'S THE SALT into a form like WHERE IS THE SALT, that the parser can more easily understand):</p>
+
+
+ <p><div class="code"><pre>
+<span class="comment">/* 
+ *   For queries, turn an apostrophe-s form into the underlying qtype plus is so
+ *   that the grammar defined immediately above can be matched.
+ */</span>
+
+queryPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        local s = str.toLower();
+        
+        <span class="comment">/* First, check that this looks like a query */</span>
+        if(s.startsWith('a ') || s.startsWith('ask ') || s.substr(1, 3) is in
+           ('who', 'wha', 'whe', 'why', 'how'))
+        {
+            str = s.findReplace(['what\'s','who\'s', 'where\'s', 'why\'s',
+                'when\'s', 'how\'s'], ['what is', 'who is', 'where is', 'why
+                    is', 'when is', 'how is'], ReplaceOnce);        
+                       
+        
+        }
+
+    
+        return str;
+    }
+;
+ 
+ </pre></div>
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="final.htm">Final Moves</a> &gt; 
-Some Output Issues
+Some Output and Input Issues
 <br><span class="navnp"><a class="nav" href="final.htm"><i>Prev:</i> Final Moves</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="utility.htm"><i>Next:</i> Utility Functions</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>

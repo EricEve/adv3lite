@@ -515,7 +515,7 @@ class Test: object
             "<b>><<x>></b>\n";
             
             /* Preparse the command */
-            x = StringPreParser.runAll(x, nil);                          
+            x = StringPreParser.runAll(x, rmcCommand);                          
             
             /* 
              *   Execute the preparsed command if it is not nil after preparsing

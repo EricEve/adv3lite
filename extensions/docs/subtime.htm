@@ -34,7 +34,7 @@ Subtime
 <ul>
 <li><em>Classes</em>: <strong>ClockEvent</strong>.</li>
 <li><em>Objects</em>: <strong>clockManager</strong>.</li>
-<li><em>Properties/methods on clockManager</em>: <span class="code">checkTime()</span>, <span class="code">baseScaleFactor</span>, <span class="code">checkTimeFmt(fmt)</span>, <span class="code">formatTime(t, fmt)</span>, <span class="code">eventReached(evt)</span>.</li>
+<li><em>Properties/methods on clockManager</em>: <span class="code">checkTime()</span>, <span class="code">baseScaleFactor</span>, <span class="code">scaleFactor</span>, <span class="code">checkTimeFmt(fmt)</span>, <span class="code">formatTime(t, fmt)</span>, <span class="code">eventReached(evt)</span>, <span class="code">baseDate</span>.</li>
 <li><em>Properties/methods on ClockEvent</em>: <span class="code">eventTime</span>, <span class="code">formatTime(fmt)</span>, <span class="code">eventReached()</span>, <span class="code">reachedWhen</span>, <span class="code">scaleFactor</span>, <span class="code">turnsToEvent</span>.</li>
 </ul>
 
@@ -88,66 +88,48 @@ meetBobEvent: ClockEvent [2, 14, 10];
      is unless they ask, or there's some other good reason.</p>
      
 <p>You must create at least one ClockEvent in your game, or this module will cause a run-time error. You should in any case create a ClockEvent to set the time at the start of play. This will be the ClockEvent with the earliest eventTime; the earliest ClockEvent is automatically marked as reached at the start of the game; you don't need to call its <span class="code">eventReached()</span> method or set its <span class="code">reachedWhen</span> property.</p>     
+
+<p>If you want your game to start on a particular day (that is, it's important to track the date as well at the time), you can set the starting date (i.e. the date that counts as Day 1) by overriding the clockManager's <strong>baseDate</strong> property to a Date object; for example to start the game on August 24th 2015 you might write:</p>
+     
+ <p><div class="code"><pre>
+ modify clockManager
+    baseDate = static new Date(2015, 8, 24)
+ ;
+ </pre></div>     
+  
+<p>If <strong>gameMain.gameStartTime</strong> is defined, the date defined there will be used as the starting date instead. If the starting date is not defined in either place, the game will notionally start on January 1st, 2000.</p>  
      
 <p>The <span class="code">clockManager</span> works by advancing the notional time by 60 minutes per hundred turns (by default) until half the time until the next ClockEvent is reached. The passage of time per turn is then progressively slowed down to prevent the time of the next ClockEvent being reached prematurely. Note that time is only computed when <span class="code">clockManager.checkTime()</span> is called (either directly or via <span class="code">clockManager.checkTimeFmt(fmt)</span>).</p>
 
-<p>If the notional rate of 60 minutes per 100 turns doesn't suit the pace of your game there are various ways in which you can change it. To change it globally for the entire game you can override the <strong>baseScaleFactor</strong> of <span class="code">clockManager</span> to some other number of minutes per hundred turns. For finer-grained control you can override either the <strong>scaleFactor</strong> or the <strong>turnsToEvent</strong> property of one or more ClockEvents. The <strong>scaleFactor</strong> determines the <span class="code">baseScaleFactor</span> the clockManager will use when the game is between the previous event and this ClockEvent. Alternatively, you can get the game to calculate a suitable <span class="code">scaleFactor</span> for you by defining the ClockEvent's <span class="code">turnsToEvent</span> property. This can be set to an estimate of the number of turns you expect a typical player  to take to get from the previous ClockEvent to this one; the <span class="code">scaleFactor</span> will then be calculated accordingly (on the basis of the estimated number of turns and the number of minutes between the two ClockEvents). It may well be difficult to estimate the number of turns a "typical" player will take, but given the way the clockManager works, it's probably better to underestimate than to overestimate this number.</p>     
+<p>If the notional rate of 60 minutes per 100 turns doesn't suit the pace of your game there are various ways in which you can change it. To change it globally for the entire game you can override the <strong>baseScaleFactor</strong> of <span class="code">clockManager</span> to some other number of minutes per hundred turns, or else override the <strong>scaleFactor</strong> property of the <span class="code">clockManager</span> for the number of minutes per hundred turns to use once the last ClockEvent is passed. For finer-grained control you can override either the <strong>scaleFactor</strong> or the <strong>turnsToEvent</strong> property of one or more ClockEvents. The ClockEvent's <strong>scaleFactor</strong> determines the <span class="code">baseScaleFactor</span> the clockManager will use when the game is between the previous event and this ClockEvent. Alternatively, you can get the game to calculate a suitable <span class="code">scaleFactor</span> for you by defining the ClockEvent's <span class="code">turnsToEvent</span> property. This can be set to an estimate of the number of turns you expect a typical player  to take to get from the previous ClockEvent to this one; the <span class="code">scaleFactor</span> will then be calculated accordingly (on the basis of the estimated number of turns and the number of minutes between the two ClockEvents). It may well be difficult to estimate the number of turns a "typical" player will take, but given the way the clockManager works, it's probably better to underestimate than to overestimate this number.</p>     
      
 
 <h3>Formatting the Time</h2>     
 <p>If you want a string-formatted version of the time (as in '9:05pm'), you can call <span class="code">clockManager.checkTimeFmt(<em>fmt</em>)</span>, where <em>fmt</em> is a string specifying how you want the time to appear. Note that this method does not display anything; rather it returns a single-quoted string containing the current game time formatted in the way specified by <em>fmt</em>.</p>   
 
-<p>The format string given by <em>fmt</em> consists of one or more prefixes, followed by a
-     format mask.  The prefixes are flags that control the formatting,
-     but don't directly insert any text into the result string:</p>
-     
-<ul>          
-     <li>24 -&gt; use 24-hour time; if this isn't specified, a 12-hour clock
-     is used instead.  On the 24-hour clock, midnight is hour zero, so
-     12:10 AM is represented as 00:10.</li>
-        
-     <li>[am][pm] -&gt; use 'am' as the AM string, and 'pm' as the PM string,
-     for the 'a' format mask character.  This lets you specify an
-     arbitrary formatting for the am/pm marker, overriding the default
-     of 'am' or 'pm'.  For example, if you want to use 'A.M.' and
-     P.M.'  as the markers, you'd write a prefix of [A.M.][P.M.].  If
-     you want to use ']' within the marker string itself, quote it with
-     a '%': '[[AM%]][PM%]]' indicates markers of '[AM]' and '[PM]'.</li>
-</ul>     
-     
-<p>Following the prefix flags, you specify the format mask.  This is
-a set of special characters that specify parts of the time to
-insert.  Each special character is replaced with the corresponding
-formatted time information in the result string.  Any character
-that isn't special is just copied to the result string as is.  The
-special character are:</p>
+<p>For a full list of possible format strings, consult the chapter on the Date intrinsic class in the TADS 3 System Manual. A few of the more convenient ones are listed below:</p>
 
-<ul>  
-<li>h -&gt; hour, no leading zero for single digits (hence 9:05, for example)</li>
-     
-<li>hh -&gt; hour, leading zero (09:05)</li>
-     
-<li>m -&gt; minutes, no leading zero (9:5)</li>
-     
-<li>mm -&gt; minutes with a leading zero (9:05)</li>
-        
-<li>a -&gt; AM/PM marker.  If an [am][pm] prefix was specified, the 'am'
-    or 'pm' string from the prefix is used.  Otherwise, 'am' or 'pm'
-    is literally inserted.</li>
-        
-<li> % -&gt; quote next character (so %% -&gt; a single %)</li>
-        
-<li>other -&gt; literal</li>
+<ul>
+<li><span class="code">%r</span> 	the full 12-hour clock time, e.g. '3:30:00 PM'</li>
+<li><span class="code">%R</span> 	the 24-hour clock time with minutes, e.g. '15:30'</li>
+<li><span class="code">%T</span> 	the 24-hour clock time with seconds, e.g. '15:30:00' </li>
+<li><span class="code">%X</span> 	the preferred time representation according to the locale settings; e.g. '15:30:00'</li>
+
+<li><span class="code">%c</span> 	the preferred date and time stamp for the locale, e.g.'Sun Jun 22 15:30:00 2014'</li>
+<li><span class="code">%D</span> 	the short date (in American format), e.g. to '06/22/14'</li>
+<li><span class="code">%d/%m/%y</span> the short date (in European format), e.g. '22/06/14'</li>
+<li><span class="code">%d-%b-%y</span> the short date in dd-mmm-yy format, e,g, '22-Jun-14' (probably the best format to use to avoid USA/Europe ambiguity)</li>
+<li><span class="code">%Y</span> the four-digit year number, e.g. 2014; use in place of <span class="code">%y</span> in any of the above when a four-digit year is required.</li>
+<li><span class="code">%I:%M %P</span> the 12-hour clock time with minutes, e.g. '03:30 PM'</li>
+<li><span class="code">%a </span>	the abbreviated weekday name ('Mon')</li>
+<li><span class="code">%A</span> 	the full weekday name ('Monday') </li>
 </ul>
-   
-<p>Examples:</p>
-<ul>  
-<li>'hh:mma' produces '09:05am'</li>
-<li>'[A.M][P.M]h:mma' produces '9:05 P.M.'</li>
-<li>'24hhmm' produces '2105'.  </li>
-</ul>
+
+<p>Note that these can be combined as needed, for example <span class="code">timeManager.formatDate('%A, %d-%b-%y %I:%M %P')</span> might return the string 'Sunday, 22-Jun-14 03:30 PM', and of course this method may be used wherever you like in your game code, not just in the status line.</p>
+<br>
 <br>
      
+<a name="rationale"></a>     
 <h2>Rationale</h2>
  
  
@@ -427,7 +409,7 @@ in at 6pm.</p>
     
  <p>One final note: if you want to display a clock in the status line, or
  show the current time with every prompt, this is the wrong module to
- use.  A key assumption of the scheme implemented here is that the
+ use (use the <a href="objtime.htm">Objective Time</a> module instead).  A key assumption of the scheme implemented here is that the
  time will be checked only occasionally, when it occurs to the player
  to look.  If the game is constantly checking the time
  programmatically, it'll defeat the whole purpose, since we won't be

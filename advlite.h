@@ -213,6 +213,39 @@ dictionary property noun, nounApostS;
  */
 #define SelProg             0x1000
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   readMainCommandTokens() phase identifiers.  We define a separate code
+ *   for each kind of call to readMainCommandTokens() so that we can do any
+ *   special token processing that depends on the type of command we're
+ *   reading.
+ *   
+ *   The library doesn't use the phase information itself for anything.
+ *   These phase codes are purely for the author's use in writing
+ *   pre-parsing functions and for differentiating prompts for the different
+ *   types of input, as needed.
+ *   
+ *   Games that read additional response types of their own are free to add
+ *   their own enums to identify the additional phases.  Since the library
+ *   doesn't need the phase information for anything internally, it won't
+ *   confuse the library at all to add new game-specific phase codes.  
+ */
+
+/* reading a normal command line */
+enum rmcCommand;
+
+/* reading an unknown word response, to check for an "oops" command */
+enum rmcOops;
+
+/* reading a response to a prompt for a missing object phrase */
+enum rmcAskObject;
+
+/* reading a response to a prompt for a missing literal phrase */
+enum rmcAskLiteral;
+
+/* reading a response to an interactive disambiguation prompt */
+enum rmcDisambig;
+
 
 /* ------------------------------------------------------------------------ */
 /* 

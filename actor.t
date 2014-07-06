@@ -3764,7 +3764,7 @@ endConvActor: object;
  */
 class DefaultTopic: ActorTopicEntry       
     /* A DefaultTopic matches any Thing or Topic or yes or no */
-    matchObj = [Thing, Topic, yesTopicObj, noTopicObj, helloTopicObj]
+    matchObj = [Thing, Topic, yesTopicObj, noTopicObj]
     
     /* 
      *   A DefaultTopic has a very low matchScore to allow anything more
@@ -3775,8 +3775,10 @@ class DefaultTopic: ActorTopicEntry
 
 /* 
  *   A DefaultAnyTopic is a DefaultTopic that can match any kind of
- *   conversational command.
+ *   conversational command, except for HELLO and GOODBYE (unless matchGreetings
+ *   is true.
  */
+ 
 class DefaultAnyTopic: DefaultTopic
     /* 
      *   DefaultAnyTopics are included in all the lists of their TopicDatabase
@@ -3786,7 +3788,21 @@ class DefaultAnyTopic: DefaultTopic
         &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics,
     &commandTopics]
     
-    matchObj = static inherited + Action
+    /* 
+     *   A DefaultAnyTopic matches any conversational command and should also
+     *   match Commands (where the matchObj will be an action); they can
+     *   optionally match HELLO and BYE as well.
+     */
+    matchObj = inherited + Action + (matchGreetings ? [helloTopicObj,
+        endConvBye] : [])    
+ 
+    /* 
+     *   Flag - should we match HELLO and BYE? By default we don't since many
+     *   DefaultAnyTopic responses won't be suitable for this purpose, but this
+     *   can be overridden to true for DefaultAnyTopics that should match HELLO
+     *   and BYE as well as other conversational commands.
+     */
+    matchGreetings = nil
 ;
 
 /* 
@@ -6340,7 +6356,7 @@ suggestedTopicLister: object
         
         /* Show the appropriate intro for this section. */
         if(sectionIntro)
-            say(sectionIntro);
+            say(self.(sectionIntro));
         
         /* Show the list */
         showList(lst);
@@ -6396,18 +6412,19 @@ suggestedTopicLister: object
      */
     typeInfo = [
         [&sayList, &sayTopics, SayTopic, nil],
-        [&queryList, &queryTopics, QueryTopic, BMsg(ask query, 'ask {him interlocutor} ')],        
-        [&askList, &askTopics, AskTopic, BMsg(ask about, 'ask {him interlocutor} about ')],
-        [&tellList, &tellTopics, TellTopic, BMsg(tell about, 'tell {him interlocutor} about ')],
-        [&talkList, &talkTopics, TalkTopic, BMsg(talk about, 'talk about ')], 
-        [&giveList, &giveTopics, GiveTopic, BMsg(give, 'give {him interlocutor} ')],
-        [&showToList, &showTopics, ShowTopic, BMsg(show, 'show {him interlocutor} ')],
-        [&askForList, &askForTopics, AskForTopic, BMsg(ask for, 'ask {him interlocutor} for ')],
+        [&queryList, &queryTopics, QueryTopic, &queryPrefix],        
+        [&askList, &askTopics, AskTopic, &askPrefix],
+        [&tellList, &tellTopics, TellTopic, &tellPrefix],
+        [&talkList, &talkTopics, TalkTopic, &talkPrefix], 
+        [&giveList, &giveTopics, GiveTopic, &givePrefix],
+        [&showToList, &showTopics, ShowTopic, &showPrefix],
+        [&askForList, &askForTopics, AskForTopic, &askForPrefix],
         [&yesList, &miscTopics, YesTopic, nil],
         [&noList, &miscTopics, NoTopic, nil],
-        [&commandList, &commandTopics, CommandTopic, BMsg(tell to, 'tell {him interlocutor} to ')]
+        [&commandList, &commandTopics, CommandTopic, &tellToPrefix]
         
     ]
+    
     
     /* Sublists of each kind of suggestion which can be listed in turn */
     sayList = []
@@ -6436,6 +6453,14 @@ suggestedTopicLister: object
      *   the suggestion to start with 'say'.
      */
     sayPrefix = BMsg(say prefix, 'say ')
+    queryPrefix = BMsg(ask query, 'ask {him interlocutor} ')
+    askPrefix = BMsg(ask about, 'ask {him interlocutor} about ')
+    tellPrefix = BMsg(tell about, 'tell {him interlocutor} about ')
+    talkPrefix = BMsg(talk about, 'talk about ')    
+    givePrefix = BMsg(give, 'give {him interlocutor} ')
+    showPrefix = BMsg(show, 'show {him interlocutor} ')
+    askForPrefix = BMsg(ask for, 'ask {him interlocutor} for ')
+    tellToPrefix = BMsg(tell to, 'tell {him interlocutor} to ')
     
     /*  The conjunction to use at the end of a list of alternatives */
     orListSep = BMsg(or list separator, '; or ')

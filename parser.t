@@ -764,6 +764,33 @@ class Parser: object
      */
     
     DefaultAction = ExamineOrGoTo
+    
+    /*  Return an rmcXXXX enum code depending on the state of Parser.question */
+    rmcType()
+    {
+        if(Parser.question != nil && Parser.question.err != nil)
+        {
+            /* 
+             *   If the Parser error is an EmptyNounError then we're asking for
+             *   an object.
+             */
+            if(Parser.question.err.ofKind(EmptyNounError))
+                return rmcAskObject;
+            
+            /* 
+             *   If the Parser error is an AmbiguousError then we're requesting
+             *   disambiguation.
+             */
+            if(Parser.question.err.ofKind(AmbiguousError))
+                return rmcDisambig;            
+        }
+        
+        /* 
+         *   If there's no special situation, assume we're reading a standard
+         *   command.
+         */
+        return rmcCommand;
+    }
 ;
 
 /* ------------------------------------------------------------------------ */

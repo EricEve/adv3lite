@@ -160,7 +160,7 @@ mainCommandLoop()
             "<./inputline>\n";   
             
             /* Pass the command through all our StringPreParsers */
-            txt = StringPreParser.runAll(txt, nil);
+            txt = StringPreParser.runAll(txt, Parser.rmcType());
             
             /* 
              *   If the txt is now nil, a StringPreParser has fully dealt with

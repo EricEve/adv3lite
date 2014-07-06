@@ -469,6 +469,18 @@ class Command: object
      */
     execDoer(lst)
     {
+        /* 
+         *   In case the author tries to use gDobj and the like to match a
+         *   command, assign values to them
+         */
+        
+        if(dobj)
+            gDobj = dobj;
+        if(iobj)
+            gIobj = iobj;
+        if(acc)
+            gAobj = aobj;
+        
         /* find the list of matching Doers */
         local dlst = DoerCmd.findDoers(lst);
       

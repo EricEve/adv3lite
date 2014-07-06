@@ -1808,7 +1808,7 @@ VerbRule(AuxQuery)
 
 /* 
  *   For queries, turn an apostrophe-s form into the underlying qtype plus is so
- *   that the grammer defined immediately above can be matched.
+ *   that the grammar defined immediately above can be matched.
  */
 
 queryPreParser: StringPreParser
