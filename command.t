@@ -762,6 +762,18 @@ class Command: object
 
         /* we haven't started pulling disambiguation replies yet */
         disambigIdx = 1;
+        
+        /* Note the orginal lists of nps */
+        local npListOld = npList;
+        local npListSortedOld = npListSorted;
+            
+        /* Remove already resolved roles from these lists */ 
+        if(resolvedNP)
+        {
+            npList -= resolvedNP;
+            npListSorted -= resolvedNP;
+        }
+        
 
         /* 
          *   Start by getting the basic vocabulary matches for each noun
@@ -852,6 +864,10 @@ class Command: object
          *   replace them now with the final lists. 
          */
         buildObjLists();
+        
+        /* Restore the original lists of nps */
+        npList = npListOld;
+        npListSorted = npListSortedOld;
     }
 
     /* carry out a callback for each noun phrase in each list */
@@ -869,6 +885,13 @@ class Command: object
         }
     }
 
+    /* 
+     *   If we already have one role resolved, note it here so we don't try to
+     *   resolve it again when trying to supply a missing object for another
+     *   role.
+     */
+    resolvedNP = []
+    
     /* 
      *   Build the object lists.  This runs through each NounPhrase in the
      *   command to build its 'objs' list, then builds the corresponding

@@ -239,8 +239,13 @@ class Parser: object
             return;
         }
 
-        /* Assume initially that the actor is the player character */
-        gActor = gPlayerChar;        
+        /* 
+         *   Assume initially that the actor is the player character, but only
+         *   if we don't have a question, since if the player is replying to a
+         *   question the actor may already have been resolved.
+         */
+        if(question == nil)
+            gActor = gPlayerChar;        
         
         /* no spelling corrections have been attempted yet */
         local history = new transient SpellingHistory(self);
@@ -5143,16 +5148,16 @@ class EmptyNounError: CommandError
         local lst = new CommandList(
             cmd.verbProd.missingRoleProd(role), toks, dict,
             new function(prod)
-            {
-                /* create a copy of the original command */
-                local newCmd = cmd.clone();
-                
-                /* plug the new noun phrase tree into the empty role */
-                newCmd.addNounProd(role, prod);
-
-                /* the new command is the mapped list entry */
-                return newCmd;
-            });
+        {
+            /* create a copy of the original command */
+            local newCmd = cmd.clone();
+            
+            /* plug the new noun phrase tree into the empty role */
+            newCmd.addNounProd(role, prod);
+                        
+            /* the new command is the mapped list entry */
+            return newCmd;
+        });
 
         /* accept curable resolutions as replies */
         lst.acceptCurable();

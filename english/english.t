@@ -4553,6 +4553,9 @@ conjugate(ctx, params)
  */
 langAdjust(txt)
 {
+    if(txt == nil)
+        return '';
+    
     for(;;)
     {
         local rf = rexSearch(

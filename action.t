@@ -2878,6 +2878,10 @@ askMissingObject(action, role)
      */
     local err = new EmptyNounError(gCommand, role);
     
+    
+    gCommand.resolvedNP = [DirectObject, IndirectObject, AccessoryObject] -
+        role;
+    
     /* 
      *   Display the corresponding error message (which will be a request to
      *   specify the missing object.
@@ -2890,6 +2894,7 @@ askMissingObject(action, role)
      *   as an answer to this question.
      */
     Parser.question = new ParseErrorQuestion(err);   
+        
     
     /* Skip to the next command line so the player can enter a response */
     abort;        
