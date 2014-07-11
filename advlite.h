@@ -1207,6 +1207,22 @@ string template <<add * secs>> addTime;
 
 /*----------------------------------------------------------------------------*/
 /*
+ *   Definitions for the rules.t extension
+ */
+
+#define stop return stopValue;
+
+/*----------------------------------------------------------------------------*/
+/*
+ *   Definitions for the relations.t extension
+ */
+
+enum oneToOne, oneToMany, manyToOne, manyToMany;
+Relation template 'name' 'reverseName'? @relationType? +reciprocal?;
+
+
+/*----------------------------------------------------------------------------*/
+/*
  *   Include the header for the Date intrinsic class. For some reason the
  *   compiler seems to prefer this to be at the end of this header file.
  */
