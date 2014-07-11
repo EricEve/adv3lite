@@ -767,13 +767,16 @@ class Command: object
         local npListOld = npList;
         local npListSortedOld = npListSorted;
             
-        /* Remove already resolved roles from these lists */ 
-        if(resolvedNP)
+             
+        /* 
+         *   If the player has just supplied a missing object, we only want to
+         *   resolve the object for that role.
+         */
+        if(npToResolve != nil)
         {
-            npList -= resolvedNP;
-            npListSorted -= resolvedNP;
+            npList = [npToResolve];
+            npListSorted = [npToResolve];
         }
-        
 
         /* 
          *   Start by getting the basic vocabulary matches for each noun
@@ -886,11 +889,17 @@ class Command: object
     }
 
     /* 
-     *   If we already have one role resolved, note it here so we don't try to
-     *   resolve it again when trying to supply a missing object for another
-     *   role.
+     *   If the parser has just asked the player to supply a missing object via
+     *   the askMissingObject() function, we don't want to resolve the nouns for
+     *   every object role, but only for the role with which askMissingObject()
+     *   is currently concerned; askMissingObject() stores that role here so
+     *   that our resolvedNouns() method knows to resolve only the noun for this
+     *   role rather than for all the roles in the command. If npToResolve is
+     *   nil (as it normally will be) then it will be ignored, and all noun
+     *   roles will be resolved.
      */
-    resolvedNP = []
+        
+    npToResolve = nil
     
     /* 
      *   Build the object lists.  This runs through each NounPhrase in the

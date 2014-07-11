@@ -2878,9 +2878,13 @@ askMissingObject(action, role)
      */
     local err = new EmptyNounError(gCommand, role);
     
-    
-    gCommand.resolvedNP = [DirectObject, IndirectObject, AccessoryObject] -
-        role;
+
+    /* 
+     *   When the player's response is reparsed, we only want to resolve the
+     *   nound for the role we're asking about here, so tell the command which
+     *   role we want to resolve for.
+     */    
+    gCommand.npToResolve = role;
     
     /* 
      *   Display the corresponding error message (which will be a request to
