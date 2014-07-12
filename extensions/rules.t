@@ -42,28 +42,90 @@ class RuleBook: PreinitObject
         contents -= ru;
     }
     
-    nullValue = nil
     
+    /* 
+     *   Follow this Rule. This is the method game code will normally call to
+     *   make use of this RuleBook. Each of our rules will be tested to see if
+     *   it matches its conditions; we then run through those of our rules that
+     *   match their rules in order of precedence until one returns a non-null
+     *   value, which we then in turn return to our caller. If no rule returns a
+     *   non-null value we return our own default value, which is normally nil.
+     *
+     *   This method can be called with as many arguments as the game code finds
+     *   useful, or with none at all. Our arguments will then be passed on to
+     *   each Rule that is called. The first argument will also be stored in our
+     *   matchObj property, which our Rules can compare with their own matchObj
+     *   condition to see if they match. This allows game code to, for example,
+     *   run a RuleBook related to some object that isn't one of the objects
+     *   directly involved in the current action.
+     */
     follow([args])
     {
+        /* 
+         *   If we have any arguments at all, store the first one in our
+         *   matchObj property for comparison with our Rules' matchObj
+         *   conditions.
+         */
         if(args.length > 0)
             matchObj = args[1];
         
+        /* Carry out any custom initialization required. */
         initBook(args...);
         
+        /* 
+         *   Make sure that all the Rules in our contents list know that we're
+         *   the RuleBook that's currently calling them. This is necessary in
+         *   case the same Rule is associated with more than one RuleBook.
+         */
+        contents.forEach({ r: r.setRulebook(self) });
+        
+        /* Extract the subset of Rules that match their conditions. */
         local validRules = contents.subset({r: r.matchConditions});
         
+        /* Sort the matching rules in descending order of precedence. */
         validRules = validRules.sort(SortDesc, {a, b: a.compareTo(b)} );
         
+        /* 
+         *   Go through each of the matching rules in turn, calling it's follow
+         *   method. If any rule returns a non-null value, stop running through
+         *   the rules and return that value to our caller.
+         */
         foreach(local ru in validRules)
         {
-            local res = ru.doRule(args...);
-            if(res != nullValue)
+            local res = ru.follow(args...);
+            
+            if(res != contValue)
                 return res;
         }
         
-        return nullValue;
+        /* 
+         *   If no rule returned a non-null value, return our own defaultVal to
+         *   our caller.
+         */
+        return defaultVal;
     }
+    
+    
+    /* 
+     *   contValue (continue value) is the value that a Rule in this RuleBook
+     *   needs to return to avoid the RuleBook stopping at that Rule (rather
+     *   than going on to consider more Rules). By default this is null, which
+     *   means by default a Rule that does not explicitly return a value (and so
+     *   effectivelt returns nil) will stop the RuleBook. If you want the
+     *   default behaviour for this RuleBook to be not for Rules to stop the
+     *   book, then override this to nil.
+     */
+    contValue = null
+    
+    /*  
+     *   The default value to return to our caller. By default this is nil, to
+     *   make it easy to test whether we any rule returned a non-null value, but
+     *   in some cases we may want to override it to null (or some other value),
+     *   for example when returning nil from a Rule would be particularly
+     *   meaningful to our caller, and we want to distinguish a nil result from
+     *   no result (null).
+     */
+    defaultVal = nil
     
     /* 
      *   Game code can use this method to initialize the values of custom
@@ -72,13 +134,21 @@ class RuleBook: PreinitObject
      */
     initBook([args]) { }
     
+    /*   
+     *   The object (or any other value) to be matched by our Rule's matchObj
+     *   conditions if they have any. This property is set by our follow()
+     *   method (from its first argument) and so should not normally be directly
+     *   changed from game code.
+     */
     matchObj = nil
     
 ;
 
+/* Preinitializer for Rules. */
 rulePreinit:PreinitObject
     execute()
     {
+        /* Initialize all the Rules in the game. */
         for(local ru = firstObj(Rule); ru != nil; ru = nextObj(ru, Rule))
         {
             ru.initializeRule();
@@ -87,23 +157,60 @@ rulePreinit:PreinitObject
 ;
 
 
-
+/* 
+ *   A Rule is an object that defines a set of conditions that need to be met
+ *   for it to be executed when its RuleBook is run and a method that's executed
+ *   when its conditions are met. A Rule can be associated with one or more
+ *   RuleBooks; it starts out in the RuleBook with which it is associated via
+ *   its + property (i.e. its location).
+ */
 class Rule: object
+    /* 
+     *   Our location is the RuleBook with which we start out being associated.
+     *   Normally this will be defined by locating a Rule inside its RukeBook
+     *   using the + notation.
+     */
     location = nil
     
+    /*   
+     *   The rulebook that's currently considering us. Normally this will be our
+     *   location, but it could be a different RuleBook if we belong to one.
+     *   Note that this property is automatically set by the library and so it
+     *   should never need to be altered by game code.
+     */
+    rulebook = location
+      
+    /*   
+     *   Set our current rulebook to r. Note that this method is normally called
+     *   by the Rulebook that's running us, and shouldn't normally be used by
+     *   game code.
+     */
+    setRulebook(r) { rulebook = r; }
+    
+    /*   A list of all the rulebooks this rule is currently associated with. */
+    rulebooks = []    
+    
+    /*   
+     *   Initialize this Rule by adding it to the contents list of its location
+     *   and calculating its specificity (i.e. how specific its conditions are)
+     */
     initializeRule()
     {
         if(location)
         {
-            location.addToContents(self);
-            
-            null = location.nullValue;    
+            location.addToContents(self);               
+            rulebooks += location;
         }
         
         specificity = calcSpecficity();
     }
     
-    doRule([args])
+    /* 
+     *   Do whatever this Rule needs to do when its conditions are met. This
+     *   method will need to be defined on eacg individual Rule in game code.
+     */
+         
+    follow([args])
     {
     }
     
@@ -123,6 +230,39 @@ class Rule: object
      */
     specificity = nil
     
+    /* 
+     *   Return true if this Rule should always execute after other (despite all
+     *   other ranking criteria). By default we return true if and only if other
+     *   is in our execAfter list.
+     */   
+    runAfter(other)
+    {
+        return valToList(execAfter).indexOf(other) != nil;        
+    }
+    
+    /* 
+     *   A list of Rules this Rule should specifically run after; this overrides
+     *   all other ranking.
+     */
+    execAfter = []
+    
+    /* 
+     *   Return true if this Rule should always execute before other (despite all
+     *   other ranking criteria). By default we return true if and only if other
+     *   is in our execBefore list.
+     */
+    runBefore(other)
+    {
+        return valToList(execBefore).indexOf(other) != nil;
+    }
+    
+    /*  
+     *   A list of Rules this Rule should specifically run before; this
+     *   overrides all other ranking except for runAfter/execAfter.     
+     *
+     */
+    execBefore = []
+    
     /*  
      *   A Rule is normally active (that is it will normally be considered when
      *   a RuleBook is being followed) but it can be temporarily disabled by
@@ -130,9 +270,18 @@ class Rule: object
      */
     isActive = true
 
+    /* Make this Rule active */
+    activate() { isActive = true; }
+    
+    /* Make this Rule inactive */
+    deactivate() { isActive = nil; }
+    
     /*
-     *   Calculate the specificity of this 
-     *   Rule. 
+     *   Calculate the specificity of this Rule. The principles are (a) Rules
+     *   that specify more conditions are more specific than Rule that specify
+     *   fewer condition; (b) conditions involving specific objects are more
+     *   specific that those relating to classes and (c) Rooms are more specific
+     *   than Regions in a where condition.
      */
     calcSpecficity()
     {       
@@ -142,9 +291,12 @@ class Rule: object
         if(propDefined(&when))
             p += 10;
         
-        /* a 'where' has priority over no 'where' */
+        /* 
+         *   a 'where' has priority over no 'where', and a where property that
+         *   specifies a Room is more specific than one that specifies a Region.
+         */
         if(propDefined(&where))
-            p += 10;
+            p += valToList(where).indexWhich({r: r.ofKind(Room)}) ? 10 : 5;
         
         /* a 'during' has priority over no 'during' */
         if(propDefined(&during))
@@ -174,16 +326,37 @@ class Rule: object
             }                
         }
         
+        /* 
+         *   If matchObj is defined, then what we do with it depends on the type
+         *   of value(s) it contains.
+         */
         if(propDefined(&matchObj))
         {
             switch(propType(&matchObj))
             {
+                /* If matchObj is nil, then ignore it. */
             case TypeNil:
                 break;
+                
+                /* 
+                 *   If it's an object, increase our specificity by 10, unless
+                 *   it's a class, in which case only increase it by 5 (a class
+                 *   is less specific than an object).
+                 */
             case TypeObject:
                 p += (matchObj.isClass ? 5 : 10);
                 break;
+                /* 
+                 *   If it's a list, check what kind of values the list
+                 *   contains.
+                 */
             case TypeList:
+                /*  
+                 *   If the first item in the list is an object, assume the
+                 *   whole list contains objects, then increase our specificity
+                 *   by 10 if any of those objects is not a class, and by 5
+                 *   otherwise (classes are less specific than objects).
+                 */
                 if(matchObj.length > 0 && dataType(matchObj[1]) == TypeObject)
                 {
                     if(matchObj.indexWhich({o: !o.isClass}))
@@ -191,10 +364,18 @@ class Rule: object
                     else
                         p += 5;
                 }
+                /* 
+                 *   Otherwise, if it's some other kind of value, simply
+                 *   increase our specificity by 10.
+                 */
                 else
                     p += 10;
                 
                 break;
+                /* 
+                 *   For any other kind of value, simply increase our
+                 *   specificity by 10.
+                 */
             default:
                 p += 10;
                 break;
@@ -202,6 +383,7 @@ class Rule: object
             }
         }
         
+        /* Return the result of the calculation. */
         return p;       
     }
     
@@ -212,6 +394,20 @@ class Rule: object
      */
     compareTo(other)
     {
+        /*  
+         *   If we specifically want this Rule to run after other, rank us after
+         *   other
+         */
+        if(runAfter(other))           
+            return -1;        
+        
+        /*   
+         *   If we specifically want this Rule to run before other, rank us
+         *   before other.
+         */
+        if(runBefore(other))
+            return 1;        
+        
         /* 
          *   If the two Rules have different priorities, rank them in order of
          *   priority.
@@ -281,7 +477,7 @@ class Rule: object
              *   If we can't match any item in the who list to the current
              *   actor, we don't meet the who condition, so return nil
              */
-            if(whoLst.indexOf(actor) == nil)
+            if(whoLst.indexOf(gActor) == nil)
                 return nil;
         }
         
@@ -298,10 +494,20 @@ class Rule: object
                 return nil;
         }
         
+        /* 
+         *   If we've specified an action to match, test whether gAction (the
+         *   current action) matches it.
+         */
         if(propDefined(&action) 
            && valToList(action).indexWhich({a: gAction.ofKind(a)}) == nil)
             return nil;
         
+        
+        /*  
+         *   If we've specified a dobj, iobj and/or aobj to match, test whether
+         *   they mach the direct object, indirect object and/or accessory
+         *   object of the current action.
+         */
         for(local objs in [[&dobj, gDobj], [&iobj, gIobj], [&aobj, gAobj]])
         {
             local prop = objs[1];
@@ -313,25 +519,40 @@ class Rule: object
                             
         }
         
+        /* 
+         *   If we have a matchObj defined, test whether it matches our current
+         *   rulebook's matchjObj.
+         */
         if(propDefined(&matchObj))
         {
             local mList = valToList(matchObj);
-            local mo = location.matchObj;
+            local mo = rulebook.matchObj;
             
             if(mList.length > 0)
             {
+                /* 
+                 *   If we want to match an object (or class), test whether the
+                 *   rulebook's match obj is of the appropriate kind. Since an
+                 *   object is always of its own kind, this tests either whether
+                 *   the rulebook's matchObj appears in our matchObj list or
+                 *   whether it belongs to one of the classes in our matchObh
+                 *   list.
+                 */
                 if(dataType(mList[1]) == TypeObject)
                 {
                     if(mList.indexWhich({o: mo.ofKind(o) } ) == nil)
                         return nil;
                 }
+                /* 
+                 *   Otherwise, if we're not testing for an object, simply test
+                 *   whether the value of our rulebook's matchObj is equal to
+                 *   anyhting in our matchObj property.
+                 */
                 else if(mList.indexOf(mo) == nil)
                     return nil;               
                     
             }
-        }
-        
-        
+        }       
         
         /* 
          *   If we haven't failed any of the conditions, we're okay to match, so
@@ -344,7 +565,10 @@ class Rule: object
     addTo(rb)
     {
         if(rb && rb.ofKind(RuleBook))
+        {
             rb.addToContents(self);
+            rulebooks += rb;
+        }
     }
     
     /* Remove this rule from a rulebook */    
@@ -353,16 +577,26 @@ class Rule: object
         if(rb && rb.ofKind(RuleBook))
         {
             rb.removeFromContents(self);
+            rulebooks -= rb;
             
             if(location == rb)
                 location = nil;
         }
     }
     
+    /* 
+     *   Move this rule to another rulebook, removing it from all its current
+     *   rulebooks. If rb is nil, simply remove this Rule from its current
+     *   rulebooks.
+     */
+     
     moveTo(rb)
-    {
-        local loc = location;
+    {        
         
+        /* 
+         *   If rb is actually a RuleBook, add us to its contents and make rb
+         *   our current location.
+         */
         if(rb && rb.ofKind(RuleBook))
         {
             rb.addToContents(self);
@@ -370,20 +604,24 @@ class Rule: object
             location = rb;
         }
         
-        if(loc && loc.ofKind(RuleBook))
-            loc.removeFromContents(self);
+        /* 
+         *   Remove us from the contents of all our previous rulebook
+         */
+        rulebooks.forEach({r: r.removeFromContents(self)});
         
+        /* Add our new RuleBooks to our list of rulebooks */
+        if(rb)
+            rulebooks += rb;
+        
+        /* Make rb our currently active rulebook */
+        rulebook = rb;
         
     }
     
-    /* 
-     *   The null property holds the value that should be returned by a Rule
-     *   that does not want to stop processing of the RuleBook. This is taken
-     *   from the value of the parent RuleBook's nullValue property (by default
-     *   nil) and shouldn't normally be changed by game code.
+    /*  
+     *   The value this rule should return when the stop macro is used at the
+     *   end of its follow method
      */
-    null = nil
-    
     stopValue = true
     
     /* 
@@ -391,5 +629,63 @@ class Rule: object
      *   will normally be gPlayerChar, but the value of this property is taken
      *   from our RuleBook's actor property.
      */
-    actor = (location == nil ? gPlayerChar : location.actor)
+    actor = (rulebook == nil ? gPlayerChar : rulebook.actor)
+    
+    
+    /* ------------------------------------------------------------------- */ 
+     /* 
+      *   One or more of the following properties, if defined, determine what
+      *   conditions this Rule needs to match in order to be executed.
+      */
+      
+    /* 
+     *   A Room or Region, or a list of Rooms and/or Regions in which our actor
+     *   (usually either gActor or gPlayerChar - the latter by default - must be
+     *   for this Rule to match.
+     */
+    // where = []
+    
+    /*  
+     *   A condition that must hold (or a method returning a Boolean value to
+     *   determine whether or not appropriate conditions hold) for this Rule to
+     *   match. This is only needed if none of the other properties in this
+     *   section provide a way of speficifying the required conditions.
+     */
+    // when() {}
+    
+    /* 
+     *   An actor, or a list of actors, one of whom must be performing the
+     *   current action for this Rule to match.
+     */
+    // who = []
+    
+    /*  
+     *   A Scene, or a list of Scenes, one of which much be currently happening
+     *   for this Rule to match.
+     */
+    // during = []
+    
+    /* 
+     *   An action, or a list of Actions, one of which (e.g. Take or Jump) must
+     *   be the current action in order for this Rule to match.
+     */
+    // action = []
+    
+    /* 
+     *   An object (or class), or a list of objects (and or classes) one of
+     *   which of each the direct, indirect and accessory objects of the current
+     *   action must match in order for this Rule to match. (The accessory
+     *   object is only relevant if the TIAAction extension is in use).
+     */
+    // dobj = []
+    // iobj = []
+    // aobj = []
+    
+    /* 
+     *   An object, class, or other value, or a list of objects and/or classes
+     *   or of other values, one of which must match the matchObj property of
+     *   our rulebook (which is set by the first parameter of a call to that
+     *   RuleBooks's follow() method) for this Rule to match.
+     */ 
+    // matchObj = []
 ;

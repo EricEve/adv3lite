@@ -8,17 +8,13 @@
  *   defined in a TADS 3 game.
  */
 
-   
-class BaseRelation: object
+ 
+
+class Relation: PreinitObject
     name = nil
     
     reverseName = nil
     
-    isRelated(a, b) { }
-    
-;
-
-class Relation: BaseRelation, PreinitObject
     relatedTo = nil
     
     isRelated(a ,b)
@@ -177,13 +173,13 @@ relationTable: PreinitObject
     
     execute()
     {
-        for(local rel = firstObj(BaseRelation); rel != nil; rel = nextObj(rel,
-            BaseRelation))
+        for(local rel = firstObj(Relation); rel != nil; rel = nextObj(rel,
+            Relation))
         {
             if(rel.name)
-                nameTab[rel.name] = [rel, 0];
+                nameTab[rel.name] = [rel, normalRelation];
             if(rel.reverseName)
-                nameTab[rel.reverseName] = [rel, 1];
+                nameTab[rel.reverseName] = [rel, reverseRelation];
          
             
         }
@@ -194,7 +190,7 @@ relationTable: PreinitObject
         if(dataType(rel) == TypeSString)
             return nameTab[rel];
         
-        return [rel, 0];
+        return [rel, normalRelation];
     }
 ;
 
@@ -207,10 +203,10 @@ relate(a, rel, b)
     local relData = relationTable.getRelation(rel);
     if(relData)
     {
-        if(relData[2] == 0)
+        if(relData[2] == normalRelation)
             relData[1].addRelation([a, b]);
         
-        if(relData[2] == 1)
+        if(relData[2] == reverseRelation)
             relData[1].addRelation([b, a]);
     }   
 }
@@ -220,10 +216,10 @@ unrelate(a, rel, b)
     local relData = relationTable.getRelation(rel);
     if(relData)
     {
-        if(relData[2] == 0)
+        if(relData[2] == normalRelation)
             relData[1].removeRelation([a, b]);
         
-        if(relData[2] == 1)
+        if(relData[2] == reverseRelation)
             relData[1].removeRelation([b, a]);
     } 
     
@@ -243,13 +239,13 @@ related(a, rel, b?)
     local relData = relationTable.getRelation(rel);
     
     
-    if(b != nil && relData[2] == 0)
+    if(b != nil && relData[2] == normalRelation)
         return relData[1].isRelated(a, b);
     
     
         
     
-    if(relData[2] == 0)
+    if(relData[2] == normalRelation)
         lst = relData[1].relatedTo[a];
     else if(b == nil)
         lst = relData[1].inverselyRelatedTo(a);
@@ -266,20 +262,3 @@ related(a, rel, b?)
         return lst;
     
 }
-
-/* 
- *   A DerivedRelation is a Relation that exists by virtue of another Relation
- *   and can be derived from it by user-define rules. E.g. the children of the
- *   same parents are siblings.
- */
-class DerivedRelation: BaseRelation
-    
-    isRelated(a, b) { return relationList(a).indexOf(b) != nil; }
-    
-    relationList(a) { return []; }
-    
-    isInverselyRelated(a, b) 
-    { return inverseRelationList(a).indexOf(b) != nil; }
-    
-    inverseRelationList(a) { return []; }
-;

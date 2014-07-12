@@ -1212,6 +1212,20 @@ string template <<add * secs>> addTime;
 
 #define stop return stopValue;
 
+/* 
+ *   Null value to return from Rules that don't stop a RuleBook from continuing
+ *   to consider rules.
+ */
+enum null;
+
+/* 
+ *   Convenient abbreviations for rules that want to allow their RuleBook to
+ *   continue processing more rules.
+ */
+#define rnull return null
+#define nextrule return (rulebook.contValue)
+#define nostop return (rulebook.contValue)
+
 /*----------------------------------------------------------------------------*/
 /*
  *   Definitions for the relations.t extension
@@ -1219,6 +1233,8 @@ string template <<add * secs>> addTime;
 
 enum oneToOne, oneToMany, manyToOne, manyToMany;
 Relation template 'name' 'reverseName'? @relationType? +reciprocal?;
+
+enum normalRelation, reverseRelation;
 
 
 /*----------------------------------------------------------------------------*/
