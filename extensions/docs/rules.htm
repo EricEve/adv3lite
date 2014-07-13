@@ -199,7 +199,7 @@ Rules
 <h3>Starting and Stopping Rulebooks: Return Values and Parameters</h3>
 <p>As we have seen, the way to start a RuleBook is to call its <strong>follow()</strong> method. This causes it to select all of the rules that belong to it that also match their various criteria, and then to run through them in descending order of precedence, calling each of their <span class="code">follow()</span> methods in turn until either there are no more rules to consider or one of the rules signals that no more rules should be considered after itself. But how does a rule signal that?</p>
 
-<p>The default behaviour is for a RuleBook to stop iterating through its rules when one of its rules returns any value except <strong>null</strong>, where <span class="code">null</span> is an enum that has been defined for this purpose. Since TADS 3 considers a method that does not have an explicit return value to implicitly return <span class="code">nil</span> (and since <span class="code">nil</span> and <span class="code">null</span> are different values) this means that the default behaviour of a RuleBook is to execute the highest priority matching rule, and then stop iterating through any other rules that happen to match. Since the RuleBook returns whatever its last-executed rule returns, this means that by default it will simply return <span class="code">nil</span> to its caller. Often this behaviour may be just what you want, since if you simply want your RuleBook to execute the most appropriate Rule, you may not be interested in the return value, and you will probably want the RuleBook to stop at the first rule it finds (in order of precedence).</p>
+<p>The default behaviour is for a RuleBook to stop iterating through its rules when one of its rules returns any value except <strong>null</strong>, where <span class="code">null</span> is an enum that has been defined for this purpose. Since TADS 3 considers a method that does not have an explicit return value to implicitly return <span class="code">nil</span> (and since <span class="code">nil</span> and <span class="code">null</span> are different values) this means that the default behaviour of a RuleBook is to execute the highest priority matching rule, and then stop iterating through any other rules that happen to match. Since the RuleBook returns whatever its last-executed rule returns, this means that by default it will simply return <span class="code">nil</span> to its caller (assuming it actually executes any rules). Often this behaviour may be just what you want, since if you simply want your RuleBook to execute the most appropriate Rule, you may not be interested in the return value, and you will probably want the RuleBook to stop at the first rule it finds (in order of precedence).</p>
 
 <p>There may be occasions when you want to change this behaviour, however. First, it may that you want to define a Rule that doesn't stop its RuleBook. You can do that by ending the <span class="code">follow()</span> method of that rule with the <strong>nostop</strong> macro, for example:</p>
 
@@ -216,7 +216,57 @@ Rules
 
 <p>This rule will always run first (assuming there's no rule in the same RuleBook to which we've given a higher priority), but it won't stop the RuleBook. By the way we could have used  <span class="code">return null</span> rather than <span class="code">nostop</span> here, but not only is <span class="code">nostop</span> less typing (and perhaps clearer in meaning), for reasons we'll explain shortly it's also safer.</p>
 
+<p>If you're defining a RuleBook in which you want the majority of Rules not to stop the processing of further Rules in that RuleBook, you can override the RuleBook's <strong>contValue</strong> (short for 'continuation value') to <span class="code">nil</span> instead of <span class="code">null</span>. The <span class="code">contValue</span> property defines the value a Rule must return if it is <strong>not</strong> to stop the processing of the RuleBook. Since (as we mentioned just above) a method with no explicit return value implicitly returns nil, this means that the RuleBook won't then stop at a rule with no explicit return value (and hence an implicit return value of nil). If you want some rules in such a RuleBook to stop the RuleBook from processing any more rules, you can make those rules return a non-nil value or use the <strong>stop</strong> macro to do this for you (by default <span class="code">stop</span> returns true, but you can change what it returns by overriding the RuleBook's <strong>stopVal</strong> property).</p>
 
+<p>As has been mentioned before, if a Rule returns any value other than its RuleBook's <span class="code">contVal</span> value, the RuleBook will pass that value back to its caller. This may be useful simply as a way of telling the caller what the RuleBook did, but it could also be used if you wanted a RuleBook to calculate a value. Suppose, for example, you wanted to use a RuleBook to calculate the player character's happiness rating; you could do something like this:</p>
+
+ <p><div class="code"><pre>
+ happinessRules: RuleBook
+    contVal = nil
+    total = 0
+    initBook()
+    {
+       total = 0;
+    }
+ ;
+ 
+ + Rule
+    priority = 0
+    follow()
+    {
+       return rulebook.total;
+    }
+ ;
+ 
+ + Rule
+   when = (me.hasSeen(gertrude))
+   follow()
+   {
+      rulebook.total += 3;
+   }
+ ;
+ 
+ + Rule
+   action = Kiss
+   dobj = gertrude
+   follow() { rulebook.total += 2; }
+ ;
+
+ + Rule
+   action = Attack
+   who = gertrude
+   dobj = me
+   follow() { rulebook.total -= 10; }
+ ;
+
+ + Rule
+   when = (orbOfSatisfaction.isIn(me))
+   follow() { rulebook.total += 6; }
+ ;   
+ ... 
+ </pre></div>
+
+ <p>Note how we here define a custom <span class="code">total</span> property on the RuleBook to keep track of the value we want to calculate. We can then use the <strong>initBook()</strong> method (which is called whenever we call the RuleBook's <span class="code">follow()</span> method) to reset the value of total to 0 before our rules go on to calculate. We also supply a Rule with a priority of 0 (which should ensure that it's the last rule to run) to return the value of rulebook.total once all the other Rules have had their chance to adjust it.</p>
 
 </div>
 <hr class="navb"><div class="navb">

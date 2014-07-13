@@ -27,19 +27,64 @@ Relations
 
 <h2>New Classes, Objects and Properties</h2>
 
-<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, objects and properties:</p>
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, objects, properties and functions:</p>
 
 <ul>
-<li><em>Classes</em>: <strong>Relation</strong></li>
+<li><em>Classes</em>: <strong>Relation</strong>, <strong>DerivedRelation</strong></li>
 
-<li><em>Additional properties on Thing</em>: <span class="code">canStandInMe</span>, <span class="code">canSitInMe</span>, <span class="code">canLieInMe</span>, <span class="code">posture</span>, <span class="code">defaultPosture</span>, <span class="code">okayStandOnMsg</span>, <span class="code">okaySitOnMsg</span>, <span class="code">okayLieOnMsg</span>, <span class="code">okayStandInMsg</span>, <span class="code">okaySitInMsg</span>, <span class="code">okayLieInMsg</span>, <span class="code">cannotStandInMsg</span>, <span class="code">cannotSitInMsg</span>, <span class="code">cannotLieInMsg</span>, <span class="code">tryMakingPosture(pos)</span>, <span class="code">verifyEnterPosture(pos)</span> </li>
+<li><em>functions</em>: <span class="code">relate()</span>, <span class="code">related()</span>, <span class="code">unrelate()</span>. </li>
 </ul>
 <br>
 
 <h2>Usage</h2>
 <p>Include the relations.t file after the library files but before your game source files.</p>
 
+<h2>Defining Relations</h2>
 
+<p>You define a relation by defining a Relation object. The properties you need to define on Relation are <strong>name</strong>, <strong>reverseName</strong>, <strong>relationType</strong> and <strong>reciprocal</strong>. For example:</p>
+
+ <p><div class="code"><pre>
+ loving: Relation 
+    name = 'loves'
+    reverseName = 'loved by'
+    relationType = manyToOne 
+ ;
+ </pre></div>
+ 
+<p>This can be abbreviated via the Relation template (defined in advlite.h) to:</p> 
+ 
+ <p><div class="code"><pre>
+ loving: Relation 'loves' 'loved by' manyToOne;
+ </pre></div>
+ 
+<p>The <span class="code">name</span> property can be uses to describe the relationship as a verb (e.g. John loves Mary). The <span class="code">reverseName</span> is the name to use when we want to describe the relationship the other way round (if John loves Mary then Mary is loved by John); we could have defined the <span class="code">reverseName</span> as 'is loved by', but that's a bit more typing. The <span class="code">relationType</span> defines how many parties can appear on each side of the relationship. Here we've defined the loving relationship (in the sense of 'is in love with') to be <strong>manyToOne</strong>, meaning that each person can love at most one other person, but can be loved by several other people. (Jack and Jim may both Jill, but they can't simultaneously love anyone else - at least, not as we have defined the loving relationship). The other possible values of the relationType property are <strong>oneToOne</strong> (e.g. the marriage relationship) <strong>oneToMany</strong> (e.g. the father relationship) or <strong>manyToMany</strong> (e.g. the sibling relationship). Relations that are oneToOne or manyToMany can also be reciprocal (just define <span class="code">reciprocal = true</span> on the Relationship object in question), as indeed the marriage and sibling relationships would be.</p> 
+ 
+<h2>Making, Breaking and Testing Relationships</h2> 
+ 
+<p>Relationships are normally manipulated through the <strong>relate()</strong>, <strong>related()</strong> and <strong>unrelate()</strong> functions. To set up a relationship between a and b you call the function <span class="code">relate(a relation b)</span>. To cancel the relation between a and b you call <span class="code">unrelate(a relation b)</span>. To test whether a and b are related you use <span class="code">related(a relation b)</span> and to get a list of items related to a via relation you use <span class="code">related(a relation)</span>. For example:</p> 
+
+ <p><div class="code"><pre>
+ relate(jack, loving, jill); <span class="comment">// makes Jack love Jill</span>
+ relate(jack, 'loves', jill); <span class="comment">// another way of doing the same thing.</span>
+ relate(jill, 'loved by', jim) <span class="comment">// makes Jill loved by Jim (another of making Jim love Jill)</span>
+ related(jack, loves', jim) <span class="comment">// tests whether Jack loves Jim; in this case the answer would be nil</span>
+ related(jill, 'loved by') <span class="comment">// returns a list of the people whom Jill is loved by; is this case [Jack, Jim]</span>
+ related(jack, 'loves') <span class="comment">//returns a list of the people Jack loves; in this case [Jill]</span>
+ related(jim, loving) <span class="comment">// returns a list of the people Jim loves; in this case [Jill]</span>
+ 
+ </pre></div>
+
+ <p>It will be observed that when you specify the relationship in the forward direction (x loves y) you can use either the Relation object name (e.g. <span class="code">loving</span>) or its name property (e.g. 'loves'), but when specifying it in reverse (x loved by y) you have to use the string defined on the <span class="code">reverseName</span> property.</p>
+
+ <p>Breaking relations can be done in much the same way using the unrelate() function. If Jim no longer loves Jill you just call <span class="code">unrelate(jim, 'loves', jill)</span>.</p>
+ 
+ <p>To break all relations someone has, you can call <span class="code">relate()</span> with nil as the third parameter; e.g.</p>
+ 
+  <p><div class="code"><pre>
+  relate(jim, 'loves', nil); <span class="comment">// now Jim loves no one.</span>
+  relate(jill, 'loved by', nil); <span class="comment">// now Jill isn't loved by anyone.</span>  
+  </pre></div>
+ 
 <p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../relations.t">relations.t</a> file.</p>
 
 </div>

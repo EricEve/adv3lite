@@ -118,14 +118,23 @@ class RuleBook: PreinitObject
     contValue = null
     
     /*  
-     *   The default value to return to our caller. By default this is nil, to
-     *   make it easy to test whether we any rule returned a non-null value, but
-     *   in some cases we may want to override it to null (or some other value),
-     *   for example when returning nil from a Rule would be particularly
-     *   meaningful to our caller, and we want to distinguish a nil result from
-     *   no result (null).
+     *   The default value to return to our caller. By default this is the same
+     *   as our contValue , to make it easy to test whether we any rule returned
+     *   a non-null value. By default a rule that does something will return
+     *   nil, so if no rule does anything we want to return a different value.
+     *   By making the defaultValue the same as the contValue, we ensure that we
+     *   can tell our caller that no rule was executed (if that is indeed the
+     *   case).
      */
-    defaultVal = nil
+    defaultVal = contValue
+    
+    /*   
+     *   The value our associated rules use by default to stop this RuleBook
+     *   considering any further rules (when a Rule uses the stop macro). By
+     *   default we use a value of true.
+     */
+    
+    stopValue = true
     
     /* 
      *   Game code can use this method to initialize the values of custom
@@ -620,9 +629,9 @@ class Rule: object
     
     /*  
      *   The value this rule should return when the stop macro is used at the
-     *   end of its follow method
+     *   end of its follow method. By default we use our rulebook's stopValue.
      */
-    stopValue = true
+    stopValue = (rulebook.stopValue)
     
     /* 
      *   The actor to use to compare with the who property of this Rule. This
