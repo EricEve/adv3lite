@@ -392,6 +392,17 @@ class Rule: object
             }
         }
         
+        /* Check if our present property is defined. */
+        if(propDefined(&present))
+        {
+            if(dataType(&present) == TypeObject && present.isClass)
+                p += 5;
+            else
+                p += 10;
+        }
+           
+        
+        
         /* Return the result of the calculation. */
         return p;       
     }
@@ -564,6 +575,64 @@ class Rule: object
         }       
         
         /* 
+         *   If present is defined, check whether at least one of the items in
+         *   the list is in the same room, or can be sensed.
+         */
+        if(propDefined(&present))
+        {
+            local pList = valToList(present);
+            
+            /* 
+             *   First test for the special case that the present property
+             *   specifies a single class. In which case whether anything in the
+             *   location of actor matches that class.
+             */            
+            if(pList.length == 1 && dataType(pList[1]) == TypeObject &&
+               pList[1].isClass())                
+            {
+                if(actor.getOutermostRoom.allContents.indexWhich(
+                    {o: o.ofKind(present) }) == nil)
+                    return nil;
+            }
+            
+            /* 
+             *   Check whether the first item in list is a property pointer. If
+             *   it is we want to use it as a property of the Q object to test
+             *   for a sense connection.
+             */
+            else if(pList.length > 0 && dataType(pList[1]) == TypeProp)
+            {
+                /* The first item in the list is a property pointer. */
+                local prop = pList[1];
+                
+                /*  
+                 *   Reduce the list to its remaining elements, which should all
+                 *   be objects.
+                 */
+                pList = pList.sublist(2);
+                
+                /*  
+                 *   If no item in pList has a sense path from the actor via the
+                 *   prop property, we don't match.
+                 */
+                if(pList.indexWhich({o: Q.(prop)(actor, o) }) == nil)
+                   return nil;
+            }
+            /* 
+             *   Otherwise, simply test for the presence of one of the objects
+             *   in the actor's room.
+             */
+            else
+            {
+                local loc = actor.getOutermostRoom();
+                
+                if(pList.indexWhich({o: o.isIn(loc)}) == nil)                    
+                    return nil;
+            }           
+        }
+        
+        
+        /* 
          *   If we haven't failed any of the conditions, we're okay to match, so
          *   return true.
          */
@@ -599,7 +668,7 @@ class Rule: object
      *   rulebooks.
      */
      
-    moveTo(rb)
+    moveInto(rb)
     {        
         
         /* 
@@ -697,4 +766,15 @@ class Rule: object
      *   RuleBooks's follow() method) for this Rule to match.
      */ 
     // matchObj = []
+    
+    
+    /*  
+     *   An object in the presence of which the actor must be for this rule to
+     *   match. Presence normally means in the same room, but if this property
+     *   is defined as a list and the first item in the list is a property
+     *   pointer (&canSee, &canHear, &canReach, &canSmell), this property will
+     *   be used to test for tne appropriate sense connection between the actor
+     *   and at least one of the other items in the list instead.
+     */
+    // present = []
 ;
