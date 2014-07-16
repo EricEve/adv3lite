@@ -343,6 +343,12 @@ unrelate(a, rel, b)
 related(a, rel, b?)
 {    
     local relData = relationTable.getRelation(rel);
+    if(relData == nil)
+    {
+        DMsg(no such relation, 'ERROR, there is no such relation as {%1}. ',
+             rel);
+        return nil;
+    }
  
     /* 
      *   If b has not been supplied, we've been asked to supply a list of
@@ -382,6 +388,9 @@ related(a, rel, b?)
 relationPathfinder: Pathfinder
     findPath(start, rel, target)
     {
+        if(rel == nil)
+            return nil;
+        
         relation = rel;       
         
         local res = inherited(start, target);
@@ -410,3 +419,20 @@ relationPathfinder: Pathfinder
     relation = nil
    
 ;
+
+relationPath(start, rel, target)
+{
+    local relData = relationTable.getRelation(rel);
+    local lst;
+    if(relData == nil)
+        return nil;
+    
+    if(relData[2] == normalRelation)           
+        lst = relationPathfinder.findPath(start, relData[1], target);
+    else
+        lst = relationPathfinder.findPath(target, relData[1], start);
+    
+        
+    return (relData[2] == normalRelation || lst == nil)
+        ? lst : lst.sort(true, { a, b: lst.indexOf(a) - lst.indexOf(b) });
+}

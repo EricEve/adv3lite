@@ -1524,13 +1524,16 @@ class DistResult: object
 ;
 
 /*
- *   The basic name distinguisher distinguishes objects by their base
- *   names.  This is the first distinguisher we apply, since the name is
- *   always the easiest way to tell objects apart in parsing.  
+ *   The basic name distinguisher distinguishes objects by their base names.
+ *   This is the first distinguisher we apply, since the name is always the
+ *   easiest way to tell objects apart in parsing. However since one name could
+ *   be entirely contained within another (e.g. 'ball' and 'red ball') we
+ *   consider the names as equal for this purpose if one of them is part of the
+ *   other.
  */
 nameDistinguisher: Distinguisher
     sortOrder = 100
-    equal(a, b) { return a.name == b.name; }
+    equal(a, b) { return a.name.find(b.name) || b.name.find(a.name); }
 ;
 
 /*
@@ -2977,21 +2980,8 @@ class TopicPhrase: NounPhrase
              *   words in the noun phrase in the user input.  Match it against
              *   the objects in physical scope.
              */
-//            try
-//            {
-                v.appendAll(matchNameScope(cmd, scope));
-//            }
-//            catch(UnmatchedNounError une)
-//            {        
-//                /* Create a dummy object to represent the literal text */
-//                local obj = new Topic(tokens.join(' ').trim());
-//                
-//                /* Wrap the dummy object in am NPMatch object */
-//                local lst = [obj];
-//                addMatches(v, lst, MatchNoApprox);     
-////                addMatches(v, lst, 1); 
-//                
-//            }
+             v.appendAll(matchNameScope(cmd, scope));
+
         }
         
         /* save the match list so far */
