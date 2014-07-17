@@ -1097,7 +1097,21 @@ string template << list of * >> makeListInStr;
 string template << is list of * >> isListStr;
 string template << exclude * >> makeMentioned;
 
+/* ------------------------------------------------------------------------*/
+/*
+ *   Some useful macros for command text.
+ */
 
+/* Get the first word the player entered for the current command. */
+#define gVerbWord (gCommand == nil || gCommand.verbProd == nil ? '' \
+    : getTokVal(gCommand.verbProd.tokenList[1]))
+
+/* Get the command tokens for the current command. */
+#define gCommandToks (gCommand == nil || gCommand.verbProd == nil ? [] \
+    : gCommand.verbProd.tokenList.mapAll({t: getTokVal(t)}))
+
+/* Get the command phrase for the current command. */
+#define gVerbPhrase (gCommand.getCommandPhrase())
 
 /* ------------------------------------------------------------------------ */
 /*

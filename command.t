@@ -1332,6 +1332,69 @@ class Command: object
     matchedMulti = nil
     
     madeTopic = nil
+    
+    /* 
+     *   Get the command phrase entered by the player, with the words used to
+     *   match the direct, indirect and accessory objects replaced by (dobj),
+     *   (iobj) and (acc) respectively; e.g. PUT RED BALL ON TABLE becomes 'put
+     *   (dobj) on (iobj)'
+     */
+    getCommandPhrase()
+    {
+        /* 
+         *   If for any reason we don't have a verbProd property, return an
+         *   empty string (to avoid any run-time errors below).
+         */
+        if(verbProd == nil)
+            return '';
+        
+        /*  Get the tokens making up the current command. */
+        local toks = verbProd.tokenList.mapAll({t: getTokVal(t)});
+        
+        /*  Define a couple of local variables for use below */
+        local idx1, idx2;
+        
+        /*  
+         *   For each of the possible dobjMatch, iobjMatch and accMatch
+         *   properties, replace the tokens used to match the dobj, iobj or
+         *   accessory object with the placeholder '(dobj)', '(iobj)' or
+         *   '(acc)'. To do that, replace the first token used to match the
+         *   object with the placeholder, and then the other tokens that matched
+         *   the object with '?-?'.
+         */
+        if(verbProd.dobjMatch)
+        {
+            idx1 = verbProd.dobjMatch.np_.firstTokenIndex;
+            idx2 = verbProd.dobjMatch.np_.lastTokenIndex;
+            toks[idx1] = '(dobj)';
+            for(local i = idx1 + 1; i <= idx2; i++)
+                toks[i] = '?-?';
+        }
+        
+        if(verbProd.iobjMatch)
+        {
+            idx1 = verbProd.iobjMatch.np_.firstTokenIndex;
+            idx2 = verbProd.iobjMatch.np_.lastTokenIndex;
+            toks[idx1] = '(iobj)';
+            for(local i = idx1 + 1; i <= idx2; i++)
+                toks[i] = '?-?';
+        }
+        
+        if(verbProd.accMatch)
+        {
+            idx1 = verbProd.accMatch.np_.firstTokenIndex;
+            idx2 = verbProd.accMatch.np_.lastTokenIndex;
+            toks[idx1] = '(acc)';
+            for(local i = idx1 + 1; i <= idx2; i++)
+                toks[i] = '?-?';
+        }
+        
+        /* Now remove all the '?-?' tokens */
+        toks = toks.subset({t: t != '?-?'});
+        
+        /* Join the tokens together into a string and return it. */
+        return toks.join(' ');
+    }
 ;
 
 
