@@ -128,7 +128,7 @@ Relations
    relatedTo(a) 
    {
         local parent = related(a, 'child of');
-        return related(parent[1], fatherOf) - a;; 
+        return parent.length &gt; 0 ? related(parent[1], fatherOf) - a : []; 
    }
 
    inverselyRelatedTo(a) 
@@ -146,7 +146,57 @@ Relations
 <h2>Relation Pathfinding</h2>
 <p>Relation pathfinding allows us to find the shortest path from <em>a</em> to <em>b</em> via any given relation (assuming that any such path exists). In general, the function <strong>relationPath(a, rel, b)</strong> returns a list giving the shortest path from <em>a</em> to <em>b</em> via <em>rel</em> (if there is one) or <span class="code">nil</span> if no such path exists. For example, suppose that in addition to defining James as the father of John, we defined Andrew as the father of James, and John as the father of Mark. Then <span class="code">relationPath(andrew, fatherOf, mark)</span> would return the list <span class="code">[andrew, james, john, mark]</span>, while <span class="code">relationPath(mark, 'child of', andrew)</span> would return the list <span class="code">[mark, john, james, andrew]</span>. On the other hand <span class="code">relationPath(mary, fatherOf, mark)</span> would return <span class="code">nil</span>, since there's no path from Mary to Mark through the fatherOf relation.</p>
 
+<br>
+<h2>A Note on Syntax</h2>
+<p>The Relations extension makes use of a number of functions of the form <span class="code">relxxx(a, rel, b)</span> or <span class="code">relxxx(a, b)</span> since in the main this seems the most intuitive way of setting up, describing and testing relations, rather than through method calls on the underlying objects. In some cases, though, you may find it more convenient to use othe forms of syntax.</p> 
  
+<p>In particular, if a game starts out with a number of items or people already related via a relation, you may find it more convenient to define these starting relations on the <strong>relTab</strong> property of the relevant Relation object rather than running code to call a whole lot of <span class="code">relate()</span> functions. For this you purpose you would probably use the shortcut syntax for setting up the initial values of a LookupTable (which is what the relTab property should contain) like this:</p> 
+ 
+ <p><div class="code"><pre>
+ someRelation: Relation
+   relTab = [
+       obj1 -&gt; [a, b]
+       obj2 -&gt; [c]
+   ]
+ ;  
+ </pre></div> 
+
+<p>So, for example, instead of initializing the values of the fatherOf relation like so:</p>
+ 
+  <p><div class="code"><pre>
+ InitObject
+    execute()
+    {
+        relate(james, fatherOf, mary);
+        relate(james, fatherOf, luke);
+        relate(james, fatherOf, john);
+        relate(andrew, fatherOf, james);        
+        relate(andrew, fatherOf, simon);
+        relate(john, fatherOf, mark);
+    }
+; 
+  </pre></div>
+ 
+ <p>You could just do this:</p>
+ 
+ <p><div class="code"><pre>
+ fatherOf: Relation 'father of' 'child of' @oneToMany
+    relTab = [
+        james -&gt; [mary, luke, john],
+        andrew -&gt; [james, simon],
+        john -&gt; [mark]    
+    ]
+;
+ </pre></div> 
+ 
+ <p>There are two other abbreviated forms of syntax you can use if you really want to (although they're probably less clear than their slightly more verbose equivalents, and the way they read is potentially a little counter-intuitive):</p>
+ 
+ <ul>
+ <li><strong>relation[a] = b</strong> is equivalent to <span class="code">relate(a, relation, b)</span>; e.g. <span class="code">fatherOf[john] = luke</span> does the same as <span class="code">relate(john, fatherOf, luke)</span></li>
+ <li><strong>relation[obj]</strong> is equivalent to <span class="code">related(obj, relation)</span>; e.g. <span class="code">fatherOf[john]</span> does the same as <span class="code">related(john, fatherOf)</span>.</li>
+ </ul>
+ 
+ <br>
 <p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../relations.t">relations.t</a> file.</p>
 
 </div>

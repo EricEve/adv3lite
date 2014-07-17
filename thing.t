@@ -8142,18 +8142,55 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     verifyPushTravel(via)
     {
-        /* Note the mode of push travel (a preposition) for use in messages. */
         viaMode = via;
         
-        if(!canPushTravel)
+        if(!canPushTravel && !canPullTravel)
             illogical(cannotPushTravelMsg);
+        
+        if(matchPushOnly && !canPushTravel)
+            implausible(cannotPushTravelMsg);
+        
+        if(matchPullOnly && !canPullTravel)
+            implausible(cannotPushTravelMsg);       
+        
         
         if(gActor.isIn(self))
             illogicalNow(cannotPushOwnContainerMsg);
         
         if(gIobj == self)
-            illogicalSelf(cannotPushViaSelfMsg);
+            illogicalSelf(cannotPushViaSelfMsg);            
+        
     }
+    
+    /* 
+     *   Check if the player specifically asked to PUSH this object somewhere.
+     *   In the main library we assume not, but language-specific code will need
+     *   to override to check what that player's command actually said.
+     */
+    matchPushOnly = nil
+    
+    
+    /* 
+     *   Check if the player specifically asked to PULL this object somewhere.
+     *   In the main library we assume not, but language-specific code will need
+     *   to override to check what that player's command actually said.
+     */
+    matchPullOnly = nil
+    
+//    verifyPushTravel(via)
+//    {
+//        /* Note the mode of push travel (a preposition) for use in messages. */
+//        viaMode = via;
+//        
+//        if(!canPushTravel)
+//            illogical(cannotPushTravelMsg);
+//        
+//        if(gActor.isIn(self))
+//            illogicalNow(cannotPushOwnContainerMsg);
+//        
+//        if(gIobj == self)
+//            illogicalSelf(cannotPushViaSelfMsg);
+//    }
         
     viaMode = ''
     
@@ -8169,6 +8206,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   an object from one place to another and traveling with it.
      */
     canPushTravel = nil
+    
+    /*  
+     *   Normally we don't distinguish PushTravel from PullTravel, but if we
+     *   want something to be pushable between rooms but not pullable, or vice
+     *   versa, we can set these to different values.
+     */
+    canPullTravel = canPushTravel
     
     /* 
      *   PushTravelDir handles pushing an object in a particular direction, e.g.
@@ -8223,14 +8267,21 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
-    /* Display a message explaining that push travel is not possible */     
+    /* Display a message explaining that push travel is not possible */   
     cannotPushTravelMsg()
     {
         if(isFixed)
             return cannotTakeMsg;
         return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
-            push {that dobj} anywhere. ');
+            {1} {that dobj} anywhere. ', gVerbWord);
     }
+//    cannotPushTravelMsg()
+//    {
+//        if(isFixed)
+//            return cannotTakeMsg;
+//        return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
+//            push {that dobj} anywhere. ');
+//    }
     
     /* Check the travel barriers on the indirect object of the action */
     checkPushTravel()

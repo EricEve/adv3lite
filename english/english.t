@@ -2106,8 +2106,23 @@ modify Thing
     {
         " (<<childLocType(pov).prep>> <<theName>>)";
     }
+    
+    /* Did the player's command ask to PUSH this object ? */
+    matchPushOnly = (gVerbWord == 'push')
+    
+    /* Did the player's command ask to PULL this object? */
+    matchPullOnly = (gVerbWord is in ('pull', 'drag'))
 ;
 
+
+pullTravelMessages: CustomMessages
+    active = (gVerbWord is in ('pull', 'drag'))
+    messages = [
+      Msg(before push travel dir, '{I} pull{s/ed} {the dobj} {1}. '),
+      Msg(push travel traversal, '{I} pull{s/ed} {the dobj} {1}. '),
+      Msg(push travel somewhere, '{I} pull{s/ed} {the dobj} {1} {the iobj}. ',)
+  ]
+;
 
 /*-------------------------------------------------------------------------- */
 /*  

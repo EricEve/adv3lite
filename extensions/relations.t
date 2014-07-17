@@ -74,7 +74,7 @@ class Relation: PreinitObject
          *   values that correspond to values of a.
          */
         
-        local lst = relTab.keysToList();
+        local lst = relTab ? relTab.keysToList() : [];
         local vec = new Vector;
         
         foreach(local cur in lst)
