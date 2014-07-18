@@ -388,14 +388,30 @@ related(a, rel, b?)
 relationPathfinder: Pathfinder
     findPath(start, rel, target)
     {
-        if(rel == nil)
-            return nil;
+                
+        local vec = new Vector();
+        local relation;
         
-        relation = rel;       
+        foreach(local cur in valToList(rel))
+        {
+            if(dataType(cur) == TypeObject)
+                vec.append([cur, normalRelation]);
+            if(dataType(cur) == TypeSString)
+            {
+                relation = relationTable.getRelation(cur);
+                if(relation == nil)
+                    return nil;
+                
+                vec.append(relationTable.getRelation(cur));
+            }
+        }
+        
+        relationList = vec.toList();       
         
         local res = inherited(start, target);
         
-        return res == nil ? nil : res.mapAll({e: e[2]});
+        return res == nil ? nil : 
+        (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]}));
     }
     
     findDestinations(cur)
@@ -404,35 +420,41 @@ relationPathfinder: Pathfinder
         local obj = cur[steps - 1][2];
         
         /* Find everything related to this object via relation. */
-        local lst = related(obj, relation);
+        local lst = [];
         
-        /* Find everything related to everything in the list. */
-        foreach(local dest in lst)
+        foreach(local rel in relationList)
         {
-            local newPath = new Vector(cur);
-            newPath.append([obj, dest]);
-            pathsFound.append(newPath);
+            local rname;
+            
+            if(rel[2] == normalRelation)
+            {
+                lst += rel[1].relatedTo(obj);
+                rname = rel[1].name;
+            }
+            else
+            {
+                lst += rel[1].inverselyRelatedTo(obj);
+                rname = rel[1].reverseName;
+            }
+            
+            /* Find everything related to everything in the list. */
+            foreach(local dest in lst)
+            {
+                local newPath = new Vector(cur);
+                newPath.append([rname, dest]);
+                pathsFound.append(newPath);
+            }
         }
+        
+        
         
     }
     
-    relation = nil
+    relationList = nil
    
 ;
 
 relationPath(start, rel, target)
 {
-    local relData = relationTable.getRelation(rel);
-    local lst;
-    if(relData == nil)
-        return nil;
-    
-    if(relData[2] == normalRelation)           
-        lst = relationPathfinder.findPath(start, relData[1], target);
-    else
-        lst = relationPathfinder.findPath(target, relData[1], start);
-    
-        
-    return (relData[2] == normalRelation || lst == nil)
-        ? lst : lst.sort(true, { a, b: lst.indexOf(a) - lst.indexOf(b) });
+    return relationPathfinder.findPath(start, rel, target);    
 }
