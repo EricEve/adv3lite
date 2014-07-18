@@ -8177,29 +8177,15 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     matchPullOnly = nil
     
-//    verifyPushTravel(via)
-//    {
-//        /* Note the mode of push travel (a preposition) for use in messages. */
-//        viaMode = via;
-//        
-//        if(!canPushTravel)
-//            illogical(cannotPushTravelMsg);
-//        
-//        if(gActor.isIn(self))
-//            illogicalNow(cannotPushOwnContainerMsg);
-//        
-//        if(gIobj == self)
-//            illogicalSelf(cannotPushViaSelfMsg);
-//    }
-        
+       
     viaMode = ''
     
     cannotPushOwnContainerMsg = BMsg(cannot push own container, '{I} {can\'t}
-        push {the dobj} anywhere while {he actor}{\'s} {1} {him dobj}. ',
-                                     gDobj.objInPrep)
+        {1} {the dobj} anywhere while {he actor}{\'s} {2} {him dobj}. ',
+                                     gVerbWord, gDobj.objInPrep)
     
-    cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} push {the
-        dobj} {1} {itself dobj}. ', viaMode.prep)
+    cannotPushViaSelfMsg = BMsg(cannot push via self, '{I} {can\'t} {1} {the
+        dobj} {2} {itself dobj}. ', gVerbWord, viaMode.prep)
     
     /* 
      *   By default we can't push travel most things. Push Travel means pushing
@@ -8275,13 +8261,7 @@ class Thing:  ReplaceRedirector, Mentionable
         return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
             {1} {that dobj} anywhere. ', gVerbWord);
     }
-//    cannotPushTravelMsg()
-//    {
-//        if(isFixed)
-//            return cannotTakeMsg;
-//        return BMsg(cannot push travel, 'There{dummy}{\'s} no point trying to
-//            push {that dobj} anywhere. ');
-//    }
+
     
     /* Check the travel barriers on the indirect object of the action */
     checkPushTravel()
@@ -8371,11 +8351,13 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         /* If I have a traversalMsg, use it */
         if(gIobj && gIobj.propType(&traversalMsg) != TypeNil)
-            DMsg(push travel traversal, '{I} push{es/ed} {the dobj} {1}. ',
+            DMsg(push travel traversal, '{I} <<if matchPullOnly>> pull{s/ed}
+                <<else>> push{es/ed}<<end>> {the dobj} {1}. ',
                  gIobj.traversalMsg);
         else
-            DMsg(push travel somewhere, '{I} push{es/ed} {the dobj} {1}
-                {the iobj}. ', via.prep); 
+            DMsg(push travel somewhere, '{I} <<if matchPullOnly>> pull{s/ed}
+                <<else>> push{es/ed}<<end>> {the dobj} {1} {the iobj}. ', 
+                 via.prep); 
     }
     
    
@@ -8405,8 +8387,8 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }       
     }
     
-    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} push
-        anything through {the iobj}. ')
+    cannotPushThroughMsg = BMsg(cannot push through, '{I} {can\'t} {1}
+        anything through {the iobj}. ', gVerbWord)
     
     
     /* 
@@ -8423,8 +8405,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    okayPushIntoMsg = BMsg(okay push into, '{I} push{es/ed} {the dobj} into {the
-        iobj}. ')
+    okayPushIntoMsg = BMsg(okay push into, '{I} <<if matchPullOnly>> pull{s/ed}
+                <<else>> push{es/ed}<<end>>} {the dobj} into {the iobj}. ')
     
     iobjFor(PushTravelEnter)
     {
@@ -8451,8 +8433,8 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} push
-        anything into {the iobj}. ')
+    cannotPushIntoMsg = BMsg(cannot push into, '{I} {can\'t} {1}
+        anything into {the iobj}. ', gVerbWord)
     
     dobjFor(PushTravelGetOutOf)
     {
@@ -8491,8 +8473,8 @@ class Thing:  ReplaceRedirector, Mentionable
        
     }
     
-    okayPushOutOfMsg = BMsg(okay push out of, '{I} push{es/ed} {the dobj} {outof
-        iobj}. ')
+    okayPushOutOfMsg = BMsg(okay push out of, '{I} <<if matchPullOnly>> pull{s/ed}
+                <<else>> push{es/ed}<<end>> {the dobj} {outof iobj}. ')
     
     dobjFor(PushTravelClimbUp)
     {
@@ -8515,8 +8497,8 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} push
-        anything up {the iobj}. ')
+    cannotPushUpMsg = BMsg(cannot push up, '{I} {can\'t} {1}
+        anything up {the iobj}. ', gVerbWord)
     
     dobjFor(PushTravelClimbDown)
     {
@@ -8539,8 +8521,8 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { checkPushTravel(); }
     }
     
-    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} push
-        anything down {the iobj}. ')
+    cannotPushDownMsg = BMsg(cannot push down, '{I} {can\'t} {1}
+        anything down {the iobj}. ', gVerbWord)
     
     /* 
      *   We don't bother to define isAskable etc. properties since we assume

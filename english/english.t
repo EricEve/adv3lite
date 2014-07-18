@@ -2115,14 +2115,6 @@ modify Thing
 ;
 
 
-pullTravelMessages: CustomMessages
-    active = (gVerbWord is in ('pull', 'drag'))
-    messages = [
-      Msg(before push travel dir, '{I} pull{s/ed} {the dobj} {1}. '),
-      Msg(push travel traversal, '{I} pull{s/ed} {the dobj} {1}. '),
-      Msg(push travel somewhere, '{I} pull{s/ed} {the dobj} {1} {the iobj}. ',)
-  ]
-;
 
 /*-------------------------------------------------------------------------- */
 /*  
