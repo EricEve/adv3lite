@@ -9,7 +9,13 @@
  */
 
  
-
+/* 
+ *   The Relation class is used to define any kind of binary relation you like
+ *   between objects, or between items of any other kind, e.g. x love y, or a is
+ *   the father of b, or c knows d.
+ *
+ *   REQUIRES THE RELATIONS EXTENSION.
+ */
 class Relation: PreinitObject
     /* 
      *   A string name that can be used to refer to this relation, e.g. 'loves'
@@ -75,14 +81,22 @@ class Relation: PreinitObject
          */
         
         local lst = relTab ? relTab.keysToList() : [];
+        
+        /* Set up a Vector as a temporary store for our results. */
         local vec = new Vector;
         
+        /* 
+         *   Go through each key in the relTab LookupTable to see if a occurs in
+         *   its corresponding value (which should be a list). If so append cur
+         *   to our vector.
+         */
         foreach(local cur in lst)
         {
             if(valToList(relTab[cur]).indexOf(a))
                 vec.append(cur);
         }
         
+        /* Convert the vector to a list and return the result. */
         return vec.toList();
     }
     
@@ -96,15 +110,28 @@ class Relation: PreinitObject
         return isRelated(b, a);
     }
     
-    /* objs should be supplied as a two-element list */
+    /* 
+     *   Make two objects related via this relation. The objs should be supplied
+     *   as a two-element list (e.g. [a, b]) such that a will be related to b.
+     */
     addRelation(objs)
     {
-        if(relTab == nil)
+        
+        /* 
+         *   If we do not already have a LookupTable associated with our relTab
+         *   property, perform some sanity checks and then create one if all is
+         *   okay.
+         */
+        if(relTab == nil)   
         {
-            relTab = new LookupTable;
-            relTab.setDefaultValue([]);
             
-            
+            /* 
+             *   Check whether the setting of the reciprocal property on this
+             *   relation conflicts with the setting of the relationType
+             *   property. Neither a oneToMany nor a manyToOne relation can be
+             *   reciprocal (since oneToMany and manyToOne both imply an
+             *   asymmetry), so issue a warning if there's a conflict.
+             */
             if(reciprocal && relationType is in (oneToMany, manyToOne))
             {
                 "<b>ERROR!</b> The <<name>> relation cannot be both <<if
@@ -114,9 +141,20 @@ class Relation: PreinitObject
                 return;
             }
             
-            
+            /* 
+             *   If we do not yet have a LookupTable attached to our relTab,
+             *   create it now.
+             */
+            relTab = new LookupTable;
+            relTab.setDefaultValue([]);
         }
         
+        /* 
+         *   The obs parameter should have been supplied as a two element list,
+         *   [a, b]. When we add this to our relTab LookupTable the virst item
+         *   in the list will be a key in the table and the second will be a
+         *   value.
+         */
         local key = objs[1];
         local val = objs[2];
         
@@ -126,44 +164,91 @@ class Relation: PreinitObject
          *   anything, so remove it from the table
          */
         if(val == nil)
-        {
+        {   
+            /* 
+             *   If we're a reciprocal relation then we also need to remove the
+             *   other side of the relation; if a is no longer related to b then
+             *   b is no longer related to a in a reciprocal relationship.
+             */
             if(reciprocal)
             {
+                /* 
+                 *   relTab[key] should evaluate a list of the items to which
+                 *   key is related. For each of these item remove key from the
+                 *   list of items to which they in turn are related.
+                 */
                 foreach(local cur in relTab[key])
                     relTab[cur] = relTab[cur] - key;
             }
             
+            /* 
+             *   Simce key is no longer related to anything, we can remove it
+             *   from the relTab LookupTable.
+             */
             relTab.removeElement(key);
+            
+            /*   Then we're done. */
             return;
         }
         
         /* 
-         *   if key is nil we're saying the reverse relation no longer applies
+         *   If key is nil we're saying the reverse relation no longer applies
          *   to val, so we need to remove val wherever it appears.
          */
         if(key == nil)
         {
+            /* 
+             *   If we've a reciprocal relation, val is no longer related to
+             *   anything, so we can remove the val entry from the relTab.
+             */
             if(reciprocal)
                 relTab.removeElement[val];
             
+            /* Get a list of the keys in relTab */
             local lst = relTab.keysToList();
+            
+            /* 
+             *   Iterate over that list removing val from the list of values
+             *   associated with every key.
+             */
             foreach(local cur in lst)
             {
                 local curVal = relTab[cur];
                 relTab[cur] = curVal - val;
             }
             
+            /* Then we're done. */
             return;
         }
         
+        /*  Note the current value associated with key in relTab. */
         local existing = relTab[key];
         
+        /*  What happens next depends on our relationType */
         switch(relationType)
         {
+            
         case oneToOne:
-            relTab[key] = [val];           
+            /* 
+             *   If we're a one-to-one relation, we can simply set the new value
+             *   corresponding to key to [val], either thereby creating a new
+             *   entry in the relTab LookupTable or overwriting the existing
+             *   one. We make [val] a list since this is how the relTab
+             *   LookupTable stores its values.
+             */
+            relTab[key] = [val];          
+            
+            /*  
+             *   Ensure that val is not a value for any other key in the table,
+             *   since in a one-to-one relationship each key can be related to
+             *   at most one val, and each val to at most one key.
+             */
             makeUnique(key, val);
             
+            /*   
+             *   If we're a reciprocal relationship we need to enter the same
+             *   pair of items in relTab the other way round as well.
+             */
             if(reciprocal)       
             {
                 relTab[val] = [key];                          
@@ -171,24 +256,51 @@ class Relation: PreinitObject
             }
             break;
         case oneToMany:   
-
+            
             /* Deliberate fall-through */
         case manyToMany:
+            /* 
+             *   In the case of a one-to-many or many-to-many relationships,
+             *   several values can be associated with each key, so we append
+             *   the new val to the list of values already associated with key.
+             */            
             relTab[key] = (nilToList(existing)).appendUnique([val]);
+            
+            /*  
+             *   If we're a reciprocal relationship we must also be a
+             *   many-to-many one, or else we would not have reached this point
+             *   (the block beginning if(relTab == nil) above would have
+             *   prevented it). So, if we're reciprocal, we also add key to the
+             *   list of values associated with val.
+             */
             if(reciprocal)
                 relTab[val] = nilToList(relTab[val]).appendUnique([key]);
             break;          
             
         case manyToOne:
+            /* 
+             *   For a many-to-one relationship, simply make [val] the new value
+             *   corresponding to key.
+             */
             relTab[key] = [val];
             
             break;
         }
     }
     
+    /*  
+     *   Ensure that key is the only entry in relTab with a value of [val].
+     *
+     */
     makeUnique(key, val)
     {
+        /* Get a list of all the keys in the relTab LookupTable. */
         local lst = relTab.keysToList();
+        
+        /* 
+         *   Go through all the keys in relTab, deleting all that value a value
+         *   of [val] apart from key.
+         */
         foreach(local cur in lst)
         {
             if(cur != key && relTab[cur] == [val])
@@ -197,26 +309,62 @@ class Relation: PreinitObject
         }
     }
     
+    /*  
+     *   Remove this relation between the items specified in objs, which should
+     *   be supplied as a two-element list [a, b], where a is the item that is
+     *   no longer related to b.
+     */
+     
     removeRelation(objs)
     {
+        /* 
+         *   If relTab hasn't been set up yet we've nothing to do, since no
+         *   objects are yet related via this relation.
+         */
         if(relTab == nil)
             return;
         
+        /*  Extract the key and val values from our two-element objs list. */
         local key = objs[1];
         local val = objs[2];
         
+        /*  
+         *   What happens next depends on what kind of relation we are. Note
+         *   that if we have a non-nil relTab at all, we'll already have checked
+         *   we can only be a reciprocal relation if we're a one-to-one or
+         *   many-to-many relation.
+         */         
         switch(relationType)
         {
         case oneToOne:
         case manyToOne:
+            /* 
+             *   If the key can only be related to one value, simply remove the
+             *   key from relTab.
+             */
             relTab.removeElement(key);
+            
+            /*   
+             *   If this relation is reciprocal, remove val from relTab as well,
+             *   since if this relation no longer holds one way round, it can no
+             *   hold the other way round either.
+             */
             if(reciprocal)
                 relTab.removeElement(val);
             break;
             
         case oneToMany:    
         case manyToMany:
+            /* 
+             *   If the key can be related to many values, remove val from the
+             *   list of values it's related to.
+             */            
             relTab[key] = relTab[key] - val;
+            
+            /*  
+             *   If this relation is reciprocal, remove key from the list of
+             *   values corresponding to val.
+             */
             if(reciprocal)
                 relTab[val] = relTab[val] - key;
             break;
@@ -225,13 +373,14 @@ class Relation: PreinitObject
     }
     
     
-    
+    /* Make relation[b] = c work like relate(b, relation, c) */
     operator []=(b, c)
     {
         addRelation([b, c]);
         return self;
     }
     
+    /* make relation[b] work like related(b, relation) */
     operator [] (b)
     {
         return relatedTo(b);
@@ -243,6 +392,8 @@ class Relation: PreinitObject
  *   related to what, but works out what is related to what on the basis of some
  *   other relation(s) (e.g. a sibling relation might work by testing for common
  *   parents).
+ *
+ *   REQUIRES THE RELATIONS EXTENSION
  */
 DerivedRelation: Relation
     
@@ -255,12 +406,22 @@ DerivedRelation: Relation
     
     inverselyRelatedTo(a) { return []; }
     
+    /* 
+     *   By default we don't permit the direct addition of relationships via
+     *   this relation, since this is a relation dependent upon external
+     *   conditions.
+     */
     addRelation(objs)
     {
         DMsg(cannot add to derived relation, 'ERROR! You cannot explicitly
             relate items via a derived relation (%1). ', name);
     }
     
+    /* 
+     *   By default we don't permit the direct removal of relationships via
+     *   this relation, since this is a relation dependent upon external
+     *   conditions.
+     */
     removeRelation(objs)
     {
         DMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
@@ -269,9 +430,23 @@ DerivedRelation: Relation
 ;
 
 
+/* 
+ *   Used internally by the RELATIONS EXTENSION to keep track of which relations
+ *   correspond to which (string) names.
+ */
 relationTable: PreinitObject
-   nameTab = static new LookupTable
+    /* 
+     *   LookupTable to restore data relating names to relations. Each key is a
+     *   string containing a relation name. Each corresponding value is a
+     *   two-item list [rel, type] where rel is the name of the corresponding
+     *   relation object and type is either normalRelation or reverseRelation.
+     */
+    nameTab = static new LookupTable
     
+    /*  
+     *   Go through all the relations in the game and add their names and
+     *   reverseNames to our nameTab.
+     */
     execute()
     {
         for(local rel = firstObj(Relation); rel != nil; rel = nextObj(rel,
@@ -280,18 +455,35 @@ relationTable: PreinitObject
             if(rel.name)
                 nameTab[rel.name] = [rel, normalRelation];
             if(rel.reverseName)
-                nameTab[rel.reverseName] = [rel, reverseRelation];
-         
-            
+                nameTab[rel.reverseName] = [rel, reverseRelation];           
         }
     }
 
+    /* 
+     *   Get the relation corresponding to a string version of its name. Return
+     *   a two-item list [rel, type] where rel is the name of the corresponding
+     *   relation object and type is either normalRelation or reverseRelation.     *
+         
+     */
     getRelation(rel)
     {
         if(dataType(rel) == TypeSString)
             return nameTab[rel];
-        
+        /*
+         *   If the rel argument is not supplied as a string, it's presumably
+         *   the name of a relation object.
+         */
         return [rel, normalRelation];
+    }
+    
+    /* 
+     *   Message to display when there's no relation in our nameTab
+     *   corresponding to the name rel.
+     */
+    sayNoSuchRelation(rel)
+    {
+        DMsg(no such relation, 'ERROR, there is no such relation as <q>{1}</q>. ',
+             rel);
     }
 ;
 
@@ -303,32 +495,72 @@ relationTable: PreinitObject
  *   specified either as an object (in which case its the relevant relation
  *   object) or as a single-quoted string (in which cast it's either the name or
  *   the reverseName of a relation object.
+ *
+ *   PART OF THE RELATIONS EXTENSION
  */
 relate(a, rel, b)
 {
+    /* Get the relation referred to by the rel parameter. */
     local relData = relationTable.getRelation(rel);
-    if(relData)
+    
+    /* Check that we actually found a relation before trying to use it. */
+    if(relData == nil)
     {
-        if(relData[2] == normalRelation)
-            relData[1].addRelation([a, b]);
-        
-        if(relData[2] == reverseRelation)
-            relData[1].addRelation([b, a]);
-    }   
+        relationTable.sayNoSuchRelation(rel);
+        return;
+    }
+    
+    
+    /* 
+     *   If it's a normal relation, then use the addRelation method of the
+     *   relation object to create a relation between a and b.
+     */
+    if(relData[2] == normalRelation)
+        relData[1].addRelation([a, b]);
+    
+    /*  
+     *   If it's a reverse relation (e.g. 'child of' when the relation is
+     *   fatherOf) swap the a and b arguments round when calling the relation's
+     *   addRelation() method (e.g. to make a the child of b using the fatherOf
+     *   relation, we make b the father of a).
+     */
+    if(relData[2] == reverseRelation)
+        relData[1].addRelation([b, a]);
+    
 }
 
-/* Remove the rel relation between a and b */
+/* 
+ *   Remove the rel relation between a and b
+ *
+ *   PART OF THE RELATIONS EXTENSION
+ */
 unrelate(a, rel, b)
 {
+    /* Get the relation referred to by the rel parameter. */
     local relData = relationTable.getRelation(rel);
-    if(relData)
+    
+    /* Check that we actually found a relation before trying to use it. */
+    if(relData == nil)
     {
-        if(relData[2] == normalRelation)
-            relData[1].removeRelation([a, b]);
-        
-        if(relData[2] == reverseRelation)
-            relData[1].removeRelation([b, a]);
-    } 
+        relationTable.sayNoSuchRelation(rel);
+        return;
+    }    
+    
+    /* 
+     *   If it's a normal relation, then use the removeRelation method of the
+     *   relation object to remove the relation between a and b.
+     */
+    if(relData[2] == normalRelation)
+        relData[1].removeRelation([a, b]);
+    
+    /*  
+     *   If it's a reverse relation (e.g. 'child of' when the relation is
+     *   fatherOf) swap the a and b arguments round when calling the relation's
+     *   removeRelation() method (e.g. to make a no longer the child of b using
+     *   the fatherOf relation, we make b no longer the father of a).
+     */
+    if(relData[2] == reverseRelation)
+        relData[1].removeRelation([b, a]);  
     
 }
 
@@ -338,15 +570,19 @@ unrelate(a, rel, b)
  *   items related to a via the rel relation. If three arguments are supplied
  *   (e.g. related(a, knows, b)) then return true if a is related to b via the
  *   knows relation and b otherwise.
+ *
+ *   PART OF THE RELATIONS EXTENSION
  */
-
 related(a, rel, b?)
 {    
+     /* Get the relation referred to by the rel parameter. */
     local relData = relationTable.getRelation(rel);
+    
+    
+    /* Check that we actually found a relation before trying to use it. */
     if(relData == nil)
     {
-        DMsg(no such relation, 'ERROR, there is no such relation as {%1}. ',
-             rel);
+        relationTable.sayNoSuchRelation(rel);
         return nil;
     }
  
@@ -362,6 +598,7 @@ related(a, rel, b?)
             return relData[1].inverselyRelatedTo(a);
            
     }
+    
     /* 
      *   Otherwise, if b has been supplied, we're being asked if a is related to
      *   b.
@@ -384,32 +621,77 @@ related(a, rel, b?)
  *   relationPathfinder.findPath(John, fatherOf, Jeremy) should return a list
  *   like [John, Jo, Jim, Jeremy] (assuming the appropriate definition of the
  *   fatherOf relationship).
+ *
+ *   PART OF THE RELATIONS EXTENSION
  */ 
 relationPathfinder: Pathfinder
+    
+    /* 
+     *   Find a path from start to target via the rel relation. The rel
+     *   parameter may be supplied as a relation object, a relation string name
+     *   or reverseName, or a list of any of these, in which case any of the
+     *   relations contained in the list may be used to step from one object to
+     *   the next.
+     */
     findPath(start, rel, target)
     {
                 
         local vec = new Vector();
         local relation;
         
+        /* Go through every relation supplied in the rel parameter. */
         foreach(local cur in valToList(rel))
         {
+            /* If it's an object, add it to our Vector as a normal relation. */
             if(dataType(cur) == TypeObject)
                 vec.append([cur, normalRelation]);
+            
+            /* If it's a string, look it up in the relationTable. */
             if(dataType(cur) == TypeSString)
             {
                 relation = relationTable.getRelation(cur);
-                if(relation == nil)
-                    return nil;
                 
+                /* 
+                 *   If we can't find the string in the relationTable, give up
+                 *   and return nil, since there's an error in the rel
+                 *   parameter. Also issue a warning message.
+                 */
+                if(relation == nil)
+                {
+                    relationTable.sayNoSuchRelation(rel);
+                    return nil;
+                }
+                    
+                /* If we found the relation, add it to our vector. */
                 vec.append(relationTable.getRelation(cur));
             }
         }
         
+        /* 
+         *   Convert our vector to a list and store it in our relationList
+         *   property.
+         */
         relationList = vec.toList();       
         
+        /*   
+         *   Use the inherited handling to find the path and store it in a local
+         *   variable.
+         */
         local res = inherited(start, target);
         
+        /* 
+         *   If the result was nil, simply return nil to indicate that no path
+         *   was found. Otherwise, if the rel parameter was passed as a list,
+         *   return the resulting path list unchanged. Otherwise (if rel was
+         *   passed as a single relation), return a list consisting of the
+         *   objects (or other items) on the path only, since the relation
+         *   information for each step would be redundant.
+         *
+         *   Thus, if rel was passes as a list, the return value might resemble,
+         *   [[nil, john], ['child of', mark], ['sibling', mary]], whereas if it
+         *   was passed as a single relation the return value might resemble
+         *   [johh, mark, alan].
+         */
         return res == nil ? nil : 
         (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]}));
     }
@@ -450,9 +732,22 @@ relationPathfinder: Pathfinder
         
     }
     
+    /* 
+     *   Property used internally to hold the list of relations we're finding a
+     *   route through.
+     */
     relationList = nil
    
 ;
+
+/* 
+ *   Find a path from start to target via the rel relation, where rel can be a
+ *   single relation or a list of relations, and can be specified either via a
+ *   relation object name or a string name (or reverseName). We provide this as
+ *   a convenient wrapper for the more verbose method call.
+ *
+ *   PART OF THE RELATIONS EXTENSION.
+ */
 
 relationPath(start, rel, target)
 {

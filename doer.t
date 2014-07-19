@@ -305,13 +305,51 @@ class Doer: Redirector
          */        
         gAction.curDobj = curCmd.dobj;
         gAction.curIobj = curCmd.iobj;
+        gAction.curAobj = curCmd.acc;
         
         /* 
          *   If the command is an action to be carried out by the player
          *   character, execute the action in the normal manner.
          */
         if(curCmd.actor == gPlayerChar)
+        {
+            /* 
+             *   If our execAction() method is going to handle the action in
+             *   some non-standard way, instead of simply stopping it or
+             *   replacing it with another one, we need to perform some
+             *   housekeeping to ensure everything works properly.
+             */
+            if(handlingAction)
+            {
+                /* 
+                 *   If we specified an object on the handlingAction property,
+                 *   it's the action we're going to simulate. We don't need to
+                 *   specify a different action if we're notionally handling the
+                 *   one we've just matched.
+                 */
+                if(propType(&handlingAction) == TypeObject)
+                {
+                    /* 
+                     *   Change the current action to the one we're notionally
+                     *   handling.
+                     */
+                    gAction = handlingAction;
+                    
+                    /*  
+                     *   Set the objects of the new gAction in case we need them
+                     */
+                    gAction.curDobj = curCmd.dobj;
+                    gAction.curIobj = curCmd.iobj;
+                    gAction.curAobj = curCmd.acc;
+                }
+                   
+                /* Send the beforeAction notifications. */                
+                gAction.beforeAction();                
+                
+            }
+            
             execAction(curCmd); 
+        }
         
         /* 
          *   If the command is directed to another actor (or object) let the
@@ -320,6 +358,14 @@ class Doer: Redirector
         else
             curCmd.actor.handleCommand(curCmd.action);
     }
+    
+    /* 
+     *   If this Doer is handling a complete action (instead of stopping one or
+     *   replacing it with another) this should either be true (if it's the same
+     *   action that we've matched) or some other action (if that's the one
+     *   we're simulating and it's not the one we matched).
+     */
+    handlingAction = nil
     
     /* 
      *   We separate out execAction() as a separate method from exec() so that

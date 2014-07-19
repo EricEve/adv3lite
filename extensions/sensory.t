@@ -11,8 +11,8 @@
  *   a new SensoryEvent class which can be useful for making actors and other
  *   objects respond to sensory events.
  *
- *   VERSION 1
- *.  20-Jul-13
+ *   VERSION 2
+ *.  19-Jul-14
  *
  *   Usage: include this extension after the adv3Lite library but before your
  *   own game-specific files. Make sure that events.t is also included in your
@@ -24,7 +24,7 @@ sensoryID: ModuleID
     name = 'Sensory'
     byline = 'by Eric Eve'
     htmlByline = 'by Eric Eve'
-    version = '1'    
+    version = '2'    
 ;
 
 property remoteSmellDesc;
@@ -37,7 +37,7 @@ property tooFarAwayToSmellMsg;
  *   The SensoryEmanation class is the base class for sensory emanations such as
  *   smells and noises.
  */
-class SensoryEmanation: Decoration
+modify SensoryEmanation
     
     /* 
      *   By default we vary our description according to whether the player
@@ -160,18 +160,8 @@ class SensoryEmanation: Decoration
 ;
 
 /* An Odor is a SensoryEmanation representing a Smell */
-replace class Odor: SensoryEmanation
-    /*  An Odor responds to EXAMINE SOMETHING or SMELL SOMETHING */
-    decorationActions = [Examine, SmellSomething]   
-    
-    /*   Treat Smelling an Odor as equivalent to Examining it. */
-    dobjFor(SmellSomething) asDobjFor(Examine)   
-    
-    /*   
-     *   In order to be able to 'examine' an Odor you must be able to smell it
-     */
-    dobjFor(Examine) { preCond = [objSmellable] }    
-    
+modify Odor
+        
     /*   
      *   The message to be displayed to show that there's a smell here. The
      *   default implementation should be serviceable in many cases, but game
@@ -209,26 +199,10 @@ replace class Odor: SensoryEmanation
     {
         if(!gActionIn(Smell, SmellSomething))
             inherited;
-    }
-    
-    sightSize = smellSize
-        
-    tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg
-    
-    isOdor = true
+    }    
 ;
 
-replace class Noise: SensoryEmanation
-     /*  A Noise responds to EXAMINE SOMETHING or LISTEN TO SOMETHING */
-    decorationActions = [Examine, ListenTo]    
-    
-    /*   Treat Listening to a Noise as equivalent to Examining it. */
-    dobjFor(ListenTo) asDobjFor(Examine)    
-    
-    /*   
-     *   In order to be able to 'examine' a Noise you must be able to hear it
-     */
-    dobjFor(Examine) { preCond = [objAudible] }
+modify Noise   
     
     /*   
      *   The message to be displayed to show that there's a noise here. The
@@ -267,13 +241,7 @@ replace class Noise: SensoryEmanation
     {
         if(!gActionIn(Listen, ListenTo))
             inherited;
-    }
-    
-    sightSize = soundSize
-        
-    tooFarAwayToSeeDetailMsg = tooFarAwayToHearMsg
-    
-    isNoise = true
+    }  
 ;
 
 /* The object which drives emanation messages for Odors and Noises */

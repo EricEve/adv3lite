@@ -24,18 +24,21 @@ property smellSize;
 property soundSize;
 
 /* 
+ *   We define SensoryEmanation to be the base class for Odor and Noise. It
+ *   doesn't add any functionality here, but makes it possible for the sensory.t
+ *   extension to add functionality to this class.
+ */
+class SensoryEmanation: Decoration
+;
+
+/* 
  *   An Odor is an object representing a smell (as opposed to the object that
  *   might be emitting that smell). The desc property of an Odor is displayed in
  *   response to EXAMINE or SMELL; any other action is responded to with the
  *   notImportantMsg.
  */
-class Odor: Thing
-    /* 
-     *   Treat an Odor as a decoration so that it responds only to a limited
-     *   number of actions
-     */
-    isDecoration = true
-    
+class Odor: SensoryEmanation
+        
     /*  An Odor responds to EXAMINE SOMETHING or SMELL SOMETHING */
     decorationActions = [Examine, SmellSomething]
     
@@ -71,12 +74,7 @@ class Odor: Thing
  *   response to EXAMINE or LISTEN TO; any other action is responded to with the
  *   notImportantMsg.
  */
-class Noise: Thing
-    /* 
-     *   Treat a Noise as a decoration so that it responds only to a limited
-     *   number of actions
-     */
-    isDecoration = true
+class Noise: SensoryEmanation    
     
     /*  A Noise responds to EXAMINE SOMETHING or LISTEN TO SOMETHING */
     decorationActions = [Examine, ListenTo]
