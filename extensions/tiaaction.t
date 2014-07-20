@@ -4,7 +4,7 @@
 #include "advlite.h"
 
 /* 
- *   tiaaction.t
+ *   TIAACTION EXTENSION
  *
  *   Adds the TIAAction class to adv3Lite
  *
@@ -20,6 +20,10 @@ tiaactionID: ModuleID
     version = '1'    
 ;
 
+/*
+ *   DEFINED IN TIAACTION EXTENSION. A TIAAction is one that has three objects
+ *   (direct, indirect and indirect), such as PUT COIN IN SLOT WITH TWEEZERS.   
+ */
 class TIAAction: TIAction
     /* The current accessory object of this action. */
     curAobj = nil
@@ -357,7 +361,11 @@ class TIAAction: TIAction
     
 ;
 
+/*
+ *  MODIFICATION TO THING FOR TIAACTION EXTENSION
+ */ 
 modify Thing
+     /* Defined on TIAAction extension. */
     aobjFor(Default)
     {
         verify()

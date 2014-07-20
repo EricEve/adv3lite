@@ -1,6 +1,8 @@
 #charset "us-ascii"
 #include "advlite.h"
 /*
+ *   SUBTIME EXTENSION
+ *
  *   Copyright 2003, 2006 Michael J. Roberts
  *
  *   Adapted for use with adv3Lite by Eric Eve; the changes include using the
@@ -22,6 +24,7 @@ property gameStartTime;
  *   The clockManager object is used to keep track of subjective time. In this
  *   version we store dates and times internally as Date objects, although we
  *   recognize date/times in the form [d, h, m] defined on ClockEvents.
+ *   [DEFINED IN SUBTIME EXTENSION]
  */
 clockManager: PreinitObject
     /*
@@ -518,6 +521,7 @@ clockManager: PreinitObject
  *   eventReached() method of the event object.  This will set the clock
  *   time to the event's current time, and take note of how long we have
  *   until the next plot event.  
+ *   [DEFINED IN SUBTIME EXTENSION]
  */
 class ClockEvent: object
     /*

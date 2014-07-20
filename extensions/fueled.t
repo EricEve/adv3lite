@@ -26,6 +26,12 @@ fueledID: ModuleID
     version = '1'    
 ;
 
+/* 
+ *  A FueledLightSource is a light source that stars out with a set amount
+ *  of fuel, which is then consumed at one unit per turn. Once the fuel
+ *  is exhausted the FueledLightSource goes out and can't be re-lit until
+ *  it has been refueled. [PART OF FUELED EXTENSION] 
+ */
 class FueledLightSource: object
     /* 
      *   The source of our fuel. By default this is self, but it could be an

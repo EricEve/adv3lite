@@ -2,10 +2,16 @@
 #include "advlite.h"
 
 
-/* Objective Time module */
+/* 
+ * OBJTIME EXTENSION
+ * Objective Time module 
+ */
 
 
-
+/*
+ *  The timeManager object is used to keep track of the notional game time
+ *  in the OBJTIME EXTENSION.
+ */
 timeManager: InitObject
     
     /* 
@@ -14,11 +20,12 @@ timeManager: InitObject
      */
     currentTime = static new Date(2000, 1, 1)
     
+    /* Initialize the timeManager. */
     execute()
     {
         /* 
          *   Get our starting time from the gameMain object, unless we're
-         *   getting it from the clockManager.
+         *   getting it from the clockManager (in the SUBTIME extension).
          */
         if(defined(clockManager) && clockManager.lastEvent)
             ;
@@ -32,6 +39,7 @@ timeManager: InitObject
         new PromptDaemon(self, &reset);
     }
     
+    /* Reset action-dependent counts to zero for a new turn. */
     reset()
     {
         /* Reset the additional time to 0. */
@@ -140,19 +148,29 @@ timeManager: InitObject
     }
 ;
 
+/*  
+ *  Modification to GameDef to add an additional property for use with
+ *  the OBJTIME EXTENSION
+ */
+
 modify GameMainDef
     /* 
      *   The date and time at which this game notionally starts. This should be
      *   specified as a list of numbers in the format [year, month, day, hour,
      *   minute, second, millisecond]. Trailing zero elements may be omitted. We
      *   default to midnight on 1st January 2000, but game code should generally
-     *   override this.
+     *   override this. [PART OF OBJTIME EXTENSION]
      */
     
     gameStartTime = [2000, 1, 1, 0, 0, 0, 0]
 ;
 
+/* 
+ *  Modifications to the Action class for use with the OBJTIME EXTENSION.
+ *  The purpose of these modifications is to advance the game clock each turn.
+ */
 modify Action
+    /* Modified for OBJTIME EXTENSION */
     afterAction()
     {
         /* Advance the game clock */
@@ -162,7 +180,7 @@ modify Action
         inherited();
     }
     
-    /* Advance the notional game time */
+    /* Advance the notional game time [OBJTIME EXTENSION]*/
     advanceTime()
     {
         if(advanceOnFailure || !actionFailed)
@@ -175,7 +193,7 @@ modify Action
     /* 
      *   Flag: should the game time be advanced if this action fails? By default
      *   we allow it to advance, but this can be overridden to nil for actions
-     *   that should take no time if they're not carried out.
+     *   that should take no time if they're not carried out. [OBJTIME EXTENSION]
      */
     advanceOnFailure = true
 
@@ -183,6 +201,7 @@ modify Action
      *   The number of seconds it takes to carry out this action. By default we
      *   assume every action takes one minute, but this can be overridden either
      *   globally on the Action class or individually on each actiom.
+     *   [OBJTIME EXTENSION]
      */
     timeTaken = 60
     
@@ -192,10 +211,14 @@ modify Action
      *   to count implicit actions as part of the main action, but this could be
      *   overridden to be, say, the same as timeTaken if zero-time implicit
      *   actions were felt to give an unfair advantage to timed puzzles.
+     *   [OBJTIME EXTENSION]
      */
     implicitTimeTaken = 0
     
-    /*  Add our implicitTimeTaken to the total time taken for the turn. */
+    /*  
+     *  Add our implicitTimeTaken to the total time taken for the turn. 
+     *  [OBJTIME EXTENSION]
+     */
     addImplicitTime() 
     { 
         addTime(implicitTimeTaken);
@@ -231,6 +254,8 @@ modify Action
  *   specify that the Fuse is to execute at 15:34 on the current day, while
  *   '2014:06:22 15:34:00' would specify that the Fuse is to execute at 15:34 on
  *   22nd June 2014 (game time, not real time).
+ *
+ *  [PART OF THE OBJTIME EXTENSION]
  */
 
 class TimeFuse: Fuse
@@ -291,6 +316,12 @@ class TimeFuse: Fuse
     
 ;
 
+/* 
+ *  A SenseTimeFuse is a TimeFuse that only displays its output if senseObj
+ *  can sense obj via the sense passed in the senseProp parameter at the
+ *  time the fuse executes.
+ *  [PART OF THE OBJTIME EXTENSION]
+ */
 class SenseTimeFuse: TimeFuse
    
     /* 
@@ -310,6 +341,11 @@ class SenseTimeFuse: TimeFuse
     
 ;
 
+/* 
+ *  Modifications to TravelConnector for the OBJTIME EXTENSION. The purpose of
+ *  these modifications is to allow different TravelConnectors to take different
+ *  amounts of time to traverse. 
+ */
 modify TravelConnector
     /* 
      *   The number of seconds it takes to traverse this connector (in addition
@@ -348,7 +384,10 @@ modify TravelConnector
     
 
 
-/* Add a certain number of seconds to the current action time. */
+/*
+ *  Add a certain number of seconds to the current action time. 
+ *  [OBJTIME EXTENSION]
+ */
 addTime(secs)
 {
     timeManager.additionalTime += secs;
@@ -357,6 +396,7 @@ addTime(secs)
 /* 
  *   Make the current action take secs time in total; this overrides any
  *   previously calcuated time for this action.
+ *  [OBJTIME EXTENSION]
  */     
 takeTime(secs)
 {

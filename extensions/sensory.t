@@ -6,7 +6,7 @@
 /*
  *   sensory.t
  *
- *   The SENSORY extension is intended for use with the adv3Lite library. It
+ *   The SENSORY EXTENSION is intended for use with the adv3Lite library. It
  *   adds slightly more sophisticated handling for smells and sounds, as well as
  *   a new SensoryEvent class which can be useful for making actors and other
  *   objects respond to sensory events.
@@ -35,7 +35,7 @@ property tooFarAwayToSmellMsg;
 
 /* 
  *   The SensoryEmanation class is the base class for sensory emanations such as
- *   smells and noises.
+ *   smells and noises. [MODIFIED FOR SENSORY EXTENSION]
  */
 modify SensoryEmanation
     
@@ -43,6 +43,7 @@ modify SensoryEmanation
      *   By default we vary our description according to whether the player
      *   character can see the object whose sound or smell we represent. If you
      *   don't these this variation, you can just override desc directly.
+     *   [MODIFIED FOR SENSORY EXTENSION]
      */
     desc
     {
@@ -52,26 +53,35 @@ modify SensoryEmanation
             descWithoutSource;
     }
     
-    /* Our description when the player character can see our source */
+    /* 
+     *  Our description when the player character can see our source 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     descWithSource = nil
     
-    /* Our description when the player character can't see our source */
+    /* 
+     *  Our description when the player character can't see our source 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     descWithoutSource = nil
     
     /*  
      *   Are we actually emanating? We may not be if something stops us, e.g.
-     *   breaking a ticking clock
+     *   breaking a ticking clock [DEFINED IN SENSORY EXTENSION]
      */
     isEmanating = true
     
-    /*  If we're not emanating we can't be sensed at all, so we're hidden */
+    /*  
+     *  If we're not emanating we can't be sensed at all, so we're hidden 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     isHidden = !isEmanating
     
     /* 
      *   The emanate method is called on each turn that the player character can
      *   sense us, and can be used to display a message announcing our presence,
      *   such as "There's an awful stink here" or "A loud ticking noise comes
-     *   from somewhere. "
+     *   from somewhere. " [DEFINED IN SENSORY EXTENSION]
      */
     emanate() 
     { 
@@ -113,20 +123,26 @@ modify SensoryEmanation
     
     /* 
      *   The message to display to announce our presence. This is overridden on
-     *   our subclasses.
+     *   our subclasses.[DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc() { }
     
     /*  
      *   A counter to keep track of when we're next due to display an emanation
-     *   message
+     *   message [DEFINED IN SENSORY EXTENSION]
      */
     emanationState = 0
     
-    /*  A counter to keep track of where we are in our emanation schedule. */
+    /*  
+     *  A counter to keep track of where we are in our emanation schedule. 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     scheduleState = 1
     
-    /*  The last time we emanated, relevant to when we started emanating */
+    /*  
+     *  The last time we emanated, relevant to when we started emanating 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     lastEmanationTime = 0
     
     /*  
@@ -137,11 +153,11 @@ modify SensoryEmanation
      *   using the last number in the list as the interval. If the last entry in
      *   the list is nil we stop showing emanation messages. This can be used to
      *   reduce the frequency of messages to model the player character becoming
-     *   less aware of us.
+     *   less aware of us. [DEFINED IN SENSORY EXTENSION]
      */
     schedule = [1]
 
-    /*  Reset all out counters to their initial states */
+    /*  Reset all out counters to their initial states [DEFINED IN SENSORY EXTENSION] */
     reset()
     {
         emanationState = 0;
@@ -153,20 +169,20 @@ modify SensoryEmanation
        
     /* 
      *   The message to display when the player tries to do something with us
-     *   other than sense us.
+     *   other than sense us. [DEFINED IN SENSORY EXTENSION]
      */
     notImportantMsg = BMsg(cannot do to sensory, '{I} {can\'t} do that to {a
         cobj}. ')
 ;
 
-/* An Odor is a SensoryEmanation representing a Smell */
+/* An Odor is a SensoryEmanation representing a Smell [MODIFIED FOR SENSORY EXTENSION]*/
 modify Odor
         
     /*   
      *   The message to be displayed to show that there's a smell here. The
      *   default implementation should be serviceable in many cases, but game
      *   code can easily override this method if something different is
-     *   required.
+     *   required.[DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc()
     { 
@@ -193,7 +209,7 @@ modify Odor
     /* 
      *   Only carry out the inherited handling if the player hasn't issued a
      *   SMELL command on this turn, otherwise there's the risk of duplicate
-     *   messages.
+     *   messages. [DEFINED IN SENSORY EXTENSION]
      */
     emanate()
     {
@@ -202,13 +218,14 @@ modify Odor
     }    
 ;
 
+/* [MODIFIED FOR SENSORY EXTENSION] */
 modify Noise   
     
     /*   
      *   The message to be displayed to show that there's a noise here. The
      *   default implementation should be serviceable in many cases, but game
      *   code can easily override this method if something different is
-     *   required.
+     *   required. [DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc()
     { 
@@ -235,7 +252,7 @@ modify Noise
     /* 
      *   Only carry out the inherited handling if the player hasn't issued a
      *   LISTEN command on this turn, otherwise there's the risk of duplicate
-     *   messages.
+     *   messages. [DEFINED IN SENSORY EXTENSION]
      */
     emanate()
     {
@@ -244,7 +261,10 @@ modify Noise
     }  
 ;
 
-/* The object which drives emanation messages for Odors and Noises */
+/* 
+ *  The object which drives emanation messages for Odors and Noises 
+ *  [DEFINED IN SENSORY EXTENSION]
+ */
 emanationControl: InitObject
     /* Set up our Daemon at the start of play. */
     execute()
@@ -333,7 +353,7 @@ emanationControl: InitObject
 
 /* 
  *   A SensoryEvent is a brief event in time, such as a sudden noise, to which
- *   other actors or objects in the vicinity may react.
+ *   other actors or objects in the vicinity may react. [DEFINED IN SENSORY EXTENSION]
  */
 class SensoryEvent: object
     /* 
@@ -414,7 +434,7 @@ class SensoryEvent: object
 
 /* 
  *   A SoundEvent represents any sudden noise to which other objects or people
- *   might react.
+ *   might react. [DEFINED IN SENSORY EXTENSION]
  */
 class SoundEvent: SensoryEvent    
     notifyProp = &notifySoundEvent
@@ -425,7 +445,7 @@ class SoundEvent: SensoryEvent
 
 /* 
  *   A SoundEvent represents any sudden smell to which other objects or people
- *   might react.
+ *   might react. [DEFINED IN SENSORY EXTENSION]
  */
 class SmellEvent: SensoryEvent    
     notifyProp = &notifySmellEvent
@@ -436,7 +456,7 @@ class SmellEvent: SensoryEvent
 
 /* 
  *   A SightEvent represents any visible event to which other objects or people
- *   might react.
+ *   might react. [DEFINED IN SENSORY EXTENSION]
  */
 class SightEvent: SensoryEvent    
     notifyProp = &notifySightEvent
@@ -444,12 +464,12 @@ class SightEvent: SensoryEvent
     remoteProp = &visibleRooms
 ;
 
-/*  Modifications to Thing to work with the sensory extension */
+/*  Modifications to Thing to work with the SENSORY EXTENSION */
 modify Thing
     /* 
      *   The methods that define our reactions to SoundEvents, SmellEvents and
      *   SightEvents respectively. By default all three methods defer to a
-     *   common handler.
+     *   common handler. [DEFINED IN SENSORY EXTENSION]
      */    
     notifySoundEvent(event, source) { notifyEvent(event, source); }
     notifySmellEvent(event, source) { notifyEvent(event, source); }
@@ -461,7 +481,7 @@ modify Thing
      *   SensoryEvent, since in any case the event parameter (containing the
      *   SensoryEvent that's just been triggered) tells us what kind of
      *   SensoryEvent it is. The source parameter is the object associated with
-     *   the event.
+     *   the event. [DEFINED IN SENSORY EXTENSION]
      */
     notifyEvent(event, source) {  }   
     
@@ -469,7 +489,7 @@ modify Thing
      *   By default we split our smellDesc into smellDescWithoutSource (when the
      *   player character can't see us) and smellDescWithSource (when the pc
      *   can). If we don't need this distinction we can override this method
-     *   directly.
+     *   directly. [MODIFIED FOR SENSORY EXTENSION]
      */
     smellDesc()
     {
@@ -479,17 +499,23 @@ modify Thing
             smellDescWithoutSource;   
     }
   
-    /* The response to SMELLing this object when the actor can see us. */
+    /* 
+     *  The response to SMELLing this object when the actor can see us. 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     smellDescWithSource = nil
 
-    /* The response to SMELLing this object when the actor can't see us. */
+    /* 
+     *  The response to SMELLing this object when the actor can't see us. 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     smellDescWithoutSource = nil
     
     /*   
      *   By default we split our listenDesc into listenDescWithoutSource (when
      *   the player character can't hear us) and listenDescWithSource (when the
      *   pc can). If we don't need this distinction we can override this method
-     *   directly.
+     *   directly. [MODIFIED FOR SENSORY EXTENSION]
      */
     listenDesc()
     {
@@ -499,13 +525,19 @@ modify Thing
             listenDescWithoutSource;   
     }
   
-    /* The response to LISTENing TO this object when the actor can see us. */
+    /* 
+     *  The response to LISTENing TO this object when the actor can see us. 
+     *  [DEFINED IN SENSORY EXTENSION]
+     */
     listenDescWithSource = nil
     
-    /* The response to LISTENing TO this object when the actor can't see us. */
+    /* 
+     *   The response to LISTENing TO this object when the actor can't see us. 
+     *   [DEFINED IN SENSORY EXTENSION]
+     */
     listenDescWithoutSource = nil    
     
-    
+    /* [MODIFIED FOR SENSORY EXTENSION] */
     dobjFor(ListenTo)
     {
         action()
@@ -522,6 +554,7 @@ modify Thing
         }
     }
     
+    /* [MODIFIED FOR SENSORY EXTENSION] */
     dobjFor(SmellSomething)
     {
         action()
@@ -539,7 +572,7 @@ modify Thing
     
     /* 
      *   We don't have a prominent smell if we have an associated Odor object
-     *   that isn't emanating.
+     *   that isn't emanating. [MODIFIED FOR SENSORY EXTENSION]
      */
     isProminentSmell
     {
@@ -550,7 +583,7 @@ modify Thing
     
     /* 
      *   We don't have a prominent noise if we have an associated Noise object
-     *   that isn't emanating.
+     *   that isn't emanating. [MODIFIED FOR SENSORY EXTENSION]
      */
     isProminentNoise
     {
@@ -567,10 +600,11 @@ modify Thing
     soundObj = (contents.indexWhich({o: o.ofKind(Noise)}))
 ;
 
+/* MODIFICATIONS FOR SENSORY EXTENSION */
 modify Room
     /* 
      *   Reset every SensoryEmanation in this room to its initial state when the
-     *   player character leaves this room.
+     *   player character leaves this room. [MODIFIED FOR SENSORY EXTENSION]
      */
     notifyDeparture(traveler, dest)
     {

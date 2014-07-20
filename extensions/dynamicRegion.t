@@ -3,6 +3,8 @@
 #include "advlite.h"
 
 /*
+ *  DYNAMIC REGION EXTENSION
+ *
  * A DynamicRegion is a Region that can be expanded or contracted during the
  * course of play, but which comes with certain restrictions; in particular a
  * DynamicRegion cannot be part of any other Region.
@@ -145,9 +147,15 @@ class DynamicRegion: Region
     extraAdjustments(rm, expanded) { }
 ;
 
-/* Modifications to Region to work safely with DynamicRegion */
+/* 
+ * Modifications to Region to work safely with DynamicRegion 
+ * [DYNAMICREGION EXTENSION */
+ */
 modify Region
-    /* A DynamicRegion cannot contain other regions */
+    /*
+     *    A DynamicRegion cannot contain other regions 
+     *    [DYNAMIC REGION EXTENSION]
+     */
     isIn(region)
     {
         if(region && region.ofKind(DynamicRegion))
@@ -160,6 +168,7 @@ modify Region
     /*
      * A Region is not allowed to be part of a DynamicRegion, so clear out any
      * DynamicRegions from our list of Regions at PreInit.
+     * [DYNAMIC REGION EXTENSION]
      */
     makeRegionLists()
     {
@@ -171,6 +180,7 @@ modify Region
     /*
      * Tests whether this room is currently contained within region in the
      * sense that all our rooms are also in region.
+     * [DYNAMIC REGION EXTENSION]
      */
     isCurrentlyWithin(region)
     {

@@ -28,8 +28,8 @@ posturesID: ModuleID
 ;
 
 /* 
- *   The Posture class is used to define the various postures used in this
- *   module
+ *   The Posture class is used to define the various postures used in the
+ *   POSTURES EXTENSION.
  */
 class Posture: object
     /* The participle (e.g. 'standing') relating to the posture. */
@@ -78,7 +78,7 @@ class Posture: object
     verbPhrase = nil
 ;
 
-/* The standing posture. */
+/* The standing posture. [POSTURES EXTENSION] */
 standing: Posture
     participle = BMsg(standing, 'standing')
     allowedOnProp = &canStandOnMe
@@ -88,7 +88,7 @@ standing: Posture
     verbPhrase = BMsg(i stand, '{I} {stand}')
 ;
 
-/* The sitting posture */
+/* The sitting posture [POSTURES EXTENSION] */
 sitting: Posture
     participle = BMsg(sitting, 'sitting')
     allowedOnProp = &canSitOnMe
@@ -98,7 +98,7 @@ sitting: Posture
     verbPhrase = BMsg(i sit, '{I} {sit}')
 ;
 
-/* The lying posture */
+/* The lying posture {POSTURES EXTENSION] */
 lying: Posture
     participle = BMsg(lying, 'lying')
     allowedOnProp = &canLieOnMe
@@ -109,7 +109,7 @@ lying: Posture
 ;
 
 
-/* Modifications to Thing needed for the postures extension. */
+/* Modifications to Thing needed for the POSTURES EXTENSION. */
 modify Thing
     /* 
      *   The posture currently adopted by this Thing. We define this on Thing
@@ -117,6 +117,7 @@ modify Thing
      *   but it could also use to describe the metaphorical posture of inanimate
      *   objects (A rug lies on the floor, the jug sits on the rug, the tall
      *   grandfather clock stands by the door).
+     *   [DEFINED IN POSTURES EXTENSION]
      */
     posture = standing
     
@@ -124,7 +125,7 @@ modify Thing
      *   The posture that's adopted by default by an actor entering or boarding
      *   this this.
      */
-    defaultPosture = standing
+    defaultPosture = standing [DEFINED IN POSTURES EXTENSION]
     
     /*   By default we can't stand, sit or lie in anything. */
     canStandInMe = nil
@@ -133,7 +134,7 @@ modify Thing
    
     /*  
      *   Attempt to make this Thing adopt the posture pos (without changing
-     *   location)
+     *   location). [DEFINED IN POSTURES EXTENSION]
      */
     tryMakingPosture(pos)
     {
@@ -171,7 +172,7 @@ modify Thing
     
     /*  The postures module changes the handling for a number of verbs */
     
-    
+    /*  Modification for StandOn handling [DEFINED IN POSTURES EXTENSION] */
     dobjFor(StandOn)
     {
         remap = remapOn
@@ -201,9 +202,13 @@ modify Thing
         }
     }
     
+    /* [DEFINED IN POSTURES EXTENSION] */
     okayStandOnMsg = BMsg(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
     
-    /* SitOn is handled in much the same way as StandOn */
+    /* 
+     * SitOn is handled in much the same way as StandOn 
+     * [MODIFIED FOR POSTURES EXTENSION]
+     */
     dobjFor(SitOn)
     {
         remap = remapOn
@@ -226,9 +231,13 @@ modify Thing
         }
     }
     
+    /* [DEFINED IN POSTURES EXTENSION] */
     okaySitOnMsg = BMsg(okay sit on, '{I} {sit} on {1}. ', gActionListStr)
     
-    /* LieOn is handled much the same way as StandOn */
+    /* 
+     * LieOn is handled much the same way as StandOn 
+     * [MODIFIED FOR POSTURES EXTENSION]
+     */
     dobjFor(LieOn)
     {
         remap = remapOn
@@ -252,11 +261,13 @@ modify Thing
     
     }
     
+    /* [DEFINED IN POSTURES EXTENSION] */
     okayLieOnMsg = BMsg(okay lie on, '{I} {lie} on {1}. ', gActionListStr)
             
     /* 
      *   If an actor Boards something, we need to know what posture the actor
      *   ends up in.
+     *   [MODIFIED FOR POSTURES EXTENSION]
      */
     dobjFor(Board)
     {
@@ -283,7 +294,7 @@ modify Thing
     
     /* 
      *   If an actor gets off something, we need to know what posture the actor
-     *   ends up in.
+     *   ends up in. [MODIFIED FOR POSTURES EXTENSION]
      */
     dobjFor(GetOff)
     {
@@ -303,6 +314,7 @@ modify Thing
     /* 
      *   Common verify routine for standing, sitting or lying IN something,
      *   where pos is the posture to be adopted.
+     *   [DEFINEDS IN POSTURES EXTENSION]
      */
     verifyEnterPosture(pos)
     {
@@ -329,6 +341,7 @@ modify Thing
             illogical(self.(failureProp));
     }
     
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     dobjFor(StandIn)
     {
         /* If I have a remapIn object, then remap this action to it. */
@@ -336,7 +349,7 @@ modify Thing
         
         /* 
          *   Before standing in something, the actor must be able to touch it,
-         *   and the actor must be in the appopriate staging location.
+         *   and the actor must be in the appropriate staging location.
          */
         preCond = [touchObj, actorInStagingLocation]
         
@@ -368,11 +381,17 @@ modify Thing
         }
     }
     
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     cannotStandInMsg = BMsg(cannot stand in, '{I} {can\'t} stand in {the dobj}.
         ')
+        
+    /* [MODIFIED FOR POSTURES EXTENSION] */    
     okayStandInMsg = BMsg(okay stand in, '{I} {stand} in {1}. ', gActionListStr)
     
-    /* SitIn is handled much like StandIn */
+    /* 
+     *  SitIn is handled much like StandIn 
+     *  [MODIFIED FOR POSTURES EXTENSION]
+     */
     dobjFor(SitIn)
     {
         remap = remapIn
@@ -395,10 +414,16 @@ modify Thing
         }
     }
     
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     okaySitInMsg = BMsg(okay sit in, '{I} {sit} in {1}. ', gActionListStr)
+    
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     cannotSitInMsg = BMsg(cannot sit in, '{I} {can\'t} sit in {the dobj}. ')
     
-    /* LieIn is handled much like StandIn */
+    /*
+     *  LieIn is handled much like StandIn 
+     *  [MODIFIED FOR POSTURES EXTENSION]
+     */
     dobjFor(LieIn)
     {
         remap = remapOn
@@ -421,12 +446,16 @@ modify Thing
         }
     }
     
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     okayLieInMsg = BMsg(okay lie in, '{I} {lie} in {1}. ', gActionListStr)
+    
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     cannotLieInMsg = BMsg(cannot lie in, '{I} {can\'t} lie in {the dobj}. ')
     
     /* 
      *   When an actor enters something we need to determine what posture the
      *   actor ends up in.
+     *   [MODIFIED FOR POSTURES EXTENSION]
      */
     dobjFor(Enter)
     {
@@ -446,6 +475,7 @@ modify Thing
     /* 
      *   When an actor gets out of something we need to determine what posture
      *   the actor ends up in.
+     *  [MODIFIED FOR POSTURES EXTENSION]
      */
     dobjFor(GetOutOf)
     {
@@ -465,12 +495,14 @@ modify Thing
     /* 
      *   Include the actor's posture in the subheading (e.g. '(sitting on the
      *   chair)')
+     *   [MODIFIED FOR POSTURES EXTENSION]
      */
     roomSubhead(pov)
     {
         say(nestedLoc(pov));
     }
     
+    /* [MODIFIED FOR POSTURES EXTENSION] */
     nestedLoc(actor)
     {
         return BMsg(actor nested location posture name,  
@@ -480,13 +512,22 @@ modify Thing
     }
 ;
 
+/* 
+ *  Modifications to Room class for use with POSTURES EXTENSION.
+ */ 
 modify Room
-    /* By default we assume that an actor can sit, stand or lie in a room */
+    /* 
+     *  By default we assume that an actor can sit, stand or lie in a room 
+     *  [DEFINED IN POSTURES EXTENSION]
+     */
     canStandInMe = true
     canSitInMe = true
     canLieInMe = true
     
-    /*  The name of the room as it appears in the status line. */
+    /*  
+     * The name of the room as it appears in the status line. 
+     * [MODIFIED FOR POSTURES EXTENSION]
+     */
     statusName(actor)
     {
         local nestedLocDesc = '';
@@ -514,7 +555,7 @@ modify Room
 
 /* 
  *   A Bed is something an actor can sit, stand or lie on, but is most likely to
- *   lie on and least likely to stand on.
+ *   lie on and least likely to stand on. [DEFINED IN POSTURES EXTENSION]
  */
 class Bed: Platform
     lieOnScore = 120
@@ -524,7 +565,7 @@ class Bed: Platform
 
 /*   
  *   Chair is something an actor would normally sit on, but could also stand on,
- *   but not lie on.
+ *   but not lie on. [DEFINED IN POSTURES EXTENSION]
  */
 class Chair: Platform
     canLieOnMe = nil
@@ -536,6 +577,7 @@ class Chair: Platform
 /*  
  *   By default we assume that an actor can stand, sit or lie in a Booth. This
  *   can, of course, be overridden in particular instances.
+ *   [DEFINED IN POSTURES EXTENSION]
  */
 modify Booth
     canStandInMe = true
@@ -547,6 +589,7 @@ modify Booth
 /*  
  *   We modify the Stand, Sit and Lie actions so that they now result in the
  *   actor changing posture without changing location.
+ *   [MODIFIED IN POSTURES EXTENSION]
  */
 modify Stand
     execAction(c)
@@ -555,6 +598,7 @@ modify Stand
     }
 ;
 
+/* [MODIFIED IN POSTURES EXTENSION] */
 modify Sit
     execAction(c)
     {
@@ -562,6 +606,7 @@ modify Sit
     }
 ;
 
+/* [MODIFIED IN POSTURES EXTENSION] */
 modify Lie
     execAction(c)
     {

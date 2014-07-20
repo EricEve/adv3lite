@@ -15,7 +15,7 @@
  *   A RuleBook is a container for one or more rules. Calling the follow()
  *   method of a RuleBook causes each of its contained rules to be executed in
  *   turn until one returns a non-null value. That value is then returned to the
- *   caller of the RuleBook.
+ *   caller of the RuleBook. [DEFINED IN RULES EXTENSION]
  */
      
 class RuleBook: PreinitObject    
@@ -153,7 +153,7 @@ class RuleBook: PreinitObject
     
 ;
 
-/* Preinitializer for Rules. */
+/* Preinitializer for Rules. [DEFINED IN RULES EXTENSION]*/
 rulePreinit:PreinitObject
     execute()
     {
@@ -171,7 +171,7 @@ rulePreinit:PreinitObject
  *   for it to be executed when its RuleBook is run and a method that's executed
  *   when its conditions are met. A Rule can be associated with one or more
  *   RuleBooks; it starts out in the RuleBook with which it is associated via
- *   its + property (i.e. its location).
+ *   its + property (i.e. its location). [DEFINED IN RULES EXTENSION]
  */
 class Rule: object
     /* 

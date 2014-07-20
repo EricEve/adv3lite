@@ -28,7 +28,7 @@ roomPartID: ModuleID
 
 /* 
  *   The RoomPart class is used to define room parts (walls, ceiling, sky)
- *   common to many locations.
+ *   common to many locations. [DEFINED IN ROOMPARTS EXTENSION]
  */
 class RoomPart: MultiLoc, Decoration
     initialLocationClass = Room
@@ -55,7 +55,10 @@ class RoomPart: MultiLoc, Decoration
     }
 ;
 
-/* The class used for room parts that represent walls. */
+/* 
+ * The class used for room parts that represent walls. 
+ * [DEFINED IN ROOMPARTS EXTENSION]
+ */
 class DefaultWall: RoomPart 'wall'
     isInitiallyIn(obj) { return obj.wallObjs.indexOf(self) != nil; }
     
@@ -64,12 +67,13 @@ class DefaultWall: RoomPart 'wall'
 /* 
  *   Modifications to the Room class to allow for room parts. Note that the
  *   standard adv3Lite library already supplies a foor in every room defined via
- *   its floorObj property.
+ *   its floorObj property. [MODIFIED FOR ROOMPARTS EXTENSION]
  */
 modify Room
     /* 
      *   The ceilingObj property defines the object to be used for this Room's
      *   ceiling. By default we use the defaultCeiling object defined below.
+     *   [DEFINED IN ROOMPARTS EXTENSION]
      */
     ceilingObj = defaultCeiling
     
@@ -78,32 +82,48 @@ modify Room
      *   default we define use the four default walls. Particular rooms that
      *   don't have four walls (e.g. a length of passage) or which want to use
      *   custom wall objects can override this.
+     *  [DEFINED IN ROOMPARTS EXTENSION]
      */
     wallObjs = [defaultNorthWall, defaultEastWall, defaultSouthWall,
         defaultWestWall]
 ;
 
-/* An OutdoorRoom is a room that has no walls and a sky instead of a ceiling */
+/* 
+ *  An OutdoorRoom is a room that has no walls and a sky instead of a ceiling 
+ *  [DEFINED IN ROOMPARTS EXTENSION]
+ */
 class OutdoorRoom: Room
     ceilingObj = defaultSky
     wallObjs = []
 ;
 
-/* The four default walls */
+/* 
+ * The four default walls 
+ * [DEFINED IN ROOMPARTS EXTENSION]
+ */
 defaultNorthWall: DefaultWall 'north +; (n)';
 defaultEastWall: DefaultWall 'east +; (e)';
 defaultSouthWall: DefaultWall 'south +; (s)';
 defaultWestWall: DefaultWall 'west +; (w)';
 
-/* The class for ceiling/sky objects */
+/* 
+ * The class for ceiling/sky objects 
+ * [DEFINED IN ROOMPARTS EXTENSION]
+ */
 class Ceiling: RoomPart
     isInitiallyIn(obj) { return obj.ceilingObj == self; }
 ;
 
-/* The default ceiling that appears in every Room */
+/* 
+ * The default ceiling that appears in every Room 
+ * [DEFINED IN ROOMPARTS EXTENSION]
+ */
 defaultCeiling: Ceiling 'ceiling';
 
-/* The default sky that appeares in every OutsideRoom */
+/* 
+ *  The default sky that appears in every OutsideRoom 
+ * [DEFINED IN ROOMPARTS EXTENSION]
+ */
 defaultSky: Ceiling 'sky'    
     notImportantMsg = BMsg(sky beyond reach, '{The subj cobj} {is} way beyond
         {my} reach. ')
@@ -111,9 +131,10 @@ defaultSky: Ceiling 'sky'
 
 /* 
  *   The Floor class is defined in the standard adv3Lite library. Here we modify
- *   it to use the RoomPart version of examineStatus.
+ *   it to use the ROOMPART EXTENSIONS's version of examineStatus.
  */
 modify Floor
+    /* [MODIFIED IN ROOMPARTS EXTENSION] */
     examineStatus()
     {
         delegated RoomPart;
@@ -123,7 +144,7 @@ modify Floor
 /*  
  *   Modifications to Thing to allow things to be associated with room parts.
  *   Note that a Thing associated with a room part should be directly located in
- *   the room, not in the room part.
+ *   the room, not in the room part. [MODIFIED FOR ROOMPARTS EXTENSION]
  */
 modify Thing
     /* 
@@ -133,13 +154,13 @@ modify Thing
     
     /* 
      *   The room part (e.g. defaultNorthWall) with which we're notionally
-     *   associated.
+     *   associated. [DEFINED IN ROOMPARTS EXTENSION]
      */
     roomPart = nil
     
     /*  
      *   The description of ourselves to be displayed when our associated
-     *   roomPart is examined.
+     *   roomPart is examined. [DEFINED IN ROOMPARTS EXTENSION]
      */
     roomPartDesc = nil
     
@@ -147,6 +168,7 @@ modify Thing
      *   We modify actionMoveInto here so that an action that results in moving
      *   an object (e.g. taking a picture that's notionally hanging on a wall)
      *   removes the association between the object and its room part.
+     *   [MODIFIED FOR ROOMPARTS EXTENSION]
      */
     actionMoveInto(dest)
     {

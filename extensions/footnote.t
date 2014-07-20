@@ -1,6 +1,8 @@
 #charset "us-ascii"
 
 /* 
+ *   FOOTNOTE EXTENSION
+ *
  *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
  *   
  *   TADS 3 Library - footnotes
@@ -36,6 +38,8 @@
  *   This class also serves as a daemon notification object to receive
  *   per-command daemon calls.  The first time we show a footnote
  *   reference, we'll show an explanation of how footnotes work.  
+ *
+ *   [ONLY IN FOOTNOTE EXTENSION]
  */
 class Footnote: object
     /* 
@@ -223,12 +227,15 @@ class Footnote: object
     }
 ;
 
-/* our FOOTNOTES settings item */
+/* our FOOTNOTES settings item [FOOTNOTE EXTENSION]*/
 footnoteSettingsItem: object
     /* our current status - the factory default is "medium" */
     showFootnotes = FootnotesMedium
    
-    /* get the setting's external file string representation */
+    /* 
+     * get the setting's external file string representation 
+     * [FOOTNOTE EXTENSION]  
+     */
     settingToText()
     {
         switch(showFootnotes)
@@ -268,8 +275,11 @@ footnoteSettingsItem: object
     }
 ;
 
-/* pre-initialization - set up the footnote explanation daemon */
-PreinitObject
+/* 
+ * pre-initialization - set up the footnote explanation daemon 
+ * [FOOTNOTE EXTENSION]
+ */
+footnotePreinit: PreinitObject
     execute()
     {
         /* since we're available, register as the global footnote handler */
@@ -280,7 +290,19 @@ PreinitObject
     }
 ;
 
-
+/*  
+ *  This VerbRule is defined directly in the FOOTNOTE
+ *  extension.
+ *
+ *  Note to translators: the following VerbRules are defined directly in
+ *  the FOOTNOTES extension file since it would be awkward to put them
+ *  anywhere else. When translating, define an additional language-specific
+ *  file (e.g. footnotes_fr.t or footnotes_de.t) and in it include (a)
+ *  your language-specific modifications to the following VerbRules
+ *  (using modify VerbRule) and (b) a CustomMessages object containing
+ *  translations of any DMsg and BMsg text used in this extension. Then
+ *  instruct users to include your language-specific file after this one.
+ */
 VerbRule(Footnote)
     ('footnote' | 'note') literalDobj
     : VerbProduction

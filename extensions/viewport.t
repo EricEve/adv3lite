@@ -4,7 +4,7 @@
 #include "advlite.h"
 
 /* 
- *   viewport.t
+ *   VIEWPORT EXTENSION
  *
  *   Adds the Viewport mix-in class to adv3Lite
  *
@@ -31,6 +31,7 @@ viewportID: ModuleID
  *   Viewport is a mix-in class which can be added to an object representing a
  *   window or TV screen or the like to describe the remote location viewable
  *   via the viewport.
+ *   [DEFINED ON VIEWPORT EXTENSION]
  */
 
 class Viewport: object   
@@ -100,7 +101,7 @@ class Viewport: object
 
 /*  
  *   A SwitchableViewport is one that only brings its remote rooms into view
- *   when it's switched on.
+ *   when it's switched on. [DEFINED ON VIEWPORT EXTENSION]
  */
 class SwitchableViewport: Viewport
     isSwitchable = true
@@ -128,23 +129,24 @@ class SwitchableViewport: Viewport
 ;
 
 
-
+/*  Modifications to Room class for VIEWPORT EXTENSION */
 modify Room
     /* 
      *   The roomRemoteDesc() is the description of the room as seen via a
-     *   Viewport from pov.
+     *   Viewport from pov. [DEFINED ON VIEWPORT EXTENSION]
      */
     roomRemoteDesc(pov) {  }
     
     /*   
      *   The list of rooms viewed from Viewports from within this room. This
      *   enables the player to refer to objects in rooms that have been viewed.
+     *   [DEFINED ON VIEWPORT EXTENSION]
      */
     roomsViewed = []
     
     /*  
      *   Reset the list of rooms viewed when the player character leaves the
-     *   room.
+     *   room. [MODIFIED FOR VIEWPORT EXTENSION]
      */
     notifyDeparture(traveler, dest)
     {
@@ -158,6 +160,7 @@ modify Room
      *   Once the player character has viewed remote rooms and their contents
      *   via a Viewport, the player may want to refer to them in commands, if
      *   only to examine them, so we need to add them to scope.
+     *   [MODIFIED FOR VIEWPORT EXTENSION]
      */
     addExtraScopeItems(action)
     {
@@ -176,6 +179,7 @@ modify Room
         action.scopeList = action.scopeList.appendUnique(remotes);                           
     }
     
+    /*  [MODIFIED FOR VIEWPORT EXTENSION] */
     dobjFor(Examine)
     {
         action()
@@ -188,6 +192,10 @@ modify Room
         
     }
     
+    /* 
+     *  [DEFINED ON VIEWPORT EXTENSION] Used for describing a Room when seen through
+     *  a Viewport.
+     */
     describeRemotely()
     {
         /* Begin by showing the room's roomRemoteDes() */
@@ -208,7 +216,7 @@ modify Room
 
 /* 
  *   This Special allows the player character to see objects in remote rooms
- *   once they have been viewed via a Viewport.
+ *   once they have been viewed via a Viewport. [DEFINED ON VIEWPORT EXTENSION]
  */
 QViewport: Special
     canSee(a, b)
