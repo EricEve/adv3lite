@@ -319,21 +319,21 @@ class Doer: Redirector
              *   replacing it with another one, we need to perform some
              *   housekeeping to ensure everything works properly.
              */
-            if(handlingAction)
+            if(handleAction)
             {
                 /* 
-                 *   If we specified an object on the handlingAction property,
+                 *   If we specified an object on the handleAction property,
                  *   it's the action we're going to simulate. We don't need to
                  *   specify a different action if we're notionally handling the
                  *   one we've just matched.
                  */
-                if(propType(&handlingAction) == TypeObject)
+                if(propType(&handleAction) == TypeObject)
                 {
                     /* 
                      *   Change the current action to the one we're notionally
                      *   handling.
                      */
-                    gAction = handlingAction;
+                    gAction = handleAction;
                     
                     /*  
                      *   Set the objects of the new gAction in case we need them
@@ -365,7 +365,7 @@ class Doer: Redirector
      *   action that we've matched) or some other action (if that's the one
      *   we're simulating and it's not the one we matched).
      */
-    handlingAction = nil
+    handleAction = nil
     
     /* 
      *   We separate out execAction() as a separate method from exec() so that
