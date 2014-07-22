@@ -402,3 +402,23 @@ takeTime(secs)
 {
     timeManager.replacementTime = secs;
 }
+
+/*
+ *  Make the GoTo action use TravelAction's timeTaken by
+ *  default so that any overriding timeTaken on TravelAction
+ *  will automatically be reflected on this travel-related
+ *  action too. [OBJTIME EXTENSION]
+ */
+modify GoTo
+   timeTaken = TravelAction.timeTaken
+;
+
+/*
+ *  Make the Continue action use TravelAction's timeTaken by
+ *  default so that any overriding timeTaken on TravelAction
+ *  will automatically be reflected on this travel-related
+ *  action too. [OBJTIME EXTENSION]
+ */
+modify Continue
+   timeTaken = TravelAction.timeTaken
+;
