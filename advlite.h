@@ -1240,6 +1240,8 @@ enum null;
 #define nextrule return (rulebook.contValue)
 #define nostop return (rulebook.contValue)
 
+Rule template @location? &action | [action]?;
+
 /*----------------------------------------------------------------------------*/
 /*
  *   Definitions for the relations.t extension

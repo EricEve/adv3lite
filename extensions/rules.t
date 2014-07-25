@@ -525,18 +525,22 @@ class Rule: object
         
         /*  
          *   If we've specified a dobj, iobj and/or aobj to match, test whether
-         *   they mach the direct object, indirect object and/or accessory
-         *   object of the current action.
+         *   they match the direct object, indirect object and/or accessory
+         *   object of the current action (provided there is one, which there
+         *   may not be at startup).
          */
-        for(local objs in [[&dobj, gDobj], [&iobj, gIobj], [&aobj, gAobj]])
+        if(gAction)
         {
-            local prop = objs[1];
-            local obj = objs[2];
-            
-            if(propDefined(prop) 
-                && valToList(self.(prop)).indexWhich({o: obj.ofKind(o)}) == nil)
-                return nil;          
-                            
+            for(local objs in [[&dobj, gDobj], [&iobj, gIobj], [&aobj, gAobj]])
+            {
+                local prop = objs[1];
+                local obj = objs[2];
+                
+                if(propDefined(prop) 
+                   && valToList(self.(prop)).indexWhich({o: obj.ofKind(o)}) == nil)
+                    return nil;          
+                
+            }
         }
         
         /* 

@@ -3139,6 +3139,7 @@ class LiteralObject: object
  *   objects, but are simply taken as numeric values. 
  */
 class NumberPhrase: NounPhrase
+    
 ;
     
 

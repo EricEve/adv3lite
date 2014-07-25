@@ -1795,7 +1795,7 @@ class TAction: Action
          */            
         try
         {
-            msg = gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+            msg = gOutStream.watchForOutput({: doAction() });
         }
         finally
         {
@@ -1829,6 +1829,8 @@ class TAction: Action
          */
         return true;
     }
+    
+    doAction() { curDobj.(actionDobjProp); }
     
     
     /* 
