@@ -302,6 +302,7 @@ class Command: object
             
             /* Carry out the after action handling for the current action */
             action.afterAction();
+                        
             
             /* 
              *   Carry out the turn sequence handling (daemons and turn count
@@ -309,6 +310,9 @@ class Command: object
              */
             action.turnSequence();
             
+            
+            /*   Advance the game clock time for the current action. */
+            action.advanceTime();
            
         }
         catch(AbortActionSignal aas)

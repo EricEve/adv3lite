@@ -165,21 +165,13 @@ modify GameMainDef
     gameStartTime = [2000, 1, 1, 0, 0, 0, 0]
 ;
 
+
 /* 
  *  Modifications to the Action class for use with the OBJTIME EXTENSION.
  *  The purpose of these modifications is to advance the game clock each turn.
  */
 modify Action
-    /* Modified for OBJTIME EXTENSION */
-    afterAction()
-    {
-        /* Advance the game clock */
-        advanceTime();
-        
-        /* Carry out the inherited handling. */
-        inherited();
-    }
-    
+      
     /* Advance the notional game time [OBJTIME EXTENSION]*/
     advanceTime()
     {
@@ -224,6 +216,14 @@ modify Action
         addTime(implicitTimeTaken);
     }
     
+;
+
+modify SystemAction
+    /* 
+     *   For OBJTIME extension; a SystemAction shouldn't normally take any game
+     *   clock time.
+     */
+    timeTaken = 0
 ;
 
 /*  

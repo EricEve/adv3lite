@@ -1,0 +1,251 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Sysrules</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Sysrules
+<br><span class="navnp"><a class="nav" href="subtime.htm"><i>Prev:</i> Subtime</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tiaaction.htm"><i>Next:</i> TIAAction</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Sysrules</h1>
+<h2>Overview</h2>
+<p>"System Rules" module.  This implements a number of rules and rulebooks to allow game authors to tailor various aspects of the library's behaviour. The Rules extension is also needed to make use of Sysrules.</p>
+
+<br>
+<a name="classes"></a>
+<h2>New RuleBooks and classes</h2>
+
+<p>This extension defines the following RuleBooks:</p>
+<ul>
+<li><em><a href="#startup">Start-up rulebooks</a></em>: <a href="#preinit">preinitRules</a>, <a href="#init">initRules</a>.</li>
+<li><em><a href="#action">Action rulebooks</a></em>: <a href="#before">beforeRules</a>, <a href="#report">reportRules</a>, <a href="#after">afterRules</a>.</li>
+<li><em><a href="#sequence">Turn Sequence rulebooks</a></em>: <a href="#start">turnStartRules</a>, <a href="#end">turnEndRules</a>.</li>
+</ul>
+
+<p>Each of these RuleBooks has a similarly-named rule class associated with it; for example the <span class="code">BeforeRule</span> class is used to define rules belonging to the <span class="code">beforeRules</span> Rulebook. When using these specialized subclasses of Rule, there's no need also to specify which RuleBook they belong to, since this is taken care of in the class definitions (e.g. if you define something as an <span class="code">InitRule</span> it's redundant to go on to define its location property as <span class="code">initRules</span>).</p>
+
+<br>
+<a name="usage"></a>
+<h2>Usage</h2>
+<p>Include the rules.t and sysrules.t files after the library files but before your game source files (the rules extension is required for this one to work). If you are not already familiar with the workings of the rules extension you should first read its <a href="rules.htm">documentation</a> before attempting to use this one.</p>
+
+<p>None of the rulebooks defined in this extension expects any parameters to be passed to its <span class="code">follow()</span> method. This means that when you define rules belonging to any of these rulebooks, you do not need to worry about defining any arguments for their <span class="code">follow()</span> methods. With the exception of the reportRules, all the RuleBooks defined in this extension have a <span class="code">contValue</span> of nil; this means that the default behaviour is for these RuleBooks to execute all the matching Rules they find, rather than stopping at the first one.</p>
+
+<p>By default this extension does not alter the way the adv3lite library behaves (from a player's perspective), but by effectively replacing one or two methods and functions with rulebooks it makes the library's behaviour more customizable (by game authors) as well as providing a number of hooks for additional author-defined rules. This is best explained by discussing each of the rulebooks in turn.</p>
+
+<p></p>
+
+<br>
+<a name="startup"></a>
+<h2>Startup Rules</h2>
+
+<a name="preinit"></a>
+<h3>PreinitRules</h3>
+
+<p>The <strong>preinitRules</strong> RuleBook starts out empty, but may be used to define rules that run at the pre-init stage (basically as an alternative to definining PreInit objects). Such rules may be defined by explicitly locating them in the preinitRules Rulebook using either form of syntax:</p>
+
+ <p><div class="code"><pre>
+ preinitRule1: Rule
+    location = preinitRules
+    follow()
+    {
+       me.name = 'Joe Bloggs';
+    }
+;
+
+preinitRule2: Rule @preinitRules
+   follow()
+   {
+      ...
+   }
+;
+ </pre></div>
+
+<p>Or alternatively, they may simply be defined as belonging to the <strong>PreinitRule</strong> class:</p> 
+ 
+ <p><div class="code"><pre>
+ preinitRule1: PreinitRule    
+    follow()
+    {
+       me.name = 'Joe Bloggs';
+    }
+;
+ </pre></div> 
+<br>
+
+<a name="init"></a>
+<h3>InitRules</h3> 
+<p>The <strong>initRules</strong> rulebook likewise starts out empty, and can be used to define rules that run at start of play (at the init stage). These can again be defined as Rules which you explicitly locate in the initRules rulebook, but it is probably more convenient to define them as rules of the <strong>InitRule</strong> class (which are automatically located in the <span class="code">initRules</span> rulebook). InitRules are used in very much the same way as PreinitRules, and effectively provide an alternative to defining InitObjects. They are thus quite closely equivalent to "when play begins" rules in Inform 7.</p> 
+<br>
+
+<a name="action"></a>
+<h2>Action-Related Rules</h2> 
+<p>The function of the action-related rulebooks in this extension is <em>not</em> not replace the TADS 3 style action handling with a set of Inform 7 like rulebooks, but rather to provide some convenient rule-oriented hooks for certain aspects of the action-processing cycle, in particular the before and after notifications. Authors familiar with Inform 7 should therefore not expect the three rulebooks described below to work in the same way as the similarly-named rules in I7 (although the ReportRules are fairly analogous).</p> 
+
+<p>Rules intended for one of these three rulebooks should be defined using the <span class="code">BeforeRule</span>, <span class="code">ReportRule</span> or <span class="code">AfterRule</span> class as appropriate. Each of these has a <strong>currentAction</strong> property which identifies the particular action that triggered the associated rulebook.</p>
+
+<p>Rules that need to match particular actions can be defined using the Rule template, e.g.:</p>
+
+ <p><div class="code"><pre>
+ BeforeRule &amp;Jump
+    <span class="comment">// A BeforeRule that matches the Jump action</span>
+ ;
+ 
+ AfterRule [Throw, ThrowDir]
+    <span class="comment">// An AfterRule that matches either the Throw or the ThrowDir action.</span>
+ ;
+ 
+ </pre></div>
+<p>The description of the individual rulebooks below will list the rules they contain along with their priorities. The ordering of rules within rulebooks can then be changed (if desired) by overriding these priorities, and additional rules inserted where required. Remember that a rule with a higher priority is executed before one with a lower one. Note that as far as possible the priorities of the library-defined rules have been assigned so that additional rules with the default priority of 100 should normally come at a sensible place in the rulebook, although you are, of course, free to assign whatever priority you wish to your own rules to make them execute when you want them.</p>
+ <br>
+<a name="before"></a> 
+<h3>Before Rules</h3> 
+<p>The main purpose of the <strong>beforeRules</strong> rulebook is to handle before action notifications. The <span class="code">beforeRules</span> rulebook is defined in the library with the following rules, which are executed in the order shown:</p>
+
+<ol>
+<li><strong>checkActionPreconditionsRule</strong>: (priority 10000). Checks the preconditions relating to the action (as opposed to those defined on its objects).</li>
+<li><strong>actorActionRule</strong>: (priority 9000). Calls the <span class="code">actorAction()</span> method on <span class="code">gActor</span> (the current actor).</li>
+<li><strong>sceneNotifyBeforeRule</strong>: (priority 8000). Calls the <span class="code">beforeAction()</span> method on any current scenes.</li>
+<li><strong>roomNotifyBeforeRule</strong>: (priority 7000). Calls the <span class="code">roomBeforeAction()</span> method on the actor's current room (which in turn calls the <span class="code">regionBeforeAction()</span> method on any regions that room is in).</li>
+<li><strong>scopeListNotifyBeforeRule</strong>: (priority 6000). Calls the <span class="code">beforeAction()</span> methods of all the objects in scope.</li>
+</ol>
+
+<p>To define additional rules for this rulebook, use the <strong>BeforeRule</strong> class. This inherits from <span class="code">ReplaceRedirector</span> as well as <span class="code">Rule</span> and so provides the <span class="code">doInstead()</span> method, should you need to use it. Probably the best use for BeforeRules, however, is as an alternative method of handling before notifications that don't fit neatly into existing <span class="code">beforeAction()</span> methods, either because they apply to multiple objects, or because they apply conditionally, and it's neater to handle the conditions in a series of rules than via a complex if statement. For example, you might write:</p>
+ 
+<p><div class="code"><pre>
+BeforeRule &amp;Take  
+   during = desperateHurryScene  
+   dobj = [comb, penny, paperclip]
+   
+   follow()
+   {
+       "You don't have time to gather up petty items
+       right now. ";
+       exit;
+   }   
+   
+   priority = 8500
+;
+</pre></div>
+ 
+<p>Note three things here: first the use of the <span class="code">exit</span> macro  to stop the action, and second the priority given to this rule so that it comes after the <span class="code">actorActionRule</span> but before the notification rules; there's no point notifying scenes, rooms and other objects of an action that isn't going to take place. Third and finally, there's no need to use the @ part of the template here to specify that your <span class="code">BeforeRule</span> is located in the beforeRules RuleBook; in common with all the specialized Rule classes defined in this extension, a <span class="code">BeforeRule</span> is automatically located in the appropriate RuleBook.</p> 
+
+<p>Note finally that whether the beforeRules are executed before or after the check phase will depend on the value of <span class="code">gameMain.beforeRunsBeforeCheck.</span></p>
+<br>
+<a name="report"></a>
+<h3>Report Rules</h3> 
+<p>The ReportRules perform the same function as the <a href="../../docs/manual/actres.htm#report">report</a> phase of a TAction or TIAction, namely to summarize the action across all the direct objects it applied to in the course of executing a single command (e.g. "You take the bath bun, the red brick, and the jar of olive oil."). By default, the <strong>reportRules</strong> rulebook contains two rules:</p> 
+
+<ol>
+<li><strong>reportImplicitActionsRule</strong>: (priority 10000). Displays any pending implicit action reports (the <span class="code">follow()</span> method of this rule ends with <span class="code">nostop</span> to ensure that the subsequent rules are considered).</li>
+<li><strong>standardReportRule</strong>: (priority 0). Displays the output of the appropriate report() method from the final direct object in the batch (i.e. carries out the normal library behaviour you'd get if this extension wasn't present).</li>
+</ol>
+ 
+<p>Note that unlike all the other RuleBooks defined in this extension, the <span class="code">reportRules</span> are defined with <span class="code">contVal = null</span> rather than <span class="code">contVal = nil</span>, which means that the rulebook will stop after the first matching rule it finds. This enables you to write custom a custom <strong>ReportRule</strong> without needing to remember to use <span class="code">stop</span> to ensure that the <span class="code">reportRules</span> rulebook doesn't go on to display the standard report as well as your custom one. You'd typically write a ReportRule to customize the way an action is reported under specific circumstances, for example:</p> 
+ 
+ <p><div class="code"><pre>
+ReportRule &amp;Take
+   during = desperateHurryScene
+
+   follow()
+   {
+      "{I} hastily snatch{es/ed} &lt;&lt;gActionListStr&gt;&gt;. ";
+   }   
+;
+ </pre></div> 
+ 
+<p>Note the use of the <span class="code">gActionListStr</span> macro here to provide a list of all the direct objects to which the current Take command applied; your report rules should always include this macro where you want to mention the direct object of the command to ensure that all the relevant direct objects are listed.</p> 
+ 
+<br> 
+<a name="after"></a> 
+<h3>After Rules</h3> 
+<p>The <strong>afterRules</strong> RuleBook is used principally to perform the various <a name="afterac_idx">after action notifications</a>. If you are familiar with Inform 7, you should note that this quite different from an I7 after rule (which takes place between the carry out rules and the report rules). The <span class="code">afterRules</span> in this extension are executed after the action is fully complete, and hence <span class="code">after</span> the <a href="#report">reportRules</a>. They cannot be used to change the outcome of the action in any way, but only how the action is responded to.</p> 
+ 
+<p>The <span class="code">afterRules</span> Rulebook starts out containing the following rules:</p> 
+ 
+<ol>
+<li><strong>checkIlluminationRule</strong> (priority 10000): checks whether the action has changed the actor's location from lit to unlit or <em>vice versa</em> and, if so, either announces the onset of darkness (if it is now dark) or displays a room description (if it is now light).</li>
+<li><strong>notifyScenesAfterRule</strong> (priority 9000): calls the <span class="code">afterAction()</span> method on any current scenes.</li>
+<li><strong>roomNotifyAfterRule</strong> (priority 8000): calls the <span class="code">roomAfterAction()</span> method on the actor's current room, and the <span class="code">regionAfterAction()</span> methods of any Regions that contain that room.</li>
+<li><strong>scopeListNotifyAfterRule</strong> (priority 7000): calls the <span class="code">beforeAction()</span> method on every object in scope.</li>
+</ol> 
+ 
+<p>There are basically two ways in which game code can make use of this rulebook. The first is to reorder the existing rules by reassigning their priorities, so that after action notifications take place in a different order. The second is to define additional <strong>AfterRule</strong> rules which implement additional responses to an action that has just taken place.</p> 
+ 
+<br>
+<a name="sequence"></a>
+<h2>Turn Sequence Rules</h2> 
+ <p>The two turn sequence rulebooks contain rules governing what takes place at the beginning and end of each turn. In addition, they provide convenient places to define <span class="code">TurnStartRules</span> or <span class="code">TurnEndRules</span> to be executed on every turn, either near the start or near the end of the turn, depending on which of the two rulebooks you use. In some respects this duplicates the function of a <a href="../../docs/manual/event.htm#daemon-idx">Daemon</a>, but at the same time it gives you more control over precisely where in the turn cycle and under what conditions your code is run.</p> 
+ <br>
+<a name="start"></a> 
+<h3>TurnStart Rules</h3> 
+<p>The turnStartRules rulebook starts out containing the following rules:</p> 
+<ol>
+<li><strong>updateStatusLineRule</strong> (priority 10000): updates the status line.</li>
+<li><strong>scoreNotificationRule</strong> (priority 9000): displays any applicable score notification.</li>
+<li><strong>promptDaemonRule</strong> (priority 8000): runs any <a href="../../docs/manual/event.htm#promptdaemon">PromptDaemons</a> that are due to fire.</li>
+<li><strong>commandSpacingRule</strong> (priority 20): displays a blank line, preparatory to displaying the next command prompt.</li>
+<li><strong>startInputLineRule</strong> (priority 10): outputs an <span class="code">&lt;.inputline&gt;</span> tag preparatory to displaying the next command prompt.</li>
+<li><strong>displayCommandPromptRule</strong> (priority 0): displays the command prompt (by default "&gt;").</li>
+</ol> 
+
+<p>This rulebook does not go on to encompass the actual inputting and parsing of the command (a) because these operations are protected by a <span class="code">try... catch</span>  block that cannot readily be replicated within the same rulebook and (b) because it is in any case probably not a good idea for game code to modify that particular part of the cycle.</p> 
+
+<p>To define additional rules to be run in the turnStartRules rulebook, use the <strong>TurnStartRule</strong> class. For example, to customize the command prompt during the <span class="code">desparateHurryScene</span> you might write:</p>
+ 
+ <p><div class="code"><pre>
+ TurnStartRule
+    during =  desperateHurryScene  
+    follow()
+    {
+        "Hurry! ";
+    }
+    priority = 5
+; 
+ </pre></div> 
+<p>Note that with this definition the rulebook will continue to execute the <span class="code">displayCommandPromptRule</span> after our custom rule, so the complete command prompt will appear as <strong>Hurry! &gt;</strong>. If we wanted to <em>replace</em> the standard command prompt entirely we'd need to add a <span class="code">stop</span> statement to the end of the <span class="code">follow()</span> method of our custom rule.</p> 
+  
+<br>
+<a name="end"></a> 
+<h3>TurnEnd Rules</h3> 
+<p>The <strong>turnEndRules</strong> rulebook deals with end-of-turn processing such as running daemons and fuses and advancing the turn count. It starts out containing the following rules:</p>
+
+<ol>
+<li><strong>turnEndSpacerRule</strong> (priority 10000): adds a blank line to the end of the previous command output.</li>
+<li><strong>roomDaemonRule</strong> (priority 9000): executes the <span class="code">roomDaemon()</span> method on the player character's current room.</li>
+<li><strong>executeEventsRule</strong> (priority 8000): executes any pending Fuses or Daemons.</li>
+<li><strong>advanceTurnCounterRule</strong> (priority 50): advances the turn counter.</li>
+</ol>
+<p>To define additional rules to go into the <span class="code">turnEndRules</span> rulebook, use the <strong>TurnEndRule</strong> class.</p>
+<br>
+
+<a name="performance"></a>
+<h2>A Note on Performance</h2>
+<p>Employing the sysrules extension in principle gives the library quite a lot of extra work to do, since it has to run through a number of rulebooks where it would otherwise have simply executed successive statements in a method or function. This is unlikely to result in any noticeable degradation of performance from the perspective of a player, at least any player using a reasonably modern computer, but could conceivably make test scripts run a little slower. It is completely pointless to install this extension in your game unless you actually intend making used of it by defining new rules or reordering existing ones, since this would be to make the library do a whole lot of extra work for nothing. It may also be overkill to use this extension to achieve something that could be achieved more simply (or just as simply) by some other means (such as defining an <span class="code">InitObject</span> or using a <a href="../../docs/manual/message.htm#custmessage_idx">CustomMessages</a> object to change the prompt). On the other hand there is no reason why you should not use this extension if you think it may prove useful or if you want to experiment with it; in practice any slowdown in performance is likely to be imperceptible (especially to players).</p>
+
+<br> 
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../systime.t">systime.t</a> file.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Sysrules
+<br><span class="navnp"><a class="nav" href="subtime.htm"><i>Prev:</i> Subtime</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tiaaction.htm"><i>Next:</i> TIAAction</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

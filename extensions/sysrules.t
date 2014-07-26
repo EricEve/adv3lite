@@ -317,6 +317,7 @@ modify Action
      *   the actor's current room and then on every object in scope.
      *
      *   Note that afterAction() is called from the current Command object.
+     *   [MODIFIED FOR SYSRULES EXTENSION]
      */
     afterAction()
     {
@@ -342,6 +343,7 @@ modify Action
         
     }
     
+    /* [MODIFIED FOR SYSRULES EXTENSION] */
     beforeAction()
     {
         
@@ -366,14 +368,8 @@ modify Action
         
     }
     
-    
-    doAction() 
-    { 
-        actionRules.currentAction = self;
-        
-        actionRules.follow();
-    }
-    
+       
+    /* [MODIFIED FOR SYSRULES EXTENSION] */
     turnSequence()
     {
         /* Execute the rulebook that takes care of end-of-turn processing */
@@ -381,24 +377,6 @@ modify Action
     }
 ;
 
-class ActionRule: Action, ReplaceRedirector
-    location = actionRules
-;
-
-
-actionRules: RuleBook
-    currentAction = nil
-;
-
-standardActionRule: ActionRule
-    follow()
-    {
-        local ca = currentAction;
-        ca.curDobj.(ca.actionDobjProp);        
-    }
-    
-    priority = 0
-;
 
 
 
@@ -501,7 +479,7 @@ modify TAction
 /* 
  *   Modified version to work with the turnStartRules. This repeatedly prompts
  *   the player for a command and then processes the command until the game
- *   ends.
+ *   ends. [MODIFIED FOR SYSRULES EXTENSION]
  */
 
 replace mainCommandLoop()
@@ -574,7 +552,7 @@ updateStatusLineRule: TurnStartRule
         statusLine.showStatusLine();
     }
     
-    priority = 1000
+    priority = 10000
 ;
 
 

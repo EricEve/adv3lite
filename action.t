@@ -965,6 +965,12 @@ class Action: ReplaceRedirector
      *   objtime extension to use to add to the time taken by implicit actions.
      */
     addImplicitTime() { }
+    
+    /*  
+     *   Advance the game clock time. This does nothing in the main library but
+     *   is provided as a hook for the objtime extension to use.
+     */
+    advanceTime() {}
 ;
 
 
