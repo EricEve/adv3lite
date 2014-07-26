@@ -85,6 +85,10 @@
 #define literalAcc     literalPhrase->accMatch
 #define literalAobj    literalPhrase->accMatch
 #define singleDir      directionName->dirMatch
+#define numericDobj    numberPhrase -> dobjMatch
+#define numericIobj    numberPhrase -> iobjMatch
+#define numericAcc     numberPhrase -> accMatch
+#define numericAobj    numberPhrase -> accMatch
 
 /* Also add a couple of synonyms familiar froma adv3 */
 #define dobjList      nounList->dobjMatch
@@ -283,6 +287,7 @@ enum rmcDisambig;
 #define gDobj (gAction.curDobj)
 #define gIobj (gAction.curIobj)
 #define gLiteral (gAction.literal)
+#define gNumber (gAction.num)
 
 
 /* the Action object of the command being executed */
@@ -531,6 +536,13 @@ enum rmcDisambig;
 
 #define DefineTopicAction(name)\
     DefineAction(name, TopicAction)
+
+#define DefineNumericTAction(name)\
+    DefineTActionSub(name, NumericTAction)
+
+#define DefineNumericAction(name) \
+    DefineAction(name, NumericAction)
+
 
 /*
  *   Define a concrete TIAction, given the root name for the action.  We'll

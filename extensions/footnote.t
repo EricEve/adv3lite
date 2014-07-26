@@ -304,7 +304,7 @@ footnotePreinit: PreinitObject
  *  instruct users to include your language-specific file after this one.
  */
 VerbRule(Footnote)
-    ('footnote' | 'note') literalDobj
+    ('footnote' | 'note') numericDobj
     : VerbProduction
     action = FootnoteAction
     verbPhrase = 'show/showing a footnote'
@@ -351,12 +351,9 @@ DefineSystemAction(FootnoteAction)
         /* ask the Footnote class to do the work */
         if (libGlobal.footnoteClass != nil)
         {
-            local num = tryInt(c.dobj.name);
-            if(num)
-               libGlobal.footnoteClass.showFootnote(num);
-            else
-                DMsg(invalid footnote number, '<q>\^{1}</q> is not a valid
-                    footnote number. ', c.dobj.name);
+            local num = c.dobj.numVal;
+            
+            libGlobal.footnoteClass.showFootnote(num);            
         }
         else
             commandNotPresent();

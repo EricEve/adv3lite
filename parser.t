@@ -3139,7 +3139,39 @@ class LiteralObject: object
  *   objects, but are simply taken as numeric values. 
  */
 class NumberPhrase: NounPhrase
+     matchVocab(cmd)
+    {
+        local v = new Vector(2);
+        
+        /* Get the number just entered*/        
+        local val = prod.numval;
+               
+        /* Create a dummy object to represent the literal text */
+        local obj = new NumericObject(tokens, val);
+        
+        /* Wrap the dummy object in am NPMatch object */
+        local lst = [obj];
+        addMatches(v, lst, MatchNoApprox);
+        
+        matches = v;   
+    }
     
+    selectObjects(cmd)
+    {
+        /* do nothing; there's only one object */
+    }
+;
+
+/* An object to hold a numerical value. */
+class NumericObject: object
+    construct(toks, val)
+    {   
+        numToks = toks;
+        numVal = val;
+    }
+    
+    numToks = nil
+    numVal = nil
 ;
     
 

@@ -2481,6 +2481,57 @@ class TopicTAction: TAction
     topicIsGrammaticalIobj = true
 ;
 
+
+/* 
+ *   A NumericTAction is an action that involves one physical object and one
+ *   number, e.g. DIAL 1234 ON PHONR.
+ */
+class NumericTAction: TAction
+    execAction(cmd)
+    {
+        
+        /* 
+         *   Determine which is the Thing-based object and which is the numeric
+         *   value and plug each into the right slot (so that the Thing ends up
+         *   as the direct object of the command and the number as the num).
+         */        
+        if(cmd.dobj.ofKind(Thing))
+        {        
+            curDobj = cmd.dobj;
+            num = cmd.iobj.numVal;
+        }
+        else
+        {
+            curDobj = cmd.iobj;
+            num = cmd.dobj.numVal;
+        }
+        
+        /* Note the direct object as an antecedent for pronouns */
+        notePronounAntecedent(curDobj);
+
+        /* Execute the resolved action (as for a TAction) */
+        execResolvedAction();        
+    }
+    
+    /* 
+     *   Whichever object slot a verify routine is notionally trying to verify
+     *   for given the grammatical form of the command, in practice only the
+     *   direct object (the thing involved in the command) can be verified. E.g.
+     *   for WRITE FOO ON BALL we treat BALL as the direct object of the command
+     *   and FOO as the literal, even if the Parser thinks it needs to verify
+     *   the Indirect Object to disambiguate BALL.
+     */    
+    verify(obj, role)
+    {
+        return inherited(obj, DirectObject);
+    }
+    
+    
+    /* The numeric value associated with this command */
+    num = nil
+;
+
+
 /* 
  *   A TopicAction is an action referring to a single Topic (e.g. TALK ABOUT THE
  *   TOWER). It behaves almost exactly like an IAction.
@@ -2503,6 +2554,28 @@ class TopicAction: IAction
     /* The ResolvedTopic object associated with this action. */
     curTopic = nil
 ;
+
+
+/*  
+ *   A NumericAction is an action referring to a single Number (e.g. Footnote
+ *   1). It behaves almost like an IAction.
+ */
+class NumericAction: IAction
+    exec(cmd)
+    {
+        /* Note the number associated with this command. */
+        num = cmd.dobj.numVal;
+        
+        /* carry out the inherited handling. */
+        inherited(cmd);
+    }
+ 
+    /* The number on which this command is operating. */
+    num = nil
+;
+
+
+
 
 /* Try action as an implicit action with [objs] as its objects */
 tryImplicitAction(action, [objs])

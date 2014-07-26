@@ -1145,15 +1145,15 @@ defOrdinal(latter, -1);
 grammar numberObjPhrase(main): numberPhrase->num_ : NumberNounProduction
 ;
 
-grammar numberPhrase(digits): tokInt->num_ : Production
+grammar numberPhrase(digits): tokInt->num_ : NumberNounProduction
     numval = (toInteger(num_))
 ;
 
-grammar numberPhrase(spelled): spelledNumber->num_ : Production
+grammar numberPhrase(spelled): spelledNumber->num_ : NumberNounProduction
     numval = (num_.numval)
 ;
 
-grammar poundNumberPhrase(main): tokPoundInt->num_ : Production
+grammar poundNumberPhrase(main): tokPoundInt->num_ : NumberNounProduction
 ;
 
 /*
@@ -1279,7 +1279,7 @@ grammar spelledThousand(thousandsAndSmall):
     spelledHundred->thou_ 'thousand' 'and' spelledSmallNumber->num_
     : Production
 
-    numval = (1000 + num_.numval)
+    numval = (thou_.numval*1000 + num_.numval)
 ;
 
 grammar spelledThousand(aThousand): 'a' 'thousand' : Production
