@@ -3172,6 +3172,7 @@ class NumericObject: object
     
     numToks = nil
     numVal = nil
+    numStr = (numToks.join(' '))
 ;
     
 

@@ -2330,6 +2330,9 @@ class LiteralAction: IAction
  
     /* The string literal on which this command is operating. */
     literal = nil
+    
+    /* The numerical value of our literal */
+    num = tryNum(literal)
 ;
 
 
@@ -2381,6 +2384,9 @@ class LiteralTAction: TAction
     
     /* The literal value associated with this command */
     literal = nil
+    
+    /* The numerical value of our literal */
+    num = tryNum(literal)
 ;
 
 

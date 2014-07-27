@@ -251,25 +251,67 @@ symTab: PreinitObject
     ctab = [* -> '???']
     
     /* 
-     *   Store a string equivalent of the name of every class defined in the
+     *   Store a string equivalent of the name of every identifier defined in the
      *   game (and the library)
      */
     execute()
     {
         t3GetGlobalSymbols().forEachAssoc( new function(key, value)
         {
-            if(dataType(value) == TypeObject && value.isClass)
-                ctab[value] = key;
-            
-            if(dataType(value) == TypeObject && (value.ofKind(Region)))               
-                ctab[value] = key;
-            
-            if(defined(Actor) && dataType(value) == TypeObject &&
-               (value.ofKind(ActorState) || value.ofKind(AgendaItem)))
-                ctab[value] = key;
+//            if(dataType(value) == TypeObject && value.isClass)
+//                ctab[value] = key;
+//            
+//            if(dataType(value) == TypeObject && (value.ofKind(Region)))               
+//                ctab[value] = key;
+//            
+//            if(defined(Actor) && dataType(value) == TypeObject &&
+//               (value.ofKind(ActorState) || value.ofKind(AgendaItem)))
+//                ctab[value] = key;
+            ctab[value] = key;
         });
     }
 ;
+
+/* Take a string and return the object whose programmatic name it refers to */
+symToVal(val)
+{    
+    return t3GetGlobalSymbols()[val];      
+}
+    
+/* Take a value and return the string representation of its programmatic name */
+valToSym(val)
+{
+    local str;
+    switch(dataType(val))
+    {
+    case TypeSString:        
+        return val;
+    case TypeInt:
+        return toString(val);
+    case TypeObject:
+    case TypeEnum:
+    case TypeProp:
+        return symTab.ctab[val];   
+    case TypeNil:
+        return 'nil';
+    case TypeTrue:
+        return 'true';
+    case TypeList:
+        str = '[';
+        for(local cur in val, local i=1, local len=val.length;; i++)
+        {
+            str += valToSym(cur);
+            if(i < len)
+                str += ', ';            
+        }
+        str += ']';
+        return str;
+        
+    }
+    
+    return '?';
+}
+
 
 /* 
  *   Provide TadsObject with an objToString() method so that the EVALUATE

@@ -753,3 +753,188 @@ relationPath(start, rel, target)
 {
     return relationPathfinder.findPath(start, rel, target);    
 }
+
+
+#ifdef __DEBUG
+/*  Debugging commands for RELATIONS EXTENSION */
+
+/* List relations defined in the game */
+DefineSystemAction(ListRelations)
+    execAction(c)
+    {
+        /* Get a list of relations defined in the relation table */
+        local lst = relationTable.nameTab.keysToList();
+        
+        /* If the list is empty, say so and exit. */
+        if(lst.length == 0)
+        {
+            DMsg(no relations defined, 'No relations are defined in this game.
+                ');
+        }
+        
+        /* Sort the list in order of name */
+        lst = lst.sort(SortAsc, {a, b: a.compareIgnoreCase(b)});
+        
+        /* Go through every item in the list */
+        foreach(local cur in lst)
+        {
+            /* Get the value relating to the name cur */
+            local val = relationTable.nameTab[cur];
+            
+            /* 
+             *   Only report it if it's a normalRelation (so that we don't
+             *   duplicate relations in our list by also listing them with their
+             *   reverseName.
+             */
+            if(val[2] == normalRelation)
+            {
+                /* The relation is the first item in val */
+                local rel = val[1];
+                
+                /* Show the details of this relation. */
+                showRelation(rel);
+            }
+        }
+    }
+    
+    /* Show the details of relation rel. */
+    showRelation(rel)
+    {
+        /* First display the programmatic object name */
+        "<b><<symTab.ctab[rel]>></b> ";
+        
+        /* If it's a DerivedRelation, say so. */
+        if(rel.ofKind(DerivedRelation))
+            "<i>(DerivedRelation)</i> ";
+        
+        /* Then show the relationType (an enum). */
+        "<<symTab.ctab[rel.relationType]>>: ";
+        
+        /* If rel is a reciprocal relation, say so. */
+        if(rel.reciprocal)
+            "(reciprocal): ";
+        
+        /* Show the (string) name of the relation. */
+        "<i>name</i> = '<<rel.name>>' ";
+        
+        /* If the relation has a reverseName, show that too. */
+        if(rel.reverseName)
+            "<i>reverseName</i> = '<<rel.reverseName>>' ";
+        
+        /* Move to the next line. */
+        "\n";
+    }
+;
+
+VerbRule(ListRelations)
+    ('list'|) 'relations'
+    :VerbProduction
+    action = ListRelations
+    verbPhrase = 'list/listing relations'
+;
+
+/* Debugging action to list what a relation currently relates */
+DefineSystemAction(RelationDetails)
+    execAction(c)
+    {
+        /* Note the literal string associated with this command. */
+        literal = c.dobj.name;
+        
+        /* 
+         *   Try to get the relation associated with this string value from the
+         *   relationTable.
+         */
+        local relInfo = relationTable.getRelation(literal);
+        
+        /*  Set up a local variable to hold the relation object. */
+        local rel;
+        
+        if(relInfo == nil)
+        {
+            /* 
+             *   If we didn't find anything in the relationTable, it may be the
+             *   tester entered the programmatic name instead of the string name
+             *   of the relation; try looking up the programatic name of the
+             *   relation in the global symbol table.
+             */
+            rel = t3GetGlobalSymbols()[literal];
+            
+            /*   
+             *   If we didn't find anything, or what we found wasn't a Relation,
+             *   say there's no such relation and exit.
+             */
+            if(rel == nil || dataType(rel) != TypeObject ||
+               !rel.ofKind(Relation))
+            {
+                DMsg(no such relation, 'There is no such relation in the game as
+                    {1}. ', literal);
+                return;
+            }
+        }
+        /* 
+         *   Otherwise, if we found an entry in the relationTable, the relation
+         *   we want is the first item in the list returned from that table.
+         */
+        else            
+            rel = relInfo[1];
+        
+        /*  Show the details of what that relation is. */
+        ListRelations.showRelation(rel);
+        
+        /*  
+         *   If it's a DerivedRelation, say so and exit; we can't list what a
+         *   DerivedRelation relates.
+         */
+        if(rel.ofKind(DerivedRelation))
+        {
+            DMsg(cant list derived relation, '<i>Since {1} is a DerivedRelation,
+                any items it relates cannot be listed.</i> ', valToSym(rel));
+            
+            return;
+        }
+        
+        /* 
+         *   Get a list of the keys in our relation's reltab table (which may be
+         *   nil).
+         */
+        local lst = rel.relTab == nil ? [] : rel.relTab.keysToList();
+        
+        
+        /*  If the list is empty, say so and exit. */
+        if(lst.length == 0)
+        {
+            DMsg(no relations defined, '<i>no relations defined</i> ');
+            return;
+        }
+        
+        /* Sort the list in ascending key order. */
+        lst = lst.sort(SortAsc, {a, b:
+                       symTab.ctab[a].compareIgnoreCase(symTab.ctab[b])});
+        
+        /* 
+         *   Go through each key in the list. This will be the object (or other
+         *   value) that relates to other objects via this relation.
+         */
+        foreach(local cur in lst)
+        {
+            /* 
+             *   Display the name of the current object and list the items to
+             *   which it relates.
+             */
+            "<<symTab.ctab[cur]>>  ->  <<valToSym(rel.relTab[cur])>>\n";
+
+        }
+        
+    }
+    
+    literal = nil
+;
+
+VerbRule(RelationDetails)
+    ('relation' | 'relations' | 'rel') literalDobj
+    : VerbProduction
+    action = RelationDetails
+    verbPhrase = 'list/listing relation details'
+;
+
+#endif
