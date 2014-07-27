@@ -63,13 +63,7 @@ DefineSystemAction(Debug)
     {
         gLiteral = cmd.dobj.name.toLower;
         switch(gLiteral)
-        {
-        case 'messages':
-        case 'spelling':
-        case 'actions':
-        case 'doers':
-            DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
-            /* Deliberately omit break to allow fallthrough */
+        {       
         case 'status':
             DebugCtl.status();
             break;
@@ -80,10 +74,17 @@ DefineSystemAction(Debug)
             DebugCtl.status();
             break;
         default:
-            "That is not a valid option. The valid DEBUG options are DEBUG
-            MESSAGES, DEBUG SPELLING, DEBUG ACTIONS, DEBUG DOERS,
-            DEBUG OFF or DEBUG STOP (to turn off all options) or
-            just DEBUG by itself to break into the debugger. ";
+            if(DebugCtl.all.indexOf(gLiteral))
+            {
+                DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
+                DebugCtl.status();               
+            }
+            else                
+                "That is not a valid option. The valid DEBUG options are DEBUG
+                MESSAGES, DEBUG SPELLING, DEBUG ACTIONS, DEBUG DOERS,
+                DEBUG OFF or DEBUG STOP (to turn off all options) or
+                just DEBUG by itself to break into the debugger. ";
+            break;
         }
         
     }

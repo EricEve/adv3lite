@@ -86,12 +86,15 @@ class RuleBook: PreinitObject
         validRules = validRules.sort(SortDesc, {a, b: a.compareTo(b)} );
         
         /* 
-         *   Go through each of the matching rules in turn, calling it's follow
+         *   Go through each of the matching rules in turn, calling its follow
          *   method. If any rule returns a non-null value, stop running through
          *   the rules and return that value to our caller.
          */
         foreach(local ru in validRules)
         {
+            IfDebug(rules, 
+                    "[Executing rule: <<valToSym(ru)>> in rulebook
+                    <<valToSym(self)>>]\n" );
             local res = ru.follow(args...);
             
             if(res != contValue)
@@ -782,3 +785,10 @@ class Rule: object
      */
     // present = []
 ;
+
+#ifdef __DEBUG
+modify DebugCtl
+   /* list of all debugging options */
+    all = inherited + 'rules'
+;
+#endif
