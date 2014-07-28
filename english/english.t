@@ -4403,6 +4403,14 @@ englishMessageParams: MessageParams
         [ 'doesnot', conjugateDoNot],
         [ 'donot', conjugateDoNot],
 
+
+        /* Have verbs */
+        ['\'ve', conjugateIve ],
+        ['haven\'t', conjugateHavnt ],
+        ['hasn\'t', conjugateHavnt ],
+        ['havenot', conjugateHavenot ],
+        ['hasnot', conjugateHavenot ],
+        
         /* {can}, {cannot}, {can't} */
         [ 'can', { ctx, params: conjugateCan(
             ctx, params, conjugateBe, 'can', 'could') } ],
@@ -4502,6 +4510,23 @@ englishMessageParams: MessageParams
 
     /* verb table - we build this at preinit from the verb parameters */
     verbTab = nil
+    
+    /* 
+     *   Word-ending letter combinations that are awkward to follow with a
+     *   contracted verb such a 've.
+     */
+    sLetters = ['s', 'x', 'z', 'sh', 'ch']
+
+    /* 
+     *   Does nam end with one of the letter combinations in sLetters, in which
+     *   case it's awkward to follow it with a contraction.
+     */
+    awkwardEnding(nam)
+    {
+        return sLetters.indexWhich({lts: nam.endsWith(lts)})!= nil;
+    }
+
+    
 ;
 
 /* 
@@ -4938,6 +4963,83 @@ conjugateWasnot(ctx, params)
     case Future:
     case FuturePerfect:
         return 'will not have been';
+    }
+    
+    return nil;
+}
+
+/* 
+ *   Conjugate 've (contraction of have). After some words it's better not to
+ *   contract (e.g. Liz's or Jesus'd is a a bit awkward) so we use the full
+ *   'have' or 'had' form for such subjects and the contracted form otherwise.
+ */
+
+conjugateIve(ctx, params)
+{
+    local fullForm = englishMessageParams.awkwardEnding(ctx.subj.name);
+    
+    switch (Narrator.tense)
+    {
+    case Present:
+        if(fullForm)
+            return !ctx.subj.plural && ctx.subj.person == 3 ? ' has' : ' have';
+        else
+            return !ctx.subj.plural && ctx.subj.person == 3 ? '\'s' : '\'ve';
+        
+        
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return fullForm ? ' had' : '\'d';       
+        
+    case Future:
+    case FuturePerfect:
+        return fullForm ? ' will have' : '\'ll have';
+    }
+    
+    return nil;
+}    
+
+/* Conjugate haven\'t (contracted have not) */
+conjugateHavnt(ctx, params)
+{
+    switch (Narrator.tense)
+    {
+    case Present:       
+            return !ctx.subj.plural && ctx.subj.person == 3 ? 'hasn\'t' 
+            : 'haven\'t';      
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return 'hadn\'t';       
+        
+    case Future:
+    case FuturePerfect:
+        return 'won\'t have' ;
+    }
+    
+    return nil;
+}
+
+
+conjugateHavenot(ctx, params)
+{
+    switch (Narrator.tense)
+    {
+    case Present:       
+            return !ctx.subj.plural && ctx.subj.person == 3 ? 'has not' 
+            : 'have not';      
+        
+    case Past:
+    case Perfect:
+    case PastPerfect:
+        return 'had not';       
+        
+    case Future:
+    case FuturePerfect:
+        return 'will not have' ;
     }
     
     return nil;
