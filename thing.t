@@ -7012,6 +7012,11 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotTakeFromSelfMsg =  BMsg(cannot take from self, '{I} {can\'t} take
         {the subj dobj} from {the dobj}. ')
     
+    /* 
+     *   Flag, can we supply more items from us that are currently in scope? By
+     *   default we can't; but a DispensingCollective may be able to.
+     */
+    canSupply = nil
         
     dobjFor(ThrowAt)
     {

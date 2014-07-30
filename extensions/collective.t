@@ -28,35 +28,73 @@ class Collective: Thing
      *   preference to individual objects (e.g. grapes) when the player's
      *   command includes one of these plural tokens, but an individual object
      *   (e.g. a grape) is preferred otherwise.
+     *
+     *   By default (if this is left as nil by the user) the library populates
+     *   this list from our name property, which in the majority of cases should
+     *   achieve what's needed. This property only needs to be user-defined in
+     *   cases where using the name won't work, even in conjunction with the
+     *   extraToks property.
      */
-    pluralToks = []
+    collectiveToks = nil
    
-    /* Did the player's command match any of our pluralToks ? */
-    pluralMatch = nil
+    /*   
+     *   A list of additional tokens added to our collectiveToks at preInit.
+     *   This might be needed, for example, if a Collective called 'stack of
+     *   cans' also answers to 'pile of tins' (i.e., if it has 'pile' and 'tins'
+     *   defined as additional nouns it its vocab property), in which case we'd
+     *   need to defined these tokens ['pile', 'tins'] here.
+     */
+    extraToks = nil
+    
+    
+    /* Did the player's command match any of our collectiveToks ? */
+    collectiveDobjMatch = nil
+    
+    collectiveIobjMatch = nil
+    
+    /* The number of dispensible items being requested. */
+    numberWanted = 0
     
     filterResolveList(np, cmd, mode)
     {
         /* Carry out any inherited handling */
         inherited(np, cmd, mode);
         
-        pluralMatch = np.tokens.overlapsWith(pluralToks);
+        local num = np.quantifier == nil ? 1 : np.quantifier;
+        
+        local collectiveMatch = np.tokens.overlapsWith(collectiveToks) 
+            && num == 1;
+        
+        /* 
+         *   Note whether we have a collective match in the particular role
+         *   being considered.
+         */
+        if(np.role == DirectObject)
+        {
+            collectiveDobjMatch = collectiveMatch;
+            
+            /* Note the numberWanted */
+            numberWanted = num;
+        }
+        if(np.role == IndirectObject)
+            collectiveIobjMatch = collectiveMatch;
         
         /* Go through each of the NPMatch objects in our list. */
         foreach(local cur in np.matches)
         {
             /* 
-             *   Only worry about it if the NPMatch objects associated object is
-             *   one for which we're a collective. If it is, we need to make a
-             *   decision.
+             *   Only worry about it if the NPMatch object's associated object
+             *   is one for which we're a collective. If it is, we need to make
+             *   a decision.
              */
-            if(isCollectiveFor(cur.obj, np, cmd))
+            if(isCollectiveFor(cur.obj))
             {
                 /*  
-                 *   If the player's command included one of our pluralToks,
+                 *   If the player's command included one of our collectiveToks,
                  *   then we're the preferred object to use, so remove cur from
                  *   the list of possible matches.
                  */
-                if(pluralMatch)
+                if(collectiveMatch || collectiveAction(np, cmd))
                     np.matches -= cur;
                 
                 /*  Otherwise prefer the individual item. */
@@ -90,7 +128,23 @@ class Collective: Thing
      *   The np parameter can be used, inter alia, to determine the role
      *   (np.role), e.g. as DirectObject or IndirectObject.
      */     
-    isCollectiveFor(obj, np, cmd) { return nil; }
+    isCollectiveFor(obj) { return nil; }
+    
+    
+    collectiveAction(np, cmd) { return nil; }
+    
+    /* Overidden for COLLECTIVE EXTENSION */
+    preinitThing
+    {
+        inherited();
+        
+        /* 
+         *   If collectiveToks hasn't been defined, populate it with tokens
+         *   drawn from our name plus any user-defined extraToks.
+         */
+        if(collectiveToks == nil)
+            collectiveToks = name.toLower.split(' ') + valToList(extraToks);
+    }
 ;
 
 /*   
@@ -120,6 +174,9 @@ class DispensingCollective: Collective
      */
     maxToDispense = nil
     
+    
+    canSupply = true
+    
     /*   Is it possible (or allowed) to dispense any more objects from us? */
     canDispense()
     {
@@ -128,7 +185,8 @@ class DispensingCollective: Collective
          *   until we reach the end of the list.
          */
         if(dispensedObjs)
-            return valToList(dispensedObjs).length > dispensedCount;
+            return valToList(dispensedObjs).length > dispensedCount +
+            numberWanted;
         
         /*  
          *   Otherwise, if we have a dispensed class we can continue to dispense
@@ -137,7 +195,8 @@ class DispensingCollective: Collective
          *   objects.
          */
         if(dispensedClass)
-            return(maxToDispense == nil || dispensedCount < maxToDispense);
+            return(maxToDispense == nil 
+                   || dispensedCount + numberWanted <= maxToDispense);
         
         /*  
          *   If we have neither a dispensedObjs list nor a dispensedClass we
@@ -149,68 +208,129 @@ class DispensingCollective: Collective
     /*  Dispense an object from this DispensingCollective. */
     dispenseObj()
     {
-        /* Increase the count of the number of objects dispensed. */
-        dispensedCount++;
-        
-        /* If we have a list of dispensedObjs, select the next one. */
-        if(dispensedObjs)
+        for(local i in 1..numberWanted)
         {
-            obj = valToList(dispensedObjs)[dispensedCount];            
+            /* Increase the count of the number of objects dispensed. */
+            dispensedCount++;
+            
+            /* If we have a list of dispensedObjs, select the next one. */
+            if(dispensedObjs)
+            {
+                obj = valToList(dispensedObjs)[dispensedCount];            
+            }
+            /*  Otherwise create a new object of our dispensedClass class. */
+            else
+                obj = dispensedClass.createInstance();
+            
+            
+            /* 
+             *   Check that the actor has room to hold obj, and stop the action
+             *   if not.
+             */
+            if(gOutStream.watchForOutput({: obj.checkRoomToHold() }))
+                exit;
+            
+            /*  Move the object into the actor's inventory. */
+            obj.actionMoveInto(gActor);           
+            
+            
+            /*  
+             *   If we have now dispensed all the objects we can, carry out any
+             *   appropriate adjustments
+             */
+            
+            if(dispensedCount == maxToDispense)
+                exhaustDispenser();
         }
-        /*  Otherwise create a new object of our dispensedClass class. */
-        else
-            obj = dispensedClass.createInstance();
         
-        
-        /* 
-         *   Check that the actor has room to hold obj, and stop the action if
-         *   not.
-         */
-        if(gOutStream.watchForOutput({: obj.checkRoomToHold() }))
-            exit;
-        
-        /*  Move the object into the actor's inventory. */
-        obj.actionMoveInto(gActor);       
-        
-        /*  Say that we have dispensed the object. */
-        sayDispensed(obj);        
+         /*  Say that we have dispensed the object. */
+        sayDispensed(obj);
     }
     
     /* Display a message saying that the actor has taken an object from us. */
     sayDispensed(obj)
-    {
-        gMessageParams(obj);
-        DMsg(say dispensed, '{I} {take} {a obj} from {1}. ', theName);
+    {               
+        local objDesc = numberWanted == 1 ? obj.aName :
+        spellNumber(numberWanted) + ' ' + obj.pluralNameFrom(obj.name);
+        
+        DMsg(say dispensed, '{I} {take} {1} from {2}. ', objDesc, theName);
+        
     }
     
     
+    /*  
+     *   Game code can override this method on specific objects to carry out the
+     *   effects of dispensing the maximum number of objects we're going to
+     *   dispense, e.g. by changing the description, or replacing a bunch of
+     *   bananas by a single banana (when it's the last one left). We do nothing
+     *   here in the library, since what's needed will vary with the specifics
+     *   of the game.
+     */
+    exhaustDispenser()
+    {
+    }
+    
+    /* 
+     *   The TAKE action applied to a DispensingCollective might mean one of two
+     *   things: it might be an attempt to take the DispensingCollective (e.g.
+     *   the bunch of grapes) itself, or it may be an attempt to take a single
+     *   item (e.g. a single grape from the bunch). We assume it's the former if
+     *   what the player typed matches the plural vocab (e.g. 'grapes') and the
+     *   latter otherwise.
+     */
     dobjFor(Take)
     {
         verify()
         {
-            if(pluralMatch)
+            /* 
+             *   If it's an attempt to take us, rather than an item from us, use
+             *   the inherited handling.
+             */
+            if(collectiveDobjMatch)
                 inherited;
         }
         
         check()
         {
-            if(pluralMatch)
+            /* 
+             *   If it's an attempt to take us, rather than an item from us, use
+             *   the inherited handling.
+             */
+            if(collectiveDobjMatch)
                 inherited;
             
+            /*  
+             *   Otherwise see if we're able to dispense another item and
+             *   complain if we can't.
+             */
             else if(!canDispense)
-                say(cannotDispenseMsg);
+                sayCannotDispense();
         }
         
         action()
         {
-            if(pluralMatch)
+            /* 
+             *   If it's an attempt to take us, rather than an item from us, use
+             *   the inherited handling.
+             */
+            if(collectiveDobjMatch)
                 inherited;
             
+            /*  
+             *   Otherwise, dispense an item (e.g. take a single grape from the
+             *   bunch of grapes.
+             */
             else
                 dispenseObj();
         }
     }
     
+    /*  
+     *   We need to be able to handle commands like TAKE GRAPE FROM BUNCH where
+     *   the DispensingCollective represents both objects in the command (since
+     *   until we actually take the grape - or whatever the dispensed object is
+     *   to be - it doesn't yet exist in scope to be the object of the command.)
+     */
     iobjFor(TakeFrom)
     {
         verify()
@@ -220,42 +340,61 @@ class DispensingCollective: Collective
             
             else if(dispensedClass && gTentativeDobj.indexWhich({o:
                 o.ofKind(dispensedClass) } ))
-               logical;
+                logical;
+            
+            else if(gTentativeDobj.indexOf(self))
+                logicalRank(120);    
             
             else
-                logicalRank(80);                   
+                illogical(cannotTakeFromHereMsg);                   
         }
     }
+    
+    cannotTakeFromHereMsg = BMsg(cant take from dispenser, '{I} {can\'t} take {a
+        dobj} from {the iobj}. ')
     
     dobjFor(TakeFrom)
     {
         verify()
         {
-            
+            if(gIobj == self)
+                logicalRank(120);
+            else
+                inherited;
         }
         
         check() { checkDobjTake(); }
         action() { actionDobjTake(); }
     }
     
+    sayCannotDispense()
+    {
+        if(numberWanted == 1)
+            say(cannotDispenseMsg);
+        else
+            DMsg(not that many left, 'There{plural} {aren\'t} that many left
+                to take. ');
+    }
+    
     cannotDispenseMsg = BMsg(cannot dispense, '{I} {can\'t} take any more from
         {the dobj}. ')
     
-    isCollectiveFor(obj, np, cmd) 
-    { 
-        if(cmd.action == TakeFrom)
-            return nil;
+    isCollectiveFor(obj) 
+    {         
         
         if(dispensedObjs && valToList(dispensedObjs).indexOf(obj) == nil)
             return nil;
         
         if(dispensedClass && !obj.ofKind(dispensedClass))
             return nil;
-        
-        
-        
+             
         return true; 
     
+    }
+    
+    collectiveAction(np, cmd) 
+    { 
+        return cmd.action == TakeFrom; 
     }
 ;
 

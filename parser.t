@@ -2251,7 +2251,8 @@ class NounPhrase: object
          *   If we don't have enough objects to satisfy the request,
          *   complain about it. 
          */
-        if (num > matches.length())
+        if (num > matches.length() 
+            && objs.indexWhich({o: o.canSupply}) == nil)
             throw new InsufficientNounsError(cmd, self);
         
         if (mode == Definite && isAllEquivalent(matches))
