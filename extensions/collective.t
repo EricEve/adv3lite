@@ -174,7 +174,20 @@ class DispensingCollective: Collective
      */
     maxToDispense = nil
     
+    /*   
+     *   The number of objects we have left to dispense. This is updated by the
+     *   canDispense method, and shouldn't be overridden by user code. It may,
+     *   however, for use code to consult this property, e.g. to vary our
+     *   description.
+     */         
+    numLeft = 0
     
+    /*  
+     *   In principle a DispensingCollective can supply additional items on
+     *   demand. This property is used by the parser to prevent it from throwing
+     *   an error when the player asks for more of the items we dispense than
+     *   are currently in scope.
+     */
     canSupply = true
     
     /*   Is it possible (or allowed) to dispense any more objects from us? */
@@ -185,8 +198,9 @@ class DispensingCollective: Collective
          *   until we reach the end of the list.
          */
         if(dispensedObjs)
-            return valToList(dispensedObjs).length > dispensedCount +
-            numberWanted;
+        {
+            numLeft = valToList(dispensedObjs).length - dispensedCount;       
+        }
         
         /*  
          *   Otherwise, if we have a dispensed class we can continue to dispense
@@ -195,14 +209,22 @@ class DispensingCollective: Collective
          *   objects.
          */
         if(dispensedClass)
-            return(maxToDispense == nil 
-                   || dispensedCount + numberWanted <= maxToDispense);
+        {
+            /* 
+             *   There's no limit to the number we can dispense, so simply
+             *   return true.
+             */
+            if(maxToDispense == nil)
+                return true;
+            
+            numLeft = maxToDispense - dispensedCount;     
+        }
         
         /*  
-         *   If we have neither a dispensedObjs list nor a dispensedClass we
-         *   can't dispense anything.
+         *   We can dispense the number of objects asked provided that number
+         *   is no greater than the number we have left.
          */
-        return nil;           
+        return numberWanted <= numLeft;;           
     }
     
     /*  Dispense an object from this DispensingCollective. */
@@ -369,32 +391,54 @@ class DispensingCollective: Collective
     
     sayCannotDispense()
     {
-        if(numberWanted == 1)
+        if(numLeft < 1)
             say(cannotDispenseMsg);
         else
-            DMsg(not that many left, 'There{plural} {aren\'t} that many left
-                to take. ');
+            say(notEnoughLeftMsg);
     }
     
+    /* The message to display when there's no more items to dispense from us. */
     cannotDispenseMsg = BMsg(cannot dispense, '{I} {can\'t} take any more from
         {the dobj}. ')
     
+    /* 
+     *   The message to display when the player has asked us for more items than
+     *   we have letft.
+     */
+    notEnoughLeftMsg = BMsg(not that many left, 'There{plural} {aren\'t} that
+        many left to take. ')
+    
+    /* Are we the Collective for obj? */
     isCollectiveFor(obj) 
     {         
         
-        if(dispensedObjs && valToList(dispensedObjs).indexOf(obj) == nil)
-            return nil;
+        /* We are not the Collective for obj if obj */
+        if(dispensedObjs && valToList(dispensedObjs).indexOf(obj) != nil)
+            return true;
         
-        if(dispensedClass && !obj.ofKind(dispensedClass))
-            return nil;
+        if(dispensedClass && obj.ofKind(dispensedClass))
+            return true;
              
-        return true; 
+        return nil; 
     
     }
     
+    /* The TakeFrom action should always act on us, the Collective. */
     collectiveAction(np, cmd) 
     { 
         return cmd.action == TakeFrom; 
+    }
+    
+    /* Overidden for COLLECTIVE EXTENSION */
+    preinitThing
+    {
+        inherited();
+        
+        /* 
+         *   Force an initial calculation of our numLeft property, the
+         *   number of items we have left to dispense.
+         */
+        canDispense();
     }
 ;
 
