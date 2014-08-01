@@ -552,9 +552,9 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
              *   actually find anything, don't count this as a conversational
              *   turn from the point of view of updating pending and active
              *   keys. The same applies if we were speculatively trying to find
-             *   an ImpHelloTopic.
+             *   an ImpHelloTopic or any other topic with a nil defaultProp.
              */
-            if(prop == &initiateTopics || topic == [impHelloTopicObj])
+            if(defaultProp == nil)
                 return nil;
             
             /* Otherwise, show the default response */
@@ -1688,10 +1688,10 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             
             /*  
              *   Find an appropriate ActorHelloTopic to handle the greeting; if
-             *   we don't find one, use our nilResponse (i.e., don't display
+             *   we don't find one, use our nil Response (i.e., don't display
              *   anything)
              */
-            return handleTopic(&miscTopics, [actorHelloTopicObj], &nilResponse);
+            return handleTopic(&miscTopics, [actorHelloTopicObj], nil);
         }       
         
         /* Return nil to signal we didn't actually do anything */
@@ -1722,7 +1722,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
              *   farewell.
              */
             handleTopic(&miscTopics, [reason], 
-                        reason == endConvBye ? &noResponseMsg : &nilResponse);
+                        reason == endConvBye ? &noResponseMsg : nil);
             
             /* 
              *   Then note that we are no longer in conversation with the player
@@ -1939,6 +1939,12 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      *   that of their immediate location.
      */
     active = true
+    
+    /*   
+     *   This property can be used by extensions or game code that wants to
+     *   notify actors in some order of priority.
+     */
+    notificationOrder = 100
     
     /*
      *   ***********************************************************************
@@ -2682,7 +2688,7 @@ class ActorTopicDatabase: TopicDatabase
     /*  Handle an InitiateTopic */
     initiateTopic(top)
     {
-       return handleTopic(&initiateTopics, [top], &nilResponse);
+       return handleTopic(&initiateTopics, [top], nil);
     }
     
     
