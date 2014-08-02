@@ -123,9 +123,9 @@ modify Thing
     
     /*   
      *   The posture that's adopted by default by an actor entering or boarding
-     *   this this.
+     *   this this. [DEFINED IN POSTURES EXTENSION]
      */
-    defaultPosture = standing [DEFINED IN POSTURES EXTENSION]
+    defaultPosture = standing 
     
     /*   By default we can't stand, sit or lie in anything. */
     canStandInMe = nil
