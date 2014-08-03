@@ -120,6 +120,12 @@ class SenseRegion: Region
             extraScope.appendAll(Q.scopeList(scopeProbe_).toList);
         }
         
+        /*  
+         *   Restrict the extra scope items to those that the actor knows about.
+         */
+        extraScope = extraScope.subset({o: gActor.knowsAbout(o)} );
+              
+        
         /* 
          *   Append our list of extra scope items to the action's scope list,
          *   removing any duplicates.
@@ -533,6 +539,9 @@ modify Thing
            
         /* Then add a paragraph break */
         "<.p>";
+        
+        /* Note that we've been seen */
+        noteSeen();
     }
     
     /* List contents as seen from a remote location */
@@ -550,8 +559,11 @@ modify Thing
         contList = contList.sort(nil, {a, b: a.listOrder - b.listOrder});
                      
         
-        foreach(local obj in contList)
+        foreach(local obj in contList)           
         {
+             /* Note that the object has been seen by the pc. */
+            obj.noteSeen();
+            
             /* 
              *   Don't list the inventory of any actors, or of any items that
              *   don't want their contents listed, or any items we can't see in,
@@ -660,7 +672,9 @@ modify Thing
              *   object that's just been opened.
              */
             if(obj.contents.length > 0 && lister != openingContentsLister)
-                listRemoteContents(obj.contents, lister, pov);                     
+                listRemoteContents(obj.contents, lister, pov);     
+            
+           
             
         }
         
@@ -994,12 +1008,75 @@ modify Thing
             }
         }
     }    
+    
+    /*         
+     *   For certain actions like EXAMINE there's no point trying to carry them
+     *   out on something that can't be seen (remotely) if there are other
+     *   things that can be seen that matched the player's command.
+     */
+    filterResolveList(np, cmd, mode) 
+    { 
+        inherited(np, cmd, mode);
+        
+        local loc = gActor.getOutermostRoom, prop;
+        
+        /* 
+         *   If we haven't been picked up by a general command that may not have
+         *   been intended to apply specifically to us, or we're in the same
+         *   room as the actor, we don'd need to do any filtering, so stop here.
+         */
+        if(mode != All || isIn(loc))
+            return;        
+        
+        /*   
+         *   Determine which precondition property we need to look at according
+         *   to our object role.
+         */
+        switch(np.role)
+        {
+        case DirectObject:
+            prop = cmd.action.preCondDobjProp;
+            break;
+        case IndirectObject:
+            prop = cmd.action.preCondIobjProp;
+            break;
+        case AccessoryObject:
+            prop = cmd.action.preCondIobjProp;
+            break;
+        default:
+            prop = cmd.action.preCondDobjProp;
+        }
+            
+            
+        /* 
+         *   If the current action requires the object to be visible, and we're
+         *   not in the same room as the actor, and the actor can't see us, but
+         *   the actor can see something else among the possible matches, remove
+         *   us from the list of matches.
+         */
+        if(self.(prop).indexOf(objVisible)             
+           && !gActor.canSee(self)
+           && np.matches.indexWhich({m: gActor.canSee(m.obj)}))
+           np.matches = np.matches.subset({m: m.obj != self});   
+        
+        
+        /* 
+         *   If the current action requires the object to be touchabble, and
+         *   we're not in the same room as the actor, and the actor can't reach
+         *   us, but the actor can reach something else among the possible
+         *   matches, remove us from the list of matches.
+         */
+        if(self.(prop).indexOf(touchObj)
+           && np.matches.indexWhich({m: m.obj.isIn(loc)}))
+           np.matches = np.matches.subset({m: m.obj != self}); 
+        
+    }
 ;
 
 
 /* 
  *   The scopeProbe_ is a dummy object used by the SenseRegion class to add
- *   items from other rooms in the SenseRegion to scope.
+ *   items from Pther rooms in the SenseRegion to scope.
  */
 scopeProbe_: Thing
 ;
@@ -1070,7 +1147,16 @@ modify Smell
                     });
                 
                 if(remoteDisplayed)
+                {
                     somethingDisplayed = true;
+                    
+                    /* 
+                     *   If the actor is the player character, the player
+                     *   character now knows of the existence of this object.
+                     */
+                    if(gActor == gPlayerChar)
+                        setKnown(cur);
+                }
                 
             }
             
@@ -1078,7 +1164,16 @@ modify Smell
             else
             {
                 if(cur.display(&smellDesc))
+                {
                     somethingDisplayed = true;
+                    
+                    /* 
+                     *   If the actor is the player character, the player
+                     *   character now knows of the existence of this object.
+                     */
+                    if(gActor == gPlayerChar)
+                        setKnown(cur);
+                }
             }
         }
         
@@ -1158,14 +1253,32 @@ modify Listen
                     });
                 
                 if(remoteDisplayed)
+                {
                     somethingDisplayed = true;
+                    
+                    /* 
+                     *   If the actor is the player character, the player
+                     *   character now knows of the existence of this object.
+                     */
+                    if(gActor == gPlayerChar)
+                        setKnown(cur);
+                }
             }
             
             /* Othewise display its listenDesc */
             else
             {
                 if(cur.displayAlt(&listenDesc))
+                {
                     somethingDisplayed = true;
+                    
+                    /* 
+                     *   If the actor is the player character, the player
+                     *   character now knows of the existence of this object.
+                     */
+                    if(gActor == gPlayerChar)
+                        setKnown(cur);
+                }
             }
         }
         

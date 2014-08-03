@@ -118,6 +118,9 @@ modify SensoryEmanation
         
             /*  Note when we last displayed a message. */
             lastEmanationTime = emanationState;
+            
+            /*  Note that the player character must now know about us. */
+            setKnown();
         }
     }
     
@@ -382,6 +385,12 @@ class SensoryEvent: object
          */
         for(local cur in notifyList)
             cur.(notifyProp)(self, obj);
+        
+        /*  
+         *   Presumablty obj has just made its presence known to the player
+         *   character, even if it wasn't before.
+         */
+        obj.setKnown();
     }
     
     /* 
