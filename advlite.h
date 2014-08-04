@@ -1264,6 +1264,14 @@ Relation template 'name' 'reverseName'? @relationType? +reciprocal?;
 
 enum normalRelation, reverseRelation;
 
+/*----------------------------------------------------------------------------*/
+/*
+ *   Definitions for the Signals Extension
+ */
+
+#define DefSignal(sig, nam) sig##Signal: Signal \
+    name = #@nam\
+    handleProp = &handle_##sig
 
 /*----------------------------------------------------------------------------*/
 /*

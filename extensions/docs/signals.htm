@@ -53,16 +53,16 @@ handle(sender, signal)
 }   
  </pre></div> 
  
-<p>To register than an object (the receiver) is interested in receiving a particular signal from a particular sender, we establish a relation between them using the normal relation syntax, since a Signal is a kind of Relation:</p> 
+<p>To register than an object (the receiver) is interested in receiving a particular signal from a particular sender, we establish a relation between them using the <strong>connect()</strong> function:</p> 
  
  <p><div class="code"><pre>
-relate(sender, signal, receiver); 
+connect(sender, signal, receiver); 
  </pre></div> 
 
-<p>The relation between sender and receiver can be severed using the <span class="code">unrelate()</span> function:</p> 
+<p>The relation between sender and receiver can be severed using the <strong>unconnect()</strong><sup><a href="#note1">[1]</a></sup> function:</p> 
 
  <p><div class="code"><pre>
-unrelate(sender, signal, receiver); 
+unconnect(sender, signal, receiver); 
  </pre></div>
  
 <p>A sender will send signals only to those receivers that have been related to it through the relevant Signal/Relation.</p> 
@@ -73,48 +73,81 @@ unrelate(sender, signal, receiver);
 cutSignal: Signal 'cut';
  </pre></div> 
  
-<p>Here the 'cut' in the template defines the signal's name property, which may be used in the relate() and unrelate() functions in place of the Signal's programmatic name. Thus these two statements do precisely the same thing:</p>
+<p>Here the 'cut' in the template defines the signal's name property, which may be used in the <span class="code">connect()</span> and <span class="code">unconnect()</span> functions in place of the Signal's programmatic name. Thus these two statements do precisely the same thing:</p>
  
  <p><div class="code"><pre>
- relate(wire, cutSignal, alarm);
- relate(wire, 'cut', alarm);
+connect(wire, cutSignal, alarm);
+connect(wire, 'cut', alarm);
  </pre></div> 
+
+ <a name="defsignal"></a>
+<p>That all said, there is an easier and better way do define a Signal, using the <strong>DefSignal</strong> macro. Using this macro the foregoing definition cutSignal becomes:</p>
+ <p><div class="code"><pre>
+ DefSignal(cut, cut); 
+ </pre></div>
+
+ <p>This expands to:</p>
+ <p><div class="code"><pre>
+cutSignal: Signal 
+  name = 'cut'
+  handleProp = &amp;handle_cut
+;
+ </pre></div>
+<p>The purpose of the <span class="code">handleProp</span> property will be explained below; in the meantime the point to remember is that the macro <span class="code">DefSignal(sig, nam)</span> expands to:</p> 
+
+<p><div class="code"><pre>
+sigSignal: Signal 
+  name = 'nam'
+  handleProp = &amp;handle_sig
+;
+</pre></div> 
  
 <p>A Signal may be defined with additional properties which the sender can set to convey additional information to the sender. For example this extension defines:</p> 
  
  <p><div class="code"><pre>
- moveSignal: Signal 'moved' destination = nil;
+ DefSignal(move, move) destination = nil;
  </pre></div>
  
-<p>This allows <span class="code">moveSignal</span> to convey information about where the sender was moved to, as well as the fact that it was moved.</p> 
+<p>This (the destination property) allows <span class="code">moveSignal</span> to convey information about where the sender was moved to, as well as the fact that it was moved. How it does so will be discussed further below.</p> 
 
 <p>Note that there is no need to define the <span class="code">relationType</span> of a Signal since this extension already defines it as manyToMany.</p>
 
-<p>Note finally that simply defining a signal doesn't make anything happen. Your code still has to emit it somewhere, and it won't be handled anywhere until you've related it to the relevant receivers using the <span class="code">relate()</span> function. Some signals come predefinined in this extension, however, along with the code to emit them at appropriate points. These are described below.</p>
+<p>Note also that simply defining a signal doesn't make anything happen. Your code still has to emit it somewhere, and it won't be handled anywhere until you've related it to the relevant receivers using the <span class="code">relate()</span> function. Some signals come predefinined in this extension, however, along with the code to emit them at appropriate points. These are described below.</p>
+
+
+<p><a name="note1"></a><font size=-1>[Note 1: The name 'unconnect' is used rather than the more likely 'disconnect' mainly because 'disconnect' is already used as a method name elsewhere in the library and so cannot also be used as the name of a function. Also, the use of the names <span class="code">connect()</span> and <span class="code">unconnect()</span> better parallels that of the names <span class="code">relate()</span> and <span class="code">unrelate()</span> to establish and break relations, which is more or less what these functions do as well. Indeed, in many instances, <span class="code">relate()</span> and <span class="code">unrelate()</span> could be used for Signals as well, but the <span class="code">connect()</span> and <span class="code">unconnect()</span> functions do some additional work that is needed in more complex cases, so it is probably best to stick to their use consistently in relation to Signals.]</font></p>
  
 <br>
 <a name="defined"></a>
 <h2>Signals Defined in this Extension</h2> 
  
+<p>This extension defines the following signals and causes them to be emitted as appropriate:</p> 
+ 
 <ul>
-<li><strong>litSignal</strong>: Signal 'lit';</li>
-<li><strong>unlitSignal</strong>: Signal 'unlit';</li>
-<li><strong>discoverSignal</strong>: Signal 'discover';</li>
-<li><strong>undiscoverSignal</strong>: Signal 'undiscover';</li>
-<li><strong>lockSignal</strong>: Signal 'lock';</li>
-<li><strong>unlockSignal</strong>: Signal 'unlock';</li>
-<li><strong>onSignal</strong>: Signal 'turned on';</li>
-<li><strong>offSignal</strong>: Signal 'turned off';</li>
+<li><strong>litSignal</strong>: Signal 'lit'; - emitted when an object becomes lit via a call to <span class="code">makeLit(true)</span>.</li>
+<li><strong>unlitSignal</strong>: Signal 'unlit'; - emitted when an object becomes unlit via  a call to <span class="code">makeLit(nil)</span>.</li>
+<li><strong>discoverSignal</strong>: Signal 'discovered'; - emitted when an object becomes discovered via a call to <span class="code">discover(true)</span>.</li>
+<li><strong>undiscoverSignal</strong>: Signal 'lost'; - emitted when an object becomes undiscovered via a call to <span class="code">discover(nil)</span></li>
+<li><strong>lockSignal</strong>: Signal 'locked'; - emitted when an object becomes locked via a call to <span class="code">makeLocked(true)</span>.</li>
+<li><strong>unlockSignal</strong>: Signal 'unlocked'; - emitted when an object becomes unlocked via a call to <span class="code">makeLocked(nil)</span>.</li>
+<li><strong>onSignal</strong>: Signal 'turned on'; - emitted when an object becomes switched on via a call to <span class="code">makeOn(true)</span>.</li>
+<li><strong>offSignal</strong>: Signal 'turned off'; - emitted when an object becomes switched on via a call to <span class="code">makeOn(nil)</span>.</li>
+<li><strong>openSignal</strong>: Signal 'open'; - emitted when an object becomes open via a call to <span class="code">makeOpen(true)</span>.</li>
+<li><strong>closeSignal</strong>: Signal 'closed'; - emitted when an object becomes closed via a call to <span class="code">makeOpen(nil)</span>.</li>
 <li><strong>wornSignal</strong>: Signal 'worn';</li>
 <li><strong>doffSignal</strong>: Signal 'doffed';</li>
-<li><strong>moveSignal</strong>: Signal 'moved' destination = nil;</li>
-<li><strong>seenSignal</strong>: Signal 'seen' location = nil;</li>
-<li><strong>examinedSignal</strong>: Signal 'examined' actor = nil;</li>
-<li><strong>takeSignal</strong>: Signal 'take' actor = nil;</li>
-<li><strong>dropSignal</strong>: Signal 'drop' actor = nil;</li>
-<li><strong>openSignal</strong>: Signal 'open';</li>
-<li><strong>closeSignal</strong>: Signal 'close';</li>
+<li><strong>moveSignal</strong>: Signal 'moved' destination = nil; - emitted when an object is moved via a call to <span class="code">moveInto(dest)</span></li>
+<li><strong>seenSignal</strong>: Signal 'seen' location = nil; - emitted when <span class="code">noteSeen()</span> is called on the object.</li>
+<li><strong>examineSignal</strong>: Signal 'examine' actor = nil; - emitted when the EXAMINE action is carried out on the object.</li>
+<li><strong>takeSignal</strong>: Signal 'take' actor = nil; - emitted when the TAKE action is carried out on the object.</li>
+<li><strong>dropSignal</strong>: Signal 'drop' actor = nil; - emitted when the DROP action is carried out on the object.</li>
 </ul> 
+
+<p>Note that the last three signals are thus emitted as a result of <em>actions</em> being carried out (they are emitted by the relevant <span class="code">dobjFor(xxx) { action() {} ) methods)</span>, while all the rest are emitted by <em>state changes</em>. This difference is reflected in the name properties assigned to each signal; state-change signals have names like 'closed' or 'locked' that reflect the state just attained, while action signals have names like 'take' or 'drop' that reflect the name of the action just carried out.</p>
+
+
+
+<br>
 <p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../signals.t">signals.t</a> file.</p>
 
 
