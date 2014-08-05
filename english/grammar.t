@@ -1774,7 +1774,7 @@ VerbRule(Query)
 ;
 
 VerbRule(QueryAbout)
-    ('a' | 'ask'|) singleDobj ('what' ->qtype | 'who' ->qtype | 
+    ('a' | 'ask') singleDobj ('what' ->qtype | 'who' ->qtype | 
                                'where' -> qtype | 'why'
                    ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
                     qtype | 'if' -> qtype)  topicIobj
