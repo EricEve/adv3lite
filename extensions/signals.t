@@ -43,6 +43,13 @@ Signal: Relation
     {
         local prop, val;
         
+        /* 
+         *   Clear out any property values left over from a previous call. We
+         *   use null rather than nil as the 'cleared' value, since in some
+         *   cases (e.g. in a moveSignal) nil could be a significant value.
+         */
+        propList.forEach({p: self.(p) = null });
+        
         /* Assign additional arguments to properties. */
         for(local arg in args, local i=1;; i++)       
         {           
@@ -76,6 +83,25 @@ Signal: Relation
      *   our emit method should be assigned.
      */
     propList = []
+    
+    dispatchTab = nil
+    
+    addHandler(sender, receiver, handler)
+    {
+        if(dispatchTab == nil)
+            dispatchTab = new LookupTable();
+        
+        dispatchTab[[sender, receiver]] = handler;
+    }
+    
+    removeHandler(sender, receiver)
+    {
+        if(dispatchTab != nil)
+        {
+            dispatchTab.removeElement([sender, receiver]);
+        }
+    }
+    
 ;
 
 
@@ -100,7 +126,7 @@ DefSignal(open, open);
 DefSignal (close, closed);
 
 
-modify Thing
+modify TadsObject
     /* Emit a signal */
     emit(signal, [args])
     {
@@ -115,16 +141,15 @@ modify Thing
      */
     handle(sender, signal)
     {
-    }
-    
+    }   
     
         
     dispatchSignal(sender, signal)
     {
         local prop;       
         
-        if(senderDispatchTab != nil && senderDispatchTab[[sender, signal]] != nil)
-            prop = senderDispatchTab[[sender, signal]];
+        if(signal.dispatchTab != nil && signal.dispatchTab[[sender, self]] != nil)
+            prop = signal.dispatchTab[[sender, self]];
         
         else if(signal.propDefined(&handleProp) && signal.handleProp)
             prop = signal.handleProp;
@@ -136,30 +161,13 @@ modify Thing
         else
             handle(sender, signal);
     }
-    
+;  
     
    
     
-    senderDispatchTab = nil
-    
-    addSenderHandler(sender, signal, handler)
-    {
-        if(senderDispatchTab == nil)
-            senderDispatchTab = new LookupTable();
-        
-        senderDispatchTab[[sender, signal]] = handler;
-    }
-    
-    removeSenderHandler(sender, signal)
-    {
-        if(senderDispatchTab != nil)
-        {
-            senderDispatchTab.removeElement([sender, signal]);
-        }
-    }
     
     
-    
+ modify Thing  
     /*  
      *   Make various common state changes and actions emit the appropriate
      *   signals.
@@ -253,7 +261,7 @@ connect(sender, signal, receiver, handler?)
     
     relate(sender, signal, receiver);
     if(handler)
-        receiver.addSenderHandler(sender, signal, handler);
+        signal.addHandler(sender, receiver, handler);
 }
 
 unconnect(sender, signal, receiver)
@@ -262,5 +270,5 @@ unconnect(sender, signal, receiver)
     unrelate(sender, signal, receiver);
     
     if(receiver.propDefined(&removeSenderHandler))
-       receiver.removeSenderHandler(sender, signal);
+       signal.removeHandler(sender, receiver);
 }
