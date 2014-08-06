@@ -118,12 +118,16 @@ DefSignal(off, turned off);
 DefSignal(worn, worn);
 DefSignal(doff, doffed);
 DefSignal(move, moved) destination = nil propList= [&destination];
+DefSignal(actmove, action moved) destination = nil propList= [&destination];
 DefSignal(seen, seen) location = nil propList = [&location];
 DefSignal(examine, examine) actor = nil propList = [&actor];
 DefSignal(take, take) actor = nil propList = [&actor];
 DefSignal(drop, drop) actor = nil propList = [&actor];
 DefSignal(open, open);
 DefSignal (close, closed);
+DefSignal(push, push);
+DefSignal(pull, pull);
+DefSignal(feel, feel);
 
 
 modify TadsObject
@@ -151,7 +155,8 @@ modify TadsObject
         if(signal.dispatchTab != nil && signal.dispatchTab[[sender, self]] != nil)
             prop = signal.dispatchTab[[sender, self]];
         
-        else if(signal.propDefined(&handleProp) && signal.handleProp)
+        else if(signal.propDefined(&handleProp) 
+                && signal.propType(&handleProp) == TypeProp)
             prop = signal.handleProp;
         else
             prop = &handle;
@@ -209,42 +214,21 @@ modify TadsObject
         emit(moveSignal, newCont);
     }
     
+    actionMoveInto(newCont)
+    {
+        inherited(newCont);
+        
+        emit(actmoveSignal, newCont);
+    }
+    
+    
     noteSeen()
     {
         inherited();
         
         emit(seenSignal, location);
     }
-    
-    dobjFor(Examine)
-    {
-        action()
-        {
-            inherited();
-            
-            emit(examineSignal, gActor);
-        }
-    }
-    
-    dobjFor(Take)
-    {
-        action()
-        {
-            inherited();
-            
-            emit(takeSignal, gActor);
-        }
-    }
-    
-    dobjFor(Drop)
-    {
-        action()
-        {
-            inherited();
-            
-            emit(dropSignal, gActor);
-        }
-    }
+        
     
     makeOpen(stat)
     {
@@ -272,3 +256,39 @@ unconnect(sender, signal, receiver)
     if(receiver.propDefined(&removeSenderHandler))
        signal.removeHandler(sender, receiver);
 }
+
+modify TAction
+    signal = nil
+    
+    doAction()
+    {
+        inherited();
+        if(signal)
+            curDobj.emit(signal);
+    }
+;
+
+modify Take
+    signal = takeSignal
+;
+
+modify Drop
+    signal = dropSignal
+;
+
+modify Examine
+    signal = examineSignal
+;
+
+modify Push
+    signal = pushSignal
+;
+
+modify Pull
+    signal = pullSignal
+;
+
+modify Feel
+    signal = feelSignal
+;
+

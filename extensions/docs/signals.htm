@@ -137,15 +137,31 @@ sigSignal: Signal
 <li><strong>wornSignal</strong>: Signal 'worn';</li>
 <li><strong>doffSignal</strong>: Signal 'doffed';</li>
 <li><strong>moveSignal</strong>: Signal 'moved' destination = nil; - emitted when an object is moved via a call to <span class="code">moveInto(dest)</span></li>
+<li><strong>actmoveSignal</strong>: Signal 'action moved' destination = nil; - emitted when an object is moved via a call to <span class="code">actionMoveInto(dest)</span>. Note that if an <span class="code">actmoveSignal</span> is sent a <span class="code">moveSignal</span> will also be sent, but the reverse is not necessarily the case. An <span class="code">actmoveSignal</span> is only sent if the sender is moved as the direct result of some player or NPC action, whereas a <span class="code">moveSignal</span> may also be sent if the sender is moved by authorial fiat for some other reason.</li>
 <li><strong>seenSignal</strong>: Signal 'seen' location = nil; - emitted when <span class="code">noteSeen()</span> is called on the object.</li>
-<li><strong>examineSignal</strong>: Signal 'examine' actor = nil; - emitted when the EXAMINE action is carried out on the object.</li>
-<li><strong>takeSignal</strong>: Signal 'take' actor = nil; - emitted when the TAKE action is carried out on the object.</li>
-<li><strong>dropSignal</strong>: Signal 'drop' actor = nil; - emitted when the DROP action is carried out on the object.</li>
+<li><strong>examineSignal</strong>: Signal 'examine'; - emitted when the EXAMINE action is carried out on the object.</li>
+<li><strong>takeSignal</strong>: Signal 'take'; - emitted when the TAKE action is carried out on the object.</li>
+<li><strong>dropSignal</strong>: Signal 'drop'; - emitted when the DROP action is carried out on the object.</li>
+<li><strong>pushSignal</strong>: Signal 'push'; - emitted when the PUSH action is carried out on the object.</li>
+<li><strong>pullSignal</strong>: Signal 'pull'; - emitted when the PULL action is carried out on the object.</li>
+<li><strong>feelSignal</strong>: Signal 'feel'; - emitted when the FEEL action is carried out on the object.</li>
 </ul> 
 
-<p>Note that the last three signals are thus emitted as a result of <em>actions</em> being carried out (they are emitted by the relevant <span class="code">dobjFor(xxx) { action() {} ) methods)</span>, while all the rest are emitted by <em>state changes</em>. This difference is reflected in the name properties assigned to each signal; state-change signals have names like 'closed' or 'locked' that reflect the state just attained, while action signals have (string) names like 'take' or 'drop' that reflect the name of the action just carried out.</p>
+<p>Note that the last six signals are thus emitted as a result of <em>actions</em> being carried out, while all the rest are emitted by <em>state changes</em>. This difference is reflected in the name properties assigned to each signal; state-change signals have names like 'closed' or 'locked' that reflect the state just attained, while action signals have (string) names like 'take' or 'drop' that reflect the name of the action just carried out.</p>
 
-<p>Some of these signals have additional properties, like <span class="code">destination</span> on <span class="code">moveSignal</span> or <span class="code">location</span> on <span class="code">seenSignal</span>. These are ways of passing additional information via the signal. The recipient may want to know not simply that the sender has moved, but where it's moved to; the <strong>destination</strong> property supplies this information. In a similar way the <strong>location</strong> property of <span class="code">seenSignal</span> specifies where the target has just been seen, and the <strong>actor</strong> property of <span class="code">examineSignal</span>, <span class="code">takeSignal</span> and <span class="code">dropSignal</span> specifies who has just examined, taken or dropped the sender. The extension sets these properties when the relevant signals are emitted, but in the next section we look at <em>how</em> such properties are set so you can do the same on any additional signals you define in your own game.</p>
+<p>Some of these signals have additional properties, like <span class="code">destination</span> on <span class="code">moveSignal</span> or <span class="code">location</span> on <span class="code">seenSignal</span>. These are ways of passing additional information via the signal. The recipient may want to know not simply that the sender has moved, but where it's moved to; the <strong>destination</strong> property supplies this information. In a similar way the <strong>location</strong> property of <span class="code">seenSignal</span> specifies where the target has just been seen. The extension sets these properties when the relevant signals are emitted, but in the next section we look at <em>how</em> such properties are set so you can do the same on any additional signals you define in your own game.</p>
+
+<p>Note that defining additional signals that are automatically emitted by TActions is very straightforward: you just define the new Signal and assign it to the <strong>signal</strong> property of the action in question, e.g.:</p>
+
+ <p><div class="code"><pre>
+DefSignal(clean, clean);
+ 
+modify Clean
+  signal = cleanSignal
+;
+ </pre></div>
+<p>This will result in a cleanSignal being emitted by the direct object of a CLEAN action. Note, however, that this shortcut is only available for TActions, and not for any other kind of action (TIActions included). If you want signals to be triggered by any other kind of action you'll need insert your own call to the <span class="code">emit()</span> method at some appropriate point in the code that handles the action.</p>
+ 
 <br>
 
 <a name="additional"></a>
@@ -180,11 +196,148 @@ sigSignal: Signal
 
 <a name="complex"></a>
 <h2>More Complex Handling</h2>
-<p>So far we have assumed that a signal will be handled by the <span class="code">handle()</span> method on any interested recipient. In fact <span class="code">handle()</span> is just the fall-back (or default) method that is used if no more specific handler method has been defined. In fact each Signal can have its own handler method. You may recall that when a Signal is defined with the <span class="code">DefSignal()</span> macro, this automatically defines its <strong>handleProp</strong> property with a name like <span class="code">&amp;handle_sig</span> for a Signal called <span class="code">sigSignal</span> (e.g. <span class="code">handleProp</span> is <span class="code">&amp;handle_move</span> for the <span class="code">moveSignal</span>). This means that when a receiver gets a <span class="code">moveSignal</span> (say), it will call its <span class="code">handle_move()</span> method to handle it if one is defined, and fall back on the <span class="code">handle()</span> method otherwise. (Actually there's a third possibility as well, but we'll come to that below).</p>
+<p>So far we have assumed that a signal will be handled by the <span class="code">handle()</span> method on any interested recipient. In fact <span class="code">handle()</span> is just the fall-back (or default) method that is used if no more specific handler method has been defined. In fact each Signal can have its own handler method. You may recall that when a Signal is defined with the <span class="code">DefSignal()</span> macro, this automatically defines its <strong>handleProp</strong> property with a name like <span class="code">&amp;handle_sig</span> for a Signal called <span class="code">sigSignal</span> (e.g. <span class="code">handleProp</span> is <span class="code">&amp;handle_move</span> for the <span class="code">moveSignal</span>). This means that when a receiver gets a <span class="code">moveSignal</span> (say), it will call its <span class="code">handle_move()</span> method to handle it if one is defined, and fall back on the <span class="code">handle()</span> method otherwise.</p>
 
+<p>There's also a third possibility: the handler to be used can be overridden by the call to the <span class="code">connect()</span> function. If <span class="code">connect()</span> is called with a fourth argument (which should then be a property pointer), the method specified by that fourth argument will be used as the signal handler. A call to <span class="code">connect(sender, signal, receiver, &amp;special_handler</span>) will cause <em>signal</em> to be handled on <em>receiver</em> by <span class="code">receiver.special_handler(sender, signal)</span>, provided that <em>receiver</em> defines the <span class="code">special_handler()</span> method. It is the receiver's <strong>dispatchSignal()</strong> method that takes care of assigning a handler to a signal, and what it does may be summarized as follows:</p>
 
+<ol>
+<li>If the call to <span class="code">connect()</span> has established a special handler for this signal on this <em>receiver</em>, assign that special handler to <em>prop</em>.</li>
+<li>Otherwise, if the signal has a property pointer assigned to its <span class="code">handleProp</span> property (as any Signal defined with the <span class="code">DefSignal()</span> macro will have), then assign that property to <em>prop</em>.</li>
+<li>Otherwise, assign the default handler <span class="code">&amp;handle</span> to <em>prop</em>.</li>
+<li>If <em>prop</em> now points to a method that's actually defined on the <em>receiver</em>, then call <em>prop</em> (with <em>sender</em> and <em>signal</em> as its arguments); otherwise call <span class="code">handle(sender, signal)</span>.</li>
+</ol>
 
+<p>Note that this means that the special_handler method passed as the optional fourth argument to <span class="code">connect()</span> can be either an existing standard handler or a new custom one, but it must be defined with two parameters corresponding to <em>sender</em> and <em>signal</em>. So, for example, you can't call something like <span class="code">connect(redLever, pullSignal, trapdoor, &amp;makeOpen)</span>, since instead of opening the trapdoor it will simply cause a run-time error due to argument mismatch. You would instead need to call <span class="code">makeOpen(true)</span> from within the trapdoor's handle() or handle_pull() method.</p>
+<br>
+<a name="example"></a>
+<h2>Example</h2>
 
+<p>Suppose that somewhere in our game there's a big red switch (in the hall cupboard, say) that's meant to control a light in another location (the cellar, say), except that before it will work some cable needs to be reconnected. In the code for reconnecting the cable we might include the statements:</p>
+
+ <p><div class="code"><pre> <p><div class="code"><pre>
+ connect(redSwitch, onSignal, cellarLight);
+ connect(redSwitch, offSignal, cellarLight);
+ </pre></div></pre></div>
+
+<p>Since onSignal and offSignal will be emitted by the switch in any case, the only other step is to handle them on the cellar light. If we know that these are the only signals the cellar light is ever going to handle, we could simply do this:</p> 
+ 
+ <p><div class="code"><pre>
++ cellarLight: Fixture 'light'
+  ...
+  handle(sender, signal)
+  {
+      if(signal == onSignal)
+         makeLit(true);
+      if(signal == offSignal)
+         makeLit(nil);
+  }
+;
+</pre></div> 
+
+<p>But suppose it's possible to cut the cable after it's been reconnected. Presumably that would cause the light to go out again (if it was on). Also we might want to describe the light going out differently if the cable is cut from the way we describe it if the switch is turned off. First we need to define a cutSignal:</p>
+
+ <p><div class="code"><pre>
+ defSignal(cut, cut);
+ 
+ modify Cut
+   signal = cutSignal
+ ;
+ </pre></div>
+
+<p>Then, somewhere in the code that handles the cutting action on the cable, we need to register both the sending of the cutSignal from the cable to the light, and at the same time sever the sending of any signal from the switch to the light:</p> 
+ 
+ <p><div class="code"><pre>
+ cable: Fixture 'cable'
+    ...
+    
+    isCut = nil
+    
+    dobjFor(Cut)
+    {
+       verify() 
+       { 
+          if(isCut)
+            illogicalNow('The cable has already been cut. ');
+       }
+       
+       action()
+       {
+          connect(self, cutSignal, cellarLamp);
+          unconnect(redSwitch, onSignal, cellarLamp);
+          unconnect(redSwitch, offSignal, cellarLamp);
+          
+          "You cut through the cable with your trusty knife. "
+          isCut = true;
+       }
+ 
+    }
+;
+ </pre></div> 
+ 
+<p>Then we have to write a rather more complicated handler on the cellar light:</p> 
+ 
+<p><div class="code"><pre>
++ cellarLight: Fixture 'light'
+  ...
+  handle(sender, signal)
+  {
+      if(signal == onSignal)
+      {
+         makeLit(true);
+         senseSay('The light comes on. ', self);   
+      }
+      if(signal == offSignal)
+      {         
+         senseSay('The light suddenly goes out. ', self); 
+         makeLit(nil);         
+      }
+      if(signal == cutSignal &amp;&amp; isLit)      {
+         
+         senseSay('The light flickers and goes out. ');
+         makeLit(nil);
+      }      
+  }
+;
+</pre></div>  
+ 
+<p>The <strong>senseSay()</strong> function is used here to ensure that the message about the light going on or off is only displayed if the player character can see the cellar light. But the main point here is that the handle() method is beginning to become a little cumbersome. At this point it might be better to split the handling up between the various specialized handlers rather than using the catch-all default <span class="code">handle()</span> method:</p> 
+
+<p><div class="code"><pre>
++ cellarLight: Fixture 'light'
+  ...
+  handle_on(sender, signal)
+  {
+     makeLit(true);
+     senseSay('The light comes on. ', self);   
+  }
+    
+  handle_off(sender, signal)
+  {         
+     senseSay('The light suddenly goes out. ', self); 
+     makeLit(nil);         
+  }
+   
+  handle_cut(sender, signal)
+  {   
+     if(isLit)      
+     {         
+         senseSay('The light flickers and goes out. ');
+         makeLit(nil);
+     }      
+  }
+;
+</pre></div>
+
+<p>Finally, suppose that it's possible to reconnect the cable after it's been cut, but that this reconnects things the wrong way round so that turning on the switch turns off the light and vice versa. If we've split the handlers into separate methods as above, we can then just write the relevant part of the re-connection code like so:</p>
+
+ <p><div class="code"><pre>
+   connect(redSwitch, onSignal, cellarLight, &amp;handle_off);
+   connect(redSwitch, offSignal, cellarLight, &amp;handle_on);
+ 
+ </pre></div>
+
+<p>This will then make turning the switch on turn off the light, and turning the switch off turn on the light, sincce we've swapped over the normal handlers.</p> 
+ 
 <br>
 <p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../signals.t">signals.t</a> file.</p>
 
