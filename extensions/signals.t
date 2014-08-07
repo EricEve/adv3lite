@@ -115,7 +115,7 @@ DefSignal(lock, locked);
 DefSignal(unlock, unlocked);
 DefSignal(on, turned on);
 DefSignal(off, turned off);
-DefSignal(worn, worn);
+DefSignal(worn, worn) wearer = nil propList = [&wearer];
 DefSignal(doff, doffed);
 DefSignal(move, moved) destination = nil propList= [&destination];
 DefSignal(actmove, action moved) destination = nil propList= [&destination];
@@ -204,7 +204,10 @@ modify TadsObject
     makeWorn(stat)
     {
         inherited(stat);
-        emit(stat? wornSignal : doffSignal);
+        if(stat)
+            emit(wornSignal, stat);
+        else
+            emit(doffSignal);
     }
     
     moveInto(newCont)

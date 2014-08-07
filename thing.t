@@ -2271,10 +2271,10 @@ class Thing:  ReplaceRedirector, Mentionable
     wornBy = nil
     
     /* 
-     *   Make this object worn or not worn. If this object is worn, presumably
-     *   it's worn by its immediate location
+     *   Make this object worn or not worn. If this object is worn, note who     
+     *   it's worn by. If stat is nil the object is no longer being worn.
      */    
-    makeWorn(stat)  { wornBy = stat ? location : nil; }
+    makeWorn(stat)  { wornBy = stat; }
     
     /* are we directly held by the given object? */
     isDirectlyHeldBy(obj) { return location == obj && !isFixed && wornBy == nil; }
@@ -6094,7 +6094,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 illogicalNow(alreadyWornMsg);
         }
         
-        action()  {  makeWorn(true);  }
+        action()  {  makeWorn(gActor);  }
         
         report()
         {

@@ -28,7 +28,7 @@ Sensory
 <p>In addition to a number of methods intended purely for internal use, this extension defines the following new classes, objects and methods:</p>
 <ul>
 <li><em>Classes</em>: <strong>Signal</strong></li>
-<li><em>Objects</em>: litSignal, unlitSignal, discoverSignal, undiscoverSignal, lockSignal, unlockSignal, onSignal, offSignal, wornSignal, doffSignal, moveSignal, seenSignal, examinedSignal, takeSignal, dropSignal, openSignal, closeSignal</li>
+<li><em>Objects</em>: litSignal, unlitSignal, discoverSignal, undiscoverSignal, lockSignal, unlockSignal, onSignal, offSignal, wornSignal, doffSignal, moveSignal, seenSignal, examineSignal, takeSignal, dropSignal, openSignal, closeSignal, pushSignal, pullSignal, feelSignal</li>
 <li><em>Methods on Signal</em>: <span class="code">emit()</span>.</li>
 <li><em>New methods on Thing</em>: <span class="code">emit()</span>, <span class="code">handle()</span>.</li>
 </ul>
@@ -37,7 +37,7 @@ Sensory
 <h2>Usage</h2>
 <p>Include the signals.t file after the library files but before your game source files. The <a href="relations.htm">Relations</a> extensions (relations.t) must also be present.</p>
 
-<p>The basic mechanism is that an object (the sender) sends a signal by calling the <strong>emit()</strong> method with the signal as its argument, for example:</p>
+<p>The basic mechanism is that an object (the sender) sends a signal by calling its <strong>emit()</strong> method with the signal as the argument, for example:</p>
 
  <p><div class="code"><pre>
 emit(openSignal);
@@ -53,7 +53,7 @@ handle(sender, signal)
 }   
  </pre></div> 
  
-<p>To register than an object (the receiver) is interested in receiving a particular signal from a particular sender, we establish a relation between them using the <strong>connect()</strong> function:</p> 
+<p>To register that an object (the receiver) is interested in receiving a particular signal from a particular sender, we establish a relation between them using the <strong>connect()</strong> function:</p> 
  
  <p><div class="code"><pre>
 connect(sender, signal, receiver); 
@@ -65,7 +65,7 @@ connect(sender, signal, receiver);
 unconnect(sender, signal, receiver); 
  </pre></div>
  
-<p>A sender will send signals only to those receivers that have been related to it through the relevant Signal/Relation.</p> 
+<p>A sender will send signals only to those receivers that have been related to it through the relevant Signal/Relation using the <span class="code">connect()</span> function.</p> 
  
 <p>Defining a new signal is usually very straightforward. Since a Signal is a kind of Relation, it can be defined using the Relation template, e.g. to define a signal an object might send when it's cut:</p> 
  
@@ -99,7 +99,6 @@ cutSignal: Signal
 sigSignal: Signal 
   name = 'nam'
   handleProp = &amp;handle_sig
-;
 </pre></div> 
  
 <p>A Signal may be defined with additional properties which the sender can set to convey additional information to the sender. For example this extension defines:</p> 
@@ -112,7 +111,7 @@ sigSignal: Signal
 
 <p>Note that there is no need to define the <span class="code">relationType</span> of a Signal since this extension already defines it as manyToMany.</p>
 
-<p>Note also that simply defining a signal doesn't make anything happen. Your code still has to emit it somewhere, and it won't be handled anywhere until you've related it to the relevant receivers using the <span class="code">relate()</span> function. Some signals come predefinined in this extension, however, along with the code to emit them at appropriate points. These are described below.</p>
+<p>Note also that simply defining a signal doesn't make anything happen. Your code still has to emit it somewhere, and it won't be handled anywhere until you've related it to the relevant receivers using the <span class="code">connect()</span> function. Some signals come predefinined in this extension, however, along with the code to emit them at appropriate points. These are described below.</p>
 
 
 <p><a name="note1"></a><font size=-1>[Note 1: The name 'unconnect' is used rather than the more normal 'disconnect' mainly because 'disconnect' is already used as a method name elsewhere in the library and so cannot also be used as the name of a function. Also, the use of the names <span class="code">connect()</span> and <span class="code">unconnect()</span> better parallels that of the names <span class="code">relate()</span> and <span class="code">unrelate()</span> to establish and break relations, which is more or less what these functions do as well. Indeed, in many instances, <span class="code">relate()</span> and <span class="code">unrelate()</span> could be used for Signals as well, but the <span class="code">connect()</span> and <span class="code">unconnect()</span> functions do some additional work that is needed in more complex cases, so it is probably best to stick to their use consistently in relation to Signals.]</font></p>
@@ -134,8 +133,8 @@ sigSignal: Signal
 <li><strong>offSignal</strong>: Signal 'turned off'; - emitted when an object becomes switched on via a call to <span class="code">makeOn(nil)</span>.</li>
 <li><strong>openSignal</strong>: Signal 'open'; - emitted when an object becomes open via a call to <span class="code">makeOpen(true)</span>.</li>
 <li><strong>closeSignal</strong>: Signal 'closed'; - emitted when an object becomes closed via a call to <span class="code">makeOpen(nil)</span>.</li>
-<li><strong>wornSignal</strong>: Signal 'worn';</li>
-<li><strong>doffSignal</strong>: Signal 'doffed';</li>
+<li><strong>wornSignal</strong>: Signal 'worn' wearer = nil; - emitted when an object becomes worn via a call to <span class="code">makeWorn(<em>wearer</em>)</span>.</li>
+<li><strong>doffSignal</strong>: Signal 'doffed'; - emitted when an object becomes not worn via a call to <span class="code">makeWorn(nil)</span>.</li>
 <li><strong>moveSignal</strong>: Signal 'moved' destination = nil; - emitted when an object is moved via a call to <span class="code">moveInto(dest)</span></li>
 <li><strong>actmoveSignal</strong>: Signal 'action moved' destination = nil; - emitted when an object is moved via a call to <span class="code">actionMoveInto(dest)</span>. Note that if an <span class="code">actmoveSignal</span> is sent a <span class="code">moveSignal</span> will also be sent, but the reverse is not necessarily the case. An <span class="code">actmoveSignal</span> is only sent if the sender is moved as the direct result of some player or NPC action, whereas a <span class="code">moveSignal</span> may also be sent if the sender is moved by authorial fiat for some other reason.</li>
 <li><strong>seenSignal</strong>: Signal 'seen' location = nil; - emitted when <span class="code">noteSeen()</span> is called on the object.</li>
@@ -147,7 +146,7 @@ sigSignal: Signal
 <li><strong>feelSignal</strong>: Signal 'feel'; - emitted when the FEEL action is carried out on the object.</li>
 </ul> 
 
-<p>Note that the last six signals are thus emitted as a result of <em>actions</em> being carried out, while all the rest are emitted by <em>state changes</em>. This difference is reflected in the name properties assigned to each signal; state-change signals have names like 'closed' or 'locked' that reflect the state just attained, while action signals have (string) names like 'take' or 'drop' that reflect the name of the action just carried out.</p>
+<p>Note that the last six signals are emitted as a result of <em>actions</em> being carried out, while all the rest are emitted by <em>state changes</em>. This difference is reflected in the (string) name properties assigned to each signal; state-change signals have names like 'closed' or 'locked' that reflect the state just attained, while action signals have (string) names like 'take' or 'drop' that reflect the name of the action just carried out.</p>
 
 <p>Some of these signals have additional properties, like <span class="code">destination</span> on <span class="code">moveSignal</span> or <span class="code">location</span> on <span class="code">seenSignal</span>. These are ways of passing additional information via the signal. The recipient may want to know not simply that the sender has moved, but where it's moved to; the <strong>destination</strong> property supplies this information. In a similar way the <strong>location</strong> property of <span class="code">seenSignal</span> specifies where the target has just been seen. The extension sets these properties when the relevant signals are emitted, but in the next section we look at <em>how</em> such properties are set so you can do the same on any additional signals you define in your own game.</p>
 
@@ -160,7 +159,7 @@ modify Clean
   signal = cleanSignal
 ;
  </pre></div>
-<p>This will result in a cleanSignal being emitted by the direct object of a CLEAN action. Note, however, that this shortcut is only available for TActions, and not for any other kind of action (TIActions included). If you want signals to be triggered by any other kind of action you'll need insert your own call to the <span class="code">emit()</span> method at some appropriate point in the code that handles the action.</p>
+<p>This will result in a cleanSignal being emitted by the direct object of a CLEAN action. Note, however, that this short-cut is only available for TActions, and not for any other kind of action (TIActions included). If you want signals to be triggered by any other kind of action you'll need insert your own call to the <span class="code">emit()</span> method at some appropriate point in the code that handles the action. For anything other than a TAction it is probably better for game code to decide what the appropriate point is in individual cases (whereas for a TAction it makes good sense simply to emit the relevant signal from the direct object immediately after the action has taken place).</p>
  
 <br>
 
@@ -180,7 +179,7 @@ modify Clean
 
 <p><em>newCont</em> is the new container into which the object is being moved. This is the value that needs to be assigned to the <span class="code">destination</span> property of moveSignal. But how does newSignal know which property to set to this value? This is defined in the <strong>propList</strong> property of the Signal. The <span class="code">propList</span> property contains a list of property pointers, which define the properties to which successive arguments of the <span class="code">emit()</span> method are to be assigned. For example, <span class="code">moveSignal</span> defines <span class="code">propList = [&amp;destination]</span>; this means that the first argument of the <span class="code">emit()</span> method following the signal name is assigned to the destination property. If fooSignal defined propList as <span class="code">[&amp;foobar, &amp;bar, &amp;thingy]</span>, then a call to <span class="code">emit(fooSignal, x, y, z)</span> would set <span class="code">fooSignal.foobar</span> to x, <span class="code">fooSignal.bar</span> to y, and <span class="code">fooSignal.thingy</span> to z.</p> 
 
-<p>Since this relies on matching the argument list in the call to <span class="code">emit()</span> to the order of properties defined in the Signal's propList property, an alternative syntax is also available that allows values to be assigned to properties by supplying lists of property pointers followed by the value to be assigned to the corresponding property. So, for example, emit(moveSignal, newCont) could instead be written as <span class="code">emit(moveSignal, [&amp;destination, newCont])</span>, which makes it explicit that the value of <span class="code">newCont</span> is to be assigned to the <span class="code">destination</span> property, and which doesn't depend on getting the order of properties right. Thus the fooSignal example could be written as <span class="code">emit(fooSignal, [&amp;thingy, z], [&amp;bar, y], [&amp;foo, x])</span> and the end result would be the same.</p> 
+<p>Since this relies on matching the argument list in the call to <span class="code">emit()</span> to the order of properties defined in the Signal's propList property (which may not always be easy to remember), an alternative syntax is also available that allows values to be assigned to properties by supplying lists of property pointers followed by the value to be assigned to the corresponding property. So, for example, <span class="code">emit(moveSignal, newCont)</span> could instead be written as <span class="code">emit(moveSignal, [&amp;destination, newCont])</span>, which makes it explicit that the value of <span class="code">newCont</span> is to be assigned to the <span class="code">destination</span> property, and which doesn't depend on getting the order of properties right. Thus the fooSignal example could be written as <span class="code">emit(fooSignal, [&amp;thingy, z], [&amp;bar, y], [&amp;foo, x])</span> and the end result would be the same.</p> 
 
 <p>You can mix the two ways of assigning values to properties, but only if the lists come after the positional properties. Thus <span class="code">emit(fooSignal, x, [&amp;thingy, z], [&amp;bar, y])</span> would be fine, but not <span class="code">emit(fooSignal, [&amp;thingy, z], [&amp;bar, y], x)</span>. Also, you should not attempt to do something like this:</p>
 
@@ -196,9 +195,9 @@ modify Clean
 
 <a name="complex"></a>
 <h2>More Complex Handling</h2>
-<p>So far we have assumed that a signal will be handled by the <span class="code">handle()</span> method on any interested recipient. In fact <span class="code">handle()</span> is just the fall-back (or default) method that is used if no more specific handler method has been defined. In fact each Signal can have its own handler method. You may recall that when a Signal is defined with the <span class="code">DefSignal()</span> macro, this automatically defines its <strong>handleProp</strong> property with a name like <span class="code">&amp;handle_sig</span> for a Signal called <span class="code">sigSignal</span> (e.g. <span class="code">handleProp</span> is <span class="code">&amp;handle_move</span> for the <span class="code">moveSignal</span>). This means that when a receiver gets a <span class="code">moveSignal</span> (say), it will call its <span class="code">handle_move()</span> method to handle it if one is defined, and fall back on the <span class="code">handle()</span> method otherwise.</p>
+<p>So far we have assumed that a signal will be handled by the <span class="code">handle()</span> method on any interested recipient. In fact <span class="code">handle()</span> is just the fall-back (or default) method that is used if no more specific handler method has been defined. In fact each Signal can have its own handler method. You may recall that when a Signal is defined with the <span class="code">DefSignal()</span> macro, this automatically initializes its <strong>handleProp</strong> property with a property pointer like <span class="code">&amp;handle_sig</span> for a Signal called <span class="code">sigSignal</span> (e.g. <span class="code">handleProp</span> is <span class="code">&amp;handle_move</span> for the <span class="code">moveSignal</span>). This means that when a receiver gets a <span class="code">moveSignal</span> (say), it will call its <span class="code">handle_move()</span> method to handle it if one is defined, and fall back on the <span class="code">handle()</span> method otherwise.</p>
 
-<p>There's also a third possibility: the handler to be used can be overridden by the call to the <span class="code">connect()</span> function. If <span class="code">connect()</span> is called with a fourth argument (which should then be a property pointer), the method specified by that fourth argument will be used as the signal handler. A call to <span class="code">connect(sender, signal, receiver, &amp;special_handler</span>) will cause <em>signal</em> to be handled on <em>receiver</em> by <span class="code">receiver.special_handler(sender, signal)</span>, provided that <em>receiver</em> defines the <span class="code">special_handler()</span> method. It is the receiver's <strong>dispatchSignal()</strong> method that takes care of assigning a handler to a signal, and what it does may be summarized as follows:</p>
+<p>There's also a third possibility: the handler to be used can be overridden by the call to the <span class="code">connect()</span> function. If <span class="code">connect()</span> is called with a fourth argument (which should then be a property pointer), the method specified by that fourth argument will be used as the signal handler. A call to <span class="code">connect(sender, signal, receiver, &amp;special_handler</span>) will cause <em>signal</em> to be handled on <em>receiver</em> by <span class="code">receiver.special_handler(sender, signal)</span>, provided that <em>receiver</em> defines the <span class="code">special_handler()</span> method. The receiver's <strong>dispatchSignal()</strong> method takes care of assigning a handler to a signal, and what it does may be summarized as follows:</p>
 
 <ol>
 <li>If the call to <span class="code">connect()</span> has established a special handler for this signal on this <em>receiver</em>, assign that special handler to <em>prop</em>.</li>
