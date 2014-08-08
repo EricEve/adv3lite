@@ -655,6 +655,40 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             manageKeys();
     }
     
+    
+    /* 
+     *   Conditionally use actorSay() or say() to output str depending on
+     *   whethter str appears to be something the actor says or simply a
+     *   non-verbal response (or lack of response). If str contains quote marks
+     *   or the sequence @@ we'll assume it's something the actor says (and
+     *   strip out the @@ that would simply be there to mark str as something
+     *   the actor says, perhaps reported in indirect speech.
+     */     
+    condSay(str)
+    {
+        /* 
+         *   If str contains a quotation mark or @@ assume it's something this
+         *   actor says.
+         */
+        if(str.find('<q>') || str.find('"') || str.find('@@'))
+        {
+            /* Strip out the @@ sequence, which is simply a marker. */
+            str = str.findReplace('@@', '');
+                
+            /* 
+             *   Display str using actorSay(), so that it counts as
+             *   conversational.
+             */
+            actorSay(str);                
+        }
+        /* 
+         *   Otherwise just use say(), since we don't want the response to count
+         *   as conversational.
+         */
+        else
+            say(str);   
+    }
+    
 	
     /* 
      *   The last turn on which this actor conversed with the player character.
@@ -1661,8 +1695,14 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             gPlayerChar.currentInterlocutor = self;
             
             /*  Look for an appropriate HelloTopic to handle the greeting. */
-            handleTopic(&miscTopics, [helloTopicObj], &noResponseMsg);
+            handleTopic(&miscTopics, [helloTopicObj], &noHelloResponseMsg);
         }
+        /* 
+         *   Otherwise display a message to say that we're already talking to
+         *   this actor.
+         */
+        else            
+            condSay(alreadyTalkingMsg);
         
         /* Add a paragraph break */
         "<.p>";
@@ -1722,7 +1762,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
              *   farewell.
              */
             handleTopic(&miscTopics, [reason], 
-                        reason == endConvBye ? &noResponseMsg : nil);
+                        reason == endConvBye ? &noGoodbyeResponseMsg : nil);
             
             /* 
              *   Then note that we are no longer in conversation with the player
@@ -1731,6 +1771,21 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             gPlayerChar.currentInterlocutor = nil;
         }
     }
+    
+    /* 
+     *   The message to display when someone says hello to this actor but
+     *   there's no accessible HelloTopic defined.
+     */
+   
+    noHelloResponseMsg = BMsg(no hello response, '{I} now {have} {1} attention.
+        ', possAdj)
+    
+    alreadyTalkingMsg = BMsg(already talking, '{I} {am} already talking to {1}.
+        ', theName)
+    
+    noGoodbyeResponseMsg = BMsg(no goodbye response, 'The conversation{dummy}
+        {is} ended. ')
+    
     
     /* Do nothing if we can't fine a suitable Hello or Bye Topic/ */    
     nilResponse() { }

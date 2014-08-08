@@ -1759,10 +1759,7 @@ Hello: IAction
          *   carry out a repeat greeting.
          */
         else
-        {
-            DMsg(already talking, '{I}{\'m} already talking to {1}. ',
-                 gPlayerChar.currentInterlocutor.theName);
-            
+        {            
             gPlayerChar.currentInterlocutor.sayHello();
         }
     }
