@@ -6226,7 +6226,7 @@ suggestedTopicLister: object
     /* Show one of our sublists of particular kinds of suggest topics */
     showList(lst, sectionIntro)
     {
-        local prfx = self.(sectionIntro) + ' ';
+        local prfx = sectionIntro ? self.(sectionIntro) + ' ' : '';
         
         /* Sort the list */
         lst = lst.sort(SortAsc, {x, y: x.listOrder - y.listOrder});
