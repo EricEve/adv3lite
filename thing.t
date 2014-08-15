@@ -4058,7 +4058,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
        
-    cannotTakeMsg = BMsg(cannot take, '{The subj dobj} {is} fixed in place.
+    cannotTakeMsg = BMsg(cannot take, '{The subj cobj} {is} fixed in place.
         ')
     
     alreadyHeldMsg = BMsg(already holding, '{I}{\'m} already holding {the dobj}.

@@ -833,7 +833,7 @@ class CommandList: object
      */
     construct([args])
     {
-        /* check which argument list we have */
+        /* check which argument list we have */        
         if (args.matchProto([GrammarProd, Collection, Dictionary, TypeFuncPtr]))
         {
             /* retrieve the arguments */
@@ -854,7 +854,18 @@ class CommandList: object
             foreach (local c in cmdLst)
             {
                 try
-                {
+                { 
+                    /* 
+                     *   If the player typed something like ALL at the
+                     *   disambiguation prompt, this info needs to be passed on
+                     *   to the command dobjNPs so that the appropriate match is
+                     *   made.
+                     */
+                    if(prod == mainDisambigPhrase)
+                    {
+                        c.dobjNPs[1].determiner = c.disambig[1][1].determiner;
+                    }
+                    
                     /* resolve this phrase */
                     c.resolveNouns();
                     

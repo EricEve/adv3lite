@@ -263,7 +263,7 @@ class Decoration: Fixture
  *   else, like the handle of a suitcase or a dial on a safe.
  */
 class Component: Fixture    
-    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that dobj},
+    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that cobj},
         {he dobj}{\'s} part of {1}. ', location.theName)
     
     locType = PartOf
@@ -552,7 +552,7 @@ class CollectiveGroup: Fixture
  */
 
 class Heavy: Fixture
-    cannotTakeMsg = BMsg(too heavy, '{The subj dobj} {is} too heavy to move. ')
+    cannotTakeMsg = BMsg(too heavy, '{The subj cobj} {is} too heavy to move. ')
     
 ;
 
@@ -571,7 +571,7 @@ class Immovable: Thing
     }
     
     /* The message to display to explain why this object can't be taken. */
-    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the dobj).
+    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj).
         ')
 ;
 
@@ -973,7 +973,7 @@ class ContainerDoor: Fixture
     remapIn = location.remapIn
     
     cannotTakeMsg = BMsg(cannot take container door, '{I} {can\'t} have {the
-        dobj}; {he dobj}{\'s} part of {1}. ', location.theName)
+        cobj}; {he dobj}{\'s} part of {1}. ', location.theName)
 ;
 
 
