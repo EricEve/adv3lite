@@ -854,18 +854,7 @@ class CommandList: object
             foreach (local c in cmdLst)
             {
                 try
-                { 
-                    /* 
-                     *   If the player typed something like ALL at the
-                     *   disambiguation prompt, this info needs to be passed on
-                     *   to the command dobjNPs so that the appropriate match is
-                     *   made.
-                     */
-                    if(prod == mainDisambigPhrase)
-                    {
-                        c.dobjNPs[1].determiner = c.disambig[1][1].determiner;
-                    }
-                    
+                {                    
                     /* resolve this phrase */
                     c.resolveNouns();
                     
@@ -2223,6 +2212,15 @@ class NounPhrase: object
     {
         /* take the mode from the determiner */
         local mode = determiner;
+        
+        /* 
+         *   If the player typed ALL or ANY or some such response in response to
+         *   a disambiguation respose, that response will have set a determiner
+         *   we need to use instead.
+         */
+        if(cmd.disambig.length > 0)
+            mode = cmd.disambig[1][1].determiner;
+        
 
         /* 
          *   Sort the matches by listing order.  If we have a plural, this
