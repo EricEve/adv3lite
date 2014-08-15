@@ -5366,6 +5366,12 @@ class AgendaManager: object
                 
                 /* reset the agenda item */
                 cur.resetItem();
+                
+                /* 
+                 *   carry out any registration needed - primarily needed for
+                 *   FollowAgendaItems.
+                 */
+                cur.registerItem();
             }
         }
         
@@ -5588,6 +5594,12 @@ class AgendaItem: object
         if (propType(&isDone) != TypeCode)
             isDone = nil;
     }
+    
+    /*  
+     *   Carry out any additional registration when we're added to our actor's
+     *   agenda. We do nothing here, but this is needed on FollowAgendaItem.
+     */
+    registerItem() { }
     
     /* An optional tag, specified as a single-quoted string. */    
     name = nil
@@ -5989,6 +6001,12 @@ class FollowAgendaItem: AgendaItem
      *   that may be pending.
      */
     agendaOrder = 1
+    
+    registerItem()
+    {
+        /* Let our actor know we're its currently active FollowAgendaItem */
+        getActor.followAgendaItem = self;
+    }
 ;
 
 

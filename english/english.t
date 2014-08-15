@@ -729,10 +729,12 @@ class LMentionable: object
              *   If we're compiling for debugging, issue a warning if a pronoun
              *   appears in the adjective section. We exclude 'her' from the
              *   list of pronouns we test for here since 'her' in the adjective
-             *   section could be intended as the female possessive pronoun.
+             *   section could be intended as the female possessive pronoun. But
+             *   only carry out this check for a Thing, since a Topic might
+             *   legally have pronouns in any section.
              */
             parts[2].split(' ').forEach(function(x){
-                if(x is in ('him', 'it', 'them'))
+                if(ofKind(Thing) && x is in ('him', 'it', 'them'))
                 {
                     "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
                     "Pronoun '<<x>>' appears in adjective section (after first
@@ -758,7 +760,7 @@ class LMentionable: object
              *   appears in the noun section.
              */
             parts[3].split(' ').forEach(function(x){
-                if(x is in ('him', 'her', 'it', 'them'))
+                if(ofKind(Thing) && x is in ('him', 'her', 'it', 'them'))
                 {
                     "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
                     "Pronoun '<<x>>' appears in noun section (after second
