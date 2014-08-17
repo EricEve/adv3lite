@@ -595,7 +595,7 @@ class Door: TravelConnector, Thing
      */    
     visibleInDark
     {
-        if(destination != nil)
+        if(destination != nil && transmitsLight)
             return destination.isIlluminated;
         
         return nil;
@@ -852,6 +852,11 @@ class TravelConnector: object
      */
     isConnectorListed = isConnectorVisible
     
+    /*   
+     *   Does light pass through this TravelConnector from its destination (so
+     *   that it's visible in the dark even its location is dark.).
+     */
+    transmitsLight = true
     
     /*  
      *   A TravelConnector (or at least, the exit it represents) is visible if
@@ -861,7 +866,8 @@ class TravelConnector: object
     isConnectorVisible = (isConnectorApparent && 
                           (gPlayerChar.getOutermostRoom.isIlluminated
                               || (destination != nil &&
-                                  destination.isIlluminated)
+                                  destination.isIlluminated
+                                  && transmitsLight)
                            || visibleInDark))
     
     /* The room to which this TravelConnector leads when it is traversed */    
