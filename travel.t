@@ -681,6 +681,10 @@ class Door: TravelConnector, Thing
              */
             else
             {    
+                /* Carry out any side-effects of the travel */
+                noteTraversal(actor);
+                
+                /* Move the traveler to our destination. */
                 destination.travelVia(actor, dontChainNotifications);     
                 
                 /* 
@@ -917,6 +921,13 @@ class TravelConnector: object
             if(!suppressBeforeNotifications)
                 beforeTravelNotifications(traveler);
                     
+            /* 
+             *   Note the actor's old travel info in case we have to restore it
+             *   after a failed travel attempt.
+             */
+            if(actor != gPlayerChar)
+                local oldTravelInfo = actor.lastTravelInfo;
+            
             if(actor == gPlayerChar)
             {                  
                 /* 
@@ -932,18 +943,10 @@ class TravelConnector: object
              *   follow the actor.
              */
             else if(Q.canSee(gPlayerChar, actor) &&
-                    !suppressBeforeNotifications && isOpen)
+                    !suppressBeforeNotifications)
                 actor.lastTravelInfo = [oldLoc, self];
             
-            /*   
-             *   Note that actor is traversing this Travel Connector. This can
-             *   be used to carry out any side-effects of the travel, such as
-             *   describing it. We first check that the connector is open,
-             *   however, so we don't try to carry out any side-effects if the
-             *   way is blocked by a locked door.
-             */             
-            if(isOpen)
-                noteTraversal(traveler);                   
+                           
             
             /* Carry out the travel */
             execTravel(traveler);
@@ -957,6 +960,14 @@ class TravelConnector: object
             {               
                 afterTravelNotifications(traveler);
             }
+            
+            /* 
+             *   If we're not the player character and we failed to go anywhere,
+             *   restore our old travel info.
+             */
+            if(actor != gPlayerChar && actor.getOutermostRoom == oldLoc)
+                actor.lastTravelInfo = oldTravelInfo;
+                
         }        
     }
     
@@ -1061,8 +1072,18 @@ class TravelConnector: object
          *   destination is a room, would normally mean travel to that
          *   destination).
          */
-        if(destination != nil && isOpen)
+        if(destination != nil)
+        {
+            /*   
+             *   Note that actor is traversing this Travel Connector. This can
+             *   be used to carry out any side-effects of the travel, such as
+             *   describing it.
+             */             
+            
+            noteTraversal(traveler);   
+            
             destination.travelVia(actor, dontChainNotifications);
+        }
     }
     
     /*  

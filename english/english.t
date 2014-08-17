@@ -5311,7 +5311,7 @@ modify Action
                  *   separate one report from the next
                  */
                 if(i < lst.length)
-                    rep += BMsg(implicit action report separator, 'then ');
+                    rep += BMsg(implicit action report separator, ' then ');
             }
             
             if(clearReports)

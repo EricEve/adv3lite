@@ -4542,10 +4542,17 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     opened = nil
     
+    /* 
+     *   Flag, do we want to attempt to unlock this item it it's locked when we
+     *   try to open it?
+     */
+    autoUnlock = nil
+    
+    
     dobjFor(Open)
     {
         
-        preCond = [touchObj]
+        preCond = autoUnlock ? [touchObj, objUnlocked] : [touchObj]
         
         /* 
          *   If this object is not itself openable, but its remapIn property
