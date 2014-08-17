@@ -2114,6 +2114,20 @@ modify Thing
     
     /* Did the player's command ask to PULL this object? */
     matchPullOnly = (gVerbWord is in ('pull', 'drag'))
+    
+    /* 
+     *   Check whether we need to add or remove the LitUnlit State from our list
+     *   of states.
+     */
+    makeLit(stat)
+    {
+        inherited(stat);
+        
+        if(LitUnlit.appliesTo(self))
+            states = states.appendUnique([LitUnlit]);
+        else
+            states -= LitUnlit;
+    }
 ;
 
 

@@ -2801,7 +2801,7 @@ VerbRule(Burn)
 
 VerbRule(BurnWith)
     ('light' | 'burn' | 'ignite' | 'set' 'fire' 'to') singleDobj
-        'with' singleIobj
+        ('with' | 'from') singleIobj
     : VerbProduction
     action = BurnWith
     verbPhrase = 'burn/burning (what) (with what)'
