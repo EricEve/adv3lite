@@ -871,6 +871,9 @@ class TravelConnector: object
      */    
     isDestinationKnown = (destination != nil && destination.visited)
     
+    /*   A travel connector is usually open. */
+    isOpen = true
+    
     /* 
      *   Carrier out travel via this connector. First check that travel through
      *   this connector is permitted for this actor (or other traveler). If it
@@ -896,6 +899,12 @@ class TravelConnector: object
          */
         if(checkTravelBarriers(traveler))
         {
+            /* 
+             *   Note the traveler's current location, so we can check
+             *   subsequently whether travel actually took place.
+             */
+            local oldLoc = traveler.getOutermostRoom();
+            
             /*  
              *   Carry out the before travel notifications provided
              *   suppressBeforeNotifications is nil. The normal reason for
@@ -907,22 +916,14 @@ class TravelConnector: object
              */
             if(!suppressBeforeNotifications)
                 beforeTravelNotifications(traveler);
-                                   
-
-            /*   
-             *   Note that actor is traversing this Travel Connector. This can
-             *   be used to carry out any side-effects of the travel, such as
-             *   describing it.
-             */
-            noteTraversal(traveler);                    
-                       
+                    
             if(actor == gPlayerChar)
             {                  
                 /* 
                  *   Before carrying out the travel make a note of the room the
                  *   player character is about to leave.
                  */
-                libGlobal.lastLoc = gPlayerChar.getOutermostRoom;                               
+                libGlobal.lastLoc = oldLoc;                               
             }
             /* 
              *   Otherwise if the player character can see the actor traverse
@@ -931,19 +932,31 @@ class TravelConnector: object
              *   follow the actor.
              */
             else if(Q.canSee(gPlayerChar, actor) &&
-                    !suppressBeforeNotifications)
-                actor.lastTravelInfo = [actor.getOutermostRoom, self];
+                    !suppressBeforeNotifications && isOpen)
+                actor.lastTravelInfo = [oldLoc, self];
             
+            /*   
+             *   Note that actor is traversing this Travel Connector. This can
+             *   be used to carry out any side-effects of the travel, such as
+             *   describing it. We first check that the connector is open,
+             *   however, so we don't try to carry out any side-effects if the
+             *   way is blocked by a locked door.
+             */             
+            if(isOpen)
+                noteTraversal(traveler);                   
             
             /* Carry out the travel */
             execTravel(traveler);
             
             /*  
              *   Execute the after travel notifications, provided this connector
-             *   actually went somewhere to notify.
+             *   actually went somewhere to notify and that the actor actually
+             *   ended up in a new location.
              */
-            if(destination != nil)
+            if(destination != nil && actor.getOutermostRoom != oldLoc)
+            {               
                 afterTravelNotifications(traveler);
+            }
         }        
     }
     
@@ -1048,7 +1061,7 @@ class TravelConnector: object
          *   destination is a room, would normally mean travel to that
          *   destination).
          */
-        if(destination != nil)
+        if(destination != nil && isOpen)
             destination.travelVia(actor, dontChainNotifications);
     }
     
