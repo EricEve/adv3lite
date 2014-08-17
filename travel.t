@@ -1080,7 +1080,7 @@ class TravelConnector: object
              *   describing it.
              */             
             
-            noteTraversal(traveler);   
+            noteTraversal(actor);   
             
             destination.travelVia(actor, dontChainNotifications);
         }
