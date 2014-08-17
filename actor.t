@@ -1184,9 +1184,17 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             lastTravelInfo[2].travelVia(gActor);
         }
         
-        /* Otherwise display a message saying that the actor hasn't moved */
+        /* 
+         *   Otherwise display a message saying that the actor hasn't moved, but
+         *   only if the followAgendaItem hasn't already reported it.
+         */
         else
+        {
+            if(followAgendaItem == nil 
+               || followAgendaItem.travelBlockReported
+               == nil)
             say(actorStaysPutMsg);
+        }
         
         /* Reset the following fuse ID to nil */
         followFuseID = nil;
@@ -5849,22 +5857,46 @@ class FollowAgendaItem: AgendaItem
          */
         if(getActor.followFuseID != nil) 
         {           
+            /* Note our current actor's current location. */
+            local oldLoc = actor.getOutermostRoom;
+            
             /* Travel via the connector. */
             conn.travelVia(actor);
             
-            /* Increment our next connector number. */
-            nextConnNum++;
-            
-            /* Note that we've traveled on this turn */
-            traveledThisTurn = libGlobal.totalTurns;
-            
             /* 
-             *   Mark this Agenda Item as done if we've exhausted our list of
-             *   connectors
+             *   Check whether we actually went anywhere; it's possible the
+             *   connector blocked our travel
              */
-            if(nextConnNum >= connectorList.length)
+            if(actor.getOutermostRoom == oldLoc)
             {
-                isDone = true;                           
+                /* 
+                 *   Note that our travel was blocked, and check whether the
+                 *   travelBlocked method displayed anything.
+                 */
+                travelBlockReported = gOutStream.watchForOutput(
+                    { : travelBlocked(conn)});
+                
+                /* Note that our actor hasn't actually gone anywhere. */
+                actor.lastTravelInfo = nil;
+                
+            }
+            /* Travel was successful */
+            else
+            {                
+                /* Increment our next connector number. */
+                nextConnNum++;
+                
+                /* Note that we've traveled on this turn */
+                traveledThisTurn = libGlobal.totalTurns;
+                
+                /* 
+                 *   Mark this Agenda Item as done if we've exhausted our list
+                 *   of connectors
+                 */
+                if(nextConnNum >= connectorList.length)
+                {
+                    isDone = true;                           
+                }
             }
         }
 
@@ -5876,7 +5908,7 @@ class FollowAgendaItem: AgendaItem
     /* A pointer to the next connector to use */
     nextConnNum = 0
     
-    
+        
     /* 
      *   A list of TravelConnectors through which we want the player character
      *   to follow our associated actor.
@@ -5885,6 +5917,27 @@ class FollowAgendaItem: AgendaItem
     
     /*  The next connector our NPC wants to lead the PC via */
     nextConnector = connectorList.element(nextConnNum + 1)
+    
+    /* 
+     *   This method is called when our NPC attempts to travel via conn but the
+     *   travel is blocked (by a locked door, for example). By default we do
+     *   nothing here but game code can override this method to display an
+     *   appropriate message or take any other action that might be needed in
+     *   this situation.
+     *
+     *   If this method displays anything, the default "You wait in vain for the
+     *   traveler to go anywhere" message will be suppressed.
+     */
+    travelBlocked(conn)
+    {
+    }
+    
+    /* 
+     *   Flag: did the travelBlocked() method output any text? This is handled
+     *   internally by the library and shouldn't normally be used by game author
+     *   code.
+     */
+    travelBlockReported = nil
     
     
     /*   

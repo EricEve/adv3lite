@@ -339,7 +339,9 @@ buildMessage(id, txt, [args])
             }
 
             /* splice the replacement text into the string */
-            txt = txt.splice(lb + delta, paramLen, sub);
+//            txt = txt.splice(lb + delta, paramLen, sub);
+            txt = txt.substr(1, lb + delta -1) + sub + txt.substr(lb + delta 
+                + paramLen );
 
             /* adjust our delta to the next item for the splice */
             delta += sub.length() - paramLen;
