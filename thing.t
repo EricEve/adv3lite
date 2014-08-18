@@ -1603,27 +1603,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   complicated cases you could also define it as a method that displays
      *   some text.
      */
-    desc() 
-    { 
-        /* 
-         *   Only display the 'nothing special' message if there's no status
-         *   description.
-         *
-         *   First check whether examineStatus() produces any output.
-         */        
-        local str = gOutStream.captureOutput({: examineStatus()});
-        
-        str = str == nil ? '' : str.trim();
-        
-        /* 
-         *   If there's no output from examineStatus, display our 'nothing
-         *   special' message.
-         */
-        if(str == '')            
-            DMsg(nothing special,  '{I} {see} nothing special about 
-                {1}. ', theName); 
-        
-    }
+    desc = ""     
     
     /* 
      *   The state-specific description of this object, which is appended to its
@@ -3846,21 +3826,34 @@ class Thing:  ReplaceRedirector, Mentionable
         check() { }
         
         action()
-        {
+        {            
+            local descDisplayed = nil;
+            
             /* 
              *   Display our description. Normally the desc property will be
              *   specified as a double-quoted string or a routine that displays
              *   a string, but by using the display() message we ensure that it
-             *   will still be shown even desc has been defined a single-quoted
-             *   string.
+             *   will still be shown even if desc has been defined a
+             *   single-quoted string.
              */
-            display(&desc);
+            if(gOutStream.watchForOutput({:display(&desc) }))
+               descDisplayed = true;
             
             /*   
              *   Display any additional information, such as our stateDesc (if
              *   we have one) and our contents (if we have any).
              */
-            examineStatus();
+            if(gOutStream.watchForOutput({:examineStatus()} ))
+                descDisplayed = true;
+               
+            /*   
+             *   If nothing has been displayed yet, show the default message
+             *   saying we nothing special about this object.
+             */
+            if(!descDisplayed)
+                DMsg(nothing special,  '{I} {see} nothing special about 
+                {1}. ', theName); 
+               
             
             /*   Note that we've now been examined. */
             examined = true;
