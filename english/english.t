@@ -2128,6 +2128,12 @@ modify Thing
         else
             states -= LitUnlit;
     }
+    
+    abcName(action, role)
+    {
+        return theName;
+    }
+    
 ;
 
 
@@ -3833,7 +3839,7 @@ announceBestChoice(action, obj, role)
         rm = rexSearch(pat, vp, rm[1] + rm[2]);
     
     /*  Replace 'what' with the object name */
-    ann = rm[3].findReplace('what', obj.theName);
+    ann = rm[3].findReplace('what', obj.abcName(action, role));
     
     /*  Display the annoucement */
     "<<ann>>\n";
