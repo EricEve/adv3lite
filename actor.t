@@ -2841,16 +2841,8 @@ class TopicGroup: object
         obj.convKeys =
             valToList(obj.convKeys).appendUnique(valToList(convKeys));
         
-        
-        /* 
-         *   If the TopicEntry's scoreBoost property is an integer, add our
-         *   scoreBoost to it (obviously we can't do this if it's defined as a
-         *   method, for example
-         */
-        if(obj.propType(&scoreBoost) == TypeInt)
-            obj.scoreBoost += scoreBoost;
-        
-    }
+     }
+      
     
     /*  
      *   A TopicGroup's isActive property can be used to make all the
@@ -2878,6 +2870,21 @@ class TopicGroup: object
      *   TopicEntries.
      */
     scoreBoost = 0
+    
+    /*  
+     *   By how much do we boost the score of any TopicEntries we contain? We
+     *   need to add our own score boost to that our own location.
+     */
+    scoreBooster()
+    {
+        local sb = scoreBoost;
+        
+        if(location.propDefined(&scoreBooster))
+            sb += location.scoreBooster();
+        
+        return sb;
+    }
+    
     
     /*   
      *   If we're being used as a conversation node, our node is active when our
@@ -3478,7 +3485,7 @@ class MiscTopic: ActorTopicEntry
          *   otherwise return a nil score to indicate failure 
          */
         return (valToList(matchObj).indexOf(obj) != nil) ? matchScore +
-            scoreBoost: nil;
+            scoreBooster(): nil;
     }
 ;
 
@@ -4291,6 +4298,12 @@ class SlaveTopic: ActorTopicEntry
         
         /*  Our location is the same as our masterObj's location. */
         location = masterObj.location;
+        
+        /*  Our matchScore is the same as our masterObj's matchScore. */
+        matchScore = masterObj.matchScore;
+        
+        /*  Our scoreBoost is the same as our masterObj's location. */
+        scoreBoost = masterObj.scoreBoost;
         
         /* Carry out our initialization as a TopicEntry. */
         initializeTopicEntry();

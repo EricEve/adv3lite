@@ -38,7 +38,7 @@ class TopicEntry: object
          */        
         if(top == nil || 
            valToList(matchObj).indexWhich({x: top.ofKind(x)}) != nil)
-            return matchScore + scoreBoost();
+            return matchScore + scoreBooster();
      
         /* 
          *   Next test to see if we should match a regular expression. This will
@@ -140,6 +140,17 @@ class TopicEntry: object
      *   according to circumstances if needed.
      */
     scoreBoost = 0
+    
+    scoreBooster()
+    {
+        local sb;
+        
+        /* Add any boost from our location */
+        sb = location.propDefined(&scoreBooster) ? location.scoreBooster() : 0;
+        
+        /* Add our own scoreBoost. */
+        return sb + scoreBoost;
+    }
     
     /*  
      *   Is this TopicEntry currently active? Game code can set a condition here
@@ -359,7 +370,7 @@ class DefaultConsultTopic: ConsultTopic
          *   Since we can match anything, simply return the sum of our
          *   matchScore and our scoreBoost.
          */
-        return matchScore + scoreBoost;
+        return matchScore + scoreBooster();
     }
     
     /* 

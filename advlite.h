@@ -718,7 +718,7 @@ Enterable template ->connector inherited;
 
 Unthing template 'vocab' @location? 'notHereMsg'?;
 
-TopicGroup template +boostScore? 'convKeys' | [convKeys] ? ;
+TopicGroup template +scoreBoost? 'convKeys' | [convKeys] ? ;
 
 
 TopicEntry template
