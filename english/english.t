@@ -2129,6 +2129,17 @@ modify Thing
             states -= LitUnlit;
     }
     
+    /* 
+     *   Announce Best Choice name. This can be used in those rare cases where
+     *   you want to override the name the parser uses to describe an object
+     *   when announcing its best choice of object. For example, if you have a
+     *   bottle of wine from which you can fill a glass, you might prefer '(with
+     *   wine from the bottle)' to '(with the bottle of wine)' following FILL
+     *   GLASS; action is the action being carried out for which the object has
+     *   been chosen and role(DirectObject or IndirectObject) is the role the
+     *   chosen object is playing in the action. By default this method just
+     *   returns theName.
+     */
     abcName(action, role)
     {
         return theName;
