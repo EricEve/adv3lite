@@ -6182,6 +6182,7 @@ suggestedTopicLister: object
          *   'You could' (suitably adjusted for the person of the player
          *   character)
          */
+        gCommand.actor = gPlayerChar;
         DMsg(suggestion list intro, '{I} could ');
     }
     
@@ -6202,6 +6203,7 @@ suggestedTopicLister: object
     /* The message to display if there are no topics to suggest. */
     showListEmpty(explicit)  
     { 
+        gCommand.actor = gPlayerChar;
         if(explicit)
             DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
                 with {1} just {then}. ',

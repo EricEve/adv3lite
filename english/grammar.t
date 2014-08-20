@@ -1798,7 +1798,7 @@ VerbRule(QueryVague)
 
 VerbRule(AuxQuery)
     ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
-     'could' | 'would' | 'should' ) topicDobj
+     'could' | 'would' | 'should' | 'were' ) topicDobj
     :VerbProduction
     action = Query
     missingQ = 'what do you want to ask'
