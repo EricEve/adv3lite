@@ -136,7 +136,20 @@ class Room: TravelConnector, Thing
         local lookAroundOnEntering = lookOnEnter(obj);
         obj.actionMoveInto(destination);
         if(gPlayerChar.isOrIsIn(obj) && lookAroundOnEntering)
-           destination.lookAroundWithin();
+        {
+            /* 
+             *   Notify any actors in the location that the player character has
+             *   just arrived.
+             */
+            
+            local notifyList = allContents.subset({o: o.ofKind(Actor)});
+            
+            notifyList.forEach({a: a.pcArrivalTurn = gTurns });
+            
+            /* Show a room description if appropriate */
+            if(lookAroundOnEntering)
+                destination.lookAroundWithin();
+        }
     }
     
     /* 
@@ -1088,6 +1101,7 @@ class TravelConnector: object
             
             noteTraversal(actor);   
             
+            /* Carry out the travel to our destination */
             destination.travelVia(actor, dontChainNotifications);
         }
     }

@@ -891,20 +891,57 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     {
         /* If we have a current ActorState, execute its afterTravel() method */
         if(curState != nil)
+        {
             curState.afterTravel(traveler, connector);
+            
+            /* 
+             *   If the connector is our outermost room, notify our ActorState
+             *   that traveler has just arrived in our location,
+             */
+            if(connector == getOutermostRoom)
+                curState.travelerArriving(traveler);
+        }
         
         /* Execute our own actorAfterTravel() method */
         actorAfterTravel(traveler, connector);
+        
+        /* 
+         *   If the connector is out outermoset room, execute our own
+         *   actorTravelerArriving method.
+         */
+        if(connector == getOutermostRoom)                    
+            actorTravelerArriving(traveler);
+            
+            
     }  
         
+    /* The turn on which the player character last arrived in our location */
+    pcArrivalTurn = nil
+    
+    /* Flag -- has the player character just arrived? */
+    pcJustArrived = (pcArrivalTurn == gTurns)
         
     /* 
      *   Give this actor a chance to react just after another actor travels in
      *   addition to any reaction from its current actor state. By default we do
      *   nothing, but game code can easily override this without any risk of
-     *   breaking the state-dependent afterTravel mechanism.
-     */ 
+     *   breaking the state-dependent afterTravel mechanism. Note that if we're
+     *   not interested in what connector the traveler traveled via to arrive in
+     *   our current location, it may be easier to use the actorTravelerArriving
+     *   method. Note also that actorAfterTravel() will be triggered once for
+     *   every connector traversed in the course of travel, so that, for
+     *   example, if traveler goes through a door to enter our current location,
+     *   actorAfterTravel will be called once with the door as the connector and
+     *   once with our currect room as the connector.
+     */     
     actorAfterTravel(traveler, connector) {}
+    
+    
+    /*   
+     *   Give this actor a chance to react just after another actor arrives in
+     *   our location.
+     */
+    actorTravelerArriving(traveler) { }
     
     
     /*   
@@ -2503,10 +2540,27 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
     /* 
      *   The afterTravel notification triggered when the Actor is in this
      *   ActorState and traveler has just traveled via connector. By default we
-     *   do nothing.
+     *   do nothing. Note that if we're not interested in what connector the
+     *   traveler traveled via to arrive in our current location, it may be
+     *   easier to use the travelerArriving method. Note also that afterTravel()
+     *   will be triggered once for every connector traversed in the course of
+     *   travel, so that, for example, if traveler goes through a door to enter
+     *   our current location, afterTravel will be called once with the door as
+     *   the connector and once with our currect room as the connector.
      */
     afterTravel(traveler, connector) {}
     
+    /* Flag -- has the player character just arrived? */
+    pcJustArrived = (getActor.pcArrivalTurn == gTurns)
+    
+    
+    /*  
+     *   The travelerArriving notification triggered when traveler arrives in
+     *   the location of our Actor. This may be easier to use than afterTravel()
+     *   if we're not interested in the connector that traveler used to get
+     *   here.
+     */
+    travelerArriving(traveler) { }
     
     /*   
      *   Determine whether our actor will allow a current conversation to be

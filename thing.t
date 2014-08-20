@@ -3670,8 +3670,20 @@ class Thing:  ReplaceRedirector, Mentionable
     getFacets = []
     
     
-    /* before and after travel notifications. By default we do nothing */    
+    /* 
+     *   Before travel notification. This is called just before traveler
+     *   attempts to travel via connector. By default we do nothing
+     */    
     beforeTravel(traveler, connector) {}
+    
+    
+    /* 
+     *   After travel notification. This is called just after traveler has
+     *   traveled via connector. Note that this may occur more than once in the
+     *   course of the same travel action, e.g. if the traveler travels through
+     *   a door into a room then the afterTravel notifications will be sent both
+     *   by the door and by the room.
+     */     
     afterTravel(traveler, connector) {}
     
     /* 
