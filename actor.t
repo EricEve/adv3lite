@@ -4269,7 +4269,7 @@ class SpecialTopic: ActorTopicEntry
      *   For a SpeciallTopic make constructing a name property automatically the
      *   default.
      */
-    autoName = true;
+    autoName = true
     
 ;
 
@@ -4477,7 +4477,7 @@ class SayTopic: SpecialTopic
         if(name == nil && matchObj != nil)
             /* 
              *   The matchObj property could in principle be specified as a
-             *   list, in which case use the first (and possibly omly) item in
+             *   list, in which case use the first (and possibly only) item in
              *   the list to construct our name.
              */
             name = valToList(matchObj)[1].name; 

@@ -601,7 +601,7 @@ class Mentionable: LMentionable
      *   exact phrases (i.e. sequences of words) that must be matched by the
      *   player input if any of the words in the phrase matches appear in the
      *   player input. Note that words defined here should also be defined in
-     *   the vocab property; the purpose of the phraseMatches property is to
+     *   the vocab property; the purpose of the matchPhrases property is to
      *   limit matches. Note also that object will be matched if any of the
      *   phrases in the list is matched.
      */

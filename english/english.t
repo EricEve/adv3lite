@@ -563,7 +563,7 @@ class LMentionable: object
         /* 
          *   get the initial string; we'll break it down as we work
          *   At the same time change any weak tokens of the form
-         *   (tok) into tok[prep], so that they're effectively treated
+         *   (tok) into tok[weak], so that they're effectively treated
          *   as prepositions (i.e. they won't match alone)
          */
         local str = vocab.findReplace(R'<lparen>.*?<rparen>', 
@@ -624,9 +624,14 @@ class LMentionable: object
                 massNoun = true;
                 break;
                 
-            case '()':
+            case '()':            
                 /* mark this as a qualified name */
                 qualified = true;
+                break;               
+            
+            case 'the':
+                qualified = true;
+                wlst[1] = '!!!&&&';
                 break;
             }
 
