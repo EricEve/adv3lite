@@ -635,6 +635,17 @@ enum rmcDisambig;
 #define illogicalNow(msg) \
     gAction.addVerifyResult(new VerifyResult(40, msg, nil, self))
 
+
+/* 
+ *   IllogicalAlready doesn't do anything different from IllogicalNow in
+ *   adv3Lite, but is supplied so that game authors familiar with adv3 can use
+ *   it without getting a compilation error. It may also be slightly useful for
+ *   documentary purposes to clarify why a verify routine in game code is ruling
+ *   out an action.
+ */
+#define illogicalAlready(msg) \
+    gAction.addVerifyResult(new VerifyResult(40, msg, nil, self))
+
 #define illogicalSelf(msg) \
     gAction.addVerifyResult(new VerifyResult(20, msg, nil, self))
 
