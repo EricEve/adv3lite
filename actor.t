@@ -421,9 +421,12 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     {
         /* 
          *   If the actor's current ActorState defines a noResponse property
-         *   then we display it rather than trying to match any TopicEntries.
+         *   then we display it rather than trying to match any TopicEntries
+         *   unless we're trying to match a non-conversational TopicEntry such
+         *   as HitTopic, TouchTopic or KissTopic.
          */       
-        if(curState && curState.propType(&noResponse) != TypeNil)
+        if(curState && curState.propType(&noResponse) != TypeNil &&
+           !topic.overlapsWith([hitTopicObj, kissTopicObj, touchTopicObj]))
         {
             switch(curState.propType(&noResponse))
             {
