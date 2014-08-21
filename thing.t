@@ -4911,11 +4911,23 @@ class Thing:  ReplaceRedirector, Mentionable
      */    
     findHidden(prop, prep)
     {
-        DMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
+        /* Report what we find */
+        sayFindHidden(prop, prep);
+        
+        /* Move the hidden items to the appropriate location. */
+        moveHidden(prop, findHiddenDest);        
+    }
+    
+    /*  
+     *   Report what was found hidded in/under/behind us. We make this a
+     *   separate method so that it can be easily customized on individual
+     *   objects.
+     */
+    sayFindHidden(prop, prep)
+    {
+         DMsg(find hidden, '\^{1} {the dobj} {i} {find} {2}<<if findHiddenDest ==
               gActor>>, which {i} {take}<<end>>. ',
              prep.prep, makeListStr(self.(prop)));
-        
-        moveHidden(prop, findHiddenDest);        
     }
     
     /* 
