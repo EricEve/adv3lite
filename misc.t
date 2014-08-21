@@ -1579,6 +1579,7 @@ setPlayer(actor, person = 2)
     
     /*   Make the current actor the new player character */
     gActor = gPlayerChar;
+    gCommand.actor = gPlayerChar;
     
     /* Return the (third-person) name of the new player character */
     return newName;
