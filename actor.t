@@ -51,15 +51,15 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             if(curState != nil)
                curState.deactivateState(self, stat);
             
+            /*  Set out current state to the new state. */
+            curState = stat;
+            
             /*  
              *   If the new state is non-nil, call its activateState() method to
              *   notify it that we're entering it.
              */
             if(stat != nil)
-               stat.activateState(self, curState);
-            
-            /*  Set out current state to the new state. */
-            curState = stat;
+               stat.activateState(self, curState);           
         }
     }
     
