@@ -729,6 +729,8 @@ Enterable template ->connector inherited;
 
 Unthing template 'vocab' @location? 'notHereMsg'?;
 
+ActorState template "specialDesc" 'stateDesc' | "stateDesc" ?;
+
 TopicGroup template +scoreBoost? 'convKeys' | [convKeys] ? ;
 
 
