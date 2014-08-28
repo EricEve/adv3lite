@@ -661,7 +661,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     
     /* 
      *   Conditionally use actorSay() or say() to output str depending on
-     *   whethter str appears to be something the actor says or simply a
+     *   whether str appears to be something the actor says or simply a
      *   non-verbal response (or lack of response). If str contains quote marks
      *   or the sequence @@ we'll assume it's something the actor says (and
      *   strip out the @@ that would simply be there to mark str as something
@@ -1654,6 +1654,72 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
                 cur.deactivate();
         }
     }
+    
+    /* 
+     *   A list of all ConvNodes associated with this actor. This is a list of
+     *   two element lists of the form [node-name, node-obj] where node-name is
+     *   the convKeys property of the node and node is the associated object.
+     */
+    allNodes = []
+        
+    
+    /* 
+     *   Service method used by curNodeKey() and curNodeObj() to identify the
+     *   current ConvNode object, if there is one.
+     */
+    curNodeIdx()
+    {
+        /* 
+         *   If we have a current ConvNode, it will be the one specified by the
+         *   first element in our activeKeys list.
+         */
+        local node = activeKeys.element(1);
+        
+        /*   If we don't have any activeKeys, then we don't have a ConvNode */
+        if(node == nil)
+            return nil;
+        
+        /*  
+         *   The first activeKey may not be a ConvNode, so look it up in our
+         *   list of ConvNodes (allNodes) to see if it's there and return its
+         *   place in the list.
+         */
+        return allNodes.indexWhich({n: n[1] == node});
+    }
+    
+    /*   The string name of our current convNode, if we have one. */
+    curNodeKey()
+    {
+        /* 
+         *   Get the index within allNodes of our current ConvNode, if there is
+         *   one.
+         */
+        local idx = curNodeIdx;
+        
+        /*   
+         *   If we found an index, return the key (first) element of the
+         *   corresponding item in our allNodes list. Otherwise return nil.
+         */
+        return idx == nil ? nil : allNodes[idx][1];
+    }
+    
+    /*   The object representing our current convNode, if we have one. */
+    curNodeObj()
+    {
+        /* 
+         *   Get the index within allNodes of our current ConvNode, if there is
+         *   one.
+         */
+        local idx = curNodeIdx;
+        
+        /*   
+         *   If we found an index, return the object (second) element of the
+         *   corresponding item in our allNodes list. Otherwise return nil.
+         */
+        return idx == nil ? nil : allNodes[idx][2];
+    }
+    
+    
     
     /* 
      *   We supply a getActor method that returns self so that objects such as
@@ -2910,6 +2976,23 @@ class TopicGroup: object
 
 class ConvNode: TopicGroup
     isActive = nodeActive
+    
+    /* Register this ConvNode with its associated actor. */
+    register()
+    {
+        /* Get our asociated actor. */
+        local actor = getActor;
+        
+        /* Add to our actor's list of ConvNodes. */
+        actor.allNodes = actor.allNodes.append([convKeys, self]);
+    }
+;
+
+convNodePreinit: PreinitObject
+    execute()
+    {
+        forEachInstance(ConvNode, {c: c.register() });
+    }
 ;
 
 /* 
