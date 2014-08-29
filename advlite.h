@@ -461,7 +461,7 @@ enum rmcDisambig;
 /*  Convenience macros for synthesizing travel in a given compass direction */
 
 #define goInstead(dirn) doInstead(Go, dirn##Dir)
-#define goNested(dirn) goNested(Go, dirn##Dir)
+#define goNested(dirn) doNested(Go, dirn##Dir)
 
 
 
@@ -625,7 +625,7 @@ enum rmcDisambig;
  *   results
  */
 
-#define gVerifyList = gAction.verifyList
+#define gVerifyList gAction.verifyList
 
 #define logical gAction.addVerifyResult (new VerifyResult(100, '', true, self))
     

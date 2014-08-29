@@ -3096,8 +3096,9 @@ class ResolvedTopic: object
     
     getBestMatch = (topicList == nil ? nil : topicList[1])
     getTopicText = tokens.join(' ').trim()
-    theName = (getTopicText)
-    name = (topicList != nil ? topicList[1].name : theName)
+    theName = (topicList != nil ? topicList[1].theName : getTopicText)
+    aName = (topicList != nil ? topicList[1].aName : getTopicText)
+    name = (topicList != nil ? topicList[1].name : getTopicText)
     person = 3
 ;
 

@@ -3768,9 +3768,9 @@ class Thing:  ReplaceRedirector, Mentionable
      *   command with Decorations for testing purposes, but this can't be
      *   included in a release build without causing a compilation error, so we
      *   define the decorationActions property with different lists of actions
-     *   depending on whether we're compliling for debugging or release.
+     *   depending on whether we're compiling for debugging or release.
      */    
-#ifdef __DEGUG
+#ifdef __DEBUG
     decorationActions = [Examine, GoTo, GoNear]
 #else
     decorationActions = [Examine, GoTo]

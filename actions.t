@@ -1886,6 +1886,8 @@ class ImplicitConversationAction: TopicAction
                 topics = cmd.dobj.topicList;
             else
                 topics = cmd.dobj;
+            
+            curTopic = cmd.dobj;
         }
         else if (cmd.dobj == nil && cmd.iobj != nil)
         {
@@ -1893,6 +1895,8 @@ class ImplicitConversationAction: TopicAction
                 topics = cmd.iobj.topicList;
             else
                 topics = cmd.iobj;
+            
+            curTopic = cmd.iobj;
         }
         
         if(gPlayerChar.currentInterlocutor == nil ||
