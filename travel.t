@@ -697,6 +697,15 @@ class Door: TravelConnector, Thing
                 /* Carry out any side-effects of the travel */
                 noteTraversal(actor);
                 
+                /*  
+                 *   If this TravelConnector has a destination that's a Room (so
+                 *   that executing the travel should take the actor out of
+                 *   his/her current room) notify the current room that the
+                 *   actor is about to depart.
+                 */
+                if(destination && destination.ofKind(Room))
+                    actor.getOutermostRoom.notifyDeparture(actor, destination);
+                
                 /* Move the traveler to our destination. */
                 destination.travelVia(actor, dontChainNotifications);     
                 
@@ -1040,13 +1049,6 @@ class TravelConnector: object
          */
         Q.scopeList(actor).toList.forEach({x: x.beforeTravel(actor, self)});
         
-        /*  
-         *   If this TravelConnector has a destination that's a Room (so that
-         *   executing the travel should take the actor out of his/her current
-         *   room) notify the current room that the actor is about to depart.
-         */
-        if(destination && destination.ofKind(Room))
-           actor.getOutermostRoom.notifyDeparture(actor, destination);
         
         
          /* 
@@ -1100,6 +1102,16 @@ class TravelConnector: object
              */             
             
             noteTraversal(actor);   
+            
+            /*  
+             *   If this TravelConnector has a destination that's a Room (so
+             *   that executing the travel should take the actor out of his/her
+             *   current room) notify the current room that the actor is about
+             *   to depart.
+             */
+            if(destination && destination.ofKind(Room))
+                actor.getOutermostRoom.notifyDeparture(actor, destination);
+        
             
             /* Carry out the travel to our destination */
             destination.travelVia(actor, dontChainNotifications);
