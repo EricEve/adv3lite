@@ -221,6 +221,39 @@ modify Odor
     }    
 ;
 
+/*  
+ *   A SimpleOdor is an object representing a free-standing smell directly
+ *   present in a location rather than attached to any specific object. It can
+ *   be used to display atmospheric smells either according to its schedule or
+ *   in response to a SMELL command.
+ */
+SimpleOdor: Odor
+    /*  
+     *   Unless this is overridden, our desc property simply executes our
+     *   script.
+     */
+    desc() { doScript(); }
+    
+    /* The smellDesc of a SimpleOdor is simply its desc. */
+    smellDesc = desc
+      
+    /* 
+     *   A SimpleOdor is a prominent smell by default, since we want it to show
+     *   up in response to a SMELL command.
+     */
+    isProminentSmell = true
+    
+    emanationDesc()
+    { 
+        
+        if(!isIn(gRoom) && propDefined(&remoteSmellDesc))
+            remoteSmellDesc(gPlayerChar);
+        else
+            smellDesc;        
+    }
+    
+;
+
 /* [MODIFIED FOR SENSORY EXTENSION] */
 modify Noise   
     
@@ -263,6 +296,45 @@ modify Noise
             inherited;
     }  
 ;
+
+/*  
+ *   A SimpleNoise is an object representing a free-standing sound directly
+ *   present in a location rather than attached to any specific object. It can
+ *   be used to display atmospheric sounds either according to its schedule or
+ *   in response to a LISTEN command.
+ */
+SimpleNoise: Noise
+    /*  
+     *   Unless this is overridden, our desc property simply executes our
+     *   script.
+     */
+    desc() { doScript(); }
+    
+    /* The listenDesc of a SimpleNoise is simply its desc. */
+    listenDesc = desc
+     
+    /* 
+     *   A SimpleNoise is a prominent noise by default, since we want it to show
+     *   up in response to a LISTEN command.
+     */
+    isProminentNoise = true
+ 
+    /*   
+     *   The message to be displayed to show that there's a noise here. The
+     *   default implementation should be serviceable in many cases, but game
+     *   code can easily override this method if something different is
+     *   required. [DEFINED IN SENSORY EXTENSION]
+     */
+    emanationDesc()
+    { 
+        
+        if(!isIn(gRoom) && propDefined(&remoteListenDesc))
+            remoteListenDesc(gPlayerChar);
+        else
+            listenDesc;        
+    }
+;
+
 
 /* 
  *  The object which drives emanation messages for Odors and Noises 
@@ -603,10 +675,10 @@ modify Thing
     }
     
     /* Our associated Odor object, if we have one */
-    smellObj = (contents.indexWhich({o: o.ofKind(Odor)}))
+    smellObj = (contents.valWhich({o: o.ofKind(Odor)}))
     
     /* Our associated Noise object, if we have one. */            
-    soundObj = (contents.indexWhich({o: o.ofKind(Noise)}))
+    soundObj = (contents.valWhich({o: o.ofKind(Noise)}))
 ;
 
 /* MODIFICATIONS FOR SENSORY EXTENSION */
@@ -621,7 +693,7 @@ modify Room
         
         if(traveler == gPlayerChar)
         {
-            local lst = allContents.subset({o: o.ofKind(SensoryEmanation)});
+            local lst = allContents.subset({o: o.ofKind(SensoryEmanation)});             
             
             /* 
              *   If the SenseRegion class is included, then we need to deal with
@@ -629,9 +701,10 @@ modify Room
              */
             if(defined(SenseRegion))
             {
+                local sp = defined(scopeProbe_) ? scopeProbe_ : object: Thing {};
                 try
-                {
-                    scopeProbe_.moveInto(dest);
+                {                    
+                    sp.moveInto(dest);
                     
                     /* First add all the Noises in the remote rooms we can hear */
                     for(local rm in getOutermostRoom.audibleRooms)
@@ -648,17 +721,19 @@ modify Room
                      *   the destination and all the Noises than can't be heard
                      *   from the destination.
                      */
+                    
                     lst = lst.subset({o: (o.ofKind(Noise) &&
-                                          !Q.canHear(scopeProbe_, o)) 
+                                          !Q.canHear(sp, o)) 
                                      || (o.ofKind(Odor) 
-                                         && !Q.canSmell(scopeProbe_, o))});
+                                         && !Q.canSmell(sp, o))});
                 }
                 finally
                 {
-                    scopeProbe_.moveInto(nil);
+                    
+                    sp.moveInto(nil);
                 }
             }
-            
+                
             /* Reset every SensoryEmanation in our list */
             lst.forEach({o: o.reset() });
         }

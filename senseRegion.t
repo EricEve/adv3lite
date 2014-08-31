@@ -1115,13 +1115,15 @@ modify Smell
              *   Create a sublist of that list containing all the items with a
              *   large smellSize that also define a non-nil smellDesc, plus all
              *   the items that define a remoteSmellDesc, in each case provided
-             *   that the item's isProminentSmell is true. Then append this
-             *   sublist to our vector.
+             *   that the item's isProminentSmell is true. Remove any item (i.e.
+             *   MultiLoc) that's also in the actor's location, so that it's not
+             *   duplicated. Then append this sublist to our vector.
              */
             vec.appendUnique(sList.subset({o: ((o.smellSize == large &&
                                             o.checkDisplay(&smellDesc) != nil) ||
                                        o.propDefined(&remoteSmellDesc))
-                                       && o.isProminentSmell} ));
+                                       && o.isProminentSmell
+                                          && !o.isOrIsIn(loc)} ));
         }
         
         
@@ -1219,13 +1221,15 @@ modify Listen
              *   Create a sublist of that list containing all the items with a
              *   large soundSize that also define a non-nil listenDesc, plus all
              *   the items that define a remoteListenDesc, in each case provided
-             *   that the item's isProminentNoise is true. Then append this
-             *   sublist to our vector.
+             *   that the item's isProminentNoise is true. Remove any item (i.e.
+             *   MultiLoc) that's also in the actor's location, so that it's not
+             *   duplicated. Then append this sublist to our vector.
              */
             vec.appendUnique(sList.subset({o: ((o.soundSize == large &&
                                        o.checkDisplay(&listenDesc) != nil) ||
                                        o.propDefined(&remoteListenDesc))
-                                       && o.isProminentNoise} ));
+                                       && o.isProminentNoise
+                                          && !o.isOrIsIn(loc)} ));
         }
         
        
