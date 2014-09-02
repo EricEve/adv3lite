@@ -362,25 +362,26 @@ modify TravelConnector
     {
         return traversalTime;
     }
-    
-    travelVia(actor, suppressBeforeNotifications?)
+;
+
+/* 
+ *   Modifications for OBJTIME extension, so make traversing a connector take a
+ *   certain amount of game time.
+ */
+modify Room
+    execTravel(actor, traveler, conn)
     {
         /* Note the actor's starting location */
         local origin = actor.getOutermostRoom();
         
         /* Carry out the inherited handling */
-        inherited(actor, suppressBeforeNotifications);
+        inherited(actor, traveler, conn);
         
-        /* 
-         *   Add our traversal time to the time it takes to carry out this
-         *   travel, but not if we're in a chain of travel connectors, since we
-         *   don't want to count the travel time twice.
-         */
-        if(!suppressBeforeNotifications)
-            addTime(traversalTimeFrom(origin));
+        /* Add the traversal time for this connector */
+        addTime(conn.traversalTimeFrom(origin));
     }
-    
 ;
+ 
     
 
 

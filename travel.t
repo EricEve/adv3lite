@@ -127,15 +127,67 @@ class Room: TravelConnector, Thing
     floorObj = defaultGround       
     
     /* 
-     *   When travelling via a room we move the traveler into the room. Then, if
-     *   the traveler is the player char we perform a look around in the room,
-     *   provided we should look around on entering the room.
-     */    
-    execTravel(obj)
+     *   When executing travel we move the traveler into the room. Then, if the
+     *   traveler is the player char we perform a look around in the room,
+     *   provided we should look around on entering the room. actor is the actor
+     *   doing the traveling, traveler is the traveler doing the traveling
+     *   (normally the same as actor unless actor is in a Vehicle, in which case
+     *   traveler will be the Vehicle) and conn is the TravelConnector the
+     *   vehicle is traversing in order to reach this room.
+     */     
+    execTravel(actor, traveler, conn)
     {        
-        local lookAroundOnEntering = lookOnEnter(obj);
-        obj.actionMoveInto(destination);
-        if(gPlayerChar.isOrIsIn(obj) && lookAroundOnEntering)
+        /*   Note whether we want to look around on entering this room. */
+        local lookAroundOnEntering = lookOnEnter(actor);
+        
+        /* 
+         *   Note the traveler's current location, so we can check subsequently
+         *   whether travel actually took place.
+         */
+        local oldLoc = traveler.getOutermostRoom();
+        
+        /*  Carry out the before travel notification */
+        conn.beforeTravelNotifications(traveler);
+        
+        /* 
+         *   Note the actor's old travel info in case we have to restore it
+         *   after a failed travel attempt.
+         */
+        if(actor != gPlayerChar)
+            local oldTravelInfo = actor.lastTravelInfo;
+        
+        if(actor == gPlayerChar)
+        {                  
+            /* 
+             *   Before carrying out the travel make a note of the room the
+             *   player character is about to leave.
+             */
+            libGlobal.lastLoc = oldLoc;                               
+        }
+        
+        /* 
+         *   Otherwise if the player character can see the actor traverse the
+         *   connector, note the fact on the actor, so that the information is
+         *   available should the player character wish to follow the actor.
+         */
+        else if(Q.canSee(gPlayerChar, actor))
+            actor.lastTravelInfo = [oldLoc, conn];
+        
+        /*   
+         *   Note that actor is traversing the Travel Connector. This can be
+         *   used to carry out any side-effects of the travel, such as
+         *   describing it.
+         */             
+        
+        conn.noteTraversal(actor); 
+        
+        /* Notify the actor's current room that the actor is about to depart. */
+        oldLoc.notifyDeparture(actor, destination);
+        
+        /*  Move the traveling object into its destination */
+        traveler.actionMoveInto(destination);
+        
+        if(gPlayerChar.isOrIsIn(traveler))
         {
             /* 
              *   Notify any actors in the location that the player character has
@@ -148,8 +200,25 @@ class Room: TravelConnector, Thing
             
             /* Show a room description if appropriate */
             if(lookAroundOnEntering)
-                destination.lookAroundWithin();
+                lookAroundWithin();
         }
+        
+        /*  
+         *   Execute the after travel notifications, provided this connector
+         *   actually went somewhere to notify and that the actor actually ended
+         *   up in a new location.
+         */
+        if(self != oldLoc)
+        {               
+            afterTravelNotifications(traveler);
+        }
+        
+        /* 
+         *   If we're not the player character and we failed to go anywhere,
+         *   restore our old travel info.
+         */
+        if(actor != gPlayerChar && actor.getOutermostRoom == oldLoc)
+            actor.lastTravelInfo = oldTravelInfo;
     }
     
     /* 
@@ -593,6 +662,11 @@ class Door: TravelConnector, Thing
      */
     openStatusReportable = nil
     
+    /*  
+     *   Flag, do we want to attempt to unlock this door via an implicit action
+     *   if someone attempts to open it while it's locked?
+     */
+    autoUnlock = nil
     
     /* 
      *   A physical door is represented by two objects in code, each
@@ -649,9 +723,21 @@ class Door: TravelConnector, Thing
             otherSide.isLocked = stat;
     }
     
-    /*  Carry out travel via this Door */
-    execTravel(actor)
+    /*  
+     *   The most likely barrier to travel through a door is that the door is
+     *   closed and locked, so we check for than after the other kinds of travel
+     *   barrier.
+     */
+    checkTravelBarriers(traveler)
     {
+        /* 
+         *   Carry out the inherited checking of travel barriers and return nil
+         *   if they fail to indicate that travel through the door is not
+         *   possible.
+         */
+        if(inherited(traveler) == nil)
+            return nil;
+        
         /*  If the Door isn't open, try to open it via an implicit action. */
         if(!isOpen)
         {
@@ -672,56 +758,36 @@ class Door: TravelConnector, Thing
             }
         }
         
-        /*  
-         *   If the Door isn't open, the failure to open it will have been
-         *   reported by the implicit action. If it is open, attempt to travel
-         *   through it.
+        /* 
+         *   We pass the travel barrier test if and only if the door ends up
+         *   open.
          */
-        if(isOpen)
-        {
-            /*  
-             *   If the Door has no destination, there's nowhere for the actor
-             *   to go to, so simply report that travel isn't possible.
-             */
-            if(destination == nil)
-                DMsg(leads nowhere, 'Unfortunately {1} {dummy} {doesn\'t lead}
-                    anywhere. ', theName);
-            
-            /*  
-             *   Otherwise, attempt travel via the Door's destination (which in
-             *   virtually every case will mean travel to the Door's
-             *   destination, i.e. the room to which the Door leads).
-             */
-            else
-            {    
-                /* Carry out any side-effects of the travel */
-                noteTraversal(actor);
-                
-                /*  
-                 *   If this TravelConnector has a destination that's a Room (so
-                 *   that executing the travel should take the actor out of
-                 *   his/her current room) notify the current room that the
-                 *   actor is about to depart.
-                 */
-                if(destination && destination.ofKind(Room))
-                    actor.getOutermostRoom.notifyDeparture(actor, destination);
-                
-                /* Move the traveler to our destination. */
-                destination.travelVia(actor, dontChainNotifications);     
-                
-                /* 
-                 *   if we travel through this door successfully then presumably
-                 *   we now know where its other side leads and where it leads.
-                 */                
-                if(otherSide != nil && actor == gPlayerChar &&
-                   actor.isIn(destination))
-                { 
-                    otherSide.isDestinationKnown = true;
-                    isDestinationKnown = true;
-                }
-            }
+        return isOpen;
+    }
+    
+    /*  Execute travel through this door. */
+    execTravel(actor, traveler, conn)
+    {
+        /* 
+         *   Carry out the inherited handling (which delegates most of the work
+         *   to our destination).
+         */
+        inherited(actor, traveler, conn);
+        
+        /*  
+         *   If the actor carrying out the travel is the player character, note
+         *   that the player character now knows where both sides of the door
+         *   lead to.
+         */
+        if(otherSide != nil && actor == gPlayerChar &&
+           actor.isIn(destination))
+        { 
+            otherSide.isDestinationKnown = true;
+            isDestinationKnown = true;
         }
     }
+    
+
    
     /*  
      *   The message to display if travel is attempted through this door when
@@ -811,6 +877,7 @@ class Door: TravelConnector, Thing
     
     /*  Entering a door is the same as going through it. */
     dobjFor(Enter) asDobjFor(GoThrough)
+        
     
     /*  
      *   The appropriate action for push an object via a door is
@@ -901,22 +968,16 @@ class TravelConnector: object
      *   overridden for an area the PC is supposed to know well when the game
      *   starts, such as their own house.
      */    
-    isDestinationKnown = (destination != nil && destination.visited)
+    isDestinationKnown = (destination != nil && destination.isDestinationKnown)
     
     /*   A travel connector is usually open. */
     isOpen = true
     
     /* 
-     *   Carrier out travel via this connector. First check that travel through
-     *   this connector is permitted for this actor (or other traveler). If it
-     *   is, then send the before travel notifications, display any travelDesc
-     *   for the player char, if the player char is doing the traveling,  note
-     *   where the player char is travelling. Then execute the actual travel and
-     *   then finally issue the after travel notifications.
-     *
-     *   The actor is the actor doing the traveling.
+     *   Carrier out travel via this connector, first checking that travel
+     *   through this connector is permitted for this actor.
      */    
-    travelVia(actor, suppressBeforeNotifications?)
+    travelVia(actor)
     {
         /* 
          *   The traveler is the object actually doing the travelling; usually
@@ -927,77 +988,15 @@ class TravelConnector: object
         
         /* 
          *   Check the travel barriers on this TravelConnector to ensure that
-         *   travel is permitted
+         *   travel is permitted. If so carry out the travel. If not
+         *   checkTravelBarriers will have reported the reason why travel is
+         *   blocked.
          */
-        if(checkTravelBarriers(traveler))
-        {
-            /* 
-             *   Note the traveler's current location, so we can check
-             *   subsequently whether travel actually took place.
-             */
-            local oldLoc = traveler.getOutermostRoom();
-            
-            /*  
-             *   Carry out the before travel notifications provided
-             *   suppressBeforeNotifications is nil. The normal reason for
-             *   suppressing before notification would be if this
-             *   TravelConnector is the second or subsequent travel connector in
-             *   a chain, for example a room connected to by a door, since in
-             *   that case we wouldn't normally want to see two or more sets of
-             *   travel notifications triggered for the same travel action.
-             */
-            if(!suppressBeforeNotifications)
-                beforeTravelNotifications(traveler);
-                    
-            /* 
-             *   Note the actor's old travel info in case we have to restore it
-             *   after a failed travel attempt.
-             */
-            if(actor != gPlayerChar)
-                local oldTravelInfo = actor.lastTravelInfo;
-            
-            if(actor == gPlayerChar)
-            {                  
-                /* 
-                 *   Before carrying out the travel make a note of the room the
-                 *   player character is about to leave.
-                 */
-                libGlobal.lastLoc = oldLoc;                               
-            }
-            /* 
-             *   Otherwise if the player character can see the actor traverse
-             *   this connector, note the fact on the actor, so that the
-             *   information is available should the player character wish to
-             *   follow the actor.
-             */
-            else if(Q.canSee(gPlayerChar, actor) &&
-                    !suppressBeforeNotifications)
-                actor.lastTravelInfo = [oldLoc, self];
-            
-                           
-            
-            /* Carry out the travel */
-            execTravel(traveler);
-            
-            /*  
-             *   Execute the after travel notifications, provided this connector
-             *   actually went somewhere to notify and that the actor actually
-             *   ended up in a new location.
-             */
-            if(destination != nil && actor.getOutermostRoom != oldLoc)
-            {               
-                afterTravelNotifications(traveler);
-            }
-            
-            /* 
-             *   If we're not the player character and we failed to go anywhere,
-             *   restore our old travel info.
-             */
-            if(actor != gPlayerChar && actor.getOutermostRoom == oldLoc)
-                actor.lastTravelInfo = oldTravelInfo;
-                
-        }        
+        if(checkTravelBarriers(traveler))           
+            execTravel(actor, traveler, self);               
     }
+    
+   
     
     /* 
      *   Get the traveler associated with this actor. Normally the traveler will
@@ -1021,7 +1020,27 @@ class TravelConnector: object
         return actor;
     }
     
+    /*  Execute the travel for this actor via this connector */
+    execTravel(actor, traveler, conn)
+    {
+        /* If we have a destination, let our destination handle it */
+        if(destination != nil)
+            destination.execTravel(actor, traveler, conn);
+        
+        /* Otherwise report that we don't lead anywhere. */
+        else
+            sayNoDestination();
+    }
     
+    /* 
+     *   Display a message saying that this travel connector doesn't actually
+     *   lead anywhere; this may be needed if our destination is nil.
+     */
+    sayNoDestination()
+    {
+        DMsg(no destination, 'That{dummy} {does}n\'t lead anywhere. ');
+    }
+
     
     
     /*  
@@ -1077,47 +1096,8 @@ class TravelConnector: object
         
     }
 
-    /* 
-     *   If this travel connector points to another (e.g. a Room), we probably
-     *   don't want to trigger the before notifications on the second connector
-     *   (the Room) as well as this one.
-     */
-    dontChainNotifications = true
-    
-    /*  Execute the travel for this actor via this connector */
-    execTravel(actor)
-    {
-        /* 
-         *   If this travel connector has a destination (which would normally be
-         *   a room), carry out travel via that destination (which, if the
-         *   destination is a room, would normally mean travel to that
-         *   destination).
-         */
-        if(destination != nil)
-        {
-            /*   
-             *   Note that actor is traversing this Travel Connector. This can
-             *   be used to carry out any side-effects of the travel, such as
-             *   describing it.
-             */             
-            
-            noteTraversal(actor);   
-            
-            /*  
-             *   If this TravelConnector has a destination that's a Room (so
-             *   that executing the travel should take the actor out of his/her
-             *   current room) notify the current room that the actor is about
-             *   to depart.
-             */
-            if(destination && destination.ofKind(Room))
-                actor.getOutermostRoom.notifyDeparture(actor, destination);
         
-            
-            /* Carry out the travel to our destination */
-            destination.travelVia(actor, dontChainNotifications);
-        }
-    }
-    
+        
     /*  
      *   Method that should return true is actor is allowed to pass through this
      *   TravelConnector and nil otherwise. We allow travel by default but this
