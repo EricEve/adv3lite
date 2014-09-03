@@ -204,13 +204,12 @@ class Room: TravelConnector, Thing
         }
         
         /*  
-         *   Execute the after travel notifications, provided this connector
-         *   actually went somewhere to notify and that the actor actually ended
-         *   up in a new location.
+         *   Execute the after travel notifications, provided that the actor
+         *   actually ended up in a new location.
          */
         if(self != oldLoc)
         {               
-            afterTravelNotifications(traveler);
+            conn.afterTravelNotifications(traveler);
         }
         
         /* 
@@ -332,15 +331,15 @@ class Room: TravelConnector, Thing
    
     
     /*   
-     *   beforeTravel(traveler, connector) is called on a the room traveler is
+     *   beforeTravel(traveler, connector) is called on the room traveler is
      *   in just as traveler is about to attempt travel via connector (a
      *   TravelConnector object).
      */
     beforeTravel(traveler, connector) { }
     
     /*   
-     *   afterTravel(traveler, connector) is called on a room traveler has just
-     *   arrived in via connector.
+     *   afterTravel(traveler, connector) is called on the room traveler has
+     *   just arrived in via connector.
      */
     afterTravel(traveler, connector) { }
     
