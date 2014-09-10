@@ -1026,8 +1026,12 @@ class TravelConnector: object
         if(destination != nil)
             destination.execTravel(actor, traveler, conn);
         
-        /* Otherwise report that we don't lead anywhere. */
-        else
+        /* 
+         *   Otherwise report that we don't lead anywhere, unless noteTraversal
+         *   produces some output which may be the only effect of travel we
+         *   want.
+         */
+        else if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
             sayNoDestination();
     }
     
