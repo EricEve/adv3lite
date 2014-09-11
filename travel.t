@@ -1024,24 +1024,37 @@ class TravelConnector: object
     {
         /* If we have a destination, let our destination handle it */
         if(destination != nil)
-            destination.execTravel(actor, traveler, conn);
+            destination.execTravel(actor, traveler, conn);        
         
-        /* 
-         *   Otherwise report that we don't lead anywhere, unless noteTraversal
-         *   produces some output which may be the only effect of travel we
-         *   want.
-         */
-        else if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
-            sayNoDestination();
+        else 
+        {    
+            /* 
+             *   Carry out the beforeTravel notifications, since this can't be
+             *   done by our destination, but something in scope may still want
+             *   to react to or prohibit the attempt to travel.
+             */
+            beforeTravelNotifications(actor);
+            
+            /*  
+             *   Then call our noteTraversal method to carry out the
+             *   side-effects of travel; since we don't lead anywhere this may
+             *   be the only reason we exist. If, however, our noteTraversal()
+             *   method fails to display any output, instead display a report
+             *   that this connector doesn't lead anywhere.
+             */
+            if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
+                sayNoDestination();
+        }
     }
     
     /* 
      *   Display a message saying that this travel connector doesn't actually
-     *   lead anywhere; this may be needed if our destination is nil.
+     *   lead anywhere; this may be needed if our destination is nil and our
+     *   noteTraversal() method doesn't display anything.
      */
     sayNoDestination()
     {
-        DMsg(no destination, 'That{dummy} {does}n\'t lead anywhere. ');
+        DMsg(no destination, 'That{dummy} {doesn\'t} lead anywhere. ');
     }
 
     
