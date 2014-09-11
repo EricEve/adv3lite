@@ -1054,7 +1054,7 @@ modify Thing
          *   the actor can see something else among the possible matches, remove
          *   us from the list of matches.
          */
-        if(self.(prop).indexOf(objVisible)             
+        if(valToList(self.(prop)).indexOf(objVisible)             
            && !gActor.canSee(self)
            && np.matches.indexWhich({m: gActor.canSee(m.obj)}))
            np.matches = np.matches.subset({m: m.obj != self});   
@@ -1066,7 +1066,7 @@ modify Thing
          *   us, but the actor can reach something else among the possible
          *   matches, remove us from the list of matches.
          */
-        if(self.(prop).indexOf(touchObj)
+        if(valToList(self.(prop)).indexOf(touchObj)
            && np.matches.indexWhich({m: m.obj.isIn(loc)}))
            np.matches = np.matches.subset({m: m.obj != self}); 
         
