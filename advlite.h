@@ -1287,6 +1287,19 @@ enum normalRelation, reverseRelation;
 #define DefSignal(sig, nam) sig##Signal: Signal \
     name = #@nam\
     handleProp = &handle_##sig
+/*----------------------------------------------------------------------------*/
+/*
+ *   Definitions for the SymConn Extension
+ */
+
+SymConnector template ->destination;
+SymConnector template @room1 @room2;
+
+SymPassage template ->destination 'vocab' "desc"?;
+SymPassage template 'vocab' ->destination "desc"?;
+SymPassage template 'vocab' @room1 @room2 "desc"?;
+    
+
 
 /*----------------------------------------------------------------------------*/
 /*

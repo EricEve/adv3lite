@@ -1999,6 +1999,23 @@ OpenClosed: State
 ;
 
 /*  
+ *   DirState. This is useful for SymConnectors and the like, whose directional
+ *   vocab may change according to which direction they're approached from.
+ */
+DirState: State
+    stateProp = &attachedDir
+    adjectives = [[&north, ['north', 'n']], [&south, ['south', 's']],
+        [&east, ['east', 'e']], [&west, ['west', 'w']],
+        [&southeast, ['southeast', 'se']], [&northeast, ['northeast', 'ne']],
+        [&southwest, ['southwest', 'sw']], [&northwest, ['northwest', 'nw']],
+        [&port, ['port', 'p']], [&starboard, ['starboard', 'sb']],
+        [&fore, ['fore', 'f', 'forward']], [&aft, ['aft']],
+        [&up, ['up', 'upward']], [&down, ['down', 'downward'] ],
+        [&in, ['in', 'inner', 'inward']], [&out, ['out', 'outer', 'outward']]
+    ]
+;
+
+/*  
  *   Modifications to TopicPhrase to make it work better with the
  *   English-specific part of the library.
  */
