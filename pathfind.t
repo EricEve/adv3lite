@@ -139,12 +139,7 @@ routeFinder: Pathfinder
     {
         /* Note the location our current path leads to */
         local loc = cur[steps - 1][2];
-        
-        /* 
-         *   Make this location available to anything else that needs it (such
-         *   as a SymConnector).
-         */
-        libGlobal.curLoc = loc;
+                
         
         /* See what leads in every available direction from this location */
         for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,
@@ -179,7 +174,7 @@ routeFinder: Pathfinder
                  *   object. This will be the path that got us to this location
                  *   plus the one additional step.
                  */    
-                local dest = loc.(dir.dirProp).destination;
+                local dest = loc.(dir.dirProp).getDestination(loc);
                 if(dest != nil)
                 {
                     newPath.append([dir, dest]);
@@ -230,13 +225,7 @@ pcRouteFinder: Pathfinder
     {
         /* Note the location our current path leads to */
         local loc = cur[steps - 1][2];
-        
-        /* 
-         *   Make this location available to anything else that needs it (such
-         *   as a SymConnector).
-         */
-        libGlobal.curLoc = loc;
-        
+               
         /* See what leads in every available direction from this location */
         for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,
             Direction))
@@ -256,7 +245,7 @@ pcRouteFinder: Pathfinder
                  *   note the path to this object. This will be the path that
                  *   got us to this location plus the one additional step.
                  */    
-                local dest = conn.destination;
+                local dest = conn.getDestination(loc);
                 
                 /* 
                  *   if both the location (loc) and the destination (dest) lie

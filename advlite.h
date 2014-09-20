@@ -724,6 +724,8 @@ Door template  'vocab' @location? "desc"? ->otherSide;
 Door template  ->otherSide 'vocab' @location? "desc"?;
 
 TravelConnector template 'vocab'? @location? "desc"? ->destination;
+TravelConnector template ->destination "travelDesc";
+
 Enterable template inherited ->connector;
 Enterable template ->connector inherited;
 

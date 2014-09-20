@@ -748,9 +748,7 @@ libGlobal: object
      */    
     lastLoc = nil
     
-    /*  The current location used as the origin for a SymConnector */
-    curLoc = nil
-    
+   
     /* 
      *   A lookup table to store information about the destinations of direction
      *   properties not connected to objects (i.e. direction properties defined

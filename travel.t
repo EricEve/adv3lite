@@ -146,6 +146,12 @@ class Room: TravelConnector, Thing
          */
         local oldLoc = traveler.getOutermostRoom();
         
+        /*   
+         *   Get our destination when starting from oldLoc (for a room this
+         *   should normally evaluate to self)
+         */
+        local dest = getDestination(oldLoc);
+        
         /*  Carry out the before travel notification */
         conn.beforeTravelNotifications(traveler);
         
@@ -182,10 +188,10 @@ class Room: TravelConnector, Thing
         conn.noteTraversal(actor); 
         
         /* Notify the actor's current room that the actor is about to depart. */
-        oldLoc.notifyDeparture(actor, destination);
+        oldLoc.notifyDeparture(actor, dest);
         
         /*  Move the traveling object into its destination */
-        traveler.actionMoveInto(destination);
+        traveler.actionMoveInto(dest);
         
         if(gPlayerChar.isOrIsIn(traveler))
         {
@@ -951,15 +957,28 @@ class TravelConnector: object
      *   it's apparent (i.e. not concealed in some way) and if the lighting
      *   conditions are adequate, or if it's visible in the dark.
      */
-    isConnectorVisible = (isConnectorApparent && 
-                          (gPlayerChar.getOutermostRoom.isIlluminated
-                              || (destination != nil &&
-                                  destination.isIlluminated
+    isConnectorVisible()
+    {
+        local loc = gPlayerChar.getOutermostRoom();
+        local dest = getDestination(loc);
+        return (isConnectorApparent && 
+                          (loc.isIlluminated
+                              || (dest != nil && dest.isIlluminated
                                   && transmitsLight)
-                           || visibleInDark))
+                           || visibleInDark));
+    }
     
     /* The room to which this TravelConnector leads when it is traversed */    
     destination = nil
+    
+    /* 
+     *   The room to which this TravelConnector leads when it is traversed from
+     *   origin.
+     */    
+    getDestination(origin)
+    {
+        return destination;
+    }
     
     /* 
      *   Does the player char know where this travel connector leads? By default
@@ -967,7 +986,12 @@ class TravelConnector: object
      *   overridden for an area the PC is supposed to know well when the game
      *   starts, such as their own house.
      */    
-    isDestinationKnown = (destination != nil && destination.isDestinationKnown)
+    isDestinationKnown()
+    {
+        local loc = gPlayerChar.getOutermostRoom();
+        local dest = getDestination(loc);
+        return (dest != nil && dest.isDestinationKnown);
+    }
     
     /*   A travel connector is usually open. */
     isOpen = true
@@ -1022,9 +1046,12 @@ class TravelConnector: object
     /*  Execute the travel for this actor via this connector */
     execTravel(actor, traveler, conn)
     {
+        local loc = traveler.getOutermostRoom();
+        local dest = getDestination(loc);
+        
         /* If we have a destination, let our destination handle it */
-        if(destination != nil)
-            destination.execTravel(actor, traveler, conn);        
+        if(dest != nil)
+            dest.execTravel(actor, traveler, conn);        
         
         else 
         {    
@@ -1432,7 +1459,19 @@ class Direction: object
      *   directions defined in game code)
      */
     allDirections = static new Vector(12)
+   
+    /*   The direction that is opposite to this one. */
+    opposite = nil
     
+    /*   The dirProp that's the opposite to prop */
+    oppositeProp(prop)
+    {
+        local dir = allDirections.valWhich({d: d.dirProp == prop});
+        
+        return dir == nil ? nil : 
+        (dir.opposite == nil ? nil : dir.opposite.dirProp);
+    }
+        
 	
 ;
 
@@ -1460,6 +1499,7 @@ northDir: CompassDirection
     name = BMsg(north, 'north')
     departureName = BMsg(depart north, 'to the north')
     sortingOrder = 1000
+    opposite = southDir
 ;
 
 eastDir: CompassDirection
@@ -1467,6 +1507,7 @@ eastDir: CompassDirection
     name = BMsg(east, 'east')
     departureName = BMsg(depart east, 'to the east')
     sortingOrder = 1100
+    opposite = westDir
 ;
 
 southDir: CompassDirection
@@ -1474,6 +1515,7 @@ southDir: CompassDirection
     name = BMsg(south, 'south')
     departureName = BMsg(depart south, 'to the south')
     sortingOrder = 1200
+    opposite = northDir
 ;
 
 westDir: CompassDirection
@@ -1481,6 +1523,7 @@ westDir: CompassDirection
     name = BMsg(west, 'west')
     departureName = BMsg(depart west, 'to the west')
     sortingOrder = 1300
+    opposite = eastDir
 ;
 
 northeastDir: CompassDirection
@@ -1488,6 +1531,7 @@ northeastDir: CompassDirection
     name = BMsg(northeast, 'northeast')
     departureName = BMsg(depart northeast, 'to the northeast')
     sortingOrder = 1400
+    opposite = southwestDir
 ;
 
 northwestDir: CompassDirection
@@ -1495,6 +1539,7 @@ northwestDir: CompassDirection
     name = BMsg(northwest, 'northwest')
     departureName = BMsg(depart northwest, 'to the northwest')
     sortingOrder = 1500
+    opposite = northeastDir
 ;
 
 southeastDir: CompassDirection
@@ -1502,6 +1547,7 @@ southeastDir: CompassDirection
     name = BMsg(southeast, 'southeast')
     departureName = BMsg(depart southeast, 'to the southeast')
     sortingOrder = 1600
+    opposite = northwestDir
 ;
 
 southwestDir: CompassDirection
@@ -1509,6 +1555,7 @@ southwestDir: CompassDirection
     name = BMsg(southwest, 'southwest')
     departureName = BMsg(depart southwest, 'to the southwest')
     sortingOrder = 1700
+    opposite = northeastDir
 ;
 
 downDir: Direction
@@ -1516,6 +1563,7 @@ downDir: Direction
     name = BMsg(down, 'down')
     departureName = BMsg(depart down, 'down')
     sortingOrder = 2000
+    opposite = upDir
 ;
 
 upDir: Direction
@@ -1523,6 +1571,7 @@ upDir: Direction
     name = BMsg(up, 'up')
     departureName = BMsg(depart up, 'up')
     sortingOrder = 2100
+    opposite = downDir
 ;
 
 inDir: Direction
@@ -1530,6 +1579,7 @@ inDir: Direction
     name = BMsg(in, 'in')
     departureName = BMsg(depart in, 'inside')
     sortingOrder = 3000
+    opposite = outDir
 ;
 
 outDir: Direction
@@ -1537,6 +1587,7 @@ outDir: Direction
     name = BMsg(out, 'out')
     departureName = BMsg(depart out, 'out')
     sortingOrder = 3100
+    opposite = inDir
 ;
 
 /* Directions for use aboard a vessel such as a ship */
@@ -1563,6 +1614,7 @@ portDir: ShipboardDirection
     name = BMsg(port, 'port')
     departureName = BMsg(depart port, 'to port')
     sortingOrder = 4000
+    opposite = starboardDir
 ;
 
 starboardDir: ShipboardDirection
@@ -1570,6 +1622,7 @@ starboardDir: ShipboardDirection
     name = BMsg(starboard, 'starboard')
     departureName = BMsg(depart starboard, 'to starboard')
     sortingOrder = 4100
+    opposite = portDir
 ;
 
 foreDir: ShipboardDirection
@@ -1577,6 +1630,7 @@ foreDir: ShipboardDirection
     name = BMsg(forward, 'forward')
     departureName = BMsg(depart forward, 'forward')
     sortingOrder = 4200
+    opposite = aftDir
 ;
 
 aftDir: ShipboardDirection
@@ -1584,6 +1638,7 @@ aftDir: ShipboardDirection
     name = BMsg(aft, 'aft')
     departureName = BMsg(depart aft, 'aft')
     sortingOrder = 4300
+    opposite = foreDir
 ;
 
 /*  

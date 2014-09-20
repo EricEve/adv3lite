@@ -1,0 +1,287 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Symconn</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Symconn
+<br><span class="navnp"><a class="nav" href="subtime.htm"><i>Prev:</i> Subtime</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="sysrules.htm"><i>Next:</i> Sysrules</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Symconn (Symmetrical Connectors)</h1>
+<h2>Overview</h2>
+<p>The purpose of the Symconn extension is to simplify the process of setting up travel connectors when they are symmetrical (that is when travel from room1 in a certain direction leads to room2, and travel in the reverse direction from room2 leads to room1), which is by far the most common case in most IF. If this extension is included then defining a direct connection from one room to another will automatically lead to reverse connection being defined from the second room to the first. This extension also defines a number of classes to simplify defining two-way travel connectors and doors, so that, for example, a door can be defined using one object instead of two.</p>
+ 
+
+<br>
+
+<a name="classes"></a>
+<h2>New Classes, Objects and Properties</h2>
+
+<p>In addition to a number of properties intended purely for internal use, this extension defines the following new classes, objects and properties:</p>
+<ul>
+<li><em>Classes</em>: <a href="#symcons">SymConnector</a>, <a href="#sympassage">SymPassage</a>, <a href="#symdoor">SymDoor</a>.</li>
+<li><em>Objects</em>: <a href="#noexit">noExit</a>.</li>
+<li><em>Properties/methods on SymConnector</em>: <span class="code">room1</span>, <span class="code">room2</span>.</li>
+<li><em>Properties/methods on SymPassage</em>: <span class="code">room1desc</span>, <span class="code">room2desc</span>, <span class="code">attachedDir()</span>.</li>
+</ul>
+
+<a name="usage"></a>
+<h2>Usage</h2>
+<p>Include the symconn.t file after the library files but before your game source files.</p>
+
+<p>When the symconn extension is present, it will automatically set up reverse connections between rooms. In the standard library, if you set <span class="code">hall.east</span> to <span class="code">study</span>, say, you would also have to set <span class="code">study.west</span> to <span class="code">hall</span> if you wanted the player character to be able to move back and forth between the two rooms (as most of the time you probably would). The symconn extension looks after this for you, so that if you set <span class="code">hall.east</span> to <span class="code">study</span>, this extension will then automatically set <span class="code">study.west</span> to <span class="code">hall</span>, <em>unless</em> you have already defined <span class="code">study.west</span> to be something other than <span class="code">nil</span>.</p>
+
+<a name="noexit"></a>
+<p>In cases where you don't want a connection between rooms to be symmetrical, you need to define the reverse connection back from the second room to be something other than <span class="code">nil</span>. In such cases you could define the reverse connection to be a different room (if you were trying to create a confusing maze, for example), or you could define it to be a single-quoted or double-quoted string explaining why travel back that way isn't possible, or you could define it to be <strong>noExit</strong>, which then mimics there being no connector back in that direction. So, for example, if it was possible to go down from the cliff to the ravine, but not to go up from the ravine to the cliff, you could define <span class="code">cliff.down = ravine</span> and <span class="code">ravine.up = noExit</span> (or else perhaps a string explaining that the cliff was too steep to climb.)</p>
+<br>
+
+<a name="symcons"></a>
+<h2>Symmetrical Travel Connectors</h2>
+
+<p>This extension also defines the <strong>SymConnector</strong> class and its two subclasses, <a href="#sympassage">SymPassage</a> and <a href="#symdoor">SymDoor</a>.</p>
+
+<p>SymConnector is a type of <a href="../../docs/manual/travel.htm">TravelConnector</a> (from which it descends by inheritance). A SymConnector can be traversed in both directions, and defining a SymConnector on a direction property of one room automatically attaches it to the reverse direction property of the room to which it leads. Otherwise, a <span class="code">SymConnector</span> behaves much like any other TravelConnector, and can be used to define travel barriers or the side-effects of travel in much the same way. For example, we could define:</p>
+
+ <p><div class="code"><pre>
+ defile: Room 'Narrow Defile'
+        
+    east: SymConnector -&gt; precipice
+    "You just manage to squeeze through. "     
+    {        
+        
+        canTravelerPass(traveler)
+        {
+            return traveler.getCarriedBulk &lt; 4;                
+        }
+        
+        explainTravelBarrier(traveler)
+        {
+            "You can't squeeze through carrying so much stuff. ";
+        }
+    }
+ </pre></div>
+
+<p>This would cause the same <span class="code">SymConnector</span> (the very same object, not just a copy of it) to be attached to the west property of the <span class="code">precipice</span> room, so that travelling east from <span class="code">defile</span> or west from <span class="code">precipice</span> would be subject to precisely the same restriction on the maximum bulk carried by the traveler, and would result in exactly the same "You just manage to squeeze" through message being displayed if travel were allowed in either direction. Travelling west from <span class="code">precipice</span> would then take the <span class="code">traveler</span> back to the defile. (If you needed to vary the details of what happened according to the direction of travel you could always test the value of <span class="code">traveler.getOutermostRoom</span> to determine which end <em>traveler</em> was starting from).</p> 
+
+<p>Internally a SymConnector defines a <strong>room1</strong> property and a <strong>room2</strong> property, <span class="code">room1</span> and <span class="code">room2</span> being the two rooms reciprocally connected by the SymConnector. At preinit the symconn extension automatically sets the <span class="code">room1</span> property of a SymConnector to the room one of whose direction properties is attached to that SymConnector, and the <span class="code">room2</span> property of the SymConnector to the <span class="code">destination</span> of the SymConnector. In the example about the <span class="code">-&gt; precipice</span> in the template defines the <span class="code">destination</span> property (directly) and hence the <span class="code">room2</span> property (indirectly). So, to set up a SymConnector you'd typically use the coding pattern illustrated above: attach it to the direction property of one room and leave the extension to set up the reverse connection from the other room.</p>
+
+<a name="symdoor"></a>
+<p>The <strong>SymDoor</strong> class lets you define a door using one object instead of the usual two. Using the standard adv3Lite library you'd typically set up a <a href="../../docs/manual/door.htm">door</a> between two rooms like this:</p>
+
+ <p><div class="code"><pre>
+ redRoom: Room 'Red Room'
+   "A door leads south. "
+   
+   south = blackDoor1
+ ;
+ 
+ + blackDoor1: Door 'black door'
+    "It's black. "
+    otherSide = blackDoor2
+ ;
+ 
+ greenRoom: Room 'Green Room'
+   "A door leads north. "
+   north = blackDoor1  
+   
++ blackDoor2: Door 'black door'
+    "It's black. "
+    otherSide = blackDoor1
+;   
+ </pre></div>
+
+<p>Using the SymDoor class this could be reduced to this:</p> 
+
+ <p><div class="code"><pre>
+ redRoom: Room 'Red Room'
+   "A door leads south. "
+   
+   south = blackDoor
+ ;
+ 
+ blackDoor1: SymDoor 'black door'
+    "It's black. "
+    room2 = greenRoom
+ ;
+ 
+ greenRoom: Room 'Green Room'
+   "A door leads north. "
+ ;    
+ </pre></div>
+ 
+<p>Or even this:</p>
+ 
+ <p><div class="code"><pre>
+ redRoom: Room 'Red Room'
+   "A door leads south. "
+   
+   south: SymDoor  
+   {
+    -&gt; greenRoom 'black door'
+    "It's black. "
+   }
+ ;
+  
+ greenRoom: Room 'Green Room'
+   "A door leads north. "
+ ;    
+ </pre></div> 
+ 
+ <p>A <span class="code">SymDoor</span> inherits all the behaviour of a <span class="code">SymConnector</span> and works in much the same way, but in addition it's a physical object that's present in both the locations it connects. A SymDoor is also a <a href="../../docs/manual/multiloc.htm">MultiLoc</a>, which the symconn extension automatically places in its two locations at preinit.</p>
+ 
+ <p>There are a few limitations, however. The main one is that a SymDoor must have the same locking mechanism on both sides (if you want it to be lockable). You can define the <span class="code">lockability</span> property of a <span class="code">SymDoor</span> just as you can for a <span class="code">Door</span>, but since a <span class="code">SymDoor</span> represents both sides of the door, both sides have to behave in the same way. Likewise both sides of a SymDoor must have the same name ('black door' in the example above). You can, however, give the two sides of a SymDoor different descriptions if you wish by defining its <strong>room1desc</strong> and <strong>room2desc</strong> properties instead of its <span class="code">desc</span> property (as you would expect, <span class="code">room1desc</span> and <span class="code">room2desc</span> will then be the descriptions of the door as seen from <span class="code">room1</span> and <span class="code">room2</span> respectively, where <span class="code">room1</span> and <span class="code">room2</span> have the same meaning as they have on a <a href="#symcons">SymConnector</a>). </p>
+<a name="attachdir"></a>
+<p>It's sometimes convenient to refer to a door by the direction it leads in (e.g. "The west door" or "The north door"). The symconn extension takes care of this for you automatically. For example, the black door in the example above can be referred to by the player as 'south door' when the player character is in redRoom and as 'north door' when the player character is greenRoom and the game will know which door is meant, without the game author having to take any steps to make this happen. If, however, you want to suppress this behaviour on a particular SymDoor, you can do so simply by overriding its <strong>attachDir</strong> property to <span class="code">nil</span> (<span class="code">attachDir</span> is a method that works out which direction property a SymDoor is attached to in the player character's location, which is used by the <strong>DirState</strong> <a href="../../docs/manual/thing.htm#manipulatevocab">State</a> object to add the appropriate direction name adjectives, such as 'north', to the SymDoor's vocab).</p>
+
+<a name="sympassage"></a>
+<p>Finally, a <strong>SymPassage</strong> is very like a <a href="#symdoor">SymDoor</a>, except that it can't be opened or closed (at least, not via player commands). The <span class="code">SymPassage</span> class can be used to define passage-like objects such as passageways and archways that connect one location to another. A <span class="code">SymPassage</span> is otherwise defined in exactly the same way as a <span class="code">SymDoor</span>; from a player's perspective it is functionally equivalent to a <a href="../../docs/manual/extra.htm#travelconn">Passage</a>, the differences from the game author's point of view being that it can be defined using one game object instead of two and that this extension automatically takes care of setting up the connection in the reverse direction.</p> 
+
+<p>The <span class="code">SymPassage</span> class does define the <span class="code">isOpen</span> property which is true by default. The symconn extension makes no use of this property on <span class="code">SymPassage</span>, but game could use it to simulate a passage that starts out blocked, e.g.:</p> 
+
+ <p><div class="code"><pre>
+ cave: Room 'Cave'
+    "A passage runs off to the west. "
+    west: SymPassage
+    {
+       -&gt; cave2
+       'passage; narrow'
+       "&lt;&lt;isOpen&gt;&gt;It's quite narrow, but you should be able to squeeze through. &lt;&lt;else&gt;&gt;It's blocked by a fall of rock. &lt;&lt;end&gt;&gt;"
+       
+       isOpen = nil
+       canTravelerPass(traveler) { return isOpen; }
+       
+       explainTravelBarrier(traveler)
+       {
+           "The passage is blocked by rubble from a rockfall. ";
+       }
+    } 
+ </pre></div>
+
+<p>Then at some later point in the game when the player managed to unblock the passage you would call <span class="code">cave.west.makeOpen(true);</span></p> 
+
+
+
+<p>Note that <span class="code">SymPassage</span> is a subclass of <span class="code">SymConnector</span> (and <span class="code">MultiLoc</span>) and the superclass of <span class="code">SymDoor</span>, but that <span class="code">SymPassage</span> does not inherit from <span class="code">Passage</span>, or <span class="code">SymDoor</span> from <span class="code">Door</span>.</p>
+ 
+<a name="further"></a>
+<h2>Further Considerations</h2> 
+<p>The symconn extension doesn't enable you to do anything you couldn't do without it; it just makes setting up (most) connections a bit less work. The main upside is that it gives you a bit less typing to do; a corresponding potential downside is that it may make your code less clear, since some of the connections between rooms will be implicitly added by the extension rather than shown explicitly in your code (for example, if you define <span class="code">hall.east</span> as <span class="code">study</span> and leave this extension to define <span class="code">study.west = hall</span>, then when you come to look at your code later it may not be apparent that there's an exit west from the study to the hall (especially if the definitions of the study and the hall are some way apart in your code). You could, of course, add a comment to that effect, but then you might as well have defined <span class="code">study.west = hall</span> in your code. A subsidiary advantage of using this extension is that should you forget to define a connection back (e.g. you define <span class="code">hall.east</span> as <span class="code">study</span> but forget to define <span class="code">study.west</span> as <span class="code">hall</span>), this extension will take care of it for you. The corresponding disadvantage is that you'd have to remember to explicitly define <span class="code">study.west = noExit</span> if for some reason you didn't want the connection back, although since this is unlikely to occur very often, in this instance the advantage might clearly outweigh the disadvantage.</p> 
+
+<p>Being able to define doors with one (SymDoor) object instead of two (Door) objects may well be a welcome saving of labour, especially if the majority of doors in your game are the same both sides, as may often be the case. To make your code clearer, you may prefer to define the <span class="code">room1</span> and <span class="code">room2</span> properties on your SymDoors (and SymPassages) explicitly; for example, instead of:</p>
+ 
+ <p><div class="code"><pre>
+blackDoor1: SymDoor 'black door'
+    "It's black. "
+    room2 = greenRoom
+ ; 
+ </pre></div> 
+
+<p>You could write:</p> 
+ 
+  <p><div class="code"><pre>
+blackDoor1: SymDoor 'black door'
+    "It's black. "
+    room1 = redRoom
+    room2 = greenRoom
+ ; 
+ </pre></div> 
+
+<p>Or, using an alternative form of the SymPassage/SymDoor template:</p>
+ 
+   <p><div class="code"><pre>
+blackDoor1: SymDoor 'black door' @redRoom @greenRoom
+    "It's black. "    
+ ; 
+ </pre></div> 
+
+<p>Which may make it clearer in your code which two rooms the black door is connecting. Note, however, that if you do this you must also define <span class="code">redRoom.south = blackDoor</span> (and you could also optionally define <span class="code">greenRoom.north = blackDoor</span> if you wished for the sake of clarity). Or, more generally, if you explicitly define the <span class="code">room1</span> property on a SymDoor or a SymPassage, you must (normally) also remember to assign the SymDoor or SymPassage to a direction property of <span class="code">room1</span>.</p> 
+
+<p>A possible exception to this, where you would have to define the room1 and room2 properties explicitly without assigning the SymDoor to a direction property of room1 would be if you were trying to model the presence of more than one door leading in the same direction. For example, suppose there were two doors, a red door and a green door both leading west from the same room. One way you could model this might be as follows:</p>
+
+ <p><div class="code"><pre>
+ livingRoom: Room 'The Living Room' 
+    "There are two doors on the west side of the room, one red and
+     the other green. "
+        
+    west: TravelConnector
+    {
+        getDestination(origin)
+        {
+            switch(pcRouteFinder.currentDestination)
+            {
+            case redRoom:
+                return redRoom;
+            case greenRoom:
+                return greenRoom;
+            default:
+                return nil;
+            }
+        }
+        
+        execTravel(actor, traveler, conn)
+        {
+            local dest = getDestination(traveler.getOutermostRoom);
+            if(dest == redRoom)
+                redDoor.execTravel(actor, traveler, conn);
+            else if(dest == greenRoom)
+                greenDoor.execTravel(actor, traveler, conn);
+            else            
+            {
+                "There are two doors to the west, a red one and a green one. ";
+                askChooseObject(GoThrough, DirectObject, 'Which one do you want
+                    to go through? ');
+            }
+        }
+    }
+    
+    
+;
+
+redDoor: SymDoor 'red door' @livingRoom @redRoom
+;
+
+greenDoor: SymDoor 'green door' @livingRoom @greenRoom
+;
+ </pre></div>
+
+<p>Here, most of the complication on the TravelConnector defined on <span class="code">livingRoom.west</span> is simply to allow the routefinder to find a route to the red room and the green room through the red and green doors. If you weren't concerned about that, you could simply define:</p> 
+ 
+ <p><div class="code"><pre>
+   west()
+   {
+       "There are two doors to the west, a red one and a green one. ";
+        askChooseObject(GoThrough, DirectObject, 'Which one do you want
+        to go through? ');
+   }
+ 
+ </pre></div> 
+ 
+<p>But then GO TO RED ROOM and GO TO GREEN ROOM might fail to work as expected.</p> 
+ 
+<p>Overall it's up to you as a game author to weigh up the pros and cons of various different approaches, including whether or not to use this extension, and then make your own decision about how you want to work.</p> 
+ 
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../symconn.t">symconn.t</a> file.</p>
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Symconn
+<br><span class="navnp"><a class="nav" href="subtime.htm"><i>Prev:</i> Subtime</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="sysrules.htm"><i>Next:</i> Sysrules</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
