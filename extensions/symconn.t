@@ -173,7 +173,7 @@ class SymConnector: TravelConnector
             /* Set our room2 property to our destination */
             room2 = destination;          
         }
-    }
+    }    
 ;
 
 /* 
@@ -290,6 +290,18 @@ class SymPassage: MultiLoc, SymConnector, Thing
         return dir == nil ? nil : dir.dirProp;         
     }
     
+    /* 
+     *   We're visible in the dark if the room on either side of us is
+     *   illuminated
+     */    
+    visibleInDark
+    {
+        if(transmitsLight && room1 && room2)
+            return room1.isIlluminated || room2.isIlluminated;
+        
+        return nil;
+    }
+    
 ;
 
 /*  
@@ -320,6 +332,20 @@ class SymDoor: SymPassage
      *   method.
      */
     cannotGoThroughClosedDoorMsg = delegated Door
+    
+    /* 
+     *   By default we leave game authors to decide if and how they want to
+     *   report whether a door is open or closed.
+     */
+    openStatusReportable = nil
+    
+    /*  
+     *   Flag, do we want to attempt to unlock this door via an implicit action
+     *   if someone attempts to open it while it's locked?
+     */
+    autoUnlock = nil
+    
+    
     
 ;
     
