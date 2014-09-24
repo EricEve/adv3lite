@@ -1041,7 +1041,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   If we're a room, are we illuminated (is there enough light for an actor
      *   within us to see by)?
      */
-    isIlluminated
+    isIlluminated()
     {
         /* 
          *   If the room itself is lit, then it's self-illuminating and we don't

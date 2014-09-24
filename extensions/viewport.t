@@ -60,6 +60,29 @@ class Viewport: object
      */
     visibleRooms = []  
     
+    
+    /*   Set the list of visible rooms to lst */
+    setRooms(lst)
+    {
+        /* Ensure that lst is actually a list. */
+        lst = valToList(lst);
+        
+        local loc = getOutermostRoom();
+        
+        /* 
+         *   Provided we have an outermost room, set its roomsViewed property to
+         *   the list of rooms roomsViewed has in common with list; this ensures
+         *   that only those rooms that this Viewport continues to overlook
+         *   remain in scope.
+         */
+        if(loc)
+            loc.roomsViewed = loc.roomsViewed.intersect(lst);
+        
+        /* Change the list of visible rooms to lst. */
+        visibleRooms = lst;
+    }
+    
+    
     /*   
      *   Flag: can I see into the visibleRooms by looking through this object?
      *   This should normally be true for a window-type object but probably nil
@@ -90,6 +113,10 @@ class Viewport: object
         }
     }
     
+    /* 
+     *   If examining this Viewport should describe what it shows, add a
+     *   description of the rooms it overlooks.
+     */
     examineStatus()
     {
        if(examineToView && isViewing)
