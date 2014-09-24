@@ -1975,6 +1975,13 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     visibleInDark = nil
     
+    /*   
+     *   An optional description to be displayed instead of our normal desc and
+     *   any status information (such as our contents) if we're examined in a
+     *   dark room and visibleInDark is true. Note that if visibleInDark is nil
+     *   inDarkDesc will never be used.
+     */
+    inDarkDesc = nil
     
     /* 
      *   Is this object lightable (via a player command)? Note that setting this
@@ -3837,6 +3844,25 @@ class Thing:  ReplaceRedirector, Mentionable
         action()
         {            
             local descDisplayed = nil;
+            
+            /* 
+             *   If we have a non-nil darkDesc property and we're in a dark
+             *   room, display our darkDesc and stop there. Note this will only
+             *   ever happen if we're visibleInDark.
+             */
+            if(propType(&inDarkDesc) != TypeNil 
+               && !getOutermostRoom.isIlluminated())
+            {
+                /* Display our darkDesc */
+                display(&inDarkDesc);
+                
+                /* 
+                 *   Stop there, because in a dark room we can only be seen
+                 *   partially, and so we don't add any status information or
+                 *   record that we've been (properly) examined.
+                 */
+                return;
+            }
             
             /* 
              *   Display our description. Normally the desc property will be
