@@ -2409,7 +2409,10 @@ class Thing:  ReplaceRedirector, Mentionable
         /* If we have a location, remove us from its list of contents. */
         if(location != nil)            
             location.removeFromContents(self);
-               
+
+        /* We are no longer being worn by our original location */
+        wornBy = nil;
+
         /* Set our new location. */
         location = newCont;
                
