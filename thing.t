@@ -1384,7 +1384,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   or of any items that don't have any contents to list.
              */
             if(obj.contType == Carrier 
-               || obj.(lister).contentsListedProp == nil
+               || obj.(obj.(lister).contentsListedProp) == nil
                || obj.canSeeIn() == nil
                || obj.contents.length == 0)
                 continue;
