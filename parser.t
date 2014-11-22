@@ -2991,6 +2991,23 @@ class TopicPhrase: NounPhrase
              *   the objects in physical scope.
              */
              v.appendAll(matchNameScope(cmd, scope));
+            
+            /* 
+             *   Create a dummy object to represent the literal text; we may
+             *   need this even if there are other matches to ensure that a
+             *   regular expression is matched on a TopicEntry.
+             */
+            local obj = new Topic(tokens.join(' ').trim());
+            
+            /* Wrap the dummy object in am NPMatch object */
+            local lst = [obj];
+
+            addMatches(v, lst, 1);
+            
+            matches = v;  
+            
+            cmd.madeTopic = true;
+            
 
         }
         
@@ -3021,19 +3038,9 @@ class TopicPhrase: NounPhrase
         
       
         
-        if(matches.length == 0)
+//        if(matches.length == 0)
         {        
-            /* Create a dummy object to represent the literal text */
-            local obj = new Topic(tokens.join(' ').trim());
-            
-            /* Wrap the dummy object in am NPMatch object */
-            local lst = [obj];
-//            addMatches(v, lst, MatchNoApprox);
-            addMatches(v, lst, 1);
-            
-            matches = v;  
-            
-            cmd.madeTopic = true;
+           
         }
         
         
