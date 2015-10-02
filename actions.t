@@ -348,12 +348,8 @@ DefineSystemAction(ExtraHints)
         
         if(onOff == nil)
         {
-            local cmd = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
+            showExtraHintStatus();
             
-            DMsg(extra hints status,            
-            'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
-            them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmd,
-                cmd, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ');
             return;
                     
         }
@@ -365,6 +361,23 @@ DefineSystemAction(ExtraHints)
             gExtraHintManager.activate();
         
         DMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
+    }
+    
+    /* 
+     *   Routine to display message saying that extra hints are on or off.
+     *   Translators may want to override this method to display a message if it
+     *   can't readily be done in a CustomMessages object.
+     */
+    showExtraHintStatus()
+    {
+        local cmdstr = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
+        
+        DMsg(extra hints status,            
+            'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
+            them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmdstr,
+                cmdstr, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ',
+                 cmdstr);
+            return;
     }
     
     extraHintsActive = (gExtraHintManager != nil && gExtraHintManager.activated)

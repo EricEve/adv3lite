@@ -192,7 +192,7 @@ buildMessage(id, txt, [args])
         /* Find the next closing brace that follows the opening brace */
         closeBrace = txt.find('}', openBrace);
         
-        /* If there isn't one, we're done, so leace the loop. */
+        /* If there isn't one, we're done, so leave the loop. */
         if(closeBrace == nil)
             break;
         
