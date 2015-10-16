@@ -1201,10 +1201,15 @@ DefineTIAction(PutIn)
     announceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        local sl = scopeList.subset({ x: !x.isFixed
+                                && (curIobj == nil || (!x.isOrIsIn(curIobj)))});
+        
+        if(sl.length > 0)
+            return sl;
+        
+        return scopeList.subset({x: !x.isFixed});
     }
         
 ; 

@@ -24,7 +24,7 @@ say(val)
     if(dataType(val) == TypeSString)   
     {       
         dmsg(val);           
-    }
+    }    
     else
         oSay(val);
 
@@ -204,7 +204,8 @@ class OutputStream: PreinitObject
             break;
             
         case TypeNil:
-            /* nil - don't display anything for this */
+        case TypeTrue:    
+            /* nil or true - don't display anything for this */
             return;
             
         case TypeInt:
