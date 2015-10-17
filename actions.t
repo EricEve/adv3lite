@@ -1189,12 +1189,47 @@ DefineTIAction(MoveWith)
 DefineTIAction(PutOn)       
     announceMultiAction = nil
     allowAll = true
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
+
+/* 
+ *   Return a suitable list of direct objects for a PUT ALL PREP XXX command,
+ *   where iobj is the indirect object of the command and slist is the full
+ *   scopelist for the action.
+ *
+ *   Ideally we want to return a list of all the objects that can be put in
+ *   iobj, namely all the objects in scope that are portable and not already in
+ *   iobj, and not the iobj. But if no objects fit the bill we have to fall back
+ *   on first, all portable objects in scope and, failing that, all objects in
+ *   scope except the room and the actor.
+ */
+
+putAllScope(iobj, slist)
+{
+    /* Get a list of all the portable objects in scope. */
+    local portables = slist.subset({x: !x.isFixed});
+    
+    /* If there are none, return the scope list less the actor and any rooms */
+    if(portables.length < 1)
+        return slist.subset({x: !x.ofKind(Room) && x != gActor});
+    
+    /* 
+     *   Get a list of suitable objects, i.e. portable objects that are not in
+     *   the iobj and are not the iobj.
+     */
+    local suitables = portables.subset({x: iobj == nil || !x.isOrIsIn(iobj)});
+    
+    /* if there's anything in this list, return it */
+    if(suitables.length > 0)
+        return suitables;
+    
+    /* Otherwise return the list of portable objects. */
+    
+    return portables;
+}
 
 
 DefineTIAction(PutIn)          
@@ -1203,25 +1238,21 @@ DefineTIAction(PutIn)
     
     getAll(cmd, role)   
     {
-        local sl = scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isOrIsIn(curIobj)))});
-        
-        if(sl.length > 0)
-            return sl;
-        
-        return scopeList.subset({x: !x.isFixed});
+        return putAllScope(curIobj, scopeList);
     }
-        
+    
 ; 
+
+
+
 
 DefineTIAction(PutUnder)      
     announceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
 
@@ -1229,10 +1260,9 @@ DefineTIAction(PutBehind)
     nnounceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(curIobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
 

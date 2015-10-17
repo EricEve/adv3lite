@@ -5273,8 +5273,8 @@ class Thing:  ReplaceRedirector, Mentionable
     circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {in iobj}
         while {the subj iobj} {is} {in dobj}. ')
         
-    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put anything
-        {1} itself. ', gIobj.objInPrep)
+    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put {the dobj}
+        {1} {itself dobj}. ', gIobj.objInPrep)
     
     iobjFor(PutOn)
     {
