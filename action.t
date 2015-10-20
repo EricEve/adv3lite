@@ -1094,8 +1094,36 @@ class IAction: Action
      */
     execResolvedAction()
     {
-        execAction(gCommand);
+        /* 
+         *   Capture the output from this action in case we don't want to
+         *   display it (if we're an implicit action).
+         */
+        local str = gOutStream.captureOutput({: execAction(gCommand) });
+        
+        /* 
+         *   If this action is being performed implicitly, we should display an
+         *   implicit action report for it.
+         */
+        if(isImplicit)
+            buildImplicitActionAnnouncement(!actionFailed);
+        
+        /* Otherwise, display the normal output from this action */
+        else
+            say(str);
     }
+    
+    execCycle(cmd)
+    {
+        /* Excecute the action and store the output. */
+        local str = gOutStream.captureOutput({: inherited(cmd) });
+        
+        /* Display any pending implicit action reports */
+        "<<buildImplicitActionAnnouncement(true)>>";
+        
+        /* Display the standard output from this action. */
+        say(str);
+    }
+    
     
     /* Nothing to do here. */
     setResolvedObjects([objs]) { }
@@ -1781,10 +1809,13 @@ class TAction: Action
          */
         
         
-        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
+        if(isImplicit)
+            buildImplicitActionAnnouncement(true, nil);
         
-        if(!isEmptyStr(impAnnounce))
-            gOutStream.setPrefix(impAnnounce);
+//        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
+//        
+//        if(!isEmptyStr(impAnnounce))
+//            gOutStream.setPrefix(impAnnounce);
         
         
         /* 
@@ -1801,12 +1832,14 @@ class TAction: Action
          */            
         try
         {
+            gOutStream.addOutputFilter(ImplicitActionFilter);
             msg = gOutStream.watchForOutput({: doAction() });
         }
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-            gOutStream.setPrefix(nil);
+//            gOutStream.setPrefix(nil);
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         
@@ -2234,15 +2267,25 @@ class TIAction: TAction
          *   so they'll appear before anything else that's output.
          */
        
+        if(isImplicit)
+            buildImplicitActionAnnouncement(true, nil);
         
-        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-        
-        if(!isEmptyStr(impAnnounce))
-            gOutStream.setPrefix(impAnnounce);
+//        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
+//        
+//        if(!isEmptyStr(impAnnounce))
+//            gOutStream.setPrefix(impAnnounce);
         
         
         try
         {
+            /* 
+             *   First add the ImplicitActionFilter to the output stream so that
+             *   any text output from the action routines are preceeded by any
+             *   pending implicit action reports.
+             */
+            
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
             /* 
              *   Run the action routine on the current direct object and capture
              *   the output for later use. If the output is null direct object
@@ -2280,6 +2323,8 @@ class TIAction: TAction
         {
             /* Remove any implicit action announcement from the output stream */
             gOutStream.setPrefix(nil);   
+            
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
        
         /* 
@@ -2460,6 +2505,9 @@ class TopicTAction: TAction
                 curIobj.topicList[i] = curDobj;
             
             if(cur == It && curDobj.isIt)
+                curIobj.topicList[i] = curDobj;
+            
+            if(cur == Them && (curDobj.plural || curDobj.ambiguouslyPlural))
                 curIobj.topicList[i] = curDobj;
         }
     }

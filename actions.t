@@ -1979,6 +1979,9 @@ class ImplicitConversationAction: TopicAction
             
             if(cur == It && actor.isIt)
                 topics[i] = actor;
+            
+            if(cur == Them && actor.plural)
+                topics[i] = actor;
         }
     }
     
