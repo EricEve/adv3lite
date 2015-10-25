@@ -1795,28 +1795,20 @@ class TAction: Action
          *   action which wants to announce objects in this context, do so.
          */        
          if(announceMultiAction && gCommand.dobjs.length > 1)
-            announceObject(curDobj);
-        
-         
+            announceObject(curDobj);       
             
         
         /* Note that the current object is the direct object */
         curObj = curDobj;
         
         /* 
-         *   Add any pending implicit action announcements to the output stream
-         *   so they'll appear before anything else that's output.
-         */
-        
-        
+         *   Add the ImplicitActionFilter to the current output stream so that
+         *   any pending implicit action reports are prepended to any action
+         *   reports output at this stage.
+         */        
         if(isImplicit)
             buildImplicitActionAnnouncement(true, nil);
-        
-//        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-//        
-//        if(!isEmptyStr(impAnnounce))
-//            gOutStream.setPrefix(impAnnounce);
-        
+
         
         /* 
          *   If the action method displays anything then we don't add this
@@ -1833,12 +1825,13 @@ class TAction: Action
         try
         {
             gOutStream.addOutputFilter(ImplicitActionFilter);
+            
             msg = gOutStream.watchForOutput({: doAction() });
         }
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-//            gOutStream.setPrefix(nil);
+
             gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
@@ -1851,14 +1844,7 @@ class TAction: Action
         {
             reportList += curDobj;                  
         }
-        else if(!isImplicit)
-        {
-            /* 
-             *   Otherwise, if we're not an implicit action, clear out the
-             *   implicit action reports which we should now have displayed.
-             */
-            gCommand.implicitActionReports = [];              
-        }
+       
         
         /* Note that we've carried out the action on this object. */
         actionList += curDobj;
@@ -2263,18 +2249,12 @@ class TIAction: TAction
         curObj = curDobj;     
         
         /* 
-         *   Add any pending implicit action announcements to the output stream
-         *   so they'll appear before anything else that's output.
-         */
-       
+         *   Add the ImplicitActionFilter to the current output stream so that
+         *   any pending implicit action reports are prepended to any action
+         *   reports output at this stage.
+         */       
         if(isImplicit)
             buildImplicitActionAnnouncement(true, nil);
-        
-//        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-//        
-//        if(!isEmptyStr(impAnnounce))
-//            gOutStream.setPrefix(impAnnounce);
-        
         
         try
         {
@@ -2322,8 +2302,7 @@ class TIAction: TAction
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-            gOutStream.setPrefix(nil);   
-            
+                       
             gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
        
@@ -2337,17 +2316,9 @@ class TIAction: TAction
         if(!(msgForDobj) && !(msgForIobj))
         {
             ioActionList += curIobj;
+            
             reportList = reportList.appendUnique([curDobj]);            
-        }    
-        else if(!isImplicit)
-        {
-            /* 
-             *   Otherwise, if we're not an implicit action, clear out the
-             *   implicit action reports which we should now have displayed.
-             */
-            gCommand.implicitActionReports = [];              
-        }
-        
+        }           
         
         /* 
          *   Return true to tell our caller we completed the action

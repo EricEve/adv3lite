@@ -859,10 +859,20 @@ class ImplicitActionFilter: OutputFilter
     
     filterText(ostr, txt)    
     {      
+        /* 
+         *   This method should never be called if we don't have a current
+         *   action, but just in case we return the text unchanged if there is
+         *   no gAction.
+         */
         if(gAction == nil)
             return txt;
         
-        return gAction.buildImplicitActionAnnouncement(true, true) + txt;
+        /* 
+         *   If we do have have a gAction, prepend any pending implicit action
+         *   announcements to the text we output.
+         */
+        return gAction.buildImplicitActionAnnouncement(true, !gAction.isImplicit)
+            + txt;
     }   
 ;
 
