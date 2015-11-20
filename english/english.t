@@ -3834,9 +3834,8 @@ nounRoleQuestion(cmd, role)
     /* substitute each other-object phrase and return the result */    
    return q.findReplace(
         R'(<lparen><alpha|space>+)?%<(it|that)(-<alpha>+)?%><rparen>?',
-        f).trim();
-       
-    
+        f).trim();   
+   
 }
 
 

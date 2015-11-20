@@ -1114,14 +1114,27 @@ class IAction: Action
     
     execCycle(cmd)
     {
-        /* Excecute the action and store the output. */
-        local str = gOutStream.captureOutput({: inherited(cmd) });
+        try
+        {
+            /* 
+             *   Add an output filter to display any pending implicit action
+             *   reports before any other text
+             */    
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
+            /* Carry out the inherited handling. */
+            inherited(cmd);
+        }
         
-        /* Display any pending implicit action reports */
-        "<<buildImplicitActionAnnouncement(true)>>";
+        finally
+        {
+            /*  
+             *   Remove the filter that displays pending implicit action
+             *   reports.
+             */            
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
+        }
         
-        /* Display the standard output from this action. */
-        say(str);
     }
     
     
