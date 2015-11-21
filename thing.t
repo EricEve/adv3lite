@@ -3936,7 +3936,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             if(!descDisplayed)
                 DMsg(nothing special,  '{I} {see} nothing special about 
-                {1}. ', theName); 
+                {the 1}. ', self); 
                
             
             /*   Note that we've now been examined. */
