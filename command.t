@@ -614,17 +614,6 @@ class Command: object
      */
     addNounProd(role, prod)
     {
-        /* 
-         *   The type of missing phrase we're looking for depends on the type of
-         *   action.
-         */
-//        if(action.ofKind(TopicAction))
-//            prod.npClass = TopicPhrase;
-//        else if(action.ofKind(LiteralAction))
-//            prod.npClass = LiteralPhrase;
-//        else 
-//            prod.npClass = NounPhrase;
-        
         /* create a noun list item for the production */
         local np = addNounListItem(role, prod);
         

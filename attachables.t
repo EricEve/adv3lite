@@ -743,7 +743,7 @@ class PlugAttachable: object
     alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
         plugged into {1}. ', attachedTo.theName)
     
-    alreadyPluggedInMsg = BMsg(already plugged in vagaue, '{The subj {dobj} {is}
+    alreadyPluggedInMsg = BMsg(already plugged in vague, '{The subj {dobj} {is}
         already plugged in. ')
     
     iobjFor(PlugInto)
