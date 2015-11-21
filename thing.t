@@ -1356,6 +1356,34 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         contList = valToList(contList);
         
+        /* 
+         *   Ensure the contents of any associated remapXX items are included in
+         *   the list of items whose contents are to be listed.
+         */
+        
+        /* Initialize an empty list to collect the remapXXX items. */
+        local lst = [];
+        
+        /* 
+         *   Go through every item in the contList to see if it has any remapXXX
+         *   objects attached. If so add the remapXXX object to our list.
+         */
+        foreach(local cur in contList)
+        {
+            foreach(local prop in remapProps)
+            {
+                local obj = cur.(prop);
+                if(obj != nil)
+                    lst += obj;
+            }
+        }
+        
+        /*  
+         *   Append the list of remapXXX objects to the list of items whose
+         *   contents are to be listed.
+         */
+        contList = contList.appendUnique(lst);
+        
         
                 
         /* 
@@ -1499,6 +1527,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
          
     }
+    
+    
     
     /* 
      *   Do we want paragraph breaks between the listings of subcontents (i.e.
@@ -2081,6 +2111,10 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
+    /* The list of possible remap props */
+    remapProps = [&remapOn, &remapIn, &remapUnder, &remapBehind]
+    
+    
     /* 
      *   If remapIn is not nil, a LOOK IN, PUT IN, OPEN, CLOSE, LOCK or UNLOCK
      *   command performed on this Thing will be redirected to the object
@@ -2641,6 +2675,21 @@ class Thing:  ReplaceRedirector, Mentionable
             }       
                     
         }
+        
+        /* 
+         *   if we have any remapXXX properties, set those objects to the same
+         *   listOrder as our own, since they're effectively representations of
+         *   ourself.
+         */
+        
+        for(local prop in remapProps)
+        {
+            local obj = self.(prop);
+            if(obj)
+                obj.listOrder = listOrder;
+        }
+        
+        
 
         /* 
          *   If we're compiling for debug, warn the user if s/he's used the

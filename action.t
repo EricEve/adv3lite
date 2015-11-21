@@ -1133,8 +1133,7 @@ class IAction: Action
              *   reports.
              */            
             gOutStream.removeOutputFilter(ImplicitActionFilter);
-        }
-        
+        }        
     }
     
     
