@@ -2427,7 +2427,7 @@ class TopicTAction: TAction
     {
         
         /* 
-         *   determine which is the Thing-type object and which is the literal
+         *   determine which is the Thing-type object and which is the topic
          *   value and plug each into the right slot. We ensure that the
          *   physical object (the Thing) ends up as the direct object and the
          *   ResolvedTopic as the indirect object.

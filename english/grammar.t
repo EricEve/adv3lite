@@ -289,8 +289,8 @@ grammar outOfSingleNoun(main):
 ;
 
 grammar aboutTopicPhrase(main):
-   topicPhrase->np_ | 'about' topicPhrase->np_
-   : Production
+   'about' topicPhrase->np_ | topicPhrase->np_ 
+   : TopicNounProduction
 ;
 
 grammar completeNounPhrase(main):

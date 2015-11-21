@@ -4187,7 +4187,7 @@ class NumberNounProduction: Production
  *   as a direct, indirect, or accessory object.  
  */
 class TopicNounProduction: Production
-    /* we use the TopicPhrase subclass for a noun phrase entries */
+    /* we use the TopicPhrase subclass for a topic phrase entry */
     npClass = TopicPhrase
 ;
 
