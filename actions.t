@@ -417,7 +417,7 @@ DefineSystemAction(Verbose)
         else
         {
             gameMain.verbose = true;
-            DMsg(game now brief, 'The game is now in VERBOSE mode. <<first
+            DMsg(game now verbose, 'The game is now in VERBOSE mode. <<first
                   time>>Full room descriptions be shown each time a room is
                 visited.<<only>> ');
         }            
