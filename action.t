@@ -1313,8 +1313,19 @@ class TravelAction: Action
              *   If the connector is visible to the actor then attempt travel
              *   via the connector.
              */
-            if(conn.isConnectorVisible)
-                conn.travelVia(gActor);
+            if(conn.isConnectorVisible)                
+            {
+                /* if the actor is the player char, just carry out the travel */
+                if(gActor == gPlayerChar)
+                    conn.travelVia(gActor);
+                
+                /* 
+                 *   otherwise carry out the travel and display the appropriate
+                 *   travel notifications.
+                 */
+                else
+                    gActor.travelVia(conn);
+            }
             
             /* 
              *   Otherwise if there's light enough to travel and the actor is

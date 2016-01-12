@@ -3739,6 +3739,17 @@ class Thing:  ReplaceRedirector, Mentionable
      */     
     afterTravel(traveler, connector) {}
     
+    /*   
+     *   Cause this Thing to travel via the connector conn. This method is
+     *   supplied in case travelVia is called on a Thing which is not an Actor,
+     *   although it's Actor that has the full implementation.
+     */
+    travelVia(conn, announceArrival = true)
+    {
+        /* Move this actor via conn. */
+        conn.travelVia(self);
+    }
+    
     /* 
      *   Handle a command directed to this open (e.g. BALL, GET IN BOX). Since
      *   inanimate objects generally can't respond to commands we simply display

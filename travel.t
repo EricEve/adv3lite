@@ -740,7 +740,7 @@ class Door: TravelConnector, Thing
          *   if they fail to indicate that travel through the door is not
          *   possible.
          */
-        if(inherited(traveler) == nil)
+        if(inherited (traveler) == nil)
             return nil;
         
         /*  If the Door isn't open, try to open it via an implicit action. */
