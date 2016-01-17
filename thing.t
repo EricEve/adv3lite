@@ -3746,8 +3746,17 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     travelVia(conn, announceArrival = true)
     {
-        /* Move this actor via conn. */
-        conn.travelVia(self);
+        /* 
+         *   If we've been mixed in with a TravelConnector class, it's almost
+         *   certainly the TravelConnector's version of travelVia() that we need
+         *   to execute here.
+         */        
+        if(ofKind(TravelConnector))
+            inherited TravelConnector(conn);
+        
+        else    
+            /* Move this actor via conn. */
+            conn.travelVia(self);
     }
     
     /* 
