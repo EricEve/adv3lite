@@ -312,7 +312,7 @@ scoreNotifier: object
                             'Show full score')>>
         has just <<delta > 0 ? 'in' : 'de'>>creased by
         <<spellNumber(delta > 0 ? delta : -delta)>>
-        point<<delta is in (1, -1) ? '' : 's'>>. ''');
+        point<<delta is in (1, -1) ? '' : 's'>>.''');
         
         cquoteOutputFilter.activate();
     }

@@ -2763,6 +2763,7 @@ VerbRule(SwitchOn)
     action = SwitchOn
     verbPhrase = 'turn/turning on (what)'
     missingQ = 'what do you want to turn on'
+    priority = 60
 ;
 
 VerbRule(SwitchOff)
