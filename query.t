@@ -150,6 +150,13 @@ Q: object
     /*  Determine if A can Throw something to B. */
     canThrowTo(a, b)
         { return Special.first(&canThrowTo).canThrowTo(a, b); }
+    
+    /* 
+     *   Are the active conditions on Specials dynamic (i.e. such as to change
+     *   during the course of the game)? By default we'll assume that some of
+     *   them may be.
+     */
+    dynamicSpecials = true
 ; 
 
 /*
@@ -561,6 +568,8 @@ class Special: object
      *   conditions that activate the Special.  
      */
     active = nil
+    
+      
 
     /*
      *   My priority.  This is an integer value that determines which
@@ -634,6 +643,14 @@ class Special: object
      */
     first(prop)
     {
+        /* 
+         *   If the active conditions on one or more Specials may change during
+         *   the course of the game, invalidate the list of active Specials to
+         *   force it to be rebuilt.
+         */
+        if(Q.dynamicSpecials)
+            Special.allActive_ = nil;
+        
         /* get the active Specials */
         local slst = Special.allActive();
 
@@ -781,7 +798,7 @@ commLink: Special
     {
         /* 
          *   We assume that if a can talk to b, b can talk to a, but the link is
-         *   only between the player character an another actor. If b is the
+         *   only between the player character and another actor. If b is the
          *   player character swap a and b so that the tests that follow will
          *   still apply.
          */
