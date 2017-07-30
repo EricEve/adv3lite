@@ -1355,20 +1355,21 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         local wasSeenLeaving = nil;
         local oldLoc = location;
         
+        if(Q.canSee(gPlayerChar, self))
+        {           
+            /* Note that we were seen leaving. */
+            wasSeenLeaving = true;
+        }
+        /* Move this actor via conn. */
+        conn.travelVia(self);
+        
         /* 
          *   If the player character can see this actor, display a message
          *   indicating this player's departure.
          */
-        if(Q.canSee(gPlayerChar, self))
-        {
-            sayDeparting(conn);
-            
-            /* Note that we were seen leaving. */
-            wasSeenLeaving = true;
-        }
         
-        /* Move this actor via conn. */
-        conn.travelVia(self);
+        if(wasSeenLeaving)
+            sayDeparting(conn);
         
         if(announceArrival && !wasSeenLeaving && Q.canSee(gPlayerChar, self))
             sayArriving(oldLoc);

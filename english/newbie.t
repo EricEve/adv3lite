@@ -779,9 +779,10 @@ DefineIAction(GoSomewhere)
 ;
 
 VerbRule(GoSomewhere)
-    ('go' | 'walk' | 'turn' | 'proceed' | 'run') ( | ('to' 'the') )
+    (('go' | 'walk' |  'proceed' | 'run') ( | ('to' 'the') )
     ('left' | 'right' | 'on' | 'onwards' | 'onward' | 'forward' | 'forwards' |
-     'around' | 'somewhere' | (('straight'| ) 'ahead'))
+     'around' | 'somewhere' | (('straight'| ) 'ahead'))) | ('turn'
+         ('left'|'right'))
     : VerbProduction
     action = GoSomewhere
     verbPhrase = 'go/going somewhere'

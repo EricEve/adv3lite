@@ -263,17 +263,22 @@ class TIAAction: TIAction
          */
         curObj = curDobj;     
         
-        /* 
-         *   Add any pending implicit action announcements to the output stream
-         *   so they'll appear before anything else that's output.
+        /*  
+         *   If we're an implicit action add us to the list of implicit actions
+         *   to be reported.
          */
-        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-        
-        if(!isEmptyStr(impAnnounce))
-            gOutStream.setPrefix(impAnnounce);
+        if(isImplicit)
+            buildImplicitActionAnnouncement(true, nil);
         
         try
         {
+            /* 
+             *   Add the ImplicitActionFilter to the current output stream so
+             *   that any pending implicit action reports are prepended to any
+             *   action reports output at this stage.
+             */
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
             /* 
              *   Run the action routine on the current direct object and capture
              *   the output for later use. If the output is null direct object
@@ -324,7 +329,8 @@ class TIAAction: TIAction
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-            gOutStream.setPrefix(nil);   
+            
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         /* 

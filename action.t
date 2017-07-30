@@ -1094,8 +1094,48 @@ class IAction: Action
      */
     execResolvedAction()
     {
-        execAction(gCommand);
+        /* 
+         *   Capture the output from this action in case we don't want to
+         *   display it (if we're an implicit action).
+         */
+        local str = gOutStream.captureOutput({: execAction(gCommand) });
+        
+        /* 
+         *   If this action is being performed implicitly, we should display an
+         *   implicit action report for it.
+         */
+        if(isImplicit)
+            buildImplicitActionAnnouncement(!actionFailed);
+        
+        /* Otherwise, display the normal output from this action */
+        else
+            say(str);
     }
+    
+    execCycle(cmd)
+    {
+        try
+        {
+            /* 
+             *   Add an output filter to display any pending implicit action
+             *   reports before any other text
+             */    
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
+            /* Carry out the inherited handling. */
+            inherited(cmd);
+        }
+        
+        finally
+        {
+            /*  
+             *   Remove the filter that displays pending implicit action
+             *   reports.
+             */            
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
+        }        
+    }
+    
     
     /* Nothing to do here. */
     setResolvedObjects([objs]) { }
@@ -1273,8 +1313,19 @@ class TravelAction: Action
              *   If the connector is visible to the actor then attempt travel
              *   via the connector.
              */
-            if(conn.isConnectorVisible)
-                conn.travelVia(gActor);
+            if(conn.isConnectorVisible)                
+            {
+                /* if the actor is the player char, just carry out the travel */
+                if(gActor == gPlayerChar)
+                    conn.travelVia(gActor);
+                
+                /* 
+                 *   otherwise carry out the travel and display the appropriate
+                 *   travel notifications.
+                 */
+                else
+                    gActor.travelVia(conn);
+            }
             
             /* 
              *   Otherwise if there's light enough to travel and the actor is
@@ -1767,25 +1818,20 @@ class TAction: Action
          *   action which wants to announce objects in this context, do so.
          */        
          if(announceMultiAction && gCommand.dobjs.length > 1)
-            announceObject(curDobj);
-        
-         
+            announceObject(curDobj);       
             
         
         /* Note that the current object is the direct object */
         curObj = curDobj;
         
         /* 
-         *   Add any pending implicit action announcements to the output stream
-         *   so they'll appear before anything else that's output.
-         */
-        
-        
-        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-        
-        if(!isEmptyStr(impAnnounce))
-            gOutStream.setPrefix(impAnnounce);
-        
+         *   Add the ImplicitActionFilter to the current output stream so that
+         *   any pending implicit action reports are prepended to any action
+         *   reports output at this stage.
+         */        
+        if(isImplicit)
+            buildImplicitActionAnnouncement(true, nil);
+
         
         /* 
          *   If the action method displays anything then we don't add this
@@ -1801,12 +1847,15 @@ class TAction: Action
          */            
         try
         {
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
             msg = gOutStream.watchForOutput({: doAction() });
         }
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-            gOutStream.setPrefix(nil);
+
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         
@@ -1818,14 +1867,7 @@ class TAction: Action
         {
             reportList += curDobj;                  
         }
-        else if(!isImplicit)
-        {
-            /* 
-             *   Otherwise, if we're not an implicit action, clear out the
-             *   implicit action reports which we should now have displayed.
-             */
-            gCommand.implicitActionReports = [];              
-        }
+       
         
         /* Note that we've carried out the action on this object. */
         actionList += curDobj;
@@ -2230,19 +2272,23 @@ class TIAction: TAction
         curObj = curDobj;     
         
         /* 
-         *   Add any pending implicit action announcements to the output stream
-         *   so they'll appear before anything else that's output.
-         */
-       
-        
-        local impAnnounce = buildImplicitActionAnnouncement(true, nil);
-        
-        if(!isEmptyStr(impAnnounce))
-            gOutStream.setPrefix(impAnnounce);
-        
+         *   Add the ImplicitActionFilter to the current output stream so that
+         *   any pending implicit action reports are prepended to any action
+         *   reports output at this stage.
+         */       
+        if(isImplicit)
+            buildImplicitActionAnnouncement(true, nil);
         
         try
         {
+            /* 
+             *   First add the ImplicitActionFilter to the output stream so that
+             *   any text output from the action routines are preceeded by any
+             *   pending implicit action reports.
+             */
+            
+            gOutStream.addOutputFilter(ImplicitActionFilter);
+            
             /* 
              *   Run the action routine on the current direct object and capture
              *   the output for later use. If the output is null direct object
@@ -2279,7 +2325,8 @@ class TIAction: TAction
         finally
         {
             /* Remove any implicit action announcement from the output stream */
-            gOutStream.setPrefix(nil);   
+                       
+            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
        
         /* 
@@ -2292,17 +2339,9 @@ class TIAction: TAction
         if(!(msgForDobj) && !(msgForIobj))
         {
             ioActionList += curIobj;
+            
             reportList = reportList.appendUnique([curDobj]);            
-        }    
-        else if(!isImplicit)
-        {
-            /* 
-             *   Otherwise, if we're not an implicit action, clear out the
-             *   implicit action reports which we should now have displayed.
-             */
-            gCommand.implicitActionReports = [];              
-        }
-        
+        }           
         
         /* 
          *   Return true to tell our caller we completed the action
@@ -2399,7 +2438,7 @@ class TopicTAction: TAction
     {
         
         /* 
-         *   determine which is the Thing-type object and which is the literal
+         *   determine which is the Thing-type object and which is the topic
          *   value and plug each into the right slot. We ensure that the
          *   physical object (the Thing) ends up as the direct object and the
          *   ResolvedTopic as the indirect object.
@@ -2460,6 +2499,9 @@ class TopicTAction: TAction
                 curIobj.topicList[i] = curDobj;
             
             if(cur == It && curDobj.isIt)
+                curIobj.topicList[i] = curDobj;
+            
+            if(cur == Them && (curDobj.plural || curDobj.ambiguouslyPlural))
                 curIobj.topicList[i] = curDobj;
         }
     }
@@ -2657,6 +2699,43 @@ tryImplicitAction(action, [objs])
     
 }
 
+/* 
+ *   Have an actor other than the current gActor try an implicit action (e.g. if
+ *   an npc moving as the result of an AgendaItem needs to implicitly open a
+ *   door to proceed): actor is the actor performing the action, action is the
+ *   action object to be performs, [objs] is the list of objects (if any) on
+ *   which the action is to be performed.
+ */
+tryImplicitActorAction(actor, action, [objs])
+{
+    /* 
+     *   Set up a local variable to store the result of trying the implicit
+     *   action.
+     */
+    local res = nil;
+    
+    /*  Make a note of the current actor of the current main command. */
+    local oldActor = gActor;
+    
+    
+    try
+    {
+        /* Temporarily make gActor the actor passed to this function. */
+        gActor = actor;
+        
+        /* Try the implicit action with this actor and store the result. */
+        res = tryImplicitAction(action, objs...);
+    }
+    
+    finally
+    {
+        /* Restore the original gActor */
+        gActor = oldActor;
+    }
+    
+    /* Return the result of attempting the implicit action. */
+    return res;
+}
 
 /* ------------------------------------------------------------------------ */
 /*

@@ -586,11 +586,11 @@ objSmellable: PreCondition
                     too far away to smell. ');
             
             /* 
-             *   Otherwise the reason the actor can't hear obj is that the first
+             *   Otherwise the reason the actor can't smell obj is that the first
              *   blocking object is in the way.
              */
             else           
-                errMsg = BMsg(cannot smell, '{I} {can\'t} smell {1} 
+                errMsg = BMsg(cannot smell through, '{I} {can\'t} smell {1} 
                 through {2}. ', obj.theName, lst[1].theName);
                 
             /* Declare obj to be inaccessible to hearing. */

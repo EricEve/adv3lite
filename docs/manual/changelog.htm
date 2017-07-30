@@ -17,6 +17,7 @@ Change Log
 <div class="main">
 <h1>Change Log</h1>
 <ul>
+<li><a href="#v1.51">Version 1.51</a></li>
 <li><a href="#v1.5">Version 1.5</a></li>
 <li><a href="#v1.4">Version 1.4</a></li>
 <li><a href="#v1.3">Version 1.3</a></li>
@@ -35,7 +36,12 @@ Change Log
 <li><a href="#v0.2">Version 0.2</a></li>
 </ul>
 
-<h2><a name="v1.5">Version 1.5 (tbd)</a></h2>
+<h2><a name="v1.51">Version 1.51</a></h2>
+<p>The <a href="query.htm#special">Special</a> class now invalidates the cached list of active Specials (<span class="code">Special.allActive_</span>) each time its <span class="code">first()</span> method is called. This ensures that the list of active Specials is recalculated every time the Q object is queried, which is useful if Specials become active or inactive during the course of the game. If this behaviour is not wanted, it can be switched off by setting <span class="code">Q.dynamicSpecials</span> to <span class="code">nil</span>.</p>
+
+<hr>
+
+<h2><a name="v1.5">Version 1.5 (28-Mar-2016)</a></h2>
 <p>There is now a <a href="../../extensions/docs/weight.htm">Weight</a> extension that can be used to track object weights in much the same way as the standard library already tracks bulk.</p>
 <hr>
 <p>There is now a <a href="../../extensions/docs/symconn.htm">SymConn</a> (Symmetrical Connectors) extension. This does two things. First, if a direction property of a room points to another room, it automatically sets up the connection back in the reverse direction (so, for example, if you defined <span class="code">hall.east = study</span> it would automatically set <span class="code">study.west = hall</span>). Second, it defines <strong>SymConnector</strong>, <strong>SymPassage</strong> and <strong>SymDoor</strong> classes which can be used to set up symmetrical connections between rooms requiring one object instead of the normal two (so that, for example, a single <span class="code">SymDoor</span> object can be used to represent both sides of a door, instead of needing two Door objects).</p>
@@ -47,14 +53,51 @@ Change Log
 <p>The <strong>Viewport</strong> class in the <a href="../../extensions/docs/viewport.htm#setrooms">viewport</a> extension now has a <strong>setRooms()</strong> method that can be called to change the rooms overlooked by the Viewport.</p>
 <hr>
 <p>The new Thing property <strong>inDarkDesc</strong> can be used to give an alternative description for an object that is <span class="code">visibleInDark</span> in an unlit room.</p>
-
+<hr>
+<p>The Thing class now has a travelVia() method (which simply calls the travelVia method on the appropriate TravelConnector). This is mainly to provide minimal handling in case user code ends up trying to call this method on a Thing that isn't an Actor, although this should not normally occur.</p>
+<hr>
+<p>The handling of PUT ALL <em>prep</em> XXX has been changed to make a more intelligent selection of the list of direct objects corresponding to ALL. The library first attempts to restrict the choice to all portable objects that are not already in/on/under/behind XXX and are not XXX themselves (a container can't be put in/on/under/behind itself); if it finds any it applies the command to those. If not it next takes ALL to apply to all the portable objects in scope. If there are none it takes ALL to apply to all objects in scope apart from the actor and the room. The idea is to make PUT ALL <em>prep</em> XXX do what the player most likely wants it to do, or else explain why none of the objects to which ALL might otherwise most plausibly apply can be placed in/on/under/behind XXX.</p>
+<p>At the same time the message explaing that something can't be put in/on/under/behind itself has been changed from "You can't put anything in/on/under/behind itself" to "You can't put {the dobj} in/on/under/behind itself." This is to make it clearer which object the parser is complaining about if it issues several messages about objects that can't be put somewhere on the same turn; e.g. PUT ALL IN BOX when there's no portable objects in scope not already in the box so the parser has to explain why each of the other available objects can't be put in the box ("The table is too heavy, the door is fixed in place, you can't put the box in itself").</p>
+<hr>
+<p>The definition of <em>gActionListObj</em> has been changed so that it correctly picks up the gender of the first object in the list, if that's the only object in the list (so that an appropriate pronoun can be used to reflect it). This is particularly helpful for languages where gendered nouns are more common than in English.</p>
+<hr>
+<p>The message that generates the report "You seen nothing special about the whatever" has been changed to reference the self object rather than its theName property to ease translation into languages where the case of a noun may be signficant.</p>
+<hr>
+<p>Three message ID names have been changed: <span class="code">already plugged in vagaue</span> is now <span class="code">already plugged in vague</span> (thereby correcting the obvious typo), and <span class="code">cannot smell</span> used as the ID name of an error message in the objSmellable Precondition is now <span class="code">cannot smell through</span> to avoid collision with the <span class="code">cannot smell</span> message ID used elsewhere; finally one instance of <span class="code">game now brief</span> (it was used twice) has been changed to (the more obviously correct) <span class="code">game now verbose</span>.</p>
+<hr>
+<p>There is now a new <strong>tryImplicitActorAction()</strong> function to allow an implicit action to be attempted by an actor other than that of the main action (typically an NPC performing an independent action).</p>
+<hr>
+<p>Some tweaks have been made to VerbRules involving TURN to improve the response in certain cases (such as TURN ON with no object specified).</p>
+<hr>
+<p>A few library messages have been tweaked to fix missing full stops and the like.</p>
+<hr>
+<p>The order of events in the travelVia() method of the actor class has been tweaked to improve the order in which messages are displayed.</p>
+<hr>
+<p>Bug fixed whereby the setting of the various contentsListedInXXXX properties was ignored.</p>
+<hr>
+<p>Bug fixed whereby a TopicEntry matching on a regular expression wouldn't be matched if the same topic vocab would also match an object in the game.</p>
+<hr>
+<p>Bug fixed whereby the <strong>writeToStream(val)</strong> method of OutputStream didn't cater for the case where <em>val</em> was the Boolean value <span class="code">true</span>. This could cause run-time errors with embedded expressions that called a function or method for its side-effects when that function returned true. OutputStream.writeToStream(val) now treats <span class="code">true</span> the same way as <span class="code">nil</span>; i.e. it outputs nothing in either case (which is intended to cater for the embedded expression situation).</p>
+<hr>
+<p>Bug fixed whereby a plural pronoun was not recognized as referring to a plural interlocutor (e.g. in a command like ASK GUARDS ABOUT THEMSELVES), in situations where a single Actor object is used to represent multiple characters.</p>
+<hr>
+<p>Bug(s) (hopefully) fixed whereby implicit action reports were not always shown when <strong>tryImplicitAction()</strong> was called in author code. Getting implicit action reports to appear in the right place is proving to be one of the trickiest areas of the library. This latest version employs a new <strong>ImplicitActionFilter</strong> to do the job; this is an OutputFilter that prepends any pending implicit action reports to whatever is output next (and so can be use to display a implicit action report just before any text output by the current main action).</p>
+<hr>
+<p>Bug fixed whereby items contained in remapXXX items weren't being listed as part of the contents of the parent item.</p>
+<hr>
+<p>Bug fixed whereby responding to a prompt for the topic of an incomplete conversational command (e.g. typing ASK BRIAN and then LIFE in response to "What do you want to ask him about?") resulted in a run-time error instead of processing the command.</p>
+<hr>
+<p>Bug fixed whereby no travel notifications were displayed when an NPC carried out a travel action (e.g. in response to a player command), even though the NPC was visible to the player character.</p>
+<hr>
+<p>Bug fixed whereby an NPC travelling according to some user-supplied script might be blocked by a door the NPC ought to be able to open.</p>
 <hr>
 <br>
 <h2><a name="v1.4">Version 1.4 (12-Sept-2014)</a></h2>
 <p><strong>Minor Risk of Incompatibility</strong>: The identifier <strong>stop</strong> is now defined as a macro (for use with the Rules extension), so any methods, properties, functions or other identifiers in game code called <span class="code">stop</span> will need to be changed to something else. In particular this will effect the Airport sample game developed in the Tutorial. The same applies to <strong>nostop</strong>, <strong>rnull</strong> and <strong>nextrule</strong>, which have also been defined as macros, and to <strong>null</strong>, which is now an enum, though these are less likely to have been used as identifiers in user code.</p>
-<hr>
+<<hr>
 
-<p>The <span class="code">nameDistinguisher</span> in parser.t has been altered so that it now considers two object names to be 'equal' not just if they are the same, but if one is wholly contained within the other. The effect of this is that when the parser wishes to disambiguate between two objects with names one of which is a subset of the other, it will now resort to using their disambigNames rather than displaying a message like "Which do you mean, the red ball or the ball?" when use of the <span class="code">disambigName</span> might have avoided this. This may lead to a few 'false positives' (e.g. the name 'ant' is contained in 'pants', which would now trigger use of the disambigName of both objects were there a need to disambiguate between them), but since by default the disambigName is the same as the name, and the need to disambiguate between in cases of contained names like 'ant' and 'pants' will be fairly rare, such 'false positives' will seldom result in any noticeable difference.</p>
+<hr>
+<<p>The <span class="code">nameDistinguisher</span> in parser.t has been altered so that it now considers two object names to be 'equal' not just if they are the same, but if one is wholly contained within the other. The effect of this is that when the parser wishes to disambiguate between two objects with names one of which is a subset of the other, it will now resort to using their disambigNames rather than displaying a message like "Which do you mean, the red ball or the ball?" when use of the <span class="code">disambigName</span> might have avoided this. This may lead to a few 'false positives' (e.g. the name 'ant' is contained in 'pants', which would now trigger use of the disambigName of both objects were there a need to disambiguate between them), but since by default the disambigName is the same as the name, and the need to disambiguate between in cases of contained names like 'ant' and 'pants' will be fairly rare, such 'false positives' will seldom result in any noticeable difference.</p>
 <hr>
 <p>The rules for scope and for matching objects in remote locations have been tightened up, especially in relation to SenseRegions which do not allow line of sight (i.e. for which <span class="code">canSeeAcross = nil</span>). Objects the player character does not yet know about in remote locations are not added to scope, and objects in remote locations are excluded from plural matches if there are also matches in the player character's current location (which is more likely to be what the player intended to refer to). For details, see the section on <a href="senseregion.htm#specialscope">Special Remote Scope Considerations</a> in the SenseRegion chapter.</p>
 <hr>
@@ -1284,4 +1327,4 @@ Change Log
 
 
 </body>
-</html>
+</html>>

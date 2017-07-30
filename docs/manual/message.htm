@@ -260,7 +260,7 @@ DMsg(two things, 'The {1} and the {2} are {3} separate objects. ', redBall, blue
 <tr><td>{itself <i>obj</i>}</td> <td>The reflexive pronoun for <i>obj</i> (e.g. 'himself', 'herself', 'itself', or 'themselves').</td></tr>
 <tr><td>{that subj <i>obj</i>}</td> <td>The demonstrative pronoun for <i>obj</i> as subject ('that' or 'those').</td></tr>
 <tr><td>{that <i>obj</i>}</td> <td>The demonstrative pronoun for <i>obj</i> as object ('that' or 'those').</td></tr>
-<tr><td>{dummy}</td> <td>Expands to nothing but acts as a singular subject marker for a verb that follows to agree with (e.g., 'There{dummy}{\'s} nothing {here}.')</td></tr>
+<tr><td>{<a href="#dummy">dummy</a>}</td> <td>Expands to nothing but acts as a singular subject marker for a verb that follows to agree with (e.g., 'There{dummy}{\'s} nothing {here}.')</td></tr>
 <tr><td>{plural}</td> <td>Expands to nothing but acts as a plural subject marker for a verb that follows to agree with (e.g., 'There{plural} {is} no people {here}.')</td></tr>
 <tr><td>{prev}</td> <td>Expands to nothing but acts as a subject marker to make a verb that follows agree with a previous list(see <a href="#prev">below</a>)</td></tr>
 <tr><td>{am}</td> <td>Verb 'to be' conjugated to agree in tense and number with the immediately preceeding subject (e.g. am, are, is, was, were)</td>
@@ -330,6 +330,36 @@ george: Actor 'George; tall thin; man' @hall
 
 <p>In this case there's little advantage in using the globalParamName over simply writing "George seems upset with you." But one reason you might want to use the globalParamName here is that George might start out as 'the tall man' when you first meet him and only become 'George' on closer acquaintance; in such a case '{The subj george}' will expand to either 'The tall man' or 'George' as appropriate (using the current theName property of the george object).</p>
 
+
+<a name="dummy"></a><p>The <strong>dummy</strong> tag is used to mark a grammatical subject that appears in the message to be displayed but is not represented by anything in the game, so that there's no further message parameter to attach it to. A simple example would be:</p>
+
+ <p><div class="code"><pre>
+ 'There{dummy}{\'s} nothing {here}.'
+ </pre></div>
+
+ <p>This marks 'There' as the subject of the sentence so that it will come out as "There's nothing here" or "There was nothing there" according to tense.</p>
+ 
+ <p>For a more complex example, consider the following cases: "Fred knows that exercise is good for him" and "Fred knows everything about himself", where Fred is an actor that can change (so we might,for example, want it to vary to "Freda knows that exercise is good for her" or "I know everything about myself"). The trouble is that the routine that expands these message substitution parameters isn't smart enough to distinguish between the structure of these two sentences unless you help it out. So in the first example:</p>
+
+ <p><div class="code"><pre>
+"{He actor} {know} that exercise is good for {him actor}. ";
+</pre></div>
+
+<p>The expansion would go wrong because the subject of the verb in the subordinate clause is "exercise", but the routine that does the expansion can only go by what's been explicitly marked as a subject, and the last one marked is "<span class="code">{He actor}</span>", so that it appears to the library that <span class="code">{him actor}</span> is the object of "<span class="code">{He actor} {know}</span>", which, contrary to what we want here, would be expanded to "He knows himself." There's nothing in the string "that exercise is good for" that signals the actual sentence construction to the expansion routine; from the software's point of view it's structually identical to:
+</p>
+ <p><div class="code"><pre>
+"{He actor} {know} everything about {him actor}. ";
+</pre></div>
+
+<p>Where "He knows everything about himself" would be correct. But in the first example we need to tell the game what the actual grammatical subject of the subordinate clause is, which we do by marking it with <span class="code">{dummy}</span>, thus:</p>
+
+ <p><div class="code"><pre>
+"{He actor} {know} that {dummy}exercise is good for {him actor}. ";
+</pre></div>
+
+<p>This tells the parameter expansion routine that "exercise" and not "actor" is now the subject of "is".</p>
+
+ 
 <p>Finally, we mentioned that the <i>obj</i> parameter could also be a temporary parameter name. The Action method setMessageParam() lets you define such a parameter, but for convenience, the library defines the <b>gMessageParams()</b> macro for setting one or more parameters whose names exactly match their local variable names.  In other words, if you call this macro like this:
  
  <p><div class="code"><pre>

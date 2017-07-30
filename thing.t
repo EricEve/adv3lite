@@ -1356,6 +1356,34 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         contList = valToList(contList);
         
+        /* 
+         *   Ensure the contents of any associated remapXX items are included in
+         *   the list of items whose contents are to be listed.
+         */
+        
+        /* Initialize an empty list to collect the remapXXX items. */
+        local lst = [];
+        
+        /* 
+         *   Go through every item in the contList to see if it has any remapXXX
+         *   objects attached. If so add the remapXXX object to our list.
+         */
+        foreach(local cur in contList)
+        {
+            foreach(local prop in remapProps)
+            {
+                local obj = cur.(prop);
+                if(obj != nil)
+                    lst += obj;
+            }
+        }
+        
+        /*  
+         *   Append the list of remapXXX objects to the list of items whose
+         *   contents are to be listed.
+         */
+        contList = contList.appendUnique(lst);
+        
         
                 
         /* 
@@ -1384,7 +1412,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   or of any items that don't have any contents to list.
              */
             if(obj.contType == Carrier 
-               || obj.(lister).contentsListedProp == nil
+               || obj.(obj.(lister).contentsListedProp) == nil
                || obj.canSeeIn() == nil
                || obj.contents.length == 0)
                 continue;
@@ -1499,6 +1527,8 @@ class Thing:  ReplaceRedirector, Mentionable
         
          
     }
+    
+    
     
     /* 
      *   Do we want paragraph breaks between the listings of subcontents (i.e.
@@ -2081,6 +2111,10 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     
+    /* The list of possible remap props */
+    remapProps = [&remapOn, &remapIn, &remapUnder, &remapBehind]
+    
+    
     /* 
      *   If remapIn is not nil, a LOOK IN, PUT IN, OPEN, CLOSE, LOCK or UNLOCK
      *   command performed on this Thing will be redirected to the object
@@ -2644,6 +2678,21 @@ class Thing:  ReplaceRedirector, Mentionable
             }       
                     
         }
+        
+        /* 
+         *   if we have any remapXXX properties, set those objects to the same
+         *   listOrder as our own, since they're effectively representations of
+         *   ourself.
+         */
+        
+        for(local prop in remapProps)
+        {
+            local obj = self.(prop);
+            if(obj)
+                obj.listOrder = listOrder;
+        }
+        
+        
 
         /* 
          *   If we're compiling for debug, warn the user if s/he's used the
@@ -3693,6 +3742,26 @@ class Thing:  ReplaceRedirector, Mentionable
      */     
     afterTravel(traveler, connector) {}
     
+    /*   
+     *   Cause this Thing to travel via the connector conn. This method is
+     *   supplied in case travelVia is called on a Thing which is not an Actor,
+     *   although it's Actor that has the full implementation.
+     */
+    travelVia(conn, announceArrival = true)
+    {
+        /* 
+         *   If we've been mixed in with a TravelConnector class, it's almost
+         *   certainly the TravelConnector's version of travelVia() that we need
+         *   to execute here.
+         */        
+        if(ofKind(TravelConnector))
+            inherited TravelConnector(conn);
+        
+        else    
+            /* Move this actor via conn. */
+            conn.travelVia(self);
+    }
+    
     /* 
      *   Handle a command directed to this open (e.g. BALL, GET IN BOX). Since
      *   inanimate objects generally can't respond to commands we simply display
@@ -3890,7 +3959,7 @@ class Thing:  ReplaceRedirector, Mentionable
              */
             if(!descDisplayed)
                 DMsg(nothing special,  '{I} {see} nothing special about 
-                {1}. ', theName); 
+                {the 1}. ', self); 
                
             
             /*   Note that we've now been examined. */
@@ -5276,8 +5345,8 @@ class Thing:  ReplaceRedirector, Mentionable
     circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {in iobj}
         while {the subj iobj} {is} {in dobj}. ')
         
-    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put anything
-        {1} itself. ', gIobj.objInPrep)
+    cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put {the dobj}
+        {1} {itself dobj}. ', gIobj.objInPrep)
     
     iobjFor(PutOn)
     {
@@ -7245,7 +7314,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay set to, 'Okay, {i} {set} {1} to {2}', gActionListStr, 
+            DMsg(okay set to, '{I} {set} {1} to {2}. ', gActionListStr, 
                  curSetting); 
         }
     }

@@ -443,7 +443,7 @@ modify Room
      *   Should we look around on entering this room? Normally we should, unless
      *   both the room obj is travelling from and the room it's travelling to
      *   (normally this room) both belong in a SenseRegion whose contSpace
-     *   proparty is true.
+     *   property is true.
      */
     lookOnEnter(obj)
     {

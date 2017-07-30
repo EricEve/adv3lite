@@ -348,12 +348,8 @@ DefineSystemAction(ExtraHints)
         
         if(onOff == nil)
         {
-            local cmd = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
+            showExtraHintStatus();
             
-            DMsg(extra hints status,            
-            'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
-            them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmd,
-                cmd, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ');
             return;
                     
         }
@@ -365,6 +361,23 @@ DefineSystemAction(ExtraHints)
             gExtraHintManager.activate();
         
         DMsg(extra hints on or off, 'Okay; extra hints are now {1}. ', onOff );
+    }
+    
+    /* 
+     *   Routine to display message saying that extra hints are on or off.
+     *   Translators may want to override this method to display a message if it
+     *   can't readily be done in a CustomMessages object.
+     */
+    showExtraHintStatus()
+    {
+        local cmdstr = extraHintsCmd + onOrOff(!extraHintsActive).toUpper();
+        
+        DMsg(extra hints status,            
+            'Extra hints are currently <<onOrOff(extraHintsActive)>>. To turn
+            them <<onOrOff(!extraHintsActive)>> use the command <<aHref(cmdstr,
+                cmdstr, 'Turn extra hints ' + onOrOff(!extraHintsActive))>>. ',
+                 cmdstr);
+            return;
     }
     
     extraHintsActive = (gExtraHintManager != nil && gExtraHintManager.activated)
@@ -404,7 +417,7 @@ DefineSystemAction(Verbose)
         else
         {
             gameMain.verbose = true;
-            DMsg(game now brief, 'The game is now in VERBOSE mode. <<first
+            DMsg(game now verbose, 'The game is now in VERBOSE mode. <<first
                   time>>Full room descriptions be shown each time a room is
                 visited.<<only>> ');
         }            
@@ -1176,34 +1189,70 @@ DefineTIAction(MoveWith)
 DefineTIAction(PutOn)       
     announceMultiAction = nil
     allowAll = true
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
+
+/* 
+ *   Return a suitable list of direct objects for a PUT ALL PREP XXX command,
+ *   where iobj is the indirect object of the command and slist is the full
+ *   scopelist for the action.
+ *
+ *   Ideally we want to return a list of all the objects that can be put in
+ *   iobj, namely all the objects in scope that are portable and not already in
+ *   iobj, and not the iobj. But if no objects fit the bill we have to fall back
+ *   on first, all portable objects in scope and, failing that, all objects in
+ *   scope except the room and the actor.
+ */
+
+putAllScope(iobj, slist)
+{
+    /* Get a list of all the portable objects in scope. */
+    local portables = slist.subset({x: !x.isFixed});
+    
+    /* If there are none, return the scope list less the actor and any rooms */
+    if(portables.length < 1)
+        return slist.subset({x: !x.ofKind(Room) && x != gActor});
+    
+    /* 
+     *   Get a list of suitable objects, i.e. portable objects that are not in
+     *   the iobj and are not the iobj.
+     */
+    local suitables = portables.subset({x: iobj == nil || !x.isOrIsIn(iobj)});
+    
+    /* if there's anything in this list, return it */
+    if(suitables.length > 0)
+        return suitables;
+    
+    /* Otherwise return the list of portable objects. */
+    
+    return portables;
+}
 
 
 DefineTIAction(PutIn)          
     announceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        return putAllScope(curIobj, scopeList);
     }
-        
+    
 ; 
+
+
+
 
 DefineTIAction(PutUnder)      
     announceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(iobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
 
@@ -1211,10 +1260,9 @@ DefineTIAction(PutBehind)
     nnounceMultiAction = nil
     allowAll = true
     
-    getAll(cmd, role)
+    getAll(cmd, role)   
     {
-        return scopeList.subset({ x: !x.isFixed
-                                && (curIobj == nil || (!x.isIn(curIobj)))});
+        return putAllScope(curIobj, scopeList);
     }
 ;
 
@@ -1930,6 +1978,9 @@ class ImplicitConversationAction: TopicAction
                 topics[i] = actor;
             
             if(cur == It && actor.isIt)
+                topics[i] = actor;
+            
+            if(cur == Them && actor.plural)
                 topics[i] = actor;
         }
     }

@@ -289,8 +289,8 @@ grammar outOfSingleNoun(main):
 ;
 
 grammar aboutTopicPhrase(main):
-   topicPhrase->np_ | 'about' topicPhrase->np_
-   : Production
+   'about' topicPhrase->np_ | topicPhrase->np_ 
+   : TopicNounProduction
 ;
 
 grammar completeNounPhrase(main):
@@ -2763,6 +2763,7 @@ VerbRule(SwitchOn)
     action = SwitchOn
     verbPhrase = 'turn/turning on (what)'
     missingQ = 'what do you want to turn on'
+    priority = 60
 ;
 
 VerbRule(SwitchOff)

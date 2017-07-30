@@ -331,16 +331,24 @@ enum rmcDisambig;
 
 /* 
  *   an object that is singular or plural according to whether gActionList
- *   represents a single object of a plurality of objects
+ *   represents a single object of a plurality of objects, and which picks
+ *   up the correct gender if there is only a single object.
  */
 
 #define gActionListObj (object: Thing \
-            { \
-                plural = (gAction.reportList.length > 1 || \
-                          gAction.reportList[1].plural); \
-                name = gActionListStr; \
-                qualified = true; \
-            } )
+             { \
+                 plural = (gAction.reportList.length > 1 || \
+                           gAction.reportList[1].plural); \
+                 isIt = (gAction.reportList.length == 1 ? \
+                    gAction.reportList[1].isIt : nil);\
+                 isHim = (gAction.reportList.length == 1 ? \
+                    gAction.reportList[1].isHim : nil);\
+                 isHer = (gAction.reportList.length == 1 ? \
+                    gAction.reportList[1].isHer : nil);\
+                 name = gActionListStr; \
+                 qualified = true; \
+             } )
+
 
 /* ------------------------------------------------------------------------ */
 /*
