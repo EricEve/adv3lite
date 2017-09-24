@@ -2457,20 +2457,21 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
     /*   Initialize this ActorState (this is actually called at preinit). */
     initializeActorState()
     {
-        /* 
-         *   If we're our Actor's initial state and we have a location (our
-         *   associated actor) set out location's (i.e. our actor's) current
-         *   state to this ActorState
-         */
-        if(isInitState && location != nil)
-            location.curState = self;
-        
         /*   
          *   Initialize our getActor property from the getActor property of our
          *   location, which should simply return our associated actor. This
          *   should normally never change at run-time.
          */
         getActor = location.getActor;
+        
+        /* 
+         *   If we're our Actor's initial state and we have a getActor (our
+         *   associated actor) set our actor's current state to this ActorState
+         */
+        if(isInitState && getActor != nil)
+            getActor.curState = self;
+        
+       
         
         /*   Add this ActorState to our actor's list of ActorStates */
         addToActor();
@@ -5630,7 +5631,7 @@ class AgendaItem: object
      *   item to the actor's agenda - that has to be done explicitly with
      *   actor.addToAgenda().  
      */
-    getActor() { return location; }
+    getActor() { return location.getActor; }
 
     /*
      *   Is this item active at the start of the game?  Override this to
@@ -6533,4 +6534,33 @@ modify Follow
         scopeList = scopeList.appendUnique(Q.knownScopeList.subset({x:
             x.ofKind(Actor)}));
     }
+;
+
+/* 
+ *   The ProxyActor class can be used to continue the definition of a complex
+ *   actor over more than one file. Simply place a ProxyActor object at the head
+ *   of a second or subsequent file for the same actor and then set its location
+ *   to the Actor object its standing in for. You can then locate TopicGroups,
+ *   TopicEntries, ActorStates, AgendaItems, ConvNodes etc., within the
+ *   ProxyActor just as if it were the Actor.
+ */
+
+class ProxyActor: object
+    /* My Actor is my location */
+    getActor = location.getActor
+    
+    /* Pass a call to addTopic() up to my actor */
+    addTopic(obj)
+    {
+        getActor.addTopic(obj);
+    }
+    
+    /* I am active if my location (i.e. my actor) is active). */
+    active = location.active
+    
+    /* 
+     *   Set the location to the Actor I'm standing in for in a new file. This
+     *   can be done via the @ notation in the template.
+     */
+    location = nil
 ;

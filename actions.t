@@ -1106,6 +1106,9 @@ DefineTAction(GetOutOf)
 DefineTAction(GoThrough)    
 ;
 
+DefineTAction(TravelVia)
+;
+
 DefineTAction(Push)
     againRepeatsParse = nil
 ;
