@@ -2974,7 +2974,7 @@ class Thing:  ReplaceRedirector, Mentionable
         traceContainerPath(
             other,
             new function(c) { if (!c.(inProp)) vec.append(c); },
-            new function(c) { if (c == nil) vec.append(outermostParent()); },
+            new function(c) { if (c == nil && outermostParent) vec.append(outermostParent()); },
             new function(c) { if (!c.(outProp)) vec.append(c); });
 
         /* return the path */
@@ -3738,6 +3738,26 @@ class Thing:  ReplaceRedirector, Mentionable
      *   traveled via connector. 
      */     
     afterTravel(traveler, connector) {}
+    
+    /*   
+     *   Cause this Thing to travel via the connector conn. This method is
+     *   supplied in case travelVia is called on a Thing which is not an Actor,
+     *   although it's Actor that has the full implementation.
+     */
+    travelVia(conn, announceArrival = true)
+    {
+        /* 
+         *   If we've been mixed in with a TravelConnector class, it's almost
+         *   certainly the TravelConnector's version of travelVia() that we need
+         *   to execute here.
+         */        
+        if(ofKind(TravelConnector))
+            inherited TravelConnector(conn);
+        
+        else    
+            /* Move this actor via conn. */
+            conn.travelVia(self);
+    }
     
     /* 
      *   Handle a command directed to this open (e.g. BALL, GET IN BOX). Since
@@ -7291,7 +7311,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay set to, 'Okay, {i} {set} {1} to {2}', gActionListStr, 
+            DMsg(okay set to, '{I} {set} {1} to {2}. ', gActionListStr, 
                  curSetting); 
         }
     }
@@ -7787,7 +7807,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   It's more logical to kiss actors, so we give the Kiss action a
              *   lower logical rank on ordinary things.
              */
-            logicalRank(80); 
+            logicalRank(kissRank); 
         }
         
         check()
@@ -8367,8 +8387,13 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Check the travel barriers on the indirect object of the action */
     checkPushTravel()
     {
-        checkTravelBarriers(gDobj);
-        checkTravelBarriers(gActor);
+        /* 
+         *   First check the travel barriers for the actor doing the pushing.
+         *   Only go on to check those for the item being pushed if the actor
+         *   can travel, so we don't see the same messages twice.
+         */
+        if(checkTravelBarriers(gActor))        
+            checkTravelBarriers(gDobj);      
     }
     
     /*  Carry out the push travel on the direct object of the action. */
