@@ -398,7 +398,7 @@ class Doer: Redirector
         if(dirn.ofKind(ShipboardDirection) && !loc.allowShipboardDirections())
         {
             DMsg(no shipboard directions, 'Shipboard directions {plural} {have}
-                no meaning {here}, ');
+                no meaning {here}. ');
             abort;
         }
         
