@@ -2763,6 +2763,7 @@ VerbRule(SwitchOn)
     action = SwitchOn
     verbPhrase = 'turn/turning on (what)'
     missingQ = 'what do you want to turn on'
+    priority = 60
 ;
 
 VerbRule(SwitchOff)
@@ -2905,7 +2906,7 @@ VerbRule(ClimbUp)
 ;
 
 VerbRule(ClimbUpWhat)
-    [badness 200] ('climb' | 'go' | 'walk') 'up'
+    [badness 200] 'climb' 'up'
     : VerbProduction
     action = ClimbUpVague
     verbPhrase = 'climb/climbing (up what)'
