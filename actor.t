@@ -3952,6 +3952,38 @@ class DefaultTopic: ActorTopicEntry
      *   specific to take precedence.
      */
     matchScore = 1    
+    
+    
+    /* 
+     *   Don't match this DefaultTopic if top is one of the topics we want to
+     *   avoid matching. Otherwise carry out the inherited handling.
+     */
+    matchTopic(top)
+    {
+        if(avoidMatching(top))
+            return nil;
+        else
+            return inherited(top);
+    }
+    
+    /* 
+     *   A list of topics we don't want this DefaultTopic to match, so matching
+     *   can fall through to another topic database to handle it (thereby
+     *   facilitating the common handling of some topics across ActorStates).
+     */
+    
+    exceptions = []
+    
+    /* 
+     *   Do we want to avoid this DefaultTopic matching top, so that it can be
+     *   matched elsewhere? By default we do so if top is listed in our
+     *   exceptions.
+     */
+    
+    avoidMatching(top)
+    {
+        return (valToList(exceptions).indexOf(top) != nil);
+    }
 ;
 
 /* 
