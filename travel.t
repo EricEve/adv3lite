@@ -234,12 +234,18 @@ class Room: TravelConnector, Thing
     lookOnEnter(obj)
     {
         return true;
-    }
-    
+    }    
     
     
     /*  A Room's outermost room is itself. */
     getOutermostRoom { return self; }
+    
+    /*  A Room's outermost visible parent is itself. */
+    outermostVisibleParent() { return self; }
+    
+    /*  A Room's outermost parent is itself. */
+    outermostParent = self
+    
     
     /* 
      *   The Message to display if travel is disallowed in any given direction
@@ -933,6 +939,8 @@ class Door: TravelConnector, Thing
     /*  Going through a door is the same as traveling via it. */
     dobjFor(GoThrough)
     {
+        preCond = [objOpen]
+        
         action() { travelVia(gActor); }
     }
     
@@ -1331,6 +1339,25 @@ class TravelConnector: object
         
         /* Return the direction to which this connector is attached. */
         return room.getDirection(self);
+    }
+    
+    /* 
+     *   The TravelVia action is supplied so game code can execute a TravelVia
+     *   action on a TravelConnector; there is no TRAVEL VIA command that can be
+     *   issued directly by a player, but a player command may be translated
+     *   into this action.
+     */    
+    dobjFor(TravelVia)
+    {
+        action()
+        {
+            /* 
+             *   For now, we just call the travelVia() method on the
+             *   TravelConnector. Subsequentlly we might add appropriate code
+             *   for the other action phases.
+             */
+            travelVia(gActor);
+        }
     }
 ;
 

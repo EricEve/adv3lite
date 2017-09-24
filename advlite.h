@@ -819,6 +819,9 @@ NodeContinuationTopic template [firstEvents] [eventList];
 AltTopic template "topicResponse" | [eventList];
 AltTopic template [firstEvents] [eventList];
 
+/* The ProxyActor template just specifies the location (i.e. the base Actor) */
+ProxyActor template @location;
+
 Doer template 'cmd';
 
 /* Templates for use with test sequences */

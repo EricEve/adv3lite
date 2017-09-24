@@ -20,13 +20,11 @@ DefineSystemAction(Quit)
    
     
     execAction(cmd)
-    {
-        local ans;
+    {        
         DMsg(quit query, '<.p>Do you really want to quit? (y/n)?\n>');
-        ans = inputManager.getInputLine();
-        if(ans.toLower.startsWith('y'))
-            throw new QuittingException;
-        
+       
+        if(yesOrNo())
+            throw new QuittingException;        
     }
 ;
 
