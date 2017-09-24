@@ -408,19 +408,26 @@ class Daemon: Event
         inherited(obj, prop);
 
         /* 
-         *   an interval of less than 1 is meaningless, so make sure it's
+         *   an interval of less than 0 is meaningless, so make sure it's
          *   at least 1 
          */
-        if (interval < 1)
+        if (interval < 0)
             interval = 1;
 
-        /* remember my interval */
-        interval_ = interval;
+        /* 
+         *   remember my interval. In the special case where the interval is 0,
+         *   store an interval of 1 but schedule first execution for the current
+         *   turn.
+         */
+        interval_ = interval == 0 ? 1 : interval;
 
         /* 
          *   set my initial execution time, in game clock time 
          */
-        nextRunTime = libGlobal.totalTurns + interval - 1;
+//        nextRunTime = libGlobal.totalTurns + interval - 1;
+        nextRunTime = libGlobal.totalTurns + interval;
+        
+        
     }
     
     /* execute the daemon */
