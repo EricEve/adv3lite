@@ -4018,8 +4018,9 @@ class DefaultAgendaTopic: AgendaManager, DefaultAnyTopic
     /* 
      *   This kind of Default Topic is active only when it has any agenda items
      *   to process.
-     */
-    active = (inherited && agendaList != nil && agendaList.length > 0)
+     */   
+    active = inherited && agendaList != nil && 
+           agendaList.indexWhich({x: x.isReady})
     
     /* 
      *   When this DefaultTopic is active we want it to take priority over over
