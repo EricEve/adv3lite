@@ -1313,8 +1313,19 @@ class TravelAction: Action
              *   If the connector is visible to the actor then attempt travel
              *   via the connector.
              */
-            if(conn.isConnectorVisible)
-                conn.travelVia(gActor);
+            if(conn.isConnectorVisible)                
+            {
+                /* if the actor is the player char, just carry out the travel */
+                if(gActor == gPlayerChar)
+                    conn.travelVia(gActor);
+                
+                /* 
+                 *   otherwise carry out the travel and display the appropriate
+                 *   travel notifications.
+                 */
+                else
+                    gActor.travelVia(conn);
+            }
             
             /* 
              *   Otherwise if there's light enough to travel and the actor is
@@ -2688,6 +2699,43 @@ tryImplicitAction(action, [objs])
     
 }
 
+/* 
+ *   Have an actor other than the current gActor try an implicit action (e.g. if
+ *   an npc moving as the result of an AgendaItem needs to implicitly open a
+ *   door to proceed): actor is the actor performing the action, action is the
+ *   action object to be performs, [objs] is the list of objects (if any) on
+ *   which the action is to be performed.
+ */
+tryImplicitActorAction(actor, action, [objs])
+{
+    /* 
+     *   Set up a local variable to store the result of trying the implicit
+     *   action.
+     */
+    local res = nil;
+    
+    /*  Make a note of the current actor of the current main command. */
+    local oldActor = gActor;
+    
+    
+    try
+    {
+        /* Temporarily make gActor the actor passed to this function. */
+        gActor = actor;
+        
+        /* Try the implicit action with this actor and store the result. */
+        res = tryImplicitAction(action, objs...);
+    }
+    
+    finally
+    {
+        /* Restore the original gActor */
+        gActor = oldActor;
+    }
+    
+    /* Return the result of attempting the implicit action. */
+    return res;
+}
 
 /* ------------------------------------------------------------------------ */
 /*

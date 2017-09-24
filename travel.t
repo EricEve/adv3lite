@@ -733,6 +733,7 @@ class Door: TravelConnector, Thing
      *   closed and locked, so we check for than after the other kinds of travel
      *   barrier.
      */
+    
     checkTravelBarriers(traveler)
     {
         /* 
@@ -746,28 +747,83 @@ class Door: TravelConnector, Thing
         /*  If the Door isn't open, try to open it via an implicit action. */
         if(!isOpen)
         {
-            if(tryImplicitAction(Open, self))
-               "<<gAction.buildImplicitActionAnnouncement(true)>>";
+            /* 
+             *   If it's the player character that's trying to move, try opening
+             *   the door via an implicit action and display the result as an
+             *   implicit action report.
+             */
+            if(gPlayerChar.isOrIsIn(traveler))
+            {
+                if(tryImplicitAction(Open, self))
+                    "<<gAction.buildImplicitActionAnnouncement(true)>>";
+            }
+            
+            /*   
+             *   Otherwise get the traveler to try to open the door via an
+             *   implicit action.
+             */
+            else if(tryImplicitActorAction(traveler, Open, self))
+            {                   
+                /* 
+                 *   If the player character can see the traveler open the door,
+                 *   report the fact that the traveler does so.
+                 */
+                if(gPlayerChar.canSee(traveler))
+                    sayTravelerOpensDoor(traveler);
+                
+                else if(otherSide && gPlayerChar.canSee(otherSide))                
+                    sayDoorOpens();                                
+                
+            }
             
             /* 
              *   If we're not allowed to open this door via an implicit action
              *   (because opening it is marked as dangerous or nonObvious at the
              *   verify stage) display a message explaining why the travel can't
-             *   be carried out.
+             *   be carried out, provided the player char can see the traveler.
              */
-            else
+            
+            else if(gPlayerChar.canSee(traveler))            
             {
                 local obj = self;
-                gMessageParams(obj);
+                gMessageParams(obj);                
+                
                 say(cannotGoThroughClosedDoorMsg);
             }
         }
+        
+       
         
         /* 
          *   We pass the travel barrier test if and only if the door ends up
          *   open.
          */
         return isOpen;
+    }
+
+    /* 
+     *   Message to display when the player character sees the traveler opening
+     *   this door.
+     */
+    sayTravelerOpensDoor(traveler)
+    {
+        gMessageParams(traveler);
+        local obj = self;
+        gMessageParams(obj);
+        DMsg(npc opens door, '{The subj traveler} open{s/ed} {the
+            obj}. ');
+        
+    }
+    
+    /* 
+     *   Message to display when the door is opened from the other side so the
+     *   player character can't see who is opening it.
+     */
+    sayDoorOpens()
+    {
+        local obj = otherSide;
+        gMessageParams(obj);
+        DMsg(door opens, '{The subj obj} open{s/ed}. ');
     }
     
     /*  Execute travel through this door. */
