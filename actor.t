@@ -411,6 +411,15 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         return getBestMatch(prop, topic);
     }
     
+   
+    /* 
+     *   List of objects corresponding to non-conversation TopicEntry types for
+     *   which an ActorState's noResponseMsg should not be used. We separate
+     *   this lost out here to allow game code to add other game-specific types
+     *   (e.g. hugTopicObj if the game implements a Hug Action and a HugTopic).
+     */
+    physicalTopicObjs = [hitTopicObj, kissTopicObj, touchTopicObj]
+    
     /* 
      *   Handle a conversational command where prop is a pointer to the property
      *   containing the appropriate list of TopicEntries to search (e.g.
@@ -426,7 +435,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   as HitTopic, TouchTopic or KissTopic.
          */       
         if(curState && curState.propType(&noResponse) != TypeNil &&
-           !topic.overlapsWith([hitTopicObj, kissTopicObj, touchTopicObj]))
+           !topic.overlapsWith(physicalTopicObjs))
         {
             switch(curState.propType(&noResponse))
             {
@@ -1355,20 +1364,21 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         local wasSeenLeaving = nil;
         local oldLoc = location;
         
+        if(Q.canSee(gPlayerChar, self))
+        {           
+            /* Note that we were seen leaving. */
+            wasSeenLeaving = true;
+        }
+        /* Move this actor via conn. */
+        conn.travelVia(self);
+        
         /* 
          *   If the player character can see this actor, display a message
          *   indicating this player's departure.
          */
-        if(Q.canSee(gPlayerChar, self))
-        {
-            sayDeparting(conn);
-            
-            /* Note that we were seen leaving. */
-            wasSeenLeaving = true;
-        }
         
-        /* Move this actor via conn. */
-        conn.travelVia(self);
+        if(wasSeenLeaving)
+            sayDeparting(conn);
         
         if(announceArrival && !wasSeenLeaving && Q.canSee(gPlayerChar, self))
             sayArriving(oldLoc);
