@@ -5985,6 +5985,9 @@ class FollowAgendaItem: AgendaItem
     {
          /* Note our actor */
         local actor = getActor;
+               
+        /* Note our actor's current ActorState */
+        local stat = actor.curState;
         
         /* If we've exhausted our list of connectors, then we're done. */
         if(nextConnNum >= connectorList.length)    
@@ -6050,6 +6053,30 @@ class FollowAgendaItem: AgendaItem
                 }
             }
         }
+        
+        /* 
+         *   If we're not ready to move, take the opportunity to "fidget", i.e.
+         *   to execute a script defined either on this AgendaItem or on our
+         *   current ActorState, provided that our actor hasn't conversed this
+         *   term and that the player character can see our actor.
+         */
+        else if(!actor.conversedThisTurn && Q.canSee(gPlayerChar, actor))
+        {
+            /* 
+             *   If we have a Script class in our Superclass list, execute our
+             *   script.
+             */
+            if(ofKind(Script))
+                doScript();
+            
+            /*  
+             *   Otherwise if our actor's current ActorState includes a Script
+             *   class in its superclass list, execute its script.
+             */
+            else if(stat != nil && stat.ofKind(Script))
+                stat.doScript();      
+        }
+        
 
     }
     
