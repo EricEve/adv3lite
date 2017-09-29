@@ -2443,7 +2443,14 @@ class Thing:  ReplaceRedirector, Mentionable
         /* If we have a location, remove us from its list of contents. */
         if(location != nil)            
             location.removeFromContents(self);
-               
+        
+        /* 
+         *   If we have changed location, we are no longer being worn by our
+         *   original location
+         */
+        if(newCont != location)
+            wornBy = nil; 
+        
         /* Set our new location. */
         location = newCont;
                
@@ -2630,10 +2637,36 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Behind, Under). 
      */
     extContents = ( contType == In ? [] : contents)
+
+    /* 
+     *   Am I the Thing object that starts out as the initial player character?
+     *   For just about every Thing this will not the case, but this can be
+     *   overridden to true on the one Thing, Player or Actor object that is
+     *   meant to represent the initial player character. Note, however, that if
+     *   gameMain already defines a non-nil initialPlayerChar property, this
+     *   will be used to identify the initial player character object whatever
+     *   the value of the isInitialPlayerChar on any other object.
+     */
+    isInitialPlayerChar = nil
     
     /* Carry out the preinitialization of a Thing */
     preinitThing()
     {
+        /*    
+         *   If I am meant to be the initial player character and gameMain does
+         *   not already define another one, register this object as the initial
+         *   player character.
+         */
+        if(isInitialPlayerChar && gameMain.initialPlayerChar == nil)
+        {
+            /* Register me as the initial player character on gameMain */
+            gameMain.initialPlayerChar = self;
+            
+            /* Register me as the current player character on libGlobal */
+            gPlayerChar = gameMain.initialPlayerChar;
+        }
+        
+        
         /* 
          *   If we have both a location and a subLocation (which should be a
          *   property pointer if it's not nil), change our location to the
@@ -9024,6 +9057,43 @@ thingPreinit: PreinitObject
     }
     
     execBeforeMe = [pronounPreinit]
+;
+
+/* 
+ *   The Player class can be used to define the player character object. If
+ *   there is only one player character in the game (the PC never changes) and
+ *   the game is in the second person this can be done very conveniently, and
+ *   the Player object will register itself with gameMain and libGlobal.
+ */
+class Player: Thing
+    
+    /* The player character can't be picked up */
+    isFixed = true       
+    
+    /* 
+     *   The player character is most normally referred to in the first person,
+     *   although this can be overridden to 1 or 3 for first- or third-person
+     *   games.
+     */
+    person = 2  
+    
+    /*   
+     *   Objects located in the player character are generally regarded as being
+     *   held.
+     */
+    contType = Carrier   
+    
+    /* 
+     *   Am I the Player object that starts out as the initial player character?
+     *   Most games will only define one Player object so this will normally be
+     *   true, but if a game defines more than one (e.g. to allow the player
+     *   character to be switched mid-game) this should be set to nil on all the
+     *   others so that the game knows which one to register as the initial
+     *   player character. Note, however, that if a game contains more than one
+     *   potential player character, it may often be better to define the others
+     *   using the Actor class.
+     */
+    isInitialPlayerChar = true
 ;
 
 /*  

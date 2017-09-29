@@ -157,9 +157,104 @@ gameMain: GameMainDef
 <p>For <a name="tenses"><strong>tenses</strong></a> other than past or present, override <span class="code">Narrator.tense</span> to be one of Present ('Bob opens the box'), Past ('Bob opened the box'), Perfect ('Bob has opened the box'), PastPerfect ('Bob had opened the box'), Future ('Bob will open the box'), or FuturePefect ('Bob will have opened the box'). By default the library defines Narrator.tense as <span class="code">(gameMain.usePastTense ? Past : Present)</span>. </p>
 
 <p>The <strong>showIntro()</strong> method is primarily for showing the game's introduction. It may also be a convenient place to put small amounts of start-up code used for initializing the game state (such as starting a Daemon running), but for initialization code you should also consider using <strong>PreinitObject</strong> and <strong>InitObject</strong>, which are definined in the System Library, and which you can read about in the "Program Initialization" section of the <i>TADS 3 System Manual</i>.</p>
+<br>
+<h2><a name="definingpc">Defining the Player Character</a></h2>
+
+<p>Every TADS 3 game written with the adv3Lite library must define one object to be the player character (the character from whose viewpoint the game is played). It is possible to <a href="changepc.htm">change the player character</a> in the course of play, although many if not most games will probably stick to the same player character throughout; in any case a game must define which object is the player character at the start of play, in other words, the initial player character. If you do plan to change the player character during the course of the game, it is probably best to define every object that is going to represent the player character at one time or another as an <span class="code">Actor</span>, especially if the different player characters are going to encounter each other. Otherwise, the player character can perfectly well be defined as a <span class="code">Thing</span> or as a <strong>Player</strong> object, although provided the actor.t module is present in the build, it is always okay to define the player character as an Actor object. Which Actor, Thing or Player object represents the initial player character can be defined either by setting the <span class="code">initialPlayerChar</span> property on the <span class="code">gameMain</span> object, or by setting <span class="code">isInitialPlayerChar = true</span> on the object in question. If both are done, the <span class="code">initialPlayerChar</span> object defined on the <span class="code">gameMain</span> object will take precedence.</p>
+
+<p>To unpack that somewhat terse summary, we may begin by noting that if you create a new adv3Lite new game using the new Project Wizard in TADS 3 Workbench, the Wizard will create a minimal template game that does all this work for you thus:</p>
+
+<p><div class="code"><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+versionInfo: GameID
+    IFID = '$IFID$'
+    name = '$TITLE$'
+    byline = 'by $AUTHOR$'
+    htmlByline = 'by &lt;a href=&quot;mailto:$EMAIL$&quot;&gt;$AUTHOR$&lt;/a&gt;'
+    version = '1'
+    authorEmail = '$AUTHOR$ &lt;$EMAIL$&gt;'
+    desc = '$DESC$'
+    htmlDesc = '$HTMLDESC$'
+;
+
+gameMain: GameMainDef<span class = "comment">
+    /* Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+;
+
+<span class = "comment">
+/* The starting location; this can be called anything you like */</span>
+
+startroom: Room 'The Starting Location'
+    &quot;Add your description here. &quot;
+;
+<span class = "comment">
+/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.</span>
+ */
+
++ me: Thing 'you'   
+    isFixed = true       
+    person = 2  <span class = "comment">// change to 1 for a first-person game</span>
+    contType = Carrier    
+;
+</pre></div>
+
+<p>Except that the versionInfo object will be filled in with the data you entered in the wizard. This way of declaring the initial player character has a couple of advantages: (1) it makes it clear just by looking at the gameMain object which object is the initial player character (you don't have to go hunting for it further down in the source code; (2) it makes it clear that the player character object is simply a Thing with a few extra properties set and in particular (3) it calls attention to the <strong>person</strong> property which you may want to change for a first-person or third-person game. If you've created a new game via the Workbench wizard this has no real downside, since the wizard will have done virtually all the work for you.</p>
+
+<p>If you are starting a new game without using the wizard (perhaps because you aren't using Workbench) you can save yourself a small amount of typing by using the Player class instead of the Thing class to define the player character object:</p>
+
+<p><div class="code"><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+versionInfo: GameID
+    IFID = '$IFID$'
+    name = 'My Game'
+    byline = 'by My name'
+    htmlByline = 'by &lt;a href=&quot;mailto:$EMAIL$&quot;&gt;$AUTHOR$&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'my.name@myemail.org'
+    desc = 'My blurb'
+    htmlDesc = 'My html blurb'
+;
+
+gameMain: GameMainDef<span class = "comment">
+    /* We don't now have to define the initial player character here */</span>    
+;
+
+<span class = "comment">
+/* The starting location; this can be called anything you like */</span>
+
+startroom: Room 'The Starting Location'
+    &quot;Add your description here. &quot;
+;
+<span class = "comment">
+/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. The Player class registers this object as the player character
+ *   so you don't need to set gameMain.initialPlayerChar accordingly.</span>
+ */
+
++ me: Player 'you'       
+;
+</div></pre>
+
+<p>This isn't a lot less typing, but you may feel it looks a bit neater and makes it clearer which object is the player character. In terms of what it does, it's effectively identical to the first way of doing things.</p>
+
+<p>Finally, as an alternative to both these ways of defining the player character, you can define it as an Actor (provided actor.t is present in your game build), and either define <span class="code">isInitialPlayerChar = true</span> on that player character Actor or define <span class="code">gameMain.initialPlayerChar</span> to point to it. None of these ways of doing it is intrinsically better to any other (unless you plan to switch the player character in the course of the game, in which case using the Actor class may be your best choice), so which way you do it is simply a matter of personal preference.</p>
+
+<p>Whichever way you choose to define your player character object, you will probably want to customize it at least to the extent of defining its <span class="code">desc</span> property so that your players see a customized response to X ME.</p>
 
 
-</div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 
