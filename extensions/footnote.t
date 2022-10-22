@@ -302,6 +302,7 @@ footnotePreinit: PreinitObject
  *  (using modify VerbRule) and (b) a CustomMessages object containing
  *  translations of any DMsg and BMsg text used in this extension. Then
  *  instruct users to include your language-specific file after this one.
+ *  [FOOTNOTE EXTENSION]
  */
 VerbRule(Footnote)
     ('footnote' | 'note') numericDobj
@@ -343,7 +344,7 @@ VerbRule(FootnotesStatus)
 
 
 /*
- *   Footnote -   
+ *   Footnote -   [FOOTNOTE EXTENSION]
  */
 DefineSystemAction(FootnoteAction)
     execAction(c)
@@ -364,7 +365,7 @@ DefineSystemAction(FootnoteAction)
 ;
 
 
-/* base class for FOOTNOTES xxx commands */
+/* base class for FOOTNOTES xxx commands [FOOTNOTE EXTENSION]*/
 DefineSystemAction(Footnotes)
     execAction(c)
     {
@@ -418,6 +419,7 @@ DefineAction(FootnotesOffAction, Footnotes)
     showFootnotes = FootnotesOff
 ;
 
+/* [FOOTNOTE EXTENSION] */
 DefineSystemAction(FootnotesStatus)
     execAction(c)
     {

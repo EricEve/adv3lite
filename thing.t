@@ -1130,9 +1130,10 @@ class Thing:  ReplaceRedirector, Mentionable
             listContents();
             "<./roomcontents>";
             
-            /* Note that we've been seen and visited. */
+            /* Note that we've been seen, examined and visited. */
             setSeen();
             visited = true;
+            examined = true;
         }
         
         /* 
@@ -2493,10 +2494,25 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /* 
-     *   Receive notification that obj is about to be removed from inside us; by
-     *   default we do nothing.
+     *   Receive notification that obj is about to be removed from inside us; by default we do
+     *   nothing. Do NOT use this method to prevent the removal of the object from us; use
+     *   checkRemove(obj) instead.
      */
     notifyRemove(obj) { }
+    
+    /* 
+     *   checkRemove is called from the check stage of an action (typically TAKE) that might remove
+     *   obj from me. If it wants to object to the removal of the object, it should simply display a
+     *   message explaining why. By default we call the same method our container to check whether
+     *   anything in our containment hierarchy objects to the removal. If this method is overridden
+     *   in game code it may only need to call inherited(obj) on any branch that doesn't itself
+     *   object to the removal.
+     */
+    checkRemove(obj) 
+    {  
+        if(location)
+            location.checkRemove(obj); 
+    }
     
     /* 
      *   Receive notification that obj is about to be inserted into us; by
@@ -3674,8 +3690,12 @@ class Thing:  ReplaceRedirector, Mentionable
         return Q.canTalkTo(self, other);
     }
    
-    /* The lister to use when listing this object's inventory. */
-    myInventoryLister = inventoryLister
+      /* 
+       *   The lister to use when listing this object's inventory. By default we use the standard
+       *   inventory lister for the default WIDE inventory listing and the inventoryTallLister for
+       *   the TALL inventory listing.
+       */
+    myInventoryLister = libGlobal.inventoryTall ? inventoryTallLister : inventoryLister
     
     /* The lister to use when listing what this object is wearing. */
     myWornLister = wornLister
@@ -3845,6 +3865,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   exceptional cases, however.
      */
     hideFromAll(action) { return nil; }
+    
+    /*   
+     *   This method is primarily intended for use with the symconn extension, where it is
+     *   redefined, but other code may find a use for it.
+     */
+    byRoom(arg) { return ''; }
+    
     
     
     /*
@@ -4155,6 +4182,11 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check() 
         {
+            
+            /* First check that my container doesn't object to my being removed from it. */
+            if(location)
+                location.checkRemove(self);
+            
             /* 
              *   Check that the actor has room to hold the item s/he's about to
              *   pick up.
@@ -5285,6 +5317,23 @@ class Thing:  ReplaceRedirector, Mentionable
         dobj}. ')
     
     
+    /* Most things cannot be gone along */
+    canGoAlongMe = nil
+    
+    dobjFor(GoAlong)
+    {
+        preCond = [touchObj]
+        verify() 
+        { 
+            if(!canGoAlongMe)
+                illogical(cannotGoAlongMsg); 
+        }
+    }
+    
+    cannotGoAlongMsg = BMsg(cannot go through,'{I} {can\'t} go along {that
+        dobj}. ')
+    
+    
     /* We can at least try to push most things. */
     isPushable = true
     
@@ -5776,6 +5825,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     iobjFor(UnlockWith)
     {
+        preCond = [touchObj]
+        
         verify()
         {
             if(!canUnlockWithMe)
@@ -5844,6 +5895,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     iobjFor(LockWith)
     {
+        preCond = [touchObj]
+        
         verify()
         {
             if(!canLockWithMe)
@@ -8360,29 +8413,60 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     dobjFor(PushTravelDir)
     {
-        preCond = [touchObj]
+        preCond = [touchObj, travelPermitted]
         
-        verify()  {  verifyPushTravel('');  }
-        
-        
-        action()
+        check()
         {
-            /* 
-             *   Most of the action is carried out by the PushTravel Action. All
-             *   we need to do here is to tell the action that we're allowing
-             *   push travel and reveal any items that come to light as a result
-             *   of moving this object.
-             */
-            gAction.travelAllowed = true;
+            /* set up a local variable to hold the connector we want to travel through. */
+            local conn;
             
-            /*  
-             *   Reveal items previously under or behind us that now become
-             *   visible.
-             */
-            pushTravelRevealItems();            
+            /* note which room we're in */
+            local loc = getOutermostRoom;
+            
+            /* Get the direction of travel from the command */
+            local dirn = gCommand.verbProd.dirMatch.dir;
+            
+            if(loc.propType(dirn.dirProp) == TypeObject)
+            {
+                /* Note the connector object in the relevant direction */
+                conn = loc.(dirn.dirProp);
+                
+                /* 
+                 *   If our connector is an UnlistedProxyConnector we need to replace the direction
+                 *   we're heading in with the one the UPC points to and our connector with the one
+                 *   our new direction points to.
+                 */
+                if(conn.ofKind(UnlistedProxyConnector))
+                {
+                    /* get our real direction of travel. */
+                    dirn = conn.direction; 
+                    
+                    /* get the connector in that direction, or nil if it's not an object */
+                    conn = loc.propType(dirn.dirProp) == TypeObject ? loc.(dirn.dirProp) : nil;
+                    
+                }                                 
+                
+                /* If the connector we want to use is an object then check its travel barriers. */
+                if(dataType(conn) == TypeObject)
+                {                    
+                    if(conn.checkTravelBarriers(self))
+                        conn.checkTravelBarriers(gActor);
+                }
+            }
+            
+            
         }
     }
     
+    /* Display a message saying we pushed the direct object in a particular direction. */
+    sayPushTravel(dir)
+    {
+        DMsg(before push travel dir, '{I} <<gDobj.matchPullOnly ? 'pull(s/ed}' : 'push{es/ed}'>>
+              {the dobj} {1}. ',  dir.departureName);   
+        "<.p>";
+    }    
+    
+     
     pushTravelRevealItems()
     {
         /* 
@@ -8426,7 +8510,9 @@ class Thing:  ReplaceRedirector, Mentionable
          *   can travel, so we don't see the same messages twice.
          */
         if(checkTravelBarriers(gActor))        
-            checkTravelBarriers(gDobj);      
+            checkTravelBarriers(gDobj);     
+        
+              
     }
     
     /*  Carry out the push travel on the direct object of the action. */
@@ -8450,6 +8536,9 @@ class Thing:  ReplaceRedirector, Mentionable
          *   path between the two.
          */
         local wasHidden;
+        
+        /*   Note the actor's current location. */
+        local oldLoc = gActor.getOutermostRoom;
         try
         {
             wasHidden = propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
@@ -8469,25 +8558,79 @@ class Thing:  ReplaceRedirector, Mentionable
               
         
         /*   
-         *   Use the travelVia() method of the iobj to move the iobj to its new
+         *   Use the travelVia() method of the iobj to move the dobj to its new
          *   location.
          */        
         
-        if(gActor.isIn(gIobj.destination))
+        if(gActor.isIn(gIobj.getDestination(oldLoc)))
         {
             gIobj.travelVia(gDobj);
             gDobj.describeMovePushable(self, gActor.location);
         }
     }
     
+    
     beforeMovePushable(connector, dir)
     {
-        if(connector == nil || connector.ofKind(Room))
-            DMsg(before push travel dir, '{I} push{es/ed} {the dobj} {1}. ',
-                 dir.departureName);
-        else
-            describePushTravel(viaMode);      
+        /* make a note of our connector */
+        local conn = connector;
+         
+        /* 
+         *   If our connector is an UnlistedProxyConnector we need some special handling to identify
+         *   the real connector we're going to use.
+         */
+        if(connector.ofKind(UnlistedProxyConnector))
+        {
+            /* Note the room we're in. */
+            local loc = getOutermostRoom;
+            
+                    
+            /* Get the direction prop our UnlistedProxyConnector is a proxy for. */
+            local prop = connector.direction.dirProp;
+            
+            if(loc.propType(prop) == TypeObject)  
+            {
+                
+                /* Get the connector that direction property points to. */
+                conn = loc.(prop);                
+                
+                /* Make that connector the iobj of this action. */
+                gIobj = conn; 
+            }
+            else
+            {
+                /*  Otherwise note the direction we're actually going to try to go in. */
+                dir = connector.direction;
+                
+                /* If the connector isn't an object, we don't want to deal with it here. */
+                conn = nil;
+            }
+        }
+            
+        /* 
+         *   Next check that there's nothing that wants to disallow this travel.. If the
+         *   travelPermitted preCond is present for this action on this object this should already
+         *   have been done, but if game code has overridden that we need to carry out the
+         *   beforeTravelNotifications now.
+         */         
+        if(conn && dataType(conn == TypeObject))
+            conn.beforeTravelNotifications(self);        
         
+       /*  If we have an indirect object, describe our PushTravel via it */
+        if(gIobj)
+            describePushTravel(gAction.viaMode);    
+        
+        /*  
+         *   Otherwise we have a travel connector to travel through, report which direction we're
+         *   pushing to.
+         */
+        else if(objOfKind(conn, TravelConnector))
+            sayPushTravel(dir);
+        
+        /*  
+         *   Otherwise do nothing, because our 'connector' must be a string or method that explains
+         *   why travel that way isn't possible.
+         */
     }
     
     describeMovePushable (connector, dest)
@@ -8511,20 +8654,21 @@ class Thing:  ReplaceRedirector, Mentionable
         /* If I have a traversalMsg, use it */
         if(gIobj && gIobj.propType(&traversalMsg) != TypeNil)
             DMsg(push travel traversal, '{I} <<if matchPullOnly>> pull{s/ed}
-                <<else>> push{es/ed}<<end>> {the dobj} {1}. ',
+                <<else>> push{es/ed}<<end>> {the dobj} {1}. <.p>',
                  gIobj.traversalMsg);
         else
             DMsg(push travel somewhere, '{I} <<if matchPullOnly>> pull{s/ed}
-                <<else>> push{es/ed}<<end>> {the dobj} {1} {the iobj}. ', 
+                <<else>> push{es/ed}<<end>> {the dobj} {1} {the iobj}. <.p>', 
                  via.prep); 
+        
+        "<.p>";
     }
     
    
     
     /* 
-     *   PushTravelThrough handles pushing something through something, such as
-     *   a door or archway. Most of the actual handling is dealt with by the
-     *   common routines defined above.
+     *   PushTravelThrough handles pushing something through something, such as a door or archway.
+     *   Most of the actual handling is dealt with by the common routines defined above.
      */
     dobjFor(PushTravelThrough)    
     {
@@ -8536,10 +8680,10 @@ class Thing:  ReplaceRedirector, Mentionable
     
     iobjFor(PushTravelThrough)
     {
-        preCond = [touchObj]
+        preCond = [travelPermitted, touchObj]
         verify() 
         {  
-            if(!canGoThroughMe || destination == nil)
+            if(!canGoThroughMe || getDestination(gActor.getOutermostRoom) == nil)
                 illogical(cannotPushThroughMsg);
         }
         
@@ -8645,11 +8789,11 @@ class Thing:  ReplaceRedirector, Mentionable
     
     iobjFor(PushTravelClimbUp)
     {
-        preCond = [touchObj]
+        preCond = [travelPermitted, touchObj]
         
         verify() 
         {  
-            if(!isClimbable || destination == nil)
+            if(!isClimbable || getDestination(gActor.getOutermostRoom) == nil)
                 illogical(cannotPushUpMsg);
         }
         
@@ -8669,11 +8813,11 @@ class Thing:  ReplaceRedirector, Mentionable
     
     iobjFor(PushTravelClimbDown)
     {
-        preCond = [touchObj]
+        preCond = [travelPermitted, touchObj]
         
         verify() 
         {  
-            if(!canClimbDownMe || destination == nil)
+            if(!canClimbDownMe || getDestination(gActor.getOutermostRoom) == nil)
                 illogical(cannotPushDownMsg);
         }
         

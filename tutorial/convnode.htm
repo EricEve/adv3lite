@@ -1,0 +1,402 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Art of Conversation &mdash; Angela Wants Answers</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="conversation.htm">The Art of Conversation</a> &gt; 
+Angela Wants Answers
+<br><span class="navnp"><a class="nav" href="hello.htm"><i>Prev:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="defaults.htm"><i>Next:</i> Diverse Defaults</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Angela Wants Answers</h1>
+
+<h2>A Simple Conversation Node</h2>
+
+<p>You may recall that one of the exchanges we've defined for when the player character asks Angela what she's doing tonight is:</p>
+
+ <p><div class="code"><pre>
+       '&lt;q&gt;What &lt;i&gt;are&lt;/i&gt; you doing tonight?&lt;/q&gt; you insist.\b
+        &lt;q&gt;I don\'t think that\'s any of your business,&lt;/q&gt; she replies, with
+        rather a bleak smile. &lt;q&gt;Do you?&lt;/q&gt; '
+</pre></div>
+
+<p>Many, if not most players will probably treat the "Do you?" at the end of Angela's reply as a purely rhetorical question, but a few may try responding YES or NO. Such a response would be appropriate only just at that point in the conversation (there may be other points at which the player could respond YES or NO, but it wouldn't meant the same thing, since it would constitute an answer to a different question). With Angela's (possibly rhetorical) question "Do you?" the conversation enters a special state, which we might call a <em>Conversation Node</em>, meaning a particular point in the conversation at which particular responses become potentially appropriate. Once the conversation moves on, these particular responses (such as a YES or DO in response to Angela's "Do you?" cease to be appropriate once more.</p>
+
+<p>We can model such a Conversation Node in adv3Lite by using a <.convode> tag, of the form <span class="code">&lt;.convnode <em>key</em>&gt;</span>, where <em>key</em> corresponds to the convKey (or one of the convKeys) of the TopicEntries we want to be active during that Conversation Node. To ensure that those TopicEntries are <em>only</em> available during that Conversation Node, we also need to set their <span class="code">isActive</span> property to <span class="code">nodeActive</span>. A <strong>YesTopic</strong> responds to YES and a <strong>NoTopic</strong> responds to NO, so we could allow the player to reply YES or NO to Angela's possibly rhetorical question by adding a <span class="code">&lt;.convnode&gt;</span> tag to the question and then the following <span class="code">YesTopic</span> and <span class="code">NoTopic</span>:</p>
+
+ <p><div class="code"><pre>
++ QueryTopic, StopEventList 'what' @tDoingTonight
+    [
+        '&lt;q&gt;What are you doing tonight?&lt;/q&gt; you ask.\b
+        She cocks one eyebrow at you. &lt;q&gt;I have my plans,&lt;/q&gt; she replies
+        vaguely. ',
+        
+        '&lt;q&gt;What &lt;i&gt;are&lt;/i&gt; you doing tonight?&lt;/q&gt; you insist.\b
+        &lt;q&gt;I don\'t think that\'s any of your business,&lt;/q&gt; she replies, with
+        rather a bleak smile. &lt;q&gt;Do you?&lt;/q&gt; <strong>&lt;.convnode not-your-business&gt;</strong>',
+        
+        '&lt;q&gt;About tonight...&lt;/q&gt; you begin.\b
+        She cuts you off by pressing her lips together and raising her eyebrows
+        in a mildly disapproving manner, as if to say, &lt;q&gt;That topic is
+        closed.&lt;/q&gt; '       
+    ]
+    
+    convKeys = 'angela'
+;
+
++ YesTopic
+    "&lt;q&gt;As a matter of fact I do,&lt;/q&gt; you reply boldly.\b
+    &lt;q&gt;In that case we shall have to agree to differ,&lt;/q&gt; she replies, just a
+    little stiffly." 
+    
+    convKeys = ['not-your-business']
+    isActive = nodeActive
+;
+
++ NoTopic
+    "&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;No; well, there you are then,&lt;/q&gt; she remarks. "
+    
+    convKeys = ['not-your-business']
+    isActive = nodeActive    
+;
+</pre></div>
+
+<p>This works, but it may seem a little repetitive to have to repeat the <span class="code">convKeys</span> and <span class="code">isActive</span> property on each TopicEntry in the Conversation Node. We have already seen how we can use a <span class="code">TopicGroup</span> to apply the same <span class="code">isActive</span> and <span class="code">convKeys</span> conditions to a group of TopicEntries, and we can use a special kind of TopicGroup, a <strong>ConvNode</strong>, to do that for us here:</p>
+
+ <p><div class="code"><pre>
++ ConvNode 'not-your-business';
+
+++ YesTopic
+    "&lt;q&gt;As a matter of fact I do,&lt;/q&gt; you reply boldly.\b
+    &lt;q&gt;In that case we shall have to agree to differ,&lt;/q&gt; she replies, just a
+    little stiffly."     
+;
+
+++ NoTopic
+    "&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;No; well, there you are then,&lt;/q&gt; she remarks. "  
+;
+</pre></div>
+
+<p>In most cases, this is probably the easier way to do it; it may also help make it more immediately apparent which TopicEntries relate to a particular Conversation Node.</p>
+
+<h2>A More Complex Case</h2>
+
+<p>A Conversation Node of the kind we've just defined is highly ephemeral. It lasts only for one conversational turn. If the player chooses to type YES or NO as the next conversational command following Angela's question, then YesTopic or NoTopic will be triggered, but once the player types any other conversational command the moment is lost, and the TopicEntries in the node will no longer be available. In the case we've just implemented, that's just as it should be, since the player can choose to say YES or NO or else treat the question as rhetorical and so ignore it altogether, in which case the opportunity for replying YES or NO is forever lost. But in another case, where Angela has just asked a question that clearly isn't rhetorical, she may wish to insist on an answer, or at the very least to complain if the player tries to change the subject.</p>
+
+<p>Suppose, for example, that when the player character is talking to Angela in the Jetway he's given he option of talking to her about Pablo Cortez, and Angela wants to know why he's so interested in the man. We could start by adding an AskTellTopic under angelaTalkingState that triggers an appropriate Conversation Node:</p>
+
+ <p><div class="code"><pre>
+++ AskTellTopic, StopEventList @cortez
+    [
+        '&lt;q&gt;Do you know who that man waving a gun around at the front of the
+        plane is?&lt;/q&gt; you ask, lowering your voice. &lt;q&gt;It\'s Pablo Cortez, El
+        Diablo\'s right-hand man!&lt;/q&gt;<span class="code">&lt;.inform cortez&gt;</span>\b
+        Her smile becomes rather frosty as she replies, &lt;q&gt;What\'s that to
+        you?&lt;/q&gt; &lt;.convnodet what-to-you&gt;',
+        
+        '&lt;q&gt;You need to be &lt;i&gt;very&lt;/i&gt; careful around Cortez,&lt;/q&gt; you warn
+        her.\b
+        &lt;q&gt;I shall be,&lt;/q&gt; she assures you. '
+    
+    ]
+    autoName = true
+    convKeys = 'top'
+    suggestAs = TellTopic
+;
+</pre></div>
+
+<p>There are a few points to note about the way we've defined this AskTellTopic. First, note that we've given it an autoName of true, so that it will be suggested as a topic of conversation with the name 'Pablo Cortez'. Note too that we needed to add <span class="code">convKeys = 'top'</span> to make sure that it would be included as a top-level suggestion in response to a TOPICS command (but we only have to do that because we defined <span class="code">suggestionKey = 'top'</span> on Angela). Next, note how we've defined <span class="code">suggestAs = TellTopic</span>. Left to its own devices the library will suggest an AskTellTopic with 'ask', i.e. "You could ask her about Pablo Cortez". We can override that with the <span class="code">suggestAs</span> property to force the library to suggest is as something else, here as if it were a TellTopic (i.e. "You could tell her about Pablo Cortez"). Then note the use of the <span class="code">&lt;.inform cortez&gt;</span> tag. This works much a <span class="code"><.reveal></span> tag, but instead of recording the fact that something has just been revealed to the player character, it signals that something has been revealed by the player character to the person he's taling to (and, incidentally, to anyone else within earshot). Finally note that instead of <span class="code">&lt;.convnode what-to-suggest&gt;</span> we wrote <span class="code">&lt;.convnodet what-to-suggest&gt;</span>, with an extra t (convnodet rather than just convnode). The extra <strong>t</strong> tells the game to display a suggested list of <strong>t</strong>opics on entering the Conversation Node.</p>
+
+<p>The next step is to define the TopicEntries making up the Conversation Node. We'll once again use a ConvNode object to simplify the definition (so we don't have to define the isActive and convKeys properties on each of the TopicEntries on the node. But we'll also do something new: we'll use a type of TopicEntry we haven't seen before, the <strong>SayTopic</strong>. A SayTopic allows the player character to say just about anything, for example SAY SHE LOOKS NICE or SAY YOU ARE AFRAID or SAY THAT YOU'VE BEEN HERE BEFORE (the inclusion or exclusion of the THAT makes no difference). But a SayTopic will also match even if the command SAY is missing and a conversation is in progress, provided that the player's command doesn't look like any other valid command (including any other valid conversational command). The player could thus type just SHE LOOKS NICE, YOU ARE AFRAID or YOU'VE BEEN HERE BEFORE or even, if the SayTopics have been defined carefully, YOU LOOK NICE, I AM AFRAID, or I'VE BEEN HERE BEFORE.</p>
+
+<p>Defining a SayTopic is much like defining a QueryTopic, except that we don't need the qtype (who/what/where/why/when) part. We can define a SayTopic either using a separate Topic object, or by defining the Topic to be matched in-line on the SayTopic (just as we can for a QueryTopic). For the full story, see the section on <a href="../manual/specialtopic.htm">Special Topics</a> in the <em>adv3Lite Library Manual</em>. Note that a SayTopic is included in topic suggestion lists automatically (like a QueryTopic), that is, its autoName property is true by default. If you don't want the suggestion to begin with 'say' you can define <span class="code">includeSayInName = nil</span> on the SayTopic.</p>
+
+<p>For present purposes we'll define our Conversation Node with one TellTopic and two SayTopics:</p>
+
+
+ <p><div class="code"><pre>
++ ConvNode 'what-to-you';
+    
+++ TellTopic @me    
+    "&lt;q&gt;The name's Pond, Sherlock Pond,&lt;/q&gt; you tell her. &lt;q&gt;I'm a British
+    secret agent on the track of these villains!&lt;/q&gt;\b
+    &lt;q&gt;Indeed!&lt;/q&gt; she replies with ill-disguised scepticism. &lt;.inform agent&gt;&quot; 
+    
+    name = 'yourself'
+;
+
+++ SayTopic 'Cortez is dangerous'
+    "&lt;q&gt;Pablo Cortez is a &lt;i&gt;very&lt;/i&gt; dangerous man,&lt;/q&gt; you warn her. &lt;q&gt;He's
+    killed more men than I've had hot dinners!&lt;/q&gt;\b
+    &lt;q&gt;Anyone waving a gun around aboard a passenger aircraft might be
+    considered dangerous,&lt;/q&gt; she points out pragmatically. &lt;.inform cortez-dangerous&gt; "    
+;
+
+++ SayTopic 'she should call security; you'
+    "&lt;q&gt;You should call airport security to deal with him!&lt;/q&gt; you urge her.\b
+    &lt;q&gt;Airport security -- in Narcosia?&lt;/q&gt; she asks incredulously. &lt;q&gt;Somehow I
+    don\'t think that will exactly help the situation!&lt;/q&gt; "
+;
+</pre></div>
+
+<p>What happens in the player responds with something not corresponding to one of these three TopicEntries? We can trap that by adding a DefaultAnyTopic to the Conversation Node to trap any other conversational commands. The first time round Angela will complain and repeat her question; the second time she'll complain but let the matter drop. To make this happen we add a <span class="code">&lt;.convstay&gt; </span>tag to Angela's first default conversational response to tell the game to keep the Conversation Node active for another conversational turn:</p>
+
+ <p><div class="code"><pre>
+++ DefaultAnyTopic, StopEventList
+    [
+        '&lt;q&gt;No, but what is it to you who this man is?&lt;/q&gt; she interrupts you.
+        &lt;.convstay&gt; ',
+    
+        'She shakes her head. &lt;q&gt;Very well, don\'t answer my question then,&lt;/q&gt;
+        she mutters. '
+    ]
+;
+</pre></div>
+
+<p>The other thing the player could do to throw our Conversation Node off the rails, besides coming up with a response we hadn't planned for, is to try to end the conversation prematurely in the middle of the node, either with an explicit BYE command or by simply walking away. To control whether we want to allow this we can add a <strong>NodeEndCheck</strong> object to the Conversation Node, on which we can then defined one method, <strong>canEndConversation(reason)</strong>, which determines whether or not the player character is allowed to end the conversation while this node is active. The <em>reason</em> parameter can take a number of values but the two most common ones, and the ones that concern us here, are <span class="code">endConvBye</span> (meaning the player is trying to end the conversation with a BYE command) and <span class="code">endConvLeave</span> (meaning the player is trying to end the conversation by having the player character walk away from it). The <span class="code">canEndConversation(reason)</span> can then return <span class="code">true</span> to allow the conversation to end for that reason, or either <span class="code">nil</span> or <span class="code">blockEndConv</span> to prevent the conversation from ending. The difference is that <span class="code">blockEndConv</span> signals that the actor the player character is speaking with has now spoken on the current turn; it's therefore appropriate to return <span class="code">blockEndConv</span> if our <span class="code">canEndConversation()</span> method displays something said by the actor to explain why she won't allow the conversation to end.</p>
+
+<p>We can add a NodeEndCheck object to our current Conversation Node thus:</p>
+
+<p><div class="code"><pre>
+++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        if(reason == endConvBye)
+        {
+            "&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; {the subj angela}
+            complains. &lt;q&gt;Why are you so bothered about this man Cortez?&lt;/q&gt; ";
+                              
+            return blockEndConv;
+        }
+        
+        if(reason == endConvLeave)
+        {
+            "This doesn't seem a good point to break off the conversation. ";
+            return nil;
+        }
+        
+        return true;
+    }
+;
+</pre></div>
+<br>
+
+<h2>Angela Demands an Answer</h2>
+
+<p>In the first Conversation Node we implemented above, the player could reply YES or NO or just let the matter pass, since Angela's question could easily have been purely rhetorical. In the second, Angela makes some attempt to insist on an answer, but lets the matter go if the player refuses to give one. A third type of Conversation Node might be one in which Angela absolutely demands an answer and the game can't proceed until she gets one.</p>
+
+<p>When Angela sees the player character return to the plane wearing the pilot's uniform she might be a little surprised. She may recognize him as the man who talked to her on the jetway, but she certainly doesn't recognize him as the pilot she's expecting, so she'll probably demand to know who he is.</p>
+
+<p>The first step is to create a new AgendaItem for Angela to ask her question &mdash; a ConvAgendaItem would be appropriate, since that's triggered as soon as conversation becomes possible &mdash; and then make sure it's added to Angela's agenda list at some suitable point, such as the <span class="code">invokeItem()</span> method of angelaReboardingAgenda, which causes her to reboard the plane once the player is wearing the pilot's uniform (and the takeover scene comes to an end):</p>
+
+ <p><div class="code"><pre>
++ angelaReboardingAgenda: AgendaItem
+    isReady = (takeover.hasHappened)
+    
+    invokeItem()
+    {
+        isDone = true;
+        getActor.moveInto(planeFront);
+        getActor.setState(angelaSeatedState);
+        <strong>getActor.addToAgenda(angelaPilotAgenda);</strong>
+    }
+    
+;
+
++ angelaPilotAgenda: ConvAgendaItem    
+    invokeItem()
+    {
+        isDone = true;
+        "{The subj angela} looks up at you sharply and frowns. &lt;q&gt;Hey! You're
+        one the the passengers, aren't you?&lt;/q&gt; she remarks. &lt;q&gt;I remember
+        looking at your ticket! You certainly aren't our pilot. What are you
+        doing in that uniform?&lt;/q&gt;&lt;.convnodet uniform&gt; ";
+        
+    }
+;
+</pre></div>
+
+<p>Next we can set up the corresponding Conversation Node and populate it with some SayTopics. Whichever response the player chooses we'll have Angela ask if the player character really intends to fly the plane and then switch to another Conversation Node for an answer to that question:</p>
+
+
+ <p><div class="code"><pre>
++ ConvNode 'uniform';
+
+++ SayTopic 'all British agents learn to fly'
+    "&lt;q&gt;I told you, I'm a British agent, and all British agents learn to fly --
+    it's part of our training,&lt;/q&gt; you tell her.\b
+    &lt;q&gt;You mean you actually intend to fly this aircraft?&lt;/q&gt; she demands,
+    startled. &lt;.convnodet intend-fly&gt; "
+    
+    isActive = gInformed('agent')
+;
+
+++ SayTopic 'you have a pilot\'s license; i'
+    "&lt;q&gt;It's quite all right, I have a pilot\'s license,&lt;/q&gt; you assure you.\b
+    &lt;q&gt;Yes, but...&lt;/q&gt; she begins. &lt;q&gt;Do you actually mean to say you intend to
+    fly this plane?&lt;/q&gt; &lt;.convnodet intend-fly&gt; "
+    
+    isActive = !gInformed('agent')
+;
+
+++ SayTopic 'you\'re the replacement pilot; you are i am i\'m'
+    "&lt;q&gt;You said you were waiting for the pilot, but there's no sign of him, so
+    I'm standing in for him,&lt;/q&gt; you reply.\b
+    &lt;q&gt;You!&lt;/q&gt; she exclaims. &lt;q&gt;You mean, &lt;i&gt;you're&lt;/i&gt; going to fly this
+    plane?&lt;/q&gt; &lt;.convnodet intend-fly&gt; "
+    
+    isActive = gRevealed('pilot-awaited')
+;
+
+++ SayTopic 'you just found the uniform; i'
+    "&lt;q&gt;I found the uniform, you need a pilot,&lt;/q&gt; you reply with a smile and a
+    shrug. &lt;q&gt;Besides, I do know how to fly -- I have a license.&lt;/q&gt;\b
+    &lt;q&gt;You mean you're intending to fly this plane?&lt;/q&gt; she demands
+    incredulously. &lt;.convnodet intend-fly&gt; "
+;
+</pre></div>
+
+<p>Note the use of the <span class="code">isActive</span> on the first three SayTopics to determine whether or not they're appropriate in the light of what has or hasn't been said before. The <span class="code">gInformed(key)</span> tests whether or not the actor has previously been informed of <em>key</em> by the player character via an <span class="code">&lt;.inform key&gt;</span> tag, so either the first or the second SayTopic will be active depending on whether or not the player character has already told Angela who he is. The <span class="code">gRevealed(key)</span> tests whether <em>key</em> has previously been revealed to the player character via a <span class="code"><.reveal key></span> tag, so the third SayTopic will be active if Angela has previously mentioned that the plane is waiting for its pilot. The fourth and final SayTopic will be available under all circumstances. The player will thus have either two or three responses to choose from at this point.</p>
+
+<p>Next we can add a catch-all DefaultAnyTopic that won't allow the player to leave the Conversation Node until he's chosen one of the above SayTopics:</p>
+
+ <p><div class="code"><pre>
+++ DefaultAnyTopic, ShuffledEventList
+    [
+        '&lt;q&gt;No, but answer my question,&lt;/q&gt; she interrupts you. &lt;q&gt;What are you
+        doing in that uniform?&lt;/q&gt; &lt;.convstay&gt; ',
+        
+        '&lt;q&gt;That\'s not what I asked,&lt;/q&gt; she complains. &lt;q&gt;Tell me why you\'re
+        wearing that uniform!&lt;/q&gt; &lt;.convstay&gt;',
+        
+        '&lt;q&gt;Why are you wearing that uniform?&lt;/q&gt; she insists, brushing aside
+        your irrelevant remarks. &lt;.convstay&gt; ',
+        
+        '&lt;q&gt;That still doesn\'t tell me what you\'re doing with that
+        uniform,&lt;/q&gt; she complains. &lt;q&gt;Why are you wearing it?&lt;/q&gt; &lt;.convstay&gt; '
+    ]
+;
+</pre></div>
+
+<p>Note how we add a <span class="code">&lt;.convstay&gt;</span> tag to each of the default responses to ensure that we remain in the current Conversation Node. The next step is to prevent the player from breakinf off the conversation prematurely, which we can once again do with a NodeEndCheck object:</p>
+
+ <p><div class="code"><pre>
+++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        switch(reason)
+        {
+        case endConvBye:
+            "&lt;q&gt;Oh no, you're not avoiding my question like that!&lt;/q&gt; she tells
+            you. &lt;q&gt;Tell me, why are you wearing that pilot's uniform?&lt;/q&gt;";
+            return blockEndConv;
+        case endConvLeave:
+            "&lt;q&gt;You're not going anywhere until you tell me what you're doing in
+            that uniform!&lt;/q&gt; {the subj angela} insists. ";
+            return blockEndConv;
+        default:
+            return nil;
+        }
+    }
+;
+</pre></div>
+
+<p>The other thing the player could try to deflect Angela's question is to carry out a whole lot of irrelevant non-conversational commands (even just a repeated WAIT or I or LOOK). To have Angela express her impatience at such a tactic we can allow her to insist on an answer on each turn we remain in the node and there hasn't been a conversational exchange. For that purpose we can define a <strong>NodeContinuationTopic</strong> (which we also locate in the ConvNode in question):</p>
+
+ <p><div class="code"><pre>
+++ NodeContinuationTopic
+    "&lt;q&gt;&lt;&lt;one of&gt;&gt;I asked you a question&lt;&lt;or&gt;&gt;I'm still waiting for an
+    answer&lt;&lt;cycling&gt;&gt;,&lt;/q&gt; {the subj angela} &lt;&lt;one of&gt;&gt; reminds
+    you&lt;&lt;or&gt;&gt; insists&lt;&lt;or&gt;&gt; repeats&lt;&lt;cycling&gt;&gt;. &lt;q&gt;Why are you wearing that
+    uniform?&lt;/q&gt; "
+;
+</pre></div>
+<p>Note the use of the <span class="code">&lt;&lt;one of&gt;&gt;</span> embedded expression constructs to vary what's displayed slightly on each occasion. We could achieve greater variety by mixing in the NodeContinuationTopic with a ShuffledEventList, say, but what we've done here will suffice for now.</p>
+
+<p>The final step is to define the Conversation Node the player is taken to next, the 'intend-fly' node:</p>
+
+ <p><div class="code"><pre>
++ ConvNode 'intend-fly'
+   commonResponse = "\b&lt;q&gt;Very well, then,&lt;/q&gt; she sighs. &lt;q&gt;I suppose we don't
+       have too much choice now, do we? Just as long as you know what you're
+       doing...&lt;/q&gt; "
+;
+
+++ YesTopic
+    "&lt;q&gt;Yes, why not?&lt;/q&gt; you reply breezily. &lt;q&gt;You can't wait here all day --
+    Pablo Cortez and his merry crew won't stand for it, for one thing!&lt;/q&gt;
+    &lt;&lt;location.commonResponse&gt;&gt;"
+;
+
+++ QueryTopic 'why not'
+    "&lt;q&gt;Why not?&lt;/q&gt; you ask. &lt;q&gt;You need a pilot and I need to get out of here.
+    Besides, I wouldn't want to be in your shoes when this lot run out of
+    patience!&lt;/q&gt; You nod towards the gansgters and drug barons occupying the
+    passenger seats further down the aisle. &lt;&lt;location.commonResponse&gt;&gt;"
+;
+
+++ QueryTopic 'whether|if she has a better idea; you have'
+    "&lt;q&gt;Do you have a better idea?&lt;/q&gt; you counter. &lt;q&gt;There's no sign of your
+    regular pilot, and I wouldn't want to be in your shoes when your current
+    passengers run out of patience!&lt;/q&gt; &lt;&lt;location.commonResponse&gt;&gt;"
+;
+
+++ DefaultAnyTopic
+    "&lt;q&gt;Please answer my question,&lt;/q&gt; she insists. &lt;q&gt;Do you really intend to
+    fly this plane?&lt;/q&gt; &lt;.convstay&gt;"
+;
+
+++ NodeEndCheck
+    canEndConversation(reason)
+    {
+        switch(reason)
+        {
+        case endConvBye:
+            "&lt;q&gt;That's not an answer!&lt;/q&gt; she complains. &lt;q&gt;Tell me, are
+            you proposing to fly this plane yourself?&lt;/q&gt;";
+            return blockEndConv;
+        case endConvLeave:
+            "&lt;q&gt;Don't walk off until you've told me whether you're proposing to
+            fly this plane, &lt;/q&gt; {the subj angela} insists. &lt;q&gt;Well, are
+            you?&lt;/q&gt; ";
+            return blockEndConv;
+        default:
+            return nil;
+        }
+    }
+;
+
+++ NodeContinuationTopic
+    "&lt;q&gt;I'd appreciate it if you answered my question,&lt;/q&gt; {the subj angela}
+    insists. &lt;q&gt;Are you really proposing to fly this aircraft?&lt;/q&gt; "
+;
+</pre></div>
+
+<p>We've saved ourselves a bit of typing here by defining a <span class="code">commonResponse</span> property on the ConvNode object and then calling it from each of the TopicEntries located in it to provide Angela's response. Otherwise the pattern of this Conversation Node pretty much follows that of the previous one, although we have shown how Conversation Nodes can be chained together, a process that could be continued in principle as long as we liked. We could also make the conversation branch to different nodes depending on the topic chosen by the player.</p>
+
+<p>Game authors aren't restricted to the Conversation Node coding patterns illustrated here, although the three shown above are likely to be the most common ones. The adv3Lite library aims to allow as much flexilibity as possible in how you use Conversation Nodes in your own game. For a complete account, see the section on <a href="../manual/convnode.htm">Conversation Nodes</a> in the <em>adv3Lite Library Manual</em>.</p>
+
+
+</div>
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="conversation.htm">The Art of Conversation</a> &gt; 
+Angela Wants Answers
+<br><span class="navnp"><a class="nav" href="hello.htm"><i>Prev:</i> Hello and Goodbye</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="defaults.htm"><i>Next:</i> Diverse Defaults</a> &nbsp;&nbsp;&nbsp; </span>
+
+
+
+</div>
+</body>
+</html>

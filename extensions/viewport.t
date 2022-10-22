@@ -33,12 +33,11 @@ viewportID: ModuleID
  *   via the viewport.
  *   [DEFINED ON VIEWPORT EXTENSION]
  */
-
 class Viewport: object   
     
     /* 
      *   Method to display a description of the rooms and contents visible by
-     *   means of me
+     *   means of me. [VIEWPORT EXTENSION]
      */
     describeVisibleRooms()
     {
@@ -56,12 +55,12 @@ class Viewport: object
         
     /* 
      *   A list of rooms that are made visible by looking through or at this
-     *   viewport.
+     *   viewport. [VIEWPORT EXTENSION]
      */
     visibleRooms = []  
     
     
-    /*   Set the list of visible rooms to lst */
+    /*   Set the list of visible rooms to lst [VIEWPORT EXTENSION] */
     setRooms(lst)
     {
         /* Ensure that lst is actually a list. */
@@ -86,22 +85,27 @@ class Viewport: object
     /*   
      *   Flag: can I see into the visibleRooms by looking through this object?
      *   This should normally be true for a window-type object but probably nil
-     *   for a CCTV monitor.
+     *   for a CCTV monitor. {VIEWPORT EXTENSION]
      */
     lookThroughToView = true
     
     /*   
      *   Flag: should examining this object display a description of the visible
-     *   rooms and their contents? By default it should.
+     *   rooms and their contents? By default it should. [VIEWPORT EXTENSION]
      */
     examineToView = true
     
     /*  
      *   Is the Viewport currently available for viewing through (it may not be
      *   if windows cover the curtain, or the CCTV screen has been turned off).
+	 *   [VIEWPORT EXTENSION]
      */
     isViewing = true
     
+	/*
+	 *  For the VIEWPORT EXTENSION add desribing rooms visible through this viewport 
+	 *  to the inherited behaviour 
+	 */
     dobjFor(LookThrough)
     {
         action()
@@ -115,7 +119,7 @@ class Viewport: object
     
     /* 
      *   If examining this Viewport should describe what it shows, add a
-     *   description of the rooms it overlooks.
+     *   description of the rooms it overlooks. [VIEWPORT EXTENSION]
      */
     examineStatus()
     {
@@ -246,6 +250,10 @@ modify Room
  *   once they have been viewed via a Viewport. [DEFINED ON VIEWPORT EXTENSION]
  */
 QViewport: Special
+   /*
+    * When the VIEWPORT EXTENSION is in use, make objects in remote rooms visisble
+	* once they have been viewed via a Viewport. 
+ 	*/
     canSee(a, b)
     {
         local ar = a.getOutermostRoom, br = b.getOutermostRoom;

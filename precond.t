@@ -885,3 +885,23 @@ actorOutOfNested: PreCondition
     }
     
 ;
+
+
+/*  
+ *   PreCondition that calls before travel notifications (such as beforeTravel() on every object in
+ *   scope) so these can rule out travel/push travel before it's attempted.
+ */
+travelPermitted: PreCondition
+    checkPreCondition(obj, allowImplicit) 
+    { 
+      
+        obj.beforeTravelNotifications(gActor);
+        
+        if(gAction.isPushTravelAction)        
+            obj.beforeTravelNotifications(gDobj);
+        
+        return true;
+    }
+    
+    preCondOrder = 50
+;

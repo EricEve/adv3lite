@@ -377,7 +377,7 @@ actionDictionary: PreinitObject
             {
                 /* get the action */
                 local action = gi.gramMatchObj.action;
-
+                
                 /* 
                  *   get the word list - this is the subset of gramTokens
                  *   items with type GramTokTypeLiteral, with just the word

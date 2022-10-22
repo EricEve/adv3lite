@@ -3,7 +3,7 @@
 
 /*--------------------------------------------------------*/
 /*
- *   SIGNAL EXTENSION Still at an experimental stage
+ *   SIGNALS EXTENSION Still at an experimental stage
  *
  *   To use this extension, include the relations extensions before it.
  */
@@ -23,6 +23,8 @@
  *   To break the link subsequently we can use:
  *
  *   unconnect(sender, signal, receiver);
+ *
+ *   [SIGNALS EXTENSION]
  */
 Signal: Relation
     /* Signals can potentially relate many things to many other things. */
@@ -38,6 +40,8 @@ Signal: Relation
      *   prop is a property pointer and val is the value to be assigned to this
      *   property. Note that these two forms cannot be mixed in the same call to
      *   this method, unless all the list form arguments come at the end.
+	 *
+	 *   [SIGNALS EXTENSION]
      */
     emit(sender, [args])   
     {
@@ -80,10 +84,18 @@ Signal: Relation
     
     /* 
      *   A list of pointers to the properties to which additional arguments to
-     *   our emit method should be assigned.
+     *   our emit method should be assigned. [SIGNALS EXTENSION]
      */
     propList = []
     
+	/*
+	 *   A LookupTable liniking objects that might emit this signal (potential senders) to potential
+	 *   receivers of this signal, so that notifications can be sent from the former to the latter.
+	 *   Game code should not need to manipulate this table directly; it should instead be updated via
+	 *   the supplied connect() and unconnect() functions.
+	 *   
+	 *   [SIGNALS EXTENSION]
+	 */
     dispatchTab = nil
     
     addHandler(sender, receiver, handler)
@@ -106,7 +118,7 @@ Signal: Relation
 
 
 
-/* Signals to handle common state changes on Thing */
+/* Signals to handle common state changes on Thing  [SIGNALS EXTENSION] */
 DefSignal(lit, lit);
 DefSignal(unlit, unlit);
 DefSignal(discover, discovered);
@@ -130,8 +142,13 @@ DefSignal(pull, pull);
 DefSignal(feel, feel);
 
 
+ /*
+  * MODIFICATIONS TO TadsObject for SIGNALS EXTENSION
+  *
+  * Add handling for emiting, handling and dispatching signals. 
+  */
 modify TadsObject
-    /* Emit a signal */
+    /* Emit a signal  [SIGNALS EXTENSION] */
     emit(signal, [args])
     {
         /* Simply call the signal's emit method with ourselves as the sender. */
@@ -142,12 +159,21 @@ modify TadsObject
      *   Handle a signal from sender; game code will need to override particular
      *   instances. Note that this is a catch-all handler for signals we don't
      *   recognize or for which more specific handlers haven't been defined.
+	 *   [SIGNALS EXTENSION]
      */
     handle(sender, signal)
     {
     }   
     
-        
+    /*
+	 *   Dispatch a signal to the appropriate handler method on this object.
+     *   We look up the property pointer to use on the signal's dispatchTab
+	 *   LookupTable. If we find one and the property is defined on this object
+	 *   then we use that property to handle the signal. Otherwise, we simply
+	 *   use our catch-all generic handle(sender, signal) method.
+	 *  
+	 *   [SIGNALS EXTENSION] 
+     */    
     dispatchSignal(sender, signal)
     {
         local prop;       
@@ -175,32 +201,53 @@ modify TadsObject
  modify Thing  
     /*  
      *   Make various common state changes and actions emit the appropriate
-     *   signals.
+     *   signals. [SIGNALS EXTENSION]
      */
+	 
+	/*
+	 *  emit a litSignal or unlitSignal when this object is lit or unlit.
+	 *  [SIGNALS EXTENSION]
+	 */
     makeLit(stat)
     {
         inherited(stat);
         emit(stat ? litSignal : unlitSignal);
     }
     
+	/*
+	 *  emit a discoverSignal or undiscoverSignal when this object is discovered or undiscovered.
+	 *  SIGNALS EXTENSION]
+	 */
     discover(stat = true)
     {
         inherited(stat);
         emit(stat ? discoverSignal : undiscoverSignal);
     }
     
+	/*
+	 *  emit a lockSignal or unlockSignal when this object is locked or unlocked.
+	 *  [SIGNALS EXTENSION]
+	 */
     makeLocked(stat)
     {
         inherited(stat);
         emit(stat ? lockSignal : unlockSignal);       
     }
     
+	/*
+	 *  emit an onSignal or offSignal when this object is turned on or off
+	 *  [SIGNALS EXTENSION]
+	 */
     makeOn(stat)
     {
         inherited(stat);
         emit(stat ? onSignal: offSignal);
     }
     
+	/*
+	 *  emit a wornSignal or doffSignal when this object is worn or doffed (taken off).
+	 *  [SIGNALS EXTENSION]
+	 */
     makeWorn(stat)
     {
         inherited(stat);
@@ -210,6 +257,10 @@ modify TadsObject
             emit(doffSignal);
     }
     
+	/*
+	 *  emit a moveSignal when this object is moved.
+	 *  [SIGNALS EXTENSION]
+	 */
     moveInto(newCont)
     {
         inherited(newCont);
@@ -217,6 +268,10 @@ modify TadsObject
         emit(moveSignal, newCont);
     }
     
+	/*
+	 *  emit a actmoveSignal or unlitSignal when this object moved as part of action handling.
+	 *  [SIGNALS EXTENSION]
+	 */
     actionMoveInto(newCont)
     {
         inherited(newCont);
@@ -224,7 +279,10 @@ modify TadsObject
         emit(actmoveSignal, newCont);
     }
     
-    
+    /*
+	 *  emit a seenSignal or unlitSignal when this object is seen.
+	 *  [SIGNALS EXTENSION]
+	 */
     noteSeen()
     {
         inherited();
@@ -232,7 +290,10 @@ modify TadsObject
         emit(seenSignal, location);
     }
         
-    
+    /*
+	 *  emit an openSignal or closeSignal when this object is open or closed.
+	 *  [SIGNALS EXTENSION]
+	 */
     makeOpen(stat)
     {
         inherited(stat);
@@ -241,7 +302,14 @@ modify TadsObject
 ;
     
  
-
+/*
+ *  Function to set up a signalling relation between sender and receiver via the signal Signal. 
+ *  This first created a relation between sender and receiver [using the RELATIONS extension)
+ *  And then, if the handler parameter is supplied, adds an appropriate entry to the signal's 
+ *  dispatchTab table to register that this is the handler to use on the receiver when signal is
+ *  sent to receiver from sender.
+ *  [SIGNALS EXTENSION]
+ */
 connect(sender, signal, receiver, handler?)
 {
     signal = relationTable.getRelation(signal)[1];
@@ -251,6 +319,11 @@ connect(sender, signal, receiver, handler?)
         signal.addHandler(sender, receiver, handler);
 }
 
+
+/*
+ * Function to remove the signalling relationship between sender and receiver via the signal
+ * Signal. [SIGNALS EXTENSION]
+ */
 unconnect(sender, signal, receiver)
 {
     signal = relationTable.getRelation(signal)[1];
@@ -261,8 +334,16 @@ unconnect(sender, signal, receiver)
 }
 
 modify TAction
+    /*
+	 * The signal (if any) )o be emitted by the direct object of this action.
+	 * [SIGNALS EXTENSION]
+     */	
     signal = nil
     
+	/*
+	 * If this action defines an associated signal, then have the direct object emit the signal
+	 * after carrrying out out inherited handling. [SIGNALS EXTENSION]
+	 */
     doAction()
     {
         inherited();
@@ -272,26 +353,32 @@ modify TAction
 ;
 
 modify Take
+   /* [SIGNALS EXTENSION] */  
     signal = takeSignal
 ;
 
 modify Drop
+/* [SIGNALS EXTENSION] */  
     signal = dropSignal
 ;
 
 modify Examine
+/* [SIGNALS EXTENSION] */  
     signal = examineSignal
 ;
 
 modify Push
+/* [SIGNALS EXTENSION] */  
     signal = pushSignal
 ;
 
 modify Pull
+/* [SIGNALS EXTENSION] */  
     signal = pullSignal
 ;
 
 modify Feel
+/* [SIGNALS EXTENSION] */  
     signal = feelSignal
 ;
 

@@ -123,7 +123,57 @@ redBall: Thing 'red ball; small'
 
 <p>Note also that it's perfectly okay for the logic of your verify routine to result in more than one of the logical/illogical macros being executed. The library will simply use the one that has the <i>lowest</i> logical rank (on the assumption that if it is applicable at all, it trumps all the rest). The verify result with the lowest logical rank is stored in a table, where it can be replaced by a verify result with an even lower logical rank, if one is encountered, and where its corresponding failure message can be accessed if and when the time comes to display it.</p>
 
-<p>When we're writing verify routines for TIActions (such as TakeFrom or DigWith) it's sometimes useful for the verify routine on one object of the action to know what the other object involved in the action will be. The library uses the <strong>resolveIobjFirst</strong> property of each TIAction to determine which object should be resolved first, generally choosing the more helpful order (so that the object that most needs to know what the other object will be is resolved second. Occasionally, though, it can be helpful for both objects' verify routines to know what the other object involved in the action will be (as is the case with TakeFrom, for example). In such cases the macros <strong>gTentativeDobj</strong> and <strong>gTentativeIobj</strong> can be helphul. These produce the lists of objects that the current Command is considering as possible direct and indirect objects. They can be used in the verify routines of TIActions on the first object to be resolved when it would be helpful to know what the other object might turn out to be before it has been fully resolved. Note that unlike the similarly named macros in adv3, these ones do actually results in lists of actual objects, not npMatches or the like.</p>
+<p>When we're writing verify routines for TIActions (such as TakeFrom or DigWith) it's sometimes useful for the verify routine on one object of the action to know what the other object involved in the action will be. The library uses the <strong>resolveIobjFirst</strong> property of each TIAction to determine which object should be resolved first, generally choosing the more helpful order (so that the object that most needs to know what the other object will be is resolved second. 
+
+<a name="gTentative"></a>Occasionally, though, it can be helpful for both objects' verify routines to know what the other object involved in the action will be (as is the case with TakeFrom, for example). In such cases the macros <strong>gTentativeDobj</strong> and <strong>gTentativeIobj</strong> can be helpful. These produce the lists of objects that the current Command is considering as possible direct and indirect objects. They can be used in the verify routines of TIActions on the first object to be resolved when it would be helpful to know what the other object might turn out to be before it has been fully resolved. Note that unlike the similarly named macros in adv3, these ones do actually results in lists of actual objects, not npMatches or the like.</p>
+
+<p>The macros <strong>gTentativeDobjIn(<em>lst</em>)</strong> and <strong>gTentativeIobjIn(<em>lst</em>)</strong> can be used in verify routines to test whether the list <em>lst</em> has any items in common with gTentativeDobj and gTentativeIobj respectively (these macros evaluate to true if so or nil otherwise). The macros <strong>gVerifyDobj</strong> and <strong>gVerifyIobj</strong> can be used in a verify routine to give the value of the most likely direct or indirect object of the current action even it is is yet to be resolved. If it has been resolved, these macros will evaluate to gDobj or gIobj respectively. Otherwise, they will evaluate to the first item in the gTentativeDobj or gTentativeIobj list, ensuring that you get an appropriate non-nil value.
+
+<p>For example, the library defines the following handling of the TakeFrom action on the indirect object:</p>
+<p><div class="code"><pre>
+iobjFor(TakeFrom)
+    {
+        preCond = [touchObj]
+        
+        verify()       
+        {          
+            /*We're a poor choice of indirect object if there's nothing in us */
+            if(notionalContents.countWhich({x: !x.isFixed}) == 0)
+                logicalRank(70);
+            
+            /* 
+             *   We're also a poor choice if none of the tentative direct
+             *   objects is in our list of notional contents
+             */
+            if(gTentativeDobj.overlapsWith(notionalContents) == nil)
+                logicalRank(80);        
+        
+        }      
+    }
+</pre></div>
+
+<p>This could also have been written (with exactly the same meaning and effect):</p>
+<p><div class="code"><pre>
+iobjFor(TakeFrom)
+    {
+        preCond = [touchObj]
+        
+        verify()       
+        {          
+            /*We're a poor choice of indirect object if there's nothing in us */
+            if(notionalContents.countWhich({x: !x.isFixed}) == 0)
+                logicalRank(70);
+            
+            /* 
+             *   We're also a poor choice if none of the tentative direct
+             *   objects is in our list of notional contents
+             */
+            if(gTentativeDobjIn(notionalContents) == nil) //using the macro instead of spelling out what it does
+                logicalRank(80);        
+        
+        }      
+    }
+</pre></div>
 
 <p>Note finally that the library is set up to minimize the number of verify routines you need to override. For example, the action handling for Dig and DigWith is defined like this:</p>
  <p><div class="code"><pre>
@@ -386,7 +436,7 @@ mat:Thing 'mat; white place; placemat'
 </pre></div></p>
 <p>Note that you wouldn't have to code this particular example this way, since in practice you'd simply define <span name=code>hiddenUnder = [harryNote]</span> on the mat object to produce the same effect, but the example suffices to illustrate the principle.</p>
 
-<p>There's also a <strong>extraReport(<em>msg</em>)</strong> macro that can be used by an action method to display a piece of introductory text that won't suppress the default message at the report stage. This probably isn't needed much but may occasionally needed to provided some piece of parentheic informtion. For example it is used by the library to announce which key it has chosen (e.g. ("(with the brass key)") in response to a LOCK or UNLOCK command:</p>
+<p>There's also a <strong>extraReport(<em>msg</em>)</strong> macro that can be used by an action method to display a piece of introductory text that won't suppress the default message at the report stage. This probably isn't needed much but may occasionally needed to provided some piece of parentheic information. For example it is used by the library to announce which key it has chosen (e.g. ("(with the brass key)") in response to a LOCK or UNLOCK command:</p>
 
  <p><div class="code"><pre>
   dobjFor(Lock)

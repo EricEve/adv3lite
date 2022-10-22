@@ -571,7 +571,7 @@ class Immovable: Thing
     }
     
     /* The message to display to explain why this object can't be taken. */
-    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj).
+    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj}.
         ')
 ;
 
@@ -702,11 +702,22 @@ class Passage: TravelConnector, Thing
     /* Going through a Passage is equivalent to travelling via it. */
     dobjFor(GoThrough)
     {        
+        preCond = [travelPermitted, touchObj]
+        
         action() { travelVia(gActor); }
     }
     
+    iobjFor(PushTravelThrough)
+    {
+        preCond = [travelPermitted, touchObj]
+    }  
+    
+    
     /* Entering a Passage is the same as going through it */
     dobjFor(Enter) asDobjFor(GoThrough)
+    
+     /* Going along a Passage is the same as going through it */
+    dobjFor(GoAlong) asDobjFor(GoThrough)
     
     /* A Passage is usually something fixed in place. */
     isFixed = true
@@ -726,8 +737,14 @@ class Passage: TravelConnector, Thing
  *   going down it is equivalent to going through it.
  */
 class PathPassage: Passage
+    /* Make following a path the same as going through it. */
     dobjFor(Follow) asDobjFor(GoThrough)
+    
+    /* Make going down a path the same as going through it. */
     dobjFor(ClimbDown) asDobjFor(GoThrough)
+    
+    /* Make going up a path the same as going through it. */
+    dobjFor(ClimbUp) asDobjFor(GoThrough)
     
     /* One most naturally talks of going 'down' a path */
     traversalMsg = BMsg(traverse path passage, 'down {1}', theName)

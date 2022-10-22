@@ -32,7 +32,7 @@ Special Topics
 
 <h2><a name="saytopic">SayTopic</a></h2>
 
-<p>A SayTopic can be used to allow the player character say just about anything (in practice limited by the need to keep IF commands reasonably brief). A SayTopic is triggered by a command beginning with the verb SAY, e.g. SAY YOU'RE NOT AFRAID, or SAY SALLY IS HORRIBLE, or SAY YOU LIKE CHOCOLATE. In fact the player can usually leave off the say, and just type YOU'RE NOT AFRAID, or SALLY IS HORRIBLE or YOU LIKE CHOCOLATE, although in the first and third cases the player might be more likely to type I'M NOT AFRAID or I LIKE CHOCOLATE, and your SayTopic will need to be able to deal with this possibility. What happens here is that while there's a conversation in progress between the player character and another actor the parser tries to interpret any command it can't otherwise understand as the topic object of a SAY command, which allows a SayTopic to be triggered even if the player didn't explicitly type SAY at the start of the command.</p>
+<p>A SayTopic can be used to allow the player character say just about anything (in practice limited by the need to keep IF commands reasonably brief). A SayTopic is triggered by a command beginning with the verb SAY, e.g. SAY YOU'RE NOT AFRAID, or SAY SALLY IS HORRIBLE, or SAY YOU LIKE CHOCOLATE. In fact the player can usually leave off the say, and just type YOU'RE NOT AFRAID, or SALLY IS HORRIBLE or YOU LIKE CHOCOLATE, although in the first and third cases the player might be more likely to type I'M NOT AFRAID or I LIKE CHOCOLATE, and your SayTopic will need to be able to deal with this possibility. What happens here is that, under certain circumstances to be discussed <a href ='#implicitsay'>below</a>,while there's a conversation in progress between the player character and another actor the parser tries to interpret any command it can't otherwise understand as the topic object of a SAY command, which allows a SayTopic to be triggered even if the player didn't explicitly type SAY at the start of the command.</p>
 
 <p>The full, long-hand way to define a SayTopic is thus first to define the Topic it matches and then use that Topic as the matchObj of your SayTopic; for example:</p>
 
@@ -112,7 +112,63 @@ tLie: Topic 'lie';
 
 <p>You can use SayTopics wherever you like, but the best use is probably just after the NPC the player character is in conversation with has just asked a question to which they might form an appropriate reply, which means you'll typically use SayTopics in <a href="convnode.htm">Conversation Nodes</a>.</p>
 
+<h3><a name="implicitsay">Controlling Implicit Say</a></h3>
+<p>We said above that under certain circumstances, while there's a conversation in progress between the player character and another actor the parser tries to interpret any command it can't otherwise understand as the topic object of a SAY command, which allows a SayTopic to be triggered even if the player didn't explicitly type SAY at the start of the command. We may call this an <i>implicit</i> say. It is probably the most appropriate behaviour when the game expects the player to use a conversational SAY command, which, experience shows, players don't always do with the wording they're given, and which they may well do without explicitly including the initial SAY in what they type. In other words, it's a good default for a game that makes quite a bit of use of SayTopics. Not every game does so, however, which can make it quite inappropriate behaviour in a game that, for example, uses a basic ASK/TELL conversational interface with no use of SayTopics at all, since in such a situation the response to what the parser then (probably mistakenly) interprets as an implioit SAY command risks baffling the player, or at least looking more than a little clumsy.</p>
 
+<p>To get round this problem, the library uses the method <strong>allowImplicitSay()</strong>, defined on the Actor class, to determine whether or not the parser should interpret the player's input (when it is not otherwise a valid command) as an implicit SAY command. The default behaviour of this method is to return true (and hence allow the parser to treat the player's input as an implicit SAY command) if and only if there's at least one TopicEntry, other than a DefaultTopic, defined on the current interlocutor (the Actor with whom the player character is currently in conversation) or on the current interlocutor's current ActorState, that could match a SAY command. This avoids triggering a mysterious response unless the player explicitly tries to SAY something, and, amongst other things, means that the parser will never interpret the player's input as an implicit SAY in a game that defines no non-default SayTopics.</p>
+
+<p>For many or even most games, this may suffice, but game authors may modify this behaviour if they wish either by overriding the allowImplicitSay() method with their own code, or by setting one of the three flags (all properties defined on the Actor class) to tweak its behaviour:</q>
+<ul>
+<li><strong>enableImplicitSay</strong> If this is set to nil then the parser will never interpret anything as an implicit SAY command. By default this is set to true.</li>
+<li><strong>defaultCountsAsSay</strong> If this is set to true then DefaultTopics that match SAY commands are counted as SayTopics for the purpose of deciding whether the Actor or its current ActorState has any SayTopics (so that implicit SAY commands are allowed if such DefaultTopics are present). By default this is nil.</li>
+<li><strong>autoImplicitSay</strong> If this is set to nil, then allowImplicitSay() simply returns the value of enableImplicitSay, regardless of whether the Actor or its current ActorState has any SayTopics. By default this is set to true.</li>
+</ul>
+<p>At first sight, some of these may seem to be redundant, since setting enableImplicitSay to nil would have the same effect as setting allowImplicitSay() to nil, and setting autoImplicitSay to nil the same effect as overriding allowImplicitSay() to always return nil or always return true. But these three flags are intended to allow fine-grained control, for example to allow different behaviour on different actors at different times without needing to override the allowImplicitSay() method on the Actor class, bearing in mind that each of these methods and properties can be overridden either on the Actor class (using modify) or on individual Actor objects. One might, for instance, define one or more of these flag properties to take its value from a similarly-named property on the Actor's current ActorState (which would need to be user-defined).</p>
+
+<p>Another potential issue is that neither counting all DefaultTopics as SayTopics or none of them as SayTopics as DefaultTopics for the purposes of allowing implicit SAY commands may do quite what the game author wants, since a game author may well include a DefaultAnyTopic or DefaultConversationTopic (both of which might field an explicit or implicit SAY command) without intending thereby to handle SAY commands in their game at all. One workaround would be to use <strong>DefaultAnyNonSayTopic</strong> in place of DefaultAnyTopic and <strong>DefaultNonSayTopic</strong> in place of DefaultConversationTopic, since neither of these will match a SAY command.</p>
+
+<p>A default response to a SayTopic, especially if it's a catch-all response to any kind of conversational command, may be quite puzzling to a player, especially if they typed something not intended to be an implicit SAY command (e.g., because their input included a typo or they were trying to issue a command the parser considers invalid). Consider the following exchange as an example:</p>
+
+
+<p><div class="cmdline"><pre>
+&gt;EXMINE DESK
+Fred does not respond.
+</pre></div>
+
+<p>Here the player probably meant to type EXAMINE DESK, but if the parser interprets it as an implicit SAY when the player characater is in conversation with Fred then it won't attempt to correct the typo, and the player will get this potentially mystifying response. The Actor class now defines a new <strong>defaultSayResponse</strong> property which displays when there's no match to an (explicit or implicit) SAY command. With this in place, the above exchange becomes:</p>
+
+<p><div class="cmdline"><pre>
+&gt;EXMINE DESK
+&ldquo;Exmine desk,&rdquo; you say.
+
+Fred does not respond.
+</pre></div>
+
+<p>While this may not be very elegant, and some players may even find it a little irritating, it at least makes it clear to the player how their input has been interpreted, which is probably the most important thing.</p>
+
+<p>We can, of course, customise this response either by overriding the defaultSayResponse (on the Actor class or an individual Actor object), or by overriding the <strong>pcDefaultSayQuip</strong> property (again either on the Actor class or an individual Actor object), this being the property that supplies the '&ldquo;Exmine desk,&rdquo; you say.' part of the message (while 'Fred does not respond' comes from the <strong>noResponseMsg</strong> property, used in response to all other non-handled conversational commands).
+
+<p>There is still the problem that this mechanism won't be invoked because an (implicit or explicit) SAY command is handled by some kind of DefaultTopic before the defaultSayResponse is ever invoked. You can avoid this either by adding a DefaultSayTopic to the Actor or relevant ActorState(s) without overriding its topicResponse property (in which case it will use its Actor's defaultSayResponse with the same effect as before, or as suggested above, using <strong>DefaultAnyNonSayTopic</strong> in place of DefaultAnyTopic and <strong>DefaultNonSayTopic</strong> in place of DefaultConversationTopic, since neither of these will match a SAY command.</p>
+
+<p>Finally, if you want to customize Fred's non response while keeping what the player character is deemed to have just said, you could do something along the lines of:</p>
+
+<p><div class="code"><pre>
+++ DefaultSayTopic
+    "&lt;&lt;getActor.pcDefaultSayQuip&gt;&gt;&lt;.p&gt;
+    &lt;q&gt;Whatever do you mean?&lt;/q&gt; Fred demands. &quot;
+;
+</pre></div>
+ 
+ <p>Or, for further customization still:</p>
+ 
+<p><div class="code"><pre>
+++ DefaultSayTopic
+    "For some reason you come out with, &lt;q&gt;&lt;&lt;gTopicText.substr(1,1).toUpper()&gt;&gt;&lt;&lt;gTopicText.substr(2).toLower()&gt;&gt;.&lt;/q&gt;&lt;.p&gt;
+    &lt;q&gt;Whatever do you mean?&lt;/q&gt; Fred demands. &quot;
+;
+</pre></div>
+ 
+ <br> 
 
 <h2><a name="querytopic">QueryTopic</a></h2>
 

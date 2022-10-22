@@ -19,6 +19,7 @@
  *   individuals.  When we use that plural vocabulary, we will filter for
  *   or against the collective, as determined by the noun phrase
  *   production, when the player uses the collective term. 
+ *   [COLLECTIVE EXTENSION]
  */
 class Collective: Thing
     /* 
@@ -47,14 +48,16 @@ class Collective: Thing
     extraToks = nil
     
     
-    /* Did the player's command match any of our collectiveToks ? */
+    /* Did the player's command match any of our collectiveToks ? [COLLECTIVE EXTENSION] */
     collectiveDobjMatch = nil
     
+	/* Did the player's command match any of our collectiveToks ? [COLLECTIVE EXTENSION] */
     collectiveIobjMatch = nil
     
     /* The number of dispensible items being requested. */
     numberWanted = 0
     
+	/* For the COLLECTIVE EXTENSION  decide whether to select the collective object (ourselves) or an individual item. */
     filterResolveList(np, cmd, mode)
     {
         /* Carry out any inherited handling */
@@ -127,6 +130,8 @@ class Collective: Thing
      *
      *   The np parameter can be used, inter alia, to determine the role
      *   (np.role), e.g. as DirectObject or IndirectObject.
+	 *
+	 *   [COLLECTIVE EXTENSION]
      */     
     isCollectiveFor(obj) { return nil; }
     
@@ -150,27 +155,28 @@ class Collective: Thing
 /*   
  *   A DispensingCollective is a Collective that dispenses objects when the
  *   player takes from it; e.g. a bunch of grapes that dispenses grapes.
+ *   [COLLECTIVE EXTENSION]
  */
 class DispensingCollective: Collective
     
     /*  
-     *   If defines, the class of object that is created and dispensed when an
-     *   actor takes from this DispensingCollective/
+     *   If definesd the class of object that is created and dispensed when an
+     *   actor takes from this DispensingCollective. [COLLECTIVE EXTENSION]
      */
     dispensedClass = nil
     
     /*   
      *   Alternatively, a list of objects that are taken in turn when we take
-     *   from this DispensingCollective.
+     *   from this DispensingCollective. [COLLECTIVE EXTENSION]
      */
     dispensedObjs = nil
     
-    /*   The number of objects we have dispensed so far. */
+    /*   The number of objects we have dispensed so far. [COLLECTIVE EXTENSION] */
     dispensedCount = 0
     
     /*   
      *   The total number of objects we can dispense. If this is nil, there is
-     *   no limit.
+     *   no limit. [COLLECTIVE EXTENSION]
      */
     maxToDispense = nil
     
@@ -178,7 +184,7 @@ class DispensingCollective: Collective
      *   The number of objects we have left to dispense. This is updated by the
      *   canDispense method, and shouldn't be overridden by user code. It may,
      *   however, for use code to consult this property, e.g. to vary our
-     *   description.
+     *   description. [COLLECTIVE EXTENSION]
      */         
     numLeft = 0
     
@@ -186,11 +192,11 @@ class DispensingCollective: Collective
      *   In principle a DispensingCollective can supply additional items on
      *   demand. This property is used by the parser to prevent it from throwing
      *   an error when the player asks for more of the items we dispense than
-     *   are currently in scope.
+     *   are currently in scope. [COLLECTIVE EXTENSION]
      */
     canSupply = true
     
-    /*   Is it possible (or allowed) to dispense any more objects from us? */
+    /*   Is it possible (or allowed) to dispense any more objects from us? [COLLECTIVE EXTENSION] */
     canDispense()
     {
         /* 
@@ -227,7 +233,7 @@ class DispensingCollective: Collective
         return numberWanted <= numLeft;;           
     }
     
-    /*  Dispense an object from this DispensingCollective. */
+    /*  Dispense an object from this DispensingCollective. [COLLECTIVE EXTENSION]*/
     dispenseObj()
     {
         for(local i in 1..numberWanted)
@@ -269,7 +275,7 @@ class DispensingCollective: Collective
         sayDispensed(obj);
     }
     
-    /* Display a message saying that the actor has taken an object from us. */
+    /* Display a message saying that the actor has taken an object from us. [COLLECTIVE EXTENSION]*/
     sayDispensed(obj)
     {               
         local objDesc = numberWanted == 1 ? obj.aName :
@@ -286,7 +292,7 @@ class DispensingCollective: Collective
      *   dispense, e.g. by changing the description, or replacing a bunch of
      *   bananas by a single banana (when it's the last one left). We do nothing
      *   here in the library, since what's needed will vary with the specifics
-     *   of the game.
+     *   of the game. [COLLECTIVE EXTENSION]
      */
     exhaustDispenser()
     {
@@ -298,7 +304,7 @@ class DispensingCollective: Collective
      *   the bunch of grapes) itself, or it may be an attempt to take a single
      *   item (e.g. a single grape from the bunch). We assume it's the former if
      *   what the player typed matches the plural vocab (e.g. 'grapes') and the
-     *   latter otherwise.
+     *   latter otherwise. [COLLECTIVE EXTENSION]
      */
     dobjFor(Take)
     {
@@ -352,6 +358,7 @@ class DispensingCollective: Collective
      *   the DispensingCollective represents both objects in the command (since
      *   until we actually take the grape - or whatever the dispensed object is
      *   to be - it doesn't yet exist in scope to be the object of the command.)
+	 *   [COLLECTIVE EXTENSION]
      */
     iobjFor(TakeFrom)
     {
@@ -372,9 +379,11 @@ class DispensingCollective: Collective
         }
     }
     
+	[COLLECTIVE EXTENSION]
     cannotTakeFromHereMsg = BMsg(cant take from dispenser, '{I} {can\'t} take {a
         dobj} from {the iobj}. ')
     
+	[COLLECTIVE EXTENSION]
     dobjFor(TakeFrom)
     {
         verify()
@@ -389,6 +398,7 @@ class DispensingCollective: Collective
         action() { actionDobjTake(); }
     }
     
+	[COLLECTIVE EXTENSION]
     sayCannotDispense()
     {
         if(numLeft < 1)
@@ -397,18 +407,18 @@ class DispensingCollective: Collective
             say(notEnoughLeftMsg);
     }
     
-    /* The message to display when there's no more items to dispense from us. */
+    /* The message to display when there's no more items to dispense from us. [COLLECTIVE EXTENSION]*/
     cannotDispenseMsg = BMsg(cannot dispense, '{I} {can\'t} take any more from
         {the dobj}. ')
     
     /* 
      *   The message to display when the player has asked us for more items than
-     *   we have letft.
+     *   we have left. [COLLECTIVE EXTENSION]
      */
     notEnoughLeftMsg = BMsg(not that many left, 'There{plural} {aren\'t} that
         many left to take. ')
     
-    /* Are we the Collective for obj? */
+    /* Are we the Collective for obj? [COLLECTIVE EXTENSION] */
     isCollectiveFor(obj) 
     {         
         
@@ -423,7 +433,7 @@ class DispensingCollective: Collective
     
     }
     
-    /* The TakeFrom action should always act on us, the Collective. */
+    /* The TakeFrom action should always act on us, the Collective. [COLLECTIVE EXTENSION] */
     collectiveAction(np, cmd) 
     { 
         return cmd.action == TakeFrom; 

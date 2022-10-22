@@ -422,6 +422,32 @@ DefineSystemAction(Verbose)
     }
 ;
 
+
+/* Set Inventory to TALL format */
+DefineSystemAction(InventoryTall)
+    execAction(cmd)
+    {
+        /* Register with libGlobal that inventory listing should now be in tall format. */
+        libGlobal.inventoryTall = true;
+        
+        /* Display a confirmation that this change has just taken place. */
+        DMsg(inventory tall, 'Inventory Listing is now set to TALL');
+    }
+;
+  
+/* Set Inventory to WIDE format */
+DefineSystemAction(InventoryWide)        
+    execAction(cmd)
+    {
+        /* Register with libGlobal that inventory listing should now be in wide format. */
+        libGlobal.inventoryTall = nil;
+        
+        /* Display a confirmation that this change has just taken place. */
+        DMsg(inventory wide, 'Inventory Listing is now set to WIDE');
+    }
+;
+
+
 DefineIAction(Inventory)
     execAction(cmd)
     {
@@ -481,8 +507,12 @@ DefineIAction(Inventory)
         gActor.contents.forEach({x: x.noteSeen()});
     }
    
-    /* Do we want separate lists of what's worn and what's carried? */
-    splitListing = true
+        
+    /* 
+     *   Do we want separate lists of what's worn and what's carried?  By default we do unless we're
+     *   doing a tall inventory listing
+     */
+    splitListing = !libGlobal.inventoryTall
 ;
 
 DefineIAction(Look)
@@ -1104,6 +1134,9 @@ DefineTAction(GetOutOf)
 DefineTAction(GoThrough)    
 ;
 
+DefineTAction(GoAlong)    
+;
+
 DefineTAction(TravelVia)
 ;
 
@@ -1517,6 +1550,9 @@ DefineTAction(Unplug)
 
 
 DefineTAction(PushTravelDir)
+    
+    isPushTravelAction = true
+    
     execAction(cmd)
     {
         local conn;
@@ -1527,100 +1563,192 @@ DefineTAction(PushTravelDir)
         /* Get the direction of travel from the command */
         direction = cmd.verbProd.dirMatch.dir;
         
-        /* 
-         *   Carry out the inherited handling, including calling dobjFor(Travel)
-         *   on the dobj
-         */
-        inherited(cmd);
+        /* Note the actor's location. */
+        local loc = gActor.getOutermostRoom; 
         
-        /* Proceed to carry out the travel if the dobj allows it */
-        if(travelAllowed)
+//        /* Note whether we meed the lighting conditions to permit travel */
+//        local illum = loc.allowDarkTravel || loc.isIlluminated;
+        
+        /* 
+         *   first find out what our direction might take us to; if it's an object that defines the
+         *   PushTravlVia property, change the action to PushTravelVia that connector
+         */
+        
+    retry:
+        /* 
+         *   See if the direction we're due to go in points to an object and if so process it
+         *   accordingly.
+         */
+        if(loc.propType(direction.dirProp) == TypeObject)
         {
-            /* Note the old location, which is the actor's current room. */ 
-           local oldLoc = gActor.getOutermostRoom; 
+            /* Note the connector object in the relevant direction */
+            conn = loc.(direction.dirProp); 
             
-           /*  
-            *   If the relevant direction property of the actor's current room
-            *   points to an object, then try pushing the dobj via that object
-            *   (e.g. up the stairs or through the door).
-            */ 
-           if(oldLoc.propType(direction.dirProp) == TypeObject)
-           {
-                /* Note the connector object in the relevant direstion */
-                conn = oldLoc.(direction.dirProp);
+            /* 
+             *   If this connector is an UnlistedProxy Connector we need to carry out the rest of
+             *   the processing on whatever it's a proxy for.
+             */
+            if(conn.ofKind(UnlistedProxyConnector))
+            {
+                /* Reset our direction to that of the UnlistedProxyConnector. */
+                direction = conn.direction;
                 
-                /*  
-                 *   If the connector object defines a PushTravelVia action,
-                 *   then replace the current action with that PushTravelVia
-                 *   action (e.g. PushTravelGoThrough or PushTravelClimbUp).
-                 */
-                if(conn.PushTravelVia)
-                    replaceAction(conn.PushTravelVia, gDobj, conn);
-                               
-                /* 
-                 *   Otherwise, if the travel barriers would not allow the dobj
-                 *   to pass or the actor to pass, stop the action here.
-                 */
-                if(!conn.checkTravelBarriers(curDobj) 
-                   || !conn.checkTravelBarriers(gActor))
-                {                    
-                    return;
+                /* Start over again with our new direction. */
+                goto retry;                  
+            }
+            
+            /*  
+             *   If the connector object defines a PushTravelVia action, then replace the current
+             *   action with that PushTravelVia action (e.g. PushTravelGoThrough or
+             *   PushTravelClimbUp).
+             */
+            if(conn.PushTravelVia)
+                replaceAction(conn.PushTravelVia, gDobj, conn);
+            
+            /* 
+             *   Maybe conn looks like an object but is actually an anonymous or dynamic function,
+             *   in which case we can try to execute it.
+             */
+            if(dataTypeXlat(conn) == TypeFuncPtr)
+            {
+                try
+                {
+                    conn();                    
                 }
+                catch (Exception ex)
+                {
+                    "Problem with function object attached to the <<direction.name>> property of
+                    <<loc.name>>.<.p>";
+                    
+                    ex.displayException();
+                }
+            }
+            else        
                 
-            }
-            
             /* 
-             *   If the direction property isn't attached to an object, the
-             *   chances are that travel won't be allowed, so in that case we
-             *   don't want to display a message about attempting to push the
-             *   direct object anywhere, but if it is, then the chances are that
-             *   travel is possible (unless it's already been ruled out) so we
-             *   display a suitable message.
-             */
-            if(oldLoc.propType(direction.dirProp) == TypeObject)
-                gDobj.beforeMovePushable(conn, direction);
+             *   if we reach this point, there must be something fishy going on, since we really
+             *   shouldn't have any other kind of object attached to a direction property, so
+             *   display a message saying so.
+             */                
+                "<b>ERROR!</b> Illegal object <<conn>> attached to the <<direction.name>> property 
+                of <<loc.name>>. ";
             
-            /* 
-             *   Temporarily set the isHidden property of the direct
-             *   object to true so we don't see it listed in its old location if
-             *   there's a sight path to it there from the actor's new location.
-             */
-            
-            local wasHidden;
-            try
-            {
-                wasHidden = gDobj.propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
-                    gDobj.getMethod(&isHidden) : isHidden;
-                
-                gDobj.isHidden = true;
-                
-                /* 
-                 *   Carry out the standard handling of TravelAction to move the
-                 *   actor in the appropriate direction
-                 */ 
-                delegated TravelAction(cmd);
-            }
-            finally
-            {
-                if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
-                    gDobj.setMethod(&isHidden, wasHidden);
-                else
-                    gDobj.isHidden = wasHidden;
-            }
-            
-            
-            /* 
-             *   If the actor has moved to a new location, move the dobj to that
-             *   location and report what's happened.
-             */
-            if(oldLoc != gActor.getOutermostRoom)
-            {
-                curDobj.moveInto(gActor.getOutermostRoom);
-                curDobj.describeMovePushable(conn, gActor.getOutermostRoom);
-            }
         }
+        /* 
+         *   If our direction isn't attached to an object, it must be to a method or string that's
+         *   going to display a message explaining why we can't travel. So call the nonTravel()
+         *   function to handle it.            
+         */
+        else
+            nonTravel(loc, direction);
     }
     
+    
+//    
+//    execAction(cmd)
+//    {
+//        local conn;
+//        
+//        /* Note whether travel is allowed. This can be adjusted by the dobj */
+//        travelAllowed = nil;
+//        
+//        /* Get the direction of travel from the command */
+//        direction = cmd.verbProd.dirMatch.dir;
+//        
+//        /* 
+//         *   Carry out the inherited handling, including calling dobjFor(Travel)
+//         *   on the dobj
+//         */
+//        inherited(cmd);
+//        
+//        /* Proceed to carry out the travel if the dobj allows it */
+//        if(travelAllowed)
+//        {
+//            /* Note the old location, which is the actor's current room. */ 
+//           local oldLoc = gActor.getOutermostRoom; 
+//            
+//           /*  
+//            *   If the relevant direction property of the actor's current room
+//            *   points to an object, then try pushing the dobj via that object
+//            *   (e.g. up the stairs or through the door).
+//            */ 
+//           if(oldLoc.propType(direction.dirProp) == TypeObject)
+//           {
+//                /* Note the connector object in the relevant direction */
+//                conn = oldLoc.(direction.dirProp);
+//                
+//                /*  
+//                 *   If the connector object defines a PushTravelVia action,
+//                 *   then replace the current action with that PushTravelVia
+//                 *   action (e.g. PushTravelGoThrough or PushTravelClimbUp).
+//                 */
+//                if(conn.PushTravelVia)
+//                    replaceAction(conn.PushTravelVia, gDobj, conn);
+//                               
+//                /* 
+//                 *   Otherwise, if the travel barriers would not allow the dobj
+//                 *   to pass or the actor to pass, stop the action here.
+//                 */
+////                if(!conn.checkTravelBarriers(curDobj) 
+////                   || !conn.checkTravelBarriers(gActor))
+////                {                    
+////                    return;
+////                }
+//                
+//            }
+//            
+//            /* 
+//             *   If the direction property isn't attached to an object, the
+//             *   chances are that travel won't be allowed, so in that case we
+//             *   don't want to display a message about attempting to push the
+//             *   direct object anywhere, but if it is, then the chances are that
+//             *   travel is possible (unless it's already been ruled out) so we
+//             *   display a suitable message.
+//             */
+//            if(oldLoc.propType(direction.dirProp) == TypeObject)
+//                gDobj.beforeMovePushable(conn, direction);
+//            
+//            /* 
+//             *   Temporarily set the isHidden property of the direct
+//             *   object to true so we don't see it listed in its old location if
+//             *   there's a sight path to it there from the actor's new location.
+//             */
+//            
+//            local wasHidden;
+//            try
+//            {
+//                wasHidden = gDobj.propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
+//                    gDobj.getMethod(&isHidden) : isHidden;
+//                
+//                gDobj.isHidden = true;
+//                
+//                /* 
+//                 *   Carry out the standard handling of TravelAction to move the
+//                 *   actor in the appropriate direction
+//                 */ 
+//                delegated TravelAction(cmd);
+//            }
+//            finally
+//            {
+//                if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
+//                    gDobj.setMethod(&isHidden, wasHidden);
+//                else
+//                    gDobj.isHidden = wasHidden;
+//            }
+//            
+//            
+//            /* 
+//             *   If the actor has moved to a new location, move the dobj to that
+//             *   location and report what's happened.
+//             */
+//            if(oldLoc != gActor.getOutermostRoom)
+//            {
+//                curDobj.moveInto(gActor.getOutermostRoom);
+//                curDobj.describeMovePushable(conn, gActor.getOutermostRoom);
+//            }
+//        }
+//    }
+//    
     travelAllowed = nil
     direction = nil
     curIobj = nil
@@ -1630,18 +1758,49 @@ DefineTAction(PushTravelDir)
 ;
 
 DefineTIAction(PushTravelThrough)
+    viaMode = Through
+    
+    isPushTravelAction = true
+    
+    addExtraScopeItems(role)
+    {
+        /* 
+         *   If our indirect object is a TravelConnector it may not be a physical object that would
+         *   normally be considered in scope, so we need to add it to our scope list.
+         */        
+        if(objOfKind(curIobj, TravelConnector))
+            scopeList = scopeList.appendUnique(valToList(curIobj));
+        
+        /* 
+         *   Append the extra scope items defined on this Room to the action's
+         *   scope list.
+         */
+        inherited(role);
+    }
 ;
 
 DefineTIAction(PushTravelEnter)
+    viaMode = Into
+    
+    isPushTravelAction = true
 ;
 
 DefineTIAction(PushTravelGetOutOf)
+    viaMode = OutOf
+    
+    isPushTravelAction = true
 ;
 
 DefineTIAction(PushTravelClimbUp)
+    viaMode = Up
+    
+    isPushTravelAction = true
 ;
 
 DefineTIAction(PushTravelClimbDown)
+    viaMode = Down
+    
+    isPushTravelAction = true
 ;
 
 
@@ -1957,9 +2116,13 @@ class ImplicitConversationAction: TopicAction
             resolvePronouns();
             curObj = gPlayerChar.currentInterlocutor;
             gPlayerChar.currentInterlocutor.handleTopic(topicListProperty, 
-                topics);
+                topics, defaultProperty);
         }
     }
+    
+    /* The default property to call on the Actor if there's not matching TopicEntry */
+    defaultProperty = &noResponseMsg
+    
     
     /* 
      *   This is a bit of a kludge to deal with the fact that the Parser doesn't
@@ -2075,6 +2238,7 @@ Query: ImplicitConversationAction
 SayAction: ImplicitConversationAction
     baseActionClass = SayAction
     topicListProperty = &sayTopics
+    defaultProperty = &defaultSayResponse
 ;
 
 

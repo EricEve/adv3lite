@@ -37,6 +37,7 @@ modify Parser
     autoHelp = true    
 ;
 
+/ *[CMDHELP EXTENSION] */
 DefineSystemAction(CmdMenu)
     showOptions()
     {
@@ -66,6 +67,7 @@ DefineSystemAction(CmdMenu)
     /* 
      *   Show a list of possible actions, where cmd_str is the name of the
      *   action and lst a list of objects on which it might be tried.
+	 *	[CMDHELP EXTENSION]
      */
     showList(lst, cmd_str)
     {       
@@ -101,7 +103,8 @@ DefineSystemAction(CmdMenu)
     
     /* 
      *   Carry out this action. This is the response to the player entering a
-     *   number at the command prompt.
+     *   number at the command prompt. 
+	 *   [CMDHELP EXTENSION]
      */
     execAction(cmd)
     {
@@ -838,7 +841,7 @@ DefineSystemAction(CmdMenu)
 ;
 
 
-
+/* [CMDHELP EXTENSION] */
 VerbRule(CmdMenu)
     numericDobj
     : VerbProduction
@@ -848,7 +851,7 @@ VerbRule(CmdMenu)
 ;
     
 
-/* Modifications to Thing for the cmdhelp extension */
+/* Modifications to Thing for the CMDHELP EXTENSION */
 modify Thing
     turnLastMoved = 0
     turnLastMovedInto = 0
@@ -883,7 +886,7 @@ modify Thing
     }
 ;
 
-/* Modify suggestedTopicLister to hyperlink suggestions */
+/* Modify suggestedTopicLister to hyperlink suggestions for the CMDHELP EXTENSION */
 modify suggestedTopicLister
     
     /* 

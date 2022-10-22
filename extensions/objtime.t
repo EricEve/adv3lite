@@ -257,7 +257,6 @@ modify SystemAction
  *
  *  [PART OF THE OBJTIME EXTENSION]
  */
-
 class TimeFuse: Fuse
     construct(obj, prop, interval)
     {
@@ -349,14 +348,14 @@ class SenseTimeFuse: TimeFuse
 modify TravelConnector
     /* 
      *   The number of seconds it takes to traverse this connector (in addition
-     *   to any that come from the Travel action).
+     *   to any that come from the Travel action). [OBJTIME EXTENSION ONLY]
      */
     traversalTime = 0
     
     /*  
      *   If we want to vary the time to go through this TravelConnector
      *   depending on where the traveler is starting from (only really relevant
-     *   for rooms), we can override this method instead.
+     *   for rooms), we can override this method instead. [OBJTIME EXTENSION ONLY]
      */
     traversalTimeFrom(origin)
     {
@@ -369,6 +368,7 @@ modify TravelConnector
  *   certain amount of game time.
  */
 modify Room
+    /* Modified in OBJTIME EXTENSION to add the traversal time for entering the room. */
     execTravel(actor, traveler, conn)
     {
         /* Note the actor's starting location */

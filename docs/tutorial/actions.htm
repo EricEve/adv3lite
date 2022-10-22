@@ -23,7 +23,7 @@ Defining Actions
 
 <p>Although the descriptions of the stick and the thrust lever both suggest commands of the form PUSH STICK FORWARD and PULL LEVER BACK, there's really no reason why these shouldn't behave just the same as PUSH STICK and PULL LEVER. So we don't really need any new <em>actions</em> for either of these cases, we just need to add new ways in which the player can phrase commands that trigger the existing actions. There are basically two ways we can do this, and though there's no reason to handle PULL and PUSH differently here, we'll use one method on PUSH and the other on PULL just to illustrate both ways of doing things. We'll start with the more difficult way on PUSH and then illustrate the easier way on PULL.</p>
 
-<p>Let's suppose we want PUSH X, PUSH X FORWARD and PUSH FORWARD ON X to all do the same thing. One way to do this is to define a new <strong>VerbRule</strong> that recognizes PUSH X FORWARD snd PUSH FORWARD ON X and makes either trigger the Push action. This is what it might look like:</p>
+<p>Let's suppose we want PUSH X, PUSH X FORWARD and PUSH FORWARD ON X to all do the same thing. One way to do this is to define a new <strong>VerbRule</strong> that recognizes PUSH X FORWARD and PUSH FORWARD ON X and makes either trigger the Push action. This is what it might look like:</p>
 
  <p><div class="code"><pre>
 VerbRule(PushForward)
@@ -31,7 +31,7 @@ VerbRule(PushForward)
     | 'push' 'forward' 'on' multiDobj
     : VerbProduction
     action = Push
-    verbPhrase = 'push/pushing (what)'
+    verbPhrase = 'push/pushing forward (what)'
     missingQ = 'what do you want to push forward'
 ;
 </pre></div>
@@ -100,7 +100,7 @@ VerbRule(TurnRight)
 ;
 </pre></div>
 
-<p>The one extra thing we've added here to both definitions is <span class="code">priority = 60</span>. This is to ensure that both these VerbRules will take priority over the VerbRule for TURN X TO <em>setting</em>, where <em>setting</em> is a literal value that could be anything, including 'left', 'right', 'port' or 'starboard'. The default priority for a VerbRule is 50, so by giving these two VerbRules a priority of 60 we're ensure they're matched in preference to <span class="code">VerbRule(TurnTo)</span> for commands like TURN WHEEL TO PORT.</p>
+<p>The one extra thing we've added here to both definitions is <span class="code">priority = 60</span>. This is to ensure that both these VerbRules will take priority over the VerbRule for TURN X TO <em>setting</em>, where <em>setting</em> is a literal value that could be anything, including 'left', 'right', 'port' or 'starboard'. The default priority for a VerbRule is 50, so by giving these two VerbRules a priority of 60 we're ensuring that they're matched in preference to <span class="code">VerbRule(TurnTo)</span> for commands like TURN WHEEL TO PORT.</p>
 
 <p>If you compile and run the game now, you'll find that it now accepts commands like TURN WHEEL TO PORT or TURN WHEEL RIGHT (provided the wheel is in scope) but that absolutely nothing happens in response. That's because we haven't yet defined what we want either of these commands to do. It's no good starting by defining what we want them to do on the wheel, since players might try to use them on any object in the game. Our next job, therefore, is to define what we want them to do on Thing. We can then customize the response on particular objects (such as the wheel) where we want the commands to do something special.</p>
 
@@ -201,7 +201,7 @@ modify Thing
 
 <p>First of all, the report() phase is only called for the last object in the series of objects the command applies to. Often a command only refers to a single object (e.g. TURN WHEEL), but sometimes a command specifies more than one direct object (e.g. TAKE THE PEN AND THE CARD). In the first case the report() phase would be called on the wheel; in the second it would be called only on the card, but would be responsible for reporting the taking of the pen as well. So, if the grammar for TurnLeft allowed multiple direct objects, and the player typed TURN RED WHEEL, GREEN WHEEL AND BLUE WHEEL LEFT the response would be "Turning the red wheel, the green wheel and the blue wheel to the left has no effect." It does this by means of the special macro <span class="code">gActionListStr</span>.</p>
 
-<p>Second, <span class="code">gActionListStr</span> only lists those objects that (a) made it to the action stage (i.e. which passed verify() and check() and met any preconditions) but (b) for which the action stage displayed no messages at all. That means that if you want any object to display a custom message of its own in response to an action, you can simply get your action() method (or any method it calls) to display it, and the report() message will be suppressed for that object. The message defined in a report() method is thus only uses as a kind of fall-back default if the game doesn't supply anything more specific.</p>
+<p>Second, <span class="code">gActionListStr</span> only lists those objects that (a) made it to the action stage (i.e. which passed verify() and check() and met any preconditions) but (b) for which the action stage displayed no messages at all. That means that if you want any object to display a custom message of its own in response to an action, you can simply get your action() method (or any method it calls) to display it, and the report() message will be suppressed for that object. The message defined in a report() method is thus only used as a kind of fall-back default if the game doesn't supply anything more specific.</p>
 
 <p>Third, the report() phase won't be executed at all if either (a) <span class="code">gActionListStr</span> would be empty (i.e., if there are no direct objects left to report on) or (b) the action is an implicit one (reported via a message like "(first opening the door)").</p>
 

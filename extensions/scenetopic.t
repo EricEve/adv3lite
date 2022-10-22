@@ -5,23 +5,27 @@
 
 /* Modifications to Scene for the SCENETOPIC EXTENSION */
 modify Scene
-    /* Modified for SceneTopic Extension */
+    /* 
+	 * Modified for SceneTopic Extension to notify any actor that we can talk to that this scene has ended.
+	 */
     end()
     { 
         /* Carry out the inherited handling */
         inherited();
         
-        /* Notify any actor that we can talk to that this scene had ended */
+        /* Notify any actor that we can talk to that this scene has ended */
         notifyActors(&sceneEndTopics);
     }
     
-    /*  Modified for SceneTopic Extension */
+    /*  
+	 * Modified for SceneTopic Extension to notify any actor that we can talk to that this scene has started. 
+	 */
     start()    
     {
         /* Carry out the inherited handling */     
         inherited();
         
-         /* Notify any actor that we can talk to that this scene had started */
+         /* Notify any actor that we can talk to that this scene has started */
         notifyActors(&sceneStartTopics);
     }
     
@@ -64,7 +68,7 @@ modify Scene
      *   only the first one we find? By default we assume we want a response
      *   from only one actor. Note that the Actor notificationOrder property can
      *   be defined so that we can select which Actor this will be (the one with
-     *   the lowest notificationOrder).
+     *   the lowest notificationOrder). [SCENETOPIC EXTENSION]
      */
     notifySingleActor = true
 ;
@@ -77,8 +81,8 @@ modify ActorTopicDatabase
 ;
 
 /* 
- *   The SceneTopic class (defined in the scenetopic extension) is the base
- *   class
+ *   The SceneTopic class (defined in the SCENETOPIC EXTENSION) is the base
+ *   class for SceneStartTopic and SceneEndTopic
  */
 class SceneTopic: ActorTopicEntry
     handleTopic()
@@ -103,7 +107,7 @@ class SceneTopic: ActorTopicEntry
 
 /* 
  *   A SceneEndTopic is a topic entry that is triggered when any of the scenes
- *   in its matchObj property ends.
+ *   in its matchObj property ends. [SCENETOPIC EXTENSION]
  */
 class SceneEndTopic: SceneTopic
     includeInList = [&sceneEndTopics]
@@ -112,7 +116,7 @@ class SceneEndTopic: SceneTopic
 
 /* 
  *   A SceneStartTopic is a topic entry that is triggered when any of the scenes
- *   in its matchObj property starts.
+ *   in its matchObj property starts. [SCENETOPIC EXTENSION]
  */
 class SceneStartTopic: SceneTopic
     includeInList = [&sceneStartTopics]

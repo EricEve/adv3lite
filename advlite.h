@@ -297,6 +297,21 @@ enum rmcDisambig;
 #define gTentativeDobj (gCommand.dobjs.mapAll({x: x.obj}).toList)
 #define gTentativeIobj (gCommand.iobjs.mapAll({x: x.obj}).toList)
 
+/* 
+ *   the probable Action objects of the command being executed for use in verify routines when
+ *   resolution of both objects may not be complete. If the gDobj or gIobj is non-nil, use that,
+ *   otherwise use the first object in the tentative resolution list.
+ */
+#define gVerifyDobj (gDobj ?? gTentativeDobj[1])
+#define gVerifyIobj (gIobj ?? gTentativeIobj[1])
+
+/* 
+ *   An alternative way of dealing with the potential object not yet resolved problem, by testing
+ *   whether any of the objects in lst are in the Tentative Object List.
+ */
+#define gTentativeDobjIn(lst)  (gTentativeDobj.overlapsWith(lst))
+#define gTentativeIobjIn(lst)  (gTentativeIobj.overlapsWith(lst))
+
 /* The previous action and command */
 #define gLastAction (libGlobal.lastAction)
 #define gLastCommand (libGlobal.lastCommand)
@@ -1311,7 +1326,9 @@ SymConnector template @room1 @room2;
 SymPassage template ->destination 'vocab' "desc"?;
 SymPassage template 'vocab' ->destination "desc"?;
 SymPassage template 'vocab' @room1 @room2 "desc"?;
-    
+SymPassage template 'vocab' [rooms] "desc"?;
+ 
+string template <<* by room>> byRoomFunc;
 
 
 /*----------------------------------------------------------------------------*/

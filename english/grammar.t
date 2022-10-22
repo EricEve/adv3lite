@@ -1763,9 +1763,19 @@ VerbRule(Kiss)
 ;
 
 VerbRule(Query)
-    ('a' | 'ask'|) ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
+    ('a' | 'ask') ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
                    ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
                     qtype | 'if' -> qtype) topicDobj
+    : VerbProduction
+    action = Query
+    verbPhrase = 'ask/asking (what)'
+    missingQ = 'what do you want to ask'
+    priority = 60
+;
+
+VerbRule(Query2)
+    ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
+                   ->qtype | 'when' -> qtype| 'how' -> qtype) topicDobj
     : VerbProduction
     action = Query
     verbPhrase = 'ask/asking (what)'
@@ -1797,7 +1807,7 @@ VerbRule(QueryVague)
 ;
 
 VerbRule(AuxQuery)
-    ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
+    ('a' | 'ask'|) ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
      'could' | 'would' | 'should' | 'were' ) topicDobj
     :VerbProduction
     action = Query
@@ -1910,7 +1920,7 @@ VerbRule(TellAbout)
 ;
 
 VerbRule(TellAboutImplicit)
-    ('tell' | 't') ('about' |) topicIobj
+    ('t' | 'tell' 'about') topicIobj
     : VerbProduction
     action = TellAboutImplicit
     verbPhrase = 'tell/telling (whom) (about what)'
@@ -2229,6 +2239,21 @@ VerbRule(Inventory)
     verbPhrase = 'take/taking inventory'
 ;
 
+VerbRule(InventoryTall)
+    ('i' | 'inv' | 'inventory') 'tall'
+    : VerbProduction
+    action = InventoryTall
+    verbPhrase = 'take/making inventory tall'
+;
+
+VerbRule(InventoryWide)
+    ('i' | 'inv' | 'inventory') 'wide'
+    : VerbProduction
+    action = InventoryWide
+    verbPhrase = 'take/making inventory wide'
+;   
+
+
 VerbRule(Wait)
     'z' | 'wait'
     : VerbProduction
@@ -2500,6 +2525,16 @@ VerbRule(GoThrough)
     action = GoThrough
     verbPhrase = 'go/going (through what)'
     missingQ = 'what do you want to go through'
+    dobjReply = singleNoun
+;
+
+VerbRule(GoAlong)
+    ('walk' | 'go' ) ('along')
+        singleDobj
+    : VerbProduction
+    action = GoAlong
+    verbPhrase = 'go/going (along what)'
+    missingQ = 'what do you want to go along'
     dobjReply = singleNoun
 ;
 
@@ -2833,6 +2868,7 @@ VerbRule(Cut)
     : VerbProduction
     action = Cut
     verbPhrase = 'cut/cutting (what) (with what)'
+    missingQ = 'what do you want to cut'
 ;
 
 VerbRule(CutWith)
@@ -2906,7 +2942,7 @@ VerbRule(ClimbUp)
 ;
 
 VerbRule(ClimbUpWhat)
-    [badness 200] 'climb' 'up'
+    'climb' 'up'
     : VerbProduction
     action = ClimbUpVague
     verbPhrase = 'climb/climbing (up what)'
@@ -2923,7 +2959,7 @@ VerbRule(ClimbDown)
 ;
 
 VerbRule(ClimbDownWhat)
-    [badness 200] ('climb' | 'go' | 'walk') 'down'
+    ('climb' | 'go' | 'walk') 'down'
     : VerbProduction
     action = ClimbDownVague
     verbPhrase = 'climb/climbing (down what)'

@@ -166,7 +166,7 @@ class SimpleAttachable: Thing
              *   If we don't allow the dobj to be attached to us, rule out the
              *   attachment.
              */
-            if(!allowAttach(gDobj))
+            if(!allowAttach(gVerifyDobj))
                 illogical(cannotBeAttachedMsg);
         }
     }
@@ -474,7 +474,7 @@ class AttachableComponent: SimpleAttachable
                 location.attachments = [];
             
             /* Add ourselves to our locations list of attachments. */
-            location.attachments += self;
+            location.attachments = location.attachments.appendUnique([self]);
         }
     }
     
@@ -580,7 +580,7 @@ class Attachable: NearbyAttachable
     /* To make me attached to obj, add obj to my attachedTo list. */
     makeAttachedTo(obj)
     {
-        attachedToList += obj;
+        attachedToList = attachedToList.appendUnique([obj]);
     }
     
     /* 

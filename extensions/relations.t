@@ -19,43 +19,43 @@
 class Relation: PreinitObject
     /* 
      *   A string name that can be used to refer to this relation, e.g. 'loves'
-     *   or 'is the parent of'
+     *   or 'is the parent of' [RELATIONS EXTENSION]
      */
     name = nil
     
     /*   
      *   A string name that can be used to refer to this relation in reverse,
-     *   e.g. 'loved by' or 'is a child of'
+     *   e.g. 'loved by' or 'is a child of' [RELATIONS EXTENSION]
      */
     reverseName = nil
     
     /* 
      *   The type of relation we are; this can be one of oneToOne, oneToMany,
-     *   manyToOne or manyToMany.
+     *   manyToOne or manyToMany. [RELATIONS EXTENSION]
      */
     relationType = oneToOne
     
     /*   
      *   Flag: are we a reciprocal relation (i.e. does x relation b imply b
      *   relation x)? Note that only oneToOne and manyToMany relations can be
-     *   reciprocal.
+     *   reciprocal. [RELATIONS EXTENSION]
      */
     reciprocal = nil
     
     /*  
      *   A LookupTable to hold data about the items related via this relation.
      *   This is maintained by the library code and shouldn't normally be
-     *   directly accessed via game code.
+     *   directly accessed via game code. [RELATIONS EXTENSION]
      */
     relTab = nil
     
-    /*   Return a list of items related to a via this relation. */
+    /*   Return a list of items related to a via this relation. [RELATIONS EXTENSION] */
     relatedTo(a)
     {       
         return relTab == nil ? [] : relTab[a];           
     }
     
-    /*   Test whether a is related to b via this relation. */
+    /*   Test whether a is related to b via this relation. [RELATIONS EXTENSION] */
     isRelated(a, b)
     {       
         return relatedTo(a).indexOf(b) != nil;
@@ -64,6 +64,7 @@ class Relation: PreinitObject
     /*   
      *   Return a list of items inverselty related to a via this relation (e.g.
      *   if this is loving relation, return a list of the people a is loved by.
+	 *   [RELATIONS EXTENSION]
      */
     inverselyRelatedTo(a)
     {
@@ -100,7 +101,7 @@ class Relation: PreinitObject
         return vec.toList();
     }
     
-    /* Test whether a is inversely related to b via this relation. */
+    /* Test whether a is inversely related to b via this relation. [RELATIONS EXTENSION] */
     isInverselyRelated(a, b)
     {
         /* 
@@ -113,6 +114,7 @@ class Relation: PreinitObject
     /* 
      *   Make two objects related via this relation. The objs should be supplied
      *   as a two-element list (e.g. [a, b]) such that a will be related to b.
+	 *   [RELATIONS EXTENSION]
      */
     addRelation(objs)
     {
@@ -290,6 +292,7 @@ class Relation: PreinitObject
     
     /*  
      *   Ensure that key is the only entry in relTab with a value of [val].
+	 *   [RELATIONS EXTENSION]
      *
      */
     makeUnique(key, val)
@@ -312,9 +315,8 @@ class Relation: PreinitObject
     /*  
      *   Remove this relation between the items specified in objs, which should
      *   be supplied as a two-element list [a, b], where a is the item that is
-     *   no longer related to b.
-     */
-     
+     *   no longer related to b. [RELATIONS EXTENSION]
+     */     
     removeRelation(objs)
     {
         /* 
@@ -373,14 +375,14 @@ class Relation: PreinitObject
     }
     
     
-    /* Make relation[b] = c work like relate(b, relation, c) */
+    /* Make relation[b] = c work like relate(b, relation, c) [RELATIONS EXTENSION] */
     operator []=(b, c)
     {
         addRelation([b, c]);
         return self;
     }
     
-    /* make relation[b] work like related(b, relation) */
+    /* make relation[b] work like related(b, relation) [RELATIONS EXTENSION] */
     operator [] (b)
     {
         return relatedTo(b);
@@ -748,7 +750,6 @@ relationPathfinder: Pathfinder
  *
  *   PART OF THE RELATIONS EXTENSION.
  */
-
 relationPath(start, rel, target)
 {
     return relationPathfinder.findPath(start, rel, target);    
@@ -758,7 +759,7 @@ relationPath(start, rel, target)
 #ifdef __DEBUG
 /*  Debugging commands for RELATIONS EXTENSION */
 
-/* List relations defined in the game */
+/* List relations defined in the game [RELATIONS EXTENSION] */
 DefineSystemAction(ListRelations)
     execAction(c)
     {
@@ -833,7 +834,7 @@ VerbRule(ListRelations)
     verbPhrase = 'list/listing relations'
 ;
 
-/* Debugging action to list what a relation currently relates */
+/* Debugging action to list what a relation currently relates [RELATIONS EXTENSION]*/
 DefineSystemAction(RelationDetails)
     execAction(c)
     {
@@ -930,6 +931,7 @@ DefineSystemAction(RelationDetails)
     literal = nil
 ;
 
+/* [RELATIONS EXTENSION] List relation details */
 VerbRule(RelationDetails)
     ('relation' | 'relations' | 'rel') literalDobj
     : VerbProduction

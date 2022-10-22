@@ -596,6 +596,34 @@ class Room: TravelConnector, Thing
     }
     
     /* 
+     *   The getDirectionTo method returns the direction by which one would need to travel from this
+     *   room to travel to dest not via an UnlistedProxy Connector (normally defined by the asExit()
+     *   macro. If none of the room's direction properties clearly leads to dest via a
+     *   TravelConnector including a Room) then return nil.
+     */
+    getDirectionTo(dest)
+    {
+        for(local dir = firstObj(Direction); dir != nil; dir = nextObj(dir,
+            Direction))
+        {
+            local conn;
+            
+            if(propType(dir.dirProp) == TypeObject)
+            {                                
+                conn = self.(dir.dirProp);              
+                
+                if(conn && !conn.ofKind(UnlistedProxyConnector) 
+                   &&  conn.getDestination(self) == dest)           
+                    return dir;
+            }
+                
+        }
+        
+        
+        return nil;
+    }
+    
+    /* 
      *   By default we don't want the examineStatus method of a Room to do
      *   anything except displaying the stateDesc, should we have defined one.
      *   In particular we don't want it to list the contents of the Room, since
@@ -636,12 +664,60 @@ class Room: TravelConnector, Thing
      *   this can be overridden, for example, to return the same format of
      *   message for every target that can't be reached from this room (e.g.
      *   "You can't reach [the target] from the meadow. ") ]
-     */        
-        
+     */                
     cannotReachTargetMsg(target)
     { 
         return target.tooFarAwayMsg;
     }
+    
+    /* 
+     *   Get the connector object explictly or implicitly defined on prop, even if it uses the
+     *   asExit macro. If it's not an object, return nil;
+     */
+    getConnector(prop)
+    {
+        
+        if(propType(prop) == TypeObject)
+        {
+            local conn = self.(prop);           
+            
+            if(conn.ofKind(UnlistedProxyConnector))        
+                
+            {
+                local dir = conn.direction;
+                
+                prop = dir.dirProp;
+                
+                if(propType(prop) == TypeObject)
+                    return self.(prop);          
+            }    
+            
+            return conn;
+            
+        }
+        
+        return nil;      
+        
+    }
+    
+    /* 
+     *   If we've defined a roomFirstDesc and this room description hasn't been displayed before,
+     *   display our roomFirstDesc, otherwise display our desc.
+     */
+    interiorDesc()
+    {
+        if(propType(&roomFirstDesc) != TypeNil && !examined)
+            roomFirstDesc;
+        else
+            desc;
+    }
+    
+    /* 
+     *   The description of this room to be used when it has not previously examined (and is thus
+     *   being described fot the first time). If this is left as nil, we simply use the desc
+     *   instead.
+     */
+    roomFirstDesc = nil
 ;
 
 /* 
@@ -770,15 +846,15 @@ class Door: TravelConnector, Thing
              */
             else if(tryImplicitActorAction(traveler, Open, self))
             {                   
-                /* 
-                 *   If the player character can see the traveler open the door,
-                 *   report the fact that the traveler does so.
-                 */
-                if(gPlayerChar.canSee(traveler))
-                    sayTravelerOpensDoor(traveler);
-                
-                else if(otherSide && gPlayerChar.canSee(otherSide))                
-                    sayDoorOpens();                                
+//                /* 
+//                 *   If the player character can see the traveler open the door,
+//                 *   report the fact that the traveler does so.
+//                 */
+//                if(gPlayerChar.canSee(traveler))
+//                    sayTravelerOpensDoor(traveler);
+//                
+//                else if(otherSide && gPlayerChar.canSee(otherSide))                
+//                    sayDoorOpens();                                
                 
             }
             
@@ -939,13 +1015,18 @@ class Door: TravelConnector, Thing
     /*  Going through a door is the same as traveling via it. */
     dobjFor(GoThrough)
     {
-        preCond = [objOpen]
+        preCond = [travelPermitted, touchObj, objOpen]
         
         action() { travelVia(gActor); }
     }
     
     /*  Entering a door is the same as going through it. */
     dobjFor(Enter) asDobjFor(GoThrough)
+    
+    iobjFor(PushTravelThrough)
+    {
+        preCond = [travelPermitted, touchObj, objOpen]
+    }
         
     
     /*  
@@ -1148,8 +1229,7 @@ class TravelConnector: object
         DMsg(no destination, 'That{dummy} {doesn\'t} lead anywhere. ');
     }
 
-    
-    
+       
     /*  
      *   If the actor doing the traveling is the player character, display the
      *   travelDesc. Note that although this might normally be a simple
@@ -1158,7 +1238,7 @@ class TravelConnector: object
      */
     noteTraversal(actor)
     {
-        if(actor == gPlayerChar)
+        if(actor == gPlayerChar && !(gAction.isPushTravelAction && suppressTravelDescForPushTravel))
         {                
             travelDesc;
             "<.p>";
@@ -1349,6 +1429,8 @@ class TravelConnector: object
      */    
     dobjFor(TravelVia)
     {
+        preCond = [travelPermitted]
+        
         action()
         {
             /* 
@@ -1359,6 +1441,52 @@ class TravelConnector: object
             travelVia(gActor);
         }
     }
+    
+    dobjFor(GoThrough)
+    {
+        preCond = [travelPermitted]
+    }
+    
+    
+    iobjFor(PushTravelThrough)
+    {
+        preCond = [travelPermitted]
+        verify() 
+        {  
+            
+        }
+        
+        check() { checkPushTravel(); }       
+    }
+    
+    
+    /* Check the travel barriers on the indirect object of the action */
+    checkPushTravel()
+    {
+        /* 
+         *   First check the travel barriers for the actor doing the pushing.
+         *   Only go on to check those for the item being pushed if the actor
+         *   can travel, so we don't see the same messages twice.
+         */
+        if(checkTravelBarriers(gActor))        
+            checkTravelBarriers(gDobj);      
+    }
+    
+    
+    /* 
+     *   The appropriate PushTravelAction for pushing something something
+     *   through a TravelConnector.
+     */
+    PushTravelVia = PushTravelThrough
+    
+    
+    /* 
+     *   If we display a message for pushing something via us, we probably don't also want the
+     *   travelDesc describing the actor's travel. Game code can override if both messages are
+     *   wanted when push-travelling.
+     */
+    suppressTravelDescForPushTravel = true
+    
 ;
 
 /* 
@@ -1368,6 +1496,22 @@ class TravelConnector: object
  *   game authors will always use the asExit macro instead.
  */
 class UnlistedProxyConnector: TravelConnector
+    
+    /* The direction property for which we're a proxy. */
+    proxyForProp = direction.dirProp
+    
+    /* 
+     *   The loc parameter should contain the room in which this UnlistedProxyConnector is used, but
+     *   calling code will need to supply it.
+     */
+    proxyForConnector(loc)
+    {
+        local ptype = loc.propType(proxyForProp);
+        
+        return ptype == TypeObject ? loc.(proxyForProp) : ptype;       
+            
+    }   
+    
     
     /* An UnlistedProxyConnector is never listed as an exit in its own right. */
     isConnectorListed = nil
@@ -1379,24 +1523,29 @@ class UnlistedProxyConnector: TravelConnector
      */
     isConnectorVisible = true
     
+    
     /* Carry out travel via this connector. */
-    travelVia(actor)
+    travelVia(traveler)
     {
-        /* Set up a new travel action. */
-        local action = new TravelAction;
+        /* Get the travel connector for which we're a proxy. */
+        local conn = proxyForConnector(traveler.getOutermostRoom);
         
         /* 
-         *   Set the direction of travel of our new travel action to be the
-         *   direction defined on this UnlistedProxyConnector.
+         *   If the connector is actually a TravelConnector, then execute travel via that connector.
          */
-        action.direction = direction;
+        if(objOfKind(conn,TravelConnector))            
+            conn.travelVia(traveler);
         
-        /*   
-         *   Get the travel action to carry out the travel in the direction just
-         *   defined.
-         */
-        action.doTravel();
+        /* 
+         *   Otherwise, the direction we're a proxy for points to something else that's not a
+         *   TravelConnector, such as a string or method, in which case call the nonTravel()
+         *   function to handle
+         it.*/
+        else
+            nonTravel(traveler.getOutermostRoom, direction);
+            
     }
+    
     
     /* Construct a new UnlistedProxyConnector. */
     construct(dir_)
@@ -1415,7 +1564,27 @@ class UnlistedProxyConnector: TravelConnector
     beforeTravelNotifications(actor) {}    
     afterTravelNotifications(actor) {}
     
-
+    /* 
+     *   Return the actual destination, if any, an actor will arrive at by traversing the connector
+     *   we're a proxy for from origin.
+     */
+    getDestination(origin)
+    {
+        local conn = proxyForConnector(origin);
+               
+        return objOfKind(conn, TravelConnector) ? conn.getDestination(origin) : nil;
+        
+    }
+     /* 
+      *   Handle going through this connector by calling our travelVia() method to execute travel
+      *   via the connector for which we're a proxy.
+      */
+    dobjFor(GoThrough)
+    {      
+        preCond = [travelPermitted]   
+        
+        action { travelVia(gActor); }
+    }
 ;
 
 /* 
@@ -1555,7 +1724,12 @@ class Direction: object
         (dir.opposite == nil ? nil : dir.opposite.dirProp);
     }
         
-	
+    /* The direction to which prop points. */
+    propDir(prop)
+    {
+        return allDirections.valWhich({d: d.dirProp == prop});
+    }
+    
 ;
 
 /* The compass directions */
@@ -1991,8 +2165,16 @@ class Region: object
     {
         roomList.forEach({r: ml.moveOutOf(r)});
     }
+    
+    /* 
+     *   The regionDaemon method is executed on ever region in which the player character is
+     *   currently located. By default we call the region's doScript() method so that the if the
+     *   region is mixed in with an EventList class, that EventList can be executed.
+     */
+    regionDaemon { doScript(); }
+    
+    
 ;
-
 /* 
  *   Go through each room and add it to every regions it's (directly or
  *   indirectly) in. Then if the region is familiar, mark all its rooms as
@@ -2009,3 +2191,106 @@ regionPreinit: PreinitObject
     }
     
 ;
+
+
+/* 
+ *   Function to handle what will probably be non-travel in a direction that doesn't point to exit.
+ *   The loc parameter specifies the room we're attempting travel from. For use as a common routine
+ *   called by TravelAction, PushTravelDir and UnlistedProxyConnnector.
+ *.
+ */
+nonTravel(loc, dir)
+{
+    
+    /* Note whether we meet the lighting conditions to permit travel */
+    local illum = loc.allowDarkTravel || loc.isIlluminated;
+    
+    local conn;
+    
+    switch (loc.propType(dir.dirProp))
+    {
+        /* 
+         *   If there's nothing there, simply display the appropriate message explaining that travel
+         *   that way isn't possible.
+         */
+    case TypeNil:
+        if(illum && gActor == gPlayerChar)
+            loc.cannotGoThatWay(dir);
+        else if(gActor == gPlayerChar)
+            loc.cannotGoThatWayInDark(dir);            
+        break;
+        
+        
+        /* 
+         *   If the direction property points to a double-quoted method or a string, then provided
+         *   the illumination is right, we display the string or execute the method. Otherwise show
+         *   the message saying we can't travel that way in the dark.
+         */            
+    case TypeDString:
+    case TypeCode:                
+        if(illum)
+        {
+            /* 
+             *   Call the before travel notifications on every object that's in scope for the actor.
+             *   Since we don't have a connector object to pass to the beforeTravel notifications,
+             *   we use the direction object instead.
+             */
+            Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
+                dir)});
+            
+            
+            /*  
+             *   If going this way would take us to a known destination that's a Room (so that
+             *   executing the travel should take the actor out of his/her current room) notify the
+             *   current room that the actor is about to depart.
+             */                
+            local dest;
+            
+            if(loc.propType(dir.dirProp) == TypeCode)                
+                dest = libGlobal.extraDestInfo[[loc, dir]];
+            else
+                dest = nil;
+            
+            if(dest && dest.ofKind(Room))
+                loc.notifyDeparture(gActor, dest);
+            
+            /*  
+             *   Then execute the method or display the double-quoted string.
+             */
+            loc.(dir.dirProp);
+            
+            /* 
+             *   If we've just executed a method, it may have moved the actor to a new location, so
+             *   if the actor is the player character note where the method took the actor to so
+             *   that the pathfinder can find a route via this exit.
+             */
+            if(gActor == gPlayerChar)
+                libGlobal.addExtraDestInfo(loc, dir,
+                                           gActor.getOutermostRoom);
+        }
+        else if(gActor == gPlayerChar)
+            loc.cannotGoThatWayInDark(dir);
+        break;
+        
+        /* 
+         *   If the direction property points to a single-quoted string, simply display the string
+         *   if the illumination is sufficient, otherwise display the message saying we can't go
+         *   that way in the dark. If the actor isn't the player character, do nothing.
+         */
+    case TypeSString:
+        if(gActor == gPlayerChar)
+        {
+            conn = loc.(dir.dirProp);
+            if(illum)
+            {
+                say(conn);
+                libGlobal.addExtraDestInfo(loc, dir,
+                                           gActor.getOutermostRoom); 
+            }
+            else
+                loc.cannotGoThatWayInDark(dir);
+        }    
+        break;
+        
+    }        
+}

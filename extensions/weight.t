@@ -13,13 +13,13 @@
 
 /*  Modifications to Thing class for WEIGHT extension */
 modify Thing
-    /* Our own weight, not counting the weight of our contents */
+    /* Our own weight, not counting the weight of our contents  [WEIGHT EXTENSION]*/
     weight = 0
     
-    /* Our total weight, including the weight of our contents */
+    /* Our total weight, including the weight of our contents [WEIGHT EXTENSION */
     totalWeight = (weight + getWeightWithin())
     
-    /* The total weight of our contents, excluding our own weight. */
+    /* The total weight of our contents, excluding our own weight. [WEIGHT EXTENSION] */
     getWeightWithin()
     {       
         return totalWeightIn(contents);
@@ -27,23 +27,23 @@ modify Thing
    
     /* 
      *   The total weight of the items we're carrying, excluding anything worn
-     *   or anything fixed in place.
+     *   or anything fixed in place. [WEIGHT EXTENSION
      */    
     getCarriedWeight()
     {
         return totalWeightIn(directlyHeld);        
     }
     
-    /*  The total weight we're capable of containing */
+    /*  The total weight we're capable of containing [WEIGHT EXTENSION */
     weightCapacity = 100000
     
-    /*  The maximum weight of any single item we can contain */
+    /*  The maximum weight of any single item we can contain [WEIGHT EXTENSION */
     maxSingleWeight = weightCapacity
     
     
     /*  
      *   Check whether obj can be inserted into us without exceeding our bulk
-     *   and weight constraints.
+     *   and weight constraints. [WEIGHT EXTENSION]
      */
     checkInsert(obj)
     {
@@ -72,7 +72,7 @@ modify Thing
         
     }
     
-    /*  Display a message saying that obj is too heavy to be inserted in us. */
+    /*  Display a message saying that obj is too heavy to be inserted in us. [WEIGHT EXTENSION] */
     sayTooHeavy(obj)
     {
           /* Create a message parameter substitution. */
@@ -82,7 +82,7 @@ modify Thing
                  objInPrep, theName);
     }
     
-    /*  Display a message saying that we can't bear any more weight. */
+    /*  Display a message saying that we can't bear any more weight. [WEIGHT EXTENSION] */
     sayCantBearMoreWeight(obj)
     {
         local this = self;
@@ -95,7 +95,7 @@ modify Thing
     }
     
     
-    /* Check whether the actor has the bulk and weight capacity to hold us. */
+    /* Check whether the actor has the bulk and weight capacity to hold us. [WEIGHT EXTENSION] */
     checkRoomToHold()
     {
         /* Carry out the inherited handling, which checks for bulk capacity. */
@@ -131,18 +131,18 @@ modify Thing
      *   assuming that the player can put anything there at all. Note that this
      *   only affects what the player can place there with PUT IN, PUT UNDER and
      *   PUT BEHIND commands, not what can be defined there initially or moved
-     *   there programmatically.
+     *   there programmatically. [WEIGHT EXTENSION]
      */    
     maxWeightHiddenUnder = 100000
     maxWeightHiddenBehind = 100000
     maxWeightHiddenIn = 100000
     
-    /* The total weight of items hidden in, under or behind this object */    
+    /* The total weight of items hidden in, under or behind this object [WEIGHT EXTENSION] */    
     getWeightHiddenUnder = (totalWeightIn(hiddenUnder))
     getWeightHiddenIn = (totalWeightIn(hiddenIn))
     getWeightHiddenBehind = (totalWeightIn(hiddenBehind))
     
-    /* Calculate the total weight of the items in lst */
+    /* Calculate the total weight of the items in lst [WEIGHT EXTENSION] */
     totalWeightIn(lst)
     {
         local tot = 0;
@@ -154,7 +154,7 @@ modify Thing
     
     /*  
      *   Modifications to PutIn handling to check for weight hidden inside this
-     *   item.
+     *   item. [WEIGHT EXTENSION]
      */
     iobjFor(PutIn)
     {
@@ -175,7 +175,7 @@ modify Thing
     
     /*  
      *   Modifications to PutUnder handling to check for weight hidden under
-     *   this item.
+     *   this item. [WEIGHT EXTENSION]
      */
     iobjFor(PutUnder)
     {
@@ -196,7 +196,7 @@ modify Thing
     
     /*  
      *   Modifications to PutBehind handling to check for weight hidden behind
-     *   this item.
+     *   this item. [WEIGHT EXTENSION]
      */
     iobjFor(PutBehind)
     {
@@ -217,7 +217,7 @@ modify Thing
     
     /* 
      *   Display a message to say that obj is too heavy to fit in/on/under us,
-     *   where insType is In, On or Under.
+     *   where insType is In, On or Under. [WEIGHT EXTENSION]
      */
     sayTooHeavyToHide(obj, insType)
     {

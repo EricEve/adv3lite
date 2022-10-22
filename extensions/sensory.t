@@ -185,7 +185,9 @@ modify Odor
      *   The message to be displayed to show that there's a smell here. The
      *   default implementation should be serviceable in many cases, but game
      *   code can easily override this method if something different is
-     *   required.[DEFINED IN SENSORY EXTENSION]
+     *   required. By default we execute our script if we are one, otherwise we use
+	 *   our own smellDesc or remoteSmellDesc as appropriate.
+	 *   [DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc()
     { 
@@ -225,24 +227,30 @@ modify Odor
  *   A SimpleOdor is an object representing a free-standing smell directly
  *   present in a location rather than attached to any specific object. It can
  *   be used to display atmospheric smells either according to its schedule or
- *   in response to a SMELL command.
+ *   in response to a SMELL command. [DEFINED IN SENSORY EXTENSION]
  */
-SimpleOdor: Odor
+class SimpleOdor: Odor
     /*  
      *   Unless this is overridden, our desc property simply executes our
-     *   script.
+     *   script. [DEFINED IN SENSORY EXTENSION]
      */
     desc() { doScript(); }
     
-    /* The smellDesc of a SimpleOdor is simply its desc. */
+    /* The smellDesc of a SimpleOdor is simply its desc.[DEFINED IN SENSORY EXTENSION] */
     smellDesc = desc
       
     /* 
      *   A SimpleOdor is a prominent smell by default, since we want it to show
-     *   up in response to a SMELL command.
+     *   up in response to a SMELL command. [DEFINED IN SENSORY EXTENSION]
      */
     isProminentSmell = true
     
+	/*   
+     *   The message to be displayed to show that there's a smell here. 
+     *   We display either our own smellDesc or our remoteSmellDesc,
+     *   as appropriate.
+     *   DEFINED IN SENSORY EXTENSION]
+     */
     emanationDesc()
     { 
         
@@ -254,14 +262,16 @@ SimpleOdor: Odor
     
 ;
 
-/* [MODIFIED FOR SENSORY EXTENSION] */
+/* An Noise is a SensoryEmanation representing a Sound [MODIFIED FOR SENSORY EXTENSION] */
 modify Noise   
     
     /*   
-     *   The message to be displayed to show that there's a noise here. The
+     *   The message to be displayed to show that there's a sound here. The
      *   default implementation should be serviceable in many cases, but game
      *   code can easily override this method if something different is
-     *   required. [DEFINED IN SENSORY EXTENSION]
+     *   required. By default we execute our script if we are one, otherwise we use
+	 *   our own listenDesc or remoteListenDesc as appropriate.
+	 *   [DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc()
     { 
@@ -301,16 +311,16 @@ modify Noise
  *   A SimpleNoise is an object representing a free-standing sound directly
  *   present in a location rather than attached to any specific object. It can
  *   be used to display atmospheric sounds either according to its schedule or
- *   in response to a LISTEN command.
+ *   in response to a LISTEN command. [DEFINED IN SENSORY EXTENSION]
  */
-SimpleNoise: Noise
+class SimpleNoise: Noise
     /*  
      *   Unless this is overridden, our desc property simply executes our
-     *   script.
+     *   script. [DEFINED IN SENSORY EXTENSION]
      */
     desc() { doScript(); }
     
-    /* The listenDesc of a SimpleNoise is simply its desc. */
+    /* The listenDesc of a SimpleNoise is simply its desc.[DEFINED IN SENSORY EXTENSION]  */
     listenDesc = desc
      
     /* 
@@ -320,10 +330,10 @@ SimpleNoise: Noise
     isProminentNoise = true
  
     /*   
-     *   The message to be displayed to show that there's a noise here. The
-     *   default implementation should be serviceable in many cases, but game
-     *   code can easily override this method if something different is
-     *   required. [DEFINED IN SENSORY EXTENSION]
+     *   The message to be displayed to show that there's a noise here. 
+     *   We display either our own listenDesc or our remoteListenDesc,
+     *   as appropriate.
+     *   [DEFINED IN SENSORY EXTENSION]
      */
     emanationDesc()
     { 
@@ -341,7 +351,7 @@ SimpleNoise: Noise
  *  [DEFINED IN SENSORY EXTENSION]
  */
 emanationControl: InitObject
-    /* Set up our Daemon at the start of play. */
+    /* Set up our Daemon at the start of play. [DEFINED IN SENSORY EXTENSION] */
     execute()
     {
         new Daemon(self, &emanate, 1);
@@ -349,7 +359,7 @@ emanationControl: InitObject
     
     /* 
      *   Each turn, execute the emanate() method for every item in our list of
-     *   emanations.
+     *   emanations. [DEFINED IN SENSORY EXTENSION]
      */
     emanate()
     {
@@ -364,7 +374,7 @@ emanationControl: InitObject
     
     /*  
      *   Construct a list of SensoryEmanations that can currently be sensed by
-     *   the player character.
+     *   the player character. [DEFINED IN SENSORY EXTENSION]
      */
     buildEmanationList   
     {
@@ -417,7 +427,7 @@ emanationControl: InitObject
         
     /* 
      *   The pc can sense o if o is currently emanating and its a Noise the pc
-     *   can currently hear or an Odor the pc can currently smell.
+     *   can currently hear or an Odor the pc can currently smell. [DEFINED IN SENSORY EXTENSION]
      */   
     canSense(pc, o)
     {
@@ -435,6 +445,7 @@ class SensoryEvent: object
      *   We call the trigger event method of a SensoryEvent to simulate the
      *   occurrence of that event. The obj parameter is the object associated
      *   with the event, for example the source of a sudden explosion.
+	 *   [DEFINED IN SENSORY EXTENSION]
      */    
     triggerEvent(obj)
     {
@@ -468,24 +479,25 @@ class SensoryEvent: object
     /* 
      *   A property pointer to the property on each notified object that needs
      *   to be executed when it's notified of this SensoryEvent (e.g.
-     *   &notifySoundEvent).
+     *   &notifySoundEvent). [DEFINED IN SENSORY EXTENSION]
      */
     notifyProp = nil
     
     /*   
      *   The property pointer relating to the Q method that needs to be called
      *   to determined whethet this SensoryEvent can be sensed (e.g. &canHear).
+	 *   [DEFINED IN SENSORY EXTENSION]
      */
     senseProp = nil
     
     /*   
      *   The property pointer to the property of Room defining which list of
      *   rooms also needs to be checked for remote items that might sense this
-     *   event (e.g. &audibleRooms).
+     *   event (e.g. &audibleRooms). [DEFINED IN SENSORY EXTENSION]
      */
     remoteProp = nil
     
-    /*  Construct a list of notifiable objects in remote locations */
+    /*  Construct a list of notifiable objects in remote locations  [DEFINED IN SENSORY EXTENSION]*/
     remoteList(obj)
     {
         /* Start with an empty list */
@@ -545,7 +557,7 @@ class SightEvent: SensoryEvent
     remoteProp = &visibleRooms
 ;
 
-/*  Modifications to Thing to work with the SENSORY EXTENSION */
+/*  Modifications to Thing to work with the <i>SENSORY EXTENSION</i> */
 modify Thing
     /* 
      *   The methods that define our reactions to SoundEvents, SmellEvents and
@@ -553,7 +565,11 @@ modify Thing
      *   common handler. [DEFINED IN SENSORY EXTENSION]
      */    
     notifySoundEvent(event, source) { notifyEvent(event, source); }
+	
+	/*  Our reaction to a SmellEvent. By default we defer to the common handler. */
     notifySmellEvent(event, source) { notifyEvent(event, source); }
+	
+	/*  Our reaction to a SightEvent. By default we defer to the common handler. */
     notifySightEvent(event, source) { notifyEvent(event, source); }
         
     /* 
@@ -618,7 +634,11 @@ modify Thing
      */
     listenDescWithoutSource = nil    
     
-    /* [MODIFIED FOR SENSORY EXTENSION] */
+    /* 
+ 	 * [MODIFIED FOR SENSORY EXTENSION] 
+	 * If I have an associated Noise object which isn't emanating, assume
+	 * I have fallen silent, otherwise carry out the inherited handling.
+	 */
     dobjFor(ListenTo)
     {
         action()
@@ -635,7 +655,11 @@ modify Thing
         }
     }
     
-    /* [MODIFIED FOR SENSORY EXTENSION] */
+    /* 
+ 	 * [MODIFIED FOR SENSORY EXTENSION] 
+	 * If I have an associated Odor object which isn't emanating, assume
+	 * I no longer smell of anything, otherwise carry out the inherited handling.
+	 */
     dobjFor(SmellSomething)
     {
         action()
@@ -674,10 +698,10 @@ modify Thing
         return true;
     }
     
-    /* Our associated Odor object, if we have one */
+    /* Our associated Odor object, if we have one [SENSORY EXTENSION]*/
     smellObj = (contents.valWhich({o: o.ofKind(Odor)}))
     
-    /* Our associated Noise object, if we have one. */            
+    /* Our associated Noise object, if we have one. [SENSORY EXTENSION]*/            
     soundObj = (contents.valWhich({o: o.ofKind(Noise)}))
 ;
 

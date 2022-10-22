@@ -124,7 +124,7 @@ class FueledLightSource: object
     plungedIntoDarknessMsg = BMsg(plunged into darkness, ', plunging {1} into
         darkness', gPlayerChar.theName)
     
-    /* Modifications to the makeLit() method for FueledLightSource */
+    /* Modifications to the makeLit() method for FueledLightSource [FUELED EXTENSION] */
     makeLit(stat)
     {
         /* 

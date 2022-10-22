@@ -38,11 +38,11 @@ class TIAAction: TIAction
     
     /* 
      *   A list of the accessory objects that this actually actually ends up
-     *   acting on at the action stage.
+     *   acting on at the action stage. [TIAACTION EXTENSION]
      */
     aoActionList = []
     
-    /* Reset the action variables to their initial state. */
+    /* Reset the action variables to their initial state, including the accessory object. */
     reset()
     {
         inherited;
@@ -50,7 +50,7 @@ class TIAAction: TIAction
         aoActionList = [];
     }
     
-    /* execute this action. */
+    /* execute this action, noting the accessory object in addition to the other two. */
     execAction(cmd)
     {
         /* 
@@ -71,14 +71,17 @@ class TIAAction: TIAction
          */
         curAobj = cmd.acc;
         
-        /* Note both objects as possible pronoun antecedents. */
+        /* Note all three objects as possible pronoun antecedents. [TIAACTION EXTENSION] */
         notePronounAntecedent(curDobj, curIobj, curAobj);
         
         /* execute the resolved action. */
         execResolvedAction();
     }
     
-     /* Carry out the check phase for this command. */   
+     /* 
+      * [TIAACTION EXTENSION]
+	  * Carry out the check phase for this command on all three objects involved in the command. 
+	  */   
     checkAction(cmd)
     {
         
@@ -103,7 +106,7 @@ class TIAAction: TIAction
     }
     
     
-    /* Set the resolved objects for this action. */
+    /* Set all three resolved objects for this action. [TIAACTION EXTENSION] */
     setResolvedObjects(dobj, iobj, aobj)
     {
         curDobj = dobj;
@@ -113,7 +116,7 @@ class TIAAction: TIAction
     
     /* 
      *   Test whether the direct, the indirect and the accessory objects for
-     *   this action are in scope.
+     *   this action are in scope. [TIAACTION EXTENSION]
      */
     resolvedObjectsInScope()
     {
@@ -126,10 +129,10 @@ class TIAAction: TIAction
     /* 
      *   Carry out the report phase for this action. If there's anything in the
      *   aoActionList and we're not an implicit action, call the report method
-     *   on the indirect object. Then carry out the inherited handling (which
-     *   does the same on the direct object). Note that this method is called by
+     *   on the indirect, then the indirect object and finally on the accessory
+     *   object). Note that this method is called by
      *   the current Command object once its finished iterating over all the
-     *   objects involved in the command.
+     *   objects involved in the command. [TIAACTION EXTENSION]
      */
     reportAction()
     {       
@@ -147,7 +150,7 @@ class TIAAction: TIAction
             curAobj.(reportAobjProp);
     }
     
-    /* Get the message parameters relating to this action */
+    /* Get the message parameters relating to this action for all three objects. */
     getMessageParam(objName)
     {
         switch(objName)
@@ -164,8 +167,8 @@ class TIAAction: TIAction
     }
     
     /* 
-     *   Execute this action as a resolved action, that is once its direct and
-     *   indirect objects are known.
+     *   Execute this action as a resolved action, that is once its direct, 
+     *   indirect and accessory objects are known. [TIAACTION EXTENSION]
      */
     execResolvedAction()
     {        
@@ -173,7 +176,7 @@ class TIAAction: TIAction
         {
             /* 
              *   If the indirect object was resolved first (before the direct
-             *   object) then we run the verify stage on the indirect action
+             *   object) then we run the verify stage on the indirect object
              *   first. If it fails, return nil to tell the caller it failed.
              */             
             if(resolveIobjFirst && !verifyObjRole(curIobj, IndirectObject))
@@ -194,7 +197,10 @@ class TIAAction: TIAction
             if(!resolveIobjFirst && !verifyObjRole(curIobj, IndirectObject))
                 return nil;
             
-            
+            /*
+			 * Run the verify routines on the accessory object and return nil if
+			 * they disallow the action.
+			 */
             if(!verifyObjRole(curAobj, AccessoryObject))
                 return nil;
             
@@ -239,9 +245,9 @@ class TIAAction: TIAction
         
     /* 
      *   Execute the action phase of the action on both objects. Note that
-     *   although some TIActions can operate on multiple direct objects, none
+     *   although some TIAActions can operate on multiple direct objects, none
      *   defined in the library acts on multiple indirect objects, so there's
-     *   only minimal support for the latter possibility.
+     *   only minimal support for the latter possibility. [TIAACTION EXTENSION]
      */
     doActionOnce()
     {
@@ -340,6 +346,7 @@ class TIAAction: TIAction
          *   objects to the list of indirect and accessory objects that could be
          *   reported on, and add the current direct object to the list of
          *   direct objects to be reported on at the report stage.
+		 *   [TIAACTION EXTENSION]
          */
         if(!(msgForDobj) && !(msgForIobj) && !(msgForAobj))
         {

@@ -1,0 +1,103 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Goldskull &mdash; Making things happen</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="revisit.htm">Goldskull</a> &gt; 
+Making things happen
+<br><span class="navnp"><a class="nav" href="goldmap.htm"><i>Prev:</i> Laying out the map</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="improving.htm"><i>Next:</i> Improving the Game</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Making things happen</h1>
+
+<p>There are basically two things we need to make happen in this game:</p>
+
+<ol>
+<li>Killing the player character if he springs the trap (while letting him take the skull if he solves the puzzle)</li>
+<li>Ending the game in victory if the player character succeeds in making off with the skull unharmed.</li>
+</ol>
+
+<p>We'll now deal with each in turn.</p>
+
+<h2>Springing the Trap</h2>
+
+<p>The trap is sprung if the player character removes the gold skull from the pedestal when the rock isn't already on it. The most convenient place to put the code for this is probably in the <span class="code">notifyRemove(obj)</span> method of the pedestal object, since this is called whenever the <span class="code">actionMoveInto()</span> method of an object being moved is called. This, incidentally, is one of those notifications we were talking about towards the end of the last chapter, and explains why it's a good idea to use <span class="code">actionMoveInto() </span>rather than just plain <span class="code">moveInto()</span> when implementing the direct response to a player's command. By using notifyRemove() we should ensure that the trap is sprung whatever method the player contrives to remove the skull from the pedestal, as we shall see.</p>
+
+<p>We'll try to make the code as general as possible, since if the player puts the rock on the pedestal, then removes the skull, but then goes on to remove the rock, the trap should still be sprung. Since <span class="code">notifyRemove(obj)</span> is called just <em>before</em> obj is moved, we thus want to check whether there are fewer than two objects on the pedestal at that point. If there are, then the object being moved must be the only object on the pedestal, so the trap should be sprung when it's moved. We can get at the number of objects on the pedestal with the expression <span class="code">contents.length()</span>, i.e. the number of items in the list that constitutes the <span class="code">contents</span> property of the <span class="code">pedestal</span> object. Since <em>obj</em> is the object being moved, we can use <span class="code">obj.theName</span> in an embedded expression to print the name of the right object, whether it's the skull or the rock that's just been removed from the pedestal. The resulting code looks like this:</p>
+
+ <p><div class="code"><pre>
++ pedestal: Thing 'stone pedestal; smooth'
+    "The smooth stone pedestal is artfully positioned to catch the sunlight at
+    just this time of day. "
+    isFixed = true
+    contType = On
+    
+    <strong>notifyRemove(obj)
+    {
+        if(contents.length &lt; 2)
+        {
+            "As &lt;&lt;obj.theName&gt;&gt; leaves the pedestal, a volley of poisonous
+            arrows is shot from the walls! You try to dodge the arrows, but
+            they take you by surprise!";  
+            
+            finishGameMsg(ftDeath, [finishOptionUndo]);  
+        }
+    }</strong>
+;
+</pre></div>
+
+<p>We've already encountered the use of the <span class="code">finishGameMsg()</span> function to end the game. The only difference here is the use of <span class="code">ftDeath</span> to make the game end displaying the message *** YOU HAVE DIED *** instead of *** YOU HAVE WON ***. We once again supply the <span class="code">finishOptionUndo</span> option so that the player can UNDO the fatal move. If only that were possible in real life!</p>
+
+<p>Try compiling and running the game to ensure that everything works as expected.</p>
+
+<h2>Letting the Player Win</h2>
+
+<p>Although the player can take the gold skull safely, there's currently still no way to reach a winning ending. We said that we'd announce victory when the player character heads back to camp carrying the gold skull. We can implement that my defining a <em>method</em> on the appropriate direction property of startroom (yes, you can put methods on direction properties too!) that disallows travel if the player character isn't carrying the gold skull but announces victory if he is. This involves making a couple of additions to the startroom object:</p>
+
+ <p><div class="code"><pre>
+startroom: Room 'Outside Cave'
+    desc = "You're standing in the bright sunlight just outside of a large,
+        dark, foreboding cave, which lies to the north. <strong>The path back to your
+        camp winds roughly southeast through the dense foliage.</strong> " 
+    
+    north = cave 
+    
+    <strong>southeast()
+    {
+        if(goldSkull.isIn(me))
+        {
+            "Your mission complete, you head triumphantly back to your camp. ";
+            finishGameMsg(ftVictory, [finishOptionUndo]);
+        }
+        else
+            "You've no intention of leaving till you've got what you came for.
+            ";
+    }</strong>
+;
+</pre></div>
+
+<p>There really isn't anything that's new here, beyond the fact that you can attach a method to a direction property and that the method will be executed when the player character tries to move in the associated direction (incidentally you can also do this in TADS 2, but not in adv3). While we're at it, note that since we're testing for goldSkull.isIn(me), which tests for direct or indirect containment, the test would still pass even if the explorer placed the gold skull in a knapsack and carried the knapsack (as we shall see).</p>
+
+<p>If you try compiling and running the game now you should notice something else. The southeast exit now appears in the exit lister, even though we haven't defined it as actually going anywhere. The default behaviour of the exit lister is to list the directions associated with Rooms, TravelConnectors (which includes doors and stairways) and methods, but not those associated with single-quoted or double-quoted strings. The reasoning is that a method is likely to do something (as here) whereas a string property is likely to just display a message explaining why travel isn't possible. A method on a direction property is thus treated as a kind of simulated exit, which is fully appropriate here.</p>
+
+<p>In the next section we'll start adding all sorts of little tweaks and improvements to this game, and introduce several new features of adv3Lite in the process.</p>
+
+</pre></div>
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="revisit.htm">Goldskull</a> &gt; 
+Making things happen
+<br><span class="navnp"><a class="nav" href="goldmap.htm"><i>Prev:</i> Laying out the map</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="improving.htm"><i>Next:</i> Improving the Game</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

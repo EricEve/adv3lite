@@ -1,0 +1,241 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Heidi: our first adv3Lite game &mdash; Finishing Touches</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="heidi.htm">Heidi: our first adv3Lite game</a> &gt; 
+Finishing Touches
+<br><span class="navnp"><a class="nav" href="tree.htm"><i>Prev:</i> Adding the Tree and the Branch</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="reviewing.htm"><i>Next:</i> Reviewing the Basics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Finishing Touches</h1>
+
+<p>We've nearly completed our first pass through the game. There's just a couple more things to do. The first is to prevent Heidi climbing the tree while holding both the bird and the nest in her hands (this would be rather awkward to do!); to get the bird back in its nest on the branch Heidi must either put the bird in the nest and then carry the nest, or else make two trips up the tree, one with the nest and one with the bird. In this simple game we'll enforce this in the simplest way possible, by limiting the amount Heidi can carry at any one time. First change the definition of the <span class="code">me</span> object:</p>
+
+ <p><div class="code"><pre>
++ me: Thing 'you;;heidi'   
+    isFixed = true    
+    proper = true
+    ownsContents = true
+    person = 2   
+    contType = Carrier    
+    <strong>bulkCapacity = 1</strong>
+;
+</pre></div>
+
+<p>Adding <span class="code">bulkCapacity = 1</span> to the definition of the <span class="code">me</span> object limits the total bulk Heidi can carry to one unit of bulk at a time (here the 'unit' of bulk is whatever the game author wants it to be, that is, you define units of bulk on whatever scale suits the purposes of your game). It wouldn't normally be a good idea to put such a savage carrying restriction on the player character's carrying capacity, but there are so few portable objects in this game that we can get away with it.</p>
+
+<p>For this to have any effect, we also need to give some bulk to the two portable objects in question, the bird and the nest, by defining <span class="code">bulk = 1</span> on both of them:</p>
+
+ <p><div class="code"><pre>
++ bird: Thing 'baby bird;;nestling'
+    "Too young to fly, the nestling tweets helplessly. "
+    
+    <strong>bulk = 1</strong>
+;
+
+
+clearing: Room 'A forest clearing'
+    "A tall sycamore stands in the middle of this clearing. The path winds
+    southwest through the trees. "
+    
+    southwest = forest
+    up = topOfTree
+;
+
++ nest: Thing 'bird\'s nest; carefully woven; moss twigs'
+    "The nest is carefully woven of twigs and moss. "
+    
+    contType = In   
+    <strong>bulk = 1</strong>
+;
+</pre></div>
+
+<p>Try making the changes indicated above and then compiling and running the game once more. This time you'll find that Heidi can't pick up the nest while holding the bird or <em>vice versa</em>, but that she can put the bird in the nest, pick up the nest, and then climb the tree.</p>
+
+<p>The final change is a bit more complex. At the moment there's no way of winning the game (or ending it in any other way, apart from issuing a QUIT command). We want the game to end victoriously when Heidi restores the nest to the branch (preferably with the bird inside it, but we'll leave that little detail till later). There are several ways we could do this, but the one we'll use here is to use the <span class="code">afterAction()</span> method of the <span class="code">branch</span> to test whether the nest is on the branch, and then end the game in victory if it is:</p>
+
+ <p><div class="code"><pre>
++ branch: Thing 'wide firm bough; flat; branch'
+    "It's flat enough to support a small object. "
+    
+    iFixed = true
+    isListed = true
+    contType = On
+    
+    <strong>afterAction()
+    {
+        if(nest.isIn(self))
+            finishGameMsg(ftVictory, [finishOptionUndo]);
+    }</strong>
+;
+</pre></div>
+
+<p>This introduces several new concepts at once; we'll explain them briefly here and then give a slightly more systematic explanation in the next chapter.</p>
+
+<p><span class="code">afterAction()</span> is the first example we've seen of a <em>method</em>. A method is like a property in that it's associated with a specific object (or class of objects), but unlike a property, which just holds a piece of data, a method contains one or more <em>statements</em> of procedural code. This code is <em>run</em> or <em>executed</em> (the two mean the same thing) when the method is <em>called</em> or <em>invoked</em> (again, for our purposes, the two mean the same thing).</p>
+
+<p>As its name possiblly suggests, the <span class="code">afterAction()</span> method is called on every object in scope (i.e., roughly speaking, every object in the immediate vicinity of the actor) just after an action is performed. Since Heidi must perform some action (like putting the nest on the branch) in the immediate vicinity of the branch in order for the nest to end up on the branch, we can confidently use the <span class="code">afterAction()</span> method of the branch to test for the presence of the nest on the branch. We do so by using an <span class="code">if</span> statement.</p>
+
+<p>The <span class="code">if</span> statement takes the form:</p>
+
+<pre>
+<p><dt><span class=synLit>if(</span><span class=synPar>expression</span><span class=synLit>)</span>
+    <span class=synPar>statement;</span></dt>
+</pre>
+
+<p>or:</p>
+
+<pre>
+<p><dt><span class=synLit>if(</span><span class=synPar>expression</span><span class=synLit>)</span>
+<span class=synLit>{</span>
+    <span class=synPar>statement;</span>
+    <span class=synPar>statement;</span>
+    ...
+<span class=synLit>}</span></dt>
+</pre>
+
+<p>In the first case, <span class=synPar>statement;</span> is executed if <span class=synPar>expression</span> evaluates to true; in the second the entire block of statements between the opening and closing braces, { }, is executed if <span class=synPar>expression</span> evaluates to true. For this purpopse, an expression is considered to be true if it evaluates to anything other than <span class="code">nil</span> or <span class="code">0</span>.</p>
+
+<p>In this instance, the expression being tested is <span class="code">nest.isIn(self)</span>. <span class="code">isIn(<em>obj</em>)</span> is a method of the <span class="code">Thing</span> class that evaluates to <span class="code">true</span> (or returns <span class="code">true</span>) if the object it's called in is either directly or indirectly in <em>obj</em>. Although we want to know whether the nest is <em>on</em> the branch, programmatically we just test whether the nest lies <em>in</em> the branch's containment tree.</p>
+
+<p>You might have expected that we'd test for <span class="code">nest.isIn(branch)</span>, and that would indeed have worked, but using <span class="code">self</span> here is generally better practice. In TADS 3 <em>self</em> means 'the current object' or 'the object this property or method is being defined on'. Since we're defining the <span class="code">afterAction()</span> method of <span class="code">branch</span>, <span class="code">self</span> here refers to <span class="code">branch</span>. The advantage of using self rather than branch in this context is that it makes our code more generically applicable and less error-prone. If, for example, at some later point we were to change our mind about calling the branch object <span class="code">branch</span>, and decided to call it <span class="code">bough</span> instead, its <span class="code">afterAction()</span> method would still work as expected without our having to remember to change <span class="code">isIn(branch)</span> to <span class="code">isIn(bough)</span> since self would now automatically refer to <span class="code">bough</span>.</p>
+
+<p>So, if the nest is on the branch when the <span class="code">afterAction()</span> method of <span class="code">branch</span> is invoked, the statement <span class="code">finishGameMsg(ftVictory, 
+[finishOptionUndo]);</span> will be executed. But what does this do? <span class="code">finishGameMsg()</span> is the first example we've encountered of an adv3Lite <em>function</em>. Like a method, a function is 
+a block of code that contains one or more procedural statements (i.e. code to be executed). Unlike a method, a function is not associated with any particular object. <span class="code">finishGameMsg()</span> is a 
+function defined in the adv3Lite library for use when we want to finish the game. It takes two <em>arguments</em>. The first defines how we want the game to end. Here we want it to end with the player winning, so we use <span class="code">ftVictory</span> (you can think of this being short for finishTypeVictory, although the library wouldn't recognize this longer form). Other possibilities included <span class="code">ftDeath</span>, <span class="code">ftFailure</span> and <span class="code">ftGameOver</span>. Alternatively, you could just use a single-quoted string with your own message, such as 'YOU HAVE DONE WELL' or 'THAT WAS DISMAL'.</p>
+
+<p>The second parameter we pass to the <span class="code">finishGameMsg()</span> function is a list of finishOptions. When you call the <span class="code">finishGameMsg()</span> function the game displays your chosen message and then offers the player a list of options. These always include the options to RESTART the story, RESTORE a saved game or QUIT, but here we also want to offer the player the option to UNDO his or her last turn (in case s/he wants to carry on playing the game to try something different, perhaps), so we include the option <span class="code">finishOptionUndo</span>. The square brackets round <span class="code">finishOptionUndo</span> indicate that we are actually passing a list of options to the function, though a list that here contains only one item. There could have been more, e.g., <span class="code">[finishOptionUndo, finishOptionCredits, finishOptionFullScore, finishOptionAmusing]</span>, but since we haven't defined any credits for this game, and we haven't been keeping score, and we haven't defined any amusing things for the player to try after winning the game, we really don't need these other options here.</p>
+
+<p>This is as far as we'll take the Heidi game for now. We'll add some more refinements to it in Chapter Five, but we introduced a lot of new concepts in a bit of a rush at the end of this chapter just to explain how the game could be won, and we actually covered quite a bit of ground before that, so before adding any further finishing touches to our Heidi game we should pause and take stock, which is what we'll do in the next chapter. In the meantime, here's the complete listing of what the Heidi game should now look like:</p>
+
+ <p><div class="code"><pre>
+#charset "us-ascii"
+
+#include <tads.h>
+#include "advlite.h"
+
+versionInfo: GameID
+    IFID = '' // obtain IFID from http://www.tads.org/ifidgen/ifidgen
+    name = 'The Adventures of Heidi'
+    byline = 'by A.N. Author'
+    htmlByline = 'by &lt;a href=&quot;mailto:an.author@somemail.com&quot;&gt;
+                  A.N. Author&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'A.N. Author &lt;an.author@somemail.com&gt;'
+    desc = 'A simple game borrowed from the Inform Beginner\'s Guide by Roger
+        Firth and Sonja Kesserich.'
+    htmlDesc = 'A simple game borrowed from the &lt;i&gt;Inform Beginner\'s Guide&lt;/i&gt;
+        by Roger Firth and Sonja Kesserich.'    
+    
+;
+
+gameMain: GameMainDef
+    /* Define the initial player character; this is compulsory */
+    initialPlayerChar = me
+;
+
+
+/* The starting location; this can be called anything you like */
+
+beforeCottage: Room 'In front of a Cottage'
+    "You stand outside a cottage. The forest stretches east. "
+    
+    east = forest
+;
+
+/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */
+
++ me: Thing 'you;;heidi'   
+    isFixed = true    
+    proper = true
+    ownsContents = true
+    person = 2   
+    contType = Carrier    
+    bulkCapacity = 1
+;
+
+
+forest: Room 'Deep in the forest'
+    "Through the dense foliage, you glimpse a building to the west. A track
+    heads to the northeast. "
+    
+    west = beforeCottage
+    northeast = clearing
+;
+
++ bird: Thing 'baby bird;;nestling'
+    "Too young to fly, the nestling tweets helplessly. "
+    
+    bulk = 1
+;
+
+
+clearing: Room 'A forest clearing'
+    "A tall sycamore stands in the middle of this clearing. The path winds
+    southwest through the trees. "
+    
+    southwest = forest
+    up = topOfTree
+;
+
++ nest: Thing 'bird\'s nest; carefully woven; moss twigs'
+    "The nest is carefully woven of twigs and moss. "
+    
+    contType = In   
+    bulk = 1
+;
+
+
++ tree: Thing 'tall sycamore tree;;stout proud'     
+    "Standing proud in the middle of the clearing, the stout tree looks easy to
+    climb."
+    
+    isFixed = true
+;
+
+topOfTree: Room 'At the top of the tree'
+    "You cling precariously to the trunk. "
+    
+    down = clearing
+;
+
++ branch: Thing 'wide firm bough; flat; branch'
+    "It's flat enough to support a small object. "
+    
+    iFixed = true
+    isListed = true
+    contType = On
+    
+    afterAction()
+    {
+        if(nest.isIn(self))
+            finishGameMsg(ftVictory, [finishOptionUndo]);
+    }
+;
+</pre></div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Tutorial</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="heidi.htm">Heidi: our first adv3Lite game</a> &gt; 
+Finishing Touches
+<br><span class="navnp"><a class="nav" href="tree.htm"><i>Prev:</i> Adding the Tree and the Branch</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="reviewing.htm"><i>Next:</i> Reviewing the Basics</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

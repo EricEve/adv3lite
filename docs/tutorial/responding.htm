@@ -23,7 +23,7 @@ Responding to Actions
 
 <p>For the moment we'll just worry about what effect turning the wheel has on the wheel. We'll worry about what it might do to the plane later.</p>
 
-<p>To keep things reasonably but not absurdly simple, we'll assume the wheel can be turned to one of five positions: amidships, 30 degrees to port or starboard, or 60 degrees to port or starboard. We'll also assume that a TURN WHEEL LEFT/RIGHT command should turn it 30 degrees at a time. To keep track of where the wheel is currently turned to we'll define a custom <span class="code">angle</span> property on the wheel object, which will be allowed to vary from -60 (hard to port) to +60 (hard to starboard). To help the player keep track of the wheel is we'll also define a custom angleDesc() method that turns this angle into a description that can be used both in the description of the wheel (in response to EXAMINE WHEEL) and in the response to a TURN WHEEL LEFT or TURN WHEEL RIGHT command.</p>
+<p>To keep things reasonably but not absurdly simple, we'll assume the wheel can be turned to one of five positions: amidships, 30 degrees to port or starboard, or 60 degrees to port or starboard. We'll also assume that a TURN WHEEL LEFT/RIGHT command should turn it 30 degrees at a time. To keep track of where the wheel is currently turned to we'll define a custom <span class="code">angle</span> property on the wheel object, which will be allowed to vary from -60 (hard to port) to +60 (hard to starboard). To help the player keep track of the wheel we'll also define a custom angleDesc() method that turns this angle into a description that can be used both in the description of the wheel (in response to EXAMINE WHEEL) and in the response to a TURN WHEEL LEFT or TURN WHEEL RIGHT command.</p>
 
 <p>To prevent the wheel from being turned too far to the right or left, we'll use the check() phase of <span class="code">dobjFor(TurnRight)</span> and <span class="code">dobjFor(TurnLeft)</span>. The former will stop the action if angle is already greater than or equal to 60, and the latter will stop the action if angle is already less than or equal to -60.</p>
 
@@ -111,7 +111,7 @@ Responding to Actions
     }
 </pre></div>
 
-<p>What <span class="code">remap = controlColumn</span> does is simply to tell the game to use controlColumn rather than object actually specified (in this case, the wheel) as the direct object of a Push or Pull command.</p>
+<p>What <span class="code">remap = controlColumn</span> does is simply to tell the game to use controlColumn rather than the object actually specified (in this case, the wheel) as the direct object of a Push or Pull command.</p>
 
 <br>
 <h2>Pulling and Pushing the Stick</h2>
@@ -168,7 +168,7 @@ Responding to Actions
 
 <h2>Pulling and Pushing the Thrust Lever</h2>
 
-<p>Finally, we come to the thrust lever, which is notionally meant to control the power output of the aircraft's engine(s). We could simply more or less repeat what we did in the implementation of the control column, but it would be more interesting to do something a little different. Let's suppose that the thrust lever can be in one of six positions, arbitrarily labeled 0 to 5. Rather than making the player type PUSH LEVER five times in succession to move the lever all the way forward (surely rather unrealistic in any case), let's supposed that the lever can be moved to the desired position directly with a command like MOVE LEVER TO 2 or PUSH LEVER TO 4. But let's suppose that we also want PUSH LEVER (by itself, without any particular position specified) to push the lever all the way forward to full thrust, i.e. the 5 setting, and PULL LEVER to move it all the way back to 0.</p>
+<p>Finally, we come to the thrust lever, which is notionally meant to control the power output of the aircraft's engine(s). We could simply more or less repeat what we did in the implementation of the control column, but it would be more interesting to do something a little different. Let's suppose that the thrust lever can be in one of six positions, arbitrarily labeled 0 to 5. Rather than making the player type PUSH LEVER five times in succession to move the lever all the way forward (surely rather unrealistic in any case), let's suppose that the lever can be moved to the desired position directly with a command like MOVE LEVER TO 2 or PUSH LEVER TO 4. But let's suppose that we also want PUSH LEVER (by itself, without any particular position specified) to push the lever all the way forward to full thrust, i.e. the 5 setting, and PULL LEVER to move it all the way back to 0.</p>
 
 <p>With this setup, the thrust lever has a kind of binary mode with just PULL and PUSH (all the way back or all the way forward) and also a multi-setting mode in which it can be moved to any setting between 0 and 5. The library defines a Lever class for a binary kind of lever and a Settable class for a control that can be set to a number of different settings. Fortunately we can combine the two through multiple inheritance:</p>
 
@@ -211,7 +211,7 @@ Responding to Actions
 
 <p>For more information on the <span class="code">delegated</span> keyword, refer to the "Expressions and Operators" section of Part III of the <em>TADS 3 System Manual</em>.</p>
 
-<p>Next, we'll probably want moving the thrust lever to be reported with something a little less bland that "You set the thrust lever to n", especially if the engine is running. We can do that by providing our custom message in the makeSetting() method:</p>
+<p>Next, we'll probably want moving the thrust lever to be reported with something a little less bland than "You set the thrust lever to n", especially if the engine is running. We can do that by providing our custom message in the makeSetting() method:</p>
 
  <p><div class="code"><pre>
     makeSetting(val)
@@ -231,9 +231,9 @@ Responding to Actions
     }
 </pre></div>
 
-<p>Here we use the <span class="code">oldVal</span> local variable to store the previous setting so we can test which way the player has just moved the lever when we want display an appropriate message. We also use the value of <span class="code">ignitionButton.isOn</span> to test whether the engine is running, so that if it is we can display a description of the change in engine noise that results from moving the thrust lever. We don't need to worry about the case where the player tries to move the lever to the same setting it's already at, since the verify() stage of SetTo will rule that out anyway. Also we don't need to worry about the default message the action would have displayed, since our custom message automatically suppresses anything that would have been displayed at the <span class="code">report</span> stage.</p>
+<p>Here we use the <span class="code">oldVal</span> local variable to store the previous setting so we can test which way the player has just moved the lever when we want to display an appropriate message. We also use the value of <span class="code">ignitionButton.isOn</span> to test whether the engine is running, so that if it is we can display a description of the change in engine noise that results from moving the thrust lever. We don't need to worry about the case where the player tries to move the lever to the same setting it's already at, since the verify() stage of SetTo will rule that out anyway. Also we don't need to worry about the default message the action would have displayed, since our custom message automatically suppresses anything that would have been displayed at the <span class="code">report</span> stage.</p>
 
-<p>The next job is to tie in the Lever's push/pull behaviour with the Settable behaviour we've just implemented. A Lever can be in one of two states, <span class="code">isPulled = nil</span> or <span class="code">isPulled = true</span>. For this Lever we want the <span class="code">isPulled = true</span> state (when the thrust lever is pulled all the way back) to correspond to curSetting of '0', and the <span class="code">isPushed = true</span> state (when the lever is pushed all the way forward) to correspond to a curSetting of '5'. By default the Lever class assumes that <span class="code">isPushed</span> is true when <span class="code">isPulled</span> is nil and <em>vice versa</em>, so we need to override those two properties to cancel that assumption, and completely change that the Lever's <span class="code">makePulled()</span> method normally does:</p>
+<p>The next job is to tie in the Lever's push/pull behaviour with the Settable behaviour we've just implemented. A Lever can be in one of two states, <span class="code">isPulled = nil</span> or <span class="code">isPulled = true</span>. For this Lever we want the <span class="code">isPulled = true</span> state (when the thrust lever is pulled all the way back) to correspond to curSetting of '0', and the <span class="code">isPushed = true</span> state (when the lever is pushed all the way forward) to correspond to a curSetting of '5'. By default the Lever class assumes that <span class="code">isPushed</span> is true when <span class="code">isPulled</span> is nil and <em>vice versa</em>, so we need to override those two properties to cancel that assumption, and completely change what the Lever's <span class="code">makePulled()</span> method normally does:</p>
 
  <p><div class="code"><pre>
     makePulled(stat)

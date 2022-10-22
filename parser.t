@@ -107,30 +107,29 @@ class Parser: object
     defaultActions = true
 
     /*
-     *   Should we attempt automatic spelling correction?  If this is true,
-     *   whenever a command fails, we'll check for a word that we don't
-     *   recognize; if we find one, we'll try applying spelling correction
-     *   to see if we can come up with a working command.
-     *   
-     *   Our spelling correction algorithm is designed to be quite
-     *   conservative.  In particular, we generally limit candidates for
-     *   "correct" words to the vocabulary for objects that are actually in
-     *   scope, which avoids revealing the existence of objects that
-     *   haven't been seen yet; and we only apply a correction when it
-     *   yields a command that parses and resolves correctly.  When we
-     *   can't correct a command and get something resolvable, we don't
-     *   even mention that we tried.  This avoids the bizarre, random
-     *   guesses at "corrections" that often show up in other applications,
-     *   and more importantly avoids giving away information that the
+     *   Should we attempt automatic spelling correction?  If this is true, whenever a command
+     *   fails, we'll check for a word that we don't recognize; if we find one, we'll try applying
+     *   spelling correction to see if we can come up with a working command.
+     *
+     *   Our spelling correction algorithm is designed to be quite conservative.  In particular, we
+     *   generally limit candidates for "correct" words to the vocabulary for objects that are
+     *   actually in scope, which avoids revealing the existence of objects that haven't been seen
+     *   yet; and we only apply a correction when it yields a command that parses and resolves
+     *   correctly.  When we can't correct a command and get something resolvable, we don't even
+     *   mention that we tried.  This avoids the bizarre, random guesses at "corrections" that often
+     *   show up in other applications, and more importantly avoids giving away information that the
      *   player shouldn't know yet.
-     *   
-     *   We set this to true by default, in an attempt to reduce the
-     *   player's typing workload by automatically correcting simple typos
-     *   when possible.  If for some reason the spelling corrector is
-     *   problematic in a particular game, you can disable it by setting
-     *   this property to nil.  
+     *
+     *   We set this to true by default, in an attempt to reduce the player's typing workload by
+     *   automatically correcting simple typos when possible.  If for some reason the spelling
+     *   corrector is problematic in a particular game, you can disable it by setting this property
+     *   to nil.
+     *
+     *   As an experiment, change the default value to be nil when we're in a conversation and true
+     *   otherwise, since over-zealous spelling corrections can be particularly troublesome in a
+     *   conversational context.
      */
-    autoSpell = true
+    autoSpell = (gPlayerChar.currentInterlocutor == nil)
 
     /*
      *   Maximum spelling correction time, in milliseconds.  The spelling
@@ -393,8 +392,9 @@ class Parser: object
                     if(gPlayerChar.currentInterlocutor != nil
                        && cmdLst.length == 0 
                        && Q.canTalkTo(gPlayerChar,
-                                       gPlayerChar.currentInterlocutor)
-                       && str.find(',') == nil)
+                                      gPlayerChar.currentInterlocutor)
+                       && str.find(',') == nil
+                       && gPlayerChar.currentInterlocutor.allowImplicitSay())
                     {
                          l = new CommandList(
                             topicPhrase, toks, cmdDict,

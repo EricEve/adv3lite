@@ -15,8 +15,8 @@
  *   scope at any given moment. A MobileCollectiveGroup is moved into the
  *   player's location if more than one of its members is visible at the start
  *   of any turn and moved into nil otherwise.
+ *   [MobileCollectiveGroup EXTENSION]
  */
-
 class MobileCollectiveGroup: PreinitObject, CollectiveGroup
     execute()
     {
@@ -56,7 +56,7 @@ class MobileCollectiveGroup: PreinitObject, CollectiveGroup
      *   If the player can see more than one of the objects that belong to this
      *   CollectiveGroup, move it to the player's location (so that it can stand
      *   in for those objects when required); otherwise move this
-     *   CollectiveGroup out of the way.
+     *   CollectiveGroup out of the way. [MobileCollectiveGroup EXTENSION]
      */
     scopeCheck()
     {
@@ -68,13 +68,13 @@ class MobileCollectiveGroup: PreinitObject, CollectiveGroup
     
     /* 
      *   The list of objects belonging to this MobileCollectiveGroup; this is
-     *   created automatically at PreInit.
+     *   created automatically at PreInit. [MobileCollectiveGroup EXTENSION]
      */
     myObjs = nil
     
     /* 
      *   Store a reference to the Daemon used to update the location of this
-     *   MobileCollectiveGroup.
+     *   MobileCollectiveGroup. [MobileCollectiveGroup EXTENSION]
      */
     myDaemon = nil
 ;

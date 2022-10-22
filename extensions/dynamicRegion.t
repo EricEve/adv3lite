@@ -7,32 +7,30 @@
  *
  * A DynamicRegion is a Region that can be expanded or contracted during the
  * course of play, but which comes with certain restrictions; in particular a
- * DynamicRegion cannot be part of any other Region.
+ * DynamicRegion cannot be part of any other Region. [DYNAMICREGION EXTENSION]
  */
 class DynamicRegion: Region
     
     /*
      * A DynamicRegion cannot be part of any other Region, so any value given
-     * to this property in game code will be ignored.
+     * to this property in game code will be ignored. [DYNAMICREGION EXTENSION]
      */
     regions = nil
     
-    /* A DynamicRegion cannot be in any other region, so we simply return nil */
-    
-    
+    /* A DynamicRegion cannot be in any other region, so we simply return nil [DYNAMICREGION EXTENSION] */   
     isIn(region)
     {
         return nil;
     }
     
-    /* The list of regions a DynamicRegion is in is simply an empty list. */
+    /* The list of regions a DynamicRegion is in is simply an empty list. [DYNAMICREGION EXTENSION] */
     allRegions = []
     
     
     /*
      * Add an additional room (passed as the rm parameter) to our list of
      * rooms. This method is intended for internal library use at PreInit
-     * only.
+     * only. [DYNAMICREGION EXTENSION]
      */
     addToRoomList(rm)
     {
@@ -47,7 +45,7 @@ class DynamicRegion: Region
     
      /*
      * Put extra items in scope when action is carried out in any room in this
-     * region.
+     * region. [DYNAMICREGION EXTENSION]
      */
     addExtraScopeItems(action)
     {
@@ -60,14 +58,14 @@ class DynamicRegion: Region
         
     }
     
-     /* Carry out before notifications on the region */
+     /* Carry out before notifications on the region [DYNAMICREGION EXTENSION] */
     notifyBefore()
     {
-        /* Just call our own regionBeforeAction() method */
+        /* Just call our own regionBeforeAction() method [DYNAMICREGION EXTENSION] */
         regionBeforeAction();
     }
     
-     /* Carry out after notifications on the region */
+     /* Carry out after notifications on the region [DYNAMICREGION EXTENSION] */
     notifyAfter()
     {
         /* Just call our own regionAfterAction() method */
@@ -81,6 +79,7 @@ class DynamicRegion: Region
      * as an argument to this method is only a shorthand way of specifying the
      * rooms the Regions contain; no permanent relationship is created between
      * a DynamicRegion and any other Regions added to it.
+	 * [DYNAMICREGION EXTENSION]
      */
     expandRegion(rm)
     {
@@ -110,7 +109,7 @@ class DynamicRegion: Region
     
     /*
      * Remove rm from this Region. The rm parameter has the same meaning as
-     * for expandRegion(rm).
+     * for expandRegion(rm) [DYNAMICREGION EXTENSION].
      */
     contractRegion(rm)
     {
@@ -142,7 +141,7 @@ class DynamicRegion: Region
      * side-effects to adding or removing rooms. By default we do nothing here
      * but game code can override as necessary. The rm parameter is the list
      * of rooms/regions that have just been added (if expanding is true) or
-     * subtracted (if expanded is nil) from this region.
+     * subtracted (if expanded is nil) from this region. [DYNAMICREGION EXTENSION]
      */
     extraAdjustments(rm, expanded) { }
 ;

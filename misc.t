@@ -829,6 +829,12 @@ libGlobal: object
      */
     nameTable_ = static new LookupTable()  
     
+    /* 
+     *   Flag determining whether inventory listing should be in the wide (nil) or tall (true)
+     *   format. By default we start out with the wide format (inventoryTall = nil), although game
+     *   code could override this.
+     */
+    inventoryTall = nil     
 ;
 
 
@@ -2418,4 +2424,30 @@ modify PreinitObject
     reverseGlobalSymbols = nil
 ;
 
+/* 
+ *   Service function primarily intended for use with the symcomm extension to facilitate the use of
+ *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
+ *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
+ *   something different).
+ *
+ *   We need the function because a string template can't directly be defined in relation to a
+ *   method, so the byRoomFunc() function calls the byRoom() method on the object that invokes it.
+ */
+ byRoomFunc(arg)
+{
+    /* 
+     *   We meed to get at the effective self object by using the stack frame. First obtain the
+     *   stack frame one level back from us.
+     */
+    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
+    
+    /* Then get the self object in that stack frame. */
+    local obj = frame.getSelf();
+    
+    /* Then call and return the byRoom() method on that object. */
+    return obj.byRoom(arg);
+}
 
+
+/* Service function to determine whether obj is ofKind cls when obj might not be an object. */
+objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject && obj.ofKind(cls); }

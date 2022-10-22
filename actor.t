@@ -288,7 +288,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             gCommand.actor = gPlayerChar;            
             
             /* Carry out the SayTopic handling */
-            handleTopic(&sayTopics, gCommand.dobj.topicList);
+            handleTopic(&sayTopics, gCommand.dobj.topicList, &defaultSayResponse);
         }
         
         /* Otherwise try letting a CommandTopic handle it */
@@ -767,6 +767,17 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          */
         if(curState != nil)
             curState.beforeAction();
+        
+        
+//        if(gActionIn (Take, TakeFrom) && gDobj.isIn(getActor))
+//        {
+//            /* Display a message saying that removing obj is disallowed. */
+//            say(getActor.cannotTakeFromActorMsg(gDobj));
+//            
+//            /* Halt the action. */
+//            exit;
+//        }
+        
     }
     
     /* 
@@ -998,6 +1009,71 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      */
     actorCanEndConversation(reason) { return true; }
     
+    /*
+     *   Do we want an otherwise not understood input (such as "You're crazy") treated as an
+     *   implicit SAY command (e.g., treated as SAY YOU'RE CRAZY) when the player character is in
+     *   conversatiom with this Actor? Return true if so or nil otherwise.
+     */
+    allowImplicitSay()
+    {
+        /* 
+         *   If neither this Actor nor its current ActorState defines any SayTopics then there's no
+         *   point treating any user input as an implicit SAY command, so simply return nil.
+         */        
+        if(autoImplicitSay && sayTopics.length == 0)
+        {
+            if(curState && curState.sayTopics.length > 0)
+                return enableImplicitSay;
+            else
+                return nil;
+        }
+        
+                     
+        /*  
+         *   If we don't want to count DefaultTopics as potential SayTopics for the purposes of
+         *   interpreting otherwise not understood input, then check whether this Actor's sayTopic
+         *   list includes anything that's not a DefaultTopic, and if not, return nil.
+         */
+        if(autoImplicitSay && !defaultCountsAsSay 
+           && sayTopics.countWhich({x: !x.ofKind(DefaultTopic)}) == 0)
+        {
+            if(curState && curState.sayTopics.countWhich({x: !x.ofKind(DefaultTopic)}) > 0)
+                return enableImplicitSay;
+            else                
+                return nil;
+        }
+                                   
+        /*  Otherwise return the value of a user (game author) modifiable flag. */
+        return enableImplicitSay;
+    }
+    
+    
+    /*
+     *   User modifiable flag for use with the allowImplicitSay() method. Do we ever want to allow
+     *   implicit SAY commands for this actor? By default we do allow this (true), since this has
+     *   been the default library behaviour up until now, but game authors can change this either on
+     *   individual Actors or by modifying the Actor class.
+     */
+    enableImplicitSay = true
+    
+    /*  
+     *   Do we want a DefaultTopic to count as a SayTopic for the purpose of deciding whether to
+     *   allow otherwise not understood commands being interpreted as implicit SAY commands? By
+     *   default we don't, since that's most likely to be what game authors who don't explicitly
+     *   define SayTopics (or DefaultSayTopics) intend, but game code can override this, either on
+     *   individual actors or on the Actor class.
+     */
+    defaultCountsAsSay = nil
+    
+    
+    /*
+     *   Flag, do we want the allowImplicitSay() method to rule out the interpretation of commands
+     *   as implicit Say commands if there are no available SayTopics for this actor? By default we
+     *   do, but game code may wish to override this if the results of handling player input in this
+     *   manner are felt to be inconsistent. If autoImplicitSay is set to nil then
+     *   allowImplicitSay() will simply return the value of enableImplicitSay.
+     */
+    autoImplicitSay = true
     
     /* 
      *   Mechanism to allow this actor to follow the player char. We do this
@@ -2042,11 +2118,13 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          *   If we're not the actor initiating the moving of obj and we don't
          *   allow this object to be removed from us, prevent the move.
          */
+        
         if(gActor != self && !allowOtherActorToTake(obj))
-        {            
+        {         
+           
             /* Display a message saying that removing obj is disallowed. */
             say(cannotTakeFromActorMsg(obj));
-            
+                        
             /* Halt the action. */
             exit;
         }    
@@ -2064,7 +2142,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          */
         local this = self;
         gMessageParams(obj, this);
-        
+               
         /* Return the text of the message. */
         return BMsg(cannot take from actor, '{The subj this} {won\'t} let {me}
             have {the obj} while {he obj}{\'s} in {her this} possession. ');
@@ -2147,9 +2225,16 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     {        
         action()
         {
-            handleTopic(&sayTopics, gIobj.topicList);
+            handleTopic(&sayTopics, gIobj.topicList, &defaultSayReponse);
         }
     }
+    
+    defaultSayResponse = '<<pcDefaultSayQuip>><.p><<noResponseMsg>>'
+    
+    pcDefaultSayQuip = BMsg(default pcsayquip, 
+                  '<q><<gTopicText.substr(1,1).toUpper()>><<gTopicText.substr(2).toLower()>>,</q> 
+        {i} {say}. ')   
+    
     
     dobjFor(QueryAbout)
     {        
@@ -4019,6 +4104,20 @@ class DefaultAnyTopic: DefaultTopic
 ;
 
 /* 
+ *   A DefaultAnyNonSayTopic matches any conversational command except SAY and should also match
+ *   Commands (where the matchObj will be an action); they can optionally match HELLO and BYE as
+ *   well. */
+
+class DefaultAnyNonSayTopic: DefaultAnyTopic
+    includeInList = [&queryTopics, &askTopics, &tellTopics,
+        &giveTopics, &showTopics, &askForTopics, &talkTopics, &miscTopics,
+    &commandTopics]
+    
+    matchScore = 2
+;
+
+
+/* 
  *   A DefaultAgendaTopic can be used to give the actor the opportunity to seize
  *   the conversational initiative when the player enters a conversational
  *   command for which there's no explicit match. Instead of giving a bland
@@ -4070,6 +4169,17 @@ class DefaultConversationTopic: DefaultTopic
     includeInList = [&sayTopics, &queryTopics, &askTopics, &tellTopics,
         &askForTopics, &talkTopics]
     matchScore = 2
+;
+
+/* 
+ *   A DefaultConversationTopic is a DefaultConverationTopic that matches any strictly
+ *   conversational command apart from SAY.
+ */
+class DefaultNonSayTopic: DefaultConversationTopic
+    includeInList = [&queryTopics, &askTopics, &tellTopics,
+        &askForTopics, &talkTopics]
+    
+    matchScore = 3
 ;
 
 /* Default Topic to match ASK ABOUT and TELL ABOUT */
@@ -4124,6 +4234,8 @@ class DefaultAskForTopic: DefaultTopic
 class DefaultSayTopic: DefaultTopic
     includeInList = [&sayTopics]
     matchScore = 5
+    
+    topicResponse = "<<(getActor.defaultSayResponse)>>"
 ;
 
 

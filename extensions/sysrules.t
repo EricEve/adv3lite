@@ -13,13 +13,13 @@
 
 /*  
  *   RuleBook that can contain rules run at Preinit. By default this Rulebook
- *   starts out empty.
+ *   starts out empty. [SYSRULES EXTENSION]
  */
 preinitRules: RuleBook
     contValue = nil
 ;
 
-/* PreinitObject to run PreinitRules. */
+/* PreinitObject to run PreinitRules for SYSRULES EXTENSION. */
 preinitRulesRunner: PreinitObject
     execute()
     {
@@ -32,20 +32,20 @@ preinitRulesRunner: PreinitObject
     execBeforeMe = [adv3LibPreinit, rulePreinit]
 ;
 
-/* A rule belonging to the preinitRules RuleBook. */
+/* A rule belonging to the preinitRules RuleBook. [SYSRULES EXTENSION] */
 class PreinitRule: Rule
     location = preinitRules
 ;
 
 /*  
  *   RuleBook that can contain rules run at Init. By default this Rulebook
- *   starts out empty. */
+ *   starts out empty. [SYSRULES EXTENSION] */
 
 initRules: RuleBook
     contValue = nil
 ;
 
-/* InitObject to run InitRules. */
+/* InitObject to run InitRules. [SYSRULES EXTENSION] */
 initRulesRunner: InitObject
     execute()
     {
@@ -55,12 +55,12 @@ initRulesRunner: InitObject
 ;
 
 
-/* A rule belonging to the initRules RuleBook. */
+/* A rule belonging to the initRules RuleBook. [SYSRULES EXTENSION] */
 class InitRule: Rule
     location = initRules
 ;
 
-/* A Rule beloning to the turnEndRules RuleBook. */
+/* A Rule beloning to the turnEndRules RuleBook. [SYSRULES EXTENSION] */
 class TurnEndRule: Rule
     location = turnEndRules
 ;
@@ -70,12 +70,13 @@ class TurnEndRule: Rule
  *   of each turn, including the current location's roomDaemon, any current
  *   Fuses and Daemons (via the eventManager), and advancing the turn counter.
  *   Additional rules can be added if game code wants something else to occur at
- *   the end of each turn.
+ *   the end of each turn. [SYSRULES EXTENSION]
  */
 turnEndRules: RuleBook
     contValue = nil
 ;
 
+/* [SYSRULES EXTENSION] By default add a paragraph break before doing anything else at the end of turn. */
 + turnEndSpacerRule: Rule
     follow()
     {
@@ -84,6 +85,8 @@ turnEndRules: RuleBook
     priority = 10000
 ;
 
+
+/* Execute the player character's current location's roomDaemon. [SYSRULES EXTENSION]
 + roomDaemonRule: Rule
     follow()
     {
@@ -93,12 +96,16 @@ turnEndRules: RuleBook
     priority = 9000
 ;
     
+/* 
+ *   If the events.t module is included, execute all current Daemons and
+ *   Fuses [SYSRULES EXTENSION]
+ */	
 +  executeEventsRule: Rule
     follow()
     {
         /* 
          *   If the events.t module is included, execute all current Daemons and
-         *   Fuses/
+         *   Fuses.
          */
         if(defined(eventManager) && eventManager.executeTurn())          
             ;
@@ -106,6 +113,7 @@ turnEndRules: RuleBook
     priority = 8000
 ;
 
+/* Advance the turn counter  [SYSRULES EXTENSION]*/
 + advanceTurnCounterRule: Rule
     follow()
     {
@@ -118,7 +126,7 @@ turnEndRules: RuleBook
 /*  
  *   An AfterRule is a rule belonging to the afterRules Rulebook. Note than
  *   unlike after rules in I7 these are executed after the action is fully
- *   complete, i.e. *after* the report stage.
+ *   complete, i.e. *after* the report stage. [SYSRULES EXTENSION]
  */
 class AfterRule: Rule
     location = afterRules
@@ -127,7 +135,7 @@ class AfterRule: Rule
     currentAction = (rulebook.currentAction)
 ;
 
-/*  Rulebook to carry out after action notifications. */
+/*  Rulebook to carry out after action notifications. [SYSRULES EXTENSION] */
 afterRules: RuleBook
     contValue = nil
     
@@ -138,6 +146,10 @@ afterRules: RuleBook
     currentAction = nil
 ;
 
+/* 
+ * Rule to check whether the illumination level has changed for the actor and make the
+ * appropriate announcement if so. [SYSRULES EXTENSION]
+ */
 checkIlluminationRule: AfterRule
     follow()
     {
@@ -169,7 +181,8 @@ checkIlluminationRule: AfterRule
     }
     priority = 10000
 ;
-    
+  
+* Rule to call the afterAction notifications on all currently active scenes. [SYSRULES EXTENSION] */  
 notifyScenesAfterRule: AfterRule
     follow()
     {
@@ -239,6 +252,10 @@ beforeRules: RuleBook
     currentAction = nil
 ;
 
+/* 
+ *   Check any Preconditions relating to the action as a whole (as
+ *   opposed to any of its objects. [SYSRULES EXTENSION]
+ */  
 checkActionPreconditionsRule: BeforeRule
     follow()
     {
@@ -253,6 +270,10 @@ checkActionPreconditionsRule: BeforeRule
     priority = 10000
 ;
 
+/*  
+ *   Call the before action handling on the current actor (in its
+ *   capacity as actor) [SYSRULES EXTENSION]
+ */
 actorActionRule: BeforeRule
     follow()
     {
@@ -266,6 +287,10 @@ actorActionRule: BeforeRule
     priority = 9000
 ;
 
+/* 
+ *   If the sceneManager is present then send a before action
+ *   notification to every currently active Scene. [SYSRULES EXTENSION]
+ */
 sceneNotifyBeforeRule: BeforeRule
     follow()
     {
@@ -280,6 +305,10 @@ sceneNotifyBeforeRule: BeforeRule
     priority = 8000
 ;
 
+/* 
+ *   Call roomBeforeAction() on the current actor's location, and
+ *   regionBeforeAction() on all the regions it's in.
+ */
 roomNotifyBeforeRule: BeforeRule
     follow()
     {
@@ -293,10 +322,11 @@ roomNotifyBeforeRule: BeforeRule
     priority = 7000
 ;
 
+/* Call the beforeAction method of every object in scope.  [SYSRULES EXTENSION]*/
 scopeListNotifyBeforeRule: BeforeRule
     follow()
     {
-        /* Call the beforeAction method of every action in scope. */
+        /* Call the beforeAction method of every object in scope. */
         foreach(local cur in currentAction.scopeList)
         {
             cur.beforeAction();
@@ -343,7 +373,7 @@ modify Action
         
     }
     
-    /* [MODIFIED FOR SYSRULES EXTENSION] */
+    /* [MODIFIED FOR SYSRULES EXTENSION] Use the beforeRules RuleBook to carry out the before action handling. */
     beforeAction()
     {
         
@@ -369,7 +399,10 @@ modify Action
     }
     
        
-    /* [MODIFIED FOR SYSRULES EXTENSION] */
+    /* 
+	 * [MODIFIED FOR SYSRULES EXTENSION] 
+	 * Use the turnEnd RuleBook to carry out the end-of-turn processing.
+	 */
     turnSequence()
     {
         /* Execute the rulebook that takes care of end-of-turn processing */
@@ -382,7 +415,7 @@ modify Action
 
 /*  
  *   The reportRules provide a convenient entry point to customize standard
- *   action reports under particular circumstances.
+ *   action reports under particular circumstances. [SYSRULES EXTENSION]
  */
 reportRules: RuleBook
     /* 
@@ -399,7 +432,7 @@ reportRules: RuleBook
     // contValue = null
 ;
 
-/* A ReportRule is a rule belonging to the reportRules RuleBook. */
+/* A ReportRule is a rule belonging to the reportRules RuleBook. [SYSRULES EXTENSION] */
 class ReportRule: Rule   
     location = reportRules
     
@@ -407,6 +440,7 @@ class ReportRule: Rule
     currentAction = (rulebook.currentAction)
 ;
 
+/* Output any pending implicit action reports [SYSRULES EXTENSION] */
 reportImplicitActionsRule: ReportRule
     follow()
     {
@@ -421,7 +455,7 @@ reportImplicitActionsRule: ReportRule
 
 /*  
  *   The standardReportRule reports the action in the standard way defined on
- *   the direct object's action-specified report method.
+ *   the direct object's action-specified report method. [SYSRULES EXTENSION]
  */
 standardReportRule: ReportRule
     follow()
@@ -481,7 +515,6 @@ modify TAction
  *   the player for a command and then processes the command until the game
  *   ends. [MODIFIED FOR SYSRULES EXTENSION]
  */
-
 replace mainCommandLoop()
 {
 
@@ -536,15 +569,17 @@ replace mainCommandLoop()
     
 }
 
-
+/* Rulebook for start of turn rules [SYSRULES EXTENSION] */
 turnStartRules: RuleBook
     contValue = nil
 ;
 
+/* Rule for use in the startTurnRules rulebook [SYSRULES EXTENSION]
 class TurnStartRule: Rule
     location = turnStartRules
 ;
 
+/* Rule to update the status line. [SYSRULES EXTENSION] */
 updateStatusLineRule: TurnStartRule
     follow()
     {
@@ -555,7 +590,7 @@ updateStatusLineRule: TurnStartRule
     priority = 10000
 ;
 
-
+/* Rule to display score notifications if the score module is included. [SYSRULES EXTENSION] */
 scoreNotificationRule: TurnStartRule
     follow()
     {
@@ -567,6 +602,7 @@ scoreNotificationRule: TurnStartRule
     priority = 9000
 ;
 
+/* Rule to run any PromptDaemons if the events module is included [SYSRULES EXTENSION] */
 promptDaemonRule: TurnStartRule
     follow()
     {
@@ -577,6 +613,7 @@ promptDaemonRule: TurnStartRule
     priority = 8000
 ;
 
+/* Rule to output a paragraph break at the start of a turn. [SYSRULES EXTENSION] */
 commandSpacingRule: TurnStartRule
     follow()
     {
@@ -591,6 +628,7 @@ commandSpacingRule: TurnStartRule
     priority = 20
 ;
 
+/* Rule to start displaying the input line [SYSRULES EXTENSION] */
 startInputLineRule: TurnStartRule
     follow()
     {
@@ -599,6 +637,7 @@ startInputLineRule: TurnStartRule
     priority = 10
 ;
 
+/* Rule to display the command prompt. [SYSRULES EXTENSION] */
 displayCommandPromptRule: TurnStartRule
     follow()    
     {            

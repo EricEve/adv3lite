@@ -455,14 +455,13 @@ pleasePreParser: StringPreParser
 ;
 
 /* 
- *   Trap any command beginning with USE, telling the player to be more 
- *   specific
+ *   Trap any command beginning with USE, telling the player to be more specific, unless the game
+ *   code defines its own Use action.
  */
-
 usePreParser: StringPreParser
     doParsing (str, which)
     {
-        if(str.toLower.startsWith('use '))        
+        if(str.toLower.startsWith('use ') && !(defined(Use) && Use.ofKind(Action)))        
         {
             "<.p>I don't recognize the command USE, because it's a bit too
             vague; please be more specific about what you want to do.<.p>";

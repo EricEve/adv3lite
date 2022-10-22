@@ -165,7 +165,7 @@ clockManager: PreinitObject
      *   Compute the time remaining until the next event at which we start to
      *   slow down the clock. By default we make this half the time from the
      *   previous event to the next. Game code can override if some other value
-     *   is preferred.
+     *   is preferred. [SUBTIME EXTENSION]
      */
     slowDownTime()
     {
@@ -196,14 +196,14 @@ clockManager: PreinitObject
      *   constant value of 60. This is still the default value, but if there is
      *   a next event we take the scale factor from that event's scaleFactor so
      *   that we can vary the pace of time according to the spacing of events if
-     *   we wish.
+     *   we wish. [SUBTIME EXTENSION]
      */
     baseScaleFactor = (nextEvent == nil ? scaleFactor : nextEvent.scaleFactor)
     
     /* 
      *   The scaling factor to use once we have passed the last ClockEvent; this
      *   is the number of minutes per hundred turns once there are no more
-     *   ClockEvents.
+     *   ClockEvents. [SUBTIME EXTENSION]
      */
     scaleFactor = 60    
 
@@ -215,7 +215,7 @@ clockManager: PreinitObject
      *   Note that the same cautions for checkTime() apply here - calling
      *   this routine commits us to a particular time, so you should call
      *   this routine only when you're actually ready to display a time to
-     *   the player.  
+     *   the player.  [SUBTIME EXTENSION]
      */
     checkTimeFmt(fmt) { return formatTime(checkTime(), fmt); }
     
@@ -228,7 +228,7 @@ clockManager: PreinitObject
      *
      *   The format string (fmt) is specified in the same way as for the
      *   formatDate() method of the Date class (for which see the TADS 3 System
-     *   Manual).
+     *   Manual). [SUBTIME EXTENSION]
      */
     formatTime(t, fmt)    
     {
@@ -243,7 +243,7 @@ clockManager: PreinitObject
     }
 
 
-    /* pre-initialize */
+    /* pre-initialize the clockManager [SUBTIME EXTENSION]*/
     execute()
     {
         local vec;
@@ -321,7 +321,7 @@ clockManager: PreinitObject
      *   Receive notification from a clock event that an event has just
      *   occurred.  (This isn't normally called directly from game code;
      *   instead, game code should usually call the ClockEvent object's
-     *   eventReached() method.)  
+     *   eventReached() method.)  [SUBTIME EXTENSION]
      */
     eventReached(evt)
     {
@@ -379,7 +379,7 @@ clockManager: PreinitObject
 
     /* 
      *   Check each turn whether another ClockEvent has been reached. Note that
-     *   this requires the events.t module to be present to work.
+     *   this requires the events.t module to be present to work. [SUBTIME EXTENSION]
      */
     reachCheck()
     {
@@ -408,20 +408,20 @@ clockManager: PreinitObject
         
     /* 
      *   our list of clock events (we build this automatically during
-     *   pre-initialization) 
+     *   pre-initialization)  [SUBTIME EXTENSION]
      */
     eventList = nil
 
-    /* the current game clock time */
+    /* the current game clock time [SUBTIME EXTENSION] */
     curTime = nil
 
-    /* the most recent event that we reached */
+    /* the most recent event that we reached  [SUBTIME EXTENSION] */
     lastEvent = nil
 
-    /* the next event's game clock time */
+    /* the next event's game clock time  [SUBTIME EXTENSION] */
     nextTime = nil
 
-    /* the next event we're due to reach */
+    /* the next event we're due to reach [SUBTIME EXTENSION] */
     nextEvent = nil
     
     
@@ -430,7 +430,7 @@ clockManager: PreinitObject
      *   where committed to a specific time.  Each time we check the time,
      *   we look here to see how many turns have elapsed since the last
      *   time check, and we use this to choose a plausible scale for the
-     *   wall-clock time change.  
+     *   wall-clock time change.   [SUBTIME EXTENSION]
      */
     turnLastCommitted = 0
     
@@ -439,10 +439,11 @@ clockManager: PreinitObject
      *   expressed as a Date object. Often this doesn't matter if we're only
      *   interested in the time of day. By default we make it Jan 1, 2000. If
      *   gameMain.gameStartDate is defines it will instead be taken from there.
+	 *   [SUBTIME EXTENSION]
      */    
     baseDate = static new Date(2000, 1, 1)
     
-    /*  Return the date of t as a Date object. */
+    /*  Return the date of t as a Date object. [SUBTIME EXTENSION] */
     eventDate(t)
     {
         /* If t is nil, return nil */
@@ -468,13 +469,13 @@ clockManager: PreinitObject
         return new Date(curDate[1], curDate[2], curDate[3], t[2], t[3], 0, 0);
     }
 
-    /* Retutn the date and time of the last event as a Date object. */
+    /* Retutn the date and time of the last event as a Date object. [SUBTIME EXTENSION] */
     lastEventDate()
     {
         return lastEvent ? eventDate(lastEvent.eventTime) : nil;
     }
 
-    /* Get the time in our [d, h, m, s] format from a Date object. */
+    /* Get the time in our [d, h, m, s] format from a Date object. [SUBTIME EXTENSION] */
     getClockTime(dat)
     {
         /* Get the time element of the Date object */
@@ -492,7 +493,7 @@ clockManager: PreinitObject
     }
     
     
-    /* Synchronize the timeManager's time with our time, if it exists. */
+    /* Synchronize the timeManager's time with our time, if it exists. [SUBTIME EXTENSION] */
     syncTime(t)
     {
         if(defined(timeManager))
@@ -564,6 +565,7 @@ class ClockEvent: object
      *
      *   Alternatively you can define the turnsToEvent property (see below) and
      *   the game will calculate an appropriate scaleFactor for you.
+	 *   [SUBTIME EXTENSION]
      */
     scaleFactor = 60
     
@@ -572,13 +574,14 @@ class ClockEvent: object
      *   turns a player is typically likely to take to get to this event from
      *   the previous one; the game will then calculate an appropriate
      *   scaleFactor. Alternatively this can be left at nil and the scaleFactor
-     *   specified directly.
+     *   specified directly. [SUBTIME EXTENSION]
      */       
     turnsToEvent = nil
     
     /* 
      *   If the turnsToEvent property is not nil and the clockManager has
      *   recorded a previous event, calculate the scaleFactor for this event.
+	 *   [SUBTIME EXTENSION]
      */
     calcScaleFactor()
     {        
@@ -603,12 +606,14 @@ class ClockEvent: object
      *   A condition (or a method that returns true or nil) that causes this
      *   event to be reached when it becomes true. This provides an alternative
      *   way of reaching events (instead of calling the eventReached method).
+	 *   [SUBTIME EXTENSION]
      */
     reachedWhen = nil
     
     /*   
      *   Flag: has this event been reached? This is used internally by the
      *   library and shouldn't normally be changed in game code.
+	 *   [SUBTIME EXTENSION]
      */
     hasBeenReached = nil
 ;

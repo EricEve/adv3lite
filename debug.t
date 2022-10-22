@@ -551,9 +551,12 @@ class Test: object
         
         /*   Move any required objects into the actor's inventory */
         getHolding();
+        
+        /*   Convert the list to a Vector to prevent possible stack overflow with a long list of commands. */        
+        local testVec = new Vector(testList);
 
         /*   Preparse and execute each command in the list */
-        testList.forEach(new function(x)  {
+        testVec.forEach(new function(x)  {
             /* Display the command to be executed */
             "<b>><<x>></b>\n";
             

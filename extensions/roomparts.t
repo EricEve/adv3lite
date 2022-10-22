@@ -17,7 +17,6 @@
  *   Room in your game. For outdoor rooms that have only sky and ground, use the
  *   OutdoorRoom class defined below.
  */
-
 roomPartID: ModuleID
     name = 'Room Parts'
     byline = 'by Eric Eve'
@@ -102,8 +101,14 @@ class OutdoorRoom: Room
  * [DEFINED IN ROOMPARTS EXTENSION]
  */
 defaultNorthWall: DefaultWall 'north +; (n)';
+
+/* [DEFINED IN ROOMPARTS EXTENSION] */
 defaultEastWall: DefaultWall 'east +; (e)';
+
+/* [DEFINED IN ROOMPARTS EXTENSION] */
 defaultSouthWall: DefaultWall 'south +; (s)';
+
+/* [DEFINED IN ROOMPARTS EXTENSION] */
 defaultWestWall: DefaultWall 'west +; (w)';
 
 /* 
@@ -134,7 +139,7 @@ defaultSky: Ceiling 'sky'
  *   it to use the ROOMPART EXTENSIONS's version of examineStatus.
  */
 modify Floor
-    /* [MODIFIED IN ROOMPARTS EXTENSION] */
+    /* [MODIFIED IN ROOMPARTS EXTENSION to use the ROOMPART EXTENSIONS's version of examineStatus] */
     examineStatus()
     {
         delegated RoomPart;

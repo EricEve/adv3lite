@@ -79,19 +79,18 @@ class LMentionable: object
     objName = (name)
 
     /*
-     *   Get the possessive adjective-like form of the name.  This is the
-     *   form of the name we use as a qualifier phrase when showing an
-     *   object we possess.  The English rule for ordinary nouns is just to
-     *   add apostrophe-s to the name: "Bob" becomes "Bob's", "Orc guard"
-     *   becomes "Orc guard's".  This works for nearly all nouns in
-     *   English, but you can override this if the rule produces the wrong
-     *   result for a particular name.
-     *   
-     *   However, it does vary for pronouns.  By default, we check the name
-     *   to see if it's a pronoun, and apply the correct pronoun mapping if
-     *   so.
+     *   Get the possessive adjective-like form of the name.  This is the form of the name we use as
+     *   a qualifier phrase when showing an object we possess.  The English rule for ordinary nouns
+     *   is just to add apostrophe-s to the name: "Bob" becomes "Bob's", "Orc guard" becomes "Orc
+     *   guard's".  This works for nearly all nouns in English, but you can override this if the
+     *   rule produces the wrong result for a particular name. But if the noun is plural and its
+     *   name ends with an 's' we should just add an apostrophe - so we do this via the possEnding
+     *   property.
+     *
+     *   However, it does vary for pronouns.  By default, we check the name to see if it's a
+     *   pronoun, and apply the correct pronoun mapping if so.
      */
-    possAdj = (ifPronoun(&possAdj, '<<theName>>&rsquo;s'))
+    possAdj = (ifPronoun(&possAdj, '<<theName>><<possEnding>>'))
 
     /*
      *   Get the possessive noun-like form of the name.  This is the form
@@ -106,12 +105,17 @@ class LMentionable: object
      *   the name to see if it's a pronoun, and apply the appropriate
      *   pronoun mapping if so.  
      */
-    possNoun = (ifPronoun(&possNoun, '<<theName>>&rsquo;s'))
-
-    /*
-     *   The subjective-case pronoun for this object.  We'll try to infer
-     *   the pronoun from the gender and number flags: if plural, 'they';
-     *   if isHim, 'he'; if isHer 'she'; otherwise 'it'.  
+    possNoun = (ifPronoun(&possNoun, '<<theName>><<possEnding>>'))
+    
+    /*  
+     *   The correct ending for our possessive form. This is usually apostrophe-s for an English
+     *   noun, except where the noun is plural and ends with an 's', which case we just want an
+     *   apostrophe; for example "the clerks' lunch" but "the women's dinner".
+     */     
+    possEnding = (theName.endsWith('s') && plural ? '&rsquo;' : '&rsquo;s')
+     
+    /* The subjective-case pronoun for this object.  We'll try to infer the pronoun from the
+     *   gender and number flags: if plural, 'they'; if isHim, 'he'; if isHer 'she'; otherwise 'it'.
      */
     heName = (pronoun().name)
 
@@ -2013,6 +2017,15 @@ DirState: State
         [&up, ['up', 'upward']], [&down, ['down', 'downward'] ],
         [&in, ['in', 'inner', 'inward']], [&out, ['out', 'outer', 'outward']]
     ]
+    
+    /* 
+     *   We exclude SymStairway because including 'up' or 'down' in its vocab confuses the parser's
+     *   interpretation of CLIMB UP and CLIMB DOWN.
+     */
+    appliesTo(obj)
+    {
+        return inherited(obj) && ! obj.ofKind(SymStairway);
+    }
 ;
 
 /*  
@@ -2968,17 +2981,31 @@ modify ItemLister
             lName += BMsg(being worn, ' (being worn)');
         
         /* 
-         *   If the object being listed has visible contents, list its visible
-         *   contents recursively.
-         */
-        
-        if(o.contents != nil && o.contents.length > 0 && showSubListing
-           && (o.isTransparent || !o.enclosing))
+         *   If the object being listed has visible contents, list its visible contents recursively.
+         *   Then do the same for any remapIn or remapOn subcomponents.
+         */        
+        if(showSubListing)
         {
-            lName += subLister.buildList(o.contents);
-            o.contents.forEach({x: x.mentioned = true});
-        }
+            local lists = [o];
+            
+            if(o.remapIn)
+                lists += o.remapIn;
+            
+            if(o.remapOn)                
+                lists += o.remapOn;
+            
+            foreach(local s in lists)
+            {
+                if(s.contents != nil && s.contents.length > 0 && s.canSeeIn)          
+                {
+                    lName += subLister.buildList(s.contents);
+                    s.contents.forEach({x: x.mentioned = true});
+                }
+                
+            }
+        }     
         
+               
         /* 
          *   Return the result, i.e. the aName of the object plus any additional
          *   information about its state and/or contents.
@@ -3767,7 +3794,7 @@ askMissingNoun(cmd, role)
 askAmbiguous(cmd, role, names)
 {
     /* 
-     *   For the direct object role, keep it simple and just ask "which do
+     *   For the direct object or actor role, keep it simple and just ask "which do
      *   you mean".
      *   
      *   For other roles, be more specific: use the basic predicate
@@ -3775,7 +3802,7 @@ askAmbiguous(cmd, role, names)
      *   about.  Replace 'what' with 'which' in these questions.  
      */
     local q;
-    if (role == DirectObject)
+    if (role is in (DirectObject, ActorRole))
         q = 'Which do you mean';
     else
         q = nounRoleQuestion(cmd, role)
@@ -4249,6 +4276,21 @@ englishMessageParams: MessageParams
         /* {myself} is the reflexive pronoun for the addressee */
         [ 'myself', { ctx, params: cmdInfo(ctx, &actor, &reflexiveName, vObject) } ],
         
+         /* {we} is the addressee's name in subjective case */
+        [ 'we',  { ctx, params: cmdInfo(ctx, &actor, &theName, vSubject) } ],
+
+        /* {us} is the addressee's name in objective case */
+        [ 'us', { ctx, params: cmdInfo(ctx, &actor, &theObjName, vObject) } ],
+
+        /* {our} is a possessive adjective for the addressee */
+        [ 'our', { ctx, params: cmdInfo(ctx, &actor, &possAdj, vPossessive) } ],
+        
+        /* {ours} is a possessive noun for the addressee */
+        [ 'ours', { ctx, params: cmdInfo(ctx, &actor, &possNoun, vPossessive) } ],
+        
+        /* {ourselves} is the reflexive pronoun for the addressee */
+        [ 'ourselves', { ctx, params: cmdInfo(ctx, &actor, &reflexiveName, vObject) } ],
+        
         /* 
          *   {dummy} provides a singular subject for an ensuing verb without
          *   displaying any text
@@ -4379,19 +4421,32 @@ englishMessageParams: MessageParams
  *   behind) followed by the theName of the object (e.g. 'into the bath')
  */
     [ 'into', { ctx, params: cmdInfo(ctx, params[2], &objIntoName, vObject) } ],
-    
+
 /* 
- *   {outof obj} the appropriate exit preposition followed the theName of the
- *   obj, e.g. 'out of the bath'
+ *   {outof obj} the appropriate exit preposition followed the theName of the obj, e.g. 'out of the
+ *   bath'
  */ 
     ['outof', { ctx, params: cmdInfo(ctx, params[2], &objOutOfName, vObject) } ],
-    
-       /* {he obj} - pronoun, subjective case */
-        [ 'he',
-         { ctx, params: cmdInfo(ctx, params[2], &heName, vSubject) } ],
 
+/* {he obj} - pronoun, subjective case */
+    [ 'he',
+    { ctx, params: cmdInfo(ctx, params[2], &heName, vSubject) } ],
+
+/* {she obj} - pronoun, subjective case */
+    [ 'she',
+    { ctx, params: cmdInfo(ctx, params[2], &heName, vSubject) } ],
+
+/* {they obj} - pronoun, subjective case */
+    [ 'they',
+    { ctx, params: cmdInfo(ctx, params[2], &heName, vSubject) } ],
+
+    
         /* {him obj} - pronoun, objective case */
         [ 'him',
+         { ctx, params: cmdInfo(ctx, params[2], &himName, vObject) } ],
+
+     /* {them obj} - pronoun, objective case */
+        [ 'them',
          { ctx, params: cmdInfo(ctx, params[2], &himName, vObject) } ],
 
         /* {her obj} - possessive adjective pronoun (my, his, her) */
@@ -4406,12 +4461,20 @@ englishMessageParams: MessageParams
         [ 'its',
          { ctx, params: cmdInfo(ctx, params[2], &herName, vPossessive) } ],
 
+        /* {their obj} - possessive adjective pronoun (my, his, her) */
+        [ 'their',
+         { ctx, params: cmdInfo(ctx, params[2], &herName, vPossessive) } ],
+
         /* {hers obj} - possessive noun pronoun (mine, his, hers) */
         [ 'hers',
          { ctx, params: cmdInfo(ctx, params[2], &hersName, vPossessive) } ],
     
-    /* {herself obj} - reflexive pronouns (itself, herself, himself) */
     
+        /* {theirs obj} - possessive noun pronoun (mine, his, hers) */
+        [ 'theirs',
+         { ctx, params: cmdInfo(ctx, params[2], &hersName, vPossessive) } ],
+    
+       /* {herself obj} - reflexive pronouns (itself, herself, himself) */
     [ 'herself',
          { ctx, params: cmdInfo(ctx, params[2], &reflexiveName, vObject) } ],
     
@@ -4421,7 +4484,8 @@ englishMessageParams: MessageParams
      [ 'itself',
          { ctx, params: cmdInfo(ctx, params[2], &reflexiveName, vObject) } ],
 
-
+     [ 'themselves',
+         { ctx, params: cmdInfo(ctx, params[2], &reflexiveName, vObject) } ],
 
         /*
          *.  {that subj obj} - demonstrative pronoun, subjective (that, those)

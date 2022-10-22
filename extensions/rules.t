@@ -16,8 +16,7 @@
  *   method of a RuleBook causes each of its contained rules to be executed in
  *   turn until one returns a non-null value. That value is then returned to the
  *   caller of the RuleBook. [DEFINED IN RULES EXTENSION]
- */
-     
+ */     
 class RuleBook: PreinitObject    
     
     /* A list of rules contained in this rulebook */
@@ -30,13 +29,13 @@ class RuleBook: PreinitObject
      */
     actor = gPlayerChar
     
-    /* Add a rule to the contents of this rulebook */
+    /* Add a rule to the contents of this rulebook [RULES EXTENSION] */
     addToContents(ru)
     {
         contents += ru;
     }
     
-    /* Remove a rule from the contents of this rulebook */
+    /* Remove a rule from the contents of this rulebook [RULES EXTENSION] */
     removeFromContents(ru)
     {
         contents -= ru;
@@ -57,7 +56,7 @@ class RuleBook: PreinitObject
      *   matchObj property, which our Rules can compare with their own matchObj
      *   condition to see if they match. This allows game code to, for example,
      *   run a RuleBook related to some object that isn't one of the objects
-     *   directly involved in the current action.
+     *   directly involved in the current action. [RULES EXTENSION]
      */
     follow([args])
     {
@@ -116,7 +115,7 @@ class RuleBook: PreinitObject
      *   means by default a Rule that does not explicitly return a value (and so
      *   effectivelt returns nil) will stop the RuleBook. If you want the
      *   default behaviour for this RuleBook to be not for Rules to stop the
-     *   book, then override this to nil.
+     *   book, then override this to nil. [RULES EXTENSION]
      */
     contValue = null
     
@@ -127,22 +126,21 @@ class RuleBook: PreinitObject
      *   nil, so if no rule does anything we want to return a different value.
      *   By making the defaultValue the same as the contValue, we ensure that we
      *   can tell our caller that no rule was executed (if that is indeed the
-     *   case).
+     *   case). [RULES EXTENSION]
      */
     defaultVal = contValue
     
     /*   
      *   The value our associated rules use by default to stop this RuleBook
      *   considering any further rules (when a Rule uses the stop macro). By
-     *   default we use a value of true.
-     */
-    
+     *   default we use a value of true. [RULES EXTENSION]
+     */    
     stopValue = true
     
     /* 
      *   Game code can use this method to initialize the values of custom
      *   RuleBook properties at the start of the processing of following a
-     *   RuleBook.
+     *   RuleBook. [RULES EXTENSION]
      */
     initBook([args]) { }
     
@@ -150,7 +148,7 @@ class RuleBook: PreinitObject
      *   The object (or any other value) to be matched by our Rule's matchObj
      *   conditions if they have any. This property is set by our follow()
      *   method (from its first argument) and so should not normally be directly
-     *   changed from game code.
+     *   changed from game code. [RULES EXTENSION]
      */
     matchObj = nil
     
@@ -180,7 +178,7 @@ class Rule: object
     /* 
      *   Our location is the RuleBook with which we start out being associated.
      *   Normally this will be defined by locating a Rule inside its RukeBook
-     *   using the + notation.
+     *   using the + notation. [RULES EXTENSION]
      */
     location = nil
     
@@ -188,23 +186,24 @@ class Rule: object
      *   The rulebook that's currently considering us. Normally this will be our
      *   location, but it could be a different RuleBook if we belong to one.
      *   Note that this property is automatically set by the library and so it
-     *   should never need to be altered by game code.
+     *   should never need to be altered by game code. [RULES EXTENSION]
      */
     rulebook = location
       
     /*   
      *   Set our current rulebook to r. Note that this method is normally called
      *   by the Rulebook that's running us, and shouldn't normally be used by
-     *   game code.
+     *   game code. [RULES EXTENSION]
      */
     setRulebook(r) { rulebook = r; }
     
-    /*   A list of all the rulebooks this rule is currently associated with. */
+    /*   A list of all the rulebooks this rule is currently associated with. [RULES EXTENSION] */
     rulebooks = []    
     
     /*   
      *   Initialize this Rule by adding it to the contents list of its location
      *   and calculating its specificity (i.e. how specific its conditions are)
+	 *   [RULES EXTENSION]
      */
     initializeRule()
     {
@@ -219,9 +218,9 @@ class Rule: object
     
     /* 
      *   Do whatever this Rule needs to do when its conditions are met. This
-     *   method will need to be defined on eacg individual Rule in game code.
-     */
-         
+     *   method will need to be defined on each individual Rule in game code.
+	 *   [RULES EXTENSION]
+     */         
     follow([args])
     {
     }
@@ -230,7 +229,7 @@ class Rule: object
      *   The priority of this Rule. This can be used to alter the order in which
      *   this Rule is considered in its RuleBook. If two Rules have different
      *   priorities they will be run in priority order, highest priority first.
-     *   The default value is 100.
+     *   The default value is 100. [RULES EXTENSION]
      */ 
     priority = 100
     
@@ -238,14 +237,14 @@ class Rule: object
      *   Where two Rules have the same priority, the one with the more specific
      *   conditions is taken first. The specificity property holds a measure of
      *   the Rule's specificity which is calculated by the calcSpecificity()
-     *   method at PreInit.
+     *   method at PreInit. [RULES EXTENSION]
      */
     specificity = nil
     
     /* 
      *   Return true if this Rule should always execute after other (despite all
      *   other ranking criteria). By default we return true if and only if other
-     *   is in our execAfter list.
+     *   is in our execAfter list. [RULES EXTENSION]
      */   
     runAfter(other)
     {
@@ -254,14 +253,14 @@ class Rule: object
     
     /* 
      *   A list of Rules this Rule should specifically run after; this overrides
-     *   all other ranking.
+     *   all other ranking. [RULES EXTENSION]
      */
     execAfter = []
     
     /* 
      *   Return true if this Rule should always execute before other (despite all
      *   other ranking criteria). By default we return true if and only if other
-     *   is in our execBefore list.
+     *   is in our execBefore list. [RULES EXTENSION]
      */
     runBefore(other)
     {
@@ -271,21 +270,21 @@ class Rule: object
     /*  
      *   A list of Rules this Rule should specifically run before; this
      *   overrides all other ranking except for runAfter/execAfter.     
-     *
+     *   [RULES EXTENSION]
      */
     execBefore = []
     
     /*  
      *   A Rule is normally active (that is it will normally be considered when
      *   a RuleBook is being followed) but it can be temporarily disabled by
-     *   setting its isActive property to nil.
+     *   setting its isActive property to nil. [RULES EXTENSION]
      */
     isActive = true
 
-    /* Make this Rule active */
+    /* Make this Rule active [RULES EXTENSION] */
     activate() { isActive = true; }
     
-    /* Make this Rule inactive */
+    /* Make this Rule inactive [RULES EXTENSION] */
     deactivate() { isActive = nil; }
     
     /*
@@ -293,7 +292,7 @@ class Rule: object
      *   that specify more conditions are more specific than Rule that specify
      *   fewer condition; (b) conditions involving specific objects are more
      *   specific that those relating to classes and (c) Rooms are more specific
-     *   than Regions in a where condition.
+     *   than Regions in a where condition. [RULES EXTENSION]
      */
     calcSpecficity()
     {       
@@ -413,7 +412,7 @@ class Rule: object
     
     /*
      *   Get the processing priority sorting order relative to another
-     *   Rule. 
+     *   Rule. [RULES EXTENSION]
      */
     compareTo(other)
     {
@@ -461,7 +460,7 @@ class Rule: object
         
     }
     
-    /* Check whether a Rule matches its where, when, who and during conditions. */    
+    /* Check whether a Rule matches its where, when, who and during conditions. [RULES EXTENSION] */    
     matchConditions()    
     {
         /* If this Rule is currently inactive it can't match any conditions. */
@@ -646,7 +645,7 @@ class Rule: object
         return true;
     }
     
-    /* Add this rule to another rulebook */
+    /* Add this rule to another rulebook [RULES EXTENSION] */
     addTo(rb)
     {
         if(rb && rb.ofKind(RuleBook))
@@ -656,7 +655,7 @@ class Rule: object
         }
     }
     
-    /* Remove this rule from a rulebook */    
+    /* Remove this rule from a rulebook [RULES EXTENSION] */    
     removeFrom(rb)
     {
         if(rb && rb.ofKind(RuleBook))
@@ -672,9 +671,8 @@ class Rule: object
     /* 
      *   Move this rule to another rulebook, removing it from all its current
      *   rulebooks. If rb is nil, simply remove this Rule from its current
-     *   rulebooks.
-     */
-     
+     *   rulebooks. [RULES EXTENSION]
+     */     
     moveInto(rb)
     {        
         
@@ -706,13 +704,14 @@ class Rule: object
     /*  
      *   The value this rule should return when the stop macro is used at the
      *   end of its follow method. By default we use our rulebook's stopValue.
+	 *   [RULES EXTENSION]
      */
     stopValue = (rulebook.stopValue)
     
     /* 
      *   The actor to use to compare with the who property of this Rule. This
      *   will normally be gPlayerChar, but the value of this property is taken
-     *   from our RuleBook's actor property.
+     *   from our RuleBook's actor property. [RULES EXTENSION]
      */
     actor = (rulebook == nil ? gPlayerChar : rulebook.actor)
     
@@ -726,7 +725,7 @@ class Rule: object
     /* 
      *   A Room or Region, or a list of Rooms and/or Regions in which our actor
      *   (usually either gActor or gPlayerChar - the latter by default - must be
-     *   for this Rule to match.
+     *   for this Rule to match. [RULES EXTENSION]
      */
     // where = []
     
@@ -740,19 +739,19 @@ class Rule: object
     
     /* 
      *   An actor, or a list of actors, one of whom must be performing the
-     *   current action for this Rule to match.
+     *   current action for this Rule to match. [RULES EXTENSION]
      */
     // who = []
     
     /*  
      *   A Scene, or a list of Scenes, one of which much be currently happening
-     *   for this Rule to match.
+     *   for this Rule to match. [RULES EXTENSION]
      */
     // during = []
     
     /* 
      *   An action, or a list of Actions, one of which (e.g. Take or Jump) must
-     *   be the current action in order for this Rule to match.
+     *   be the current action in order for this Rule to match. [RULES EXTENSION]
      */
     // action = []
     
@@ -761,6 +760,7 @@ class Rule: object
      *   which of each the direct, indirect and accessory objects of the current
      *   action must match in order for this Rule to match. (The accessory
      *   object is only relevant if the TIAAction extension is in use).
+	 *   [RULES EXTENSION]
      */
     // dobj = []
     // iobj = []
@@ -770,7 +770,7 @@ class Rule: object
      *   An object, class, or other value, or a list of objects and/or classes
      *   or of other values, one of which must match the matchObj property of
      *   our rulebook (which is set by the first parameter of a call to that
-     *   RuleBooks's follow() method) for this Rule to match.
+     *   RuleBooks's follow() method) for this Rule to match. [RULES EXTENSION]
      */ 
     // matchObj = []
     
@@ -781,12 +781,13 @@ class Rule: object
      *   is defined as a list and the first item in the list is a property
      *   pointer (&canSee, &canHear, &canReach, &canSmell), this property will
      *   be used to test for tne appropriate sense connection between the actor
-     *   and at least one of the other items in the list instead.
+     *   and at least one of the other items in the list instead. [RULES EXTENSION]
      */
     // present = []
 ;
 
 #ifdef __DEBUG
+/* [RULES EXTENSION] include 'rules' in the list of debugging options. */
 modify DebugCtl
    /* list of all debugging options */
     all = inherited + 'rules'

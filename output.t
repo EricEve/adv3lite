@@ -252,6 +252,21 @@ class OutputStream: PreinitObject
             /* return the monitor's status, indicating if output occurred */
             return mon.outputFlag;
         }
+        
+        catch(ExitSignal ex)
+        {
+            return mon.outputFlag;
+        }
+        
+        catch(ExitActionSignal ex)
+        {
+            return mon.outputFlag;
+        }
+        
+        catch(AbortActionSignal ex)
+        {
+            return mon.outputFlag;
+        }
         finally
         {
             /* remove our monitor filter */
@@ -310,6 +325,16 @@ class OutputStream: PreinitObject
         }
               
         catch(ExitSignal ex)
+        {
+            return filter.txt_;
+        }
+        
+        catch(ExitActionSignal ex)
+        {
+            return filter.txt_;
+        }
+        
+        catch(AbortActionSignal ex)
         {
             return filter.txt_;
         }

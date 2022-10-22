@@ -167,7 +167,7 @@ lookContentsLister: ItemLister
 ;
 
 /*
- *   inventoryLister displays an inventory listing.
+ *   inventoryLister displays an inventory listing in WIDE format.
  */
 inventoryLister: ItemLister
     /* is the object listed in an inventory list? */
@@ -179,6 +179,150 @@ wornLister: ItemLister
      /* is the object listed in an inventory list? */
     listed(obj) { return obj.inventoryListed && !obj.isHidden; }
 ;
+
+/*
+ *   inventoryTallLister for displaying an inventory list in TALL format.
+ */
+inventoryTallLister: ItemLister
+    /* is the object listed in an inventory list? */
+    listed(obj) { return obj.inventoryListed && !obj.isHidden; }
+    
+     showList(lst, parent, paraBrk = true)
+    {
+        /* list the inventory using the inventory tall format. */
+        showContentsTall(lst, parent, paraBrk);
+        
+        
+        /* Ensure the indentation level is reset to zero once we've finished listing */
+        indentLevel = 1;   
+        
+    }
+    
+    
+    /* 
+     *   List the player's inventory in tall format, i.e., as a columnar list with each item on a
+     *   new line. This method may call itself recursively to list subcontents (such as the visible
+     *   contents of any containers in the player character's inventory).
+     */
+    showContentsTall(lst, parent, paraBrk = true) 
+    {
+        foreach(local cur in lst)
+        {
+            /* Carry out the indenting for sublisting contents */
+            for(local i in 1..indentLevel)            
+                "\t";
+            
+            /* Display the appropriate name for the listed item */
+            say(listName(cur));
+            
+            /* Move to a new line */
+            "\n";
+            
+            /* Note that every item in our list has been mentioned and seen */
+            cur.mentioned = true;
+            cur.noteSeen();  
+            
+            /* 
+             *   If we want to list recursively and we haven't yet reached out maximum indentation
+             *   (i.e., nesting) level, then build a list of subcontents and then display it.
+             */
+            if(listRecursively && indentLevel < maxIndentLevel)
+            {
+                /* 
+                 *   Get a list of the current item's listable contents. If we can't see in this is
+                 *   an empty list.
+                 */
+                local subList = (cur.contType == In && !cur.canSeeIn) 
+                    ? [] : cur.contents.subset({o: listed(o) });
+                
+                /*   If we have an open or transparent subcontainer, add its contents. */ 
+                if(cur.remapIn && cur.remapIn.canSeeIn)
+                    subList += cur.remapIn.contents.subset({o: listed(o) });
+                
+                /*   If we have a subsurface, add its contents. */ 
+                if(cur.remapOn)
+                    subList += cur.remapOn.contents.subset({o: listed(o) });
+                
+                
+                /* 
+                 *   If this list isn't empty, then display this list of subcontents as a column of
+                 *   items indented under their containing item.
+                 */
+                if(subList.length > 0)
+                {
+                    /* increment the indentation level. */
+                    indentLevel++;
+                    
+                    /* sort the list of subcontents in ascending order of their listOrder property */
+                    subList = subList.sort(true, {x, y: y.listOrder - x.listOrder});
+                    
+                    /* call this method recursively to list the subcontents. */
+                    showContentsTall(subList, cur, paraBrk);
+                    
+                    /* decrement the indentation level once we've finished listing. */
+                    indentLevel-- ;
+                    
+                }
+            }
+        }
+        
+    }    
+    
+    
+    /* 
+     *   A version of the listName method that doesn't list an items contents in parenthesis after
+     *   its name, which would be inappropriate to the tall inventory format.
+     */
+    listName(o)
+    {
+        /* 
+         *   When we're doing a tall inventory listing we don't want to list sucontents after the
+         *   name of each item, so we store the current value of showSubListing, then set
+         *   showSublisting to nil before carrying out the inherited handling, and then finally
+         *   restore the original value of ShowSubListing.
+         */
+        
+        local ssl = showSubListing;
+        
+        showSubListing = nil;
+        
+        local lnam = inherited(o);
+        
+        showSubListing = ssl;
+        
+        return lnam;          
+        
+    }
+    
+    /* The current indentation level for listing subcontents recursively */
+    indentLevel = 1
+    
+    /* The maximum level of indentation we want to allow for listed nested subcontents. */
+    maxIndentLevel = 5
+    
+    /* 
+     *   The property on a Thing-derived container to test whether its contents
+     *   should be listed when listing with this lister
+     */
+    contentsListedProp = &contentsListed
+    
+    /* 
+     *   Flag, so we want to list contents of contents when using this lister;
+     *   by default we do.
+     */
+    listRecursively = true
+    
+    showListPrefix(lst, pl, paraCnt)  { DMsg(list tall prefix, '\n{I} {am} carrying:\n '); }
+    
+    showListSuffix(lst, pl, paraCnt)  { }
+    
+    showListEmpty(paraCnt)  { DMsg(list tall empty, '\n{I} {am} empty-handed. '); }
+    
+;
+
+
+
+
 
 /*
  *   descContentsLister displays a list of miscellaneous contents of an object
