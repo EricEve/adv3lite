@@ -46,10 +46,11 @@ modify Room
                 /* 
                  *   If the object is a Room and its reverse direction property is nil, and the room
                  *   has no connection back to us, then point that other room's reverse direction
-                 *   property to us, to make a symmetrical connection.
+                 *   property to us, to make a symmetrical connection, provided we want reverse
+                 *   connections set up automatically.
                  */
-                if(obj.ofKind(Room) && obj.propType(revProp) == TypeNil && 
-                   !obj.getDirectionTo(self))
+                if(obj.ofKind(Room) && obj.propType(revProp) == TypeNil
+                   && autoBackConnections && !obj.getDirectionTo(self))
                     obj.(revProp) = self;
                 
                 /*  
@@ -73,9 +74,11 @@ modify Room
                     /*  
                      *   If we have a destination and that destination's reverse direction property
                      *   isn't already set, and the destination has no other direction set to the
-                     *   SymConnector, then set the reverse direction to point to the SymConnector.
+                     *   SymConnector, and we want to set up reverse directions automatically, then
+                     *   set the reverse direction to point to the SymConnector.
                      */
-                    if(dest && dest.propType(revProp) == TypeNil && !dest.getDirection(obj))
+                    if(dest && dest.propType(revProp) == TypeNil && !dest.getDirection(obj)
+                       && autoBackConnections)
                     {
                         dest.(revProp) = obj;
                         
@@ -86,14 +89,36 @@ modify Room
                     
                                          
                 }
+                /* 
+                 *   If we're attached to a TravelConnector that's neither a SymmConnector nor a
+                 *   Room, and autoBackConnection is true, and it's not a Door, try
+                 *   to set the reverse connection if it does not already exist.
+                 */
+                else if(obj.ofKind(TravelConnector) && autoBackConnections && !obj.ofKind(Room) 
+                        && !obj.ofKind(Door))
+                {
+                    /* Note the destination to which this TravelConnector leads. */
+                    local dest = obj.getDestination(self);
+                    
+                    /* 
+                     *   If we have a destination and there's no way back from it to here and the
+                     *   reverse direction property of our destination is nil, then set that
+                     *   property to point back to us.
+                     */
+                    if(dest && !dest.getDirectionTo(self) && dest.propType(revProp) == TypeNil)
+                    {
+                        dest.(revProp) = self;                        
+                    }                   
+                }                
                 
                 /* 
                  *   Ensure that any UnlistedProxyConnectors - usually defined by means of the
                  *   asExit(macro) - are matched by an UnlistedProxyConnector in the opposite
                  *   direction in destination room where the direction in question is either up or
-                 *   down.
+                 *   down, provided we want to create automatic back connections.
                  */
-                if(obj.ofKind(UnlistedProxyConnector) && dir.dirProp is in (&up, &down))
+                if(obj.ofKind(UnlistedProxyConnector) && dir.dirProp is in (&up, &down)
+                    && autoBackConnections)
                 {
                     local dest;
                     
@@ -128,6 +153,17 @@ modify Room
         }   
         
     }
+    
+    /* 
+     *   Flag - do we want the library (specifically the preInit method of Thing) to automatically
+     *   create connections back (in the reverse direction) from any rooms our direction properties
+     *   (directlt, or indirectly via a TravelConnector) point to? By default we do (since that was
+     *   the part of the original purpose of the SymmConn extension) but game code can set this to
+     *   nil (either on the Room class or on individual rooms) to suppress it if it's not wanted -
+     *   which may be the case if the this extension is being used for SymmConnectors rather than
+     *   automated back connections.     */
+         
+    autoBackConnections = true
     
     /* 
      *   update the vocab of any SymPassages in our contents list that have seperate room1Vocab and
