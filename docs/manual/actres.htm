@@ -275,6 +275,7 @@ Done.
 <li><b>objUnlocked</b> The object must be unlocked before the action (typically opening) can go ahead. This PreCondition is used in the library on the dobjFor(Open) of objects whose <strong>autoUnlock</strong> property is true. It is normally only meaningful to use <span class="code">objUnlocked</span> in the dobjFor(Open) preCond list of objects with a lockability of either lockableWithoutKey or lockableWithKey. In the latter case the objUnlocked PreCondition will only attempt to unlock the object if the actor is carrying a key that might plausibly work.</li>
 <li><b>actorInStagingLocation</b> The actor must be in this object's stagingLocation before the action can proceed. If the condition is not met the library attempts to carry out the appropriate implicit actions (getting in/out/off or on various objects) to bring it about.</li>
 <li><b>actorOutOfNested</b> The actor must be in a top level room (out of any nested room) before the action can proceed. If the condition is not met the library attempts to remove the actor from the nested room(s) it's it via the appropriate implicit actions.</li>
+<li><b>travelPermitted</b> This checks whether travel is permitted by calling the beforeAction notifications for the actor doing the travelling, and in the case of PushTravel, for the object being pushed. This ensures that if travel is ruled out by a relevant object's beforeTravel method, the action is halted before, say, any attempt is made to open a door via an implicit action or to check any travel barriers that might be in place (experience suggests that this is generally a better order of events).</li>
 <li><b>touchObj</b> The actor must be able to touch this object before the action can proceed. If the condition is not met the library does not attempt to correct it.</li>
 
 </ul>
@@ -402,7 +403,61 @@ partyDress: Thing 'party dress; blue; frock'
 
 <p>This incidentally illustrates that when customizing objects to respond to actions, there's no need to repeat the parts already defined by the library. The library's implementation of dobjFor(Doff) already ensures that the object is currently being worn (in its verify routine) and already carries out the doffing action in its action routine if the action is allowed to go ahead. You only need to override the parts you want to customize.</p>
 
-<p>Finally, note that a check() routine should not normally contain anything but statements that display failure messages and conditional statements that control when they apply. In particular, check() methods should not normally change the game state. The one exception is that it's perfectly legitimate for a check method to set a flag to show that an action has been attempted. This could be used, for example, to trigger a series of hints about how to open a jammed door after the player first attempts to open it.</p>
+<p>Finally, note that a check() routine should not normally contain anything but statements that display failure messages and conditional statements that control when they apply. In particular, check() methods should not normally change the game state. The first exceptions is that it's perfectly legitimate for a check method to set a flag to show that an action has been attempted. This could be used, for example, to trigger a series of hints about how to open a jammed door after the player first attempts to open it. The second is that it's also perfectly okay for a check routine to attempt an implicit action (via <a span class='code'>tryImplicitAction(...)</span>) that might allow the action to go ahead if it succeeds (since tryImplicitAction does not immediately display any text but stores the implicit action report for later, this won't stop the action).</p>
+<p><a name = "nohalt"></a>Very occasionally, you may wish to display some text from with a check routine without having it stop the action. You can do so by calling the <strong>noHalt()</strong> function at an appropriate point in your code. For example, suppose you want to implement a piece of paper on which the player character can write using a WRITE WHATEVER ON PAPER command (given that WRITE WHATEVER ON PAPER WITH PEN isn't normal IF syntax). You may wish the check stage on the piece of paper to check whether the player character has a suitable writing implement, perhaps performing an implicit take if there's otherwise a suitable writing implement to hand, and announcing which writing implement the player character is using without halting the action in the process. This could be implemented thus:
+
+<p><div class=code><pre>
++ pieceOfPaper: Thing 'piece of paper'
+    &quot;On it is inscribed &lt;q&gt;&lt;&lt;writtenText&gt;&gt;&lt;/q&gt;. &quot;
+    
+    canWriteOnMe = true
+    
+    writtenText = 'Some random thoughts: '
+    
+    dobjFor(WriteOn) {
+        verify() {}
+        check() 
+        {
+            if (gLiteral == nil)
+            {
+                &quot;You'll need to say what you want to write. &quot;;
+                return; <span class="comment">//We need to return here otherwise the later call to noHalt() might allow the action to proceed.</span>
+            }
+            
+            local writingImplement = nil;
+            
+            writingImplement = gActor.contents.valWhich({x: x.canWriteWithMe});
+            
+            if(writingImplement == nil)
+            {
+                writingImplement = Q.scopeList(gActor).toList().valWhich({x: x.canWriteWithMe}); <span class="comment">//Note we need to use toList() here</span>
+                if(writingImplement)
+                {
+                    if(!tryImplicitAction(Take, writingImplement))
+                        writingImplement = nil;
+                }
+            }
+            
+            if(writingImplement)
+                &quot;(with &lt;&lt;writingImplement.theName&gt;&gt;)\n&lt;&lt;noHalt()&gt;&gt;&quot;; <span class="comment">//Note the use of noHalt() here</span>
+            else
+                &quot;You need to be holding a writing implement to do that. &quot;;
+                
+        }
+        action() 
+        {
+            &quot;You write &lt;q&gt;&lt;&lt;gLiteral&gt;&gt;&lt;/q&gt; on the piece of paper. &quot;;
+            writtenText += (gLiteral + ' ');
+        }
+    }
+;
+
++ blackPen: Thing 'black pen'
+    canWriteWithMe = true   
+;
+</pre></div></p>
+
+<p>While we could, in principle, have delayed displaying the "(with the black pen)" message until the action stage, this would have been awkward given that's it our check routine that's just identified which writing implement the player character is using. Using <span class="code">noHalt()</span> at this point allows us to display this message without preventing the action from going ahead. Another couple of points to note here in passing are, first, that the <span class="code">canWriteWithMe</span> property we're using here isn't one defined in the adv3Lite library, but rather a custom property we're using here to identify possible writing implements in a game that may have several; and, second, that since what Q.scopeList(actor) returns isn't a true list, but rather a ScopeList object, we need to convert it to a list (by calling its toList() method) in order to be able to use the valWhich() method to indentify a writing implement that's in scope. Finally, a point to emphasize: noHalt() has to be called as <span class="code">noHalt()</span> (with the parentheses); trying to call it as <span class="code">noHalt</span> (without the parentheses) won't work; it's a function, not a macro.</p>
 
 <br>
 

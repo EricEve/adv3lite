@@ -1517,6 +1517,22 @@ class TravelAction: Action
 ;
 
 
+/* 
+ *   This function can be called from a check nethod to prevent the display of text from within the
+ *   check method halting the action. Calling it from anywhere else will have no effect. It's use is
+ *   in conjunction with the TAction class defined immediatelty below.
+ */
+noHalt()
+{
+    /* 
+     *   If we have a current gAction, set its haltOnMessageCheck property to nil. Note that this
+     *   property is set to true near the start of TAction.check() so that it starts out true and
+     *   remains so unless noHalt() intervenes during the course of the check() stage.
+     */
+    if(gAction)
+        gAction.haltOnMessageInCheck = nil;
+}
+
 
 /* 
  *   A TAction is an action that applies to a single direct object. Other action
@@ -1740,6 +1756,8 @@ class TAction: Action
      */        
     announceMultiCheck = true
     
+       
+    
     /* 
      *   Run the check phase of the action, both on the direct object and on any
      *   preconditions.
@@ -1760,6 +1778,14 @@ class TAction: Action
         return check(curDobj, checkDobjProp);
     }
     
+     
+    /* 
+     *   This flag is used internally by the library to track whether the output of any text from a
+     *   check() should stop the action, which it normally should. Game code should not directly
+     *   override this property or change its value, other than indrectly via the noHalt() function.
+     */         
+    haltOnMessageInCheck = true
+    
     /* 
      *   Call the check method (checkProp) on the appropriate object (obj).
      *   Return true to indicate that the action succeeds or nil otherwise
@@ -1774,6 +1800,9 @@ class TAction: Action
         /* Run the check method on the object and capture its output */
         try
         {
+            /* Set this flag to true - the check routine may set it to nil. */
+            haltOnMessageInCheck = true;
+            
             checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
         }
         
@@ -1834,14 +1863,17 @@ class TAction: Action
                 "\n";
             }
             
-            /* Note that the action failed. */
-            actionFailed = true;
+            /* 
+             *   Note the outcome of the action -- it failed unless haltOnMesageInCheck was set to
+             *   nil.
+             */
+            actionFailed = haltOnMessageInCheck;
             
             /* 
-             *   Return nil to tell our caller this action failed the check
-             *   stage
+             *   Return the opposite of haltOnMessageInCheck to tell our caller whether this action
+             *   failed the check stage
              */
-            return nil;
+            return !haltOnMessageInCheck;
         }
         
         /* 
@@ -1850,6 +1882,7 @@ class TAction: Action
          */
         return true;
     }
+    
     
     /* 
      *   Flag: when a command processes multiple direct objects, do we want any failed attempts to
