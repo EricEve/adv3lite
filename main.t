@@ -114,7 +114,13 @@ runGame(look)
     }
 
     /* run the main command loop until the game ends */
-    mainCommandLoop();
+    try {
+      mainCommandLoop();
+    } catch (QuittingException qe) {
+      // exit normally
+    } catch (EndOfFileException eofe) {
+      // exit normally
+    }
 }
 
 /* ------------------------------------------------------------------------ */
