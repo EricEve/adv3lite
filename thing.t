@@ -4640,7 +4640,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(ThrowDir)
     {
-        preCond = [objHeld]
+        preCond = [objNotWorn]
         
         verify()
         {
@@ -6389,7 +6389,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(Throw)
     {
-        preCond = [objHeld]
+        preCond = [objNotWorn]
         
         verify()
         {
@@ -7222,7 +7222,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     dobjFor(ThrowAt)
     {
-        preCond = [objHeld]
+        preCond = [objNotWorn]
         
         verify() { verifyDobjThrow(); }
         
@@ -8949,7 +8949,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(GiveTo)
     {
-        preCond = [objHeld]
+        preCond = [objHeld, objNotWorn]
         verify()
         {
             if(isIn(gIobj))
