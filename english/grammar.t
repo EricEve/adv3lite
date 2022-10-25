@@ -2977,7 +2977,7 @@ VerbRule(Clean)
 VerbRule(CleanWith)
     'clean' singleDobj 'with' singleIobj
     : VerbProduction
-    action = Clean
+    action = CleanWith
     verbPhrase = 'clean/cleaning (what) (with what)'
     missingQ = 'what do you want to clean (with it);'
               + 'what do you want to clean it with'

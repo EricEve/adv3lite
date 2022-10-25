@@ -490,7 +490,7 @@ objNotWorn: PreCondition
          */
         gMessageParams(obj);
         DMsg(cannot do that while wearing, '{I} {can\'t} do that while
-            {he actor}{\'m} wearing {the obj). ');
+            {he actor}{\'m} wearing {the obj}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;        
@@ -715,7 +715,7 @@ objDetached: PreCondition
         gMessageParams(obj, att);
         
         DMsg(cannot do that while attached, '{I} {can\'t} do that while {the subj
-            obj} is attached to {the att). ');
+            obj} is attached to {the att}. ');
         
         /* Then return nil to indicate that the precondition hasn't been met. */
         return nil;  

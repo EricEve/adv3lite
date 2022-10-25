@@ -7053,7 +7053,7 @@ class Thing:  ReplaceRedirector, Mentionable
     dontNeedCleaningObjMsg = BMsg(dont need cleaning obj, '{I} {don\'t need[ed]}
         anything to clean {the dobj} with. ')
     
-    okayCleanMsg = DMsg(okay clean, 'Cleaned|{I} clean{s/ed} {1}. ',
+    okayCleanMsg = DMsg(okay clean, 'Cleaned.|{I} clean{s/ed} {1}. ',
                         gActionListStr)
     
     dobjFor(CleanWith)
