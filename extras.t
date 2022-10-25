@@ -567,7 +567,7 @@ class Immovable: Thing
     /* Respond to an attempt to TAKE by ruling it out at the check stage. */
     dobjFor(Take)
     {
-        check() { say(cannotPutMsg); }                
+        check() { say(cannotTakeMsg); }                
     }
     
     /* The message to display to explain why this object can't be taken. */
