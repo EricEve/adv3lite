@@ -5466,11 +5466,11 @@ class Thing:  ReplaceRedirector, Mentionable
             if(gIobj != nil && self == gIobj)
                 illogicalSelf(cannotPutInSelfMsg);   
             
-            if(isFixed)
-                illogical(cannotPutMsg);
-            
             if(gIobj != nil && isDirectlyIn(gIobj))
                 illogicalNow(alreadyInMsg);
+            
+            if(isFixed)
+                illogical(cannotPutMsg);
             
             if(gIobj != nil && gIobj.isIn(self))
                 illogicalNow(circularlyInMsg);    
