@@ -979,8 +979,8 @@ DefineSystemAction(Instructions)
         enjoying the story, why rush through it?
 
         \bFinally, if all else fails, you can try asking for help.  A
-        great place to go for hints is the Usenet newsgroup
-        <a href='news:rec.games.int-fiction'>rec.games.int-fiction</a>. ";
+        great place to go for hints is the Interactive Fiction Community Forum at
+        <a href='https://intfiction.org'>https://intfiction.org</a>. ";
 
         "\n";
     }
