@@ -802,6 +802,20 @@ libGlobal: object
         revealedNameTab[tag] = true;
     }
 
+    /*
+     *   Mark a tag as unrevealed.  This removes the entry for the tag from the
+     *   revealedNameTab table.  
+     *
+     *   We put the revealedNameTab table and the setRevealed method here rather
+     *   than on conversationManager so that it's available to games that don't
+     *   include actor.t.
+     */
+    setUnrevealed(tag)
+    {
+        revealedNameTab.removeElement(tag);
+    }
+    
+    
     /* 
      *   The global lookup table of all revealed keys.  This table is keyed
      *   by the string naming the revelation; the value associated with

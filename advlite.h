@@ -1244,6 +1244,9 @@ string template <<add * secs>> addTime;
 /* reveal a topic key, as though through <.reveal> */
 #define gReveal(key) (libGlobal.setRevealed(key))
 
+/* remove a topic key, as though through <.unreveal> */
+#define gUnreveal(key) (libGlobal.setUnrevealed(key))
+
 /* mark a Topic/Thing as known/seen by the player character */
 #define gSetKnown(obj) (gPlayerChar.setKnowsAbout(obj))
 #define gSetSeen(obj) (gPlayerChar.setHasSeen(obj))

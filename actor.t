@@ -4952,6 +4952,8 @@ actorSchedule: Event
  *   only be added to the table when the text containing the <.reveal key>
  *   sequence is displayed.
  *
+ *   <.unreveal key> - remove 'key from the knowledge token lookup table.
+ *
  *   <.inform key> - add 'key' to our actor's knowledge token lookup take. The
  *   'key' is an arbitrary string, which we can look up in the table to
  *   determine if the actor has ever been informed about this key.  This can be
@@ -5102,6 +5104,11 @@ conversationManager: OutputFilter, PreinitObject
                 setRevealed(arg);
                 break;
                 
+                /* unreveal the key by removing it from our database */
+            case 'unreveal':
+                setUnrevealed(arg);
+                break;
+                
             case 'inform':    
                 /* reveal the key by adding it to the actor's database */
                 setInformed(arg);
@@ -5134,7 +5141,7 @@ conversationManager: OutputFilter, PreinitObject
                 
                 /* 
                  *   We deliberatelty don't put a BREAK; statement here since we
-                 *   need to fall through the convstay behaviour to ensure that
+                 *   need to fall through ro the convstay behaviour to ensure that
                  *   our keys aren't obliterated as soon as they're set.
                  */                
             case 'convstay':
@@ -5353,7 +5360,7 @@ conversationManager: OutputFilter, PreinitObject
     /* regular expression pattern for our tags */
     tagPat = static new RexPattern(
         '<nocase><langle><dot>'
-        + '(reveal|agenda|remove|state|known|activate|inform|convstay|topics'
+        + '(reveal|unreveal|agenda|remove|state|known|activate|inform|convstay|topics'
         + (customTags != nil ? '|' + customTags : '')
         + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate)'
         + '(<space>+(<^rangle>+))?'
@@ -5428,6 +5435,17 @@ conversationManager: OutputFilter, PreinitObject
             } );
             
         }
+    }
+    
+    /*
+     *   Mark a tag as unrevealed.  This removes an entry for the tag to the revealedNameTab table.
+     *
+     *   The actual method and the revealedNameTab are on libGlobal rather than here in order to
+     *   make them available to games that don't include actor.t.
+     */
+    setUnrevealed(tag)
+    {
+        libGlobal.setUnrevealed(tag);       
     }
 
     /* 
