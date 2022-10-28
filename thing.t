@@ -1385,8 +1385,8 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         contList = contList.appendUnique(lst);
         
-        
-                
+               
+ 
         /* 
          *   Sort the contList in listOrder. Although we're listing the contents
          *   of each item in the contList, it seems good to mention each item's
@@ -1424,7 +1424,8 @@ class Thing:  ReplaceRedirector, Mentionable
              *   are hidden.
              */ 
             local objList = obj.contents.subset({x: x.mentioned == nil 
-                                                && x.isHidden == nil});
+                                                && x.isHidden == nil
+                                                && x != gPlayerChar});
             
             
             /* 
@@ -1498,7 +1499,7 @@ class Thing:  ReplaceRedirector, Mentionable
              *   If we're not putting paragraph breaks between each subcontents
              *   listing sentence, insert a space instead.
              */
-            if(!paraBrksBtwnSubcontents)
+            if(!paraBrksBtwnSubcontents && secondSpecialList.indexWhich({o:o.isListed}))
                 " ";
             
             
@@ -1844,8 +1845,7 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         if(mentioned)
             return;
-        else
-            mentioned = true;
+        
         
         
         /* 
@@ -1853,12 +1853,21 @@ class Thing:  ReplaceRedirector, Mentionable
          *   our initSpecialDesc, otherwise show our specialDesc.
          */
         if(propType(&initSpecialDesc) != TypeNil && useInitSpecialDesc)
+        {
             initSpecialDesc;
-        else
+            
+            mentioned = true;
+        }       
+        else if(propType(&specialDesc) != TypeNil)
+        {        
             specialDesc;
+            
+            mentioned = true;
+        }
            
         /*  Add a paragraph break. */
-        "<.p>";
+        if(mentioned)
+            "<.p>";
         
         /* Note that we've been seen. */
         noteSeen();
