@@ -1769,7 +1769,9 @@ class TAction: Action
          *   to indicate failure of the entire check stage.
          */        
         if(!checkPreCond(curDobj, preCondDobjProp))
+        {                       
             return nil;
+        }
         
         /* 
          *   Then try the check method on the current direct object and return
@@ -1842,6 +1844,9 @@ class TAction: Action
              */
             if(isImplicit)
                 "<<buildImplicitActionAnnouncement(nil)>>";
+            else if(haltOnMessageInCheck)
+                /* first flush any pending implicit action reports */ 
+                "<<buildImplicitActionAnnouncement(true)>>";
             
             /* 
              *   Display our failure message. If this command is processing more than one direct
@@ -1858,7 +1863,7 @@ class TAction: Action
                 reportAfter(checkMsg);
             }
             else
-            {
+            {   
                 say(checkMsg);
                 "\n";
             }
