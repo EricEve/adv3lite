@@ -3083,11 +3083,12 @@ askMissingObject(action, role)
     action.curIobj = gIobj;
     action.curAobj = gAobj;
         
-    /* Make action the current action for the current Command. */
+    /* Make action the current action for the current Command. */    
     gCommand.action = action;
-    gCommand.dobj = gDobj;
-    gCommand.iobj = gIobj;
-    gCommand.acc = gAobj;
+    gCommand.action.reset(); 
+    gCommand.dobj = action.curDobj;
+    gCommand.iobj = action.curIobj;
+    gCommand.acc = action.curAobj;
     
    
     
