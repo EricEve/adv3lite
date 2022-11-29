@@ -89,7 +89,17 @@ class SenseRegion: Region
             if(canThrowAcross)
                 rm.throwableRooms = rm.throwableRooms.appendUnique(roomList - rm);
             
-            rm.linkedRooms = rm.linkedRooms.appendUnique(roomList - rm);
+            rm.linkedRooms = rm.linkedRooms.appendUnique(roomList - rm);      
+            
+            /* 
+             *   Sort each room's sensory room lists in ascending orfer of their
+             *   remoteRoomListOrder(pov) from the pov of that room.
+             */
+            rm.visibleRooms = rm.sortRoomSublist(rm.visibleRooms, rm);
+            rm.audibleRooms = rm.sortRoomSublist(rm.audibleRooms, rm);
+            rm.smellableRooms = rm.sortRoomSublist(rm.smellableRooms, rm);
+            
+            
         }
         
     }      
@@ -198,6 +208,9 @@ class SenseRegion: Region
      *   could be confusing to the player.
      */
     contSpace = nil
+    
+    
+    
 ;
     
 
@@ -450,6 +463,43 @@ modify Room
         return obj.getOutermostRoom.regionsInCommonWith(destination).indexWhich(
             { reg: reg.contSpace } ) == nil;
     }
+    
+    /* 
+     *   listOrder is inherited from Thing with a default value of 100. For a Room in a SenseRegion
+     *   it can control the order in which other rooms in the SenseRegion have their contents
+     *   described (higher = later), although this can be adjusted via the remoteRoomListOrder(pov)
+     *   method.
+     */
+    // listOrder = 100
+    
+    
+    /*   
+     *   For a Room in a SenseRegion return the order in which other rooms in the SenseRegion have
+     *   their contents described (higher = later) from the point of view of the pov object, which
+     *   will normally be the room from which the viewing, smelling or listening is being performed.
+     *   By default we just return the Room's listOrder.
+     */
+    remoteRoomListOrder(pov)
+    {
+        return listOrder;
+    }
+    
+    /* 
+     *   Sort a sublist of rooms in ascending order of their remoteRoomListOrder(pov) and return the
+     *   result.
+     */
+    sortRoomSublist(sublist, pov)
+    {
+        /* 
+         *   If our sublist contains less than two elements return our sublist unchanged.
+         */
+        if(sublist.length < 2)
+            return sublist;
+               
+        
+        return sublist.sort(nil, {a, b: a.remoteRoomListOrder(pov) - b.remoteRoomListOrder(pov) });
+    }
+     
 ;
     
 /* 
