@@ -1243,8 +1243,36 @@ class TravelConnector: object
             travelDesc;
             "<.p>";
         }
+        
+        /* 
+         *   Note that the actor has traversed us. If the actor is in a vehicle, also note the
+         *   vehicle has traversed us.
+         */
+        local travelers = (actor.location && actor.location.isVehicle)
+            ? [actor, actor.location] : [actor];
+        
+        traversedBy = traversedBy.appendUnique(travelers); 
     }
     
+    /* 
+     *   A list of the actors, vehicles and pushTraverers that have traversed this TravelConnector.
+     *   This is maintained by the noteTraversal(), so game code should normally treat this property
+     *   as read-only.
+     */
+    traversedBy = []
+    
+    /* 
+     *   Test whether this TravelConnector has been traversed by traveler (which may be an actor, a
+     *   vehicle, or something pushed through the TravelConnector by an actor).
+     */
+    hasBeenTraversedBy(traveler)
+    {
+        /* Return true if traveler is in our travdersedBy list. */
+        return traversedBy.indexOf(traveler) != nil;
+    }    
+    
+    /* Have we been traversed by the player character? Return true if and only if we have. */
+    traversed = (hasBeenTraversedBy(gPlayerChar))
     
     /* Carry out the before travel notifications for this actor. */
     beforeTravelNotifications(actor)
