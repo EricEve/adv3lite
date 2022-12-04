@@ -2017,15 +2017,6 @@ DirState: State
         [&up, ['up', 'upward']], [&down, ['down', 'downward'] ],
         [&in, ['in', 'inner', 'inward']], [&out, ['out', 'outer', 'outward']]
     ]
-    
-    /* 
-     *   We exclude SymStairway because including 'up' or 'down' in its vocab confuses the parser's
-     *   interpretation of CLIMB UP and CLIMB DOWN.
-     */
-    appliesTo(obj)
-    {
-        return inherited(obj) && ! obj.ofKind(SymStairway);
-    }
 ;
 
 /*  
