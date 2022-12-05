@@ -208,6 +208,18 @@ modify Room
     }
 ;
 
+/* Modification to DirState for SymConn (symmetrical connector) extension */
+modify DirState    
+    /* 
+     *   We exclude SymStairway because including 'up' or 'down' in its vocab confuses the parser's
+     *   interpretation of CLIMB UP and CLIMB DOWN.
+     */
+    appliesTo(obj)
+    {
+        return inherited(obj) && ! obj.ofKind(SymStairway);
+    }
+;
+
 /* 
  *   Ensure that the vocab of any SymPassages located in the player character's starting location
  *   have the vocab appropriate to the side from which they're viewed.
