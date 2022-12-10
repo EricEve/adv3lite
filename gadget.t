@@ -205,8 +205,6 @@ class Settable: Thing
     invalidSettingMsg = BMsg(invalid setting, 'That {dummy} {is} not a valid
         setting for {the dobj}. ')
     
-    okaySetMsg =  BMsg(okay set, '{I} {set} {the dobj} to {1}. ', curSetting)
-    
     alreadySetMsg = BMsg(already set, '{The subj dobj} {is} already set to {1}.
         ', curSetting)
     

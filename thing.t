@@ -7406,12 +7406,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         report()
         {
-            DMsg(okay set to, '{I} {set} {1} to {2}. ', gActionListStr, 
-                 curSetting); 
+            say(okaySetMsg);
         }
     }
        
     makeSetting(val) { curSetting = val; }
+    
+    okaySetMsg = BMsg(okay set to, '{I} {set} {1} to {2}. ', gActionListStr,
+        curSetting)
     
     cannotSetToMsg = BMsg(cannot set to, '{I} {cannot} set {that dobj} to
         anything. ')
