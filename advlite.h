@@ -1333,8 +1333,13 @@ SymPassage template 'vocab' [rooms] "desc"?;
  
 string template <<* by room>> byRoomFunc;
 
-
 /*----------------------------------------------------------------------------*/
+/*
+ *   Definitions for the eventListItem Extension
+ */
+EventListItem template @myListObj? ~isReady? +readyTime? *maxFireCt? "invokeItem"? ;
+ 
+ /*----------------------------------------------------------------------------*/
 /*
  *   Include the header for the Date intrinsic class. For some reason the
  *   compiler seems to prefer this to be at the end of this header file.
