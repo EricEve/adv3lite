@@ -3,7 +3,7 @@
 
 /*
  *   EventListItem Extension
- *.  Version 1.0 15-Dec-2022
+ *.  Version 1.1 16-Dec-2022
  *.  By Eric Eve based on work by Zohn Ziegler
  */
 
@@ -97,6 +97,9 @@ class EventListItem: PreinitObject
         
         /*  Delay our next use until at least interval turns have elapsed. */
         setDelay(interval);
+        
+        /* Reset our missed turn flag to nil as we haven't missed this turn. */
+        missedTurn = nil;
     }
     
     /* 
@@ -106,6 +109,12 @@ class EventListItem: PreinitObject
     invokeItem()
     {
     }
+    
+    /* 
+     *   Has there been a turn on which we were called but were unable to fire? (This flag is for
+     *   optional use in our underused method.
+     */
+    missedTurn = nil
     
     
     /* 
@@ -129,6 +138,9 @@ class EventListItem: PreinitObject
         /* Otherwise, use our fallBackResponse */
         else
             fallBackResponse();
+        
+        /* Note that we missed our chance to fire with our own response this turn. */
+        missedTurn = true;
     }
     
     /* 
@@ -164,18 +176,10 @@ class EventListItem: PreinitObject
         isDone = true;                    
     }
     
-    /* 
-     *   Should we remove this item from its eventList once it's done? This probably isn't necessary
-     *   unless we're using a large number of EventListItems in any given eventList, and it may not
-     *   always be desirable, so we'll set the default to nil, but game code can override this to
-     *   true if needed for performance reasons with large numbers of EventListItems.
-     */
-    removeOnDone = nil
-    
+       
     /* The number of times this EventListItem has fired. */
     fireCt = 0
-    
-    
+     
     
     
     /* 
@@ -220,15 +224,20 @@ class EventListItem: PreinitObject
     }
     
     /* 
-     *   Has this EventListItem been underused? By default we have if we haven't been used at all,
-     *   but game code can override if it wants to employ some other condition, such as the number
-     *   of times we've been used in relation to other items in our listObj. The purpose of this is
-     *   to allow RandomFiringScripts to prioritize underused EventListItems once they become ready
-     *   to fire.
+     *   Has this EventListItem been underused? By default it has if it hasn't been used at all or
+     *   we missed out the last time we we called by not being ready, but game code can override if
+     *   it wants to employ some other condition, such as the number of times we've been used in
+     *   relation to other items in our listObj. The purpose of this is to allow RandomFiringScripts
+     *   to prioritize underused EventListItems once they become ready to fire.
      */
     underused()
     {
-        return fireCt == 0;
+        /* 
+         *   By default we're underused if we've never been fired or if we've missed a turn on which
+         *   we would have fired had we been ready to, but game code code can override this to some
+         *   other condition if desired.
+         */
+        return fireCt == 0 || missedTurn;
     }
 ;
 
@@ -259,7 +268,7 @@ modify EventList
         /* Reduse our eventList to exclude items that are EventListItems for which isDone is true */        
         self.eventList = self.eventList.subset({x: !(objOfKind(x, EventListItem) && x.isDone)});
         
-        /* Recache our eventList's length. */
+        /* Recache our eventList's new length. */
         eventListLen = eventList.length();                                                
     }
 ;
@@ -287,7 +296,12 @@ modify ShuffledEventList
         return idx ?? inherited();
     }
     
-    /* Reset our eventList to clear out EventListItems that are done with */
+    /* 
+     *   Reset our eventList to clear out EventListItems that are done with (isDone = true). This is
+     *   not called from any library code, but can be called from game code if game authors are
+     *   worried about an accumulation of too many spent EventListItems in any given eventList. For
+     *   many games, this probably won't be necessary.
+     */
     resetList()
     {
         /* Carry out the inherited handling */
