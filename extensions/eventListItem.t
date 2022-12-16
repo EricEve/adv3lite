@@ -94,6 +94,9 @@ class EventListItem: PreinitObject
         // automatically remove if we have exceeded our maxFireCt
         if(maxFireCt && fireCt >= maxFireCt) 
             setDone(); 
+        
+        /*  Delay our next use until at least interval turns have elapsed. */
+        setDelay(interval);
     }
     
     /* 
@@ -149,7 +152,7 @@ class EventListItem: PreinitObject
      */
     canFire()
     {
-        return isReady && !isDone && gTurns > readyTime;
+        return isReady && !isDone && gTurns >= readyTime;
     }
     
     /* Have we finished with this EventListItem? */
@@ -158,10 +161,7 @@ class EventListItem: PreinitObject
     /* Set this EventListItem as having been done */
     setDone() 
     { 
-        isDone = true; 
-        
-        if(removeOnDone)
-            myListObj.removeItem(self, whichList);
+        isDone = true;                    
     }
     
     /* 
@@ -194,6 +194,9 @@ class EventListItem: PreinitObject
      */
     readyTime = 0
     
+    /*  The minimum interval (in number of turns) between repeated occurrences of this item. */
+    interval = 0
+    
     /*   
      *   Set the number of turns until this EventListItem can be used again. This could, for
      *   example, be called from invokeItem() to set a minimum interval before this EventListItem is
@@ -215,14 +218,26 @@ class EventListItem: PreinitObject
         else 
             return nil; 
     }
+    
+    /* 
+     *   Has this EventListItem been underused? By default we have if we haven't been used at all,
+     *   but game code can override if it wants to employ some other condition, such as the number
+     *   of times we've been used in relation to other items in our listObj. The purpose of this is
+     *   to allow RandomFiringScripts to prioritize underused EventListItems once they become ready
+     *   to fire.
+     */
+    underused()
+    {
+        return fireCt == 0;
+    }
 ;
 
 
 
 /* 
  *   Short form EventListItem class names for the convenience of game authors who want to save
- *   typing. */
-
+ *   typing.
+ */
 class ELI: EventListItem;
 
 
@@ -232,34 +247,96 @@ class ELI1: EventListItem
 ;
 
 
-/* Mofiications to EventList for EventListItem extension */
 modify EventList
-    removeItem(item, listProp)
+    
+    /* 
+     *   Game code can call this method to remove all EventListItems that have been finished with
+     *   (isDone = true) from the eventList of this EventList. This probably isn't necessary unless
+     *   there are likely to be a large number of such items slowing down execution.
+     */
+    resetList()
     {
-        /* remove item from the appropriate list */
-        self.(listProp) -= item;
+        /* Reduse our eventList to exclude items that are EventListItems for which isDone is true */        
+        self.eventList = self.eventList.subset({x: !(objOfKind(x, EventListItem) && x.isDone)});
         
-        /* cache the new length */
-        if(listProp == &eventList)
-            eventListLen = eventList.length();      
-        
+        /* Recache our eventList's length. */
+        eventListLen = eventList.length();                                                
     }
 ;
 
+
 /* Mofiications to ShuffledEventList for EventListItem extension */
 modify ShuffledEventList
-    removeItem(item, listProp)
-    {
-        /* call the inherited handling */
-        inherited(item, listProp);
+        
+    /* 
+     *   For the EventListItem extenstion we modify this method so that it first chooses any as yet
+     *   unused EventListItem from our eventList that's now ready to fire. If none is find, we use
+     *   the inherited behaviour to select the next item indicated by our shuffledList_ .
+     */
+    getNextRandom()
+    {       
+        /* 
+         *   If we have an EventListItem that's ready to fire and it hasn't fired yet, choose that
+         */        
+        local idx = unusedReadyELIidx();
         
         /* 
-         *   create a new shuffled integer list - we'll use these shuffled integers as indices into
-         *   our event list
+         *   If we found a suitable value and idx is not nil, return idx. Otherwise use the
+         *   inherited value
+         */
+        return idx ?? inherited();
+    }
+    
+    /* Reset our eventList to clear out EventListItems that are done with */
+    resetList()
+    {
+        /* Carry out the inherited handling */
+        inherited();
+        
+        /* 
+         *   recreate our shuffled integer list, since the existing one may index items that no
+         *   lomger exist in our eventList
          */
         shuffledList_ = new ShuffledIntegerList(1, eventListLen);
         
         /* apply our suppressRepeats option to the shuffled list */
         shuffledList_.suppressRepeats = suppressRepeats;
     }
+;
+
+
+modify RandomEventList
+    /*
+     *   Get the next random state.  By default, we simply return a number from 1 to the number of
+     *   entries in our event list.  This is a separate method to allow subclasses to customize the
+     *   way the random number is selected. However, if we have an unused EventListItem that's ready
+     *   to fire, we select that instead, to make sure it gets a look-in at the earliest possible
+     *   opportunity.
+     */
+    getNextRandom()
+    {
+        /* 
+         *   If we have an EventListItem that's ready to fire and it hasn't fired yet, choose that
+         */        
+        local idx = unusedReadyELIidx();
+        
+         /* 
+          *   If we found a suitable value and idx is not nil, return idx. Otherwise use the
+          *   inherited value
+          */
+        return idx ?? inherited();
+    }
+;
+
+modify RandomFiringScript    
+    /* 
+     *   Return the index within our eventList of any as yet unused EventListItem that's ready to
+     *   fire. This is principally for the use of our RandomEventList and ShuffledEventList
+     *   subclasses.
+     */
+    unusedReadyELIidx()
+    {
+        return eventList.indexWhich({x: x.ofKind(EventListItem) && x.canFire()
+                                         && x.underused()});
+    }           
 ;

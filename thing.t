@@ -5847,7 +5847,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cannotUnlockWithMsg = BMsg(cannot unlock with, '{I} {can\'t} unlock
-        anything with {that dobj}. ' )
+        anything with {that iobj}. ' )
     
     cannotUnlockWithSelfMsg = BMsg(cannot unlock with self, '{I} {can\'t} unlock
         anything with itself. ' )
@@ -9321,7 +9321,7 @@ class Key: Thing
              *   We're a logical choice of key if we're a possible key for the
              *   direct object.
              */
-            if(isPossibleKeyFor(gDobj))
+            if(isPossibleKeyFor(gVerifyDobj))
                 logical;
             
             /* Otherwise we're not a very good choice. */
@@ -9435,10 +9435,10 @@ class Key: Thing
      *   (because it\'s the wrong sort of key for the lock; e.g. a yale key
      *   clearly won\'t fit the lock on a small jewel box).
      */
-    notAPlausibleKeyMsg = '\^<<theName>> clearly won\'t work on <<gDobj.theName>>. '
+    notAPlausibleKeyMsg = '\^<<theName>> clearly won\'t work on <<gVerifyDobj.theName>>. '
     
     /*  The message to say that this key doesn\'t in fact fit the dobj. */
-    keyDoesntFitMsg = '\^<<theName>> won\'t fit <<gDobj.theName>>. '
+    keyDoesntFitMsg = '\^<<theName>> won\'t fit <<gVerifyDobj.theName>>. '
     
     preinitThing()
     {
