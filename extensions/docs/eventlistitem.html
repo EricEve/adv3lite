@@ -1,0 +1,132 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>EventListIem</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+EventListIem
+<br><span class="navnp"><a class="nav" href="dynregion.htm"><i>Prev:</i> Dynamic Region</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="footnotes.htm"><i>Next:</i> Footnotes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>EventListItem</h1>
+<h2>Overview</h2>
+<p>The EventListItem extension defines a new <b>EventListItem</b> class (along with appropriate modifications to various EventList classes to enable it to work). At a first approximation, an EventListItem combines the functionanlity of AgendaItems and EventList. An EventListItem can be included amongst other items in an EventList, but will only be used when its isReady condition is true, and will cease to be used once its isDone condition becomes true. It can be defined to become isDone after being used a certain number of uses, and a minimum interval can be set between successive uses of any given EventListItem.</p>
+
+<p>EventListItems can be used with any class of EventList, but are probably most useful in conjunction with ShuffledEventLists.</p>
+ 
+<h2>Usage</h2>
+<p>Include the eventListItem.t file after the library files but before your game source files.</p>
+
+<p>EventListItems are added to the eventList property (usually) of the EventList defined in the EventListItem's <strong>myListObj</strong> property. Instead of defining the myListObj property explicitly, we can simply locate EventListItems in their associated EventList using the + syntax. For example, suppose we have a ShuffledEventList that displays a list of atmospheric strings for a room. We could add an EventListItem to it thus:</p>
+
+<p><div class="code"><pre>
+startroom: Room, ShuffledEventList 'The Starting Location'
+	"This is the starting location, blah, blah, blah. "
+	
+	eventList =     
+    [
+        'This room has quite an atmosphere. ',
+        'What an atmospheric room! ',
+        'You can\'t help noticing the atmosphere here. ',
+        'Okay, so what else do you expect to happen here? '
+    ]
+;
+
++ EventListItem
+	invokeItem = "The key may help you escape the atmosphere here. " 
+	
+	isReady = silverKey.moved
+	
+	minInterval = 5
+	
+	maxFireCt = 2
+;   
+ </pre></div>
+
+<p>This defines an EventListItem that won't be used until the silverKey has been moved, and which will then display the text "The key may help you escape the atmosphere here. ", but only twice in all with at least five turns in between occurrences.</p>
+
+<p>Using the abbreviated alias <strong>ELI</strong> for the EventListItem class together with the EventListItem template defined in advLite.h, we could abbreviate the definition of EventListIem here to:
+
+<p><div class="code"><pre>
++ ELI ~(silverKey.moved) +5 *2 "The key may help you escape the atmosphere here. ";
+</pre></div>
+
+<p>This illustrates the basic usage; we move next to some of the detail.</p>
+<br>
+<h2>Properties and Methods of EventListItem</h2>  
+<p>The following are the properties and methods of EventListItem that are intended for direct use by game authors(there are some others which are primarily intended to for the internal use of the extension to support the implementation of this class, but we won't include them here):</p>
+
+<ul>
+<li><strong>invokeItem()</strong>: This a method that defines what should happen when this EventListItem is invoked (i.e., when the EventList to which it belongs wants to use this EventListItem). Normally, we'd just define this as a double-quoted string to display some text here, or maybe a method to display some text if we need something more complicated. We wouldn't normally use it to carry out side-effects (although there may be some cases in which it could be convenient to do so).</li>
+
+<li><strong>isReady</strong>: The condition that must be true for this EventListItem to be used. This can either be an expression that evaluates to true to nil or a method that returns true or nil. It is fine for the value of this property to alternate between true and nil over the course of the game; the EventListItem will only be used when isReady is true.</li>
+
+<li><strong>minInterval</strong>: the minimum number of turns that must elapse between separate occurrences of this EventListItem (even if its EventList might want to use it more frequently).</li>
+
+<li><strong>maxFireCt</strong>: The maximum number of times this EventListItem may be used. Once it's been used that number of times its isDone property will be set to true. If we don't want to limit the number of times this EventListItem can use, set maxFireCt to nil (the default).</li>
+
+<li><strong>doneWhen</strong>: An alternative condition which will set isDone to true if it (doneWhen) evaluates to true.</li>
+
+<li><strong>myListObj</strong>: The EventList to which this EventListItem belongs. Normally we'll set this indirectly by locating EventListItems in their EventList using the + syntax (the extension will then automatically set myListObj to the EventListItem's location).</li>
+
+<li><strong>whichList</strong>: A property pointer defining which list property of our EventList (myListObj) we want this EventListItem to belong to. Normally this will be &amp;eventList, but it could, for example, be &amp;firstEvents.</li>
+
+<li><strong>fallBackResponse</strong>: A method or double-quoted string that displays some text if our EventList wants to use this EventListItem but it's not available to use (because it's not ready or is already done, for example). Normally when an EventList tries to use an EventListItem that's not available to use, the EventListItem will simply call the EventList's doScript() method to trigger the next item in the list (thereby effectively skipping over the unavailable EventListItem), but in rare cases there may be no other item in the list that can be used; fallBackResponse is then called as a last resort. If our EventList doesn't need to display something every turn (e.g., because it's a list of atmospheric messages), fallBackResponse can be left to do nothing, but if we do need something every turn (e.g., because our EventList is also some variety of DefaultTopic), then we might want fallBackResponse to display something appropriate to when this EventListItem's isn't available (such as an atmospheric message that would be appropriate in the absence of this EventListItem's not being available to use). Note that this situation is only ever likely to occur if our EventList contains nothing but EventListItems.</li>
+
+<li><strong>underused()</strong>: A method that returns true if this EventListItem item is considered 'underused' (and so should be prioritized for firing in a RandomEventList or ShuffledEventList). By default it's considered underused if its missedTurn property (for which see below) is non-nil, which probably works well enough in many situations, but game code may wish to define some other method of prioritization, such as <span class="code">fireCt == 0</span> (meaning that the EventListItem in question has never been used), so this is defined as a separate method to make it easy to customize.</li>
+
+<li><strong>canRemoveWhenDone</strong>: Flag - do we want to allow our EventList to remove this EventListItem from its eventList property when it (the EventListItem) is done (isDone = true). By default we do (this property has a default value of true). Note that this only grants permission to our EventList to remove this EventListItem, it doesn't require it to, so it will only take effect if the EventList wants to clear this EventListItem out of its eventList (the default defined on EventList is that EventList's don't want to, but game cose can change this, see further below).</li>
+</ul>
+
+<p>There are all a number of EventListItem properties that game code may wish to query but should change only with great care, if at all (since they are meant to be maintained by the code in this extension):</p>
+
+<ul>
+<li><strong>isDone</strong>: Flag, have we finished with this EventListItem?</li>
+<li><strong>missedTurn</strong>: The last turn on which our EventList wanted to use us but couldn't because we weren't available to fire. This starts at nil (our EventList hasn't tried to use us yet) and is reset to nil whenever our EventList successfully uses us (and we fire).</li>
+<li><strong>canFire()</strong>: Are we available to fire (i.e., be used)? Return true if so or nil otherwise. Overriding this method may break the way this extension works unless done with care, and is unlikely to be needed.</li>
+<li><strong>fireCt</strong>: The number of times we have fired (i.e., been successfully invoked).</li>
+<li><strong>readyTime</strong>: The next turn on which we're available to fire. Normally this is set via the <strong>setDelay(turns)</strong> method which in turn is called at PreInit to set our minInterval.</li>
+<li><strong>lastClock</strong>: The last turn on which we successfully fire.</li>
+<li><strong>getActor()</strong>: Returns the actor our EventList is associated with, if any; otherwise returns nil.</li>
+
+</ul>
+<br>
+<h2>Customising EventLists for Use with EventListItem</h2>
+<p>This extension makes a number of minor modifications to EventList and some of its subclasses to faciliate the use of the EventListItem class. To a large extent curious users can be left to inspect these in the eventListItem.t source file (perhaps via the Library Reference File), but there is one method and one property that should be mentioned here.</p>
+
+<p>The <strong>resetList()</strong> method can be called on an EventList to remove any spent (isDone = true) EventListItems from its eventList. This is probably only ever necessary in an EventList that contains so many EventListItems that the presence of spent ones (through which code may nevertheless have to iterate) is slowing things down too much.</p>
+
+<p>The <strong>resetEachCycle</strong> property (which defaults to nil) can be overridden to true on an EventList so that it calls resetList() at appropriate intervals (roughly speaking, each time the EventList has iterated through every item in its eventList). Whether this is advantageous can only be determined by experimentation in any given game, since the reduced overhead resulting from clearing out spent EventListItems may be counteracted by the increased overhead of clearing them out. If in doubt, this is probably best left at nil.</p>
+<br>
+<h2>Convenient Shorthand</h2>
+<p>To save typing, EventListItem can be abbreviated to <b>ELI</b> (the extensions defines <span class="code">class ELI: EventListItem;</span>).
+<p>The clase <b>ELI1</b> can be used as a shorthand way of defining an EventListItem with a maxFireCt of 1.</p>
+
+<p>EventListItems can be defined using the following template (itself defined in advlite.h): 
+
+<p><div class="code"><pre>
+EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeItem"? ;
+</pre></div>
+<br>
+
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../eventListItem.t">eventListItem.t</a> file.</p>
+<br>
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+EventListItem
+<br><span class="navnp"><a class="nav" href="dynregion.htm"><i>Prev:</i> Dynamic Region</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="footnotes.htm"><i>Next:</i> Footnotes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

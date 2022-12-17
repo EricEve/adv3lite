@@ -1337,7 +1337,7 @@ string template <<* by room>> byRoomFunc;
 /*
  *   Definitions for the eventListItem Extension
  */
-EventListItem template @myListObj? ~isReady? +interval? *maxFireCt? "invokeItem"? ;
+EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeItem"? ;
  
  /*----------------------------------------------------------------------------*/
 /*
