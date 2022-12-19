@@ -212,7 +212,7 @@ class SimpleAttachable: Thing
                 illogicalNow(notAttachedMsg);  
             
             /* We can't be detached from the iobj if we're not attached to it */
-            else if(attachedToList.indexOf(gIobj) == nil)
+            else if(attachedToList.indexOf(gVerifyIobj) == nil)
                 illogicalNow(notAttachedToThatMsg);
             
             /* Carry out the inherited handling. */
@@ -759,7 +759,7 @@ class PlugAttachable: object
              *   If the direct object is not one that can be plugged into us,
              *   rule out the action with an appropriate message.
              */                 
-            if(!allowAttach(gDobj))
+            if(!allowAttach(gVerifyDobj))
                 illogical(cannotBeAttachedMsg);
         }
         
@@ -814,7 +814,7 @@ class PlugAttachable: object
              *   If we're not attached to the direct object of the command, we
              *   can't be unplugged from it.
              */
-            else if(attachedTo != gIobj)
+            else if(attachedTo != gVerifyIobj)
                 illogicalNow(notAttachedToThatMsg);
             
         }

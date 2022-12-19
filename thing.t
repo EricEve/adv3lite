@@ -4599,7 +4599,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canAttackWithMe)
                illogical(cannotAttackWithMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotAttackWithSelfMsg);
         }
     }
@@ -4901,12 +4901,12 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         preCond = [objHeld]
         verify() 
-        {
-            if(gDobj == self)
-                illogical(cannotTurnWithSelfMsg);            
-            
+        {           
             if(!canTurnWithMe)
                 illogical(cannotTurnWithMsg); 
+            
+            if(gVerifyDobj == self)
+                illogical(cannotTurnWithSelfMsg); 
         }
     }
         
@@ -4950,12 +4950,12 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [objHeld]
         
         verify()
-        {
-            if(self == gDobj)
-                illogicalSelf(cannotCutWithSelfMsg);
-            
+        {                       
             if(!canCutWithMe)
                 illogical(cannotCutWithMsg);
+            
+            if(self == gVerifyDobj)
+                illogicalSelf(cannotCutWithSelfMsg);
         }
     }
     
@@ -5399,16 +5399,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gIobj != nil && self == gIobj)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);  
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(gIobj != nil && isDirectlyIn(gIobj))
+            if(isDirectlyIn(gVerifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gIobj != nil && gIobj.isIn(self))
+            if(gVerifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);     
             
            
@@ -5472,16 +5472,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gIobj != nil && self == gIobj)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);   
             
-            if(gIobj != nil && isDirectlyIn(gIobj))
+            if(isDirectlyIn(gVerifyIobj))
                 illogicalNow(alreadyInMsg);
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(gIobj != nil && gIobj.isIn(self))
+            if(gVerifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);    
                         
             
@@ -5564,16 +5564,16 @@ class Thing:  ReplaceRedirector, Mentionable
                 
         verify()
         {
-            if(gIobj != nil && self == gIobj)
+            if(gVerifyIobj == gIobj)
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(gIobj != nil && (isDirectlyIn(gIobj)))
+            if(isDirectlyIn(gVerifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gIobj != nil && gIobj.isIn(self))
+            if(gVerifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
             
                          
@@ -5656,16 +5656,16 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gIobj != nil && self == gIobj)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
                 illogical(cannotPutMsg);
             
-            if(gIobj != nil && (isDirectlyIn(gIobj)))
+            if(isDirectlyIn(gVerifyIobj))
                 illogicalNow(alreadyInMsg);
             
-            if(gIobj != nil && gIobj.isIn(self))
+            if(gVerifyIobj.isIn(self))
                 illogicalNow(circularlyInMsg);           
             
                          
@@ -5841,7 +5841,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canUnlockWithMe)
                illogical(cannotUnlockWithMsg);
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotUnlockWithSelfMsg);
         }      
     }
@@ -5911,7 +5911,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canLockWithMe)
                illogical(cannotLockWithMsg);
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotLockWithSelfMsg);
         }      
     }
@@ -6774,7 +6774,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canMoveWithMe)
                illogical(cannotMoveWithMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotMoveWithSelfMsg);
         }
     }
@@ -6839,13 +6839,13 @@ class Thing:  ReplaceRedirector, Mentionable
         verify()
         {
             if(!canMoveToMe)
-                illogical(cannotMoveToMsg);
-            
-            if(gDobj == self)
-                illogicalSelf(cannotMoveToSelfMsg);
+                illogical(cannotMoveToMsg);           
             
             if(gDobj.movedTo == self)
                 illogicalNow(alreadyMovedToMsg);
+            
+            if(gVerifyDobj == self)
+                illogicalSelf(cannotMoveToSelfMsg);
             
         }
         
@@ -7083,7 +7083,7 @@ class Thing:  ReplaceRedirector, Mentionable
             else if(mustBeCleanedWith == nil)
                 implausible(dontNeedCleaningObjMsg);
             
-            else if(valToList(mustBeCleanedWith).indexOf(gIobj) == nil)
+            else if(valToList(mustBeCleanedWith).indexOf(gVerifyIobj) == nil)
                 implausible(cannotCleanWithMsg);
         }
         
@@ -7166,7 +7166,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canDigWithMe)
                illogical(cannotDigWithMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotDigWithSelfMsg);
         }
     }
@@ -7194,7 +7194,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
             if(gIobj.notionalContents.indexOf(self) == nil)
                 illogicalNow(notInMsg);
-            if(self == gIobj)
+            if(self == gVerifyIobj)
                 illogicalSelf(cannotTakeFromSelfMsg);
         }        
     }
@@ -7317,7 +7317,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canThrowToMe)
                 illogical(cannotThrowToMsg);
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogical(cannotThrowToSelfMsg);
         } 
         
@@ -7582,7 +7582,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canAttachToMe)
                illogical(cannotAttachToMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotAttachToSelfMsg);
         }
     }
@@ -7621,7 +7621,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isDetachable)
                illogical(cannotDetachMsg); 
             
-            if(gIobj == self)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotDetachFromSelfMsg);
         }
     }
@@ -7709,7 +7709,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canFastenToMe)
                 illogical(cannotFastenToMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotFastenToSelfMsg);
         }  
     }
@@ -7746,7 +7746,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isUnfastenable)
                illogical(cannotUnfastenMsg); 
             
-            if(gIobj == self)
+            if(gVerifyIobj == self)
                 illogical(cannotUnfastenFromSelfMsg);
         }
     }
@@ -7796,7 +7796,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isPlugable)
                 illogical(cannotPlugMsg);
             
-            if(self == gIobj)
+            if(self == gVerifyIobj)
                 illogicalSelf(cannotPlugIntoSelfMsg);            
         }        
         
@@ -7832,7 +7832,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isUnplugable)
                 illogical(cannotUnplugMsg);
             
-            if(gIobj == self)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotUnplugFromSelfMsg);
         }
     }
@@ -8187,7 +8187,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotPourOntoSelfMsg);
             
             if(!canPourOntoMe)
@@ -8233,7 +8233,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotPourIntoSelfMsg);
             
             if(!canPourIntoMe)
@@ -8299,7 +8299,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canScrewWithMe)
                 illogical(cannotScrewWithMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogical(cannotScrewWithSelfMsg);
         }        
     }
@@ -8335,7 +8335,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!canUnscrewWithMe)
                 illogical(cannotUnscrewWithMsg); 
             
-            if(gDobj == self)
+            if(gVerifyDobj == self)
                 illogicalSelf(cannotUnscrewWithSelfMsg);
         }        
     }
@@ -8375,7 +8375,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(gActor.isIn(self))
             illogicalNow(cannotPushOwnContainerMsg);
         
-        if(gIobj == self)
+        if(gVerifyIobj == self)
             illogicalSelf(cannotPushViaSelfMsg);            
         
     }
@@ -8985,10 +8985,10 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [touchObj]
         verify() 
         { 
-            if(gActor == self)
-                illogicalSelf(cannotGiveToSelfMsg);
             if(!canTalkToMe)
                 illogical(cannotGiveToMsg); 
+            if(gActor == self)
+                illogicalSelf(cannotGiveToSelfMsg);
         }
         
     }
@@ -9381,7 +9381,7 @@ class Key: Thing
         {
             inherited;
             
-            if(isPossibleKeyFor(gDobj))
+            if(isPossibleKeyFor(gVerifyDobj))
                 logical;
             else
                 implausible(notAPlausibleKeyMsg);            

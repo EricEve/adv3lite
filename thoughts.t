@@ -4,7 +4,7 @@
 
 /*
  *   *************************************************************************
- *   actor.t
+ *   thoughts.t
  *
  *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
  *
