@@ -567,6 +567,16 @@ class Action: ReplaceRedirector
     }
     
     /* 
+     *   Flag, do we want an action that fails at the verify stage to count as a turn (in other
+     *   words, if an action fails at the verify stage, do we want to advance the turn
+     *   counter,excecute daemons, and do all the other turn sequence stuff)? By default we do,
+     *   since this has long been the standard behaviour, but game code can override this to nil
+     *   either globally on the Action class on on individual actions to cause failure at the verify
+     *   stage to abort the remainder of the turn sequence.
+     */
+    failedActionCountsAsTurn = true
+    
+    /* 
      *   Run the verify routine on the current object in the current role to see
      *   whether it will allow the action. If it won't, display any pending
      *   implicit action announcements, then display the message explaining why
@@ -623,6 +633,9 @@ class Action: ReplaceRedirector
             
             /* Note that this action has failed. */
             actionFailed = true;
+            
+            if(!failedActionCountsAsTurn)
+                abort;
             
             /* 
              *   Stop the processing of the action here by telling our caller
