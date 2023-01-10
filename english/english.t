@@ -2568,6 +2568,7 @@ englishCustomVocab: CustomVocab
         'an heir',
         'an honest',
         'an honor',
+        'an honour',
         'an hors',
         'an hour',
         'a one',
@@ -2581,6 +2582,7 @@ englishCustomVocab: CustomVocab
         'a university',
         'a universe',
         'a unicycle',
+        'a unicorn',
         'a usage',
         'a user'
     ]
@@ -4151,6 +4153,16 @@ prevDummy_: Mentionable
     plural = true    
 ;
 
+/* 
+ *   When the actor has multiple verbs per sentence, we can use this to keep the expansion on
+ *   track.
+ */
+actorActionContinuer_: dummy_ {
+    person = (gActor == nil ? 3 : gActor.person)
+    plural = (gActor == nil ? nil : gActor.plural)
+}
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -4306,6 +4318,16 @@ englishMessageParams: MessageParams
          *   text
          */
         [ 'prev', { ctx, params: cmdInfo(ctx, prevDummy_, &dummyName, vSubject) } ],
+        
+        
+        /* 
+         *   {aac} can be used to enure multiple verbs following the same actor continue to agree in
+         *   person and number with the actor, e.g. "{I} yell{s/ed} and {aac} drop{s/?ed} my guard
+         *   and {aac} scream{s/ed}.
+         */ 
+        
+        [ 'aac', { ctx, params:
+            cmdInfo(ctx, actorActionContinuer_, &dummyName, vSubject) } ],
 
         /* 
          *   {here} is the addressee's location, relative to the PC's.

@@ -251,7 +251,7 @@ buildMessage(id, txt, [args])
     for (local i = 1 ; i <= txt.length() ; )
     {
         /* find the end of the current sentence */
-        local eos = txt.find(R'<.|!|?>', i) ?? txt.length() + 1;
+        local eos = txt.find(R'<.|!|?><space>', i) ?? txt.length() + 1;  
 
         /* 
          *   Build a list of the parameters in the sentence, and preprocess
