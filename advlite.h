@@ -12,8 +12,8 @@
  *   #include this header near the top of the source file.  
  */
 
-#ifndef ADV3_H
-#define ADV3_H
+#ifndef ADV3LITE_H
+#define ADV3LITE_H
 
 /* ------------------------------------------------------------------------ */
 /*
