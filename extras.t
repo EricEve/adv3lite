@@ -256,6 +256,14 @@ class Fixture: Thing
  */
 class Decoration: Fixture
     isDecoration = true
+    
+    
+    /* 
+     *   Game code may wish to hide decorations from all commands applied to ALL. Tbis can be
+     *   achieved by overriding hideFromAll() as shown below. This is not done in the library since
+     *   making this change at version 1.61 would compromise backward compatibility.
+     */    
+    // hideFromAll(action) { return true; }
 ;
 
 /* 
