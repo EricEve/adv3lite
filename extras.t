@@ -29,6 +29,12 @@ property soundSize;
  *   extension to add functionality to this class.
  */
 class SensoryEmanation: Decoration
+    
+    /* 
+     *   There's no point in including a SensoryEmanation in any command applying to ALL unless the
+     *   command is one of our decoration actions.
+     */
+    hideFromAll(action) { return decorationActions.indexOf(action) == nil; }
 ;
 
 /* 
@@ -65,6 +71,9 @@ class Odor: SensoryEmanation
     tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg    
     
     isOdor = true
+    
+    
+    
 ;
 
 
@@ -78,7 +87,7 @@ class Noise: SensoryEmanation
     
     /*  A Noise responds to EXAMINE SOMETHING or LISTEN TO SOMETHING */
     decorationActions = [Examine, ListenTo]
-    
+       
     /*  
      *   The message to display when any other action is attempted with a Noise
      */

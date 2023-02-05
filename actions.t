@@ -961,7 +961,7 @@ DefineTAction(SmellSomething)
 ;
 
 DefineTAction(ListenTo)
-    announceMultAction = true
+    announceMultiAction = true
     againRepeatsParse = nil
     
     /* Add any Noises the actor can hear */
