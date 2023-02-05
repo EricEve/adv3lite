@@ -1012,6 +1012,61 @@ class ContainerDoor: Fixture
 
 
 
+/* 
+ *   A MinorItem is an unobtrusive and possibly unimportant portable object that's worth
+ *   implementing in the game but sufficiently minor as to be not worth mentioning (in response to X
+ *   or FOO ALL) unless it's either directly held by the player character or directly in the
+ *   enclosing room. (Based on Joey Cramsey's Trinket class).
+ */
+class MinorItem: Thing 
+    /* 
+     *   We're listed in response to a LOOK command only if we're not fixed in place and we can't be
+     *   ignored for the current action or our current location.
+     */    
+    lookListed = (!canBeIgnored(gAction) && !isFixed)
+    
+    /* We're excluded from a FOO ALL action if we can be ignored for FOO. */
+    hideFromAll(action) 
+    {
+        return canBeIgnored(action);
+    }
+
+    /* 
+     *   We can be ignored for action unless we're directly in our enclosing room or directly in the
+     *   player character's location or carried by the player character or, if desired, the action
+     *   is TAKEFROM or PutXX
+     */
+    canBeIgnored(action) 
+    {
+        /* 
+         *   If we are exposed, in the middle of the room or the actor's location (e.g. a
+         *   platform or booth), then we cannot be ignored.
+         */
+        if (location is in (getOutermostRoom(), gActor.location))         
+            return nil;
+        
+        
+        /* Allow actions like DROP ALL if we are being directly carried. */
+        if (isDirectlyHeldBy(gActor))         
+            return nil;
+        
+        
+        /* Allow an explicit TAKE FROM or PUT somewhere if our allowTakeFromPut flag allows it. */        
+        if(action is in (TakeFrom, PutIn, PutOn, PutBehind, PutUnder))
+            return !includeTakeFromPutAll;
+        
+        
+        // Otherwise, pay us no mind in X ALL.
+        return true;
+        
+    }   
+        
+    /* 
+     *   Flag: do we want to be included in TAKE ALL FROM X, and PUT ALL IN/ON/UNDER/BEHIND X? by
+     *   default we do.
+     */
+    includeTakeFromPutAll = true
+;
 
 
 
