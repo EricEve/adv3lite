@@ -5917,7 +5917,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     cannotLockWithMsg = BMsg(cannot lock with, '{I} {can\'t} lock anything with
-        {that dobj}. ' )
+        {that iobj}. ' )
     
     cannotLockWithSelfMsg = BMsg(cannot lock with self, '{I} {can\'t} lock
         anything with itself. ' )
