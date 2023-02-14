@@ -559,6 +559,9 @@ DefineIAction(Smell)
         local s_list = gActor.getOutermostRoom.allContents.subset(
             {x: Q.canSmell(gActor, x)  &&  x.isProminentSmell});
         
+        /* Include the current room in the list. */
+        s_list += gActor.getOutermostRoom;
+        
         s_list = s_list.getUnique();
         
         /*  Obtain the corresponding list for remote rooms */
@@ -611,6 +614,9 @@ DefineIAction(Listen)
          */        
         local s_list = gActor.getOutermostRoom.allContents.subset(
             {x: Q.canHear(gActor,x) && x.isProminentNoise});
+        
+        /* Include the current room in the list. */
+        s_list += gActor.getOutermostRoom;
         
         s_list = s_list.getUnique();
         
