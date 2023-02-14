@@ -404,9 +404,16 @@ class Room: TravelConnector, Thing
      */    
     roomDaemon() 
     {
-        if(ofKind(Script))
+        if(ofKind(Script) &&!(noScriptAfterListen && gActionIs(Listen)))
             doScript();
     }
+    
+    /* 
+     *   Flag, do we want to prevent out script firing after a LISTEN command? By default we do
+     *   because otherwise the respose to a LISTEN command might clash with an atmospheric message
+     *   appearing on the same turn.
+     */
+    noScriptAfterListen = true
     
     
     /* 
