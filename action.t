@@ -3088,17 +3088,20 @@ execNestedAction(isReplacement, actor, action, [objs])
  */
 askMissingObject(action, role)
 {
-     /* 
-      *   Store the current objects of the current action in the new action, in
-      *   case action.scoreObjects() needs to refer to them below.
-      */
-    action.curDobj = gDobj;
-    action.curIobj = gIobj;
-    action.curAobj = gAobj;
+     
         
     /* Make action the current action for the current Command. */    
     gCommand.action = action;
     gCommand.action.reset(); 
+    
+    /* 
+     *   Store the current objects of the current action in the new action, in case
+     *   action.scoreObjects() needs to refer to them below.
+     */
+    action.curDobj = gDobj;
+    action.curIobj = gIobj;
+    action.curAobj = gAobj;
+    
     gCommand.dobj = action.curDobj;
     gCommand.iobj = action.curIobj;
     gCommand.acc = action.curAobj;
