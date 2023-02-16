@@ -1810,7 +1810,7 @@ Goodbye: IAction
     
     curObj = nil   
     
-    isConverational = true
+    isConversational = true
 ;
 
 Hello: IAction
@@ -1881,7 +1881,7 @@ Hello: IAction
     
     curObj = nil
     
-    isConverational = true
+    isConversational = true
 ;
 
 DefineLiteralTAction(TellTo)
@@ -1901,19 +1901,19 @@ DefineLiteralTAction(TellTo)
 
 
 DefineTopicTAction(AskAbout)    
-    isConverational = true
+    isConversational = true
 ;
 
 DefineTopicTAction(AskFor)    
-    isConverational = true
+    iisConversational = true
 ;
 
 DefineTopicTAction(TellAbout)   
-    isConverational = true
+    isConversational = true
 ;
 
 DefineTopicTAction(TalkAbout)    
-    isConverational = true
+    isConversational = true
 ;
 
 DefineTopicTAction(QueryAbout)    
@@ -1929,11 +1929,11 @@ DefineTopicTAction(QueryAbout)
     iqinfo = (gCommand.verbProd.qtype)
     #endif
     
-    isConverational = true
+    isConversational = true
 ;
 
 DefineTopicTAction(SayTo)    
-    isConverational = true
+    isConversational = true
 ;
 
 DefineTIAction(GiveTo)     
@@ -1979,7 +1979,7 @@ DefineTIAction(ShowTo)
         summaryProp = nil;
     }
     
-    isConverational = true
+    isConversational = true
 ;
 
 ThinkAbout: TopicAction
@@ -2070,7 +2070,7 @@ class ImplicitConversationAction: TopicAction
     topicListProperty = nil
     topics = nil
     
-    isConverational = true
+    isConversational = true
 ;
 
         
