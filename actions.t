@@ -1650,111 +1650,7 @@ DefineTAction(PushTravelDir)
     }
     
     
-//    
-//    execAction(cmd)
-//    {
-//        local conn;
-//        
-//        /* Note whether travel is allowed. This can be adjusted by the dobj */
-//        travelAllowed = nil;
-//        
-//        /* Get the direction of travel from the command */
-//        direction = cmd.verbProd.dirMatch.dir;
-//        
-//        /* 
-//         *   Carry out the inherited handling, including calling dobjFor(Travel)
-//         *   on the dobj
-//         */
-//        inherited(cmd);
-//        
-//        /* Proceed to carry out the travel if the dobj allows it */
-//        if(travelAllowed)
-//        {
-//            /* Note the old location, which is the actor's current room. */ 
-//           local oldLoc = gActor.getOutermostRoom; 
-//            
-//           /*  
-//            *   If the relevant direction property of the actor's current room
-//            *   points to an object, then try pushing the dobj via that object
-//            *   (e.g. up the stairs or through the door).
-//            */ 
-//           if(oldLoc.propType(direction.dirProp) == TypeObject)
-//           {
-//                /* Note the connector object in the relevant direction */
-//                conn = oldLoc.(direction.dirProp);
-//                
-//                /*  
-//                 *   If the connector object defines a PushTravelVia action,
-//                 *   then replace the current action with that PushTravelVia
-//                 *   action (e.g. PushTravelGoThrough or PushTravelClimbUp).
-//                 */
-//                if(conn.PushTravelVia)
-//                    replaceAction(conn.PushTravelVia, gDobj, conn);
-//                               
-//                /* 
-//                 *   Otherwise, if the travel barriers would not allow the dobj
-//                 *   to pass or the actor to pass, stop the action here.
-//                 */
-////                if(!conn.checkTravelBarriers(curDobj) 
-////                   || !conn.checkTravelBarriers(gActor))
-////                {                    
-////                    return;
-////                }
-//                
-//            }
-//            
-//            /* 
-//             *   If the direction property isn't attached to an object, the
-//             *   chances are that travel won't be allowed, so in that case we
-//             *   don't want to display a message about attempting to push the
-//             *   direct object anywhere, but if it is, then the chances are that
-//             *   travel is possible (unless it's already been ruled out) so we
-//             *   display a suitable message.
-//             */
-//            if(oldLoc.propType(direction.dirProp) == TypeObject)
-//                gDobj.beforeMovePushable(conn, direction);
-//            
-//            /* 
-//             *   Temporarily set the isHidden property of the direct
-//             *   object to true so we don't see it listed in its old location if
-//             *   there's a sight path to it there from the actor's new location.
-//             */
-//            
-//            local wasHidden;
-//            try
-//            {
-//                wasHidden = gDobj.propType(&isHidden) is in (TypeCode, TypeFuncPtr) ?
-//                    gDobj.getMethod(&isHidden) : isHidden;
-//                
-//                gDobj.isHidden = true;
-//                
-//                /* 
-//                 *   Carry out the standard handling of TravelAction to move the
-//                 *   actor in the appropriate direction
-//                 */ 
-//                delegated TravelAction(cmd);
-//            }
-//            finally
-//            {
-//                if(dataTypeXlat(wasHidden) is in (TypeCode, TypeFuncPtr))
-//                    gDobj.setMethod(&isHidden, wasHidden);
-//                else
-//                    gDobj.isHidden = wasHidden;
-//            }
-//            
-//            
-//            /* 
-//             *   If the actor has moved to a new location, move the dobj to that
-//             *   location and report what's happened.
-//             */
-//            if(oldLoc != gActor.getOutermostRoom)
-//            {
-//                curDobj.moveInto(gActor.getOutermostRoom);
-//                curDobj.describeMovePushable(conn, gActor.getOutermostRoom);
-//            }
-//        }
-//    }
-//    
+
     travelAllowed = nil
     direction = nil
     curIobj = nil
@@ -1814,6 +1710,7 @@ DefineTIAction(PushTravelClimbDown)
 
 
 DefineTAction(TalkTo)
+    isConversational = true
 ;
 
 class MiscConvAction: IAction
@@ -1852,6 +1749,8 @@ class MiscConvAction: IAction
     
     responseProp = nil
     topicObj = nil
+    
+    isConversational = true
 ;
 
 sayNotTalking()
@@ -1910,6 +1809,8 @@ Goodbye: IAction
     }    
     
     curObj = nil   
+    
+    isConverational = true
 ;
 
 Hello: IAction
@@ -1980,7 +1881,7 @@ Hello: IAction
     
     curObj = nil
     
-    
+    isConverational = true
 ;
 
 DefineLiteralTAction(TellTo)
@@ -1994,19 +1895,25 @@ DefineLiteralTAction(TellTo)
         Parser.parse(str);
     }
     afterAction() {}
+    
+    isConversational = true
 ;
 
 
 DefineTopicTAction(AskAbout)    
+    isConverational = true
 ;
 
 DefineTopicTAction(AskFor)    
+    isConverational = true
 ;
 
-DefineTopicTAction(TellAbout)    
+DefineTopicTAction(TellAbout)   
+    isConverational = true
 ;
 
 DefineTopicTAction(TalkAbout)    
+    isConverational = true
 ;
 
 DefineTopicTAction(QueryAbout)    
@@ -2022,9 +1929,11 @@ DefineTopicTAction(QueryAbout)
     iqinfo = (gCommand.verbProd.qtype)
     #endif
     
+    isConverational = true
 ;
 
 DefineTopicTAction(SayTo)    
+    isConverational = true
 ;
 
 DefineTIAction(GiveTo)     
@@ -2069,6 +1978,8 @@ DefineTIAction(ShowTo)
         summaryReport = nil; 
         summaryProp = nil;
     }
+    
+    isConverational = true
 ;
 
 ThinkAbout: TopicAction
@@ -2158,6 +2069,8 @@ class ImplicitConversationAction: TopicAction
     
     topicListProperty = nil
     topics = nil
+    
+    isConverational = true
 ;
 
         

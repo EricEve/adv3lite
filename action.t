@@ -366,6 +366,10 @@ class Action: ReplaceRedirector
     /* Can this action be Undone? By default most actions can. */
     includeInUndo = true
     
+    /* Flag: is this a conversational action? */
+    isConversational = nil
+    
+    
     /* 
      *   Is this action repeatable (with an AGAIN command)? Most actions are so
      *   the default is true but subclasses can override to exclude actions
