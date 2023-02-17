@@ -1905,7 +1905,7 @@ DefineTopicTAction(AskAbout)
 ;
 
 DefineTopicTAction(AskFor)    
-    iisConversational = true
+    isConversational = true
 ;
 
 DefineTopicTAction(TellAbout)   

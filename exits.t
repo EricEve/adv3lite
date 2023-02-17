@@ -354,7 +354,8 @@ ExitLister: Lister
 statuslineExitLister: ExitLister
     showListEmpty(pov, parent)
     {
-        "<<statusHTML(3)>><b><<exitsPrefix>></b> <i>None</i><<statusHTML(4)>>";
+        "<<statusHTML(3)>><b><<exitsPrefix>></b> <<BMsg(status line noexits, '<i>None</i>')>>
+        <<statusHTML(4)>>";
     }
     showListPrefixWide(cnt, pov, parent)
     {
