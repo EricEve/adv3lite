@@ -1214,6 +1214,14 @@ class ParseErrorQuestion: Question
 
     /* the curable ParseError that posed the question */
     err = nil
+    
+    /* 
+     *   Should we prioritize interpreting player input to a parser query as a response to that
+     *   query over interpreting it as a nea command (where the latter is possible)? By default we
+     *   do (since this seems more likely to reflect player intention in this case), although game
+     *   code can override if desired.
+     */
+    priority = true
 ;
 
 
