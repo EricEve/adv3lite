@@ -17,7 +17,7 @@ This GitHub repository contains all the source files (.t, .tl and .h) files that
 The adv3Lite library files contained in this repository are those at the current state of development, which are likely to be ahead of the current release version. The current release version, version 1.5, can be found in a zip file [here](https://www.dropbox.com/s/t7jjkzua3ayxk40/adv3Lite15.zip?dl=0). A beta version of the upcoming v. 1.6 release can be found [here](https://www.dropbox.com/s/n9qceshjocgjfxw/adv3Lite16beta.zip?dl=0). Both contain the complete _Library Reference Manual_ alomg with all the other adv3Lite documentation.
 
 ## How is adv3Lite used?
-It would normally be installed under the extensions directory of your TADS 3 user files. Instructions for using it in a TADS 3 project are provided in the adv3Lite documentation. 
+It would normally be installed under the extensions directory of your TADS 3 user files. Instructions for using it in a TADS 3 project are provided in the [adv3Lite documentation](https://github.com/EricEve/adv3lite/wiki/Learning-adv3Lite). 
 
 ## Licensing Information
 Adv3Lite Library Copyright © 2022 Eric Eve
