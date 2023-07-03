@@ -300,10 +300,11 @@ enum rmcDisambig;
 /* 
  *   the probable Action objects of the command being executed for use in verify routines when
  *   resolution of both objects may not be complete. If the gDobj or gIobj is non-nil, use that,
- *   otherwise use the first object in the tentative resolution list.
+ *   otherwise use the first object in the tentative resolution list if the list has any items,
+ *   otherwisse evaluate to failVerifyObj.
  */
-#define gVerifyDobj (gDobj ?? gTentativeDobj[1])
-#define gVerifyIobj (gIobj ?? gTentativeIobj[1])
+#define gVerifyDobj (gDobj ?? (gTentativeDobj.length > 0 ? gTentativeDobj[1] : failVerifyObj))
+#define gVerifyIobj (gIobj ?? (gTentativeIobj.length > 0 ? gTentativeIobj[1] : failVerifyObj))
 
 /* 
  *   An alternative way of dealing with the potential object not yet resolved problem, by testing

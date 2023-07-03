@@ -2272,7 +2272,7 @@ class NounPhrase: object
             && objs.indexWhich({o: o.canSupply}) == nil)
             throw new InsufficientNounsError(cmd, self);
         
-        if (mode == Definite && isAllEquivalent(matches))
+        if (mode == Definite && isAllEquivalent(matches) && matches.length > 1)
             mode = Indefinite;
 
         

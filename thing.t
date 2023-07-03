@@ -5393,6 +5393,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     cannotPutMsg = cannotTakeMsg
     
+       
     dobjFor(PutOn)
     {
         preCond = [objHeld, objNotWorn]
@@ -9321,7 +9322,7 @@ class Key: Thing
              *   We're a logical choice of key if we're a possible key for the
              *   direct object.
              */
-            if(isPossibleKeyFor(gVerifyDobj))
+            if(gVerifyDobj && isPossibleKeyFor(gVerifyDobj))
                 logical;
             
             /* Otherwise we're not a very good choice. */
@@ -9381,7 +9382,7 @@ class Key: Thing
         {
             inherited;
             
-            if(isPossibleKeyFor(gVerifyDobj))
+            if(gVerifyDobj && isPossibleKeyFor(gVerifyDobj))
                 logical;
             else
                 implausible(notAPlausibleKeyMsg);            
@@ -10152,4 +10153,21 @@ Through: ViaType;
  */
 transient displayProbe: object
     displayed = nil
+;
+
+
+/*  
+ *   The failVerifyObj is intended for internal library use only as a fallback value for gVerifyIobj
+ *   or gVerifyDobj when these might otherwise evailuate to nil and potentially cause nil object
+ *   reference runtime errors. Since this is never intended to be a valid verify result,
+ *   failVerifyObj is designed to fail the verify stage of any action.
+ */
+
+failVerifyObj: Thing
+    dobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}
+    iobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}    
+    aobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}   
+    
+    inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
+        of a command. ')
 ;
