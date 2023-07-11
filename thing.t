@@ -8913,6 +8913,13 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
+    /* 
+     *   Do we allow an implicit say command to be directed to this object? Normally we don't. Thuis
+     *   property is only really meaningful on the Actor class but we define it here because it's
+     *   needed by parser.t.
+     */
+    allowImplicitSay = nil
+    
     dobjFor(QueryAbout)
     {
         preCond = [objAudible]
