@@ -630,6 +630,11 @@ class Room: TravelConnector, Thing
         return nil;
     }
     
+    /* Rooms are generally large emough to allow them to be smelt or listened to. */    
+    smellSize = large
+    soundSize = large
+    
+    
     /* 
      *   By default we don't want the examineStatus method of a Room to do
      *   anything except displaying the stateDesc, should we have defined one.
