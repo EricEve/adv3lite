@@ -578,7 +578,7 @@ objSmellable: PreCondition
          
             /* 
              *   If the blocking object is a Room, then obj is in a remote
-             *   location, so the reason the actor can't hear it is that it's
+             *   location, so the reason the actor can't smell it is that it's
              *   too far away.
              */
             if(lst[1].ofKind(Room))

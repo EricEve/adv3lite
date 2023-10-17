@@ -5310,7 +5310,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     /* Most things cannot be gone through */
-    canGoThrougMe = nil
+    canGoThroughMe = nil
     
     dobjFor(GoThrough)
     {
