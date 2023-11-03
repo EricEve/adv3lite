@@ -2225,7 +2225,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     {        
         action()
         {
-            handleTopic(&sayTopics, gIobj.topicList, &defaultSayReponse);
+            handleTopic(&sayTopics, gIobj.topicList, &defaultSayResponse);
         }
     }
     
