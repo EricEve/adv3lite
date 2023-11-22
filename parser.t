@@ -1598,7 +1598,7 @@ class StateDistinguisher: Distinguisher
  */
 ownerDistinguisher: Distinguisher
     sortOrder = 400
-    appliesto(obj) { return obj.nominalOwner() != nil; }
+    appliesTo(obj) { return obj.nominalOwner() != nil; }
     equal(a, b) { return a.nominalOwner() == b.nominalOwner(); }
 ;
 
