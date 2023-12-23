@@ -7324,7 +7324,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     }
     
-    cannotThrowToMsg = BMsg(cannot throw to, '{The subj dobj} {can\'t} catch
+    cannotThrowToMsg = BMsg(cannot throw to, '{The subj iobj} {can\'t} catch
         anything. ')
     
     cannotThrowToSelfMsg = BMsg(cannot throw to self, '{The subj dobj} {can\'t}
