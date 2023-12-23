@@ -211,12 +211,11 @@ modify Thing
     /* [DEFINED IN POSTURES EXTENSION] */
     okayStandOnMsg = BMsg(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
     
-    //*  
-	 * 	Modification for SitOn handling [DEFINED IN POSTURES EXTENSION]
-	 *  If the actor is already on the dobj, we just try to change the actor's posture
-	 *  to sitting. Otherwise we first move the actor to the dobj and then change the
-	 *  actor's posture to sitting.
-	 */
+    /*  
+     *   Modification for SitOn handling [DEFINED IN POSTURES EXTENSION] If the actor is already on
+     *   the dobj, we just try to change the actor's posture to sitting. Otherwise we first move the
+     *   actor to the dobj and then change the actor's posture to sitting.
+     */
     dobjFor(SitOn)
     {
         remap = remapOn
