@@ -254,7 +254,7 @@ symVocabPreinit: PreinitObject
  *   Internally a SymConnector defines a room1 property and a room2 property, room1 and room2 being
  *   the two rooms reciprocally connected by the SymConnector. The room1 and room2 can be set by the
  *   extension at preinit if the connector's destination is specified, but it's probably clearer and
- *   safer to explictly set the room1 and room2 properties.
+ *   safer to explictily set the room1 and room2 properties.
  */
 class SymConnector: TravelConnector
     

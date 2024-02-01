@@ -398,7 +398,7 @@ DefineSystemAction(Brief)
             gameMain.verbose = nil;
             DMsg(game now brief, 'The game is now in BRIEF mode. <<first
                   time>>Full room descriptions will now only be shown on the
-                first visit to a room or in response to an explict
+                first visit to a room or in response to an explicit
                 <<aHref('LOOK', 'LOOK', 'Look
                     around')>> command.<<only>> ');
         }

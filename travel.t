@@ -683,7 +683,7 @@ class Room: TravelConnector, Thing
     }
     
     /* 
-     *   Get the connector object explictly or implicitly defined on prop, even if it uses the
+     *   Get the connector object explicitly or implicitly defined on prop, even if it uses the
      *   asExit macro. If it's not an object, return nil;
      */
     getConnector(prop)
