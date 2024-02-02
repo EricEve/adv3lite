@@ -905,3 +905,98 @@ travelPermitted: PreCondition
     
     preCondOrder = 50
 ;
+
+
+
+/* 
+ *   A PreCondition to check whether an object counts aa currently in the actor's inventory (for the
+ *   purposes of being dropped). 
+ */
+objCarried: PreCondition
+    
+    verifyPreCondition(obj)
+    {
+        /* 
+         *   If the object is fixed in place it can't be picked up, so there's
+         *   no point in trying. BUT we also have to check for the case that the
+         *   object is directly in the player (perhaps because a body part).
+         */        
+        if(obj.isFixed && !obj.isDirectlyIn(gActor))
+            illogical(obj.cannotTakeMsg);
+        
+        
+        /* 
+         *   If the actor isn't carrying the object it's not in the actor's inventory,
+         */        
+        else if(!obj.isIn(gActor))
+            illogicalNow(obj.notHoldingMsg);
+        
+        /*
+         *   If the object isn't directly in the actor and the object's location doesn't allow
+         *   objects to be dropoped from it, then it doesn't count as being in the actor's inventory
+         *   for the purpose of dropping.
+         */
+        else if(obj.location != gActor && !obj.location.canDropContents)
+            illogicalNow(obj.notHoldingMsg);
+        
+        
+        
+        
+        else
+            logical;
+        
+        
+        
+    }
+    
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   if the object is already held, we're already done.
+         */
+        if (obj == nil || obj.isDirectlyIn(gActor))
+            return true;
+        
+        
+        /* 
+         *   If we're allowed to attempt an implicit action, and obj's location allows it, try
+         *   taking obj implicitly and see if we succeed.
+         */
+        if(allowImplicit && obj.location.canDropContents) 
+        {    
+            /* 
+             *   Try taking obj implicitly and note if we were allowed to make
+             *   the attempt.
+             */
+            local tried = tryImplicitAction(TakeFrom, obj, obj.location);
+            
+            /*  
+             *   If obj is now held by the actor return true to signal that this
+             *   precondition has now been met.
+             */
+            if(obj.isDirectlyIn(gActor))
+              return true;   
+            
+            /* 
+             *   Otherwise, if we tried but failed to take obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to take obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;            
+        }
+        
+        /* 
+         *   If we reach here obj isn't being held by the actor and we weren't
+         *   allowed to try to take it; display a message explaining the
+         *   problem.
+         */
+        gMessageParams(obj);
+        DMsg(not held, '{I} {am} not holding {the obj}. ');
+        
+        /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil;        
+    }
+;

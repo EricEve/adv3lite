@@ -4429,31 +4429,25 @@ class Thing:  ReplaceRedirector, Mentionable
     /* The location in which something dropped in me should land. */
     dropLocation = self
     
+    /* 
+     *   Flag: can our contents be dropped when we're in the actor's inventory (if they can, an
+     *   implicit TaksFrom us will be performed to enable the Drop). By default they can't.
+     */
+    canDropContents = nil
+    
     dobjFor(Drop)
     {
-        preCond = [objNotWorn]
+        preCond = [touchObj, objNotWorn, objCarried]
         
         verify()
         {
-            /* I can't drop something I'm not holding */
-            if(!isDirectlyIn(gActor))
-                illogicalNow(notHoldingMsg);
             
             /* 
-             *   Even if something is directly in me, I can't drop it if it's
-             *   fixed in place (since it's then presumably a part of me).
-             */
-            else if(isFixed)
-                illogical(partOfYouMsg);
-            
-            /*  
-             *   And I can't drop something that game code has deemed to be not
-             *   droppable for some other reason.
-             */
-            else if(!isDroppable)
-                illogical(cannotDropMsg);
-            
-            logical;
+             *   This object cannot be dropped if game code deems it to be undroppable for reasons
+             *   beyond throse enforced in the objCarried PreCondition.
+             */            
+            if(!isDroppable)
+                illogical(cannotDropMsg);           
         }
                 
         
