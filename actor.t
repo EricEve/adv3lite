@@ -1445,16 +1445,16 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             /* Note that we were seen leaving. */
             wasSeenLeaving = true;
         }
-        /* Move this actor via conn. */
-        conn.travelVia(self);
-        
+
         /* 
          *   If the player character can see this actor, display a message
          *   indicating this player's departure.
-         */
-        
+         */        
         if(wasSeenLeaving)
             sayDeparting(conn);
+        
+        /* Move this actor via conn. */
+        conn.travelVia(self);
         
         if(announceArrival && !wasSeenLeaving && Q.canSee(gPlayerChar, self))
             sayArriving(oldLoc);
