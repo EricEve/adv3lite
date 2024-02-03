@@ -50,7 +50,16 @@ class SimpleAttachable: Thing
     canAttachToMe = true
     
     /* A SimpleAttachable can have (some) other things detached from it */
-    canDetachFromMe = true
+    canDetachFromMe = true    
+    
+    /* The list of things I'm currentl attached to */
+    attachedToList = []
+    
+    /* The object, if any, I'm currently attached to*/
+    attachedTo = (attachedToList == [] ? nil : attachedToList[1])
+    
+    /* The object, if any, to which I'm initially attached (if I start out attached to anything). */
+    initiallyAttachedTo = nil
     
     
     /* 
@@ -71,7 +80,10 @@ class SimpleAttachable: Thing
     attachTo(obj)
     {
         /* Note that we're now attached to the iobj of the attach action */
-        makeAttachedTo(obj);
+        makeAttachedTo(obj);         
+        
+        /* Add us to the iobj's list of attachments. */
+        obj.attachments = obj.attachments.appendUnique([self]);
         
         /* 
          *   If we're already in our attached location, there's no need to move,
@@ -79,22 +91,19 @@ class SimpleAttachable: Thing
          */
         if(location != attachedLocation)
             actionMoveInto(attachedLocation);
-        
-        /* Add us to the iobj's list of attachments. */
-        obj.attachments += self;
     }
     
-    /* For a SimpleAttachable we just make obj the item we're attached to */
+    /* Add the object we're now attached to to our attachedToList */
     makeAttachedTo(obj)
     {
-        attachedTo = obj;
+        attachedToList = attachedToList.appendUnique([obj]);
     }
     
     /* Detach this item from obj */
     detachFrom(obj)
     {
         /* If we're not attached to obj, then there's nothing to do */
-        if(obj != attachedTo || obj == nil)
+        if(!isAttachedTo(obj))
             return;
         
         /* If we're not already in our detachedLocation, move us there. */
@@ -105,16 +114,16 @@ class SimpleAttachable: Thing
          *   Remove us from the list of attachements of the object to which we
          *   were formerly attached.
          */
-        attachedTo.attachments -= self;
+        obj.attachments -= self;
         
-        /* Note that we're no longer attached to anything. */
+        /* Note that we're no longer attached to obj. */
         makeDetachedFrom(obj);
     }
     
-    /* For a SimpleAttachable detachment reduces our attachedTo to nil */
+    /* FRemove obj the list of objeccts attached to us */
     makeDetachedFrom(obj)
     {
-        attachedTo = nil;
+        attachedToList -= obj;
     }
     
     
@@ -129,8 +138,10 @@ class SimpleAttachable: Thing
             inherited; 
             
             /* We can't be attached while we're already attached */
-            if(attachedTo != nil)
+            if(attachedTo == gVerifyIobj)
                 illogicalNow(alreadyAttachedMsg);
+            else if(attachedTo != nil)
+                illogicalNow(cannotAttachToMoreMsg);
         }
         
         action()
@@ -152,6 +163,10 @@ class SimpleAttachable: Thing
     
     alreadyAttachedMsg = BMsg(already attached, '{The subj dobj} {is} already
         attached to {1}. ', attachedTo.theName)
+    
+    cannotAttachToMoreMsg = BMsg(cannot attach to more, '{I} {can\'t} attach
+        {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
+                                 makeListStr(attachedToList, &theName))      
     
     iobjFor(AttachTo)
     {
@@ -212,7 +227,7 @@ class SimpleAttachable: Thing
                 illogicalNow(notAttachedMsg);  
             
             /* We can't be detached from the iobj if we're not attached to it */
-            else if(attachedToList.indexOf(gVerifyIobj) == nil)
+            else if(!isAttachedTo(gVerifyIobj))
                 illogicalNow(notAttachedToThatMsg);
             
             /* Carry out the inherited handling. */
@@ -251,10 +266,11 @@ class SimpleAttachable: Thing
                 illogicalNow(nothingAttachedMsg);
             
             /* 
-             *   Otherwise we can check whether our list of attachments overlaps
-             *   with the list of tentative direct objects; if it does, we're
-             *   probably a good choice of indirect object.
+             *   Otherwise we can check whether our list of attachments overlaps with the list of
+             *   tentative direct objects; if it does, we're probably a good choice of indirect
+             *   object.             
              */
+            
             else if(attachments.overlapsWith(gTentativeDobj))
                 logicalRank(120);
             
@@ -265,7 +281,7 @@ class SimpleAttachable: Thing
         }
     }
     
-    cannotDetachFromMsg = BMsg(cannot detach from this , 'The {subj dobj}
+    cannotDetachFromMsg = BMsg(cannot detach from this , '{The {ubj dobj}
         {can\'t} be detached from {the iobj}. ')
     
     notAttachedToThatMsg = BMsg(not attached to that, '{The subj dobj} {isn\'t}
@@ -339,11 +355,7 @@ class SimpleAttachable: Thing
     cannotBeAttachedMsg = BMsg(cannot be attached, '{The subj dobj} {cannot} be
         attached to {the iobj}. ')
     
-    /* Am I currently attached to anything? */
-    attachedTo = nil
     
-    /* The list of things I'm attached to */
-    attachedToList = (attachedTo == nil ? [] : [attachedTo])
     
     /* 
      *   By default I'm not listed as a separate object if I'm attached to
@@ -363,7 +375,7 @@ class SimpleAttachable: Thing
     
     /* 
      *   Is there an attachment relationship between myself and obj; there is
-     *   either is obj is attach to me or if I'm attached to obj.
+     *   either is obj is attached to me or if I'm attached to obj.
      */
     isAttachedTo(obj)
     {
@@ -425,9 +437,19 @@ class SimpleAttachable: Thing
         inherited();
         
         /* if I'm attached to anything, add me to its attachment list */
-        if(attachedTo != nil)
-            attachedTo.attachments = 
-            attachedTo.attachments.appendUnique([self]);
+        if(initiallyAttachedTo != nil)
+        {
+            /* 
+             *   Ensure that the object we're attached to has an attachements property defined as a
+             *   list so we don't get a runtime error if our initiallyAttachedTo object isn't a
+             *   SimpleAttachable, although it should be.)
+             */
+            if(initiallyAttachedTo.attachments == nil)
+                initiallyAttachedTo.attachments = [];
+            
+            /* Attach us to the other object. */
+            attachTo(initiallyAttachedTo);          
+        }
     }
 ;
 
@@ -438,7 +460,7 @@ class SimpleAttachable: Thing
  */
 class AttachableComponent: SimpleAttachable
    
-    /* A Component if firmly attached to its parent. */
+    /* A Component is firmly attached to its parent. */
     isFirmAttachment = true
     
     /* A Component's locType is PartOf while it's attached */
@@ -454,7 +476,7 @@ class AttachableComponent: SimpleAttachable
     preinitThing()
     {
         /* Carry out the inherited handling. */
-        inherited;
+        inherited Thing;
         
         /* 
          *   If we start out initiallyAttached, note that we're attached to our
@@ -463,7 +485,7 @@ class AttachableComponent: SimpleAttachable
         if(initiallyAttached)
         {
             /* A Component is attached to its immediate location. */
-            attachedTo = location;
+            attachedToList = [location];
             
             /* 
              *   It's possible that we're a component of something that isn't an
@@ -495,9 +517,7 @@ class AttachableComponent: SimpleAttachable
      */    
     initiallyAttached = true
     
-    /* The object to which this Component is attached. */
-    attachedTo = nil
-    
+       
     cannotTakeMsg = (delegated Component) 
     
 ;
@@ -555,18 +575,6 @@ class NearbyAttachable: SimpleAttachable
  *   thing at a time, like a length of cable connecting two devices.
  */
 class Attachable: NearbyAttachable
-    /* 
-     *   Strictly speaking, the attachedTo property of an Attachable is a bit
-     *   arbitrary when the Attachable is attached to more than one thing; we
-     *   arbitrarily choose the first thing in its attachedToList.
-     */
-    attachedTo = (attachedToList.length == 0 ? nil : attachedToList[1])
-    
-    /* 
-     *   The list of things to which I'm attached (as opposed to things attached
-     *   to me).
-     */
-    attachedToList = []
     
     /* 
      *   The maximum number of things I can be attached to at once. By default
@@ -576,21 +584,7 @@ class Attachable: NearbyAttachable
      *   can be attached to at once, make maxAttachedTo nil.
      */
     maxAttachedTo = 2
-    
-    /* To make me attached to obj, add obj to my attachedTo list. */
-    makeAttachedTo(obj)
-    {
-        attachedToList = attachedToList.appendUnique([obj]);
-    }
-    
-    /* 
-     *   To make something detached from me, remove obj from my attachedTo list.
-     */
-    makeDetachedFrom(obj)    
-    {
-        attachedToList -= obj;
-    }
-        
+   
     
     /* 
      *   Since an ATTACHABLE could potentially be in a many-to-many
@@ -623,16 +617,21 @@ class Attachable: NearbyAttachable
         {
             inherited Thing;  
             
-            if(maxAttachedTo != nil && attachedToList.length >= maxAttachedTo)
+            if(isAttachedTo(gVerifyIobj))
+            {                            
+                illogicalNow(alreadyAttachedToIobjMsg);
+            }
+            
+            else if(maxAttachedTo != nil && attachedToList.length >= maxAttachedTo)
                 illogical(cannotAttachToMoreMsg);
         }       
         
     }        
    
-    cannotAttachToMoreMsg = BMsg(cannot attach to more, '{I} {can\'t} attach
-        {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
-                                 makeListStr(attachedToList, &theName))                        
+                      
     
+    alreadyAttachedToIobjMsg = BMsg(alreadt attached to iobj, '{The subj dobj} {is} already
+        attachd to {1}. ', gVerifyIobj.theName) 
     
     /* 
      *   I'm attached to obj in the broad sense of having an attachement
