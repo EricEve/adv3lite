@@ -58,7 +58,10 @@ class SimpleAttachable: Thing
     /* The object, if any, I'm currently attached to*/
     attachedTo = (attachedToList == [] ? nil : attachedToList[1])
     
-    /* The object, if any, to which I'm initially attached (if I start out attached to anything). */
+    /* 
+     *   The object, if any, to which I'm initially attached (if I start out attached to anything).
+     *   If this is defined, it should be another SimpleAttachable or subclass thereof.
+     */
     initiallyAttachedTo = nil
     
     

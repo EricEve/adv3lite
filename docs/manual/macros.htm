@@ -1,0 +1,110 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Final Moves &mdash; Macros</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Macros
+<br><span class="navnp"><a class="nav" href="lister.htm"><i>Prev:</i> Lists and Listers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Macros</h1>
+ 
+ <h2>Introduction &mdash; Convenient Abbreviations</h2>
+ 
+<p>A macro is a kind of convenient abbreviation. Put more technically, it is a string of text that the TADS 3 <a href="https://www.tads.org/t3doc/doc/sysman/preproc.htm">preprocessor</a> replaces with another (usually more elaborate) string of text before the source file is passed to the compiler for compilation, so that the compiler "sees" the text that has replaced the macro. This can be used to save typing as well as easing the job of coding by allowing game authors to use a relativelty short and memorable name for something in place of a longer and more complex expression it may be harder to remember.</p>
+
+<p>TADS 3 has no concept of a global variable (that is a variable with a name like <span class='code'>turnCount</span>) accessible from any part of game code. Instead global valuables have to be stored as object properties, such as <span class='code'>libGlobal.totalTurns</span>. This may be a little tricky to remember and a little long-winded to type, so the adv3Lite library defines the macro <span class='code'>gTurns</span> which can be used in its place. Similarly the library defines the macro <span class='code'>gRoom</span> as convenient shorthand for (<span class='code'>gPlayerChar.getOutermostRoom)</span> as a convenient way to refer to the room in which the player character is currently located (which is not necessarily the same as the player character's location if the player character is in a nested room such as a bed or chair). This makes absolutely no difference to the compiler, but it can make it quite a bit easier for you to write and read your code.</p>
+
+<p>A second kind of macro found in the adv3Lite library resembles a function (and in some, though not all cases, could have been implemented as a function). For example, when a verify routine calls <span class='code'>illogical(msg)</span>), this is in fact a macro, which in this case expands to <span class='code'>gAction.addVerifyResult(new VerifyResult(30, msg, nil, self))</span>, an expression it would once again be trickier to type and less clear to read. This could have been written as a function, although in theory the macro should be slightly more efficient at run-time (since it avoids the overhead of the function call, probably minimal in practice), but there are some function-like macros that can do things a function call could not. For example, <span class='code'>goInstead</span> is syntactic sugar for <span class='code'>doInstead(go, northDir)</span>, avoiding the need to add "Dir" to the end of the direction name. This macro is defined as <span class='code'>goInstead (dirn) doInstead(Go, dirn##Dir)</span>, which makes use of token-pasting (via the ## synmbol) to add "Dir" to the end of the parameter name passed to it, something a function call could not have done.</p>
+
+<p>A third kind of macro used in adv3Lite executes a command and might resemble a reserved in the TADS 3 programming language, at least in appearance. For example, the macro <span class='code'>exit</span> superficially resembles the reserved word <span class='code'>break</span> in the TADS 3 language, but while <span class='code'>break</span> is a keyword used to break out of certain programming structures, <span class='code'>exit</span> is a macro that expands to <span class='code'>throw new ExitSignal()</span>. This is something most game authors won't need to worry about too much under most circumstances, but it may occasionally be helpful to be aware of the difference.</p>
+
+<p>The fourth kind of macro used in adv3Lite is used to create or defined certain library-specific programming structures as <span class='code'> dobjFor(Whatever)</span> or <span class ='code'>DefineTIAction(Whatever)</span>, again in ways that can save quite a bit of typing and make the code more readable.</p>
+
+<p>Most of the time you won't need to know too much about what's going on under the hood with these macros, provided you know how to use them. The use of the most common ones has been covered in earlier chapters. For a complete list of all the macros defined in the adv3Lite library, refer to the Macros tab of the <a href='../libref/index.html'>adv3Lite Library Reference Manual</a>. One thing you do need to knowm though, is that none of these macros will work unless they're defined in whichever source file you're working on. This is why you need to include advlite.h in each of your game source files, along with tads.h:</p>
+
+<pre><div class='code'>
+#charset "us-ascii"
+
+#include &lt;tads.h&gt;
+#include "advlite.h"
+</div></pre>
+<br>
+<h2>Some Useful g Macros</h2>
+<p>As atated above, a complete list of adv3Lite macros can be found in the adv3Lite Library Reference Manual, so there is no need to reproduce it here. Instead we give a list of some of the more useful macros with names beginning g (because they often mimic global variables, or at least global values that may be of use to game authors):</p>
+
+<ul>
+<li><strong>gAcc</strong>: <span class='code'>gAction.curAobj</span> - the current auxiliary object of a <a href='../../extensions/docs/tiaaction.htm'>TIA Action</a></li>
+<li><strong>gAction</strong>: <span class='code'>(libGlobal.curAction)</span> - the current action</li>
+<li><strong>gActionIn (action, ...)</strong>: <span class='code'>(gAction != nil \
+&& (action#foreach/gAction.ofKind(action)/||/))</span> -
+is the current global action ANY of the specified actions?</li>
+<li><strong>gActionIs</strong>:<span class='code'>((gAction != nil && gAction.ofKind(action))</span> - Determine if the current global action is the specified action.
+<li><strong>gActionList</strong>: <span class='code'>(nilToList(gCommand.action.actionList))</span> - the list of (dirrect) objects involved in the action just completed.
+<li><strong>gActionListObj</strong> - an object that is singular or plural according to whether gActionList represents a single object or a plurality of objects, and which picks up the correct gender if there is only a single object.
+<li><strong>gActionListStr</strong>: <span class='code'>makeListStr(gCommand.action.reportList, &amp;theName)</span> a string version of gActionList.</li>
+<li><strong>gActor</strong>: <span class='code'>(libGlobal.curActor)</span> - the actor performing the current command.</li>
+<li><strong>gAobj</strong>:	<span class='code'>gAction.curAobj</span> -  the auxiliary object of the current <a href='../../extensions/docs/tiaaction.htm'>TIA Action</a>.</li>
+<li><strong>gCommand</strong>: <span class='code'>(libGlobal.curCommand)</span> - the current Command object.</li>
+<li><strong>gCommandToks</strong>:<span class='code'>(gCommand == nil || gCommand.verbProd == nil ? [] \ : gCommand.verbProd.tokenList.mapAll({t: getTokVal(t)}))</span> -  Get the command tokens for the current command (i.e., the words entered by the player as a list of strings). See also gVerbPhrase.</li>
+<li><strong>gDobj</strong>: <span class='code'>(gAction.curDobj)</span> - the direct object of the current action.</li>
+<li><strong>gExitLister</strong>: <span class='code'>(libGlobal.exitListerObj) the exit lister object</span> - if the exits module isn't included in the game, this will be nil.</li>
+<li><strong>gExtraHintManager</strong>: <span class='code'>(libGlobal.extraHintManagerObj)</span> - the extra hint manager object - if the hints module isn't included in the game, this will be nil.</li>
+<li><strong>gHintManager</strong>: <span class='code'>(libGlobal.hintManagerObj)</span> - the hint manager object - if the hints module isn't included in the game, this will be nil.</li>
+<li><strong>gInformed(key)</strong>: <span class='code'>(getActor.informedAbout(key))</span> - has a topic key been revealed to an NPC through &lt;.inform&gt;?</li>
+<li><strong>gIobj</strong>:	<span class='code'>(gAction.curIobj)</span> - the current indirect object of the current action.</li>
+<li><strong>gLastAction</strong>: <span class='code'>(libGlobal.lastAction)</span> - the previous action.</li>
+<li><strong>gLastCommand</strong>: <span class='code'>(libGlobal.lastCommand)</span> - the previous command (as a Command object).</li>
+<li><strong>gLibMessages</strong>: (<span class='code'>libGlobal.libMessageObj)</span> - The current library messages object. This is the source object for messages that don't logically relate to the actor carrying out the comamand. It's mostly used for meta-command replies, and for text fragments that are used to construct descriptions.</li>
+<li><strong>gLiteral</strong>: <span class='code'>(gAction.literal)</span> - the text of the literal string entered by the player for a LiteralAction or LiteralTAction.</li>
+<li><strong>gLocation</strong>:	<span class='code'>(gPlayerChar.location)</span> -  get the player character's location; note that this is not necessarily the same as the player character's current room, for which use <span class='code'>gRoom</span>.</li>
+<li><strong>gMessageParams(var, ...)</strong>: <span class='code'>(gAction.setMessageParams(var#foreach/#@var, var/,/))</span> - allows you to define your own temporary <a href='message.htm#parameter'>Message Substitution Parameters</a>.</li>
+<li><strong>gNumber</strong>: (<span class='code'>gAction.num)</span> - the numerical value entered by the player in a NumericAction or NumericTAction.</li>
+<li><strong>goInstead(dirn)</strong>:  <span class='code'>doInstead(Go, dirn##Dir)</span> - replacedthe current action with travel in the direction specified, e.g. <span class='code'>goInstead(north)</span>.</li>
+<li><strong>goNested(dirn)</strong>: <span class='code'>doNested(Go, dirn##Dir)</span> - like <span class='code'>goInstead(dirn)</span> except that the travel action is carried out as part of the current action instead of replacing it.</li>
+<li><strong>gOutStream</strong>: <span class='code'>(outputManager.curOutputStream)</span> - the current OutputStream object.</li>
+<li><strong>gPlayerChar</strong>: <span class='code'>(libGlobal.playerChar)</span> - the current player character object.</li>
+<li><strong>gReveal(key)</strong>:	<span class='code'>(libGlobal.setRevealed(key))</span> reveal a topic key, as though through &lt;.reveal&gt;.</li>
+<li><strong>gRevealed(key)</strong>: <span class='code'>(libGlobal.revealedNameTab[key] != nil)</span> - has a topic key been revealed through &lt;.reveal&gt;?</li>
+<li><strong>gRoom</strong>:	<span class='code'>(gPlayerChar.getOutermostRoom)</span> - get the player character's current room (which may or may not be the same as their location).</li>
+<li><strong>gSetKnown(obj)</strong>: <span class='code'>(gPlayerChar.setKnowsAbout(obj))</span> - mark a Topic/Thing as known by the player character.</li>
+<li><strong>gSetSeen(obj)</strong>: <span class='code'>(gPlayerChar.setHasSeen(obj))</span> - mark a Thing as seen by the player character.</li>
+<li><strong>gTentativeDobj</strong>: <span class='code'>(gCommand.dobjs.mapAll({x: x.obj}).toList)</span> - a list of the possible direct objects of the current action, before the direct object has been fully resolved (for use in the verify routine in the <span class='code'>iobjFor()</span> block of a TIAction where the indirect object is resolved first).</li>
+<li><strong>gTentativeDobjIn(lst)</strong>: <span class='code'>(gTentativeDobj.overlapsWith(lst))</span> - An alternative way of dealing with the potential object not yet resolved problem, by testing whether any of the objects in lst are in the Tentative Object List.</li>
+<li><strong>gTentativeIobj</strong>: <span class='code'>(gCommand.iobjs.mapAll({x: x.obj}).toList)</span> - a list of the possible indirect objects of the current action, before the direct object has been fully resolved (for use in the verify routine in the <span class='code'>dobjFor()</span> block of a TIAction where the direct object is resolved first).</li>
+<li><strong>gTentativeIobjIn(lst)</strong>: <span class='code'>(gTentativeIobj.overlapsWith(lst))</span> - An alternative way of dealing with the potential object not yet resolved problem, by testing whether any of the objects in lst are in the Tentative Object List.</li>
+<li><strong>gTopic</strong>: <span class='code'>(gAction.curTopic)</span> - the ResolvedTopic object associated with the current <a href='topicact.htm'>TopicAction</a> or TopicTAction.</li>
+<li><strong>gTopicMatch</strong>: <span class='code'>(gTopic.getBestMatch)</span> - the Thing or Topic object that's the best match to the topic entered by the player in the current TopicAction or TopicTAction.</li>
+<li><strong>gTopicText</strong>: <span class='code'>(gTopic.getTopicText)</span> - the topic text entered by the player for the current TopicAction or TopicTAction.</li>
+<li><strong>gTravelActionIs(dirn)</strong>:	<span class='code'>(gAction != nil &amp;&amp; gAction.ofKind(Travel) &amp;&amp; gAction.direction == dirn ## Dir)</span> - tests whether the current action is a Travel action going <i>dirn</i>.</li>
+<li><strong>gTurns</strong>: <span class='code'>(libGlobal.totalTurns)</span> - get the current turn count. </li>
+<li><strong>gUnreveal(key)</strong>: <span class='code'>(libGlobal.setUnrevealed(key))</span> - remove a topic key, as though through &lt;.unreveal&gt;.
+<li><strong>gVerbPhrase</strong>: <span class='code'>(gCommand.getCommandPhrase())</span> - Get the command phrase for the current command.This will be in a form in which the actual object names replaced by place-holders: '(dobj)' for the direct object and '(iobj)' for the indirect object. So if the command were ATTACK BIG JIM WITH SHARP SWORD, <span class='code'>gVerbPhrase</span> would be 'attack (dobj) with (iobj)'. This can provide additional useful information if the meaning of the command depends on more than one word (e.g. PUT ON versus PUT IN).</li>
+<li><strong>gVerbWord</strong>:	<span class='code'>(gCommand == nil || gCommand.verbProd == nil ? '' \ : getTokVal(gCommand.verbProd.tokenList[1]))</span> - Get the first word the player entered for the current command.</li>
+<li><strong>gVerifyDobj</strong>: <span class='code'>(gDobj ?? (gTentativeDobj.length > 0 ? gTentativeDobj[1] : failVerifyObj))</span> - the parser's best guess at the direct object of the current command (for use in the <a href="actres.htm#gTentative">verify</a> routine in the <span class='code'>iobjFor()</span> block of a TIAction where the indirect object is resolved first).
+<li><strong>gVerifyIobj</strong>: (<span class='code'>gIobj ?? (gTentativeIobj.length > 0 ? gTentativeIobj[1] : failVerifyObj))</span> - the parser's best guess at the indirect object of the current command(for use in the verify routine in the <span class='code'>dobjFor()</span> block of a TIAction where the iirect object is resolved first).
+</ul>
+
+ 
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="final.htm">Final Moves</a> &gt; 
+Macros
+<br><span class="navnp"><a class="nav" href="lister.htm"><i>Prev:</i> Lists and Listers</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="webui.htm"><i>Next:</i> The Web UI</a> &nbsp;&nbsp;&nbsp; </span>
+
+
+
+
+</div>
+</body>
+</html>
