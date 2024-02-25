@@ -1074,6 +1074,102 @@ class Door: TravelConnector, Thing
     traversalMsg = BMsg(traverse door, 'through {1}', theName)
 ;
 
+
+/* 
+ *   A DSDoor (Double Sided Door) can be used to implement a door as a single object present in two
+ *   locations (defined on its room1 and room2 properties) instead of having to define the two sides
+ *   of the door as two separate Door objects. This will often be convenient whenever the two sides
+ *   of the door are sufficiently similar (in having the name name and vocab, even if their
+ *   descriptions vary slightly, which can be achieved by writing a description that varies
+ *   according to the location of the player character). Although both sides of a DSDoor need to be
+ *   referred to by the player using the same vocab words, players can additionally refer to a
+ *   DSDoor by its direction relative to the player character (e.g. EAST DOOR or NW DOOR); this is
+ *   handled automatically by the DSDoor class without game authors needing to handle such
+ *   directional adjectives themselves.
+ */
+class DSDoor: MultiLoc, Door
+    
+    /* One of the rooms this door is located in */
+    room1 = nil
+    
+    /* The room the other side of the door is located in */
+    room2 = nil
+    
+    /* We're located in the rooms on both side of us. */
+    locationList = [room1, room2]
+    
+    /* 
+     *   As we're a double-sided door, we only need to manage our own isOpen status; we don't need
+     *   to refer to our other side.
+     */
+    makeOpen(stat) { isOpen = stat; }
+    
+    /* 
+     *   As we're a double-sided door, we only need to manage our own isOLocked status; we don't
+     *   need to refer to our other side.
+     */    
+    makeLocked(stat) { isLocked = stat; }
+    
+    /*   
+     *   Our destination (the room to which we lead) depends on which side of us the actor going
+     *   through us is starting from.
+     */
+    destination = gActor.isIn(room1) ? room2 : room1
+    
+    /*   
+     *   We need to use Tbing's preinitTbing() method rather than Door's, since Door's does a whole
+     *   lot with our otherSide property, which we don't need or want to use.
+     */
+    preinitThing() { inherited Thing(); }
+    
+    
+     
+    /* 
+     *   Returns the direction property to which this door is connected in
+     *   the player character's current location, e.g. &west. This is used by
+     *   DirState to add the appropriate adjective (e.g. 'west') to our vocab,
+     *   so that the player can refer to us by the direction in which we lead.
+     *   If you don't want this direction to be included in the vocab of this
+     *   object, override attachedDir to nil.
+     */
+    attachedDir()
+    {
+        /* 
+         *   Get the direction this door leads in from the player character's current location.
+         */
+        local dir = doorDir();     
+        
+        /* 
+         *   Return the direction property of that location which points to this
+         *   door.
+         */
+        return dir == nil ? nil : dir.dirProp;         
+    }
+    
+    /*  
+     *   Returns the direction in which this door leads from the player character's current location
+     *   (or nil, if the player character isn't in one of the rooms this door is located it).
+     */
+    doorDir()
+    {
+         /* Get the player character's current room location. */
+        local loc = gPlayerChar.getOutermostRoom;
+        
+        /*  
+         *   Get the direction object whose dirProp corresponds to the dirProp
+         *   on the room which points to this object (we do this because
+         *   Direction.allDirections provides the only way to get at a list of
+         *   every dirProp).
+         */
+        local dir = Direction.allDirections.valWhich(
+            { d: loc.propType(d.dirProp) == TypeObject 
+            && loc.(d.dirProp) == self });
+        
+        return dir;
+    }
+;
+
+
   /* 
    *   A TravelConnector is an object that can be attached to the directional
    *   exit property of a room to facilitate (or optionally block) travel in the

@@ -2296,7 +2296,7 @@ class NounPhrase: object
                  *   role so that it can be available to the verify routine for
                  *   the other role; so we store a reference now.
                  */
-                cmd.action.(role.curObjProp) = cmd.(role.objListProp)[1].obj;
+                cmd.action.(role.objProp) = cmd.(role.objListProp)[1].obj;
             break;
 
         case Indefinite:

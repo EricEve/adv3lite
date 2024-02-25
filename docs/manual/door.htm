@@ -17,6 +17,8 @@ Doors
 <div class="main">
 <h1>Doors</h1>
 
+<h2>Standard Doors</h2>
+
 <p>A Door is an object that can be attached to the direction property of a Room, and which can be open and closed and optionally locked and unlocked, and which has to be open to allow an actor to pass through it. As in the adv3 library, so also in adv3Lite a physical door is represented by two game objects, each representing one side of the door (in each of the two locations connected by the door). To create a door, then, it is necessary to define a Door object in each location attached to the appropriate direction property; to let the library know that these are two sides of the same door it is further necessary to set the <strong>otherSide</strong> property of each Door object to point to the other Door object, for example:</p>
 
 <p><div class=code><pre>
@@ -62,7 +64,90 @@ drive: Room 'Front Drive' 'front drive'
 <li>If an actor tries to pass through a door that is closed, the game will attempt to open the door via an implicit action and will block the travel if the door remains closed because it was locked, unless the door's <strong>autoUnlock</strong> property is true, in which case attempting to open the door will trigger an attempt to unlock it via an implicit action provided the attempt has a plausible chance of success (either because the door doesn't need a key or because the actor possesses a key that might plausibly unlock the door).</li>
 </ul>
 
-<p>Finally, note that to define the front door in the example above we had to define two objects, <span class="code">frontDoor</span> and <span class="code">frontDoorOutside</span>, each representing one side of the door. This is nearly always the case when using the Door class (unless you're using it to define a dummy door that can never be opened). For doors that are the same both sides you may find it easier to use the <a href="../../extensions/docs/symconn.htm#symdoor">SymDoor</a> class defined in the <a href="../../extensions/docs/symconn.htm">symconn</a> extension, since this allows you to define a door using only one game object instead of two. To take advantage of this class you would need to explicitly include the symconn extension in your build.</p>
+<p>Finally, note that to define the front door in the example above we had to define two objects, <span class="code">frontDoor</span> and <span class="code">frontDoorOutside</span>, each representing one side of the door. This is nearly always the case when using the Door class (unless you're using it to define a dummy door that can never be opened). For doors that are the same both sides you may find it easier to use the <a href='#dsdoor'>DSDoor</a> (double sided door) class desscribed below or the <a href="../../extensions/docs/symconn.htm#symdoor">SymDoor</a> class defined in the <a href="../../extensions/docs/symconn.htm">symconn</a> extension, since this allows you to define a door using only one game object instead of two. To take advantage of this class you would need to explicitly include the symconn extension in your build.</p>
+<br>
+
+<a name='dsdoor'></a>
+<h2>Double Sided Doors</h2>
+<p>The <strong>DSDoor</strong> (double sided door) class allows you to define each door as a single object. Where both sides of a door are pretty much the same, this may be easier and simpler than having to define each side of the door as a separater object. The DSDoor class inherits from the Door class and shares many of its properties and methods, apart from the differences noted below.</p>
+
+<p>To create a DSDoor, set its <strong>room1</strong> and <strong>room2</strong> properties to each of the two rooms the door connects. Do not define its location property (either explicitly or via the Template or with the + notation, the reason being that a DSDoor is a <a href='multiloc.htm'>MultiLoc</a>), and do not define its otherSide property. For example, by using a DSDoor in place of two Door objects, we can rewrite the previous example thus:</p>
+
+<p><div class=code><pre>hall: Room 'Hall' 'hall'
+   "The front door lies to the west. "
+   west = frontDoor
+;
+
+frontDoor: DSDoor 'front door; solid oak' 
+    "It's a solid oak front door, strong enough to resist a siege. "
+   
+    lockability = lockableWithKey
+    isLocked = true    
+    room1 = hall
+    room2 = drive
+;
+
+
+drive: Room 'Front Drive' 'front drive'
+    "The front drive sweeps round from the northwest and comes to an end just in
+    front of the house, which stands directly to the east. A narrow path runs
+    round the side of the house to the southeast. "
+    
+    east = frontDoor
+;
+</div></pre>
+
+<p>A DSDoor can be given a different description on each side by defining its description property to check where it's being viewed from. For example:</p>
+
+<p><div class=code><pre>hall: Room 'Hall' 'hall'
+frontDoor: DSDoor 'front door; solid oak' 
+    "It's a solid oak front door, strong enough to resist a siege, &lt;&lt;if gRoom == room2&gt;&gt; and sporting
+      a large brass knocker&lt;&lt;else&gt;&gt; although a series of scratch marks suggest Fido has tried
+      to break out&lt;&lt;end&gt;&gt;."
+   
+    lockability = lockableWithKey
+    isLocked = true    
+    room1 = hall
+    room2 = drive
+;
+</div></pre>
+
+<p>Where <strong>gRoom</strong> is a library-defined macro that expands to <span class='code'>gPlayerChar.getOutermostRoom()</span>, i.e. the player character's current room.</p>
+
+<p>The above description might suggest there needs to be a knocker object on one side of the door and a scratch mark object on the other side 
+of the door. These could be implemented as Fixtures or Decorations in <span class='code'>drive</span> and <span class='code'>hall</span> respectively,
+but it you prefer to keep these objects with the door, you could do this by defing them as components of the door using their <span class='code'>isHidden</span> property to hide them from view on the 'wrong' side of the door, for example:</p>
+
+<p><div class=code><pre>
+   + knocker: Component 'brass knocker; big large'
+       "The knocker is in the form of a lion's head with a ring through its nose. "
+        isHidden = (gRoom != drive)
+     ;
+</div></pre>
+
+<p>If you want to include the direction a door leads in its description, you could do so by testing which room the player character is in and using an expression like <span class='code'>&lt;&lt;if gRoom == room2 ? 'west' : 'east'&gt;&gt;</span> in your description, or you could instead leverage the DSDoor's <strong>doorDir()</strong> method to use <span class='code'>&lt;&lt;doorDir().name&gt;&gt;</span> to achieve the same result a bit more economically. A DSDoor's <span class='code'>doorDir()</span> method returns the Direction object corresponding to the door's direction relative to the player character.</p>
+
+<p>Although you can't readily give the two sides of a DSDoor different vocab (to allow the player to refer to them with different words), the DSDoor class automatically takes care of the case where the player refers to a door by its direction, e.g. X EAST DOOR or OPEN NW DOOR. There is no need to add such direction terms to the definition of the DSDoor (indeed, you should not do so), since the parser will automatically recognize the direction in which a DSDoor lies relative to the player character as referring to that DSDoor. If you don't want that behaviour on a particular DSDoor, simply override its <strong>attachedDir</strong> property to nil.</p>
+
+<p>If you want to DSDoor to be called 'north door' on one side and 'south door' on the other, this can be done, but needs a bit of caution. The following will cause a run-time error at the start of the game:</p>
+
+<p><div class=code><pre>
+frontDoor: DSDoor 'door; solid oak' 
+    "It's a solid oak front door, strong enough to resist a siege, &lt;&lt;if gRoom == room2&gt;&gt; and sporting
+      a large brass knocker&lt;&lt;else&gt;&gt; although a series of scratch marks suggest Fido has tried
+      to break out&lt;&lt;end&gt;&gt;."
+   
+    name = (gRoom == room1 ? 'north door' : 'south door')
+    lockability = lockableWithKey
+    isLocked = true    
+    room1 = hall
+    room2 = drive
+;
+</div></pre>
+
+<p>The reason being that gPlayerChar may not have been assigned a value when the game starts up, so that when it tries to initialize the frontDoor it runs into a nil object reference (through testing the location of nil). If your game contains an unchanging player character object such as <span class='code'>me</span> it would be safer to write <span class='code'>name = (me.getOutermostRoom == room1 ? 'north door' : 'south door')</span>.
+
+<p>Anything more complicated than these cases is probably best handled by implementing your door with two Door objects to represent the two different sides. The other possibility is to include the <a href="../../extensions/docs/symconn.htm">symconn</a> extension in your game and use the <a href="../../extensions/docs/symconn.htm#symdoor">SymDoor</a> class.
 
 </div>
 <hr class="navb"><div class="navb">
