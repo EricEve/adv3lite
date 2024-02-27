@@ -7187,7 +7187,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isTakeable)
                 illogical(cannotTakeMsg);
             
-            if(gIobj.notionalContents.indexOf(self) == nil)
+            if(gVerifyIobj.notionalContents.indexOf(self) == nil)
                 illogicalNow(notInMsg);
             if(self == gVerifyIobj)
                 illogicalSelf(cannotTakeFromSelfMsg);
