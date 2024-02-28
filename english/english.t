@@ -3800,7 +3800,40 @@ askAmbiguous(cmd, role, names)
     else
         q = nounRoleQuestion(cmd, role)
         .findReplace('what', 'which', ReplaceOnce);
+    
+    
+    /* 
+     *   If the option to enumerate the dimabigiation possibilites is set, then prerix every item in
+     *   the list with a number.
+     */
+    if(libGlobal.enumerateDisambigOptions)
+    {
+        /* Set up a new list to hold the numbered names */
+        local numbered_names = [];
         
+        /* The current item in the list of names */
+        local item;
+        
+        /* For each item in the list of names, prepend its number in the list. */
+        for(local i in 1 .. names.length)
+        {
+            /* 
+             *   Prepend the number represented the place in the list to the name of the item in the
+             *   list.
+             */
+            item = '<b>(' + toString(i) + ')</b> ' + names[i];
+            
+            /* Add the numbered item to the list of numbered names; */
+            numbered_names += item;
+        }
+        
+        /* Copy the numbereed list to the original list of names. */
+        names = numbered_names;
+        
+        /* Note the number of available choices. */
+        libGlobal.disambigLen = names.length;
+    }
+    
     /* ask the question */
     "\^<<q>>, <<orList(names)>>?\n";
 }
@@ -5977,6 +6010,58 @@ decimalPreParser: StringPreParser
         return str;
     }
 ;
+
+/* 
+ *   PreParser to convert a number input by the player (e.g. 1 or 2) in response to a diambiguation
+ *   prompt into the corresponding ordinal (e.g., first or second) so that the parser will recognize
+ *   it as choosing one of the options.
+ */
+
+disambigPreParser: StringPreParser
+    doParsing(str, which)
+    {
+        /* 
+         *   If we are disammguating and the option to enumerate the list of possible responsses is
+         *   set, then see if the player has entered a number and convert it to its corresponding
+         *   ordinal (e.g. '1' to 'first')
+         */
+        if(which == rmcDisambig && libGlobal.enumerateDisambigOptions)
+        {
+            
+            /* First strip our any extraneous bracekts the player may have typed. */
+            local str2 = str.findReplace(['(', ')'], '');
+            
+            /* Then try to convert the player's input into an integer. */                       
+            local num = tryInt(str2);            
+            
+            /* 
+             *   If we have an integer and it's less than the number of ordinals that we define, and
+             *   it's within the allowable range of disambig options then return the ccrresponding
+             *   ordinal number.
+             */
+            if(num && num <= ordinals.length && num > 0)
+            {    
+                if(num <= libGlobal.disambigLen)
+                    return ordinals[num];    
+                
+                "There were only <<libGlobal.disambigLen>> options.<.p>";
+                return nil;
+            }
+        }       
+        
+           
+        /* return the original string unchanged */
+        return str;
+    }
+    
+    /* 
+     *   The list of cardinal numbers. We only list the first 12 here since it seems highly unlikely
+     *   that a player would be presented with a list of more than twelve diambiguation options.
+     */
+    ordinals = ['first', 'second', 'third', 'fourth' ,'fifth', 'sixth', 'seventh',
+        'eighth', 'ninth', 'tenth', 'eleventh', 'tweltfh' ];
+;
+
 
 
 /* 

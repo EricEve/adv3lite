@@ -849,6 +849,20 @@ libGlobal: object
      *   code could override this.
      */
     inventoryTall = nil     
+    
+    /*
+     *   Flag: do we wish to present the player with an enumerated list of disambiguation options
+     *   (e.g. "Which coin do you mean:(1) the gold coin or (2) the silver coin? to which they can
+     *   simply reply 1 or 2). By default we do but game authors can disable this behaviour by
+     *   setting this flag to nil.
+     */
+    enumerateDisambigOptions = true
+    
+    /*  
+     *   The current number of disambiguation options to choose from. This is for use by the
+     *   DisambigPreparser to prevent acceptance of a number out of range.
+     */
+    disambigLen = 0
 ;
 
 

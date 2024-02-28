@@ -71,6 +71,13 @@ spellingCorrector: object
 
         /* get the token in question */
         local a = toks[idx], aw = getTokVal(a);
+        
+        /* 
+         *   If the player has entered a number that's out of range, don't attempt to correct it,
+         *   since this will probably just be confusing.
+         */
+        if(err.ofKind(OrdinalRangeError))
+            return nil;
 
         /* 
          *   if the token is completely non-alphabetic, don't attempt
@@ -466,6 +473,13 @@ class SpellingHistory: object
 
         /* if spelling correction is disabled, we can't correct anything */
         if (!parser.autoSpell)
+            return nil;
+        
+        /*  
+         *   Don't try to correct an OrdinalRangeError; the player will have typed a number out of
+         *   range and the correnction will probably be confusing.
+         */
+        if(err.ofKind(OrdinalRangeError))
             return nil;
 
         /* if we've exhausted the spelling correction time limit, give up */
