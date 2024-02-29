@@ -856,7 +856,7 @@ libGlobal: object
      *   simply reply 1 or 2). By default we do but game authors can disable this behaviour by
      *   setting this flag to nil.
      */
-    enumerateDisambigOptions = true
+    enumerateDisambigOptions = true   
     
     /*  
      *   The current number of disambiguation options to choose from. This is for use by the

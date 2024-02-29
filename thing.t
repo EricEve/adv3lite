@@ -7187,9 +7187,48 @@ class Thing:  ReplaceRedirector, Mentionable
             if(!isTakeable)
                 illogical(cannotTakeMsg);
             
-            if(gVerifyIobj.notionalContents.indexOf(self) == nil)
+            /* Test whether we are contained in any possible iobj. */
+            local contained = nil;
+            
+            /* 
+             *   If we already know what the indirect object is, test if we are in its contents
+             *   (which may include one of its remapXXX subcontainers).
+             */
+            if(gIobj)
+            {
+                if(gIobj.notionalContents.indexOf(self))
+                    contained = true;
+            }
+            /*  
+             *   Otherwise, test if we are in any of the possible matches for the iobj of this
+             *   command.
+             */
+            else  
+            {                
+                for(local obj in gTentativeIobj)
+                {
+                    if(obj.notionalContents.indexOf(self))
+                    {
+                        contained = true;
+                        break;
+                    }
+                }
+            }
+            
+            /* 
+             *   If we're not in any possible iobj for this command, we can't be taken from any of
+             *   them.
+             */
+            if(!contained)
                 illogicalNow(notInMsg);
-            if(self == gVerifyIobj)
+            
+            /* 
+             *   If we have a resolved iobj and it's the same as us (the dobj) or our tentative iobj
+             *   list contains only us (the dobj) the player is trying to take us from ourselvdes,
+             *   which we rule out as impossible.
+             */
+            if((gIobj == self)
+               || (gTentativeIobj.length == 1 && self == gVerifyIobj))
                 illogicalSelf(cannotTakeFromSelfMsg);
         }        
     }
@@ -7214,9 +7253,11 @@ class Thing:  ReplaceRedirector, Mentionable
         }      
     }
     
-    notInMsg = BMsg(not inside, '{The dobj} {is}n\'t {in iobj}. ')
+    notInMsg = BMsg(not inside, '{The dobj} {is}n\'t ' + 
+                    (gIobj ? '{in iobj}.' : '{1}.'), gVerifyIobj.objInName)
+    
     cannotTakeFromSelfMsg =  BMsg(cannot take from self, '{I} {can\'t} take
-        {the subj dobj} from {the dobj}. ')
+        {the subj dobj} from {himself dobj}. ')
     
     /* 
      *   Flag, can we supply more items from us that are currently in scope? By

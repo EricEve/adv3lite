@@ -2457,6 +2457,14 @@ VerbRule(ReplayQuiet)
     scriptOptionFlags = ScriptFileQuiet
 ;
 
+VerbRule(ToggleDiaambigEnum)
+    ('toggle' |) ('disambig' | 'disambiguation') ('enum' | 'enumeration')
+    : VerbProduction
+    action = ToggleDisambigEnumeration
+    verbPhrase = 'toggle/toggling enumeration of disambiguation options'
+;
+
+
 VerbRule(GoTo)
     ('go' 'to' | 'walk' 'to')
     singleDobj

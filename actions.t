@@ -303,6 +303,23 @@ DefineSystemAction(NotifyOff)
     }
 ;
 
+DefineSystemAction(ToggleDisambigEnumeration)    
+    execAction(cmd)
+    {
+        if(libGlobal.enumerateDisambigOptions)
+        {
+            libGlobal.enumerateDisambigOptions = nil;
+            DMsg(disambig enum off, 'Enumeration of disambiguation choices is now off. ');
+        }
+        else
+        {
+            libGlobal.enumerateDisambigOptions = true;
+            DMsg(disambig enum off, 'Enumeration of disambiguation choices is now on. ');
+        }
+    }
+;
+
+
 DefineSystemAction(Hints)
     execAction(cmd)
     {
