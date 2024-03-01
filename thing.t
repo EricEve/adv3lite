@@ -5423,10 +5423,10 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    alreadyInMsg = BMsg(already in, '{The subj dobj} {is} already {in iobj}. ')
+    alreadyInMsg = BMsg(already in, '{The subj dobj} {is} already {1}. ', gVerifyIobj.objInName)
     
-    circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {in iobj}
-        while {the subj iobj} {is} {in dobj}. ')
+    circularlyInMsg = BMsg(circularly in, '{I} {can\'t} put {the dobj} {1}
+        while {the subj iobj} {is} {in dobj}. ', gVerifyIobj.objInName)
         
     cannotPutInSelfMsg = BMsg(cannot put in self, '{I} {can\'t} put {the dobj}
         {1} {itself dobj}. ', gIobj.objInPrep)
