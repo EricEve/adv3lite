@@ -3803,10 +3803,11 @@ askAmbiguous(cmd, role, names)
     
     
     /* 
-     *   If the option to enumerate the dimabigiation possibilites is set, then prerix every item in
-     *   the list with a number.
+     *   If the option to enumerate the dimabigiation possibilites is set, then prefix every item in
+     *   the list with a number, provided we have no more than 20 options (the parser seems unable
+     *   to cope with more than this).
      */
-    if(libGlobal.enumerateDisambigOptions)
+    if(libGlobal.enumerateDisambigOptions && names.length < 21)
     {
         /* Set up a new list to hold the numbered names */
         local numbered_names = [];
@@ -3827,7 +3828,7 @@ askAmbiguous(cmd, role, names)
             numbered_names += item;
         }
         
-        /* Copy the numbereed list to the original list of names. */
+        /* Copy the numbered list to the original list of names. */
         names = numbered_names;
         
         /* Note the number of available choices. */
@@ -6055,11 +6056,15 @@ disambigPreParser: StringPreParser
     }
     
     /* 
-     *   The list of cardinal numbers. We only list the first 12 here since it seems highly unlikely
-     *   that a player would be presented with a list of more than twelve diambiguation options.
+     *   The list of ordinal numbers. We only list the first 20 here since it seems highly unlikely
+     *   that a player would be presented with a list of more than twelve diambiguation options. In
+     *   any case the parser seems unable to cope with a response of more than 'twentieth'.
      */
     ordinals = ['first', 'second', 'third', 'fourth' ,'fifth', 'sixth', 'seventh',
-        'eighth', 'ninth', 'tenth', 'eleventh', 'tweltfh' ];
+        'eighth', 'ninth', 'tenth', 'eleventh', 'tweltfh', 'thirteenth', 'fourteenth',
+        'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth',
+        'twentieth'
+    ];
 ;
 
 
