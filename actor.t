@@ -1643,7 +1643,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      *   player character has some reason to be curious about them, even though
      *   they were actually available before.
      */
-    arouse(key)
+    arouse(key, stat=true)
     {
         /* 
          *   First check that we actually have any entries in our convKeyTab
@@ -1654,11 +1654,11 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
              *   If we do then go through every TopicEntry that has key amongst
              *   its convKeys (which we can obtain by looking up the list of suh
              *   TopicEntries in our convKeysTab) and set its curiosityAroused
-             *   property to true.
+             *   property to stat.
              */
             foreach(local cur in valToList(convKeyTab[key]))
         {
-            cur.curiosityAroused = true;
+            cur.curiosityAroused = stat;
         }
     }
     
@@ -5175,14 +5175,17 @@ conversationManager: OutputFilter, PreinitObject
                 break;
                 
             case 'arouse':
+            case 'unarouse':    
+            case 'abate':
                 /* 
-                 *   make the curiosityAroused property true for Topic Entries
+                 *   make the curiosityAroused property true or nil for Topic Entries
                  *   with the appropriate key.
                  */
                 if (respondingActor != nil)
-                    respondingActor.arouse(arg);
+                    respondingActor.arouse(arg, tag=='arouse');
                 
                 break;
+                       
                 
             case 'suggest':
                  /* translate the string 'nil' to an actual nil */
@@ -5362,7 +5365,7 @@ conversationManager: OutputFilter, PreinitObject
         '<nocase><langle><dot>'
         + '(reveal|unreveal|agenda|remove|state|known|activate|inform|convstay|topics'
         + (customTags != nil ? '|' + customTags : '')
-        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate)'
+        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate|unarouse|abate)'
         + '(<space>+(<^rangle>+))?'
         + '<rangle>')
 

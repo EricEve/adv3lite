@@ -3807,7 +3807,7 @@ askAmbiguous(cmd, role, names)
      *   the list with a number, provided we have no more than 20 options (the parser seems unable
      *   to cope with more than this).
      */
-    if(libGlobal.enumerateDisambigOptions && names.length < 21)
+    if(libGlobal.enumerateDisambigOptions && names.length < 20)
     {
         /* Set up a new list to hold the numbered names */
         local numbered_names = [];
