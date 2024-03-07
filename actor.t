@@ -2869,6 +2869,26 @@ class ActorTopicDatabase: TopicDatabase
      */
     listableTopics()
     {
+        
+        /* Get the list of Listable topics. */
+        local lst = getListableTopics();
+        
+        /* 
+         *   Filter the list to remove master topics that effectively duplicate subtopics and return
+         *   the filtered list.
+         */
+        return suppressedList(lst);        
+    }
+    
+    /* 
+     *   Return a list of our listable topics, that is the topic entries located
+     *   within us that should be included in a topic inventory listing because
+     *   they are (a) currently reachable and (b) currently marked for listing.
+     *   The resulting list forms part of the list passed to the
+     *   suggestedTopicLister via listableTopics();
+     */
+    getListableTopics()
+    {
         /* 
          *   Start by creating a list of all the TopicEntries we contain
          *   (excluding InitiateTopics, which are never suggested because
@@ -2910,9 +2930,44 @@ class ActorTopicDatabase: TopicDatabase
         if(actor.activeKeys.length > 0)
             lst = lst.subset({x: actor.activeKeys.overlapsWith(x.convKeys)});
         
+        
+        
         /* Return the resulting list. */
         return lst;
     }
+   
+    
+    /* 
+     *   Filter lst to remove any master topics that called any listed subtopics via their keyTopics
+     *   property.
+     */
+    suppressedList(lst)
+    {
+        local new_lst = lst;
+        
+        /* 
+         *   Remove from the list any high level topic entries that have triggered a subordinate
+         *   TopicEntry that's also in the list of suggestions, since it's probably redundant to
+         *   list both.
+         */        
+        foreach(local item in lst)
+        {
+            if(item.convKeys)
+            {
+                /* 
+                 *   Create a sublist including only any items for which autoSuppress is true and
+                 *   where there is no overlap between their keyTopics and the convKeys of any
+                 *   currently listed subtopics.
+                 */
+                new_lst = new_lst.subset({x: !x.autoSuppress || 
+                                         valToList(item.convKeys).intersect( valToList(
+                    x.keyTopics) ) == []});
+            }
+        }
+        
+        return new_lst;
+    }
+    
     
     /* 
      *   Obtain the identify of any DefaultAgendaTopic contained in this
@@ -2960,6 +3015,16 @@ class TopicGroup: object
         obj.convKeys =
             valToList(obj.convKeys).appendUnique(valToList(convKeys));
         
+        /* 
+         *   Unless pir curiosityAroused is -1 (the default, a special value meaning "leave well
+         *   alone", copy our curiosityAroused (true or nil to all the TopicEntries we contain.
+         */
+        
+        if(curiosityAroused != -1)
+            obj.curiosityAroused = curiosityAroused;
+        
+        /* Add this topic entry to our contents list. */        
+        contents = contents.appendUnique(obj);
      }
       
     
@@ -3005,6 +3070,14 @@ class TopicGroup: object
     }
     
     
+    /* 
+     *   If our curiosityAroused is not -1, it will be copied to all the the TopicEntries we
+     *   contained at preinit or game startup. This can be used to set all our contents' initia;
+     *   curiosityAroused to either true or nil without having to set it on every one of our
+     *   TopioEntries individually.
+     */
+    curiosityAroused = -1
+    
     /*   
      *   If we're being used as a conversation node, our node is active when our
      *   own convKeys matches (i.e. overlaps with) that of our actor's
@@ -3017,6 +3090,9 @@ class TopicGroup: object
     
     /* Our associated actor is our location's associated actor. */
     getActor = (location.getActor)    
+    
+    /* The list of TopicEntries we contain. */
+    contents = []
 ;
 
 /* 
@@ -3201,6 +3277,12 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     /* The number of times this topic entry has been invoked. */
     timesInvoked = 0
     
+    /* 
+     *   Flag:do we want to suppress suggesting this topic if subtopics it has suggested through its
+     *   keyTopic property are in the current list of suggested topics. By default we do but this
+     *   can be overridden to nil if it produces unwanted behaviour.
+     */
+    autoSuppress = true
     
     /* 
      *   We won't suggest this topic entry (if we ever suggest it at all) until
