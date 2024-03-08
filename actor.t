@@ -754,6 +754,11 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         pendingKeys += val;
     }
     
+    /* 
+     *   A list of the convKeys triggered by the most recent TopicEntry with a keyTopics property.
+     *   For internal library use only.
+     */
+    subTopicKeys = []
     
     /*  Notification that an action is about to be carried out in our presence */
     beforeAction()
@@ -3016,15 +3021,23 @@ class TopicGroup: object
             valToList(obj.convKeys).appendUnique(valToList(convKeys));
         
         /* 
-         *   Unless pir curiosityAroused is -1 (the default, a special value meaning "leave well
+         *   Unless our curiosityAroused is -1 (the default, a special value meaning "leave well
          *   alone", copy our curiosityAroused (true or nil to all the TopicEntries we contain.
          */
         
         if(curiosityAroused != -1)
             obj.curiosityAroused = curiosityAroused;
         
+         /* 
+         *   Unless our activated is -1 (the default, a special value meaning "leave well
+         *   alone", copy our activated (true or nil to all the TopicEntries we contain.
+         */
+        
+        if(activated != -1)
+            obj.activated = activated;
+        
         /* Add this topic entry to our contents list. */        
-        contents = contents.appendUnique(obj);
+        contents += obj;
      }
       
     
@@ -3072,11 +3085,19 @@ class TopicGroup: object
     
     /* 
      *   If our curiosityAroused is not -1, it will be copied to all the the TopicEntries we
-     *   contained at preinit or game startup. This can be used to set all our contents' initia;
+     *   contained at preinit or game startup. This can be used to set all our contents' initial
      *   curiosityAroused to either true or nil without having to set it on every one of our
      *   TopioEntries individually.
      */
     curiosityAroused = -1
+    
+    /* 
+     *   If our activated is not -1, it will be copied to all the the TopicEntries we
+     *   contained at preinit or game startup. This can be used to set all our contents' initial
+     *   activatd to either true or nil without having to set it on every one of our
+     *   TopioEntries individually.
+     */
+    activated = -1
     
     /*   
      *   If we're being used as a conversation node, our node is active when our
@@ -3284,6 +3305,15 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      */
     autoSuppress = true
     
+    /*   
+     *   Flag - the complement to autoSuppress. If this is true then when the player changes the
+     *   main topic when a list of suggestions of subtopics from another main topic (e.g. by typing
+     *   ASK ABOUT WEATHER after a previous ASK ABOUT ISLAND has called up a suggested list of
+     *   subtopics about the island), then we'll suppress the list of subtopics (on the basis that
+     *   the player appears to be no longer interested in them, at least for the time being.
+     */
+    autoSuppressSubTopics = true
+    
     /* 
      *   We won't suggest this topic entry (if we ever suggest it at all) until
      *   its curiosityAroused property by true. By default it normally is from
@@ -3311,11 +3341,11 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      */
     listOrder = 100
     
-    /*   
-     *   Handle this topic (if we're the ActorTopicEntry selected to respond to
-     *   a conversational command.
+    /* 
+     *   Handle the display of this topic entry's topicResponse or of its suggested subtopics as
+     *   appopriate.
      */
-    handleTopic()
+    baseHandleTopic()
     {
         /* Increment our timesInvoked counter */            
         timesInvoked++ ;
@@ -3342,6 +3372,98 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         else
             topicResponse();
     }
+    
+    /*   
+     *   Handle this topic (if we're the ActorTopicEntry selected to respond to
+     *   a conversational command.
+     */
+    handleTopic()
+    {       
+        /* 
+         *   Filter the topic suggestions to exclude any subtopics related to a master topic that
+         *   the player has just moved away from.
+         */        
+        filterTopicSuggestions();
+        
+        /* 
+         *   Carry out the base handling of displaying this topic or triggering its subtopics.
+         */
+        baseHandleTopic();
+    }
+    
+    /* 
+     *   Filter the list of topics to be suggested by removing from the list any subtopics relating
+     *   to a new main topic (e.g. when the player types A WEATHER when the list of subtopic
+     *   relating to A ISLAND is still available. The subtopics are removed simply by having their
+     *   curiosityAroused reset to nil, indicating that the player's curiosity has moved on
+     *   elsewhere. at least for the time being.
+     */    
+    filterTopicSuggestions()
+    {
+        /* Store a list of our keyTopics */
+        local klst = valToList(keyTopics);
+        
+        /* Store a list of our convKeys. */
+        local clst = valToList(convKeys);  
+        
+        /* Note the actor we're a topic entry for. */
+        local actor = getActor();
+        
+        /* Store a list of the last keyTopics to be referenced for this actor. */
+        local slst = valToList(actor.subTopicKeys);
+        
+        /* 
+         *   If there was a previous list of keyTopics and it has nothing in common with our own
+         *   convKeys, then the player has changed the subject, so we may want to suppress the
+         *   listing of suggested subtopics relating to the previous main topic.
+         */
+        if(slst != klst && slst.intersect(clst) == [])
+        {
+            /* 
+             *   We only want to carry out the filtering if our autoSuppressSubTopics is true and
+             *   there is a previous list of keyTopics resulting from an earlier conversational
+             *   command.
+             */
+            if(autoSuppressSubTopics && slst.length() > 0)                           
+            {
+                /* First obetain a list of listable Topics for the current actor. */
+                local topList = actor.listableTopics;
+                
+                /* 
+                 *   If our actor has a current actor state, add the listable topics for that actor
+                 *   state.
+                 */
+                if(actor.curState) topList += actor.curState.listableTopics;
+                               
+                /* 
+                 *   Filter our list of suggested topics to include only those whose convKeys have
+                 *   some keys in common with the list of previously invoked keyTopics (that is,
+                 *   topics that relate to the same master topic).
+                 */
+                topList = topList.subset({x: valToList(x.convKeys).intersect(slst)
+                                         != [] });
+                
+                /* 
+                 *   Go through our list of topics and set to nil the curiosityAroused property of
+                 *   any whose convKeys list has nothing in common with the keyTopics of the just
+                 *   invoked TopicEntry.
+                 */
+                foreach(local item in topList)
+                {
+                    if( valToList(item.convKeys).intersect(klst) == [])
+                        item.curiosityAroused = nil;              
+                }                
+            }
+            
+            /* 
+             *   Store our keyList in our actor's subTopicKeys to be available for comparison on the
+             *   next conversational command.
+             */
+            actor.subTopicKeys = klst;
+        }
+    }
+    
+    
         
     /* 
      *   The keyTopics can contain a convKey or a list of convKeys, in which
@@ -3357,6 +3479,19 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
      *   way, leave keyTopics as nil.
      */
     keyTopics = nil
+    
+    /* 
+     *   Flag, do we want a master topic to automatically update all its associated subtopics
+     *   (associated via its keyTopics property). By default we do, or else they won't be included
+     *   in any list of suggestions at this point.
+     */
+    arouseKeyTopics = true
+    
+    /* 
+     *   Flag, do we want a master topic to automatically update all its associated subtopics
+     *   (associated via its keyTopics property). By default we don't (for now).
+     */
+    activateKeyTopics = nil
     
     /* Show our suggested keyTopics, if keyTopics is defined. */
     showKeyTopics()
@@ -3408,12 +3543,30 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
             if(ky.startsWith('<.'))
             {
                 if(updateStatus)
-                    say(ky.trim);
+                    say(ky.trim);   
             }
             /* Otherwise add it to our list. */
-            else                
+            else 
+            {
+                if(activateKeyTopics && updateStatus)
+                    actor.makeActivated(ky);
+                
                 lst += actor.convKeyTab[ky];
+                
+                /* 
+                 *   And if arouseKeyTopics is true, then also arouse the topics associated with the
+                 *   key ky (to set their curiosity aroused to true).
+                 */                   
+                if(arouseKeyTopics && updateStatus)
+                    actor.arouse(ky);             
+                
+            }
         }
+        
+        /* 
+         *   if we want to arouse all our key topics, then go through our list arousing them all.
+         */
+        
         
         /*   
          *   Reduce our list to a subset that only contains those TopicEntries

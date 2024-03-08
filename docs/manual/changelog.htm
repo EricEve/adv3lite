@@ -8,8 +8,8 @@
 <body>
 <div class="topbar"><img src="topbar.jpg" border=0></div>
 <div class="nav">
-<a class="nav" href="toc.htm">Table of Contents</a> | 
-<a class="nav" href="final.htm">Change Log</a> &gt; 
+<a class="nav" href="toc.htm">Table of Contents</a> |
+<a class="nav" href="final.htm">Change Log</a> &gt;
 Change Log
 <br><span class="navnp"><a class="nav" href="conclusion.htm"><i>Prev:</i> Conclusion</a> &nbsp;&nbsp;&nbsp;  <a class="nav" href="manual_idx.html"><i>Next:</i> Index</a> &nbsp;&nbsp;&nbsp;</span>
 
@@ -45,10 +45,15 @@ Change Log
 <hr>
 <p>The Actor method <strong>arouse(key, stat)</strong> now has a second optional parameter <i>stat</i>, which defaults to true for compatibilty with existing code. If stat it nil, the effect of arouse() is reversed, setting the <span class='code'>curiosityAroused</span> property of all ActorTopicEntries matching <i>key</i> to nil. A new conversation tag <span class='code'>&lt;.abate key&gt;</span> (or if you prefer <span class='code'>&lt;.unarouse key&gt;</span>) can be used to call <span class='code'>arouse(key, nil)</span> to reset <span class='code'>curiosityAroused</span> to nil on the relevant ActorTopicEntries in the same way. This is for use in situations where the player character's attention has changed to a different topic or set of topic but the PC's curiosity has not been satisfied (because the player might want to return to further topics sharing the same key).</p>
 <hr>
-<p>The new ActorTopicEntry property <strong>autoSuppress</strong> now controls the listing of suggesed topics when a master TopicEntry triggers a list of subtopics through its keyTopics property; for example where an AskTopic that responds to ASK FRED ABOUT ISLAND has keyTopics of 'island' that in turn causes the game to suggest a number of subtopics (e.g. "What is this island called?", "Where is this island?", "How many people live here?") that the player can then choose between. Setting <strong>autoSuppress</strong> to true (the default) on the master topic (e.g., <span class='code'>AskTopic @tIsland</span>) will suppress the suggestion of the master topic while any of its subtopics (e.g. "Where is this island?") is in the current list of suggestions.</p>
+<p>A number of enhancements have been made to the <a href="suggest.htm#other">triggering of subtopics</a> from a master topic. The new ActorTopicEntry property <strong>autoSuppress</strong> now controls the listing of suggesed topics when a master TopicEntry triggers a list of subtopics through its keyTopics property; for example where an AskTopic that responds to ASK FRED ABOUT ISLAND has keyTopics of 'island' that in turn causes the game to suggest a number of subtopics (e.g. "What is this island called?", "Where is this island?", "How many people live here?") that the player can then choose between. Setting <strong>autoSuppress</strong> to true (the default) on the master topic (e.g., <span class='code'>AskTopic @tIsland</span>) will suppress the suggestion of the master topic while any of its subtopics (e.g. "Where is this island?") is in the current list of suggestions.</p>
+<hr>
+<p>The ActorTopicEntry class also has a new <strong>autoSuppressSubTopics</strong> property, which is the complement of the above <span class='code'>autoSuppress</span> property. If autoSuppressSubTopics is true (the default) then if a player changes the subject from one master topic to another (e.g. from ASK ABOUT ISLAND to ASK ABOUT WEATHER) then the subtopics suggested by the first master topic (e.g., "Where is this island?") will have their curiositySatisfied property reset to nil, so that they will no longer appear in response to a TOPICS command (unless and until the player types ASK ABOUT ISLAND) again. This is intended to model the player/player character's shift of attention and to declutter the list of suggested topics.</p>
+<hr>
+<p>The ActorTopicEntry class also has a new <strong>arouseKeyTopics</strong> property. If this is true (the default) there is no need to include &lt;.arouse key&gt; before 'key' in the keyTopics property of an ActorTopicEntry that's designed to suggest a list of subtopics (although doing so will still also work). This means that instead of writing keyTopics = <span class='code'>[&lt;.arouse key&gt;, 'key']</span> you can just write <span class='code'>keyTopics = ['key']</span> (if you want all the topics keyed by <i>key</i> to have curiosityAroused set to true). The new <strong>activateKeyTopics</strong> (by default nil) works similarly to activate the same subtopics.</p> 
 <hr>
 <p>The <a href="topicgroup.htm">TopicGroup</a> class now has a <strong>contents</strong> property and a <strong>curiosityAroused</strong> property. The contents property contain a list of all the topic entries located in this TopicGroup. If the curiosityAroused property is not set to -1 (the default) it will be copied to the curiosityAroused property of all the contained topic entries at game startup/preinit. This can be useful in setting up groups of subtopics to be suggested by a master topic.</p>
 <hr>
+
 <br>
 
 
@@ -183,7 +188,7 @@ You hear the hoot of a distant owl.
 <hr>
 <p>The new <a href="actorobj.htm#proxy">ProxyActor</a> class can be used to continue the definition of a complex actor over more than one source file. Minor changes have also been made to the ActorState and AgendaItem classes to work with ProxyActor. Set the location property of a ProxyActor to the Actor object it is standing in for, and you can then locate everything in the ProxyActor just as you would in the original Actor.</p>
 <hr>
-<p>The <strong>DefaultAgendaTopic</strong> class has been slightly tweaked so that a DefaultAgendaTopic is only active when there are any AgendaItems ready to execute. Previously it would be active if there were any AgendaItems in the DefaultAgendaTopic's agendaList at all, regardless of whether they might be executed.</p>    
+<p>The <strong>DefaultAgendaTopic</strong> class has been slightly tweaked so that a DefaultAgendaTopic is only active when there are any AgendaItems ready to execute. Previously it would be active if there were any AgendaItems in the DefaultAgendaTopic's agendaList at all, regardless of whether they might be executed.</p>
 <hr>
 <p>The <span class="code">outermostVisibleParent(</span>) and <span class="code">outermostParent</span> properties of <strong>Room</strong> are now defined as <span class="code">self</span> (rather than nil, as previously). This avoids run-time errors that could otherwise occur in attempting to construct a scope list for a Room.</p>
 <hr>
@@ -453,10 +458,10 @@ You hear the hoot of a distant owl.
  <p><div class="cmdline"><pre>
  <strong>&gt;UNLOCK DOOR</strong>
  Which door do you mean, the red door or the blue door?
- 
+
  <strong>&gt;BLUE</strong>
  What do you want to unlock it with?
- 
+
  <strong>&gt;KEY</strong>
  You unlock the red door with the key.
  </pre></div>
@@ -524,7 +529,7 @@ You hear the hoot of a distant owl.
 <hr>
 <p>Commands of the form TELL X TO Y, which are translated into X, Y (i.e. telling the NPC X to carry out the command Y) before being executed now use the name property of X rather than the theName property of X to form the translated command. This is both less accident-prone and less language-dependent. In particular it avoids the problem that could occur if X is an object that has been defined with a theName property that uses the indefinite article, since if TELL X TO Y is translated into A X, Y the parser will interpret the translated command as implicitly asking about X and Y, and then complain about an illegal use of multiple objects.</p>
 <hr>
-<p>Previously the library was a bit over-zealous in suppressing the display of zero-length strings that might result from SMELL or LISTEN commands; the test applied to achieve this meant that embedded expressions (such as &lt;&lt;one of&gt;&gt;... constructions) in properties like <span class="code">smellDesc</span> and <span class="code">listenDesc</span> would not work as expected. The library now applies a less stringent test, which appears to have no adverse effects, and which allows embedded expressions to work with such properties as game authors would expect.</p>  
+<p>Previously the library was a bit over-zealous in suppressing the display of zero-length strings that might result from SMELL or LISTEN commands; the test applied to achieve this meant that embedded expressions (such as &lt;&lt;one of&gt;&gt;... constructions) in properties like <span class="code">smellDesc</span> and <span class="code">listenDesc</span> would not work as expected. The library now applies a less stringent test, which appears to have no adverse effects, and which allows embedded expressions to work with such properties as game authors would expect.</p>
 <hr>
 <p>Bug fixed which could a run-time error when moving into a SenseRegion within or from a DynamicRegion.</p>
 <hr>
@@ -901,7 +906,7 @@ You hear the hoot of a distant owl.
 <hr>
 <p>The new Actor method <strong>travelVia(conn)</strong> makes the actor travel via the TravelConnector <em>conn</em> and reports the actor's movement if it is visible to the player character.</p>
 
-<p>There is also a new Actor method <strong>sayArriving(fromLoc)</strong>, which is called by Actor.travelVia() (as is sayDeparting()). By default sayArriving(fromLoc) calls sayArriving(fromLoc) on the current ActorState which by default in turn calls sayActorArriving(fromLoc) back on the Actor. The sayArriving(fromLoc) method displays only the most basic default message, which most games will probably want to 
+<p>There is also a new Actor method <strong>sayArriving(fromLoc)</strong>, which is called by Actor.travelVia() (as is sayDeparting()). By default sayArriving(fromLoc) calls sayArriving(fromLoc) on the current ActorState which by default in turn calls sayActorArriving(fromLoc) back on the Actor. The sayArriving(fromLoc) method displays only the most basic default message, which most games will probably want to
 customize. It can also be suppressed altogether by supplying nil as the second (optional announceArrival) parameter when calling travelVia(), since it may sometimes be easier to call travelVia() followed by your own custom arrival message than to customize sayArriving().</p>
 <hr>
 <p>Before Travel notifications are now triggered when an actor tries to travel via a direction that's defined as a method or double-quoted string. That means that when you define the direction property of a Room as a method or double-quoted string, <span class="code">beforeAction(gActor, direction)</span> will be called on every object in scope (allowing any one of them to veto the proposed travel with an exit macro if desired). Note that normally before travel notifications are called as <span class="code">beforeAction(traveler, connector)</span>, but since in this case there's no connector object to pass as a parameter we pass the direction object (e.g. westDir if the actor is trying to go west) instead.</p>
@@ -1293,7 +1298,7 @@ The <strong>englishCustomVocab</strong> currently defines a number of regular ve
 <hr>
 <p>Correspondingly, the specialDescs of items contained in other objects are now listed (as well as the listing of any other items). Previously this was not the case, which was arguably a bug.</p>
 <hr>
-<p><strong>Risk of incompatibility:</strong> The handling of KISS and ATTACK on the Actor class has changed. The default behaviour is now to display the actor's shouldNotKissMsg or shouldNotAttackMsg (at the check stage). If you want to use KissTopics and HitTopics (or you want to define your own handling at the action stage), set <span class="code">allowKiss</span> and/or <span class="code">allowAttack</span> to true.</p> 
+<p><strong>Risk of incompatibility:</strong> The handling of KISS and ATTACK on the Actor class has changed. The default behaviour is now to display the actor's shouldNotKissMsg or shouldNotAttackMsg (at the check stage). If you want to use KissTopics and HitTopics (or you want to define your own handling at the action stage), set <span class="code">allowKiss</span> and/or <span class="code">allowAttack</span> to true.</p>
 
 <p>The reason for this change is that defining a shouldNotKissMsg and/or shouldNotAttackMsg is more straightfoward than having to define a complete KissTopic or HitTopic for the great majority of actors who do not need this kind of fine tuning.</p>
 <hr>
@@ -1344,7 +1349,7 @@ cabinet: Fixture 'cabinet'
       isLocked = true
       isOpenable = true
     }
-    
+
     remapOn: SubComponent {}
 ;
 
@@ -1524,8 +1529,8 @@ silverKey: Key 'silver key'
 </div>
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>
-<a class="nav" href="toc.htm">Table of Contents</a> | 
-<a class="nav" href="final.htm">Final Moves</a> &gt; 
+<a class="nav" href="toc.htm">Table of Contents</a> |
+<a class="nav" href="final.htm">Final Moves</a> &gt;
 Change Log
 <br><span class="navnp"><a class="nav" href="conclusion.htm"><i>Prev:</i> Conclusion</a> &nbsp;&nbsp;&nbsp;<a class="nav" href="manual_idx.html"><i>Next:</i> Index</a> &nbsp;&nbsp;&nbsp;  </span>
 

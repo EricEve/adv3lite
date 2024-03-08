@@ -79,7 +79,7 @@ tVisit: Topic '()your visit; my;' ;
 <li>The ActorTopicEntry in question must be reachable.</li>
 </ol>
 
-<p>The <strong>curiosityAroused</strong> property is defined in addition to the isActive property to allow for topics that you want the player to be able to refer to, but you don't want to suggest them yet (because they're not that important to suggest until something else happens). To make use of the curiosityAroused property you can either define it declaratively (e.g. <span class="code">curiosityAroused = me.hasSeen(darkTower)</span>) or set it to nil initially on one or more TopicEntries and then use the <strong>&lt;.arouse key&gt;</strong> tag to set the curiosityAroused property to true for every ActorTopicEntry belonging to the current interlocutor whose convKeys property matches (or contains) <em>key</em>. You can achieve the same effect by calling arouse(key) on the actor (which is what the &lt;.arouse key&gt; tag does).</p>
+<p>The <strong>curiosityAroused</strong> property is defined in addition to the isActive property to allow for topics that you want the player to be able to refer to, but you don't want to suggest them yet (because they're not that important to suggest until something else happens). To make use of the curiosityAroused property you should define it declaratively by setting it to nil initially on one or more TopicEntries and then use the <strong>&lt;.arouse key&gt;</strong> tag to set the curiosityAroused property to true for every ActorTopicEntry belonging to the current interlocutor whose convKeys property matches (or contains) <em>key</em>. You can achieve the same effect by calling arouse(key) on the actor (which is what the &lt;.arouse key&gt; tag does). You can also set (or reset) <span class='code'>curiosityAroused</span> to nil by using &lt;.abate key&gt; or, if you prefer, &lt;.unarouse key&gt; (the two are equivalent) or by calling <span class='code'>arouse(key, nil)</span> on the actor. The <span class='code'>curiosityAroused</span> property thus models whether or not the player/player character is currenly interested in/curious about the topic in question, which can change over the course of the game. To be safe, the curiosityAroused property should always be defined as either true or nil, and not as a method or expression, since, as we shall see, its value can be switched between true and nil over the course of the game both by game author code and by the library.</p>
 
 <p>The <strong>curiositySatisfied</strong> property allows the topic to stop being suggested once the player character has seen the response enough times. What counts as enough times is defined on the <strong>timesToSuggest</strong> property. By default this is 1 unless the TopicEntry is an EventList, in which case timesToSuggest is the number of items in the eventList property (eventList.length). You can easily override these defaults if you wish or else set timesToSuggest to nil if you want the TopicEntry to carry on being suggested indefinitely. Alternatively, you could override curiositySatisfied so that it becomes true according to some other condition.</p>
 
@@ -99,94 +99,129 @@ tVisit: Topic '()your visit; my;' ;
 
 <p>Note that while the five numbered conditions above are jointly <em>necessary</em> for a topic to be suggested, they may not be jointly <em>sufficient</em>, since there are other restrictions that game authors can place on what topics are suggested at any given moment.</p>
 
-<p>Normally, all the topics that meet the five numbered conditions would be displayed in response to an explicit TOPICS command (or TALK TO X command), but game authors can restrict even this by overriding  the actor's <strong>suggestionKey</strong> property. If this is set to something other than nil, then only those TopicEntries whose convKeys property matches or contains the suggestionKey (and that also meet all the other conditions) will be listed as suggestions. We shall now go on to discuss one situation in which this might be useful (although game authors may of course think of others).</p>
+<p>Normally, all the topics that meet the five numbered conditions would be displayed in response to an explicit TOPICS command (or TALK TO X command), but game authors can restrict even this by overriding  the actor's <strong>suggestionKey</strong> property. If this is set to something other than nil, then only those TopicEntries whose convKeys property matches or contains the suggestionKey (and that also meet all the other conditions) will be listed as suggestions. The actor's suggestionKey property can also be set by using the <span class='code'>&lt;.sugkey key&gt;</span> tag in the topicResponse of a TopicEntry belonging to the actor. This may be useful when you want to restrict the list of suggested topics to those relevant to particular points in a conversation or the story, but we shall be exploring other ways of doing this below.</p>
 
 
 <br>
 
 <a name="other"></a><h2>TopicEntries that Suggest Other Topics</h2>
 
-<p>When an ActorTopicEntry matches a player's conversational command, it normally responds by displaying its topicResponse (or by executing its topicResponse method). An ActorTopicEntry can instead be defined to display a further list of more specific topics. We saw an example of this in the previous section:</p>
+<p>When an ActorTopicEntry matches a player's conversational command, it normally responds by displaying its topicResponse (or by executing its topicResponse method). An ActorTopicEntry can instead be defined to display a further list of more specific topics.</p>
 
-
-<p><div class="cmdline"><pre>
-<strong>&gt;talk about the dark tower</strong>
-You could ask Bob when the tower was built, or why the tower is scary, or tell him
-about your visit, or say you think he's exaggerating.
-</pre></div>
-
-<p>Setting this up is quite straightfoward. You just define the <strong>keyTopics</strong> property on the ActorTopicEntry to contain a key or a list of keys (single-quoted strings) that will be matched by the convKeys property of the TopicEntries you want to suggest. For example:</p>
-
- <p><div class="code"><pre>
-+ AskTellTalkTopic @darkTower
-    keyTopics = 'dark-tower'
-    autoName = true
-;
-
-+ TellTopic @tVisit
-   "&lt;q&gt;I visited the dark tower earlier..."
- 
-    convKeys = 'dark-tower'
-    autoName = true    
-;
-
-...
-</pre></div>
-
-<p>One potential problem with this is that both the AskTellTalkTopic and the topics it suggests would be listed in response to a TOPICS command, which might seem redundant, or even as presenting the player with too much information at once. For this reason, if you were defining a whole lot of TalkTopics (say) that went on to suggest further subtopics you might prefer it if the TOPICS command only listed the top-level TalkTopics, leaving the TalkTopics to suggest their sub-topics. The topic suggestions could then act a little like a two-tier menu.</p>
-
-<p>To implement this scheme you would give all your top-level topics a common convKey (such as 'top') and then define that key on the <strong>suggestionKey</strong> property of the actor. For example:</p>
-
- <p><div class="code"><pre>
-bob: Actor 'Bob; worried; man; him' @store
-  ...
-  suggestionKey = 'top'
-;
- 
-+ AskTellTalkTopic @darkTower
-    keyTopics = 'dark-tower'
-    convKeys = 'top'
-    autoName = true
-;
-
-+ TellTopic @tVisit
-   "&lt;q&gt;I visited the dark tower earlier..."
- 
-    convKeys = 'dark-tower'
-    autoName = true    
-; 
-... 
-</pre></div>
-
-<p>Note that if you do this, bob's suggestionKey isn't set in stone; it can be changed at run-time to anything else (including nil, which removes the restriction on what topics to suggest) simply by executing the statement <span class="code">bob.suggestionKey = 'another-key'</span> or <span class="code">bob.suggestionKey = nil</span>, or equivalently using the tag <strong>&lt;.sugkey another-key&gt;</strong> or <strong>&lt;.sugkey nil&gt;</strong>.</p>
-
-<p>It should be emphasized once again that there is absolutely no reason to use this scheme if you don't want to; in many games it probably wouldn't be convenient; but it is one of the reasons for introducing a separate TalkTopic (for use at the top-level of such a scheme in a way that clearly distinguishes top-level topics and suggestions from the sub-topics that fall underneath). It should also be emphasized that game authors are, of course, free to use the tools described here in any way they wish; they are certainly not restricted to this particular scheme.</p>
-
-<p>One alternative to using a scheme involving top-level topics is to activate or arouse curiosity concerning a group of topics just prior to suggesting them via keyTopics. To facilitate this the list of strings defined on a keyTopics property is allowed to include control tags such as &lt;.activate key&gt; or &lt;.arouse key&gt; that can activate or arouse curiosity concerning a group of topics just before they're due to be suggested. This avoids the need to use a top-level suggestion key, but also makes the suggested sub-topics permanently available once they have been suggested (which may be what you want). For example, instead of defining a top-level suggestionKey on bob, we could make the dark tower's subtopics initially inactive and then have the darkTower activate them just prior to suggesting them, like this:</p>
+<p>Supppose the player issues the command ASK SAM ABOUT ISLAND. In your game, the Information Sam might supply about the island might include, say, the name of the island, the location of the island and the population of the island, but the player's command doesn't specify which of these they're asking about. One way of dealing with this could be to dole out each of these pieces of information in turn via a StopEventList on the relevant TopicEntry:</p>
 
 <p><div class="code"><pre>
-bob: Actor 'Bob; worried; man; him' @store
-  ...
-  
-;
- 
-+ AskTellTalkTopic @darkTower
-    keyTopics = ['&lt;.activate dark-tower&gt;', 'dark-tower']
-    
-    autoName = true
++ AskTopic, StopEventList @tIsland
+   [
+      '&lt;q&gt;What\'s this island called?&lt;/q&gt; you ask.\b
+       &lt;q&gt;It\'s the Isle of Tads,&lt;/q&gt; Sam replies. ',
+	  
+      '&lt;q&gt;Where is this island?&lt;/q&gt; you enquire.\b
+      &lt;q&gt;About fifty leagues west of Erewhon,&lt;/q&gt; Sam tells you. ',
+	  
+      '&lt;q&gt;How many people live here?&lt;/q&gt; you ask.\b
+      &lt;q&gt;Roughly speaking, about two hundred and thirteen,&lt;/q&gt; says Sam. '
+   ]
 ;
 
-+ TellTopic @tVisit
-   "&lt;q&gt;I visited the dark tower earlier..."
- 
-    convKeys = 'dark-tower'
-    autoName = true
-    activated = nil    
-; 
-... 
 </pre></div>
 
-<p>This would cause all the topic entries with 'dark-tower' as one of their convKeys to be activated just prior to their being suggested from the darkTower topic entry. Unless we took steps to make things work differently, they would then remain activated and would hence be suggested in any future topic inventory.</p>
+<p>This gets the job done, and may be perfectly fine for your needs, but it doesn't give the player a lot of agency in choosing which subtopic to pursue and forces players to keep repeating ASK ABOUT ISLAND until they've seen that all the relevant information has been doled out to them.</p>
+
+<p>An alternative, which you may prefer, is to have the response to ASK SAM ABOUT ISLAND suggest a list of subtopics from which the player can then choose:</p>
+
+<p><div class="cmdline"><pre>
+&gt;<strong>ASK SAM ABOUT ISLAND</strong>
+You could ask what this island is called, or where this island is, or how many people live on the island.
+</pre></div>
+
+<p>One way of achieving this is to have the topic response of the Ask About Island topic entry output a sugkey tag, such as <span class='code'>&lt;.sugkey island&gt;</span>. This may not be the best way of managing what happens on subsequent turns however. A better way is often to make use of the master topic's (here the ask about island TopicEntry's) keyTopics property. This should contain the topic key, or a list of topic keys, defined on the convKeys property of the subtopics you want the master topic to suggest. For example:</p>
+
+
+<p><div class="code"><pre>
++ AskTopic @tIsland
+    keyTopics = ['island']
+;
+
++ QueryTopic 'what this island is called'
+    "&lt;q&gt;What\'s this island called?&lt;/q&gt; you ask.\b
+    &lt;q&gt;It\'s the Isle of Tads,&lt;/q&gt; Sam replies. "
+
+    convKeys = ['island']
+	
+    curiosityAroused = nil
+;
+
+
++ QueryTopic 'where this island is'
+    "&lt;q&gt;Where is this island?&lt;/q&gt; you enquire.\b
+     &lt;q&gt;About fifty leagues west of Erewhon,&lt;/q&gt; Sam tells you. "
+
+    convKeys = ['island']
+	
+    curiosityAroused = nil
+;
+
++ QueryTopic 'how many people live on the island'
+    "&lt;q&gt;How many people live here?&lt;/q&gt; you ask.\b
+     &lt;q&gt;Roughly speaking, about two hundred and thirteen,&lt;/q&gt; says Sam. "
+
+    convKeys = ['island']
+	
+    curiosityAroused = nil
+;
+</pre></div>
+
+<p>The QueryTopic class will be described more fully below in the chapter on <a href="specialtopic.htm#querytopic">Special Topics</a>. For now all you need to know is that QueryTopics can handle questions beginning with words like who, what, why, when and how.</p>
+
+<p>In the meantime, you could save a bit of typing in the example above by making use of a TopicGroup:</p>
+
+<p><div class="code"><pre>
++ AskTopic @tIsland
+    keyTopics = ['island']
+;
+
+
++ TopicGroup 'island'
+    curiosityAroused = nil
+;
+
+++ QueryTopic 'what this island is called'
+    "&lt;q&gt;What\'s this island called?&lt;/q&gt; you ask.\b
+    &lt;q&gt;It\'s the Isle of Tads,&lt;/q&gt; Sam replies. "
+
+;
+
+++ QueryTopic 'where this island is'
+    "&lt;q&gt;Where is this island?&lt;/q&gt; you enquire.\b
+     &lt;q&gt;About fifty leagues west of Erewhon,&lt;/q&gt; Sam tells you. "
+;
+
+++ QueryTopic 'how many people live on the island'
+    "&lt;q&gt;How many people live here?&lt;/q&gt; you ask.\b
+     &lt;q&gt;Roughly speaking, about two hundred and thirteen,&lt;/q&gt; says Sam. "
+;
+</pre></div>
+
+<a name="otherexp">
+<p>In this second case, the TopicEntries located in the TopicGroup have their <span class='code'>curiosityAroused</span> property copied from that of the TopicGroup when the game is initialised. If you don't want this behaviour (because, for example, you want to define different values of curiosityAroused on the different TopicEntries individually) then leave the TopicGroup's <span class='code'>curiosityAroused</span> at -1 (a special value that means "don't copy to me to my TopicEntries"). The 'island' in the TopicGroup's template is assigned to its <span class='code'>convKeys</span> property and then added to the <span class='code'>convKeys</span> of each of its TopicEntries when the game is initialised.</p>
+
+<p>With this setup, the command ASK SAM ABOUT ISLAND (at least for the first time) will result in a list suggesting all three QueryTopics defined above. The player is then free to type a command choosing one of those or any other topic that's currently available for Sam to respsond to. A TOPICS command at this point will list the three QueryTopics together with any other topics currently available to Sam, except for the "ask about island" topic, which won't be displayed while any of its subtopics is listed. If you did want "ask about island" to be listed too, you could set the AskTopic's <strong>autoSuppress</strong> property to nil, but it would normally seem redundant "ask about the island" to be listed in the same series of suggestions as "what this island is called", say).</p>
+
+<p>Conversely, if the player enters a command <i>not</i> related to the maater topic (here, aaking about the island). such as ASK ABOUT THE WEATHER, the game will assume that the player/player character has lost interest in the master topic (ask about island) so that the aubtopics (here the QueryTopics) will be removed from the list of suggested topics until the player types ASK SAM ABOUT ISLAND or A SAM again, while the "ask about island" topic will be restored to the list of suggestions. Again, if you don't want this behaviour, you can set the master topic entry's (here ask about island) <strong>autoSuppressSubTopics</strong> property to nil (so that the island subtopics will continue to be displayed in response to any subsequent TOPICS command). 
+That said, the library defaults (with both <span class='code'>autoSuppress</span> and <span class='code'>autoSuppressSubTopics</span> set to true) will probably give the smoothest player experience and avoid cluttering the list of suggested topics.</p>
+
+<p>Some further points to note:</p>
+<ul>
+<li>The removal of subtopics from the list of suggestions when the player changes the subject relies on (the library) resetting their <span class='code'>curiosityAroused</span> property to nil. That's why it's best not to define curiosityAroused as an expression or method, at least on TopicEntries used as subtopics or whose <span class='code'>curiosityAroused</span> property otherwise manipulated in game code.</li>
+
+<li>Once a master topic's subtopics have all had their curiosity satisfied, the master topic will no longer be included in a list of suggestions (so that, for example, "ask about the island" will no longer be shown as a suggested topic once the player has asked about the island's name, and its location, and its population).</li>
+
+<li>In earlier versions of adv3Lite it would have been necessary to define the island topic entry's keyTopics property as <span class='code'>keyTopics = ['&lt;.arouse island&gt;', 'island']</span>. This still works, but is no longer necessary, provided the topic entry's <strong>arouseKeyTopics</strong> property is true (which is the default).
+
+<li>So far, this coding pattern has assumed that the subtopics would be available to the player even before they invoke the master topic (e.g, by entering the command ASK ABOUT ISLAND) but just not suggested until then. It may be, however, that you'd want the subtopics to be unavailable until the player asks Sam about the island. In that case you can set the ask about island topic's <strong>activateKeyTopics</strong> property to true (it's nil by default) and define <span class='code'>activated = nil</span> (note, <i>not</i> <span class='code'>isActive = nil</span>) on each of the subtopics. The separation of isActive and activated allows isActive to be defined as an expression or method on either or both the TopicGroup and the TopicEntries it contains. For a TopicEntry within a TopicGroup to be active, its isActive and activated properties must both be true (the default) along with its TopicGroup's isActive property.</ii>
+ 
+</ul>
 
 <br>
 
