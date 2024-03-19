@@ -372,7 +372,14 @@ bodyParts: MultiLoc, Unthing 'body; (my) (your) (his) (her) (this) (left)
         unless you get some hint to the contrary, you probably cannot OPEN DOOR
         WITH FOOT or PUT THE SAPPHIRE RING IN MY MOUTH. '
 
-    
+    /* 
+     *   By default we want this bodyParts object to be available everywhere (since the player may
+     *   try to refer to the PC's bodyparts anywhere, but if your game defines its own body parts
+     *   (or items that share vocab with body parts such as the hands of a clock or the legs of a
+     *   chair) you may occasionally get unwanted results from having the bodyParts objects present
+     *   too. In such a case you can banish the bodyParts object by setting its initialLocationClass
+     *   to nil, or otherwise restrict where it turns up.
+     */
     initialLocationClass = Room
   
 ;

@@ -674,8 +674,32 @@ true (otherwise it will be nil).</p>
 <p>As a further refinement you can define the <strong>disambigMatchPhrases</strong> property to hold a different set of phrases (or none at all) for disambiguation purposes (i.e. when the player has responded to a a disambiguation request), but by default <span class="code">disambigMatchPhrases</span> takes its value from <span class="code">matchPhrases</span> and you will seldom, if ever, need to change this.</p>
 
 <p>Indeed, it's probably quite rare that you will need to use phrase matching at all, and this facility is best used sparingly. On the whole it's better to name your objects so you don't need to; but occasionally it may prove necessary to use a phrase match, especially, perhaps, when the solution to a puzzle requires the player to use a particular combination of words in a particular order.</p>
+<a name="phrasematchname"></a>
+<p>Finally, note that in more complex cases, matchPhrases may not do quite what you want (or expect). For example if you define a general 'clothes' object whose descripition includes "white jersey and blue trousers" (with correspoding vocab), defining <span class='code'>matchPhrases = ['white jersey, 'jersey', 'blue trousers', 'trousers']</span> will not prevent your clothes object from matching WHITE TROUSERS or BLUE JERSEY, because, if you look at the rule carefully, WHITE TROUSERS will be taken as matching <span class='code'>['trousers']</span> and BLUE JERSEY as matching <span class='code'>['jersey']</span> (because 'trousers' occurs in the phrase WHITE TROUSERS and 'jersey' occurs in the phrase BLUE JERSEY. On the other hand you probably don't want to include 'jersey' or 'trousers' from the list of matchPhrases here. In such a case the best solution is to write your own phraseMatchName() method:</p>
 
+ <p><div class="code"><pre>
+oddClothes: Wearable 'sundry odd clothes;plain blue white of[prep];pair trousers jersey;them'
+    "The main items are a pair of plain blue trousers and a white jersey. "
+    
+    matchPhrases = ['trousers', 'blue trousers', 'jersey', 'white jersey']
+	
+   <span class='comment'>/* We want to exlcude 'blue jersey' or 'white trousers' from matching. */ </span>
+    phraseMatchName(phrases, tokens)
+    {
+        if(tokens.indexOf('blue') &amp;&amp; tokens.indexOf('jersey'))
+            return 0;
+        
+        if(tokens.indexOf('white') &amp;&amp; tokens.indexOf('trousers'))
+            return 0;
+        
+        return MatchPhrase;  
 
+    }
+
+</pre></div>
+<p>Note that we still have to define some matchPhrases here (though it doesn't much matter what) to force the phraseMatchName() method to be called. In this method the <i>tokens</i> parameter contains a list of words in the player's command, e.g. <span class='code'>['white', 'trousers']</span>, while <i>phrases</i> contains the list of matchPhrases. As should be apparent from this example, your routine should return 0 if if wants to reject the phrase match or <span class='code'>MatchPhrase</span> if it wants to accept it.</p>
+
+<br>
 <h3><a name="inherit">Inheriting vocab</a></h3>
 
 <p>Occasionally you may wish to define a class whose instances or subclasses inherit part of its vocab property and merge it into their own, e.g. a Coin class which can be used as the basis of different types of coin with some common vocabulary.</p>
