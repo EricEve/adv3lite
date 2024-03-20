@@ -33,6 +33,7 @@ source: menucon
 source: hintsys
 source: pathfind
 source: scene
+source: scenery
 source: score
 source: senseRegion
 source: topicEntry

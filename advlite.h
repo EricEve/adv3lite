@@ -1120,6 +1120,8 @@ ExtraHint template +hintDelay? "hintText" | [eventList];
 EventList template [eventList];
 ShuffledEventList template [firstEvents] [eventList];
 
+/* template for Scenery Class */
+Scenery template @location? [scenList];
 
 /* ------------------------------------------------------------------------ */
 /*  
