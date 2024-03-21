@@ -1,0 +1,181 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Scenery</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Scenes
+<br><span class="navnp"><a class="nav" href="scene.htm"><i>Prev:</i> Scenes</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="score.htm"><i>Next:</i> Scoring</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Scenery</h1>
+<h2>Overview</h2>
+<p>The scenery.t module allows the creation of multiple decorations from a single object.</p>
+<p>If a location mentions or implies the existence of a set of Decoration objects, you would normally need to do something like this:</p>
+
+<p><div class=code><pre>
++ Decoration 'sun; bright'
+   "The sun is quite bright today. "
+;
+
++ Decoration 'sky; blue clear'
+   "The sky is mostly clear and blue, but there are the odd patches of fluffy cloud. "
+;   
+
++ Decoration 'clouds; fluffy white'
+   "A trio of fluffly white clouds drift lazily towards the west. "
+;
+</pre></div>
+
+<p>The scenery module lets you compress this to:</p>
+
+<p><div class=code><pre>
++ Scenery
+  [   
+    ['sun; bright', 'The sun is quite bright today. '],
+    ['sky; blue clear', 'The sky is mostly clear and blue, but there are the odd patches of fluffy cloud. '],
+    ['clouds; fluffy white', ''A trio of fluffly white clouds drift lazily towards the west. ' ]
+  ]
+</pre></div>
+<p>Which may feel more of a saving of busy-work the more such decoration objects you would otherwise have to create. .</p>
+
+<p> For many purposes, that may be as much as you need to know about the Scenery class, but there is more you can do with it than that, which we shall now go on to explore. Perhaps most importantly, the Scenery class not only lets you create a set of Decoration objects with a bit less effort than defining them all individually, it also lets you manipulate a related set of decorations more easily.</p>
+<br>
+<a href="scenclass"></a>
+<h2>The Scenery Class</h2>
+<p>The Scenery class works by generating a series of decoration elements (actually of the special class <strong>ScenItem</strong>) based on the information supplied in its <strong>scenList</strong> property (note that there is probably no good reason for game code ever to define its own <span class='code'>ScenItem</span> objects - these are entirely handled by the library). In the example above the <span class='code'>scenList</span> was defined implicitly via the <span class='code'>Scenery</span> template. There may, however, be occasions when you may want to <i>modify</i> the scenLitem class, for example if you want to override its decorationActions property to include a custom action you have created.</p>
+<p>The <span class='code'>scenList</span> should contain a list of sublists, with each sublist defining a different decoration object. Each sublist can contain either two or three eleements thus:<p>
+
+<p><div class=code><pre>
++ Scenery
+  [   
+    [vocab, desc],
+    [vocab, desc, notImportantMsg]    
+  ]
+</pre></div></p>
+
+<p>The <i>vocab</i> element contains the vocab string to be assigned to the decoration object, using precisely the same format as for defining the vocab property of any Thing.</p>
+
+<p>The <i>desc</i> element can be one of:
+<ul>
+<lI>A single-quoted string containing the decoration's description.</li>
+<li>An anonymous function or floating method to output the decoration's description.</li>
+<li>An object whose descStr property will be used for the decoration's description.</li>
+</ul>
+The library defines a special <strong>nullObj</strong> object that can be used in the third case to give the description "That's not something you need to refer to." This could be useful, for example, it discouraging players from exploring sub-objects of sub-objects and the like.</p>
+<p>The optional <i>notImportantMsg</i> element defines the (not important) message to be displayed when the player tries to do anything but EXAMINE with this object. The notImportantMsg can be speficied as one of:
+<ul>
+<lI>A single-quoted string containing the not important message.</li>
+<li>An object whose notImportantMsg will be used. Note that if the second list element is an object and the third element is not specified, the second object will be used here too (this allows us to write, say, <span class='code'>['air', nullObj]</span> rather than the repetitive <span class='code'>['air', nullObj, nullObj]</span>). You can also use the name of a class here, such as <span class='code'>Distant</span> to display "The whatever is too far away."</li>
+<li>An integer, in which case the corresponding item in the Scenery object's <strong>notImportantMsgLst</strong> list property. For example, if in the above example we had written <span class='code'>['sun; bright', 'The sun is quite bright today. ', 2]</span>, then the notImportantMsg for our sun decoration would be than given in <span class='code'>notImportantMsgLst[2]</span>. This is principally intended for cases where s Scenery object has a relatively long list of itmes in its  <span class='code'>scenList</span> and needs to alternate between a small number of different not imporant messages it would be needlessly repetitive to keep typing on individual items.</li>
+<li>A property pointer (e.g., <span class='code'>&amp;mySpecialNotImportantMsg</span>), in which case the notImportantMsg will be taken from that defined on the corresponding custom property/method of the Scenery object. This custom property can be defined as a single-quoted string or a method that returns a single-quoted string, which may be a better option if it includes <a href="message.htm#parameter">message substitution parameters</a>.</li>
+<li>Nothing at all (i.e. the third element is omitted), in which case the second element's notImportantMsg will be used (if the second element is an object) or else the Scenery object's notImportantMsg will be used (if your Scenery object defines one) or, failing that, the library's default notImportantMsg for decorations ("The whatever is not important. ") will be used. If the majority of the scenery items your Scenery object is defining are distant, you might usefully define <span class='code'>notImportantMsg = delegated Distant</span> on the Scenery object to that it's default notImportantMsg becomes "The whatever is too far away. "</li>
+</ul>
+
+<p>If you do want to use message substituton parameters in your custom notImportantMsg, there are a couple of points to note:</p>
+<ol>
+<li>The parameter you need to refer to the decoration item in question is <span class='code'>{cobj}</span>. For example you could write a notImportantMsg as <span class='code'>'{The subj cobj} {is} utterly unimportant.'</span> or <span class='code'>'There is no need to meddle with {the cobj}. '</span> which should be usable on multiple decoration objects, with the name of the object replacing <span class='code'>{the subj cobj}</span> or <span class='code'>{the cobj}</span> in each case.</li> 
+<li>You may encounter cases in which the parameter substitution does not appear to work properly, especially if your notImportantMsg is defined as a single-quoted string (this can arise because the parameter substitutions may be evaluated prematurely). In such a case the solution may be to replace the single-quoted string with a method, but this will often not be necessary.</i>
+</ol>
+</p>
+
+<p>Another point to not is that while we can make a Scenery object's decoration objects use the <span class='code'>Distant</span> class's notImportantMsg ('The whatever is too far away' ), such objects wo't have the full functionality of the <span class='code'>Distant</span> class, in particular when it comes using the GO TO command with a Distant object. For many casees this won't metter, but if you do want GO TO to work with a dedoration object you'll need to create a separate Distant object for it.
+
+<p>The example we started with involves the sky and objects in the sky. If our game switches between day and night we may want to replace one set of sky objects with another as day turns to night and vice versa, for example:</p>
+<a name='initp'></a>
+<p><div class=code><pre>
++ daySky:Scenery
+  [   
+    ['sun; bright', 'The sun is quite bright today. '],
+    ['sky; blue clear', 'The sky is mostly clear and blue, but there are the odd patches of fluffy cloud. '],
+    ['clouds; fluffy white', ''A trio of fluffly white clouds drift lazily towards the west. ' ]
+  ]
+   
+  notImportantMsg = delegated Distant   
+;
+  
++ nightSky:Scenery
+   [
+      ['moon; full', 'The moon is full tonight. '],
+      ['sky; dark' 'The sky is dark, but mostly clear, so you can see a myriad stars. '],
+      ['stars;;constellations; them', 'The stars shine brightly, forming many familiar constellations', 'The stars are way out of your reach. ' ]
+   ]
+
+  notImportantMsg = delegated Distant   
+  initiallyPresent = nil     
+  visibleInDark = true
+;
+</pre></div></p>
+<a name = "makepresent"></a>
+<p>Note how we define <span class='code'>notImportantMsg = delegated Distant </span> on both Scenery objects to get a more appropriate default notimportantMsg ("The sky is too far away. " rather than "The sky is not important. "). Note also that we have defined <span class='code'>initiallyPresent = nil</span> on the <span class='code'>nightSky</span> Scenery object. If our game starts in daylight, then we want the daytime sky decoration objects to be initially present but not the time ones, and it's the <strong>initiallyPresent</strong> property (which is true by default) that controls this. To swap which set of Scenery objects is preeent we can then use the <strong>makePresent(<i>stat</i>)</strong> method.</p>
+
+<p><div class=code><pre>
+   daySky,makePresent(nil);
+   night.sky.makePresent(); <span class='comment'>// or nightSky.makePresent(true)</span>
+</pre></div></p>
+
+<p>As should be apparent from this example, if the stat parameter is true (or omitted) then the Scenery's decoration objects are brought into the Scenery object's location; otherwise, if it is nil, they are moved off-stage (equivalent to calling <span class='code'>daySky.moveInto(nil)</span>).<.p>
+
+<p>Note, too, that we define nightSky's <strong>visibleInDark</strong> property to be true; this ensures that all the decoration objects the nightSKy Scenery object creates will have <span class='code'>visibleInDark</span> set to true, which well be needed if we make all the outside loatioss go dark after nightfall (even on a dark night the sky, moon and stara remain visible).
+
+<p>Finally, if we need to tweak the Scenery's decoration objects any further, they are available through the Scenery object's <strong>myObjs</strong> property, which contains a list of the decoration objects created by the Scenery object, in the order in which they're listed in the <span class='code'>scenList</span> property, so that, for example <span class='code'>nightSky.myObjs[1]</span> would give us a reference to the moon object while <span class='code'>nightSky.myObjs[2]</span> would give us the sky object. This potentially allows us to do any further fine-tuning of these decorations that's not already provided for by the library (although hopefully, that shouldn't be necessary all that often). Beyond a certain level of tweaking and complexity it may be easier to creaate ordinary individual Decoration objects.</p>
+<br>
+<a name='multiloc'>
+<h2>The MultiLocScenery Class</h2>
+<p>The examples we have looked at above assume that all the decorations created by our Scenery objects exist in a single location (or Room), but unless our game has only one outdoor location, the chances are that we'll want decodation objects like sun, clouds and sky to appear in multiple locations, that is, to act at MultiLocs. But it won't work to try defining a Scenery object with a mix-in as <span class='code'>MultiLoc, Scenery</span>, since it's not the Scenery object we need to be in multiple places, it's the decoration objects it creates. To achieve that we instead need to use the <strong>MultiLocScenery</strong> class.</p>
+<p>We can then set up our MultiLocScenery objects in almost exactly the same way as we set up our Scenery objects, for example.</p>
+
+<p><div class=code><pre>
++ daySky:MultiLocScenery
+  [   
+    ['sun; bright', 'The sun is quite bright today. '],
+    ['sky; blue clear', 'The sky is mostly clear and blue, but there are the odd patches of fluffy cloud. '],
+    ['clouds; fluffy white', ''A trio of fluffly white clouds drift lazily towards the west. ' ]
+  ]   
+   
+  notImportantMsg = delegated Distant   
+  
+  intialLocationList = [outdoors]
+;
+  
++ nightSky:MultiLocScenery
+   [
+      ['moon; full', 'The moon is full tonight. '],
+      ['sky; dark' 'The sky is dark, but mostly clear, so you can see a myriad stars. '],
+      ['stars;;constellations; them', 'The stars shine brightly, forming many familiar constellations', 'The stars are way out of your reach. ' ]
+   ]
+
+  notImportantMsg = delegated Distant   
+  initiallyPresent = nil     
+  visibleInDark = true
+  
+  intialLocationList = [outdoors]
+;
+</pre></div></p>
+
+<p>Where <span class='code'>oudoors</span> might be a Region we've created to contain all our outdoor locations, and <strong>intialLocationList</strong> has the same meaning as it does on the <a href="multiloc.htm">MultiLoc</a> class. Indeed you can use all the same methods and properties on MultiLocScenery to set up where its MultiLoc Decorations start out as you can on the MultiLoc class:  <strong>intialLocationList</strong> or <strong>locationList</strong>,  <strong>intialLocationClass</strong> and  <strong>exceptions</strong>, as well as the  <strong>isInitiallyIn(loc)</strong> method that can be used in conjunction with <span class='code'>initialLocationClass</span> (as on MultiLoc), and these will work to define the locations of the decoration objects generated by the <span class='code'>MultiLocScenery</span> object.</p>
+
+<p>You can also call the methods <strong>moveInto(loc)</strong>, <strong>moveIntoAdd(loc)</strong> and <strong>moveOutOf(loc)</strong> on a MultiLocScenery object and these will be applied to all its decoration objects (by calling the same method on each of them in turn), with the same effect as they would have on any MultiLoc item. Amongst other things, this could prove very useful for manipukated groups of related MultiLoc decorations.</p>
+
+<p>Note that <span class='code'>MultiLocScenery</span> inherits from the <span class='code'>Scenery</span> class, so it also provides all the properties and methods of that class described above.</p>
+
+<p>Finally, note that the <span class='code'>MultiLocScenery</span> generates objects of the <strong>MultiScenItem</strong> class.
+ 
+<br>
+<class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Scenery
+<br><span class="navnp"><a class="nav" href="scene.htm"><i>Prev:</i> Scenes</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="score.htm"><i>Next: </i>Scoring </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
