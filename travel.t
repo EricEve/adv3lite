@@ -1075,6 +1075,57 @@ class Door: TravelConnector, Thing
 ;
 
 
+
+/* Mix-in class for creating double-sided (two-way) doors, passages, stairs and the like */
+class DSCon: MultiLoc
+    /* The two rooms we connnect. */
+    room1 = nil
+    room2 = nil
+    
+    /* We are located in the two rooms we connect. */
+    initialLocationList = [room1, room2]
+    
+    /* 
+     *   Our destination depends on which room the actor going through us starts out in. If it's
+     *   room1 our destination is room2, otherwise it's room1.
+     */
+    destination = gActor.getOutermostRoom == room1 ? room2 : room1
+    
+    /* 
+     *   By default we can vary the description of the passage according to the
+     *   location of the actor (and hence, according to which side it's viewed
+     *   from), but if we want the passage to be described in the same way from
+     *   both sides then we can simply override the desc property with a single
+     *   description. [SYMCOMM EXTENSION] 
+     */
+    desc() 
+    {
+        if(gActor.isIn(room1))
+            room1Desc;
+        else
+            room2Desc;
+    }
+    
+    /*  Our description as seen from room1  */
+    room1Desc = nil
+    
+    /*  Our description as seen from room2 */
+    room2Desc = nil
+    
+    /* Short service methods that can be used to abbreviate game code */
+    /* Test whether the player character is in our room1 */
+    inRoom1 = (room1 && gPlayerChar.isIn(room1))
+    
+    /* Test whether the player character is in our room2 */
+    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
+    
+    /* return a or b depending on which room the player char is in */
+    byRoom(args) { return inRoom1 ? args[1] : args[2]; }
+    
+    
+;
+
+
 /* 
  *   A DSDoor (Double Sided Door) can be used to implement a door as a single object present in two
  *   locations (defined on its room1 and room2 properties) instead of having to define the two sides
@@ -1087,16 +1138,7 @@ class Door: TravelConnector, Thing
  *   handled automatically by the DSDoor class without game authors needing to handle such
  *   directional adjectives themselves.
  */
-class DSDoor: MultiLoc, Door
-    
-    /* One of the rooms this door is located in */
-    room1 = nil
-    
-    /* The room the other side of the door is located in */
-    room2 = nil
-    
-    /* We're located in the rooms on both side of us. */
-    locationList = [room1, room2]
+class DSDoor: DSCon, Door    
     
     /* 
      *   As we're a double-sided door, we only need to manage our own isOpen status; we don't need
@@ -1110,17 +1152,12 @@ class DSDoor: MultiLoc, Door
      */    
     makeLocked(stat) { isLocked = stat; }
     
+        
     /*   
-     *   Our destination (the room to which we lead) depends on which side of us the actor going
-     *   through us is starting from.
-     */
-    destination = gActor.isIn(room1) ? room2 : room1
-    
-    /*   
-     *   We need to use Tbing's preinitTbing() method rather than Door's, since Door's does a whole
+     *   We need to use DSCon's preinitTbing() method rather than Door's, since Door's does a whole
      *   lot with our otherSide property, which we don't need or want to use.
      */
-    preinitThing() { inherited Thing(); }
+    preinitThing() { inherited DSCon(); }
     
     
      

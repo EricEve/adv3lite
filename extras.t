@@ -709,6 +709,175 @@ class StairwayDown: TravelConnector, Thing
         dobj}, but {i} could go down {him dobj}. ')
 ;
 
+/* A double sided (aks two-way) Stairway */
+class DSStairway: DSCon, StairwayUp
+    
+    /* 
+     *   The room at the upper end of this staircase. The library will try to determine which end of
+     *   this stairway is the upper and end which the lower according to whether it's room1 or room2
+     *   that points to us on its up or down property, so game code need not specify the upper or
+     *   lower end unless neither room at the ends of this stairway point to us via up or down,
+     *   either directly or via an asExit() macro. If the ends need to be specified manually, there
+     *   is no need to specify both, since whiohever end is explicitly defined will implicitly
+     *   define what the other end is.
+     */     
+    upperEnd = nil
+    
+    /* The room at the lower end of this staircase */
+    lowerEnd = nil
+    
+    /* 
+     *   initialise this SymStairway by first carrying out the inherited initialization and then
+     *   trying to determine which end of the stairway is the upperEnd and which the lowerEnd.
+     */
+    preinitThing
+    {
+        /* Carry out the inherited handling. */
+        inherited();
+        
+        /* Attempt to determine which end of the Stairway is which. */       
+        findUpperAndLowerEnds();
+    }
+    
+    /* 
+     *   Method which attempts to determine which end of the staircase is the upper and which the
+     *   lower based on the up and/or down properties defined in room1 and room2.
+     */
+    findUpperAndLowerEnds()
+    {
+        /* 
+         *   If the lower end is not yet defined and room1 points to us on its up property, then our
+         *   lower end must be room1.
+         */
+        if(lowerEnd == nil && room1 && room1.getConnector(&up) == self)        
+            lowerEnd = room1;
+        
+        /* 
+         *   If the upper end is not yet defined and room1 points to us on its down property, then
+         *   our upper end must be room 1.
+         */
+        if(upperEnd == nil && room1 && room1.getConnector(&down) == self)        
+            upperEnd = room1;
+        
+        /* 
+         *   If the lower end is not yet defined and room2 points to us on its up property, then our
+         *   lower end must be room 2.
+         */
+        if(lowerEnd == nil && room2 && room2.getConnector(&up) == self)        
+            lowerEnd = room2;
+        
+        /* 
+         *   If the upper end is not yet defined and room2 points to us on its down property, then
+         *   our upper end must be room 2.
+         */
+        if(upperEnd == nil && room2 && room2.getConnector(&down) == self)        
+            upperEnd = room2;
+        
+        /* 
+         *   If the upper end is not yet defined but the lower end is, then our upper end must be
+         *   whichever room isn't the lower end.
+         */       
+        if(upperEnd == nil && lowerEnd)
+            upperEnd = lowerEnd == room1 ? room2 : room1;
+        
+        /* 
+         *   If the lower end is not yet defined but the upper end is, then our lower end must be
+         *   whichever room isn't the upper end.
+         */ 
+        if(lowerEnd == nil && upperEnd)
+            lowerEnd = upperEnd == room1 ? room2 : room1;    
+    }
+    
+    /* 
+     *   The appropriate PushTravelAction for pushing something something up or down a
+     *   SymStairway.
+     */
+    PushTravelVia = location.isOrIsIn(lowerEnd) ? PushTravelClimbUp : PushTravelClimbDown
+    
+    /*  
+     *   Display message announcing that traveler (typically an NPC whose
+     *   departure is witnessed by the player character) has left via this
+     *   staircase. 
+     */
+    sayDeparting(traveler)
+    {
+        if(location.isOrIsIn(lowerEnd))
+            inherited(traveler);
+        else
+            delegated StairwayDown(traveler);
+    }
+    
+    /* 
+     *   Display message announcing that follower is following leader up
+     *   this staircase.
+     */
+    sayActorFollowing(follower, leader)
+    {
+        /* Create message parameter substitutions for the follower and leader */
+        if(location.isOrIsIn(lowerEnd))
+            delegated StairwayUp(follower, leader);
+        else
+            delegated StairwayDown(follower, leader);
+    }
+    
+    /* The message for traversing this stairway - we delegate to Thing's message. */
+    traversalMsg = location.isOrIsIn(lowerEnd) ? delegated StairwayUp : delegated StairwayDown
+    
+    
+    /* a trio of short service methods to provide convenient abbreviations in game code */
+    
+    /* Is the player character in our upper end room? */
+    inUpper = (upperEnd && gPlayerChar.isIn(upperEnd))
+    
+    /* Is the player character in our lower end room? */
+    inLower = (lowerEnd && gPlayerChar.isIn(lowerEnd))
+    
+    /* 
+     *   Return a or b depending on whether or not the player character is in our upperEnd room.
+     *   This is primarily intended to ease the writing of descriptions or travelDescs which vary
+     *   slightly according to which end we're at, e.g. "The stairs lead steeply <<byUpLo('down',
+     *   'up')>> "
+     */
+    byEnd(arg) { return inUpper ? arg[1] : arg[2]; }
+    
+    /* 
+     *   Retuen 'down' or 'up' depending on whether we're at the upper or lower end of the stairway.
+     */
+    upOrDown = inUpper ? downDir.name : upDir.name
+    
+    dobjFor(Climb)
+    {        
+        verify()
+        {
+            /* You can't climb up from the upper end of a staircase. */
+            if(gActor.isIn(upperEnd))
+                illogicalNow(cannotClimbMsg);
+        }
+    }
+    
+    dobjFor(ClimbDown)
+    {
+        verify()
+        {
+            /* You can't climb up from the upper end of a staircase. */
+            if(gActor.isIn(lowerEnd))
+                illogicalNow(cannotClimbDownMsg);
+        }
+        
+        action()
+        {
+            delegated StairwayDown();
+        }
+        
+        report()
+        {
+            delegated StairwayDown();
+        }
+    }
+    
+    
+;
+
 
 /* A Passage represents a physical object an actor can travel through, like a
      passage or portal. A Passage is also a TravelConnector so it
@@ -749,6 +918,8 @@ class Passage: TravelConnector, Thing
     PushTravelVia = PushTravelThrough
 ;
 
+
+
 /*  
  *   A PathPassage is a Passage that represents a path, so that following it or
  *   going down it is equivalent to going through it.
@@ -766,6 +937,18 @@ class PathPassage: Passage
     /* One most naturally talks of going 'down' a path */
     traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
 ;
+
+
+/* A double sided (i.e., two-way) Passage. */
+class DSPassage: DSCon, Passage
+;
+
+/* A double sided (.e., two-way) PathPassage. */
+class DSPathPassage: DSCon, PathPassage
+;
+
+
+
 
 /* 
  *   ProxyDest is a mix-in class for use with an object that represents the
