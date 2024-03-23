@@ -947,7 +947,12 @@ class DSPassage: DSCon, Passage
 class DSPathPassage: DSCon, PathPassage
 ;
 
-
+/* 
+ *   A double-sided (or two-way) TravelConnector. The room1 and room2 properties must be defined to
+ *   stipulate the two rooms the TravelConnector connects.
+ */
+class DSTravelConnector: DSBase, TravelConnector        
+;
 
 
 /* 

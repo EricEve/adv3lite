@@ -1074,14 +1074,118 @@ class Door: TravelConnector, Thing
     traversalMsg = BMsg(traverse door, 'through {1}', theName)
 ;
 
-
+/* Base mix-in class for defining various types of double-sided (two-way) travel connectors */
+class DSBase: object
+   /* The two rooms we connnect. */
+    room1 = nil
+    room2 = nil 
+    
+    /* Short service methods that can be used to abbreviate game code */
+    /* Test whether the player character is in our room1 */
+    inRoom1 = (room1 && gPlayerChar.isIn(room1))
+    
+    /* Test whether the player character is in our room2 */
+    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
+    
+    /* return a or b depending on which room the player char is in */
+    byRoom(args) { return inRoom1 ? args[1] : args[2]; }
+    
+    /*   
+     *   Our destination depends on our origin. 
+     */
+    getDestination(origin)
+    {
+        /* If we start out from room1 then this connector leads to room2 */
+        if(origin == room1)
+            return room2;
+        
+        /* If we start out from room2 then this connector leads to room1 */
+        if(origin == room2)
+            return room1;
+        
+        /* Otherwise, it doesn't lead anywhere. */
+        return nil;
+    }
+    
+    /* 
+     *   Returns the direction property to which this connector object is connected in
+     *   the player character's current location, e.g. &west. This is used on by
+     *   DirState to add the appropriate adjective (e.g. 'west') to our vocab,
+     *   so that the player can refer to us by the direction in which we lead.
+     *   If you don't want this direction to be included in the vocab of this
+     *   object, override attachedDir to nil.
+     */
+    attachedDir()
+    {
+        /* 
+         *   Get the direction this door leads in from the player character's current location.
+         */
+        local dir = doorDir();     
+        
+        /* 
+         *   Return the direction property of that location which points to this
+         *   door.
+         */
+        return dir == nil ? nil : dir.dirProp;         
+    }
+    
+    /*  
+     *   Returns the direction in which this connector object leads from the player character's
+     *   current location (or nil, if the player character isn't in one of the rooms this door is
+     *   located it).
+     */
+    doorDir()
+    {
+         /* Get the player character's current room location. */
+        local loc = gPlayerChar.getOutermostRoom;
+        
+        /* 
+         *   Return the direction that points to us from the player character's current location.
+         */
+        return connDir(loc);        
+        
+    }
+    
+    
+    connDir(origin)
+    {
+        /*  
+         *   Get the direction object whose dirProp corresponds to the dirProp
+         *   on origin (a room) which points to this object (we do this because
+         *   Direction.allDirections provides the only way to get at a list of
+         *   every dirProp).
+         */
+        local dir = Direction.allDirections.valWhich(
+            { d: origin.propType(d.dirProp) == TypeObject 
+            && origin.(d.dirProp) == self });
+        
+        return dir;
+    }
+    
+    
+    /* 
+     *   The direction an actor needs to travel in to travel via us from room1. This is set up in
+     *   Room initObj();
+     */
+    room1Dir() { return connDir(room1); }
+    
+    /* 
+     *   The direction an actor needs to travel in to travel via us from room2. This is set up in
+     *   Room initObj();
+     */
+    room2Dir()  { return connDir(room2); }
+    
+    /*   
+     *   The name of our direction of travel from the point of view of the player character
+     *   depending on whether the pc is in room1 or room2.
+     */
+    dirName = inRoom1 ? room1Dir.name : room2Dir.name
+       
+;
 
 /* Mix-in class for creating double-sided (two-way) doors, passages, stairs and the like */
-class DSCon: MultiLoc
-    /* The two rooms we connnect. */
-    room1 = nil
-    room2 = nil
-    
+class DSCon: DSBase, MultiLoc
+        
     /* We are located in the two rooms we connect. */
     initialLocationList = [room1, room2]
     
@@ -1110,20 +1214,12 @@ class DSCon: MultiLoc
     room1Desc = nil
     
     /*  Our description as seen from room2 */
-    room2Desc = nil
-    
-    /* Short service methods that can be used to abbreviate game code */
-    /* Test whether the player character is in our room1 */
-    inRoom1 = (room1 && gPlayerChar.isIn(room1))
-    
-    /* Test whether the player character is in our room2 */
-    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
-    
-    /* return a or b depending on which room the player char is in */
-    byRoom(args) { return inRoom1 ? args[1] : args[2]; }
-    
+    room2Desc = nil   
+ 
     
 ;
+
+
 
 
 /* 
@@ -1157,53 +1253,8 @@ class DSDoor: DSCon, Door
      *   We need to use DSCon's preinitTbing() method rather than Door's, since Door's does a whole
      *   lot with our otherSide property, which we don't need or want to use.
      */
-    preinitThing() { inherited DSCon(); }
+    preinitThing() { inherited DSCon(); }     
     
-    
-     
-    /* 
-     *   Returns the direction property to which this door is connected in
-     *   the player character's current location, e.g. &west. This is used by
-     *   DirState to add the appropriate adjective (e.g. 'west') to our vocab,
-     *   so that the player can refer to us by the direction in which we lead.
-     *   If you don't want this direction to be included in the vocab of this
-     *   object, override attachedDir to nil.
-     */
-    attachedDir()
-    {
-        /* 
-         *   Get the direction this door leads in from the player character's current location.
-         */
-        local dir = doorDir();     
-        
-        /* 
-         *   Return the direction property of that location which points to this
-         *   door.
-         */
-        return dir == nil ? nil : dir.dirProp;         
-    }
-    
-    /*  
-     *   Returns the direction in which this door leads from the player character's current location
-     *   (or nil, if the player character isn't in one of the rooms this door is located it).
-     */
-    doorDir()
-    {
-         /* Get the player character's current room location. */
-        local loc = gPlayerChar.getOutermostRoom;
-        
-        /*  
-         *   Get the direction object whose dirProp corresponds to the dirProp
-         *   on the room which points to this object (we do this because
-         *   Direction.allDirections provides the only way to get at a list of
-         *   every dirProp).
-         */
-        local dir = Direction.allDirections.valWhich(
-            { d: loc.propType(d.dirProp) == TypeObject 
-            && loc.(d.dirProp) == self });
-        
-        return dir;
-    }
 ;
 
 
@@ -1661,6 +1712,7 @@ class TravelConnector: object
     suppressTravelDescForPushTravel = true
     
 ;
+
 
 /* 
  *   An UnlistedProxyConnector is a special kind of TravelConnector created by
