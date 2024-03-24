@@ -2017,7 +2017,20 @@ DirState: State
         [&up, ['up', 'upward']], [&down, ['down', 'downward'] ],
         [&in, ['in', 'inner', 'inward']], [&out, ['out', 'outer', 'outward']]
     ]
+    
+    appliesTo(obj)
+    {
+        /* 
+         *   We exclude DStairway because including 'up' or 'down' in its vocab confuses the
+         *   parser's interpretation of CLIMB UP and CLIMB DOWN.
+         */
+        if(defined(DSStairway) && obj.ofKind(DSStairway))
+            return nil;
+        else
+            return inherited(obj);
+    }
 ;
+
 
 /*  
  *   Modifications to TopicPhrase to make it work better with the

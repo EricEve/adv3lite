@@ -112,7 +112,7 @@ frontDoor: DSDoor 'front door; solid oak'
 ;
 </div></pre>
 
-<p>Where <strong>gRoom</strong> is a library-defined macro that expands to <span class='code'>gPlayerChar.getOutermostRoom()</span>, i.e. the player character's current room.</p>
+<p>Where <strong>gRoom</strong> is a library-defined macro that expands to <span class='code'>gSafePlayerChar.getOutermostRoom()</span>, i.e. the player character's current room.</p>
 
 <p>The above description might suggest there needs to be a knocker object on one side of the door and a scratch mark object on the other side 
 of the door. These could be implemented as Fixtures or Decorations in <span class='code'>drive</span> and <span class='code'>hall</span> respectively,
@@ -133,9 +133,9 @@ but it you prefer to keep these objects with the door, you could do this by defi
 
 <p>In addition, on a DSDoor you can define <strong>room1Lockability</strong> and <strong>room2Lockability</strong> properties to make the <a href="thing.htm#behaviour">lockability</a> work in different ways on each side of the door (although if you want the same lockability on both sides of the door you can just override its lockability property). The one thing you can't do is define different keys to work on the different sides of the door. If you really wanted to do that you'd be better off using the regular Door class to define the door as two different objects.</p>
 
-<p>Although you can't readily give the two sides of a DSDoor different vocab (to allow the player to refer to them with different words), the DSDoor class automatically takes care of the case where the player refers to a door by its direction, e.g. X EAST DOOR or OPEN NW DOOR. There is no need to add such direction terms to the definition of the DSDoor (indeed, you should not do so), since the parser will automatically recognize the direction in which a DSDoor lies relative to the player character as referring to that DSDoor. If you don't want that behaviour on a particular DSDoor, simply override its <strong>attachedDir</strong> property to nil.</p>
+<p>Although it's a little fiddly to give the different sides of a DSDoor different vocab (to allow the player to refer to them with different words), the DSDoor class automatically takes care of the case where the player refers to a door by its direction, e.g. X EAST DOOR or OPEN NW DOOR. There is no need to add such direction terms to the definition of the DSDoor (indeed, you should not do so), since the parser will automatically recognize the direction in which a DSDoor lies relative to the player character as referring to that DSDoor. If you don't want that behaviour on a particular DSDoor, simply override its <strong>attachedDir</strong> property to nil.</p>
 
-<p>If you want to DSDoor to be called 'north door' on one side and 'south door' on the other, this can be done, but needs a bit of caution. The following will cause a run-time error at the start of the game:</p>
+<p>If you want to DSDoor to be called 'north door' on one side and 'south door' on the other, this is probably most easily done using the <span class='code'>byRoom()</span> method to define its name:</p>
 
 <p><div class=code><pre>
 frontDoor: DSDoor 'door; solid oak' 
@@ -143,7 +143,7 @@ frontDoor: DSDoor 'door; solid oak'
       a large brass knocker&lt;&lt;else&gt;&gt; although a series of scratch marks suggest Fido has tried
       to break out&lt;&lt;end&gt;&gt;."
    
-    name = (gRoom == room1 ? 'north door' : 'south door')
+    name = byRoom(['north door', 'south door'])
     lockability = lockableWithKey
     isLocked = true    
     room1 = hall
@@ -151,7 +151,32 @@ frontDoor: DSDoor 'door; solid oak'
 ;
 </div></pre>
 
-<p>The reason being that gPlayerChar may not have been assigned a value when the game starts up, so that when it tries to initialize the frontDoor it runs into a nil object reference (through testing the location of nil). If your game contains an unchanging player character object such as <span class='code'>me</span> it would be safer to write <span class='code'>name = (me.getOutermostRoom == room1 ? 'north door' : 'south door')</span>.
+<p>If the front door were blue on one side and red on the other, you could change both its name and its vocab according to which room the player character was viewing it from. The best way to achieve the latter would probably be to define a custom State object applying just to that one object and switching adjectives according to the value of the door's <span class='code'>inRoom1</span> property:</p>
+
+<p><div class=code><pre>
+frontDoor: DSDoor 'door; solid oak' 
+    "It's a solid oak front door, strong enough to resist a siege, &lt;&lt;if inRoom1&gt;&gt; and sporting
+      a large brass knocker&lt;&lt;else&gt;&gt; although a series of scratch marks suggest Fido has tried
+      to break out&lt;&lt;end&gt;&gt;."
+   
+    name = byRoom(['red door', 'blue door'])
+    lockability = lockableWithKey
+    isLocked = true    
+    room1 = hall
+    room2 = drive
+;
+
+frontDoorState: State
+    appliesTo(obj) { return obj ==  frontDoor; }
+    
+    stateProp = &amp;inRoom1
+    
+    adjectives = [[true, ['red']], [nil, ['blue']]]
+;
+</div></pre>
+
+<p>The <span class='code'>frontDoorState</span> would then add the adjective 'red' or 'blue' to the front door's vocab according as whether the playcer character was in room1 (the hall) or room2 (the drive).</p>
+
 
 <p>Anything more complicated than these cases is probably best handled by implementing your door with two Door objects to represent the two different sides. The other possibility is to include the <a href="../../extensions/docs/symconn.htm">symconn</a> extension in your game and use the <a href="../../extensions/docs/symconn.htm#symdoor">SymDoor</a> class.
 

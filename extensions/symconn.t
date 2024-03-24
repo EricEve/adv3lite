@@ -11,7 +11,7 @@ symconnID: ModuleID
     name = 'Symconn'
     byline = 'by Eric Eve'
     htmlByline = 'by Eric Eve'
-    version = '2'    
+    version = '3'    
 ;
 
 /* Modification to Room for SymConn (symmetrical connector) extension */
@@ -57,7 +57,8 @@ modify Room
                  *   If the object is a SymConnector we need to carry out a different kind of
                  *   initialization.
                  */
-                if(obj.ofKind(SymConnector))
+                if(obj.ofKind(AutoConnector))
+//                if(obj.ofKind(SymConnector))
                 {
                     /* First get the object to initialize itself. */
                     obj.initConnector(self, dir);
@@ -161,8 +162,9 @@ modify Room
      *   the part of the original purpose of the SymmConn extension) but game code can set this to
      *   nil (either on the Room class or on individual rooms) to suppress it if it's not wanted -
      *   which may be the case if the this extension is being used for SymmConnectors rather than
-     *   automated back connections.     */
-         
+     *   automated back connections (which is now unlikely given the availabliity of DSConnectors in
+     *   the main library).
+     */         
     autoBackConnections = true
     
     /* 
@@ -238,123 +240,8 @@ symVocabPreinit: PreinitObject
     execBeforeMe = [multiLocInitiator]
 ;
 
-
-/* 
- *   A Symmetrical Connector is a special type of TravelConnector between rooms that can be
- *   traversed in either direction and that, optionally, can largely set itself up so that if the
- *   dir property of room1 points to this SymConnector, the reverse dir property of room2 also
- *   points to this SymConnector. [SYMCOMM EXTENSION]
- *
- *   SymConnector is a type of TravelConnector (from which it descends by inheritance). A
- *   SymConnector can be traversed in both directions, and defining a SymConnector on a direction
- *   property of one room automatically attaches it to the reverse direction property of the room to
- *   which it leads. Otherwise, a SymConnector behaves much like any other TravelConnector, and can
- *   be used to define travel barriers or the side-effects of travel in much the same way.
- *
- *   Internally a SymConnector defines a room1 property and a room2 property, room1 and room2 being
- *   the two rooms reciprocally connected by the SymConnector. The room1 and room2 can be set by the
- *   extension at preinit if the connector's destination is specified, but it's probably clearer and
- *   safer to explictily set the room1 and room2 properties.
- */
-class SymConnector: TravelConnector
-    
-    /* 
-     *   The room from/to which this SymConnector leads. Note we can leave this
-     *   to be set up by our initConnector() method. [SYMCOMM EXTENSION] 
-     */
-    room1 = nil
-    
-     /* 
-      *   The room to/from which this SymConnector leads. [SYMCOMM EXTENSION] 
-      */
-    room2 = nil
-     
-    /* 
-     *   The direction an actor needs to travel in to travel via us from room1. This is set up in
-     *   Room initObj();
-     */
-    room1Dir = nil
-    
-    /* 
-     *   The direction an actor needs to travel in to travel via us from room2. This is set up in
-     *   Room initObj();
-     */
-    room2Dir = nil
-    
-    /*   
-     *   The name of our direction of travel from the point of view of the player character
-     *   depending on whether the pc is in room1 or room2.
-     */
-    dirName = inRoom1 ? room1Dir.name : room2Dir.name
-    
-    /*   
-     *   Our destination depends on our origin. [SYMCOMM EXTENSION] 
-     */
-    getDestination(origin)
-    {
-        /* If we start out from room1 then this connector leads to room2 */
-        if(origin == room1)
-            return room2;
-        
-        /* If we start out from room2 then this connector leads to room1 */
-        if(origin == room2)
-            return room1;
-        
-        /* Otherwise, it doesn't lead anywhere. */
-        return nil;
-    }
-    
-    /*  
-     *   Our notional destination (if this is defined it will be copied to room2
-     *   at preinit). [SYMCOMM EXTENSION] 
-     */
-    destination = nil
-        
-    
-    /*  
-     *   Execute travel through this connector. The difference for the SYMCOMM EXTENSION is that an
-     *   actor travelling through this connector ends up knowing where both sides lead to.
-     */
-    execTravel(actor, traveler, conn)
-    {
-        /* Note the actor's starting location. */
-        local loc = actor.getOutermostRoom();
-        
-        /* 
-         *   Carry out the inherited handling (which delegates most of the work
-         *   to our destination).
-         */
-        inherited(actor, traveler, conn);        
-        
-        
-        /*  
-         *   If the actor carrying out the travel is the player character, note
-         *   that the player character now knows where both sides of the
-         *   connector lead to.
-         */
-        if(actor == gPlayerChar && actor.isIn(getDestination(loc)))        
-        {             
-            isDestinationKnown = true;
-        }
-    }
-    
-    /*   
-     *   By default the player character doesn't start off knowing where this
-     *   connector leads. Once the pc has been through the connector in either
-     *   direction this becomes true on both sides of the connector.
-	 *   [SYMCOMM EXTENSION] 
-     */
-    isDestinationKnown = nil
-    
-    /*   A SymConnector is usually open. [SYMCOMM EXTENSION] */
-    isOpen = true
-    
-    /*   
-     *   The rooms property provides an alternative and slightly shorthand way of defining our two
-     *   rooms. If defined, it must contain exactlty two rooms in the order [room1, room2].
-     */
-    rooms = []
-    
+/* Mix-in class for automating the set-up of various kinds of SymmConnector */
+class AutoConnector: object
     /*  
      *   Initialize this SymConnector by setting up its room1 and room2 properties if they are not
      *   already defined. This method is normally called from the preinitThing() method of the room
@@ -365,19 +252,20 @@ class SymConnector: TravelConnector
         
         /* 
          *   Check if room1 and room2 have been defined on our rooms list property, and assign
-         *   them if so.
-         */
+         *   them if so.         */
         
         rooms = valToList(rooms);
  
-        
+        /* 
+         *   If there are at least 2 entries in our rooms list, assiagn the first entry to room1 and
+         *   the second entry to room 2.
+         */
         if(rooms.length > 1)
         {
             room1 = rooms[1];
             room2 = rooms[2];
         }
-        
-        
+                
         /*  
          *   If room1 hasn't been defined yet, set it to loc (the room whose
          *   preinitThing() method has called this method), provided loc isn't room2.
@@ -397,104 +285,59 @@ class SymConnector: TravelConnector
            
         }
         
-        
+        /* if loc is room1, then set the direction from room1 to dir. */
         if(room1 == loc)
             room1Dir = dir;
         
+        /* if loc is room2, then set the direction from room2 to dir. */
         if(room2 == loc)
             room2Dir = dir;
     }    
-    
-    /* Short service methods that can be used to abbreviate game code */
-    /* Test whether the player character is in our room1 */
-    inRoom1 = (room1 && gPlayerChar.isIn(room1))
-    
-    /* Test whether the player character is in our room2 */
-    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
-               
-    /* return a or b depending on which room the player char is in */
-    byRoom(args) { return inRoom1 ? args[1] : args[2]; }
-    
-    
 ;
 
+
 /* 
- *   A Symmetrical Passage is a single passage object that can be traversed in either direction and
- *   exists in both the locations it connects. [SYMCOMM EXTENSION]
+ *   A Symmetrical Connector is a special type of TravelConnector between rooms that can be
+ *   traversed in either direction and that, optionally, can largely set itself up so that if the
+ *   dir property of room1 points to this SymConnector, the reverse dir property of room2 also
+ *   points to this SymConnector. [SYMCOMM EXTENSION]
  *
- *   A SymPassage is very like a SymDoor, except that it can't be opened or closed (at least, not
- *   via player commands). The SymPassage class can be used to define passage-like objects such as
- *   passageways and archways that connect one location to another. A SymPassage is otherwise
- *   defined in exactly the same way as a SymDoor; from a player's perspective it is functionally
- *   equivalent to a Passage, the differences from the game author's point of view being that it can
- *   be defined using one game object instead of two and that this extension automatically takes
- *   care of setting up the connection in the reverse direction.
+ *   SymConnector is a type of TravelConnector (from which it descends by inheritance). A
+ *   SymConnector can be traversed in both directions, and defining a SymConnector on a direction
+ *   property of one room automatically attaches it to the reverse direction property of the room to
+ *   which it leads. Otherwise, a SymConnector behaves much like any other TravelConnector, and can
+ *   be used to define travel barriers or the side-effects of travel in much the same way.
+ *
+ *   Internally a SymConnector defines a room1 property and a room2 property, room1 and room2 being
+ *   the two rooms reciprocally connected by the SymConnector. The room1 and room2 can be set by the
+ *   extension at preinit if the connector's destination is specified, but it's probably clearer and
+ *   safer to explictily set the room1 and room2 properties. 
  */
-class SymPassage: MultiLoc, SymConnector, Thing
-    
-    /* 
-     *   By default we can vary the description of the passage according to the
-     *   location of the actor (and hence, according to which side it's viewed
-     *   from), but if we want the passage to be described in the same way from
-     *   both sides then we can simply override the desc property with a single
-     *   description. [SYMCOMM EXTENSION] 
-     */
-    desc() 
-    {
-        if(gActor.isIn(room1))
-            room1Desc;
-        else
-            room2Desc;
-    }
-    
-    /*  Our description as seen from room1 [SYMCOMM EXTENSION]  */
-    room1Desc = nil
-    
-    /*  Our description as seen from room2 [SYMCOMM EXTENSION] */
-    room2Desc = nil
-    
-    /*  A passage is generally something fixed in place.[SYMCOMM EXTENSION]  */
-    isFixed = true
-    
-     /*  Going through a passage is the same as traveling via it.[ SYMCOMM EXTENSION]  */
-    dobjFor(GoThrough)
-    {
-        action() { travelVia(gActor); }
-    }
-    
-    /*  Entering a passage is the same as going through it. [SYMCOMM EXTENSION] */
-    dobjFor(Enter) asDobjFor(GoThrough)
-    
-     /* Going along a Passage is the same as going through it */
-    dobjFor(GoAlong) asDobjFor(GoThrough)
-        
-    
-     /*   A Passage is something it makes sense to go through. [SYMCOMM EXTENSION] */
-    canGoThroughMe = true
-        
-    
-    /*  
-     *   The appropriate action for pushing an object via a passage is
-     *   PushTravelThrough [SYMCOMM EXTENSION] 
-     */
-    PushTravelVia = PushTravelThrough
-    
-    /*   Initialize this passage (called at preinit from Room.preinitThing) [SYMCOMM EXTENSION]  */
+class SymConnector: AutoConnector, DSTravelConnector
+;
+
+
+/* 
+ *   Mix-in class to add additional funcionality to SymConnector type objects that have a physical
+ *   presence in the game (such as passages and doors).
+ */
+class PhysicalAutoConnector: AutoConnector
+    /* Initialize this connector. */
     initConnector(loc, dir)
     {
         /* Carry out the inherited (SymConnector) handling. */
         inherited(loc, dir);
         
         /* 
-         *   Move this passage into the two locations where it has a physical
-         *   presence. Note that if this is being called from sides of the connector
-         *   then the first time it's called either room1 or room2 may not yet be defined,
-         *   so we need to test that room1 and room2 are not nil.
+         *   If it's not already there, move this physical connector into the two locations where it
+         *   has a physical presence. Note that if this is being called from sides of the connector
+         *   then the first time it's called either room1 or room2 may not yet be defined, so we
+         *   need to test that room1 and room2 are not nil.
          */
-        if(room1)
+        if(room1 && !isIn(room1))
             moveIntoAdd(room1);
         
-        if(room2)
+        if(room2 && ! isIn(room2))
             moveIntoAdd(room2);
         
         /*
@@ -509,69 +352,8 @@ class SymPassage: MultiLoc, SymConnector, Thing
         
     }
     
-    /*  
-     *   Display message announcing that traveler has left via this door. The
-     *   traveler would normally be an NPC visible to the player character.
-	 *   [SYMCOMM EXTENSION] 
-     */
-    sayDeparting(traveler)
-    {
-        delegated Door(traveler);       
-    }
     
-    /* 
-     *   Display message announcing that follower is following leader through
-     *   this door. [SYMCOMM EXTENSION] 
-     */
-    sayActorFollowing(follower, leader)
-    {
-        delegated Door(follower, leader);        
-    }
     
-    /* [SYMCOMM EXTENSION] delegate our traversal message to the Door class. */
-    traversalMsg = delegated Door
-    
-    /* 
-     *   Returns the direction property to which this passage is connected in
-     *   the player character's current location, e.g. &west. This is used by
-     *   DirState to add the appropriate adjective (e.g. 'west') to our vocab,
-     *   so that the player can refer to us by the direction in which we lead.
-     *   If you don't want this direction to be included in the vocab of this
-     *   object, override attachedDir to nil. [SYMCOMM EXTENSION] 
-     */
-    attachedDir()
-    {
-        /* Get the player character's current room location. */
-        local loc = gPlayerChar.getOutermostRoom;
-        
-        /*  
-         *   Get the direction object whose dirProp corresponds to the dirProp
-         *   on the room which points to this object (we do this because
-         *   Direction.allDirections provides the only way to get at a list of
-         *   every dirProp).
-         */
-        local dir = Direction.allDirections.valWhich(
-            { d: loc.propType(d.dirProp) == TypeObject 
-            && loc.(d.dirProp) == self });
-        
-        /* 
-         *   Return the direction property of that location which points to this
-         *   passage.
-         */
-        return dir == nil ? nil : dir.dirProp;         
-    }
-    
-    /* 
-     *   We're visible in the dark if the room on either side of us is
-     *   illuminated [SYMCOMM EXTENSION] 
-     */    
-    visibleInDark
-    {
-        if(transmitsLight && room1 && room2)
-            return room1.isIlluminated || room2.isIlluminated;
-        
-        return nil;
-    }
     
     /* 
      *   Our vocab when viewed from room1. If we want different vocab (including different names) on
@@ -588,12 +370,29 @@ class SymPassage: MultiLoc, SymConnector, Thing
      */
     room2Vocab = nil
     
-;    
+;
+
+/* 
+ *   A Symmetrical Passage is a single passage object that can be traversed in either direction and
+ *   exists in both the locations it connects. [SYMCOMM EXTENSION]
+ *
+ *   A SymPassage is very like a SymDoor, except that it can't be opened or closed (at least, not
+ *   via player commands). The SymPassage class can be used to define passage-like objects such as
+ *   passageways and archways that connect one location to another. A SymPassage is otherwise
+ *   defined in exactly the same way as a SymDoor; from a player's perspective it is functionally
+ *   equivalent to a Passage, the differences from the game author's point of view being that it can
+ *   be defined using one game object instead of two and that this extension automatically takes
+ *   care of setting up the connection in the reverse direction.
+ */
+class SymPassage: PhysicalAutoConnector, DSPassage   
+;
+
 
 /*  
  *   A Symmetrical Door is a door that can be traversed in either direction and exists in both the
  *   locations it connects. It behaves much like a regular Door, except that it uses only one
- *   object, not two, to represent the door. [SYMCOMM EXTENSION]
+ *   object, not two, to represent the door. It behaves even more like DSDoor, from which it
+ *   descends. [SYMCOMM EXTENSION]
  *
  *   You'd typically use it by pointing the appropriate direction property of one room to point to
  *   it and then defining its room2 property as the room to which it leads, for example:
@@ -638,71 +437,10 @@ class SymPassage: MultiLoc, SymConnector, Thing
  *   character's location, which is used by the DirState State object to add the appropriate
  *   direction name adjectives, such as 'north', to the SymDoor's vocab).
  */
-class SymDoor: SymPassage
-    /* A door is usually openable. [SYMCOMM EXTENSION] */
-    isOpenable = true
-    
-    /* A door usually starts out closed. [SYMCOMM EXTENSION]  */
-    isOpen = nil
-    
-    /* 
-     *   Although SymDoor doesn't inherit from Door, it needs to use Door's
-     *   checkTravelBarriers() method to attempt to open the door via an
-     *   implicit action if an attempt is made to go through it when it's
-     *   closed. [SYMCOMM EXTENSION] 
-     */
-    checkTravelBarriers(traveler)
-    {
-        return delegated Door(traveler);
-    }
-    
-    /*  
-     *   If we can't go through the door, use Door's version of the appropriate
-     *   method. [SYMCOMM EXTENSION] 
-     */
-    cannotGoThroughClosedDoorMsg = delegated Door
-    
-    /* 
-     *   By default we leave game authors to decide if and how they want to
-     *   report whether a door is open or closed. [SYMCOMM EXTENSION] 
-     */
-    openStatusReportable = nil
-    
-    /*  
-     *   Flag, do we want to attempt to unlock this door via an implicit action
-     *   if someone attempts to open it while it's locked? [SYMCOMM EXTENSION] 
-     */
-    autoUnlock = nil
-    
-    /*
-     *   The lockability of this Door (notLockable, lockableWithKey, lockableWithoutKey, or
-     *   indirectLockable). This can be different for each side of the door, in which case set
-     *   room1Lockability and room2Lockability individually and the game will use the lockability
-     *   appropriate to the location of the current actor. If you want the same lockability for both
-     *   sides of the door, simply override lockability accordingly. [SYMCONN EXTENSION]
-     */
-    lockability = (gActor.getOutermostRoom == room1 ? room1Lockability : room2Lockability)
-    
-    /*
-     *   Our lockability on the room1 side of the door. [SYMCONN EXTENSION]
-     */
-    room1Lockability = notLockable
-    
-    /*
-     *   Our lockability on the room2 side of the door. [SYMCONN EXTENSION]
-     */    
-    room2Lockability = notLockable
-    
-    dobjFor(GoThrough)
-    {
-        preCond = [travelPermitted, touchObj, objOpen]
-    }
-    
-    iobjFor(PushTravelThrough)
-    {
-        preCond = [travelPermitted, touchObj, objOpen]
-    }
+class SymDoor: PhysicalAutoConnector, DSDoor    
 ;
+
+
     
 /* 
  *   A SymStairway is aingle object representing a stairway up from its lower end and a stairway
@@ -718,175 +456,15 @@ class SymDoor: SymPassage
  *
  *   [THE SYMCONN EXIENSION must be present in your project if you want to use a SymStairway]
  */
-
-
-class SymStairway: SymPassage
-    
-    /* The room at the upper end of this staircase */
-    upperEnd = nil
-    
-    /* The room at the lower end of this staircase */
-    lowerEnd = nil
-    
-    /* 
-     *   initialise this SymStairway by first carrying out the inherited initialization and then
-     *   trying to determine which end of the stairway is the upperEnd and which the lowerEnd.
-     */
-    initConnector(loc, dir)
-    {
-        /* Carry out the inherited handling. */
-        inherited(loc, dir);
-        
-        /* 
-         *   If the lower end is not yet defined and room1 points to us on its up property, then our
-         *   lower end must be room 1.
-         */
-        if(lowerEnd == nil && room1 && room1.getConnector(&up) == self)        
-            lowerEnd = room1;
-        
-        /* 
-         *   If the upper end is not yet defined and room1 points to us on its down property, then
-         *   our upper end must be room 1.
-         */
-        if(upperEnd == nil && room1 && room1.getConnector(&down) == self)        
-            upperEnd = room1;
-        
-        /* 
-         *   If the lower end is not yet defined and room2 points to us on its up property, then our
-         *   lower end must be room 2.
-         */
-        if(lowerEnd == nil && room2 && room2.getConnector(&up) == self)        
-            lowerEnd = room2;
-        
-        /* 
-         *   If the upper end is not yet defined and room2 points to us on its down property, then
-         *   our upper end must be room 2.
-         */
-        if(upperEnd == nil && room2 && room2.getConnector(&down) == self)        
-            upperEnd = room2;
-        
-        /* 
-         *   If the upper end is not yet defined but the lower end is, then our upper end must be
-         *   whichever room isn't the lower end.
-         */       
-        if(upperEnd == nil && lowerEnd)
-            upperEnd = lowerEnd == room1 ? room2 : room1;
-        
-        /* 
-         *   If the lower end is not yet defined but the upper end is, then our lower end must be
-         *   whichever room isn't the upper end.
-         */ 
-        if(lowerEnd == nil && upperEnd)
-            lowerEnd = upperEnd == room1 ? room2 : room1;           
-        
-    }
-    
-    /* Climbing a stairway is equivalent to climbimg up it. */
-    dobjFor(ClimbUp) asDobjFor(Climb)
-    
-    /* Climbing down a SymStairway is equivalent to travelling via it. */
-    dobjFor(ClimbDown)
-    {       
-        action { travelVia(gActor); }
-    }
-    
-    /* Climbing up SymStairway is equivalent to travelling via it. */
-    dobjFor(Climb)
-    {       
-        action { travelVia(gActor); }
-    }
-    
-    /* We can climb up this stairway if and only if we're at its lower end. */
-    isClimbable = location.isOrIsIn(lowerEnd)
-    
-    /* We can climb down this stairway if and only if we're at its upper end. */
-    canClimbDownMe = location.isOrIsIn(upperEnd)
-    
-    /* Use Thing's cannotDownMsg */
-    cannotClimbDownMsg = (delegated StairwayUp)
-    
-    cannotClimbMsg = (delegated StairwayDown)
-    
-       
-    /* 
-     *   The appropriate PushTravelAction for pushing something something up or down a
-     *   SymStairway.
-     */
-    PushTravelVia = location.isOrIsIn(lowerEnd) ? PushTravelClimbUp : PushTravelClimbDown
-    
-    /*  
-     *   Display message announcing that traveler (typically an NPC whose
-     *   departure is witnessed by the player character) has left via this
-     *   staircase. 
-     */
-    sayDeparting(traveler)
-    {
-        if(location.isOrIsIn(lowerEnd))
-            delegated StairwayUp(traveler);
-        else
-            delegated StairwayDown(traveler);
-    }
-    
-    /* 
-     *   Display message announcing that follower is following leader up
-     *   this staircase.
-     */
-    sayActorFollowing(follower, leader)
-    {
-        /* Create message parameter substitutions for the follower and leader */
-        if(location.isOrIsIn(lowerEnd))
-            delegated StairwayUp(follower, leader);
-        else
-            delegated StairwayDown(follower, leader);
-    }
-    
-    /* The message for traversing this stairway - we delegate to Thing's message. */
-    traversalMsg = location.isOrIsIn(lowerEnd) ? delegated StairwayUp : delegated StairwayDown
-    
-    
-    /* a trio of short service methods to provide convenient abbreviations in game code */
-    
-    /* Is the player character in our upper end room? */
-    inUpper = (upperEnd && gPlayerChar.isIn(upperEnd))
-    
-    /* Is the player character in our lower end room? */
-    inLower = (lowerEnd && gPlayerChar.isIn(lowerEnd))
-    
-    /* 
-     *   Return a or b depending on whether or not the player character is in our upperEnd room.
-     *   This is primarily intended to ease the writing of descriptions or travelDescs which vary
-     *   slightly according to which end we're at, e.g. "The stairs lead steeply <<byUpLo('down',
-     *   'up')>> "
-     */
-    byEnd(arg) { return inUpper ? arg[1] : arg[2]; }
-    
-    /* 
-     *   Retuen 'down' or 'up' depending on whether we're at the upper or lower end of the stairway.
-     */
-    upOrDown = inUpper ? downDir.name : upDir.name
+class SymStairway: PhysicalAutoConnector, DSStairway
 ;
+
 
 /*  
  *   A SympPathPassage is a SymPassage that represents a path (or road or track or the like). so
  *   that following it or going down it is equivalent to going through it.
  */
-class SymPathPassage: SymPassage
-    
-    /* Make followinng a path the same as going through it. */
-    dobjFor(Follow) asDobjFor(GoThrough)
-    
-    /* Make going down a path the same as going through it. */
-    dobjFor(ClimbDown) asDobjFor(GoThrough)
-    
-    /* Make going up a path the same as going through it. */
-    dobjFor(ClimbUp) asDobjFor(GoThrough)
-    
-    
-    /* 
-     *   One most naturally talks of going 'down' a path; by default we use the message from the
-     *   PathPassage class.
-     */
-    traversalMsg = delegated PathPassage
+class SymPathPassage: PhysicalAutoConnector, DSPathPassage
 ;
 
 
@@ -923,3 +501,4 @@ noExit: TravelConnector
         actor.getOutermostRoom.cannotGoThatWay(gAction.direction);
     }
 ;
+

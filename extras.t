@@ -879,7 +879,38 @@ class DSStairway: DSCon, StairwayUp
     
     cannotClimbDownMsg = BMsg(cant climb doen from here, 
                               '{I} {can\'t} climb down {the dobj} from {here}. ')
+    
+    iobjFor(PushTravelClimbUp)
+    {
+        verify()
+        {
+            inherited();
+            
+            if(gActor.isIn(upperEnd))
+                illogicalNow(cannotPushClimbMsg);
+        }        
+    }
+    
+    iobjFor(PushTravelClimbDown)
+    {
+        verify()
+        {
+            inherited();
+            
+            if(gActor.isIn(lowerEnd))
+                illogicalNow(cannotPushClimbDownMsg);
+        }        
+    }
+    
+    cannotPushClimbMsg = BMsg(cannot push climb here, '{I} {can\'t} ascend {the iobj} from {here}.
+        ')
+    
+    cannotPushClimbDownMsg = BMsg(cannot push climb down here, '{I} {can\'t} descend {the iobj} from {here}.
+        ')
 ;
+
+
+
 
 
 /* A Passage represents a physical object an actor can travel through, like a
