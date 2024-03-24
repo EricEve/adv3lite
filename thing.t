@@ -2664,14 +2664,10 @@ class Thing:  ReplaceRedirector, Mentionable
     extContents = ( contType == In ? [] : contents)
 
     /* 
-     *   Am I the Thing object that starts out as the initial player character?
-     *   For just about every Thing this will not the case, but this can be
-     *   overridden to true on the one Thing, Player or Actor object that is
-     *   meant to represent the initial player character. Note, however, that if
-     *   gameMain already defines a non-nil initialPlayerChar property, this
-     *   will be used to identify the initial player character object whatever
-     *   the value of the isInitialPlayerChar on any other object.
-     */
+     *   The isInitialPlayerChar property was formerly used as an alternative method of identifying
+     *   the player character. This method of doing so is now deprecated. Instead you MUST now
+     *   define the player character on gameMain.initialPlayerChar
+     */    
     isInitialPlayerChar = nil
     
     /* Carry out the preinitialization of a Thing */
@@ -9279,19 +9275,7 @@ class Player: Thing
      *   Objects located in the player character are generally regarded as being
      *   held.
      */
-    contType = Carrier   
-    
-    /* 
-     *   Am I the Player object that starts out as the initial player character?
-     *   Most games will only define one Player object so this will normally be
-     *   true, but if a game defines more than one (e.g. to allow the player
-     *   character to be switched mid-game) this should be set to nil on all the
-     *   others so that the game knows which one to register as the initial
-     *   player character. Note, however, that if a game contains more than one
-     *   potential player character, it may often be better to define the others
-     *   using the Actor class.
-     */
-    isInitialPlayerChar = true
+    contType = Carrier     
 ;
 
 /*  

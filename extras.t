@@ -855,6 +855,8 @@ class DSStairway: DSCon, StairwayUp
         }
     }
     
+    cannotClimbMsg = BMsg(cant climb from here, '{I} {can\'t} climb up {the dobj} from {here}. ')
+    
     dobjFor(ClimbDown)
     {
         verify()
@@ -875,7 +877,8 @@ class DSStairway: DSCon, StairwayUp
         }
     }
     
-    
+    cannotClimbDownMsg = BMsg(cant climb doen from here, 
+                              '{I} {can\'t} climb down {the dobj} from {here}. ')
 ;
 
 

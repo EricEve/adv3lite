@@ -1082,10 +1082,10 @@ class DSBase: object
     
     /* Short service methods that can be used to abbreviate game code */
     /* Test whether the player character is in our room1 */
-    inRoom1 = (room1 && gPlayerChar.isIn(room1))
+    inRoom1 = (room1 && gSafePlayerChar.isIn(room1))
     
     /* Test whether the player character is in our room2 */
-    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
+    inRoom2 = (room2 && gSafePlayerChar.isIn(room2)) 
     
     /* return a or b depending on which room the player char is in */
     byRoom(args) { return inRoom1 ? args[1] : args[2]; }
@@ -1216,6 +1216,17 @@ class DSCon: DSBase, MultiLoc
     /*  Our description as seen from room2 */
     room2Desc = nil   
  
+    /* 
+     *   We're visible in the dark if the room on either side of us is
+     *   illuminated [SYMCOMM EXTENSION] 
+     */    
+    visibleInDark
+    {
+        if(transmitsLight && room1 && room2)
+            return room1.isIlluminated || room2.isIlluminated;
+        
+        return nil;
+    }
     
 ;
 
@@ -1254,6 +1265,25 @@ class DSDoor: DSCon, Door
      *   lot with our otherSide property, which we don't need or want to use.
      */
     preinitThing() { inherited DSCon(); }     
+    
+    /*
+     *   The lockability of this Door (notLockable, lockableWithKey, lockableWithoutKey, or
+     *   indirectLockable). This can be different for each side of the door, in which case set
+     *   room1Lockability and room2Lockability individually and the game will use the lockability
+     *   appropriate to the location of the current actor. If you want the same lockability for both
+     *   sides of the door, simply override lockability accordingly. 
+     */
+    lockability = (gActor.getOutermostRoom == room1 ? room1Lockability : room2Lockability)
+    
+    /*
+     *   Our lockability on the room1 side of the door. [SYMCONN EXTENSION]
+     */
+    room1Lockability = notLockable
+    
+    /*
+     *   Our lockability on the room2 side of the door. [SYMCONN EXTENSION]
+     */    
+    room2Lockability = notLockable
     
 ;
 
