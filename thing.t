@@ -9246,7 +9246,7 @@ thingPreinit: PreinitObject
          *   immediately holding even without explicitly examining them or
          *   taking inventory
          */
-        foreach(local cur in gPlayerChar.contents)
+        foreach(local cur in getPlayerChar().contents)
             gSetKnown(cur);
     }
     

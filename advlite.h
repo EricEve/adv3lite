@@ -375,10 +375,10 @@ enum rmcDisambig;
 #define gPlayerChar (libGlobal.playerChar)
 
 /* get the current player character object even if the game hasn't yet initialized gPlayerChar */
-#define gSafePlayerChar ((gPlayerChar) ?? (gameMain.initialPlayerChar))
+#define gSafePlayerChar ((gPlayerChar ?? gameMain.initialPlayerChar) ?? findPlayerChar())
 
 /* get the player character's location */
-#define gLocation (gSafePlayerChar.location)
+#define gLocation (getPlayerChar().location)
 
 /* get the current turn count */
 #define gTurns (libGlobal.totalTurns)
@@ -387,7 +387,7 @@ enum rmcDisambig;
  *   get the player character's current room (which may or may not be the same
  *   as his/her location)
  */
-#define gRoom (gSafePlayerChar.getOutermostRoom)
+#define gRoom (getPlayerChar().getOutermostRoom)
 
 #define objFor(which, action) propertyset '*' ## #@which ## #@action
 

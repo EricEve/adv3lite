@@ -2480,3 +2480,75 @@ modify PreinitObject
 
 /* Service function to determine whether obj is ofKind cls when obj might not be an object. */
 objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject && obj.ofKind(cls); }
+
+
+/* Failsafe Function to get the player character object */
+getPlayerChar()
+{
+    /* 
+     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
+     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
+     *   and return whatever that comes up with.
+     */    
+    return (gPlayerChar ?? gameMain.initialPlayerChar) ?? findPlayerChar();
+}
+
+/* 
+ *   The findPlayerChar() function is intended for internal library use only, to be called by
+ *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
+ *   function first iterates through every Thing defined in the game until it finds one that defines
+ *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
+ *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
+ *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
+ *   player char object has been explicitly defined in game code, and returns the new Player object.
+ *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
+ *   non-nil object.
+ */     
+findPlayerChar()
+{    
+    /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
+    for (local obj = firstObj(Thing) ; obj != nil ; obj = nextObj(obj, Thing))
+    {
+        /* If we've found the initial player character */
+        if(obj.isInitialPlayerChar)
+        {
+            /* Store the PC's identity in gameMain */
+            gameMain.initialPlayerChar = obj;
+            
+            /* Set the player char to the objec we've found. */
+            gPlayerChar = obj;
+            
+            /* Return our player char object. */
+            return obj;
+        }
+    }
+    
+    
+    /* If all else fails, create a new player character object */    
+    local pc = new Player;
+    
+    /* Find a room */
+    local loc = firstObj(Room);
+    
+    /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
+    while(loc is in (unknownDest_, varDest_))
+          loc = nextObj(loc, Room);
+    
+    /* Move our new player character into that room */
+    pc.moveInto(loc);
+    
+    /* Set gPlayerChar to our new player character. */
+    gPlayerChar = pc;
+    
+#ifdef __DEBUG 
+    say('<.p><FONT COLOR=RED><b>WARNING!</b></FONT> No Player Character Defined.<.p>
+        The library has defined a Player Character object and placed it in <<loc.roomTitle>>.<.p>');
+#endif  
+    
+    
+    /* Return our new player character */
+    return pc;
+}
+
+
+
