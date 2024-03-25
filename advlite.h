@@ -399,6 +399,9 @@ enum rmcDisambig;
 
 #define reportAfter(msg) gCommand.afterReports += msg
 
+#define sLoc(which) subLocation = &remap##which
+
+
 /*
  *   Treat an object definition as equivalent to another object definition.
  *   These can be used immediately after a dobjFor() or iobjFor() to treat
