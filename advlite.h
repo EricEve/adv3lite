@@ -1341,6 +1341,7 @@ string template <<* by room>> byRoomFunc;
 
 /* Equivalent template for DSCon objects in main linrary. */
 DSCon template 'vocab' @room1 @room2 "desc"?;
+
 DSTravelConnector template @room1 @room2;
 DSTravelConnector template ->room1 ->room2;
 

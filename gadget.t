@@ -340,11 +340,17 @@ class BagOfHolding: object
         local bulkToFree = gActor.getCarriedBulk + obj.bulk -
             gActor.bulkCapacity;
         
-        local idx = 1;
-        local carriedList = gActor.contents.subset({o: o.wornBy == nil
-                                                   && o.isFixed == nil});
+           
         
-        while(bulkToFree > 0 && carriedList.length >= idx)
+        local idx = 1;
+        
+        /* The number of items we need to free up */
+        local carriedList = gActor.directlyHeld;
+        
+         /* The number of items we need to free up */
+        local itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+        
+        while((bulkToFree > 0  || itemsToFree > 0) && carriedList.length >= idx)
         {
             local objToMove = carriedList[idx];
             
@@ -399,17 +405,22 @@ class BagOfHolding: object
              */
             idx = 1;
             
-            /*  Recalculate the amount of bulk left to free */
-            
-            bulkToFree = gActor.getCarriedBulk + obj.bulk -
-            gActor.bulkCapacity;        
-            
             /* 
              *   Remove objToMove from the carried list. (Even if it wasn't
              *   actually moved for any reason, we don't want to try moving it
              *   again).
              */
             carriedList -= objToMove;
+            
+            /*  Recalculate the amount of bulk left to free */
+            
+            bulkToFree = gActor.getCarriedBulk + obj.bulk -
+            gActor.bulkCapacity;        
+            
+            /* Recalculate the number of items we need to free */
+            itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+            
+            
         }
         
     }

@@ -2066,6 +2066,13 @@ class Thing:  ReplaceRedirector, Mentionable
     maxSingleBulk = (bulkCapacity)
     
     
+    /* 
+     *   The maximum number of items we can hold, irrespective of their bulk (or weight). By default
+     *   we make this a very large number so there's no effective limit; game code can set a lower
+     *   limit on the player character and/or other actors.
+     */
+    maxItemsCarried = 100000
+    
     /*   Calculate the total bulk of the items contained within this object. */
     getBulkWithin()
     {
@@ -4379,39 +4386,38 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     /* 
-     *   Check that the actor has enough spare bulkCapacity to add this item to
-     *   his/her inventory. Since by default everything has a bulk of zero and a
-     *   very large bulkCapacity, by default there will be no effective
-     *   restriction on what an actor (and in particular the player char) can
-     *   carry, but game authors may often wish to give portable items bulk in
-     *   the interests of realism and may wish to impose an inventory limit by
-     *   bulk by reducing the bulkCapacity of the player char.
+     *   Check that the actor has enough spare bulkCapacity and enough items carried capacity to add
+     *   this item to his/her inventory. Since by default everything has a bulk of zero and a very
+     *   large bulkCapacity, by default there will be no effective restriction on what an actor (and
+     *   in particular the player char) can carry, but game authors may often wish to give portable
+     *   items bulk in the interests of realism and may wish to impose an inventory limit by bulk by
+     *   reducing the bulkCapacity of the player char.
      */    
     checkRoomToHold()
     {
         /* 
-         *   First check whether this item is individually too big for the actor
-         *   to carry.
+         *   First check whether this item is individually too big for the actor to carry.
          */
         if(bulk > gActor.maxSingleBulk)
             DMsg(too big to carry, '{The subj dobj} {is} too big for {me} to
                 carry. ');
         
         /* 
-         *   If the BagOfHolding class is defined and the actor doesn't have
-         *   enough spare bulk capacity, see if the BagOfHolding class can deal
-         *   with it by moving something to a BagOfHolding.
+         *   If the BagOfHolding class is defined and the actor doesn't have enough spare bulk
+         *   capacity or maxItemCarried capacity, see if the BagOfHolding class can deal with it by
+         *   moving something to a BagOfHolding.
          */
         if(defined(BagOfHolding) 
-           && bulk > gActor.bulkCapacity - gActor.getCarriedBulk
+           && (bulk > gActor.bulkCapacity - gActor.getCarriedBulk ||
+               gActor.directlyHeld.length > gActor.maxItemsCarried - 1)
            && BagOfHolding.tryHolding(self));
         
         
         /* 
-         *   otherwise check that the actor has sufficient spare carrying
-         *   capacity.
+         *   otherwise check that the actor has sufficient spare carrying capacity.
          */
-        else if(bulk > gActor.bulkCapacity - gActor.getCarriedBulk())
+        else if(bulk > gActor.bulkCapacity - gActor.getCarriedBulk ||
+                gActor.directlyHeld.length > gActor.maxItemsCarried - 1)
             DMsg(cannot carry any more, '{I} {can\'t} carry any more than
                 {i}{\'m} already carrying. ');
     }

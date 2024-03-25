@@ -1193,7 +1193,7 @@ class DSCon: DSBase, MultiLoc
      *   Our destination depends on which room the actor going through us starts out in. If it's
      *   room1 our destination is room2, otherwise it's room1.
      */
-    destination = gActor.getOutermostRoom == room1 ? room2 : room1
+//    destination = gActor.getOutermostRoom == room1 ? room2 : room1
     
     /* 
      *   By default we can vary the description of the passage according to the
