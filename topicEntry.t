@@ -337,6 +337,103 @@ class Consultable: TopicDatabase, Thing
     }
     
 
+    /* 
+     *   A list of the ConsultTopics we want to create, each item in the list should be a
+     *   two-element list in the form of [match, topic-response], where match is what we want the
+     *   ConsultTopic to match and topic-responsse is what we want the ConsultTopic's topicResponse
+     *   to be. match can be an object (Topic or Thing), a list of objects, or a match patter.
+     *   topic-response will normally be a single-quoted string but could be a function pointer or
+     *   floating method. A third entry can be supplied, which will be used as the matchScore, but
+     *   this is probably seldom useful.
+     */
+    topicEntryList = nil
+    
+    /* Modifications to allow the automatic creation of ConsultTopics from our topicList. */
+    preinitThing()
+    {
+        /* Carry out the inherited handling. */
+        inherited();
+        
+        /* 
+         *   Loop through our topicList to create a correspnding ConsultTopic for every item
+         *   therein.
+         */
+        foreach(local item in valToList(topicEntryList))
+            preinitTopic(item);
+        
+    }
+    
+    /* Create a ConsultTopic corrersponding to item */
+    preinitTopic(item)
+    {
+        /* Make sure that item is expressed as a list. */
+        item = valToList(item);
+        
+        /* Set up a local variable to contain our new ConsultTopic */
+        local top;
+        
+        /* 
+         *   Set up a local variable to hold the object, list of objects, or matchPattern our new
+         *   ConscultTopic is to match.
+         */
+        local topkey;
+        
+        /*  If the first entry in out item list in 'default', create a new DefaultTopicEntry. */
+        if(item[1] == 'default')        
+        {
+            top = new DefaultConsultTopic;
+            topkey = nil;
+        }
+        
+        else
+        {
+            /* Otherwise create a new ConsultTopic */
+            top = new ConsultTopic;
+            
+            /* And note what it is to match on */
+            topkey = item[1];
+        }
+        
+        /* Set the new ConsultTopic's entry to ourself. */
+        top.location = self;
+        
+        /* Carry out the initializing of our new TopicEntry */
+        top.initializeTopicEntry();
+            
+        /* 
+         *   Assign our matchObj or match pattern to the appropriate property of our new
+         *   ConsultTopic.
+         */
+        switch(dataType(topkey))
+        {
+            /*If it's an object or list, assign it to the matcchObj property. */
+        case TypeObject:
+        case TypeList:
+            top.matchObj = topkey;
+            break;
+            /* If it's a single-quoted string, assign it to the matchPattern property. */
+        case TypeSString:
+            top.matchPattern = topkey;
+            break;
+            /* If it's nil (as it will be for a DefaultConsultTopic) do nothing */
+        case TypeNil:
+            break;
+            
+        };
+        
+        /* 
+         *   Provided we have a second entry in our item list, assign in to the new ConsultTopic's
+         *   topicRespose property.
+         */
+        if(item.length > 1)        
+            top.setMethod(&topicResponse, item[2]);        
+        
+        /* Should we have a third item, assign it to the new ConsultTopic's matchScor */
+        if(item.length > 2 && dataType(item[3]) == TypeInt)           
+            top.matchScore = item[3];         
+        
+        
+    }
 ;
 
 /* 
