@@ -389,6 +389,9 @@ enum rmcDisambig;
  */
 #define gRoom (getPlayerChar().getOutermostRoom)
 
+/* Get the current actor's curren room (which may not be the same as its location) */
+#define gActorRoom (gActor.getOutermostRoom)
+
 #define objFor(which, action) propertyset '*' ## #@which ## #@action
 
 #define dobjFor(action) objFor(Dobj, action)
