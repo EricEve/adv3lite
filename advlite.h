@@ -829,6 +829,12 @@ QueryTopic template
    'matchPattern'
    [firstEvents] [eventList];
 
+CommandTopic template +matchScore? 
+    @matchObj | [matchObj]
+    @matchDobj @matchIobj? "topicResponse" | [eventList]? ;
+
+CommandTopic template +matchScore? 
+    @matchObj | [matchObj] [matchDobj] @matchIobj "topicResponse" | [eventList]? ;
 
 DefaultTopic template "topicResponse" | [eventList];
 DefaultConsultTopic template "topicResponse" | [eventList];
