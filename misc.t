@@ -2504,25 +2504,28 @@ getPlayerChar()
  *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
  *   non-nil object.
  */     
-findPlayerChar()
-{    
-    /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
-    for (local obj = firstObj(Thing) ; obj != nil ; obj = nextObj(obj, Thing))
+findPlayerChar()    
+{   
+    /* Start by looking at objects of the Player class, and if that fails, look through Things. */
+    for(local cls in [Player, Thing])
     {
-        /* If we've found the initial player character */
-        if(obj.isInitialPlayerChar)
+        /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
+        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
         {
-            /* Store the PC's identity in gameMain */
-            gameMain.initialPlayerChar = obj;
-            
-            /* Set the player char to the objec we've found. */
-            gPlayerChar = obj;
-            
-            /* Return our player char object. */
-            return obj;
+            /* If we've found the initial player character */
+            if(obj.isInitialPlayerChar)
+            {
+                /* Store the PC's identity in gameMain */
+                gameMain.initialPlayerChar = obj;
+                
+                /* Set the player char to the objec we've found. */
+                gPlayerChar = obj;
+                
+                /* Return our player char object. */
+                return obj;
+            }
         }
     }
-    
     
     /* If all else fails, create a new player character object */    
     local pc = new Player;
@@ -2532,7 +2535,7 @@ findPlayerChar()
     
     /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
     while(loc is in (unknownDest_, varDest_))
-          loc = nextObj(loc, Room);
+        loc = nextObj(loc, Room);
     
     /* Move our new player character into that room */
     pc.moveInto(loc);

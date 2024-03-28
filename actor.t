@@ -3169,14 +3169,43 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     
     autoName = nil
     
-    /*   
-     *   An ActorTopicEntry is conversational (the default) if it results in an
-     *   actual conversational exchange. Change this to nil for
-     *   ActorTopicEntries that merely report why a conversational exchange did
-     *   not take place (e.g. "Bob ignores you" or "You think better of talking
-     *   to George about that.")
+    /* 
+     *   Our last conversational response if we're a StopEventList. This can be set as a negative
+     *   numner, such as -1 to mean the last but one. This may be useful if our final response is a
+     *   summary of what the NPC has said rather than a conversational response which s/he speaks,
+     *   so that we don't want to suggest the final response or treat it as conversational.
      */
-    isConversational = true
+    lastConvResponse = nil  
+    
+    /* 
+     *   The script class we want lastConvResponse to be applicable. By default this is
+     *   StopEventList, which is what it is designed to be used with, but this allows game code to
+     *   adjust this. It also allows gameCode to override lastConvResponse on ActorTopicEntry and
+     *   have it only apply to ActorTopicEntries that are also of lcrScriptClass.
+     */
+    lcrScriptClass = StopEventList
+    
+    /* 
+     *   Should we be treated as conversational? Normally an ActorTopicEntry should (except for
+     *   certain subtypes) but if we're also a script and our lastConvResponse has been defines as
+     *   non-nil we may want to do something differen.
+     */
+    isConversational()
+    {
+        /* 
+         *   If lastConvResponse is nil or we haven't been mixed in with a Script (EventList) class,
+         *   simply return true
+         */
+        if(lastConvResponse == nil || !ofKind(lcrScriptClass))
+            return true;               
+        
+        /* 
+         *   Otherwise return true only if our current script state is less than or equal that
+         *   defined by of lastConvResponse property.
+         */
+        return curScriptState <= (lastConvResponse > 0 ? lastConvResponse : eventList.length +
+                                  lastConvResponse);
+    }
     
     /*  
      *   Normally a conversational command implies a greeting (that is, it
@@ -3265,19 +3294,46 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     getActor = (location.getActor)
     
     /* 
-     *   The number of times to suggest this topic entry, if we do suggest it.
-     *   By default this is either once (if we're not also an EventList) or the
-     *   number of items in our eventList (if we are an EventList). If you want
-     *   this topic entry to go on being suggested ad infinitum, set
-     *   timesToSuggest to nil.
-     */    
+     *   The number of times to suggest this topic entry, if we do suggest it. By default this is
+     *   either once (if we're not also an EventList) or the number of items in our eventList (if we
+     *   are an EventList). If you want this topic entry to go on being suggested ad infinitum, set
+     *   timesToSuggest to nil. If, on the other hand, you want it to be suggested fewer times than
+     *   there are items in the EventList, say because the final item in a StopEventList is a
+     *   summary of what was said before rather than a conversational response from the NPC,
+     *   override the lastConvResponse accordingly (most likely to -1).
+     */  
     timesToSuggest()
     {
+        /* 
+         *   If we're a Script type object - an EventList say - only suugest us the number of times
+         *   there are entries in the event list. Store this number in a local variable.
+         */
         local t = (ofKind(Script) ? eventList.length : 1);
         
+        /* 
+         *   If out lastConvResponse property is non-nil, adjust our times to suggest accordingly
+         *   provided we're mixed in with lscrScriptClass (usually StopEventList).
+         */
+        if(lastConvResponse != nil && ofKind(lcrScriptClass))
+        {
+            /* 
+             *   If lastConvResponse is negative (typically -1) we want to stop suggesting that
+             *   number of items from the end of the list. Since lastConvResponse is negative we add
+             *   it to t to reduce t accordingly.
+             */
+            if(lastConvResponse < 0)
+                t += lastConvResponse;
+            
+            /* If t is positive, it's simply the numnber of times we want to suggest. */
+            if(lastConvResponse > 0)
+                t = lastConvResponse;           
+        }
+        
+        /* Set ourselves to t so we don't have to repeat these calculations. */
         timesToSuggest = t;
         
-        return t;        
+        /* return the number of times we want this topic to be suggested. */
+        return t;      
     }
     
     /* 

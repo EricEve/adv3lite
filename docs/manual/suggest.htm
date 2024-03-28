@@ -81,7 +81,7 @@ tVisit: Topic '()your visit; my;' ;
 
 <p>The <strong>curiosityAroused</strong> property is defined in addition to the isActive property to allow for topics that you want the player to be able to refer to, but you don't want to suggest them yet (because they're not that important to suggest until something else happens). To make use of the curiosityAroused property you should define it declaratively by setting it to nil initially on one or more TopicEntries and then use the <strong>&lt;.arouse key&gt;</strong> tag to set the curiosityAroused property to true for every ActorTopicEntry belonging to the current interlocutor whose convKeys property matches (or contains) <em>key</em>. You can achieve the same effect by calling arouse(key) on the actor (which is what the &lt;.arouse key&gt; tag does). You can also set (or reset) <span class='code'>curiosityAroused</span> to nil by using &lt;.abate key&gt; or, if you prefer, &lt;.unarouse key&gt; (the two are equivalent) or by calling <span class='code'>arouse(key, nil)</span> on the actor. The <span class='code'>curiosityAroused</span> property thus models whether or not the player/player character is currenly interested in/curious about the topic in question, which can change over the course of the game. To be safe, the curiosityAroused property should always be defined as either true or nil, and not as a method or expression, since, as we shall see, its value can be switched between true and nil over the course of the game both by game author code and by the library.</p>
 
-<p>The <strong>curiositySatisfied</strong> property allows the topic to stop being suggested once the player character has seen the response enough times. What counts as enough times is defined on the <strong>timesToSuggest</strong> property. By default this is 1 unless the TopicEntry is an EventList, in which case timesToSuggest is the number of items in the eventList property (eventList.length). You can easily override these defaults if you wish or else set timesToSuggest to nil if you want the TopicEntry to carry on being suggested indefinitely. Alternatively, you could override curiositySatisfied so that it becomes true according to some other condition.</p>
+<p>The <strong>curiositySatisfied</strong> property allows the topic to stop being suggested once the player character has seen the response enough times. What counts as enough times is defined on the <strong>timesToSuggest</strong> property. By default this is 1 unless the TopicEntry is an EventList, in which case timesToSuggest is the number of items in the eventList property (eventList.length). The value of <span class='code'>timesToSuggest</span> can also be tweaked by using the <a href='#lcresp'>lastConvResponse</a> property we'll explain below. You can easily override these defaults if you wish or else set timesToSuggest to nil if you want the TopicEntry to carry on being suggested indefinitely. Alternatively, you could override curiositySatisfied so that it becomes true according to some other condition.</p>
 
 <p>If, however, an ActorTopicEntry defines a non-nil keyTopics property, then <span class="code">curiositySatisfied</span> works a little differently. In this case, the function of the ActorTopicEntry is simply to suggest one or more further subtopics, so its curiosity is considered satisfied if and only if it has no subtopics to suggest (usually because they all have their curiositySatisfied).</p>
 
@@ -100,9 +100,118 @@ tVisit: Topic '()your visit; my;' ;
 <p>Note that while the five numbered conditions above are jointly <em>necessary</em> for a topic to be suggested, they may not be jointly <em>sufficient</em>, since there are other restrictions that game authors can place on what topics are suggested at any given moment.</p>
 
 <p>Normally, all the topics that meet the five numbered conditions would be displayed in response to an explicit TOPICS command (or TALK TO X command), but game authors can restrict even this by overriding  the actor's <strong>suggestionKey</strong> property. If this is set to something other than nil, then only those TopicEntries whose convKeys property matches or contains the suggestionKey (and that also meet all the other conditions) will be listed as suggestions. The actor's suggestionKey property can also be set by using the <span class='code'>&lt;.sugkey key&gt;</span> tag in the topicResponse of a TopicEntry belonging to the actor. This may be useful when you want to restrict the list of suggested topics to those relevant to particular points in a conversation or the story, but we shall be exploring other ways of doing this below.</p>
+<a name = 'lcresp'></a>
+<h2>lastConvResponse</h2>
+<p>Consider the case where a TopicEntry is mixed in with a StopEventList that gives a series of responses that are displayed in turn until the last one is reached, which is then repeated <i>ad infinitum</i>. What should go in this last response? It may seem a little robotic for the actor to keep repeating the same piece of information over and over again, so a better approach could be to write the response in a way that summarizes what has been said before and indicates that the topic is now closed, for example:</p>
+
+<p><div class="code"><pre>
+
+bob: Actor 'Bob;;;him' @lounge
+;
 
 
++ AskTopic, StopEventList @bob
+    [
+        '&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+        &lt;q&gt;As well as can be expected,&lt;/q&gt; he replies. ',
+        
+        '&lt;q&gt;What do enjoy most?&lt;/q&gt; you ask.\b
+        &lt;q&gt;Not answering your questions,&lt;/q&gt; he tells you. ',
+        
+        '&lt;q&gt;I've already told you I\'m as well as can be expected
+        and that what I enjoy most is not answering your questions,&lt;/q&gt; he reminds you. '        
+    ]
+    
+    name = 'himself'
+;
+</pre></div>
+<p>This is reasonably okay; it gets the job done, but it's less than ideal. For one thing, if Bob has nothing new to say on the subject of himself, do we really want to suggest 'himself' to the player as a question to ask about for the third time? And will Bob really appear all that much less robotic if he keeps repeating his summary?</p>
+
+<p>We can avoid the second of these problems by giving the summary in the narrator's voice rather than the actor's:</p>
+<p><div class="code"><pre>
++ AskTopic, StopEventList @bob
+    [
+        '&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+        &lt;q&gt;As well as can be expected,&lt;/q&gt; he replies. ',
+        
+        '&lt;q&gt;What do enjoy most?&lt;/q&gt; you ask.\b
+        &lt;q&gt;Not answering your questions,&lt;/q&gt; he tells you. ',
+        
+        'He\'s already told you he\'s as well as can be expected
+        and that what he enjoys most is not answering your questions. '         
+    ]
+    
+    name = 'himself'
+;
+</pre></div>
+<p>This both clearly signals to the player that there is nothing more to be said about this topic and reminds the player what has been said on it previously. Moreover, the player can keep on repeating ASK BOB ABOUT HIMSELF and keep getting the same summary every time s/he wants a reminder, without making Bob appear robotic. But this solution doesn't solve he first problem (that it's not rentirely appropriate to suggest asking about himself the third time) and introduces a third, namely that the final response here isn't really a conversational one and shouldn't be treated as such in contexts where this may make a difference. It would, for example, be less than ideal to trigger the following exchange, which could occur if Bob has a HelloTopic:</p>
+
+<p><div class="cmdline"><pre>
+>ask bob about himself
+
+"Hi, Bob," you say.
+
+"Hello, you," he replies.
+
+He's already told you he's as well as can be expected
+snd that what he enjoys most is not answering your questions.
+</pre></div>
 <br>
+<p>We can solve both problems by setting <span class='code'>timesToSuggest</span> to one less than the length of the eventList and <span class='code'>isConversational</span> to <span class='code'>!curiositySatisfied,</span> (because we want to stop treating as Conversational at the same point as we want to stop suggesting it) like this, say:</p>
+
+
+<p><div class="code"><pre>
++ AskTopic, StopEventList @bob
+    [
+        '&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+        &lt;q&gt;As well as can be expected,&lt;/q&gt; he replies. ',
+        
+        '&lt;q&gt;What do enjoy most?&lt;/q&gt; you ask.\b
+        &lt;q&gt;Not answering your questions,&lt;/q&gt; he tells you. ',
+        
+        'He\'s already told you he\'s as well as can be expected
+        and that what he enjoys most is not answering your questions. '         
+    ]
+    
+    name = 'himself'
+	
+    timesToSuggest = static eventList.length -1
+    isConversational = !curiositySatisfied
+;
+</pre></div>
+
+<p>But it we have a large number of TopicEntries with StopEventLists this could create rather a lot of busywork for us. The library allows this to automate this by defining <strong>lastConvResponse</strong> as -1 either on individual TopicEntries or on the ActorTopicEntry class:</p>
+
+<p><div class="code"><pre>
++ AskTopic, StopEventList @bob
+    [
+        '&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+        &lt;q&gt;As well as can be expected,&lt;/q&gt; he replies. ',
+        
+        '&lt;q&gt;What do enjoy most?&lt;/q&gt; you ask.\b
+        &lt;q&gt;Not answering your questions,&lt;/q&gt; he tells you. ',
+        
+        'He\'s already told you he\'s as well as can be expected
+        and that what he enjoys most is not answering your questions. '         
+    ]
+    
+    name = 'himself'
+	
+    lastConvResponse = -1 
+;
+
+</pre></div>
+<p>Here -1 signifies that all but the last response is to be regarded as convesational (and worth suggesting). If we had defined <span class='code'>lastConvResponse = -2</span> this would have meant that all but the last two responses were to be regarded as conversational. Defining it as a positive number, such as 2, would mean that the first two responses were to be regarded as conversational, but this is less useful, since it is less generalizable.</p>
+<p>If you want all (or the majority) of your StopEventList TopicEntries to use this mechanism you can simply define:
+
+ 
+<p><div class="code"><pre>
+modify ActorTopicEntry
+   lastConvResponse = -1
+;
+</pre></div>
+<p>This is perfectly safe to do, since it will only affect TopicEntries that are mixed in with StopEventList (or, more precisely, with the class defined on the <strong>lcrScriptClass</strong> property of ActorTopicEntry, which is StopEventtList by default).
+
 
 <a name="other"></a><h2>TopicEntries that Suggest Other Topics</h2>
 

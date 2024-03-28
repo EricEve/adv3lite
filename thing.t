@@ -9282,6 +9282,9 @@ class Player: Thing
      *   held.
      */
     contType = Carrier     
+    
+    /*   The Player object is the initial player character. */
+    isInitialPlayerChar = true
 ;
 
 /*  
