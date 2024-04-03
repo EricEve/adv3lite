@@ -1806,31 +1806,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
      */
     attentionSpan = nil
     
-    /* Our look up table for things we've been informed about */    
-    informedNameTab = nil
     
-    
-    /* 
-     *   Note that we've been informed of something, by adding it to our
-     *   informedNameTab. Tag is an arbitrary single-quoted string value used to
-     *   represent the information in question.
-     */    
-    setInformed(tag)
-    {
-        if(informedNameTab == nil)
-            informedNameTab = new LookupTable(32, 32);
-        
-        informedNameTab[tag] = true;
-    }
-    
-    /* 
-     *   Determine whether this actor has been informed about tag. We return
-     *   true if there is a corresponding non-nil entry in our informedNameTab
-     */
-    informedAbout(tag) 
-    {        
-        return informedNameTab == nil ? nil : informedNameTab[tag] != nil;     
-    }
     
     /*  
      *   Should other actors who can notionally hear the PC talking to us
@@ -5322,10 +5298,22 @@ conversationManager: OutputFilter, PreinitObject
      */
     respondingActor = (gPlayerChar.currentInterlocutor)
     
+    factTagMarker = '$'  
+    
+    /* 
+     *   Strip our factTagMarker from the start of arg. Game authors shouldn't use it for most tags,
+     *   but just to be safe we'll do it for all the string tags anyway.
+     */
+    stripFactTagMarker(arg)
+    {
+        return arg.startsWith(factTagMarker) ? arg.substr(1 + factTagMarker.length()) : arg; 
+    }
+    
     /* filter text written to the output stream */
     filterText(ostr, txt)
     {
         local start;
+        local actor;
         
         /* scan for our special tags */
         for (start = 1 ; ; )
@@ -5392,16 +5380,19 @@ conversationManager: OutputFilter, PreinitObject
                 
             case 'reveal':
                 /* reveal the key by adding it to our database */
+                arg = stripFactTagMarker(arg);
                 setRevealed(arg);
                 break;
                 
                 /* unreveal the key by removing it from our database */
             case 'unreveal':
+                arg = stripFactTagMarker(arg);
                 setUnrevealed(arg);
                 break;
                 
             case 'inform':    
                 /* reveal the key by adding it to the actor's database */
+                arg = stripFactTagMarker(arg);
                 setInformed(arg);
                 break;
 
@@ -5413,6 +5404,7 @@ conversationManager: OutputFilter, PreinitObject
                  *   list of pending keys (for use on the next conversational
                  *   turn).
                  */                
+                arg = stripFactTagMarker(arg);
                 if(respondingActor != nil)
                 {
                     /* 
@@ -5436,7 +5428,7 @@ conversationManager: OutputFilter, PreinitObject
                  *   our keys aren't obliterated as soon as they're set.
                  */                
             case 'convstay':
-            case 'convstayt':    
+            case 'convstayt':                    
                 /* 
                  *   Leave the responding actor in the old conversation
                  *   node - we don't need to change the ConvNode, but we do
@@ -5468,6 +5460,7 @@ conversationManager: OutputFilter, PreinitObject
             case 'arouse':
             case 'unarouse':    
             case 'abate':
+                arg = stripFactTagMarker(arg);
                 /* 
                  *   make the curiosityAroused property true or nil for Topic Entries
                  *   with the appropriate key.
@@ -5479,6 +5472,7 @@ conversationManager: OutputFilter, PreinitObject
                        
                 
             case 'suggest':
+                arg = stripFactTagMarker(arg);
                  /* translate the string 'nil' to an actual nil */
                 if(arg == 'nil')
                     arg = nil;
@@ -5492,6 +5486,7 @@ conversationManager: OutputFilter, PreinitObject
                 break;
                 
             case 'sugkey':
+                arg = stripFactTagMarker(arg);
                 /* translate the string 'nil' to an actual nil */
                 if(arg == 'nil')
                     arg = nil;
@@ -5501,6 +5496,7 @@ conversationManager: OutputFilter, PreinitObject
                 break;    
                 
             case 'activate':
+                arg = stripFactTagMarker(arg);
                 /* 
                  *   Set the activated property to true for all Topic Entries
                  *   with the appropriate key.
@@ -5510,6 +5506,7 @@ conversationManager: OutputFilter, PreinitObject
                 break;
                 
             case 'deactivate':
+                arg = stripFactTagMarker(arg);
                 /* 
                  *   Set the activated property to true for all Topic Entries
                  *   with the appropriate key.
@@ -5605,29 +5602,57 @@ conversationManager: OutputFilter, PreinitObject
                     respondingActor.setState(obj);
                 break;
             
+                /* Fallthrough is deliberate here, the treatment of all three tags is very similar */
+            case 'npcknow':
+            case 'pcknow':
             case 'known':
                 /* mark as item as known. */
                 
                 /* 
-                 *   Obtain the object corresponding to arg (a string value)
-                 *   from our object name table
+                 *   If our tag is npcknown, we want to update the knowledge of the NPC the player
+                 *   is in conversation with, otherwise we want to update the player character's
+                 *   knowledge.
                  */
-                obj = objNameTab[arg];
-                             
+                actor = (tag == 'npcknow' ? respondingActor : gPlayerChar);
+                
+                
                 /* 
-                 *   If the obj doesn't exist, or it isn't a Mentionable,
-                 *   display an error message
+                 *   If arg contains is not a valid identifier name, it can't be an object name, so
+                 *   assume it's a fact tag string and set obj accordingly.
                  */
-                if(obj == nil || !obj.ofKind(Mentionable))
-                {
-                    showKnownError(tag, arg);
-                }
-                else
+                
+                if(!isValidIdentifierName(arg))
                     /* 
-                     *   Otherwise mark obj as known about by the player
-                     *   character
+                     *   If we've started arg with the factTagMarker character to force it to be a
+                     *   non-valid identifier name, remove the factTagMarker to get at the the
+                     *   actual tag name, otherwise simple use arg as the tag name.
                      */
-                   gPlayerChar.setKnowsAbout(obj);
+                    obj = stripFactTagMarker(arg);                
+                else
+                {
+                    /* 
+                     *   Obtain the object corresponding to arg (a string value) from our object
+                     *   name table
+                     */
+                    obj = objNameTab[arg];
+                    
+                    /* 
+                     *   If the obj doesn't exist, or it isn't a Mentionable, display an error
+                     *   message
+                     */
+                    if(obj == nil || !obj.ofKind(Mentionable))
+                    {                                               
+                        showKnownError(tag, arg);
+                        
+                        /* Set obj to nil so we know not to use it. */
+                        obj = nil;
+                        
+                    }                       
+                }
+                
+                /* If obj is not nil, make our player character know about it. */
+                if(obj != nil && actor != nil)
+                   actor.setKnowsAbout(obj);
                 break;
                 
             default:
@@ -5656,7 +5681,8 @@ conversationManager: OutputFilter, PreinitObject
         '<nocase><langle><dot>'
         + '(reveal|unreveal|agenda|remove|state|known|activate|inform|convstay|topics'
         + (customTags != nil ? '|' + customTags : '')
-        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate|unarouse|abate)'
+        + '|arouse|suggest|sugkey|convnode|convnodet|convstayt|deactivate|unarouse|abate'
+        + '|pcknow|npcknow)'
         + '(<space>+(<^rangle>+))?'
         + '<rangle>')
 

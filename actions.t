@@ -2004,10 +2004,28 @@ ThinkAbout: TopicAction
     
     execAction(cmd)
     {
-        if(libGlobal.thoughtManagerObj != nil)
-            libGlobal.thoughtManagerObj.handleTopic(cmd.dobj.topicList);
-        else
-            Think.execAction(cmd);
+        /* 
+         *   We don't want this action treated as conversational if it results in the use of reveal
+         *   tags, so we store the current interlocutor and then set the current interlocutor to nil
+         *   before proceeding.
+         */                 
+        local interlocutor = gPlayerChar.currentInterlocutor;
+        
+        try
+        {
+            
+            gPlayerChar.currentInterlocutor = nil;            
+            
+            if(libGlobal.thoughtManagerObj != nil)
+                libGlobal.thoughtManagerObj.handleTopic(cmd.dobj.topicList);
+            else
+                Think.execAction(cmd);
+        }
+        finally
+        {
+            /* Restore the current interlocutor. */
+            gPlayerChar.currentInterlocutor = interlocutor;
+        }
     }
     againRepeatsParse = nil
 ;

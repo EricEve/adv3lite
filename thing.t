@@ -2672,8 +2672,9 @@ class Thing:  ReplaceRedirector, Mentionable
 
     /* 
      *   The isInitialPlayerChar property was formerly used as an alternative method of identifying
-     *   the player character. This method of doing so is now deprecated. Instead you MUST now
-     *   define the player character on gameMain.initialPlayerChar
+     *   the player character. This method of doing so is now deprecated, except for its use on the
+     *   Player class. Instead you should now define the player character on
+     *   gameMain.initialPlayerChar
      */    
     isInitialPlayerChar = nil
     
@@ -2750,6 +2751,9 @@ class Thing:  ReplaceRedirector, Mentionable
                 obj.listOrder = listOrder;
         }
         
+        /* Set us as knowning about everything in our initiallyKnown lisr. */
+        foreach(local item in valToList(initiallyKnowsAbout))
+            setKnowsAbout(item);
         
 
         /* 
@@ -3647,9 +3651,22 @@ class Thing:  ReplaceRedirector, Mentionable
      *   some other object representing an NPC) and obj is the object that is
      *   potentially known about or seen.
      */
-    
+        
     /*  Mark this Thing as knowing about obj. */
-    setKnowsAbout(obj) { obj.(knownProp) = true; }
+    setKnowsAbout(obj) 
+    { 
+        switch(dataType(obj))
+        {
+        case TypeObject:
+            obj.(knownProp) = true; 
+            break;
+        case TypeSString:
+            setInformed(obj);
+            break;
+        default:
+            ;
+        }
+    }
     
     /*  Mark the player character as knowing about us (i.e. this Thing) */
     setKnown() { gPlayerChar.setKnowsAbout(self); }
@@ -3664,10 +3681,35 @@ class Thing:  ReplaceRedirector, Mentionable
     hasSeen(obj) { return obj.(seenProp); }
        
     /*  
-     *   Test whether this Thing knows about obj, which it does either if it has
-     *   seen this obj or its knownProp (by default, familiar) is true.
+     *   Test whether this Thing knows about obj, which it does either if it has seen this obj or
+     *   its knownProp (by default, familiar) is true, or, if obj is passsed as a string tag, if we
+     *   have been informed about it.
      */   
-    knowsAbout(obj) {return hasSeen(obj) || obj.(knownProp); }
+    knowsAbout(obj)
+    {
+        switch(dataType(obj))
+        { 
+        
+        /* 
+         *   If obj is an object, then return true either if we've seen this objector if we know
+         *   about it as defined by our knownProp.
+         */    
+        case TypeObject:
+            return hasSeen(obj) || obj.(knownProp);
+            
+            /* 
+             *   If obj is a single-quoted string, assume it's a knowledge tag and test for our
+             *   being informed abnout it.
+             */
+        case TypeSString:
+            return informedAbout(obj);
+            
+        default:
+            return nil;           
+                
+        }
+    }    
+   
     
     /* 
      *   Test whether this Thing is known to the player character.
@@ -3683,6 +3725,39 @@ class Thing:  ReplaceRedirector, Mentionable
       */
     knownProp = &familiar
     seenProp = &seen
+    
+    /* Our look up table for things we've been informed about */    
+    informedNameTab = nil
+    
+    /* 
+     *   Note that we've been informed of something, by adding it to our
+     *   informedNameTab. Tag is an arbitrary single-quoted string value used to
+     *   represent the information in question.
+     */    
+    setInformed(tag)
+    {
+        if(informedNameTab == nil)
+            informedNameTab = new LookupTable(32, 32);
+        
+        informedNameTab[tag] = true;
+    }
+    
+    /* 
+     *   Determine whether this Thing has been informed about tag. We return
+     *   true if there is a corresponding non-nil entry in our informedNameTab
+     */
+    informedAbout(tag) 
+    {        
+        return informedNameTab == nil ? nil : informedNameTab[tag] != nil;     
+    }
+    
+    /* 
+     *   The list of things we start the game knowing about. This list can contain a mix of game
+     *   objects (Things and/or Topics) and fact tags. Note that it would be redundant to include
+     *   Things and Topics already defined as familiar if this property is overridden on the initial
+     *   player character object.
+     */         
+    initiallyKnowsAbout = nil
     
     /*   
      *   The currentInterlocutor is the Actor this object is currently in

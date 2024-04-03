@@ -176,6 +176,9 @@ class TopicEntry: object
      *   pass the request up to our location (this is used by AltTopic).
      */
     addTopic(top) { location.addTopic(top); }
+    
+    /* Our notional actor is our location's actor. */
+    getActor = location.getActor
 ;
 
 
@@ -273,27 +276,43 @@ class Consultable: TopicDatabase, Thing
         action()
         {
             /* 
-             *   Find the topic we're meant to be matching by getting the best
-             *   match to the list of topics contained in the indirect object
+             *   We don't want this action to be construed as conversational from the point of view
+             *   of revealing information to bystsanders, so we first store the identity of the
+             *   current interlocutor and then set the current interlocutor to ni.
              */
-            local matchedTopic = getBestMatch(consultTopics, gIobj.topicList);
+            local interlocutor = gPlayerChar.currentInterlocutor;
+            gPlayerChar.currentInterlocutor = nil;
             
-            /* If we don't find a match, display a message explaining that */
-            if(matchedTopic == nil)
-                say(noMatchedTopicMsg);
+            try
+            {
+                /* 
+                 *   Find the topic we're meant to be matching by getting the best match to the list
+                 *   of topics contained in the indirect object
+                 */
+                local matchedTopic = getBestMatch(consultTopics, gIobj.topicList);
+                
+                /* If we don't find a match, display a message explaining that */
+                if(matchedTopic == nil)
+                    say(noMatchedTopicMsg);
+                
+                /* 
+                 *   Otherwise display the topic response of the ConsultTopic we matched.
+                 */
+                else
+                    matchedTopic.topicResponse();
+                
+                /* 
+                 *   Boost our currentConsultableScore in recognition that we were the last item to
+                 *   be consulted.
+                 */
+                currentConsultableScore = 20;
+            }
             
-            /* 
-             *   Otherwise display the topic response of the ConsultTopic we
-             *   matched.
-             */
-            else
-                matchedTopic.topicResponse();
-            
-            /* 
-             *   Boost our currentConsultableScore in recognition that we were
-             *   the last item to be consulted.
-             */
-            currentConsultableScore = 20;
+            finally
+            {
+                /* Restore the current interlocutor */
+                gPlayerChar.currentInterlocutor = interlocutor;
+            }
         }
     }
     
@@ -434,6 +453,9 @@ class Consultable: TopicDatabase, Thing
         
         
     }
+    
+    /* We're our own 'actor' in the sense of being the source of any information we supply. */
+    getActor = self
 ;
 
 /* 

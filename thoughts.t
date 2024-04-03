@@ -56,6 +56,9 @@ class ThoughtManager: PreinitObject, TopicDatabase
     /* The message to display when we don't find a matching Thought */
     noThoughtMsg = BMsg(no thoughts, '{I} {have} no thoughts on that particular
         topic.')
+    
+    /* Our actor is the actor who's doing the thinking. */
+    getActor = (gActor)
 ;
 
 

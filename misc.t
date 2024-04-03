@@ -780,30 +780,32 @@ libGlobal: object
     }
     
     /*
-     *   Mark a tag as revealed.  This adds an entry for the tag to the
-     *   revealedNameTab table.  We simply set the table entry to 'true'; the
-     *   presence of the tag in the table constitutes the indication that the
-     *   tag has been revealed.
+     *   Mark a tag as revealed.  This adds an entry for the tag to the revealedNameTab table and to
+     *   the informedNamedTab of the player character (who might, in principle, change during the
+     *   course of the game). We simply set the table entry to 'true'; the presence of the tag in
+     *   the table constitutes the indication that the tag has been revealed.
      *
-     *   (Games and library extensions can use 'modify' to override this and
-     *   store more information in the table entry.  For example, you could
-     *   store the time when the information was first revealed, or the location
-     *   where it was learned.  If you do override this, just be sure to set the
-     *   revealedNameTab entry for the tag to a non-nil and non-zero value, so
-     *   that any code testing the presence of the table entry will see that the
-     *   slot is indeed set.)
+     *   (Games and library extensions can use 'modify' to override this and store more information
+     *   in the table entry.  For example, you could store the time when the information was first
+     *   revealed, or the location where it was learned.  If you do override this, just be sure to
+     *   set the revealedNameTab entry for the tag to a non-nil and non-zero value, so that any code
+     *  
+     testing the presence of the table entry will see that the slot is indeed set.)
      *
-     *   We put the revealedNameTab table and the setRevealed method here rather
-     *   than on conversationManager so that it's available to games that don't
-     *   include actor.t.
+     *   We put the revealedNameTab table and the setRevealed method here rather than on
+     *   conversationManager so that it's available to games that don't include actor.t.
      */
     setRevealed(tag)
     {
+        /* Add the tag to our revealedNameTab */
         revealedNameTab[tag] = true;
+        
+        /* Add the tag to the playerCharacter's informedNameTab */
+        gPlayerChar.setInformed(tag);
     }
 
     /*
-     *   Mark a tag as unrevealed.  This removes the entry for the tag from the
+     *   Mark a tag as unrevealed.  This removes the entry for the tag from our    
      *   revealedNameTab table.  
      *
      *   We put the revealedNameTab table and the setRevealed method here rather
@@ -813,6 +815,12 @@ libGlobal: object
     setUnrevealed(tag)
     {
         revealedNameTab.removeElement(tag);
+        
+//        local tab = gPlayerChar.informedNameTab;
+//        
+//        if(tab)
+//            tab.removeElement[tag];        
+        
     }
     
     
@@ -2553,5 +2561,25 @@ findPlayerChar()
     return pc;
 }
 
-
-
+/* Determine whether str is a valid identifier */
+isValidIdentifierName(str)
+{
+    /* 
+     *   First, strip out any underscores, since these can appear anywhere in valid identifier name.
+     */
+    str = str.findReplace('_', '');
+    
+    /* 
+     *   If there are any non-alphanumeric characters in what's left, str is not a valid identifier
+     *   name.
+     */
+    if(str.find(R'<^AlphaNum>'))
+        return nil;
+    
+    /* If str starts with a digit, it's not a valid identifier name */
+    if('1234567890'.find(str.substr(1,1)))
+       return nil;
+    
+    /* If we reach this far, str has passed all the tests for being a valid identifier name. */
+    return true;
+}

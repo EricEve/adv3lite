@@ -1138,6 +1138,9 @@ ShuffledEventList template [firstEvents] [eventList];
 /* template for Scenery Class */
 Scenery template @location? [scenList];
 
+/* template for Facts Extension */
+Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
+
 /* ------------------------------------------------------------------------ */
 /*  
  *   Property synonyms
@@ -1269,9 +1272,15 @@ string template <<add * secs>> addTime;
 #define gSetKnown(obj) (gPlayerChar.setKnowsAbout(obj))
 #define gSetSeen(obj) (gPlayerChar.setHasSeen(obj))
 
+/* does the player character know about obj? */
+#define gKnown(obj) (gPlayerChar.knowsAbout(obj))
+#define pcKnows(obj) (gPlayerChar.knowsAbout(obj))
+
 /* has a topic key been revealed to an NPC through <.inform>? */
 #define gInformed(key) (getActor.informedAbout(key))
 
+/* is the topic key or object known to the NPC we're in conversaation with? */
+#define npcKnows(obj) (getActor.knowsAbout(obj))
 
 /* ------------------------------------------------------------------------- */
 /*
