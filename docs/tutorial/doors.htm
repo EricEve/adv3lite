@@ -23,7 +23,8 @@ Doors and Locks
 
 <p>We'll start with the door to the Maintenance Room, since this is the most common or standard case: a door that can be locked or unlocked using an ordinary key. We'll start by defining the door, and then add the lock.</p>
 
-<p>In adv3Lite a door is actually composed of two objects, each representing one side of the door (apart from anything else, this makes it easy to make one side different from the other). Each side of the door is placed in the room in which is located, and connected to the other side of the door via its <span class="code">otherSide</span> property. Since a Door is yet another TravelConnector (albeit a slightly unusual one) we also follow the usual step of pointing the appropriate direction property of the relevant room to the door through which it leads. This should become clear with the particular example we're implemented here:</p>
+<p>In adv3Lite a door can either be composed of two objects, each representing one side of the door or as a single object. The former is usually the better option when the two sides are very different; the latter is probably easier when they are reasonably similar, as here, in which case we declare the door to be of the <span class='code'>DSDoor</span> class and stipulate the two rooms it connects in its <span class='code'>room1</span> and <span class='code'>room2</span> properties. Where we want the two sides to be described differently we can use the <span class='code'>room1Desc</span> and <span class='code'>room2Desc</span> properties to give the description as seen from each of the two rooms:</p>
+ 
 
  <p><div class="code"><pre>
 gateArea: Room 'Gate Area' 'gate area'
@@ -41,27 +42,25 @@ gateArea: Room 'Gate Area' 'gate area'
 ;
 
 <strong>
-+ maintenanceRoomDoor: Door 'metal door'
-    "It's marked &lt;q&gt;Personal de Mantenimiento S&amp;oacute;lo&lt;/q&gt;, and &lt;&lt;if isOpen&gt;&gt;
-    is currently open&lt;&lt;else&gt;&gt; looks firmly closed&lt;&lt;end&gt;&gt;. "
+maintenanceRoomDoor: DSDoor 'metal door; plain'
+    room1Desc = &quot;It&apos;s marked &lt;q&gt;Personal de Mantenimiento S&amp;oacute&semi;lo&lt;/q&gt;&comma; and
+        &lt;&lt;if isOpen&gt;&gt; is currently open&lt;&lt;else&gt;&gt; looks firmly closed&lt;&lt;end&gt;&gt;. &quot;
     
-    otherSide = mrDoorOut
+    room2Desc = &quot;It&apos;s just a plain metal door&comma; currently &lt;&lt;if isOpen&gt;&gt; open&lt;&lt;else&gt;&gt;
+        closed&lt;&lt;end&gt;&gt;. &quot;
+		
+    room1 = gateArea
+    room2 = maintenanceRoom    
 ;</strong>
 
  ...
 
 maintenanceRoom: Room 'Maintenance Room' 'maintenance room'
     
-    <strong>west = mrDoorOut</strong>
+    <strong>west = maintenanceRoomDoor</strong>
     out asExit(west)
 ;
-<strong>
-+ mrDoorOut: Door 'metal door; plain'
-    "It's just a plain metal door, currently &lt;&lt;if isOpen&gt;&gt; open&lt;&lt;else&gt;&gt;
-    closed&lt;&lt;end&gt;&gt;. "
-    
-    otherSide = maintenanceRoomDoor
-;</strong>
+
 </pre></div>
 
 <p>Note that we handle the description of whether the doors are open or closed manually, via embedded expressions and the <span class="code">isOpen</span> property (which, as you might expect, is true if the door is open and nil if the door is closed). You <em>can</em> have the game do this for you automatically by overriding <span class="code">openStatusReportable</span> to be true (either on the Door class or on individual doors), but then it can be awkward to write descriptions of doors that read naturally (unless all you want the player to see is "The door is open/closed"), so it's generally better to handle this yourself to get the effect you want.</p>
@@ -79,38 +78,29 @@ maintenanceRoom: Room 'Maintenance Room' 'maintenance room'
 
 <p>Note that you don't have to define the same locking mechanism on both sides of a door. It's perfectly in order, say, for the outside of a front door to be lockableWithKey and the inside to be lockableWithoutKey. Note also that as well as being defined on doors, lockability can be defined on openable containers (a strongbox, say).</p>
 
-<p>Clearly, we want the maintenance room door to be lockableWithKey. We also want it to start out locked. We therefore need to make the following changes:</p>
+<p>Clearly, we want the maintenance room door to be lockableWithKey. We also want it to start out locked. We therefore need to make the following changes (and while we're at it we'll use the DSDoor template to define the <span class='code'>room2</span> properties):</p>
 
  <p><div class="code"><pre>
-+ maintenanceRoomDoor: Door 'metal door'
-    "It's marked &lt;q&gt;Personal de Mantenimiento S&amp;oacute;lo&lt;/q&gt;, and &lt;&lt;if isOpen&gt;&gt;
-    is currently open&lt;&lt;else&gt;&gt; looks firmly closed&lt;&lt;end&gt;&gt;. "
+maintenanceRoomDoor: DSDoor 'metal door; plain' <strong>@gateArea @maintenanceRoom</strong>
+    room1Desc = &quot;It&apos;s marked &lt;q&gt;Personal de Mantenimiento S&amp;oacute&semi;lo&lt;/q&gt;&comma; and
+        &lt;&lt;if isOpen&gt;&gt; is currently open&lt;&lt;else&gt;&gt; looks firmly closed&lt;&lt;end&gt;&gt;. &quot;
     
-    otherSide = mrDoorOut
-    <strong>lockability = lockableWithKey
-    isLocked = true</strong>
-;
-
-...
-
-+ mrDoorOut: Door 'metal door; plain'
-    "It's just a plain metal door, currently &lt;&lt;if isOpen&gt;&gt; open&lt;&lt;else&gt;&gt;
-    closed&lt;&lt;end&gt;&gt;. "
-    
-    otherSide = maintenanceRoomDoor    
+    room2Desc = &quot;It&apos;s just a plain metal door&comma; currently &lt;&lt;if isOpen&gt;&gt; open&lt;&lt;else&gt;&gt;
+        closed&lt;&lt;end&gt;&gt;. &quot;
+        
     <strong>lockability = lockableWithKey
     isLocked = true</strong>
 ;
 </pre></div>
 
-<p>That's all very well, but we still haven't defined <em>which</em> key or keys can be used to unlock this door. In fact, in adv3Lite, we have to do it the other way round: we need to tell the key which things it can lock and unlock. We do that by assigning anything that's going to act as a key to the Key class, and defining a couple of properties on it thus:</p>
+<p>That's all very well, but we still haven't defined <em>which</em> key or keys can be used to unlock this door. In fact, in adv3Lite, we have to do it the other way round: we need to tell the key which things it can lock and unlock. We do that by assigning anything that's going to act as a key to the Key class, and defining a couple of properties on it thus (for now, just locate the brass key in the gate area):</p>
 
  <p><div class="code"><pre>
 + brassKey: <strong>Key</strong> 'small brass key; yale'
     "It's just like all the other yale keys you've ever seen. "    
     
-    <strong>actualLockList = [maintenanceRoomDoor, mrDoorOut]
-    plausibleLockList = [maintenanceRoomDoor, mrDoorOut]</strong>
+    <strong>actualLockList = [maintenanceRoomDoor]
+    plausibleLockList = [maintenanceRoomDoor]</strong>
 ;
 </pre></div>
 
@@ -124,44 +114,37 @@ maintenanceRoom: Room 'Maintenance Room' 'maintenance room'
 <a name="planedoors"></a>
 <h2>Doors aboard the Plane</h2>
 
-<p>We might expect the two doors we need to implement aboard the plane (leading into the cockpit and into the bathroom) to be broadly similar. Within the cockpit or the bathroom one should be able to lock and unlock the door without a key (using a knob or bolt or paddle). One probably wouldn't be able to lock or unlock these doors from the other side. So in each case we want one side of the door to have a lockability of lockableWithoutKey, and the other to be indirectLockable with a message explaining that the door can only be locked and unlocked from the other side (this is probably better than making it notLockable, which might result in a potentially misleading response). To save ourselves a bit of repetitious work we can therefore define a couple of custom classes that can be used to implement both pairs of doors:</p>
+<p>We might expect the two doors we need to implement aboard the plane (leading into the cockpit and into the bathroom) to be broadly similar. Within the cockpit or the bathroom one should be able to lock and unlock the door without a key (using a knob or bolt or paddle). One probably wouldn't be able to lock or unlock these doors from the other side. So in each case we want one side of the door to have a lockability of lockableWithoutKey, and the other to be indirectLockable with a message explaining that the door can only be locked and unlocked from the other side (this is probably better than making it notLockable, which might result in a potentially misleading response). To save ourselves a bit of repetitious work we can therefore define a custom class to implement both doors:</p>
 
 <p><div class="code"><pre>
-class PlaneDoor: Door 
-    desc = "It's &lt;&lt;if isOpen&gt;&gt;open&lt;&lt;else&gt;&gt;closed&lt;&lt;end&gt;&gt;. "
-    lockability = indirectLockable
+class PlaneDoor: DSDoor 
+    room1Desc = "It&apos;s &lt;&lt;if isOpen&gt;&gt;open&lt;&lt;else&gt;&gt;closed&lt;&lt;end&gt;&gt;. &quot;
+    room2Desc = &quot;It&apos;s currently &lt;&lt;if isOpen&gt;&gt;open&lt;&lt;else&gt;&gt;closed and &lt;&lt;if isLocked&gt;&gt;
+        locked&lt;&lt;else&gt;&gt;unlocked&lt;&lt;end&gt;&gt;&lt;&lt;end&gt;&gt;. &quot;
+    
+    room1Lockability = indirectLockable
+    room2Lockability = lockableWithoutKey
+    
     indirectLockableMsg = 'It looks like this door can only be locked and
         unlocked from the other side. '
-        
     isLocked = nil
 ;
 
-class LockablePlaneDoor: Door
-    desc = "It's currently &lt;&lt;if isOpen&gt;&gt;open&lt;&lt;else&gt;&gt;closed and &lt;&lt;if isLocked&gt;&gt;
-        locked&lt;&lt;else&gt;&gt;unlocked&lt;&lt;end&gt;&gt;&lt;&lt;end&gt;&gt;. "
-    lockability = lockableWithoutKey
-    
-    isLocked = nil
-;
 </pre></div>
 
-<p>Note the use of the nested &lt;&lt;if &gt;&gt; on the LockablePlaneDoor class. If the door is open there's not a lot of point in reporting whether it's locked or unlocked. Note also that we explicitly defined <span class="code">isLocked = nil</span> on both classes of Door; this is because things that are lockable start out locked by default, but we want the doors aboard the plane to start out unlocked, otherwise the game won't be winnable.</p>
+<p>Note the use of the nested &lt;&lt;if &gt;&gt; on the <span class='code'>room2Desc</span>. If the door is open there's not a lot of point in reporting whether it's locked or unlocked. Note also that we explicitly defined <span class="code">isLocked = nil</span> on this class; this is because things that are lockable start out locked by default, but we want the doors aboard the plane to start out unlocked, otherwise the game won't be winnable. Note also the use of the <span class='code'>room1Lockability</span> and <span class='code'>room2Lockability</span> properties to define different lockabilities on the two sides of door.</p>
 
 <p>Armed with these class defintions we can now implement the doors aboard the plane as follows:</p>
 
  <p><div class="code"><pre>
 cockpit: Room 'Cockpit' 'cockpit'
     
-    <strong>aft = cabinDoor</strong>
+    <strong>aft = cockpitDoor</strong>
     south asExit(aft)
     out asExit(aft)
     
     regions = [planeRegion]
 ;
-<strong>
-+ cabinDoor: LockablePlaneDoor 'cabin door'
-    otherSide = cockpitDoor
-;</strong>
 
 planeFront: Room 'Front of Plane' 'front[n] of the plane;;airplane aeroplane'
     "The main ailse comes to an end at the port exit of the plane, but continues
@@ -179,8 +162,7 @@ planeFront: Room 'Front of Plane' 'front[n] of the plane;;airplane aeroplane'
     regions = [planeRegion]
 ;
 
-<strong>+ cockpitDoor: PlaneDoor 'cockpit door'
-    otherSide = cabinDoor
+<strong>cockpitDoor: PlaneDoor 'cockpit door' @planeFront @cockpit    
 ;</strong>
 
 
@@ -195,15 +177,14 @@ planeRear: Room 'Rear of Plane' 'rear[n] of the plane;;airplane aeroplane'
     regions = [planeRegion]    
 ;
 <strong>
-+ bathroomDoor: PlaneDoor 'bathroom door; loo toilet lavatory'
-    otherSide = bathroomDoorInside
+bathroomDoor: PlaneDoor 'bathroom door; loo toilet lavatory' @planeRear @bathroom    
 ;</strong>
 
 bathroom: Room 'Bathroom' 'bathroom;;loo lavatory toilet wc cubicle'
     "The bathroom is just a tiny cubicle with all the standard fittings you'd
     expect. "
     
-    <strong>fore = bathroomDoorInside</strong>
+    <strong>fore = bathroomDoor</strong>
     north asExit(fore)
     out asExit(fore)    
     
@@ -218,8 +199,11 @@ bathroom: Room 'Bathroom' 'bathroom;;loo lavatory toilet wc cubicle'
 <p>If you compile and run the game now, after making these changes, you should be able to try these doors out.</p>
 
 <h2>The Door to the Security Area</h2>
+ 
+<p>Finally, we need to implement the door between the Concourse and the Security Area. Since the two sides of this door are substantially different, it will be easier to implement them as a pair of <span class='code'>Door</span> objects. Each side of the door is placed in the room in which is located, and connected to the other side of the door via its <span class="code">otherSide</span> property. Since a Door is yet another TravelConnector (albeit a slightly unusual one) we also point the appropriate direction property of the relevant room to the side of the door through which it leads. This should become clear with the particular example we're implemented here:</p>
 
-<p>Finally, we need to implement the door between the Concourse and the Security Area. Since this is unlocked by an ID card placed in a slot, it might seem a case where we should make the door indirectLockable. On the other hand, it would not be unreasonable for the player to try to UNLOCK DOOR WITH CARD, so we shall instead make it lockableWithKey, making the IDCard the appropriate key:</p>
+
+Since this is unlocked by an ID card placed in a slot, it might seem a case where we should make the door indirectLockable. On the other hand, it would not be unreasonable for the player to try to UNLOCK DOOR WITH CARD, so we shall instead make it lockableWithKey, making the IDCard the appropriate key:</p>
 
  <p><div class="code"><pre>
 ++ IDcard: <strong>Key</strong> 'an ID Card; identification poor; photo'     

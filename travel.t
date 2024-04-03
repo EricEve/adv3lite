@@ -1276,12 +1276,12 @@ class DSDoor: DSCon, Door
     lockability = (gActor.getOutermostRoom == room1 ? room1Lockability : room2Lockability)
     
     /*
-     *   Our lockability on the room1 side of the door. [SYMCONN EXTENSION]
+     *   Our lockability on the room1 side of the door. 
      */
     room1Lockability = notLockable
     
     /*
-     *   Our lockability on the room2 side of the door. [SYMCONN EXTENSION]
+     *   Our lockability on the room2 side of the door. 
      */    
     room2Lockability = notLockable
     
