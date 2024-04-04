@@ -5733,20 +5733,19 @@ conversationManager: OutputFilter, PreinitObject
         libGlobal.setRevealed(tag);
         
         /* 
-         *   If something has just been revealed to us, it has also just been
-         *   revealed to every other actor in the vicinity who could overhear
-         *   the conversation (including the actor who has just spoken, if there
-         *   is one; if there isn't then the revealed tag is presumably being
-         *   used for a non-conversational purpose, so we don't try to inform
-         *   any other actors).
+         *   If something has just been revealed to us, it has also just been revealed to every
+         *   other actor in the vicinity who could overhear the conversation (including the actor
+         *   who has just spoken, if there is one; if there isn't then the revealed tag is
+         *   presumably being used for a non-conversational purpose, so we don't try to inform any
+         *   other actors).
          *
-         *   Note that we only do this if our respondingActor wants to allow it
-         *   through its informOverheard property. If we want to model a private
-         *   conversation that other people present don't pick up, we can
-         *   override informOverheard on the the current ActorState or
-         *   actorInformedOverhead on the Actor.
+         *   Note that we only do this if our respondingActor wants to allow it through its
+         *   informOverheard property and the global option to inform on reveal is set on libGlobal.
+         *   If we want to model a private conversation that other people present don't pick up, we
+         *   can override informOverheard on the the current ActorState or actorInformedOverhead on
+         *   the Actor.
          */                
-        if(respondingActor != nil && respondingActor.informOverheard )
+        if(libGlobal.informOnReveal && respondingActor != nil && respondingActor.informOverheard)
         {
             
             forEachInstance(Actor, new function(a) {

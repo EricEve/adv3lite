@@ -124,24 +124,47 @@ bob: Actor 'Bob; squat little;fellow man; him'
 <h2>Player Knowledge and Player Character Knowledge</h2>
 <p>Thus far we have treated Player Knowledge and Player Character knowledge as if they were same thing, insofar as gReveal()/gRevealed() effectively set and track both. If there is only ever one player character in the game, this is unlikely to matter. But if the player character ever changes, relying on gRevealed() to test what the new player character knows would cause the new player character to have inherited the old player character's knowledge, which may not be what you want. To get round this problem you can call knowsAbout(item) or informedAbout(item) on the various player characters instead of using gRevealed. You may wish to use the macro <strong>gKnown(item)</strong> for this purpose: this macro expands to <span class='code'>(gPlayerChar.knowsAbout(obj))</span>. Conversely you may wish to use the macro <strong>gSetKnown(item)</strong> to set the player character knowledge, if it's distinct from the player's knowledge. You should be able to use the tag &lt;.known item&gt; to do this with a fact tag provided <i>item</i> contains at least one character that can't occur in an an object name (in other words, anything other than an alphanumeric character or an underscore). You can force this to occur by prefacing the fact tag with $, which will then be stripped from the tag before it's passed to gActor.setKnowsAbout. If you'd rather use some other character or string for this purpose, you can set it on the <b>factTagMarker</b> property of the <strong>conversationManager</strong> object, but the string you choose should be a special character, not an alphanumeric one or underscore.</p>
 
+
 <p>What goes on behind the scenes here is that the results of revealing are stored in <span class='code'>libGlobal.revealedNameTab</span> while the results of gInform/gSetKnown are stored in the player character's <span class='code'>informedAboutTab</span>.</p>
+
+<p>Finally, if you'd prefer to use an alternative (and perhaps more logical) naming system for the tags and macros, you can use <b>pcKnows(<i>arg</i>)</b> and <b>&lt;.pcknow arg&gt;</b> to test and set the player character's knowledge of <i>arg</i> and <b>npcKnows(<i>arg</i>)</b> and <b>&lt;.npcknow arg&gt;</b> to test and set the current interlocutor's knowledge of <i>arg</i> in conversational contexts. In each case <i>arg</i> can be either the programmatic name of a game object (Thing or Topic) or a fact tag (preferably prededed by a $ in <span class='code'>&lt;.pcknow arg&gt;</span>) and <span class='code'>npcKnows(<i>arg</i>)</span>) to mark it out as string argument rather than an object name. So, for example, you'd use <span class='code'>pcKnows('troubles')</span> but <span class='code'>&lt;.pcknow $troubles&gt;</span>. We'll say more about this alternative scheme (and when to use it) below.</p> 
+
 
 <a name='summary'></a>
 <h2>Summary and Recommendations</h2>
-<p>It may appear that the knowledge system involves a profusion of methods, macros and tags with names whose implications are not always apparent, partly because the knowledge system has grown organically through the various versions of adv3Lite. These are all retained for the sake of backward compatibility, but the library now also defines a new set of more clearly named tags and macros you may wish to use for future work:</p>
+<p>You are, of course, free to use whichever set of tag names and macro names you wish, but here we offer some suggestions on which might be more helpful on two different scenarios.</p>
+
+<b>Scheme 1</b>, which uses the backward-compatible naming scheme, may well be the better option in games where you're happy to largely conflate player and player character knowledge. These will normally be games in which the player character never changes and/or there is little need to track NPC knowledge of the existence of objects (Things and Topics). In which case, you could stick to employing the following tags and macros:</p>
+
+<ul>
+<li>Use <b>&lt;.reveal tag&gt;</b> to note the revealing of a fact tag to the player and player character.</li>
+<li>Use <b>gRevealed(tag)</b> to test whether <i>tag</i> has been revealed to the player and player character.</li>
+<ii>Use <b>&lt;.inform tag&gt;</b> to note the revealing of a fact tag to the current interloctor (the NPC the player character is currently in conversation with) in a conversational context.</li>
+<li>Use <b>gInformed(tag)</b> in a oonversational context to test whether <i>tag</i> has been revealed to the current interlocutor.</li>
+</ul>
+
+
+
+<b>Scheme 2</b>, which uses the alternative system, may well be the better option in games where the player character changes and/or there is a need to distinguish Player knowledge, Player Character knowledge, and NPC knowledge, including which game objects and Topics different actors know about (know the existenced of) and possibly also which they have ssen.</p>
 
 <ul>
 <li><b>pcKnows(<i>arg</i>)</b> indicates whether or not the Player Character knows or knows about <i>arg</i>.</li>
 <li><b>npcKnows(<i>arg</i>)</b> indicates whether or not the NPC the Player Character is currently conversing with knows or knows about <i>arg</i>.</li>
 <li><b>&lt;.pcknow arg&gt;</b> makes the Player Character know about arg.</li>
 <li><b>&lt;.npcknow arg&gt;</b> makes the NPC the Player Character is currently conversing know about arg.</li>
+<li>Use <b>&lt;.reveal tag&gt;</b> to note the revealing of a fact tag to the <i>player</i> (e.g. in a hint system) or for general purpose flags.</li>
+<li>Use <b>gRevealed(tag)</b> to test for the revealing to the <i>player</i> (e.g. in a hint system) or for general purpose flags.</li>
 </ul> 
-<p>In all four cases <i>arg</i> can either be the name of a game object (Thing or Topic) or a fact tag. For <span class='code'>pcKnows(arg)</span> and <span class='code'>npcKnows(arg)</span>, if <i>arg</i> is intended as a fact tag it should be given as a single-quoted string (e.g. <span class='code'>pcKnows('troubles')</span>), For <span class='code'>&lt;.pcknown arg&gt;</span> and <span class='code'>&lt;.npcknown arg&gt;</span>, if <i>arg</i> is a fact tag it should be preceded by a $, e.g., <span class='code'>&lt;.pcknown $troubles&gt;</span>. Even though adv3Lite library may often be able to work out that <i>arg</i> can't be an object name it will make your code both safer and more readable if you always precede your tag names with a $ in these two cases (this isn't be necessary with any other conversation tags such as <span class='code'>&lt;.reveal arg&gt;</span> and the rest, but the library will strip any $ from the front of these too, just in case you include them by mistake).</p>
+<p>In the first four of the above <i>arg</i> can either be the name of a game object (Thing or Topic) or a fact tag. For <span class='code'>pcKnows(arg)</span> and <span class='code'>npcKnows(arg)</span>, if <i>arg</i> is intended as a fact tag it should be given as a single-quoted string (e.g. <span class='code'>pcKnows('troubles')</span>), For <span class='code'>&lt;.pcknown arg&gt;</span> and <span class='code'>&lt;.npcknown arg&gt;</span>, if <i>arg</i> is a fact tag it should be preceded by a $, e.g., <span class='code'>&lt;.pcknown $troubles&gt;</span>. Even though adv3Lite library may often be able to work out that <i>arg</i> can't be an object name it will make your code both safer and more readable if you always precede your tag names with a $ in these two cases (this isn't be necessary with any other conversation tags such as <span class='code'>&lt;.reveal arg&gt;</span> and the rest, but the library will strip any $ from the front of these too, just in case you include them by mistake).</p>
 
-<p>For testing and setting NPC knowledge outside conversational contexts where the NPC is the current interlocutor, call the methods <b>knowsAbout(arg)</b> and <b>setKnowsAbout(arg)</b> on the NPC in question, where <i>arg</i> can once again be am object name or a string tag.</p>
 
-<p>For general purpose tags, player knowledge, and player character knowledge in games where the player character never changes, you can continue to use 
-<b>&lt;.reveal tag&gt;</b> and <b>gRevealed(tag)</b>.</p>
+<p>Note that on this second scheme, you will need to set the <b>knownProp</b>, and possibly (but not necessarily) the <b>seenProp</b>, to different values, (e.g. &amp;bobKnows, &amp;sallyKnows) on every actor whose knowledge of game objects you need to track separately, and you will also need to manage these separate properties on all relevant Things, Topics, Rooms and Regions (where familiarity may vary between different actors). It will be even more work if you need to keep track of what different actors have seen.</p>
+
+<p>To sever the link between Player knowledge and Player Character knowledge you may also wish to set <b>libGlobal.informOnReveal</b> to nil. This will prevent <span class='code'>&lt;.reveal&gt;</span> and <span class='code'>gRevealed()</span> from updating the informedNameTab of any actors, including the Player Character.</p>
+
+<p><b>On Either Scheme</b>, for testing and setting NPC knowledge outside conversational contexts where the NPC is the current interlocutor, call the methods <b>knowsAbout(arg)</b> and <b>setKnowsAbout(arg)</b> on the NPC in question, where <i>arg</i> can once again be am object name or a string tag.</p>
+
+<p>In all probability, most games will be able to use Scheme 1 without players noticing anything amiss. A few games in which the finer details of who knows what is vital to the story-line or puzzle structure may need to use Scheme 2.</p>
 
 </div>
 <hr class="navb"><div class="navb">

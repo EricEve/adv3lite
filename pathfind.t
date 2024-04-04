@@ -256,7 +256,7 @@ pcRouteFinder: Pathfinder
                 
                 if(!conn.isDestinationKnown && 
                    loc.regionsInCommonWith(dest).indexWhich(
-                       {x: x.familiar}) != nil)
+                       {x: x.isFamiliar(gPlayerChar.knownProp)}) != nil)//                       
                     conn.isDestinationKnown = true;
                 
                 /* 

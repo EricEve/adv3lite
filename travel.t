@@ -730,6 +730,15 @@ class Room: TravelConnector, Thing
      *   instead.
      */
     roomFirstDesc = nil
+    
+    /* 
+     *   Check whether this room is familiar by farming out the question to the relevant xxxFamiliar
+     *   prop, which game code will need to define if this is different for different actors.
+     */
+    isFamiliar(prop = &familiar)
+    {
+        return self.(prop);
+    }
 ;
 
 /* 
@@ -2239,12 +2248,22 @@ class Region: object
     familiar = nil
     
     /* 
+     *   For games that track different familiarity on different Actors, we can call this method
+     *   with &xxxFamiliart to farm out the answer to the appropriate xxxFamiliar property, which
+     *   we'll need to define on this region.
+     */
+    isFamiliar(prop = &familiar)
+    {
+        return self.(prop);
+    }
+    
+    /* 
      *   Go through all the rooms in this region setting them to familiar if the
      *   region is familiar.
      */    
-    setFamiliarRooms()
+    setFamiliarRooms(prop = &familiar)
     {
-        if(familiar)
+        if(isFamiliar(prop))
         {
             /* 
              *   If this Region is familiar then go through each room in the
@@ -2252,11 +2271,12 @@ class Region: object
              */
             foreach(local rm in valToList(roomList))
             {
-                rm.familiar = true;                
+                rm.(prop) = true;                
             }
         }
     }
     
+      
         
     /* 
      *   To add an object to our contents we need to add it to the contents of

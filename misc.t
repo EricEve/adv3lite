@@ -779,6 +779,13 @@ libGlobal: object
             
     }
     
+    /* 
+     *   Flag: do we want revealing something (through setRevealed or <.reveal> to update PC and NPC
+     *   knowledge? By default we do, but games that want to strictly separate Player and Player
+     *   Character knowledge may wish to set this to nil.
+     */
+    informOnReveal = true
+    
     /*
      *   Mark a tag as revealed.  This adds an entry for the tag to the revealedNameTab table and to
      *   the informedNamedTab of the player character (who might, in principle, change during the
@@ -795,13 +802,18 @@ libGlobal: object
      *   We put the revealedNameTab table and the setRevealed method here rather than on
      *   conversationManager so that it's available to games that don't include actor.t.
      */
+        
     setRevealed(tag)
     {
         /* Add the tag to our revealedNameTab */
         revealedNameTab[tag] = true;
         
-        /* Add the tag to the playerCharacter's informedNameTab */
-        gPlayerChar.setInformed(tag);
+        /* 
+         *   Add the tag to the playerCharacter's informedNameTab, provided we want revealing to
+         *   update PC and NPC knowledge.
+         */
+        if(informOnReveal)
+            gPlayerChar.setInformed(tag);
     }
 
     /*
@@ -1624,6 +1636,19 @@ setPlayer(actor, person = 2)
     /*   Make the current actor the new player character */
     gActor = gPlayerChar;
     gCommand.actor = gPlayerChar;
+    
+    
+    /* 
+     *   Reset the familiarity of rooms in regions familiar to the new actor, if its knownProp
+     *   differs from that of the previous player character.
+     */
+    local prop = actor.knownProp;
+    
+    if(prop != other.knownProp)
+    {
+    for(local reg = firstObj(Region); reg != nil;  reg = nextObj(reg, Region))
+        reg.setFamiliarRooms(prop);
+    }
     
     /* Return the (third-person) name of the new player character */
     return newName;
