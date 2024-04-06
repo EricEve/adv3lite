@@ -38,5 +38,6 @@ source: score
 source: senseRegion
 source: topicEntry
 source: thoughts
+source: facts
 needmacro: LANGUAGE this selects the language the library uses in its messages and parsing; for English, use "english"
 library: $(LANGUAGE)/$(LANGUAGE)

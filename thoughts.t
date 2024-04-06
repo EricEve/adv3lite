@@ -78,9 +78,19 @@ class Thought: TopicEntry
  *   when no more specific response is available.
  */
 class DefaultThought: Thought
+    
+    matchObj = [Thing, Topic ]
+    
     matchTopic(top)
     {
-        return matchScore + scoreBoost;
+        /* Note the Topic we matched. */
+        topicMatched = top;
+        
+        /* 
+         *   Since we can match anything, simply return the sum of our
+         *   matchScore and our scoreBoost.
+         */
+        return matchScore + scoreBooster();
     }
     
     matchScore = 1
