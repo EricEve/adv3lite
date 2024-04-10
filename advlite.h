@@ -796,6 +796,9 @@ TopicEntry template
    'matchPattern'
    [firstEvents] [eventList]; 
 
+/* Version ActorTopicEntry template for use with Facts and kTag */
+ActorTopicEntry template +matchScore? "topicResponse" | [eventList];
+
 QueryTopic template
    +matchScore? 'matchPattern'
     "topicResponse" | [eventList] ?;
@@ -1138,8 +1141,12 @@ ShuffledEventList template [firstEvents] [eventList];
 /* template for Scenery Class */
 Scenery template @location? [scenList];
 
-/* template for Facts Extension */
+/* template and macros for Facts module */
 Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
+
+#define gFact(tag) (factManager.getFact(tag))
+#define gFactDesc(tag) (factManager.getFactDesc(tag))
+
 
 /* ------------------------------------------------------------------------ */
 /*  

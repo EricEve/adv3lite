@@ -374,7 +374,7 @@ class Consultable: TopicDatabase, Thing
         inherited();
         
         /* 
-         *   Loop through our topicList to create a correspnding ConsultTopic for every item
+         *   Loop through our topicList to create a corresponding ConsultTopic for every item
          *   therein.
          */
         foreach(local item in valToList(topicEntryList))
@@ -442,16 +442,27 @@ class Consultable: TopicDatabase, Thing
         
         /* 
          *   Provided we have a second entry in our item list, assign in to the new ConsultTopic's
-         *   topicRespose property.
+         *   topicResponse property.
          */
-        if(item.length > 1)        
-            top.setMethod(&topicResponse, item[2]);        
+        if(item.length > 1)      
+        {
+            local txt = item[2];
+            
+            setTopicResponse(top, topkey, txt);
+                        
+                 
+        }
         
-        /* Should we have a third item, assign it to the new ConsultTopic's matchScor */
+        /* Should we have a third item, assign it to the new ConsultTopic's matchScore */
         if(item.length > 2 && dataType(item[3]) == TypeInt)           
             top.matchScore = item[3];         
         
         
+    }
+    
+    setTopicResponse(top, topkey, txt)
+    {
+        top.setMethod(&topicResponse, txt);   
     }
     
     /* We're our own 'actor' in the sense of being the source of any information we supply. */

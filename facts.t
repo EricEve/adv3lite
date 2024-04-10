@@ -50,6 +50,24 @@ class Fact: object
      */
     initiallyKnownBy = []
     
+    /* Obtain a list of everything that knows this fact */
+    currentlyKnownBy()
+    {
+        /* Set up a new Vector */
+        local vec = new Vector;
+        
+        /* Iterate through every Thing in the game. */
+        for(local obj = firstObj(Thing); obj != nil; obj = nextObj(obj, Thing))
+        {
+            /* If obj knows about us, add obj to our vector. */
+            if(obj.knowsAbout(self.name))
+                vec.append(obj);
+        }        
+        
+        /* Convert the Vector to a List and return the result. */
+        return vec.toList();
+    }
+    
     /* Initialise this fact at preInit. */
     initializeFact()
     {
@@ -60,6 +78,10 @@ class Fact: object
             actor.setInformed(name);
             actor.informedNameTab[name] = self;
         }
+        
+        /* If we have a pcComment defined, add it to our pcCommentTab */
+        if(pcComment)
+            setPcComment(gPlayerChar, pcComment);
     }
     
     /* 
@@ -132,7 +154,7 @@ class Fact: object
      *   character and must normally have been the player character at some point for this to return
      *   anything but an empty list.
      */
-    gatTargets(actor = gPlayerChar)
+    getTargets(actor = gPlayerChar)
     {
         return valToList(targetsTab[actor]); 
     }
@@ -191,6 +213,58 @@ class Fact: object
     }
     
     /* 
+     *   A single-quoted string containing the initial player character's initial comment or thought
+     *   on this Fact; this can be left at nil if the PC doesn't have one. This will be appended to
+     *   the description of this Fact when listed by a Thought, so should be a sentence fragment
+     *   starting with a lower case letter (or some form of parenthetic punctuation) and without a
+     *   full stop at the end.
+     */
+    pcComment = nil
+    
+    /*  
+     *   A table containing platey characters' comments on this Fact. We use a LookpTable here in
+     *   case the player character changes, so we can retrieve the comment relevant to the current
+     *   player character
+     .*/
+    pcCommentTab = nil
+    
+    /* 
+     *   Get the current player character's comment on this Fact; source is the source from which
+     *   the PC learned the Fact and topic is the topic the Player Character is thinking about. By
+     *   default this method returns different results for different player characters, but game
+     *   code will need to override this method to return different comments for different sources
+     *   and/or topics.
+     */         
+    getPcComment(source, topic)
+    {
+        /* 
+         *   If our pcCommentTab hasn't been created yet, we don't have any player character
+         *   comments, so just return nil
+         .*/
+        if(pcCommentTab == nil)
+            return nil;
+        
+        /* Otherwise return the comment relating to the current player character. */
+        return pcCommentTab[gPlayerChar];
+    }
+    
+    /* 
+     *   Set actor's comment on this fact; normally actor will be the current player character; txt
+     *   is a single-quoted string containing the comment, which will usually be appended to the
+     *   description of the fact.
+     */
+    setPcComment(actor, txt)    
+    {
+        /* If we don't yet have a LookUpTable for pcComments, create one. */
+        if(pcCommentTab == nil)
+            pcCommentTab = new LookupTable(5, 5);
+            
+        /* Set the actor's comment to txt. */ 
+        pcCommentTab[actor] = txt;
+    }
+    
+        
+    /* 
      *   Our priority (what is our relevant importance). Facts with a higher priority will be listed
      *   earlier in any list of facts. We set a defaul priority of 100.
      */
@@ -242,7 +316,7 @@ factManager: PreinitObject
         /* Get the corresponding Fact. */
         local fact = getFact(tag);
         
-        /* If we've found one, return is base desc property, otherwise return nil. */
+        /* If we've found one, return its base desc property, otherwise return nil. */
         return fact == nil ? nil : fact.desc();
     }
            
@@ -258,7 +332,58 @@ factManager: PreinitObject
         
         /* If we've found a fact, return its qualified description, otherwise return nil */
         return fact == nil ? nil : fact.qualifiedDesc(actor, topic);
-    }    
+    } 
+    
+    /* 
+     *   Get the player character's comment on the fact whose name is tag when it is retrieved in
+     *   relation to topic (typically by a THINK ABOUT topic commannd).
+     */
+    getPcComment(tag, topic)
+    {
+        /* Find the fact relating to tag */
+        local fact = getFact(tag);
+        
+        /* If there isn't one, issue a warning message if debugging, and return nil in any case. */
+        if(fact == nil)
+        {
+#ifdef __DEBUG            
+            "WARNING! No such fact as <<tag>> to retrieve PC comment from. ";
+#endif
+            return nil;
+        }
+        /* 
+         *   Otherwise retrieve the player character's comment from the relevant fact and return the
+         *   result.
+         */
+        else
+            return fact.getPcComment(gPlayerChar, topic);
+    }
+    
+    /* 
+     *   Set the current player character's comment on the Fact identified by tag; txt is a
+     *   single-quote string containing the comment.
+     */
+    setPcComment(tag, txt)
+    {
+        /* First retrieve the fact. */
+        local fact = getFact(tag);
+        
+        /* 
+         *   If we don't find one, return nil, after issuing a warning message if the game has been
+         *   compiled for debugging.
+         */
+        if(fact == nil)
+        {
+#ifdef __DEBUG               
+            "WARNING! No such fact as <<tag>> to set PC Comment for.";
+#endif        
+            ;
+        }
+        /* Otherwise set the current player character's comment to txt. */
+        else
+            fact.setPcComment(gPlayerChar, txt);
+    }
+    
     
     /* Setup method to call at preInit. */
     execute()
@@ -271,9 +396,10 @@ factManager: PreinitObject
             
             /* Then add it to our database of Facts. */
             addFact(fact);
-        }
-                
+        }                
     }
+    
+    
 ;
 
 /* 
@@ -308,7 +434,7 @@ class FactHelper: object
          *   If our actor's informedNameTab hasn't been created, return an empty list, since there's
          *   nothing to look up.
          */
-        if(actor.informedNameTab== nil)
+        if(actor.informedNameTab == nil)
             return [];
         
         /* Set up a new Vector to build our collection of Facts. */
@@ -493,7 +619,7 @@ class FactHelper: object
             {
                 /* 
                  *   If libGlobal.informOnReveal is true (the default) then reveal the tag (which
-                 *   also adds it to the player characters informedTab).
+                 *   also adds it to the player characters informedNameTab).
                  */
                 if(libGlobal.informOnReveal)
                     gReveal(tag);
@@ -540,7 +666,7 @@ class FactHelper: object
     
     /* 
      *   Do we want to list the sources of the facts our topicResponse is reporting? We might well
-     *   want to do so on a Thoght but probably not on a Consultable, so we default to nil here.
+     *   want to do so on a ConsultTopic but probably not on a Thought, so we default to nil here.
      */
     listSources = nil
        
@@ -555,12 +681,12 @@ class FactHelper: object
 
 
 /* 
- *   A FactConsultTopic can be used to generate an automated response to a potentially wide
- *   range of queries directed to the associated Consultable, provided that the Consultable in
- *   question has been listed in the various relevant facts' initiallyKnownBy list (or subquently
- *   added to its informedTab if the Consultable is updatable). A DefaultFactConsultTopic can also
- *   act like a regular DefaultConsultTopic when its Consultable has no facts corresponding to the
- *   topic that's just been looked up.
+ *   A FactConsultTopic can be used to generate an automated response to a potentially wide range of
+ *   queries directed to the associated Consultable, provided that the Consultable in question has
+ *   been listed in the various relevant facts' initiallyKnownBy list (or subquently added to its
+ *   informedNameTab if the Consultable is updatable). A DefaultFactConsultTopic can also act like a
+ *   regular DefaultConsultTopic when its Consultable has no facts corresponding to the topic that's
+ *   just been looked up.
  */
  
 class FactConsultTopic:  FactHelper, ConsultTopic
@@ -580,7 +706,7 @@ class FactConsultTopic:  FactHelper, ConsultTopic
 /* 
  *   A FactThought can be used to generate an automated response to a potentially wide range of
  *   requests to THINK ABOUT SO-AND-SO, provided that the Player Character has been listed in the
- *   various relevant facts' initiallyKnownBy list (or subquently added to its informedTab if the
+ *   various relevant facts' initiallyKnownBy list (or subquently added to its informedNameTab if the
  *   Consultable is updatable). A FactThought can also act like a DefaultThought when the player
  *   character knows no Facts corresponding to the topic that's being thought about. It will also
  *   defer to any specific Thoughts with a matchScore higher than 50.
@@ -598,6 +724,33 @@ class FactThought: FactHelper, Thought
     prefix = BMsg(thoughts prefix, '{I} recall{s/ed}')
     
     noFactsMsg = BMsg(no thoughts, 'Nothing relevant {dummy} {comes} to mind. ')
+    
+    /* 
+     *   Enable a Tnought to show the player character's comment on a fact that's being listed as
+     *   being thought about.
+     */        
+    alreadyKnewMsg(fact)
+    {
+        /* 
+         *   Retrieve the player characte's comment on fact in relation to the topic matched by this
+         *   Thought.
+         */
+        local txt = fact.getPcComment(getActor, topicMatched);
+         
+        /* 
+         *   If we find a comment, prepend a space to sepaarate it from the description of the fact
+         *   and then return the result. We then skip adding any 'but you already knew that' message
+         *   since it would seem redundant - or overkill - to show both comments.
+         */
+        if(txt)
+            return ' ' + txt;
+        
+        /* 
+         *   Otherwise return the inherited result (normally a message saying the PC already knew
+         *   the fact, should that be the case).
+         */
+        return inherited(fact);
+    }
     
         
     /* 
@@ -630,7 +783,7 @@ class FactThought: FactHelper, Thought
 modify TopicEntry
     /* 
      *   We can use revealFact(tag) to both reveal the tag (add it to the list of fact tags that
-     *   have been revealed and stored in the player character's informedTab - what the PC has been
+     *   have been revealed and stored in the player character's informedNameTab - what the PC has been
      *   informed about) and display the description of the corresponding Fact. We need to use this
      *   method if we want the game to keep track of who has imparted particular facts to the Player
      *   Character. Game authors will most likely use this method in the topicResponse of AskTopics
@@ -640,12 +793,12 @@ modify TopicEntry
     {
         /*
          *   If the informOnReveal option is true, then we want to both update the revealed list on
-         *   libGlobal and the informedTab on the Player Character (and the call to gReveal will do
+         *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will do
          *   both).
          */
         if(libGlobal.informOnReveal)        
             gReveal(tag); 
-        /* Otherwise we just update the player character's informedTab. */
+        /* Otherwise we just update the player character's informedNameTab. */
         else
             gPlayerChar.setInformed(tag);
         
@@ -677,7 +830,7 @@ modify TopicEntry
     {
         /* 
          *   Update our current interloctutor's (or actor's if a different actor is specified)
-         *   informedTab with our fact tag name.
+         *   informedNameTab with our fact tag name.
          */
         actor.setInformed(tag);
         
@@ -708,6 +861,65 @@ modify TopicEntry
     }    
     
 ;
+
+/* Modifications to ActorTopicEntry to work with Facts. */
+modify ActorTopicEntry
+    /* The knowledge tag associated with this ActorTopicEntry. If it's nil, we ignore it. */
+    kTag = nil
+    
+    /* If we define a kTag we're only active if our associated actor knows about our kTag. */
+    active = inherited && (kTag == nil ? true : (getActor().informedAbout(kTag)))
+        
+    /* Carry out additional initialization to set our matchObj from our kTag */
+    initializeTopicEntry()
+    {
+        /* First carry out the inherited handling. */
+        inherited();
+        
+        /* 
+         *   If we have a non-nil kTag and the user hasn't already set matchObj, set matchObj from
+         *   the Fact defined by kTag.
+         */
+        if(kTag != nil && matchObj == nil)
+        {
+            /* Obtain the Fact corresponding to kTag */
+            local fact = gFact(kTag);
+            
+            /* If we found one, set our matchObj to our fact's topic list. */
+            if(fact)
+                matchObj = fact.topics;
+        }
+    }
+    
+    /* 
+     *   Short-name method for retrieving the description of the fact associated with kTag and
+     *   updating what the player character knows and the fact's list of sources.
+     */
+    revTag()
+    {
+        return revealFact(kTag);
+    }
+    
+    /* 
+     *   Short-nae method of retrieving the description of the fact associated with kTag without
+     *   carrying out any further side-effects.
+     */
+    fText() { return factText(kTag); }
+    
+;
+
+/* 
+ *   modify actorPreinit so that factMananger's happens first. This ensures that factManager's
+ *   factTab has been populated and is availabe to actor-related object preinitialization.
+ */
+modify actorPreinit
+    execBeforeMe = inherited + factManager;   
+;
+
+modify thingPreinit
+   execBeforeMe = inherited + factManager;   
+; 
+    
 
 #ifdef __DEBUG
 /* Debgugging command to list all the Facts defined in the game. */
@@ -741,6 +953,49 @@ DefineSystemAction(ListFacts)
         }
     }
 ;
+
+VerbRule(FactInfo)
+    'fact' 'info' literalDobj
+    : VerbProduction
+    action = FactInfo
+    verbPhrase = 'show/showing fact info'
+    missingQ = 'which fact do you want info for'
+;
+
+DefineSystemAction(FactInfo)
+    execAction(cmd)
+    {
+        literal = cmd.dobj.name.toLower;
         
+        local fact = factManager.getFact(literal);
+        
+        if(fact == nil)
+        {
+            DMsg(no such fact, '''No fact with the name '<<literal>>' is defined in the game. ''');
+            return;
+        }
+        
+        "Name = <<fact.name>>\n";
+        "Desc = <<fact.desc>>\n";
+        "Topics = <<showContents(fact.topics)>>\n";
+        "Initially Known By = <<showContents(fact.initiallyKnownBy)>>\n";
+        "Currenly Known By = <<showContents(fact.currentlyKnownBy())>>\n";
+        
+    }
+    
+    showContents(lst)
+    {
+        local i = 0;
+        "[";
+        foreach(local obj in lst)
+        {
+            "<<obj.name>>";
+            if(++i < lst.length)
+                ", ";
+        }
+        
+        "]"; 
+    }
+;
 
 #endif

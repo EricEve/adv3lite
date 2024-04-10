@@ -74,22 +74,41 @@ interviewScene: Scene
 </pre></div>
 
 <p>The <strong>actorAction()</strong> method is called on the current actor (carrying out the action) just before any of the other before notifications. This can be useful if you temporarily want to prevent an actor (in particular the player character) from carrying out certain kinds of action because s/he's temporarily incapacitated or tied up; for example:</p>
-
+<a name='actoraction'>
  <p><div class="code"><pre>
 actorAction()
 {
-    /* Be careful not to disable the system actions! */
+    <span class='comment'>/* Be careful not to disable the system actions! */</span>
    if(gAction.ofKind(SystemAction))
      return;
      
-   if(gActionIn(Examine, ListenTo, Smell,  Listen, SmellSomething))
+   if(gActionIn(Examine, ListenTo, Smell,  Listen, SmellSomething, Think, ThinkAbout))
      return;
 
     "You can't do that while you're bound and gagged!";
        exit;   
 } 
 </pre></div>
-<br>
+<br><a name='preaction'>
+<p>A potential problem with this is that any actions ruled out at the verify stage will still display the standard fail verified message, which may or may not be what you want. An alternative that avoids this is the <b>preAction(<i>lst</i>)</b> method, which runs (again on the current actor) just before any Doers and so can be used to preempt the verify stage.  The <i>lst</i> parameter contains details of the action that's about to be attempted: <span class='code'>lst[1]</span> is the action itself, while the other elements are the direct, indirect and auxiliary objects (if any) of the proposed action. Using <span class='code'>preAction</span> instead of <span class='code'>actorAction</span>, the previous example becomes:</p>
+
+<p><div class="code"><pre>
+preAction(lst)
+{
+    <span class='comment'>/* We can't assume gAction has been set yet, so get the action from the lst parameter. */</span>
+    local action = lst[1];
+	
+    <span class='comment'>/* Still be careful not to disable the system actions! */</span>
+   if(action.ofKind(SystemAction))
+     return;
+     
+   if(action is in (Examine, ListenTo, Smell,  Listen, SmellSomething, Think, ThinkAbout))
+     return;
+
+    "You can't do that while you're bound and gagged!";
+       abort;  <span class='comment'>// probably better than exit in this context</span>
+} 
+</pre></div>
 
 <h2><a name="travel">Reacting to Travel</a></h2>
  

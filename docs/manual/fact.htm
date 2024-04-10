@@ -1,0 +1,403 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; Facts</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Facts
+<br><span class="navnp"><a class="nav" href="extra.htm"><i>Prev:</i> Extras</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="gadget.htm"><i>Next:</i> Gadgets</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Facts</h1>
+<h2>Overview</h2>
+<p>Using <span class='code'>&lt;.reveal&gt;</span> and <span class='code'>&lt;.inform&gt;</span> tags helps keep track of what the player character and other NPCs know, but in a game of any size in which substantial amounts of information are exchanged it can be tricky to keep track of just what has been communicated to whom. For example, if in an exchange with Bob the tag <span class='code'>&lt;.reveal troubles&gt;</span> is used in Bob's response to a question about the lighthouse, and then an <span class='code'>&lt;.inform troubles&gt;</span> tag is used in part of what the player character tells Janet, just what has Bob told the player character about the troubles, and is it the same as what the player character goes on to tell Janet? As our game grows larger and we make increasing use of such tags, it can become increasingly hard to ensure we're using them consistently not only in our <span class='code'>&lt;.reveal&gt;</span> and <span class='code'>&lt;.inform&gt;</span> tags  but also our <span class='code'>isActive = gRevealed('tag')</span> conditions on TopicEntries. The Facts module offers a framework that can help impose order on the threatened confusion and help automate a number of knowledge-related tasks.</p>
+
+
+<p>The Facts module extends the adv3Lite knowledge system by allowing game authors to define Fact objects that encapsulate (and help to track and use) the information associated with &lt;.reveal&gt; and &lt;.inform&gt; tags, so for example there can be Fact object called 'rain-tomorrow' that encapsulates what information has been revealed by a <span class='code'>&lt;.reveal rain-tomorrow&gt;</span> tag and who knows about it and what game objects or topics it concerns. Note that in this context a Fact is something that has been asserted to be true by some person or object (e.g. book) in the game; not something that is necessarily in fact true.</p>
+
+<p>Note that if the facts.t module is present in your game, your game must also include actor.t, topicEntry.t and thoughts.t.</p>
+
+<p>The Facts module defines the following new classes and objects:</p>
+
+<ul>
+<li><a href='#factclass'><b>Fact</b></a>: objects of this class encapsulate facts along associated with the objects they concern and the people that know about them.</li>
+<li><b><a href='#factmanager'>factManager</a></b>: the object that keeps track of which Fact is associated with which tag and provides several service methods.</li>
+<li><b><a href='#facthelper'>FactHelper</a></b>: a mix-in class to provide additional Fact-related functionality to various kinds of TopicEntry.</li>
+<li><b><a href='#fctopic'>FactConsultTopic</a></b>: A ConsultTopic incorporating the additional functionality provided by FactHelper.</li>
+<li><b><a href='#factthought'>FactThought</a></b>: A Thought incorporating the additional functionality provided by FactHelper.</li>
+</ul>
+
+<p>In addition, this module adds a number of fact-related methods to the TopicEntry and ActorTopicEntry classes to facilitate the uses of Facts in <a href='#conversation'>conversation</a>.</p>
+
+<p>These various classes enable the contents of Facts to be listed in response to commands like THINK ABOUT and LOOK UP under suitable conditions as well as keeping track of who has told the player character what, provided they are all used together in the correct way. This will all be explained in more detail below.</p>
+
+<a name='factclass'></a>
+<h2>The Fact Class</h2>
+<p>A Fact encapsulates something that has been asserted as true (even if it may not be so); it does not necessarily correspond to what anyone believes to be the case. Indeed, a game might contain Facts that make contradictory assertions.</p>
+<p>The Fact class provides the following properties and methods for use by game authors:</p>
+
+<ul>
+<li><b>name</b>: A single-quoted string containing the name of this Fact, which must correspond with the <i>name</i> in any <span class='code'>&lt;.reveal <i>name</i>&gt;</span> or <span class='code'>&lt;.inform <i>name</i>&gt;</span> tag and the like that references this fact.</li>
+<li><b>desc</b>: A description of what this Fact asserts, as a single-quoted string that could follow the word 'that', without any closing punctuation, e.g. 'it will rain tomorrow' or 'the capital of Spain is Madrid' or 'King Richard III was killed at the Battle of Bosworth in 1485'.<//li>
+<li><b>qualifiedDesc(source, topic)</b>: an alternative description of what this Fact asserts when it is asserted by <i>source</i> and/or in relation to <i>topic</i>, although this alternative description must say essentially the same thing as <span class='code'>desc</span> (which is returned by default). For example, if the topic were 'Madrid' rather than 'Spain', qualifiedDesc might return 'Spain is the capital of Madrid' rather than 'the capital of Madrid is Spain'.</li>
+<li><b>topics</b>: The list of topics (Topics and Things, i.e. game objects) that this Fact relates to. One use of this is to cause this Fact to be listed in response to THINK ABOUT <i>topic</i> or LOOK UP <i>topic</i> IN <i>whatever</i>.</li>
+<li><b>initiallyKnownBy</b>: The list of actors and other objects - typically Consultables - that start the game knowing this Fact. For Facts, it is preferable to define this on the Fact rather than the objects' <span class='code'>initiallyKnowsAbout</span> property.</li>
+<li><b>currentlyKnownBy</b>: returns a list of game objects (typically actors and Consultables) who currently know this Fact.</li>
+<li><b>priority</b>: A measure of the importance of this Fact. The higher the priority, the earlier it will be listed in any list of Facts. The default priority is 100.</b>
+<li><b>listOrder</b>: An alternative or additional way of determining the order in which Facts are listed. The lower the listOrder, the earlier in any list this Fact with appear.</li>
+<li><b>adjustedPriority</b>: The number that's actually used to sort the listing order of Facts; by default it's defined as <span class='code'>priority - listOrder</span>. So, for example, you could set priority in multiples of 100 to band Facts by relative importance and use smaller integer values of listOrder to order those Facts within their priority bands.</li>
+<li><b>getSources()</b>: returns a list of the actors and/or Consultables who have imparted this fact to the current player character.</li>
+<li><b>getTargets()</b>: returns a list of the actors and/or Consultables (notebooks, perhaps?) to whom the current player character has imparted this fact.</li>
+<li><b>pcComment</b>, <b>getPcComment(source, topic)</b> and <b>setPcComment(actor, txt)</b> will be explained below in relation to <a href='#comment'>FactThought</a>.</li>
+
+</ul>
+<p>The most commonly defined properties of any Fact are its name, topics, desc, and initiallyKnownBy properties. The library accordingly defines the following Template to facilitate Fact object definitions:</p>
+
+
+<p><div class="code"><pre>
+Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
+</pre></div></p>
+
+<p>So a simple Fact might be defined like the following example:</o
+
+<p><div class="code"><pre>
+Fact 'madrid-capital' [tSpain, tMadrid]
+   desc = 'the capital of Spain is Madrid'
+   [me, travelBook]
+;
+</pre></div></p>
+<p>Note that we don't need to give a Fact a programmatic name; it's known by its name property, and can be retrieved by calling <span class='code'>factManager.getFact(<i>name</i>)</span> or just <span class='code'>gFact(<i>name</i></span>). This example assumes that the player character object is called me, and that travelBook is a Consultable defined elsewhere in the game along with the Topics tSpain and tMadrid. We use me rather than gPlayerChar here, since if the player character changed during the course of the game, it would still be me to whom this Fact was initially known rather than the new player character, and this makes it clearer.</p>
+
+<a name='factmanager'>
+<h2>The factManager Object</h2>
+<p>The purpose of the factManager object is to store a reference to every Fact defined in the game at preinit, and then provide a number of methods to allow Facts to be retrieved by their (single-quoted string) name. The most important factManager methods for game authors are:</p>
+
+<ul>
+<li><b>getFact(<i>name</i>)</b>: this returns the Fact object whose name is <i>name</i>.</li>
+<li><b>getFactDesc(<i>name</i>)</b>: this returns the desc (fact description) of the Fact object whose name is <i>name</i>.</li>   
+<li><b>getQualifiedFactDesc(<i>source</i>, <i>name</i>, <i>obj</i>?)</b>: this returns the qualifiedDesc of the Fact object whose name is <i>name</i> when the source that imparted the fact to the player character is <i>source</i> and the description has been requested in conjunction with <i>obj</i>, e.g. THINK ABOUT SPAIN.</li> 
+<li><b>getPcComment(tag, topic)</b> and <b>setPcComment(tag, txt)</b> will be explained below in relation to <a href='#comment'>FactThought </a>
+</li>
+</ul>
+
+<p>This should all become clearer with some examples of use when we put everything together below.</p>
+<p>Note that <span class='code'>factManager.getFact(<i>name</i>)</span> can be abbreviated to the macro <b>gFact(<i>name</i>)</b> and <span class='code'>factManager.getFactDesc(<i>name</i>)</span> to the macro <b>gFactDesc(<i>name</i>)</b>.
+
+<a name='facthelper'>
+<h2>The FactHelper Mix-In Class</h2>
+<p>The FactHelper class is provided to be mixed in with TopicEntries to give them additional functionality in connection with Facts, and in particular to allow the topicResponse methods of such TopicEntries to automatically list the known Facts related to the object the TopicEntry matched on. This will be most useful with ConsultTopics and Thoughts, resulting in the <a href='#fctopic'>FactConsultTopic</a> and FactThought classes which are discussed further below. Here we shall simply run through the methods and properties common to both these classes via FactHelper, before explaining their use on Thoughts and Consultables below.</p>
+
+<ul>
+<li><b>addLineBreaks</b>: Do we want to add line breaks between each Fact listed by our topicResponse() method, so that each Fact is listed on a new line (rather than all the Facts being listed in a single sentence). By default we do on FactThought but not on FactConsultTopic, where the single continuous sentence format may look more natural. Note that if we have only Fact to display we ise the single sentence format in any case.</li>
+<li><b>listSources</b>: Do we want to report the sources of information for the Facts we list in our topicResponse()? By default we do on FactThought, where it may be important to the player to be reminded where the player character got the information from, but not on a FactConsultTopic, where it's obvious that the Consultable the FactConsultTopic belongs to (e.g., the book that the player character is looking something up in) is the source of the information.</li>
+<li><b>updateSources</b>: Do we want our topicResponse() method to update the list of sources on the Facts it lists? We probably if we're mixed in with a ConsultTopic (to note the corresponding Consultable as the source of information) but not if we're mixed in with a Thought (since the Player Character must already effecitvely be a potential source of the information they're recalling).</li>
+<li><b>matchObj</b>: FactHelper overrides this to <span class='code'>[Thing, Topic]</span> so that our TopicEntry will match anything.</li>
+<li><b>prefix</b>: A single-quoted string containing the prefix to our list of facts, such as 'You recall' or 'The book informs me'.</li>
+<li><b>factIntro</b>: A single-quoted string used to introduce every fact in our list. In English this is simply 'that'. We separate if from the <span class='code'>prefix</span> so it can be used to introduce every fact in the list; in the event that we have only one fact to display the <span class='code'>factIntro</span> will immediately follow the prefix and immediately precede the description of the fact.</li>
+<li><b>suffix</b>: A single-quoted string that comes at the end of our list of facts (if they're all listed in one sentence) or at the end of each fact (if we list each one separately). By default we define this simply as '. '.</li>
+<li><b>noFactsMsg</b>:  A single-quoted string containing the message to display if we don't find any matching facts. </li>
+<li><b>knewFactAlreadyMsg</b>: A single-quoted string containing the parenthetical message to append to a listed fact if the player character has been informed of something they already knew, e.g. '(but you already knew that)'.</li>
+<li><b>alreadyKnewMsg(fact)</b>: Method that returns <span class='code'>knewFactAlreadyMsg</span> if the player character started out knowing it from the beginning of the game or an empty string otherwise.</li>
+<li><b>getFacts( )</b>: Method that returns a sorted list of the facts known to our actor that are associated with the topic matched by our TopicEntry.</li>
+<li><b>topicResponse</b>: The topicResponse to be provided by the TopicEntry we're mixed-in with. This performs the main purpose of the FactHelper mix-in class by providing an automated suitably-formatted list of the facts (and possibly their sources) associated with the topic matched by our TopicEntry. This can be used to automate the response to THINK ABOUT X or LOOK UP X IN WHATEVER, provided Facts have been used elsewhere to provide previous responses.</li>
+</ul>
+
+<p>At first sight this may seem a rather daunting profusion of properties and methods, but for the most part you can accept the defaults defined on <a href='#factthought'>FactThought</a> and <a href='#fctopic'>FactConsultTopic</a>, which then become very easy to define and use, although you may of course want to customize the <span class='code'>prefix</span>, <span class='code'>noFactsMsg</span> and <span class='code'>knewFactAlreadyMsg</span> properties to provide your own messages.</p>
+
+<a name='fctopic'>
+<h2>FactConsultTopic</h2>
+<p>A <b>FactConsultTopic</b> is simply a <span class='code'>FactHelper</span> mixed in with a <span class='code'>ConsultTopic</span> which can potentially handle all LOOK UP commands aimed at the Consultable. If we don't need to customize any of the FactConsultTopic's default messages, then defining a Consultable that can respond to a range of queries could be almost as simple as defining the Consultable object itself plus a single FactConsultTopic:</p>
+
+<p><div class="code"><pre>
++ book: Consultable 'big red book'
+    "It's a book full of miscelleanous wisdom. "        
+;
+
+++ FactConsultTopic
+;
+</pre></div></p>
+<p>LOOK UP X IN BIG RED BOOK will then produce a sentence listing all the facts the book 'knows' about X (if it 'knows' any), or a message saying the big red book doesn't have any information on that subject if it doesn't, and that's our big red book more or less taken care of.</p>
+
+<p>Except of course, we also have to define the Facts (and topics) we want out big red book to provide answers on, for example:</p>
+
+<p><div class="code"><pre>
+Fact 'spain-in-europe' [tSpain]
+    'Spain is a country in Europe'
+    [book]
+;
+
+Fact 'madrid-capital' [tSpain, tMadrid]
+    'the capital city of Spain is Madrid'
+    [book]
+    
+    qualifiedDesc(source, topic)
+    {
+        if(topic == tMadrid)
+            return 'Madrid is the capital city of Spain';
+        else
+            return inherited(source, topic);
+            
+    }
+;
+
+Fact 'europe-location' [tEurope]
+    'Europe is a continent north of Africa, west of Asia, and east of the Atlantic. '
+	[book]
+;
+</pre></div></p>
+<p>And presumably a whole lot more. Note that the <span class='code'>[book]</span> at the end of every Fact definition is setting its <span class='code'>initiallyKnownBy</span> property; we're saying these three Facts are 'known by' (i.e. contained somewhere in the pages of) the big red book, which is therefore about to provide them. Note also that the 'madrid-capital' Fact will present the same fact slightly differently according to whether the player types ASK BOOK ABOUT SPAIN or ASK BOOK ABOUT MADRID; the latter will give the response 'Madrid is the capital of Spain.'</p>
+
+<p>Note also that the FactConsultTopic also takes care of adding the Facts the player character looks up to the list of Facts the player knows about, so there's no need to include any <span class='code'>&lt;.reveal&gt;</span> tags here; it's taken care of automatically.</p>
+
+<p>In addition, the FactConsultTopic also takes care of any enquiries the big red book doesn't 'know' about, by reporting that the big red book has no information on that topic, so there's no need to define any <span class='code'>DefaultConsultTopic</span> here.</p>
+
+<p>Consultables such as books normally contain a fixed store of facts, but if we're implementing a notebook the player character can add information to or a computer database, we can expand its store of knowledge by calling its <b>setInformed()</b> method, e.g., <span class='code'>setInformed('rain-in-spain')</span> if we'd defined a 'rain-in-spain' Fact.</p>
+
+<p>Finally, note that using a FactConsultTopic doesn't prevent our also populating our Consultable object with ordinary ConsultTopics as well. These will normally take precedence over our FactConsultTopic, since a FactConsultTopic has a matchscore of 50 while a regular ConsultTopic has a default matchscore of 100. You can that use ordinary ConsultTopics to field queries on topics you don't want to include in the Facts framework (though you may find it easier and more consistent to use the Facts framework for your Consultable throughout.</p>
+
+<p>You may be wondering whether using a FactConsultTopic really saves you all that much work compared with using a series of ConsultTopics, since with the former you then have to define all the relevant Facts. The real gain from using a FactConsultTopic and related Facts comes when you use the same Facts elsewhere in your game (as we shall be illustrating below), since the Facts framework enables Facts to be consistently described in the different places they may be used, and helps you to keep track of what information each Fact encapsulates and of who needs what, without having to define lots of <span class='code'>isActive</span> properties on various TopicEntries and having to co-ordinate them all.</p>
+
+<a name='factthought'>
+<h2>FactThought</h2>
+<p>A <b>FactThought</b> is a FactHelper mixed-in with a Thought, with some of its properties suitably overridden to give useful responses to commands like THINK ABOUT SPAIN (or whatever). Such commands will then list all the Facts the player character knows about the relevant topic, together with the sources of that information and (if any such sources are listed) if the player character also  started out knowing about that topic in any case. A FactThought does not, however, update the player character's state of knowledge, since it's assumed that thinking about something the player character already knows does not alter what s/he knows.</p>
+
+<p>Just for the sake of illustration, suppose the only thing our Player Character starts out 'knowing' about Spain (or the weather) comes from one of the songs in <q>My Fair Lady</q>:
+
+<p><div class="code"><pre>
+Fact 'rain-in-spain' [tWeather, tSpain]    
+    'the rain in Spain stays mainly in the plain'    
+    [me]    
+    
+    priority = 110
+;
+</pre></div></p>
+
+<p>Suppose next we define a <a href='thought.htm'>ThoughtManager </a> (to hold the player character's thoughts) and we define just one regular Thought plus a FsctThought:</p>
+
+<p><div class="code"><pre>
+myThoughts: ThoughtManager;
+
++ Thought 'life'
+    "You've always considered it preferable to the alternative. "
+;
+
++ FactThought
+;
+
+</pre></div></p>
+
+<p>Suppose finally that our player character is carrying the big red book we used to illustrate the use of <a href='#fctopic'>FactConsultTopic</a>. We might then get the following transcript from our minimally implemented game:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;think about life</b>
+You&rsquo;ve always considered it preferable to the alternative. 
+
+<b>&gt;think about bananas</b>
+Nothing relevant comes to mind. 
+
+<b>&gt;think about spain</b>
+You recall that the rain in Spain stays mainly in the plain. 
+
+<b>&gt;think about weather</b>
+You recall that the rain in Spain stays mainly in the plain. 
+
+<b>&gt;think about madrid</b>
+Nothing relevant comes to mind. 
+
+<b>&gt;look up spain in book</b>
+The big red book informs you that the capital city of Spain is Madrid and that Spain is a country in Europe. 
+
+<b>&gt;think about spain</b>
+You recall that:
+The rain in Spain stays mainly in the plain.
+The big red book told you that the capital city of Spain is Madrid.
+The big red book told you that Spain is a country in Europe.
+
+<b>&gt;think about madrid</b>
+You recall that the big red book told you that Madrid is the capital city of Spain. 
+
+<b>&gt;think about europe</b>
+Nothing relevant comes to mind. 
+</pre></div></p>
+
+<p>This is just a toy example, of course, but it illustrates what can be done with a <span class='code'>FactThought</span> and also the potential saving of effort once different parts of the Facts framework start to be used together. In the previous section we defined a Consultable and small collection of Facts it can provide information on. With that done, we have very little work to do to enable the player character to recall what s/he has learned from the Consultable; the single FactThought has pretty much done all the work for us.</p>
+
+<p>There are, however, a few more points to note here:</p>
+<ul>
+<li>Any regular <span class='code'>Thought</span> (such as the one about life in our example) takes precedence over our 
+<span class='code'>FactThought</span> (since a <span class='code'>FactThought</span> has a <span class='code'>matchScore</span> of 50 rather than the default 100.</li>
+<li>Since some if not many of the player character's thoughts may be about things other than facts they know or have learned, such as plans, feelings, opinions, suspicions and the like, you may well need to implement a number of <span class='code'>Thought</span> objects as well as the <span class='code'>FactThought</span> that deals with the factual topics (as well as acting as catch-all default for topics that haven't been implemented).</li>
+<li>You may, of course, wish to tailor the catch-all default response (by overriding the <span class='code'>noFactsMsg</span> on the <span class='code'>FactThought</span>), but it's best not to do so with any response implying the player character's ignorance of the topic (otherwise you risk getting incongruous responses to commands like THINK ABOUT YOUR MOTHER or THINK ABOUT YESTERDAY).</li>
+<li>Dont't forget that you have considerable control over how a <span class='code'>FactThought</span> presents its responses through the various properties defined on <a href='#facthelper'>FactHelper</a>. If you don't want it to list the sources of information, or to list each fact on a separate line, or you'd rather the facts were introduced by 'It occurs to you that' rather 'You recall that', these are all things you can customize.</li>
+
+</ul>
+
+<a name ='comment'></a>
+<h3>The Player Character's Comments on Facts</h3>
+<p>The FactThought does a good job of listing what the player character knows about a given topic, but there's one more customization we can make if we wish, and that is to append the player's comments on any fact which a FactThought list, so that, for example, instead of:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;think about spain</b>
+You recall that:
+The rain in Spain stays mainly in the plain.
+The big red book told you that the capital city of Spain is Madrid.
+The big red book told you that Spain is a country in Europe.
+</pre></div></p>
+
+<p>You could get:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;think about spain</b>
+You recall that:
+The rain in Spain stays mainly in the plain &mdash; or so the song goes.
+The big red book told you that the capital city of Spain is Madrid.
+The big red book told you that Spain is a country in Europe &mdash; not that you’ve ever been to Europe.
+</pre></div></p>
+
+<p>To facilitate setting this up, the following additional properties/methods are defined on <b>Fact</b>:</p>
+<ul>
+<li><b>pcComment</b>: A single-quoted string containing the initial player character's initial comment or thought on this
+     Fact; this can be left at nil if the PC doesn't have one. This will be appended to the
+     description of this Fact when listed by a Thought, so should be a sentence fragment
+     starting with a lower case letter (or some form of parenthetic punctuation) and without a
+     full stop at the end.</li> 
+	 
+<li><b>getPcComment(source, topic)</b>: Get the current player character's comment on this Fact; source is the source from which
+     the PC learned the Fact and topic is the topic the Player Character is thinking about. By
+     default this method returns different results for different player characters, but game
+     code will need to override this method to return different comments for different sources
+     and/or topics.</li>
+<li><b>setPcComment(actor, txt)</b>: Set actor's comment on this fact; normally actor will be the current player character; txt
+     is a single-quoted string containing the comment, which will usually be appended to the
+     description of the fact.</li>
+</ul>
+
+<p>And on <b>factManager</b>:</p>
+<ul>
+<li><b>getPcComment(tag, topic)</b>: Get the player character's comment on the fact whose name is tag when it is retrieved in
+     relation to topic (typically by a THINK ABOUT topic commannd).</li>
+<li><b>setPcComment(tag, txt)</b>: Set the current player character's comment on the Fact identified by tag; txt is a
+    single-quote string containing the comment.</li>
+</ul>
+
+<p>The <span class='code'>factManager</span> methods merely call the equivalent methods on the relevant <span class='code'>Fact</span>. They are provided so that Player Character comments can be set or retrieved in one statement instead of first having to call <span class='code'>gFact(tag)</a> to retrieve the fact, then checking that the retrieved fact is not nil, and then calling the appropriate method on that fact.</p>
+
+<p>To achieve the results in the example above, we'd simply define the initial player character's initial comments on the relevant facts:</p>
+
+<p><div class="code"><pre>
+Fact 'rain-in-spain' [tWeather, tSpain]    
+    'the rain in Spain stays mainly in the plain'    
+    [me]    
+    
+    pcComment = '--- or so the song goes'
+;
+
+Fact 'spain-in-europe' [tSpain]
+    'Spain is a country in Europe'
+    [book]
+    
+    pcComment = '--- not that you\'ve ever been to Europe'
+;
+
+</pre></div></p>
+
+<p>If the player character's thoughts on any given fact subsequently change, they can be set (or reset) using <span class='code'>factManager.setPcComment(tag, txt)</span> or calling the fact's <span class='code'>setPcComment(actor, txt)</span> method. These methods can also be used to set the comments of a new player character should the player character change in the course of the game.</p>
+
+<a name='conversation'>
+<h2>Facts and Conversation</h2>
+<p>While you're free to experiment with mixing in the FactHelper class with various kinds of may be fine if the NPC is meant to be a robot (or someone with a peculiarly robotic personality), but rather too unrealistic for anyone else. The Facts module therefore provides various modifications to the <span class='code'>TopicEntry</span> and <span class='code'>ActorTopicEntry</span> classes to allow them to be used with Facts in a more flexible way more suited to the flow of a conversation. The former set of modifications can be used for games where the author wants the flexibility of using Facts to provide (part of) the text of conversational responses without having to worry about which Facts are known by which NPCs or which topics any given Fact is associated (after all, an NPC might choose to respond to an enquiry about one subject by citing a fact about some completely different subject. The latter set can be used for games where you're happy to keep track of NPC knowledge (including what NPCs start out by knowing) and to keep discussion of facts strictly confined to the topics they relate to, in return for the library doing a bit more of the other work for you. Yo are, of course, free to mix and match both approaches in your game if that works for you.</p>
+
+<p>The additional methods defined on <b>TopicEntry</b> are:
+<ul>
+<li><b>revealFact(tag)</b>: This method displays the desc of the Fact referenced by <i>tag</i> as described by the NPC the player character is in conversation with in relation to the topic matched, adds the PC's conversation partner to the list of sources for this fact, and adds the fact's name tag to the list of topics the Player Character knows about. Note that it does not check whether the PC's current interlocutor knows this Fact or whether this Fact is related to the current topic of conversation.</li>
+<li><b>informFact(tag, <span class='comment'>[actor]</span>)</b>: This method displays the description of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched, adds the PC's conversation partner to the list of targets for this fact, and adds the fact's name tag to the list of topics <i>actor</i> knows about. Note that it does not check whether the Player Character knows this Fact or whether this Fact is related to the current topic of conversation. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied.</li>
+<li><b>factText(tag, <span class='comment'>[actor]</span>)</b>: This method simply displays the described of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied. </li>
+</ul>
+
+<p>For example, using the first and last of these methods, we could define a TopicEntry thus:</p>
+
+<p><div class="code"><pre>
++ AskTellTalkTopic, StopEventList @tWeather    
+    [
+       '&lt;q&gt;\^&lt;&lt;revealFact('rain-tomorrow')&gt;&gt;&lt;/q&gt; Bob warns you. ',        
+       'Bob has already told you &lt;&lt;factText('rain-tomorrow')&gt;&gt;. '        
+    ]       
+;
+</pre></div></p>
+
+<p>The additional methods defined on <b>ActorTopicEntry</b> are:</p>
+<ul>
+<li><b>kTag</b>: the knowledge tag (fact name string) associated with this ActorTopicEntry. The ActorTopicEntry will then match the topics associated with this fact, but will only be active (and hence accessible) if the current interlocutor knows the fact in question. Note that we can still override the TopicEntry's matchObj to match some other topic or list of topics if we wish, although this may risk defeated the object.</li>
+<li><b>revTag()</b>: calls <span class='code'>revealFact(kTag)</a> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse.</li>
+<li><b>fText()</b>: returns the value of <span class='code'>factText(kTag)</span>. </li>
+</ul>
+
+<p>This would allow us to define the previous example as:</p>
+
+<p><div class="code"><pre>
++ AskTellTalkTopic, StopEventList   
+    [
+        '&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ',
+        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '
+        
+    ]
+    kTag = 'rain-tomorrow'
+;
+</pre></div></p>
+
+<p>Suppose that in addition to the previous example Facts, and an actor called Bob, we have also defined:</p>
+
+<p><div class="code"><pre>
+Fact 'rain-tomorrow' [tWeather]
+    'it will rain tomorrow'    
+    [bob]
+    
+    qualifiedDesc(source, topic)
+    {
+        if(source == bob)
+            return 'it\'ll rain tomorrow';
+        else
+            return inherited(source, topic);            
+    }
+;
+</pre></div></p>
+
+<br>
+
+<p>Then, with the AskTellTalkTopic as defined above (plus a suitable HelloTopic on Bob) we should get:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;think about weather</b>
+You recall that the rain in Spain stays mainly in the plain &mdash; or so the song goes. 
+
+<b>&gt;ask bob about weather</b>
+&ldquo;Hello, Bob,&rdquo; you say.
+
+&ldquo;Hello, you,&rdquo; he replies. 
+
+&ldquo;It&rsquo;ll rain tomorrow&rdquo; Bob warns you. 
+
+<b>&gt;think about weather</b>
+You recall that:
+The rain in Spain stays mainly in the plain &mdash; or so the song goes.
+Bob told you that it will rain tomorrow.
+</pre></div></p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+Facts
+<br><span class="navnp"><a class="nav" href="extra.htm"><i>Prev:</i> Extras</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="gadget.htm"><i>Next:</i>Gadgets </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

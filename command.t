@@ -434,17 +434,22 @@ class Command: object
     }
 
     /*
-     *   Execute one iteration of the command for a particular combination
-     *   of objects.  'lst' is the object combination to execute: this is
-     *   an [action, dobj, iobj, ...] list.  
+     *   Execute one iteration of the command for a particular combination of objects.  'lst' is the
+     *   object combination about to be executed: the object combination to execute: this is an
+     *   [action, dobj, iobj, ...] list.
      */
     execIter(lst)
     {
        
         try
-        {         
-            /* carry out the default action processing */
+        {      
+            /* 
+             *   Give our actor's preAction method the chance to veto this action (or maybe do
+             *   something else) before it's passed to a Doer.
+             */
+            gActor.preAction(lst);
             
+            /* carry out the default action processing */            
             execDoer(lst);
         }
         catch (ExitSignal ex)

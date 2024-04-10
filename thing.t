@@ -3914,6 +3914,19 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     /* 
+     *   The preAction handling on this Thing if it's the current actor. This is called just before
+     *   the relevant Doer is executed to provide a convenient entrypoint to intervene in an action
+     *   before it can do anything at all (typically when the actor is tied up, paralysed, or
+     *   otherwise temporarily incapacitated, which might require the intervention of three or four
+     *   simlar Doers to trap). the object combination to execute: this is an [action, dobj, iobj,
+     *...] list.
+     */
+    
+    preAction(lst)
+    {
+    }
+    
+    /* 
      *   The before action handling on this Thing if it's the current actor. We
      *   define it here rather than on Actor since the player character can be a
      *   Thing. By default we do nothing.
