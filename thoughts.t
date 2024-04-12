@@ -24,8 +24,14 @@ class ThoughtManager: PreinitObject, TopicDatabase
     {
         /* Register this object as the game's intial thoughtManager object. */
         if(thinker == nil || thinker == gameMain.initialPlayerChar)
+        {
             libGlobal.thoughtManagerObj = self;
-         
+                        
+            gSafePlayerChar.myThoughtManager = self;
+        }
+        else if(thinker)
+            thinker.myThoughtManager = self;
+          
         /* 
          *   Add every Thought object that's located in us to our topic entry
          *   list

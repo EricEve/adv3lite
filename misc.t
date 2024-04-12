@@ -1614,7 +1614,7 @@ setPlayer(actor, person = 2)
     
     /* Change the person of the previous player character to 3 */
     other.person = 3;
-    
+     
     /* 
      *   Change the names of both actors involved in the swap to nil, so that
      *   they can be reinitialized.
@@ -1650,8 +1650,18 @@ setPlayer(actor, person = 2)
         reg.setFamiliarRooms(prop);
     }
     
+    /* 
+     *   If the new player character defines its own ThoughtManagr object, set this up on libGlobal,
+     *   so that any ThinkAbout commands will use the Thoughts belonging to the new Player
+     *   Character, otherwise leave it unchanged,
+     */
+    if(actor.myThoughtManager)
+        libGlobal.thoughtManagerObj = actor.myThoughtManager;
+    
     /* Return the (third-person) name of the new player character */
     return newName;
+    
+    
 }
 
 /* ------------------------------------------------------------------------ */

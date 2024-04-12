@@ -3972,7 +3972,11 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     byRoom(arg) { return ''; }
     
-    
+    /* 
+     *   The ThoughtManager object associated with this Thing (if this Thing does any thinking);
+     *   this is only relevant if thoughts.t is present and this Thing becomea a player character.
+     */
+    myThoughtManager = nil
     
     /*
      *   ******************************************************************
