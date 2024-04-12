@@ -22,9 +22,10 @@ class ThoughtManager: PreinitObject, TopicDatabase
     /* Carry out the ThoughtManager's preinitialization */
     execute()
     {
-        /* Register this object as the game's thoughtManager object. */
-        libGlobal.thoughtManagerObj = self;
-        
+        /* Register this object as the game's intial thoughtManager object. */
+        if(thinker == nil || thinker == gameMain.initialPlayerChar)
+            libGlobal.thoughtManagerObj = self;
+         
         /* 
          *   Add every Thought object that's located in us to our topic entry
          *   list
@@ -59,6 +60,14 @@ class ThoughtManager: PreinitObject, TopicDatabase
     
     /* Our actor is the actor who's doing the thinking. */
     getActor = (gActor)
+    
+    /* 
+     *   The person whose thoughts are located in this ThoughtManager. If the player character never
+     *   changes in this game and/or you only define one ThoughtManager, this can be left at nil;
+     *   otherwise you should override this property to point to the actor whose thoughta are being
+     *   managed by this object.
+     */
+    thinker = nil    
 ;
 
 

@@ -1147,6 +1147,10 @@ Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
 #define gFact(tag) (factManager.getFact(tag))
 #define gFactDesc(tag) (factManager.getFactDesc(tag))
 
+/* Convenient synonyms for two ActorTopicEntry properties used in conjunction with Facts. */
+#define rTag aTag
+#define iTag tTag
+
 
 /* ------------------------------------------------------------------------ */
 /*  

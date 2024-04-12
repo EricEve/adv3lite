@@ -1,9 +1,8 @@
-name: adv3Liter Library
+name: adv3Lite Library (Web UI)
 source: actions
 source: action
-source: banner
 source: command
-source: console
+source: browser
 source: debug
 source: debug_dynfunc
 source: doer
@@ -21,14 +20,21 @@ source: spelling
 source: status
 source: thing
 source: travel
-source: extras
-source: eventList
+source: actor
+source: attachables
 source: events
+source: eventList
 source: exits
-source: gadgets
+source: extras
+source: gadget
+source: menusys
+source: menuweb
+source: hintsys
 source: pathfind
 source: scene
-source: scenery
-
+source: score
+source: senseRegion
+source: topicEntry
+source: thoughts
 needmacro: LANGUAGE this selects the language the library uses in its messages and parsing; for English, use "english"
-library: $(LANGUAGE)/$(LANGUAGE)min
+library: $(LANGUAGE)/$(LANGUAGE)

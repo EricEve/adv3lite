@@ -791,6 +791,9 @@ modify TopicEntry
      */
     revealFact(tag)
     {
+        /* If for any reason we're called with a nil tag, simply return nil and end there. */
+        if(tag == nil) return nil;   
+        
         /*
          *   If the informOnReveal option is true, then we want to both update the revealed list on
          *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will do
@@ -828,6 +831,9 @@ modify TopicEntry
      */
     informFact(tag, actor = getActor())
     {
+        /* If for any reason we're called with a nil tag, simply return nil and end there. */
+        if(tag == nil) return nil;        
+        
         /* 
          *   Update our current interloctutor's (or actor's if a different actor is specified)
          *   informedNameTab with our fact tag name.
@@ -865,25 +871,27 @@ modify TopicEntry
 /* Modifications to ActorTopicEntry to work with Facts. */
 modify ActorTopicEntry
     /* The knowledge tag associated with this ActorTopicEntry. If it's nil, we ignore it. */
-    kTag = nil
+    aTag = nil
     
-    /* If we define a kTag we're only active if our associated actor knows about our kTag. */
-    active = inherited && (kTag == nil ? true : (getActor().informedAbout(kTag)))
+    /* If we define a aTag we're only active if our associated actor knows about our aTag. */
+    active = inherited && (aTag == nil && tTag == nil) ? true : 
+                           (aTag ? getActor.informedAbout(aTag) :
+                           gActor.informedAbout(tTag))                          
         
-    /* Carry out additional initialization to set our matchObj from our kTag */
+    /* Carry out additional initialization to set our matchObj from our aTag */
     initializeTopicEntry()
     {
         /* First carry out the inherited handling. */
         inherited();
         
         /* 
-         *   If we have a non-nil kTag and the user hasn't already set matchObj, set matchObj from
-         *   the Fact defined by kTag.
+         *   If we have a non-nil aTag or tTag and the user hasn't already set matchObj, set
+         *   matchObj from the Fact defined by aTag if it's non-nil or else tTag.
          */
-        if(kTag != nil && matchObj == nil)
+        if((aTag || tTag) && matchObj == nil)
         {
-            /* Obtain the Fact corresponding to kTag */
-            local fact = gFact(kTag);
+            /* Obtain the Fact corresponding to whichever tag is non-nil */
+            local fact = gFact(aTag ?? tTag);
             
             /* If we found one, set our matchObj to our fact's topic list. */
             if(fact)
@@ -892,19 +900,23 @@ modify ActorTopicEntry
     }
     
     /* 
-     *   Short-name method for retrieving the description of the fact associated with kTag and
+     *   Short-name method for retrieving the description of the fact associated with aTag and
      *   updating what the player character knows and the fact's list of sources.
      */
     revTag()
     {
-        return revealFact(kTag);
+        return revealFact(aTag);
     }
     
     /* 
-     *   Short-nae method of retrieving the description of the fact associated with kTag without
-     *   carrying out any further side-effects.
+     *   Short-nae method of retrieving the description of the fact associated with aTag or tTag
+     *   without carrying out any further side-effects.
      */
-    fText() { return factText(kTag); }
+    fText() { return factText(aTag ?? tTag); }
+    
+    tTag = nil
+    
+    infTag() { return informFact(tTag); } 
     
 ;
 
@@ -920,6 +932,55 @@ modify thingPreinit
    execBeforeMe = inherited + factManager;   
 ; 
     
+/* 
+ *   Modifications to the Consultable class to allow it to include fact tag strings in its
+ *   topicEntryList. This consists of a list of items each of which is itself a list; item{1],
+ *   passed at the topkey parameter, is the Thing or Topic to be matched; item[2], passed at the txt
+ *   parameter, is either the text to be displayed or a fact name string for a fact whose
+ *   descriptiopn we want displayed.
+ */
+modify Consultable
+     setTopicResponse(top, topkey, txt)
+    {
+        /* First attempt to get the fact corresponding to the txt stroing */
+        local fact = gFact(txt);
+        
+        /* 
+         *   If we find one, replace txt with the desc of gFact(txt) plus a tag to reveal the fact
+         *   to the player character. Otherwise we'll skip this and simply set up our new
+         *   ConsultTopic to display txt.
+         */
+        if(fact)
+        {            
+            /* Store txt in a new local variable .*/
+            local tag = txt;
+            
+            /* 
+             *   Construct the <.reveal tag> or <.knoew tag> to reveal the fact to the player
+             *   character, dependinng on whether libGobal.informOnReveal is true or false.
+             */
+            local rTag = '. <.' + (libGlobal.informOnReveal ? 'reveal ' : 'known ') + tag + '>';
+            
+            /* 
+             *   Set txt to the qualified desription of our fact, adjusted according to the source
+             *   of information (this Consultable) and the topic being looked up (topkey).
+             */
+            txt = fact.qualifiedDesc(self, topkey);    
+            
+            /* 
+             *   Prepend the instructio to make the first letter of txt upper case and append our
+             *   reveal tag.
+             */
+            txt ='\^' + txt + rTag;
+            
+            /* Add this Consultable as a source of informatio about our fact. */
+            fact.addSource(self);
+        }
+        
+        /* Carry out the inherited handling. */
+        inherited(top, topkey, txt);  
+    }
+;
 
 #ifdef __DEBUG
 /* Debgugging command to list all the Facts defined in the game. */

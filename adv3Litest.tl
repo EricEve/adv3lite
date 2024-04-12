@@ -1,4 +1,4 @@
-name: adv3Liter Library
+name: adv3Litest Library
 source: actions
 source: action
 source: banner
@@ -21,14 +21,5 @@ source: spelling
 source: status
 source: thing
 source: travel
-source: extras
-source: eventList
-source: events
-source: exits
-source: gadgets
-source: pathfind
-source: scene
-source: scenery
-
 needmacro: LANGUAGE this selects the language the library uses in its messages and parsing; for English, use "english"
 library: $(LANGUAGE)/$(LANGUAGE)min
