@@ -1874,7 +1874,7 @@ typographicalOutputFilter: OutputFilter
          *   substitutions so that we can look for ordinary hyphens rather
          *   than all of the expanded versions.
          */
-        val = rexReplace(eosPattern, val, '%1\u2002', ReplaceAll);
+        val = rexReplace(eosPattern, val, '%1'+sentenceSpacer, ReplaceAll);
 
         /* undo any abbreviations we mistook for sentence endings */
         val = rexReplace(abbrevPat, val, '%1. ', ReplaceAll);
@@ -1899,6 +1899,12 @@ typographicalOutputFilter: OutputFilter
         /* return the result */
         return val;
     }
+    
+    /* 
+     *   The character to use between a full stop and the start of the next sentence. By
+     *   default we use an n-space.
+     */        
+    sentenceSpacer = '\u2002'
 
     /*
      *   The end-of-sentence pattern.  This looks a bit complicated, but
