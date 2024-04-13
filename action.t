@@ -1215,28 +1215,72 @@ class TravelAction: Action
      *   Execute the travel command, first carrying out any implicit actions
      *   needed to facilitate travel
      */    
+    
     execAction(cmd)
-    {        
-        
-        local getOutAction;
+    {           
         
         /* 
-         *   If the actor is not directly in the room, treat OUT as a request to
-         *   get out of the immediate container.
+         *   If the actor is not directly in the room, treat OUT as a request to get out of the
+         *   immediate container.
+         */             
+        if(outOfNestedInstead)
+            return;
+        /* 
+         *   If the actor is not directly in the room, make him/her get out of his immediate
+         *   container(s) before attempting travel, unless the actor is in a vehicle.
+         */                
+        getOutOfNested();
+        
+        
+        /* 
+         *   Note and if necessary display any other implicit action reports that may have been
+         *   generated prior to executing this action.
          */
+        "<<buildImplicitActionAnnouncement(true)>>";
+        
+        /* Carry out the actual travel. */
+        doTravel();
+    }
+    
+    
+    /* 
+     *   If the actor is not directly in the room, treat OUT as a request to get out of the
+     *   immediate container.
+     */
+    outOfNestedInstead()
+    {
+        
         if(!gActor.location.ofKind(Room) && direction == outDir)
         {
+            /* Set up a local variable to hold the action we'll use to get out. */
+            local getOutAction;
+            
+            /* 
+             *   If the actor is on something, s/he needs to get off it, other s/he needs to get out
+             *   of it.
+             */
             getOutAction = gActor.location.contType == On ? GetOff : GetOutOf;
+            
+            /* 
+             *   Replace our original action (Out) with the appropriate action for getting out of
+             *   our immediate container.
+             */
             replaceAction(getOutAction, gActor.location);
-            return;
+            
+            /* Then return true to say we've handled the command. */
+            return true;
         }
-             
-        /* 
-         *   If the actor is not directly in the room, make him/her get out of
-         *   his immediate container(s) before attempting travel, unless the
-         *   actor is in a vehicle.
-         */        
         
+        /* Otherwise return nil to tell our caller to carry on with the original command. */
+        return nil;
+    }
+    
+    /* 
+     *   If the actor is not directly in the room, make him/her get out of his immediate
+     *   container(s) before attempting travel, unless the actor is in a vehicle.
+     */  
+    getOutOfNested()
+    {
         local traveler = TravelConnector.getTraveler(gActor);
         
         while(!gActor.location.ofKind(Room) && traveler == gActor)
@@ -1248,7 +1292,7 @@ class TravelAction: Action
              *   The action needed to remove the actor from its immediate
              *   container.
              */
-            getOutAction = loc.contType == On ? GetOff : GetOutOf;
+            local getOutAction = loc.contType == On ? GetOff : GetOutOf;
             
             /* 
              *   Try to get the actor out of his/her current location with an
@@ -1269,15 +1313,9 @@ class TravelAction: Action
             
         }
         
-        /* 
-         *   Note and if necessary display any other implicit action reports
-         *   that may have been generated prior to executing this action.
-         */
-        "<<buildImplicitActionAnnouncement(true)>>";
-              
-        /* Carry out the actual travel. */
-        doTravel();
     }
+    
+    
     
     /* 
      *   Carry out travel in direction. For this purpose we first have to define
@@ -1297,62 +1335,14 @@ class TravelAction: Action
     doTravel()
     {
         /* Note the actor's current location. */
-        local loc = gActor.getOutermostRoom;
-        
-        /* Variable to hold the connector we're trying to use */
-        local conn;
-                
-        
-        /* 
-         *   Note whether the current location is illuminated, or whether it permits
-         *   travel in the dark (in which case we treat it as illuminated for
-         *   the purposes of allowing travel).
-         */
-        local illum = loc.allowDarkTravel || loc.isIlluminated;
+        local loc = gActor.getOutermostRoom;  
         
         /*   
          *   If we point to an object, assume it's a travel connector and attempt travel via the
          *   connector.
          */
-        if(loc.propType(direction.dirProp) == TypeObject)
-        {
-            /* Note our connector */
-            conn = loc.(direction.dirProp);
-            
-            /* 
-             *   If the connector is visible to the actor then attempt travel
-             *   via the connector.
-             */
-            if(conn.isConnectorVisible)                
-            {
-                
-                /* if the actor is the player char, just carry out the travel */
-                if(gActor == gPlayerChar)
-                    conn.travelVia(gActor);
-                
-                /* 
-                 *   otherwise carry out the travel and display the appropriate
-                 *   travel notifications.
-                 */
-                else
-                    gActor.travelVia(conn);
-            }
-            
-            /* 
-             *   Otherwise if there's light enough to travel and the actor is
-             *   the player character, display the standard can't travel message
-             *   (as if the connector wasn't there.
-             */
-            else if(illum && gActor == gPlayerChar)
-                loc.cannotGoThatWay(direction);
-            
-            /* 
-             *   Otherwise if the actor is the player character, display the
-             *   standard message forbidding travel in the dark.
-             */
-            else if(gActor == gPlayerChar)
-                loc.cannotGoThatWayInDark(direction);
-        }
+        if(loc.propType(direction.dirProp) == TypeObject)        
+            doTravelViaConn(loc);      
         
         /*  
          *   Otherwise, our direction of travel is trying to take us towards nil, a string, or a
@@ -1362,6 +1352,50 @@ class TravelAction: Action
             nonTravel(loc, direction);
     }
     
+    doTravelViaConn(loc)
+    {        
+        /* 
+         *   Note whether the current location is illuminated, or whether it permits travel in the
+         *   dark (in which case we treat it as illuminated for the purposes of allowing travel).
+         */
+        local illum = loc.allowDarkTravel || loc.isIlluminated;
+        
+        /* Note our connector */
+        local conn = loc.(direction.dirProp);
+        
+        /* 
+         *   If the connector is visible to the actor then attempt travel via the connector.
+         */
+        if(conn.isConnectorVisible)                        
+            doVisibleTravel(conn);            
+        
+        /* 
+         *   Otherwise if there's light enough to travel and the actor is the player character,
+         *   display the standard can't travel message (as if the connector wasn't there.
+         */
+        else if(illum && gActor == gPlayerChar)
+            loc.cannotGoThatWay(direction);
+        
+        /* 
+         *   Otherwise if the actor is the player character, display the standard message forbidding
+         *   travel in the dark.
+         */
+        else if(gActor == gPlayerChar)
+            loc.cannotGoThatWayInDark(direction);
+    }
+    
+    doVisibleTravel(conn)
+    {
+        /* if the actor is the player char, just carry out the travel */
+        if(gActor == gPlayerChar)
+            conn.travelVia(gActor);
+        
+        /* 
+         *   otherwise carry out the travel and display the appropriate travel notifications.
+         */
+        else
+            gActor.travelVia(conn);
+    }
     
     
     /* 
