@@ -109,8 +109,7 @@ runGame(look)
          *   execute the sceneManager (if it exists) to for any Scene that's
          *   meant to start with the game.
          */
-        if(defined(sceneManager))
-            sceneManager.executeEvent();
+        if(defined(sceneManager) && sceneManager.executeEvent());
     }
 
     /* run the main command loop until the game ends */

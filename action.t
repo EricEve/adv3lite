@@ -227,8 +227,7 @@ class Action: ReplaceRedirector
          *   If the sceneManager is present then send a before action
          *   notification to every currently active Scene.
          */
-        if(defined(sceneManager))
-            sceneManager.notifyBefore();
+        if(defined(sceneManager) && sceneManager.notifyBefore());
         
         /* 
          *   Call roomBeforeAction() on the current actor's location, and
@@ -295,8 +294,7 @@ class Action: ReplaceRedirector
         "<.p>";
         
         /* Call the afterAction notifications on all currently active scenes. */
-        if(defined(sceneManager))
-           sceneManager.notifyAfter();
+        if(defined(sceneManager) && sceneManager.notifyAfter());
         
         
         /* 
@@ -1365,162 +1363,6 @@ class TravelAction: Action
     }
     
     
-//    
-//    doTravel()
-//    {
-//        /* Note the actor's current location. */
-//        local loc = gActor.getOutermostRoom;
-//        
-//        local conn;
-//        
-//        /* 
-//         *   Note whether the current location is located, or whether it permits
-//         *   travel in the dark (in which case we treat it as illuminated for
-//         *   the purposes of allowing travel).
-//         */
-//        local illum = loc.allowDarkTravel || loc.isIlluminated;
-//        
-//        
-//        /* 
-//         *   Find out what's attached to the direction property of the direction
-//         *   in which the actor wants to travel and respond accordingly.
-//         */
-//        switch (loc.propType(direction.dirProp))
-//        {
-//            /* 
-//             *   If there's nothing there, simply display the appropriate
-//             *   message explaining that travel that way isn't possible.
-//             */
-//        case TypeNil:
-//            if(illum && gActor == gPlayerChar)
-//                loc.cannotGoThatWay(direction);
-//            else if(gActor == gPlayerChar)
-//                loc.cannotGoThatWayInDark(direction);            
-//            break;
-//            
-//            /* 
-//             *   If the direction property points to an object, assume it's some
-//             *   kind of TravelConnector (which also includes Rooms and Doors)
-//             *   and then attempt travel via that object.
-//             */
-//        case TypeObject:     
-//            /* Note our connector */
-//            conn = loc.(direction.dirProp);
-//            
-//            /* 
-//             *   If the connector is visible to the actor then attempt travel
-//             *   via the connector.
-//             */
-//            if(conn.isConnectorVisible)                
-//            {
-//                
-//                /* if the actor is the player char, just carry out the travel */
-//                if(gActor == gPlayerChar)
-//                    conn.travelVia(gActor);
-//                
-//                /* 
-//                 *   otherwise carry out the travel and display the appropriate
-//                 *   travel notifications.
-//                 */
-//                else
-//                    gActor.travelVia(conn);
-//            }
-//            
-//            /* 
-//             *   Otherwise if there's light enough to travel and the actor is
-//             *   the player character, display the standard can't travel message
-//             *   (as if the connector wasn't there.
-//             */
-//            else if(illum && gActor == gPlayerChar)
-//                loc.cannotGoThatWay(direction);
-//            
-//            /* 
-//             *   Otherwise if the actor is the player character, display the
-//             *   standard message forbidding travel in the dark.
-//             */
-//            else if(gActor == gPlayerChar)
-//                loc.cannotGoThatWayInDark(direction);
-//            break;       
-//            
-//            /* 
-//             *   If the direction property points to a double-quoted method or a
-//             *   string, then provided the illumination is right, we display the
-//             *   string or execute the method. Otherwise show the message saying
-//             *   we can't travel that way in the dark.
-//             */            
-//        case TypeDString:
-//        case TypeCode:
-//            if(illum)
-//            {
-//                /* 
-//                 *   Call the before travel notifications on every object that's
-//                 *   in scope for the actor. Since we don't have a connector
-//                 *   object to pass to the beforeTravel notifications, we use
-//                 *   the direction object instead.
-//                 */
-//                Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
-//                    direction)});
-//                
-//                
-//                /*  
-//                 *   If going this way would take us to a known destination
-//                 *   that's a Room (so that executing the travel should take the
-//                 *   actor out of his/her current room) notify the current room
-//                 *   that the actor is about to depart.
-//                 */                
-//                local dest;
-//                
-//                if(loc.propType(direction.dirProp) == TypeCode)                
-//                    dest = libGlobal.extraDestInfo[[loc, direction]];
-//                else
-//                    dest = nil;
-//                
-//                if(dest && dest.ofKind(Room))
-//                    loc.notifyDeparture(gActor, dest);
-//                                        
-//                /*  
-//                 *   Then execute the method or display the double-quoted
-//                 *   string.
-//                 */
-//                loc.(direction.dirProp);
-//                
-//                /* 
-//                 *   If we've just executed a method, it may have moved the
-//                 *   actor to a new location, so if the actor is the player
-//                 *   character note where the method took the actor to so that
-//                 *   the pathfinder can find a route via this exit.
-//                 */
-//                if(gActor == gPlayerChar)
-//                    libGlobal.addExtraDestInfo(loc, direction,
-//                                           gActor.getOutermostRoom);
-//            }
-//            else if(gActor == gPlayerChar)
-//                loc.cannotGoThatWayInDark(direction);
-//            break;
-//            
-//            /* 
-//             *   If the direction property points to a single-quoted string,
-//             *   simply display the string if the illumination is sufficient,
-//             *   otherwise display the message saying we can't go that way in
-//             *   the dark. If the actor isn't the player character, do nothing.
-//             */
-//        case TypeSString:
-//            if(gActor == gPlayerChar)
-//            {
-//                conn = loc.(direction.dirProp);
-//                if(illum)
-//                {
-//                    say(conn);
-//                    libGlobal.addExtraDestInfo(loc, direction,
-//                                               gActor.getOutermostRoom); 
-//                }
-//                else
-//                    loc.cannotGoThatWayInDark(direction);
-//            }    
-//            break;
-//            
-//        }        
-//    }
     
     /* 
      *   The direction the actor wants to travel in. This is placed here by the

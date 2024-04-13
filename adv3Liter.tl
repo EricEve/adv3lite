@@ -25,10 +25,13 @@ source: extras
 source: eventList
 source: events
 source: exits
-source: gadgets
-source: pathfind
-source: scene
+source: gadget
+source: menusys
+source: hintsys
+source: score
 source: scenery
+source: pathfind
+
 
 needmacro: LANGUAGE this selects the language the library uses in its messages and parsing; for English, use "english"
 library: $(LANGUAGE)/$(LANGUAGE)min

@@ -3007,6 +3007,12 @@ class TopicPhrase: NounPhrase
              */
             local obj = new Topic(tokens.join(' ').trim());
             
+            /* 
+             *   Note that the dummy object has been newly created so it can defer to any
+             *   user-defined topics when it comes to selecting the best match.
+             */
+            obj.newlyCreated = true;
+            
             /* Wrap the dummy object in am NPMatch object */
             local lst = [obj];
 
@@ -3109,7 +3115,25 @@ class ResolvedTopic: object
     topicList = nil
     tokens = nil
     
-    getBestMatch = (topicList == nil ? nil : topicList[1])
+    /* Get the object representing this ResolvedTopic's best match. */
+    getBestMatch()
+    {
+        if(topicList == nil)
+            return nil;
+        
+        /* 
+         *   If possible, find an object that hasn't just been newly created by the parser as a
+         *   fallback wrapper (because we'd prefer to use Thing or Topic defined by the user).
+         */
+        local top = topicList.valWhich({t:!t.newlyCreated});
+        
+        /*   
+         *   If we find a user-defined topic, return that; otherwise simply return the first item in
+         *   the list.
+         */
+        return top ?? topicList[1];
+    }    
+    
     getTopicText = tokens.join(' ').trim()
     theName = (topicList != nil ? topicList[1].theName : getTopicText)
     aName = (topicList != nil ? topicList[1].aName : getTopicText)

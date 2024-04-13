@@ -10146,6 +10146,9 @@ class Topic: Mentionable
     {
         return name == nil ? vocab : name;
     }
+    
+    /* For internal use by the parser; has the parser newly created us for its own purposes? */
+    newlyCreated = nil
 ;
 /* ------------------------------------------------------------------------ */
 /*

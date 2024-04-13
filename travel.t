@@ -11,6 +11,7 @@
 
 property lastTravelInfo;
 property cannotGoShowExits;
+property pcArrivalTurn;
 
 /* 
  *   A Room is a top location in which the player character, other actors and
@@ -200,9 +201,12 @@ class Room: TravelConnector, Thing
              *   just arrived.
              */
             
-            local notifyList = allContents.subset({o: o.ofKind(Actor)});
-            
-            notifyList.forEach({a: a.pcArrivalTurn = gTurns });
+            if(defined(Actor))
+            {
+                local notifyList = allContents.subset({o: defined(Actor) && o.ofKind(Actor)});
+                
+                notifyList.forEach({a: a.pcArrivalTurn = gTurns });
+            }
             
             /* Show a room description if appropriate */
             if(lookAroundOnEntering)
@@ -1189,6 +1193,9 @@ class DSBase: object
      *   depending on whether the pc is in room1 or room2.
      */
     dirName = inRoom1 ? room1Dir.name : room2Dir.name
+    
+    /* Our destination is known if each of the rooms we connect is either visited or familiar. */
+    isDestinationKnown = (room1.familiar || room1.visited) && (room2.familiar || room2.visited)
        
 ;
 
@@ -1236,6 +1243,7 @@ class DSCon: DSBase, MultiLoc
         
         return nil;
     }
+    
     
 ;
 
