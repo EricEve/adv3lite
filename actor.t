@@ -972,7 +972,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         libGlobal.lastTopicMentioned = nil;
         
         /* Also reset the last fact mentioned. */
-        libgGlobal.lastFactMentioned = nil;
+        libGlobal.lastFactMentioned = nil;
     }
     
     /* 
@@ -3417,7 +3417,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   If we've just had a conversationasl exchange, update libGlobal.lastTopicMentioned with
          *   the topic we've just matched.
          */
-        if(isConveraational)
+        if(isConversational)
             libGlobal.lastTopicMentioned = topicMatched;
     }
     

@@ -91,6 +91,8 @@ Relations
  <p>If you have defined a relation as reciprocal (by setting its <span class="code">reciprocal</span> property to true), there's no need to define each related pair both ways round. For example if <span class="code">sibling</span> is a reciprocal relationship then you don't need to use both <span class="code">relate(jack sibling jill)</span> and <span class="code">relate(jill sibling jack)</span>, since the libary knows that the one implies the other. Likewise there's no need to define the <span class="code">reverseName</span> property for a reciprocal relationship, since <span class="code">related(jack sibling jill)</span> and <span class="code">related(jill sibling jack)</span> mean exactly the same thing. A reciprocal relationship is already its own reverse. </p>
  <br>
  
+ <p>Finally the Relation method <b>listKeys()</b> lists all the key values in the Relation's key table, in other words all <i>a</i> values for which  this relationship has been defined (<i>a</i> related to <i>b</i>).</p>. 
+ 
  <a name="derived"></a>
  <h2>Derived Relations</h2>
  <p>A good example of a many-to-many reciprocal relation might be a sibling relationship, which could be defined as:</p>
@@ -145,6 +147,85 @@ Relations
 <p>Here, in the <span class="code">relatedTo(a)</span> method, we first find the father (or parent) of <span class="code">a</span> by using the inverse of the fatherOf relationship ('child of') to get the person of whom <em>a</em> is the child. We then return a list of the children of this parent, less <em>a</em>, since <em>a</em> is not his or her own sibling. The method thus returns a list of <em>a</em>'s siblings without the sibling Relation having to store any data of its own and without game code having to define explicitly who is the sibling of whom.</p> 
 
 <p>By default a DerivedRelation will complain if you try to use it to set a relation directly, e.g. <span class="code">(john, sibling, mary)</span>, since in general this may make no sense when the relationship in question depends on another one. In principle you could override the sibling's <strong>addRelation()</strong> method so that <span class="code">sibling.addRelation([a, b])</span> tried to give <em>a</em> and <span class="code">b</span> a common father, but in general this is probably not a good idea. What, if <em>a</em> and <em>b</em> start out with different fathers, for example? It would be an even worse idea to override a DeriveRelation's <span class="code">removeRelation()</span> method to allow the use of, say, <span class="code">unrelate(mary, sibling, john)</span>, since if two people have a common father, for example, what would it mean for them to cease to be siblings? Thus, once a DerivedRelation has been defined, you should stick to using it through the <span class="code">related()</span> function or the <span class="code">relationPath()</span> function discussed immediately below.</p> 
+
+<p>When setting up a DerivedRelation it can be useful to override its <b>listKeys()</b> method to return a list of all the values that might enter into the left-hand side of the relationship <i>a</i> related to <i>b</i>. At the very least this enables the RELATION <a href='#debugging'>debugging</a> command to list the current relationships our DerivedRelation creates. For example, in the case of the sibling relation defined above, this could be either every Actor in the game, or every Actor that has at least one sibling (perhaps the better option if this isn't going to change in the course of the game):</p>
+
+<p><div class="code"><pre>
+ sibling: DerivedRelation 'sibling of' @manyToMany +true
+   relatedTo(a) 
+   {
+        local parent = related(a, 'child of');
+        return parent.length &gt; 0 ? related(parent[1], fatherOf) - a : []; 
+   }
+
+   listKeys()
+   {
+       local vec = new Vector;
+	   
+	   <span class='comment'>/* Loop over every Actor in the game. */</span>
+	   for(local actor = firstObj(Actor); actor != nil; actor = nextObj(actor, Actor))
+	   {
+	       if(relatedTo(actor).length > 0 )
+		      vec.append(actor);
+	   }
+	   
+	   local lst = vec.toList();
+	   
+	   <span class='comment'>
+      /* 
+       *  We can do this if we know this is never going to change to avoid
+       *  having to build this list more than once. 
+       */</span>
+	   listKeys = lst;
+	   
+	   return lst;
+   }
+; 
+ </pre></div>
+
+<p>We also have a choice how we want to define the derived relation. We can either override the <b>relatedTo(a)</b> method (as above) to return a list of items related to <i>a</i> or override the <b>isRelated(a,b)</b> to return true or nil according to whether <i>a</i> and <i>b</i> are related through this relationship. We must do either one or the other, but we shouldn't have to do both.</p>
+
+<p>If we chose the second method, our definition of our sibling relation would become:</p>
+
+<p><div class="code"><pre>
+ sibling: DerivedRelation 'sibling of' @manyToMany +true
+   related(a,b) 
+   {
+        <span class='comment'>/* a and b are siblings if a is not b and a and b have the same father */</span>    
+        return a != b &amp;&amp; related(a, 'child of') == related(b, 'child of');
+        
+   }
+
+   listKeys()
+   {
+       local vec = new Vector;
+	   
+	   <span class='comment'>/* Loop over every Actor in the game. */</span>
+	   for(local actor = firstObj(Actor); actor != nil; actor = nextObj(actor, Actor))
+	   {
+           <span class='comment'>/* Calling relatedTo() here would create an infinite loop. */	</span>   
+	       if(related(actor, 'child of').length &gt; 0)
+		      vec.append(actor);
+	   }
+	   
+	   local lst = vec.toList();
+	   
+	   <span class='comment'>
+      /* 
+       *  We can do this if we know this is never going to change to avoid
+       *  having to build this list more than once. 
+       */</span>
+	   listKeys = lst;
+	   
+	   return lst;
+   }
+; 
+ </pre></div>
+
+<p>Note that the default <span class='code'>relatedTo()</span> on DerivedRelation calls <span class='code'>listKeys()</span> to help build its list, so if we haven't overridden <span class='code'>relatedTo()</span> to our own version of this method not referencing <span class='code'>listKeys()</span> we must avoid calling <span class='code'>relatedTo()</span> from <span class='code'>listKeys()</span>, otherwise our code will end up in a vicious circle causing our game to hang. Here we instead restrict our list of Actors to those whose fathers have been defined.</p>
+
+<p>Finally, although here our example of a DerivedRelation has made use of other Relations, we're not restricted to this; we can define a DerivedRelation using whatever data structure(s) we find useful.</p>
+
 
 <br>
 <a name="pathfinding"></a>

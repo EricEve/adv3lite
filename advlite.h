@@ -1294,10 +1294,10 @@ string template <<add * secs>> addTime;
 #define npcKnows(obj) (getActor.knowsAbout(obj))
 
 /* the last topic mentioned in the course of the current conversation */
-# gLastTopic (libGlobal.lastTopicMentioned)
+#define gLastTopic (libGlobal.lastTopicMentioned)
 
 /* the last fact mentioned in the course of the current conversation */
-# gLLastFsct (libGlobal.lastFactMentioned)
+#define gLastFsct (libGlobal.lastFactMentioned)
 
 /* ------------------------------------------------------------------------- */
 /*

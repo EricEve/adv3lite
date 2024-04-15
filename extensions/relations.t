@@ -77,11 +77,10 @@ class Relation: PreinitObject
             return relatedTo(a);
         
         /*  
-         *   Otherwise we need to iterate over our LookUpTable to find key
-         *   values that correspond to values of a.
-         */
-        
-        local lst = relTab ? relTab.keysToList() : [];
+         *   Otherwise we need to iterate over our LookUpTable to find key values that correspond to
+         *   values of a. We call our listKeys method to do so.
+         */        
+        local lst = listKeys();
         
         /* Set up a Vector as a temporary store for our results. */
         local vec = new Vector;
@@ -93,7 +92,8 @@ class Relation: PreinitObject
          */
         foreach(local cur in lst)
         {
-            if(valToList(relTab[cur]).indexOf(a))
+            //            if(valToList(relTab[cur]).indexOf(a))
+            if(isInverselyRelated(a, cur))
                 vec.append(cur);
         }
         
@@ -380,7 +380,7 @@ class Relation: PreinitObject
      */
     listKeys()
     {
-        return relTab.keysToList();
+        return relTab ? relTab.keysToList() : [];
     }
     
     
@@ -415,20 +415,22 @@ DerivedRelation: Relation
      */
     relatedTo(a) 
     { 
+        /* Construct a list from our listKeys() method less a. */
         local lst = listKeys() - a;
         
+        /* Se up a new Vector as working storage. */
         local vec = new Vector();
         
+        /* Loop through every fact in our list. */
         foreach(local fact in lst)
         {
+            /* if a is related to fact, add a to our Vector of related items. */
             if(isRelated(a, fact))
-//            if(gFact(a).topics.overlapsWith(gFact(fact).topics))
                 vec.appendUnique(fact);
         }
         
-            
-        return vec.toList();
-    
+        /* Convert the vector to a list and return the result. */
+        return vec.toList();    
     }
     
     /* 
@@ -438,12 +440,21 @@ DerivedRelation: Relation
      */
     isRelated(a, b)
     {
-        return inherited(a, b);
-    }
-    
-    inverselyRelatedTo(a) { return []; }
-    
-    
+        /* 
+         *   If this relation has overridden its relatedTo method, assume that it has done so to
+         *   generate its own list of items that are related, in which case use the inherited
+         *   handling, which checks whether b is in the list of items to which a is related.
+         */
+        if(propDefined(&relatedTo, PropDefDirectly))          
+            return inherited(a, b);
+        
+        /* 
+         *   Is this relation hasn't overridden its related method it should have overridden its
+         *   isRalated method; as a fallback we just return nil, but this should never happen if
+         *   this DerivedRelation has been properly set up.
+         */
+        return nil;
+    }   
     
     /* 
      *   By default we don't permit the direct addition of relationships via
@@ -979,16 +990,8 @@ DefineSystemAction(RelationDetails)
              *   Display the name of the current object and list the items to which it relates.
              */
             local name1 = valToSym(cur);
-//            local name1 = symTab.ctab[cur];
-//            if(name1 == '???') name1 = cur.name;
             
-//            if(rel.ofKind(DerivedRelation))
-            {
-                "<<name1>> -> <<valToSym(rel.relatedTo(cur))>>\n";
-            }
-//            else               
-//                "<<name1>>  ->  <<valToSym(rel.relTab[cur])>>\n";
-            
+            "<<name1>> -> <<valToSym(rel.relatedTo(cur))>>\n";           
         }
         
     }
