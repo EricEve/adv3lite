@@ -290,9 +290,12 @@ valToSym(val)
     case TypeInt:
         return toString(val);
     case TypeObject:
+        str = symTab.ctab[val]; 
+        if(str == '???' && val.propDefined(&name)) str = val.name;
+        /* Fallthrough deliberate */
     case TypeEnum:
-    case TypeProp:
-        return symTab.ctab[val];   
+    case TypeProp:        
+        return str;   
     case TypeNil:
         return 'nil';
     case TypeTrue:

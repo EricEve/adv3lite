@@ -964,6 +964,15 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
          */
         else if(reason == endConvLeave)
             exit;
+        
+        /* 
+         *   This conversation is ending so reset the last topic mentioned (during the current
+         *   conversation) to nil.
+         */
+        libGlobal.lastTopicMentioned = nil;
+        
+        /* Also reset the last fact mentioned. */
+        libgGlobal.lastFactMentioned = nil;
     }
     
     /* 
@@ -3403,6 +3412,13 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         /* Otherwise execute our topicResponse  */
         else
             topicResponse();
+        
+        /* 
+         *   If we've just had a conversationasl exchange, update libGlobal.lastTopicMentioned with
+         *   the topic we've just matched.
+         */
+        if(isConveraational)
+            libGlobal.lastTopicMentioned = topicMatched;
     }
     
     /*   
@@ -5733,6 +5749,13 @@ conversationManager: OutputFilter, PreinitObject
         libGlobal.setRevealed(tag);
         
         /* 
+         *   If we're in a conversational context (so that we have a respondingActor) update the
+         *   last fact mentioned to tag.
+         */
+        if(respondingActor != nil)
+            libGlobal.lastFactMentioned = tag;
+        
+        /* 
          *   If something has just been revealed to us, it has also just been revealed to every
          *   other actor in the vicinity who could overhear the conversation (including the actor
          *   who has just spoken, if there is one; if there isn't then the revealed tag is
@@ -5796,6 +5819,9 @@ conversationManager: OutputFilter, PreinitObject
         {
             respondingActor.setInformed(tag);
         }
+        
+        /* Update the last fact mentioned to the tag. */
+        libGlobal.lastFactMentioned = tag;
         
     }
     

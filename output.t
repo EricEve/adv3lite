@@ -1867,14 +1867,14 @@ typographicalOutputFilter: OutputFilter
     filterText(ostr, val)
     {
         /*
-         *   Look for sentence-ending punctuation, and put an 'en' space
-         *   after each occurrence.  Recognize ends of sentences even if we
-         *   have closing quotes, parentheses, or other grouping characters
-         *   following the punctuation.  Do this before the hyphen
-         *   substitutions so that we can look for ordinary hyphens rather
-         *   than all of the expanded versions.
+         *   Look for sentence-ending punctuation, and put an 'en' space after each occurrence.
+         *   Recognize ends of sentences even if we have closing quotes, parentheses, or other
+         *   grouping characters following the punctuation.  Do this before the hyphen substitutions
+         *   so that we can look for ordinary hyphens rather than all of the expanded versions. We
+         *   don't do this if sentenceSpacer has been overridden to a single normal space.
          */
-        val = rexReplace(eosPattern, val, '%1'+sentenceSpacer, ReplaceAll);
+        if(sentenceSpacer != ' ')
+            val = rexReplace(eosPattern, val, '%1'+sentenceSpacer, ReplaceAll);
 
         /* undo any abbreviations we mistook for sentence endings */
         val = rexReplace(abbrevPat, val, '%1. ', ReplaceAll);

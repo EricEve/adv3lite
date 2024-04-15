@@ -374,6 +374,15 @@ class Relation: PreinitObject
         
     }
     
+    /* 
+     *   Liat the keys (the items to which this relation applies). By default we list the keys in
+     *   our relTab.
+     */
+    listKeys()
+    {
+        return relTab.keysToList();
+    }
+    
     
     /* Make relation[b] = c work like relate(b, relation, c) [RELATIONS EXTENSION] */
     operator []=(b, c)
@@ -400,13 +409,41 @@ class Relation: PreinitObject
 DerivedRelation: Relation
     
     /* 
-     *   Instances need to override to provide a method that returns a list of
-     *   items related to a via this relationship, on the basis of whatever
-     *   criteria are appropriate.
+     *   Especially if listKeys() hasn't been defined on this DerivedRelation, instances may need to
+     *   override to provide a method that returns a list of items related to a via this
+     *   relationship, on the basis of whatever criteria are appropriate.
      */
-    relatedTo(a) { return []; }
+    relatedTo(a) 
+    { 
+        local lst = listKeys() - a;
+        
+        local vec = new Vector();
+        
+        foreach(local fact in lst)
+        {
+            if(isRelated(a, fact))
+//            if(gFact(a).topics.overlapsWith(gFact(fact).topics))
+                vec.appendUnique(fact);
+        }
+        
+            
+        return vec.toList();
+    
+    }
+    
+    /* 
+     *   If relatedTo has not been overriden to provide a list, instances need to override
+     *   isRelated to provide a method that returns true or nil according to whether this
+     *   DerivedRelationship holds between a and b. 
+     */
+    isRelated(a, b)
+    {
+        return inherited(a, b);
+    }
     
     inverselyRelatedTo(a) { return []; }
+    
+    
     
     /* 
      *   By default we don't permit the direct addition of relationships via
@@ -429,6 +466,17 @@ DerivedRelation: Relation
         DMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
             remove a derived relation (%) between items. ', name);
     }
+    
+    /* 
+     *   We don't have any entries listed in the relTable, but there may be another way of building
+     *   a list of the key values to which this DerivedRelalation applies; if so, particular
+     *   instances can override this method to supply it here.
+     */        
+    listKeys()
+    {
+        return [];
+    }   
+   
 ;
 
 
@@ -850,6 +898,8 @@ DefineSystemAction(RelationDetails)
         /*  Set up a local variable to hold the relation object. */
         local rel;
         
+        local lst = [];
+        
         if(relInfo == nil)
         {
             /* 
@@ -877,10 +927,12 @@ DefineSystemAction(RelationDetails)
          *   we want is the first item in the list returned from that table.
          */
         else            
-            rel = relInfo[1];
+            rel = relInfo[1];        
         
         /*  Show the details of what that relation is. */
         ListRelations.showRelation(rel);
+        
+        
         
         /*  
          *   If it's a DerivedRelation, say so and exit; we can't list what a
@@ -888,17 +940,22 @@ DefineSystemAction(RelationDetails)
          */
         if(rel.ofKind(DerivedRelation))
         {
-            DMsg(cant list derived relation, '<i>Since {1} is a DerivedRelation,
-                any items it relates cannot be listed.</i> ', valToSym(rel));
+            //            DMsg(cant list derived relation, '<i>Since {1} is a DerivedRelation,
+            //                any items it relates cannot be listed.</i> ', valToSym(rel));
             
-            return;
+            //            local vec = new Vector();
+            
+            
+            
+            lst = rel.listKeys();
+            //           
         }
-        
-        /* 
-         *   Get a list of the keys in our relation's reltab table (which may be
-         *   nil).
-         */
-        local lst = rel.relTab == nil ? [] : rel.relTab.keysToList();
+        else
+            
+            /* 
+             *   Get a list of the keys in our relation's reltab table (which may be nil).
+             */
+            lst = rel.relTab == nil ? [] : rel.relTab.keysToList();
         
         
         /*  If the list is empty, say so and exit. */
@@ -919,11 +976,19 @@ DefineSystemAction(RelationDetails)
         foreach(local cur in lst)
         {
             /* 
-             *   Display the name of the current object and list the items to
-             *   which it relates.
+             *   Display the name of the current object and list the items to which it relates.
              */
-            "<<symTab.ctab[cur]>>  ->  <<valToSym(rel.relTab[cur])>>\n";
-
+            local name1 = valToSym(cur);
+//            local name1 = symTab.ctab[cur];
+//            if(name1 == '???') name1 = cur.name;
+            
+//            if(rel.ofKind(DerivedRelation))
+            {
+                "<<name1>> -> <<valToSym(rel.relatedTo(cur))>>\n";
+            }
+//            else               
+//                "<<name1>>  ->  <<valToSym(rel.relTab[cur])>>\n";
+            
         }
         
     }

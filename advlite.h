@@ -1293,6 +1293,12 @@ string template <<add * secs>> addTime;
 /* is the topic key or object known to the NPC we're in conversaation with? */
 #define npcKnows(obj) (getActor.knowsAbout(obj))
 
+/* the last topic mentioned in the course of the current conversation */
+# gLastTopic (libGlobal.lastTopicMentioned)
+
+/* the last fact mentioned in the course of the current conversation */
+# gLLastFsct (libGlobal.lastFactMentioned)
+
 /* ------------------------------------------------------------------------- */
 /*
  *   Define some synonyms for potentially confusing property names

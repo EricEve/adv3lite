@@ -857,6 +857,12 @@ libGlobal: object
     /* The object last typed on */
     lastTypedOnObj = nil
     
+    /* The last (latest) topic mentioned in the current conversation. */
+    lastTopicMentioned = nil
+    
+    /* The last fact mentioned in the current conversation */
+    lastFactMentioned = nil
+    
     /* 
      *   our name table for parameter substitutions - a LookupTable that we set
      *   up during preinit
