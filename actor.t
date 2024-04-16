@@ -6304,6 +6304,12 @@ class ConvAgendaItem: AgendaItem
                 reasonInvoked = DefaultTopicReason;
             
             /* 
+             *   Copy our reason invoked to libGlobal, to make available to code elsewhere, e.g. sn
+             *   InititeTopic triggered by our invokeItem() method.
+             */                 
+            libGlobal.reasonInvoked = reasonInvoked;
+            
+            /* 
              *   Give the actor the chance to say hello, and note whether this
              *   resulted in any greeting being displayed. Note that
              *   Actor.actorSayHello() won't actually attempt to do anything if

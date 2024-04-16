@@ -52,7 +52,19 @@ class Relation: PreinitObject
     /*   Return a list of items related to a via this relation. [RELATIONS EXTENSION] */
     relatedTo(a)
     {       
-        return relTab == nil ? [] : relTab[a];           
+        /* Get the list of things we're related to from our relation table. */
+        local lst = valToList(relTab == nil ? [] : relTab[a]); 
+        
+        /* 
+         *   If our list is empty and we're a reciprocal relation, try getting the list of the
+         *   inverse relation's list.
+         */
+        if(lst == [] && reciprocal)
+            lst = inverselyRelatedTo(a);
+        
+        /* Return our list. */
+        return lst;
+            
     }
     
     /*   Test whether a is related to b via this relation. [RELATIONS EXTENSION] */
@@ -68,17 +80,9 @@ class Relation: PreinitObject
      */
     inverselyRelatedTo(a)
     {
-        /* 
-         *   If we're a reciprocal relationship, then asking whether we're
-         *   inversely related to a is the same as asking whether we're related
-         *   to a, which is a far quicker calculation.
-         */
-        if(reciprocal)
-            return relatedTo(a);
-        
         /*  
-         *   Otherwise we need to iterate over our LookUpTable to find key values that correspond to
-         *   values of a. We call our listKeys method to do so.
+         *   Iterate over our LookUpTable to find key values that correspond to values of a. We call
+         *   our listKeys method to do so.
          */        
         local lst = listKeys();
         
@@ -91,8 +95,7 @@ class Relation: PreinitObject
          *   to our vector.
          */
         foreach(local cur in lst)
-        {
-            //            if(valToList(relTab[cur]).indexOf(a))
+        {            
             if(isInverselyRelated(a, cur))
                 vec.append(cur);
         }
@@ -105,10 +108,10 @@ class Relation: PreinitObject
     isInverselyRelated(a, b)
     {
         /* 
-         *   Simply turn the question round; asking if a is loved by b is
-         *   exactly the same as asking if b loves a.
+         *   We're inversely related to a if we occur in the list of items to which a is related.         
          */
-        return isRelated(b, a);
+        return (valToList(relTab[b]).indexOf(a) != nil) || 
+            ( reciprocal && valToList(relTab[a]).indexOf(b) != nil);
     }
     
     /* 
@@ -434,6 +437,28 @@ DerivedRelation: Relation
     }
     
     /* 
+     *   Game code must override this method to determine whether a is inversely related to b unless
+     *   it either overrides inverselyRelatedTo() to return a list of items to which a is inversely
+     *   related or the relation is a reciprocal one.
+     */
+    isInverselyRelated(a, b)
+    {
+        /* 
+         *   If this relation defines its own inverselyRelatedTo property, check whether b occurs in
+         *   the list of things related to a.
+         */
+        if(propDefined(&inverselyRelatedTo, PropDefDirectly)) 
+            return inverselyRelatedTo(a).find(b);
+        
+        /* Otherwise if we're reciprocal check whether b is related to a. */
+        if(reciprocal)
+            return isRelated(b, a);       
+        
+        /* Otherwise return an empty list */
+        return [];
+    }
+    
+    /* 
      *   If relatedTo has not been overriden to provide a list, instances need to override
      *   isRelated to provide a method that returns true or nil according to whether this
      *   DerivedRelationship holds between a and b. 
@@ -754,7 +779,7 @@ relationPathfinder: Pathfinder
          *   [johh, mark, alan].
          */
         return res == nil ? nil : 
-        (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]}));
+        (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]})).toList(); 
     }
     
     findDestinations(cur)

@@ -925,7 +925,7 @@ modify InitiateTopic
     matchTopic(top)
     {
         /* If we have a matchPattern, first test whether it's a fact name. */
-        if(matchPattern != nil)
+        if(matchPattern != nil && matchPattern == top)
         {
             /* Attempt to find the fact with name top. */
             local fact = gFact(top);

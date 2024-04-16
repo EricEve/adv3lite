@@ -867,6 +867,9 @@ libGlobal: object
     /* The last fact mentioned in the current conversation */
     lastFactMentioned = nil
     
+    /* The most recent reason a ConvAgendaItem was invoked. */
+    reasonInvoked = nil
+    
     /* 
      *   our name table for parameter substitutions - a LookupTable that we set
      *   up during preinit
