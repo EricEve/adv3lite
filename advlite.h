@@ -1297,7 +1297,7 @@ string template <<add * secs>> addTime;
 #define gLastTopic (libGlobal.lastTopicMentioned)
 
 /* the last fact mentioned in the course of the current conversation */
-#define gLastFsct (libGlobal.lastFactMentioned)
+#define gLastFact (libGlobal.lastFactMentioned)
 
 /* ------------------------------------------------------------------------- */
 /*

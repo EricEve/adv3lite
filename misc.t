@@ -808,6 +808,10 @@ libGlobal: object
         /* Add the tag to our revealedNameTab */
         revealedNameTab[tag] = true;
         
+        /* If we're in a conversation, update the last fact mentioned. */
+        if(gPlayerChar.currentInterlocutor)
+            lastFactMentioned = tag;
+        
         /* 
          *   Add the tag to the playerCharacter's informedNameTab, provided we want revealing to
          *   update PC and NPC knowledge.

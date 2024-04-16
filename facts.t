@@ -920,6 +920,50 @@ modify ActorTopicEntry
     
 ;
 
+modify InitiateTopic
+    /* Modification to allow InitiateTopic to match a Fact name. */
+    matchTopic(top)
+    {
+        /* If we have a matchPattern, first test whether it's a fact name. */
+        if(matchPattern != nil)
+        {
+            /* Attempt to find the fact with name top. */
+            local fact = gFact(top);
+            
+            /* I've we've found a fact, proceed accordinglay. */
+            if(fact)
+            {
+                /* Note the fact we have matched. */
+                topicMatched = fact;
+                
+                /* 
+                 *   If our topicResponse is going to reveal information about thio fact, set out
+                 *   rTag (= aTag) to the fact name just matched.
+                 */
+                if(revealing)
+                    rTag = top;
+                
+                /* 
+                 *   Note that we don't set tTag otherwise, since if the actor isn't imparting new
+                 *   information but instead asking a queastion, we must assume that no factual
+                 *   information has yet been conveyed in either direction.
+                 */
+                
+                
+                /* Return the sum of our matchScore and scoreBooster */
+                return matchScore + scoreBooster();
+            }
+        }
+        
+        /* Otherwise return our inherited score. */
+        return inherited(top);
+    }
+    
+    /* Flag: is the actor revealing information abouut the flag matched? */
+    revealing = true   
+
+;
+
 /* 
  *   modify actorPreinit so that factMananger's happens first. This ensures that factManager's
  *   factTab has been populated and is availabe to actor-related object preinitialization.
