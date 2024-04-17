@@ -549,10 +549,10 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
             response.handleTopic();     
             
             /* 
-             *   If the response is a converational one, note that conversation
+             *   If the response was a converational one, note that conversation
              *   has taken place on this turn.
              */
-            if(response.isConversational)
+            if(response.wasConversational)
                 noteConversed(); 
         }
         
@@ -3172,8 +3172,8 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     
     /* 
      *   Should we be treated as conversational? Normally an ActorTopicEntry should (except for
-     *   certain subtypes) but if we're also a script and our lastConvResponse has been defines as
-     *   non-nil we may want to do something differen.
+     *   certain subtypes) but if we're also a script and our lastConvResponse has been defined as
+     *   non-nil we may want to do something different.
      */
     isConversational()
     {
@@ -3191,6 +3191,12 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         return curScriptState <= (lastConvResponse > 0 ? lastConvResponse : eventList.length +
                                   lastConvResponse);
     }
+    
+    /* 
+     *   Was this ActorTopicEntry just before we display our Topic Response, which could change the
+     *   value of isConversational by advancing curScriptState.
+     */
+    wasConversational = true
     
     /*  
      *   Normally a conversational command implies a greeting (that is, it
@@ -3408,16 +3414,26 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
              */
             abort;
         }
-        
+               
         /* Otherwise execute our topicResponse  */
         else
+        {
+            /* 
+             *   Note whether we were conversational just before we display our response. We do this
+             *   because if we're also an EventList our isConversational state may change as a
+             *   result of ourScriptState advancing.
+             */
+            wasConversational = isConversational;
+            
+            /* Show our topic resposnse. */
             topicResponse();
+        }
         
         /* 
          *   If we've just had a conversationasl exchange, update libGlobal.lastTopicMentioned with
          *   the topic we've just matched.
          */
-        if(isConversational)
+        if(wasConversational)
             libGlobal.lastTopicMentioned = topicMatched;
     }
     
