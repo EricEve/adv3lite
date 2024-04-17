@@ -870,6 +870,9 @@ libGlobal: object
     /* The most recent reason a ConvAgendaItem was invoked. */
     reasonInvoked = nil
     
+    /* The most recently active agendaItem */
+    agendaItem = nil
+    
     /* 
      *   our name table for parameter substitutions - a LookupTable that we set
      *   up during preinit

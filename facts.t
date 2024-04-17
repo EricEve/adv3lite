@@ -924,6 +924,9 @@ modify InitiateTopic
     /* Modification to allow InitiateTopic to match a Fact name. */
     matchTopic(top)
     {
+        /* Store a reference to our caller in our agendaItem property. */
+        agendaItem = libGlobal.agendaItem;
+        
         /* If we have a matchPattern, first test whether it's a fact name. */
         if(matchPattern != nil && matchPattern == top)
         {
@@ -934,7 +937,7 @@ modify InitiateTopic
             if(fact)
             {
                 /* Note the fact we have matched. */
-                topicMatched = fact;
+//                topicMatched = fact;
                 
                 /* 
                  *   If our topicResponse is going to reveal information about thio fact, set out
@@ -961,7 +964,24 @@ modify InitiateTopic
     
     /* Flag: is the actor revealing information abouut the flag matched? */
     revealing = true   
+;
 
+/* 
+ *   Modications to AltTopic to work with the modifications to ActorTopicEntry with the FACTS
+ *   module.
+ */
+modify AltTopic
+    /* Take our tTag from our location's tTag */
+    tTag = location.tTag
+    
+    /* Take our rTag from our location's aTag */
+    aTag = location.aTag
+    
+    /* Take our matchoObj from our location's matchObj */
+    matchObj = location.matchObj
+    
+    /* Take our revealing flag from our location's revealing */
+    revealing = location.revealing
 ;
 
 /* 

@@ -5028,6 +5028,26 @@ class AskTalkTopic: TalkTopic
  */
 class InitiateTopic: ActorTopicEntry
     includeInList = [&initiateTopics]
+    
+    matchTopic(top)
+    {
+        agendaItem = libGlobal.agendaItem;
+        
+        return inherited(top);
+    }
+    
+    /* The agendaItem that invoked us, if there was one. */
+    agendaItem = nil
+    
+    /* The reason the agendaItem invoked us. */
+    reasonInvoked = (agendaItem ? agendaItem.reasonInvoked : nil)
+    
+    /* 
+     *   Was the reason we were invoked the DefaultTopicReason, meaning that our ConvAngendaItem was
+     *   invoked via a DefaultAgendaTopic?
+     */
+    defaultInvocation = (reasonInvoked == DefaultTopicReason)
+    
 ;
 
 /*  
@@ -5067,13 +5087,15 @@ class AltTopic: ActorTopicEntry
         /* Note the topic we're trying to match. */
         topicMatched = top;
         
+        agendaItem = libGlobal.agendaItem;
+        
         local score = location.matchTopic(top);
         
         return score == nil ? nil : score + sourceTextOrder -
             location.sourceTextOrder;
     }
     
-
+    agendaItem = nil
 ;
 
 
@@ -6208,8 +6230,26 @@ class AgendaItem: object
         /* Note what object we were called from */
         calledBy = caller;
         
-        /* Then carry out our invokeItem() method */
-        invokeItem();
+        /* 
+         *   Store this AgendaItem on libGlobal a the most recently invoked AgendaItem. We use this
+         *   so that any code or objects we invoke in turn (such as, in particular, InitiateTopics)
+         *   can see what invoked them.
+         */
+        libGlobal.agendaItem = self;
+        
+        try
+        {
+            /* Then carry out our invokeItem() method */
+            invokeItem();
+        }
+        finally
+        {
+            /* 
+             *   Resst libGlobal.agendaItem to nil so it's not carried over to a context in which
+             *   it's no longer valid.
+             */
+            libGlobal.agendaItem = nil;
+        }
     }
     
     /* 
