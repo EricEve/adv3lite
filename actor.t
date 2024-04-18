@@ -6195,21 +6195,35 @@ class AgendaItem: object
     isReady = true
 
     /*
-     *   Is this item done?  On each turn, we'll remove any items marked as
-     *   done from the actor's agenda list.  We remove items marked as done
-     *   before executing any items, so done-ness overrides readiness; in
-     *   other words, if an item is both 'done' and 'ready', it'll simply
-     *   be removed from the list and will not be executed.
-     *   
-     *   By default, we simply return nil.  Items can override this to
-     *   provide a declarative condition of done-ness, or they can simply
-     *   set the property to true when they finish their work.  For
-     *   example, an item that only needs to execute once can simply set
-     *   isDone to true in its invokeItem() method; an item that's to be
-     *   repeated until some success condition obtains can override isDone
-     *   to return the success condition.  
-     */
+     *   Is this item done?  On each turn, we'll remove any items marked as done from the actor's
+     *   agenda list.  We remove items marked as done before executing any items, so done-ness
+     *   overrides readiness; in other words, if an item is both 'done' and 'ready', it'll simply be
+     *   removed from the list and will not be executed.
+     *
+     *   By default, we simply return nil.  Items can override this to provide a declarative
+     *   condition of done-ness, or they can simply set the property to true when they finish their
+     *   work.  For example, an item that only needs to execute once can simply set isDone to true
+     *   in its invokeItem() method; an item that's to be repeated until some success condition
+     *   obtains can override isDone to return the success condition.
+     *
+     *   In some cases, it may be more convenient to set the endCondirion property to define when
+     *   isDone should be set to true.
+     */     
     isDone = nil
+    
+    /* 
+     *   If specified, an expression or method that evaluates to true when this AgendaItem has
+     *   oompleted its task and wants to set isDone to true. This is checked both immediately before
+     *   and immediately after invokeItem() is called (since calling invokeItem might change the
+     *   game state). This is provided as a conveniant alteranative to handling isDone from with
+     *   invokeItem(), which may still be necessary in some cases, such as when you want an
+     *   AgendaItem simply to execute once (although you can also use the executeOnce property for
+     *   that).
+     */     
+    endCondition = nil
+    
+    /* Flag: do we want this AgendaItem to execute once and once only? */
+    executeOnce = nil
 
     /*
      *   The ordering of the item relative to other agenda items.  When we
@@ -6239,8 +6253,21 @@ class AgendaItem: object
         
         try
         {
-            /* Then carry out our invokeItem() method */
-            invokeItem();
+            /* If we've met our end condition, set isDone to true to show that we're done. */
+            if(endCondition)
+                isDone = true;
+            
+            /* Otherwise call our invokeItem() method */
+            else
+                invokeItem();
+            
+             /* 
+              *   If we've met our end condition, set isDone to true to show that we're done. We
+              *   test this again here in case invokeItem() changed the game state in a relevant
+              *   way. Also set our isDone to true if ww've been set up to execute once only.
+              */
+            if(endCondition || executeOnce)
+                isDone = true;
         }
         finally
         {
