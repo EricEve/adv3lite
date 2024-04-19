@@ -2,34 +2,54 @@
 #include "advlite.h"
 
 /* 
- *   FACT RELATIONS EXTENSION by Eric Eve July 2014
+ *   FACT RELATIONS EXTENSION by Eric Eve
  *
- *   The relations.t extension allows Inform7-style relations to be
- *   defined in a TADS 3 game.
+ *   Version 1.0 18th April 2024
+ *
+ *   The factrel.t extension defines and uses relations involviing Facts. It must be included after
+ *   tha main library and the relations.t extension.
  */
 
-
+/* 
+ *   The concerning relation tracks relations between Facta and the topics they reference (via their
+ *   topics property).
+ */
 concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
+     /* A Fact concerns all the topics listed in its topics property. */
     relatedTo(a)
     {
         return gFact(a).topics;        
     }
     
+    /* 
+     *   List all the possible values of everything that can enter into the left-hand side of the
+     *   relation "a concerns b", which is the list of all the Facts define in the game. Since we
+     *   don't expect this to change during the course of the game we can calculate this once and
+     *   then replace this method with the resulting list of
+     Facts.*/
     listKeys()
     {
+        /* Set up a new Vector for working storage. */
         local vec = new Vector();
         
+        /* Iterate through every fact in the game. */
         for(local fact = firstObj(Fact); fact != nil; fact = nextObj(fact, Fact))
         {
+            /* Add each fact to our vector. */
             vec.append(fact.name);
         }
+        
+        /* Convert the vector to a list. */
         local lst = vec.toList();
         
+        /* Store the resulting list in this listKeys() property. */
         listKeys = lst;
         
+        /* Then return the list. */
         return lst;
     }
     
+    /* A topic a is inversely related to a fact b if it occurs in b's topics property. */
     isInverselyRelated(a, b)
     {
         return gFact(b).topics.find(a);
@@ -42,47 +62,67 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
 abutting: DerivedRelation 'abuts' @manyToMany 
     reciprocal = true
 
-    
+    /* Fact a abuts Fact b if their topics lists have any topics in common. */
     isRelated(a, b)
     {
         return gFact(a).topics.overlapsWith(gFact(b).topics);  
     }
     
+    /* 
+     *   The possible values that can appear on either side of this reciprocal relation a abuts b
+     *   are all the Facts defined in the game.
+     */
     listKeys()
     {
+         /* Set up a new Vector for working storage. */
         local vec = new Vector();
         
+        /* Iterate through every fact in the game. */
         for(local fact = firstObj(Fact); fact != nil; fact = nextObj(fact, Fact))
         {
+            /* Add each fact to our vector. */
             vec.append(fact.name);
         }
+        
+        /* Convert the vector to a list. */
         local lst = vec.toList();
         
+        /* Store the resulting list in this listKeys() property, since it shouldn't change. */
         listKeys = lst;
         
+        /* Then return the list. */
         return lst;
-    }
-    
+    }   
+;
    
+
+/* 
+ *   contradicting is a reciprocal relationship between Facts that are defined to contratdict each
+ *   other. The library cannot determine which these are, so only provides the bare framework here.
+ *   Game code then needs to define which facts oontradict by listing them on the contradicting
+ *   relation's relTab property, e.g.
+ *.
+ *.  relTab = [
+ *.       'lisbon-capital' -> ['madrid-capital'],
+ *.       'jumping-silly' -> ['jumping-healthy']
+ *.   ]
+ */
+contradicting: Relation 'contradicts'  @manyToMany +true       
 ;
 
-contradicting: Relation 'contradicts'  @manyToMany +true
-       
-;
-
-
+/* 
+ *   A FactAgendaItem is a specialization of a ConvAgendaItem that seeks a path from the current
+ *   state of an ongoing conversation towards a target Fact or topic the associated actor wishes to
+ *   reach and then attempts to follow that conversational path whenever the NPC gets the chance to
+ *   take the conversational initiative.
+ */
 class FactAgendaItem: ConvAgendaItem
     /* The topic or fact our actor wishes to reach */
     target = nil
     
-     
-    /* Get a path from the last fact mentioned to our target, if we can. Return nil if we can't. */
-    getPath()
+    /* Get the fact we want out path calculation to start from. */
+    getStart()
     {
-        /* Set up a local variable to cache our path. */
-        local path = nil;
-        
-        /* Make our starting fact (the beginning of our path) the last fact mentioned. */
         local startFact = gLastFact;
         
         /* If we can't find a last mentioned fact, try starting from the last mentioned topic .*/
@@ -95,77 +135,118 @@ class FactAgendaItem: ConvAgendaItem
                 return nil;
             
             /* Obtained a list of facts that reference this topic. */
-            local fList = related(startFact, 'referenced by');
+            local fList = related(gLastTopic, 'referenced by');
             
             /* If we succeed in obtaining such a list, return its first element. */
             if(fList && fList.length() > 0)
-                startFact = fList[1];
-            
-            /* Otherwise there's nothing more we can try, so return nil. */
-            else
-                return nil;
+                startFact = fList[1];           
         }
+        
+        /* Return whatever start fact we found */           
+        return startFact;
+    }
+    
+    
+    /* Get a path from the last fact mentioned to our target, if we can. Return nil if we can't. */
+    getPath() 
+    {
+        /* Set up a local variable to cache our path. */
+        local path = nil;
+        
+        /* Make our starting fact (the beginning of our path) the last fact mentioned. */
+        local startFact = getStart();                 
+        
+       
+        /* 
+         *   We can only go ahead with calculating a path if we have a starting fact to calculate it
+         *   from.
+         */
+        if(startFact)
+        {
+            /* 
+             *   If our target is an object (Topic or Thing used as a topic) we need to find the
+             *   appropriate fact to start from.
+             */
+            if(dataType(target) == TypeObject)                
+                path = getPathToTopic(startFact);            
             
+            /* 
+             *   Otherwise, our target is a fact, and we simply set path to the optimum path from
+             *   our starting fact to our target fact.
+             */
+            else                 
+                path = relationPath(startFact, relations, target);
+        }     
         
         /* 
-         *   If our target is an object (Topic or Thing used as a topic) we need to find the
-         *   appropriate fact to start from.
+         *   Save a copy of our path, including any relations it ran through if we defined the
+         *   relation property as a list.
          */
-        if(dataType(target) == TypeObject)
-        {
-            /* First obtain a list of all the facts that reference this topic. */
-            local facts = related(target, 'referenced by');
-                      
-            /* 
-             *   We want to select the fact that gives us the shortest path, so we start with a very
-             *   long maximum path length to be sure that any path we find will be shorter than
-             *   this.
-             */
-            local maxLen = 100000;
-            
-            /* 
-             *   Iterate through all the related facts we found to identify the one that gives us
-             *   the shortest path to our target
-             .*/
-            foreach(local fact in facts)
-            {
-                /* 
-                 *   Find the optimum path from the last fact mentioned to this potential target
-                 *   fact
-                 *.
-                 */
-                local newPath = relationPath(startFact, abutting, fact);
-                
-                /*  
-                 *   If we've found a path and it's shorter than any previous path, make it our
-                 *   provisionally chosen path and reduce the maximum path length to its path
-                 *   length.
-                 */
-                if(newPath && newPath.length < maxLen)
-                {
-                    maxLen = newPath.length;
-                    
-                    path = newPath;
-                }                      
-            }
-        }
-        /* 
-         *   Otherwise, our target is a fact, and we simply set path to the optimum path from our
-         *   starting fact to our target fact.
-         */
-        else
-        {
-            path = relationPath(gLastFact, abutting, target);
-        }
+        fullPath = path;
+        /* If our path contains a list of lists, transform it into a simple list of facts. */
+        if(path && dataType(path[1]) == TypeList)
+            path = path.mapAll({x: x[2]});
         
         /* Either way, return the path we've just found. */
-        return path;
+        return path;        
+    }
+    
+    
+    /* Get the path from a topic to our target */
+    getPathToTopic(startFact)
+    {
+        /* First obtain a list of all the facts that reference this topic. */
+        local facts = related(target, 'referenced by');
         
+        /* 
+         *   We want to select the fact that gives us the shortest path, so we start with a very
+         *   long maximum path length to be sure that any path we find will be shorter than this.
+         */
+        local maxLen = 100000;
+        
+        /* Set uo a local variable for the path we're looking for. */
+        local path = nil;
+        
+        /* 
+         *   Iterate through all the related facts we found to identify the one that gives us the
+         *   shortest path to our target
+         .*/
+        foreach(local fact in facts)
+        {                        
+            /* 
+             *   Find the optimum path from the last fact mentioned to this potential target fact
+             *.
+             */
+            local newPath = relationPath(startFact, relations, fact);
+            
+            /*  
+             *   If we've found a path and it's shorter than any previous path, make it our
+             *   provisionally chosen path and reduce the maximum path length to its path length.
+             */
+            if(newPath && newPath.length < maxLen)
+            {
+                maxLen = newPath.length;
+                
+                path = newPath;
+            }                      
+        }
+        
+        /* Return whatever path we found. */
+        return path;
     }
     
     /* The current conversational path we're pursuing. */
     curPath = nil
     
+    /* The full path, including the relationships used. */
+    fullPath = nil
+    
+    /* 
+     *   The relation or a list of relations we want to use for proximity of facts when calculating
+     *   our path.
+     */
+    relations = abutting
+   
     /* 
      *   The next step along our current path. If we have a path of at least two elemeents, the next
      *   step is the second element, otherwise we don't have a next step.
@@ -192,6 +273,7 @@ class FactAgendaItem: ConvAgendaItem
         
         /* We're ready is we meet the inherited conditions and we have an available next step. */
         return inherited() && nextStep != nil;
+       
     }
     
     /* 
@@ -200,22 +282,23 @@ class FactAgendaItem: ConvAgendaItem
      *   final step. Game code is free to override if you want to handle this actor's goal-seeking
      *   conversational agenda in some other way.
      */
+    
+    /* 
+     *   By defaut we trigger the InitiateTopic corresponding to our next step, but game code can
+     *   ovverride to do somethng different here is required.
+     */
     invokeItem()
     {
-        /* If we have a current path and we've reached its final step, we're done. */
-        if(curPath && curPath.length == 1)
-            isDone = nil;
-        
-        /* Otherwise trigger the InitiateTopic corresponding to our next step. */
-        else
-            getActor.initiateTopic(nextStep);
-        
-        /* If our next step is also the last one, we're done. */
-        if(endCondition)
-           isDone = true;
-        
+        getActor.initiateTopic(nextStep);
     }
     
+    
+    /* 
+     *   Our endCondition is the state we must reach for us to have reached our goal, so that we can
+     *   set our isDone to true. By default this is when we've reached the end of our path, which is
+     *   when our next step would be the one at the end of our path. Game could override this, say,
+     *   to either gRevaled(target) or gInformed(target) or some similar condition.
+     */
     endCondition = (curPath && curPath[curPath.length] == nextStep)
     
 ;
@@ -393,4 +476,32 @@ modify AltTopic
     agenda = location.agenda
     autoUseAgenda = location.autoUseAgenda
 ;
-    
+
+/* Modification to Actor to work better with Fact Relations extension */
+modify Actor
+    /* 
+     *   We need to update gLastTopic so that any FactAgendaItem can reference it when checking its
+     *   isReady property before any TopicEntry has handled the topic.
+     */
+    handleTopic(prop, topic, defaultProp = &noResponseMsg)
+    {
+        /* Store a referece to topic, which will be a list at this stage */
+        local top = topic;
+        
+        /* topic has probably been passed as a list. */
+        if(dataType(topic) == TypeList)
+        {
+            /* If so prefer an element of the list that hasn't just been created by the parser. */
+            top = topic.valWhich({t:!t.newlyCreated});
+            
+            /* If we found one, choose it, otherwwise select the first element in the list. */
+            top = top ?? topic[1];
+        }
+         
+        /* Updte gLastTopic */
+        gLastTopic = top;
+        
+        /* Then carry out the inherited handling and return the result. */ 
+        return inherited(prop, topic, defaultProp);
+    }
+;

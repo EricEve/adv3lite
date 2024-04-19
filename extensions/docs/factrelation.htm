@@ -1,0 +1,509 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Fact Relations</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fact Relations
+<br><span class="navnp"><a class="nav" href="eventlistitem.html"><i>Prev:</i> EventListItem</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="footnotes.htm"><i>Next:</i> Footnotes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Fact Relations</h1>
+<h2>Overview</h2>
+
+<p>The purpose of the <a href="../factrel.t">Fact Relations</a> extension is to define a number of potentially useful relations involving Facts and to employ them for various tasks, such as noting when facts are contradictory, defining a new FactAgendaClass that can be used to help NPCs steer a conversation towarda a desired goal. To understand how Fact Relations extension works you may find it helpful to refer to the documenation on the <a href='relations.him'>Relations</a> extension, on which it builds.</p>
+
+
+<br>
+<a name="classes"></a>
+<h2>New Relations, Classes and Modifications</h2>
+
+<p>This extension defines the following new relations, classes and features:</p>
+
+<ul>
+<li><a href='#concerning'><b>concerning</b></a>: relation between Facts and the topic they concern.</li>
+<li><a href='#abutting'><b>abutting</b></a>: reciprocal relation between Facts that share at least one topic in common.</li>
+<li><a href='#contradicting'><b>contradicting</b></a>: reciprocal relation between Facts that contradict each other.</li>
+<li><a href='#factagenda'><b>FactAgendaItem</b></a>: is a kind of ConvAgendaItem that can be used to get an NPC to steer the conversation towards a desired goal.</li>
+</ul>
+<br>
+
+<a name="usage"></a>
+<h2>Usage</h2>
+<p>Include the factrel.t file after the library files but before your game source files. To use the Fact Relations extension the Facts, Actor and TopicEntry module must also be included in your game along with the Relations extension.</p>
+
+<a name='concerning'>
+<h2>The Concerning Relation</h2>
+
+<p>The concerning relation is a many-to-many <a href='relations.htm#derived'>DerivedRelation</a> that relates Facts to the topics (i.e. Topics or Things) they concern (i.e., which are listed in their topics property). Being a DerivedRelation means that the extension works out what it is related to what by itself, without you having to do any further work. The definition of the concerning relation begins:</p>
+
+ <p><div class="code"><pre>
+ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
+     <span class='comment'>/* A Fact concerns all the topics listed in its topics property. */</span>
+    relatedTo(a)
+    {
+        return gFact(a).topics;        
+    }
+    ...
+ </pre></div>
+ 
+ <p>Using the standard <a href='relations.htm#making'>Relation functions</a> then allows you to test for the relatedness of facts to topics in the following ways:</p>
+ 
+ <p><div class="code"><pre> 
+ related('rain-in-spain', concerning, tSpain) <span class="comment">// tests whether the rain-in-spain fact concerns tSpain.</span>
+ related('rain-in-spain', 'concerns', tSpain) <span class="comment">// tests whether the rain-in-spain fact concerns tSpain.</span>
+ related(tSpain, 'referenced by', 'rain-in-spain') <span class="comment">// tests whether the tSpain topic is referenced by 'rain-in-spain'.</span>
+ related(tSpain, 'referenced by')  <span class="comment">// returns a list of all the facts that concern tSpain.</span>
+ related('rain-in-spain', concerning) <span class="comment">//returns a list of all the topics that 'rain-in-spain' concerns.</span>
+ related('rain-in-spain', 'concerns') <span class="comment">//returns a list of all the topics that 'rain-in-spain' concerns.</span> 
+ </pre></div>
+
+<p>Note that since concerning is a DerivedRelation it makes no sense to use the <span class='code'>relate()</span> function to set or unset the concerning relation.</p>
+<br>
+<a name='abutting'>
+<h2>The Abutting Relation</h2>
+
+<p>Abutting is a reciprocal DerivedRelation between Facts that share at least one topic in common. Its definition begins:</p>
+
+ <p><div class="code"><pre>
+abutting: DerivedRelation 'abuts' @manyToMany 
+    reciprocal = true
+
+    <span class='comment'>/* Fact a abuts Fact b if their topics lists have any topics in common. */<span class='code'>
+    isRelated(a, b)
+    {
+        return gFact(a).topics.overlapsWith(gFact(b).topics);  
+    }
+...
+ </pre></div>
+<p>There is no obvious concise word meaning "to concern one or more topics in common"; the word "abut" means (among other things) "to share a common boundary with", which seems close enough for the purpose, concisely conveying the idea that Facts that abut each other are in some sense neighbouring, related by virtue of having something in common.</p>
+
+<p>As we shall see below the <a href='#factagenda'>FactAgendaItem</a> employs the abutting relation to calculate a path from the current state of the conversation in progress to a goal (fact or topic) that the associated NPC wants to reach.</p>
+
+<p>As with the concerning relation, it makes no sense to attempt to use the <span class='code'>relate()</span> function to set or unset the abutting relation between facts, although you can, of course us the <span class='code'>related()</span> function to test for the existence of the abutting relation between facts, e.g.:
+
+<p><div class="code"><pre> 
+ related('rain-in-spain', abutting, 'madrid-capital') <span class="comment">// tests whether the 'rain-in-spain' fact abuts the 'madrid-capital' one.</span>
+ related('rain-in-spain', 'abuts', 'madrid-capital') <span class="comment">// tests whether the 'rain-in-spain' fact abuts the 'madrid-capital' one.</span> 
+ related('rain-in-spain', abutting) <span class="comment">//returns a list of all the facts that abut 'rain-in-spain'.</span>
+ related('rain-in-spain', 'abuts') <span class="comment">//returns a list of all the facts that abut 'rain-in-spain'.</span> 
+ </pre></div>
+
+
+<br>
+<a name='contradicting'> </a>
+<h2>The Contradicting Relation</h2>
+<p>The Contradicting Relation is a reciprocal relation between Facts that contradict each other. It is defined as:</p>
+
+<p><div class="code"><pre>
+contradicting: Relation 'contradicts'  @manyToMany +true       
+;
+ </pre></div>
+ 
+<p>The library has no way of knowing which facts contradict each other, so this is up to you, the game author, to define. Suppose our game has defined:</p>
+
+ <p><div class="code"><pre> 
+ Fact 'jumping-silly' [tJumping]
+    'jumping is silly'
+    [bob]
+;
+
+Fact 'jumping-healthy' [tJumping]
+    'jumping is good for your health'
+    [bob]
+;
+
+Fact 'madrid-capital' [tSpain, tMadrid]
+    'the capital city of Spain is Madrid'
+    [book]
+    
+    qualifiedDesc(source, topic)
+    {
+        if(topic == tMadrid)
+            return 'Madrid is the capital city of Spain';
+        else
+            return inherited(source, topic);
+            
+    }
+    
+    listOrder = 10
+; 
+
+Fact 'lisbon-capital' [tSpain, tLisbon]
+    'the capital city of Spain is Lisbon'
+;
+ </pre></div>
+
+<p>We might reasonably reckon that 'jumoing-silly' and 'jumping-healthy' contradict each other, and it's certainly the case that 'madrid-capital' and 'lisbon-capital' are mutually contradictory. We could establish this in our game by using the <span class='code'>relate()</a> function at game start up or preninit:</p>
+
+<p><div class="code"><pre> 
+ relate('jumping-silly', contradicting, 'jumping-healthy'); 
+ relate('madrid-capital', 'contradicts', 'lisbon-capital');  
+ </pre></div>
+
+<p>And since the relationahip is a reciprocal one, we don't need to set the relationships the other way round.</p>
+
+<p>Alternatively, we may find it more convenient (especially if we have a lot of contradicting relations to set up) to modify the contradicting relation in our game to list the contradictory facts on its <span class='code'>relTable</span> property:</p>
+
+<p><div class="code"><pre>  
+modify contradicting
+    relTab = [
+        'lisbon-capital' -> ['madrid-capital'],
+        'jumping-silly' -> ['jumping-healthy']
+    ]
+;
+ </pre></div></p>
+<p>Either way, we can then test for the existence of a contradiction between two Facts by ussing the <span class='code'>related()</span> function in this usual way, for example:</p>
+
+<p><div class="code"><pre> 
+ related('rain-in-spain', contradicting, 'madrid-capital') <span class="comment">// tests whether'rain-in-spain' contradicts 'madrid-capital'.</span>
+ related('lisbon-capital', 'contradicts', 'madrid-capital') <span class="comment">// tests whether'lisbon-capital' contradicts 'madrid-capital'.</span> 
+ related('jumping-silly', contradicting) <span class="comment">//returns a list of all the facts that contradict 'jumping-silly'.</span>
+ related('madrid-capital, 'contradicts') <span class="comment">//returns a list of all the facts that contradict 'madrid-capital'.</span> 
+ </pre></div>
+
+<p>The Fact Relations extensions can use this information to tell players when they have been presented with contradictory information in response to a THINK ABOUT or LOOK UP command. For example, suppose we had so arranged things that Bob expresses the view that jumping is healthy when asked about jumping but says that it's silly if he sees the player character doing it. We might then get something like:</p>
+ 
+<p><div class="cmdline"><pre> 
+<b>Lounge</b>
+The lounge is large and luxurious. The only way out is to the west.
+
+Bob is here.
+
+<b>&gt;ask bob about jumping</b>
+&ldquo;Hello, Bob,&rdquo; you say.
+
+&ldquo;Hello, you,&rdquo; he replies.
+
+&ldquo;Jumping is good for your health,&rdquo; Bob tells you.
+
+<b>&gt;think about jumping</b>
+You recall that Bob told you that jumping is good for your health.
+
+<b>&gt;jump</b>
+You jump on the spot, fruitlessly.
+
+<b>&ldquo;Jumping is silly,&rdquo; says Bob.</b>
+
+<b>&gt;think about jumping</b>
+You recall that:
+Bob told you that jumping is silly.
+Bob told you that jumping is good for your health.
+
+There would seem to be some contradiction here.
+ </pre></div></p>
+ 
+ <p>We deliberately refrain from pointing out where the contradiction occurs, even in a much longer listing of facts, since to do so would risk insulting the player's intelligence, quite apart from it being arguably up to players to spot where contradictions occur. The reasons for pointing out the existence of the contradiction are rather (1) to reassure players that it is deliberate and not simply a blunder on the part of the game author and (2) to avoid the sense of oddness that might result from a THINK ABOUT command resulting in a list of facts containing contradictions without reflecting the likelihood that the process of thinking would likely result in the contradiction being noticed.</p>
+ 
+ <p>Game code could also use the contradicting relation to allow NPCs to react in some way to being fed contradictory information.</p>
+ 
+<br>
+<a name='factagenda'></a>
+<h2>FactAgendaItem</h2>
+<p>A FactAgendaItem is a kind of is a kind of <a href='..\..\docs\manual\agenda.htm#convagenda'>ConvAgendaItem</a> that can be used to get an NPC to steer the conversation towards a desired goal, which can either be a topic of conversation or a particular fact. If we're content to use the default behaviour of FactAgendaItem, all we need to specify is its <span class='code'>target</span> property, to contain the goal (fact or topic) we're trying to reach, for example:</p>
+
+<p><div class="code"><pre> 
+ bob: Actor 'Bob;;;him' @lounge
+    actorAfterAction()
+    {
+        if(gActionIs(Jump))
+            initiateTopic('jumping-silly');
+    }
+;
+
++ bobAgenda: FactAgendaItem
+    target = 'mavis-proposal'    
+
+    endCondition = gRevealed(target)
+;
+ </pre></div>
+ 
+ <p>We may also want to add a DefaultAgendaItem so that Bob can nudge the conversation towards his desired goal whenever he's asked or told about a topic he hasn't got a relevant TopicEntry for:</p>
+ 
+ 
+<p><div class="code"><pre> 
+ + DefaultAgendaTopic
+    "<q>Hm,</q> says Bob. "
+;
+ </pre></div>
+ 
+<p>To ensure bobAgenda starts out active at the beginning of the game, we want to ensure that it's added both to Bob's agenda list and that of our DefaultAgendaTopic at game startup, perhaps by using gameMain's <span class='code'>showIntro()</span>  method:</p>
+ 
+ <p><div class="code"><pre> 
+gameMain: GameMainDef    
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        bob.addToAllAgendas(bobAgenda);
+        "You're in your own house. Your friend Bob is visiting and waiting for you in
+        the lounge, so you could go and chat to him, or you could explore a bit.<.p>";
+    }
+;
+ </pre></div>
+ 
+<p>Then on avery turn on which has the chance to seize the conversational initiative and there is a path available from the last mentioned fact or topic to the target fact or topic, the FactAgendaItem will call Bob's <span class='code'>initiateTopic(nextStep)</span> method, where <span class='code'>nextStep</span> is the next fact in the FactAgendaItem's <span class='code'>curPath</span> list, <span class='code'>curPath</span> being the list of facts leading from the starting position to the target via the abutting relation.</p>
+
+<p>This is best illustrated by continuing our example. Suppose Bob wants to ask the Player Character to be his best man at his wedding to Mavis, to whom he intends to propose on her return from a trip to Madrid. The first thing we need to do is define the relevant Facts, which may include:</p>
+
+
+ <p><div class="code"><pre> 
+Fact 'rain-in-spain' [tWeather, tSpain]    
+    'the rain in Spain stays mainly in the plain'    
+    [me, bob]    
+    
+    pcComment = '--- or so the song goes'
+    
+    priority = 110
+;
+
+Fact 'rain-tomorrow' [tWeather]
+    'it will rain tomorrow'    
+    [bob]
+    
+    qualifiedDesc(source, topic)
+    {
+        if(source == bob)
+            return 'it\'ll rain tomorrow';
+        else
+            return inherited(source, topic);            
+    }
+;
+
+Fact 'madrid-capital' [tSpain, tMadrid]
+    'the capital city of Spain is Madrid'
+    [book]
+    
+    qualifiedDesc(source, topic)
+    {
+        if(topic == tMadrid)
+            return 'Madrid is the capital city of Spain';
+        else
+            return inherited(source, topic);
+            
+    }
+    
+    listOrder = 10
+; 
+
+Fact 'mavis-in-madrid' [tMadrid, mavis]
+    'his girlfriend Mavis is in Madrid right now'
+    [bob]
+    qualifiedDesc(source, topic)
+    {
+        if(source== bob)
+            return 'my girlfriend Mavis is in Madrid right now';
+        else
+            return inherited(source, topic);
+            
+    }
+    
+    listOrder = 20
+;
+
+Fact 'mavis-proposal' [mavis, bob]
+    'he intends to propose to Mavis on her return'
+    [bob]
+    qualifiedDesc(source, topic)
+    {
+        if(source== bob)
+            return 'I\'m planning to propose to Mavis when she gets back';
+        else
+            return inherited(source, topic);
+            
+    }
+    
+    listOrder = 30
+;
+ </pre></div>
+
+<p>Then we need to define the associated InitiateTopics:</p>
+
+<p><div class="code"><pre> 
++InitiateTopic 'rain-in-spain'
+    &quot;&lt;q&gt;&lt;&lt;if defaultInvocation&gt;&gt;But since&lt;&lt;else&gt;&gt;While&lt;&lt;end&gt;&gt; we're talking about the weather, 
+    I can't help thinking of that song that goes, &lt;q&gt;&lt;&lt;revTag()&gt;&gt;&lt;/q&gt;,&lt;/q&gt; Bob remarks. &quot;
+;
+
++InitiateTopic 'madrid-capital'
+    &quot;&lt;q&gt;&lt;&lt;if defaultInvocation&gt;&gt;Hang on a mo! While we're on the subject
+    of Spain&lt;&lt;else&gt;&gt;As you know&lt;&lt;end&gt;&gt;, &lt;&lt;revTag()&gt;&gt;,&lt;/q&gt; says Bob. &quot;
+;
++ InitiateTopic 'mavis-in-madrid'
+    &quot;&lt;q&gt;As it so happens, &lt;&lt;revTag&gt;&gt;,&lt;/q&gt; Bob remarks. &quot;
+;
+
++ InitiateTopic 'mavis-proposal'
+    &quot;&lt;q&gt;The thing is, &lt;&lt;revTag&gt;&gt;,&lt;/q&gt; he tells you. &lt;.convnodet wedding&gt;&quot;
+;
+ </pre></div>
+<p>Together with some further TopicEntries to round out the conversation:</p>
+
+<p><div class="code"><pre> 
++ HelloTopic
+    &quot;&lt;q&gt;Hello, Bob,&lt;/q&gt; you say.\b
+    &lt;q&gt;Hello, you,&lt;/q&gt; he replies. &quot;
+;
+
++ ByeTopic
+    &quot;&lt;q&gt;Cheerio,&lt;/q&gt; you say.\b
+    &lt;q&gt;Bye,&lt;/q&gt; he replies. &quot;
+;
+
++ AskTellTalkTopic, StopEventList   
+    [
+        '&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ',
+        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '
+        
+    ]
+    rTag = 'rain-tomorrow'
+;
+
++ AskTellTalkTopic, StopEventList   
+    [
+        '&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ',
+        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '
+        
+    ]
+    rTag = 'rain-tomorrow'
+;
+
++ DefaultAnyTopic
+    "Bob frowns, as if he's eager to move the conversation on to something else. "
+;
+
++ ConvNode 'wedding'
+;
+
+++ SayTopic 'congratulations'
+    &quot;&lt;q&gt;Congratulations!&lt;/q&gt; you declare. &lt;q&gt;That's great!&lt;/q&gt;\b
+    &lt;q&gt;Thank you!&lt;/q&gt; Bob beams. &lt;q&gt;So will you be my best man?&lt;/q&gt; &lt;.convnodet best-man&gt;&quot;
+;
+
+++ QueryTopic 'when the wedding will be; (is)'
+    &quot;&lt;q&gt;That'a great!&lt;/q&gt; you declare. &lt;q&gt;When will the wedding be?&lt;/q&gt;\b
+    &lt;q&gt;I'm hpoing for August&lt;/q&gt; he tells you. &lt;q&gt;I hope you'll be free then,
+    because I'd like you to be my best man. Will you?&lt;/q&gt; &lt;.convnodet best-man&gt;&quot;
+;
+
+++ SayTopic 'wow'
+    &quot;&lt;q&gt;Wow! I wasn't especting that!&lt;/q&gt; you declare.\b
+    &lt;q&gt;Really?&lt;/q&gt; Bob replies. &lt;q&gt;I suppose we have been quite discreet. So thing thing is,
+    I was hoping, well, would you be my best man?&lt;/q&gt; &lt;.convnodet best-man&gt;&quot;
+;
+
+++ DefaultAnyTopic
+    &quot;That hardly seems appropriate right now. &lt;.convstayt&gt; &quot;
+    isConveraational = nil
+;
+
+++ NodeContinuationTopic
+    &quot;Bob starea at you, eagerly awaiting your response. &quot;
+;
+
++ ConvNode 'best-man';
+
+++ YesTopic
+    &quot;&lt;q&gt;Yes, of course!&lt;/q&gt;\b
+    Bob beams. &lt;q&gt;That's splendid! Thank you!&lt;/q&gt;&quot;
+;
+
+++ NoTopic
+    &quot;&lt;q&gt;No, certainly not!&lt;/q&gt;\b
+    Bob looks crestfallen. &lt;q&gt;Why ever not?&lt;/q&gt;&quot;
+;
+ </pre></div>
+<p>We'll take it as read that suitable Topic objects (such as tWeather and tMadrid) have been defined, along with a suitable mavis object (preferably defined to be <span class='code'>familiar)</span>. We might then get the following exchange:</p>
+
+
+<p><div class="cmdline"><pre> 
+<b>Lounge</b>
+The lounge is large and luxurious. The only way out is to the west.
+
+Bob is here.
+
+<b>&gt;ask bob about weather</b>
+&ldquo;Hello, Bob,&rdquo; you say.
+
+&ldquo;Hello, you,&rdquo; he replies.
+
+&ldquo;It&rsquo;ll rain tomorrow&rdquo; Bob warns you.
+
+<b>&gt;a tomorrow</b>
+&ldquo;But since we&rsquo;re talking about the weather, I can&rsquo;t help thinking of that song that goes, &lsquo;the rain in Spain stays mainly in the plain&rsquo;,&rdquo; Bob remarks.
+
+<b>&gt;a plain</b>
+&ldquo;Hang on a mo! While we&rsquo;re on the subject of Spain, the capital city of Spain is Madrid,&rdquo; says Bob.
+
+<b>&gt;a madrid</b>
+&ldquo;As it so happens, my girlfriend Mavis is in Madrid right now,&rdquo; Bob remarks.
+
+<b>&gt;a life</b>
+&ldquo;The thing is, I&rsquo;m planning to propose to Mavis when she gets back,&rdquo; he tells you.
+
+(You could say wow or say congratulations; or ask him when the wedding will be)
+
+<b>&gt;wow</b>
+&ldquo;Wow! I wasn&rsquo;t especting that!&rdquo; you declare.
+
+&ldquo;Really?&rdquo; Bob replies. &ldquo;I suppose we have been quite discreet. So thing thing is, I was hoping, well, would you be my best man?&rdquo;
+
+(You could say yes; or say no)
+
+<b>&gt;yes</b>
+&ldquo;Yes, of course!&rdquo;
+Bob beams. “That’s splendid! Thank you!”
+ </pre></div>
+
+<p>But without any further work on our part, the conversation could also have gone:</p>
+<p><div class="cmdline"><pre> 
+<b>&gt;talk to bob</b>
+&ldquo;Hello, Bob,&rdquo; you say.
+
+&ldquo;Hello, you,&rdquo; he replies.
+
+<b>&gt;a madrid</b>
+&ldquo;As it so happens, my girlfriend Mavis is in Madrid right now,&rdquo; Bob remarks.
+
+<b>&gt;a mavis</b>
+“The thing is, I’m planning to propose to Mavis when she gets back,” he tells you.
+
+(You could say wow or say congratulations; or ask him when the wedding will be)
+...
+ </pre></div>
+<p>There are various properties and methods of FactAgendaItem we can use to customize this behaviour; in roughly descending of usefulness (from the game authors' perspective) these are:</p>
+
+<ul>
+<li><b>invokeItem()</b> By default, this calls <span class='code'>getActor.initiateTopic(nextStep)</span>, but we could override it to handle the next step in any other way we liked.</li>
+<li><b>endCondition</b>: The condition that becomes true when we've reached our goal. By default this is when we've reached the last step in our path to our target, but we could override it to some other condition, such as <span class='code'>gRevealed(target)</span> or <span class='code'>gInformed(target)</span>.</li>
+<li><b>relations</b>: This specifies the relation, or a list of relations, between Facts to be used when calculating the shortest path from our starting position to our target. By default this is simply <span class='code'>abutting</span>, but if our game defined another relation, or other relations, we thought might do a better job for this purpose, we could override <span class='code'>relations</span> to use it/them instead of, or as well as, <span class='code'>abutting</span>.</li>
+<li><b>getStart()</b>: This is the method that works out the Fact to start from when calculating the path to our target. By default we use <span class='code'>gLastFact</span> or, failing that, a fact referred to by <span class='code'>gLastTopic</span>, but it is conceivable that your game might benefit from reckoning the starting fact in some other way.</li>
+
+</ul>
+
+<br>     
+
+
+  
+<p>This covers most of what you need to know to use this extension. For additional information see the source code and comments in the <a href="../relations.t">relations.t</a> file.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Fact Relations
+<br><span class="navnp"><a class="nav" href="eventlistitem.html"><i>Prev:</i> EventListItem</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="footnotes.htm"><i>Next:</i> Footnotes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
