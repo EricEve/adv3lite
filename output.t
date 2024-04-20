@@ -18,16 +18,37 @@
 say(val)
 {
     /* 
-     *   Use the dmsg() function to pass a string value through the message
-     *   substitution parameter filter, otherwise output the value directly.
+     *   Use the dmsg() function to pass a string value through the message substitution parameter
+     *   filter and the enumTabObj to translate an enum into its string equivalent, otherwise output
+     *   the value directly.
      */
-    if(dataType(val) == TypeSString)   
-    {       
-        dmsg(val);           
-    }    
-    else
+    switch(dataType(val))
+    {
+    case TypeSString:
+        dmsg(val);
+        break;
+    case TypeEnum:
+        local str = enumTabObj.enumTab[val];
+        if(str)
+        {
+            oSay(str);
+            break;
+        }
+        /* Otherwise deliberate fall-through */
+    default:
         oSay(val);
-
+    }
+           
+           
+    
+    
+//    if(dataType(val) == TypeSString)   
+//    {       
+//        dmsg(val);           
+//    }    
+//    else
+//        oSay(val);
+//
 }
 
 /* 

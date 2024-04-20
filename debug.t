@@ -214,6 +214,12 @@ DefineLiteralAction(Evaluate)
              */
             local res = Compiler.eval(stripQuotesFrom(cmd.dobj.name));
             
+            if(dataType(res) == TypeEnum)
+            {
+                local str = enumTabObj.enumTab[res];
+                if(str) res = str;
+            }
+            
             /* Display a string version of the result */
             say(toString(res));
         }
@@ -273,6 +279,7 @@ symTab: PreinitObject
     }
 ;
 
+
 /* Take a string and return the object whose programmatic name it refers to */
 symToVal(val)
 {    
@@ -292,10 +299,15 @@ valToSym(val)
     case TypeObject:
         str = symTab.ctab[val]; 
         if(str == '???' && val.propDefined(&name)) str = val.name;
-        /* Fallthrough deliberate */
+        return str;
+        
     case TypeEnum:
-    case TypeProp:        
-        return str;   
+        local enumStr = enumTabObj.enumTab[val];
+        if(enumStr) return enumStr;    
+        /* Fallthrough deliberate */
+    case TypeProp:  
+        return symTab.ctab[val]; 
+//        return str;   
     case TypeNil:
         return 'nil';
     case TypeTrue:

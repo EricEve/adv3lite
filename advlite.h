@@ -832,6 +832,11 @@ QueryTopic template
    'matchPattern'
    [firstEvents] [eventList];
 
+SayTopic template
+    +matchScore?
+    'tTag' 'extraVocab'
+    "topicResponse" | [eventList] ?;
+
 CommandTopic template +matchScore? 
     @matchObj | [matchObj]
     @matchDobj @matchIobj? "topicResponse" | [eventList]? ;
@@ -1271,10 +1276,10 @@ string template <<add * secs>> addTime;
  */
 
 /* has a topic key been revealed through <.reveal>? */
-#define gRevealed(key)  (libGlobal.revealedNameTab[key] != nil)
+#define gRevealed(key)  (libGlobal.getRevealed(key)) 
 
 /* reveal a topic key, as though through <.reveal> */
-#define gReveal(key) (libGlobal.setRevealed(key))
+#define gReveal(key, args...) (libGlobal.setRevealed(key, ## args))
 
 /* remove a topic key, as though through <.unreveal> */
 #define gUnreveal(key) (libGlobal.setUnrevealed(key))
@@ -1298,6 +1303,10 @@ string template <<add * secs>> addTime;
 
 /* the last fact mentioned in the course of the current conversation */
 #define gLastFact (libGlobal.lastFactMentioned)
+
+/* Associated knowledge enums */
+
+enum likely, dubious, unlikely, untrue;
 
 /* ------------------------------------------------------------------------- */
 /*

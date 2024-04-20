@@ -6080,8 +6080,64 @@ disambigPreParser: StringPreParser
     ];
 ;
 
+/* 
+ *   Define a LookupTable that translates the names of various enums into their string equivalents.
+ *   This is used by the say() function to display the names of these enums. This is defined in the
+ *   lnaguage-dependent part of the library to allow customization to other languages.
+ */
+enumTabObj: object
+    enumTab = 
+    [
+        dubious -> 'dubious',
+        likely -> 'likely',
+        unlikely -> 'unlikely',
+        untrue -> 'untrue',
+        small -> 'small',
+        medium -> 'medium',
+        large -> 'large',
+        notLockable -> 'notLockable',
+        lockableWithoutKey -> 'lockableWithoutKey',
+        lockableWithKey -> 'lockableWithKey',
+        indirectLockable -> 'indirectLockable',
+        masculine -> 'masculine',
+        feminine -> 'feminine',
+        neuter -> 'neuter',
+        OpenGoal -> 'OpenGoal',
+        ClosedGoal -> 'ClosedGoal',
+        UndiscoveredGoal -> 'UndiscoveredGoal',
+        null -> 'null',
+        oneToOne -> 'oneToOne',
+        oneToMany -> 'oneToMany',
+        manyToOne -> 'manyToOne',
+        manyToMany -> 'manyToMany',
+        normalRelation -> 'normalRelation',
+        reverseRelation -> 'reverseRelation'
+    ]
+    
+    reverseEnumTab =
+    [
+        'dubious' -> dubious,
+        'likely' -> likely,
+        'unlikely' -> unlikely,
+        'untrue' -> untrue
+    ]
+    
+    /* Convert enum to corresponding string value or vice versa. */
+    getEnum(arg)
+    {
+        switch(dataType(arg))
+        {
+        case TypeSString:
+            return reverseEnumTab[arg];
+        case TypeEnum:
+            return enumTab[arg];
+        default:
+            return nil;
+        }
+    }
+;
 
-
+enum normalRelation, reverseRelation;
 /* 
  *   Possibly a temporary measure to replace the apostrophe in possessives in
  *   certain words in the player's input with a carat in order to enable

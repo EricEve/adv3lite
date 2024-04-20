@@ -46,9 +46,18 @@ class Fact: object
     
     /* 
      *   The list of actors and other objects - typically Consultables - that start the game knowing
-     *   about us.
+     *   about us. If any actors in the list should start out dissenting from the defaultTruthValue
+     for this fact then this can be set by using two item list of the form [actor, value] in place
+     of just the actor, e.g. you could have [me, bob, susan, [thomas, dubious]]. 
      */
     initiallyKnownBy = []
+    
+    /* 
+     *   The truth value that most characters in this game are likely to assign to this fact. The
+     *   other possible values defined in the library are likely, dubious, unlikely and untrue. Game
+     *   authors are free to invent other values if they wish.
+     */
+    defaultTruthValue = true
     
     /* Obtain a list of everything that knows this fact */
     currentlyKnownBy()
@@ -72,11 +81,28 @@ class Fact: object
     initializeFact()
     {
         /* Run through all the actors (or other sources) in out initiallyKnownBy list. */
-        foreach(local actor in initiallyKnownBy)
+        foreach(local actor in initiallyKnownBy)           
         {
+            /* Set val to the default truth value for this Fact. */
+            local val = defaultTruthValue;
+            
+            /* 
+             *   If actor is given as an list, the first element should be the actor and the second
+             *   a value (such as likely or dubious) to associate with this fact on this actor)
+             */
+            if(dataType(actor) == TypeList)
+            {
+                /* Provided we have a second element, set val to it. */
+                if(actor.length() > 1)                    
+                    val = actor[2];                
+                
+                /* Set the actor to our first element. */
+                actor = actor[1];
+            }
+            
             /* Create an entry in the actor's informedNameTab and set its value to ourself. */
             actor.setInformed(name);
-            actor.informedNameTab[name] = self;
+            actor.informedNameTab[name] = val;
         }
         
         /* If we have a pcComment defined, add it to our pcCommentTab */

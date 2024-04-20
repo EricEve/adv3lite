@@ -5377,6 +5377,7 @@ conversationManager: OutputFilter, PreinitObject
             local tag;
             local nxtOfs;
             local obj;
+            local args;
             
             /* scan for the next tag */
             match = rexSearch(tagPat, txt, start);
@@ -5394,7 +5395,7 @@ conversationManager: OutputFilter, PreinitObject
                 arg = arg[3];
 
             /* pick out the tag */
-            tag = rexGroup(1)[3].toLower();
+            tag = rexGroup(1)[3].toLower(); 
 
                        
             /* check which tag we have */
@@ -5435,22 +5436,37 @@ conversationManager: OutputFilter, PreinitObject
             case 'reveal':
                 /* reveal the key by adding it to our database */
                 arg = stripFactTagMarker(arg);
-                setRevealed(arg);
+                args = arg.split('=');
+                if(args.length > 1)
+                {
+                    arg = enumTabObj.getEnum(args[2]) ?? args[2];
+                    
+                    setRevealed(args[1], arg);
+                }
+                else                
+                    setRevealed(arg);
                 break;
                 
                 /* unreveal the key by removing it from our database */
             case 'unreveal':
                 arg = stripFactTagMarker(arg);
+                args = arg.split('=');
                 setUnrevealed(arg);
                 break;
                 
             case 'inform':    
                 /* reveal the key by adding it to the actor's database */
                 arg = stripFactTagMarker(arg);
-                setInformed(arg);
+                if(args.length > 1)
+                {        
+                    arg = enumTabObj.getEnum(args[2]) ?? args[2];
+                    setInformed(args[1], arg);
+                }
+                else 
+                    setInformed(arg);
                 break;
-
-         
+                
+                
             case 'convnode':
             case 'convnodet':    
                 /* 
@@ -5781,10 +5797,10 @@ conversationManager: OutputFilter, PreinitObject
      *   here in order to make them available to games that don't include
      *   actor.t.
      */
-    setRevealed(tag)
+    setRevealed(tag, val?)
     {
         /* Note that our tag has been revealed */
-        libGlobal.setRevealed(tag);
+        libGlobal.setRevealed(tag, val);
         
         /* 
          *   If we're in a conversational context (so that we have a respondingActor) update the
@@ -5832,7 +5848,7 @@ conversationManager: OutputFilter, PreinitObject
      *   Notify every actor who's in a position to hear that we've just imparted
      *   some information.
      */
-    setInformed(tag)
+    setInformed(tag, val?)
     {
         /*
          *   Note that we only do this if our respondingActor wants to allow it
@@ -5845,7 +5861,7 @@ conversationManager: OutputFilter, PreinitObject
         {
             forEachInstance(Actor, new function(a) {
                 if(a != gPlayerChar && Q.canHear(a, gPlayerChar))
-                    a.setInformed(tag);
+                    a.setInformed(tag, val);
             } );
         }
         
@@ -5855,7 +5871,7 @@ conversationManager: OutputFilter, PreinitObject
          */
         else
         {
-            respondingActor.setInformed(tag);
+            respondingActor.setInformed(tag, val);
         }
         
         /* Update the last fact mentioned to the tag. */

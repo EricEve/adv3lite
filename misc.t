@@ -803,10 +803,17 @@ libGlobal: object
      *   conversationManager so that it's available to games that don't include actor.t.
      */
         
-    setRevealed(tag)
+    setRevealed(tag, arg?)
     {
-        /* Add the tag to our revealedNameTab */
-        revealedNameTab[tag] = true;
+        local val = revealedNameTab[tag];
+        
+        /* We don't want to overwrite an existing value by accident. */
+        if(val == nil)            
+            /* Add the tag to our revealedNameTab */
+            revealedNameTab[tag] = (arg == nil ? true : arg);
+        
+        else if(tag != nil)
+            revealedNameTab[tag] =  arg;
         
         /* If we're in a conversation, update the last fact mentioned. */
         if(gPlayerChar.currentInterlocutor)
@@ -817,7 +824,33 @@ libGlobal: object
          *   update PC and NPC knowledge.
          */
         if(informOnReveal)
-            gPlayerChar.setInformed(tag);
+            gPlayerChar.setInformed(tag, arg);
+    }
+    
+    /* 
+     *   Do we want the getRevealed(tag) method to return only true or nil, or do we want it to
+     *   return the value associated with tag in the revealedNameTab. By default we opt for the
+     *   latter, but we provide the other option in case it's needed for backward compatibility.
+     */
+    revealedTrueOrFalseOnly = nil
+    
+    /* 
+     *   The same option is provided for getInformed(); by default we use the same value as for
+     *   revealedTrueOrFalseOnly
+     */
+    informedTrueOrFalseOnly = revealedTrueOrFalseOnly 
+    
+    /* Get the value associated with tag. */
+    getRevealed(tag) 
+    {
+        /* Obtained the value associated with tag in the revealedNameTab */
+        local val = revealedNameTab[tag];
+        
+        /* 
+         *   Return eiher whether val is not nil, or val itself, according to the value of
+         *   revealedTrueOrFalseOnly.
+         */
+        return revealedTrueOrFalseOnly ? (val != nil) : val;
     }
 
     /*
@@ -2510,6 +2543,22 @@ modify PreinitObject
      *   global object, function, etc) 
      */
     reverseGlobalSymbols = nil
+;
+
+emumTabInitializer: PreinitObject
+    execute()
+    {
+        local gTab = t3GetGlobalSymbols();
+            
+        local lst=gTab.keysToList();
+        
+        foreach(local key in lst)
+        {
+            local value = gTab[key];
+            if(dataType(value) == TypeEnum && enumTabObj.enumTab[value] == nil)
+                enumTabObj.enumTab[value] = key;
+        }
+    }   
 ;
 
 /* 

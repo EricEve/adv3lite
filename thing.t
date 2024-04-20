@@ -3734,21 +3734,27 @@ class Thing:  ReplaceRedirector, Mentionable
      *   informedNameTab. Tag is an arbitrary single-quoted string value used to
      *   represent the information in question.
      */    
-    setInformed(tag)
+    setInformed(tag, val?)
     {
         if(informedNameTab == nil)
             informedNameTab = new LookupTable(32, 32);
         
-        informedNameTab[tag] = true;
+        if(val == nil && informedNameTab[tag] == nil)        
+            informedNameTab[tag] = true;
+        else
+            informedNameTab[tag] = val ?? true;
     }
     
     /* 
-     *   Determine whether this Thing has been informed about tag. We return
-     *   true if there is a corresponding non-nil entry in our informedNameTab
+     *   Determine whether this Thing has been informed about tag. We return true if there is a
+     *   corresponding non-nil entry in our informedNameTab, or else the value of the corresponding
+     *   entry if ibGlobal.informedTrueOrFalseOnly is nil (the default).
      */
     informedAbout(tag) 
     {        
-        return informedNameTab == nil ? nil : informedNameTab[tag] != nil;     
+        return informedNameTab == nil ? nil 
+            : (libGlobal.informedTrueOrFalseOnly ? (informedNameTab[tag] != nil)
+               : informedNameTab[tag]);     
     }
     
     /* 
