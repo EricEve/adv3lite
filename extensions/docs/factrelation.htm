@@ -33,6 +33,7 @@ Fact Relations
 <li><a href='#concerning'><b>concerning</b></a>: relation between Facts and the topic they concern.</li>
 <li><a href='#abutting'><b>abutting</b></a>: reciprocal relation between Facts that share at least one topic in common.</li>
 <li><a href='#contradicting'><b>contradicting</b></a>: reciprocal relation between Facts that contradict each other.</li>
+<li><a href='#believing'><b>Believing Relations</b></a>: a set of relations between Actors (and or Consultables) and the facts they know about, according to their belief or otherwise in those facts.</li>
 <li><a href='#factagenda'><b>FactAgendaItem</b></a>: is a kind of ConvAgendaItem that can be used to get an NPC to steer the conversation towards a desired goal.</li>
 </ul>
 <br>
@@ -204,9 +205,104 @@ There would seem to be some contradiction here.
  
  <p>We deliberately refrain from pointing out where the contradiction occurs, even in a much longer listing of facts, since to do so would risk insulting the player's intelligence, quite apart from it being arguably up to players to spot where contradictions occur. The reasons for pointing out the existence of the contradiction are rather (1) to reassure players that it is deliberate and not simply a blunder on the part of the game author and (2) to avoid the sense of oddness that might result from a THINK ABOUT command resulting in a list of facts containing contradictions without reflecting the likelihood that the process of thinking would likely result in the contradiction being noticed.</p>
  
- <p>Game code could also use the contradicting relation to allow NPCs to react in some way to being fed contradictory information.</p>
+ <p>Game code can also use the contradicting relation to allow NPCs to react in some way to being fed contradictory information. With the Fact Relations extension included in the game, the <span class='code'>setInformed(<i>fact</i>)</span> method (called when an actor is informed of something) checks <whether <i>fact</i> represents a fact that contradicts something the actor already knows. If so the new actor method <b>notifyContradiction(fact, factList)</b> is called on the actor, where <i>fact</i> is new fact (string-tag) the actor has just been informed about and <i>factList</i> is the list of facts the actor already knows about that <i>fact</i> contradicts. This method does nothing by default, but game code can override it to do whatever you like, for example (assuming we have defined the relevant facts and contradicing relations as before):</p>
  
+ <p><div class="code"><pre> 
+ bob: Actor 'Bob;;;him' @lounge
+ 
+    notifyContradiction(fact, factList)
+    {
+        new Fuse(self, &amp;rubbish, 0);
+        
+        rubbishMsg = gFactDesc(factList[1]);
+    }
+    
+    rubbish() { &quot;&lt;q&gt;Rubbish!&lt;/q&gt; cries Bob. &lt;q&gt;Everyone knows that &lt;&lt;rubbishMsg&gt;&gt;.&lt;/q&gt;&lt;.p&gt;&quot;; }
+    
+    rubbishMsg = nil
+ ; 
+ 
+ + TellTopic @tLisbon
+    &quot;&lt;q&gt;As everyone knows, &lt;&lt;infTag&gt;&gt;,&lt;/q&gt; you say. &quot;
+    
+    tTag = 'lisbon-capital'
+    name = 'Lisbon'
+;
+ </pre></div>.</p>
+ 
+ <p>This could then lead to the following exchange:</p>
+
+ <p><div class="cmdline"><pre> 
+<b>Lounge</b>
+The lounge is large and luxurious. The only way out is to the west.
+
+Bob is here.
+
+<b>&gt;tell bob about lisbon</b>
+“As everyone knows, the capital city of Spain is Lisbon,” you say.
+
+“Rubbish!” cries Bob. “Everyone knows that the capital city of Spain is Madrid.”
+ </pre></div></p>
+ 
+ <p>Note how in this example we use a Fuse to delay displaying Bob's reaction to the end of the turn. If we had simply displayed Bob's rubbish method directly from our <span class='code'>notifyContradiction()</span> method it would have appeared in the middle of what the Player Character was saying.</p>
+ 
+ <p>We could do something rather more sophisticated that this if we wished, including, but not limited, having the <span class='code'>notifyContradiction()</span> method call an equivalent method on bob's current ActorState, or some other object of our own devising to avoid the need to define too much complex code on bob.</p>
+ 
+ <p>One further thing the extension does automatically is to rate the incoming contradictory fact as <span class='code'>untrue</span>, <span class='code'>unlikely</span>, or <span class='code'>dubious</span> according to the following rules:</p>
+ <ol>
+ <li>If the incoming fact contradicts a fact that the actor currently takes to be <span class='code'>true</span>, then the incoming fact is rated <span class='code'>untrue</span>.</li>
+ <li>Otherwise, if the incoming fact contradicts a fact that the actor currently takes to be <span class='code'>likely</span>, then the incoming fact is rated <span class='code'>unlikely</span>.</li>
+ <li>Otherwise, the incoming fact is rated <span class='code'>dubious</span>.</li>
+ </ol>
+ 
+ <p>Your <span class='code'>notifyContradiction()</span> method is, of course, free to override these ratings as you see fit. Note, however, that the  incoming fact contradicting an already known fact already considered to be <span class='code'>untrue</span>, <span class='code'>unlikely</span> or <span class='code'>dubious</span> does not of itself tell us anything about the likely truth value of the incoming fact, which is why the extension defaults to it being <span class='code'>dubious</span> in such cases. (Formally, A contradicts B means !(A &amp;&amp; B) which is equivalent to !A || !B; so if A the incoming fact contradicts a fact B that's known to be untrue, !B will be true, so !A || !B will be true regardless of the truth value of A, for example if B is 'The moon is a cube made entirely of blue stilton' it would be contradicted by 'The moon is a torus made entirely of ice cream' without either statement being true).</p>
+ 
+ <p>Finally, note that <span class='code'>notifyContradiction()</span> should also work on the Player Character.</p>
 <br>
+<a name='believing'></a>
+<h2>Believing Relations</h2>
+<p>The Fact Relations extension defines a set of six relations that can test (and in some cases set) whether an actor (or Consultable) regards a fact they know about as <span class='code'>true</span>, <span class='code'>likely</span>, <span class='code'>dubious</span>, <span class='code'>unlikely</span>, or <span class='code'>untrue</span>. The first five are quite straightforward:</p>
+
+
+<p><div class="code"><pre> 
+believing:BeliefRelation 'believes' 'believed by' @manyToMany
+   status = true   
+;
+
+consideringLikely: BeliefRelation 'considers likely' 'considered likely by' @manyToMany
+    status = likely
+;
+
+doubting: BeliefRelation  'doubts' 'doubted by' @manyToMany
+    status = dubious
+;
+
+consideringUnlikely: BeliefRelation 'considers unlikely' 'considered unlikely by' @manyToMany
+    status =  unlikely
+;
+	
+disbelieving:BeliefRelation 'disbelieves' 'disbelieved by' @manyToMany
+    status = untrue    
+;
+ </pre></div>
+ 
+ <p>These enable you to query what various actor (including the player character) believe, doubt, disbelieve, etc. with function calls such as <span class='code'>related(bob, disbelieving, 'lisbon-capital')</span>, <span class='code'>related('lisbon-capital', 'believed by', me)</span> and <span class='code'>related(bob, 'considers likely')</span>. You can also set any of these relations using, for example, <span class='code'>relate(bob, 'doubts', 'rain-in-spain)</span> or <span class='code'>relate(me, 'considers likely', 'rain-tomorrow')</span>. You cannot, however, use <span class='code'>unrelate()</span> with any of these relations, since it would make no sense; you instead need to use <span class='code'>relate()</span> with a different relation; if Bob no longer doubts 'rain-in-spain' does he believe it, think it likely, think it unlikely, or consider it untrue? If you really want Bob to forget all about hearing that the rain in Spain stays mainly in the plain, you'd need to use the statement <span class='code'>bob.forget('rain-in-Spain'};</span>.
+ 
+ <p>Finally, there is relation to cover all three degrees of uncertainty, <span class='code'>likely</span>, <span class='code'>dubious</span>, <span class='code'>unlikely</span>:</p>
+ 
+ <p><div class="code"><pre> 
+wondering: BeliefRelation 'wonders if' 'wondered about' @manyToMany
+    isRelated(a, b)
+    {
+        return a.informedNameTab &amp;&amp; a.informedNameTab[b] is in (likely, dubious, unlikely);
+    }
+	...
+;
+ </pre></div>
+ <p>This can be used in just the same way as the other five, except that you cannot use the <span class='code'>relate()</span> function with it (for obvious reasons: what value would we be trying to set?).</p>
+ 
+ <p>Note that none of these six relations requires the corresponding Fact objects to be defined, since all that is being tested (or set) is the presence and corresponding values of fact-tag keys in informedNameTab LookupTables.</p>
+
 <a name='factagenda'></a>
 <h2>FactAgendaItem</h2>
 <p>A FactAgendaItem is a kind of is a kind of <a href='..\..\docs\manual\agenda.htm#convagenda'>ConvAgendaItem</a> that can be used to get an NPC to steer the conversation towards a desired goal, which can either be a topic of conversation or a particular fact. If we're content to use the default behaviour of FactAgendaItem, all we need to specify is its <span class='code'>target</span> property, to contain the goal (fact or topic) we're trying to reach, for example:</p>

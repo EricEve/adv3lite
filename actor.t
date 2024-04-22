@@ -5450,13 +5450,14 @@ conversationManager: OutputFilter, PreinitObject
                 /* unreveal the key by removing it from our database */
             case 'unreveal':
                 arg = stripFactTagMarker(arg);
-                args = arg.split('=');
+               
                 setUnrevealed(arg);
                 break;
                 
             case 'inform':    
                 /* reveal the key by adding it to the actor's database */
                 arg = stripFactTagMarker(arg);
+                args = arg.split('=');
                 if(args.length > 1)
                 {        
                     arg = enumTabObj.getEnum(args[2]) ?? args[2];
@@ -5692,12 +5693,26 @@ conversationManager: OutputFilter, PreinitObject
                  */
                 
                 if(!isValidIdentifierName(arg))
+                {    
                     /* 
                      *   If we've started arg with the factTagMarker character to force it to be a
                      *   non-valid identifier name, remove the factTagMarker to get at the the
                      *   actual tag name, otherwise simple use arg as the tag name.
                      */
-                    obj = stripFactTagMarker(arg);                
+                    arg = stripFactTagMarker(arg);   
+                    
+                    args = arg.split('=');
+                    
+                    obj = (actor == gPlayerChar) ? gPlayerChar : self;
+                    if(args.length > 1)
+                    {        
+                        arg = enumTabObj.getEnum(args[2]) ?? args[2];
+                        obj.setInformed(args[1], arg);
+                    }
+                    else 
+                        obj.setInformed(arg);
+                }
+                
                 else
                 {
                     /* 
@@ -5717,12 +5732,13 @@ conversationManager: OutputFilter, PreinitObject
                         /* Set obj to nil so we know not to use it. */
                         obj = nil;
                         
-                    }                       
+                    }    
+                    /* If obj is not nil, make our player character know about it. */
+                    if(obj != nil && actor != nil)
+                        actor.setKnowsAbout(obj);
                 }
                 
-                /* If obj is not nil, make our player character know about it. */
-                if(obj != nil && actor != nil)
-                   actor.setKnowsAbout(obj);
+                
                 break;
                 
             default:

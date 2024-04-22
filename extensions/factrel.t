@@ -4,7 +4,7 @@
 /* 
  *   FACT RELATIONS EXTENSION by Eric Eve
  *
- *   Version 1.0 18th April 2024
+ *   Version 1.1 22nd April 2024
  *
  *   The factrel.t extension defines and uses relations involviing Facts. It must be included after
  *   tha main library and the relations.t extension.
@@ -53,9 +53,7 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
     isInverselyRelated(a, b)
     {
         return gFact(b).topics.find(a);
-    }
-    
-    
+    }    
 ;
 
 /* A Fact abuts another Fact if the two Facts share (concern) at least one topic in common. */
@@ -109,6 +107,121 @@ abutting: DerivedRelation 'abuts' @manyToMany
  */
 contradicting: Relation 'contradicts'  @manyToMany +true       
 ;
+
+
+/* 
+ *   BeliefRelation is the base class for a group of six relations that test whether Actors (and/or
+ *   Consultables) assess the facts they know about in particular ways.
+ */
+BeliefRelation: DerivedRelation
+    /* 
+     *   Actor a is related to fact b if b is present as a key in a's informedNameTab with a value
+     *   of status (true, likely, dubious, unlikely, or untruy). The a parameter is the Thing (Actor
+     *   or Consultable) that potentially knows of the fact in question and b is the fact string-tag
+     *   representing the fact.
+     */
+    isRelated(a, b)
+    {
+        return a.informedNameTab && a.informedNameTab[b] == status;
+    }
+    
+    /* a is inversely  related to b if b is related to a. */
+    isInverselyRelated(a, b)
+    {
+        return isRelated(b, a);
+    }
+    
+    /* 
+     *   We can make this relation hold between obj{1] and obj{2] if we set obj{2} to status on
+     *   obj{1].
+     */
+    addRelation(objs)
+    {
+        objs[1].setInformed(objs[2], status);
+    }
+    
+    /* 
+     *   Obtain the list of fact tags related  to a, which is the subset of keys in a's
+     *   informedNameTab for which a is related to be.
+     */
+    relatedTo(a) 
+    {         
+        return a.informedNameTab.keysToList().subset({b: isRelated(a, b)});
+    }
+    
+    /* Obtain the list of Things that are inversely related to fact tag a */
+    inverselyRelatedTo(a)
+    {
+        /* Set up a new vector for working storage of the list we're building. */
+        local vec = new Vector();
+        
+        /* Interate through every Thing in the game. */
+        for(obj = firstObj(Thing); obj != nil; obj = nextObj(obj, Thing))
+        {
+            /* If obj (the current Thing) is related to a, add it to our Vector. */
+            if(isRelated(obj, a))
+                vec.append(obj);
+        }
+        
+        /* Convert our vector to a list and return the result. */
+        return vec.toList();
+    }
+    
+    /* 
+     *   The belief status (true, likely, dubious, unlikely, or untrue) that we want this relation
+     *   to test for.
+     */
+    status = nil
+;
+
+
+/* Tests relation between Actors/Consultables and the facts they believe to be true. */
+believing:BeliefRelation 'believes' 'believed by' @manyToMany
+   status = true   
+;
+
+/* Tests relation between Actors/Consultables and the facts they believe to be untrue. */
+disbelieving:BeliefRelation 'disbelieves' 'disbelieved by' @manyToMany
+    status = untrue    
+;
+
+/* Tests relation between Actors/Consultables and the facts they believe to be likely. */
+consideringLikely: BeliefRelation 'considers likely' 'considered likely by' @manyToMany
+    status = likely
+;
+
+/* Tests relation between Actors/Consultables and the facts they believe to be dubious. */
+doubting: BeliefRelation  'doubts' 'doubted by' @manyToMany
+    status = dubious
+;
+
+/* Tests relation between Actors/Consultables and the facts they believe to be unlikely. */
+consideringUnlikely: BeliefRelation 'considers unlikely' 'considered unlikely by' @manyToMany
+    status =  unlikely
+;
+
+/* 
+ *   Tests relation between Actors/Consultables and the facts they believe to be uncertain, i.e.,
+ *   likely, dubious or unlikely.
+ */ 
+wondering: BeliefRelation 'wonders if' 'wondered about' @manyToMany
+    /* 
+     *   Actor or Consultable is related to fact b through this relation if the value corresponding
+     *   to key b on a's informedNameTab is either likely, dubious, or unlikely.
+     */
+    isRelated(a, b)
+    {
+        return a.informedNameTab && a.informedNameTab[b] is in (likely, dubious, unlikely);
+    }
+    
+    addRelation(objs)
+    {
+        inherited DerivedRelation(objs);
+    }  
+;
+
+
+
 
 /* 
  *   A FactAgendaItem is a specialization of a ConvAgendaItem that seeks a path from the current
@@ -251,7 +364,32 @@ class FactAgendaItem: ConvAgendaItem
      *   The next step along our current path. If we have a path of at least two elemeents, the next
      *   step is the second element, otherwise we don't have a next step.
      */
-    nextStep = ((curPath && curPath.length > 1) ? curPath[2] : nil)
+//    nextStep = ((curPath && curPath.length > 1) ? curPath[2] : nil)
+    
+    /* 
+     *   If we have been called by a DefaultAgendaTopic, it will be neater if what we display is
+     *   related to the topic the DefaultAgendaTopic just matched, so we attempt to find a nextStep
+     *   that meets this condition.
+     */
+    nextStep()
+    {
+        /* We need only try to do this if we've just been called by a DefaultAgendaTopic */
+        if(calledBy && calledBy.ofKind(DefaultAgendaTopic))
+        {
+            /* 
+             *   Try to find the latest step (fact name) in our current path that relates to the
+             *   topic just matched by our caller.
+             */
+            local step = curPath.lastValWhich({x: gFact(x).topics.indexOf(calledBy.topicMatched)});
+            
+            /*  If we found one, return it. */
+            if(step)
+                return step;
+        }
+        
+        /* Otherwise, return the next step along our path. */
+        return ((curPath && curPath.length > 1) ? curPath[2] : nil);
+    }
     
     /* 
      *   Are we ready to execute? By default we are if our inherited conditions are matched and
@@ -274,6 +412,18 @@ class FactAgendaItem: ConvAgendaItem
         /* We're ready is we meet the inherited conditions and we have an available next step. */
         return inherited() && nextStep != nil;
        
+    }
+    
+    /* The object that called us */
+    calledBy = nil
+    
+    invokeItemBase(caller)
+    {
+        /* Store a reference to our called */
+        calledBy = caller;
+        
+        /* Carry out the inherited handling. */
+        inherited(caller);
     }
     
     /* 
@@ -503,5 +653,91 @@ modify Actor
         
         /* Then carry out the inherited handling and return the result. */ 
         return inherited(prop, topic, defaultProp);
+    }
+;
+
+modify Thing
+    setInformed(tag, val?)
+    {
+        /* Carry out the inherited handling */
+        inherited(tag, val);
+        
+        /* 
+         *   Then check for contradictions betwen the new piece of information (tag) and information
+         *   we already know about.
+         */
+        checkForContradictions(tag, val);
+    }
+    
+    /* 
+     *   Check for contradictions betwen the new piece of information (tag) and information we
+     *   already know about.
+     */
+    checkForContradictions(tag, val)
+    {
+        /* Get the fact corresponding to tag. */
+        local fact = gFact(tag);
+        
+        /* If we don't find a fact or our informedTab is empty, there's nothing left to do. */
+        if(fact == nil || informedNameTab == nil)
+            return;
+        
+        /* Obtain a list of all the facts we've been informed of. */
+        local factList = informedNameTab.keysToList().subset({x: informedNameTab[x] != nil});
+        
+        /* 
+         *   Reduce this to the list of facts that contradict tag (the new fact name we've just been
+         *   informed of.
+         */
+        factList = factList.subset({x: related(tag, contradicting, x) });
+        
+        /* If we found any, mark tag as dubious and call our notifyContrediction method. */
+        if(factList.length > 0 && val == nil)
+        {
+            /* Mark this item of information as dubious */
+//            informedNameTab[tag] = dubious;   
+            
+            markContradiction(tag, factList);
+            
+            /* Call our notifyContradiction method. */
+            notifyContradiction(tag, factList);
+        }
+    }
+    /* 
+     *   Mark the incoming 'fact' denoted by tag as either untrue, unlikely, or dubious, depending
+     *   on what it contradicts .
+     */
+    markContradiction(tag, factList)
+    {
+        /* 
+         *   If tag contradicts a fact we believe to be true, we presumably believe tag to be untrue
+         */
+        if(factList.indexWhich({x: informedNameTab[x] == true}))
+            informedNameTab[tag] = untrue;
+        else
+        {
+            /* 
+             *   Otherwise if tag contradicts a fact we believe to be likely, we presumably believe
+             *   tag to be unlikely.
+             */
+            if(factList.indexWhich({x: informedNameTab[x] == likely}))
+                informedNameTab[tag] = unlikely;
+            else
+                /* 
+                 *   Otherwise we consiser tag to be dubious (that tag contradcts a fact we regard
+                 *   as either dubious, unlikely or untrue says little about how we regard tag - two
+                 *   muutally contradictory facts could easily both be untrue, unlikely, or dubious.
+                 */
+                informedNameTab[tag] = dubious;
+        }
+    }
+    
+    /* 
+     *   Receive a notification that we've just been informed of a Fact that contradicts another
+     *   fact we already know or have been informed of. We don't do anything here by default; it's
+     *   up to game code to impelement any response required.
+     */
+    notifyContradiction(fact, factList)
+    {
     }
 ;

@@ -3653,7 +3653,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
         
     /*  Mark this Thing as knowing about obj. */
-    setKnowsAbout(obj) 
+    setKnowsAbout(obj, val?) 
     { 
         switch(dataType(obj))
         {
@@ -3661,7 +3661,7 @@ class Thing:  ReplaceRedirector, Mentionable
             obj.(knownProp) = true; 
             break;
         case TypeSString:
-            setInformed(obj);
+            setInformed(obj, val);
             break;
         default:
             ;
@@ -3744,6 +3744,14 @@ class Thing:  ReplaceRedirector, Mentionable
         else
             informedNameTab[tag] = val ?? true;
     }
+    
+    /* Make this Actor or Consultable forget about tag altogether. */
+    forget(tag)
+    {
+        if(informedNameTab)
+            informedNameTab.removeElement(tag);
+    }
+    
     
     /* 
      *   Determine whether this Thing has been informed about tag. We return true if there is a

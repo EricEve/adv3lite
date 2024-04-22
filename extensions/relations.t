@@ -156,7 +156,7 @@ class Relation: PreinitObject
         
         /* 
          *   The obs parameter should have been supplied as a two element list,
-         *   [a, b]. When we add this to our relTab LookupTable the virst item
+         *   [a, b]. When we add this to our relTab LookupTable the first item
          *   in the list will be a key in the table and the second will be a
          *   value.
          */
@@ -500,7 +500,7 @@ DerivedRelation: Relation
     removeRelation(objs)
     {
         DMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
-            remove a derived relation (%) between items. ', name);
+            remove a derived relation (%1) between items. ', name);
     }
     
     /* 
