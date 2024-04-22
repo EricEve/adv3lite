@@ -36,7 +36,7 @@ class Fact: object
      *   rather than 'the capital of Spain is Madrid' depending on whether the topic is Madrid or
      *   Spain.
      */
-    qualifiedDesc(source, topic)
+    qualifiedDesc(source, topic, narrator?)
     {
         return desc;
     }
@@ -351,13 +351,15 @@ factManager: PreinitObject
      *   source of the information, tag is the fact's name (name property, not programmatic name)
      *   and topic is the topic that has just been matched by a TopicEntry.
      */
-    getQualifiedFactDesc(actor, tag, topic?)
+    getQualifiedFactDesc(actor, tag, topic?, narrator?)
     {
         /* Retrieve the Fact corresponding to tag. */
-        local fact = getFact(tag);
+        local fact = getFact(tag); 
         
-        /* If we've found a fact, return its qualified description, otherwise return nil */
-        return fact == nil ? nil : fact.qualifiedDesc(actor, topic);
+        /* If we've found a fact, return its qualified description, otherwise return nil */        
+        return fact == nil ? nil : (narrator? fact.qualifiedDesc(actor, topic, narrator)
+                                    : fact.qualifiedDesc(actor, topic));
+        ;
     } 
     
     /* 
@@ -880,8 +882,14 @@ modify TopicEntry
          *   Return a description of the Fact that can be used in this TopicEntry's showResponse()
          *   method or eventList property.
          */
-        return factManager.getQualifiedFactDesc(gActor, tag, topicMatched);
+        return qualifiedDesc(actor, tag, topicMatched);
     }
+    
+    qualifiedDesc(actor, tag, topicMatched)    
+    {
+        return factManager.getQualifiedFactDesc(actor, tag, topicMatched);
+    }
+
     
     /* 
      *   Simply display the descrption of the Fact corresponding to tag without changing the game
@@ -944,7 +952,63 @@ modify ActorTopicEntry
     
     infTag() { return informFact(tTag); } 
     
+    qualifiedDesc(actor, tag, topicMatched)    
+    {
+        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, speaker);
+    }
+    
 ;
+
+/* Modificstions to SayTopic to work with Facts. */
+modify SayTopic
+    /* 
+     *   The modification allows the user to specify a tTag and extraVocab instead of a
+     *   matchPattern.
+     */
+    
+    matchPattern()
+    {
+        /* 
+         *   If we have tTag defined, use it to construct what our matchPattern would otherwise have
+         *   been.
+         */
+        if(tTag)
+        {
+            /* Get the fact corresponding to our tTag */
+            local fact = gFact(tTag);
+            
+            /* 
+             *   If we've found one, set our matchPattern to its name and append a semicolon
+             *   followed by our extraVocab.
+             */
+            if(fact)
+            {
+               matchPattern = fact.desc + ';' + extraVocab;  
+                
+            }
+            /* 
+             *   Otherwise all we can do is to append a semicolon and the extra vocab to our
+             *   non-fact-matching tTag.
+             */
+            else matchPattern = tTag + ';' + extraVocab;  
+        }
+        
+        /* Return our new matchPattern. */
+        return matchPattern; 
+    }
+    
+    /* 
+     *   The matchPattern of a SayTopic normally contains what will be the vocab string of the Topic
+     *   created for the SayTopic to match on. The fact name only provides the name part of this, so
+     *   we make provision for supplying additional vocab after the name part. For example if the
+     *   fact you want to impart ihas the desc 'you love her', you might want to set extraVocab to
+     *   'i' to produce the vocab 'you love her; i' so that it will match 'I love you' as well as
+     *   'you love her'.
+     */    
+    extraVocab = nil
+    
+;
+
 
 modify InitiateTopic
     /* Modification to allow InitiateTopic to match a Fact name. */

@@ -807,6 +807,9 @@ libGlobal: object
     {
         local val = revealedNameTab[tag];
         
+        if(defined(BelVal) && arg && objOfKind(val, BelVal))
+            arg = arg.status;
+        
         /* We don't want to overwrite an existing value by accident. */
         if(val == nil)            
             /* Add the tag to our revealedNameTab */

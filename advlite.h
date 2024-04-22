@@ -1307,6 +1307,11 @@ string template <<add * secs>> addTime;
 /* Associated knowledge enums */
 
 enum likely, dubious, unlikely, untrue;
+enum speaker;
+
+/* Macros to deal with knowledge enums and their associated objects */
+
+#define BV(x) (BelVal.bvTab[x])
 
 /* ------------------------------------------------------------------------- */
 /*

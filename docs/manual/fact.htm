@@ -46,7 +46,7 @@ Facts
 <ul>
 <li><b>name</b>: A single-quoted string containing the name of this Fact, which must correspond with the <i>name</i> in any <span class='code'>&lt;.reveal <i>name</i>&gt;</span> or <span class='code'>&lt;.inform <i>name</i>&gt;</span> tag and the like that references this fact.</li>
 <li><b>desc</b>: A description of what this Fact asserts, as a single-quoted string that could follow the word 'that', without any closing punctuation, e.g. 'it will rain tomorrow' or 'the capital of Spain is Madrid' or 'King Richard III was killed at the Battle of Bosworth in 1485'.<//li>
-<li><b>qualifiedDesc(source, topic)</b>: an alternative description of what this Fact asserts when it is asserted by <i>source</i> and/or in relation to <i>topic</i>, although this alternative description must say essentially the same thing as <span class='code'>desc</span> (which is returned by default). For example, if the topic were 'Madrid' rather than 'Spain', qualifiedDesc might return 'Spain is the capital of Madrid' rather than 'the capital of Madrid is Spain'.</li>
+<li><b>qualifiedDesc(source, topic, narrator?)</b>: an alternative description of what this Fact asserts when it is asserted by <i>source</i> and/or in relation to <i>topic</i>, although this alternative description must say essentially the same thing as <span class='code'>desc</span> (which is returned by default). For example, if the topic were 'Madrid' rather than 'Spain', qualifiedDesc might return 'Spain is the capital of Madrid' rather than 'the capital of Madrid is Spain'. The optional <i>narrator</i> parameter can have the special value <b>speaker</b> to denote that it's being spoken by the source, and thus should be phrased in the first person rather than the second that might occur if it was to be listed in response to a THINK ABOUT command.</li>
 <li><b>topics</b>: The list of topics (Topics and Things, i.e. game objects) that this Fact relates to. One use of this is to cause this Fact to be listed in response to THINK ABOUT <i>topic</i> or LOOK UP <i>topic</i> IN <i>whatever</i>.</li>
 <li><b>initiallyKnownBy</b>: The list of actors and other objects - typically Consultables - that start the game knowing this Fact. For Facts, it is preferable to define this on the Fact rather than the objects' <span class='code'>initiallyKnowsAbout</span> property.</li>
 <li><b>currentlyKnownBy</b>: returns a list of game objects (typically actors and Consultables) who currently know this Fact.</li>
@@ -83,7 +83,7 @@ Fact 'madrid-capital' [tSpain, tMadrid]
 <ul>
 <li><b>getFact(<i>name</i>)</b>: this returns the Fact object whose name is <i>name</i>.</li>
 <li><b>getFactDesc(<i>name</i>)</b>: this returns the desc (fact description) of the Fact object whose name is <i>name</i>.</li>   
-<li><b>getQualifiedFactDesc(<i>source</i>, <i>name</i>, <i>obj</i>?)</b>: this returns the qualifiedDesc of the Fact object whose name is <i>name</i> when the source that imparted the fact to the player character is <i>source</i> and the description has been requested in conjunction with <i>obj</i>, e.g. THINK ABOUT SPAIN.</li> 
+<li><b>getQualifiedFactDesc(<i>source</i>, <i>name</i>, <i>obj</i>?, <i>narrator</i>)</b>: this returns the qualifiedDesc of the Fact object whose name is <i>name</i> when the source that imparted the fact to the player character is <i>source</i> and the description has been requested in conjunction with <i>obj</i>, e.g. THINK ABOUT SPAIN. The <i>narrator</i> parameter is set to <span class='code'>speaker</span> when this method is called from an ActorTopicEntry</li> 
 <li><b>getPcComment(tag, topic)</b> and <b>setPcComment(tag, txt)</b> will be explained below in relation to <a href='#comment'>FactThought </a>
 </li>
 </ul>
@@ -138,12 +138,12 @@ Fact 'madrid-capital' [tSpain, tMadrid]
     'the capital city of Spain is Madrid'
     [book]
     
-    qualifiedDesc(source, topic)
+    qualifiedDesc(source, topic, narrator?)
     {
         if(topic == tMadrid)
             return 'Madrid is the capital city of Spain';
         else
-            return inherited(source, topic);
+            return desc;
             
     }
 ;
@@ -426,12 +426,12 @@ Fact 'rain-tomorrow' [tWeather]
     'it will rain tomorrow'    
     [bob]
     
-    qualifiedDesc(source, topic)
+    qualifiedDesc(source, topic, narrator?)
     {
         if(source == bob)
             return 'it\'ll rain tomorrow';
         else
-            return inherited(source, topic);            
+            return desc;;            
     }
 ;
 </pre></div></p>
@@ -448,7 +448,6 @@ You recall that the rain in Spain stays mainly in the plain &mdash; or so the so
 &ldquo;Hello, Bob,&rdquo; you say.
 
 &ldquo;Hello, you,&rdquo; he replies. 
-
 &ldquo;It&rsquo;ll rain tomorrow,&rdquo; Bob warns you. 
 
 <b>&gt;think about weather</b>
@@ -456,6 +455,55 @@ You recall that:
 The rain in Spain stays mainly in the plain &mdash; or so the song goes.
 Bob told you that it will rain tomorrow.
 </pre></div></p>
+
+<a name='saytopic'>
+<p>One kind of ActorTopicEntry the Facts module makes special provision for is the <a href='specialtopic.htm#saytopic'>SayTopic</a>. The standard way of using a SayTopic is illustrated in the following example:</p>
+
+<p><div class="code"><pre>
++ SayTopic 'you\'re not afraid of the dark tower; you are i\'m i am'
+  "&lt;q&gt;I'm not afraid of the dark tower, you know,&lt;/q&gt; you boast.\b
+   &lt;q&gt;Well, you should be,&lt;/q&gt; Bob warns you. "
+;
+</pre></div>
+
+<p>Now suppose we'd like to enapsulate 'you're not afraid of the dark tower' into a Fact which Bob is informed of when this SayTopic is triggered:</p>
+
+<p><div class="code"><pre>
+Fact 'not-afraid' [tTower]
+    'you\'re not afraid of the dark tower'
+    [me]	
+    qualifiedDesc(source, topic, narrator?)
+    {
+        if(narrator == speaker)
+            return 'i\'m not afraid of the dark tower';
+        else 
+            return desc;
+        
+    }
+;
+</pre></div>
+
+<p>We could then re-write our SayTopic as:</p>
+
+<p><div class="code"><pre>
++ SayTopic 'not-afraid' 'you are i\'m i am'    
+    &quot;&lt;q&gt;\^&lt;&lt;infTag()&gt;&gt;, you know, &lt;/q&gt; you boast.\b
+     &lt;q&gt;Well, you should be,&lt;/q&gt; Bob warns you. &quot;
+;
+</pre></div>
+
+<p>The template we're employing here is:</p>
+
+<p><div class="code"><pre>
+SayTopic template
+    +matchScore?
+    'tTag' 'extraVocab'
+    "topicResponse" | [eventList] ?;
+
+</pre></div>
+
+<p>So in our example, 'not-afraid' is the fact tag for the Fact we want to use and 'you are i\'m i am' is the extraVocab we need so that our SayTopic will match commands like I AM NOT AFRAID as well as SAY YOU'RE NOT AFRAID. If you use this template, this second element <i>must</i> be present, even if it's only the empty string '' (otherwise the compiler won't know which template it's meant to be matching). What happens here is that at preinit, our SayTopic sets its name to <span class='code'>gFact(tTag)</span> and then adds <span class='code'>'; ' + extraVocab</span> to the name to create the vocab the SayTopic matches.</p>
+
 
 <a name='initiate'></a>
 <p>The Facts module also makes a small change to <b>InitiateTopic</b> to allow TopicEntries of this class to match fact name tags (as well as Things, Topics and matchPatterns). This would allow us to define an InitiateTopic such as the following:</p>

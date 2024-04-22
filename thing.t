@@ -3739,6 +3739,9 @@ class Thing:  ReplaceRedirector, Mentionable
         if(informedNameTab == nil)
             informedNameTab = new LookupTable(32, 32);
         
+        if(defined(BelVal) && objOfKind(val, BelVal))
+            val= val.status;
+        
         if(val == nil && informedNameTab[tag] == nil)        
             informedNameTab[tag] = true;
         else
