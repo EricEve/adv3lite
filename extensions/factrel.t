@@ -450,7 +450,24 @@ class FactAgendaItem: ConvAgendaItem
      *   to either gRevaled(target) or gInformed(target) or some similar condition.
      */
     endCondition = (curPath && curPath[curPath.length] == nextStep)
-    
+ 
+    /* 
+     *   Reset this FactAgendaItem so that it can be used again. If the optional target_ parameter
+     *   is supplied, we'll set the our target to the new target_.
+     */
+    reset(target_?)
+    {
+        /* 
+         *   Provided that isDone is simply true (rather than a method or expression that might
+         *   evaluate to true) reset it to nil.
+         */
+        if(propType(&isDone) == TypeTrue)
+            isDone = nil;
+        
+        /* If the target_ parament has been supplied, set our target property to target_ .*/
+        if(target_)
+            target = target_;
+    }
 ;
 
 /* 
