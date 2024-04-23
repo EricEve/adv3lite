@@ -1311,7 +1311,7 @@ enum speaker;
 
 /* Macros to deal with knowledge enums and their associated objects */
 
-#define BV(x) (BelVal.bvTab[x])
+#define BV(x) (beliefManager.bvTab[x])
 
 /* ------------------------------------------------------------------------- */
 /*

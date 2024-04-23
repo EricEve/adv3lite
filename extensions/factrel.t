@@ -676,13 +676,8 @@ modify Actor
 modify Thing
     setInformed(tag, val?)
     {
-        if(defined(BelVal) && val && objOfKind(val, BelVal))
-            val= val.status;
-        
         /* Carry out the inherited handling */
-        inherited(tag, val);
-        
-        
+        inherited(tag, val);       
         
         /* 
          *   Then check for contradictions betwen the new piece of information (tag) and information
