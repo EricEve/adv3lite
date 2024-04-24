@@ -219,9 +219,32 @@ class TopicDatabase: object
          */
         local revList = requestedList.subset({x: x.newlyCreated == nil});
         
+        /* 
+         *   If we've anything left after removing newly created topics, set our requested list to
+         *   the new list
+         */
         if(revList.length > 0)
             requestedList = revList;
         
+        /* 
+         *   If we have more than one entry, try to eliminate any that the player probably didn't
+         *   mean. We do this by excluding any entries with names longer than the shortest. The
+         *   rationale is that if the player types a topic name that's a subset of another topic
+         *   name, the player probably means to refer to the topic with the shorter name. For
+         *   example, THINK ABOUT WEDDING is more likely to be intended to match a topic with name
+         *   'wedding' than onw with the name 'when the wedding will be'.
+         */
+        if(requestedList.length > 1)
+        {
+            /* Sort the list in descending order of name length. */
+            requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
+            
+            /* Note the length of the shortest name. */
+            local minLength = requestedList[1].name.length;
+            
+            /* Reduce our list to items whose name length is that of the shortest name. */
+            requestedList = requestedList.subset({x: x.name.length == minLength });
+        }
         
         /* 
          *   For each topic in our requested list of topics, see if we can find
