@@ -455,20 +455,12 @@ Fact 'mavis-proposal' [mavis, bob]
     &lt;q&gt;Bye,&lt;/q&gt; he replies. &quot;
 ;
 
-+ AskTellTalkTopic, StopEventList   
-    [
-        '&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ',
-        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '
-        
-    ]
-    rTag = 'rain-tomorrow'
-;
 
 + AskTellTalkTopic, StopEventList   
     [
-        '&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ',
-        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '
-        
+    <span class='comment'>/* We wrap this first response in an anoynmous function to avoid revTag() being triggered on subsequent invocations of this topic. */</span>
+       {: "&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. "},
+        'Bob has already told you &lt;&lt;fText()&gt;&gt;. '        
     ]
     rTag = 'rain-tomorrow'
 ;
@@ -581,12 +573,13 @@ Bob beams. “That’s splendid! Thank you!”
 <ul>
 <li><b>invokeItem()</b> By default, this calls <span class='code'>getActor.initiateTopic(nextStep)</span>, but we could override it to handle the next step in any other way we liked.</li>
 <li><b>endCondition</b>: The condition that becomes true when we've reached our goal. By default this is when we've reached the last step in our path to our target, but we could override it to some other condition, such as <span class='code'>gRevealed(target)</span> or <span class='code'>gInformed(target)</span>.</li>
+
+<li><b>reset(<i>target_?</i>)</b>:Reset this FactAgendaItem so that it can be used again. If the optional <i>target_ </i> parameter is supplied, we'll set our <span class='code'>target</span> to the new <i>target_</i>.</li>
 <li><b>relations</b>: This specifies the relation, or a list of relations, between Facts to be used when calculating the shortest path from our starting position to our target. By default this is simply <span class='code'>abutting</span>, but if our game defined another relation, or other relations, we thought might do a better job for this purpose, we could override <span class='code'>relations</span> to use it/them instead of, or as well as, <span class='code'>abutting</span>.</li>
-<li><b>reset(target_?)</b>:Reset this FactAgendaItem so that it can be used again. If the optional <i>target_ </i> parameter is supplied, we'll set our <span class='code'>target</span> to the new <i>target_</i>.</li>
 <li><b>getStart()</b>: This is the method that works out the Fact to start from when calculating the path to our target. By default we use <span class='code'>gLastFact</span> or, failing that, a fact referred to by <span class='code'>gLastTopic</span>, but it is conceivable that your game might benefit from reckoning the starting fact in some other way.</li>
 </ul>
 <p>Note that the <span class='code'>reset()</span> method could allow us to use a single FactAgendaItem per actor to cater for all that actor's fact-based conversational agendas. It could also be used to change the actor's conversational target in mid-conversation, before the original goal had been reached.</p>
-
+<p>Note also the comment in the example above about wrapping the first response to asking about the weather in an anonymous function. If we had simply used a single-quoted string here ('&lt;q&gt;\^&lt;&lt;revTag()&gt;&gt;&lt;/q&gt; Bob warns you. ') it would have displayed what we wanted but there would have been a subtle unwanted side-effect. Because of the way TADS 3 handles lists, every single-quoted string in an EventList is evaluated every time the EventList is referenced, regardless of which element of the EventList we actually want. So had we used a single-quoted string, <span class='code'>revTag()</span> would have been called again even on the second or subsequent invocation of this TopicEntry. Because <span class='code'>revTag()</span> not only displays the desc of the associated fact but reveals the associated fact tag, this would cause libGlobal.lastFactMentioned to revert to 'rain-tomorrow', which in turn would set bobAgenda's starting fact to 'rain-tomorrow', with the result that Bob would repeat his remark about the rain in Spain, which is precisely what we were trying to avoid by calling <span class='code'>fText()</span> rather than <span class='code'>revTag()</span> second time around.</p>
 
 <br>     
 

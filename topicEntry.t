@@ -197,6 +197,9 @@ class TopicDatabase: object
         local bestMatch = nil;
         local bestScore = 0;
         
+        /* Ensure that our requestedList is actually a list. */
+        requestedList = valToList(requestedList);
+        
         /* 
          *   The implementation of the Actor Conversation system requires a
          *   property pointer to be passed as the first parameter in the
@@ -211,10 +214,20 @@ class TopicDatabase: object
         myList = myList.subset({c: c.active});
         
         /* 
+         *   if requestedList contains any topics that have not been newlyCreated, eliminate the
+         *   new;y created ones.
+         */
+        local revList = requestedList.subset({x: x.newlyCreated == nil});
+        
+        if(revList.length > 0)
+            requestedList = revList;
+        
+        
+        /* 
          *   For each topic in our requested list of topics, see if we can find
          *   a topic entry that's a better match than any we've found so far.
          */
-        foreach(local req in valToList(requestedList))
+        foreach(local req in requestedList)
         {    
             /* Go through every topic entry in our list */
             foreach(local top in myList)

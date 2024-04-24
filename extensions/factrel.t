@@ -18,6 +18,9 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
      /* A Fact concerns all the topics listed in its topics property. */
     relatedTo(a)
     {
+        if(gFact(a) == nil)
+            return [];
+        
         return gFact(a).topics;        
     }
     
@@ -52,6 +55,9 @@ concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
     /* A topic a is inversely related to a fact b if it occurs in b's topics property. */
     isInverselyRelated(a, b)
     {
+        if(gFact(b) == nil)
+            return nil;
+        
         return gFact(b).topics.find(a);
     }    
 ;
@@ -63,6 +69,8 @@ abutting: DerivedRelation 'abuts' @manyToMany
     /* Fact a abuts Fact b if their topics lists have any topics in common. */
     isRelated(a, b)
     {
+        if(!gFact(a) || !gFact(b) )
+            return nil;
         return gFact(a).topics.overlapsWith(gFact(b).topics);  
     }
     
@@ -596,32 +604,42 @@ modify ActorTopicEntry
     
     baseHandleTopic()
     {
-        if(agenda || autoUseAgenda)
+        local agenda_ = agenda;
+        try
         {
-            /* Obtain the AgendaItem we wish to use with this ActorTopicEntry */
-            local ag = useAgenda();
-            
-            /* Check that ag is a FactAgendaItem before trying to work with it. */
-            if(objOfKind(ag, FactAgendaItem))
-            {                
-                /* 
-                 *   If ag can provide a path from our topic to its target, set our own next step
-                 *   and agendaPath to those of ag.
-                 */
-                agendaPath = ag.getPath();
-                    
-                nextStep = ag.nextStep;   
-            }
-            else
+            if(agenda || autoUseAgenda)
             {
-                /* Otherwise reset our nextStep and agendaPath to nil */
-                nextStep = nil;
+                /* Obtain the AgendaItem we wish to use with this ActorTopicEntry */
+                local ag = useAgenda();
                 
-                agendaPath = nil;                
+                /* Check that ag is a FactAgendaItem before trying to work with it. */
+                if(objOfKind(ag, FactAgendaItem))
+                {                
+                    /* 
+                     *   If ag can provide a path from our topic to its target, set our own next
+                     *   step and agendaPath to those of ag.
+                     */
+                    agendaPath = ag.getPath();
+                    
+                    nextStep = ag.nextStep;   
+                    
+                    agenda = ag;
+                }
+                else
+                {
+                    /* Otherwise reset our nextStep and agendaPath to nil */
+                    nextStep = nil;
+                    
+                    agendaPath = nil;                
+                }
             }
+            
+            inherited();
         }
-        
-        inherited();
+        finally
+        {
+            agenda = agenda_;
+        }
     }
     
     /* 
@@ -636,6 +654,23 @@ modify ActorTopicEntry
      *   tags.
      */
     agendaPath = nil
+    
+    tryNextStep()
+    {
+        if(nextStep)
+        {
+            if(getActor.initiateTopic(nextStep))
+                return true;            
+        }
+        return nil;
+    }
+    
+    tryAgenda()
+    {
+        return getActor.executeAgenda();
+    }
+    
+    
 ;
 
 /* Modifications to AltTopic to work with FACT RELATIONS modifications to ActorTopicEntry */

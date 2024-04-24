@@ -1096,7 +1096,7 @@ modify thingPreinit
 modify Consultable
      setTopicResponse(top, topkey, txt)
     {
-        /* First attempt to get the fact corresponding to the txt stroing */
+        /* First attempt to get the fact corresponding to the txt string */
         local fact = gFact(txt);
         
         /* 
