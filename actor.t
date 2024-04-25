@@ -23,7 +23,7 @@ property inRoomName;
  *   pursue his/her/its own agenda. This class is intended for the
  *   implementation of NPCs (non-player characters).
  */
-class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
+replace Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     
     /* 
      *   Our current ActorState. This should normally be treated as a read-only
@@ -4862,6 +4862,13 @@ class QueryTopic: SpecialTopic
          */
         if(qtList.indexOf(gAction.qType) == nil)
             return nil;
+        
+        /* 
+         *   This will be the case if the player just typed a command like ASK WHY or ASK WHERE, in
+         *   which case if we have a QueryTopic that might match it, we'll accept it.
+         */
+        if(top.vocab == gAction.qType + '!')
+            return matchScore() + scoreBoost();
                 
         /* 
          *   Otherwise carry out the inherited handling to see whether we match

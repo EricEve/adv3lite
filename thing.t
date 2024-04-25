@@ -9371,7 +9371,7 @@ thingPreinit: PreinitObject
  *   the game is in the second person this can be done very conveniently, and
  *   the Player object will register itself with gameMain and libGlobal.
  */
-class Player: Thing
+class Player: Actor
     
     /* The player character can't be picked up */
     isFixed = true       
@@ -9383,12 +9383,7 @@ class Player: Thing
      */
     person = 2  
     
-    /*   
-     *   Objects located in the player character are generally regarded as being
-     *   held.
-     */
-    contType = Carrier     
-    
+     
     /*   The Player object is the initial player character. */
     isInitialPlayerChar = true
 ;
@@ -10164,6 +10159,24 @@ class Topic: Mentionable
     /* For internal use by the parser; has the parser newly created us for its own purposes? */
     newlyCreated = nil
 ;
+
+class Actor: Thing
+   isFixed = true
+   contType = Carrier
+   ownsContents = true
+;
+
+/* Stub definition of Mood */
+class Mood: object
+    name = nil
+;
+
+class Stance: object
+    name = nil
+    score = 0
+;
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   LocType objects are used for Thing.locType property values to specify
