@@ -1430,6 +1430,12 @@ finishOptionAmusing: FinishOption
    listOrder = 60
 ;
 
+firstPersonObj: Thing
+    person = 1
+    name =  BMsg(first person pronoun, 'I')
+    globalParamName = 'fpo'
+;
+
 
 /* -------------------------------------------------------------------------- */
 /*

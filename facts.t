@@ -30,17 +30,49 @@ class Fact: object
     
     /* 
      *   We can if we wish vary the way this fact is described according to the source that's
-     *   supplying it and the topic matched by the TopicEntry that's called this method; by
-     *   default we just return desc here. Note that any such variation shouldn't change the content
-     *   of the description but only the way it's phrased; e.g. 'Madrid is the capital of Spain'
-     *   rather than 'the capital of Spain is Madrid' depending on whether the topic is Madrid or
-     *   Spain.
-     */
-    qualifiedDesc(source, topic, narrator?)
-    {
+     *   supplying it and the topic matched by the TopicEntry that's called this method; by default
+     *   we just return desc here. Note that any such variation shouldn't change the content of the
+     *   description but only the way it's phrased; e.g. 'Madrid is the capital of Spain' rather
+     *   than 'the capital of Spain is Madrid' depending on whether the topic is Madrid or Spain.
+     *
+     *   By default we try to adapt the desc to the source and sender if it contains an
+     *   actorParamName in square brackets, e.g. [bob], which we replace with 'Bob', 'I' or 'he'
+     *   according to context
+     */        
+    qualifiedDesc(source, topic, sender)
+//    qualifiedDesc(source, topic, narrator?)
+    {                
+        local rexS = rexSearch(sourcepat, desc);
+        if(rexS)
+        {
+            local rm = rexS[3];
+            local rml = rexS[2];
+            local tag = rm.substr(2, rml-2);
+            local subject = libGlobal.nameTable_[tag];
+            
+            local repstr = '';
+            
+            if(sender.ofKind(FactHelper) && valToList(sourcesListed).length == 1
+               && valToList(sourcesListed[1] == subject))
+                repstr = '{he ' + tag + '}';                
+            
+            else if(sender.narrator == subject)
+                repstr = '{the subj fpo}';
+            else
+                repstr = '{the subj ' + tag + '}';
+            
+            return desc.findReplace(rm, repstr);
+            
+        }
         return desc;
     }
-   
+    
+    /* 
+     *   Our RexPattern for searching for a string of characters between square brackets, e.g. [bob]
+     */
+    sourcepat = static new RexPattern('<lsquare><AlphaNum>*<rsquare>')
+
+       
     /* The list of topics (Topics and Things, i.e. game objects) that this fact relates to.*/         
     topics = []
     
@@ -196,6 +228,9 @@ class Fact: object
         /* Start by creating an emptry string. */
         local srcList = '';
         
+        /* Reset the list of sources we're listing. */
+        sourcesListed = [];
+        
         /* 
          *   Only add to it if our caller actually wants to show a list of sources (thia allows the
          *   caller to insert a call to sourceIntro() passing the value or a user defined property
@@ -214,12 +249,16 @@ class Fact: object
              *   character informed themself.
              */
             objList -= gPlayerChar;
+                  
             
             /* 
              *   We only need to do any more if there's anything left in our list of source objects.
              */
-            if(objList.length > 0)
+            if(objList.length > 0)                
             {
+                /* Store our list of sources */
+                sourcesListed = objList;
+                
                 /* 
                  *   Store a list of the names of the sources of the information from our list of
                  *   Facts.
@@ -237,6 +276,9 @@ class Fact: object
         /* Return the string that results. */
         return srcList;
     }
+    
+    sourcesListed = nil
+
     
     /* 
      *   A single-quoted string containing the initial player character's initial comment or thought
@@ -349,19 +391,19 @@ factManager: PreinitObject
     /* 
      *   Retrieve the qualified description of a Fact: actor is the actor or Consultable that is the
      *   source of the information, tag is the fact's name (name property, not programmatic name)
-     *   and topic is the topic that has just been matched by a TopicEntry.
+     *   and topic is the topic that has just been matched by a TopicEntry, while sender will
+     *   normally be self.
      */
-    getQualifiedFactDesc(actor, tag, topic?, narrator?)
+    getQualifiedFactDesc(actor, tag,  topic, sender)
     {
         /* Retrieve the Fact corresponding to tag. */
         local fact = getFact(tag); 
         
         /* If we've found a fact, return its qualified description, otherwise return nil */        
-        return fact == nil ? nil : (narrator? fact.qualifiedDesc(actor, topic, narrator)
-                                    : fact.qualifiedDesc(actor, topic));
-        ;
-    } 
+        return fact == nil ? nil : fact.qualifiedDesc(actor, topic, sender);      
+    }
     
+       
     /* 
      *   Get the player character's comment on the fact whose name is tag when it is retrieved in
      *   relation to topic (typically by a THINK ABOUT topic commannd).
@@ -591,7 +633,7 @@ class FactHelper: object
                  *   fact to the Player Character, then the qualfied description of the fact.
                  */
                 local factListStr = factList.mapAll({x: factIntro + ' ' + x.sourceIntro(listSources) + 
-                                      x.qualifiedDesc(getActor, topicMatched)});
+                                      x.qualifiedDesc(getActor, topicMatched, self)});
                 
                 /* Combine this list of strings into a suitably formalled single string. */
                 local resp = andList(factListStr);
@@ -631,7 +673,7 @@ class FactHelper: object
                      *   listed in the fact's initiallyKnownBy list.
                      */
                     "\n\^<<fact.sourceIntro(listSources)>>  <<fact.qualifiedDesc(getActor,
-                        topicMatched)>><<alreadyKnewMsg(fact)>>";                   
+                        topicMatched, self)>><<alreadyKnewMsg(fact)>>";                   
                     
                     /* Conclude each line with a dfull stop. */
                     ".";
@@ -808,6 +850,7 @@ class FactThought: FactHelper, Thought
     
     
 /* Modifications to Topic Entry to work with Facts */
+
 modify TopicEntry
     /* 
      *   We can use revealFact(tag) to both reveal the tag (add it to the list of fact tags that
@@ -836,17 +879,25 @@ modify TopicEntry
         /* Get the fact associated with tag. */
         local fact = factManager.getFact(tag);
         
-        /* 
-         *   Add getActor (our current interlocutor or possibly consultable) to our fact's list of
-         *   sources.
-         */
-        fact.addSource(getActor);
+        narrator = getActor();
         
-        /*  
-         *   return our fact's description, which can be embedded in our topicResponse or an element
-         *   of our eventList.         */
-         
-        return fact.qualifiedDesc(getActor, topicMatched);
+        if(fact)
+        {
+            /* 
+             *   Add getActor (our current interlocutor or possibly consultable) to our fact's list
+             *   of sources.
+             */
+            fact.addSource(getActor);
+            
+            /*  
+             *   return our fact's description, which can be embedded in our topicResponse or an
+             *   element of our eventList.
+             */
+            
+            return fact.qualifiedDesc(getActor, topicMatched, self);
+        }
+        
+        return nil;
     }
     
     /* 
@@ -868,26 +919,33 @@ modify TopicEntry
          */
         actor.setInformed(tag);
         
+        narrator = gPlayerChar;
+        
         /* Get the fact corresponding to the tag. */
         local fact = factManager.getFact(tag);
         
-        /* 
-         *   Add actor to the fact's list of targets (the people to whom this fact has been
-         *   imparted). Note that the library does nothing with this list; it's available for game
-         *   code to use as desired.
-         */
-        fact.addTarget(actor);
+        if(fact)
+        {
+            /* 
+             *   Add actor to the fact's list of targets (the people to whom this fact has been
+             *   imparted). Note that the library does nothing with this list; it's available for
+             *   game code to use as desired.
+             */
+            fact.addTarget(actor);
+            
+            /* 
+             *   Return a description of the Fact that can be used in this TopicEntry's
+             *   showResponse() method or eventList property.
+             */
+            return fact.qualifiedDesc(actor, topicMatched, self);
+        }
         
-        /* 
-         *   Return a description of the Fact that can be used in this TopicEntry's showResponse()
-         *   method or eventList property.
-         */
-        return qualifiedDesc(actor, tag, topicMatched);
+        return nil;
     }
     
-    qualifiedDesc(actor, tag, topicMatched)    
+    qualifiedDesc(actor, tag, topic, sender)    
     {
-        return factManager.getQualifiedFactDesc(actor, tag, topicMatched);
+        return factManager.getQualifiedFactDesc(actor, tag, topic, sender);
     }
 
     
@@ -897,14 +955,29 @@ modify TopicEntry
      */
     factText(tag, actor = getActor)
     {
-        return factManager.getQualifiedFactDesc(actor, tag, topicMatched);
+        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, self);
     }    
     
+    narrator = nil
+    
+    matchTopic(top)
+    {
+        /* Reset our narrator */
+        narrator = nil;
+        
+        return inherited(top);
+    }
 ;
+
+
+
 
 /* Modifications to ActorTopicEntry to work with Facts. */
 modify ActorTopicEntry
-    /* The knowledge tag associated with this ActorTopicEntry. If it's nil, we ignore it. */
+    /* 
+     *   The knowledge tag associated with this ActorTopicEntry. If it's nil, we ignore it. This is
+     *   the tag for a fact our actor is being told about in response to something we'vr asked.
+     */
     aTag = nil
     
     /* If we define a aTag we're only active if our associated actor knows about our aTag. */
@@ -948,15 +1021,19 @@ modify ActorTopicEntry
      */
     fText() { return factText(aTag ?? tTag); }
     
+    /* 
+     *   The fact tag we're going to inform and reference if we are telling (imparting information
+     *   to the other actor we're talking to.
+     */
     tTag = nil
     
     infTag() { return informFact(tTag); } 
     
+    /* Get the relevant qualified fact description */
     qualifiedDesc(actor, tag, topicMatched)    
     {
-        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, speaker);
-    }
-    
+        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, self);
+    }   
 ;
 
 /* Modificstions to SayTopic to work with Facts. */
@@ -1110,7 +1187,7 @@ modify Consultable
             local tag = txt;
             
             /* 
-             *   Construct the <.reveal tag> or <.knoew tag> to reveal the fact to the player
+             *   Construct the <.reveal tag> or <.know tag> to reveal the fact to the player
              *   character, dependinng on whether libGobal.informOnReveal is true or false.
              */
             local rTag = '. <.' + (libGlobal.informOnReveal ? 'reveal ' : 'known ') + tag + '>';
@@ -1119,21 +1196,22 @@ modify Consultable
              *   Set txt to the qualified desription of our fact, adjusted according to the source
              *   of information (this Consultable) and the topic being looked up (topkey).
              */
-            txt = fact.qualifiedDesc(self, topkey);    
+            txt = fact.qualifiedDesc(self, topkey, self);    
             
             /* 
-             *   Prepend the instructio to make the first letter of txt upper case and append our
+             *   Prepend the instruction to make the first letter of txt upper case and append our
              *   reveal tag.
              */
             txt ='\^' + txt + rTag;
             
-            /* Add this Consultable as a source of informatio about our fact. */
+            /* Add this Consultable as a source of information about our fact. */
             fact.addSource(self);
         }
         
         /* Carry out the inherited handling. */
         inherited(top, topkey, txt);  
     }
+    
 ;
 
 #ifdef __DEBUG
