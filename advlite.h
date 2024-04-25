@@ -1458,7 +1458,13 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 #define aMoodIn(actor, mood_...) \
     (actor.mood is in (mood_#foreach: mood_##Mood:, :))
 
+/* Set stances towards the player character */
+#define gSetStance(st_) (getActor.setStanceToward(gPlayerChar, st_ ## Stance))
+#define aSetStance(actor, st_) (actor.setStanceToward(gPlayerChar, st_ ## Stance))
 
+/* Set moods */
+#define gSetMood(mood_) (getActor.setMood(mood_ ## Mood))
+#define aSetMood(actor, mood_) (actor.setMood(mood_ ## Mood))
 
  /*----------------------------------------------------------------------------*/
 /*
