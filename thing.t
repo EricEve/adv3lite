@@ -2686,7 +2686,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   not already define another one, register this object as the initial
          *   player character.
          */
-        if(isInitialPlayerChar && gameMain.initialPlayerChar == nil)
+        if(isInitialPlayerChar && gameMain.propType(&initialPlayerChar) != TypeObject)
         {
             /* Register me as the initial player character on gameMain */
             gameMain.initialPlayerChar = self;
@@ -10160,20 +10160,62 @@ class Topic: Mentionable
     newlyCreated = nil
 ;
 
+/* 
+ *   Very basic Actor class with a few basic properties defined. This allows code that need to
+ *   references the Actor class to compile in adv3Liter and adv3Litest. It also allows the Player
+ *   class to descend from Actor. The implementation here is replaced by the much more sophisticated
+ *   one in actor.t when actor.t is present.
+ */
 class Actor: Thing
-   isFixed = true
-   contType = Carrier
-   ownsContents = true
+    isFixed = true
+    contType = Carrier
+    ownsContents = true
+    mood = nil
+    stance = nil
+    cannotTalkToMsg = BMsg(cannot talk basicactor, '{The subj cobj} {doesn\'t seem} interested. ')
+    cannotGiveToMsg = cannotTalkToMsg
+    cannotShowToMsg = cannotTalkToMsg
+    isAttackable = true
+    checkAttackMsg = cannotAttackMsg
+    checkKissMsg = BMsg(not like kiss, '{The sub dobj} probably wouldn\'t {like|have liked} that. ')
 ;
 
-/* Stub definition of Mood */
+/* A Mood object can be used to represent the mood of an actor (happy, sad, bored, etc.) */
 class Mood: object
+    /* 
+     *   A single-quoted string giving the name of this Mood, which will normally correspond to the
+     *   name of the Mood object; e.g. happyMood.name = 'happy'
+     */
     name = nil
+    
+    objToString() { return name; }
 ;
 
+
+/* 
+ *   A Stance object can be used to represent the stance of an actor towards the player character
+ *   (neutral, friendly, hostile, etc.).
+ */
 class Stance: object
+    /* 
+     *   A single-quoted string giving the name of this Stance which will normally correspond to the
+     *   name of the Mood object; e.g. friendlyStance.name = 'friendly'
+     */
     name = nil
+    
+    /* 
+     *   The score is a measure of how positive or negative an actor with this stance is towards the
+     *   player character. Each Stance object defines its own score.
+     */
     score = 0
+    
+    operator >> (x) { return self.score > x.score;  }
+    operator << (x) { return self.score < x.score; }
+    operator >>> (x) { return self.score >= x.score;  }
+    operator []= (x, y) { x.setStanceToward(y, self); }
+    
+    
+    objToString() { return name; }
 ;
 
 

@@ -2488,6 +2488,64 @@ replace Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
         last saw {the dobj}. ')
     cantFollowFromHereMsg = BMsg(cannot follow from here, '{I} {can\'t} follow
         {him dobj} from {here}. ')
+    
+    /* This actor's current stance towards the player character */
+    stance = (stanceTowards(gPlayerChar))
+    
+    /* Unless overriden our initial stance is the default stance defined on libGlobal. */
+    initialStance = libGlobal.defaultStance 
+    
+    /* Our stance towards actor */
+    stanceTowards(actor)
+    {
+        return stanceTab[actor];
+    }
+    
+    /* 
+     *   A LookupTable containing our stance to various actors. It starts out with our stance
+     *   towards the player character set to our initial stance, and to everyone else set to the
+     *   default stance. Even if we don't want to track this actor's stance towards every other
+     *   actor. it may be important to do so towards different potential player characters should
+     *   the player character change in the course of the game.
+     */
+    stanceTab = [
+        gPlayerChar -> initialStance,
+        * -> libGlobal.defaultStance
+    ]
+        
+    /* Set out stance towards actor */
+    setStanceToward(actor, stance_)
+    {
+        stanceTab[actor] = stance_;
+    }
+    
+    /* 
+     *   Our mood (unlike our stance) may be state dependent. However we assume its not actor
+     *   dependent (I'm not sad toward bob but happy towards sally), although of course different
+     *   actors may affect our mood in different ways.
+     *
+     *   If we don't have a current ActorState or our current ActorState's mood is nil, we fall back
+     *   on our own actorMood.
+     */     
+    mood = (curState && curState.mood ? curState.mood : actorMood)   
+    
+    /* 
+     *   Our mood when this isn't defined by our current ActorsState. We default to the default
+     *   mood.
+     */
+    actorMood = libGlobal.defaultMood
+    
+    /* 
+     *   Set our current mood. If we have a current state we set its mood to the new value,
+     *   otherwise we set our own actorMood to the new value.
+     */
+    setMood(mood_)
+    {
+        if(curState)
+            curState.mood = mood_;
+        else
+            actorMood = mood_;
+    }
 ;
 
 /*  
@@ -2820,6 +2878,12 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   default they should.
      */
     informOverheard = true
+    
+    /* 
+     *   The actor's mood when the actor is in this atate. If this is nil the actor uses the value
+     *   of the actorMood property instead.
+     */
+    mood = nil
 ;
 
 /*  
@@ -6865,8 +6929,9 @@ PreinitObject
 ;
 
 /* 
- *   Create and store a table of string representation of object names that
- *   might be needed in conversation tags.
+ *   Create and store a table of string representation of object names that might be needed in
+ *   conversation tags, and set the globalParam names of actors that don't already have one to their
+ *   symbolic name (e.g. 'bob' on bob).
  */
 objTablePreinit: PreinitObject
     execute()
@@ -6878,8 +6943,15 @@ objTablePreinit: PreinitObject
                                                  value.ofKind(ActorState)))
                 
                 conversationManager.objNameTab[key] = value;
+          
+            if(objOfKind(value, Actor) && value != Actor && value.globalParamName == nil)
+            {
+                value.globalParamName = key;
+                libGlobal.nameTable_[key] = value;
+            }      
             
         } );        
+        
     }
     
     executeBeforeMe = [pronounPreinit, thingPreinit]   

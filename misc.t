@@ -593,9 +593,21 @@ libGlobal: object
     libMessageObj = libMessages    
    
     /*
-     *   The current player character 
+     *   The current player character. If it hasn't already been defined, we call getPlayerChar to
+     *   identify it then set ourself to the value it returns.
      */
-    playerChar = nil   
+    playerChar() 
+    {
+        /* Get our player character */
+        local pc = getPlayerChar();
+        
+        /* Set ourself to the player character */
+        playerChar = pc;
+        
+        /* Return the player character. */
+        return pc;
+    }
+  
 
     /*   The name of the current player character */
     playerCharName = nil
@@ -2598,7 +2610,7 @@ getPlayerChar()
      *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
      *   and return whatever that comes up with.
      */    
-    return (gPlayerChar ?? gameMain.initialPlayerChar) ?? findPlayerChar();
+    return (gameMain.initialPlayerChar) ?? findPlayerChar();
 }
 
 /* 
@@ -2615,7 +2627,7 @@ getPlayerChar()
 findPlayerChar()    
 {   
     /* Start by looking at objects of the Player class, and if that fails, look through Things. */
-    for(local cls in [Player, Thing])
+    for(local cls in [Player, Actor, Thing])
     {
         /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
         for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
@@ -2627,7 +2639,7 @@ findPlayerChar()
                 gameMain.initialPlayerChar = obj;
                 
                 /* Set the player char to the objec we've found. */
-                gPlayerChar = obj;
+//                gPlayerChar = obj;
                 
                 /* Return our player char object. */
                 return obj;
@@ -2649,7 +2661,7 @@ findPlayerChar()
     pc.moveInto(loc);
     
     /* Set gPlayerChar to our new player character. */
-    gPlayerChar = pc;
+//    gPlayerChar = pc;
     
 #ifdef __DEBUG 
     say('<.p><FONT COLOR=RED><b>WARNING!</b></FONT> No Player Character Defined.<.p>

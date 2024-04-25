@@ -1403,7 +1403,29 @@ DSTravelConnector template ->room1 ->room2;
  *   Definitions for the eventListItem Extension
  */
 EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeItem"? ;
- 
+
+/*-----------------------------------------------------------------------------*/
+/*
+ *   Definitions for Moods and Stances
+ */
+
+/* Define a new Stance */
+#define DefStance(name_, score_) \
+    name_ ## Stance: Stance \
+    name = #@name_ \
+    score = score_
+
+/* Define a new Mood */
+#define DefMood(name_) \
+    name_ ## Mood: Mood \
+    name = #@name_ 
+
+/* Is the actor whose agenda item, topic entry or whatever we're looking from in this stance? */
+#define gStance (getActor().stance)
+#define gStanceIs(st_) (getActor().stance == st_ ## Stance)
+
+
+
  /*----------------------------------------------------------------------------*/
 /*
  *   Include the header for the Date intrinsic class. For some reason the

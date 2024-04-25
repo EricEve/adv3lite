@@ -6143,6 +6143,56 @@ enum normalRelation, reverseRelation;
  *   certain words in the player's input with a carat in order to enable
  *   matching vocab.
  */
+
+
+/* 
+ *   Definitions for moods. We define them in the language-specific part of the library
+ *   so that translators can use more appropriate names for their languages.
+ */
+
+DefStance(amorous, 50);
+DefStance(loving, 40);
+DefStance(warm, 30);
+DefStance(friendly, 20);
+DefStance(cordial, 10);
+DefStance(neutral, 0);
+DefStance(cool, -10);
+DefStance(unfriendly, -20);
+DefStance(hostile, -30);
+DefStance(venemous, -40);
+DefStance(hateful, -50);
+
+/* 
+ *   Definitions for moods. We define them in the language-specific part of the library so that
+ *   translators can use more appropriate names for their languages. Game code can readily define
+ *   more moods if needs them.
+ */
+DefMood(neutral);
+DefMood(calm);
+DefMood(happy);
+DefMood(euphoric);
+DefMood(contented);
+DefMood(sad);
+DefMood(depressed);
+DefMood(angry);
+DefMood(furious);
+DefMood(afraid);
+DefMood(terrified);
+DefMood(confident);
+DefMood(bold);
+DefMood(lonely);
+DefMood(bored);
+DefMood(excited);
+
+/* By default Actors start our with neutral mood and stance. */
+
+modify libGlobal
+    defaultStance = neutralStance
+    defaultMood = neutralMood
+;
+
+
+
 //apostropheSPreParser: StringPreParser
 //    doParsing(str, which)
 //    {
