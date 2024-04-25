@@ -1424,6 +1424,40 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 #define gStance (getActor().stance)
 #define gStanceIs(st_) (getActor().stance == st_ ## Stance)
 
+/* What stance is this actor in? */
+#define aStance(actor) (actor.stance)
+
+/* Is actor in this stance ? */
+#define aStanceIs(actor, st_) (actor.stance == st_ ## Stance)
+
+/* Is actor in one of these stances? */
+#define gStanceIn(st_...) \
+    (gStance is in (st_#foreach: st_##Stance:, :))
+
+#define aStanceIn(actor, st_...) \
+    (actor.stance is in (st_#foreach: st_##Stance:, ))
+
+/* What mood is getActor in? */
+#define gMood (getActor().mood)
+
+/* Is getActor in one of these moods? */
+#define gMoodIs(mood_) (getActor().mood == mood_ ## Mood)
+
+
+/* What mood is actor in? */
+#define aMood(actor) (actor.mood)
+
+/* Is actor in this mood? */
+#define aMoodIs(actor, mood_) (actor.mood == mood_ ## Mood)
+
+/* Is getActor in one of these moods? */
+#define gMoodIn(mood_...) \
+    (gMood is in (st_#foreach: mood_##Mood:, :))
+
+/* Is actor in one of these moods? */
+#define aMoodIn(actor, mood_...) \
+    (actor.mood is in (mood_#foreach: mood_##Mood:, :))
+
 
 
  /*----------------------------------------------------------------------------*/
