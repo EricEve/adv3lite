@@ -5396,7 +5396,7 @@ actorSchedule: Event
  *
  *   <.known obj> Mark obj (a Thing or Topic) as now being known (i.e. familiar)
  */
-conversationManager: OutputFilter, PreinitObject
+modify conversationManager
     /*
      *   Custom extended tags.  Games and library extensions can add their
      *   own tag processing as needed, by using 'modify' to extend this

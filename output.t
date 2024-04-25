@@ -5,7 +5,7 @@
  *   ***************************************************************************
  *   output.t
  *
- *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, based
+ *   This module forms part of the adv3Lite library (c) 2012-24 Eric Eve, based
  *   heavily in parts on the equivalent code in adv3 (c) Micheal J. Roberts.
  */
 
@@ -2091,3 +2091,121 @@ extraReport(msg, expandParam = true)
     
     gOutStream.writeFromStream(msg);
 }
+
+
+/*
+ *   Basic conversation manager for use in adv3Liter and adv3Litest(when actor.t is not present) We
+ *   just provide handling for <.reveal> and <.unreveal> in case game code uses them.
+ */
+
+conversationManager: OutputFilter, PreinitObject
+    /*
+     *   Custom extended tags.  Games and library extensions can add their
+     *   own tag processing as needed, by using 'modify' to extend this
+     *   object.  There are two things you have to do to add your own tags:
+     *   
+     *   First, add a 'customTags' property that defines a regular
+     *   expression for your added tags.  This will be incorporated into
+     *   the main pattern we use to look for tags.  Simply specify a
+     *   string that lists your tags separated by "|" characters, like
+     *   this:
+     *   
+     *   customTags = 'foo|bar'
+     *   
+     *   Second, define a doCustomTag() method to process the tags.  The
+     *   filter routine will call your doCustomTag() method whenever it
+     *   finds one of your custom tags in the output stream.  
+     */
+    customTags = nil
+    doCustomTag(tag, arg) { /* do nothing by default */ }
+    
+    filterText(ostr, txt)
+    {
+        local start;
+        
+        
+        /* scan for our special tags */
+        for (start = 1 ; ; )
+        {
+            local match;
+            local arg;
+            local tag;
+            local nxtOfs;           
+            local args;
+            
+            /* scan for the next tag */
+            match = rexSearch(tagPat, txt, start);
+            
+            /* if we didn't find it, we're done */
+            if (match == nil)
+                break;
+            
+            /* note the next offset */
+            nxtOfs = match[1] + match[2];
+            
+            /* get the argument (the third group from the match) */
+            arg = rexGroup(3);
+            if (arg != nil)
+                arg = arg[3];
+            
+            /* pick out the tag */
+            tag = rexGroup(1)[3].toLower(); 
+            
+            
+            /* check which tag we have */
+            switch (tag)
+            {
+                
+            case 'reveal':
+                /* reveal the key by adding it to our database */
+                
+                args = arg.split('=');
+                if(args.length > 1)
+                {
+                    arg = enumTabObj.getEnum(args[2]) ?? args[2];
+                    
+                    setRevealed(args[1], arg);
+                }
+                else                
+                    setRevealed(arg);
+                break;
+                
+                /* unreveal the key by removing it from our database */
+            case 'unreveal':
+                               
+                setUnrevealed(arg);
+                break;
+                
+                
+            default:
+                /* check for an extended tag */
+                doCustomTag(tag, arg);
+                break;
+            }
+            
+            /* continue the search after this match */
+            start = nxtOfs;
+        }
+        
+        /* 
+         *   remove the tags from the text by replacing every occurrence with an empty string, and
+         *   return the result
+         */
+        return rexReplace(tagPat, txt, '', ReplaceAll);
+    }
+    
+    tagPat = static new RexPattern(
+        '<nocase><langle><dot>'
+        + '(reveal|unreveal'
+        + (customTags != nil ? '|' + customTags : '')        
+        + ')(<space>+(<^rangle>+))?'
+        + '<rangle>')
+    
+    setRevealed(tag, val?)
+    {
+        /* Note that our tag has been revealed */
+        libGlobal.setRevealed(tag, val);
+    }
+    
+;
+
