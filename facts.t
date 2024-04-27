@@ -37,34 +37,105 @@ class Fact: object
      *
      *   By default we try to adapt the desc to the source and sender if it contains an
      *   actorParamName in square brackets, e.g. [bob], which we replace with 'Bob', 'I' or 'he'
-     *   according to context
+     *   according to context.
      */        
     qualifiedDesc(source, topic, sender)
-//    qualifiedDesc(source, topic, narrator?)
-    {                
+    {       
+        /* Start by searhing for an expression in square brackets */
         local rexS = rexSearch(sourcepat, desc);
-        if(rexS)
+        
+        /* 
+         *   This will be a string containing the gobalParamName of the subject of the sentence we
+         *   want to construct.
+         */
+        local obj = nil;
+        
+        /* qDesc is the qualified desc string we want to build. We start out with desc, */
+        local qDesc = desc;
+        
+        /* Keep looping until we don' find any more matches to the [*] pattern */
+        while(rexS)
         {
-            local rm = rexS[3];
-            local rml = rexS[2];
-            local tag = rm.substr(2, rml-2);
-            local subject = libGlobal.nameTable_[tag];
+            /* Note the results of our rex search. */
             
+            /* rm is the string we found including square brackets, e.g. '[bob]' */
+            local rm = rexS[3];
+            
+            /* rml is the length of the rm string. */
+            local rml = rexS[2];
+            
+            /* Extract the text between the square brackets and store it in tag. */
+            local tag = rm.substr(2, rml-2);
+            
+            /* repstr will be the text we want to replace rm with, */
             local repstr = '';
             
-            if(sender.ofKind(FactHelper) && valToList(sourcesListed).length == 1
-               && valToList(sourcesListed[1] == subject))
-                repstr = '{he ' + tag + '}';                
-            
-            else if(sender.narrator == subject)
-                repstr = '{the subj fpo}';
+            /* 
+             *   If we've already started the sentence, we'll have identified the subject of the
+             *   sentence, whose global parameter name we'll have stored in obj, so we construct a
+             *   parameter substitution string from tag and obj. e.g., '{his bob}'.
+             */
+            if(obj)
+            {
+                repstr = '{' + tag + ' ' + obj + '}';
+            }
+            /* 
+             *   Otherwise we're at the start of the sentence and identifying its subject for the
+             *   first time.
+             */
             else
-                repstr = '{the subj ' + tag + '}';
+            {
+                /* 
+                 *   At this point, tag should be the global param name of the subject of our
+                 *   sentence, so we look it up in the global param name table.
+                 */
+                local subject = libGlobal.nameTable_[tag];
+                
+                /* Store tag in obj for future reference. */
+                obj = tag;
+                
+                /* 
+                 *   If we've been invoked by a FactHelper (such as FactThough) and we're only
+                 *   listing one source for this fact (e.g. 'Bob told you that...'), then we've
+                 *   already provided the grammatical subject of the sentence (e.f, 'Bob') so now we
+                 *   want to use a pronoun (e.g. 'his') instead of repeating the name, provided the
+                 *   first (and only) source listed is the subject of the sentence we're
+                 *   constructing.                 */
             
-            return desc.findReplace(rm, repstr);
+                if(sender.ofKind(FactHelper) && valToList(sourcesListed).length == 1
+                   && valToList(sourcesListed[1] == subject))
+                    repstr = '{he ' + tag + '}';                
+                
+                /* 
+                 *   Otherwise if the subject of the sentence is also the narrator (the person
+                 *   uttering the sentence) we want to use the first person pronoun (I), so we use
+                 *   the globalParamName 'fpo' to refer to the first person object.
+                 */
+                else if(sender.narrator == subject)
+                {
+                    repstr = '{the subj fpo}';
+                    
+                    /* 
+                     *   Note that the global param name of the subject of this sentence is now
+                     *   'fpo'.
+                     */
+                    obj = 'fpo';
+                }
+                else
+                    /* Otherwise we want to start the sentence with the name of its subject. */
+                    repstr = '{the subj ' + tag + '}';
+            }
+            
+            /* Replace our [*] pattern with the paramater string we've just created. */
+            qDesc = qDesc.findReplace(rm, repstr);
+            
+            /* Then search for the next [*] match in our qDesc string. */
+            rexS = rexSearch(sourcepat, qDesc);
             
         }
-        return desc;
+        
+        /* Return the string we've just adapted. */    
+        return qDesc;
     }
     
     /* 

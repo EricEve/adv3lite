@@ -1095,10 +1095,10 @@ class DSBase: object
     
     /* Short service methods that can be used to abbreviate game code */
     /* Test whether the player character is in our room1 */
-    inRoom1 = (room1 && gSafePlayerChar.isIn(room1))
+    inRoom1 = (room1 && gPlayerChar.isIn(room1))
     
     /* Test whether the player character is in our room2 */
-    inRoom2 = (room2 && gSafePlayerChar.isIn(room2)) 
+    inRoom2 = (room2 && gPlayerChar.isIn(room2)) 
     
     /* return a or b depending on which room the player char is in */
     byRoom(args) { return inRoom1 ? args[1] : args[2]; }

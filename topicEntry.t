@@ -186,7 +186,7 @@ class TopicEntry: object
  *   A TopicDatabase is a container for TopicEntries that provides a method for
  *   determining the TopicEntry that best matches a list of topics
  */
-class TopicDatabase: object
+modify TopicDatabase
     
     /* 
      *   Find the topic entry among those supplied in myList that best matches

@@ -9386,6 +9386,8 @@ class Player: Actor
      
     /*   The Player object is the initial player character. */
     isInitialPlayerChar = true
+    
+    isProper = true
 ;
 
 /*  
@@ -10160,13 +10162,20 @@ class Topic: Mentionable
     newlyCreated = nil
 ;
 
+/* Stub definitions to allow Actor to be modfied in actor.t */
+class EndConvBlocker: object;
+class AgendaManager: object;
+class ActorTopicDatabase: TopicDatabase;
+class TopicDatabase: object;
+
+
 /* 
  *   Very basic Actor class with a few basic properties defined. This allows code that need to
  *   references the Actor class to compile in adv3Liter and adv3Litest. It also allows the Player
  *   class to descend from Actor. The implementation here is replaced by the much more sophisticated
  *   one in actor.t when actor.t is present.
  */
-class Actor: Thing
+class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     isFixed = true
     contType = Carrier
     ownsContents = true

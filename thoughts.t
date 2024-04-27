@@ -27,7 +27,7 @@ class ThoughtManager: PreinitObject, TopicDatabase
         {
             libGlobal.thoughtManagerObj = self;
                         
-            gSafePlayerChar.myThoughtManager = self;
+            gPlayerChar.myThoughtManager = self;
         }
         else if(thinker)
             thinker.myThoughtManager = self;

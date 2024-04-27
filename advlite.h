@@ -374,9 +374,6 @@ enum rmcDisambig;
 /* get the current player character Actor object */
 #define gPlayerChar (libGlobal.playerChar)
 
-/* get the current player character object even if the game hasn't yet initialized gPlayerChar */
-#define gSafePlayerChar ((gPlayerChar ?? gameMain.initialPlayerChar) ?? findPlayerChar())
-
 /* get the player character's location */
 #define gLocation (getPlayerChar().location)
 
@@ -1307,7 +1304,6 @@ string template <<add * secs>> addTime;
 /* Associated knowledge enums */
 
 enum likely, dubious, unlikely, untrue;
-enum speaker;
 
 /* Macros to deal with knowledge enums and their associated objects */
 

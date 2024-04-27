@@ -290,6 +290,11 @@ class Parser: object
                 toks = OopsProduction.applyCorrection(lst[1], lastTokens, ui);
             }
 
+            /* EXPERIMENTAL ADDITION HERE */
+            if(defined(specialVerbMgr))
+                toks = specialVerbMgr.matchSV(toks);
+            
+            
             /*   
              *   Parse each predicate in the command line, until we run out
              *   of tokens.  The beginning of a whole new command line is

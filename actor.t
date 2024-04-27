@@ -23,7 +23,7 @@ property inRoomName;
  *   pursue his/her/its own agenda. This class is intended for the
  *   implementation of NPCs (non-player characters).
  */
-replace Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
+modify Actor
     
     /* 
      *   Our current ActorState. This should normally be treated as a read-only
@@ -2892,7 +2892,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
  *   TopicDatabase for use with the conversation system, and is used as a mix-in
  *   class in the list of classes from which Actor and ActorState inherit.
  */
-class ActorTopicDatabase: TopicDatabase
+modify ActorTopicDatabase
        
     /* 
      *   The various lists of TopicEntries located within this TopicDatabase.
@@ -5262,7 +5262,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
  *   EndConvBlocker is a mix-in class whose sole function is to define the
  *   blockEndConv method common to Actor, ActorState and NodeEndCheck
  */
-EndConvBlocker: object
+modify EndConvBlocker
     /* 
      *   Convenience method that notes that conversation has occurred on this
      *   turn and returns nil. This is to allow us to use:
@@ -6113,7 +6113,7 @@ modify conversationManager
  *   Base class for items (Actors and DefaultAgendaTopics) that can handle
  *   AgendaItems */
 
-class AgendaManager: object
+modify AgendaManager
     
     /* 
      *   Our agendaList is the list of AgendaItems we're ready to execute when

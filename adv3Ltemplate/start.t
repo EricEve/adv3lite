@@ -17,7 +17,7 @@ versionInfo: GameID
 ;
 
 gameMain: GameMainDef
-    /* Define the initial player character; this is compulsory */
+    /* Define the initial player character; this is optional here */
     initialPlayerChar = me
 ;
 
@@ -30,14 +30,10 @@ startroom: Room 'The Starting Location'
 
 /* 
  *   The player character object. This doesn't have to be called me, but me is a
- *   convenient name. If you change it to something else, rememember to change
- *   gameMain.initialPlayerChar accordingly.
+ *   convenient name. For a first or third person game define person = 1 or 
+ *   person = 3 on this object.
  */
 
-+ me: Thing 'you'   
-    isFixed = true    
-    proper = true
-    ownsContents = true
-    person = 2   
-    contType = Carrier    
++ me: Player 'you'  
+       
 ;

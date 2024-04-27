@@ -47,7 +47,7 @@ Facts
 <ul>
 <li><b>name</b>: A single-quoted string containing the name of this Fact, which must correspond with the <i>name</i> in any <span class='code'>&lt;.reveal <i>name</i>&gt;</span> or <span class='code'>&lt;.inform <i>name</i>&gt;</span> tag and the like that references this fact.</li>
 <li><b>desc</b>: A description of what this Fact asserts, as a single-quoted string that could follow the word 'that', without any closing punctuation, e.g. 'it will rain tomorrow' or 'the capital of Spain is Madrid' or 'King Richard III was killed at the Battle of Bosworth in 1485'.<//li>
-<li><b>qualifiedDesc(source, topic, narrator?)</b>: an alternative description of what this Fact asserts when it is asserted by <i>source</i> and/or in relation to <i>topic</i>, although this alternative description must say essentially the same thing as <span class='code'>desc</span> (which is returned by default). For example, if the topic were 'Madrid' rather than 'Spain', qualifiedDesc might return 'Spain is the capital of Madrid' rather than 'the capital of Madrid is Spain'. The optional <i>narrator</i> parameter can have the special value <b>speaker</b> to denote that it's being spoken by the source, and thus should be phrased in the first person rather than the second that might occur if it was to be listed in response to a THINK ABOUT command.</li>
+<li><b>qualifiedDesc(source, topic, sender)</b>: an alternative description of what this Fact asserts when it is asserted by <i>source</i> and/or in relation to <i>topic</i>, although this alternative description must say essentially the same thing as <span class='code'>desc</span> (which is returned by default). For example, if the topic were 'Madrid' rather than 'Spain', qualifiedDesc might return 'Spain is the capital of Madrid' rather than 'the capital of Madrid is Spain'. The <i>sender</i> parameter gives the identity of the object that called this method, which can be used to help contextualize the text we wantit to display.</li>
 <li><b>topics</b>: The list of topics (Topics and Things, i.e. game objects) that this Fact relates to. One use of this is to cause this Fact to be listed in response to THINK ABOUT <i>topic</i> or LOOK UP <i>topic</i> IN <i>whatever</i>.</li>
 <li><b>initiallyKnownBy</b>: The list of actors and other objects - typically Consultables - that start the game knowing this Fact. For Facts, it is preferable to define this on the Fact rather than the objects' <span class='code'>initiallyKnowsAbout</span> property.</li>
 <li><b>currentlyKnownBy</b>: returns a list of game objects (typically actors and Consultables) who currently know this Fact.</li>
@@ -84,7 +84,7 @@ Fact 'madrid-capital' [tSpain, tMadrid]
 <ul>
 <li><b>getFact(<i>name</i>)</b>: this returns the Fact object whose name is <i>name</i>.</li>
 <li><b>getFactDesc(<i>name</i>)</b>: this returns the desc (fact description) of the Fact object whose name is <i>name</i>.</li>   
-<li><b>getQualifiedFactDesc(<i>source</i>, <i>name</i>, <i>obj</i>?, <i>narrator</i>)</b>: this returns the qualifiedDesc of the Fact object whose name is <i>name</i> when the source that imparted the fact to the player character is <i>source</i> and the description has been requested in conjunction with <i>obj</i>, e.g. THINK ABOUT SPAIN. The <i>narrator</i> parameter is set to <span class='code'>speaker</span> when this method is called from an ActorTopicEntry</li> 
+<li><b>getQualifiedFactDesc(<i>actor</i>, <i>tag</i>, <i>topic</i>, <i>sender</i>)</b>: this returns the qualifiedDesc of the Fact object whose name is <i>name</i> when the source or actor that imparted the fact to the player character is <i>actor</i> and the description has been requested in conjunction with <i>topic</i>, e.g. THINK ABOUT SPAIN. The <i>sender</i> argument will normally <span class='code'>self</span>y</li> 
 <li><b>getPcComment(tag, topic)</b> and <b>setPcComment(tag, txt)</b> will be explained below in relation to <a href='#comment'>FactThought </a>
 </li>
 </ul>
@@ -535,7 +535,67 @@ bob: Actor 'Bob;;;him' @lounge
 ;
 </pre></div></p>
 
-<p>If the <b>revealing</b> property of such an InitiateTopic is true (as it is by default), its <span class='code'>aTag</span> property will be set to the fact name just matched, so that we can use the <span class='code'>revTag()</span> method as in the example above. The thinking here is that setting <span class='code'>revealing</span> to true implies that the InitiateTopic is stating a Fact which is accordingly revealed to the player character. If, however, the InitiateTopic is asking a question, we should set <span class='code'>revealing</span> to nil, since asking a question does not convey any facts (in the sense of this Fact module). Whether <span class='code'>revealing</span> is true or nil, providing that there is a fact name corresponding to the string the InitiateTopic matches, its t<span class='code'>opicMatched</span> property will be set to that corresponding fact.</p>
+<p>If the <b>revealing</b> property of such an InitiateTopic is true (as it is by default), its <span class='code'>aTag</span> property will be set to the fact name just matched, so that we can use the <span class='code'>revTag()</span> method as in the example above. The thinking here is that setting <span class='code'>revealing</span> to true implies that the InitiateTopic is stating a Fact which is accordingly revealed to the player character. If, however, the InitiateTopic is asking a question, we should set <span class='code'>revealing</span> to nil, since asking a question does not convey any facts (in the sense of this Fact module). Whether <span class='code'>revealing</span> is true or nil, providing that there is a fact name corresponding to the string the InitiateTopic matches, its <span class='code'>topicMatched</span> property will be set to that corresponding fact.</p>
+<br>
+<h2>Contextualising qualifiedDesc</h2>
+
+<p>We have already seen how we can use the <span class='code'>qualifiedDesc()</span> method to adjust the description of a fact to its context, but there is one common case the library's definition of <span class='code'>qualifiedDesc()</span> can handle for us, provided we define our desc in a way that makes it clear what we want it to do.</p>
+
+<p>Suppose we have defined a Fact such as the following:</p>
+
+<p><div class="code"><pre>
+Fact 'bob-likes-cousin' [tCousin]
+    'Bob likes his cousin'
+    [bob]
+;
+</pre></div></p>
+
+<p>Together with an AskTopic for bob such as:</p>
+
+<p><div class="code"><pre>
+++ AskTopic @tCousin
+    "&lt;q&gt;&lt;&lt;revealFact('bob-likes-cousin')&gt;&gt;,&lt;/q&gt; Bob tells you. "
+    
+    name = 'his cousin'    
+;
+</pre></div></p>
+
+<p>Without any further adaptation, this would give us:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;ask bob about cousin</b>
+“Bob likes his cousin,” Bob tells you.
+
+<b>&gt;think about cousin</b>
+You recall that Bob told you that Bob likes his cousin.
+</pre></div></p>
+
+<p>Which probably isn't what we want. But rather than diving into qualifiedDesc() to try to arm-wrestle it into producing something more appropriate, we can instead leave qualifiedDesc() as it is and instead change the way we write our Fact's desc:</p>
+
+
+<p><div class="code"><pre>
+Fact 'bob-likes-cousin' [tCousin]
+    '[bob] like{s/d} [his] cousin'
+    [bob]
+;
+</pre></div></p>
+
+<p>We'll then get:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;ask bob about cousin</b>
+“I like my cousin” Bob tells you.
+
+<b>&gt;think about cousin,</b>
+You recall that Bob told you that he likes his cousin.
+</pre></div></p>
+
+<p>Tbis works by means of qualifiedDesc() working out the context of the utterance (e.g., whether it's the subject of the sentence, here Bob, who's speaking or whether what's being reported is what he told you before, e.g. 'Bob told you that') and then replaces the square-bracketed text (here '[bob]' and '[his'] with the <a href='message.htm#parameter'>message parameter</a> needed to produce the text we want. We don't need to know the details of how this works to use it. The important points to remember are:</p>
+<ol>
+<li>The first square-bracketted expression you use must be the globalParamName of the Actor in question in square brackets, e.g. '[bob]'. Note that the library automatically assigns the programmatic name of an Actor to its globalParamName name unless you decide to give it different one, so unless you change it, the globalParamName of <span class='code'>bob</span> will be 'bob'.</li>
+<li>Any subsequent square-bracktted text you use should be one of the <a href='message.htm#parameter'>message parameters</a> listed later in this manual, minus the <i>obj</i> part, e.g. '[his]' rather than '[his bob]' or '[his obj']; the qualifiedDesc method will then work out what to supply here.</li>
+<li>To secure subject-verb agreement you should use an ordinary <a href='message.htm#parameter'>message parameters</a>, e.g. 'like{s/d}' rather than just 'likes'.</li>
+</ol>
 
 <a name='debug'></a>
 <h2>Debugging Commands</h2>
