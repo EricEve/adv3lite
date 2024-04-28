@@ -2520,6 +2520,57 @@ modify Actor
     }
     
     /* 
+     *   Returns a list of actors towards home this Actor has the most positive stance (out of the
+     *   stanches s/he currently holds).
+     */
+    likesBest()  { return likes(true); }
+    
+    /* 
+     *   Returns a list of actors towards home this Actor has the least positive stance (out of the
+     *   stanches s/he currently holds).    */
+    likesLeast()  { return likes(nil); }
+    
+    likes(stat)
+    {
+        local vec = new Vector;
+        
+        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))        
+        {
+            vec.append(a);
+        }
+        
+        vec.removeElement(self);        
+            
+        vec.sort(stat, {a, b: stanceTowards(a) - stanceTowards(b)});
+        
+        local maxStance = stanceTowards(vec[1]);
+        
+        return vec.subset({x: stanceTowards(x) == maxStance}).toList();
+    }
+    
+    
+    likedBy(stat)
+    {
+        local vec = new Vector;
+        
+        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))        
+        {
+            vec.append(a);
+        }
+        
+        vec.removeElement(self);    
+        
+        vec.sort(stat, {a, b: a.stanceTowards(self) - b.stanceTowards(self)});
+        
+        local maxStance = vec[1].stanceTowards(self);
+        
+        return vec.subset({x: x.stanceTowards(self) == maxStance}).toList();
+    }
+    
+    mostLikedBy() {return likedBy(true); }
+    leastLikedBy() {return likedBy(nil); }
+    
+    /* 
      *   Our mood (unlike our stance) may be state dependent. However we assume its not actor
      *   dependent (I'm not sad toward bob but happy towards sally), although of course different
      *   actors may affect our mood in different ways.
@@ -2527,7 +2578,7 @@ modify Actor
      *   If we don't have a current ActorState or our current ActorState's mood is nil, we fall back
      *   on our own actorMood.
      */     
-    mood = (curState && curState.mood ? curState.mood : actorMood)   
+    mood = (stateDependentMoods && curState && curState.mood ? curState.mood : actorMood)   
     
     /* 
      *   Our mood when this isn't defined by our current ActorsState. We default to the default
@@ -2541,11 +2592,14 @@ modify Actor
      */
     setMood(mood_)
     {
-        if(curState)
+        if(curState && stateDependentMoods)
             curState.mood = mood_;
         else
             actorMood = mood_;
     }
+    
+    /* Flad; do we want this Actor's moods to depend on their ActorState, by default we do */
+    stateDependentMoods = true
 ;
 
 /*  
@@ -2883,7 +2937,7 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   The actor's mood when the actor is in this atate. If this is nil the actor uses the value
      *   of the actorMood property instead.
      */
-    mood = nil
+    mood = nil   
 ;
 
 /*  
@@ -7298,4 +7352,19 @@ class ProxyActor: object
      *   can be done via the @ notation in the template.
      */
     location = nil
+;
+
+
+
+stanceInitializer: PreinitObject
+    stances = nil
+    
+    execute()
+    {
+        if(stances)
+        {
+            foreach(local cur in stances)
+                cur[1].setStanceToward(cur[3], cur[2]);
+        }
+    }
 ;

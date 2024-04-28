@@ -1462,6 +1462,11 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 #define gSetMood(mood_) (getActor.setMood(mood_ ## Mood))
 #define aSetMood(actor, mood_) (actor.setMood(mood_ ## Mood))
 
+#define Sta(a, b, c) [a, b ## Stance, c]
+
+/* Template for SpecialVerbs */
+SpecialVerb template 'specVerb' 'stdVerb' @matchObjs | [matchObjs];
+
  /*----------------------------------------------------------------------------*/
 /*
  *   Include the header for the Date intrinsic class. For some reason the

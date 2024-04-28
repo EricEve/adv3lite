@@ -1,0 +1,155 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actors &mdash; Moods and Stances</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Moods and Stances
+<br><span class="navnp"><a class="nav" href="orders.htm"><i>Prev:</i> Giving Orders to NPCs</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tags.htm"><i>Next:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Moods and Stances</h1>
+<h2>Overview</h2>
+<p>In many games it may be enough (or more than enough) to track what various actors know and believe, but human beings have affective as well as cognitive properties, and if we're trying to create lifelike NPCs in our game, it may be that we want to track something about their emotional lives too. <a href='#moods'>Moods</a> and <a href='#stances'>Stances</a> in adv3Lite provide a framework for tracking each Actor's current emotional state (Mood) and (positive or negative) attitude towards the player character (and, if we so wish, towards other NPCs).</p>
+
+<p>An Actor's mood and/or stance can be tested (and changed) in game code to affect the way the Actor behaves, for example in his or her converational responses or AgendaItems.</p>
+
+<a name='moods'></a>
+<h2>Moods</h2>
+<p>A Mood is a simple representation of an Actor's current emotional state. Moods are objects of the Mood class. Each Mood object has a programmatic name ending in Mood (e.g., <span class='code'>happyMood</span>) with a corresponding <span class='code'>name<</span> property giving the name of the Mood as a single-quoted string (e.g., 'happy'). A number of Moods come predefined in the language dependent part of the library (english.t): neutral, calm, happy, euphoric, contented, sad, depressed, angry, furious, afraid, terrified, confident, bold. lonely, bored, and excited. You can easily define more if you want them. For example, to define an irritable Mood you'd just use:</p>
+
+<p><div class="code"><pre>
+ DefMood(irritable);
+ </pre></div>
+ 
+
+<p>This would create the following object:</p>
+ <p><div class="code"><pre>
+ irritableMood:Mood
+     name = 'irritable'
+;
+</pre></div>
+
+<p>The Actor class defines the following properties and methods to support the use of Moods:</p>
+<ul>
+<li><b>mood</b>: The Actor's current mood (e.g. <span class='code'>neutralMood</span>). This should be treated as read-only, since it returns the mood defined on the actor's current ActorState (if there is one) or else the value of <span class='code'>actorMood</span>. To change the Actor's mood either set <span class='code'>actorMood</span> or use the <span class='code'>setMood()</span> method.</li>
+<li><b>actorMood</b>: The mood this actor is in if and when he or she isn't in any ActorState, or if his/her current ActorState's <span class='code'>mood</span> is nil (the default), or the Actor's <span class='code'>stateDependentMoods</span> property is set to nil.</li>
+<li><b>setMood(mood_)</b>: sets the Actor's current ActorsState's <span class='code'>mood</span> to <i>mood_</i>, or the Actor's <span class='code'>actorMood</span> to <i>mood_ if</i> the Actor has no current ActorState. If you want to avoid changing the current ActorState's mood just use <span class='code'>actorMood = newMood</span> instead, or set the Actor's <span class='code'>stateDependentMoods</span> property to nil.</li>
+<li><b>stateDependentMoods</b>: If you don't want moods to be related to ActorStates (which would be perfectly reasonable if, for example, you were using ActorStates to model what actors were doing and the like regardless of their mood) then you can set this to nil, either on individual Actors or on the Actor class.</li>
+</ul>
+<p>The default initial <span class='code'>actorMood</span> for an Actor is the value of <span class='code'>libGlobal.defaultMood</span>, which in the english library is <span class='code'>neutralMood</span>. It's done this way so that translators (or game authors) working in different languages can readily define their own default mood.</p>
+<p>The library also defines the following macros to work with moods:</p>
+<ul>
+<li><b>gMood</b>: get getActor's current mood.</li>
+<li><b>gMoodIs(<i>name</i>)</b>: test whether getActor's current mood is <i>name</i></li>
+<li><b>gMoodIn(<i>name1</i>, <i>name1</i>...)</b>: test whether getActor's mood is one of <i>name1</i>, <i>name1</i>...</li>
+<li><b>gSetMood(<i>name</i>)</b>: set getActor's mood to <i>name</i>.</li>
+<li><b>aMood(actor)</b>: get actor's current mood.</li>
+<li><b>aMoodIs(actor, <i>name</i>)</b>: test whether actor's current mood is <i>name</i></li>
+<li><b>aMoodIn(actor, <i>name1</i>, <i>name1</i>...)</b>: test whether actor's mood is one of <i>name1</i>, <i>name1</i>...</li>
+<li><b>aSetMood(actor, <i>name</i>)</b>: set actor's mood to <i>name</i>.</li>
+</ul>
+<p>In each case the <i>name</i> parameter is the name of the Mood without the suffix 'Mood', so that, for example, you would use <span class='code'>gMoodIs(happy)</span> rather than <span class='code'>gMoodIs(happyMood)</span>.
+<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes semse, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the mood of any other actor, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
+The macros <span class='code'>gMood</span> and <span class='code'>aMood(actor)</span> return the Mood <i>object</i> e.g. <span class='code'>happyMood</span>.
+
+<a name='stances'>
+<h2>Stances</h2>
+<p>Stances provide a simple representation of the the (positive or negative) attitude an NPC has towards the Player Character (and also, if you wish to track it, towards other NPCs). Stances are not ActorState dependent, but they are Actor-dependent in the sense that an NPC's stance towards other actors in the game may obviously vary by actor. Unlike Moods, stances can be ranked by <b>score</b>, a crude measure of the degree of positivity or negativity an actor has towards the Player Character (and possible other actors).</p>
+
+<p>Stances are objects of the Stance class. Each Stance object has a programmatic name ending in Stance(e.g., <span class='code'>friendly</span>) with a corresponding <span class='code'>name<</span> property giving the name of the Stance as a single-quoted string (e.g., 'friendly'), along with an associated <span class='code'>score<</span>, e.g. 20. A number of Stances come predefined in the language dependent part of the library (english.t); in ascending order of score (from -50 to 50) these are: loathing, rancorous, hostile, unfriendly, cool, neutral, lukewarm, friendly, warm, loving, and amorous. You can easily define more if you want them. For example, to define a cordial Stance with a score 25 of you'd just use:</p>
+
+<p><div class="code"><pre>
+ DefStance(cordial, 25);
+ </pre></div>
+ 
+
+<p>This would create the following object:</p>
+ <p><div class="code"><pre>
+ cordialStance: Stance
+     name = 'cordial'
+     score = 25
+;
+</pre></div>
+
+<p>The Actor class defines the following properties and methods to support the use of Stances:</p>
+<ul>
+<li><b>stance</b>: The Actor's current stance towards the Player Character (e.g. <span class='code'>neutralSTance</span>). This should be treated as read-only, since it returns the value of <span class='code'>stanceTowards(gPlayerChar)</span>. To change the Actor's stance  use the <span class='code'>setStanceToward()</span> method.</li>
+<li><b>stanceToward(<i>actor</i>)</b>: The stance this Actor has towards <i>actor</i>.</li>
+<li><b>setStanceToward(actor, stance)</b>: sets the Actor's current stance towards <i>actor</i></span> to <i>stance</i>.</li>
+<li><b>likesMost()</b>: returns a list of actors to whom this Actor has the most positive stance (of the stances s/he holds).</li>
+<li><b>likesLeast()</b>: returns a list of actors to whom this Actor has the least positive stance (of the stances s/he holds).</li>
+<li><b>mostLikedBy()</b>: returns a list of actors who hold the most positive stance to this Actor(of the stances they hold). </li>
+<li><b>leastLikedBy()</b>: returns a list of actors who hold the least positive stance to this Actor(of the stances they hold). </li>
+</ul>
+
+<p>In the case of the final four of these, the Actor is excluded from the list under consideration (consider the case where Bob has a positive stance towards everyone else but his stance towards himself has been left at <span class='code'>neutralStance</span>; to learn that Bob likes himself the least probably isn't the information we'd be looking for here).</p>
+
+<p>As with Mood, there are a number of macros that can be used with Stance; the following all concern other actors' stances towards the Player Character.</p>
+
+<ul>
+<li><b>gStance</b>: get getActor's current stance towards the Playrer Character (PC).</li>
+<li><b>gStanceIs(<i>name</i>)</b>: test whether getActor's current stance towards the PC is <i>name</i></li>
+<li><b>gStanceIn(<i>name1</i>, <i>name1</i>...)</b>: test whether getActor's stance towards the PC is one of <i>name1</i>, <i>name1</i>...</li>
+<li><b>gSetStance(<i>name</i>)</b>: set getActor's stance towards the PC to <i>name</i>.</li>
+<li><b>aStance(actor)</b>: get actor's current stance towards the PC.</li>
+<li><b>aStanceIs(actor, <i>name</i>)</b>: test whether actor's current stance towards the PC is <i>name</i></li>
+<li><b>aStanceIn(actor, <i>name1</i>, <i>name1</i>...)</b>: test whether actor's stance towards the PC is one of <i>name1</i>, <i>name1</i>...</li>
+<li><b>aSetStance(actor, <i>name</i>)</b>: set actor's stance towards the PC to <i>name</i>.</li>
+</ul>
+
+<p>In each case the <i>name</i> parameter is the name of the Stance without the suffix 'Stance', so that, for example, you would use <span class='code'>gStanceIs(friendly)</span> rather than <span class='code'>gStanceIs(friendlyStance)</span>.
+<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes semse, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the stancee of any other actor towards the player character, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
+The macros <span class='code'>gStance</span> and <span class='code'>aStance(actor)</span> return a Stance <i>object</i> e.g. <span class='code'>friendlyStance</span>.
+
+<p>Because Stances have an associated score, they can be ranked and compared by score. The following operators are available to compare Stances:
+<ul>
+<li> <b>a - b</b>: equivalent to <span class='code'>a.score - b.score</span></li>
+<li> <b>a &gt;&gt; b</b>: equivalent to <span class='code'>a.score &gt; b.score</span></li>
+<li> <b>a &lt;&lt; b</b>: equivalent to <span class='code'>a.score &lt; b.score</span></li>
+<li> <b>a &gt;&gt;&gt; b</b>: equivalent to <span class='code'>a.score &gt;= b.score</span></li>
+</ul>
+
+(The last three of these operators were chosen in place of the more conventional ones as being the closest available operators TADS can override).
+
+<p>There are a further trio of Stance operators which may perhaps be useful to some game authors:</p>
+<ul>
+<li> <b>whateverStance[a] = [b]</b>: Sets <i>whateverStance</i> to be <i>a</i>'s stance to <i>b</i>.</span></li>
+<li> <b>whateverStance[a]</b>: returns a list of people towards whom <i>a</i> holds this stance.</span></li>
+<li> <b>whateverStance * a</b>: returns a list of people who hold this stance towards <i>a</i>.</span></li>
+</ul>
+<p>If you need to set up a fair number of attitudes at the start of play, you can make use of the <b>stanceInitializer</b> object, modifying it to define a list of stances, each stance entry being a list of the form <span class='code'>[actor1, stance, actor2]</span>, meaning actor1 starts out holding <i>stance</i> towards actor2. To avoid having to keep typing 'Stance' at the end of each stance name, you can make use of the <b>Sta</b> macro, for example:</p>
+
+ <p><div class="code"><pre>
+ modify stanceInitializer
+    stances = [
+        Sta(me, friendly, bob),
+        Sta(bob, warm, me),
+        Sta(bob, amorous, mavis),
+        Sta(mavis, loving, bob),
+        Sta(me, lukewarm, mavis),
+        Sta(mavis, cool, me)
+    ]
+; 
+ </pre></div>
+
+
+
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="actor.htm">Actors</a> &gt; 
+Moods and Stances
+<br><span class="navnp"><a class="nav" href="orders.htm"><i>Prev:</i> Giving Orders to NPCs</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tags.htm"><i>Next:</i> String Tags and Object Tags</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

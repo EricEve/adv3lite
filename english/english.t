@@ -6154,13 +6154,13 @@ DefStance(amorous, 50);
 DefStance(loving, 40);
 DefStance(warm, 30);
 DefStance(friendly, 20);
-DefStance(cordial, 10);
+DefStance(lukewarm, 10);
 DefStance(neutral, 0);
 DefStance(cool, -10);
 DefStance(unfriendly, -20);
 DefStance(hostile, -30);
-DefStance(venemous, -40);
-DefStance(hateful, -50);
+DefStance(rancorous, -40);
+DefStance(loathing, -50);
 
 /* 
  *   Definitions for moods. We define them in the language-specific part of the library so that
@@ -6192,39 +6192,3 @@ modify libGlobal
 ;
 
 
-
-//apostropheSPreParser: StringPreParser
-//    doParsing(str, which)
-//    {
-//        /* 
-//         *   If we haven't created a LookupTable there aren't any words to check
-//         *   for, so we can just return the string unaltered.
-//         */
-//        if(possTab == nil)
-//            return str;
-//        
-//        
-//        local lst = str.split(' ');
-//        
-//        
-//        for(local tok in lst, local i=1 ;;i++)
-//        {
-//            local aposWord = possTab[tok.toLower];
-//            if(aposWord != nil)
-//                lst[i] = aposWord;
-//        }
-//    
-//        return lst.join(' ');
-//    }
-//    
-//    
-//    possTab = nil
-//    
-//    addEntry(key, val)
-//    {
-//        if(possTab == nil)
-//            possTab = new LookupTable();
-//        
-//        possTab[key] = val;       
-//    }
-//;
