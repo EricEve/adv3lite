@@ -2200,7 +2200,13 @@ SayAction: ImplicitConversationAction
     defaultProperty = &defaultSayResponse
 ;
 
-
+/* 
+ *   A Special Action is one that's been triggered from a SpecialAction object to cover cases where
+ *   there's no other existing action in the game it can divert to.
+ */
+DefineTAction(SpecialAction)
+    specialPhrase = nil
+;
 
 
 /*

@@ -3461,6 +3461,26 @@ VerbRule(Verbose)
     verbPhrase = 'set/setting verbose mode'
 ;
 
+VerbRule(SpecialAction)
+    'sp#act' singleDobj
+    :VerbProduction
+    action = SpecialAction
+    verbPhrase = 'do/doing that to (what)'
+    missingQ = 'what do you want to do that to'    
+;
+
+specialActionPreparser: StringPreParser
+    doParsing(str, which)
+    {
+        if(str.find('sp#act'))
+        {
+            DMsg(reject spaction input, 'I <i>really</i> refuse to understand that command. ');
+            return nil;                
+        }
+        return str;
+    }
+;
+
 
 #ifdef __DEBUG
 

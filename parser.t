@@ -210,6 +210,9 @@ class Parser: object
      */
     parse(str)
     {
+        /* Make sure our current SpecialVerb is set to nil before we start parsing a new command. */
+        specialVerbMgr.currentSV = nil;
+        
         /* tokenize the input */
         local toks;
         try
@@ -285,15 +288,13 @@ class Parser: object
                     /* OOPS isn't available - throw an error */
                     throw new CantOopsError();
                 }
-
+                
                 /* apply the correction, and proceed to parse the result */
                 toks = OopsProduction.applyCorrection(lst[1], lastTokens, ui);
             }
-
-            /* EXPERIMENTAL ADDITION HERE */
-            if(defined(specialVerbMgr))
-                toks = specialVerbMgr.matchSV(toks);
             
+            /* Allow the specialVerb Manager to adjust our toks */            
+            toks = specialVerbMgr.matchSV(toks);            
             
             /*   
              *   Parse each predicate in the command line, until we run out
@@ -5794,3 +5795,437 @@ class TerminateCommandException: Exception
 ;
 
 
+/* 
+ *   A SpecialVerb allows us to define grammar for verbs applying to only a handful of objects in
+ *   our game, where we want the rarely used command to be translated into a common one, e.g. RIMG
+ *   BELL -> PUSH BELL, which we could implement as:
+ *
+ *.  SpecialVerb 'ring' 'push' @doorbell
+ */
+class SpecialVerb: object
+    /* 
+     *   The word or words this SpecialVerb should match, e.g. 'ring'. Different forms can be listed
+     *   separated by a vertical bar, e.g. 'cross|go across|walk across'
+     */
+    specVerb = ''
+    
+    /* 
+     *   The verb words needed to trigger the action we want this SpecialVerb to perform, e.g.
+     *   'push' or 'go through'
+     */
+    stdVerb = ''
+    
+    /* 
+     *   The object ot objects we want this SpecialVerb to apply to. This can be a single object or
+     *   class or list of objecta and/or classes, but it should result only in a small number of
+     *   matches.
+     */
+    matchObjs = nil
+    
+    /* 
+     *   A Room, Region or list of Rooms and/or Regions where this SpecialVerb is applicable. Note
+     *   we'd very rarely need to specficy this since SpecialVerb already makes scope checks.
+     */
+    where = nil
+    
+    /*  A Scene or list of Scenes that must be happening for this SpecialVerb to apply. */
+    during = nil
+    
+    /*  
+     *   A condition that must be true for this SpecialVerb to apply. This cannot refer to the
+     *   objects involved in the command (e.g. dobj or iobj) since these won't be known the first
+     *   time the when condition is tested. For conditions involving the dobj, iobj, or aobj of a
+     *   the current command, use objCheck() instead.
+     */     
+    when = true
+
+    /* 
+     *   A check that can be applied once the objects involved in the command are known, (e.g. to
+     *   check whether dobj.isOpen). The method can return nil to reject the command at this stage,
+     *   or else display a message to explain why it can't go ahead and then use abort to stop it.
+     *   It's unlikely that this will be needed often.
+     */
+    objChecks(dobj, iobj, aobj)
+    {
+        return true;
+    }
+    
+    /* 
+     *   The priority we want to assign this SpecialVerb if the library needs to break a tie between
+     *   two or more SpecialVerbs that might otherwise be matched after all other conditions have
+     *   been applied. The default is 100. Other things being equal, the SpecialVerb with the
+     *   higher/highest priority will be matched.
+     */
+    priority = 100
+    
+    /* The verb phrase that's been matched to invoke this SpecialVerb. */
+    verbPhrase = (specialVerbMgr.vWords.join())
+    
+    /* The remaining methods and properties of SpecialVerb are for internal library use. */
+
+    /* 
+     *   This method is called once the command has been resolved and we kmow the objects involved
+     *   in it. lst is a list containing the action followed by the objects involved in the action,
+     *   e.g. [action, dobj]. svPhrase is the special verb phrase that's been translated into
+     *   another action, e.g. 'ring' or 'walk across'
+     */     
+    checkSV(lst, svPhrase)
+    {
+        /* The direct object of the command, which is the second element of lst. */
+        obj = lst.element(2);
+        
+        /* 
+         *   If the direct object of the command does not not match any of the objects/classes
+         *   listed in out matchObjs property, we fail the action at this stage.
+         */
+        if(!matchObjs.indexWhich({x:obj.ofKind(x)}))
+           failCheck(svPhrase);
+        
+        /* Carry out the custom checks based on our where, when and during properties. */
+        customChecks(lst);
+    }
+    
+    /* 
+     *   Display a messsage saying the command can't proceed and then stop it in its tracks.
+     *   svPhrase is the command we matched, e.g. 'ring' or 'walk over'.
+     */
+    failCheck(svPhrase)
+    {
+        /* Display the failure message. */
+        showFailureMsg(svPhrase);
+        
+        /* Abort the command. */
+        abort;
+    }
+    
+    /* Display our failure message. By default this is "You can't <<svPhrase>> that. */
+    showFailureMsg(svPhrase)
+    {
+        DMsg(cant do that special, '{I} {can\'t} <<svPhrase>> that. ');
+    }
+    
+    /* Initialise (in fact preinitialize) this SpecialVerb */
+    initSpec()
+    {
+        /* Make sure our matchObjs property contains a list. */
+        matchObjs = valToList(matchObjs);
+        
+        /* 
+         *   Split our special verbs into a list, in case we have different options separated by a
+         *   vertical bar.
+         */
+        local specVerbs = specVerb.split('|');
+        
+        /* 
+         *   Then interate through every element in our special verb variants to add them to the
+         *   special verbs Lookup
+         table.*/
+        foreach(local s in specVerbs)
+        {    
+            /* 
+             *   Split the grammar in variant s into a list of separate words, e.g. 'walk over' ->
+             *   ['walk', 'over']
+             */
+            local sWords = s.split(' ');
+            
+            /* Add this SpeciaVerb to the special verb table with sWords as the key/ */
+            specialVerbMgr.addToTable(sWords, self); 
+            
+            /* 
+             *   If the number of words in this variant is greater than the number of words
+             *   encountered in any previous SpecialVerb that's been initialized, update the maximum
+             *   length stored on specialVerbManager. We do this so SpecialVerbManager knows the
+             *   maximum number of words it needs to look for when trying to match keys in its
+             *   table.
+             */             
+            if(sWords.length > specialVerbMgr.maxKeyLen)
+                specialVerbMgr.maxKeyLen = sWords.length;
+        }       
+    }
+    
+    /* Check whether this SpecialVerb matches its conditions. */
+    matches(scope_)
+    {       
+        /* 
+         *   If none of the objects this SpecialVerb is meant to apply to are in scope, subtract a
+         *   very large number from its match score so that it will be treated as a very poor
+         *   candidate no matter what other conditions it does or doesn't match.
+         */         
+        if(!scopeCheck(scope_))
+            score -= 500000;
+        
+        /* Then carry out the custom checks. */
+        return customChecks();
+    }
+        
+    /* Check whether any of the items this SpecialVerb is meant to match is in scope. */ 
+    scopeCheck(scope_)
+    {
+        /* Iterate through every object/class in our list of matchObjs. */
+        foreach(obj in matchObjs)
+        {
+            /* If we find a match, return true. */
+            if(scope_.vec_.indexWhich({x: x.ofKind(obj)}))
+                return true;
+        }
+        
+        /* If we reach this point, no match has been found, so we return nil. */
+        return nil;
+    }
+    
+    /* 
+     *   This method is called twice, first when the specialVerbMgr is seeking the best SpecialVerb
+     *   option to match, and the second once the objects of the revised command have been
+     *   identified and the command is about to be executed. The first time round the lst parameter
+     *   won't be supplied (so will be effectively nil); the second time it will be a list
+     *   containing the action and its objects. The customChecks() method uses this simply to
+     *   determine at which stage its being invoked. The first time its being asked to adjust the
+     *   match score; the second time its being asked to check whether or not the proposeed action
+     *   should be allowed to proceed.
+     */
+    customChecks(lst?)
+    {
+        /* 
+         *   If the Scenes module is present and our during property has been designed check whether
+         *   one of the scenes in our suring list is currently happening.
+         */
+        if(defined(sceneManager) && during && !(valToList(during).indexWhich({x: x.isHappening})))
+        {
+            /* 
+             *   If not, return nil on the second invocation and deduct 100000 from our score on the
+             *   first.
+             */
+            if(lst)
+                return nil;
+            else
+                score -= 100000;
+        }
+        
+        /* 
+         *   Check whether the actor is located in one of the rooms or regions in our where list, if
+         *   the where list has been defined.
+         */
+        if(where && !valToList(where).indexOf(gActorRoom))
+            /* 
+             *   If not, return nil on the second invocation and deduct 100000 from our score on the
+             *   first.
+             */
+        {
+            if(lst)
+                return nil;
+            else
+                score -= 100000;
+        }
+        
+        /* Check whether our when condition has been met. */
+        if(!when)
+        {
+            /* 
+             *   If not, return nil on the second invocation and deduct 100000 from our score on the
+             *   first.
+             */
+            if(lst)
+                return nil;
+            else
+                score -= 100000;       
+        }
+        
+        /* 
+         *   On the second invocation, return the value of objAfterChecks(lst); on the first simply
+         *   return true.
+         */
+        return lst ? objAfterChecks(lst) : true;
+    }
+        
+    /* Checks involving the objects of the commmand, once we know them */
+    objAfterChecks(lst)
+    {
+        /* 
+         *   Call objChecks with the second, third, and fourth elements of lst as arguments; these
+         *   correspond to the dobj, iobj and aobj of the command. Note that the element(i) method
+         *   simply returns nil if i is greater than the length of lst.
+         */
+        return objChecks(lst.element(2), lst.element(3), lst.element(4));
+    }
+        
+    /* Our adjusted priority after attempting a match. */
+    score = 0
+   
+;
+
+
+/* 
+ *   The specialVerbMgr carries out various tasks needed for working with SpecialVerbs. In
+ *   particular it preinitializes SpecialVerbs to add them to its LookupTable, and is responsible
+ *   for matching SpecialVerbs to player input and translating and checking actions appropriately.
+ *   Its methods and properties are entirely intended for internal use by the library and shouldn't
+ *   normally be invoked or changed in user game code.
+ */
+specialVerbMgr: PreinitObject
+    findMatchingSV(toks)
+    {
+        /* Get a list of words in toks list */         
+        local tokWords = toks.mapAll({t: t[1]}); // new
+        
+        /* Set up a variable to hold the list of SpecialVerbs we'll match. */
+        local specs = nil; // new
+        
+        /* 
+         *   Work down from the maximum key length (in terms of the number of words it contains) to
+         *   1, so that a shorter key doesn't mask a longer one.
+         */
+        for(local klen in maxKeyLen .. 1 step -1)
+        {
+            /* Then key we're looking to match is the first klen elements of our tokWords list. */
+            local ky = tokWords.sublist(1, klen);
+            
+            /* Obtain the SpecialVerbs that match that key. */
+            specs = specTable[ky];
+            
+            /* 
+             *   If we find any, store the key in our vWords property (the words in the player input
+             *   we're just matching) and break out of the loop, since we won't need to keep
+             *   looking.
+             */
+            if(specs)
+            {
+                vWords = ky;
+                break;
+            }
+        }
+        
+        /* If we don't find any we're done. */
+        if(specs == nil)
+            return nil;        
+        
+        /* Cache the player character's scope list. */
+        local scope_ = Q.scopeList(gPlayerChar);
+        
+        /* Calculate each SpecialVerb's match score, based partly on what's in scope. */
+        foreach(local s in specs)
+            s.matches(scope_);
+        
+        /* Sort the list in descending order of score. */
+        local svmatches = specs.sort(true, {a, b: a.score  - b.score });
+        
+        /* Return the first one in the list, which should tbe the best match. */
+        return svmatches[1];                                           
+    }
+    
+    /* The verb words we're currently matching. */
+    vWords = nil
+    
+    matchSV(toks)
+    {
+        /* Find the best SpecialVerb matching the tokens passed to us by the parser */
+        local sv = findMatchingSV(toks);
+        
+        /* 
+         *   If we've found one, update the parser's tokens acordingly, so they now contain the
+         *   standard verb (stdVerb) we want to use in place of the special verb word.
+         */
+        if(sv)
+        {              
+            /* 
+             *   We now need to add the rest of the toks back to the revised first one. We need to
+             *   start from the next tok we just matched our special verb to.
+             */
+            local nToks = toks.sublist(vWords.length + 1);
+            
+            /* 
+             *   Split the stdVerb into a list of words. Check its length. Update the first len toks
+             *   with the list of words from stdVerb. Append nToks to the first stdVerb.length toks.
+             */            
+            local stdVerbWords = sv.stdVerb.split(' ');
+            local stdVerbLen = stdVerbWords.length();
+            local vToks = [];
+            
+            /* Create the toks for the new standard verb */
+            for(local i in 1 .. stdVerbLen)
+            {
+                vToks = vToks.append([stdVerbWords[i], tokWord, stdVerbWords[i]]);                 
+            }           
+            
+            /* Change toks to our new verb phrase plus the old noun phrase */
+            toks = vToks + nToks;
+            
+            
+            /* Make a note of the current SpecialVerb we're working with. */
+            currentSV = sv;
+            
+        }
+        
+        /* Return the (possibly adjusted) list of tokens. */
+        return toks;
+    }
+    
+    /* 
+     *   Call the checkSV() method on our currently active SpecialVerb, if we have one. Tbis is
+     *   called by the current Command object just before invoking the relevant Doer for the
+     *   command.
+     */
+    checkSV(lst)
+    {
+        try
+        {
+            /* 
+             *   If have have a current SpecialVerb, invoke its checkSV method. lst is a list of
+             *   objects involved in the action in the form [action, dobj, ...] whiile vWords
+             *   contains the words making up the current SpecialVerb verb, e.g. ['ring'] or
+             *   ['walk', 'across']
+             */
+            if(currentSV)
+            {
+                currentSV.checkSV(lst, vWords.join(' '));
+                
+                if(lst[1] == SpecialAction)
+                    lst[1].specialPhrase = vWords.join(' ');
+            }
+        }
+        finally
+        {
+            /* 
+             *   Make sure we reset currentSV to nil, whataver happens in checkSV (which might well
+             *   through an Exception such as abort to stop the action.
+             */
+            currentSV = nil;
+        }
+    }
+    
+    /* The SpecialVerb currently in use. */
+    currentSV = nil
+    
+    /* Carry out our preinitialization. */
+    execute()
+    {
+        /* Iterate over every object of the SpecialVerb class calling its initSpec() method. */
+        for(local spec = firstObj(SpecialVerb); spec != nil; spec = nextObj(spec, SpecialVerb))
+            spec.initSpec();               
+    }
+
+    /* 
+     *   Add a SpecialVerb to our specTable; s is the key value containing the words that can invoke
+     *   the SpecialVerb (e.g. ['ring'] or ['walk', 'across'] and spec is the matching SpecialVerb.
+     */
+    addToTable(s, spec)
+    {
+        /* Obtain the current value corresponding to the s key in specTable. */
+        local specs = valToList(specTable[s]);
+        
+        /* Add spec to the list of SpecialVerbs it matches. */
+        specTable[s] = specs + spec;
+    }
+    
+    /* 
+     *   Our LookupTable containing lists of grammar tokens (e.g., ['ring'] or ['go', 'across']) as
+     *   keys and a list of matching SpecialVerbs as values.
+     */
+    specTable = static new LookupTable
+    
+       
+    /* 
+     *   The maxium number of words that can occur in a key to our specTable. This is calculated and
+     *   stored here at preinit.
+     */
+    maxKeyLen = 0
+;

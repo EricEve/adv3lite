@@ -9244,6 +9244,19 @@ class Thing:  ReplaceRedirector, Mentionable
     noLongerTalkingToAnyoneMsg = BMsg(no longer talking to anyone, '{I}{\'m} no
         longer talking to anyone. ')
     
+   
+    dobjFor(SpecialAction)
+    {
+        verify() 
+        {
+            illogical(cantSpecialActionMsg);
+        }
+    }
+    
+    cantSpecialActionMsg = BMsg(cant do special, '{I} {can\'t} {1} {the dobj}. ',
+                                gAction.specialPhrase )
+    
+    
  #ifdef __DEBUG
     /* Handling of Debugging actions. */
     

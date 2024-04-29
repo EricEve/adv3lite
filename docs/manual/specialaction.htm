@@ -1,0 +1,192 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Actions &mdash; Special Verbs</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Special Verbs
+<br><span class="navnp"><a class="nav" href="topicact.htm"><i>Prev:</i> Topic Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="query.htm"><i>Next:</i> Querying the World Model</a> &nbsp;&nbsp;&nbsp; </span>
+</div>
+<div class="main">
+<h1>Special Verbs</h1>
+<h2>Introduction</h2>
+<p>Consider the case where your game contains a single doorbell object implemented as a Button that can be pushed. The player can ring the bell by using the command PUSH BELL, but what if they type RING BELL? You probably don't want to modify VerbRule(Push) to make 'ring' a global synonym for 'push', since there would be too many situations in which this could incongrous, for example if the playher tried RING LEVER or RING AUNT MAUDE. On the other hand it would seem a lot of work just to cover this one case if to define a new Ring Action and <span class='code'>VerbRule(Ring</span>) and <span class='code'>dobjFor(Ring)</span> blocks on both Thing and the doorbell object. The <b>SpecialAction</b> class allows you to solve this problem by letting you define:</p>
+
+
+<p><div class="code"><pre>
+SpecialVerb 'ring' 'push' @doorbell;
+</pre></div>
+
+<p>In brief, this means that a command beginning RING should be translated into one beginning PUSH when the direct object is <span class='code'>doorbell</span>. The attempt to ring anything else, such as the lever or Aunt Maude, will be met with the response "You can't ring that. "</p>
+
+<p>If there's a second bell in the game that's rung by pulling a chain, then it's perfectly okay to define a second SpecialAction to cover that case too:</p>
+
+<p><div class="code"><pre>
+SpecialVerb 'ring' 'pull' @chainbell;
+</pre></div>
+
+<p>Provided doorbell and chainbell are never in scope at the same time, the game will be perfectly capable of working out which SpecialAction to apply (which it has to do before the parser has resolved the objects involved in the command, since it first needs to know what the action is before it can choose appropriate objects for it).</p>
+
+<p>Suppose finally that somewhere in the game we have a bridge that the player might try to CROSS or WALK ACROSS or GO ACROSS (even though this could be achieved simply by issuing an ordinary travel commamnd like E or W):
+
+<p><div class="code"><pre>
+orchard: Room 'Orchard'
+    "This orchard is full of apple trees. A path leads back to the east. To
+    the north lies a small hut. Over to the west a small wooden footbridge
+    crosses a stream. "   
+   
+    west = meadow
+	
+	...
+;
+
+meadow: Room 'Meadow'
+    "This huge meadow stretches as far as you can see. A small footbridge cross the stream
+    running along its eastern boundary. "
+    
+    east = orchard
+;
+
+MultiLoc, Decoration 'stream'
+    initialLocationList = [meadow, orchard]
+;
+
+
+footbridge: MultiLoc, Fixture 'footbridge; small wooden foot; bridge'   
+    initialLocationList = [orchard, meadow]
+;
+</pre></div>
+
+<p>Suppose this is the only object (or only one of a very few objects) that can be crossed in the game, and we'd rather not have to go to the trouble of define a Cross Action and a VerbRule(Cross) and default dobjFor(Cross) handling on Thing just to allow the player to type CROSS BRIDGE or WALK ACROSS BRIDGE. We could perhaps make <span class='code'>footbridge</span> a Passage and then define:
+
+<p><div class="code"><pre>
+SpecialVerb 'cross|walk across|go aoross' 'go through' @footbridge;
+</pre></div>
+
+<p>And this would just about get the job done, except that GO THROUGH BRIDGE does not seem a natural way of phrasing a command to cross it, so player who try GO THROUH BRIDGE might find its equivalent to CROSS rather odd (GO THROUGH BRIDGE might more naturally mean going under it when navigating the stream). An alternative might be to make the bridge an Enterable and divert CROSS to ENTER, but again players who type ENTER BRIDGE probably wouldn't expect it to be equivalent to crossing it (ENTER BRIDGE more naturally suggests walking onto it and stopping, or going under it when navigating the stream). But then seem to be left without an existing action to divert CROSS to.</p>
+
+<p>To meet this problem, we can divert CROSS into a <b>SpecialAction</b> by using the verb 'sp#act' (which players are unlikely to type at the keyboard unless they've read this manual and are going out of the way to break your game; but if try it their attempt will be rebuffed with "I <i>really</i> refuse to understand that command.").
+
+<p>We can then handle this case by using the following:</p>
+
+<p><div class="code"><pre>
+SpecialVerb 'cross|walk across|go over' 'sp#act' [footbridge];
+
+footbridge: MultiLoc, Fixture 'footbridge; small wooden foot; bridge'   
+    initialLocationList = [orchard, meadow]
+	
+    dobjFor(SpecialAction)
+    {
+        verify() {}
+        action()
+        {
+            
+            "You &lt;&lt;gAction.specialPhrase&gt;&gt; {the dobj}. ";
+            
+            local dest = gActor.isIn(orchard) ? meadow : orchard;          
+            
+            dest.travelVia(gActor);                
+        }
+    }	
+;
+</pre></div>
+
+<p>There are a few points to note here:</p>
+
+<ul>
+<li>SpecialAction is an action that's defined on Thing to do nothing but fail at the verify stage, but which can be made to do whatever you like on individual objects or (custom classes). It should only ever be triggered as a result of a SpecialVerbm as in this example.</li>
+<li>The command phrase(e.g., 'cross' or 'walk across') from its most recent invocation from a SpecialVerb can be obtained from <span class='code'>SpecialAction.specialPhrase</span>, which in this case is equivalent to <span class='code'>gAction.specialPhrase</span> since here <span class='code'>gAction</span> must be <span class='code'>SpecialAction</span>.</li>
+<li>Various different verb phrases can be defined for a SpecialVerb in the first part of the template separated by a vertical bar character (|) as in the example above: <span class='code'>'cross|walk across|go over'</span></li>.
+<li>As that example also shows, a SpecialVerb can match a list of direct objects (although there it's a list of only one item) as well as single direct object. Indeed, it can also match a class or a list of objects and/or classes, but this shouldn't be abused. If you had a couple of bridges in your class and defined a <span class='code'>Bridge</span> class to handle their common behaviour, it would be absolutely fine to have a SpecialVerb matching <span class='code'>Bridge</span> as its direct object. But this should not be overdone: SpecialVerbs are intended only to handle a few otherwise awkward cases; there is no way you should have SpecialVerb applying to <span class='code'>Thing</span>.</li>
+<li>All the examples we've given of SpecialVerbs concern TActions. This is not accidental; it's really only TActions that SpecialVerbs are designed to handle. In some cases you may be able to get a SpecialVerb to word with a TIAction, but it only if the action you're diverting from and the one you're diverting to share the same preposition (e.g. 'throttle dobj with iobj' -&gt; 'attack dobj with iobj', but there may not be that many cases where this would be useful.</li>
+</ul>
+<p>This covers all or most of what you need to know about SpecialVerbs to use them in your own game. At that follows in this chapter is pretty much the small print.</p>
+
+<h2>Elaborations</h2>
+<p>So far we have used the SpecialVerb template without explaining what properties it refers to. The SpecialVerb template is defined as:</p>
+
+<p><div class="code"><pre>
+SpecialVerb template 'specVerb' 'stdVerb' @matchObjs | [matchObjs];
+</pre></div>
+
+<p>We are now in a position to list the properties and methods of SpecialVerb that are of direct relevance to game authors (the remainder are all for internal use by the library):</p>
+
+<ul>
+<li><b>specVerb</b>: The verb phrase, or list of verb phrases separated by the vertical bar character (|), that this SpecialVerb will match (e.g. 'ring' or 'cross|go across|walk across).</li>
+<li><b>stdVerb</b>: The verb phrase (matching a standard verb already defined in the library) that we want this SpecialVerb to use instead (e.g. 'push' or 'go through')</li>
+<li><b>matchObjs</b>: The direct object, or list of direct objects, we want this SpecialVerb to apply to. This can also be specified as a class or list of classes (or mixed list of objects and classes), but it should not match too many, and will work best if none of the objects listed is in scope at the same time as any of the others.</li>
+<li><b>where</b>: The room or Region, or a list of rooms and or Regions one of which, the actor must be in for this SpecialVerb to be active. Note that the SpecialVerb in any case checks whether(at least one of) the object(s) specified on its <span class='code'>matchObjs</span> property is in scope, so specifying <span class='code'>where</span> may seldom be needed.</li>
+<li><b>during</b>: A Scene, or list of Scenes, one of which must currently be happening for this SpecialVerb to be active (I can't immediately think of a use for this, but you may be able to).</li>
+<li><b>when</b>: Any other condition you care to specify for this SpecialVerb to be active (by default this is simply <span class='code'>true</span>. Note, however, that any condition specified here cannot refer to the actual objects of the command (dobj, etc.), since these won't have been determined when this property is first checked. You can, however, use the <span class='code'>objChecks()</span> method for this purpose:</li>
+<li><b>objChecks(dobj, iobj, aobj)</b>: A method that is called once the parser has resolved the action and objects involved in the command. the parameters dobj, iobj, and aobj are respectively the direct, indirect, and auxiliary objects of the command, but for most SpecialVerbs, only the first of these will be present. By this stage, the game has already checked that the direct object of the command is one of those specified in our <span class='code'>matchObjs</span> property, so there's no need to do that, but we might want to inspect the state of our actual direct object and react accordingly. An example is given below.</li>
+<li><b>verbPhrase</b>: The verb phrase (e.g. 'ring' or 'go through') that resuted in this SpecialVerb being invoked. This could be used, for example, to customize any message we might want to display in <span class='code'>objChecks()</span>.</li>
+<li><b>priority</b>: The parser uses a scope check plus the where, during, and when properties to determine which SpecialVerb to use if more than one matches the verb phrase entered by the player. The <span class='code'>priority</span> property can be used as a tiebraker in the event that everything else works out equal. A higher priority (larger value of <span class='code'>priority</span>) SpecialVerb will then be favoured over a lower priority. The default priority is 100.</li>
+</ul>
+
+<p>With the possible exception of <span class='code'>objChecks()</span> (and even then probably not often), you should only very nearly need to override any of these properties or methods (apart from the three defined via the template). Here is an example of how you might use <span class='code'>objChecks()</span> to rule out slamming a closed door and reporting that an open door has been slammed:
+</p>
+<p><div class="code"><pre>
+SpecialVerb 'slam' 'close' @Door
+    objChecks(dobj, iobj, aobj)
+    {
+        if(!dobj.isOpen)
+        {
+            "It would surely be exceptionally petulant to attempt to &lt;&lt;verbPhrase&gt;&gt; &lt;&lt;dobj.theName&gt;&gt;
+            when it isn't even open. ";
+            abort;		
+        }
+		
+        dobj.slammed = true;
+    }
+;
+
+modify Door
+    slammed = nil
+	
+    dobjFor(Close)
+    {
+        action()
+        {
+            if(slammed)
+                "You slam {the dobj} shut with unreasonable force. ";
+            
+            <span class='comment'>/* Reset our slammed property. */</span>
+            slammed = nil;
+            
+            inherited();
+        }
+    }
+;
+
+</pre></div>
+
+<p>If you're having to do too much tweaking of a SpecialVerb to make it do what you want, it may be that you'd be better off using a different means of getting the effect you're after (i.e., defining a new Action, or modifying an existing VerbRule, or using a Doer or replaceAction()). Using SpecialVerb should be fine for the kinds of cases we've illustrated here, but overusing them on too many objects risks producing code that's less robust than doing things the long way.</p>
+
+<p>Finally, if you are having trouble with a SpecialVerb it may help to know a little about how the library handles them internally. Once a player has entered a command, the parser follows the following steps in relation to SpecialVerbs:</p>
+<ol>
+<li>After tokenizing the player's input and carrying out some preliminary processing with the tokens, the parser calls <span class='code'>specialVerbMgr.matchSV(toks)</span> to give it a chance to change the toks that are passed to it.</li>
+<li>The <span class='code'>specialVerbMgr</span> then looks for SpecialVerbs that match the toks passed to it.</li>
+<li>Assuming any SpecialVerbs are found to match, each matching SpecialVerb calculates a score based on whether any of the objects in its <span class='code'>matchObjs</span> property are in scope (by far the most dominant consideration) and conditions defined on its <span class='code'>where</span>, <span class='code'>during</span>, and <span class='code'>when properties </span>(if any). The <span class='code'>priority</span> is added to the final score but is likely to make a difference only in the event of what would otherwise be a tie.</li>
+<li>The matching SpecialVerbs are then sorted in descending order of score to allow the highest scoring one (the first entry in the sorted list) to be selected as the one to be used.</li>
+<li>The toks entered by the player that match the SpecialVerb's <span class='code'>specVerb</span> property are then replaced by those defined on its <span class='code'>stdVerb</span> property, and the resulting toks returned to <span class='code'>Parser.parse()</span> to continue on its way with the revised list of toks.If no matching SpecialVerbs were found, the list of toks will be returned to <span class='code'>Parser.parse()</span> unchanged.</li>
+<li>Just prior to invoking the Doer that will execute the command, the new Command object (which at this point knows the action and objects involved) calls the current SpecialVerb's <span class='code'>checkSV()</span> method, which will prevent the action from going ahead if the SpecialVerb's <span class='code'>matchObjs</span> doesn't match the direct object of the command, or any of its <span class='code'>where</span>, <span class='code'>during</span>, or <span class='code'>when</span> properties rule it out.</span>  
+<li>Finally, the SpecialVerb's <span class='code'>objChecks()</span> is given a chance to intervene.</li>
+</ol>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="action.htm">Actions</a> &gt; 
+Special Verbs
+<br><span class="navnp"><a class="nav" href="topicact.htm"><i>Prev:</i> Topic Actions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="query.htm"><i>Next: </i>Querying the World Model </a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

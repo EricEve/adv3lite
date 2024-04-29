@@ -444,6 +444,12 @@ class Command: object
         try
         {      
             /* 
+             *   Allow the special verb manager to veto this action if we've been executing a
+             *   SpecialVerb.
+             */
+            specialVerbMgr.checkSV(lst);
+            
+            /* 
              *   Give our actor's preAction method the chance to veto this action (or maybe do
              *   something else) before it's passed to a Doer.
              */
