@@ -1448,7 +1448,7 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 
 /* Is getActor in one of these moods? */
 #define gMoodIn(mood_...) \
-    (gMood is in (st_#foreach: mood_##Mood:, :))
+    (gMood is in (mood_#foreach: mood_ ## Mood:, :))
 
 /* Is actor in one of these moods? */
 #define aMoodIn(actor, mood_...) \

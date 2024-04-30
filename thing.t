@@ -3,6 +3,8 @@
 
 property subLocation;
 property lookAroundShowExits;
+property stanceToward;
+property setStanceToward;
 
 /*
  *   Mentionable is the base class for objects that the player can refer to
@@ -10398,7 +10400,7 @@ class Stance: object
         local vec = new Vector;
         for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
         {
-            if(a.stanceTowards(x) == self)
+            if(a.stanceToward(x) == self)
                 vec.append(a);
         }
         
@@ -10411,7 +10413,7 @@ class Stance: object
         local vec = new Vector;
         for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
         {
-            if(x.stanceTowards(a) == self)
+            if(x.stanceToward(a) == self)
                 vec.append(a);
         }
         

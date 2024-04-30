@@ -40,10 +40,12 @@ Moods and Stances
 <ul>
 <li><b>mood</b>: The Actor's current mood (e.g. <span class='code'>neutralMood</span>). This should be treated as read-only, since it returns the mood defined on the actor's current ActorState (if there is one) or else the value of <span class='code'>actorMood</span>. To change the Actor's mood either set <span class='code'>actorMood</span> or use the <span class='code'>setMood()</span> method.</li>
 <li><b>actorMood</b>: The mood this actor is in if and when he or she isn't in any ActorState, or if his/her current ActorState's <span class='code'>mood</span> is nil (the default), or the Actor's <span class='code'>stateDependentMoods</span> property is set to nil.</li>
-<li><b>setMood(mood_)</b>: sets the Actor's current ActorsState's <span class='code'>mood</span> to <i>mood_</i>, or the Actor's <span class='code'>actorMood</span> to <i>mood_ if</i> the Actor has no current ActorState. If you want to avoid changing the current ActorState's mood just use <span class='code'>actorMood = newMood</span> instead, or set the Actor's <span class='code'>stateDependentMoods</span> property to nil.</li>
+<li><b>setMood(mood_)</b>: sets the Actor's current ActorsState's <span class='code'>mood</span> to <i>mood_</i>, or the Actor's <span class='code'>actorMood</span> to <i>mood_ if</i> the Actor has no current ActorState. If you want to avoid changing the current ActorState's mood just use <span class='code'>actorMood = newMood</span> instead, or set the Actor's <span class='code'>stateDependentMoods</span> property to nil. Note thst <span class='code'>setMood(mood_)</span> will complain (and not set the mood) if <i>mood_</i> is not a Mood object.</li>
 <li><b>stateDependentMoods</b>: If you don't want moods to be related to ActorStates (which would be perfectly reasonable if, for example, you were using ActorStates to model what actors were doing and the like regardless of their mood) then you can set this to nil, either on individual Actors or on the Actor class.</li>
 </ul>
 <p>The default initial <span class='code'>actorMood</span> for an Actor is the value of <span class='code'>libGlobal.defaultMood</span>, which in the english library is <span class='code'>neutralMood</span>. It's done this way so that translators (or game authors) working in different languages can readily define their own default mood.</p>
+
+<a name='moodmacros'>
 <p>The library also defines the following macros to work with moods:</p>
 <ul>
 <li><b>gMood</b>: get getActor's current mood.</li>
@@ -56,8 +58,62 @@ Moods and Stances
 <li><b>aSetMood(actor, <i>name</i>)</b>: set actor's mood to <i>name</i>.</li>
 </ul>
 <p>In each case the <i>name</i> parameter is the name of the Mood without the suffix 'Mood', so that, for example, you would use <span class='code'>gMoodIs(happy)</span> rather than <span class='code'>gMoodIs(happyMood)</span>.
-<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes semse, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the mood of any other actor, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
+<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes sense, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the mood of any other actor, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
 The macros <span class='code'>gMood</span> and <span class='code'>aMood(actor)</span> return the Mood <i>object</i> e.g. <span class='code'>happyMood</span>.
+
+<p>Moods can be used in various ways to customize NPC responses in various ways. Here's one very simple example:</p>
+
+<p><div class="code"><pre>
+++ AskTopic @bob    
+     "&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+      &lt;q&gt;I'm quite &lt;&lt;gMood.name&gt;&gt;,&lt;/q&gt; he replies. " 
+;
+ </pre></div>
+ 
+<p>More typically, we might do something like this:</p>
+
+<p><div class="code"><pre>
+++ AskTopic @bob
+    "&lt;q&gt;How are you today?&lt;/q&gt; you enquire.\b
+    &lt;q&gt;I'm &lt;&lt;if gMoodIn(happy, euphoric, excited, confident)&gt;&gt;great&lt;&lt;else if gMoodIn( 
+        sad, depressed, lonely, bored)&gt;&gt;not so good&lt;&lt;else&gt;&gt;okay&lt;&lt;end&gt;&gt;,&lt;/q&gt; he tells you. &quot; 
+;
+ </pre></div>
+
+<p>You can also extend the Mood framework in any way you think fit. For example, if you wanted to add strength and affect properties to Mood (so that Moods with the same affect could, for example, be grouped together and compared for their strength) you could do something like this:</p>
+
+<p><div class="code"><pre>
+#define ModMood(mood_, strength_, affect_)\
+    modify mood_ ## Mood\
+    strength = strength_\
+    affect = #@affect_
+
+modify Mood
+    strength = 0 
+    afffect = 'none'
+;
+
+ModMood(furious, 50, anger);
+ModMood(angry, 25, anger);
+ModMood(happy, 25, happiness);
+ModMood(euphoric, 50, happiness);
+;
+
+<span class='comment'>// and so on</span>
+ </pre></div>
+
+<p>The macro expansion would then result in:</p>
+
+<p><div class="code"><pre>
+modify furiousMood
+   strength = 50
+   affect = 'anger'
+;
+
+<span class='comment'>// and so on</span>
+ </pre></div>
+ 
+ <p>We don't do this in the library since we assume that different game authors will want to adapt the moods framework in different ways. The above example would allow embedded expressions (or other such tests) like <span class='code'>"<&lt;if gMood.affect == 'happines'&gt;&gt;happy text&lt;&lt;else if gMood.affect == 'anger'&gt;&gt; angry response&lt;&lt;else ...&gt;&gt;"</span>.
 
 <a name='stances'>
 <h2>Stances</h2>
@@ -82,7 +138,7 @@ The macros <span class='code'>gMood</span> and <span class='code'>aMood(actor)</
 <ul>
 <li><b>stance</b>: The Actor's current stance towards the Player Character (e.g. <span class='code'>neutralSTance</span>). This should be treated as read-only, since it returns the value of <span class='code'>stanceTowards(gPlayerChar)</span>. To change the Actor's stance  use the <span class='code'>setStanceToward()</span> method.</li>
 <li><b>stanceToward(<i>actor</i>)</b>: The stance this Actor has towards <i>actor</i>.</li>
-<li><b>setStanceToward(actor, stance)</b>: sets the Actor's current stance towards <i>actor</i></span> to <i>stance</i>.</li>
+<li><b>setStanceToward(actor, stance)</b>: sets the Actor's current stance towards <i>actor</i></span> to <i>stance</i>.If <i>actor</i> is not an Actor and/or <i>stance</i> is not a Stance this method will complain about it rather than attempting to update anything.</li>
 <li><b>likesMost()</b>: returns a list of actors to whom this Actor has the most positive stance (of the stances s/he holds).</li>
 <li><b>likesLeast()</b>: returns a list of actors to whom this Actor has the least positive stance (of the stances s/he holds).</li>
 <li><b>mostLikedBy()</b>: returns a list of actors who hold the most positive stance to this Actor(of the stances they hold). </li>
@@ -91,10 +147,11 @@ The macros <span class='code'>gMood</span> and <span class='code'>aMood(actor)</
 
 <p>In the case of the final four of these, the Actor is excluded from the list under consideration (consider the case where Bob has a positive stance towards everyone else but his stance towards himself has been left at <span class='code'>neutralStance</span>; to learn that Bob likes himself the least probably isn't the information we'd be looking for here).</p>
 
+<a name='stancemacros'>
 <p>As with Mood, there are a number of macros that can be used with Stance; the following all concern other actors' stances towards the Player Character.</p>
 
 <ul>
-<li><b>gStance</b>: get getActor's current stance towards the Playrer Character (PC).</li>
+<li><b>gStance</b>: get getActor's current stance towards the Player Character (PC).</li>
 <li><b>gStanceIs(<i>name</i>)</b>: test whether getActor's current stance towards the PC is <i>name</i></li>
 <li><b>gStanceIn(<i>name1</i>, <i>name1</i>...)</b>: test whether getActor's stance towards the PC is one of <i>name1</i>, <i>name1</i>...</li>
 <li><b>gSetStance(<i>name</i>)</b>: set getActor's stance towards the PC to <i>name</i>.</li>
@@ -105,9 +162,10 @@ The macros <span class='code'>gMood</span> and <span class='code'>aMood(actor)</
 </ul>
 
 <p>In each case the <i>name</i> parameter is the name of the Stance without the suffix 'Stance', so that, for example, you would use <span class='code'>gStanceIs(friendly)</span> rather than <span class='code'>gStanceIs(friendlyStance)</span>.
-<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes semse, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the stancee of any other actor towards the player character, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
+<p>The macros with names starting with <b>g</b> all relate to getActor in contexts where getActor makes sense, i.e. in an ActorTopicEntry, TopicGroup or AgendaItem where getActor is the actor any of these belong to). To get or set the stance of any other actor towards the player character, or in any other context, you need to use one of th macros beginning <b>a</b> and specify the <i>actor</i> parameter to denote the actor in question.</p>
 The macros <span class='code'>gStance</span> and <span class='code'>aStance(actor)</span> return a Stance <i>object</i> e.g. <span class='code'>friendlyStance</span>.
 
+<a name='stanceoperators'>
 <p>Because Stances have an associated score, they can be ranked and compared by score. The following operators are available to compare Stances:
 <ul>
 <li> <b>a - b</b>: equivalent to <span class='code'>a.score - b.score</span></li>
@@ -124,7 +182,9 @@ The macros <span class='code'>gStance</span> and <span class='code'>aStance(acto
 <li> <b>whateverStance[a]</b>: returns a list of people towards whom <i>a</i> holds this stance.</span></li>
 <li> <b>whateverStance * a</b>: returns a list of people who hold this stance towards <i>a</i>.</span></li>
 </ul>
+<a name='stanceinit'>
 <p>If you need to set up a fair number of attitudes at the start of play, you can make use of the <b>stanceInitializer</b> object, modifying it to define a list of stances, each stance entry being a list of the form <span class='code'>[actor1, stance, actor2]</span>, meaning actor1 starts out holding <i>stance</i> towards actor2. To avoid having to keep typing 'Stance' at the end of each stance name, you can make use of the <b>Sta</b> macro, for example:</p>
+
 
  <p><div class="code"><pre>
  modify stanceInitializer
@@ -141,7 +201,58 @@ The macros <span class='code'>gStance</span> and <span class='code'>aStance(acto
 
 <p>Note that you don't need to add any entries for the neutralStance, since this is the default.</p>
 
+<p>A simple example of what can be done with Stances might be varying greeting responses according to stance:</p>
 
+<p><div class="code"><pre>
+++ HelloTopic
+    &quot;&lt;q&gt;Hello, Bob,&lt;/q&gt; you say.\b
+    &lt;q&gt;Hello,&lt;/q&gt; he replies. &quot;
+;
+
++++ AltTopic
+     &quot;&lt;q&gt;Hi there, Bob,&lt;/q&gt; you say.\b
+    &lt;q&gt;Hi, great to see you!&lt;/q&gt; he declares. &quot;
+   isActive = gStance &gt;&gt; neutralStance
+;
+
++++ AltTopic
+    "<q>Hello,</q> you say.\b
+    In reply Bob merely grunts. "
+    isActive = gStance &lt;&lt; coolStance    
+;
+ </pre></div>
+ 
+ <p>Or you could do something like this:</p>
+ 
+ <p><div class="code"><pre>
+++ QueryTopic 'how Mavis feels about you; does feel me'
+    "&lt;q&gt;&lt;&lt;if aStanceIn(mavis, neutral, lukewarm, warm, friendly, loving)&gt;&gt;I think she quite likes
+    you&lt;&lt;else&gt;&gt;I'd rather not say&lt;&lt;end&gt;&gt;,&lt;/q&gt; he tells you. "
+;
+ </pre></div>
+
+<p>Or as an extreme example of using a Stance in connection with an AgendaItem:</p>
+
+
+ <p><div class="code"><pre>
+ bobLoathingAgenda: AgendaItem
+    invokeItem()
+    {       
+        "Bob snarls as you enter the room. &lt;q&gt;I &lt;i&gt;hate&lt;/i&gt; you&lt;/q&gt;!\b
+        So saying, he snatches up the nearest heavy blunt object and smashes 
+        it down on your head with all the force he can muster.\b";
+        
+        finishGameMsg(ftDeath, [finishOptionUndo]);        
+    }    
+    
+    agendaOrder = 50
+    initiallyActive = true
+    isReady = gStanceIs(loathing) &amp;&amp; gRoom == getActor.getOutermostRoom    
+;
+
+ </pre></div>
+ 
+ <p>No doubt game authors will be able to come up with many more ingenious uses for Moods and Stances than the examples given here, but hopefully we have suggested enough to get you started.</p>
 
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

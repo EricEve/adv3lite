@@ -2490,13 +2490,13 @@ modify Actor
         {him dobj} from {here}. ')
     
     /* This actor's current stance towards the player character */
-    stance = (stanceTowards(gPlayerChar))
+    stance = (stanceToward(gPlayerChar))
     
     /* Unless overriden our initial stance is the default stance defined on libGlobal. */
     initialStance = libGlobal.defaultStance 
     
     /* Our stance towards actor */
-    stanceTowards(actor)
+    stanceToward(actor)
     {
         return stanceTab[actor];
     }
@@ -2514,60 +2514,106 @@ modify Actor
     ]
         
     /* Set out stance towards actor */
-    setStanceToward(actor, stance_)
+    setStanceToward(actor, stance_)    
     {
-        stanceTab[actor] = stance_;
+        if(objOfKind(actor, Actor) && objOfKind(stance_, Stance))
+            stanceTab[actor] = stance_;
+        else
+            DMsg(set stance error, '<FONT color=red><b>WARNING</b></FONT>: in
+                setStanceToward(<<actor>>, <<stance_>>) <<actor>> is not an Actor and/or <<stance_>>
+                is not a Stance. ');
     }
     
     /* 
-     *   Returns a list of actors towards home this Actor has the most positive stance (out of the
+     *   Returns a list of actors towards whom this Actor has the most positive stance (out of the
      *   stanches s/he currently holds).
      */
     likesBest()  { return likes(true); }
     
     /* 
-     *   Returns a list of actors towards home this Actor has the least positive stance (out of the
+     *   Returns a list of actors towards whom this Actor has the least positive stance (out of the
      *   stanches s/he currently holds).    */
     likesLeast()  { return likes(nil); }
     
+    /* 
+     *   Return a list of actors towards whom this Actor has the either the most positive stance
+     *   (stat = true) or the most negative stance (stat = nil)
+     */
     likes(stat)
     {
+        /* Set up a new Vector. */
         local vec = new Vector;
         
+        /* Iterate through all the actors in the game to build a vector containing them all. */
         for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))        
         {
             vec.append(a);
         }
         
+        /* 
+         *   Remove ourselves (this Actor) from the list, since we don't want to include our
+         *   attitude to ourself in this reckoning.
+         */
         vec.removeElement(self);        
             
-        vec.sort(stat, {a, b: stanceTowards(a) - stanceTowards(b)});
+        /* Sore the vector in either descending or ascending order according to the value of stat */
+        vec.sort(stat, {a, b: stanceToward(a) - stanceToward(b)});
         
-        local maxStance = stanceTowards(vec[1]);
+        /* 
+         *   Note the score of the first item in vec, which will be the actor to whom this Actor has
+         *   the most positive or most negative stance score depending on whether stat is true or
+         *   nil.
+         */
+        local maxStance = stanceToward(vec[1]);
         
-        return vec.subset({x: stanceTowards(x) == maxStance}).toList();
+        /* 
+         *   Obtain the subset of actors with the maximum positive or negative stance, convert the
+         *   resulting vector to a list and return the result.
+         */
+        return vec.subset({x: stanceToward(x) == maxStance}).toList();
     }
     
-    
+    /* 
+     *   Return a list of actors who have either the most positive stance (stat = true) or the most
+     *   negative stance (stat = nil) towards this Actor
+     */
     likedBy(stat)
     {
+        /* Set up a new Vector */
         local vec = new Vector;
         
+        /* Iterate through every Actor in the game to build a Vector listing them all. */
         for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))        
         {
             vec.append(a);
         }
         
+        /* 
+         *   Remove ourselves (this Actor) from the list, since we don't want to include our
+         *   attitude to ourself in this reckoning.
+         */
         vec.removeElement(self);    
         
-        vec.sort(stat, {a, b: a.stanceTowards(self) - b.stanceTowards(self)});
+        /* Sore the vector in either descending or ascending order according to the value of stat */
+        vec.sort(stat, {a, b: a.stanceToward(self) - b.stanceToward(self)});
         
-        local maxStance = vec[1].stanceTowards(self);
+        /* 
+         *   Note the score of the first item in vec, which will be the actor with the most positive
+         *   or most negative stance  towards this Actor depending on whether stat is true or nil.
+         */
+        local maxStance = vec[1].stanceToward(self);
         
-        return vec.subset({x: x.stanceTowards(self) == maxStance}).toList();
+        /* 
+         *   Obtain the subset of actors with the maximum positive or negative stance, convert the
+         *   resulting vector to a list and return the result.
+         */
+        return vec.subset({x: x.stanceToward(self) == maxStance}).toList();
     }
     
+    /* Return a list of the actors who have the most positive stance towards this Actor. */
     mostLikedBy() {return likedBy(true); }
+    
+    /* Return a list of the actors who have the most least stance towards this Actor. */
     leastLikedBy() {return likedBy(nil); }
     
     /* 
@@ -2592,10 +2638,18 @@ modify Actor
      */
     setMood(mood_)
     {
-        if(curState && stateDependentMoods)
-            curState.mood = mood_;
+        if(objOfKind(mood_, Mood))
+        {
+            if(curState && stateDependentMoods)
+                curState.mood = mood_;
+            else
+                actorMood = mood_;
+        }
         else
-            actorMood = mood_;
+        {
+            DMsg(set mood error, '<FONT color=red><b>WARNING!</b></FONT>: in setMood(<<mood_>>),
+                <<mood_>> is not a Mood. ');
+        }
     }
     
     /* Flad; do we want this Actor's moods to depend on their ActorState, by default we do */
