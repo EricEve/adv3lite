@@ -554,6 +554,7 @@ modify ActorTopicEntry
      */
     autoUseAgenda = nil
     
+    /* Look for an appropriate FactAgendaItem to use with this TopicEntry. */
     useAgenda()
     {
         /* Don't do anything here if we don't want to reference an associated FactAgendaItem */
@@ -597,6 +598,7 @@ modify ActorTopicEntry
         }
         finally
         {
+            /* Restore the previous last fact mentioned. */
             libGlobal.lastFactMentioned = formerFact;
         }
             
@@ -604,7 +606,13 @@ modify ActorTopicEntry
     
     baseHandleTopic()
     {
+        /* 
+         *   Set up a variable to hold the AgendaItem we want to work with and initialize it to the
+         *   value of our agenda property, so we cab restore it to its original value when we're
+         *   done.
+         */
         local agenda_ = agenda;
+        
         try
         {
             if(agenda || autoUseAgenda)
@@ -621,8 +629,10 @@ modify ActorTopicEntry
                      */
                     agendaPath = ag.getPath();
                     
+                    /* Cache our agenda item's nextSteo in our own nextStept property. */
                     nextStep = ag.nextStep;   
                     
+                    /* Store the agenda we've found in our agenda property. */
                     agenda = ag;
                 }
                 else
@@ -630,14 +640,17 @@ modify ActorTopicEntry
                     /* Otherwise reset our nextStep and agendaPath to nil */
                     nextStep = nil;
                     
+                    /* Reset our agendaPath property to nil. */
                     agendaPath = nil;                
                 }
             }
             
+            /* Carry out the inherited handling. */
             inherited();
         }
         finally
         {
+            /* Restore the original value of our agenda property. */
             agenda = agenda_;
         }
     }
@@ -655,22 +668,40 @@ modify ActorTopicEntry
      */
     agendaPath = nil
     
+    /* 
+     *   A method our topicResponse property can call to try executing the next step of our
+     *   associated agenda item to provide a response. This returns true if there is a nextStep to
+     *   execute or nil otherwise so our topicResponse can test whether tryNextStep() has provided a
+     *   response.
+     */
     tryNextStep()
     {
+        /* 
+         *   If we have a next step, call our getActor's initiateTopic with nextStep as its argument
+         *   abd see if it provides a response.
+         */
         if(nextStep)
         {
+            /* 
+             *   If calling initiateTopic(nextStep) on our actor provides a response, return true to
+             *   tell our caller that we've done so.
+             */
             if(getActor.initiateTopic(nextStep))
                 return true;            
         }
+        /* Otherwise we haven't provided a response, so return nil to tell our caller we haven't. */
         return nil;
     }
     
+    /* 
+     *   tryAgenda is an alternative method our topicResponse can call; it simply executes our
+     *   associated AgendaItem and returns true or nil to our caller so it can tell whether this
+     *   provided a response.
+     */
     tryAgenda()
     {
         return getActor.executeAgenda();
-    }
-    
-    
+    }    
 ;
 
 /* Modifications to AltTopic to work with FACT RELATIONS modifications to ActorTopicEntry */

@@ -23,6 +23,9 @@
  *.     BV(a) & BV(b)   the belief enum for a and b
  *.     BV(a) + BV(b)   the probability (as a number out of 100) of a and b.
  *.     ~BV(a)          the negation/complement of a, e.g. ~BV(likely) = unlikely
+ *.     BV(a) >> BV(b)  test whether a.score > b.score
+ *.     BV(a) << BV(b)  test whether a.score < b.score
+ *.     BV(a) >>> BV(b) test whether a.score >= b.score
  *
  *   One major limiation of this extension is that it does not repreaent how most people reason
  *   about probabilities in practice. A second, related, limitation is that the probabilities
@@ -229,7 +232,9 @@ class BelVal: object
     operator * (x) { return (self.score * x.score) / 100; }
     operator ~ () { return intToVal(100 - self.score); }
     operator + (x) { return 100 - ((100 - score) * (100 - x.score)) /100 ; }
-
+    operator >> (x) { return self.score > x.score; }
+    operator << (x) { return self.score < x.score; }
+    operator >>> (x) { return self.score >= x.score; }
     
     /* Convert a number (a probability from 0 to 100) into a belief enum. */
     intToVal(num)
