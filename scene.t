@@ -201,5 +201,10 @@ class Scene: object
      *   taken place. By default we do nothing here.
      */
     afterAction() { }
+    
+    /* 
+     *   The number of turms this Scene has been active. Is this Scene is not happening, return -1.
+     */
+    turnsActive = (isHappening ? startedAt - gTurns : -1)
 ;
 
