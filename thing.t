@@ -10200,8 +10200,7 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     cannotGiveToMsg = cannotTalkToMsg
     cannotShowToMsg = cannotTalkToMsg
     isAttackable = true
-    checkAttackMsg = cannotAttackMsg
-    checkKissMsg = BMsg(not like kiss, '{The sub dobj} probably wouldn\'t {like|have liked} that. ')
+    checkAttackMsg = cannotAttackMsg    
 ;
 
 
