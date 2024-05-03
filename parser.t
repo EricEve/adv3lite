@@ -294,7 +294,10 @@ class Parser: object
             }
             
             /* Allow the specialVerb Manager to adjust our toks */            
-            toks = specialVerbMgr.matchSV(toks);            
+            toks = specialVerbMgr.matchSV(toks);        
+            
+            /* Update the vocabulary of any game objects with alternating/changing vocab. */
+            updateVocab();
             
             /*   
              *   Parse each predicate in the command line, until we run out
@@ -801,6 +804,33 @@ class Parser: object
          *   command.
          */
         return rmcCommand;
+    }
+    
+    /* 
+     *   Update the vocabulary of items in the game for which it might vary; specifically those with
+     *   an altVocab defined.
+     */
+    updateVocab()
+    {
+        /* Retrieve the list of items that have alternating vocabulary. */
+        local lst = libGlobal.altVocabLst;
+        
+        /* 
+         *   If the list is longer than a certain amount, it may become more efficient to iterate
+         *   over only those items in the list that are already in scope.
+         */
+        if(lst.length > 30)
+        {
+            /* Get a list of items in scope. */
+            local scope = Q.scopeList(gPlayerChar).toList();
+            
+            /* Reduce our list of variable vocab items to include only those in scope. */
+            lst = lst.intersect(scope);
+            
+        }
+        
+        /* Call updateVocab() on every item in our list. */
+        lst.forEach({ x: x.updateVocab() });
     }
 ;
 

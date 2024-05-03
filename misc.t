@@ -944,6 +944,12 @@ libGlobal: object
      *   DisambigPreparser to prevent acceptance of a number out of range.
      */
     disambigLen = 0
+    
+    /* 
+     *   A list of objects in the game with alternating vocabulary. This is maintained and used by
+     *   the library and shouldn't normally be changed by game code.
+     */
+    altVocabLst = []
    
 ;
 

@@ -672,6 +672,75 @@ class Mentionable: LMentionable
      *   By default we do nothing here.
      */
     filterResolveList(np, cmd, mode) { }
+    
+    /* 
+     *   Our original vocab string, if we've defined an altVocab that might replace our original
+     *   vocab. Tbis is should normally be left to the library to set at preinit.
+     */
+    originalVocab = nil
+    
+    /* An alternative voc ab string to be used when useAltVocabWhen is true. */
+    altVocab = nil
+    
+    /* 
+     *   A condition that must be true for us to change (or maintain) our vocab to our altVocab. If
+     *   it returns nil we revert back to our original vocab. If we return -1 the change to altVocab
+     *   becomes permanent and our updateVocab methdd won't be executed any more.
+     */
+    useAltVocabWhen = nil
+    
+    /* Initialize our alternative vocab */
+    initAltVocab()    
+    {
+        /* 
+         *   Add ourselves to the list of Things whose vocab might change so we can be checked each
+         *   turn.
+         */
+        libGlobal.altVocabLst += self;
+        
+        /* Store a copy of our original vocab string so we can revert to it. */
+        originalVocab = vocab;
+    }
+    
+    /* 
+     *   This is called every turn on every Thing listed in libGlobal.altVocabLst. By default it
+     *   carries out alternation between our original vocab and our altVocab according to the value
+     *   of useAltVocabWhen. Game code can override this methed to do something different, but must
+     *   give altVocab a non-nil value for this method to be invoked each turn, or each turn when
+     *   this Thing is in scope.
+     *
+     */
+    updateVocab()
+    {
+        if(altVocab)
+        {
+            /* Stash the current value of useAltVocabWhen so we don't have to recalculate it. */
+            local uavw = useAltVocabWhen; 
+            
+            /* 
+             *   If the condition for using our altVocab is true and we're not already using it,
+             *   then replace our vocab with our altVocab.
+             */
+            if(uavw && vocab != altVocab)
+                replaceVocab(altVocab);
+            
+            /*  
+             *   If the condition for using our altVocab is false and we're not already using our
+             *   original vocab, replace our current vocab with our original vocab.
+             */
+            if(!uavw && vocab != originalVocab)
+                replaceVocab(originalVocab);
+            
+            /* 
+             *   If our useAltVocabWhen property evaluates to the special value of -1, then we want
+             *   the change to our altVocab to be permanent, so remove us from the list of Things
+             *   whose updateVocab() property is regularly called.
+             */
+            if(uavw == -1)
+                libGlobal.altVocabLst -= self;
+            
+        }
+    }
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -2756,6 +2825,10 @@ class Thing:  ReplaceRedirector, Mentionable
         /* Set us as knowning about everything in our initiallyKnown lisr. */
         foreach(local item in valToList(initiallyKnowsAbout))
             setKnowsAbout(item);
+        
+        /* if we have an altVocab string, initialize our altVocab handling. */
+        if(altVocab)
+            initAltVocab();
         
 
         /* 
@@ -5169,7 +5242,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   in us; this could be overridden for an objecy with a more interesting
      *   interior.
      */
-    lookInMsg = BMsg(look in, '{I} {see} nothing interesting in {the
+    lookInMsg = BMsg(look in, '{I} {find} nothing of interest in {the
         dobj}. ')
     
     
@@ -5382,7 +5455,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotLookBehindMsg = BMsg(cannot look behind, '{I} {can\'t} look behind
         {that dobj}. ')
     
-    lookBehindMsg = BMsg(look behind, '{I} {find} nothing behind {the
+    lookBehindMsg = BMsg(look behind, '{I} {find} nothing of interest behind {the
         dobj}. ')
     
            
@@ -5409,7 +5482,7 @@ class Thing:  ReplaceRedirector, Mentionable
     cannotLookThroughMsg = BMsg(cannot look through, '{I} {can\'t} look through
         {that dobj}. ')
     
-    lookThroughMsg = BMsg(look through, '{I} {see} nothing through {the
+    lookThroughMsg = BMsg(look through, '{I} {see} nothing of interest through {the
         dobj}. ')
     
     
