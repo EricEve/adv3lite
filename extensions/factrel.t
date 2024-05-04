@@ -382,7 +382,7 @@ class FactAgendaItem: ConvAgendaItem
     nextStep()
     {
         /* We need only try to do this if we've just been called by a DefaultAgendaTopic */
-        if(calledBy && calledBy.ofKind(DefaultAgendaTopic))
+        if(calledBy && calledBy.ofKind(DefaultAgendaTopic) && curPath)
         {
             /* 
              *   Try to find the latest step (fact name) in our current path that relates to the
