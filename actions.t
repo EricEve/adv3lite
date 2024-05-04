@@ -14,6 +14,8 @@ property showExitsCommand;
 property exitsOnOffCommand;
 property isOdor;
 property isNoise;
+property enumerateSuggestions;
+property hyperlinkSuggestions;
 
 
 DefineSystemAction(Quit)
@@ -319,6 +321,42 @@ DefineSystemAction(ToggleDisambigEnumeration)
     }
 ;
 
+DefineSystemAction(EnumerateSuggestions)
+    execAction(cmd)
+    {
+        if(defined(suggestedTopicLister))
+        {
+            suggestedTopicLister.enumerateSuggestions = !suggestedTopicLister.enumerateSuggestions;
+            
+            DMsg(toggle suggestion enum, 'Enumeration of topic suggestions is now 
+                <b><<suggestedTopicLister.enumerateSuggestions ? 'on' : 'off'>></b>.<.p>');          
+        }
+        if(!defined(suggestedTopicLister))
+            DMsg(no suggestions present, 'Topic suggestions are not present in this game');
+    }
+;
+
+DefineSystemAction(HyperlinkSuggestions)
+    execAction(cmd)       
+    {
+        /* First check that the player's interpreter is capable of displaying hyperlinks. */
+        if(systemInfo(SysInfoInterpClass) != SysInfoIClassHTML)
+        {
+            DMsg(needs html terp, 'This feature requires an HTML interpreter. ');
+            abort;
+        }
+        
+        if(defined(suggestedTopicLister))
+        {
+            suggestedTopicLister.hyperlinkSuggestions = !suggestedTopicLister.hyperlinkSuggestions;
+            
+            DMsg(toggle suggestion enum, 'Hyperlinking of topic suggestions is now 
+                <b><<suggestedTopicLister.hyperlinkSuggestions ? 'on' : 'off'>></b>.<.p>');
+        }
+        if(!defined(suggestedTopicLister))
+            DMsg(no suggestions present, 'Topic suggestions are not present in this game');
+    }
+;
 
 DefineSystemAction(Hints)
     execAction(cmd)

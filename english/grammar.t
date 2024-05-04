@@ -3458,7 +3458,22 @@ VerbRule(Verbose)
     'verbose' | 'wordy'
     : VerbProduction
     action = Verbose
-    verbPhrase = 'set/setting verbose mode'
+    verbPhrase = 'set/setting verbose mode'   
+;
+
+    
+VerbRule(HyperlinkSuggestions)
+    ('hyper' | 'hyperlink') ('topic'|) ('suggestions' | 'suggs')
+    : VerbProduction
+    action = HyperlinkSuggestions
+    verbPhrase = 'toggle/toggling hyperlinking of topic suggestions'  
+;
+    
+VerbRule(EnumerateSuggestions)
+    ('enum' | 'enumerate') ('topic'|) ('suggestions' | 'suggs')
+    : VerbProduction
+    action = EnumerateSuggestions
+    verbPhrase = 'toggle/toggling enumeration of topic suggestions'  
 ;
 
 VerbRule(SpecialAction)

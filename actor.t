@@ -1634,6 +1634,12 @@ modify Actor
             lst = lst.intersect(valToList(convKeyTab[tag]));
         
         /* 
+         *   Initialize the suggestion enumerator to clear out any leftover information from
+         *   previous suggestion listings.
+         */
+        suggestionEnumerator.initialize();
+        
+        /* 
          *   Use the suggestedTopicLister to show a list of Suggested Topics
          *   from the resulting list (lst).
          */
@@ -7105,6 +7111,30 @@ suggestedTopicLister: object
             ".\n";
         else
             ")\n";
+        
+        /* If we have't explained the enumerating and hyperlinking options yet, explain them now. */
+        if(!optionsExplained)
+        {
+            /* Explain the options */
+            explainOptions();
+            
+            /* Note that we've now explained them so we won't do so again. */
+            optionsExplained = true;
+        }
+    }
+    
+    /* Have the enumeration and hyperlinking options been explained to the player? */
+    optionsExplained = nil
+    
+    explainOptions()
+    {
+        "<.p><.parser>";
+        DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off using
+            the command ENUM SUGGS. ');
+        if(systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
+            DMsg(explain hyperlinking,'\nHyperlinking of topic suggestions can be toggled on and off
+                using the command HYPER SUGGS');
+        "<./parser><.p>";        
     }
     
     /* The message to display if there are no topics to suggest. */
@@ -7278,6 +7308,33 @@ suggestedTopicLister: object
             if(cur.includeSayInName)
                 say(sayPrefix);
             
+            /* 
+             *   If the enumerateSuggestions option is set, then we need to update the
+             *   suggeestionEnumerator with each opttion displayed and add the appropriate number
+             *   before each topic suggestion.
+             */
+            if(enumerateSuggestions)
+            {
+                /* 
+                 *   The full name of this suggestion will be either 'say' or the section prefix
+                 *   (e.g. you could tell him about') followed by the name of the TopicEntry we're
+                 *   suggesting
+                 .*/
+                local fullname = (cur.includeSayInName ? sayPrefix : prfx) + cur.name;
+                
+                /* 
+                 *   The number associated with this suggestion is the incremented
+                 *   suggestionEnumerator's count.
+                 */
+                local num = ++suggestionEnumerator.count;
+                
+                /* Add the full name of this suggestion to suggestionEnumerator's suggestionList. */
+                suggestionEnumerator.suggestionList[num] = fullname;
+                
+                /* Preceded the name of this suggestion with its num in parentheses. */
+                "(<<num>>) ";
+            }
+            
             /* Display the name of the current suggestion */
             if(hyperlinkSuggestions)
                 "<<aHref(prfx + cur.name, cur.name)>>";
@@ -7296,9 +7353,17 @@ suggestedTopicLister: object
     
     /* 
      *   Do we want the topic suggestions to be hyperlinked so that the player
-     *   can just click on them? By default we don't but game code can override/
+     *   can just click on them? By default we don't but game code can override , or the
+     *   player can use the HYPER SUGGS command to toggle this on and off.
      */
     hyperlinkSuggestions = nil
+    
+    /* 
+     *   Do we want the topic suggestions to be numnered so that the player can just choose one by
+     *   entering the approrpriae number. By default we don't but game code can override, or the
+     *   player can use the ENUM SUGGS command to toggle this on and off.
+     */
+    enumerateSuggestions = nil
     
     /* 
      *   The typeInfo contains a list of lists that are used by the show method
@@ -7369,6 +7434,72 @@ suggestedTopicLister: object
     orListSep = BMsg(or list separator, '; or ')
 
 ;
+
+/* 
+ *   The suggestionEnumerator object is used by the library to keep track of the numbering of topics
+ *   suggestions when this option is enabled.
+ */
+suggestionEnumerator: object
+    /* The number of the current suggestion when numbered topic suggestions are being listed. */
+    count = 0
+    
+    /* Our list (or Vector) of topic suggestions. */
+    suggestionList = nil
+    
+    /* Initialize the suggestionEnumerator for the start of a new list of suggested topics. */
+    initialize()
+    {
+        /* Reset our enumeration count to 0 */
+        count = 0;
+        
+        /* Reset our suggestion list to a new empty Vector. */
+        suggestionList = new Vector(20);
+    }    
+;
+
+/* 
+ *   Preparser to convert a command that consists just of a number into the appropriate
+ *   conversational commmand under the appropriate circumstances when we have recently displayed a
+ *   list of suggested conversational topics.
+ */
+enumSuggestionsPreparser: StringPreParser
+    doParsing(str, which)   
+    {
+        /* 
+         *   We only want to modify str here if this is a new command and a conversation is in
+         *   progress and the suggestedTopicLister's enumerateSuggestions property is set to true.
+         */
+        if(which == rmcCommand && gPlayerChar.currentInterlocutor &&
+           suggestedTopicLister.enumerateSuggestions)
+        {
+            /* Try converting str to an integer */
+            local num = toInteger(str);
+            
+            /* 
+             *   If we have a number and that number is in the range of the number of topic
+             *   suggestions listed then replace str with the corresponding conversational command.
+             */
+            if(num && num <= suggestionEnumerator.count && num > 0)
+            {
+                /* 
+                 *   Change str to the corresponding item in suggestionEnumerator's suggestion list.
+                 */
+                str = suggestionEnumerator.suggestionList[num];
+                
+                /* 
+                 *   Echo the new command back to the player so the player can see what's now being
+                 *   executed.
+                 */
+                "<.inputline>\^<<str>><./inputline>\n";
+            }            
+        }       
+        
+        /* Return our string, modified or unmodified as the case may be. */
+        return str;
+    }    
+;
+
+
 
 modify Follow
     /* For this action to work all known actors also need to be in scope */
