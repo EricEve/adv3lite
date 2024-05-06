@@ -3066,8 +3066,11 @@ class TopicPhrase: NounPhrase
         
         
         
-        /* if we have a possessive qualifier, apply it */
-        if (possQual != nil)
+        /* 
+         *   if we have a possessive qualifier, apply it, but only if it is to be applied to a Thing
+         *   (rather than a Topic)
+         */
+        if (possQual != nil && matches.indexWhich({x: x.obj.ofKind(Thing)}))
         {
             /* match vocabulary for the possessive phrase */
             possQual.matchVocabPoss(cmd);
