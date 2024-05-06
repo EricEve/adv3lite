@@ -293,11 +293,11 @@ class Parser: object
                 toks = OopsProduction.applyCorrection(lst[1], lastTokens, ui);
             }
             
-            /* Allow the specialVerb Manager to adjust our toks */            
-            toks = specialVerbMgr.matchSV(toks);        
-            
-            /* Update the vocabulary of any game objects with alternating/changing vocab. */
+             /* Update the vocabulary of any game objects with alternating/changing vocab. */
             updateVocab();
+            
+             /* Allow the specialVerb Manager to adjust our toks */            
+            toks = specialVerbMgr.matchSV(toks);  
             
             /*   
              *   Parse each predicate in the command line, until we run out
@@ -5888,6 +5888,20 @@ class SpecialVerb: object
      */
     priority = 100
     
+    /* 
+     *   Our best guess at the direct object of the command this SpecialVerb will match before the
+     *   objects of the command have been fully resolved.
+     */
+    tentativeDobj = nil
+    
+    /* 
+     *   A list of the possible tentative direct objects of the command this SpecialVerb eill match
+     *   before the objecs of the command have been fully resolved. This will be all the objects in
+     *   scope that match our matchObjs property and the noun phrase the player apparently entered.
+     */
+    tentativeDobjList = []
+    
+    
     /* The verb phrase that's been matched to invoke this SpecialVerb. */
     verbPhrase = (specialVerbMgr.vWords.join())
     
@@ -5931,7 +5945,7 @@ class SpecialVerb: object
     /* Display our failure message. By default this is "You can't <<svPhrase>> that. */
     showFailureMsg(svPhrase)
     {
-        DMsg(cant do that special, '{I} {can\'t} <<svPhrase>> that. ');
+        DMsg(cant do that special, '{I} {can\'t} <<svPhrase>> {that dobj}. ');
     }
     
     /* Initialise (in fact preinitialize) this SpecialVerb */
@@ -5974,33 +5988,104 @@ class SpecialVerb: object
     }
     
     /* Check whether this SpecialVerb matches its conditions. */
-    matches(scope_)
+    matches(scope_, toks)
     {       
         /* 
-         *   If none of the objects this SpecialVerb is meant to apply to are in scope, subtract a
-         *   very large number from its match score so that it will be treated as a very poor
-         *   candidate no matter what other conditions it does or doesn't match.
-         */         
-        if(!scopeCheck(scope_))
-            score -= 500000;
+         *   Start calculating our score for this match by making it our priority plus the result of
+         *   looking for mactching objects in scope.
+         */        
+        score = priority + vocabCheck(scope_, toks);
         
-        /* Then carry out the custom checks. */
+        /* Then carry out the custom checks, which may further adjuest our score */
         return customChecks();
     }
-        
-    /* Check whether any of the items this SpecialVerb is meant to match is in scope. */ 
-    scopeCheck(scope_)
+ 
+    
+    /* 
+     *   Check how well any objects in soope that match our matchObjs also match the noun phrase we
+     *   think the player entered.
+     */
+    vocabCheck(scope_, toks)
     {
-        /* Iterate through every object/class in our list of matchObjs. */
-        foreach(obj in matchObjs)
-        {
-            /* If we find a match, return true. */
-            if(scope_.vec_.indexWhich({x: x.ofKind(obj)}))
-                return true;
-        }
+        /* Cache a list of all the objects in scope for the current command. */
+        scope_ = scope_.toList();
         
-        /* If we reach this point, no match has been found, so we return nil. */
-        return nil;
+        /* Our verb phrase length is the number of words in specialVerbMgr's vWords list. */
+        local vPhraseLen = specialVerbMgr.vWords.length();
+        
+        /* 
+         *   The tokens that come after the verb phrase tokens potentially constitute our noun
+         *   phrase tokens, which is what we'll want to match.
+         */
+        local nPhraseToks = toks.sublist(vPhraseLen + 1);
+        
+        /* 
+         *   Check for a preposition in the noun phrase; this may mark the end of the noun phrase
+         *   proper.
+         */
+        local prepTokPos = nPhraseToks.indexWhich({x: prepositions.find(x)});
+        
+        /*  
+         *   If we found a preposition, truncate our nounPhrase tokan list to end just before the
+         *   preposition.
+         */
+        if(prepTokPos)
+            nPhraseToks = nPhraseToks.sublist(1, prepTokPos - 1);
+        
+        /* Remove any articles from the noun phrase before attempting to match. */        
+        nPhraseToks = nPhraseToks.subset({x: articles.find(x) == nil});
+        
+        /* Make a note of whether we found a potentially suitable object in scope. */
+        local scopeMatch = nil;
+        
+        /* 
+         *   We'll keep a note of the best match score from the ojects in scope that match our
+         *   matchObjs.
+         */
+        local bestScore = 0;
+        
+        /* reset our tentativeDobj and tentativeDobjList */
+        tentativeDobj = nil;
+        tentativeDobjList = [];
+        
+        /* loop through every object in scope to find a match */
+        foreach(local obj in matchObjs)
+        {            
+            /* We're looking for objects in scope that match one of our matchObjs */
+            if(scope_.indexWhich({x: x.ofKind(obj)}))
+            {
+                /* Note that we have at least found a potential match in scope */
+                scopeMatch = true;
+                
+                /* Obtain the vocab match score for the current obj. */
+                local mScore = obj.matchName(nPhraseToks);
+                
+                if(mScore)
+                {
+                    /* If we have match, add obj to our list of tentative direct objects */
+                    tentativeDobjList += obj;
+                    
+                    /* 
+                     *   If our match score is grreater than any we've found up to now, update the
+                     *   bestScore to that match score and make obj our tentativeDobj.
+                     */
+                    if(mScore > bestScore)
+                    {
+                        bestScore = mScore;
+                        
+                        tentativeDobj = obj;
+                    }
+                }
+            }
+        }
+            
+        /* 
+         *   If we haven't even found a suitable object in scope, return -500000 to note that we're
+         *   a poor candidate for the best matching SpecialVerb; otherwise return 100 times out best
+         *   vocab match score so that specialVerbMgr can prioritize the VerbRule that bests matches
+         *   a suitable object in scope.
+         */
+        return scopeMatch ? (bestScore * 100) : -500000;           
     }
     
     /* 
@@ -6133,7 +6218,7 @@ specialVerbMgr: PreinitObject
         
         /* Calculate each SpecialVerb's match score, based partly on what's in scope. */
         foreach(local s in specs)
-            s.matches(scope_);
+            s.matches(scope_, tokWords);
         
         /* Sort the list in descending order of score. */
         local svmatches = specs.sort(true, {a, b: a.score  - b.score });

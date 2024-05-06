@@ -6080,6 +6080,17 @@ disambigPreParser: StringPreParser
     ];
 ;
 
+modify SpecialVerb
+    /* 
+     *   A list of prepositions we want SpecialVerb to check for when detecting the possible end of
+     *   a noun phrase.
+     */
+    prepositions = ['in', 'on', 'with', 'to', 'under', 'behind', 'from']
+    
+    /* a list of articles we want the SpecialVerb to ignore when matching vocab. */
+    articles = ['the', 'a', 'an', 'some']
+;
+
 /* 
  *   Define a LookupTable that translates the names of various enums into their string equivalents.
  *   This is used by the say() function to display the names of these enums. This is defined in the

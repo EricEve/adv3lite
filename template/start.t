@@ -32,8 +32,5 @@ startroom: Room 'The Starting Location'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'        
 ;
