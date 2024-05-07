@@ -39,6 +39,19 @@ modify Actor
     setState(stat)
     {
         /* 
+         *   First check that stat is a valid parameter for this method, which means that stat must
+         *   either be nil or an ActorState belonging to this Actor. 
+         */
+        if(stat && !(objOfKind(stat, ActorState) && stat.getActor == self))
+        {
+            DMsg(illegal actor state, '<FONT COLOR=RED><b>WARNING!</b></FONT> In the call to
+                setState(stat) on Actor <<theName>>, stat <<stat>> was not an ActorState belonging
+                to <<theName>>. ');
+            
+            return;
+        }        
+        
+        /* 
          *   Only do anything if the new state (stat) is different from our
          *   current state.
          */
@@ -2061,7 +2074,10 @@ modify Actor
     addToPendingAgenda([lst])
     {
         foreach(local item in lst)
-            pendingAgendaList += item;
+        {
+            if(checkAgenda(item))
+                pendingAgendaList += item;
+        }
     }
     
     /* 
@@ -6240,7 +6256,7 @@ modify AgendaManager
      *   that the method will accept addToAgenda(item), addToAgenda(item1,
      *   item2, ...) or addToAgenda([item1, item2,..])
      */     
-    addToAgenda([lst])
+     addToAgenda([lst])
     {
         /* if we don't have an agenda list yet, create one */
         if (agendaList == nil)
@@ -6251,16 +6267,20 @@ modify AgendaManager
         {    
             foreach(local cur in valToList(val))
             {
-                agendaList += cur;
-                
-                /* reset the agenda item */
-                cur.resetItem();
-                
-                /* 
-                 *   carry out any registration needed - primarily needed for
-                 *   FollowAgendaItems.
-                 */
-                cur.registerItem();
+                /* Check that cur is a valid value nefore doing anything with it. */
+                if(getActor.checkAgenda(cur))
+                {
+                    /* Add cut to our agendaList. */
+                    agendaList += cur;
+                    
+                    /* reset the agenda item */
+                    cur.resetItem();
+                    
+                    /* 
+                     *   carry out any registration needed - primarily needed for FollowAgendaItems.
+                     */
+                    cur.registerItem();
+                }
             }
         }
         
@@ -6357,6 +6377,24 @@ modify AgendaManager
             return nil;
         }
     }    
+    
+    /* 
+     *   Check whether ag is an AgendsItem belonging to our Actor. If it isn't, issue a warning
+     *   message and return nil. Otherwise return true to allow our caller to go ahead adding this
+     *   agendaItem to the relevant agendaList(s).
+     */
+    checkAgenda(ag)
+    {
+        if(!(objOfKind(ag, AgendaItem) && ag.getActor == self))
+        {
+            DMsg(bad agenda item, '<FONT COLOR=RED><b>WARNING!</b></FONT>: attempt to add something
+                to the agenda for <<getActor.theName>> that is not an AgendaItem belonging to that
+                Actor. ');
+            return nil;
+        }
+        
+        return true;         
+    }
 ;
 
 
