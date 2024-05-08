@@ -3753,3 +3753,7 @@ modify VerbProduction
     }
 ;
 
+modify Action
+    /* The VerbRule (Production) associated with this action. */
+    verbRule = nil
+;

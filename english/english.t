@@ -3905,6 +3905,35 @@ nounRoleQuestion(cmd, role)
    
 }
 
+/* As for a missing literal for a LiteralAction or LiteralTAction */
+askMissingLiteralQ(action, role)
+{
+    "\^<<literalRoleQuestion(action, role)>>?\n";
+}
+
+/* 
+ *   Get the question to ask for a missing literal. We do this more straightforwardly than for a
+ *   missing noun, since the context usually provides less information. The action parameter can be
+ *   either the action we want to perform (as it is whenever called by the library) or a
+ *   correspondind Command object) allowed for consistancy with askMissingNoun).
+ */
+literalRoleQuestion(action, role)
+{
+    /* If the action argument was provided as a Command, exttract the associated action. */
+    if(action.ofKind(Command))
+        action = action.action;
+    
+    /* get the missing query from the verb, and split into its parts */
+    local q = action.verbRule.missingQ.split(';');
+
+    /* pull out the appropriate question */
+    q = q[role == DirectObject ? 1 : role == IndirectObject ? 2 : 3];
+
+    /* Return the result */
+    return q;    
+}
+
+
 
 /* 
  *   Announce our choice of object when askForIobj() or askForDobj() chooses the

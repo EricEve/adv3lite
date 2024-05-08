@@ -144,6 +144,37 @@ class Redirector: object
         redirect(gCommand, altAction, isReplacement: isReplacement);
     }
     
+    /* Ask for a missing literal and retry action with the literal in role. */
+    askMissingLiteral(action, role = IndirectObject)
+    {
+        local obj;
+        
+        if(objOfKind(gDobj,Thing))
+            obj = gDobj;
+        else if(objOfKind(gIobj, Thing))
+            obj = gIobj;  
+        
+        /* Ask for the missing literal */
+        askMissingLiteralQ(action, role);
+        "<.p>";
+        
+        /* Read a new command from the keyboard. */        
+        local txt = readCommandLine();       
+        
+        if(role == IndirectObject && action.ofKind(LiteralTAction))
+        {           
+            doInstead(action, obj, txt);           
+        }
+        
+        if(role == DirectObject)
+        {
+            if(action.ofKind(LiteralAction))
+                doInstead(action, txt);
+            
+            if(action.ofKind(LiteralTAction))
+                doInstead(action, txt, obj);
+        }
+    }
     
 ;
 

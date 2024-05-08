@@ -159,10 +159,8 @@ mainCommandLoop()
             "<.p>";
             
             /* Read a new command from the keyboard. */
-            "<.inputline>";
-            DMsg(command prompt, '>');
-            txt = inputManager.getInputLine();
-            "<./inputline>\n";   
+            
+            txt = readCommandLine();           
             
             /* Pass the command through all our StringPreParsers */
             txt = StringPreParser.runAll(txt, Parser.rmcType());
@@ -189,5 +187,15 @@ mainCommandLoop()
     
 }
 
-
+/* Show the command prompt, read the player's input and return the result */
+readCommandLine()
+{
+    /* Read a new command from the keyboard. */
+    "<.inputline>";
+    DMsg(command prompt, '>');
+    local txt = inputManager.getInputLine();
+    "<./inputline>\n";   
+    
+    return txt;    
+}
 
