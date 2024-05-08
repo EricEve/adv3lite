@@ -8248,6 +8248,16 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Game code that needs objects that can be typed on is responsible for
      *   handling these actions in custom code.
      */
+    dobjFor(TypeOn)
+    {
+        preCond = [touchObj]
+        verify() 
+        { 
+            if(!canTypeOnMe)
+               illogical(cannotTypeOnMsg);  
+        }
+    }
+    
     dobjFor(TypeOnVague)
     {
         preCond = [touchObj]
@@ -8255,17 +8265,9 @@ class Thing:  ReplaceRedirector, Mentionable
         { 
             if(!canTypeOnMe)
                illogical(cannotTypeOnMsg); 
-        }
-    }
-    
-    dobjFor(TypeOn)
-    {
-        preCond = [touchObj]
-        verify() 
-        { 
-            if(!canTypeOnMe)
-               illogical(cannotTypeOnMsg); 
-        }
+        }        
+        
+        action() { askMissingLiteral(TypeOn, DirectObject); }
     }
     
     cannotTypeOnMsg = BMsg(cannot type on, '{I} {can\'t} type anything on {the

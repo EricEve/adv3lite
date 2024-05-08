@@ -213,6 +213,11 @@ class Settable: Thing
      *   we make them fixed in place by default
      */
     isFixed = true
+    
+    dobjFor(Set)
+    {
+        action() { askMissingLiteral(SetTo); }
+    }   
 ;
 
 
@@ -220,6 +225,11 @@ class Settable: Thing
 class Dial: Settable
     dobjFor(TurnTo) asDobjFor(SetTo)
     canTurnMeTo = true
+    
+    dobjFor(Turn) 
+    {
+        action() {askMissingLiteral(TurnTo); }
+    }
 ;
 
 

@@ -2719,6 +2719,15 @@ VerbRule(TypeLiteralOnWhat)
     missingQ = 'what do you want to type;what do you want to type that on'
 ;
 
+VerbRule(TypeVague)
+    'type'
+    : VerbProduction
+    action = TypeVague
+    verbPhrase = 'type/typing'
+    missingQ = 'what do you want to type;what do you want to type that on'
+    priority = 20
+;
+
 VerbRule(EnterOn)
     'enter' literalDobj
         ('on' | 'in' | 'in' 'to' | 'into' | 'with') singleIobj
@@ -2746,6 +2755,15 @@ VerbRule(Write)
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
     priority = 25
+;
+
+VerbRule(WriteVague)
+    'write' 
+    : VerbProduction
+    action = WriteVague
+    verbPhrase = 'write/writing (what)'
+    missingQ = 'what do you want to write'
+    priority = 30
 ;
 
 

@@ -1512,6 +1512,10 @@ DefineLiteralAction(Type)
     execAction(cmd) { askForIobj(TypeOn); }
 ;
 
+DefineIAction(TypeVague)
+    execAction(s) { askMissingLiteral(Type, DirectObject); }
+;
+
 DefineLiteralTAction(EnterOn)
     againRepeatsParse = nil
 ;
@@ -1531,6 +1535,14 @@ DefineLiteralAction(Write)
 
     execAction(cmd) { askForIobj(WriteOn); }
 ;
+
+DefineIAction(WriteVague)
+    execAction(c)
+    {
+        askMissingLiteral(Write, DirectObject);
+    }
+;
+
 
 DefineTopicTAction(ConsultAbout)
     againRepeatsParse = nil
