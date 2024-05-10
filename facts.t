@@ -145,7 +145,7 @@ class Fact: object
 
        
     /* The list of topics (Topics and Things, i.e. game objects) that this fact relates to.*/         
-    topics = []
+    topics = [] 
     
     /* 
      *   The list of actors and other objects - typically Consultables - that start the game knowing
