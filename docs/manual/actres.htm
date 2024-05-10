@@ -528,7 +528,94 @@ mat:Thing 'mat; white place; placemat'
 
 <p>Here the report() phase would still be suppressed, however, if the action() method displayed anything else (apart from its <span class="code">extraReport()</span> message). For example, if <span class="code">makeLocked()</span> were overridden to display some text, the report() phase would not take place. (Technical note: what <span class="code">extraReport()</span> if fact does is write direct to the output bypassing all filters, so its output isn't registered by the watchForOutput() method; it could be used elsewhere to bypass the normal output filtering, but this is not recommended; extraReport() does, however, carry out any message parameter substitution required unless its second, optional, paraemeter is given as nil).</p>
 
+<a name='actionreport'>
+<p>In any case, you need to take care in displaying any text from the action() method responding to any action that might be performed implicitly, such as Take. For example, it would normally be a very bad idea to do this:</p>
 
+<p><div class="code"><pre>
+  dobjFor(Take)
+  {
+     ...
+     action()
+     {
+        "You pick up the delicate vase very carefully indeed. ";
+         
+        inherited();              
+     }     
+  }
+</pre></div>
+
+<p>The problem here is that if the vase is picked up as part of an implicit action, in response say to PUT VASE IN BOX, the output will be a mess (with a confused and confusing implicit action report following the text just displayed from this action() method). You could use <span class='code'>reportAfter()</a> to avoid this, but then your custom take report will come too late. There are three better coding patterns you can employ here, depending on what effect you want to achieve.</p>
+
+<p>The first is to suppress your custom report when the action is being performed implicitly, e.g.:</p>
+
+<p><div class="code"><pre>
+  dobjFor(Take)
+  {
+     ...
+     action()
+     {
+        if(!gAction.isImplicit)
+          "You pick up the delicate vase very carefully indeed. ";
+         
+        inherited();              
+     }     
+  }
+</pre></div>
+
+<p>The second is to use <b>actionReport()</b>:</p>
+<p><div class="code"><pre>
+  dobjFor(Take)
+  {
+     ...
+     action()
+     {        
+        actionReport('You pick up the delicate vase very carefully indeed. ');
+         
+        inherited();              
+     }     
+  }
+</pre></div>
+
+<p>This will cause your custom action to be displayed in the normal way if the action is not carried out implicitly, or for it to appear immediately after any implicit action reports if the the action is an implicit one.</p>
+
+<p>The third pattern, using <b>reportPostImplicit()</b>, allows you to display different messages according to whether the the action is carried out implicitly or not, e.g.:</p>
+
+<p><div class="code"><pre>
+  dobjFor(Take)
+  {
+     ...
+     action()
+     {        
+        if(gAction.isImplicit)
+            reportPostImplicit('You were, of course, very careful when you picked up the delicate vase. ');
+        else
+          "You pick up the delicate vase very carefully indeed. ";
+         
+        inherited();              
+     }     
+  }
+</pre></div>
+
+<p>If you prefer, you can compress this third pattern to:</p>
+
+<p><div class="code"><pre>
+  dobjFor(Take)
+  {
+     ...
+     action()
+     {              
+        actionReport(You pick up the delicate vase very carefully indeed. ', 'You were, of course, very careful when
+		you picked up the delicate vase. ');        
+         
+        inherited();              
+     }     
+  }
+</pre></div>
+<p>In other words, <span class='code'>actionReport()</span> can take an optional second argument, which is then used as the message to display after any implicit action announcements. Otherwise, the same message is used whether the action is implicit or not.</p>
+
+<p>Which of these various patterns you use depends entirely on what effect you want to achieve, but it would be a very good idea to use one or other of them to display custom text from an action() method rather than using a naked double-quoted string when there's any chance that the action might be an implicit one. Take is probably the action most commonly performed implicitly, but the other actions that might be called as implicit actions by the library include Open, Close, Unlock, UnlockWith, Doff, DetachFrom, TakeFrom, GoTo, GetOff, GetOutOf, PutIn, PutOn, PutUnder, PutBehind, Enter and Board.</p>
+
+<a name='doinstead'>
 <p>There are two special methods you can call from an action routine if you want to perform another action, either instead of or as part of the current action. These methods are called <strong>doInstead()</strong> and <strong>doNested()</strong>  respectively. Suppose, for example, you wanted putting something under the tap to result in its being put in the sink; you could do it like this:</p>
 
  <p><div class="code"><pre>

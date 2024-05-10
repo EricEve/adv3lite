@@ -896,7 +896,104 @@ class SecretDoor: Door
 <a name='altvocab'></a>
 <p>The previous example supplied a coding pattern you could use in your game when there's a convenient pair of commands like OPEN and CLOSE that can trigger the change of vocab, but that's not so straighforward if you have an object whose vocab varies according to some other condition. In that case (and assuming that using State objects won't suffice to do the trick) you can give your variable vocab an <b>altVocab</b> property and define a <b>useAltVocabWhen</b> property that evaluates to true when the altVocab should be used as the object's vocab string and nil when the original vocab string should be used; the game will then switch between the original and altVocab strings according to the value of <span class='code'>useAltVocabWhen</span>. If you want a one-off irreversible change of vocab when the <span class='code'>useAltVocabWhen</span> condition is met (because, for example, something reveals the true nature of a previously mysterious object), you can have <span class='code'>useAltVocabWhen</span> evaluates to -1 when the change is to occur, so that the game will no longer need to keep checking that object for vocab changes.</p>
 
+<p>For example, suppose we have an object half-concealed among the trees in an orchard, whose true nature is only revealed when the player character examines it (we'll suppose for the sake of this exercise that the EXAMINE command notionally models the player character walking up to it to take a closer look). We coulld implement this along the following lines:</p>
+
+ <p><div class="code"><pre>
++ statue: Fixture 'curious object'
+    "On closer examination it turns out to be a statue of the Roman goddess Minerva. "
+    initSpecialDesc = "In the centre of the orchard stands &lt;&lt;aName&gt;&gt;. "
+    
+    altVocab = 'statue of Minerva; Roman curious; goddess object; her'
+    
+    useAltVocabWhen = examined  
+;
+
+</pre></div>
+
 <p>If you have some more complex requirement for changing vocabulary, you can override your chameleon object's <b>updateVocab()</b> method to do whatever vocab switching you like, but to ensure that the library invokes your method every turn (to check whether any updating is needed and then carry it out if so), so will need to override the <span class='code'>altVocab</span> property to something other than nil (and you may as well use it for an alternative vocab string).</p>
+
+<p>There is one more complex requirement the library can handle for you, namely when the vocab (and possibly the name) of an objects needs to vary between more than two different states. In this case the <span class='code'>altVocab</span> can be defined as a list of alternative vocab strings (which will be in addition to the object's initial vocab) and <span class='code'>useAltVocabWhen</span> to a method that returns a value indicating which vocab string is to be used, with the return values being one of the following:</p>
+
+<ul>
+<li><b>nil</b>: Retain or return to our original vocab string.</li>
+<li><b>0</b>: Return to (or retain) our original vocab srting and make it permanent (by no longer checking for changes).</li>
+<li><b><i>n</i></b>: Change to the vocab defined in item <i>n</i> in our <span class='code'>altVocab</span> list.</li>
+<li><b><i>-n</i></b>: Change to the vocab defined in item <i>n</i> in our <span class='code'>altVocab</span> list and make it permanent (by no longer checking for changes).</li>
+</ul>
+
+<p>If <i>n</i> is greater than the number of items in our <span class='code'>altVocab</span> list it will simply be ignored and no change of vocab will take place.</p>
+
+<p>As an example, suppose in the same object there's a round red object lying in the long grass at the foot of one of the apple trees. At first the player character takes it as an appple fallen from the tree. Closer examination casts some doubt on this, and when the object is picked up it's revealed to be a cricket ball. We could implement this along the following lines:</p>
+
+ <p><div class="code"><pre>
++ cricketBall:Thing 'rosy red apple'
+    "&lt;&lt;if moved&gt;&gt;It's ordinary red cricket ball, if a bit worn&lt;&lt;else&gt;&gt;On closer examination, it
+    looks a bit too hard and red to be an apple&lt;&lt;end&gt;&gt;. "
+    initSpecialDesc = "\^<<aName>> lies half-concealed in the long grass at the foot of one of the
+        trees. "
+    
+    altVocab = ['round red object; hard', 'cricket ball; red worn']
+    
+    useAltVocabWhen()
+    {
+        if(moved)
+            return -2;
+        if(examined)
+            return 1;
+        return nil;
+    }
+    
+    dobjFor(Take)
+    {
+        action()
+        {
+            if(!moved)
+            {
+                if(gAction.isImplicit)
+                {
+                    moved = true;
+                    updateVocab();
+                }
+                
+            }            
+            actionReport('As you pick it up, you realise that the &lt;q&gt;apple&lt;/q&gt; is in fact a
+                cricket ball. ');   
+            inherited();
+        }
+    }
+    
+    dobjFor(Eat) 
+    { 
+        preCond = [objHeld] 
+        
+        verify()
+        {
+            if(moved)
+                inherited();
+        }
+        
+        check()
+        {
+            say(cannotEatMsg);
+        }
+    }
+;
+</pre></div>
+
+<P>This example illustrates some of the complexities involved in implemening such a protean object. The first point to note is that the ordering of checks in the <span class='code'>useAltVocabWhen()</span> method is important; once the object is moved it becomes irrelevant whether it has been examined or not, since its identity as a cricket ball has been identified once and for all. That's why we return -2 when this condition is met, to make the change permamanent. This not only saves the library the needless work of checking for further changes each turn but also guards against some future change in the game state having the unintended side-effect of reverting the cricket ball to one of its former identities.</p>
+
+<p>The second point to consider is the need to handle what happens when taking the 'apple' is triggered by an implicit action, as it might be if the player enters commands such as EAT APPLE or THROW APPLE AT STATUTE. The complication here is that our object is still apparently an apple while it's still lying on the ground but has been transmogrified into a cricket ball once the player character has picked it up, which will be just before the PC attempts to throw it or eat it. That's why we need the <span class='code'>if(gAction.isImplicit)</span> block here. The library only checks for updating vocabulary near the start of each turn, but here the transformation from supposed apple to recognized cricket ball can occur mid turn, so we need to called <span class='code'>updateVocab()</span> manually to bring about the requisite transformation and precede it by <span class='code'>moved = true</span> to ensure that the condition for carrying out the transformation is met.</p>
+
+<p>Which brings us to the complications of dealing with EAT APPLE, should the player issue such a command while the putative apple is still lying on the ground (possibly still unexamined). While the object still appears to be an apple, it's logical to try to eat it; it's only when it's known to be a cricket ball that it's obviously inedible; hence the need for our customized <span class='code'>verify()</span> method in the <span class='code'>dobjFor(Eat)</span> block. If the 'apple' started out as manifestly inedible we'd risk seeing:</p>
+
+<p><div class="cmdline"><pre>
+<b>&gt;eat apple</b>
+The rosy red apple is plainly inedible.
+</pre></div>
+<p>Moreover, stopping the Eat action at the verify stage would prevent the implicit take taking place and the player learning the true nature of the supposed apple, which could make the game's response here more than a little puzzling. On the other hand, we don't want to allow the cricket ball to be eaten, so we prevent this is in <span class='code'>check()</span>; by the time the check method is called after an implicit TAKE the player will have been informed that the object the PC has just picked up is in fact a cricket ball, and its vocab will have been updated accordingly, so the response "The cricket ball is plainly inedible" won't appear at all incongruous.</p>
+
+<p>To be sure, the issues in your game may well be different from the ones discussed here, but this example should serve to highlight the kinds of thing to look out for.</p>
+
 
 <hr class="navb"><div class="navb">
 <i>adv3Lite Library Manual</i><br>

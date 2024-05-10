@@ -398,6 +398,13 @@ enum rmcDisambig;
 #define gTopicMatch (gTopic.getBestMatch)
 
 #define reportAfter(msg) gCommand.afterReports += msg
+#define reportPostImplicit(msg) gCommand.postImplicitReports += msg
+
+/* 
+ *   Defined for the sake of adv3 users moving to adv3Lite, who may be more used to using
+ *   mainReport() in a similar context.
+ */
+#define mainReport(msg) actionReport(msg)
 
 #define sLoc(which) subLocation = &remap##which
 

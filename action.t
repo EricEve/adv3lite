@@ -997,6 +997,21 @@ class Action: ReplaceRedirector
      *   is provided as a hook for the objtime extension to use.
      */
     advanceTime() {}
+    
+    /* 
+     *   Method to get the reports to be displayed immediately after any implicit action reports
+     *   that have been stored via a call to reportPostImplicit(). The language-specific part of the
+     *   library should call this method to append the text it returns to the implicit action
+     *   reports it generatees.
+     */
+    getPostImplicitReports()
+    {
+        local rep = '';
+        foreach(local prp in gCommand.postImplicitReports)
+            rep += ('\n' + prp);
+        
+        return rep;
+    }    
 ;
 
 
@@ -2692,6 +2707,7 @@ tryImplicitAction(action, [objs])
     /* install the resolved objects in the action */
     action.setResolvedObjects(objs...);
     
+//    action.reportImplicitActions = action.formerReportImplicitActions;
        
     /* 
      *   For an implicit action, we must check the objects involved to make

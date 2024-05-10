@@ -679,13 +679,22 @@ class Mentionable: LMentionable
      */
     originalVocab = nil
     
-    /* An alternative voc ab string to be used when useAltVocabWhen is true. */
+    /* 
+     *   An alternative vocab string to be used when useAltVocabWhen is true, or list of altenative
+     *   strings to be used under various conditions.
+     */
     altVocab = nil
     
     /* 
      *   A condition that must be true for us to change (or maintain) our vocab to our altVocab. If
      *   it returns nil we revert back to our original vocab. If we return -1 the change to altVocab
      *   becomes permanent and our updateVocab methdd won't be executed any more.
+     *
+     *   But if altViocab is defined as a list, we return nil to return to our originalVocab, 0 to
+     *   return to our original vocab and keep it for the rest of the game, n (where n > 0) to
+     *   change our vocab to the nth item in our altVocab list or -n to change our vocab to the nth
+     *   item in our altVocab list and then keep it there for the remainder of the game (i.e. stop
+     *   checking or vocab updates).
      */
     useAltVocabWhen = nil
     
@@ -711,36 +720,90 @@ class Mentionable: LMentionable
      *
      */
     updateVocab()
-    {
+    {                
         if(altVocab)
-        {
+        {          
             /* Stash the current value of useAltVocabWhen so we don't have to recalculate it. */
             local uavw = useAltVocabWhen; 
-            
-            /* 
-             *   If the condition for using our altVocab is true and we're not already using it,
-             *   then replace our vocab with our altVocab.
-             */
-            if(uavw && vocab != altVocab)
-                replaceVocab(altVocab);
             
             /*  
              *   If the condition for using our altVocab is false and we're not already using our
              *   original vocab, replace our current vocab with our original vocab.
              */
-            if(!uavw && vocab != originalVocab)
+            if(uavw == nil && vocab != originalVocab)
                 replaceVocab(originalVocab);
             
             /* 
-             *   If our useAltVocabWhen property evaluates to the special value of -1, then we want
-             *   the change to our altVocab to be permanent, so remove us from the list of Things
-             *   whose updateVocab() property is regularly called.
+             *   if altVocab is defined as a list we change vocab to the appropriate item in the
+             *   list.
              */
-            if(uavw == -1)
-                libGlobal.altVocabLst -= self;
-            
+            if(dataType(altVocab) == TypeList)
+            {
+                /* 
+                 *   A return value of less that 1 means we want to change the vocab to the -uavw
+                 *   item in the list and keep it there for the rest of the game.
+                 */
+                if(uavw != nil && uavw < 1)
+                {
+                    libGlobal.altVocabLst -= self;
+                    
+                    uavw = -uavw;
+                }
+                /* 
+                 *   If uavw is in range and is different from the previous value, then we need to
+                 *   change the vocab to entry uavw in our altVocab list. A value of 0 means that we
+                 *   want to change the vocab to its original value and leave it there for the rest
+                 *   of the game.
+                 */
+                if(uavw != uavwNum && (uavw == nil || uavw <= altVocab.length))
+                {
+                    uavwNum = uavw;
+                    
+                    local newVocab = (uavw && uavw > 0) ? altVocab[uavw] : originalVocab;
+                    
+                    replaceVocab(newVocab);
+                }
+            }
+            else
+            {
+                /* 
+                 *   If the condition for using our altVocab is true and we're not already using it,
+                 *   then replace our vocab with our altVocab.
+                 */
+                if(uavw && vocab != altVocab)
+                    replaceVocab(altVocab);            
+                
+                /* 
+                 *   If our useAltVocabWhen property evaluates to the special value of -1, then we
+                 *   want the change to our altVocab to be permanent, so remove us from the list of
+                 *   Things whose updateVocab() property is regularly called.
+                 */
+                if(uavw == -1)
+                    libGlobal.altVocabLst -= self;
+            }
         }
     }
+    
+    /* The previous return value from useAltVocabWhen - for internal library use only. */
+    uavwNum = nil
+    
+    /* 
+     *   Method designed to be called from the action() method of a dobjFor(XXX) block to display a
+     *   message safely for an action that maight be executed implicitly. If the action is implicit,
+     *   the message won't be displayed until immediately after the implicit action reports. If the
+     *   action isn't an implicit one, the message will be displayed straight away. The optional
+     *   second msg2 parameter is a variant message for display immediately after the implicit
+     *   action reports; otherwise msg will be used.
+     */
+    actionReport(msg, msg2?)
+    {
+        if(gAction.isImplicit)
+            reportPostImplicit(msg2 ?? msg);
+        else
+            say(msg);
+    }
+    
+    
 ;
 
 /* ------------------------------------------------------------------------ */

@@ -5519,12 +5519,18 @@ modify Action
                     rep += BMsg(implicit action report separator, ' then ');
             }
             
+            local prp = getPostImplicitReports();
+            
             if(clearReports)
+            {
                 /* We're done with this list of reports, so clear them out */
                 gCommand.implicitActionReports = [];
+                
+                gCommand.postImplicitReports = [];
+            }
             
             /* Return the completed implicit action report */
-            return rep + BMsg(implicit action report terminator, ')\n');
+            return rep + BMsg(implicit action report terminator, ')\n') + prp;
         }
         
         /* 
@@ -5536,6 +5542,7 @@ modify Action
         return '';
     }
     
+       
     /*  
      *   Return a string giving the implicit action announcement for the current
      *   action according to whether it's a success (e.g. "taking the spoon") or

@@ -353,7 +353,11 @@ class Command: object
     
     afterReports = []
     
-    
+    /* 
+     *   A list of strings containing reports to be immediately displayed after any implicit action
+     *   reports
+     */
+    postImplicitReports = []
     
     /* 
      *   Run through our list of afterReports displaying each in turn. We do
