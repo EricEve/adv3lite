@@ -6583,6 +6583,12 @@ class AgendaItem: object
      *   sense, e.g. &canHear or &canSmell).
      */
     report(msg, prop=&canSee) { senseSay(msg, getActor, prop); }
+    
+    /*  
+     *   Another convensence method; calling actorSay() on an AgendaItem calls actorSay() on its
+     *   associated Actor.
+     */
+    actorSay(msg) { getActor.actorSay(msg); }
 ;
 
 
