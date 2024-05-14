@@ -361,7 +361,7 @@ class Fact: object
     pcComment = nil
     
     /*  
-     *   A table containing platey characters' comments on this Fact. We use a LookpTable here in
+     *   A table containing player characters' comments on this Fact. We use a LookpTable here in
      *   case the player character changes, so we can retrieve the comment relevant to the current
      *   player character
      .*/

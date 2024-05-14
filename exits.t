@@ -97,6 +97,20 @@ exitLister: PreinitObject
 
     /* flag: we've explained how the exits on/off command works */
     exitsOnOffExplained = nil
+    
+    /* 
+     *   flag; do we want to list exits that are just double-quoted string properties; by default we
+     *   do because they represent a kind of FakeConnector that trigger beforeTravel notifications.
+     */
+    showDQSExits = true
+    
+    /* 
+     *   flag; do we want to list exits that are just single-quoted string properties; by default we
+     *   don'y because they dont't trigger beforeTravel notifications and just say why travel that
+     *   way isn't possible.
+     *.
+     */
+    showSQSExits = nil
 
     /*
      *   Determine if the "reminder" is enabled.  The reminder is the list
@@ -268,7 +282,6 @@ exitLister: PreinitObject
 
         local options;
        
-
         /* we have no option flags for the lister yet */
         options = 0;
 
@@ -277,16 +290,21 @@ exitLister: PreinitObject
         
         foreach(local dir in Direction.allDirections)
         {
-            local conn = nil;           
+            local conn = nil;       
+            local dest = libGlobal.extraDestInfo[[loc, dir]];
             
             switch(loc.propType(dir.dirProp))
             {
             case TypeNil:
             case TypeSString:
-            case TypeDString:
+                if(showSQSExits && locIsLit && dest != nil)
+                    destList.append(new DestInfo(dir, dest));
                 break;
-                        
-                
+            case TypeDString:
+                if(showDQSExits && locIsLit && dest != nil)
+                    destList.append(new DestInfo(dir, dest));
+                break;
+                                
             case TypeObject:
                 conn = loc.(dir.dirProp);
                 if(conn.isConnectorVisible && conn.isConnectorListed)
@@ -302,8 +320,7 @@ exitLister: PreinitObject
                 
             case TypeCode:    
                 if(locIsLit)
-                {
-                    local dest = libGlobal.extraDestInfo[[loc, dir]];
+                {                   
                     if(dest != nil)
                        destList.append(new DestInfo(dir, dest));
                 }

@@ -562,7 +562,7 @@ modify Actor
             response.handleTopic();     
             
             /* 
-             *   If the response was a converational one, note that conversation
+             *   If the response was a conversational one, note that conversation
              *   has taken place on this turn.
              */
             if(response.wasConversational)
