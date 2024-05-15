@@ -1316,6 +1316,10 @@ enum likely, dubious, unlikely, untrue;
 
 #define BV(x) (defined(beliefManager) ? beliefManager.bvTab[x] : x)
 
+#define RNF(name_, desc, args...) revealNewFact(name_, desc, ## args)
+#define INF(name_, desc, args...) informNewFact(name_, desc, ## args)
+
+
 /* ------------------------------------------------------------------------- */
 /*
  *   Define some synonyms for potentially confusing property names

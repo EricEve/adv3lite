@@ -421,6 +421,45 @@ class Fact: object
      *   (or possibly a combination of both) to determine the listing order.
      */
     adjustedPriority = (priority - listOrder)
+    
+    /* 
+     *   A list of alternate fact descriptions that can be referenced by the optional msg parameter
+     *   of various TopicEntry methods. If present, the elements of the list should be single-quoted
+     *   strings.
+     */
+    factDescs = []
+    
+    /* 
+     *   Our constructor for creating a new Fact object dynamically under progrem control. name_ is
+     *   the fact tag name; desc_ is the Fact's descroption; topics_ is the list of topics to which
+     *   this new Fact relates; initiallyKnownBy_ is the actor or list of actors who start out
+     *   knowing aboout this new Fact.
+     */
+    construct(name_, desc_, topics_, initiallyKnownBy_)
+    {       
+        /* Ensure that we're not about to overwrite an existing Fact. */
+        local fact = gFact(name_);
+        
+        /* If fact already exists, display and error message and exit. */
+        if(fact)
+        {
+            DMsg(duplicate fact name, 'ERROR! Attempt to create duplicate Fact with name
+                \'<<name_>>\'.');
+            return;
+        }
+        
+        /* Set the basic Fact properties from our parameters */
+        name = name_;
+        desc = desc_;
+        topics = valToList(topics_);
+        initiallyKnownBy = valToList(initiallyKnownBy_);
+        
+        /* Then carry out the fact initialization. */
+        initializeFact();
+        
+        /* Add us to the factManager's table of facts so we maintain a reference to ourself. */
+        factManager.addFact(self);
+    }
 ;
 
 /* 
@@ -924,33 +963,35 @@ class FactThought: FactHelper, Thought
 
 modify TopicEntry
     /* 
-     *   We can use revealFact(tag) to both reveal the tag (add it to the list of fact tags that
-     *   have been revealed and stored in the player character's informedNameTab - what the PC has been
-     *   informed about) and display the description of the corresponding Fact. We need to use this
-     *   method if we want the game to keep track of who has imparted particular facts to the Player
-     *   Character. Game authors will most likely use this method in the topicResponse of AskTopics
-     *   or QueryTopics.
-     */
-    revealFact(tag)
+     *   Reveal the fact corresponding to tag and return its description. The optional msg parameter
+     *   can customoize the way the description is displayed, and can be a single-quoted string (to
+     *   be used as a description of the fact) an integer (indexing the fact's factDescs list, a
+     *   property pointer, in which case the corresponding method will be called on the fact with
+     *   self as an argument, or a function pointer, in which case the function will be executed
+     *   with self as an argument. The method or function called should return a single-quoted
+     *   string to be used to describe the fact.
+     */   
+    revealFact(tag, msg?)
     {
         /* If for any reason we're called with a nil tag, simply return nil and end there. */
         if(tag == nil) return nil;   
         
         /*
          *   If the informOnReveal option is true, then we want to both update the revealed list on
-         *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will do
-         *   both).
+         *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will
+         *   do both).
          */
         if(libGlobal.informOnReveal)        
             gReveal(tag); 
         /* Otherwise we just update the player character's informedNameTab. */
         else
-            gPlayerChar.setInformed(tag);
+            gPlayerChar.setInformed(tag);        
+        
+        /* The person supplying this fact will be our actor. */
+        narrator = getActor();
         
         /* Get the fact associated with tag. */
         local fact = factManager.getFact(tag);
-        
-        narrator = getActor();
         
         if(fact)
         {
@@ -959,6 +1000,14 @@ modify TopicEntry
              *   of sources.
              */
             fact.addSource(getActor);
+            
+            /* Deal with msg depending on whether it's an integer or a string. */
+            if(msg)
+            {
+                msg = interpret(fact, msg);
+                if(msg)
+                    return msg;
+            }
             
             /*  
              *   return our fact's description, which can be embedded in our topicResponse or an
@@ -978,11 +1027,26 @@ modify TopicEntry
      *   return a description of the fact that can be embedded in the topicResponse of a TellTopic,
      *   or SayTopic. The actor parameter, if specified, should be the actor being informed, which
      *   will usually be the current interlocutor in a conversational context.
+     *
+     *   The optionsl msg parameter works the same way as for revealFact. The optional actor
+     *   parameter defines the actor who is being informed of this fact, and defaults to getActor,
+     *   who will usually be the conversational partner here. The actor parameter can be omitted and
+     *   the msg parameter placed second and will still be interpreted correctly via its dataType.
      */
-    informFact(tag, actor = getActor())
+    informFact(tag, actor = getActor(), msg?)
     {
         /* If for any reason we're called with a nil tag, simply return nil and end there. */
         if(tag == nil) return nil;        
+        
+        /* 
+         *   If the secong parameter has been supplied as integer or single-quoted string, treat it
+         *   as the third (msg) parameter and set the actor parameter to the default getActor.
+         */
+        if(dataType(actor) is in (TypeInt, TypeSString, TypeProp, TypeFuncPtr))
+        {
+            msg = actor;
+            actor = getActor();
+        }
         
         /* 
          *   Update our current interloctutor's (or actor's if a different actor is specified)
@@ -1004,6 +1068,15 @@ modify TopicEntry
              */
             fact.addTarget(actor);
             
+            /* Deal with msg depending on whether it's an integer or a string. */
+            if(msg)
+            {
+                msg = interpret(fact, msg);
+                if(msg)
+                    return msg;
+            }
+            
+            
             /* 
              *   Return a description of the Fact that can be used in this TopicEntry's
              *   showResponse() method or eventList property.
@@ -1013,6 +1086,7 @@ modify TopicEntry
         
         return nil;
     }
+    
     
     qualifiedDesc(actor, tag, topic, sender)    
     {
@@ -1038,6 +1112,90 @@ modify TopicEntry
         
         return inherited(top);
     }
+    
+    /* Translate the msg parameter into a single-quoted string appropriate to fact */
+    interpret(fact, msg)
+    {
+        /* The interpretation depends on the data type of the msg parameter */
+        switch(dataType(msg))
+        {
+            /* If it's already a single-quoted string, return msg unchanged. */
+        case TypeSString:
+            return msg;
+            
+            /* 
+             *   If it's an integer, return the corresponding element of our fact's factDescs list,
+             *   provided the mash is in range.
+             */
+        case TypeInt:
+            if(msg > 0 && msg <= fact.factDescs.length)
+                return fact.factDescs[msg];
+            
+            /* If it's a property pointer, call msg(self) on our fact. */
+        case TypeProp:
+            return fact.(msg)(self);
+            
+            /* If it's a function pointer, call the function with self as an argument. */
+        case TypeFuncPtr:
+            local f = msg;
+            return f(self);                    
+        }
+        
+        /* 
+         *   If none of these worked, return nil to tell our caller we weren't able to provide a
+         *   valid interpretation of the msg parameter.
+         */
+        return nil;
+    }
+    
+    /* 
+     *   Reveal a Fact that hasn't been (or may not have been) created yet. If it doesn't exist, we
+     *   create it and then call revealFact() to reveal and display it. name_ is the new fact tag
+     *   name; desc_ is the fact's description; msg is the optional msg parameter for displaying the
+     *   fact description in the context of this TopicEntry; topics? is the list of topics this new
+     *   facts relates to - we default to this TopicEmtry's matchObj; initiallyKnownBy is the actor
+     *   or list of actor's this Fact starts out already known by - we default to getActor, the
+     *   conversation partner the player character is talking to at this point.
+     */
+    revealNewFact(name_, desc_, msg?, topics_?, initiallyKnownBy_?)
+    {
+        /* If the Fact doesn't exist yet, create it. */
+        if(!gFact(name_))    
+        {
+            topics_ = topics_ ?? matchObj;
+            initiallyKnownBy_ = initiallyKnownBy_ ?? getActor();
+            
+            new Fact(name_, desc_, topics_, initiallyKnownBy_);
+        }
+        
+        return revealFact(name_, msg);
+    }
+    
+    /* 
+     *   Inform actor of a Fact that hasn't been (or may not have been) created yet. If it doesn't
+     *   exist, we create it and then call informFact() to reveal and display it. name_ is the new
+     *   fact tag name; desc_ is the fact's description; msg is the optional msg parameter for
+     *   displaying the fact description in the context of this TopicEntry; topics? is the list of
+     *   topics this new facts relates to - we default to this TopicEmtry's matchObj;
+     *   initiallyKnownBy is the actor or list of actor's this Fact starts out already known by - we
+     *   default to gPlayerChar, the person most likely to be informing the current interlocutor of
+     *   the new fact at this point.
+     */    
+    informNewFact(name_, desc_, msg?, topics_?, initiallyKnownBy_?, actor?)
+    {       
+        actor = actor ?? getActor();
+
+        /* If the Fact doesn't exist yet, create it. */
+        if(!gFact(name_))                  
+        {
+            topics_ = topics_ ?? matchObj;
+            initiallyKnownBy_ = initiallyKnownBy_ ?? gPlayerChar;
+            
+            new Fact(name_, desc_, topics_, initiallyKnownBy_);
+        }
+        
+        return informFact(name_, actor, msg);
+    } 
 ;
 
 
@@ -1081,9 +1239,9 @@ modify ActorTopicEntry
      *   Short-name method for retrieving the description of the fact associated with aTag and
      *   updating what the player character knows and the fact's list of sources.
      */
-    revTag()
+    revTag(msg?)
     {
-        return revealFact(aTag);
+        return revealFact(aTag, msg);
     }
     
     /* 
@@ -1098,7 +1256,7 @@ modify ActorTopicEntry
      */
     tTag = nil
     
-    infTag() { return informFact(tTag); } 
+    infTag(msg?) { return informFact(tTag, msg); } 
     
     /* Get the relevant qualified fact description */
     qualifiedDesc(actor, tag, topicMatched)    

@@ -380,10 +380,11 @@ Fact 'spain-in-europe' [tSpain]
 
 <p>The additional methods defined on <b>TopicEntry</b> are:
 <ul>
-<li><b>revealFact(tag)</b>: This method displays the desc of the Fact referenced by <i>tag</i> as described by the NPC the player character is in conversation with in relation to the topic matched, adds the PC's conversation partner to the list of sources for this fact, and adds the fact's name tag to the list of topics the Player Character knows about. Note that it does not check whether the PC's current interlocutor knows this Fact or whether this Fact is related to the current topic of conversation.</li>
-<li><b>informFact(tag, <span class='comment'>[actor]</span>)</b>: This method displays the description of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched, adds the PC's conversation partner to the list of targets for this fact, and adds the fact's name tag to the list of topics <i>actor</i> knows about. Note that it does not check whether the Player Character knows this Fact or whether this Fact is related to the current topic of conversation. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied.</li>
+<li><b>revealFact(tag, msg?)</b>: This method displays the desc of the Fact referenced by <i>tag</i> as described by the NPC the player character is in conversation with in relation to the topic matched, adds the PC's conversation partner to the list of sources for this fact, and adds the fact's name tag to the list of topics the Player Character knows about. Note that it does not check whether the PC's current interlocutor knows this Fact or whether this Fact is related to the current topic of conversation.</li>
+<li><b>informFact(tag, <span class='comment'>[actor]</span>, msg?)</b>: This method displays the description of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched, adds the PC's conversation partner to the list of targets for this fact, and adds the fact's name tag to the list of topics <i>actor</i> knows about. Note that it does not check whether the Player Character knows this Fact or whether this Fact is related to the current topic of conversation. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied.</li>
 <li><b>factText(tag, <span class='comment'>[actor]</span>)</b>: This method simply displays the described of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied. </li>
 </ul>
+<p>The function of the optional <i>msg</i> parameter will be discussed below, in the context of explaining how the use of Facts in conjunction with TopicEntries can be made more <a href='#flexibility'>flexible</a>.
 
 <p>For example, using the first and last of these methods, we could define a TopicEntry thus:</p>
 
@@ -400,8 +401,8 @@ Fact 'spain-in-europe' [tSpain]
 <ul>
 <li><b>aTag</b>: the knowledge tag (fact name string) associated with this ActorTopicEntry when the player character is asking the NPC something (i.e. on an <a href='asktell.htm'>AskTopic</a> or <a href='specialTopic.htm#querytopic'>QueryTopic</a>). The ActorTopicEntry will then match the topics associated with this fact, but will only be active (and hence accessible) if the current interlocutor knows the fact in question. Note that we can still override the TopicEntry's matchObj to match some other topic or list of topics if we wish, although this may risk defeated the object.</li>
 <li><b>tTag</b>: the knowledge tag (fact name string) associated with this ActorTopicEntry when the playerChar is telling the NPC something (i.e. on a <a href='asktell.htm'>TellTopic</a> or <a href='specialtopic.htm#saytopic'>SayTopic</a>). The ActorTopicEntry will then match the topics associated with this fact, but will only be active (and hence accessible) if the current interlocutor knows the fact in question. Note that we can still override the TopicEntry's matchObj to match some other topic or list of topics if we wish, although this may risk defeated the object. Note also that it makes no sense to define both aTag and tTag on the same TopicEntry; if aTag is non-nil tTag will be ignored.</li>
-<li><b>revTag()</b>: calls <span class='code'>revealFact(aTag)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on an AskTopic or QueryTopic</li>
-<li><b>infTag()</b>: calls <span class='code'>informFact(tTag)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on a TellTopic or SayTopic<</li>
+<li><b>revTag(msg?)</b>: calls <span class='code'>revealFact(aTag)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on an AskTopic or QueryTopic</li>
+<li><b>infTag(msg?)</b>: calls <span class='code'>informFact(tTag)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on a TellTopic or SayTopic<</li>
 <li><b>fText()</b>: returns the value of <span class='code'>factText(aTag ?? tTag)</span>, in other words <span class='code'>factText(aTag)</span> if <span class='code'>aTag</span> is not nil and <span class='code'>factText(tTag)</span> otherwise. </li>
 </ul>
 
@@ -596,6 +597,29 @@ You recall that Bob told you that he likes his cousin.
 <li>Any subsequent square-bracktted text you use should be one of the <a href='message.htm#parameter'>message parameters</a> listed later in this manual, minus the <i>obj</i> part, e.g. '[his]' rather than '[his bob]' or '[his obj']; the qualifiedDesc method will then work out what to supply here.</li>
 <li>To secure subject-verb agreement you should use an ordinary <a href='message.htm#parameter'>message parameters</a>, e.g. 'like{s/d}' rather than just 'likes'.</li>
 </ol>
+
+<a name='flexibility'>
+<h2>Some More Flexible Ways of Using Facts with TopicEntries</h2>
+<p>The facilities for using Facts with TopicEntries discussed above work well enough, but some game authors may wish for a bit more flexibility in a couple of respects. First, it might sometimes be nice to have a simple way of customizing how a Fact is articulated in the course of a conversation without having to tinker with the Fact's <span class='code'>qualifiedDesc</span> method to get the desired result. Second, it might seem neater and easier not to have to define the Fact separately from the TopicEntry that references it, especially if the Fact is relevant specifically to that conversational exchange. The adv3Lite library addresses both these concerns.</p>
+
+<p>You may recall that several of the TopicEntry and ActorTopicEntry methods described above have an optional <b>msg</b> parameter; this can be used to customize how the description of the Fact is displayed in the context of the TopicEntry's response. The methods in question are:</p>
+
+<ul>
+<li><b>revealFact(tag, msg?)</b>: This method displays the desc of the Fact referenced by <i>tag</i> as described by the NPC the player character is in conversation with in relation to the topic matched, adds the PC's conversation partner to the list of sources for this fact, and adds the fact's name tag to the list of topics the Player Character knows about. Note that it does not check whether the PC's current interlocutor knows this Fact or whether this Fact is related to the current topic of conversation.</li>
+<li><b>informFact(tag, <span class='comment'>[actor]</span>, msg?)</b>: This method displays the description of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched, adds the PC's conversation partner to the list of targets for this fact, and adds the fact's name tag to the list of topics <i>actor</i> knows about. Note that it does not check whether the Player Character knows this Fact or whether this Fact is related to the current topic of conversation. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied. It can be omitted even if <i>msg</i> is supplied; in other words it's perfectly fine to call this method as <span class='code'>informFact(tag, msg)</span></li>
+<li><b>revTag(msg?)</b>: calls <span class='code'>revealFact(aTag, msg)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on an AskTopic or QueryTopic</li>
+<li><b>infTag(msg?)</b>: calls <span class='code'>informFact(tTag, msg)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on a TellTopic or SayTopic<</li>
+</ul>
+
+<p>In turn, the <b>msg</b> parameter can be one of:</p>
+<ol>
+<li>A single-quoted string (to be used as a description of the fact).</li>
+<li>An integer (indexing the fact's factDescs list)</li>
+<li>A property pointer, in which case the corresponding method will be called on the fact with self as argument. The method should return a single-quoted string which will be used as the fact's description.</li>
+<li>A function pointer, in which case the function will be executed with self as an argument. The function should return a single-quoted string which will be used as the fact's description.</li>
+</ol>
+
+
 
 <a name='debug'></a>
 <h2>Debugging Commands</h2>
