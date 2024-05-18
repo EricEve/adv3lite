@@ -285,7 +285,7 @@ class Fact: object
      */
     getTargets(actor = gPlayerChar)
     {
-        return valToList(targetsTab[actor]); 
+        return targetsTab ? valToList(targetsTab[actor]) : []; 
     }
     
     /* 
@@ -1271,7 +1271,7 @@ modify ActorTopicEntry
      */
     tTag = nil
     
-    infTag(msg?) { return informFact(tTag, msg); } 
+    infTag(msg?) { return informFact(tTag, getActor(), msg); } 
     
     /* Get the relevant qualified fact description */
     qualifiedDesc(actor, tag, topicMatched)    
@@ -1486,7 +1486,8 @@ DefineSystemAction(ListFacts)
         /* Then list each fact name along with its corresponding description. */
         foreach(local item in keyList)
         {
-            "<b><<item>></b>: <<factManager.getFactDesc(item)>>\n";
+            "<<aHref('fact info ' + item, item, 'fact info ' + item)>> 
+            <<factManager.getFactDesc(item)>>\n";
         }
     }
 ;
@@ -1512,12 +1513,23 @@ DefineSystemAction(FactInfo)
             return;
         }
         
-        "Name = <<fact.name>>\n";
-        "Desc = <<fact.desc>>\n";
+        "Name = '<<fact.name>>'\n";
+        "Desc = '<<fact.desc>>'\n";
         "Topics = <<showContents(fact.topics)>>\n";
         "Initially Known By = <<showContents(fact.initiallyKnownBy)>>\n";
-        "Currenly Known By = <<showContents(fact.currentlyKnownBy())>>\n";
-        
+        "Currently Known By = <<showContents(fact.currentlyKnownBy())>>\n";
+        "Adjusted Priority = <<fact.adjustedPriority>>\n";
+        if(fact.pcComment)
+            "pcComment = '<<fact.pcComment>>'\n";
+        local sources = fact.getSources();
+        if(sources && sources.length > 0)
+            "Sources = <<showContents(sources)>>\n";
+        local targets = fact.getTargets();
+        if(targets && targets.length > 0)
+            "Targets = <<showContents(targets)>>\n";
+        if(fact.factDescs && fact.factDescs.length > 0)
+            "FactDescs = <<showContents(fact.factDescs)>>\n";
+            
     }
     
     showContents(lst)
@@ -1526,7 +1538,9 @@ DefineSystemAction(FactInfo)
         "[";
         foreach(local obj in lst)
         {
-            "<<obj.name>>";
+            if(dataType(obj) == TypeSString) "'";
+            "<<valToSym(obj)>>";
+            if(dataType(obj) == TypeSString) "'";
             if(++i < lst.length)
                 ", ";
         }
