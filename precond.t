@@ -1000,3 +1000,27 @@ objCarried: PreCondition
         return nil;        
     }
 ;
+
+/* A Precondition to check whether the actor can talk to obj. */
+canTalkToObj: PreCondition    
+    verifyPreCondition(obj)    
+    {
+        if(!obj.canTalkToMe)
+            illogical(obj.cannotTalkToMsg); 
+        
+        else if(!gActor.canTalkTo(obj))
+        {
+            local errMsg;
+            gMessageParams(obj);
+            
+            if(!obj.isIn(gActorRoom))
+                errMsg = BMsg(too far away to talk, '{The subj obj} {is} too far away to talk to. ');
+            else
+                errMsg = BMsg(cannot talk to obj, '{I} {can\'t} talk to {the obj} just {now}. ');
+            
+            inaccessible(errMsg);
+        }        
+    }
+;
+    
+    

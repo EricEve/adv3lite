@@ -9144,7 +9144,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(AskAbout)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9157,7 +9157,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(AskFor)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9171,7 +9171,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(TellAbout)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9185,7 +9185,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     dobjFor(SayTo)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9205,7 +9205,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(QueryAbout)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9218,7 +9218,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(TalkAbout)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)
@@ -9231,7 +9231,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     dobjFor(TalkTo)
     {
-        preCond = [objAudible]
+        preCond = [canTalkToObj]
         verify() 
         { 
             if(gActor == self)

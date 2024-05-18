@@ -1797,8 +1797,8 @@ VerbRule(QueryAbout)
 ;
 
 VerbRule(QueryVague)
-    ('a' | 'ask'|) ('what' ->qType | 'who' ->qtype | 'where' -> qtype | 'why'
-                   ->qType | 'when' -> qtype| 'how' -> qtype | 'whether' ->
+    ('a' | 'ask'|) ('what' ->qtype | 'who' ->qtype | 'where' -> qtype | 'why'
+                   ->qtype | 'when' -> qtype| 'how' -> qtype | 'whether' ->
                     qtype | 'if' -> qtype) 
     : VerbProduction
     action = QueryVague

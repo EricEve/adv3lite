@@ -1853,7 +1853,7 @@ QueryVague: MiscConvAction
     baseActionClass = QueryVague
     execAction(cmd)
     {
-        qType = cmd.verbProd.qType;
+        qType = cmd.verbProd.qtype;
         /* 
          *   Mark this as a special Topic designed to match a QueryTopic of the appropriate type.
          */
