@@ -348,6 +348,10 @@ class Fact: object
         return srcList;
     }
     
+    /* 
+     *   Used internally to build a list of sources (of this fact) to be listed (typically in
+     *   response to a THINK ABOUT command.
+     */
     sourcesListed = nil
 
     
@@ -987,7 +991,10 @@ modify TopicEntry
         else
             gPlayerChar.setInformed(tag);        
         
-        /* The person supplying this fact will be our actor. */
+        /* 
+         *   The person supplying this fact will be our actor, that is, the player character's
+         *   currenly interlocutor.
+         */
         narrator = getActor();
         
         /* Get the fact associated with tag. */
@@ -1054,6 +1061,7 @@ modify TopicEntry
          */
         actor.setInformed(tag);
         
+        /* Set narrator (the imparter of this Fact) to the player character */
         narrator = gPlayerChar;
         
         /* Get the fact corresponding to the tag. */
@@ -1087,7 +1095,10 @@ modify TopicEntry
         return nil;
     }
     
-    
+    /* 
+     *   Retrieve and return the qualified description of the Fact corresponding to Fact qualified
+     *   according to actor, topic and sender (which will normally be self, this TopicEntry, here).
+     */
     qualifiedDesc(actor, tag, topic, sender)    
     {
         return factManager.getQualifiedFactDesc(actor, tag, topic, sender);
@@ -1103,6 +1114,10 @@ modify TopicEntry
         return factManager.getQualifiedFactDesc(actor, tag, topicMatched, self);
     }    
     
+    /* 
+     *   Our narrator is the person (or Consultable) imparting a fact vis this TopicEntry. This is
+     *   set by either our revealFact() or our informFact() method.
+     */
     narrator = nil
     
     matchTopic(top)

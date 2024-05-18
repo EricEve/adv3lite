@@ -600,7 +600,7 @@ You recall that Bob told you that he likes his cousin.
 
 <a name='flexibility'>
 <h2>Some More Flexible Ways of Using Facts with TopicEntries</h2>
-<p>The facilities for using Facts with TopicEntries discussed above work well enough, but some game authors may wish for a bit more flexibility in a couple of respects. First, it might sometimes be nice to have a simple way of customizing how a Fact is articulated in the course of a conversation without having to tinker with the Fact's <span class='code'>qualifiedDesc</span> method to get the desired result. Second, it might seem neater and easier not to have to define the Fact separately from the TopicEntry that references it, especially if the Fact is relevant specifically to that conversational exchange. The adv3Lite library addresses both these concerns.</p>
+<p>The ways of using Facts in conjunction with TopicEntries we have seen so far require Fact objects to be defined separately from the TopicEntries that use them. Since these Facts may well be used for other purposes as well, such as supplying responses to THINK ABOUT commands, this may seem fair enough, and some game authors may welcome the clean separation of function here. But others may prefer to be able to customize conversational responses entirely on the relevant TopicEntries rather than also having to tweak code on any Fact object they reference, and some may even find it neater and easier not to have to define the Fact separately from the TopicEntry that references it, especially if the Fact is relevant specifically to that conversational exchange. Adv3Lite therefore makes it possible to customize how a Fact is articulated from within a TopicEntry and to create a new Fact on the fly from within a TopicEntry.</p>
 
 <p>You may recall that several of the TopicEntry and ActorTopicEntry methods described above have an optional <b>msg</b> parameter; this can be used to customize how the description of the Fact is displayed in the context of the TopicEntry's response. The methods in question are:</p>
 
@@ -608,7 +608,7 @@ You recall that Bob told you that he likes his cousin.
 <li><b>revealFact(tag, msg?)</b>: This method displays the desc of the Fact referenced by <i>tag</i> as described by the NPC the player character is in conversation with in relation to the topic matched, adds the PC's conversation partner to the list of sources for this fact, and adds the fact's name tag to the list of topics the Player Character knows about. Note that it does not check whether the PC's current interlocutor knows this Fact or whether this Fact is related to the current topic of conversation.</li>
 <li><b>informFact(tag, <span class='comment'>[actor]</span>, msg?)</b>: This method displays the description of the Fact referenced by <i>tag</i> as described by <i>actor</i> in relation to the topic matched, adds the PC's conversation partner to the list of targets for this fact, and adds the fact's name tag to the list of topics <i>actor</i> knows about. Note that it does not check whether the Player Character knows this Fact or whether this Fact is related to the current topic of conversation. The second, <ii>actor</i> parameter is optional and defaults to the player character's current interlocutor (the normal case) if not supplied. It can be omitted even if <i>msg</i> is supplied; in other words it's perfectly fine to call this method as <span class='code'>informFact(tag, msg)</span></li>
 <li><b>revTag(msg?)</b>: calls <span class='code'>revealFact(aTag, msg)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on an AskTopic or QueryTopic</li>
-<li><b>infTag(msg?)</b>: calls <span class='code'>informFact(tTag, msg)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on a TellTopic or SayTopic<</li>
+<li><b>infTag(msg?)</b>: calls <span class='code'>informFact(tTag, msg)</span> --- for which see above --- and returns its return value, which can then be used to construct this ActorTopicEntry's topicResponse. This would typically be used on a TellTopic or SayTopic.</li>
 </ul>
 
 <p>In turn, the <b>msg</b> parameter can be one of:</p>
@@ -619,7 +619,99 @@ You recall that Bob told you that he likes his cousin.
 <li>A function pointer, in which case the function will be executed with self as an argument. The function should return a single-quoted string which will be used as the fact's description.</li>
 </ol>
 
+<p>The first of these is probably the most straightforward, and along with the fourth, which is provided for more elaborate cases, allows the definition of what's displayed by the TopicEntry to be kept within the definition of the TopicEntry. The second and third uses of the msg parameter conversely allow how the Fact is described to be kept along with the definition of the Fact. Both methods have their advantages and disadvantages so it is us to game authors to decide which they prefer.</p>
+<a name='rnf'></a>
+<p>Some game authors might quite reasonably prefer to define everything in one place rather than having to define Facts separately from the TopicEntries that reference them. You can do this through the following pair of TopicEntry methods:</p>
 
+<ul>
+<li><b>revealNewFact(name, desc, msg?, topics?, initiallyKnownBy?)</b>: Creates a new Fact defined by the <i>name</i>, <i>desc</i>, <i>topics</i> and <i>initiallyKnownBy</i> parameters and reveals it to the player character. </li>
+<li><b>informNewFact(name, desc, msg?, topics?, initiallyKnownBy?, actor?)</b>: Creates a new Fact defined by the <i>name</i>, <i>desc</i>, <i>topics</i> and <i>initiallyKnownBy</i> parameters and informs <i>actor</i> of it. </li>
+</ul>
+
+<p>Here the <i>name</i>, <i>desc</i>, <i>topics</i> and <i>initiallyKnownBy</i> parameters refer to the corresponding properties on the new Fact being created. If not explicitly supplied, <i>topics</i> defaults to the matchObj of the TopicEntry on which one or other of these methors is called. <i>initiallyKnownBy</i> defaults to <span class='code'>getActor()</span> (i.e. the actor whose TopicEntry this is) in the case of <span class='code'>revealNewFact()</span> and <span class='code'>gPlayerChar</span> in the case of <span class='code'>informNewFact()</span>. The <i>actor</i> parameter also defaults to getActor, while the <i>msg</i> paramenter has the same meaning as just described above. Note that if any of the optional parameters is supplied, all those to the left of it must be also be supplied, so, for example, if you wish to speficy the <i>topics</i> parameter you must also supply the <i>msg</i> parameter, which can just be <span class='code'>nil</span> if you don't wish to use it.</p>
+
+<p>If you prefer brevity to explicit clarity in using these methods on TopicEntries you can abbreviate <span class='code'>informNewFact()</span> to <b>INF()</b> and <span class='code'>revealNewFact()</span> to <b>RNF()</b>.
+
+<p>What these two methods do is first check whether a Fact corresponding to <i>name</i> already exists and, if not, calls the Fact constructor to create the new Fact defined by the parameters supplied (amongst other things, this makes it safe to call <span class='code'>INF()</span> or <span class='code'>RNF()</span> more than once even it may potentally refer to the same Fact). Then, whether or not a new Fact has just been created, <span class='code'>INF()</span> goes on to call <span class='code'>informFact(name, actor, msg)</span> and <span class='code'>RNF()</span> to call <span class='code'>revealFact(name, msg)</span>.
+
+<p>The Fact constructor just referred to is defined on the Fact class as <b>construct(name_, desc_, topics_, initiallyKnownBy_)</b>. It creates a new Fact object and sets the corresponding properties, initializes the new Fact and then adds it to the table of Facts on the <span class='code'>factManager</span> object. This ensures that a reference to the new Fact continues to exist; the new Fact can then be retrieved/referenced using <span class='code'>gFact(<i>name</i>)</span>, and will show up in response to the LIST FACTS and FACT INFO commands described <a href='#debug'>below</a>.
+
+<p>So, for example, if we were creating some TopicEntries for a subsequent conversation between the player character and Mavis, assuming we give Mavis an ActorState for this conversation we might define:</p>
+
+<p><div class="code"><pre>
+++ TellTopic @tSpain
+    "&lt;q&gt;You know, they say &lt;&lt;informFact('rain-in-spain', 'the wet stuff falling from Spanish
+        skies tends to end up on the plain')&gt;&gt;,&lt;/q&gt; you say.\b
+    &lt;q&gt;That doesn't set to music so well as the original,&lt;/q&gt; she complains. "
+;
+
+++ AskTopic @tMadrid
+    "&lt;q&gt;What do you think of Madrid?&lt;/q&gt; you ask.\b
+    &lt;q&gt;&lt;&lt;RNF('madrid-ok', 'Madrid\'s okay', 'It\'s okay')&gt;&gt;, I guess,&lt;/q&gt; she replies. "
+    autoName = true
+;
+</pre></div></p>
+
+
+<p>Which could then lead to the following exchange></p>
+
+<p><div class="cmdline"><pre>
+</a>&gt;t spain
+“You know, they say the wet stuff falling from Spanish skies tends to end up on the plain,” you say.
+
+“That doesn’t set to music so well as the original,” she complains.
+
+<b>&gt;a madrid</b>
+“What do you think of Madrid?” you ask.
+
+“It’s okay, I guess,” she replies.
+
+<b>&gt;think about madrid</b>
+You recall that Mavis told you that Madrid’s okay.
+</pre></div></p>
+
+<p>Alterrnatively, we could customise the rain-in-spain quip on the Fact object and reference it from the TopicEntry in one of two ways. The first uses the <i>msg</i> parameter to index the factDescs property on the Fact:</p>
+
+<p><div class="code"><pre>
+++ TellTopic @tSpain
+    "&lt;q&gt;You know, they say &lt;&lt;informFact('rain-in-spain', 1)&gt;&gt;,&lt;/q&gt; you say.\b
+    &lt;q&gt;That doesn't set to music so well as the original,&lt;/q&gt; she complains. "
+;
+
+Fact 'rain-in-spain' [tWeather, tSpain]    
+    'the rain in Spain stays mainly in the plain'    
+    [me, bob]    
+    
+     priority = 110
+    
+    factDescs = ['Spanish rain descends principally on level places']   
+;
+</pre></div></p>
+
+<p>The second uses the <i>msg</i> parameter to call a method on the Fact object:</p>
+
+<p><div class="code"><pre>
+++ TellTopic @tSpain
+    "&lt;q&gt;You know, they say &lt;&lt;informFact('rain-in-spain', &amp;altDesc)&gt;&gt;,&lt;/q&gt; you say.\b
+    &lt;q&gt;That doesn't set to music so well as the original,&lt;/q&gt; she complains. "
+;
+
+Fact 'rain-in-spain' [tWeather, tSpain]    
+    'the rain in Spain stays mainly in the plain'    
+    [me, bob]    
+    
+    pcComment = '--- or so the song goes'
+    
+    priority = 110
+       
+    altDesc(sender)
+    {
+        return 'rain south of the Pyrenees gets deposited on low-lying ground';
+    }
+;
+</pre></div></p>
+
+<p>The method you call here doesn't have to be called <span class='code'>altDesc</span>; it can be called anything you like. Its <i>sender</i> parameter is the TopicEntry from which it was called, whose various properties (such as <span class='code'>matchObj</span>, <span class='code'>topicMatched</span>, <span class='code'>getActor</span> and <span class='code'>narrator</span> (the actor imparting the fact) can be queried to tailor the response to the context. While you could achieve the same result by overriding <span class='code'>qualifiedDesc()</span>, you may find it easier to keep your customization separate from the libary's definition of <span class='code'>qualifiedDesc()</span>, which, as we have seen, provides its own means of adapting the Fact's description to its context.</p>
 
 <a name='debug'></a>
 <h2>Debugging Commands</h2>
