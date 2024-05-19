@@ -232,9 +232,12 @@ modify TopicDatabase
          *   rationale is that if the player types a topic name that's a subset of another topic
          *   name, the player probably means to refer to the topic with the shorter name. For
          *   example, THINK ABOUT WEDDING is more likely to be intended to match a topic with name
-         *   'wedding' than onw with the name 'when the wedding will be'.
+         *   'wedding' than one with the name 'when the wedding will be'. We don't do this with
+         *   Query or Say however, since here the player may be abbreviating a much longer command,
+         *   which might then get masked by a shorter topic; e.g. we don't want ASK WHEN THE WEDDING
+         *   WILL BE to be masked by a 'wedding' topic if the player types ASK WHEN WEDDING.
          */
-        if(requestedList.length > 1)
+        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction))
         {
             /* Sort the list in descending order of name length. */
             requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
