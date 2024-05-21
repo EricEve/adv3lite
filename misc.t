@@ -824,8 +824,12 @@ libGlobal: object
             /* Add the tag to our revealedNameTab */
             revealedNameTab[tag] = (arg == nil ? true : arg);
         
-        else if(tag != nil)
-            revealedNameTab[tag] =  arg;
+        /* 
+         *   We also don't want to set an existing value to nil; an arg of nil means leave the
+         *   existing value alone
+         .*/
+        else if(arg != nil)
+            revealedNameTab[tag] = arg;
         
         /* If we're in a conversation, update the last fact mentioned. */
         if(gPlayerChar.currentInterlocutor)
