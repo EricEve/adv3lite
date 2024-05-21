@@ -795,24 +795,28 @@ class FactHelper: object
             }
             
             /* 
-             *   Next loop through our list of tags to reveal them (so the game author doesn't also
-             *   need to insert a <.reveal tag>) and, if requested, update the sources of
-             *   information for each fact.
+             *   Next, if we want to auto reveal, loop through our list of tags to reveal them (so
+             *   the game author doesn't also need to insert a <.reveal tag>) and, if requested,
+             *   update the sources of information for each fact.
              */
+            
             foreach(local tag in tagList)
             {
-                /* 
-                 *   If libGlobal.informOnReveal is true (the default) then reveal the tag (which
-                 *   also adds it to the player characters informedNameTab).
-                 */
-                if(libGlobal.informOnReveal)
-                    gReveal(tag);
-                /* 
-                 *   Otherwise we want to separate revealing from informing the player character, so
-                 *   we only do the latter.
-                 */
-                else
-                    gPlayerChar.setInformed(tag);
+                if(autoReveal)
+                {
+                    /* 
+                     *   If libGlobal.informOnReveal is true (the default) then reveal the tag
+                     *   (which also adds it to the player characters informedNameTab).
+                     */
+                    if(libGlobal.informOnReveal)
+                        gReveal(tag);
+                    /* 
+                     *   Otherwise we want to separate revealing from informing the player
+                     *   character, so we only do the latter.
+                     */
+                    else
+                        gPlayerChar.setInformed(tag);
+                }
                 
                 /* If we want to update the sources of this fact, then do so. */
                 if(updateSources)
@@ -828,6 +832,7 @@ class FactHelper: object
                 }
                 
             }
+            
         }
         
         
@@ -860,6 +865,13 @@ class FactHelper: object
      *   nil, the default).
      */
     addLineBreaks = nil    
+    
+    /*  
+     *   Flag, do we want to reveal all the tags we encounter in our topicResponse. It makes sense
+     *   to do so on a FactConsultTopic but not on a FactThought, which shouldn't change the game
+     *   state.
+     */
+    autoReveal = nil
 ;
 
 
@@ -885,6 +897,12 @@ class FactConsultTopic:  FactHelper, ConsultTopic
     
     prefix = BMsg(consult prefix, '{The subj dobj} inform{s/ed} {me}')
     noFactsMsg = BMsg(no consult, '{The subj dobj} {has} nothing useful to say on that subject. ')
+    
+    /* 
+     *   On a FactConsultTopic it makes sense to reveal the tags encountered in the display of our
+     *   TopicResponse (since the player character may be learning something new.
+     */
+    autoReveal = true
 ;
 
 /* 
@@ -916,7 +934,7 @@ class FactThought: FactHelper, Thought
     alreadyKnewMsg(fact)
     {
         /* 
-         *   Retrieve the player characte's comment on fact in relation to the topic matched by this
+         *   Retrieve the player character's comment on fact in relation to the topic matched by this
          *   Thought.
          */
         local txt = fact.getPcComment(getActor, topicMatched);

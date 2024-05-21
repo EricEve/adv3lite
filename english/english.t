@@ -1211,6 +1211,19 @@ class LMentionable: object
         /* clear out the existing name */
         name = nil;
         
+        /* Reset to nil the various properties that may be set by initVocab() */
+        proper = nil;
+        qualified = nil;
+        plural = nil;
+        ambiguouslyPlural = nil;
+        isHim = nil;
+        isHer = nil;
+        massNoun = nil;
+        
+        /* Restore the default expression for isIt. */
+        setMethod(&isIt, { : !(isHim || isHer)} );
+        
+        
         /* Set our vocab property to the vocab we're replacing it with */
         vocab = voc;
        
