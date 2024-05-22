@@ -1219,6 +1219,7 @@ class LMentionable: object
          */
         replacingVocab = true;
         
+        /* Reset other vocab properties to nil. */
         plural = nil;
         ambiguouslyPlural = nil;
         isHim = nil;

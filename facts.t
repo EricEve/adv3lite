@@ -691,6 +691,8 @@ class FactHelper: object
      */     
     alreadyKnewMsg(fact)
     {
+        local beliefVal = gPlayerChar.informedAbout(fact.name);       
+        
         /* 
          *   We only want to append a message saying the player character already knew this message
          *   if the player character is among the list of sources in its initiallyKnownBy list and
@@ -698,11 +700,25 @@ class FactHelper: object
          *   reported the fact will be prefixed by 'so-and-so told you that').
          */
         if(fact.initiallyKnownBy.find(gPlayerChar) 
-                        && fact.getSources.indexWhich({x: x!= gPlayerChar}))
-            return knewFactAlreadyMsg;
+           && fact.getSources.indexWhich({x: x!= gPlayerChar})
+           && beliefVal == true)            
+            return knewFactAlreadyMsg ;
+            
+        /* 
+         *   Otherwise if we have a non-nil, non-true belief value, use our doubtFactMsg to flag our
+         *   uncertainty.
+         */
+        else if(beliefVal && beliefVal != true)
+            return doubtFactMsg(beliefVal);
         
         /* Otherwise simply return an empty string. */
         return '';
+    }
+    
+    doubtFactMsg(beliefVal)
+    {
+        return BMsg(doubt fact, ' (though {i} now regard{s/ed} that as
+            <<enumTabObj.enumTab[beliefVal]>>)');
     }
     
     /* 
@@ -923,7 +939,7 @@ class FactThought: FactHelper, Thought
      */
     matchScore = 50    
     
-    prefix = BMsg(thoughts prefix, '{I} recall{s/ed}')
+    prefix = BMsg(thoughts prefix, 'It {dummy} {comes} to mind')
     
     noFactsMsg = BMsg(no thoughts, 'Nothing relevant {dummy} {comes} to mind. ')
     
