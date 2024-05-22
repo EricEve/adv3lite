@@ -594,9 +594,9 @@ class LMentionable: object
 
         /* 
          *   if the short name is all in title case, and 'proper' isn't
-         *   explicitly set, mark it as a proper name 
+         *   explicitly set or we're repacing vocab, mark it as a proper name 
          */
-        if (propDefined(&proper, PropDefGetClass) == Mentionable
+        if ((propDefined(&proper, PropDefGetClass) == Mentionable || replacingVocab)
             && rexMatch(properNamePat, shortName) != nil)
             proper = true;
 
@@ -1213,12 +1213,20 @@ class LMentionable: object
         
         /* Reset to nil the various properties that may be set by initVocab() */
         proper = nil;
-        qualified = nil;
+        
+        /* 
+         *   Note that we're replacing vocab so that initVocab can set proper to true if appropriate
+         */
+        replacingVocab = true;
+        
         plural = nil;
         ambiguouslyPlural = nil;
         isHim = nil;
         isHer = nil;
         massNoun = nil;
+        
+        /* Restore the default expression for qualified. */
+        setMethod(&qualified, {: proper });
         
         /* Restore the default expression for isIt. */
         setMethod(&isIt, { : !(isHim || isHer)} );
@@ -1233,6 +1241,12 @@ class LMentionable: object
         /* Initialize the vocab again */
         initVocab();
     }
+    
+    /* 
+     *   Flag for internal use only; are we replacingVocab? The replaceVocab() method sets this to
+     *   true for use by initVocab().
+     */
+    replacingVocab = nil
                  
     /*  
      *   Add additional vocab words to those already in use for this object. If
