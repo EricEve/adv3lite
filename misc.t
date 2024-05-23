@@ -1553,8 +1553,18 @@ tryNum(val)
     return tryInt(val);
 }
 
-
-
+/* 
+ *   Function to return the string representation of val. This is essentially the same as the
+ *   intrinsic function toSrring with the added ability of also working with enuma.
+ */
+str(val, radix?, isSigned?)
+{
+    
+    if(dataType(val) == TypeEnum)
+       return enumTabObj.enumTab[val];
+    
+    return toString(val, radix, isSigned);
+}
 
 
 /*

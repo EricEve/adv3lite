@@ -718,7 +718,7 @@ class FactHelper: object
     doubtFactMsg(beliefVal)
     {
         return BMsg(doubt fact, ' (though {i} now regard{s/ed} that as
-            <<enumTabObj.enumTab[beliefVal]>>)');
+            <<str(beliefVal)>>)');
     }
     
     /* 
