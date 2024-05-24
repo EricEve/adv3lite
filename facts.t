@@ -888,6 +888,13 @@ class FactHelper: object
      *   state.
      */
     autoReveal = nil
+    
+    /*  
+     *   Flag, do we want to inform all the tags we encounter in our topicResponse. It makes sense
+     *   to do so on a FactConsultTopic but not on a FactThought, which shouldn't change the game
+     *   state.
+     */
+    autoInform = nil
 ;
 
 
@@ -919,6 +926,7 @@ class FactConsultTopic:  FactHelper, ConsultTopic
      *   TopicResponse (since the player character may be learning something new.
      */
     autoReveal = true
+    autoInform = true
 ;
 
 /* 

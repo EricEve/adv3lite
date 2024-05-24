@@ -780,7 +780,12 @@ modify Thing
             /* Mark this item of information as dubious */
 //            informedNameTab[tag] = dubious;   
             
-            markContradiction(tag, factList);
+            /* 
+             *   For new we don't call this as it doesn't produce reliable results --- there's more
+             *   than one way of resolving a contradiction and it may be this needs to be handled on
+             *   a case-by-case basis in game code rather than in a generalized library routine.
+             */
+//            markContradiction(tag, factList);
             
             /* Call our notifyContradiction method. */
             notifyContradiction(tag, factList);
@@ -788,7 +793,10 @@ modify Thing
     }
     /* 
      *   Mark the incoming 'fact' denoted by tag as either untrue, unlikely, or dubious, depending
-     *   on what it contradicts .
+     *   on what it contradicts. For now this isn't called as it seems capable of producing perverse
+     *   results --- in particular it doesn't allow for the fact that the revealing of new
+     *   information that contradicts existing information could result in changes to what is
+     *   believed about either.
      */
     markContradiction(tag, factList)
     {
@@ -807,7 +815,7 @@ modify Thing
                 informedNameTab[tag] = unlikely;
             else
                 /* 
-                 *   Otherwise we consiser tag to be dubious (that tag contradcts a fact we regard
+                 *   Otherwise we consider tag to be dubious (that tag contradcts a fact we regard
                  *   as either dubious, unlikely or untrue says little about how we regard tag - two
                  *   muutally contradictory facts could easily both be untrue, unlikely, or dubious.
                  */
