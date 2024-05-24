@@ -1349,22 +1349,32 @@ class Thing:  ReplaceRedirector, Mentionable
             /* Create a message parameter substitution. */
             gMessageParams(loc);
             
-            /* Start by mentioning the PC's immediate container. */            
-            DMsg(list immediate container, '{I} {am} {in loc}. <.p>');
-            
-            /* Note that the pc's immediate container has been mentioned. */
-            loc.mentioned = true;
+            /* 
+             *   We start by describing the PC's immediate environment, provided the flag
+             *   pclistedInLook is true.
+             */
+            if(loc.pcListedInLook)
+            {
+                /* Start by mentioning the PC's immediate container. */            
+                DMsg(list immediate container, '{I} {am} {in loc}. <.p>');
+                
+                /* Note that the pc's immediate container has been mentioned. */
+                loc.mentioned = true;
+                
+                /* 
+                 *   If the pc's immediate container is a subcomponent (of a complex container
+                 *   object), note that its lexical parent has been mentioned.
+                 */
+                if(loc.ofKind(SubComponent) && loc.lexicalParent != nil)
+                    loc.lexicalParent.mentioned = true;
+            }
             
             /* 
-             *   If the pc's immediate container is a subcomponent (of a complex
-             *   container object), note that its lexical parent has been
-             *   mentioned.
+             *   List the contents of the pc's immediate container, provided it's not hidden and its
+             *   contentsListedInLook property is true
              */
-            if(loc.ofKind(SubComponent) && loc.lexicalParent != nil)
-                loc.lexicalParent.mentioned = true;
-                
-            /* List the contents of the pc's immediate container. */
-            listSubcontentsOf([loc]);
+            if(!loc.isHidden && loc.contentsListedInLook)            
+                listSubcontentsOf([loc]);
         }
         
         /* List every listable item in our contents. */
@@ -2055,6 +2065,13 @@ class Thing:  ReplaceRedirector, Mentionable
      *   description (when looking around).
      */
     contentsListedInLook = (contentsListed)
+    
+    /*  
+     *   Fllag: should the Player Character be listed as being in this object as part of a room
+     *   description (this is often useful but may sometimes look redundant)? By default we take out
+     *   value from contentsListedInLook.
+     */
+    pcListedInLook = (contentsListedInLook)
     
     /*  
      *   Flag: should this item's contents be listed when its container is
