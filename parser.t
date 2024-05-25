@@ -5958,6 +5958,12 @@ class SpecialVerb: object
         matchObjs = valToList(matchObjs);
         
         /* 
+         *   Ensure that specVerb is in lower case so that we can compare it with player input
+         *   converted to lower case.
+         */
+        specVerb = specVerb.toLower();
+        
+        /* 
          *   Split our special verbs into a list, in case we have different options separated by a
          *   vertical bar.
          */
@@ -5965,8 +5971,8 @@ class SpecialVerb: object
         
         /* 
          *   Then interate through every element in our special verb variants to add them to the
-         *   special verbs Lookup
-         table.*/
+         *   special verbs Lookup table.
+         */
         foreach(local s in specVerbs)
         {    
             /* 
@@ -6168,7 +6174,53 @@ class SpecialVerb: object
         
     /* Our adjusted priority after attempting a match. */
     score = 0
-   
+ 
+    /* Verb phrases we want to exclude from matching, e.g. 'pick up' if our specVerb is 'pick' */
+    exclusions = []
+    
+    /* Check whether the command entered by the player matches an item in our exclusions list. */
+    matchExclusions(tokWords)
+    {
+        
+        /* Iterate over our list of exclusions to see if any match */
+        foreach(local ex in exclusions)
+        {
+            /* Split the current exclusion into a list of words */
+            local excWords = ex.split(' ');
+            
+            /* Start by assuming we'll find a match */
+            local matched = true;
+           
+            /* Iterate through the words in our excWords list. */
+            for(local i in 1..excWords.length)
+            {
+                /* 
+                 *   If we've run out of words in our tokwords list or we find a word in one list
+                 *   that differs from the corresponding word in the other list, then we don't
+                 *   match, so we can note that the match has failed and stop comparing the two
+                 *   lists.
+                 */               
+                if(i > tokWords.length() || tokWords[i] != excWords[i])
+                {
+                    matched = nil; 
+                    break;                }
+                
+            }
+            
+            /* 
+             *   If we didn't find a mismatch, then what the player entered matched our exclusions
+             *   list, so we've found a match and can return true.
+             */
+            if(matched)
+                return true;
+        }
+        
+        /* 
+         *   If we reach here then none of our exclusions match the player's input, so we return
+         *   nil.
+         */
+        return nil;
+    }
 ;
 
 
@@ -6183,7 +6235,7 @@ specialVerbMgr: PreinitObject
     findMatchingSV(toks)
     {
         /* Get a list of words in toks list */         
-        local tokWords = toks.mapAll({t: t[1]}); // new
+        local tokWords = toks.mapAll({t: t[1].toLower}); 
         
         /* Set up a variable to hold the list of SpecialVerbs we'll match. */
         local specs = nil; // new
@@ -6200,12 +6252,15 @@ specialVerbMgr: PreinitObject
             /* Obtain the SpecialVerbs that match that key. */
             specs = specTable[ky];
             
+            /* Exclude any SpecialVerbs whose exclusion property matches our tokWords. */
+            specs = valToList(specs).subset({x: !x.matchExclusions(tokWords)});
+            
             /* 
              *   If we find any, store the key in our vWords property (the words in the player input
              *   we're just matching) and break out of the loop, since we won't need to keep
              *   looking.
              */
-            if(specs)
+            if(valToList(specs).length > 0)
             {
                 vWords = ky;
                 break;
@@ -6213,7 +6268,7 @@ specialVerbMgr: PreinitObject
         }
         
         /* If we don't find any we're done. */
-        if(specs == nil)
+        if(specs == nil || specs.length == 0)
             return nil;        
         
         /* Cache the player character's scope list. */
