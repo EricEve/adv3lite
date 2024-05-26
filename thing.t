@@ -698,6 +698,14 @@ class Mentionable: LMentionable
      */
     useAltVocabWhen = nil
     
+    /*  
+     *   A condition that when true means that the library will stop checking for switching vocab to
+     *   and from the altVocab (or between different vocabs). This could, for example, be set to
+     *   useAltVocabWhen when we only want to change vocab once, say when the player gets to learn
+     *   the name of an NPC or the true nature of an object is first revealed.
+     */
+    finalizeVocabWhen = nil
+    
     /* Initialize our alternative vocab */
     initAltVocab()    
     {
@@ -743,7 +751,7 @@ class Mentionable: LMentionable
                  *   A return value of less that 1 means we want to change the vocab to the -uavw
                  *   item in the list and keep it there for the rest of the game.
                  */
-                if(uavw != nil && uavw < 1)
+                if((uavw != nil && uavw < 1) || finalizeVocabWhen)
                 {
                     libGlobal.altVocabLst -= self;
                     
@@ -778,7 +786,7 @@ class Mentionable: LMentionable
                  *   want the change to our altVocab to be permanent, so remove us from the list of
                  *   Things whose updateVocab() property is regularly called.
                  */
-                if(uavw == -1)
+                if(uavw == -1 || finalizeVocabWhen)
                     libGlobal.altVocabLst -= self;
             }
         }
