@@ -434,6 +434,14 @@ class Fact: object
     factDescs = []
     
     /* 
+     *   Most Facts start out relevant and continue to be so, but some may cease to be relevant when
+     *   game circumstances change, in which case we can change relevant to nil (or set it to an
+     *   expression that evaluates to nil), so that it's no longer listed in response to THINK
+     *   ABOUT.
+     */
+    relevant = true
+    
+    /* 
      *   Our constructor for creating a new Fact object dynamically under progrem control. name_ is
      *   the fact tag name; desc_ is the Fact's descroption; topics_ is the list of topics to which
      *   this new Fact relates; initiallyKnownBy_ is the actor or list of actors who start out
@@ -641,7 +649,7 @@ class FactHelper: object
              *   the Fact object's list of associated topics, add the current key to our tagList and
              *   append the Fact object to our vector.
              */
-            if(factObj && factObj.topics.find(top))
+            if(factObj && factObj.relevant && factObj.topics.find(top))
             {
                 tagList += fkey;
                 vec.append(factObj);
@@ -1003,7 +1011,19 @@ class FactThought: FactHelper, Thought
     updateSources = nil
 ;
 
-    
+/* 
+ *   Givde a Fact a new description. This may be useful when story developments change the PC's
+ *   perspective on a Fact, e.g. from 'Mavis wants you to retrieve a letter' to 'Mavis asked you to
+ *   retrieve a letter but you've done that now'. tag is the string tag (name) of the Fact you want
+ *   to chanage and newdesc is the new desc you want to give it. 
+ */
+redescFact(tag, newdesc)
+{
+    local fact = gFact(tag);
+    fact.desc = newdesc;
+}    
+
+
     
 /* Modifications to Topic Entry to work with Facts */
 
