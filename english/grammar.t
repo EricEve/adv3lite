@@ -2631,7 +2631,7 @@ VerbRule(Move)
 ;
 
 VerbRule(MoveTo)
-    ('push' | 'move') multiDobj ('to' | 'under') singleIobj
+    ('push' | 'move') multiDobj ((('over' |) 'to' )| 'under') singleIobj
     : VerbProduction
     action = MoveTo
     verbPhrase = 'move/moving (what) (to what)'

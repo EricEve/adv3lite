@@ -2622,10 +2622,14 @@ class Thing:  ReplaceRedirector, Mentionable
         
         /* 
          *   If we have changed location, we are no longer being worn by our
-         *   original location
+         *   original location and we are no longer in our notional moveTo location.
          */
         if(newCont != location)
+        {
             wornBy = nil; 
+            
+            movedTo = nil;
+        }
         
         /* Set our new location. */
         location = newCont;
@@ -6974,7 +6978,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   necessarily the case since we may be able to move something by pushing
      *   it around (say) even if we can't pick it up.     
      */
-    isMoveable = (!isFixed)
+    isMoveable = (!isFixed) // or canPushTravel or canPullTravel
     
     /* 
      *   Moving an object is generally possible if the object is portable, but
@@ -7066,7 +7070,7 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     dobjFor(MoveTo)
     {
-        preCond = [touchObj]
+        preCond = location.ofKind(Room) ? [touchObj] : [objHeld]
         
         verify()
         {
@@ -7076,6 +7080,18 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            /* 
+             *   If the iobj is a container-like object, assume MOVE TO it means putting us inside
+             *   it/
+             */
+            if(gIobj.contType == In)
+                replaceAction(PutIn, self, gIobj);
+            
+            /* If the obj is a surface-like object, assume MOVE TO it means putting us on it. */
+            if(gIobj.contType == On)
+                replaceAction(PutOn, self, gIobj);        
+            
+            /* Otherwise we mean moving us near the iobj. */
             makeMovedTo(gIobj);
         }
         
@@ -7093,7 +7109,13 @@ class Thing:  ReplaceRedirector, Mentionable
     movedTo = nil
     
     /* Cause this object to be moved to loc */
-    makeMovedTo(loc) { movedTo = loc; }
+    makeMovedTo(loc)  
+    { 
+        actionMoveInto(loc.location);
+        if(location == loc.location)            
+            movedTo = loc; 
+        
+    }
     
     /* In general there's no reason why most objects can't be moved to. */
     canMoveToMe = true

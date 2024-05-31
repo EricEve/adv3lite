@@ -3014,10 +3014,22 @@ modify ItemLister
         if(o.wornBy != nil && showWornInfo)
             lName += BMsg(being worn, ' (being worn)');
         
+               
+        /* 
+         *   If this object hyas been moved to another object, and we want to show information about
+         *   this notional location, add ' {by the whatever)' to the name.
+         */
+        if(o.movedTo != nil && showMoveToInfo)
+        {
+            local obj = o.movedTo;
+            gMessageParams(obj);
+            lName += BMsg(moved to, ' (by {the obj})');
+        }
+        
         /* 
          *   If the object being listed has visible contents, list its visible contents recursively.
          *   Then do the same for any remapIn or remapOn subcomponents.
-         */        
+         */ 
         if(showSubListing)
         {
             local lists = [o];
@@ -3057,11 +3069,17 @@ modify ItemLister
     
     
     /* 
-     *   Flag: do we want to show (bveing worn) after items in an inventory list
+     *   Flag: do we want to show (being worn) after items in an inventory list
      *   that the player character is wearing. By default we do if we're showing
      *   additional info.
      */
     showWornInfo = (showAdditionalInfo)
+    
+    /*  
+     *   Flag: do we want to show {by the whatever) if after items that have notionally being moved
+     *   to the vicinity of whatever.
+     */
+    showMoveToInfo = true
     
     /* 
      *   Flag: do we want to show the contents of items listed in inventory (in
