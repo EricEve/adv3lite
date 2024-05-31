@@ -6974,11 +6974,10 @@ class Thing:  ReplaceRedirector, Mentionable
     dobjFor(Search) asDobjFor(LookIn)
     
     /* 
-     *   By default we assume anything fixed isn't moveable. That's not
-     *   necessarily the case since we may be able to move something by pushing
-     *   it around (say) even if we can't pick it up.     
+     *   By default we assume anything fixed isn't moveable unless it explicitly can be moved by
+     *   PushTravel or PullTravel)
      */
-    isMoveable = (!isFixed) // or canPushTravel or canPullTravel
+    isMoveable = (!isFixed || canPushTravel || canPullTravel)
     
     /* 
      *   Moving an object is generally possible if the object is portable, but
@@ -7003,7 +7002,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotMoveMsg = (cannotTakeMsg)
+    cannotMoveMsg = BMsg(cannot move, '{The subj dobj} {won\'t} budge. ')
     
     dobjFor(MoveWith)
     {

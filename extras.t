@@ -590,6 +590,12 @@ class Immovable: Thing
     /* The message to display to explain why this object can't be taken. */
     cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj}.
         ')
+    
+    /* 
+     *   Although an Immovable can't be picked up it's possible that it could be moved around, e.g.,
+     *   by pushing or pulling it, and this must be the case if it can PushTravel and/or PullTravel.
+     */
+    isMoveable = (canPushTravel || canPullTravel)    
 ;
 
 

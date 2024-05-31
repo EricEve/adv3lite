@@ -3019,7 +3019,7 @@ modify ItemLister
          *   If this object hyas been moved to another object, and we want to show information about
          *   this notional location, add ' {by the whatever)' to the name.
          */
-        if(o.movedTo != nil && showMoveToInfo)
+        if(o.movedTo != nil && showMovedToInfo)
         {
             local obj = o.movedTo;
             gMessageParams(obj);
@@ -3079,7 +3079,7 @@ modify ItemLister
      *   Flag: do we want to show {by the whatever) if after items that have notionally being moved
      *   to the vicinity of whatever.
      */
-    showMoveToInfo = true
+    showMovedToInfo = true
     
     /* 
      *   Flag: do we want to show the contents of items listed in inventory (in
