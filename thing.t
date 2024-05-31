@@ -7159,7 +7159,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            movedTo = nil;
+            if(movedTo)
+                movedTo = nil;
+            else if(gIobj.contType is in (In, On, Under, Behind))
+                doInstead(TakeFrom, gDobj, gIobj);
         }
         
         report()
@@ -7176,7 +7179,7 @@ class Thing:  ReplaceRedirector, Mentionable
             if(gDobj == self)
                 illogicalSelf(cantMoveAwayFromSelfMsg);
             
-            if(gDobj.movedTo != self)
+            if(gDobj.movedTo != self && contType not in (In, On, Under, Behind))
                 illogicalNow(notMovedToMsg);
         }
     }
