@@ -2639,6 +2639,16 @@ VerbRule(MoveTo)
     iobjReply = toSingleNoun
 ;
 
+VerbRule(MoveAwayFrom)
+    ('push' | 'move' | 'pull') multiDobj (('away'|) 'from') singleIobj
+    : VerbProduction
+    action = MoveAwayFrom
+    verbPhrase = 'move/moving (what) (to what)'
+    missingQ = 'what do you want to move;where do you want to move it'
+    iobjReply = toSingleNoun
+;
+
+
 VerbRule(MoveWith)
     'move' singleDobj 'with' singleIobj
     : VerbProduction

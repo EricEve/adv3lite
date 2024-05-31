@@ -7002,7 +7002,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
     }
     
-    cannotMoveMsg = BMsg(cannot move, '{The subj dobj} {won\'t} budge. ')
+    cannotMoveMsg = BMsg(cannot move, '{The subj dobj} {won\'t} budge. ')  
     
     dobjFor(MoveWith)
     {
@@ -7146,6 +7146,45 @@ class Thing:  ReplaceRedirector, Mentionable
     
     alreadyMovedToMsg = BMsg(already moved to, '{The subj dobj} {has} already
         been moved to {the iobj}. ')
+    
+    dobjFor(MoveAwayFrom)
+    {
+        preCond = [touchObj]
+        
+        verify()
+        {
+            if(!isMoveable)
+                illogical(cannotMoveMsg);
+        }
+        
+        action()
+        {
+            movedTo = nil;
+        }
+        
+        report()
+        {
+            DMsg(okay move from, '{I} move{s/d} {1} {dummy} away from {the iobj}. ',
+                 gActionListStr);   
+        }
+    } 
+    
+    iobjFor(MoveAwayFrom)
+    {
+        verify()
+        {
+            if(gDobj == self)
+                illogicalSelf(cantMoveAwayFromSelfMsg);
+            
+            if(gDobj.movedTo != self)
+                illogicalNow(notMovedToMsg);
+        }
+    }
+    
+    cantMoveAwayFromSelfMsg = BMsg(cant move away from self, '{I} {can\'t} move {the dobj} away from
+        {itself dobj}. ')
+    
+    notMovedToMsg = BMsg(not by obj, '{The subj dobj} {is}n\'t by {the iobj}. ')
     
     /* 
      *   Lighting an object makes it a light source by making its isLit property

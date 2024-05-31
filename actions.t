@@ -1266,7 +1266,23 @@ DefineTIAction(MoveTo)
     resolveIobjFirst = nil
     getAll(cmd, role)
     {
-        return scopeList.subset({ x: x.isMoveable});
+        if(role==DirectObject)            
+            return scopeList.subset({ x: x.isMoveable});
+        else
+            return inherited(cmd, role);
+    }
+    againRepeatsParse = nil
+;
+
+DefineTIAction(MoveAwayFrom)    
+    resolveIobjFirst = nil
+    
+    getAll(cmd, role)
+    {
+        if(role==DirectObject)            
+            return scopeList.subset({ x: x.isMoveable && x.movedTo != nil});
+        else
+            return inherited(cmd, role);
     }
     againRepeatsParse = nil
 ;
