@@ -4936,9 +4936,9 @@ class SpecialTopic: ActorTopicEntry
      *   expect to find in our matchPattern property if it actually represents a
      *   regular expression for this TopicEntry to match. We use this to help
      *   determine whether the matchPattern property contains a regex to match
-     *   our the vocab of a Topic object to create on the fly.
+     *   or the vocab of a Topic object to create on the fly.
      */    
-    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|carat>')
+    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret|lparen|rparen>')
     
     /* 
      *   If we want this SpecialTopic also to match an ASK ABOUT command, define

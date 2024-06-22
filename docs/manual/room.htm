@@ -96,7 +96,7 @@ modify roomnameStyleTag
 <li>A <a href="door.htm">Door</a>, in which case the player would attempt to go through that door (but may be prevented from doing so if the door is locked).</li>
 <li>A <a href="travel.htm">TravelConnector</a> (or any object subclassed from TravelConnector), in which case that TravelConnector's travelVia(actor) method will be triggered.</li>
 <li>A single- or double-quoted string, in which case the string will simply be displayed. The difference is that a double-quoted string will imply travel has been attempted but failed (so beforeTravel notifications will be called, which may cause side-effects such as ending a conversation) whereas a single-quoted string will imply travel has not even been attempted (so that no before travel notifications will be triggered). </li>
-<li>A method, in which case the method will be executed.</li>
+<li>A method, in which case the method will be executed. As further explained below, do <b>not</b> define a direction property as an expression (which is simply a shorthand way of defining a method that won't actually do anything) or rely on the method's return value (which will simply be ignored).</li>
 <li>The <strong>asExit</strong> macro, e.g. <span class=code>out asExit(west)</span>, in which case the command OUT will result in trying to move the player character west, without OUT being listed as a separate exit in any list of exits.</li>
 </ul>
 
@@ -123,6 +123,24 @@ kitchen: Room 'Kitchen' 'kitchen'
 </pre></div>
 
 <p>This illustrates what is probably likely to be the most common use of a method defined on a direction property, but in principle such a method can do anything you like, including killing the player character, ending the game in victory, or moving the player character to another location. If a direction-property method does result in the player character being moved to another location, the library keeps track of it in a LookupTable for use by the pathfinder, however for anything other than displaying a message that doesn't result in travel or ending the game, it's probably better and cleaner to use a TravelConnector to carry out the side-effects of travel (rather than defining them in a method). The possibility of doing whatever you like in a method is nevertheless there if you want it.</p>
+
+<p>Note, however, that there is <b><font color=red>potential gotcha</font></b> with defining an exit with a method. If the player attempts travel via a direction defined with a method, the method is simply executed; its return value isn't used. This means you can't use a method to return, say, a room or TravelConnector the player character is to travel to or via dependendent on some condition. The same applies to defining an <i>expression</i> on an exit, since this is effectively just a shorthand way of defining a method. It follows that writing code like the following <i>will not work as intended</i>:
+
+<p><div class=code><pre>
+kitchen: Room 'Kitchen' 'kitchen' 
+    "This kitchen is equipped much as you'd expect, with, for example, a sink
+    over by the window, a large table in the middle of the room, and an oven
+    over by the back door to the east, not far from the fridge. The other exits
+    are west to the hall, north to the dining-room and down to the cellar. "
+	
+    <i><FONT COLOR=RED>/* Don't do this! */</FONT></i>
+    southeast = secretPassage.hasBeenDiscovered ? secretPassage : nil
+	
+;
+</pre></div>
+
+<p>In a situation like this you should instead either start by definining <span class='code'>isConnectorApparent = nil</span> on the secretPassage connector and executing <span class='code'>secretPassage.isConnectorApparent = true;</span> when the secretPassage is discovered (with <span class='code'>kitchen.southeast</span> set to <span class='code'>secretPassage</span> throughout), or else have <span class='code'>kitchen.southeast</span> initially defined as <span class='code'>nil</span> and then change it to <span class='code'>secretPassage</span> when the passage is discovered.</p>
+
 
 <a name="allowedDirections"></a>
 <p>The shipboard directions port, starboard, fore and aft will generally be rather meaningless except for rooms that are meant to be aboard a vessel of some sort. Conversely, it's possible, though by no means certain, that a game may want to prevent the use of compass directions when the location is meant to be aboard a ship. To make it easier to deal with such situations Room defines the two properties/methods <strong>allowShipboardDirections</strong> and <strong>allowCompassDirections</strong>. If either of these is nil, the corresponding set of directions is disabled for all relevant commands (e.g. GO PORT, THROW BALL PORT or PUSH TROLLEY PORT) carried out in the room in question. Attempts to use the disallowed directions in any command will then be blocked with message stating "Shipboard/compass directions have no meaning here." By default <span class="code">allowCompassDirections</span> is true for all rooms, but game code can override this on rooms that are meant to be aboard ship (or, indeed, in any game that wants to abolish compass directions altogether). On the other hand the default behaviour of <span class="code">allowShipboardDirections()</span> is to return true if and only if one or more of the shipboard direction exits (port, starboard, fore or aft) is non-nil on the room in question. Normally, this means that <span class="code">allowShipboardDirections()</span> can be left to take care of itself, but occasionally you may have rooms, such as a the hold of the ship, where none of the shipboard directions is actually defined (because the only way out is UP, say) but the shipboard directions are still notionally meaningful; on such a room you could simply define <span class="code">allowShipboardDirections = true</span>. (The enforcement of these conditions is carried out by the <a href="doer.htm">Doer</a> method <span class="code">checkDirection()</span> which is called from <span class="code">Doer.exec()</span> for any command involving a direction).</p>

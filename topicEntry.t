@@ -55,16 +55,15 @@ class TopicEntry: object
              *   expression to the actual topic text.  Get the actual text.
              */
             txt = top.getTopicText();
-
-            /* 
-             *   If they don't want an exact case match, convert the
-             *   original topic text to lower case 
-             */
-            if (!matchExactCase)
-                txt = txt.toLower();
-
+            
+             /* 
+              *   If they don't want an exact case match, make the regex search non case sensitive,
+              *   otherwise make it case sensitive.
+              */                     
+            local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
+            
             /* if the regular expression matches, we match */
-            if (rexMatch(matchPattern, txt) != nil)
+            if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
                 return matchScore + scoreBoost;
         }
         
