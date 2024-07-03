@@ -40,14 +40,15 @@ Change Log
 <li><a href="#v0.2">Version 0.2</a></li>
 </ul>
 
-<h2><a name='v2-1'>Version 2.1</a> (tbd) </h2>
+<h2><a name='v2-1'>Version 2.1</a> (03-July-2024) </h2>
 <p>The behaviour of the <b>MoveTo</b> action has be modified (with a small RISK OF AFFECTING EXISTING CODE). The previous behaviour could often prove counter-intuitive or confusing. The main purpose of the MOVE TO command was and is to allow notional relocation of objects to a particular vicinity within a room, e.g. so that the player might need to use the command MOVE CHAIR TO BOOKCASE before standing on the chair to reach the top shelf of the bookcase, in which case the chair's <span class='code'>movedTo</span> property becomes set to the bookcase (for game code to check). But this probably doesn't feel like the expected behaviour when the indirect object of a MOVE TO command is a container or surface. e.g. MOVE PEN TO BOX or MOVE BOOK TO SHELF, so now when the indirect object of a MOVE TO command is a container, the command will be converted to PUT IN and when it's a surface the command will be converted to PUT ON.</p>
 <p>There were in any case a number of issues with the original use of MOVE TO. For one thing, if the direct object of a MOVE TO command was on, in, under or behind something it remained on, in, under or behind that thing even after it had been moved, which seems illogical, so MOVE TO now performs an implicit TAKE under such circumstances and then deposits the direct object in the location of the indirect object (e.g. MOVE BOOK TO DOOR when the book is on a shelf would result in the book being taken for the shelf and left in the outermost room, notionallly next to the door). Conversely, as things stood, the book's <span class='code'>movedTo</span> property would remain unchanged thereafter even if the book was picked up and carried around, which was clearly a bug; so now calling the <span class='code'>moveInto()</span> method on any object resets its <span class='code'>movedTo</span> property to nil.</p>
 <p>Finally, although the MOVE TO action reports (and reported) that A had been moved to B, there was no indication of that in subsequent room listings, so now the the listing of a miscellaneous object will be followed by ' (by the whatever)' when the object's <span class='code'>movedTo</span> property is whatever. To suppress this behaviour you can set the <b>showMoveToInfo</b> property on the appropriate lister (e.g. lookLister) to nil.</p> 
 <hr>
-<p>There is now a new <b>MoveAwayFrom</b> action (e.g. MOVE CHAIR AWAY FROM BOOKCASE) that undoes the effect of a MoveTo action by resetting the <span class='code'>movedTo</span> property of the direct object to nil. In the event that the direct object has not been moved to the indirect object but is in, un, under, or behind the indirect object the MOVE FROM action is converted to a TAKE FROM action.</p>
+<p>There is now a new <b>MoveAwayFrom</b> action (e.g. MOVE CHAIR AWAY FROM BOOKCASE) that undoes the effect of a MoveTo action by resetting the <span class='code'>movedTo</span> property of the direct object to nil. In the event that the direct object has not been moved to the indirect object but is in, on, under, or behind the indirect object the MOVE FROM action is converted to a TAKE FROM action.</p>
 <hr>
-<p>There have also been some minor modifications to the <b>Immovable</b> class. Although this class is strictly defined as referring to objects that cannot be taken, it may seem counterintuitive that they previously could be moved (e.g. MOVE HEAVY TABLE TO DOOR). On the other hand, there some objects, such as heavy trolleys, that clearly can be pushed from place to place although they can't be picked up and carried around. The <b>isMoveable</b> property of the <span class='code'>Immovable</span> class has therefore been redefined to be true if an only if the Immovable object can PushTravel (or PullTravel). Also, the <span class='code'>cannotMoveMsg</span> (on Thing, and hence on Immovable than inherits from Thing) has been changed to 'The whatever won't budge' instead of simply taking its value from <span class='code'>cannotTakeMsg.<span class='code'></p>
+<p>There have also been some minor modifications to the <b>Immovable</b> class. Although this class is strictly defined as referring to objects that cannot be taken, it may seem counterintuitive that they previously could be moved (e.g. MOVE HEAVY TABLE TO DOOR). On the other hand, there some objects, such as heavy trolleys, that clearly can be pushed from place to place although they can't be picked up and carried around. The <b>isMoveable</b> property of the <span class='code'>Immovable</span> class has therefore been redefined to be true if and only if the Immovable object can PushTravel (or PullTravel). Also, the <span class='code'>cannotMoveMsg</span> (on Thing, and hence on Immovable than inherits from Thing) has been changed to 'The whatever won't budge' instead of simply taking its value from <span class='code'>cannotTakeMsg.<span class='code'></p>
+
 <hr>
 
 <p>The <b>Scene</b> class now has <b>turnsActive</b> property (to indicate how many turns an active Scene has been happening).</p>
@@ -67,7 +68,7 @@ Change Log
 <hr>
 <p>There is now a new <b>reportPostImplicit()</b> macro for use in the action section of <span class='code'>xObjFor()</span> blocks, to allow one or more custom reports to be immediately appended to the implicit action reports. This is intended for situations where game authors wish to display a customized report for an action which might be performed implicitly, but where displaying the report directly via a double-quoted string (e.g. "You pick the delicate vase up very carefully") clashes with the implicit action reports. In this situation you could instead use the following coding pattern:</p>
 <p><div class=code><pre>
-   dobFor(Take)
+   dobjFor(Take)
    {      
       action()	  
       {
@@ -81,10 +82,9 @@ Change Log
       }
    }   
 </pre></div></p>
- <p>The new <b>actionReport()</b> function allows you to abbreviate this to:</p>
- he following coding pattern:</p>
+ <p>The new <b>actionReport()</b> function further allows you to abbreviate this to the following coding pattern:</p>
 <p><div class=code><pre>
-   dobFor(Take)
+   dobjFor(Take)
    {      
       action()	  
       {
@@ -95,7 +95,7 @@ Change Log
    }   
 </pre></div></p>
 <hr>
-<p>The <b>exitLister</b> option now has a new pair of flag properties, <b>showDQSExits</b> and <b>showSQSExits</b> which control whether or not exits which are defined respectively as double-quoted strings or single-quoted strings on the direction property of a room are listed by the exit lister. Hitherto they have not been, but now the default value for <span class='code'>showDQSExits</span> is true, which is a potential SLIGHT INCOMPATIBILITY with previous versions of the library. The reason for making this change here is that attempting to move in a direction defined by a double-quoted string triggers beforeTravel notifications, so it is logical to suppose that we are modelling travel that has been attempted and then aborted (like an adv3 FakeConnector), so that there would be an apparent exit in that direction. This also more clearly distinguishes the function of defining a single-quoted string on an a direction property (to state why direction that way is either impossible or not worth attempting) from that of defining a double-quoted string there (to suggest that travel is attempted but then abandoned). The previous behaviour can be restored by overriding <span class='code'>exitList.showDQSExits</span> to <span class='code'>nil</span>.
+<p>The <b>exitLister</b> option now has a new pair of flag properties, <b>showDQSExits</b> and <b>showSQSExits</b> which control whether or not exits which are defined respectively as double-quoted strings or single-quoted strings on the direction property of a room are listed by the exit lister. Hitherto they have not been, but now the default value for <span class='code'>showDQSExits</span> is true, which is a potential SLIGHT INCOMPATIBILITY with previous versions of the library. The reason for making this change is that attempting to move in a direction defined by a double-quoted string triggers beforeTravel notifications, so it is logical to suppose that we are modelling travel that has been attempted and then aborted (like an adv3 FakeConnector), so that there would be an apparent exit in that direction. This also more clearly distinguishes the function of defining a single-quoted string on an a direction property (to state why direction that way is either impossible or not worth attempting) from that of defining a double-quoted string there (to suggest that travel is attempted but then abandoned). The previous behaviour can be restored by overriding <span class='code'>exitList.showDQSExits</span> to <span class='code'>nil</span>.
 <hr>
 <p>Some additional <a href='fact.htm#flexibility'>flexibility</a> has been added to the way <b>TopicEntries work with Facts</b>. An optional <span class='code'>msg</span> parameter has been added to various TopicEntry and ActorTopicEntry methods to make it easier to customize how a Fact is articulated in the course of a conversational exchange, and a constructor has been defined on the Fact class to facilitate the addition of a couple of TopicEntry methods that allow new Facts to be created on the fly in the definition of a TopicEntry's topicResponse, rather than having to define the Fact separately.</p>
 <hr>
@@ -103,7 +103,7 @@ Change Log
 <hr>
 <p>There have been some minor tweaks to the way Facts are listed by the FactHelper class, particularly in relation to FactThought. The introductory message "You recall" has been replaced by the more neutral "It comes to mind", and where a Fact is not regarded by the player character as true, a parenthetic notice to that effect is appended to the description of the Fact.</p>
 <hr>
-<p>There are now a couple of ways to adjust the display of Facts to changes in the circumsstances of your game. The new <b>relevant</b> property (on the Fact class), which is true by default, can be set to nil on a Fact that's been rendered irrelevant by developments in a game (e.g. because it refers to a wish that's now been fulfilled); setting it to nil means that it will no longer be listed by the FactHelper class. The new <b>redescFact(tag, newdesc)</b> function allows you to change the desc of the Fact with name tag <i>tag</i> to <i>newdesc</i>, which again may be useful if a change in circumstances changes the way the Fact might be viewed.</p>
+<p>There are now a couple of ways to adjust the display of Facts to changes in the circumstances of your game. The new <b>relevant</b> property (on the Fact class), which is true by default, can be set to nil on a Fact that's been rendered irrelevant by developments in a game (e.g. because it refers to a wish that's now been fulfilled); setting it to nil means that it will no longer be listed by the FactHelper class. The new <b>redescFact(tag, newdesc)</b> function allows you to change the desc of the Fact with name tag <i>tag</i> to <i>newdesc</i>, which again may be useful if a change in circumstances changes the way the Fact might be viewed.</p>
 <hr>
 <p>The Fact Relations extensions no longer attempts to assign a belief value to incoming information based on its contradicting what the receiving actor already knows or believes, since this can produce unsatisfactory results (there's more than one way to resolve a contradiction and it's probably best left to game code to deal with this if it needs to).</p>
 <hr>
@@ -125,7 +125,7 @@ Change Log
 <hr>
 <p>Fixed bug that could cause runtime error in Fact.getTargets() if it was called before any targets had been recorded on a Fact.</p>
 <hr>
-<p>Fixed bug that partly allowed the player character to talk to actors in another location within a SenseRegion when this wss not intended. The fix involves the implementation and use of a new <b>canTalkToObj</b> PreCondition.</p>
+<p>Fixed bug that partly allowed the player character to talk to actors in another location within a SenseRegion when this was not intended. The fix involves the implementation and use of a new <b>canTalkToObj</b> PreCondition.</p>
 <hr>
 <p>Fixed bugs in VerbRule(Query) which could lead to runtime errors.</p>
 <hr>
