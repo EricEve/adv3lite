@@ -7172,12 +7172,14 @@ suggestedTopicLister: object
     
     explainOptions()
     {
-        "<.p><.parser>";
-        DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off using
-            the command ENUM SUGGS. ');
+        "\n<.p><.parser>";
         if(systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
-            DMsg(explain hyperlinking,'\nHyperlinking of topic suggestions can be toggled on and off
-                using the command HYPER SUGGS');
+            DMsg(explain enumerating and hyperlinking,'Enumeration and/or hyperlinking of topic
+                suggestions can be toggled on and off using the commands ENUM SUGGS and/or HYPER
+                SUGGS respectively. '); 
+        else DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off
+            using the command ENUM SUGGS. ');
+        
         "<./parser><.p>";        
     }
     
