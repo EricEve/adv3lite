@@ -10248,6 +10248,22 @@ class MultiLoc: object
         if(loc != nil)
             return loc;
         
+        
+        /* 
+         *   If that doesn't work, see if there's a location in our location list that's in a room
+         *   the actor can see and return that.
+         */
+        
+        foreach(rm in valToList(gActorRoom.visibleRooms))
+        {
+            loc = locationList.valWhich({x: x.isOrIsIn(rm)});
+            
+            if(loc)
+                return loc;
+        
+        }
+        
+        
         /* 
          *   If that doesn't work, return the location we were last seen at,
          *   provided we have one and we're still there.

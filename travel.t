@@ -743,6 +743,9 @@ class Room: TravelConnector, Thing
     {
         return self.(prop);
     }
+    
+    /* For use by SenseRegion - the list of rooms visible from this room */
+    visibleRooms = []
 ;
 
 /* 
