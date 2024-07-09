@@ -90,7 +90,7 @@ class Lever: Thing
         action() { makePulled(true); }
         
         /* The default report to display after pulling one or more levers */
-        report() { DMsg(okay pulled, 'Done|{I} pull{s/ed} {1}', gActionListStr); }
+        report() { DMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', gActionListStr); }
         
     }
     
@@ -115,7 +115,7 @@ class Lever: Thing
         action() { makePulled(nil); }
         
         /* The default report to display after pushing one or more levers */
-        report() { DMsg(okay pushed, 'Done|{I} push{es/ed} {1}', gActionListStr); }
+        report() { DMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', gActionListStr); }
     }
     
     /* The message to display when we can't be pushed any further */
