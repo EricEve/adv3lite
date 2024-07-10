@@ -2079,7 +2079,7 @@ withTense(usePastTense, callback)
 }
 
 /* 
- *   Display msg bypassing all filters except for the massage parameter
+ *   Display msg bypassing all filters except for the message parameter and style tag
  *   substitutions; these may also be bypassed if the second (optional)
  *   parameter is nil.
  */
@@ -2087,7 +2087,12 @@ withTense(usePastTense, callback)
 extraReport(msg, expandParam = true)
 {
     if(expandParam)
+    {
         msg = buildMessage(nil, msg);
+        
+        /* Apply the style tag filter */
+        msg = styleTagFilter.filterText(gOutStream, msg);
+    }
     
     gOutStream.writeFromStream(msg);
 }

@@ -976,8 +976,8 @@ class Action: ReplaceRedirector
     /* acknowledge a change in the score notification status */
     acknowledgeNotifyStatus(stat)
     {
-        DMsg(acknowledge notify status, '<.parser>Score notifications are now
-        <<stat ? 'on' : 'off'>>.<./parser> ');
+        DMsg(acknowledge notify status, '<.notification>Score notifications are now
+        <<stat ? 'on' : 'off'>>.<./notification> ');
     }
     
     /* 

@@ -7172,7 +7172,7 @@ suggestedTopicLister: object
     
     explainOptions()
     {
-        "\n<.p><.parser>";
+        "\n<.p><.notification>";
         if(systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
             DMsg(explain enumerating and hyperlinking,'Enumeration and/or hyperlinking of topic
                 suggestions can be toggled on and off using the commands ENUM SUGGS and/or HYPER
@@ -7180,7 +7180,7 @@ suggestedTopicLister: object
         else DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off
             using the command ENUM SUGGS. ');
         
-        "<./parser><.p>";        
+        "<./notification><.p>";        
     }
     
     /* The message to display if there are no topics to suggest. */

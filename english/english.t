@@ -4015,6 +4015,14 @@ announceBestChoice(action, obj, role)
     /*  Replace 'what' with the object name */
     ann = rm[3].findReplace('what', obj.abcName(action, role));
     
+    /* 
+     *   Although we probably want the announcement to be enclosed in parentheses, this should be
+     *   defined by the <.aasume> style tag, so we replace the surrounding parentheses with the
+     *   appopriate style tags.
+     */
+    ann = ann.findReplace('(', '<.assume>');
+    ann = ann.findReplace(')', '<./assume>');
+    
     /*  Display the annoucement */
     "<<ann>>\n";
 }
@@ -5547,7 +5555,7 @@ modify Action
              *   Begin our report with an opening parenthesis and the word
              *   'first'
              */
-            rep = BMsg(implicit action report start, '(first ');
+            rep = BMsg(implicit action report start, '<.assume>first ');
             
             /* 
              *   Then go through all the implicit action reports on the current
@@ -5576,7 +5584,7 @@ modify Action
             }
             
             /* Return the completed implicit action report */
-            return rep + BMsg(implicit action report terminator, ')\n') + prp;
+            return rep + BMsg(implicit action report terminator, '<./assume>\n') + prp;
         }
         
         /* 

@@ -575,7 +575,7 @@ hintManager: PreinitObject
         sessionHintStatus.hintsDisabled = true;
 
         /* acknowledge it */
-        DMsg(hints disabled, '<.parser>Hints are now disabled.<./parser> ');
+        DMsg(hints disabled, '<.notification>Hints are now disabled.<./notification> ');
     }
 
     /*

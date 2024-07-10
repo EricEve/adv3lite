@@ -272,8 +272,8 @@ DefineSystemAction(Notify)
       /* show the current score notify status */
     showNotifyStatus(stat)
     {
-        DMsg(show notify status, '<.parser>Score notifications are
-        currently <<stat ? 'on' : 'off'>>.<./parser> ');
+        DMsg(show notify status, '<.notification>Score notifications are
+        currently <<stat ? 'on' : 'off'>>.<./notifcation> ');
     }
 ;
 

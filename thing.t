@@ -6348,7 +6348,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     okayLockMsg = 'Locked.|{I} {lock} {1}. '
     
-    withKeyMsg = BMsg(with key, '(with {1})\n', useKey_.theName)
+    withKeyMsg = BMsg(with key, '<.assume>with {1}<./assume>\n', useKey_.theName)
     
     /* 
      *   Find a key among the actor's possessions that might plausibly lock or
