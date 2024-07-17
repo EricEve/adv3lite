@@ -2150,17 +2150,41 @@ modify Topic
 modify Command
     buildCommandString()
     {
-        local toks = valToList(verbProd.tokenList);
+        /* Get a list of the tokens making up the command we want to reparse. */
+        local toks = valToList(verbProd.tokenList).mapAll({x: getTokVal(x)});
         
         /* 
          *   If there's a full stop or semicolon in the command line (indicating more than one
-         *   command on the line), remove any again commaands from the tok list so we don't end up
-         *   repeating an again command until there's a stack overflow.
+         *   command on the line), remove any again commaands from the tok list that follow the
+         *   punctuation so we don't end up repeating an again command until there's a stack
+         *   overflow. We don't want to remove G or AGAIN if it occurs before the punctuation since
+         *   it might be a legitimate part of the original command, e.g., PUSH BUTTON G.
          */
-        if(toks.indexWhich({x:getTokVal(x) is in ('.', ';')}))
-            toks = toks.subset({x: getTokVal(x) not in ('g', 'again')});        
         
-        local str = toks.mapAll({x: getTokVal(x)}).join(' ');
+        /* First look for any command terminating punctuation */
+        local punctIdx = toks.indexWhich({x:x is in ('.', ';')});
+        
+        /* If we find it, look for any again command that follows this punctuation. */
+        if(punctIdx)
+        {
+            /* Find the last instance of G or AGAIN on the command line */
+            local gIdx = toks.lastIndexWhich({x: x is in ('g', 'again')});
+            
+            /* If we find one and it comes after the punctuation, remove it from the toks list. */
+            while(gIdx && gIdx > punctIdx)
+            {
+                toks = toks.removeElementAt(gIdx);
+                
+                /* 
+                 *   Then see if there's another G or AGAIN after the punctuation so we can go back
+                 *   and remove that.
+                 */
+                gIdx = toks.lastIndexWhich({x: x is in ('g', 'again')});
+
+            }                                 
+        }
+        
+        local str = toks.join(' ');
         
         /* 
          *   The tokenizer separates 's from the noun it qualifies, so we remove any unwanted spaces
@@ -2171,6 +2195,7 @@ modify Command
         return str;         
     }
 ;
+
 
 
 /* ------------------------------------------------------------------------ */
