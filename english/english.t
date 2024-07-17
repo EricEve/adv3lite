@@ -2150,9 +2150,24 @@ modify Topic
 modify Command
     buildCommandString()
     {
-        local str = valToList(verbProd.tokenList).mapAll({x:        
-            getTokVal(x)}).join(' ');
+        local toks = valToList(verbProd.tokenList);
+        
+        /* 
+         *   If there's a full stop or semicolon in the command line (indicating more than one
+         *   command on the line), remove any again commaands from the tok list so we don't end up
+         *   repeating an again command until there's a stack overflow.
+         */
+        if(toks.indexWhich({x:getTokVal(x) is in ('.', ';')}))
+            toks = toks.subset({x: getTokVal(x) not in ('g', 'again')});        
+        
+        local str = toks.mapAll({x: getTokVal(x)}).join(' ');
+        
+        /* 
+         *   The tokenizer separates 's from the noun it qualifies, so we remove any unwanted spaces
+         *   before 's.
+         */
         str = str.findReplace(' \'s', '\'s', ReplaceAll);
+        
         return str;         
     }
 ;
