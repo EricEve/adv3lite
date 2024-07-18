@@ -3129,6 +3129,8 @@ DefineSystemAction(Again)
         libGlobal.lastCommand = nil;
     }
     
+    againRepeatsParse = nil 
+    
 ;
 
 /* Dummy action to provide an action context. */

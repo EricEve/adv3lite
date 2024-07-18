@@ -2160,31 +2160,17 @@ modify Command
          *   overflow. We don't want to remove G or AGAIN if it occurs before the punctuation since
          *   it might be a legitimate part of the original command, e.g., PUSH BUTTON G.
          */
-        
-        /* First look for any command terminating punctuation */
-        local punctIdx = toks.indexWhich({x:x is in ('.', ';')});
-        
-        /* If we find it, look for any again command that follows this punctuation. */
-        if(punctIdx)
-        {
-            /* Find the last instance of G or AGAIN on the command line */
-            local gIdx = toks.lastIndexWhich({x: x is in ('g', 'again')});
-            
-            /* If we find one and it comes after the punctuation, remove it from the toks list. */
-            while(gIdx && gIdx > punctIdx)
-            {
-                toks = toks.removeElementAt(gIdx);
-                
-                /* 
-                 *   Then see if there's another G or AGAIN after the punctuation so we can go back
-                 *   and remove that.
-                 */
-                gIdx = toks.lastIndexWhich({x: x is in ('g', 'again')});
-
-            }                                 
-        }
-        
+             
         local str = toks.join(' ');
+        
+        /* Split the string into a list at full stops and/or semi-colons       */        
+        local lst = str.split(R'<period>|;');
+            
+        /* Remove any instances of again commmands from the list */
+        lst = lst.subset({x: x.toLower().trim() not in ('g', 'again')});
+        
+        /* Put the command string back together from the adjusted list. */
+        str = lst.join('.');
         
         /* 
          *   The tokenizer separates 's from the noun it qualifies, so we remove any unwanted spaces
@@ -2192,11 +2178,10 @@ modify Command
          */
         str = str.findReplace(' \'s', '\'s', ReplaceAll);
         
+        /* Return the adjusted command string. */
         return str;         
     }
 ;
-
-
 
 /* ------------------------------------------------------------------------ */
 /*
