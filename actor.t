@@ -4932,13 +4932,16 @@ class SpecialTopic: ActorTopicEntry
     }
     
     /* 
-     *   A Regular expression pattern to look for the kinds of characters we'd
-     *   expect to find in our matchPattern property if it actually represents a
-     *   regular expression for this TopicEntry to match. We use this to help
-     *   determine whether the matchPattern property contains a regex to match
-     *   or the vocab of a Topic object to create on the fly.
+     *   A Regular expression pattern to look for the kinds of characters we'd expect to find in our
+     *   matchPattern property if it actually represents a regular expression for this TopicEntry to
+     *   match. We use this to help determine whether the matchPattern property contains a regex to
+     *   match or the vocab of a Topic object to create on the fly. In tge latest version we exclude
+     *   parentheses from the match pattern since these could be used to mark weak tokens in an
+     *   ordinary name rather than indicating a regular expression.
      */    
-    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret|lparen|rparen>')
+//    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret|lparen|rparen>')
+    
+    rex = static new RexPattern('<langle|rangle|star|dollar|vbar|percent|caret')
     
     /* 
      *   If we want this SpecialTopic also to match an ASK ABOUT command, define
