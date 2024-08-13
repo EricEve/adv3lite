@@ -2124,7 +2124,7 @@ modify Actor
      *   allow it since it typically represents an attempt by the player
      *   character to take something from this actor's inventory.
      */
-    notifyRemove(obj)
+    checkRemove(obj)
     {
         /* 
          *   If we're not the actor initiating the moving of obj and we don't
@@ -2140,6 +2140,8 @@ modify Actor
             /* Halt the action. */
             exit;
         }    
+        
+        inherited(obj);
     }
     
     /* 
