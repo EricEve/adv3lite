@@ -687,23 +687,24 @@ objDetached: PreCondition
                 
             foreach(local cur in obj.attachedToList)
                 tried = tryImplicitAction(DetachFrom, obj, cur);
-            
-            /*  
-             *   If obj is now not attached to anything return true to signal
-             *   that this precondition has now been met.
-             */
-            if(obj.attachedToList.length == 0)
-               return true;
-            
-            /* 
-             *   Otherwise, if we tried but failed to detach obj, return nil to
-             *   signal that this precondition can't be met (so the main action
-             *   cannot proceed). The attempt to detach obj will have explained
-             *   why it failed, so there's no need for any further explanation
-             *   here.
-             */
-            if(tried)
-                return nil;
+            {
+                
+                /*  
+                 *   If obj is now not attached to anything return true to signal that this
+                 *   precondition has now been met.
+                 */
+                if(obj.attachedToList.length == 0)
+                    return true;
+                
+                /* 
+                 *   Otherwise, if we tried but failed to detach obj, return nil to signal that this
+                 *   precondition can't be met (so the main action cannot proceed). The attempt to
+                 *   detach obj will have explained why it failed, so there's no need for any
+                 *   further explanation here.
+                 */
+                if(tried)                    
+                    return nil;
+            }
         }
         
         /* 
