@@ -1645,13 +1645,7 @@ modify Actor
          */
         else if(tag not in (nil, 'all'))
             lst = lst.intersect(valToList(convKeyTab[tag]));
-        
-        /* 
-         *   Initialize the suggestion enumerator to clear out any leftover information from
-         *   previous suggestion listings.
-         */
-        suggestionEnumerator.initialize();
-        
+ 
         /* 
          *   Use the suggestedTopicLister to show a list of Suggested Topics
          *   from the resulting list (lst).
@@ -7199,7 +7193,12 @@ suggestedTopicLister: object
     }
     
     show(lst, explicit = true)
-    {
+    {                 
+        /* 
+         *   Initialize the suggestion enumerator to clear out any leftover information from
+         *   previous suggestion listings.
+         */        
+        suggestionEnumerator.initialize();
         /* 
              *   first exclude all items that don't have a name property, since
              *   there won't be anything to show.
@@ -7352,7 +7351,7 @@ suggestedTopicLister: object
         {
             /* 
              *   If the current topic entry wants to include a sayPrefix,
-             *   displat the sayPrefix. In practice this only applies to
+             *   display the sayPrefix. In practice this only applies to
              *   SayTopics which may or may not want to introduce the name of a
              *   suggestion with 'say'.
              */
