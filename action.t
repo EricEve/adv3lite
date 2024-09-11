@@ -1012,6 +1012,14 @@ class Action: ReplaceRedirector
         
         return rep;
     }    
+    
+    /* 
+     *   Flag - do we want to duplicate objects of this action to be treated as single to be treated
+     *   as a single object, (e.g. if tools objects includes 'hammer' and 'chisel' in its vocab abd
+     *   the player types TAKE HAMMER AND CHISEL. We default to nil here since not all actions have
+     *   objects.
+     */
+    combineDuplicateObjects = nil
 ;
 
 
@@ -2089,6 +2097,13 @@ class TAction: Action
          */
         scopeList = scopeList.appendUnique(vec.toList());
     }
+    
+    /* 
+     *   Where an action does take objects, we'll normally want duplicate objects to be treated as a
+     *   single object rather than having the same action attempted several times on the aame
+     *   object.
+     */
+    combineDuplicateObjects = true
    
 ;
 

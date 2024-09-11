@@ -211,7 +211,7 @@ class Command: object
                 savepoint();
             }
             
-            
+         
             
             /* 
              *   First, carry out the group action.  This gives the verb a
@@ -220,6 +220,7 @@ class Command: object
              */          
             action.execGroup(self);
             
+                      
             
             /* 
              *   Get the list of predicate noun roles.  We only iterate over the
@@ -237,7 +238,7 @@ class Command: object
                 /* it's intransitive - just execute once */
                 execIter([action]);
             }
-            else
+            else                
             {
                 /* 
                  *   It's transitive, so execute iteratively over the objects.
@@ -246,6 +247,33 @@ class Command: object
                  */
                 foreach (local role in predRoles)
                 {
+                    
+                   /* 
+                    *   If we're dealing with the direct object and our action wants to combine
+                    *   duplicate objects remove any duplicate direct objects from our list for
+                    *   direcc objects that allow duplicates to be removed.
+                    */
+                    if(role == DirectObject && action.combineDuplicateObjects)
+                    {                       
+                        local lst1 = self.(role.objListProp).toList();
+                        local lst2 = lst1.subset({x:x.obj.combineDuplicateObjects});
+                        local lst3 = lst1.subset({x:x.obj.combineDuplicateObjects == nil});
+                        local lst4 = lst2.mapAll({x:x.obj}).getUnique();
+                        
+                        lst1  = [];
+                        
+                        foreach(local o in lst4)
+                        {
+                            lst1 += lst2.valWhich({x:x.obj==o});
+                        }
+                        
+                        lst1 += valToList(lst3);       
+                        
+                        self.(role.objListProp) = new Vector(lst1);
+                    }
+                    
+                    
+                    
                     /* get the NPMatch list for this role */
                     local matches = self.(role.objListProp);
                     

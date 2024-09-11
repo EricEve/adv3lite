@@ -2530,6 +2530,12 @@ class Thing:  ReplaceRedirector, Mentionable
     
     isEdible = nil  
    
+    /* 
+     *   Flag, if this object appears more than once in the list of objects to the current action,
+     *   do we want all the duplicates removed from the list leaving only one instance? By default
+     *   we most probably do.
+     */
+    combineDuplicateObjects = true
     
     /*
      *   My nominal contents is the special contents item we can use in
