@@ -6402,3 +6402,18 @@ specialVerbMgr: PreinitObject
      */
     maxKeyLen = 0
 ;
+
+
+/* 
+ *   PreParser to strip punctuation from the start of the command line, since punctuation there is
+ *   unlikely to be valid and may lead to run-time errors.
+ */
+InitialPunctPreparser:StringPreParser
+    doParsing(str, which)
+    {
+        return str.findReplace(R'^<Punct>+', '');
+        
+    }    
+;
+
+    
