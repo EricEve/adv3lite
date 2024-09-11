@@ -205,6 +205,6 @@ class Scene: object
     /* 
      *   The number of turms this Scene has been active. Is this Scene is not happening, return -1.
      */
-    turnsActive = (isHappening ? startedAt - gTurns : -1)
+    turnsActive = (isHappening ? gTurns - startedAt : -1)
 ;
 
