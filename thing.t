@@ -5840,7 +5840,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 
         verify()
         {
-            if(gVerifyIobj == gIobj)
+            if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);     
             
             if(isFixed)
