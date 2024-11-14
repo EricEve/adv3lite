@@ -3070,7 +3070,7 @@ modify ItemLister
                 if(s.contents != nil && s.contents.length > 0 && s.canSeeIn)          
                 {
                     lName += subLister.buildList(s.contents);
-                    s.contents.forEach({x: x.mentioned = true});
+                    s.contents.subset({ o: listed(o) }).forEach({x: x.mentioned = true});
                 }
                 
             }

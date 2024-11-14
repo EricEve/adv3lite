@@ -124,13 +124,15 @@ class ItemLister: Lister
         /* Carry out the inherited handling */
         inherited(lst, parent, paraBrk);
         
-        /* Note that every item in our list has been mentioned and seen */
+        /* Note that every item in our list has been mentioned and seen, provided it's listed. */
         foreach(local cur in lst)
         {
-            cur.mentioned = true;
-            cur.noteSeen();
-        }
-        
+            if(listed(cur))
+            {
+                cur.mentioned = true;
+                cur.noteSeen();
+            }
+        }        
     }
     
     /* 
