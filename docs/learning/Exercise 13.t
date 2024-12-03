@@ -78,7 +78,7 @@ kitchen: Room 'Kitchen'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
++ me: Player 'you'   
     isFixed = true       
     person = 2  // change to 1 for a first-person game
     contType = Carrier    
@@ -112,12 +112,14 @@ kitchen: Room 'Kitchen'
 /*  
  *   DECORATION
  *
- *   By making this a RoomPartItem we ensure its specialDesc is only shown 
- *   if the east wall is examined.
+ *   A Decoration is an object that can be examined but responds to any other 
+ *   action by simply saying it's not important. We implement it here because
+ *   the poster is mentioned in the room description.
  */
 
 + Decoration 'poster; large cheerful sunny landscape poster' 
     "You put it there because it's cheerful. It depicts a sunny landscape. "    
+	
 ;
 
 //------------------------------------------------------------------------------
@@ -358,7 +360,7 @@ kitchen: Room 'Kitchen'
      *   Note the special syntax for locating something initially in a 
      *   remapIn object of a multiply-containing object. 
      */
-    subLocation = &remapIn
+    subLocation = &remapIn // or just sLoc(In)
     
     dobjFor(Eat)
     {
@@ -379,7 +381,7 @@ kitchen: Room 'Kitchen'
 ++ saucepan: Container 'saucepan; stainless steel (sauce); pan' 
     "It's made of stainless steel. "
     
-    subLocation = &remapOn
+    subLocation = &remapOn // or just sLoc(On)
     bulkCapacity = 3
     bulk = 4
     allowPourIntoMe = true
@@ -457,7 +459,7 @@ kitchen: Room 'Kitchen'
 /*  
  *   COMPONENT
  *
- *   Since the pot is already a ComplexContainer, its easy to add a Component
+ *   Since the pot is already a Multiplex Container, its easy to add a Component
  *   like a handle. You couldn't do this directly on an OpenableContainer.
  */
 
@@ -491,7 +493,7 @@ kitchen: Room 'Kitchen'
  */
 
 ++ redBox: OpenableContainer 'big red box'
-    subLocation = &remapUnder
+    subLocation = &remapUnder // or just sLoc(Under)
     bulk = 10
     bulkCapacity = 10
 ;

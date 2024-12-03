@@ -1848,7 +1848,7 @@ modify Actor
 
 
     /* 
-     *   Say hello to the actor (when the greetin is initiated by the player
+     *   Say hello to the actor (when the greeting is initiated by the player
      *   character)
      */
     sayHello()

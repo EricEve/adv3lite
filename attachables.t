@@ -910,5 +910,21 @@ class PlugAttachable: object
         report() { DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); }
         
     }
+        
+    /* If we're detached from something we're no longer plugged into it. */
+    makeDetachedFrom(obj)
+    {
+        inherited(obj);
+        
+        makePlugged(nil);
+    }
+    
+    /* If we're attached to something we're considered to be plugged into it. */
+    attachTo(obj)
+    {
+        inherited(obj);
+        
+        makePlugged(true);
+    }
 ;
 

@@ -117,7 +117,7 @@ hall: Room 'Hall'
  *   second-person game the library will deduce it from the person property.
  */
 
-+ me: Thing 'you'   
++ me: Player 'you'   
     "You look splendidly equipped to explore the area. "
     isFixed = true       
     person = 2  // change to 1 for a first-person game
@@ -242,7 +242,7 @@ kitchen: Room 'Kitchen'
  *   FLASHLIGHT
  *
  *   We need to supply some kind of light source, otherwise it will be 
- *   impossible to explore the DarkRoom example (the cellar)
+ *   impossible to explore the Dark Room example (the cellar)
  */
 
 ++ torch: Flashlight 'flashlight;red plastic; torch light'     
@@ -323,6 +323,7 @@ cellar: Room 'Cellar'
     you haven't moved your own rubbish in yet. A flight of stairs leads up, and
     the end of the laundry chute protrudes from the west wall. "
     
+	/* We make the cellar dark by setting its isLit property to nil */
     isLit = nil
     
     /* 
