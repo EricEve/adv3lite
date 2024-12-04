@@ -86,10 +86,7 @@ shop: Room 'General Store'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'       
 ;
 
 /*   
@@ -291,7 +288,7 @@ midStair: Room 'On the Staircase'
     followDesc = 'back down the staircase'
 ;
 
-+ midStairUp: StairwayUp 'ascending staircase; stairs; up spiral;
++ midStairUp: StairwayUp 'ascending staircase; up spiral;
     stairs; it them' 
     
     destination = location
@@ -1329,7 +1326,10 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her' @shop
     
     sayFollowing(oldLoc, conn)
     {
-        "{The subj sally} follows you <<conn.followDesc>>. ";
+        /* In case conn is nil fall back to an empty travel description. */
+        local travelMsg = conn ? ' ' + conn.followDesc : '';
+        
+        "{The subj sally} follows you<<travelMsg>>. ";
     }
 ;
 

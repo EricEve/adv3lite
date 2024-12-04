@@ -107,12 +107,9 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
++ me: Player 'you'   
     "You can't bear to look at yourself right now; you've come down so
     far in the world to end up in this place! "
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
 ;
 
 
@@ -337,7 +334,7 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
      *   Put the ladder under the desk. Note the special syntax for placing 
      *   something within a subXXXXX of a ComplexContainer.
      */
-    subLocation = &remapUnder
+    subLocation = &remapUnder // or just sLoc(Under)
     
     /*  
      *   Normally you can sit, stand, or lie on a Platform, but in the case 
@@ -431,16 +428,9 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
 /*  
  *   PUTTING SOMETHING OUT OF REACH
  *
- *   OutOfReach is a mix-in class which puts the object it's mixed in with, 
- *   together with that object's contents, out of reach (except under 
- *   conditions specified by the game author. It's not a NestedRoom class, 
- *   but it is convenient to demonstrate along with NestedRooms, not least 
- *   because an OutOfReach object will often be reached by standing on some 
- *   NestedRoom object, as here.
- *
- *   We'll use an OutOfReach to implement the bookshelf that's said to be 
- *   fixed high on the wall above the desk. The way to reach it will be by 
- *   standing on the desk.
+ *   To make something out of reach we can use its checkReach() method. Here we make the bookshelf
+ *   (and its contents) out of reach to any actor who isn't on the desk (or rather, in the desk's
+ *   Platform subcomponent.
  */
 
 
@@ -450,11 +440,10 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
     convenient access. "
     
     /* 
-     *   Define the conditions under which this OutOfReach object can be 
-     *   reached. obj is the object attempting the reaching -- typically an 
+     *   Define the conditions under which this object can be 
+     *   reached. sctor is the object attempting the reaching -- typically an 
      *   actor. An actor can reach this shelf if s/he's standing on the 
-     *   desk, so we need to test both that the obj is standing and that the 
-     *   obj is on the desk, i.e. on the desk's subSurface.
+     *   desk, so we need to test both that the actor is is on the desk.
      */
     checkReach(actor)
     {
@@ -467,8 +456,8 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
 /*  
  *   READABLE
  *
- *   To demonstrate OutOfReach fully we need to put something on the 
- *   bookshelf, and the obvious thing to put there is a book.
+ *   To demonstrate putting something out or reaach fully we need to put something on the bookshelf,
+ *   and the obvious thing to put there is a book.
  */ 
 
 ++ book: Thing 'red book'
@@ -527,7 +516,7 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
 /*  
  *   MAKING A NESTED ROOM TOO HIGH TOO REACH
  *
- *   We can created a NestedRoom that's regarded as being too high up to reach
+ *   We can created a nested room that's regarded as being too high up to reach
  *   except via a special staging location (such as a ladder). The example here
  *   is a bunk high up on the east wall which can only be reached via the ladder
  *   once the ladder has been placed against the bunk.
@@ -545,15 +534,10 @@ startRoom: Room 'Your Bedsit' '() your bedsit;; room'
     cannotStandOnMsg = 'There\'s not enough headroom to stand here. '
     
     /*  
-     *   To reach a HighNestedRoom an actor has to be the appropriate staging
-     *   location, so the stagingLocations property defines how the bunk 
-     *   can be reached. Note that if we just defined stagingLocations = 
-     *   [ladder], then GET ON BUNK would result in the player character 
-     *   getting on the bunk via the ladder without further ado, and the 
-     *   player would hardly notice that the bunk was tricky to get to. So 
-     *   we define stagingLocations so that the ladder can only be used as a 
-     *   staging location when it's in the right state (leaning against the 
-     *   bunk).
+     *   To reach this high nested room an actor has to be the appropriate staging location, so the
+     *   stagingLocation property defines how the bunk can be reached. We define stagingLocation so
+     *   that the ladder can only be used as a staging location when it's in the right state
+     *   (leaning against the bunk).
      */
     stagingLocation = (ladder.leaningAgainst == self ? ladder : nil)
     

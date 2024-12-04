@@ -104,24 +104,16 @@ hall: Room 'Hall'
 /*
  *   THING  - PLAYER CHARACTER
  *
- *   Define the player character.  The name of this object is not important, but
- *   it MUST match the name we use to initialize gameMain.initialPlayerChar
- *   above.
+ *   Define the player character.  The name of this object is not important, but it MUST match the
+ *   name we use to initialize gameMain.initialPlayerChar above.
  *
- *   Note that the player character just can be a Thing and doesn't need to be
- *   an Actor, since the actor.t module (and hence the Actor class) is optional
- *   in adv3Lite. If we define the player character object as a Thing, however,
- *   we do have to define its isFixed, contType and person properties as shown
- *   (though person could also be 1 or 3 for a first- or third-person game).
- *   We've defined the vocab property here to be explicit, but for a first- or
- *   second-person game the library will deduce it from the person property.
- */
+ *   Note that the initial player character should be of the Player class, and the only object of
+ *   that class in the game. If the player character changes during the course of play, the
+ *   subsequent player characters should be of the Actor class.
+ */ 
 
 + me: Player 'you'   
-    "You look splendidly equipped to explore the area. "
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
+    "You look splendidly equipped to explore the area. "      
 ;
 
 /*
@@ -242,7 +234,7 @@ kitchen: Room 'Kitchen'
  *   FLASHLIGHT
  *
  *   We need to supply some kind of light source, otherwise it will be 
- *   impossible to explore the Dark Room example (the cellar)
+ *   impossible to explore the DarkRoom example (the cellar)
  */
 
 ++ torch: Flashlight 'flashlight;red plastic; torch light'     
@@ -323,7 +315,6 @@ cellar: Room 'Cellar'
     you haven't moved your own rubbish in yet. A flight of stairs leads up, and
     the end of the laundry chute protrudes from the west wall. "
     
-	/* We make the cellar dark by setting its isLit property to nil */
     isLit = nil
     
     /* 
@@ -696,15 +687,20 @@ drive: Room, ShuffledEventList 'Front Drive'
 /* 
  *   VEHICLE
  *
- *   We need a Vehicle to demonstrate VehicleBarriers, so we'll provide this
- *   bicycle. To make it a Vehicle we make it a Platform so we can get on it and
- *   then define its isVehicle property to be true.
+ *   We need a vehicle to demonstrate how a TravelBarriers can prevent them passimng, so we'll
+ *   provide this bicycle. To make it a vehicle we make it a Platform so we can get on it and then
+ *   define its isVehicle property to be true.
  */
 
 + bicycle: Platform 'bicycle; old; bike cycle'
     "It's old, but it looks functional enough. "
     initSpecialDesc = "An old bicycle leans against the front of the house. "
     
+    /* 
+     *   You can sit on a bicycle but you can't lie on it. Adv3Lite doesn't track postures (unless
+     *   you imclude the postures.t extensiob) but you can rule out LIE ON BICYCLE (which is
+     *   otherwise effectivey the same as GET ON BICYCLE).
+     */
     canLieOnMe = nil
     
     isVehicle = true
@@ -751,7 +747,7 @@ drive: Room, ShuffledEventList 'Front Drive'
         /* 
          *   This exercise isn't about defining actions, so don't worry about
          *   this too much now, but this is how we synthesise a command to go in
-         *   the direction the player wants to ride.
+         *   the direction the player wants to ride. 
          */
         action()
         {
@@ -775,7 +771,7 @@ drive: Room, ShuffledEventList 'Front Drive'
 
 //------------------------------------------------------------------------------
 /*  
- *   FLOORLESS
+ *   A FLOORLESS ROOM
  *
  *   The top of the tree has no floor.
  */
@@ -824,11 +820,12 @@ lawn: Room 'Lawn'
     south = riverConnector
     
     /* 
-     *   NO TRAVEL MESSAGE
+     *   A FAKE EXIT
      *
-     *   We can define a string directly to a direction property to display a
-     *   message explaining why travel is not permitted in that direction. In
-     *   that case the exit is not shown in the exit lister.
+     *   We can define a string directly to a direction property to display a message explaining why
+     *   travel is not permitted in that direction. If we use a double-quoted string the exit is
+     *   still shown in the exit lister. If we don't want it to be listed there, we could use a
+     *   single-quoted string instead.
      */
     
     north = "Even if you could force your way through the thick shrubbery, which
@@ -906,11 +903,8 @@ riverConnector: TravelConnector
     {
         
         /* 
-         *   The tricky case is where we're trying to push the trolley 
-         *   across the river. At that point the first object trying to 
-         *   travel via this connector will be an temporary PushTraveler 
-         *   object created to handle the push travel action. We need to 
-         *   make a special test for this condition.
+         *   The tricky case is where we're trying to push the trolley across the river. So we need
+         *   to test for which object is tryjng to cross the river.
          */       
         
         switch(traveler)
@@ -992,12 +986,17 @@ mainDeck: Room 'Main Deck'
      */
     
     starboard = lawn
+    
+    /* Make WEST and OUT behave the same as STARBOARD */
     west asExit(starboard)
     out asExit(starboard)
+    
     aft = mainCabin
     south asExit(aft)
     in asExit(aft)
-    fore = "You don't want to walk off the bow! " 
+    
+    /* We use a single-qouoted string here so FORE won't be listed as a possible exit. */
+    fore = 'You don\'t want to walk off the bow! ' 
     north asExit(fore)
     
     describePushTravelInto()

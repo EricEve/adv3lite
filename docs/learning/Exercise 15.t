@@ -61,6 +61,10 @@ gameMain: GameMainDef
  *   rooms.  
  */
 
+/* 
+ *   An InitObject is an object who execute() methos is executed at the start of the game. We use to
+ *   it to create a Daemon (which cannot be done at PreInit),
+ */
 InitObject, ShuffledEventList
     [
         'There\'s a loud jangling from a fire-engine hurrying down the street.
@@ -152,10 +156,7 @@ startRoom: Room 'Living Room'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'          
 ;
 
 + lrDoor: Door 'door'
@@ -665,7 +666,7 @@ hall: Room 'Hall'
  *   although in practice if we really wanted a rat like this we'd probably 
  *   implement it a little differently (see the NPC demo: what we'd probably 
  *   do is to give the rat a HermitActorState that was also a 
- *   ShuffledEventList and we'd get the SenseDaemon behaviour for free.  
+ *   ShuffledEventList and we'd get the SenseDaemon behaviour for free).  
  */
 + rat: InitObject, Thing, ShuffledEventList     
     'rat; small grey gray; rodent animal mammal' 

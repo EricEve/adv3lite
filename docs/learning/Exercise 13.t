@@ -78,11 +78,8 @@ kitchen: Room 'Kitchen'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Player 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
-    
++ me: Player'you'   
+        
     /* 
      *   Give the player character a modest bulkCapacity so we can try out the
      *   BagOfHolding.
@@ -112,14 +109,12 @@ kitchen: Room 'Kitchen'
 /*  
  *   DECORATION
  *
- *   A Decoration is an object that can be examined but responds to any other 
- *   action by simply saying it's not important. We implement it here because
- *   the poster is mentioned in the room description.
+ *   The cheerful poster is mentioned in the room description. We implement it so the player can
+ *   examine it without the need to interact with it in any other way.
  */
 
 + Decoration 'poster; large cheerful sunny landscape poster' 
     "You put it there because it's cheerful. It depicts a sunny landscape. "    
-	
 ;
 
 //------------------------------------------------------------------------------
@@ -181,6 +176,11 @@ kitchen: Room 'Kitchen'
 
 ++ redBook: Thing 'big red book; cookery'
     "It's a cookery book. "
+    
+    /* 
+     *   Giving the redfBood a readDesc is all that's needed to make it readable (i.e. to respond
+     *   appropriately to a READ BOOK command.
+     */
     readDesc = "You flick through some of the pages, but none of the recipes
         take your fancy right now. "    
     
@@ -273,7 +273,7 @@ kitchen: Room 'Kitchen'
  *   STRETCHY CONTAINER
  *
  *   We make the sack start out hidden by setting its isHidden property to true;
- *   calling discover() makes it unhidden. We make the bulk of the box depend on
+ *   calling discover() makes it unhidden. We make the bulk of the sack depend on
  *   the bulk of the items it contains by defining its bulk to be a minimum
  *   value (3) - the bulk of the sack when empty - plus the total bulk of the
  *   items it contains.
@@ -360,7 +360,7 @@ kitchen: Room 'Kitchen'
      *   Note the special syntax for locating something initially in a 
      *   remapIn object of a multiply-containing object. 
      */
-    subLocation = &remapIn // or just sLoc(In)
+    subLocation = &remapIn // or you could just write sLoc(In)
     
     dobjFor(Eat)
     {
@@ -381,7 +381,7 @@ kitchen: Room 'Kitchen'
 ++ saucepan: Container 'saucepan; stainless steel (sauce); pan' 
     "It's made of stainless steel. "
     
-    subLocation = &remapOn // or just sLoc(On)
+    sLoc(On)
     bulkCapacity = 3
     bulk = 4
     allowPourIntoMe = true
@@ -459,7 +459,7 @@ kitchen: Room 'Kitchen'
 /*  
  *   COMPONENT
  *
- *   Since the pot is already a Multiplex Container, its easy to add a Component
+ *   Since the pot is already a ComplexContainer, its easy to add a Component
  *   like a handle. You couldn't do this directly on an OpenableContainer.
  */
 
@@ -493,7 +493,7 @@ kitchen: Room 'Kitchen'
  */
 
 ++ redBox: OpenableContainer 'big red box'
-    subLocation = &remapUnder // or just sLoc(Under)
+    sLoc(Under) // equivalent to subLocation = &remapUnder
     bulk = 10
     bulkCapacity = 10
 ;
@@ -706,7 +706,7 @@ class SugarCube: Food 'sugar cube'
 /*   
  *   DISPENSER AND DISPENSABLES
  *
- *   A Dispenser is a container for a special type of item. By default its
+ *   In adv3, a Dispenser is a container for a special type of item. By default its
  *   contents can be taken but not returned. A roll of kitchen towels provides a
  *   good example of this; you can take a towel from the roll, but you can't but
  *   it back.

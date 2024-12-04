@@ -152,11 +152,8 @@ drive: Room 'Front Drive'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    "You are dressed all in black, as befits a burglar. "
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier  
++ me: Player 'you'   
+    "You are dressed all in black, as befits a burglar. "    
     
     /*  
      *   A custom property that will be used later on. The possible values 
@@ -282,6 +279,7 @@ drive: Room 'Front Drive'
 +++ skeletonKey: Key 'skeleton key; thin  metal'
     "It's a thin metal key, with cunningly designed teeth. "
     
+    /* The skeleton key works in a number of locks. */
     actualLockList = [frontDoorOutside, frontDoorInside, whiteBox]
 ;
 
@@ -305,7 +303,7 @@ drive: Room 'Front Drive'
 
 
 /*
- *   LOCKABLE WITH KEY, DOOR
+ *   A DOOR THAT CAN BE LOCKED WITH A KEY
  *
  *   A door is an obvious thing to lock and unlock with a key, and here we 
  *   provide a simple example. The description provides a hint for a 
@@ -414,7 +412,7 @@ hall: Room 'Hall'
         travelDesc = "<<one of>>You find that that <<or>>That <<stopping>> way
             leads to the kitchen, but you don't need to eat just at the
             moment. " 
-        travelBarrier = [alarmBarrier]
+        travelBarriers = [alarmBarrier]
         destination = hall
     }
     up = hallStairs
@@ -424,7 +422,7 @@ hall: Room 'Hall'
 
 
 /*  
- *   LOCKABLE WITH KEY, DOOR 
+ *   DOOR LOCKABLE WITH KEY, DOOR 
  *
  *   This is the other side of the outside of the front door, defined above; 
  *   and the definition is much the same.
@@ -636,7 +634,7 @@ hall: Room 'Hall'
 /*  
  *   SPRING LEVER
  *
- *   As SpringLever is a lever that returns to its original position when it 
+ *   As Spring Lever is a lever that returns to its original position when it 
  *   is released, making it functionally equivalent to a Button. This 
  *   somewhat contrived example of a Spring Lever drops the alarm box key 
  *   onto the floor when it is first pulled. It hardly matters if the player 

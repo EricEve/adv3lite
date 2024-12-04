@@ -202,10 +202,7 @@ startroom: Room, ShuffledEventList 'Deep in the Forest'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'       
 ;
 
 
@@ -1178,7 +1175,7 @@ VerbRule(Swim)
     : VerbProduction
     action = Swim
     verbPhrase = 'swim/swimming (what) '
-    missinqQ = 'what do you want to swim'
+    missingQ = 'what do you want to swim'
 ;
 
 /*  Put appropriate action handling on Thing for our new actions. */

@@ -179,11 +179,8 @@ squareNW: SquareRoom 'Main Square (NW)'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'  
-    "You're a young police officer. "
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player'you'  
+    "You're a young police officer. "    
 ;
 
 
@@ -353,6 +350,12 @@ squareSE: SquareRoom 'Main Square (SE)'
     }
     uselessToAttackMsg = 'You\'ll be dismissed from the force and lose your
         pension if you start attacking old ladies. '
+    
+    /* 
+     *   Override the normal handling of greeting an Actot to have this old lady ignore the player
+     *   character.
+     */
+    sayHello = "The old lady remains profoundly asleep. "
 ;
 
 /*   
@@ -874,7 +877,8 @@ parkN: Room 'Park (North)' 'north end of the park'
 ;
 
 + Fixture 'elm tree; tall' 
-    "It's really quite tall. "
+    "The elm tree is really quite tall. Its lowest branch is a bit too high for you to reach
+    unaided. "
     sightSize = large
 ;
 
@@ -886,8 +890,9 @@ parkN: Room 'Park (North)' 'north end of the park'
  *   the ladder, so we can put it out of reach using the checkReach() method of
  *   the branch, which also restricts access to the contents of the branch.
  */
-++ Surface, Fixture 'branch' 
-    "It's about half way up the tree. "
++ Fixture, Surface 'branch; lowest' 
+    "It's about half way up the tree. " 
+    
     
     /*  
      *   The PC can only reach this branch if s/he's standing on the 
@@ -923,7 +928,7 @@ parkN: Room 'Park (North)' 'north end of the park'
  *   The trumpet is the second instrument in the game. Once again we'll use 
  *   our custom Instrument class (defined below).
  */
-+++ trumpet: Instrument 'trumpet; brass; object instrument' 
+++ trumpet: Instrument 'trumpet; brass; object instrument' 
     "<<if moved>>Despite its sojourn up an elm tree, it looks in perfectly good
     working order. <<else>> It's a strange place for a trumpet, perhaps someone
     left it there for a prank, or perhaps someone felt a strange urge to play

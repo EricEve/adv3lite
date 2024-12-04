@@ -95,10 +95,7 @@ startRoom: Room 'Outside Cave'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'   
 ;
 
 /*
@@ -327,7 +324,7 @@ deadEnd: DarkRoom 'Dead End'
         preCond = [objHeld]        
     }
     
-    
+    /* We use the fluidName property to name the fluid contained by or poured from the can.*/
     fluidName = 'oil'
     isPourable = true
 ;
@@ -442,10 +439,10 @@ squareCave: DarkRoom 'Square Cave'
 ;
 
 /*  
- *   THING STATES
+ *   STATES
  *
  *   The library defines lightSourceStateOn and lightSourceStateOff as the 
- *   ThingStates for a LightSource. Here we provide customized versions to 
+ *   States for a LightSource. Here we provide customized versions to 
  *   cater for the extra vocabulary (glowing, dim, dull) associated with the 
  *   two states/
  */
@@ -501,9 +498,10 @@ caveRegion: Region
 /*  
  *   FUELED LIGHT SOURCE
  *
- *   The adv3Lite library doesn't define a FueledLightSource class (to represent
- *   a light source with a limited life), but again, there's nothing to stop us
- *   defining our own, as here:
+ *   The adv3Lite library doesn't define a FueledLightSource class (to represent a light source with
+ *   a limited life) as standard, but again, there's nothing to stop us defining our own, as here.
+ *   Alternatively, we coulld use the FueledLightSource class provided by the Fuerled extension that
+ *   comes with adv3Lite (but is not incldued in your game unless you explicitly add it).
  */
 
 class FueledLightSource: Thing

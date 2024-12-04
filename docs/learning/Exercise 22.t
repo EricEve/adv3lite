@@ -321,7 +321,7 @@ airlock: Room 'Main Airlock'
    "The port dial indicates that air pressure beyond the port (outer) door is
    currenly 0 bar. The central dial shows that the air pressure inside the
    airlock is currently <<airlock.pressure>> bar. The starboard dial shows that
-   the air pressure beyond the starboard (inner) door, i.e. outside the ship is
+   the air pressure beyond the starboard (inner) door, i.e. inside the ship is
    currently <<storageCompartment.pressure>> bar. "
 ;
 
@@ -347,16 +347,11 @@ airlock: Room 'Main Airlock'
  *   gameMain.initialPlayerChar accordingly.
  */
 
-+ me: Thing 'you'   
-    isFixed = true       
-    person = 2  // change to 1 for a first-person game
-    contType = Carrier    
++ me: Player 'you'       
 ;
 
 /*  
  *   SIMPLE ATTACHABLE
- *
- *   SimpleAttachable is a custom class defined in the accompanying file.
  *
  *   We make the spaceSuit a SimpleAttachable so that an OxygenTank can be
  *   attached to it.
@@ -412,16 +407,16 @@ airlock: Room 'Main Airlock'
 +++ emptyTank : OxygenTank 'empty +'    
     airLevel = 4
     
-    attachedTo = spaceSuit
+    initiallyAttachedTo = spaceSuit
 ;
 
 
 /*  
  *   The helmet is another SimpleAttachable so we can attach a lamp to it 
- *   (and detach the lamp from it.
+ *   (and detach the lamp from it), or plug and unplug the lamp.
  */
 
-++ helmet: SimpleAttachable, Wearable 'helmet; standard (space)'
+++ helmet: PlugAttachable,SimpleAttachable, Wearable 'helmet; standard (space)'
     "Its a standard issue space helmet. "
     
     /* The lamp is the only object that can be attached to the helmet. */
@@ -559,6 +554,7 @@ airlock: Room 'Main Airlock'
      */
     visibleInDark = true
     
+        
     /*  
      *   When the lamp is attached to the socket, it is charged up again. We 
      *   control this with a charging daemon, so that the longer it's plugged
@@ -659,7 +655,7 @@ airlock: Room 'Main Airlock'
     
     fuelLevel = 15
     
-    attachedTo = helmet
+    initiallyAttachedTo = helmet   
 ;
 
 
@@ -1140,16 +1136,16 @@ engineRoom: Room 'Engine Room'
 
 //------------------------------------------------------------------------------
 livingQuarters: Room 'Living Quarters'
-    "It was obviously this area that took the brunt of the laser blast. If that
-    wasn't immediately apparent from the gaping hole in the hull where the
-    starboard cabins should be, it's apparent from the wreckage of what was once
-    the crew lounge, although it looks as if one of the sleeping cabins to port
-    might still be usable. The storage compartment lies aft, while the way
-    foreward leads to the bridge. <<first time>>
+    "<<if lqWall.repaired>>The hole in the starboard hull has been patched up with a piece of
+    fabric, but it<<else>>It<<end>> was obviously this area that took the brunt of the laser
+    blast<<unless lqWall.repaired>>. If that wasn't immediately apparent from the gaping hole in the
+    hull where the starboard cabins should be, it's <<else>>, as is <<end>> apparent from the
+    wreckage of what was once the crew lounge, although it looks as if one of the sleeping cabins to
+    port might still be usable. The storage compartment lies aft, while the way foreward leads to
+    the bridge. <<first time>>
     
-    \bThere's no sign of any other members of the crew. They were almost
-    certainly all sucked out through the hole in the hull by the rapid
-    decompression. <<equipmentLocker.contents.forEach({o:
+    \bThere's no sign of any other members of the crew. They were almost certainly all sucked out
+    through the hole in the hull by the rapid decompression. <<equipmentLocker.contents.forEach({o:
         o.discover})>><<only>>"
     
     aft = storageCompartment
