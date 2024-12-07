@@ -108,6 +108,9 @@ modify ThoughtManager
          *   satisfied.
          */
         lst = thoughtList.subset({x: x.isActive && x.curiosityAroused && !x.curiositySatisfied});
+        
+        /* Reduce the list to topics the PlayerCharacter knows about */        
+        lst = lst.subset({x: x.matchObj == nil || valToList(x.matchObj)[1].known});                    
                 
         /* 
          *   Use the thoughtSuggestionLister to list the thourhs the player might want to ask about.
