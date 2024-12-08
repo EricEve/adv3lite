@@ -12,6 +12,8 @@
  *   This file adds support for a THINK about command
  */
 
+property thinkDesc;
+
 /* 
  *   The base clase for a thought manager object. To use this in a game create a
  *   single object of this class and locate a number of Thought objects in it
@@ -42,7 +44,7 @@ class ThoughtManager: PreinitObject, TopicDatabase
         });
     }   
     
-    /*  Handle a THINK ABOUT command. */
+    /*  Handle a THINK ABOUT command. */    
     handleTopic(top)
     {
         /* First get the best match to the topic we want to think about */
@@ -54,8 +56,10 @@ class ThoughtManager: PreinitObject, TopicDatabase
         
         /* Otherwise have our best match display its reponse. */
         else
-            match.topicResponse();
+            match.handleResponse();
     }
+    
+    
     
     /* The list of Thoughts associated with this ThoughtManager object */
     thoughtList = []
@@ -84,6 +88,12 @@ class ThoughtManager: PreinitObject, TopicDatabase
  */
 class Thought: TopicEntry
     includeInList = [&thoughtList]
+    
+    /* 
+     *   On a Thought our handleResponse() method simply calls out topicResponse() method. We
+     *   separate the two to allow DefaultThought to do something different.
+     */
+    handleResponse() { topicResponse(); } 
 ;
 
 /* 
@@ -102,11 +112,30 @@ class DefaultThought: Thought
         topicMatched = top;
         
         /* 
-         *   Since we can match anything, simply return the sum of our
-         *   matchScore and our scoreBoost.
+         *   Since we can match anything, simply return the sum of our matchScore and our
+         *   scoreBoost.
          */
         return matchScore + scoreBooster();
     }
     
     matchScore = 1
+    
+    
+    handleResponse()    
+    {
+        /* 
+         *   If the topic we matched defines a thinkDesc property, use that thinkDesc property to
+         *   preovide our response. Otherwise use our own topicResponse.
+         */
+        if(topicMatched.propDefined(&thinkDesc) && topicMatched.propType(&hinkDesc) != TypeNil)
+            topicMatched.displayAlt(&thinkDesc, &topicResponse);
+        else
+            topicResponse();
+    }
+    
+    /* 
+     *   By default, take our topicResponse from our thoughtManager's noThoughtMsg. Game code can
+     *   override to provide a different response here.
+     */
+    topicResponse() { "<<location.noThoughtMsg>>"; }
 ;

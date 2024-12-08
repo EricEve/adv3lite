@@ -16,7 +16,7 @@ property isOdor;
 property isNoise;
 property enumerateSuggestions;
 property hyperlinkSuggestions;
-
+property thinkDesc;
 
 DefineSystemAction(Quit)
    
@@ -2087,10 +2087,34 @@ ThinkAbout: TopicAction
             
             gPlayerChar.currentInterlocutor = nil;            
             
+            /* If we have thought manager object, let that handle the THINK ABOUT command. */
             if(libGlobal.thoughtManagerObj != nil)
-                libGlobal.thoughtManagerObj.handleTopic(cmd.dobj.topicList);
+                libGlobal.thoughtManagerObj.handleTopic(cmd.dobj.topicList);            
+            
+            /* Otherwise see if we can redirect it to the object's thuinkDesc property. */
             else
-                Think.execAction(cmd);
+            {
+                /* Set up a local variable to hold the list of topics matched by this command. */
+                local tList = cmd.dobj.topicList;
+                
+                /* 
+                 *   Remove all the newly created Topics from the list of topics matched by this
+                 *   commnand, provided that will leave at least one topic remaining.
+                 */
+                if(tList.length > 1 && tList.indexWhich({t: t.newlyCreated == nil}))
+                    tList = tList.subset({t: t.newlyCreated == nil});                
+                
+                /* Choose the first item from the list that remains. */
+                local top = tList[1];
+                
+                /* If that topic defines a thinkDesc property, attempt to display it. */
+                if(top.propDefined(&thinkDesc))
+                    top.displayAlt(&thinkDesc, &noThought);
+                
+                /* If all else fails, display out noThought message. */
+                else
+                    say(noThought);
+            }
         }
         finally
         {
@@ -2098,6 +2122,10 @@ ThinkAbout: TopicAction
             gPlayerChar.currentInterlocutor = interlocutor;
         }
     }
+    
+    /* Our fallback message if we can't match anything. */
+    noThought = BMsg(no thought comes to mind, 'Nothing comes to mind. ')
+    
     againRepeatsParse = nil
 ;
 
