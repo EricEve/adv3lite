@@ -732,7 +732,6 @@ DefineIAction(Sleep)
 
 
 
-
 GoIn: TravelAction
     direction = inDir
     predefinedDirection = true

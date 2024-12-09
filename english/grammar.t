@@ -2255,7 +2255,6 @@ VerbRule(InventoryWide)
 ;   
 
 
-
 VerbRule(InventoryHybrid)
     ('i' | 'inv' | 'inventory') ('hybrid' | 'split')
     : VerbProduction
