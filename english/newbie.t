@@ -544,7 +544,7 @@ pronounUsePreParser: StringPreParser
     
     pat2 = static new RexPattern('<NoCase>^(i|im|i<squote>m)<Space>+%w')
     
-    pat3 = static new RexPattern('<NoCase>^i<Space>+(wide|tall)')
+    pat3 = static new RexPattern('<NoCase>^i<Space>+(wide|tall|hybrid|split)')
 ;
 
 

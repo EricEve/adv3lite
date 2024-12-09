@@ -482,8 +482,8 @@ DefineSystemAction(Verbose)
 DefineSystemAction(InventoryTall)
     execAction(cmd)
     {
-        /* Register with libGlobal that inventory listing should now be in tall format. */
-        libGlobal.inventoryTall = true;
+        /* Register with the Inventory action that inventory listing should now be in tall format. */
+        Inventory.inventoryStyle = self;
         
         /* Display a confirmation that this change has just taken place. */
         DMsg(inventory tall, 'Inventory Listing is now set to TALL');
@@ -494,11 +494,23 @@ DefineSystemAction(InventoryTall)
 DefineSystemAction(InventoryWide)        
     execAction(cmd)
     {
-        /* Register with libGlobal that inventory listing should now be in wide format. */
-        libGlobal.inventoryTall = nil;
+        /* Register the Inventory action that inventory listing should now be in wide format. */
+        Inventory.inventoryStyle = self;
         
         /* Display a confirmation that this change has just taken place. */
         DMsg(inventory wide, 'Inventory Listing is now set to WIDE');
+    }
+;
+
+/* Set Inventory to HYBRID format */
+DefineSystemAction(InventoryHybrid)    
+    execAction(cmd)
+    {
+        /* Register with the Inventory action inventory listing should now be in wide format. */
+        Inventory.inventoryStyle = self;
+        
+        /* Display a confirmation that this change has just taken place. */
+        DMsg(inventory hybrid, 'Inventory Listing is now set to HYBRID');
     }
 ;
 
@@ -535,7 +547,7 @@ DefineIAction(Inventory)
                  *   If nothing is being carried, terminate the list with a full
                  *   stop and a paragraph break.
                  */
-                if(carriedList.length == 0)
+                if(carriedList.length == 0 || inventoryStyle == InventoryHybrid)
                     ".<.p>";
                 
                 /*  
@@ -567,7 +579,11 @@ DefineIAction(Inventory)
      *   Do we want separate lists of what's worn and what's carried?  By default we do unless we're
      *   doing a tall inventory listing
      */
-    splitListing = !libGlobal.inventoryTall
+    splitListing = (inventoryStyle != InventoryTall)
+    
+    
+    /* Our current inventtory style, wide, tall, or hybrid. */
+    inventoryStyle = InventoryWide
 ;
 
 DefineIAction(Look)

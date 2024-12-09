@@ -3970,7 +3970,10 @@ class Thing:  ReplaceRedirector, Mentionable
        *   inventory lister for the default WIDE inventory listing and the inventoryTallLister for
        *   the TALL inventory listing.
        */
-    myInventoryLister = libGlobal.inventoryTall ? inventoryTallLister : inventoryLister
+//    myInventoryLister = libGlobal.inventoryTall ? inventoryTallLister : inventoryLister
+    
+    myInventoryLister = Inventory.inventoryStyle == InventoryWide ? inventoryLister :
+    inventoryTallLister
     
     /* The lister to use when listing what this object is wearing. */
     myWornLister = wornLister

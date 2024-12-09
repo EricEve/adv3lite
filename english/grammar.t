@@ -2251,7 +2251,16 @@ VerbRule(InventoryWide)
     ('i' | 'inv' | 'inventory') 'wide'
     : VerbProduction
     action = InventoryWide
-    verbPhrase = 'take/making inventory wide'
+    verbPhrase = 'make/making inventory wide'
+;   
+
+
+
+VerbRule(InventoryHybrid)
+    ('i' | 'inv' | 'inventory') ('hybrid' | 'split')
+    : VerbProduction
+    action = InventoryHybrid
+    verbPhrase = 'make/making inventory hybrid'
 ;   
 
 
