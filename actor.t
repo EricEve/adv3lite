@@ -1165,7 +1165,7 @@ modify Actor
          *   it
          */
         if(fDaemon == nil)
-            fDaemon = new Daemon(self, &followDaemon, 1);
+            fDaemon = new Daemon(self, &followDaemon, 0); 
     }
     
     /* 
