@@ -3109,9 +3109,9 @@ modify ItemLister
     /* 
      *   Flag: do we want to show the contents of items listed in inventory (in
      *   parentheses after the name, e.g. a bag (in which is a blue ball)). By
-     *   default we do.
+     *   default we do if the actor is the player character. 
      */
-    showSubListing = true
+    showSubListing = (gActor == gPlayerChar)
 ;
 
 /*  

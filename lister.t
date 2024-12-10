@@ -145,7 +145,9 @@ class ItemLister: Lister
      *   Flag, so we want to list contents of contents when using this lister;
      *   by default we do.
      */
-    listRecursively = true
+    listRecursively = (gActor == gPlayerChar)
+    
+    
 ;
 
 
@@ -310,9 +312,9 @@ inventoryTallLister: ItemLister
     
     /* 
      *   Flag, so we want to list contents of contents when using this lister;
-     *   by default we do.
+     *   by default we do if the actor is the player character.
      */
-    listRecursively = true
+    listRecursively = (gActor == gPlayerChar)
     
     showListPrefix(lst, pl, paraCnt)  { DMsg(list tall prefix, '\n{I} {am} carrying:\n '); }
     

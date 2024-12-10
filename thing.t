@@ -10450,6 +10450,17 @@ class Actor: EndConvBlocker, AgendaManager, ActorTopicDatabase, Thing
     cannotShowToMsg = cannotTalkToMsg
     isAttackable = true
     checkAttackMsg = cannotAttackMsg    
+    
+    /* By default, show what we're carrying when we're examined. */
+    contentsListedInExamine = true
+    examineStatus()
+    {
+        inherited();
+                       
+        if(contentsListedInExamine && listableContents.length > 0)        
+            nestedActorAction(self, Inventory);      
+        
+    }
 ;
 
 
