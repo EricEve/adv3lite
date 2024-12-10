@@ -410,7 +410,7 @@ somethingPreParser: StringPreParser
         }
         return str;
     }
-    pat = static new RexPattern('<NoCase>(someone|something|anyone|anything)')
+    pat = static new RexPattern('<NoCase>%<(someone|something|anyone|anything)%>')
 
    isActive = (gPlayerChar.currentInterlocutor == nil)
 ;
@@ -915,7 +915,7 @@ seekPreParser: StringPreParser
         
         return str;
     }
-    pat = static new RexPattern('^<NoCase>(find|look for|search for|hunt for)%>')
+    pat = static new RexPattern('^<NoCase>%<(find|look for|search for|hunt for)%>')
 ;
 
 /*  
