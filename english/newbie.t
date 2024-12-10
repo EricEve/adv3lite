@@ -915,7 +915,7 @@ seekPreParser: StringPreParser
         
         return str;
     }
-    pat = static new RexPattern('^<NoCase>(find|look for|search for|hunt for)')
+    pat = static new RexPattern('^<NoCase>(find|look for|search for|hunt for)%>')
 ;
 
 /*  

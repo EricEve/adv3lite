@@ -24,7 +24,7 @@
  *   supplying modify VerbRule(LookDir).
  */
 VerbRule(LookDir)
-    ('look' | 'l') ('to' |) ('the'|) singleDir
+    ('look' | 'l') ('to' |) ('the'|) singleDir    
     : VerbProduction
     action = LookDir
     verbPhrase = 'look/looking (where)' 
