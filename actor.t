@@ -1121,7 +1121,10 @@ modify Actor
          *   the player character
          */
         if(getOutermostRoom != gPlayerChar.getOutermostRoom)
-        {
+        {                     
+            
+            local oldRoom = getOutermostRoom();
+            
             /* 
              *   If we know which TravelConnector the player character left by,
              *   try to traverse it.
@@ -1129,22 +1132,32 @@ modify Actor
             if(pcConnector != nil)                
                 pcConnector.travelVia(self);
             
+//            /* 
+//             *   Otherwise, simply travel to the player character's current room
+//             */
+//            else
+//                gPlayerChar.getOutermostRoom.travelVia(self);
+//            
+            /* If we have moved, report the fact. */
+            if(getOutermostRoom != oldRoom)
+            {
+                /*                  
+                 *   Display our message to say we're following the player character
+                 */
+                sayFollowing(oldLoc, pcConnector);
+                
+                /* 
+                 *   Carry out any additional handling we want to do on arriving in our new
+                 *   location.
+                 */
+                arrivingTurn();            
+            }
             /* 
-             *   Otherwise, simply travel to the player character's current room
+             *   Otherwise if we're no longer in the player character's location we've been unable
+             *   to follow, so we stop trying to follow.
              */
-            else
-                gPlayerChar.getOutermostRoom.travelVia(self);
-            
-            /*  
-             *   Display our message to say we're following the player character
-             */
-            sayFollowing(oldLoc, pcConnector);
-            
-            /* 
-             *   Carry out any additional handling we want to do on arriving in
-             *   our new location.
-             */
-            arrivingTurn();            
+            else if(getOutermostRoom != gRoom)
+                stopFollowing();
         }        
         
         /* 

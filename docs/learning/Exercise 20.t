@@ -2113,7 +2113,7 @@ sally: Actor 'blonde woman; petite pretty; people[pl]; her' @shop
             "<.p><q>If you want answers you <i>have</i> to go through that oak
             door,</q> {the subj sally} tells you. ";
         else
-            "<.p><q>You won't find anything down here,</q> {the sally/she} tells
+            "<.p><q>You won't find anything down here,</q> {the subj sally} tells
             you, <q>we'll have to try upstairs.</q> ";
         
         isDone = true;
