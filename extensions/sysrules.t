@@ -86,7 +86,7 @@ turnEndRules: RuleBook
 ;
 
 
-/* Execute the player character's current location's roomDaemon. [SYSRULES EXTENSION]
+/* Execute the player character's current location's roomDaemon. [SYSRULES EXTENSION] */
 + roomDaemonRule: Rule
     follow()
     {
@@ -182,7 +182,7 @@ checkIlluminationRule: AfterRule
     priority = 10000
 ;
   
-* Rule to call the afterAction notifications on all currently active scenes. [SYSRULES EXTENSION] */  
+/* Rule to call the afterAction notifications on all currently active scenes. [SYSRULES EXTENSION] */  
 notifyScenesAfterRule: AfterRule
     follow()
     {
@@ -574,7 +574,7 @@ turnStartRules: RuleBook
     contValue = nil
 ;
 
-/* Rule for use in the startTurnRules rulebook [SYSRULES EXTENSION]
+/* Rule for use in the startTurnRules rulebook [SYSRULES EXTENSION] */
 class TurnStartRule: Rule
     location = turnStartRules
 ;

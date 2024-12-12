@@ -37,7 +37,7 @@ modify Parser
     autoHelp = true    
 ;
 
-/ *[CMDHELP EXTENSION] */
+/* [CMDHELP EXTENSION] */
 DefineSystemAction(CmdMenu)
     showOptions()
     {

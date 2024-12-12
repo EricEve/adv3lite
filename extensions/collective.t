@@ -379,11 +379,11 @@ class DispensingCollective: Collective
         }
     }
     
-	[COLLECTIVE EXTENSION]
+    /*	[COLLECTIVE EXTENSION] */
     cannotTakeFromHereMsg = BMsg(cant take from dispenser, '{I} {can\'t} take {a
         dobj} from {the iobj}. ')
     
-	[COLLECTIVE EXTENSION]
+    /*	[COLLECTIVE EXTENSION] */
     dobjFor(TakeFrom)
     {
         verify()
@@ -398,7 +398,7 @@ class DispensingCollective: Collective
         action() { actionDobjTake(); }
     }
     
-	[COLLECTIVE EXTENSION]
+    /* [COLLECTIVE EXTENSION] */
     sayCannotDispense()
     {
         if(numLeft < 1)

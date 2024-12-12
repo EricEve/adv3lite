@@ -147,9 +147,10 @@ class DynamicRegion: Region
 ;
 
 /* 
- * Modifications to Region to work safely with DynamicRegion 
- * [DYNAMICREGION EXTENSION */
+ *   Modifications to Region to work safely with DynamicRegion [DYNAMICREGION EXTENSION
  */
+ 
+    
 modify Region
     /*
      *    A DynamicRegion cannot contain other regions 
