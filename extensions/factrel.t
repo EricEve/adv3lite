@@ -6,7 +6,7 @@
  *
  *   Version 1.1 22nd April 2024
  *
- *   The factrel.t extension defines and uses relations involviing Facts. It must be included after
+ *   The factrel.t extension defines and uses relations involving Facts. It must be included after
  *   tha main library and the relations.t extension.
  */
 
