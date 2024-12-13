@@ -1801,7 +1801,20 @@ modify Object
     {
         delegated cl.(prop)(args...);
     }
+    
+    /* 
+     *   Call a function by calling this method. This allows us to write code in embedded
+     *   expressions it mught otherwise be tricky to write, e.g. "<<>({: myProp = nil })>>>>".
+     */
+    cf(func) 
+    {  
+        func();
+    }
 ;
+
+
+
+
 
 /*
  *   A SingletonIterator is an implementation of the Iterator interface for
