@@ -318,6 +318,12 @@ class Distant: ProxyDest, Decoration
      */
     destination = nil
     
+    /* A Distant is too far away for any action that requires touching. */
+    checkReach(actor)
+    {
+        say(notImportantMsg);
+    }
+    
     
     /* 
      *   Going To a Distant object is unlike a normal GoTo, since if the object
