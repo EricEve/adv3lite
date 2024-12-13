@@ -1879,7 +1879,7 @@ modify Actor
             gPlayerChar.currentInterlocutor = self;
             
             /*  Look for an appropriate HelloTopic to handle the greeting. */
-            handleTopic(&miscTopics, [helloTopicObj], &noHelloResponseMsg);
+            handleTopic(&miscTopics, [expHelloTopicObj], &noHelloResponseMsg);
         }
         /* 
          *   Otherwise display a message to say that we're already talking to
@@ -4342,6 +4342,27 @@ class ImpHelloTopic: HelloTopic
     matchScore = 150
 ;
 
+/* 
+ *   An ExpHelloTopic is one that handles an explicit greeting; i.e. it is used to start a
+ *   conversation only when the player character explcitly greets an actor, but not when some other
+ *   conversational command is used before the conversation is underway.
+ */
+
+class ExpHelloTopic: HelloTopic
+    /* An ExpHelloTopic matches the expHelloTopicObj or the helloTopicObj. */
+    matchObj = [helloTopicObj, expHelloTopicObj] 
+    /* 
+     *   We give ExpHelloTopic a higher than usual matchScore so that it's used
+     *   in preference to a HelloTopic when both are present to match the
+     *   impHelloTopicObj.
+     */
+    matchScore = 150
+;
+
+expHelloTopicObj: object; 
+
+
+
 /*
  *   Actor Hello topic - this handles greetings when an NPC initiates the
  *   conversation. 
@@ -4402,6 +4423,21 @@ class ImpByeTopic: GreetingTopic
      *   (but not endConvBye).
      */
     matchObj = [endConvLeave, endConvBoredom, endConvActor]
+    
+    /* 
+     *   Give ImpByeTopic a high matchScore so that it takes precedence over
+     *   ByeTopic when both are present.
+     */
+    matchScore = 200
+;
+
+
+class ExpByeTopic: GreetingTopic    
+    /* 
+     *   The ExpByeTopic matches endConvBye only, i.e. when the player character explicitly says
+     *   goodbye to another actor.
+     */
+    matchObj = [endConvBye]
     
     /* 
      *   Give ImpByeTopic a high matchScore so that it takes precedence over
@@ -4472,7 +4508,7 @@ class ActorByeTopic: GreetingTopic
 /* a topic for both HELLO and GOODBYE */
 class HelloGoodbyeTopic: GreetingTopic    
     /* A HelloGoodbyeTopic matches every kind of hello and endConv object */
-    matchObj = [helloTopicObj, impHelloTopicObj,
+    matchObj = [helloTopicObj, impHelloTopicObj, expHelloTopicObj,
                  endConvBye, endConvBoredom, endConvLeave,
                  endConvActor]
     
