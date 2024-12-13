@@ -767,6 +767,7 @@ Enterable template inherited ->connector;
 Enterable template ->connector inherited;
 
 Unthing template 'vocab' @location? 'notHereMsg'?;
+Unthing template @unObject @location? 'notHereMsg'?;
 
 SensoryEmanation template inherited [eventList]?;
 

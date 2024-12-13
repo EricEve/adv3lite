@@ -466,6 +466,35 @@ class Unthing: Decoration
     {
         say(notHereMsg);
     }
+    
+    /* 
+     *   If this property us defined, then it should hold the object we're standing in for that
+     *   currently isn't present.
+     */
+    unObject = nil
+    
+    
+    preinitThing()
+    {
+        /* 
+         *   If we have an unObject defined but no vocab defined, set our vocab to be the vocsb of
+         *   out unObject and then initialize our vocab and name from it.
+         */
+        if(unObject && vocab == nil)
+        {
+            vocab = unObject.vocab;            
+            initVocab();
+            
+            /* Make the Unthing and the unObject facets of each other. */
+            getFacets = [unObject];
+            unObject.getFacets = valToList(unObject.getFacets) + self;
+            
+        }
+        
+        /* Carry out the inherited handling. */
+        inherited();
+        
+    }
 ;
 
 /*  
