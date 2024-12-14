@@ -495,6 +495,15 @@ class Unthing: Decoration
         inherited();
         
     }
+    
+    /* 
+     *   Since we're not here, we can't be reached. This won't matter in most game code, but
+     *   defining this method ensures we get an appropriate response to canReach(obj).
+     */
+    checkReach(obj)
+    {
+        say(notHereMsg);
+    }
 ;
 
 /*  

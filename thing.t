@@ -2744,6 +2744,12 @@ class Thing:  ReplaceRedirector, Mentionable
     /* Is obj reachable (by touch) from us? */
     canReach(obj) { return Q.canReach(self, obj); }
     
+    /* 
+     *   We define canTouch(obj) to do the same as canReach(obj) in case game code tries to call
+     *   canTouch() on analogy with canSee(), canHear() and canSmell().
+     */
+    canTouch(obj) { return canReach(obj); }
+    
     
      /* 
      *   Are we a containment "child" of the given object with the given
