@@ -504,6 +504,7 @@ enum rmcDisambig;
 
 
 #define asExit(dir) : UnlistedProxyConnector { direction = dir##Dir }
+#define asExitListed(dir) : UnlistedProxyConnector { direction = dir##Dir  isConnectorListed = true}
 
 /* ------------------------------------------------------------------------ */
 /*
