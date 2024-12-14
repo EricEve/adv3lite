@@ -10097,7 +10097,7 @@ class MultiLoc: object
          *   set the locationList to an empty list before attempting to build
          *   it.
          */
-        if(initialLocationList.length == 0)
+        if(initialLocationList == nil || initialLocationList.length == 0)
         {
             initialLocationList = locationList;
             locationList = [];               
