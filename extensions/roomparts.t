@@ -78,8 +78,8 @@ modify Room
     
     /* 
      *   The wallObjs property defines the list of walls in this Room. By
-     *   default we define use the four default walls. Particular rooms that
-     *   don't have four walls (e.g. a length of passage) or which want to use
+     *   default we use the four default walls. Particular rooms that don't
+     *   have four walls (e.g. a length of passage) or which want to use
      *   custom wall objects can override this.
      *  [DEFINED IN ROOMPARTS EXTENSION]
      */
