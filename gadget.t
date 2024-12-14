@@ -464,7 +464,7 @@ class BagOfHolding: object
        
     /* 
      *   A BagOfHolding carried by the actor allows its contents to be dropped (via an implicit
-     *   TAkeFrom) without the actor havign to perfoam an explicit take.
+     *   TakeFrom) without the actor havign to perfoam an explicit take.
      */
     canDropContents = true
     
