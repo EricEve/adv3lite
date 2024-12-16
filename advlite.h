@@ -1192,6 +1192,7 @@ string template <<mention an * >> mentionA;
 string template <<mention the * >> mentionThe;
 string template << list of * is >> listStrIs;
 string template << list of * >> makeListInStr;
+string template << the list of * >> makeTheListStr;
 string template << is list of * >> isListStr;
 string template << exclude * >> makeMentioned;
 

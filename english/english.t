@@ -3556,6 +3556,15 @@ makeListInStr(objList)
 }
 
 /* 
+ *   A version of makeListStr that uses the theName property, for use by the
+ *   <<list of *>>string template
+ */
+makeTheListStr(objList)
+{    
+    return makeListStr(objList, &theName);
+}
+
+/* 
  *   Function for use with the <<is list of *>> string template, prefixing a
  *   list with the correct form of the verb to be to match the grammatical
  *   number of the list (e.g. "There are a box and a glove here" or "There is
