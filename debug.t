@@ -203,6 +203,14 @@ DefineIAction(FiatLux)
 
 /* The EVALUATE action allows any expression to be evaluated */
 DefineLiteralAction(Evaluate)
+    
+    /* 
+     *   Do we want to use Compiler.compile rather than Compiler.eval()? By default we do since this
+     *   circumvents a bug on FrobTADS for Limux users.
+     */
+    
+    useCompile = true
+    
     exec(cmd)
     {
         try
@@ -212,7 +220,16 @@ DefineLiteralAction(Evaluate)
              *   contained in the name property of the direct object of this
              *   command (i.e. the string literal it was executed upon).
              */
-            local res = Compiler.eval(stripQuotesFrom(cmd.dobj.name));
+            local res;
+            local str = stripQuotesFrom(cmd.dobj.name);
+            
+            if(useCompile)
+            {
+                local func = Compiler.compile(str);
+                res = func();
+            }
+            else           
+               res = Compiler.eval(str);
             
             if(dataType(res) == TypeEnum)
             {
