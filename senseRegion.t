@@ -615,14 +615,15 @@ modify Thing
             obj.noteSeen();
             
             /* 
-             *   Don't list the inventory of any actors, or of any items that
-             *   don't want their contents listed, or any items we can't see in,
-             *   or of any items that don't have any contents to list.
+             *   Don't list the inventory of any actors, or of any items that don't want their
+             *   contents listed, or any items we can't see in, or of any items that don't have any
+             *   contents to list, or of any items whose contents isn't visible remotely from pov.
              */
             if(obj.contType == Carrier 
                || obj.(lister.contentsListedProp) == nil
                || obj.canSeeIn() == nil
-               || obj.contents.length == 0)
+               || obj.contents.length == 0
+               || obj.contentsVisibleFrom(pov)  == nil)
                 continue;
             
                       
@@ -1121,6 +1122,40 @@ modify Thing
            np.matches = np.matches.subset({m: m.obj != self}); 
         
     }
+    
+    /* 
+     *   Are our contents visible remotely from pov? By default we'll assume they are, but in some
+     *   case they mignt not be, for example if the remote viewing location is too far away or the
+     *   viewing angle from the remote location wouldn't allow seeing into us.
+     */
+    contentsVisibleFrom(pov) { return true; }
+    
+    /* 
+     *   Should our contents be listed in an examine command from a remote location? They should be
+     *   if we meet the inherited conditions (normally contentsListedInExamine == true) and our
+     *   contents are visible remotely from the actor's POV or the actor is in the same room as us.
+     */
+    areContentsListedInExamine()
+    {
+        return inherited && (contentsVisibleFrom(gActor) || getOutermostRoom ==
+                             gActor.getOutermostRoom);
+    }
+     
+    dobjFor(LookIn)
+    {
+        check()
+        {
+            inherited();
+            
+            /* 
+             *   The actor can't look into us from a remote location if our contents aren't visible
+             *   from their POV.
+             */
+            if(gActor.getOutermostRoom != getOutermostRoom &&
+               ! contentsVisibleFrom(gActor))
+                DMsg(cant see in from here, '{I} {can\'t} see in {the dobj} from {here}.');
+        }
+    }
 ;
 
 
@@ -1415,14 +1450,21 @@ QSenseRegion: Special
         if(!Q.inLight(b) || blockList.indexWhich({x: !x.ofKind(Room)} ) != nil)            
             return nil;
         
-        
-        /* 
+              
+               /* 
          *   A can see B if A and B are in the same room or if B is in one of
          *   the rooms in A's room's visibleRoom's list and B can be seen
          *   remotely from A's pov.
          */           
         local ar = a.getOutermostRoom(), br = b.getOutermostRoom();    
-             
+       
+        /* 
+         *   If a and b are in different rooms and b is in a container whose contents can't be seen
+         *   remotely, then a can't see be
+         */
+        if(ar != br && sightBlockingContainer(a, b))
+            return nil;
+        
         
         return b.isOrIsIn(ar) || (b.isVisibleFrom(a) &&
                              ar.visibleRooms.indexOf(br)
@@ -1432,7 +1474,23 @@ QSenseRegion: Special
         
     }
 
-
+    /* Is b in a container whose contents can't be viewed remotely from a's location? */
+    sightBlockingContainer(a, b)
+    {
+        local loc = b.location;
+        
+        while(loc && !loc.ofKind(Room))        
+        {
+            if(!loc.contentsVisibleFrom(a))
+                return loc;
+            
+            loc = loc.location;
+        }
+        
+        return nil;
+    }
+    
+    
     /*
      *   Can A hear B?  We return true if there's a clear sound path from A
      *   to B.  

@@ -1905,7 +1905,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   Then display our list of contents, unless we're a Carrier (an actor
          *   carrying our oontents) or our contentsListedInExamine is nil.
          */
-        if(contType != Carrier && contentsListedInExamine)
+        if(contType != Carrier && areContentsListedInExamine)
         {          
             /* 
              *   Start by marking our contents as not mentioned to ensure that
@@ -1929,7 +1929,11 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     mentioned = nil
     
-   
+    /* 
+     *   Simpply return the value of contentsListedInExamine. We supply this extra step to faciliate
+     *   overrrding this in senseRegion.t to allow for remotv viewing.
+     */
+    areContentsListedInExamine = contentsListedInExamine
     
     /* 
      *   Do we want this object to report whether it's open? By default we do if
