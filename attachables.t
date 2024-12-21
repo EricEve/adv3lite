@@ -194,6 +194,8 @@ class SimpleAttachable: Thing
     
     dobjFor(Detach)
     {
+        preCond = [touchObj]
+        
         verify()
         {                   
             /* We can't be detached if we're not attached to anything */
@@ -220,6 +222,8 @@ class SimpleAttachable: Thing
     
     dobjFor(DetachFrom)
     {
+        preCond = [touchObj]
+        
         verify()
         {
             /* 
@@ -308,7 +312,7 @@ class SimpleAttachable: Thing
      */    
     dobjFor(Take)
     {
-        preCond = [objDetached]
+        preCond = [touchObj, objDetached]
     }
                                 
  
@@ -739,8 +743,19 @@ class PlugAttachable: object
         report() { reportDobjAttachTo(); }        
     }
     
-    okayAttachMsg = BMsg(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
-                         gActionListStr) 
+    /* 
+     *   If we're plugging in or we want attaching to be reported as plugging in, then say that
+     *   actor plugs the dobjs into the iobj; otherwise use the inherited message, which reports
+     *   that the actor attaches the dobjs to the iobj.
+     */
+    okayAttachMsg ()
+    {
+        if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))        
+            return  BMsg(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
+                         gActionListStr) ;
+        else
+            return inherited;
+    }
     
     alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
         plugged into {1}. ', attachedTo.theName)
@@ -907,9 +922,21 @@ class PlugAttachable: object
             
         }
         
-        report() { DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); }
+        report() 
+        { 
+            if(reportAttachAsPlug || gActionIn(PlugIn, PlugInto))            
+                DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); 
+            else
+                inherited();
+        }
         
     }
+    
+    /* 
+     *   Flag, so we want ATTACH X TO Y to be reported as plugging X into Y? By default we do, but
+     *   in some cases game authors may prefer to have attaching reported as attaching.
+     */
+    reportAttachAsPlug = true
         
     /* If we're detached from something we're no longer plugged into it. */
     makeDetachedFrom(obj)
