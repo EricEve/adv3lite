@@ -2734,3 +2734,43 @@ isValidIdentifierName(str)
     /* If we reach this far, str has passed all the tests for being a valid identifier name. */
     return true;
 }
+
+
+/* 
+ *   Function to return a string to display an integer (val) as a decimal number to decimalPlaces
+ *   decimal places, e.g. decimalStr(123, 2) -> '1.23'. This provides a way of presenting integer
+ *   values, such as currency, as ones including decimal fractions. For example, we could use an
+ *   integer property (balance, say) in cents or pence but display it in dollars or pounds via
+ *   "$<<decimalStr(balance, 2)>>" or "£<<decimalStr(balance)>> (since decimalPlaced deftults to 2).
+ */
+decimalStr(val, decimalPlaces = 2)
+{
+    /* First convert val to a string. */
+    local dv = toString(val);
+    
+    /* check whether val is negative (so that dv starts with a minus sign) */
+    local negative = val < 0;
+    
+    /* 
+     *   If dv is negative, remove the leading minus sign to simplify the manipulations that follow.
+     */
+    if(negative)
+        dv = dv.substr(2);
+    
+    
+    /* 
+     *   If the dv string is shorter than the number of decimal places we want to display, allowing
+     *   for the presence of a leading mminue sign if val is negative, then prepend a leading
+     *   pre-decimal point zero plus as many zeros as we need after the decimal point.
+     */
+    if(dv.length <= decimalPlaces)        
+        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
+    
+    /* Otherwise insert a decimal point before the final decimalPlaces characters. */
+    else
+        dv = dv.substr(1, dv.length - decimalPlaces) + '.' + dv.substr(dv.length -
+            decimalPlaces + 1);
+    
+    /* Return the resulting string, prependsing a minus sign if dv was negative. */
+    return (negative ? '-' : '') + dv;       
+}
