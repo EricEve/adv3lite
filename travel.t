@@ -862,10 +862,9 @@ class Door: TravelConnector, Thing
              *   the door via an implicit action and display the result as an
              *   implicit action report.
              */
-            if(gPlayerChar.isOrIsIn(traveler))
-            {
-                if(tryImplicitAction(Open, self))
-                    "<<gAction.buildImplicitActionAnnouncement(true)>>";
+            if(gPlayerChar.isOrIsIn(traveler) &&  tryImplicitAction(Open, self))
+            {                
+                "<<gAction.buildImplicitActionAnnouncement(true)>>";
             }
             
             /*   
@@ -1369,6 +1368,17 @@ class TravelConnector: object
     getDestination(origin)
     {
         return destination;
+    }
+    
+    /* 
+     *   Our apparent destination is used by the exit lister to decide whether to colour travel in
+     *   our direction as an unvisited exit. By default we just use our real destination, but game
+     *   code may occasionally wish to override this to make it appear than a visited destination
+     *   hasn't been visited yet, for example by returning nil.
+     */         
+    getApparentDestination(origin)
+    {
+        return getDestination(origin);
     }
     
     /* 
