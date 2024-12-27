@@ -281,10 +281,24 @@ class DispensingCollective: Collective
         local objDesc = numberWanted == 1 ? obj.aName :
         spellNumber(numberWanted) + ' ' + obj.pluralNameFrom(obj.name);
         
-        DMsg(say dispensed, '{I} {take} {1} from {2}. ', objDesc, theName);
+        DMsg(say dispensed, '{I} {take} {1} from {2}. ', objDesc, dispenserName);
         
     }
     
+    /* 
+     *   The name to use when reporting that something has been dispensed (i.e. taken) from us.
+     *   Normally this will simply be our theName but this can be overridden in game code, e.g. to
+     *   'one of the apple trees' when the dispenser is the apples on the tree.
+     */
+    dispenserName = theName
+    
+    /* 
+     *   The name to use when reportingt that we can't take any more items from us. Normally this
+     *   will be our dispenser name, but particularl where the DispensingCollective represents a
+     *   plural, such as trees in an orchard, we might want to use something different, e.g. 'any of
+     *   the apple trees'.
+     */
+    exhaustedName = dispenserName
     
     /*  
      *   Game code can override this method on specific objects to carry out the
@@ -381,7 +395,7 @@ class DispensingCollective: Collective
     
     /*	[COLLECTIVE EXTENSION] */
     cannotTakeFromHereMsg = BMsg(cant take from dispenser, '{I} {can\'t} take {a
-        dobj} from {the iobj}. ')
+        dobj} from {1}. ', exhaustedName)
     
     /*	[COLLECTIVE EXTENSION] */
     dobjFor(TakeFrom)
@@ -409,7 +423,7 @@ class DispensingCollective: Collective
     
     /* The message to display when there's no more items to dispense from us. [COLLECTIVE EXTENSION]*/
     cannotDispenseMsg = BMsg(cannot dispense, '{I} {can\'t} take any more from
-        {the dobj}. ')
+        {1}. ', exhaustedName )
     
     /* 
      *   The message to display when the player has asked us for more items than
