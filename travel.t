@@ -2081,7 +2081,7 @@ northwestDir: CompassDirection
     name = BMsg(northwest, 'northwest')
     departureName = BMsg(depart northwest, 'to the northwest')
     sortingOrder = 1500
-    opposite = northeastDir
+    opposite = southeastDir
 ;
 
 southeastDir: CompassDirection
