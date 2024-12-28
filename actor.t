@@ -2318,12 +2318,18 @@ modify Actor
         appropriate. ')
        
     /* 
+     *   A messaqe to display if we want to rule out attacking this actor at the check stage. By
+     *   default we leave it as nil.
+     */
+    checkAttackMsg = nil
+    
+    /* 
      *   The message to display if attacking goes ahead but no HitTopics have
      *   been defined.
      */
     attackResponseMsg = cannotAttackMsg
     
-    dobjFor(Attack)
+    dobjFor(Attack) 
     {       
         action()
         {
@@ -2331,6 +2337,8 @@ modify Actor
         }
     
     }
+    
+    
     
     dobjFor(AttackWith) asDobjFor(Attack)
     
@@ -4653,6 +4661,65 @@ class DefaultAnyNonSayTopic: DefaultAnyTopic
     
     matchScore = 2
 ;
+
+/* 
+ *   A DefaultConvstayTopic is a specialiaed form of DefaultAnyTopic for use in a ConvNode. It
+ *   automatically adds a <.convstay> (or optionally, <.constayt>) tag to any response so the game
+ *   author doesn't need to type it. Additionally, unlike a normal DefaultAnyTopic is also matches
+ *   KISS, HIT and TOUCH commands, so that these won't result in players accidentally breaking out
+ *   of ConvNode.
+ */ 
+class DefaultConvstayTopic: DefaultAnyTopic
+    /* 
+     *   We want to match kissTopicObj, hitTopicObj & touchTopicObj in addition to everything
+     *   DefaultAnyTopic matches. Note that if our actor defines a non-nil checkAttackMsg, as it
+     *   will by default, HIT ACTOR will be ruled out at the check stage and this
+     *   DefaultConvstayTopic won't be triggered.
+     */
+    matchObj = inherited + (matchNonConv ? [kissTopicObj, hitTopicObj, touchTopicObj] : [])
+    
+    /* 
+     *   If we've matched kissTopicObj. hitTopicObj or touchTopicObj then display our
+     *   nonConvResponse, otherwiae carry out our inherited handling.
+     */
+    handleTopic()
+    {
+        if(topicMatched is in (kissTopicObj, hitTopicObj, touchTopicObj))        
+            nonConvResponse;        
+        else
+            inherited;
+        
+        /* Either way add a convstay tag to keep us in our current ConvNode */
+        say(convstayTag);
+    }
+    
+    /* 
+     *   If we've matched kiss, hit or touch we're not converstaiona. Otherwise use our inherited
+     *   handling.
+     */
+    isConversational
+    {
+        return topicMatched is in (kissTopicObj, hitTopicObj, touchTopicObj) ? nil : inherited;
+    }
+    
+    /* 
+     *   Do we want this DefaultTopic to match the non-conversational commands KISS, HIT and FEEL?.
+     *   By default we so as we probably don't want these commands to break our of the ConvNode.
+     */    
+    matchNonConv = true
+    
+    
+    /* The response we show to KISS, HIT, or FEEL. Game code can override. */
+    nonConvResponse = DMsg(non conv response, 'Best keep {my} mind on the conversation. ')
+    
+    /* 
+     *   The tag to add to the end of every response. By default this is <.convstay> but game code
+     *   could override it to <.convstayt> (or even to a <.convode...> tag if you wanted every
+     *   response to lead to a new ConvMode).
+     */
+    convstayTag = '<.convstay>'
+;
+
 
 
 /* 
