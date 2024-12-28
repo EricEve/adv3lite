@@ -873,6 +873,12 @@ Doer template 'cmd';
 Test template 'testName' [testList] @location? [testHolding]?;
 Test template 'testName' [testList] [testHolding]? @location?;
 
+/* Define some convenient abbreviations for ConvNode related objects */
+#define NEC NodeEndCheck
+#define NCT NodeContinuationTopic
+#define DCT DefaultConvstayTopic
+
+
 /* Define convenient named constants for use with ConvAgendaItem */
 #define InitiateConversationReason 1
 #define ConversationLullReason 2

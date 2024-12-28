@@ -5415,26 +5415,131 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
     convKeys = nil
     
     /*   
-     *   Decide whether the conversation can be ended for reason while the
-     *   conversation is at this node. By default we simply return true but
-     *   instances should override to return nil when the conversation should
-     *   not be permitted to end. When the method returns nil it should also
+     *   Decide whether the conversation can be ended for reason while the conversation is at this
+     *   node. By default we simply return true but instances can override to return nil when the
+     *   conversation should not be permitted to end. When the method returns nil it should also
      *   display a message saying why the conversation may not be ended.
+     *
+     *   For most games, however, it will be easier to leave this method as it is and employ one or
+     *   more of the endBlockTravel, endBlockTravel and endBlockBoredom properies to define what
+     *   happenes.
      */    
     canEndConversation(reason)
     {
+        /* 
+         *   Our response depends on the value of the reaaon parameter, which should be one of
+         *   endConvBye, encConvLeave, or endConvBoredom.
+         */
+        
+        switch(reason)
+        {
+            /* 
+             *   If reason is endConvBye, the player is trying to end the conversation by saying
+             *   BYE. If we define a sayBlockBye property call it and return the result.
+             */
+        case endConvBye:
+            if(propDefined(&sayBlockBye))
+                return block(&sayBlockBye);
+            break;
+            
+            /* 
+             *   If reason is endConvLeave, the player is trying to end the conversation by moving
+             *   to another location. If we define a sayBlockLeave property call it and return the
+             *   result.
+             */
+        case endConvLeave:
+            if(propDefined(&sayBlockLeave))
+               return block(&sayBlockLeave);
+            break;
+            
+            /* 
+             *   If reason is endConvBoredom the NPC has exhausted their patience for waiting for
+             *   the player to make a conversational response. If we define a sayBlockBoredom
+             *   property call it and return the result.
+             */
+        case endConvBoredom:
+            if(propDefined(&sayBlockBoredom))
+               return block(&sayBlockBoredom);
+            break;
+            
+            /* For anything else, return true to allow the conversation to be ended */
+        default:
+            return true;
+        }
+        
+        /*If we reach here, return true to allow the conversation to be ended. */
         return true;
     }
+    
+    /* 
+     *   We can optionally define one or more of these three properties (game code needs to define
+     *   at least one of them for this NodeEndCheck objecct to have any effect, unless we've
+     *   overridden canEndConversation to handle in in some other way.
+     *
+     *   Any of these three properties can be defined as one of:
+     *.   A single-quoted string, in which the string is displayed and the method returns nil to
+     *   block ending the conversation without treating what has just been displayed as a
+     *   conversational response.
+     *
+     *.   A double-quoted string, in which case the string is displayed and we return blockEndConv
+     *   so that the response is treated as conversational.
+     *
+     *.   A method, in which case the method is executed and its return value (which should be one
+     *   of nil, true, or blockEndConv) is returned to our caller.
+     *
+     *.   An event list, in which case its doScript method is called and we return blockEndConv to
+     *   treat it as as conversational response.
+     */
+    //sayBlockTravel() {}
+    //sayBlockBye () {}
+    //sayBlockBoredMsg() {}
+    
+    /* 
+     *   The method that handles prop (a proprty pointer) according to its property type. For the
+     *   possibilities, see the immediately preceeding comment.
+     */
+    block(prop)
+    {
+        switch(propType(prop))
+        {
+        case TypeSString:
+            say(self.(prop));
+                return nil;
+        case TypeCode:
+            return self.(prop);
+        case TypeDString:
+            self.(prop);
+            return blockEndConv;
+        case TypeFuncPtr:
+            local f = self.(prop);
+            (f)();
+            return blockEndConv;
+        case TypeObject:
+            local obj = self.(prop);
+            if(obj.ofKind(Script))
+            {
+                obj.doScript();
+                return blockEndConv;
+            }
+            
+            return true;
+            
+        default:
+            return true;
+            
+        }
+    }
+    
+    
     
     /* 
      *   Do nothing here; this class only exists for the sake of its
      *   canEndConversation() method.
      */    
-    handleTopic() { }
-    
-    
-    
+    handleTopic() { }  
 ;
+
+
 
 /* 
  *   EndConvBlocker is a mix-in class whose sole function is to define the
