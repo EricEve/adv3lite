@@ -4663,9 +4663,9 @@ class DefaultAnyNonSayTopic: DefaultAnyTopic
 ;
 
 /* 
- *   A DefaultConvstayTopic is a specialiaed form of DefaultAnyTopic for use in a ConvNode. It
- *   automatically adds a <.convstay> (or optionally, <.constayt>) tag to any response so the game
- *   author doesn't need to type it. Additionally, unlike a normal DefaultAnyTopic is also matches
+ *   A DefaultConvstayTopic is a specialised form of DefaultAnyTopic for use in a ConvNode. It
+ *   automatically adds a <.convstay> (or optionally, <.convstayt>) tag to any response so the game
+ *   author doesn't need to type it. Additionally, unlike a normal DefaultAnyTopic it also matches
  *   KISS, HIT and TOUCH commands, so that these won't result in players accidentally breaking out
  *   of a ConvNode.
  */ 
