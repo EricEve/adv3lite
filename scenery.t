@@ -255,9 +255,9 @@ class Scenery: PreinitObject
 
 /* 
  *   A Scenery object we want to act like a MultiLoc, that is one that creates a series of MultiLoc
- *   Scenery object. Note that a MultiLccScenery object is *not* itself a MultiLoc, so cannot be
+ *   Scenery objects. Note that a MultiLccScenery object is *not* itself a MultiLoc, so cannot be
  *   defined as MultiLoc, Scenery. Rather it is an object that creates a set of MultiLoc Scenery
- *   objects (of the MultiScenItem class), which will take there locations from our location
+ *   objects (of the MultiScenItem class), which will take their locations from our location
  *   properties.
  *
  */
@@ -265,7 +265,7 @@ class MultiLocScenery: Scenery
     newObj() { return new MultiScenItem; }
     
     /* 
-     *   Initialze the location or set of locations each of the decorationa we are to create is to
+     *   Initialze the location or set of locations each of the decorations we are to create is to
      *   appear in.
      */
     initLocation(obj)

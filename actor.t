@@ -4667,14 +4667,12 @@ class DefaultAnyNonSayTopic: DefaultAnyTopic
  *   automatically adds a <.convstay> (or optionally, <.constayt>) tag to any response so the game
  *   author doesn't need to type it. Additionally, unlike a normal DefaultAnyTopic is also matches
  *   KISS, HIT and TOUCH commands, so that these won't result in players accidentally breaking out
- *   of ConvNode.
+ *   of a ConvNode.
  */ 
 class DefaultConvstayTopic: DefaultAnyTopic
     /* 
      *   We want to match kissTopicObj, hitTopicObj & touchTopicObj in addition to everything
-     *   DefaultAnyTopic matches. Note that if our actor defines a non-nil checkAttackMsg, as it
-     *   will by default, HIT ACTOR will be ruled out at the check stage and this
-     *   DefaultConvstayTopic won't be triggered.
+     *   DefaultAnyTopic matches. 
      */
     matchObj = inherited + (matchNonConv ? [kissTopicObj, hitTopicObj, touchTopicObj] : [])
     
