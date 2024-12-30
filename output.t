@@ -1096,8 +1096,15 @@ announceObjStyleTag: StyleTag 'announceObj'
     closeText = '</b>'
 ;
 
+singleTypographicalQuoteTag: StyleTag 'sq'
+    openText = '&lsquo;'
+    closeText = '&rsquo';
+;
 
-
+doubleTypographicalQuoteTag: StyleTag 'dq'
+    openText = '&ldquo;'
+    closeText = '&rdquo';
+;
 
 
 /* ------------------------------------------------------------------------ */
@@ -1597,7 +1604,7 @@ quoteFilter: OutputFilter, InitObject
                  *   Note whether it was an opening or a closing smart quote we
                  *   found.
                  */
-                quoteStr = quoteRes[3];
+                quoteStr = quoteRes[3].toLower();
                 
                 /* 
                  *   If it was an opening smart quote then replace it with an
@@ -1605,31 +1612,47 @@ quoteFilter: OutputFilter, InitObject
                  *   (or zero) opening quote marks this turn, otherwise replace
                  *   it with an opening single quote mark.
                  */
-                if(quoteStr.toLower() == '<q>')
-                {
+                
+                switch(quoteStr)
+                {    
+                    
+                case '<q>':
+                    
                     txt = txt.findReplace(quoteStr, quoteCount % 2 == 0 
                                           ? '&ldquo;' : '&lsquo;', ReplaceOnce);
-
+                    
                     /* Increment our counter of opening quote marks */
                     quoteCount ++;                
-                }
-                /* Otherwise it's a closing smart quote */
-                else
-                {
+                    break;
+                    /* If it's a closing smart quote */
+                case '</q>':
+                    
                     /* 
-                     *   Replace it with a closing double quote mark if we've
-                     *   had a net even number of opening quotes so far on this
-                     *   turn, otherwise replace it with a closing single quote
-                     *   mark.
+                     *   Replace it with a closing double quote mark if we've had a net even number
+                     *   of opening quotes so far on this turn, otherwise replace it with a closing
+                     *   single quote mark.
                      */
                     txt = txt.findReplace(quoteStr, quoteCount % 2 == 1 
                                           ? '&rdquo;' : '&rsquo;', ReplaceOnce);
-
+                    
                     /* Decrement our net quote count */
                     quoteCount --;                   
-                    
-                }
-            }                      
+                    break;
+                case '<sq>':
+                    txt = txt.findReplace(quoteStr, '&lsquo;', ReplaceOnce);
+                    break;
+                case '</sq>':
+                    txt = txt.findReplace(quoteStr, '&rsquo;', ReplaceOnce);
+                    break;
+                        
+                case '<dq>':
+                    txt = txt.findReplace(quoteStr, '&ldquo;', ReplaceOnce);
+                    break;
+                case '</dq>':
+                    txt = txt.findReplace(quoteStr, '&rdquo;', ReplaceOnce);
+                    break;
+                }      
+            }
                 
         } while(quoteRes);
 
@@ -1648,7 +1671,7 @@ quoteFilter: OutputFilter, InitObject
     quoteCount = 0 
     
     /* Our rex pattern to match <q> and </q> */
-    quotePat = static new RexPattern('<NoCase><langle>(q|/q)<rangle>')
+    quotePat = static new RexPattern('<NoCase><langle>(<s|d>?q|/<s|d>?q)<rangle>')
     
     
     /* In Initialize this filter */
