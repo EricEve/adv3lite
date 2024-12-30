@@ -1,0 +1,719 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Custom Banner</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> |
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt;
+Custom Banner
+<br><span class="navnp"><a class="nav" href="cmdhelp.htm"><i>Prev:</i> Command Help</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dynregion.htm"><i>Next:</i> DynamicRegion</a> &nbsp;&nbsp;&nbsp; </span> 
+</div>
+<div class="main">
+
+<h1>Custom Banner</h1>
+<h2>Overview</h2>
+
+<p>This extension implements a CustomBannerWindow class that vastly eases
+   the process of setting up banners (windows in the display) and displaying material in them.
+   e.g. to set up a graphics banner to display pictures, starting with
+   pic1.jpg at startup, but not appearing at all on an interpreter that
+   can't display JPEGs you could define:</p>
+   <p><div class="code"><pre>  
+pictureWindow: CustomBannerWindow
+    canDisplay = (systemInfo(SysInfoJpeg))
+    bannerArgs = [nil, BannerAfter,  statuslineBanner, BannerTypeText, 
+            BannerAlignTop, 10, BannerSizeAbsolute, BannerStyleBorder]
+    currentContents = '&lt;img src=&quot;pic1.jpg&quot;&gt;'
+;
+ </pre></div>
+   
+<p>Then to change the picture dislayed at a later point, call:</p>
+<div class="code"><pre>    
+   pictureWindow.updateContents('&lt;img src=&quot;pic2.jpg&quot;&gt;');
+</pre></div>   
+ <p>And everything else, including getting everything right on RESTART, UNDO and RESTORE should be taken care of.</p>
+ <p>To use this extension, simply include the customBanner.t file in your project after the adv3Lite library but before your own game files. Note that the file banner.t (which forms part of the main adv3Lite library) must also be present in your project.</p>
+ 
+ 
+<br>
+<a name='banwin'></a>
+<h2>The BannerWindow Class</h2>
+<p>To understand the workins of the CustomBannerWindow class it may first be helpful to know a little about the BannerWindow class from which it descends and to which it provides a more convenient interface. The following description of this class is heavily based of Mike Roberts's comments in the <a href='../../banner.t'>banner.t</a> file.</p>
+
+<p>A "banner" is an independent window shown within the interpreter's
+main application display frame (which might be the entire screen on a
+character-mode terminal, or could be a window in a GUI system).  The
+ game can control the creation and destruction of banner windows, and
+can control their placement and size.</p>
+   
+<p>A <b>BannerWindow</b> corresponds to an on-screen banner.  For each banner
+ window a game wants to display, the game must create an object of this class.</p>
+ 
+ <p>Note that merely creating a BannerWindow object doesn't actually
+ display a banner window.  Once a BannerWindow is created, the game
+ must call the object's <b>showBanner()</b> method to create the on-screen
+ window for the banner.</p>
+   
+ <p>BannerWindow instances are intended to be persistent (not transient).
+The banner manager keeps track of each banner window that's actually
+being displayed separately via an internal transient object; the game
+doesn't need to worry about these tracking objects, since the banner
+manager automatically handles them.</p>
+
+<a name='params'></a>
+<p>To display a Banner window we call its <b>showBanner(parent, where, other, windowType,
+    align, size, sizeUnits, styleFlags)</b> method. The game should call this method when it first
+    wants to display the banner.</p>
+
+<ul>
+<li><b>parent</b> is the parent banner; this is an existing BannerWindow
+     object.  If 'parent' is nil, then the parent is the main game
+     text window.  The new window's display space is obtained by
+     carving space out of the parent's area, according to the
+     alignment and size values specified.</li>
+     
+<li><b>where</b> and <b>other</b> give the position of the banner among the
+     children of the given parent.  'where' is one of the constants
+     <b>BannerFirst</b>, <b>BannerLast</b>, <b>BannerBefore</b>, or <b>BannerAfter</b>.  If
+     <i>where</i> is <span class='code'>BannerBefore</span> or <span class='code'>BannerAfter</span>, <i>other</i> gives the
+     BannerWindow object to be used as the reference point in the
+     parent's child list; <i>other</i> is ignored in other cases.  Note
+     that <i>other</i> must always be another child of the same parent; if
+     it's not, then we act as though <i>where</i> were given as <span class='code'>BannerLast</span>.</li>
+      
+<li><b>windowType</b> is a BannerTypeXxx constant giving the new window's type. This can be either <b>BannerTypeText</b> (for an ordinary text stream window) or <b>BannerTypeTextGrid</b> (for a text grid window)</li>
+      
+<li><b>align</b> is a BannerAlignXxx constant giving the alignment of the new window, which can be one of <b>BannerAlignTop</b>, <b>BannerAlignBottom</b>, <b>BannerAlignLeft</b> or <b>BannerAlignRight</b>.</li>
+	 
+<li><b>size</b> is an integer giving the size of the banner
+     in units specified by <b>sizeUnits</b>, which is a BannerSizeXxx
+     constant (one of <b>BannerSizePercent</b> &mdash; <i>size</i> is a percentage of available space or <b>BannerSizeAbsolute</b> &mdash; <i>size</i> is natural units of window type).  If <i>size</i> is nil, it indicates that the caller doesn't
+     care about the size, usually because the caller will be resizing
+     the banner soon anyway; the banner will initially have zero size
+     in this case if we create a new window, or will retain the
+     existing size if there's already a system window.</li>
+        
+<li><b>styleFlags</b> is a combination of BannerStyleXxx constants (),
+      combined with the bitwise OR operator, '|', giving the requested
+     display style of the new banner window. The possibilties are:
+	 <ul>
+<li>BannerStyleBorder: banner has a visible border</li>
+<li>BannerStyleVScroll: vertical scrollbar</li>
+<li>BannerStyleHScroll: horizontal scrollbar</li>
+<li>BannerStyleAutoVScroll:automatic vertical scrolling</li>
+<li>BannerStyleAutoHScroll:  automatic horizontal scrolling</li>
+<li>BannerStyleTabAlign:  &lt;TAB&gt; alignment support</li>
+<li>BannerStyleMoreMode: use MORE mode</li>
+<li>BannerStyleHStrut:  include in parent's auto width</li>
+<li>BannerStyleVStrut:  include in parent's auto height</li>
+	 </ul>
+	 </li>			   
+ </ul>
+ 
+ <p>Note that if we already have a system banner window, and the
+ existing banner window has the same characteristics as the new
+ creation parameters, we'll simply re-use the existing window
+ rather than closing and re-creating it; this reduces unnecessary
+redrawing in cases where the window isn't changing.  If the caller
+ explicitly wants to create a new window even if we already have a
+ window, the caller should simply call <b>removeBanner()</b> before
+  calling this routine.</p>
+  
+  <p>The <b>removeBanner()</b> method removes the banner's on-screen window.
+     The BannerWindow object itself remains valid, but after this
+     method returns, the BannerWindow no longer has an associated
+     display window. Note that any child banners of ours will become undisplayable
+     after we're gone.  A child banner depends upon its parent to
+     obtain display space, so once the parent is gone, its children no
+     longer have any way to obtain any display space.  Our children
+     remain valid objects even after we're closed, but they won't be
+     visible on the display.</p>
+     
+  
+  
+
+<br>
+<a name='cusbanwin'></a>
+<h2>The CustomBannerWindow Class</h2>
+<p>A CustomBannerWindow, like a BannerWindow, corrsponds to an on-screen
+   banner. The purpose of CustomBannerWindow is to eliminate most of the
+   busy-work that a game author would otherwise have to take care of in
+   displaying and manipulating banners.</p>
+   
+<p>As with BannerWinnow, merely creating a CustomBannerWindow does not
+   display the banner. However, any CustomBannerWindows in existence at
+   the start of the game will be added to the screen display, unless the
+   condition specified in their <b>shouldDisplay()</b> method prevents initialization.</p>
+   
+ <p>The one property that must be defined on each instance of a CustomBannerWindow
+   is <b>bannerArgs</b>, which takes the form:
+ <p><div class="code"><pre>  
+ bannerArgs = [parent, where, other, windowType, align, 
+          size, sizeUnits, styleFlags]
+  </pre></div>  
+ <p>where each list element has the same meaning as the <a href='#params'>corresponding argument</a> to BannerWindow.showBanner()</p>
+   
+ <p>This merely ensures that the CustomBannerWindow is added to the screen's
+ banner window layout. To have the CustomBannerWindow display some content
+ when first added to the screen layout, override its current contents property:</p>
+ <div class="code"><pre>  
+ currentContents = 'My initial contents'
+  </pre></div>  
+ <p>To change what's displayed in a CustomBannerWindow from game code, call its
+   <b>updateContents()</b> method, e.g.:</p>
+ <div class="code"><pre>  
+ pictureWindow.updateContents('&lt;img src=&quot;pics/troll.jpg&quot;&gt;');
+  </pre></div>   
+ <p>To redisplay the current contents, call the showCurrentContents() method.
+   By default a call to updateContents() or showCurrentContents() clears the
+   window before displaying the new content. To have the additional content
+   added to the existing content, change the clearBeforeUpdate property to nil.</p>
+   
+<p>You can control whether the game uses this banner at all by overriding
+   the <b>canDisplay</b> property. The main purpose of this property is to easily allow
+   a game to run on different types of interpreter. For example, if your banner is
+   meant to display pictures in the JPEG format, there's no point having it included
+  in the screen layout of an interpreter that can't display JPEGs, and attempts to
+   update its contents with a new picture should do nothing. In which case we could
+   define:</p>
+ <div class="code"><pre>    
+ canDisplay = (systemInfo(SysInfoJpeg))
+  </pre></div>   
+  
+ <p>Calls to CustomBannerWindow methods like <b>updateContents()</b> and <b>clearWindow()</b>
+   should be safe on an interpreter for which shouldDisplay returns nil, since
+   by default these will do nothing beyond updating the banner's <b>currentContents</b>
+   property. This makes it easier to write game code that is suitable for all 
+   classes of interpreter.</p>
+   
+ <p>To have a CustomBannerWindow resize to contents each time its contents are
+   displayed, set its <b>autoSize</b> property to true.   
+   
+ <p>If you do not want a CustomBannerWindow you have defined not to be dispayed
+   at game startup, set its <b>isActive</b> property to nil. Call the <b>activate()</b>
+   method to add it to the screen layout and the <b>deactivate()</b> method to remove
+   it, or any other CustomBannerWindow, from the screen display.</b>    
+   
+ <p>Obviously, it is then the game author's responsibility to ensure that no
+   other banner window that's meant to persist after pictureWindow is deactivated
+  depends on pictureWindow for its existence; i.e. that we're not deactivating
+   the parent of some other banner window(s) we want to keep or subsequently
+   activate, or the sibling of any banner window that's subsequently going to
+   defined in relation to us.</p>    
+   <br>
+   
+ <a name='example'></a>
+ <h2>Example Game</h2>
+ <p>The following example game (used to test the adv3Lite port of the CustomBannerWindow extension) should help illustrate how it can be used in practice. It isn't much of a game; all you can do is walk through a small part of Oxford from Radcliffe Square to the dining hall in Harris Manchester College, but along the way you get to see pictures of the various locations you pass and of many of the landmarks you examine. The code assumes that these pictures are located in a pics directory beneath your game directory and that they have a jpg extension, so I'm afraid you won't see much without the pictures. If you're keen to try it out you can download them from <a 
+ href='https://1drv.ms/u/c/6446a8ba704b1823/EX5Qyiahf8RLkKATaTZXvlQBkcxW8qoFKYfVYjeQUUyeeQ?e=FPl2lx'>here</a> (I should warn you that they're not particularly good photos!).</p> 
+  
+
+<div class="code"><pre>  
+#charset "us-ascii"
+
+#include &lt;tads.h&gt;
+#include "advlite.h"
+
+versionInfo: GameID
+    IFID = 'c35ea1f5-d68b-46bb-9782-c1784d5fa4aa'
+    name = 'Oxtour Lite'
+    byline = 'by Eric Eve'
+    htmlByline = 'by <a href="mailto:eric.eve@outlook.com">Eric Eve</a>'
+    version = '2'
+    authorEmail = 'Eric Eve <eric.eve@outlook.com>'
+    desc = 'An adv3Lite port of the Oxtour Game to test the customBanner extension in adv3Lite.'
+    htmlDesc = 'An adv3Lite port of the Oxtour Game to test the customBanner extension in adv3Lite.'
+    
+    showAbout() { aboutMenu.display(); }
+;
+
+
+gameMain: GameMainDef
+    <span class='comment'>/* Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    <span class='comment'>/* Display a picture of our starting location at the start of the game. */</span>
+    showIntro() { startRoom.showPic();  }  
+   
+;
+
+<span class='comment'>/* Define a template for convenient definitions of objects of our custom Picture class. */</span>
+Picture template 'picFile' 'caption';
+
+<span class='comment'>/* A custom class to display a picture of our choice. */</span>
+class Picture: object
+    <span class='comment'>/* The name of the picture file we want to display. We'll automatically append .jpg to it. */</span>  
+    picFile = ''
+    
+    <span class='comment'>/* Tha caption we want to display for this picture . */</span>
+    caption = ''
+    
+    <span class='comment'>/* Method to display this picture. */</span>
+    showPic()
+    {
+        <span class='comment'>/* Ensure that all the windows we need are active. */</span>
+        if(!picWindow.isActive)
+        {
+            centreWindow.activate(true);
+            leftWindow.activate(true);
+            picWindow.activate(true);
+            rightWindow.activate(true);           
+            captionWindow.activate(true);           
+        }
+        
+        <span class='comment'>/* 
+         *   Update the contents of our picture window to display the picture defined in our picFile
+         *   property.
+         */</span>
+        picWindow.updateContents('<body bgcolor=statusbg>
+            &lt;img src=&quot;pics/' + picFile + '.jpg&quot; &gt;');
+        
+        <span class='comment'>/* Update our caption window to display the associated caption. */</span>
+        captionWindow.updateContents('&lt;- ' + caption);  
+    }
+;
+
+
+
+<span class='comment'>/*
+ *   Banner Definitions
+ *
+ *   We start by defining a banner window to occupy the centre of the screen between the status
+ *   window and the main game window. This will act as the parent of our other custom windows.
+ */</span>
+centreWindow: CustomBannerWindow
+  bannerArgs = [nil, BannerAfter, statuslineBanner, BannerTypeText, BannerAlignTop,
+    15, BannerSizeAbsolute, BannerStyleVStrut | BannerStyleBorder ]
+
+  currentContents = '&lt;body bgcolor=statusbg&gt;'
+;
+
+
+<span class='comment'>/* 
+ *   We next define the four custom banner windows we want placed in our centre window, working from
+ *   left to right. Fist is simply a vertical border.
+ */</span>
+leftWindow: CustomBannerWindow
+   bannerArgs = [centreWindow, BannerFirst, nil, BannerTypeText, 
+      BannerAlignLeft,  1, BannerSizePercent, BannerStyleVStrut | BannerStyleBorder]
+
+  currentContents = '&lt;body bgcolor=statusbg&gt;'
+
+;
+ 
+<span class='comment'>/* 
+ *   Next is the window for displaying pictures, which we align left against the previous window and
+ *   define to take up 50% of the available space.
+ */</span>
+picWindow: CustomBannerWindow
+  bannerArgs = [centreWindow, BannerAfter,  leftWindow,  BannerTypeText, 
+     BannerAlignLeft, 50, BannerSizePercent, BannerStyleBorder]
+                 
+  autoSize = true               
+    
+;
+
+<span class='comment'>/* Then we define another separator window to align left against our picture window. */</span>
+rightWindow: CustomBannerWindow
+   bannerArgs = [centreWindow, BannerAfter, picWindow, BannerTypeText, BannerAlignLeft,
+    1, BannerSizePercent, BannerStyleVStrut | BannerStyleBorder]
+
+  currentContents = '&lt;body bgcolor=statusbg&gt;'
+
+;
+
+<span class='comment'>/* Finally we define a caption window to take up all the remaining space. */</span>
+captionWindow: CustomBannerWindow
+  bannerArgs = [centreWindow, BannerAfter, rightWindow, BannerTypeText, BannerAlignRight,
+                 100 , BannerSizePercent, BannerStyleBorder]     
+
+;
+
+<span class='comment'>/* Modify the Room class to display a picture of itself when the plyaer character enters it. */</span>
+modify Room
+    <span class='comment'>/* The Picture object associated with this room. */</span>
+    roomPic = nil
+    
+    <span class='comment'>/* Call our showPic() method when the player character enters this room. */</span>
+    travelerEntering (traveler, origin) 
+    {       
+        if(traveler == gPlayerChar)
+            showPic();          
+    }    
+    
+    <span class='comment'>/* Display our picture. */</span>
+    showPic()
+    {
+        <span class='comment'>/* If we don't have, deactivate our custom banners, which won't be needed for this room. */</span>
+        if(roomPic == nil)
+        {
+            captionWindow.deactivate();
+            picWindow.deactivate();
+            leftWindow.deactivate();
+            rightWindow.deactivate();
+            centreWindow.deactivate();
+        }     
+        else
+            <span class='comment'>/* Otherwise tell our Picture to display itself. */</span>
+            roomPic.showPic();
+    }
+;
+
+<span class='comment'>/* Modifications to Thing to have it display a picture of itself when examined. */</span>
+modify Thing
+   <span class='comment'> /* The Picture object associated with this thing. */</span>
+    pic = nil
+ 
+    <span class='comment'>/* Modify examineStatus to display our picture if we have one. */</span>
+    examineStatus()
+    {
+        inherited();
+        if(pic)
+            pic.showPic();
+    }
+;
+
+<span class='comment'>/* Modify the Look action to display a picture of our current location, if it has one. */</span>
+modify Look
+  execAction(c)
+  {
+    inherited(c);
+    
+    local loc = gActor.getOutermostRoom();
+    if(loc.roomPic)
+      loc.showPic();
+  } 
+
+;
+
+
+ <span class='comment'>/* Only use these banners on a terp that can display JPEGs */</span>
+
+modify CustomBannerWindow
+  canDisplay = (systemInfo(SysInfoJpeg))
+;
+
+<span class='comment'>/* From hereon we define Rooms and other objects as normal, defining any associated pictures. */</span>
+
+startRoom: Room 'Radcliffe Square' 
+    "From the southeast corner of Radcliffe Square you could go north between
+     the Radcliffe Camera and All Souls College. "
+    
+    <span class='comment'>/* Define our associated Picture object. */</span>
+    roomPic: Picture {
+      'rad_square' // our picture file, rad_square.jpg
+      'A view from the south-east quadrant of Radcliffe Square' // our caption
+    }
+    
+    north = catteStreet
+    west = notThatWay
+    south = notThatWay
+; 
+
+
+<span class='comment'>/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.</span>
+ */
+
++ me: Player 'you'        
+;
+
++ radcliffeCamera: Fixture 'Radcliffe Camera'
+    "This iconic round building, designed by James Gibbs, is now
+    part of the Bodleian Library, holding among other things the
+    open-shelf undergraduate collections for English Literature
+    and Theology. "
+    
+    <span class='comment'>/* Our associated Picture object. */</span>
+    pic: Picture {
+        'camera'
+        'A view of the Radcliffe Camera from the south side of
+        Radcliffe Square'
+    }
+    cannotEnterMsg = 'You don\'t have your Bod card with you. '
+;
+
++ allSouls: Fixture 'All Souls College'
+    "Founded in 1438, the All Souls traditionally takes no undergraduates. "
+    pic: Picture{
+        'all_souls'
+        'All Souls College seen from Radcliffe Square'
+    }
+    cannotEnterMsg = 'It\'s not your college, and you don\'t have time
+        to go sightseeing right now. '
+    
+;
+
+catteStreet: Room 'Catte Street' 
+    "Catte Street runs north from Radcliffe Square to the main crossroads.
+    Along the way it passes such famous landmarks as the Sheldonian Theatre
+    and the Bridge of Sighs. "
+    roomPic: Picture {
+        'catte'
+        'Looking up Catte Street, with the Bodleian Libary to the left'
+    }
+    south = startRoom
+    north = crossroads
+;
+
++ bridgeOfSighs: Fixture 'bridge of sighs[n]'
+    "Oxford's so-called &lt;q&gt;Bridge of Sighs&lt;/q&gt; joins the two halves of
+    Hertford College separated by New College Lane. &quot;
+    
+    pic: Picture {
+        'bridge'
+        'A view of Hertford College\'s &lt;q&gt;Bridge of Sighs&lt;/q&gt;, looking down
+        New College Lane from Catte Street. '
+    }
+;
+
++ sheldonian: Fixture 'Sheldonian Theatre'
+    "Designed by Sir Christopher Wren, and built in 1664-68, the Sheldonian
+    Theatre is used from a variety of purposes ranging from public concerts
+    to degree ceremonies. "
+    pic: Picture {
+        'sheldonian'
+        'A side view of the Sheldonian Theatre, as seen from Catte Street. '
+    }
+;
+
++ bod: Fixture 'Bodleian Library; old; bod'    
+    "Founded by Sir Thomas Library, the Bodleian Library is the university's central library,
+    although it is one of only several libraries managed by the university. "
+    
+    cannotEnterMsg = 'Right now you\'re more interested in feeding your stomach than your mind. '
+    
+    pic: Picture {
+        'library'
+        'The central quad of the Bodleain Library graced with the presence of an ox. '
+    }
+;
+
+crossroads: Room 'Crossroads'
+    "From here Catte Street runs south, Parks Road north, Broad Street west
+    and Holywell Street east; the last of these is your way back to College. 
+    On the corner of Holywell Street and Parks road stands the King's Arms. "
+    
+    roomPic: Picture {
+        'broad'
+        'The view back down Catte Street from the crossroads. '
+    }
+    
+    south = catteStreet
+    north = notThatWay
+    west = notThatWay
+    east = holywell
+;
+
++ ka: Fixture 'King\'s Arms'
+    "A favourite watering-hole for students from your college. "
+    
+    pic: Picture {
+        'kings_arms'
+        'The King\'s Arms as seen from the crossroads. '
+    }
+    
+    cannotEnterMsg = 'You\'d rather eat in College. '
+;
+
+holywell: Room 'Holywell Street'
+    "Holywell Street runs eastwards from the crossroads to the junction
+    with Mansfield Road. "
+    
+    west = crossroads
+    east = corner
+    
+    roomPic: Picture {
+        'holywell'
+        'The view eastwards from the west end of Holywell Street'
+    } 
+;
+
+corner: Room 'Junction of Holywell Street and Mansfield Road'
+    "At this junction Holywell Street runs on east past New College and
+    west back to the crossroads, while Mansfield Road, your way back
+    to College, runs north. "
+    
+    north = mansfield
+    west = holywell
+    east = notThatWay
+    
+    roomPic: Picture {
+        'corner'
+        'The view eastwards down Holywell Street from the junction with
+        Mansfield Road' 
+    }
+;
+
++ Fixture 'New College'
+    "The front of New College visible from Holywell Street is an imposing
+    Gothic structure designed by the Victorian architect Sir George Gilbert
+    Scott. "
+    isProper = true
+    
+    pic: Picture  {
+        'new_college'
+        'A view of the 19th century front of New College, designed by the Victorian
+        architect George Gilbert Scott'
+    }
+;
+
+mansfield: Room 'Mansfield Road' 
+    "Mansfield College runs north past Harris Manchester College, to the
+    west, and south back into Holywell Street. "
+    
+    north = notThatWay
+    south = corner
+    west = hmc
+    in asExit(west)
+    
+    roomPic: Picture {
+        'house'
+        'A house at the southern end of Mansfield Road'
+    }
+;
+
++ Enterable 'Harris Manchester College;of[prep];entrance hmc'     
+    "From the street, it's yet another Victorian Gothic building. "
+    connector = hmc
+    
+    pic: Picture {
+        'college'
+        'The Mansfield Road entrance of Harris Manchester College'
+    } 
+    
+;
+
+hmc: Room 'HMC Tate Quad' 'HMC Tate Quad'
+    "The Tate Quad is named from the donor who helped build the college library. From here, the dining
+    hall lies south and the exit from the college east. "
+    
+    south = hall
+    east = mansfield
+    north = notThatWay
+    west = notThatWay
+    
+    roomPic: Picture {
+        'hmc_quad'
+        'A view of Harris Manchester College\'s Tate Quad, showing one of 
+        the new 1990s buildings (Morrison) to the west, and the Arlosh Hall
+        to the south. '
+    }
+;
+
++ Enterable 'Arlosh Hall; dining'
+    "The main college dining hall, built shortly before the First World War,
+    and named for the Arlosh family who provided the money for it. It's also
+    the place where you'll just be in time for lunch, if only you'd hurry
+    up!. "
+    
+    pic: Picture {
+        'arlosh'
+        'The rear entrance of the Arlosh Hall'
+    }
+    connector = hall
+    
+;
+
+hall: Room 'Arlosh Hall' 
+    "Here's where you can eat. All you need to do is sit at the table where
+    several of your colleagues are already busily eating. "
+    roomPic: Picture
+    {
+        'hall'
+        'Looking down the Arlosh Hall from High Table'
+    }
+    
+    out = hmc
+    north asExit(out)
+    
+    roomBeforeAction()
+    {
+        if(gActionIs(Sit))
+        {
+            finishGameMsg('You have arrived in time for dinner. ', [finishOptionUndo]);
+        }
+        
+    }
+;
+
++ Surface, Fixture 'table'
+    "The table is set for dinner, and ready for you to sit. "
+    pic: Picture {
+        'table'
+        'The table that awaits you. '
+    }
+    
+;
+
++ Actor 'female colleague;;woman;her'
+    "It looks like she's already enjoying her food. "
+    pic: Picture {
+        'susan'
+        'A female colleague already enjoying her meal. '
+    }
+    
+;
+
+++ ActorState
+    noResponse = "It would be more seemly to sit down before engaging her in conversation. "
+    specialDesc = "A female colleague you particularly want to talk with is sitting next to a
+        vacant seat. "
+    isInitState = true
+;
+
+notThatWay: TravelConnector
+    canTravelerPass(traveler) { return nil; }
+    explainTravelBarrier(traveler)
+    {
+        
+        "You could go that way, but you're in hurry to get back to College
+        in time for dinner. ";
+    }
+;
+
+<span class='comment'>/* 
+ *   We define a minimal about menu just to demonstrate and test that we can display a menu and then
+ *   have our custom banner window layout automatically restored.
+ */</span>
+aboutMenu: MenuItem 'About';
+
++ MenuLongTopicItem 'About the Game'
+    "This is a test and demo of using the CustomBannerWindow class with adv3Lite. It's
+    not much of a game --- all you can do is walk from Radcliffe Square to the Arlosh Hall in
+    Harris Manchester College and sit down for diner, but you get to see pictures of most of the
+    locations along the way and examining the various landmarks mentioned in room descriptions
+    will also cause pictures of them to be displayed. "
+;
+
+
++ MenuLongTopicItem 'About the Pictures'
+    'For this demo I simply used photos I had to hand. Most of them were taken with a cheap digital
+    camera and the picture quality isn\'t great. The quality of the photos isn\'t a reflection of
+    how well either TADS 3 or the CustomBannerWindow extension displays pictures. '
+;
+</pre></div>
+
+
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> |
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt;
+Custom Banner
+<br><span class="navnp"><a class="nav" href="cmdhelp.htm"><i>Prev:</i> Command Help</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dynregion.htm"><i>Next:</i> DynamicRegion</a> &nbsp;&nbsp;&nbsp; </span> 
+
+</div>
+</body>
+</html>

@@ -1136,7 +1136,7 @@ enum OtherObject;
 /* some templates for defining menu items */
 MenuItem template 'title' 'heading'?;
 MenuTopicItem template 'title' 'heading'? [menuContents];
-MenuLongTopicItem template 'title' 'heading'? 'menuContents';
+MenuLongTopicItem template 'title' 'heading'? 'menuContents' | "menuContents";
 
 /* templates for hint system objects */
 Goal template ->closeWhenAchieved? 'title' 'heading'? [menuContents];

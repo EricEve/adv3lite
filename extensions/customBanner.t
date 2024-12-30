@@ -16,7 +16,7 @@
    *     pic1.jpg at startup, but not appearing at all on an interpreter that
    *     can't display JPEGs you could define:
    *
-   *     pictureWindow: CustomBanner
+   *     pictureWindow: CustomBannerWindow
    *       canDisplay = (systemInfo(SysInfoJpeg))
    *       bannerArgs = [nil, BannerAfter,  statuslineBanner, BannerTypeText, 
    *             BannerAlignTop, 10, BannerSizeAbsolute, BannerStyleBorder]
@@ -584,10 +584,10 @@ customBannerInit: InitObject, PostUndoObject
   {
      /* first ensure that all banner windows that need to exist do exist */
      
-//     forEachInstance(CustomBannerWindow, new function(win) {
-//        if(win.shouldDisplay && win.handle_ == nil)
-//          win.initBannerWindow(); 
-//     } );
+     forEachInstance(CustomBannerWindow, new function(win) {
+        if(win.shouldDisplay && win.handle_ == nil)
+          win.initBannerWindow(); 
+     } );
   
      /* then show the current contents of every active banner */
   
@@ -688,7 +688,7 @@ modify MenuItem
            
          if(ban.bannerArgs[3] != nil && ban.bannerArgs[3].handle_ == nil)
             continue; 
-             
+                      
          ban.activate(true);
          vec.removeElement(ban);
          bannerRemoved = true;      
