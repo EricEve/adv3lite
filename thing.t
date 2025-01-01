@@ -910,7 +910,7 @@ class Mentionable: LMentionable
      *   directed to this Mentionable. Note that this thinkDesc will only be used if the THINK ABOUT
      *   command is not handled by a Thought object.
      */
-    // thinkDesc = nil
+// thinkDesc = nil
 ;
 
 /* ------------------------------------------------------------------------ */

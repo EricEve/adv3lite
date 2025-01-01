@@ -188,3 +188,45 @@ modify Region
     }
 ;
 
+/* A DynamicSenseRegion is a SenseRegion that can be resized in the same way as DynamicRegion. */
+class DynamicSenseRegion: SenseRegion, DynamicRegion
+    
+    /* When we resize a SenseRegion we need to reset its sensory connections. */
+    resetFamiliarRooms()
+    {
+        /* Go through each room in our room list emptying all the lists of sensory connected rooms */
+        foreach(local rm in roomList)
+        {            
+            rm.visibleRooms = [];           
+            
+            rm.audibleRooms = [];            
+            rm.smellableRooms = [];           
+            rm.talkableRooms = [];           
+            rm.throwableRooms = [];          
+            rm.linkedRooms = [];           
+        }
+        
+        /* Then set up our sensory connections with the rooms we now contain. */
+        setFamiliarRooms();
+    }
+    
+    /* 
+     *   When we expamd a Region we need to ensure that its sensory connections are set up for the
+     *   rooms it now contains.
+     */    
+    expandRegion(rm)
+    {
+        inherited(rm);
+        resetFamiliarRooms();
+    }
+    
+    /* 
+     *   When we contract a Region we need to ensure that its sensory connections are set up for the
+     *   rooms it now contains.
+     */
+    contractRegion(rm)    
+    {
+        inherited(rm);
+        resetFamiliarRooms();
+    }
+;

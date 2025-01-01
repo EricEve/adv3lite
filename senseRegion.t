@@ -499,8 +499,34 @@ modify Room
         
         return sublist.sort(nil, {a, b: a.remoteRoomListOrder(pov) - b.remoteRoomListOrder(pov) });
     }
-     
+    
+    /* 
+     *   Our description when we're examined by an actor in a remote location. By default we just
+     *   display our description.
+     */
+    remoteDesc(pov)
+    {
+        desc;
+    }
+    
+    /* 
+     *   If we're ezamined from a remote location, display our remoteDesc rather than look around
+     *   within us.
+     */
+    dobjFor(Examine)
+    {
+        action()
+        {
+            if(gActor.isIn(self))
+                inherited();
+            else
+                remoteDesc(gActor);
+                
+        }
+    }
+          
 ;
+
     
 /* 
  *   The default Lister for listing miscellaneous objects in a remote location.
@@ -823,7 +849,7 @@ modify Thing
      *   nullifies the distinction between a medium and a large sightSize, since
      *   the remoteDesc will be used in either case.
      */
-//    remoteDesc(pov) { desc; }
+// remoteDesc(pov) { desc; }
     
     
     
@@ -834,7 +860,7 @@ modify Thing
      *   property nullifies the distinction between a medium and a large
      *   soundSize, since the remoteListenDesc will be used in either case.
      */
-//    remoteListenDesc(pov) { listenDesc; }
+// remoteListenDesc(pov) { listenDesc; }
     
     
     /*  
@@ -844,7 +870,7 @@ modify Thing
      *   nullifies the distinction between a medium and a large smellSize, since
      *   the remoteSmellDesc will be used in either case.
      */
-//    remoteSmellDesc(pov) { smellDesc; }
+// remoteSmellDesc(pov) { smellDesc; }
     
     /*   
      *   The name given to this object when it's the container for another
@@ -1156,6 +1182,8 @@ modify Thing
                 DMsg(cant see in from here, '{I} {can\'t} see in {the dobj} from {here}.');
         }
     }
+    
+    
 ;
 
 
