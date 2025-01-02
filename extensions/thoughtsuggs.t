@@ -32,20 +32,40 @@ modify Think
         /* Note our current interlocutor. */
         local interlocutor = gPlayerChar.currentInterlocutor;
         
-        try
+        try           
         {
-            /* Set the current interlocutor to nil. */
-            gPlayerChar.currentInterlocutor = nil;            
             
+            /* Set the current interlocutor to nil. */
+            gPlayerChar.currentInterlocutor = nil;       
+            
+            /* 
+             *   If we have an associated RuleBook and following it returns a non-nil value, assume
+             *   the RuleBook has dealt with the THINK command and stop there, unless it returns
+             *   true, in which case assume that we want to list suggestions as well.
+             */             
+            local ret = null;
+            
+            if(ruleBook && (ret = ruleBook.follow()) != null)
+            {
+                if(suggestAlways)
+                    "<.p>";
+                else            
+                    return;
+            }
+                                   
             /* 
              *   If a TboughtManager object has been defined in this game, call its
              *   showSuggections() method to list suggested topics to think about.
              */
             if(libGlobal.thoughtManagerObj != nil)
                 libGlobal.thoughtManagerObj.showSuggestions();
-            else
-                /* Otherwise carry out the intherited action of the THINK command. */
-                inherited(cmd);
+            
+            /* 
+             *   Otherwise show our default response if no rulebook has
+             *   handled the THINK command already.
+             */
+            else if(ret == null)                
+                sayDefaultThought();
         }
         finally
         {
@@ -53,6 +73,8 @@ modify Think
             gPlayerChar.currentInterlocutor = interlocutor;
         }       
     } 
+    
+    suggestAlways = nil
 ;
 
 /* 

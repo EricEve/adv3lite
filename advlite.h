@@ -1373,6 +1373,7 @@ enum null;
 #define nostop return (rulebook.contValue)
 
 Rule template @location? &action | [action]?;
+Rule template @location? "follow";
 
 /*----------------------------------------------------------------------------*/
 /*

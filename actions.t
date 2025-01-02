@@ -2147,8 +2147,24 @@ ThinkAbout: TopicAction
 DefineIAction(Think)
     execAction(cmd)
     {
-        DMsg(think, '{I} {think}, therefore {i} {am}. ');
+        /* 
+         *   If we have an associated RuleBook and it returns something other than nil, then assume
+         *   the RuleBook has handled the THINK command, so stop here.
+         */
+        if(ruleBook && ruleBook.follow() != null)
+            return;
+        
+        /* Otherwise, display our default response. */
+        sayDefaultThought();
     }    
+    
+    sayDefaultThought() { DMsg(think, '{I} {think}, therefore {i} {am}. '); }
+    
+    /* 
+     *   A rulebook to follow when a THINK command is issued. This required the Rules extension to
+     *   be present.
+     */
+    ruleBook = nil
 ;
 
 class ImplicitConversationAction: TopicAction
