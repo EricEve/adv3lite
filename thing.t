@@ -1470,10 +1470,10 @@ class Thing:  ReplaceRedirector, Mentionable
                 
                 /* 
                  *   If the pc's immediate container is a subcomponent (of a complex container
-                 *   object), note that its lexical parent has been mentioned.
+                 *   object), note that its parent has been mentioned.
                  */
-                if(loc.ofKind(SubComponent) && loc.lexicalParent != nil)
-                    loc.lexicalParent.mentioned = true;
+                if(loc.ofKind(SubComponent) && loc.location != nil)
+                    loc.location.mentioned = true;
             }
             
             /* 
@@ -2998,7 +2998,7 @@ class Thing:  ReplaceRedirector, Mentionable
             return true;
         
         if(location.ofKind(SubComponent) && location.contType == In &&
-           location.lexicalParent == obj)
+           location.location == obj)
             return true;
         
         return location.isInterior(obj);
@@ -9865,176 +9865,137 @@ class Key: Thing
  *   need to further specify whether a SubComponent is also a Surface,
  *   Container, Underside or RearContainer, since the library can work this out
  *   from the property on which it is defined.
+ *
+ *   A SubComponent's 'name' property, and other related properties which
+ *   control how the game refers to the object, delegate to the parent
+ *   object. Ordinarily, a SubComponent has no vocab property, making it
+ *   impossible for the player to refer to it directly and allowing interaction
+ *   only through actions that are remapped from the parent. However, the
+ *   SubComponent will use its parent's vocabulary if the parent is *not* in
+ *   scope, typically because the actor is enclosed by a non-transparent
+ *   SubComponent. If you assign vocabulary to a SubComponent through an
+ *   override, this vocabulary will be available unconditionally, and any
+ *   vocabulary it gets from an out-of-scope parent will be available in
+ *   addition to that. For example, a car might have a remapIn SubComponent
+ *   which can be referred to as 'interior' and a remapUnder SubComponent
+ *   which can be referred to as 'undercarriage'. A car presumably has a
+ *   windows and a windshield (hence isTransparent = true on the remapIn
+ *   SubComponent), so if you're inside it then you can still see the exterior,
+ *   and so 'car' will be matched to the parent object. But if you're shut
+ *   into a truck trailer and can't see out, then 'truck' will be matched to
+ *   the remapIn SubComponent.
+ *
+ *   For all purposes other than those described above, the SubComponent is a
+ *   distinct object from its parent, and does not delegate any of its
+ *   behavior. In particular, sense-related properties such as 'desc' are not
+ *   delegated. Therefore, if the SubComponent can ever have vocabulary then
+ *   you will likely want to implement some of these. Passing them through to
+ *   the parent is usually not appropriate, because, e.g., the interior or the
+ *   undercarriage of a car should probably be described differently than the
+ *   car itself.
  */
-class SubComponent: Thing
-   
+class SubComponent : Thing
     /* 
      *   A SubComponent is always fixed in place since it represents a fixed
-     *   part of its lexicalParent.
+     *   part of its parent.
      */
     isFixed = true
-    
-    /* Preinitialize a SubComponent. */
-    preinitThing()
-    {
+
+     /* Preinitialize a SubComponent. */
+    preinitThing() {
         /* 
-         *   Carry out the particular initialization of a SubComponent (see next
-         *   method); this sets up the proper relation between the SubComponent
-         *   and its lexicalParent.
+         * Normally, a SubComponent is defined as an anonymous object and
+         * we use its lexicalParent as its location. However, if its
+         * location is otherwise defined, we won't override it.
          */
-        initializeSubComponent(lexicalParent);
-        
-        /*  Note any vocab defined on this SubComponent */
-        origVocab = vocab;
-        
-        /* Carry out the inherited handling. */
+        if(location == nil)
+            location = lexicalParent;
+
         inherited;
     }
-    
-    /* 
-     *   Initialize this SubComponent. This sets up the necessary relations
-     *   between the SubCompononent and the object of which it is a part,
-     *   usually its lexicalParent (passed as the parent parameter).
-     */
-    initializeSubComponent(parent)
-    {
-        /* 
-         *   If for any reason we don't have a parent (normally, our
-         *   lexicalParent), stop here because there's nothing we can do.
-         */
-        if(parent == nil)
-            return;
-        
-        /* A SubComponent is located in its parent. */
-        location = parent;
-        
-        /* 
-         *   A SubComponent takes its name from its parent, since it's
-         *   effectively an aspect of its parent.
-         */
-        nameAs(parent);
-       
-        /* 
-         *   Determine the contType of this SubComponent from the property to
-         *   which it's attached. The contType must match the remapXX type.
-         */
-        if(parent.remapIn == self)
-            contType = In;
-        
-        if(parent.remapOn == self)
-            contType = On;
-        
-        if(parent.remapUnder == self)
-            contType = Under;
-        
-        if(parent.remapBehind == self)
-            contType = Behind;
-        
-        /* If we have a contType, set our listOrder to that of our contType. */
-        if(contType != nil)
-            listOrder = contType.listOrder;
-    }
-    
-    /* 
-     *   Take each of our name-related properties from the corresponding
-     *   properties of our lexicalParent. Language-specific modules may need to
-     *   override this method to cater for additional properties.
-     *
-     *   Note that if the lexicalParent is renamed at any point during the game,
-     *   this nameAs() method should be called on any openable SubComponent at
-     *   the same time to ensure the names stay in sync.
-     */
-    nameAs(parent)
-    {
-        name = parent.name;
-        proper = parent.proper;
-        qualified = parent.qualified;
-        person = parent.person;
-        plural = parent.plural;
-        massNoun = parent.massNoun;
-        isHim = parent.isHim;
-        isHer = parent.isHer;
-        isIt = parent.isIt;
-    }
-    
-    makeOpen(stat)
-    {
-        inherited(stat);
-        
-        /* 
-         *   If we close this item when the playerChar is inside it, the player
-         *   will need to be able to refer to it with the vocab of its
-         *   lexicalParent, since the lexicalParent will no longer be in scope
-         */
-        if(lexicalParent != nil && gPlayerChar.isIn(self))
-        {
-            if(stat)
-            {
-                /* 
-                 *   If this object is being opened, replace our vocab with the
-                 *   vocab we started out with (which will normally be none),
-                 *   since we no longer want the player to be able to refer
-                 *   directly* to us using our lexicalParent's vocab once we're
-                 *   open.
-                 */
-                replaceVocab(origVocab);
-                
-                /*   Restore our name to our lexicalParent's name. */
-                nameAs(lexicalParent);
-            }
-            else
-            {
-                /* 
-                 *   If this object is being closed, replace our vocab with that
-                 *   of our lexicalParent (which is no longer in scope once
-                 *   we're closed with the playerChar inside us) so that the PC
-                 *   can still refer to us (e.g. to open us again).
-                 */
-                addVocab(lexicalParent.vocab);               
-                
-            }
-        }
-    }
-    
-    /* 
-     *   Our original vocab. We need to store this in case makrOpen() wants to
-     *   restore it.
-     */
-    origVocab = nil
-    
-    matchNameDisambig(tokens)
-    {
-        local match = inherited(tokens);
-        
-        /* 
-         *   If we're being matched at a disambig prompt and we don't have any
-         *   vocabWords of our own, try matching us against our lexicalParent's
-         *   vocab instead, provided we have a lexicalParent.
-         *
-         *   This is necessary because SubComponents don't normally have any
-         *   vocab of their own, but a SubComponent may end up as one of the
-         *   objects that notionally matched the vocab of its lexicalParent
-         *   among which the parser now wishes the player to disambiguate. For
-         *   example, if the player types LOOK IN BOX and there's more than one
-         *   box in scope, and the red box (say) has a SubComponent defined on
-         *   its remapIn property, then since the LOOK IN action will have been
-         *   redirected to the SubComponent, the parser will list the
-         *   SubComponent as the object corresponding to "red box", but the
-         *   SubComponent doesn't have any vocab of its own for the player's
-         *   response "red" to match; when disambiguating we therefore need to
-         *   try to match against our lexicalParent's vocab.
-         */        
-        if(match == 0 && lexicalParent != nil)
-            return lexicalParent.matchNameDisambig(tokens);
-        
-        /* 
-         *   Otherwise just return our normal match
-         */        
-        return match;
-           
-    }
-;
 
+    /* 
+     * The contType of a SubComponent is deduced based on what remapFoo
+     * property it's attached to.
+     */
+    contType() {
+        if (location == nil)
+            return inherited;
+        if(location.remapIn == self)
+            return In;
+        else if(location.remapOn == self)
+            return On;
+        else if(location.remapUnder == self)
+            return Under;
+        else if(location.remapBehind == self)
+            return Behind;
+        return inherited;
+    }
+
+    /*
+     * A SubComponent's listOrder is determined by its contType.
+     */
+    listOrder() {
+        if (contType != nil)
+            return contType.listOrder;
+        return inherited;
+    }
+
+    /* Delegate 'name' and related properties to the parent object. */
+#define delegateParent(prop) prop() { \
+        if (location != nil) \
+            return location.prop; \
+        else \
+            return inherited; \
+        }
+    delegateParent(name)
+    delegateParent(proper)
+    delegateParent(qualified)
+    delegateParent(person)
+    delegateParent(plural)
+    delegateParent(massNoun)
+    delegateParent(isHim)
+    delegateParent(isHer)
+    delegateParent(isIt)
+    delegateParent(aName)
+    delegateParent(theName)
+    delegateParent(owner)
+    delegateParent(ownerNamed)
+#undef delegateParent
+
+    /* Use the parent's vocabulary if the parent is not in scope. */
+    matchName(tokens) {
+        local match = inherited(tokens);
+        if(location != nil && Q.scopeList(gActor).toList().indexOf(location) == nil)
+            match |= location.matchName(tokens);
+        return match;
+    }
+
+    /* Use the parent's disambiguation vocabulary if the parent is not in scope. */
+    matchNameDisambig(tokens) {
+        local match = inherited(tokens);
+        if(location != nil && Q.scopeList(gActor).toList().indexOf(location) == nil)
+            match |= location.matchNameDisambig(tokens);
+        return match;
+    }
+
+    /*
+     *  DEPRECATED. It used to be necessary to call this method after changing
+     *  the parent's name-related properties. Now it's a no-op.
+     */
+    nameAs(parent) {}
+
+    /*
+     * DEPRECATED. This method used to be responsible for configuring what
+     * parent object a SubComponent related to, but it never worked correctly
+     * for any object other than the SubComponent's lexicalParent. Now
+     * SubComponents use their location property for this, and if the location
+     * is initially nil then it will be changed to the lexicalParent.
+     */
+     initializeSubComponent(parent) {
+        location = parent;
+     }
+;
 
 /*  
  *   A MultiLoc is an object that can exist in several locations at once.
