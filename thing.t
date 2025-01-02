@@ -9868,22 +9868,20 @@ class Key: Thing
  *
  *   A SubComponent's 'name' property, and other related properties which
  *   control how the game refers to the object, delegate to the parent
- *   object. Ordinarily, a SubComponent has no vocab property, making it
- *   impossible for the player to refer to it directly and allowing interaction
- *   only through actions that are remapped from the parent. However, the
- *   SubComponent will use its parent's vocabulary if the parent is *not* in
- *   scope, typically because the actor is enclosed by a non-transparent
- *   SubComponent. If you assign vocabulary to a SubComponent through an
- *   override, this vocabulary will be available unconditionally, and any
- *   vocabulary it gets from an out-of-scope parent will be available in
- *   addition to that. For example, a car might have a remapIn SubComponent
- *   which can be referred to as 'interior' and a remapUnder SubComponent
- *   which can be referred to as 'undercarriage'. A car presumably has a
- *   windows and a windshield (hence isTransparent = true on the remapIn
+ *   object. SubComponents assume their parent's vocabulary, but get a
+ *   likelihood adjustment of -15 if their parent is also in scope. If you
+ *   assign its own vocabulary, vocabulary it gets from its parent will be
+ *   available in addition to that. For example, a car might have a remapIn
+ *   SubComponent which can be referred to as 'interior' and a remapUnder
+ *   SubComponent which can be referred to as 'undercarriage'. A car presumably
+ *   has a windows and a windshield (hence isTransparent = true on the remapIn
  *   SubComponent), so if you're inside it then you can still see the exterior,
- *   and so 'car' will be matched to the parent object. But if you're shut
- *   into a truck trailer and can't see out, then 'truck' will be matched to
- *   the remapIn SubComponent.
+ *   and so 'car' will be matched preferentially to the parent object. However,
+ *   an action such as 'TOUCH CAR', which is illogical for the exterior because
+ *   it can only be seen and not reached, will instead apply to the
+ *   SubComponent. On the other hand, if  you're inside a truck trailer and
+ *   can't see out, then the exterior is not even in scope and so 'truck' will
+ *   match on the SubComponent with no penalty applied.
  *
  *   For all purposes other than those described above, the SubComponent is a
  *   distinct object from its parent, and does not delegate any of its
@@ -9910,6 +9908,8 @@ class SubComponent : Thing
          */
         if(location == nil)
             location = lexicalParent;
+
+        origVocabLikelihood = vocabLikelihood;
 
         inherited;
     }
@@ -9963,18 +9963,29 @@ class SubComponent : Thing
     delegateParent(ownerNamed)
 #undef delegateParent
 
-    /* Use the parent's vocabulary if the parent is not in scope. */
+    /* Use the parent's vocabulary, but with a likelihood penalty if
+       the parent is in scope. */
     matchName(tokens) {
         local match = inherited(tokens);
-        if(location != nil && Q.scopeList(gActor).toList().indexOf(location) == nil)
+
+        if(location != nil) {
+            if(match != 0 || Q.scopeList(gActor).toList().indexOf(location) == nil) {
+                vocabLikelihood = origVocabLikelihood;
+            } else {
+                vocabLikelihood = origVocabLikelihood - 15;
+            }
             match |= location.matchName(tokens);
+        } else {
+            vocabLikelihood = origVocabLikelihood;
+        }
+
         return match;
     }
 
     /* Use the parent's disambiguation vocabulary if the parent is not in scope. */
     matchNameDisambig(tokens) {
         local match = inherited(tokens);
-        if(location != nil && Q.scopeList(gActor).toList().indexOf(location) == nil)
+        if(location != nil)
             match |= location.matchNameDisambig(tokens);
         return match;
     }
@@ -9996,6 +10007,7 @@ class SubComponent : Thing
         location = parent;
      }
 ;
+
 
 /*  
  *   A MultiLoc is an object that can exist in several locations at once.
