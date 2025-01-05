@@ -1539,7 +1539,7 @@ modify Actor
          *   we're expecting an answer to a question we've just asked). If we
          *   find one and execute it, end there.
          */
-        if(!conversedThisTurn && activeKeys.length > 0 &&
+        if(!conversedThisTurn && activeKeys.length > 0 && canTalkTo(gPlayerChar) &&             
            initiateTopic(nodeObj))
                         return;
         
