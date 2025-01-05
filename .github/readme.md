@@ -9,7 +9,7 @@ One area adv3Lite absolutely doesn't skimp on is the conversation system, which 
 
 In sum, adv3Lite is an alternative library that's easier to learn and easier to use that adv3, but doesn't compromise on the functionality most commonly needed to write interactive fiction. It exists entirely in source form (written in TADS 3, a C-like language designed for writing Interactive Fiction) for use by game authors.
 
-For more detailed information, please refer to the [Wiki](../../../wiki) assaociated with this site.
+For more detailed information, please refer to the [online documentation](https://faroutscience.com/adv3lite_docs/index.htm) the and/or [Wiki](../../../wiki) assaociated with this site.
 
 ## What is in this repository?
 This GitHub repository contains all the source files (.t, .tl and .h) files that make up the adv3Lite library along with most of the documentation files (a mix of htm and pdf files, which are located under the docs directory) which explain how to use adv3Lite. It does not yet, however, contain the _adv3 Library Reference Manual_ on account of its large size (the _adv3 Library Reference Manual_ is generated from the adveLite source files by a program called docgen, which also has a GitHub repository on this site). 
