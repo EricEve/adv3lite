@@ -3759,7 +3759,8 @@ class Thing:  ReplaceRedirector, Mentionable
 
         /* if any interior contents shine outwards, we're lit within */
         if (contents.indexWhich(
-            { c: c.locType.ofKind(IntLocType) && c.shinesOut() }) != nil)
+            { c: c.locType.ofKind(IntLocType) && !c.ofKind(Floor)
+              && c.shinesOut() }) != nil)
             return true;
 
         /* 
@@ -9997,7 +9998,7 @@ class SubComponent: Thing
     }
     
     /* 
-     *   Our original vocab. We need to store this in case makrOpen() wants to
+     *   Our original vocab. We need to store this in case makeOpen() wants to
      *   restore it.
      */
     origVocab = nil

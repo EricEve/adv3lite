@@ -272,7 +272,7 @@ QDefaults: Special
             return nil;
         
         /* we can see it if it's in light and there's a clear path to it */
-        return inLight(b)
+        return (inLight(b) || b == a.outermostVisibleParent && b.litWithin())
             && sightBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
                               
     }
