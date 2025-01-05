@@ -1015,7 +1015,13 @@ class ScopeList: object
     operator[](idx) { return vec_[idx]; }
 
     /* is the given object in scope? */
-    find(obj) { return status_[obj] != nil; }
+    find(obj)         
+    { 
+        if(status_ == nil)
+            status_ = new LookupTable(64, 128);
+        
+        return status_[obj] != nil; 
+    }
 
     /* get the subset of the objects in scope matching the given condition */
     subset(func) { return vec_.subset(func); }
