@@ -1,0 +1,1088 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 13 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Containers.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 13 - Containers and Actions (adv3Lite)</h1>
+
+<p>This is a small 'game' implementing a kitchen as an illustration of adv3Lite containers and of <a href='#actions'>implementing new actions</a></p>
+
+<p>The game presented here combines the specifications of Exercises 12 and 13 in <i>Learning TADS 3 with adv3Lite</i>. The combined specification is:</p>
+
+<p>One place where you might expect to find quite a few containers of different types in a kitchen, so try implementing one now. Your kitchen should include a work top (fixed in place, of course), on which is a cookery book hiding a note underneath, an apron hanging from a peg, a box full of cutlery lying in the corner, a cooker (with a door), you can put things in, on or behind; there’s a cake in the oven, and the instruction leaflet for the cooker has fallen down behind. On the cooker (or stove) is a pot and a saucepan with a handle. The kitchen has a table you can put things on or under, and under it is a red box containing a can opener (or tin opener). Fastened to the wall is a cabinet containing a glass jar with a number of sugar cubes in it. There’s also a soup can in it, but the full implementation of that may have to wait. On the wall is a clock with a manufacturer’s label stuck on its back. When you’ve got as far as you can, compare your version with the Containers example.</p>
+
+<p>Return to your kitchen and make the can opener able to open the can of soup. Put some soup in the can that can be poured into appropriate objects (but not elsewhere). Implement a pencil sharpener and some pencils, so that only pencils can be put in the sharpener, and the sharpener actually sharpens the pencils. Define some grammar so that it’s possible to hang an apron on the peg. Customize eating the cake.</p>
+
+<div class='code'><pre>
+versionInfo: GameID
+    IFID = '13cb0798-2be6-4082-87e1-aa077cb36bb7'
+    name = 'Exercise 13'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A sample game to illustrate the use of Containers in adv3Lite and
+        provide a possible solution to Exercises 12 and 13 in Learning TADS 3
+        with AdvLite. '
+    htmlDesc = 'A sample game to illustrate the use of Containers in adv3Lite
+        and provide a possible solution to Exercises 12 and 13 in &lt;i&gt;Learning
+        TADS 3 with AdvLite&lt;/i&gt;. '
+;
+
+<span class='comment'>/*
+ *   The &quot;gameMain&quot; object lets us set the initial player character and
+ *   control the game's startup procedure.  Every game must define this
+ *   object.  For convenience, we inherit from the library's GameMainDef
+ *   class, which defines suitable defaults for most of this object's
+ *   required methods and properties.  
+ */</span>
+gameMain: GameMainDef
+    <span class='comment'>/* the initial player character is 'me' */</span>
+    initialPlayerChar = me
+    showIntro()
+    {
+        &quot;Now your kitchen's been refurbished, you want to take a look
+        around.&lt;.p&gt; &quot;;
+    }
+;
+
+
+<span class='comment'>/* 
+ *   ROOM
+ *
+ *   Starting location - we'll use this as the player character's initial 
+ *   location.  The name of the starting location isn't important to the 
+ *   library, but note that it has to match up with the initial location for 
+ *   the player character, defined in the &quot;me&quot; object below.
+ *
+ *   Our definition defines two strings.  The first string, which must be in 
+ *   single quotes, is the &quot;name&quot; of the room; the name is displayed on the 
+ *   status line and each time the player enters the room.  The second 
+ *   string, which must be in double quotes, is the &quot;description&quot; of the 
+ *   room, which is a full description of the room.  This is displayed when 
+ *   the player types &quot;look around,&quot; when the player first enters the room, 
+ *   and any time the player enters the room when playing in VERBOSE mode.
+ *
+ */</span>
+kitchen: Room 'Kitchen'
+    &quot;Much of the space is taken up with a wooden table in the middle of the
+    kitchen. There's a cabinet on one wall, a cooker next to another, with a
+    peg placed conveniently by. A long work surface runs under the cabinet,
+    with a kitchen roll mounted on the wall just above it. The opposite wall is
+    adorned with a cheerful poster. The way out is to the north, but you're not
+    interested in the rest of the house just now. &quot;
+    
+    north() { &quot;There's no need to go wandering round the rest of
+        the house; it's the kitchen you want to investigate right now. &quot;; }    
+;
+
+<span class='comment'>/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player'you'   
+        
+    <span class='comment'>/* 
+     *   Give the player character a modest bulkCapacity so we can try out the
+     *   BagOfHolding.
+     */</span>
+    bulkCapacity = 20                                                           
+;
+
+
+//------------------------------------------------------------------------------
+
+<span class='comment'>/*  
+ *   DISTANT
+ *
+ *   We'll start with a simple Distant object. In practice the PC could 
+ *   probably reach the light bulb by standing on the kitchen table, but 
+ *   that's a complication beyond what we want to illustrate in this demo.
+ */</span>
+
++ bulb: Distant 'naked light bulb'
+    &quot;A naked light bulb hangs from the ceiling. &quot;        
+;
+
++ Distant 'ceiling'
+    desc = bulb.desc
+;
+
+<span class='comment'>/*  
+ *   DECORATION
+ *
+ *   The cheerful poster is mentioned in the room description. We implement it so the player can
+ *   examine it without the need to interact with it in any other way.
+ */</span>
+
++ Decoration 'poster; large cheerful sunny landscape poster' 
+    &quot;You put it there because it's cheerful. It depicts a sunny landscape. &quot;    
+;
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*
+ *   A SIMPLE SURFACE
+ *
+ *
+ *   About the simplest kind of container object is a simple surface. We'll 
+ *   make this one a Fixture too, since it obviously can't be moved.
+ */</span>
+
++ workTop: Surface, Fixture 'work surface; long; top counter' 
+    cannotTakeMsg = 'The builder seems to have done his job with the work
+        surface, at any rate; it\'s so firmly fixed in place that you can\'t
+        budge it by as a much as a nanometer. '
+;
+
+<span class='comment'>/*  
+ *   RESTRICTED CONTAINER
+ *
+ *   We'll first define a Container - a pencil sharpener - into which only
+ *   pencils can be put, and then only one at a time. We'll use its notifyInsert
+ *   method to enforce these conditions.
+ *
+ *   This definition of the pencilSharpener is fairly minimal, but below we
+ *   shall define a custom Pencil class which will make the sharpener work in a
+ *   fairly basic fashion.
+ */</span>
+ 
+++ pencilSharpener: Container 'small pencil sharpener; red plastic' 
+    &quot;Apart from the blade, it's made of red plastic. &quot;
+    
+    notifyInsert(obj)
+    {
+        if(!obj.ofKind(Pencil))
+        {
+            &quot;Only pencils can go in the sharpener. &quot;;
+            exit;
+        }
+        
+        if(contents.length &gt; 0)
+        {
+            &quot;The sharpener can only hold one pencil at a time. &quot;;
+            exit;
+        }
+    }
+        
+    bulkCapacity = 1
+    bulk = 2   
+;
+
+<span class='comment'>/*   
+ *   HIDDEN UNDER
+ *
+ *   We can hide things under other things by listing the concealed items in the
+ *   hiddenUnder property. example: a book under which a note has been
+ *   concealed. Note that the note will stay behind when the book is taken.
+ */</span>
+
+++ redBook: Thing 'big red book; cookery'
+    &quot;It's a cookery book. &quot;
+    
+    <span class='comment'>/* 
+     *   Giving the redfBood a readDesc is all that's needed to make it readable (i.e. to respond
+     *   appropriately to a READ BOOK command.
+     */</span>
+    readDesc = &quot;You flick through some of the pages, but none of the recipes
+        take your fancy right now. &quot;    
+    
+    hiddenUnder = [note]
+    
+    bulk = 3
+;
+
+<span class='comment'>/*  
+ *   RESTRICTED SURFACE
+ *
+ *   An example of a Surface we can only put one thing on; here a peg on which
+ *   we can hang (here just PUT) an apron, but nothing else.
+ */</span>
+
+
++ peg: Surface, Fixture 'peg;; hook'
+    notifyInsert(obj)
+    {
+        if(obj != apron)
+        {
+            &quot;{I} {can\'t} hang {the dobj} on the peg. &quot;;
+            exit;
+        }
+    }
+;
+
+<span class='comment'>/*   WEARABLE */</span>
+
+++ apron: Wearable 'striped apron; blue (and) red striped'
+    &quot;It's striped blue and red. &quot;
+    bulk = 4
+;
+
+ <span class='comment'>/*  
+ *   REAR CONTAINER
+ *
+ *   RearContainers are used less often. The point to remember is that when 
+ *   they're moved their contents doesn't move with them, so the bag and the 
+ *   sack will remain put.
+ *
+ *   Normally we'd be able to open a large brown box, but to keep this 
+ *   RearContainer simple we'll just display a message showing why we don't 
+ *   want to open it just yet.
+ */</span>
+
+
++ brownBox: Heavy, RearContainer 'large brown box; square'
+    &quot;It's about two foot square. &quot;
+    initSpecialDesc = &quot;A large brown box sits in the corner. &quot;
+    cannotOpenMsg = 'It\'s full of your china and cutlery, but you don\'t want
+        to start unpacking them yet. '
+    lookInDesc = &quot;&lt;&lt;cannotOpenMsg&gt;&gt;&quot;
+    
+    cannotPutOnMsg = 'You don\'t want to put anything on the box in case you
+        damage the china inside. '
+    bulk = 8
+    
+    <span class='comment'>/* 
+     *   This isn't really an openable container, but it looks like one so 
+     *   the player might try to put something in it. To cater for this we 
+     *   add stub iobjFor(PutIn) handling that makes it logical to put 
+     *   something in the brown box, but will fail on the attempt to open 
+     *   the brown box that will be triggered by the objOpen precondition.
+     */</span>
+    iobjFor(PutIn)
+    {
+        preCond = [objOpen]
+        verify() {}
+    }
+    
+    <span class='comment'>/* 
+     *   In practice it would probably be simpler to list the items hidden
+     *   behind the box in its hiddenBehind property, but here we're
+     *   illustrating the use of a RearContainer, so we need to manually make it
+     *   discover anything hidden behind it when we look behind it.
+     */</span>
+    dobjFor(LookBehind)
+    {
+        action()
+        {
+            foreach(local cur in contents)
+                cur.discover();
+            inherited;
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   STRETCHY CONTAINER
+ *
+ *   We make the sack start out hidden by setting its isHidden property to true;
+ *   calling discover() makes it unhidden. We make the bulk of the sack depend on
+ *   the bulk of the items it contains by defining its bulk to be a minimum
+ *   value (3) - the bulk of the sack when empty - plus the total bulk of the
+ *   items it contains.
+ */</span>
+
+
+++ sack: Container 'old brown sack'
+    bulk = (3 + getBulkWithin)
+    isHidden = true    
+;
+
+<span class='comment'>/*   
+ *   BAG OF HOLDING
+ *
+ *   To try out the BagOfHolding, take it early on, then take as many other
+ *   objects as you can. BagOfHolding is a mix-in class so we need to list it
+ *   before any Thing-derived classes in the bag's class list.
+ */</span>
+
+++ bag: BagOfHolding, Container 'old beige bag' 
+    
+    <span class='comment'>/* 
+     *   Making the bulk smaller than the bulk capacity may seem 
+     *   unrealistically Tardis-like, but if we don't do that the 
+     *   BagOfHolding can't do its job, since the whole purpose of it is to 
+     *   carry more bulk than the PC can hold in his/her hands.
+     */</span>
+    bulk = 4
+    bulkCapacity = 100
+    
+    isHidden = true
+;
+
+<span class='comment'>/* 
+ *   MULTIPLE-TYPE CONTAINER
+ *
+ *   A cooker is something you can typically put things on top of and 
+ *   inside, so it's a good candidate for illustrating Multiple Containment. 
+ *   While we're at it, we'll give it a rear as well with something 
+ *   hidden behind.
+ */</span>
+
+
++ oven: Fixture 'cooker;;oven stove' 
+    &quot;It's not quite hard against the wall. &quot;
+    
+    <span class='comment'>/* 
+     *   The remapOn property defines the sub-object we actually put things on
+     *   when we notionally put them on the oven.
+     */</span>
+    remapOn: SubComponent {}    
+    
+    <span class='comment'>/* 
+     *   The remapIn property defines the sub-object we actually put things in
+     *   when we notionally put them in the oven.
+     */</span>
+    remapIn: SubComponent { isOpenable = true bulkCapacity = 10}
+    
+    <span class='comment'>/* 
+     *   The remapBehind property defines the sub-object we actually put things
+     *   behind when we notionally put them behind the oven.
+     */</span>
+    remapBehind: SubComponent { bulkCapacity = 1 }   
+    
+    <span class='comment'>/* 
+     *   The leaflet will be moved to the remapBehind SubComponent when we look
+     *   behind the oven.
+     */</span>
+    hiddenBehind = [leaflet]
+;
+
+<span class='comment'>/*  
+ *   CONTAINER DOOR
+ *
+ *   A ContainerDoor is normally only used on a Multiple Container, as here.
+ */</span>
+
+++ ContainerDoor '(oven) door; (stove) (cooker)'
+;
+
+++ cake: Food 'chocolate cake; large round delicious brown' 
+    &quot;It's large, round and brown. &quot;
+    <span class='comment'>/* 
+     *   Note the special syntax for locating something initially in a 
+     *   remapIn object of a multiply-containing object. 
+     */</span>
+    subLocation = &amp;remapIn // or you could just write sLoc(In)
+    
+    dobjFor(Eat)
+    {
+        action()
+        {
+            &quot;You take one bite and it's delicious, so you take a whole slice;
+            then another, and another and another and another until the whole
+            cake is gone and your waistline threatens to bulge beyond acceptable
+            limits. &quot;;
+            inherited;
+        }
+    }
+    
+    tasteDesc = &quot;It tastes deliciously chocolately. &quot;
+    bulk = 3
+;
+
+++ saucepan: Container 'saucepan; stainless steel (sauce); pan' 
+    &quot;It's made of stainless steel. &quot;
+    
+    sLoc(On)
+    bulkCapacity = 3
+    bulk = 4
+    allowPourIntoMe = true
+;
+
+<span class='comment'>/*  
+ *   MULTIPLEX CONTAINER WITH LID
+ *
+ *   Rather more complicated than a simple saucepan is a pot which is open or
+ *   closed by removing or replacing its lid. In order to allow the lid to 
+ *   be put ON it while other things can be put IN it, we need to make it a 
+ *   Mutliplex Container.
+ */</span>
+
+++ pot: Thing 'large orange casserole pot; orange' 
+    &quot;It's a large orange pot with a black handle. &quot;
+    remapOn: SubComponent 
+    {
+        notifyInsert(obj)
+        {
+            if(obj != potLid)
+            {
+                &quot;The only thing you can put on the pot is its lid. &quot;;
+                exit;
+            }
+        }
+    }
+    
+    remapIn: SubComponent    
+    {
+        isOpenable = true
+        isOpen = (!potLid.isIn(lexicalParent.remapOn))
+        bulkCapacity = 5
+        
+        
+        dobjFor(Open) 
+        {
+            verify()
+            {
+                if(isOpen)
+                    illogicalNow('It\'s already open, ');
+            }
+            
+            action()
+            {                
+                doInstead(Take, potLid);                
+            }
+        }
+        
+        dobjFor(LookIn) { preCond = [objOpen] }
+    }
+    
+    bulk = 6     
+    allowPourIntoMe = true
+    subLocation = &amp;remapOn
+;
+
+
+<span class='comment'>/* THE LID */</span>
+
++++ potLid: Thing 'lid' 
+    bulk = 3
+    subLocation = &amp;remapOn
+    dobjFor(Take)
+    {
+        action()
+        {
+            if(isIn(pot.remapOn))
+                &quot;You take the lid off the pot. &quot;;
+            inherited;
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   COMPONENT
+ *
+ *   Since the pot is already a ComplexContainer, its easy to add a Component
+ *   like a handle. You couldn't do this directly on an OpenableContainer.
+ */</span>
+
++++ Component 'black handle' 
+;
+
+
+<span class='comment'>/*
+ *   A MULTIPLEX CONTAINER YOU CAN STAND ON
+ *
+ *   A table could just be a straightforward Surface, but since it's 
+ *   reasonable to put things under a table as well as on top of it, we can 
+ *   also make it a Multiplex Container to allow this. A further complication 
+ *   is that people might be able to sit, stand, or lie on a large kitchen 
+ *   table: this example shows one way of allowing that
+ *
+ *   Note that we also make the table inherit from Heavy, since it's too 
+ *   heavy to pick up or move around.
+ */</span>
+
++ table: Heavy 'table; wooden large'
+    &quot;It's a large wooden table. &quot;
+    remapOn: SubComponent, Platform { }
+    remapUnder: SubComponent {}
+;
+
+<span class='comment'>/* 
+ *   OPENABLE CONTAINER
+ *
+ *   The red box is a straightforward OpenableContainer 
+ */</span>
+
+++ redBox: OpenableContainer 'big red box'
+    sLoc(Under) // equivalent to subLocation = &amp;remapUnder
+    bulk = 10
+    bulkCapacity = 10
+;
+
+<span class='comment'>/*  We'll see how this can opener is used below. */</span>
+
++++ canOpener: Thing 'can opener; tin'
+    iobjFor(OpenWith)
+    {
+        verify() {}
+    }
+;
+
+<span class='comment'>/*  
+ *   Some pencils for the sharpener; we'll define the Pencil class below.
+ *
+ *   Note that objects can inherit vocab from their superclass. The '+' in the
+ *   vocab of these Pencils is a placeholder for the 'pencil' that they all
+ *   inherit from the Pencil class.
+ */</span>
+
++++ Pencil 'red +';
++++ Pencil 'blue +';
++++ Pencil 'green +';
++++ Pencil 'black +';
++++ Pencil 'yellow +';
+
+
+
+<span class='comment'>/* 
+ *   LOCKABLE CONTAINER
+ *
+ *   The cabinet is also a straightforward LockableContainer, but it's also 
+ *   fixed in place. Note that we don't need a key to unlock a 
+ *   LockableContainer (which makes the class almost pointless in practice.
+ */</span>
+ 
+
++ cabinet: LockableContainer, Fixture 'cabinet;; cupboard'
+    cannotTakeMsg = 'The cabinet is firmly fastened to the wall. '
+    
+    <span class='comment'>/* If we want a LockableContainer to start out locked, we have to say so. */</span>
+    isLocked = true
+;
+
+<span class='comment'>/*  TRANSPARENT OPENABLE CONTAINER */</span>
+
+++ glassJar: OpenableContainer 'glass jar' 
+    <span class='comment'>/*  
+     *   By declaring isTransparent = true, we make it possible to see what's
+     *   inside even when it's closed.
+     */</span>
+
+    isTransparent = true
+    
+    <span class='comment'>/* 
+     *   The following property prevents our putting anything but fairly small 
+     *   objects into the jar, even though it has quite a large bulkCapacity.
+     */</span>    
+    maxSingleBulk = 3
+    bulkCapacity = 10
+    allowPourIntoMe = true
+;
+
+<span class='comment'>/*  
+ *   CLASS DEFINITION
+ *
+ *   Note that since we can define the SugarCube class here without upsetting
+ *   the object containment hierarchy. Since every sugar cube will have the same
+ *   name, the sugar cubes will automatically be treated as equivalent.
+ */</span>
+
+class SugarCube: Food 'sugar cube'    
+    tasteDesc = &quot;It tastes just as sweet as you'd expect. &quot;
+;
+
+<span class='comment'>/*  
+ *   These ten SugarCubes will be in the glassJar, not the SugarCube class! Note
+ *   that when we first examine the glass jar the sugar cubes will be listed as
+ *   'ten sugar cubes' not 'a sugar cube, a sugar cube, ... and a sugar cube'.
+ *   Adv3Lite automatically groups items like this if their names are identical.
+ */</span>
+ 
+
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
++++ SugarCube;
+
+<span class='comment'>/*  
+ *   A CUSTOMISED CONTAINER
+ *
+ *   The soup can is a more complicated example of a container; it starts off
+ *   closed and can only be opened in a special way, using the can opener. 
+ *   This requires some custom coding.
+ */</span>
+
+++ soupCan: Container 'can of soup;;tin'
+    isOpen = nil    
+    
+    dobjFor(OpenWith)
+    {
+        preCond = [objHeld]
+        verify() 
+        {
+            if(isOpen)
+                illogicalNow('The can is already open. ');
+        }
+        check()
+        {
+            if(gIobj != canOpener)
+                &quot;{I} {can\'t} open the can with {the iobj}. &quot;;
+        }
+        action()
+        {            
+            makeOpen(true);
+            &quot;{I} open{s/ed} the can with {the iobj}. &quot;;
+            
+            <span class='comment'>/* 
+             *   If opening us is not being performed as an implicit action,
+             *   list the contents that are revealed as a result of our being
+             *   opened.
+             */</span>
+            if(!gAction.isImplicit)
+            {              
+                unmention(contents);
+                listSubcontentsOf(self, openingContentsLister);
+            }  
+                       
+        }
+    }
+    cannotOpenMsg = 'You\'ll need something to open it with. '
+    bulk = 3
+    bulkCapacity = 2
+    allowPourIntoMe = true
+;
+
+<span class='comment'>/*  
+ *   A SIMPLE LIQUID
+ *
+ *   The soup in the can is also an odd kind of object, since it can't 
+ *   simply be picked up, although it should be possible to transfer it from 
+ *   one container to another. 
+ */</span>
+
+
++++ soup: Food 'some tomato soup; red orange thick'
+    &quot;It looks quite thick, and its colour is somewhere between red and orange. &quot;
+   
+    dobjFor(Take)
+    {
+        verify() { illogical('It\'s liquid; you can\'t pick it up. '); }
+    }
+    
+    dobjFor(PutIn)
+    {
+        preCond = [touchObj]
+        check()
+        {
+            <span class='comment'>/* 
+             *   allowPourIntoMe is a library property we define as true on
+             *   those few containers above we're prepared to allow the soup to
+             *   be poured into.
+             */</span>
+            if(!gIobj.allowPourIntoMe)
+                &quot;It would make too much of a mess to pour the soup in there. &quot;;
+        }
+    }
+        
+    dobjFor(PutOn)
+    {
+        preCond = [touchObj]
+        check()
+        {
+            &quot;You don\'t want to make a mess. &quot;;
+        }
+    }
+    dobjFor(PutUnder) asDobjFor(PutOn)
+    dobjFor(PutBehind) asDobjFor(PutOn)
+    dobjFor(PourOnto) asDobjFor(PutOn)
+    
+    isPourable = true
+    
+    dobjFor(PourInto) 
+    {
+        action() { doInstead(PutIn, self, gIobj); }
+    }    
+    
+    bulk = 2
+    dobjFor(Drink) asDobjFor(Eat)
+    dobjFor(Eat)
+    {
+        preCond = [touchObj]
+        action()
+        {
+            &quot;It tastes okay, but it would have been better hot. &quot;;
+            inherited;
+        }
+    }
+    tasteDesc = &quot;It tastes of tomato. &quot;
+;
+
+
+<span class='comment'>/*   
+ *   DISPENSER AND DISPENSABLES
+ *
+ *   In adv3, a Dispenser is a container for a special type of item. By default its
+ *   contents can be taken but not returned. A roll of kitchen towels provides a
+ *   good example of this; you can take a towel from the roll, but you can't but
+ *   it back.
+ *
+ *   The adv3Lite library doesn't define Dispenser and Dispensable classes; here
+ *   we instead implement the equivalent by making the roll a Container you
+ *   can't put things in and which doesn't list its contents.
+ *
+ *
+ *   We'll make the roll an Immovable; it's not obvious that you couldn't tale
+ *   the whole roll, but in this case we won't allow it.
+ */</span>
+ 
+
++ roll: Immovable, Container 'kitchen roll; (towel); holder'
+    &quot;It's a&lt;&lt;contents.length == 0 ? 'n empty roll' : ' roll of paper towels'&gt;&gt;,
+    mounted on the wall. &quot;
+    
+    cannotTakeMsg = 'You can\'t detach the roll from its holder; the builder
+        must have fitted it wrong. '
+    
+    canPutInMe = nil
+    
+    contentsListed = nil
+;
+
+  <span class='comment'>/* 
+   *   Once again we can define the class between the container and its 
+   *   contents -- we don't have to define it here, but doing so does no harm.
+   */</span>
+
+class PaperTowel: Thing 'paper towel; plain paper white square (kitchen)'     
+    &quot;It's a plain, white, square paper towel. &quot;    
+    bulk = 1
+;
+
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+++ PaperTowel;
+
+
+<span class='comment'>/* 
+ *   A Fixture to represent the wall the clock starts out hanging on, and can be
+ *   returned to.
+ */</span>
++ wall: Fixture, Surface 'wall; (north) (n)'
+    notifyInsert(obj)
+    {
+        if(obj != clock)
+        {
+            &quot;You can't put that on the wall. &quot;;
+            exit;
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   RESTRICTED REAR CONTAINER
+ *
+ *   This clock has a label attached to the rear. The label will move with the
+ *   clock. We define a notifyInsert method to ensure that the label is the only
+ *   thing that can go behind the clock.
+ */</span>
+
+++ clock: RearContainer 'clock; round white' 
+   &quot;It's white and round, and shows the current time as &lt;&lt;showTime()&gt;&gt;. &quot;
+        
+    <span class='comment'>/* 
+     *   When we move the clock we want the label that's behind it to move with
+     *   it.
+     */</span>
+    dropItemsBehind = nil
+    
+    dobjFor(LookBehind)
+    {
+        preCond = [objHeld]
+    }
+
+    notifyInsert(obj)
+    {
+        if(obj != blueLabel)
+        {
+            &quot;Only the label can be put on the back of the clock. &quot;;
+            exit;
+        }
+    }
+    
+
+    initSpecialDesc = &quot;A clock hangs on the north wall. &quot;
+    useInitSpecialDesc = (isIn(wall))
+
+    objInPrep = 'on the back of'
+    
+    bulk = 3
+    
+    <span class='comment'>/* 
+     *   There's no need to worry too much about the showTime() method below;
+     *   what it does it read the system time and then report it as the 
+     *   time shown on the clock.
+     */</span>
+    
+    showTime()
+    {
+        local minute = getTime()[7];
+        local hour = getTime()[6];
+        
+        <span class='comment'>/* 
+         *   If the minute is more than 30, then we want to report the time 
+         *   as so many minutes to the hour, otherwise we'll report it as so 
+         *   many minutes past the hour.
+         */</span>
+        local prep = minute &gt; 30 ? 'to' : 'past';
+        
+        <span class='comment'>/*   
+         *   If the minute it more than 30, subtract it from 60 to get the 
+         *   number of minutes to the next hour.
+         */</span>
+        minute = minute &gt; 30 ? 60 - minute : minute;
+        
+        <span class='comment'>/*   
+         *   If we're reporting so many minutes to the hour, we need to add 
+         *   one to the hour ( 10:35 is 25 minutes to 11). 
+         */</span>
+        hour = prep == 'to' ? hour + 1 : hour;
+        
+        <span class='comment'>/*   
+         *   If the hour is more than 12, deduct 12 so it's on a 12 hour 
+         *   rather than 24 hour clock.
+         */</span>
+        hour = hour &gt; 12 ? hour - 12 : hour;
+        
+        <span class='comment'>/*   Finally spell the time out in words, not numbers. */</span>
+        
+        if(minute == 0)
+            &quot;&lt;&lt;spellNumber(hour)&gt;&gt; o'clock&quot;;
+        else
+            &quot;&lt;&lt;spellNumber(minute)&gt;&gt; minute&lt;&lt;minute &gt; 1 ? 's' :''&gt;&gt; &lt;&lt;prep&gt;&gt;
+            &lt;&lt;spellNumber(hour)&gt;&gt;&quot;;
+    }
+;
+
+<span class='comment'>/*  
+ *   The label starts hidden, since we obviously can't see it while the 
+ *   clock is hanging on the wall.
+ */</span>
+
++++ blueLabel: Thing 'blue label' 
+    &quot;It says &lt;q&gt;Made in adv3Lite&lt;/q&gt;. &quot;   
+    isHidden = clock.useInitSpecialDesc
+;
+
+
+   
+<span class='comment'>/* 
+ *   Make PUT SOMETHING ON CLOCK or ATTACH SOMETHING TO CLOCK behave like PUT
+ *   SOMETHING BEHIND CLOCK by defining a DOER
+ */</span>
+Doer 'put Thing on clock; attach Thing to clock'
+    execAction(c)
+    {
+        doInstead(PutBehind, gDobj, clock);
+    }
+;
+
+
+
+//------------------------------------------------------------------------------
+
+<span class='comment'>/* The note that's hidden under the cookery book. */</span>
+
+note: Thing 'piece of yellow paper;; note'
+    &quot;Someone's scribbled a note on it. &quot;
+    readDesc = &quot;It reads: &lt;q&gt;I just realized there was a slight error in my
+        original estimate for fitting this kitchen. Nothing to worry about --
+        just add another couple of noughts to the figure I quoted.\b
+        Buck Grubber (builder)&lt;/q&gt;&quot;
+    
+    bulk = 1
+;
+
+<span class='comment'>/* The leaflet that's hidden behind the oven */</span>
+leaflet: Thing 'leaflet; (cooker) instruction'
+    &quot;It looks like the instruction leaflet for the cooker. &lt;&lt;first time&gt;&gt; It
+    must have fallen down behind.&lt;&lt;only&gt;&gt; &quot;
+    
+    readDesc = &quot;You can't make head nor tail of the instructions. It looks like
+        they've been translated from Chinese with the aid of a
+        Portugese-Swahili phrasebook by someone whose first language was
+        Sanskrit. &quot;
+    dobjFor(Read) { preCond = [objVisible, objHeld] }
+    bulk = 1
+;
+
+
+
+<span class='comment'>/*
+ *   Another example of a DOER: If the player tries to turn the sharpener when
+ *   there's a pencil in it, turn the pencil instead.
+ *
+ *   The property matched in the template, the single-quoted string, is the cmd
+ *   property. This defines the command this Doer will respond to when its when
+ *   condition is true. We construct this string using the name of the command
+ *   as it would be typed by the player ('turn') followed by the *programmatic*
+ *   name of the item (or class) the command applies to ('pencilSharpener').
+ */</span>
+Doer 'turn pencilSharpener'
+    execAction(c)
+    {
+        doInstead(Turn, pencilSharpener.contents[1]);
+    }
+    when = pencilSharpener.contents.length &gt; 0
+;
+
+//==============================================================================
+<span class='comment'>/* The PENCIL class */</span>
+
+class Pencil: Thing 'pencil'
+    &quot;It's &lt;&lt;if isSharpened&gt;&gt; quite sharp&lt;&lt;else&gt;&gt; rather blunt&lt;&lt;end&gt;&gt;. &quot;
+    dobjFor(Turn)
+    {
+        verify() 
+        {
+            <span class='comment'>/* 
+             *   It's most useful to turn a pencil when it's in the 
+             *   sharpener, so we'll boost the logical rank of such a pencil.
+             */</span>
+            
+            if(isIn(pencilSharpener))
+                logicalRank(120);
+        }
+        action()
+        {
+            if(isIn(pencilSharpener))
+            {
+                &quot;You turn the &lt;&lt;theName&gt;&gt; a few times, sharpening it nicely. &quot;;
+                isSharpened = true;
+            }
+            else
+                &quot;You twiddle &lt;&lt;theName&gt;&gt; around, but it doesn't do much. &quot;;
+        }
+    }
+    
+    
+    isSharpened = nil
+    
+    <span class='comment'>/* 
+     *   Assigning a ListOrder to the Pencil class will ensure that Pencils 
+     *   are listed together in a sensible way in room descriptions, 
+     *   inventory listings and the like.
+     */</span>
+    
+    listOrder = 11  
+;
+
+<span class='comment'>/* 
+ *   STATE object for the Pencil class so that pencils can be described as
+ *   'sharp' or 'blunt'
+ */</span>
+
+sharpenedState: State
+    <span class='comment'>/* 
+     *   This State will relate to any object that defines the isSharpened
+     *   property (i.e. all Pencils), and the isSharpened property will
+     *   determine which additional adjectives apply.
+     */</span>
+    stateProp = &amp;isSharpened
+    
+    <span class='comment'>/*   
+     *   The additional adjective 'blunt' will apply to Pencils whose
+     *   isSharpened property is nil, while the adjectives 'sharp' and
+     *   'sharpened' will apply to Pencils whose isSharpened property is true.
+     */</span>
+    adjectives = [[nil, ['blunt']], [true, ['sharp', 'sharpened']]]
+;
+
+<a name='actions'></a>
+//==============================================================================
+<span class='comment'>/*  
+ *   CUSTOM ACTIONS AND GRAMMAR
+ *
+ *   Define the custom OpenWith action plus default action handlers for it. 
+ */</span>
+
+
+DefineTIAction(OpenWith)
+;
+
+VerbRule(OpenWith)
+    'open' multiDobj 'with' singleIobj
+    : VerbProduction
+    action = OpenWith
+    verbPhrase = 'open/opening (what) (with what)'
+    missingQ = 'what do you want to open;what do you want to open it with'
+;
+
+modify Thing
+    dobjFor(OpenWith)
+    {
+        preCond = [touchObj]
+        
+        <span class='comment'>/* For a multiplex container, remap OpenWith to the remapIn object */</span>             
+        remap = remapIn
+        
+        verify()
+        {
+            if(isOpenable)
+                illogical('{I} {don\'t need} {the iobj} to open {that dobj}. ');
+            else
+                illogical(&amp;cannotOpenMsg);
+        }
+    }
+    
+    iobjFor(OpenWith)
+    {
+        preCond = [objHeld]
+        verify()
+        {
+            illogical(cannotOpenWithMsg);
+        }
+    }
+    cannotOpenWithMsg = '{I} {can\'t} open anything with {that iobj}. '
+    
+    <span class='comment'>/* 
+     *   By default the library doesn't allow anything to be the indirect object
+     *   of a PourOnto command -- the library simply responds with &quot;You can't
+     *   pour anything onto that&quot; -- but it's obviously possible to pour stuff
+     *   onto anything (even if we're going to stop the soup being poured for
+     *   other reasons) so we'll override the library default.
+     */</span>    
+    allowPourOntoMe = true
+        
+;
+
+
+<span class='comment'>/* 
+ *   With both the clock and the apron a player might try HANG CLOCK ON WALL 
+ *   or HANG APRON ON PEG, so it would be good to allow this grammar. The 
+ *   best way to do this is to make HANG ON a synonym for PUT ON. There are 
+ *   two ways to do this: modify the existing VerbRule or create a new one. 
+ *   Here we'll demonstrate the second method.
+ */</span>
+
+
+VerbRule(HangOn)
+    'hang' multiDobj 'on' singleIobj
+    : VerbProduction
+    action = PutOn // this makes it a synonym for PUT ON
+    verbPhrase = 'hang/hanging (what) (on what)'
+    missingQ = 'what do you want to hang;what do you want to hang it on'
+;
+
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Containers.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

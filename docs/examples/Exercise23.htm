@@ -1,0 +1,1582 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 23 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='EventfulWalk.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 23 - An Eventful Walk (adv3Lite)</h1>
+
+<p>This game is a demonstration of the various EventList classes in TADS.</p>
+ 
+ <p>It also demonstrates Scenes, Menus, Hints and Scoring (which, after all,
+have to be demonstrated in conjunction with something. 
+    There are several methods of scoring in TADS 3. Here we'll demonstrate only
+    the that which uses Achievement objects to keep track of the score, calling
+    their awardPointsOnce method. This allows the game to calculate the maximum
+    score automatically for us.</p>
+
+<p>The game follows the specification of Exercise 23 in <i>Learning TADS 3 with Adv3Lite</i>:
+
+<p>TThe map for this game is fairly simple. Play starts in 'Deep in the Forest' from which paths lead northeast, southeast and west. To the west is a dead end (blocked by a fallen tree), but attempting to travel down it the first time results in the player character finding a branch, which he takes. In the starting location itself a variety of forest sounds can be heard, or small animals seen moving about.  Northeast from the starting location is the 'By the River' location. From here paths run southwest, back to the starting location, and southeast. Progress north is blocked by the stream. If the player attempts to cross the stream, the first two attempts are blocked with suitable messages, but the third time the attempt is allowed, and the player character drowns. This happens whether the player types <strong>north</strong> or <strong>swim river</strong>, but the first two refusal responses should differ according to the command used. Thick undergrowth prevents walking along the bank of the stream to east and west. There should be a suitable selection of riverside atmospheric messages.</p>
+
+<p>Southeast of 'By the River' is 'Outside a Cave', from which paths run northwest (back to the river) and southwest (to a clearing). The cave lies to the east. The cave is in darkness, and the only way out from it is to the west. The second time the player character leaves the cave there’s a warning message about an imminent rockfall. The third time the player leaves the cave the rockfall occurs, blocking the entrance to the cave. Inside the cave is a bucket, but the player character can’t find it until light is brought into the cave.</p>
+
+<p>Southwest of 'Outside a Cave' is a clearing, from which paths run northeast (back to 'Outside a Cave') and northwest (back to the starting location, 'Deep in the Forest'). In the clearing a large bonfire is billowing clouds of acrid smoke, the smell of which is described as increasingly overwhelming the longer the player character remains in the clearing. The player character needs to leave the clearing to the south in order to find the way back to the car park and win the game, but the smoke keeps driving him back. There’s also a very simple NPC who starts out in this location, a tall man who walks round and round the four locations in the forest, but stops for one turn each time he reaches the river to scoop up some water in his hands.</b>
+
+<p>To win the game the player needs to light the branch from the bonfire to make it act as a torch, then go to the cave to collect the bucket, fill the bucket with water from the river, then pour the water on the bonfire to douse it, and finally leave the clearing to the south.</p>
+
+<p>Provide the game with a help/about menu, a set of adaptive hints, and a score for each step. Make the game automatically calculate the maximum score.</p>
+
+<div class='code'><pre>
+
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+
+/*<span class="comment">   
+ *   EXERCISE 23 - AN EVENTFUL WALK
+ *
+ *   This game is a demonstration of the various EventList classes in TADS.
+ *
+ *   It also demonstrates Scenes, Menus, Hints and Scoring (which, after all,
+ *   have to be demonstrated in conjunction with something.
+ *
+ *   There are several methods of scoring in TADS 3. Here we'll demonstrate only
+ *   the that which uses Achievement objects to keep track of the score, calling
+ *   their awardPointsOnce method. This allows the game to calculate the maximum
+ *   score automatically for us.
+ */</span>
+
+versionInfo: GameID
+    IFID = '4de6c2e8-342b-471b-aeb8-c6960e0c801b'
+    name = 'Exercise 23 - An Eventful Walk'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demonstration of adv3Lite Scenes, EventList classes, menus, hints
+        and scoring. '
+    htmlDesc = 'A demonstration of adv3Lite Scenes, EventList classes, menus,
+        hints and scoring. '
+    
+    
+    /*<span class="comment"> This method will be run in response to an ABOUT command. */</span>
+    showAbout()
+    {
+        /*<span class="comment"> Display our help menu (defined below). */</span>
+        helpMenu.display();
+        &quot;Done. &quot;;
+    }
+    
+    /*<span class="comment"> This method is run in response to a CREDITS command. */</span>
+    showCredit()
+    {
+        &quot;&lt;i&gt;&lt;&lt;name&gt;&gt;&lt;/i&gt; &lt;&lt;htmlByline&gt;&gt;.\b
+        adv3Lite library by Eric Eve.\b
+        TADS 3 Language and Library by Michael J. Roberts.\b
+         &quot;;
+    }
+;
+
+gameMain: GameMainDef
+    /*<span class="comment"> Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    
+    showIntro()
+    {
+        /*<span class="comment"> 
+         *   Show the introductory text. On an HTML interpreter (like 
+         *   HTML-TADS for Windows) the aHref() definition towards the end 
+         *   will result in the player seeing a clickable link labelled 
+         *   ABOUT which s/he can click on to execute the ABOUT command.
+         */</span>        
+        &quot;It was to be a pleasant afternoon's walk, then back to the car and a
+        short drive back home in time for tea.\b
+        Except that now you're having a hard time &lt;i&gt;finding&lt;/i&gt; you way back
+        to to your car.\b
+        (First-time players might like to type &lt;&lt;aHref('ABOUT','ABOUT', 'Show
+            the about menu')&gt;&gt;)\b &quot;;
+    }
+    
+    /*<span class="comment">  
+     *   The setAboutBox() is method to set up an About Box that will be 
+     *   displayed in response to selecting Help -&gt; About from the HTML-TADS 
+     *   Interpreter. The text to be displayed must appear between &lt;ABOUTBOX&gt;
+     *   and &lt;/ABOUTBOX&gt; tags. The following is a plain vanilla definition 
+     *   that would do for any game, since it picks up all its information 
+     *   from versionInfo.
+     */</span>    
+    setAboutBox()
+    {
+        &quot;&lt;ABOUTBOX&gt;&lt;CENTER&gt;
+        &lt;&lt;versionInfo.name&gt;&gt;\b
+        &lt;&lt;versionInfo.byline&gt;&gt;\b
+        Version &lt;&lt;versionInfo.version&gt;&gt;
+        &lt;/CENTER&gt;&lt;/ABOUTBOX&gt;&quot;;
+    }
+;
+
+
+/*<span class="comment"> The starting location; this can be called anything you like */</span>
+
+startroom: Room, ShuffledEventList 'Deep in the Forest'    
+    &quot;You are at a junction of three paths in the depths of the forest: one leads
+    west, one leads northeast, and one leads southeast. &quot;
+    
+    northeast = byStream
+    southeast = clearing
+    
+    /*<span class="comment">  
+     *   STOP EVENT LIST      TRAVEL CONNECTOR TO NOWHERE
+     *
+     *   A StopEventList displays (or executes) each of its elements in turn
+     *   till it reaches the last one, which it will then just repeat. If we
+     *   make a TravelConnetor also an EventList and don't define a
+     *   destinationfor it , then the items in the eventList will be used each
+     *   time the PC attempts to traverses the connector without actually going
+     *   anywhere.
+     *
+     *   We could also have defined destination = startroom to simulate the
+     *   player character wandering down the path and returning to his starting
+     *   point.
+     */</span>    
+    west: TravelConnector, StopEventList {
+    [
+        /*<span class="comment">  
+         *   We are not restricted to putting just strings in an EventList. 
+         *   Various other things, including function pointers can go there 
+         *   too. Calling new function {} returns a pointer to the new 
+         *   function so defined, so we can use this syntax to define a 
+         *   function containing any code we like to execute as an item in 
+         *   the list.
+         */</span>
+        new function {
+            &quot;You walk a long way down the path until you find your way blocked
+            by a fallen tree. Finding no way round it, you are forced to turn
+            round and come back, but not before you retrieve a small branch
+            that had broken off the tree. &quot;;
+            branch.moveInto(me);
+            
+            /*<span class="comment"> 
+             *   Award some points (well, only one point as it turns out) for
+             *   finding the branch.
+             */</span>
+            achievement.awardPointsOnce();
+        },
+        
+        'When you walk back down the back, the tree is still there, and you
+        find nothing more of use, so you\'re forced to return again. ',
+        
+        'Yes -- that fallen tree is still blocking the path. '
+    ]
+        
+        
+        /*<span class="comment">  
+         *   This is a custom property, which we could have called anything 
+         *   we liked. Calling it achievement, however, usefully reflects its
+         *   purpose. We could have created a set of separate Achievement 
+         *   objects to keep score, but it's often quite convenient to make 
+         *   them nested anonymous objects associated with the object that 
+         *   awards the points, as here. 
+         *
+         *   The two items in the template are the number of points to award 
+         *   and the description of the achievement that led to the awarding 
+         *   of the points.
+         */</span>
+        achievement: Achievement { +1 &quot;finding the branch&quot; }
+        
+        
+    }
+    
+    
+    /*<span class="comment">  
+     *   SHUFFLED EVENT LIST
+     *
+     *   A ShuffledEventList (which this Room also is) is typically used to
+     *   display a random series of messages. Each message is displayed once
+     *   before any is used again, and no message will be seen twice in
+     *   succession.
+     *
+     *   Making a Room also a ShuffledEventList and defining its eventLis
+     *   property provides a randomly ordered list of atmospheric messages; this
+     *   is one typical use of a ShuffledEventList.
+     */</span>
+    eventList = 
+    [
+        'Somewhere off in the forest you hear the cry of a crow. ',
+        'A pair of rabbits hop across your path and vanish into the trees. ',
+        'A fox dashes across your path. ',
+        'You hear the flap of wings as a flock of birds takes flight. ',
+        'There\'s a momentary rustle in the undergrowth off among the trees. '
+    ]
+    /*<span class="comment"> 
+     *   These messages would quickly become tiresome if one was displayed on
+     *   every turn, so we start by showing them only 80% of the time, and then
+     *   drop the frequency to 40% after every message has been displayed once.
+     */</span>
+    eventPercent = 80
+    eventReduceTo = 40
+    eventReduceAfter = static eventList.length()
+    
+;
+
+
+/*<span class="comment"> 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player 'you'       
+;
+
+
+++ Wearable 'walking clothes; durable old;; them'
+    &quot;More durable than smart, they're just some old clothes you go walking in. &quot;
+    dobjFor(Doff)
+    {
+        check()
+        {
+            /*<span class="comment"> We don't actually want to allow the removing of these clothes. */</span>
+            &quot;This is no time for stripping off. &quot;;
+        }
+    }
+    wornBy = me
+;
+
++ Decoration 'trees;; tree forest; them it'
+    &quot;There are trees all around you. &quot;
+    
+;
+
+/*<span class="comment">  
+ *   Several locations will mention paths running off in various directions. 
+ *   To avoid repetitive typing, we define a custom Path class (immediately 
+ *   following this object) so we can define Paths just by setting a couple 
+ *   of properties.
+ */</span>
++ Path
+    /*<span class="comment">  
+     *   dir1 and dir2 are custom properties defined on the custom Path 
+     *   class, for which see immediately below.
+     */</span>
+    dir1 = 'northeast, southeast'
+    dir2 = 'west'
+;
+
+/*<span class="comment">  
+ *   Path is a custom class we define to represent the various paths 
+ *   mentioned in four of the locations in the game. It's basically a kind 
+ *   of Decoration.
+ */</span>
+class Path: Decoration 'path;;;it them'
+    /*<span class="comment"> 
+     *   Provide a generic description which will be automatically 
+     *   customised from the dir1 and dir2 properties.
+     */</span>
+    &quot;Paths head from here to &lt;&lt;dir1&gt;&gt; and &lt;&lt;dir2&gt;&gt;. &quot;
+    
+    /*<span class="comment">   
+     *   Define a custom notImportantMsg (used for all actions except EXAMINE
+     *   and the two we define below), which will automatically be 
+     *   customised with the text from the dir1 and dir2 properties.
+     */</span>
+    notImportantMsg = ('The only thing you can usefully do with the paths is to
+        walk down one of them, by going either ' + dir1 + ' or ' + dir2 + '. ')
+    
+    
+    /*<span class="comment">   
+     *   One might reasonably try to FOLLOW a path, so we provide custom 
+     *   handling for this.
+     */</span>
+    dobjFor(Follow)
+    {
+        verify() {}
+        action()
+        {
+            /*<span class="comment"> 
+             *   Turn FOLLOW PATH into a question asking which way the PC 
+             *   should go.
+             */</span>
+            &quot;Which way to do you want to go: &lt;&lt;dir1&gt;&gt; or &lt;&lt;dir2&gt;&gt;? &quot;;
+        }
+    }
+       
+    
+    /*<span class="comment">   
+     *   To customize individual Path objects we just need to override the 
+     *   custom (non library) dir1 and dir2 properties. Both properties 
+     *   should be set to single-quoted strings: dir2 should describe the 
+     *   final direction to be shown in any list, and dir1 should list all 
+     *   the other directions. So if a location has paths running east, west 
+     *   and south, you would set dir1 to 'east, west' and dir2 to 'south'. 
+     *   If there paths running in only two directions, e.g. southeast and 
+     *   southwest, just put one direction in each property, e.g. dir1 = 
+     *   'southeast' and dir2 = 'southwest'.
+     */</span>
+    dir1 = nil
+    dir2 = nil
+;
+
+/*<span class="comment">  
+ *   TAKE PATH is equivalent to FOLLOW PATH, but only if the phrasing TAKE PATH
+ *   is used; PICK UP PATH or GET PATH wouldn't mean the same thing.
+ */</span>
+Doer 'take Path'
+    execAction(c)
+    {
+        doInstead(Follow, gDobj);
+    }
+    strict = true
+;
+
+/*<span class="comment">  
+ *   The PC picks up this branch on going west from the starting location 
+ *   for the first time. It's purpose is to act as a torch to explore inside 
+ *   the dark cave, so we make it of kind Candle so it can be lit and will 
+ *   continue to burn.
+ */</span>
+
+branch: Thing 'small branch;; twigs foliage'
+    &quot;The branch about three feet long, ending in a mass of twigs and foliage. &quot;
+    
+    /*<span class="comment"> It starts unlit */</span>
+    isLit = nil
+        
+    /*<span class="comment"> We can burn (i.e. set light to) it */</span>
+    isBurnable = true
+    
+    
+    /*<span class="comment"> 
+     *   If we just issue the command BURN BRANCH, then we'll have the game
+     *   either ask the player what s/he wants to burn it with, or, if there's
+     *   one best choice of indirect object in scope, have the parser select it
+     *   automatically (so that BURN BRANCH in the presence of the fire will be
+     *   treated as BURN BRANCH WITH FIRE)
+     */</span>
+    dobjFor(Burn)
+    {
+        action() { askForIobj(BurnWith); }
+    }
+    
+    /*<span class="comment"> Make LIGHT BRANCH behave the same as BURN BRANCH */</span>
+    dobjFor(Light) asDobjFor(Burn)
+    
+    dobjFor(BurnWith)
+    {
+        verify()
+        {
+            if(isLit)
+                illogicalNow('The branch is already alight. ');
+            
+        }
+        
+        action()
+        {
+            makeLit(true);
+        }
+    }
+    
+    
+    
+    makeLit(stat)
+    {
+        inherited(stat);
+        /*<span class="comment"> When it's lit, award some points for lighting it. */</span>
+        if(stat)
+            achievement.awardPointsOnce();
+    }
+    
+    achievement: Achievement { +1 &quot;setting light to the branch&quot; }
+;
+
+
+//------------------------------------------------------------------------------
+
+byStream: Room, RandomEventList 'By the River' 'the riverbank'
+    &quot;A wide river, swolled by recent heavy rain, blocks the way north. Heavy
+    undergrowth growing along the bank would make it difficult to follow the
+    course of the river to either east or west, but there are paths leading off
+    to both southeast and southwest. &quot;
+    southwest = startroom
+    southeast = byCave
+    
+    /*<span class="comment">  
+     *   EVENT LIST              TRAVEL CONNECTOR TO NOWHERE
+     *
+     *   An EventList executes every item in its list in turn, until it reaches
+     *   the end, when it will do nothing. Since the last item in this EventList
+     *   kills the Player Character (and so ends the game) we don't need
+     *   anything to happen beyond the end of the list, so an EventList is just
+     *   fine here.
+     *
+     *   Since this travel connector has no destination, all that will happen
+     *   when we try to traverse it is that it will execute its noteTraversal
+     *   method, which will in turn call travelDesc, which will in turn execute
+     *   doScript, thus displaying each item in the event list in turn.
+     */</span>
+    
+    north: TravelConnector, EventList {
+    [
+        'You can\'t go that way; the river is in the way. ',
+        
+        'The river is still in the way, and it looks far too dangerous to swim
+        across. ',
+        
+        /*<span class="comment">  
+         *   As before we can execute any code we like within an EventList 
+         *   item by wrapping it in the new function syntax.
+         */</span>        
+        new function {
+            &quot;Oh, very well, if you insist.\b
+            You wade into the river. It's deep. You can't swim all that well.
+            You drown.\b&quot;;
+            
+            /*<span class="comment">  
+             *   Kill the PC on the third attempt, but allow the player to 
+             *   UNDO, so it's not too cruel. Also give the player the 
+             *   option to see the full score (listing all the achievements 
+             *   achieved to date).
+             */</span>
+            finishGameMsg(ftDeath, [finishOptionUndo, finishOptionFullScore]);
+        }
+    ]
+        
+        /*<span class="comment"> 
+         *   Since this connector isn't meant to lead anywhere, we don't want it
+         *   listed as an exit.
+         */</span>
+        isConnectorListed = nil
+    }
+    
+    
+    
+    east = &quot;Heavy undergrowth prevents you from walking directly along the bank
+        of the river. &quot; 
+    
+    /*<span class="comment">  Use the same message for both east and west. */</span>
+    west asExit(east)
+    
+    /*<span class="comment">  
+     *   RANDOM EVENT LIST
+     *
+     *   A RandomEventList simply displays one of its items at random. The
+     *   difference between this and a ShuffledEventList is that a
+     *   RandomEventList may show the same item twice (or more) in a row. In a
+     *   situation where this is acceptable, you can use it as an alternative to
+     *   a ShuffledEventList, as here.
+     */</span>
+    eventList =     
+    [
+        'There\'s a brief disturbance in the river as something breaks
+        above the surface and then vanishes beneath it again. ',
+        
+        'Somewhere, you hear the croaking of a frog. ',
+        'A flock of birds flies overhead. ',
+        'Something splashes in the marshy undergrowth. ',
+        'A gust of wind ripples across the surface of the river. '
+    ]
+    
+    eventPercent = 50
+;
+
+
+/*<span class="comment">  
+ *   SYNC EVENT LIST
+ *
+ *   A SyncEventList is an EventList that's kept in sync with another 
+ *   EventList (pointed to in its masterObject property).
+ *
+ *   This game is mean enough to drown the PC on the third attempt to cross 
+ *   the river whether it's by typing NORTH or SWIM RIVER, although we'll 
+ *   display different messages for the two commands. Using a SyncEventList 
+ *   here esnures we keep count of the total number of attempts to cross the 
+ *   river, by whichever means. 
+ */</span>
++ Fixture, SyncEventList 'river; broad wide swollen; water'
+    &quot;Swollen by recent floods, the river rushes rapidly by. &quot;
+    
+    /*<span class="comment">  
+     *   We can fill things (well, the bucket) from the river, and pour 
+     *   things (well, water) into it.
+     */</span>
+    iobjFor(FillWith) { verify() {} }
+    iobjFor(PourInto) { verify() {} }
+    
+    
+    /*<span class="comment">   
+     *   In principle, the river is something that could be swum. Note that 
+     *   Swim is not an action defined in the standard library; we define it 
+     *   below.
+     */</span>
+    dobjFor(Swim)
+    {
+        verify() {}
+        action() { doScript(); }       
+    }
+    
+    eventList = 
+    [
+        'The river has been swollen by recent rainfall, the current looks
+        exceptionally strong, and you aren\'t such a great swimmer. So after
+        dipping a toe in the water, you think better of it. ',
+        
+        'You are almost desperate enough to try it, but not quite. The water is
+        cold, and the current looks strong. You\'re not sure you\'d make it to
+        the other side. ',
+
+        new function {
+        &quot;Throwing all caution to the winds, you plunge into the river and strike
+        out for the opposite bank, but the river is even deeper and the current
+        even stronger than you thought. Less than halfway across you find
+        yourself swept away. Unable to keep your head above water, you
+        drown.\b&quot;;
+        
+        finishGameMsg(ftDeath, [finishOptionUndo, finishOptionFullScore]);
+    }        
+    ]
+    
+    /*<span class="comment"> The EventList object we're keeping in sync with. */</span>
+    masterObject = byStream.north
+;
+
+/*<span class="comment"> Path is a custom class defined above. */</span>
++ Path
+    dir1 = 'southeast'
+    dir2 = 'southwest'
+;
+
++ Decoration 'some undergrowth; heavy thick marshy; bank' 
+    &quot;Thick undergrowth, made marshy by the swollen river, blocks the bank to
+    both east and west. &quot;     
+;
+
+
+//------------------------------------------------------------------------------
+
+byCave: Room 'Outside a Cave' 'the cave entrance'
+    &quot;Paths from both northwest and southwest come to an end here just outside
+    the mouth of a cave to the east. &quot;
+    northwest = byStream     
+    southwest = clearing
+    east = cave
+    in asExit(east)
+    
+    /*<span class="comment">  
+     *   Award some points if the player character enters this room carrying 
+     *   the bucket, which will happen if the PC takes the bucket out of the 
+     *   cave. Since awardPointsOnce() only awards points once, it doesn't 
+     *   matter how many times the PC subsequently enters the room carrying 
+     *   the bucket; no more points will be awarded.
+     */</span>
+    travelerEntering(traveler, origin)
+    {
+        if(bucket.isIn(traveler))
+           achievement.awardPointsOnce();
+    }
+    achievement: Achievement { +2 &quot;getting the bucket out of the cave&quot; }
+;
+
++ Enterable -&gt; cave 'cave entrance; of[prep]; mouth'
+    &quot;The cave entrance &lt;&lt;cave.blocked ? 'has been blocked by a recent fall of
+        rocks' : 'is not all that large, but looks large enough to enter'&gt;&gt;. &quot;
+;
+
+/*<span class="comment">  
+ *   HIDDEN ROCKFALL
+ *
+ *   This rockfall should only be present once the cave entrance has collapsed,
+ *   so we make it start out hidden so it can be made present once it's needed.
+ */</span>
++ rockfall: Immovable 'rockfall; rock of[prep]; rocks fall pile' 
+    &quot;The fall of rocks has completely blocked the entrance to the cave. &quot;
+
+    specialDesc = &quot;A pile of rocks blocks the entrance to the cave. &quot;
+    
+    cannotTakeMsg = 'You\'ll never shift that lot by hand. '
+    
+    isHidden = true
+;
+
+/*<span class="comment">   Path is a custom class defined above. */</span>
++ Path
+    dir1 = 'northwest'
+    dir2 = 'southwest'
+;
+
+
+//------------------------------------------------------------------------------
+
+cave: Room 'Cave' 
+    &quot;It looks like this cave goes back quite a long way, but the only way out
+    is to the west. &quot;
+    
+    /*<span class="comment"> The cave is dark */</span>
+    isLit = nil
+    
+    /*<span class="comment">  
+     *   darkName and darkDesc will be used instead of the ordinary 
+     *   room name and description when the room is dark. The use of the 
+     *   &lt;.reveal&gt; tag in the dark description enables the hints system to 
+     *   track when the PC has visited this room in the dark.
+     */</span>
+    darkName = 'Cave (in the dark)'
+        
+    darkDesc = &quot;It's too dark to see anything in here, except that the way
+        back out is to the west. &lt;.reveal dark-cave&gt;&quot;
+    
+    /*<span class="comment">   
+     *   EVENT LIST        TRAVEL CONNECTOR
+     *
+     *   We can mix an EventList with a TravelConnector to provide a sequence 
+     *   of different responses each time the PC goes this way. Since the PC 
+     *   cannot in any case traverse this travel connector after the third 
+     *   traversal blocks the entrance to the cave, a simple EventList will 
+     *   do.
+     */</span>    
+    west: TravelConnector, EventList {
+    [
+        /*<span class="comment"> 
+         *   An EventList item can simply be nil, in which case it does 
+         *   nothing.
+         */</span>
+        nil,
+        
+        /*<span class="comment">  The second time through we'll display a warning message. */</span>
+        'As you walk out of the cave, you hear a diquieting rumble, and you
+        feel fine dust and pebbles fall around you just before you emerge into
+        the light. ',
+        
+        /*<span class="comment">  
+         *   The third time through we'll cause a rockfall that blocks the 
+         *   way back into the cave. We could do this with new function 
+         *   again, but this time we'll illustrate an alternative. Another 
+         *   kind of thing that can occur in an EventList is a method 
+         *   pointer; when the EventList reaches &amp;rockFall it will execute 
+         *   self.rockFall().
+         */</span>
+        &amp;rockFall
+    ]
+        /*<span class="comment">   This travel connector takes us outside the cave. */</span>
+        destination = byCave
+        
+        /*<span class="comment">   A custom method invoked by the last item in the EventList above. */</span>
+        rockFall()
+        {
+            /*<span class="comment"> 
+             *   Start by blocking the cave. Note that we have defined the 
+             *   custom blocked property on the cave object, not the 
+             *   TravelMessage, so we use lexicalParent to get the right 
+             *   object's property (forgetting to do this can be a very 
+             *   common source of bugs).
+             */</span>
+            lexicalParent.blocked = true;
+            &quot;As you walk out of the cave the rocks around the exit begin to
+            tremble. You manage to dash out just in time to avoid the rockfall
+            that blocks the cave. &quot;;
+            
+            /*<span class="comment">   Make present the rocks blocking the cave from the outside. */</span>
+            rockfall.discover();
+            
+            /*<span class="comment">   
+             *   If the PC has left the bucket in the cave, the game is now 
+             *   unwinnable, so we may as well end it straight away.
+             */</span>
+            if(bucket.isIn(cave) &amp;&amp; !bucket.isIn(me))
+                finishGameMsg('THE GAME IS NOW UNWINNABLE', 
+                              [finishOptionUndo, finishOptionFullScore]);
+        }
+        
+        
+    }
+    
+    out asExit(west)
+    
+    /*<span class="comment">  A custom property we use to block the cave after the rockfall. */</span>
+    blocked = !rockfall.isHidden
+    
+    /*<span class="comment">  
+     *   Once the cave is blocked we can't get back into it. Since the cave 
+     *   is the only TravelerConnector to itself, we can block it by using 
+     *   its canTravelerPass method.
+     */</span>
+    canTravelerPass(traveler) { return !blocked; }
+    explainTravelBarrier(traveler) 
+    {
+        &quot;You can't go back into the cave; a rockfall has covered the entrance.
+        &quot;;
+    }
+    
+    /*<span class="comment">  
+     *   Once the cave is blocked, we obviously can't get back in, so we 
+     *   shouldn't list the way back in as a possible exit.
+     */</span>
+    isConnectorApparent = (!blocked)
+;    
+
+
++ bucket: Container 'bucket; ordinary'
+    &quot;It's just a perfectly ordinary bucket&lt;&lt; water.isIn(self) ? ', full of
+        water' : ''&gt;&gt;.&quot;
+    
+    /*<span class="comment">  
+     *   FillWith is a custom action defined below. The bucket is the only 
+     *   object in the game that can be filled with anything, so we need to 
+     *   define special action handling for it.
+     */</span>
+    dobjFor(FillWith)
+    {
+        /*<span class="comment">  
+         *   In order to fill the bucket the actor must be holding the 
+         *   bucket and the bucket must first be empty.
+         */</span>
+        preCond = [objHeld]
+        verify() 
+        {
+            /*<span class="comment">  We can't fill a bucket that's already full. */</span>
+            if(water.isIn(self))
+                illogicalNow('The bucket is already full. ');
+        }
+        action()
+        {
+            &quot;You fill the bucket from {the iobj}. &quot;;
+            
+            /*<span class="comment">  
+             *   The water object is defined below. Moving it into the bucket
+             *   effectively fills the bucket with water.
+             */</span>
+            water.moveInto(self);
+            
+            /*<span class="comment">   Award some points for filling the bucket. */</span>
+            achievement.awardPointsOnce();
+        }
+    }
+    initSpecialDesc = &quot;A bucket has been left on the ground near the rear of the
+        cave. &quot;
+    bulkCapacity = 4
+     
+    
+    achievement: Achievement { +2 &quot;filling the bucket with water&quot; }
+;
+
+
+//------------------------------------------------------------------------------
+
+clearing: Room 'Clearing'
+    &quot;&lt;&lt;first time&gt;&gt;You recognize this clearing; you've pretty sure you've been
+    this way before. &lt;&lt;only&gt;&gt;Unless you're much mistaken the way back to the car
+    park lies straight to the south&lt;&lt; smoke.isIn(self) ?  '-- if you can get to
+        it with all the smoke now billowing from the bonfire' : ''&gt;&gt;. Other
+    paths lead off to northeast and northwest. &quot;
+    
+    
+    northwest = startroom
+    northeast = byCave
+    
+    south: TravelConnector
+    {
+        
+        noteTraversal(traveler)
+        {
+            &quot;Now that the smoke from the fire has abated, you are able to reach
+            the southern exit from the clearing with ease. After that, you find
+            it's only a short walk back to your car.\b&quot;;
+            
+            /*<span class="comment">  
+             *   Once the PC traverses this connector award the final points 
+             *   end the game in victory.
+             */</span>
+            achievement.awardPointsOnce();
+            finishGameMsg(ftVictory, [finishOptionUndo, finishOptionFullScore]);
+        }
+        
+        achievement: Achievement { +2 &quot;finding your way back to your car&quot; }
+    }
+    
+;
+
+
+/*<span class="comment">   
+ *   FIRE - we use a Fixture and add some customizations to make it work like a
+ *   bonfire.
+ *
+ */</span>
++ bonfire: Fixture 'bonfire; large; fire flames'    
+    &quot;The bonfire is &lt;&lt;if isLit&gt;&gt;blazing and emitting clouds of smoke&lt;&lt;else&gt;&gt;
+    merely smouldering&lt;&lt;end&gt;&gt;. &quot;
+    
+    feelDesc = &quot;&lt;&lt;if isLit&gt;&gt;The bonfire is far to hot to touch. &lt;&lt;else&gt;&gt;It still
+        feels quite warm. &lt;&lt;end&gt;&gt;&quot;
+    
+    /*<span class="comment">  Special handling for pouring water onto the fire. */</span>
+    
+    iobjFor(PourOnto)
+    {
+        verify()
+        {
+            /*<span class="comment">  If the fire isn't lit, there's no point trying to put it out. */</span>
+            if(!isLit)
+                illogicalNow('You\'ve already put the fire out. ');
+        }
+        check() {}
+        action()
+        {
+            /*<span class="comment">  
+             *   Pouring water into the fire makes it go out, and removes the
+             *   smoke.
+             */</span>
+            &quot;Your pour {the dobj} onto the fire, and the fire goes out. &quot;;
+            smoke.moveInto(nil);
+            
+            /*<span class="comment">   Award some points for extinguishing the fire. */</span>
+            achievement.awardPointsOnce();
+            
+            /*<span class="comment"> 
+             *   Now that we've put the fire out, we shouldn't be able to refer
+             *   to any flames.
+             */</span>
+            removeVocabWord('flames');
+        }
+    }
+    
+    /*<span class="comment">   
+     *   The player might try DOUSE FIRE or EXTINGUISH FIRE, so we provide 
+     *   handling for that.
+     */</span>
+    dobjFor(Extinguish)
+    {
+        /*<span class="comment">  
+         *   We save ourselves some typing by re-using the same verify() 
+         *   method as for PourOnto, since exactly the same conditions apply.
+         */</span>
+        verify() { verifyIobjPourOnto(); }
+        check()
+        {
+            /*<span class="comment">  We can only extinguish the fire if the water is to hand. */</span>
+            if(!gActor.canReach(water))
+               &quot;You have nothing to hand to do that with. &quot;;
+        }
+        
+        /*<span class="comment"> 
+         *   If we've got this fire, there is water to hand, and the fire 
+         *   hasn't been put out yet, so we can now translate DOUSE FIRE 
+         *   into POUR WATER ONTO FIRE.
+         */</span>
+        action() { replaceAction(PourOnto, water, self); }
+        
+    }
+    
+    iobjFor(BurnWith) { preCond = [touchObj] }
+    
+    canBurnWithMe = true
+    
+    /*<span class="comment">   The bonfire is lit when it is smoking. */</span>
+    isLit = (smoke.isIn(self))
+   
+    cannotTakeMsg = (isLit ? 'The fire is far too hot too much, let
+        alone move around. ' : 'It\'s both too warm and too large to move. ')
+    
+    cannotPutOnMsg = (isLit ? 'You don\'t want to add any more fuel to
+        the flames! ' : 'Better not risk it; it might catch light again. ')
+    
+    achievement: Achievement { +2 &quot;putting out the fire&quot; }
+;
+
+++ smoke: Decoration 'some smoke; billowing; clouds heat smoke' 
+    &quot;The smoke is billowing from the fire, nearly filling the southern side of
+    the clearing. &quot;
+    aName = 'smoke' 
+    
+    smellDesc = &quot;It smells quite acrid. &quot;
+    
+    /*<span class="comment"> We want to be able to smell the smoke as well as examine it. */</span>
+    decorationActions = [Examine, SmellSomething]
+    
+    notImportantMsg = 'You can\'t do that to smoke. '
+;
+
++++ smokeSmell: Odor, ExternalEventList 'smell; acrid of[prep]; (smoke)' 
+    eventList =
+    [
+        'The smell of smoke from the fire seems overwhelming. ',
+        'The acrid smell of smoke makes you cough. ',
+        'The smoke stings your eyes. ',
+        'The smell of smoke is quite unpleasant. '
+    ]
+    
+    /*<span class="comment">  
+     *   An ExternalScriptList provides no mechanism of its own for changing 
+     *   its state. Here we set its curScriptState to track the Odor's 
+     *   displayCount (which is advanced every time the Odor is mentioned). 
+     *   We have to make sure that curScriptState is never a number that's 
+     *   larger than the length of the event list.
+     */</span>
+    curScriptState = (displayCount &gt; eventList.length ?
+                                      eventList.length : displayCount)
+    
+    displayCount = 1
+
+;
+
+/*<span class="comment">  Here we define a very basic NPC. */</span>
++ man: Actor 'tall man; gaunt;;him'     
+    &quot;He's very tall and rather gaunt looking, as if he'd just spent the last
+    fifty years in a monastery devoted to fasting. &quot;
+    
+    globalParamName = 'man'
+;
+
+/*<span class="comment"> This is the ActorState the man starts out in */</span>
+++ ActorState   
+    isInitState = true
+    specialDesc = &quot;{The subj man} is walking briskly by. &quot;
+    
+    /*<span class="comment"> 
+     *   Any attempt to converse with the man while he's in this state will be
+     *   met with this noResponse.
+     */</span>
+    noResponse = &quot;He's too deep in his own thoughts to take any notice of yours.
+        &quot;
+    stateDesc = &quot;He looks lost in his thoughts. &quot;
+    
+    /*<span class="comment"> 
+     *   The message to display when the man enters the location of the player
+     *   character.
+     */</span>
+    sayArriving(fromLoc)
+    {
+        &quot;&lt;&lt;one of&gt;&gt;A&lt;&lt;or&gt;&gt;The&lt;&lt;stopping&gt;&gt; tall man appears down the path. &quot;;
+    }
+;
+
+/*<span class="comment">  
+ *   CYCLIC EVENT LIST
+ *
+ *   A CyclicEventList is an EventList that goes round in a continuous cycle;
+ *   after the last item in the list has been used, it loops back to the 
+ *   first.
+ *
+ *   Here we combine a CyclicEventList with an AgendaItem to send our 
+ *   NPC walking in a continuous circle round the map.
+ */</span>
+++ walkingAgenda: AgendaItem, CyclicEventList
+    [
+        /*<span class="comment"> 
+         *   The {: } syntax is just a short form of the new function syntax we
+         *   can use when the function contains a single statement. The first
+         *   item in the list is equivalent to:
+         *
+         *   new function { man.travelVia(startRoom); }
+         *
+         *   Note that when we use the short form {: } syntax we must not end
+         *   the single statement in the function with a semicolon.
+         *
+         *   Note the use of the report method (a method of AgendaItem) in the
+         *   third item in the list to make sure the message is only displayed
+         *   when the player character can see the man.
+         */</span>        
+        {: man.travelVia(startroom) },
+        {: man.travelVia(byStream) },
+        {: report('{The subj man} pauses to scoop a handful of water from the
+            river, before continuing on his way. ')} ,
+        {: man.travelVia(byCave) },
+        {: man.travelVia(clearing) }
+    ]    
+    
+    initiallyActive = true
+    invokeItem() { doScript(); }
+;
+
+/*<span class="comment"> 
+ *   An alternative actor state the tall man goes into if the Player Character
+ *   triggers a rock fall in the cave.
+ */</span>
+
+++ manStandingState: ActorState
+    specialDesc = &quot;The tall man is standing just outside the cave, staring at
+        the pile of rocks with a mixture of dismay and disapproval. &quot;
+
+    stateDesc = &quot;He doesn't look at all pleased right now. &quot;
+;
+
++++ DefaultAnyTopic, CyclicEventList
+    [
+        '&lt;q&gt;That was &lt;i&gt;my&lt;/i&gt; cave,&lt;/q&gt; he complains. &lt;q&gt;That\'s where I go to
+        meditate. What am I meant to do now?&lt;/q&gt; ',
+        
+        '&lt;q&gt;I\'ll never be able to move all those rocks,&lt;/q&gt; he sighs. ',
+        
+        '&lt;q&gt;It\'s too much, it really is,&lt;/q&gt; he mutters, shaking his head. '
+    ]
+;
+
+/*<span class="comment">  The custom Path class is defined above. */</span>
++ Path
+    dir1 = 'northeast, northwest'
+    dir2 = 'south'
+;
+
+/*<span class="comment"> 
+ *   A State object applied to the bonfire to give it different adjectives by
+ *   which it can be referred to according to whether it's lit or unlit.
+ */</span>
+fireLitUnlitState: State
+    appliesTo(obj) { return obj == bonfire; }
+    stateProp = &amp;isLit
+    adjectives = [[nil, ['unlit', 'warm', 'smouldering']], 
+        [true, ['lit', 'hot', 'blazing']]]
+    
+;
+
+
+/*<span class="comment"> 
+ *   SCENES
+ *
+ *   This is admittedly a somewhat artificial example since everything this
+ *   Scene does could be done in other ways, but it nevertheless illustrates the
+ *   principle.
+ */</span>
+bonfireLitScene: Scene
+    /*<span class="comment"> This Scene is active from the start of the game */</span>
+    startsWhen = true
+    
+    /*<span class="comment"> 
+     *   Every turn when the player character is in the clearing during the
+     *   scene we'll drive the smokeSmell script; if the player isn't in the
+     *   clearing we reset the counter for the script instead, so it always
+     *   starts out at 1 when the player character returns to the clearing.
+     */</span>
+    eachTurn()
+    {
+        if(gPlayerChar.isIn(clearing))
+        {
+            smokeSmell.doScript();
+            smokeSmell.displayCount++;            
+        }
+        else
+            smokeSmell.displayCount = 1;
+    }
+    
+    /*<span class="comment"> This Scene ends when the bonfire has been put out. */</span>
+    endsWhen = !bonfire.isLit
+;
+
+
+/*<span class="comment"> 
+ *   A second example of a Scene. Again, this could be done another way, but a
+ *   Scene provides quite a convenient means of making things happen in response
+ *   to some condition becoming true.
+ */</span>
+manComplainingScene: Scene
+    /*<span class="comment"> 
+     *   The Scene starts when the rockfall happens, which is when the rockfall
+     *   object becomes visible.
+     */</span>
+    startsWhen = !rockfall.isHidden
+    
+    whenStarting()
+    {
+        man.removeFromAgenda(walkingAgenda);
+        man.setState(manStandingState);
+        man.moveInto(byCave);
+        &quot;Just at that moment, the tall man appears down the path. &quot;;
+    }
+;
+
+
+/*<span class="comment"> 
+ *   What this Doer does could just as easily have been done using the
+ *   canTravelerPass() and explainTravelBarrier() methods on the TravelConnector
+ *   south from the clearing, but this illustrates another approach tied in with
+ *   a Scene.
+ */</span>
+Doer 'go south'
+    execAction(c)
+    {
+        &quot;You can't reach the southern exit for the smoke and the heat of the
+        fire.&lt;.reveal smoke-block&gt; &quot;;
+    }
+    
+    where = [clearing]
+    during = [bonfireLitScene]
+;
+
+
+
+
+//==============================================================================
+/*<span class="comment">  The WATER object */</span>
+
+water: Immovable 'water' 
+    
+    aName = 'water'
+    cannotTakeMsg = 'The water runs through your fingers. '
+    
+    /*<span class="comment"> Custom handling for pouring water onto something. */</span>    
+    dobjFor(PourOnto)
+    {
+        /*<span class="comment">  
+         *   To be able to pour water onto something we must be holding its 
+         *   container.
+         */</span>
+        preCond() { return [new ObjectPreCondition(location, objHeld)]; }
+        verify() {}
+        action()
+        {
+            moveInto(nil);
+        }
+    }
+    
+    /*<span class="comment"> 
+     *   Treat PUT WATER ON SOMETHING as equivalent to POUR WATER ONTO 
+     *   SOMETHING.
+     */</span>
+    dobjFor(PutOn) 
+    {
+        preCond() { return [new ObjectPreCondition(location, objHeld)]; }
+        verify() {}
+        action()
+        {
+            doInstead(PourOnto, self, gIobj);
+        }
+    }
+       
+    
+    
+    /*<span class="comment">  Custom handling for pouring water into something. */</span>
+    dobjFor(PourInto)
+    {
+        preCond() { return [new ObjectPreCondition(location, objHeld)]; }
+        verify() {}
+        action()
+        {
+            &quot;You pour the water into {the iobj. &quot;;
+            moveInto(nil);
+        }
+    }
+       
+    
+    
+    bulk = 4
+;
+
+
+//==============================================================================
+/*<span class="comment"> CUSTOM ACTIONS AND GRAMMAR */</span>
+          
+DefineTIAction(FillWith)    
+;
+
+VerbRule(FillWith)
+    'fill' singleDobj ('with' | 'from') singleIobj
+    : VerbProduction
+    action = FillWith
+    verbPhrase = 'fill (what) (from what)'
+    missingQ = 'what do you want to fill; what do you want to fill it with'
+;
+
+/*<span class="comment">  
+ *   Provide this form to handle FILL SOMETHING. If the player types FILL BUCKET
+ *   the parser will  prompt for an indirect object: &quot;What do you want to fill
+ *   it from?&quot;
+ */</span>
+
+VerbRule(FillWithWhat)
+    [badness 500] 'fill' singleDobj     
+    : VerbProduction
+    action = FillWith
+    verbPhrase = 'fill (what) (from what)'
+    missingQ = 'what do you want to fill; what do you want to fill it with'
+    missingRole = IndirectObject
+    dobjReply = singleNoun
+    iobjReply = withSingleNoun
+;
+
+DefineTAction(Swim)
+;    
+
+VerbRule(Swim)
+    'swim' ('across' | 'in' | ) singleDobj
+    : VerbProduction
+    action = Swim
+    verbPhrase = 'swim/swimming (what) '
+    missingQ = 'what do you want to swim'
+;
+
+/*<span class="comment">  Put appropriate action handling on Thing for our new actions. */</span>
+modify Thing
+    dobjFor(FillWith)
+    {
+        preCond  = [touchObj]
+        verify() { illogical('You can\'t fill {the dobj} with anything. ');
+        }
+    }
+    iobjFor(FillWith)
+    {
+        preCond = [touchObj]
+        verify() { illogical('You can\'t fill anything with {that iobj. '); }
+                
+    }
+    
+    dobjFor(Swim)
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            illogical('{That dobj}{\'s} not something {i} {can} swim. ');
+        }
+    }
+    
+    /*<span class="comment">  
+     *   Also make it logical to pour onto anything, but rule it out in 
+     *   check(), so the player can't waste the water in the bucket by 
+     *   pouring it onto anything other than the fire.
+     */</span>
+    iobjFor(PourOnto)
+    {
+        preCond = [touchObj]
+        verify() {}
+        check()
+        {
+            &quot;There's not much point pouring {the dobj} onto {that iobj}. &quot;;
+        }
+    }
+    
+;
+
+
+//==============================================================================
+/*<span class="comment"> 
+ *   MENUS
+ *
+ *   We'll demonstrate menus in general by setting up a short menu of options
+ *   that can be displayed in response to an ABOUT command. This will 
+ *   include the instructions on playing IF in general defined in instruct.t
+ *
+ *
+ *   We first modify the InstructionsAction (defined in the standard library 
+ *   file instruct.t). Here we're modifying standard properties provided for 
+ *   the purpose of allowing game authors to tweak the otherwise standard 
+ *   instructions.
+ */</span>
+
+modify Instructions
+    /*<span class="comment"> 
+     *   Our game is a bit on the cruel side, so change the cruelty lever to 
+     *   2 so that this is reflected in the instructions.
+     */</span>
+    crueltyLevel = 2
+    
+    /*<span class="comment">  
+     *   The instructions can say that they contain all the verbs a player 
+     *   needs to complete the game.
+     */</span>
+    allRequiredVerbsDisclosed = true
+    
+    /*<span class="comment">   
+     *   To make the above claim true we need to add an example of the FILL
+     *   WITH grammar to the list of standard verbs.
+     */</span>
+    customVerbs = ['FILL BUCKET WITH SAND']
+;
+
+/*<span class="comment">  Make HELP equivalent to ABOUT. */</span>
+modify VerbRule(About)
+    'about' | 'help'
+    :
+;
+
+/*<span class="comment">  
+ *   MENU ITEM
+ *
+ *   We can use MenuItem to define a top-level menu or a sub-menu. Here we're
+ *   defining the top menu that's displayed in response to an ABOUT command 
+ *   (see versionInfo.showAbout() defined near the start of this file.
+ */</span>     
+helpMenu: MenuItem 'Help Menu'
+    /*<span class="comment"> 
+     *   In addition to the two items defined below, we want this menu to 
+     *   contain the instructions menu from instruct.t and out hint menu, 
+     *   which we're about to define below.
+     *
+     *   Note that instruct.t doesn't automatically provide the instructions 
+     *   as a menu. To make it do so, we must make sure that 
+     *   INSTRUCTIONS_MENU is defined before instruct.t is compiled into the 
+     *   build. We can do this in Workbench using the Build -&gt; Settings menu 
+     *   and adding INSTRUCTIONS_MENU via the Compiler -&gt; Defines tab.
+     *
+     *   If you're not using Workbench you'll need to add -D 
+     *   INSTRUCTIONS_MENU when compiling from the command line.
+     *
+     *   You might also need to force a recompile of instruct.t, either by 
+     *   doing a Compile All, or by opening instruct.t and, say, adding and 
+     *   deleting a space so that the compiler thinks it has changed.
+     *
+     */</span>
+    
+    contents = [topInstructionsMenu, topHintMenu]    
+;
+
+/*<span class="comment">  
+ *   MENU LONG TOPIC ITEM
+ *
+ *   We use MenuLongTopicItem to display some text when the item is selected 
+ *   from a menu.
+ */</span>
++ MenuLongTopicItem 'About This Game'
+    menuContents = &quot;&lt;&lt;versionInfo.name&gt;&gt; is a demonstration of EventLists,
+        menus, hints and scoring in adv3Lite.\b
+        As games go, it's neither long nor taxing. After rushing through to a
+        winning ending first time round, you might want to go back and explore
+        it at a more leisurely pace, to see how the various EventLists are
+        working and try out all the hints. &quot;
+    
+;
+
++ MenuLongTopicItem 'Credits'
+    /*<span class="comment"> 
+     *   When the Credits item is selected from the menu, just show the 
+     *   credits information already defined on the versionInfo object.
+     */</span>
+    menuContents = (versionInfo.showCredit)
+;
+
+
+//------------------------------------------------------------------------------
+/*<span class="comment">  
+ *   HINTS
+ *
+ *   This demonstration is probably a bit over the top in providing 
+ *   comprehensive hints for such simple puzzles, but the idea is to show the
+ *   principles of the Hints system.
+ *
+ *   We begin by defining the root menu of our Hints System. This could 
+ *   contain submenus if we wanted, but an adaptive hint system rarely has 
+ *   enough hints active at once for this to be worthwhile.
+ *
+ *   This is the menu that will be displayed in response to a HINTS command.
+ */</span>
+
+
+topHintMenu: TopHintMenu 'Hints'
+;
+
+/*<span class="comment">  
+ *   GOAL
+ *
+ *   Goals constitute the contents of the Hints system. They represent tasks 
+ *   that the player is trying to perform and might want guidance on. Only 
+ *   those Goals that are currently open (relevant for active tasks) are 
+ *   displayed.
+ *
+ *   We start with a very general goal that the player might have right at 
+ *   the start of the game.
+ */</span>
+
+
++ Goal 'What am I meant to be doing?'
+    /*<span class="comment"> 
+     *   The following hints will be displayed one at a time until the player
+     *   reaches a list. As each hint is displayed, the previous ones remain
+     *   visible.
+     */</span>
+    [
+        'Try exploring. ',
+        'You\'re trying to find a way back to your car. ',
+        'Make sure you\'ve explored the whole area. '
+    ]
+    
+    /*<span class="comment">  
+     *   This goal is open at the start of the game. We use the OpenWhenTrue 
+     *   condition to open it and simply define the condition as true.
+     */</span>
+    openWhenTrue = true
+    
+    /*<span class="comment">   
+     *   We close this Goal once the player has visited the four main 
+     *   locations on the map and encountered something that looks enough 
+     *   like a recognizable difficulty to suggest a more specific goal to 
+     *   pursue.
+     */</span>
+    closeWhenTrue = byCave.seen &amp;&amp; byStream.seen &amp;&amp; clearing.seen &amp;&amp;
+    (gRevealed('smoke-block') || gRevealed('dark-cave') )
+;
+
+
++ caveGoal: Goal 'How do I bring light to the cave?'
+    [
+        'Have you seen anything round here that gives off light? ',
+        'Maybe it\'s also giving off heat. ',
+        'Like a fire. ',
+        'Perhaps if you could set light to something portable you could
+        bring it to the cave. ',
+        'Wood burns. ',
+        
+        /*<span class="comment"> 
+         *   Mostly we can just use single-quoted strings to display hints. 
+         *   Occasionally, when we want displaying the hint to have some side
+         *   effect, such as opening another goal, it's convenient to use a 
+         *   hint object instead.
+         */</span>
+        branchHint
+    ]
+    
+    /*<span class="comment"> 
+     *   The cave is not considered 'seen' until it has been seen in lit 
+     *   conditions. The dark description of the cave reveals the dark-cave 
+     *   tag so we can use it here to test whether it has been revealed; if 
+     *   it is, it's time to open this goal.
+     */</span>
+    openWhenRevealed = 'dark-cave'
+    
+    /*<span class="comment">  
+     *   Once the cave has been seen properly (with the aid of a light) this 
+     *   goal has been achieved, its hints are no longer needed, so we close 
+     *   it.
+     */</span>
+    closeWhenSeen = cave
+;
+
+/*<span class="comment">   
+ *   HINT
+ *
+ *   There's no necessity to nest Hint objects inside Goals, but it can be 
+ *   convenient to do so, since this allows us to define the Hint object 
+ *   close to the Goal that refers to it without messing up the object 
+ *   hierarchy of the menu; otherwise all the Hint objects would have to be 
+ *   defined after the last Goal. 
+ *
+ *   This Hint displays &quot;So you could try using a branch.&quot; and open the 
+ *   branchGoal Goal.
+ */</span>
+++ branchHint: Hint 'So you could try using a branch. '
+    [branchGoal]
+;
+
++ branchGoal: Goal 'Where can I find a branch?'
+    [
+        'How thoroughly have you explored? ',
+        'What lies to the west? ',
+        'More specifically, what lies to the west of your starting location? '        
+    ]
+    /*<span class="comment">  
+     *   We don't provide an openWhenXXXX, since this Goal is opened by the 
+     *   display of the branchHint Hint. It's closed once the branch has 
+     *   been moved, since at that point the player has found the branch and 
+     *   doesn't need any more hints on how to do so. 
+     */</span>
+    closeWhenTrue = branch.moved
+;
+
+
++ Goal 'How do I get south from the bonfire clearing? '
+    [
+        'What\'s stopping you? ',        
+        fireHint
+    ]
+    /*<span class="comment"> Once again use a reveal tag to open the Goal. */</span>
+    openWhenRevealed = 'smoke-block'
+    
+    /*<span class="comment"> 
+     *   We can close the Goal once the fire's been put out; since putting 
+     *   out the fire causes the achievement of the bonfire.achievement, we 
+     *   can use that as the test here. Equally usable alternatives would 
+     *   have included:
+     *
+     *   closeWhenTrue = !bonfire.isLit
+     *
+     *   OR
+     *
+     *   closeWhenTrue = smoke.isIn(nil)
+     *
+     */</span>
+    closeWhenAchieved = bonfire.achievement
+;
+
+++ fireHint: Hint 'Perhaps it would be a good idea to put the fire out. '
+    [fireGoal]
+;
+
++ fireGoal: Goal 'How can I put the fire out?'
+    [
+        'How would you usually put a fire out? ',
+        'What can you put on a fire to douse it? ',
+        waterHint
+    ]
+    closeWhenAchieved = bonfire.achievement
+;
+
+++ waterHint: Hint 'Perhaps you should fetch some water. '
+    [waterGoal]
+;
+    
+    
++ waterGoal: Goal 'How can I bring water from the river to the fire? '
+    [ 
+        'What would you normally carry water in? ',
+        bucketHint   
+    ]
+    closeWhenTrue = water.moved
+;
+
+++ bucketHint: Hint 'Perhaps you could find a bucket somewhere. '
+    [bucketGoal]
+;
+
++ bucketGoal: Goal 'Where can I find a bucket? '
+    [        
+        'How thoroughly have you explored? ',
+        'What lies to the east? ',
+        caveHint
+    ]
+    closeWhenSeen = bucket
+;
+
+    /*<span class="comment"> 
+     *   Note that though this Hint opens caveGoal, that Goal can also be 
+     *   opened by the PC entering the cave when it's dark.
+     */</span>
+++ caveHint: Hint 'Try looking in the cave. '
+    [caveGoal]
+;
+
+/*<span class="comment">  
+ *   Once the bonfire has been put out, there's nothing left to do except 
+ *   leave the clearing by the south exit. For the sake of completeness we 
+ *   include a Goal even for that.
+ */</span>
+
++ Goal 'What should I do now?'
+    [
+        'What have you been trying to do all along? ',
+        'You\'re meant to be trying to find your way back to your car. ',
+        'Do you remember where you parked it? ',
+        'You\'re pretty sure it was to the south of the bonfire clearing. '        
+    ]
+    openWhenAchieved = bonfire.achievement
+    
+    /*<span class="comment"> 
+     *   We don't need a CloseWhenXXXX condition, since this Goal should 
+     *   remain open until the end of the game.
+     */</span>
+;
+
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='EventfulWalk.htm'>adv3 version</a>
+
+  </div>
+  <hr>
+</body>
+</html>

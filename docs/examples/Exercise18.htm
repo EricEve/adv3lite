@@ -1,0 +1,742 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 18 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='bedsit.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 18 - Nested Rooms (adv3Lite)</h1>
+
+<p>This game is a demonstration of adv3Lite Nested Rooms (non-Room Things that can contain actors and/or the player character).</p>
+
+<p>The game presented here follows the specifications of Exercises 18 in <i>Learning TADS 3 with adv3Lite</i>. The specification is:</p>
+
+<p>Create a one-room game consisting of the Player Character's bedsit. This will contain a bed (of course) under which is a drawer containing a pillow. There’s also a desk, a swivel chair (too unstable to stand on) and an armchair (too heavy to move), as well as a large sofa that’s large enough to lie on. Above the desk is a high bookshelf on which is a solitary book. To reach the shelf or the book the player character must stand on the desk. On another wall is a high bunk bed which can only be reached via a ladder that’s currently stored under the desk. Beneath the bunk bed is a wooden bench seat, attached to the wall; there’s insufficient headroom under the bunk bed to stand on the bench, and insufficient headroom above it to stand on the bunk. Also on the floor under the bunk is a sleeping cat. Finally, there’s an openable wardrobe that’s large enough to walk into; inside the wardrobe is a hanging rail on which is a solitary coat-hanger. If you’re feeling really adventurous make it so that in general an actor inside a Nested Room can’t reach outside it (there will need to be exceptions to this), and will automatically be taken out of the Nested Room if s/he tries.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+
+/*<span class="comment">   
+ *   BEDSITTERLAND
+ *
+ *   A demonstration of adv3Lite Nested Rooms (non-Room Things that can contain
+ *   actors and/or the player character).
+ *.
+ *
+ *   This is only minimally a game; there's nothing for the player to do but try
+ *   out the various kinds of Nested Room. The 'game' is also fairly minimal in
+ *   that very little has been implemented apart from what's necessary to show
+ *   the various Nested Room classes.
+ */</span>
+
+
+versionInfo: GameID
+    IFID = '9ac9903f-75b8-436f-b1c5-263427d1ea00'
+    name = 'Exercise 18 - Bedsitterland'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demonstration of nested rooms in adv3Lite.'
+    htmlDesc = 'A demonstration of nested rooms in adv3Lite.'
+;
+
+gameMain: GameMainDef
+    /*<span class="comment"> Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        &quot;This bedsit was the best accommodation you could find at short notice;
+        now it looks like you'll be stuck here for at least the next few months,
+        so you may as well try out the furniture.\b&quot;;
+    }
+;
+
+//==============================================================================
+/*<span class="comment"> 
+ *   A MODIFICATION TO PLATFORM
+ *
+ *   By default the library enforces no reachability conditions when the 
+ *   actor is in an ordinary Platform, but this can seem a bit 
+ *   unrealistic. For example the standard library behaviour would allow the 
+ *   PC to open the wardrobe while lying on the bed, and this is surely 
+ *   rather implausible.
+ *
+ *   The following modification to Platform changes that behaviour by 
+ *   making an actor leave a Platform in order to perform an action that 
+ *   requires touching an object that's not in the Platform.
+ * 
+ */</span>
+ 
+modify Platform
+     /*<span class="comment"> 
+     *   Check whether the actor can reach out of this object to touch obj, if
+     *   obj is not in this object.
+     */</span>    
+    allowReachOut(obj) { return nil; }          
+;
+
+
+/*<span class="comment"> 
+ *   ROOM
+ *
+ *   Starting location - we'll use this as the player character's initial
+ *   location.  The name of the starting location isn't important to the
+ *   library, but note that it has to match up with the initial location for the
+ *   player character, defined in the &quot;me&quot; object below.
+ *
+ *   Our definition defines three strings.  The first string, which must be in
+ *   single quotes, is the &quot;name&quot; of the room; the name is displayed on the
+ *   status line and each time the player enters the room.  The second (which is
+ *   option) is in single quotes and defines the vocab property for the room.
+ *   The third string, which must be in double quotes, is the &quot;description&quot; of
+ *   the room, which is a full description of the room.  This is displayed when
+ *   the player types &quot;look around,&quot; when the player first enters the room, and
+ *   any time the player enters the room when playing in VERBOSE mode.
+ *
+ *   The name &quot;startRoom&quot; isn't special - you can change this any other name
+ *   you'd prefer.  The player character's starting location is simply the
+ *   location where the &quot;me&quot; actor is initially located.
+ */</span>
+startRoom: Room 'Your Bedsit' '() your bedsit;; room'
+    &quot;One thing that can be said for this room is that it is at least reasonably
+    large. Whoever furnished it seems to have been in two minds about sleeping
+    arrangements, since in addition to the conventional bed over in one corner,
+    there's a bunk high up on one wall, over a short wooden bench. Fortunately
+    the bench is not the only thing to sit on, since there's also a comfortable
+    armchair and a long sofa. There's also a large desk, situated under a
+    bookshelf that's fixed inconveniently high up the wall, and a built-in
+    wardrobe large enough to walk into. &quot;
+    
+    north = door
+        
+;
+
+/*<span class="comment"> 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player 'you'   
+    &quot;You can't bear to look at yourself right now; you've come down so
+    far in the world to end up in this place! &quot;
+;
+
+
+/*<span class="comment">   
+ *   DOOR
+ *
+ *   Even a bedsit must have a door, but we'll provide one that doesn't go 
+ *   anywhere, giving a reason why the PC doesn't want to go out right now.
+ */</span>
+
++ door: Door 'door' 
+    beforeTravel(traveler, connector)
+    {
+        if(connector == self)
+        {
+            say(cannotOpenMsg);
+            
+            exit;
+        }
+    }      
+    
+    isOpenable = nil
+    cannotOpenMsg = '''You don't want to go out right now. You might run into 
+        your landlady in the hall, and she'll only start demanding the rent! '''
+    
+    /*<span class="comment"> 
+     *   This is the standard trick for a door that doesn't actually lead
+     *   anywhere; it stops the library from warning us that we've forgotten to
+     *   define the otherSide property on this Door.
+     */</span>
+    otherSide = self
+;
+
+
+
+/*<span class="comment">  
+ *   CHAIR
+ *
+ *   A chair is something that you would normally sit on and possibly stand on.
+ *
+ *   Since adv3Lite doesn't track postures, it doesn't distinguish between
+ *   objects you can stand on, sit on or lie on (platforms, chairs and beds),
+ *   but simply uses the Platform class for all three. We'll make this Platform
+ *   an Immovable, since it's not something the PC is meant to walk around with.
+ */</span>
+ 
+
++ armchair: Platform, Immovable 'armchair; arm neutral grey gray comfortable;
+    chair furniture[pl] seating[pl]' 
+    
+    &quot;It's a neutral gray in colour, but looks comfortable enough. &quot;
+    
+    cannotTakeMsg = 'You could take the armchair, but it would be a bulky thing
+        to walk around with, so you\'d rather not bother. '
+    
+    /*<span class="comment"> 
+     *   This chair isn't big enough to lie on. Although adv3Lite doesn't
+     *   actually track postures, it does allow commands like STAND ON, SIT ON
+     *   and LIE ON. While in reality these mean the same as GET ON, the
+     *   player's choice of command may indicate the particular item of
+     *   furniture s/he has in mind, so it can be useful to control which
+     *   commands are applicable to which objects.
+     */</span>
+    canLieOnMe = nil
+;
+
+
+/*<span class="comment">   
+ *   CHAIR 
+ *
+ *   By default a Chair cannot be lain on, but a sofa might be long enough to
+ *   allow someone to lie on, so here we'll override allowedPosture to allow
+ *   this. We'll make the sofa a Heavy as well, since something that size 
+ *   would presumably be too heavy to pick up.
+ */</span>
+
++ sofa: Platform, Heavy 'sofa; long; settee chairs[pl] furniture[pl]
+    seating[pl]' 
+    &quot;It could easily sit three people; alternatively there's plenty of room for
+    you to stretch yourself out on it. &quot;
+    
+    standOnScore = 90
+   
+;
+
+/*<span class="comment">  
+ *   BED
+ *
+ *   A bed is something that you would normally lie on, although by default 
+ *   you can also sit or stand on a Bed. Since people are more likely to sit 
+ *   on a bed than stand on one, sitting is also among the obviousPostures 
+ *   but standing is not. 
+ *
+ *   LIE ON BED is equivalent to GET ON BED.
+ */</span>
+
+
++ bed: Platform, Heavy 'bed; single; furniture[pl]' 
+    &quot;It's just a standard size single bed, about three feet wide and six long.
+    The space underneath it is taken up with a drawer in which you could store
+    some of your things. &quot;
+    
+    lookUnderMsg = 'The space under the bed is taken up by the drawer. '
+    
+    /*<span class="comment"> 
+     *   Although we're not really modelling postures, we can adjust the
+     *   suitability of different Platforms for different commands, so here we
+     *   can make the bed particularly suitable for lying on, less suitable for
+     *   for sitting on, and even less suitable for standing on, while note
+     *   ruling out any of these. The default value of each of these three
+     *   scores would be 100. Adjusting these scores can help the parser's
+     *   choice of object in cases of ambiguity.
+     */</span>        
+        
+    lieOnScore = 110
+    sitOnScore = 90
+    standOnScore = 80
+;
+
+/*<span class="comment">  
+ *   OPENABLE CONTAINER
+ *
+ *   Since we described the bed as having a drawer underneath, we should 
+ *   implement it.
+ */</span>
+
+++ drawer: OpenableContainer, Fixture 'drawer; long'    
+    &quot;It would have made more sense to put a pair of drawers under the bed, but
+    there's only one. &quot;
+;
+
++++ pillow: Thing 'spare pillow'
+    bulk = 3
+;
+
+/*<span class="comment">  
+ *   BOOTH
+ *
+ *   A Booth is something an actor can enter. By default GET IN BOOTH is 
+ *   treated as STAND ON (i.e. IN) BOOTH, but sitting or lying are regarded 
+ *   as both allowed and obvious.
+ */</span>
+
++ wardrobe: Booth, Fixture 'wardrobe; built-in white painted large'     
+    &quot;It's painted white, and looks large enough to walk into. &lt;&lt;isOpen ? 'Inside
+        the wardrobe is a metal hanging rail. ' : ''&gt;&gt;&quot;      
+    
+    isOpenable = true
+    isOpen = nil
+    
+    /*<span class="comment"> 
+     *   Force an actor inside the wardrobe to leave the wardrobe in order to
+     *   reach (i.e. touch) anything outside it.
+     */</span>
+    allowReachOut(obj) { return nil; }   
+    
+;
+
+/*<span class="comment">  
+ *   Just to make a wardrobe slightly less boring, we'll put a couple of 
+ *   things inside it.
+ */</span>
+
+++ Surface, Fixture 'metal rail; hanging; rod' 
+    &quot;The metal hanging rail runs the length of the wardrobe. &quot;
+    
+    notifyInsert(obj)
+    {
+        if(obj != hanger)
+        {
+            &quot;You can't put &lt;&lt;obj.theName&gt;&gt; on the rail. &quot;;            
+            exit;
+        }           
+    }    
+    
+;
+
++++ hanger: Thing 'wire coat-hanger; (coat); hanger coathanger'
+    
+;
+
+
+
+/*<span class="comment">  
+ *   PLATFORM
+ *
+ *   A Platform is something one would normally stand on, although one could 
+ *   equally well sit or lie on it. 
+ *
+ *   GET ON PLATFORM is treated as equivalent to STAND ON PLATFORM
+ *
+ *   To make it a bit more interesting, we'll make our first example of a 
+ *   Platform a desk which things can be put under as well as on top of 
+ *   (although one might normally think of a Desk as a Surface, it's usually 
+ *   possible to sit or stand on a desk, and even to lie on it if it's big 
+ *   enough). To allow this we need to make the desk itself a 
+ *   Multiplex Container and attach the Platform to its remapOn.
+ */</span>
+
+
++ desk: Heavy 'desk;; furniture[pl]' 
+    remapOn: SubComponent, Platform
+    {       
+        /*<span class="comment"> 
+         *   We must be able to reach the bookshelf and anything on the
+         *   bookshelf from the desk, or else we'll defeat the obiect of making
+         *   the bookshelf only reachable from the desk.
+         */</span>   
+        allowReachOut(obj)
+        {
+            return obj.isOrIsIn(bookshelf);
+        }
+        
+        
+    }
+    remapUnder: SubComponent {  }   
+;
+
+++ ladder: Platform 'short ladder; wooden'
+    
+    /*<span class="comment"> 
+     *   Put the ladder under the desk. Note the special syntax for placing 
+     *   something within a subXXXXX of a ComplexContainer.
+     */</span>
+    subLocation = &amp;remapUnder // or just sLoc(Under)
+    
+    /*<span class="comment">  
+     *   Normally you can sit, stand, or lie on a Platform, but in the case 
+     *   of a ladder its only standing that makes much sense.
+     */</span>
+    canSitOnMe = nil
+    canLieOnMe = nil
+        
+    
+    /*<span class="comment">   
+     *   It would be natural to try to climb, climb up or climb down a 
+     *   ladder, so we redirect these actions appopriately.
+     */</span>
+    dobjFor(Climb) asDobjFor(StandOn)
+    dobjFor(ClimbUp) asDobjFor(StandOn)
+    dobjFor(ClimbDown) asDobjFor(GetOff)
+    
+    /*<span class="comment">   
+     *   Add a custom property to keep track of the notional position of the 
+     *   ladder.
+     */</span>    
+    leaningAgainst = nil
+    
+    /*<span class="comment">   
+     *   We'll only allow the ladder to be used to reach the bunk when it's 
+     *   leaning against the bunk, so we need to provide an action that 
+     *   allows the player to put the ladder in the appropriate place. We'll 
+     *   use MoveTo.
+     */</span>
+    
+    dobjFor(MoveTo)
+    {
+        action()
+        {
+            if(gIobj == bunk)
+            {
+                actionMoveInto(bunk.location);
+                leaningAgainst = bunk;
+                &quot;You lean the ladder against the bunk. &quot;;
+            }
+            else
+                inherited;
+        }
+    }
+    
+    /*<span class="comment">  
+     *   Whenever the ladder is taken, it can no longer be leaning against 
+     *   the bunk (or anything else), so we need to override the action 
+     *   handling for Take accordingly.
+     */</span>
+    
+    dobjFor(Take)
+    {
+        action()
+        {
+            inherited;
+            leaningAgainst = nil;
+        }
+    }
+    
+    /*<span class="comment">  If the ladder is in position, make UP equivalent to STAND ON LADDER */</span>
+    
+    beforeAction()
+    {
+        if(gActionIs(Up) &amp;&amp; leaningAgainst != nil)
+            replaceAction(StandOn, self);
+    }
+    
+    /*<span class="comment"> 
+     *   The purpose of the ladder is to enable the player character to 
+     *   reach the bunk. We need to make sure we can touch the bunk (which 
+     *   is outside us) when we're the staging location for the bunk. Here 
+     *   we generalize the code to allow an actor inside us to touch 
+     *   anything for which we are a staging location.
+     */</span>    
+    
+    allowReachOut(obj)
+    {
+        /*<span class="comment"> 
+         *   Note that we can't be sure that the object we're trying to touch
+         *   will have a stagingLocations property. By using the nilToList 
+         *   function we avoid the run-time error that would otherwise occur 
+         *   if we tried this test on a dest object for which 
+         *   stagingLocations is nil.
+         */</span>
+        return obj.stagingLocation == self;    
+    }
+    
+;
+
+/*<span class="comment">  
+ *   PUTTING SOMETHING OUT OF REACH
+ *
+ *   To make something out of reach we can use its checkReach() method. Here we make the bookshelf
+ *   (and its contents) out of reach to any actor who isn't on the desk (or rather, in the desk's
+ *   Platform subcomponent.
+ */</span>
+
+
++ bookshelf: Surface, Fixture 
+    'bookshelf; long wooden; shelf' 
+    &quot;It's a long wooden bookshelf, fixed far too high up on the wall for
+    convenient access. &quot;
+    
+    /*<span class="comment"> 
+     *   Define the conditions under which this object can be 
+     *   reached. sctor is the object attempting the reaching -- typically an 
+     *   actor. An actor can reach this shelf if s/he's standing on the 
+     *   desk, so we need to test both that the actor is is on the desk.
+     */</span>
+    checkReach(actor)
+    {
+        if(!actor.isIn(desk.remapOn))
+            &quot;You can't reach the shelf from there. &quot;;
+    }
+        
+;
+
+/*<span class="comment">  
+ *   READABLE
+ *
+ *   To demonstrate putting something out or reaach fully we need to put something on the bookshelf,
+ *   and the obvious thing to put there is a book.
+ */</span> 
+
+++ book: Thing 'red book'
+    &quot;It's called &lt;i&gt;Life in Bedsitterland&lt;/i&gt;. &quot;
+    readDesc = &quot;You stop reading after a few pages. Of course the book relates
+        someone else's experience of life in bedsitterland, but the prospect of
+        the next few months turning out anything like that for you is just too
+        depressing. &quot;
+        
+    /*<span class="comment">  
+     *   One would normally hold a book in order to read it, and if we don't 
+     *   enforce either objHeld or touchObj here, the player would be able to
+     *   read the book without taking it off the shelf.
+     */</span>
+    dobjFor(Read) { preCond = [objHeld] }
+;
+
+
+/*<span class="comment">   
+ *   CHAIR
+ *
+ *   So far all our examples of Nested Rooms have been NonPortable, but a 
+ *   Nested Room can also be portable, as the following Chair object 
+ *   demonstrates.
+ */</span>
+
+
++ Platform 'swivel chair; black swivel; furniture[pl] seating[pl]' 
+    &quot;It's black, and it swivels. &quot;
+    specialDesc = &quot;A swivel chair has been placed right by the desk. &quot;
+    
+    /*<span class="comment">  
+     *   Since it's described as a swivel chair we'd better allow the player 
+     *   to turn it.
+     */</span>    
+    dobjFor(Turn)
+    {
+        verify() {}
+        action()
+        {
+            &quot;You swivel the chair round a few times. How exciting! What fun! &quot;;
+        }
+    }
+    
+    /*<span class="comment"> 
+     *   A swivel chair might not be all that safe to stand on, so we'll 
+     *   restrict the allowedPostures to sitting.
+     */</span>    
+    canStandOnMe = nil
+    canLieOnMe = nil
+    
+    cannotStandOnMsg = 'Since the swivel chair swivels so easily, it\'s not safe
+        to stand on. '
+;
+
+/*<span class="comment">  
+ *   MAKING A NESTED ROOM TOO HIGH TOO REACH
+ *
+ *   We can created a nested room that's regarded as being too high up to reach
+ *   except via a special staging location (such as a ladder). The example here
+ *   is a bunk high up on the east wall which can only be reached via the ladder
+ *   once the ladder has been placed against the bunk.
+ */</span>
+
++ bunk: Platform, Fixture 'narrow bunk; hard; beds[pl]'     
+    &quot;It's quite narrow, and looks a bit hard, but at least it would allow you to
+    have a visitor to stay. It's also quite high up the wall. &quot;
+    
+    /*<span class="comment"> 
+     *   Normally you could stand on a bed, but there's not enough headroom 
+     *   above the bunk.
+     */</span>
+    canStandOnMe = nil
+    cannotStandOnMsg = 'There\'s not enough headroom to stand here. '
+    
+    /*<span class="comment">  
+     *   To reach this high nested room an actor has to be the appropriate staging location, so the
+     *   stagingLocation property defines how the bunk can be reached. We define stagingLocation so
+     *   that the ladder can only be used as a staging location when it's in the right state
+     *   (leaning against the bunk).
+     */</span>
+    stagingLocation = (ladder.leaningAgainst == self ? ladder : nil)
+    
+    checkReach(actor)
+    {
+        if(actor.location != stagingLocation)
+            &quot;The bunk is too high up to reach. &quot;;
+    }
+    
+    
+    /*<span class="comment">  
+     *   In order to get the ladder into the right state the bunk must be a 
+     *   possible target of a MoveTo command.
+     */</span>    
+    iobjFor(MoveTo) 
+    { 
+        preCond = [objVisible]
+        verify() {} 
+    }
+    
+    
+
+    
+    lookUnderMsg = 'Beneath the bunk are a short wooden bench and a sleeping
+        cat. '
+;
+
++ Decoration 'north wall; (n)'
+    &quot;A narrow bunk has been fixed high up on the north wall, with a short wooden
+    bench underneath. &quot;
+;
+
+
+/*<span class="comment"> 
+ *   CHAIR 
+ *
+ *   Since the bunk is high up on the wall, we may as well put something 
+ *   underneath it.
+ */</span>
+
++ bench: Platform, Fixture 'bench; short wooden; chairs[pl] furniture [pl] 
+    seating[pl]'     
+    &quot;Frankly, you're not sure what it's doing there; it looks neither
+    comfortable nor decorative. Your best guess is that there was once a lower
+    bunk that has long since been removed, and someone put the bench there to
+    take up the space (and/or cover up a mark on the wall). &quot;
+    
+    canSitOnMe = true
+    canLieOnMe = true
+    lieOnScore = 80
+    
+    cannotTakeMsg = 'It seems to be fixed firmly in place. '
+    cannotStandOnMsg = 'There\'s not enough room to stand on the bench; you\'d
+        bang your head on the bunk above. '
+;
+
+
+/*<span class="comment">  
+ *   CAT
+ *
+ *   Finally, the cat that's mentioned as sleeping under the bunk. Since it
+ *   stays asleep during the course of the game its implentation can be fairly
+ *   minimal.
+ */</span>
+
++ cat: Immovable 'cat; black tom sleeping; animal; him it'
+    &quot;It's a black cat, which currently looks profoundly asleep. &quot;
+    
+    /*<span class="comment">  
+     *   Obviously it's possible to pick up a cat, so we'll customise the 
+     *   cannotTakeMsg.
+     */</span>
+    cannotTakeMsg = 'It would be kinder to let sleeping cats lie. '
+    
+    /*<span class="comment">  
+     *   By setting owner = me we ensure that the parser will recognize 'your
+     *   cat' or 'my cat' as referring to the cat.
+     */</span>
+    owner = me
+    
+    
+    /*<span class="comment">  
+     *   We'll also have the cat referred to as 'your cat' rather than 'the 
+     *   cat'
+     */</span>
+    theName = 'your cat'
+    
+    /*<span class="comment">   
+     *   Throwing something at the cat would wake it up, which we don't want;
+     *   also the default response for throwing things can look rather 
+     *   ludicrous when the target is animate. So we'll override 
+     *   iobjFor(ThrowAt) to disallow this, using the same failure message 
+     *   as for take.
+     */</span>    
+    iobjFor(ThrowAt)
+    {
+        check()
+        {
+            say(cannotTakeMsg);
+        }
+    }
+    
+    cannotAttackMsg = 'You\'d rather not; you\'re actually rather fond of your
+        cat, and he\'s about the only friend you\'ve got round here. '
+    
+    specialDesc = &quot;Your cat is asleep under the bunk. &quot;
+;
+
+
+//==============================================================================
+/*<span class="comment"> Modifying verb grammar */</span>
+
+/*<span class="comment">   
+ *   MOVE LADDER TO BUNK might not be the most obvious phrasing, so we'll add
+ *   some alternative phrasings in a new VerbRule, but still assign them to 
+ *   the MoveTo action.
+ */</span>
+
+
+VerbRule(LeanAgainst)
+    'lean' singleDobj ('on' | 'against') singleIobj |
+    'put' singleDobj 'against' singleIobj
+    : VerbProduction
+    action = MoveTo
+    verbPhrase = 'lean/leaning (what) (against what)'
+    missingQ = 'what do you want to lean; what do you want to lean it against'
+;
+
+/*<span class="comment">  
+ *   Since we have an object called a swivel chair it seems likely that a 
+ *   player might try to SWIVEL it, so we'll add 'swivel' to the standard 
+ *   grammar for TurnAction.
+ *
+ *   Note the slightly unusual syntax for modifying a VerbRule, with the 
+ *   colon after the grammar definition line. In this case the original 
+ *   VerbRule(Turn) was copied and pasted from en_us.t and 'swivel' simply 
+ *   added. 
+ */</span>         
+
+modify VerbRule(Turn)
+    ('turn' | 'twist' | 'rotate' | 'swivel') multiDobj
+    :
+;
+
+/*<span class="comment"> 
+ *   There's no particular reason why we modified VerbRule(Turn) and added a 
+ *   new VerbRule(LeanAgainst), other than to illustrate both methods; but 
+ *   the fact that just adding 'swivel' was a simpler change than the 
+ *   additional grammar for MoveToAction helped determine that we did it 
+ *   this way round.
+ */</span>
+
+
+/*<span class="comment">  
+ *   There's a bed here, to the player might reasonably try to sleep. If the PC
+ *   is not already on the bed when the command is issued, it makes sense to
+ *   move him/her there with an implicit command first.
+ */</span>
+
+modify Sleep
+    execAction(cmd)
+    {
+        if(!me.isIn(bed))
+        {
+            tryImplicitAction(LieOn, bed);
+            &quot;&lt;&lt;buildImplicitActionAnnouncement(me.isIn(bed))&gt;&gt;&quot;;
+        }
+        &quot;You drop off to sleep and dream of better times. You wake up again
+        after an indeterminate period. &quot;;
+    }
+;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='bedsit.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

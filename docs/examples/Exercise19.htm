@@ -1,0 +1,1282 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 19 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='LockGadget.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 19 - Locks and Gadgets (adv3Lite)</h1>
+
+<p>This game is a demonstration of Locks, Keys, Gadgets and Controls.</p>
+ 
+ <p>This is a complete game insofar as there is an objective and it's possible to win, but it's not really complete in terms of implementing everything that ought to be implemented in a real game. It's basically 
+ a coding demonstration.</p>
+ 
+<p>The main purpose of this demo is to illustrate the use of the various 
+ Lockable, Key, gadget and control-type classes. It has, of course, been 
+necessary to include some objects from various other class-families as 
+well in order to make a coherent game, but in the main these have been 
+kept to a minimum.</p>
+
+<p>The game follows the specification of Exercise 19 in <i>Learning TADS 3 with Adv3Lite</i>:
+
+<p>The player character is outside the home of a blackmailer. Knowing him to be out, the player wants to burgle his house to recover an incriminating letter. The player character carries a small black case holding a skeleton key and a key-ring, and also has a small flashlight (if you want to be really sophisticated you can try to see whether the player refers to it as a ‘flashlight’ or a ‘torch’ and then use American or British English from then on accordingly). The front door can be unlocked either with the skeleton key or with the key hidden under a nearby flowerpot. Once inside the hall the player character must disable the burglar alarm before going any further into the house. The alarm is controlled by a numeric keypad inside a box by the front door. The correct combination is the date (year) that was written over the outside of the front door. To unlock the box containing the keypad requires either the skeleton key or a small silver key that falls to the ground when the player character pulls a peg on the nearby hat-stand. Once the alarm has been turned off, the player character can go into the study. On one wall of the study is a panel than needs to be opened to gain access to the safe. In the study is a desk on which is a small wooden box. On the side of the box is a slider, which can be set to the names of four different composers; the box is unlocked when the slider is used to spell out the word OPEN from the initial letters of these composers. Inside the box is a key that can be unused to unlock the drawer of the desk. This contains a notebook in which is written the cryptic message “Advertising is safe” together with the combination of the safe. There’s a TV in the study which can be turned on and off with a switch, and changed to different channels with a dial. Turning it on and switching it to the advertising channel will open the panel in the wall. The player character can then go through the open panel into a small cubby-hole containing the safe. From inside the cubby-hole the panel can be opened and closed by means of a lever. The safe has dial which must be turned to each of the numbers in the combination for the safe to be unlocked. Once the safe is unlocked it can be opened and the letter retrieved. The game is won when the player character walks away from the house carrying the letter.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+
+<span class="comment">/*   
+ *   EXERCISE 19 - LOCKS AND GADGETS
+ *
+ *   A demonstration of Locks, Keys, Gadgets and Controls.
+ *
+ *   This is a complete game insofar as there is an objective and it's 
+ *   possible to win, but it's not really complete in terms of implementing 
+ *   everything that ought to be implemented in a real game. It's basically 
+ *   a coding demonstration.
+ *
+ *   The main purpose of this demo is to illustrate the use of the various 
+ *   Lockable, Key, gadget and control-type classes. It has, of course, been 
+ *   necessary to include some objects from various other class-families as 
+ *   well in order to make a coherent game, but in the main these have been 
+ *   kept to a minimum.
+ */</span>
+
+
+<span class="comment">/*
+ *   VERSION INFO
+ *
+ *   Our game credits and version information.  This object isn't required 
+ *   by the system, but our GameInfo initialization above needs this for 
+ *   some of its information.
+ *
+ *   You'll have to customize some of the text below, as marked: the name of 
+ *   your game, your byline, and so on.
+ */</span>
+versionInfo: GameID
+    IFID = '49d00c5d-5706-4d5d-a55d-8a80fb003aa1'
+    name = 'Exercise 19 - Locks and Gadgets'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demo of adv3Lite Locks, Keys, Gadgets and Controls'
+    htmlDesc = 'A demo of adv3Lite Locks, Keys, Gadgets and Controls'
+;
+
+<span class="comment">/*
+ *   GAME MAIN
+ *
+ *   The &quot;gameMain&quot; object lets us set the initial player character and 
+ *   control the game's startup procedure.  Every game must define this 
+ *   object.  For convenience, we inherit from the library's GameMainDef 
+ *   class, which defines suitable defaults for most of this object's 
+ *   required methods and properties.  
+ */</span>
+gameMain: GameMainDef
+    <span class="comment">/* Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        &quot;Baron Lothar von Erpresser is out; you know because you arranged for
+        him to be sent an invitation to the reception at the Patagonian
+        embassy, which he was unable to resist. His house will be empty for the
+        next few hours, affording you the best opportunity to recover that
+        unfortunate letter. You're not prepared to pay the price he's asking
+        for it, and if he carries out his threat to send it to your betrothed
+        your marriage prospects will be seriously compromised.\b
+        You're pretty sure he's keeping the incriminating letter in a safe in
+        his study. You're well equipped to recover it; all you need to do now
+        is enter the house, recover the letter, and make a quick getaway. The
+        baron has such a poor memory for numbers that you feel sure he'll have
+        written down the combination somewhere. \b&quot;;
+    }
+;
+
+<span class="comment">/*  
+ *   ENUMERATOR
+ *
+ *   We can define an enumerator with whatever names we like. Here we'll 
+ *   define a couple of values to keep track of the nationality of the player
+ *   (character).
+ */</span>
+
+enum british, american;
+
+
+<span class="comment">/*   We'll modify Thing to give every portable object a default bulk of 1 */</span>
+
+modify Thing
+    bulk = (isFixed ? 0 : 1)
+;
+
+
+<span class="comment">/* 
+ *   OUTDOOR ROOM
+ *
+ *   Starting location - we'll use this as the player character's initial 
+ *   location.  The name of the starting location isn't important to the 
+ *   library, but note that it has to match up with the initial location for 
+ *   the player character, defined in the &quot;me&quot; object below.
+ *
+ *   Our definition defines two strings.  The first string, which must be in 
+ *   single quotes, is the &quot;name&quot; of the room; the name is displayed on the 
+ *   status line and each time the player enters the room.  The second 
+ *   string, which must be in double quotes, is the &quot;description&quot; of the 
+ *   room, which is a full description of the room.  This is displayed when 
+ *   the player types &quot;look around,&quot; when the player first enters the room, 
+ *   and any time the player enters the room when playing in VERBOSE mode.
+ *
+ */</span>
+drive: Room 'Front Drive'
+    &quot;Langtree House, a sprawling Edwardian mansion, lies before you just to the
+    south, while to the north the drive leads back down to the road. &quot;
+    south = frontDoorOutside
+    in asExit(south)
+    
+    north: TravelConnector {        
+        
+        <span class="comment">/* 
+         *   We prevent the player character from leaving towards the road 
+         *   until s/he is carrying the letter. When the player character 
+         *   does leave for the road, we'll end the game.
+         */</span>
+        canTravelerPass(traveler) { return letter.isIn(traveler); }
+        explainTravelBarrier(traveler)
+        {
+            &quot;You're &lt;i&gt;not&lt;/i&gt; leaving without that letter! &quot;;            
+        }
+        
+        <span class="comment">/*  
+         *   Once the PC travels via this connector, the game is won, so we 
+         *   end the game in victory (i.e. display a YOU HAVE WON message 
+         *   and end the game.
+         */</span>
+        
+        noteTraversal(traveler)
+        {
+            &quot;As you walk down the drive you tuck the letter safely inside your
+            coat. The baron won't be back for hours yet; by the time he finds
+            the letter has gone it'll have been burned to cinders in your
+            hearth. And what can he do then? Report the theft to the police?\b
+            You chuckle merrily at the thought as you walk out into the
+            road.\b&quot;;
+            finishGameMsg(ftVictory, [finishOptionUndo, finishOptionAmusing]);
+        }
+    }
+;
+
+<span class="comment">/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player 'you'   
+    &quot;You are dressed all in black, as befits a burglar. &quot;    
+    
+    <span class="comment">/*  
+     *   A custom property that will be used later on. The possible values 
+     *   are british and american.
+     */</span>
+    nationality = british
+;
+
+<span class="comment">/*  
+ *   FLASHLIGHT
+ *
+ *   A Flashlight is both a gadget and a Light Source, being a special kind of 
+ *   Switch.  
+ *
+ *   The ostensible purpose of this torch/flashlight is to allow the player 
+ *   character to see in the darkened hall, and it is indeed the kind of 
+ *   thing one might expect some intended burglary to be carrying. The real 
+ *   purpose is to guess when the player is more comfortable with British or 
+ *   American English. A British player will most likely call this device a 
+ *   'grey torch' while an American will be more likely to refer to it is a 
+ *   'gray flashlight'.
+ */</span>
+
+++ torch: Flashlight 'plastic tube; plastic grey gray; switch torch flashlight
+    torch' 
+    &quot;&lt;&lt;if name == 'plastic tube'&gt;&gt;It's a plastic tube of a colour midway between
+    black and white, with a switch than can be turned on and off to produce
+    light. &lt;&lt;else&gt;&gt;It's a plastic &lt;&lt;name&gt;&gt;. &quot;
+       
+    
+    <span class="comment">/*  
+     *   The normal purpose of matchNameCommon() is to decide whether we 
+     *   want to interfere with the parser's choice of this object as match 
+     *   for what the player typed. We don't interfere with that here at 
+     *   all; instead we take advantage of the fact that this routine is 
+     *   called whenever the player refers to this object to see what words 
+     *   the player used to refer to it.
+     */</span>
+    
+    matchNameCommon(tokens, phrases, excludes)
+    {
+        
+        
+        <span class="comment">/* 
+         *   Don't worry too much if the next statement looks like a piece of
+         *   arcane mumbo-jumbo. The adjustedTokens parameter will contain a
+         *   list that looks something like ['grey', &amp;adjective, 'torch', 
+         *   &amp;noun]. What the following statement does is to ensure that all 
+         *   the string values in the list are converted to lower case while 
+         *   leaving the others untouched. This makes it easier to see 
+         *   whether words like 'torch' or 'flashlight' occur in the list 
+         *   without worrying whether the player typed them in upper or 
+         *   lower case.
+         */</span>
+        
+        local lst = tokens.mapAll({x: dataType(x) == 
+                                          TypeSString ? x.toLower() : x});
+        
+        <span class="comment">/* 
+         *   Test first to see if the player has used the word 'torch' or 
+         *   'flashlight', and if so use that to determine the name of this 
+         *   object (and the nationality of the player). Otherwise see if 
+         *   'grey' or 'gray' has been used.
+         */</span>
+        
+        if(lst.indexOf('torch'))        
+            name = britishName;
+        else if (lst.indexOf('flashlight'))
+            name = americanName;
+        else if(lst.indexOf('grey'))
+            name = britishName;
+        else if(lst.indexOf('gray'))
+            name = americanName;
+               
+        <span class="comment">/* 
+         *   Now set the nationality of the player according to the name of 
+         *   this object. Note that if the player refers to us a plastic 
+         *   tube we can't make a decision on nationality and so we won't 
+         *   change it.
+         */</span>
+        
+        if(name == britishName)
+            me.nationality = british;
+        if(name == americanName)
+            me.nationality = american;
+            
+        return inherited(tokens, phrases, excludes);
+    }
+    britishName = 'grey torch'
+    americanName = 'gray flashlight'
+;
+
+<span class="comment">/*  
+ *   LOCKABLE CONTAINER
+ *
+ *   This is a basic LockableContainer; it has a lock but no key is needed to
+ *   unlock it, and opening the case will perform an implicit unlock 
+ *   action, so the lock performs virtually no function in practice. We'll 
+ *   meet some more challenging lockable containers below.
+ */</span>
+
+++ LockableContainer 'small black case' 
+    &quot;It's very small, not big enough to impede your movements, just large
+    enough to contain some essential equipment for the job. &quot;
+    
+    <span class="comment">/* 
+     *   We've described the case as very small, so let's make its 
+     *   bulkCapacity match that.
+     */</span>
+    bulkCapacity = 3
+    bulk = 3
+;
+
+<span class="comment">/*   
+ *   KEY
+ *
+ *   As its name implies, this skeleton key will be able to open just about 
+ *   any keyed lock in the game. This will be used to illustrate that one 
+ *   key can open several locks, and that several keys can be defined as 
+ *   opening the same lock.
+ */</span>
+
++++ skeletonKey: Key 'skeleton key; thin  metal'
+    &quot;It's a thin metal key, with cunningly designed teeth. &quot;
+    
+    <span class="comment">/* The skeleton key works in a number of locks. */</span>
+    actualLockList = [frontDoorOutside, frontDoorInside, whiteBox]
+;
+
+
+<span class="comment">/*  
+ *   ENTERABLE
+ *
+ *   We use an Enterable to represent the house and point its connector 
+ *   property to the front door (so that ENTER HOUSE will attempt to take 
+ *   the PC through the front door.
+ */</span>
+
++ Enterable 'house; langtree edwardian sprawling; mansion'     
+    &quot;It looks a little gloomy and intimidating in the twilight, but most of all
+    you resent its occupancy by a man who makes his money in so vile a fashion.
+    &quot;
+    
+    connector = frontDoorOutside
+;
+
+
+
+<span class="comment">/*
+ *   A DOOR THAT CAN BE LOCKED WITH A KEY
+ *
+ *   A door is an obvious thing to lock and unlock with a key, and here we 
+ *   provide a simple example. The description provides a hint for a 
+ *   combination to be used just inside. Since the door describes itself as 
+ *   hard to break, we provide a corresponding custom shouldNotBreakMsg to 
+ *   respond to an attempt to break the door.
+ */</span>
+
++ frontDoorOutside: Door 'front door; solid oak; lintel' 
+    &quot;The date carved on the lintel, 1908, confirms that the house is indeed
+    Edwardian. The door itself is of solid oak; there's no way you're going to
+    break it down. &quot;
+    
+    otherSide = frontDoorInside
+    
+    shouldNotBreakMsg = 'It\'s made of solid oak; there\'s no way you can break
+        it down. '
+    
+    lockability = lockableWithKey
+    
+    isLocked = true     
+;
+
+<span class="comment">/*   
+ *   KEY HIDDEN UNDER POT
+ *
+ *   Hiding a key under a pot just by the door hardly constitutes an exciting
+ *   puzzle, but here the point is simply to provide an example of two keys 
+ *   opening the same door.
+ */</span>
+
++ pot: Thing 'flowerpot; old flower; pot'
+    initSpecialDesc = &quot;An old flowerpot rests on the ground near the front door.
+        &quot;
+    
+    hiddenUnder = [doorKey]
+;
+
+
+<span class="comment">/*  
+ *   KEY
+ *
+ *   This is the other key that will unlock the front door. 
+ */</span>
+
+doorKey: Key 'small brass key'
+    actualLockList = [frontDoorOutside, frontDoorInside]
+;
+
+
+//------------------------------------------------------------------------------
+<span class="comment">/*  
+ *   TRAVEL BARRIER
+ *
+ *   We define this TravelBarrier object here so that we can go on to use it 
+ *   on three different connectors inside the house. The idea is to prevent 
+ *   the PC from going beyond the hall until s/he's turned off the burglar 
+ *   alarm.
+ */</span>
+
+alarmBarrier: TravelBarrier
+    canTravelerPass(traveler, connector) { return !alarmPanel.isOn; }
+    explainTravelBarrier(traveler, connector)
+    {
+        &quot;You daren't go further into the house until you've disabled the
+        alarm. &quot;;
+    }
+;
+
+hall: Room 'Hall'
+    &quot;The hall reflects a kind of fading grandeur, as if struggling to recall
+    the happier days of imperial spendour in which it was built, long before it
+    fell into the hands of a dastardly blackmailing foreigner. The way to the
+    dastard's study is immediately to the east. The gloomy hall continues
+    southwards towards the kitchen while a broad flight of stairs leads up to the
+    floor above. The front door lies to the north, with an incongruously modern
+    white box set on the wall just by it. &quot;
+    
+    north = frontDoorInside
+    out asExit(north)
+    
+    <span class="comment">/* 
+     *   This ONE WAY ROOM CONNECTOR is in place simply so we can put the 
+     *   alarm barrier on it. The player can't go east from the hall until 
+     *   the alarm has been switched off.
+     */</span>
+    
+    east: TravelConnector
+    {
+        destination = study
+        travelBarriers = [alarmBarrier]
+    }
+    
+    <span class="comment">/*   
+     *   This fake TRAVEL CONNECTOR exists simply to make the house appear
+     *   bigger than the number of rooms we're actually implementing (since we
+     *   described it as a sprawling mansion from the outside). Note that the PC
+     *   can't actually travel via this connector under any circumstances, but
+     *   that different reasons will be given depending on whether the alarm is
+     *   on or off; while the alarm is on the travelBarrier will take precedence
+     *   over the travelDesc message.
+     */</span>
+    
+    south: TravelConnector 
+    { 
+        travelDesc = &quot;&lt;&lt;one of&gt;&gt;You find that that &lt;&lt;or&gt;&gt;That &lt;&lt;stopping&gt;&gt; way
+            leads to the kitchen, but you don't need to eat just at the
+            moment. &quot; 
+        travelBarriers = [alarmBarrier]
+        destination = hall
+    }
+    up = hallStairs
+    
+    isLit = nil
+;
+
+
+<span class="comment">/*  
+ *   DOOR LOCKABLE WITH KEY, DOOR 
+ *
+ *   This is the other side of the outside of the front door, defined above; 
+ *   and the definition is much the same.
+ */</span>
+
++ frontDoorInside: Door 'front door' 
+    otherSide = frontDoorOutside
+    lockability = lockableWithKey
+    isLocked = true    
+;
+
+<span class="comment">/*  
+ *   FAKE STAIRWAY UP
+ *
+ *   We can use StairwayUp to make a staircase that will never be climbed. While
+ *   the alarm is on the alarmBarrier will take precedence for explaining why
+ *   not, but once it's off the travelDesc will provide the expanation.
+ *
+ *   Again, the purpose of this staircase is simply to suggest that the house is
+ *   larger inside than we've really made it.
+ */</span>
+
++ hallStairs: StairwayUp 'flight of stairs;;;it them'
+   travelDesc = &quot;Upstairs you'll find only bedrooms and bathrooms, and you
+       don't want to sleep or wash right now. &quot;      
+    
+    travelBarriers = [alarmBarrier]
+;
+
+<span class="comment">/*   
+ *   KEYED CONTAINER
+ *
+ *   A KeyedContainer does need a key to lock it and unlock it. We define 
+ *   this one so that either the skeleton key or the silver key will unlock 
+ *   it.
+ */</span>
+
++ whiteBox: KeyedContainer, Fixture 'white box; incongruously small modern'
+    &quot;It's quite small, and is fitted at about shoulder height just next to the
+    front door. &quot;
+    cannotTakeMsg = 'The box is firmly fixed to the wall. '
+        
+    <span class="comment">/* 
+     *   Listening to the box should give the sound of the beep, but only if the
+     *   alarm panel is on.
+     */</span>
+    listenDesc()
+    {
+        if(alarmPanel.isOn)
+            beep.desc;
+    }
+;
+
+<span class="comment">/*  
+ *   FIXTURE
+ *
+ *   This panel object is used to represent the innards of the burglar alarm 
+ *   control box. Note that we override isListedInContents and isListed so 
+ *   that this panel is clearly announced as being in the box once the box is
+ *   opened.
+ */</span>
+
+++ alarmPanel: Fixture 'alarm panel;;keypad' 
+    &quot;It has a keypad with ten buttons, numbered 0 to 9. &lt;&lt;isOn ? 'A red light
+        is flashing on the panel' : 'The red light is off'&gt;&gt;. &quot;
+    isListedInContents = true
+    isListed = true
+    
+    <span class="comment">/* 
+     *   Here we provide the code for turning off the alarm by typing the 
+     *   correct code on the keypad. Note that the combination matches the 
+     *   date on the door lintel outside, but by defining a custom 
+     *   combination property we make it easy to change it to anything we 
+     *   like.
+     */</span>
+    
+    combination = '1908'
+    dobjFor(TypeOn)
+    {
+        verify() {}
+        
+        <span class="comment">/*  
+         *   Since the keypad is described as having buttons numbered 0 to 9 
+         *   we need to rule out the attempt to type any other characters on 
+         *   it.
+         */</span>
+        
+        check()
+        {                        
+            for(local i=1; i &lt;= gLiteral.length; i++)                
+            {
+                local cur = gLiteral.substr(i, 1);
+                if(cur &lt; '0' || cur &gt; '9')
+                {
+                    &quot;You can only type numbers on the keypad; &lt;q&gt;&lt;&lt;cur&gt;&gt;&lt;/q&gt;
+                    isn\'t a number. &quot;;
+                }
+            }
+        }
+        
+        <span class="comment">/*  
+         *   If what the player types matches the combination, turn off the 
+         *   alarm.
+         */</span>        
+        action()
+        {
+            &quot;Okay, you type &lt;&lt;gLiteral&gt;&gt; on the keypad&quot;;
+            if(gLiteral == combination)
+            {
+                &quot;; the red light stops flashing and the beeping stops&quot;;
+                alarmPanel.isOn = nil;
+            }
+            &quot;. &quot;;
+        }
+    }
+    isOn = true
+    
+    <span class="comment">/* Make ENTER XXXX ON KEYPAD equivalent to TYPE XXX ON KEYPAD */</span>
+    
+    dobjFor(EnterOn) asDobjFor(TypeOn)
+
+;
+
+<span class="comment">/*  
+ *   BUTTON
+ *
+ *   Our example of the Button class has a couple of little tricks to it. 
+ *   First of all, when it's pressed all it does is to tell the player to 
+ *   try typing on the keypad instead (so instead of typing PUSH BUTTON 1, 
+ *   PUSH BUTTON 9, PUSH BUTTON 0, PUSH BUTTON 8, they just need to type 
+ *   TYPE 1908 ON KEYPAD). Secondly we make one Button object represent all 
+ *   10 buttons. As we've defined the vocabWords below our button will match 
+ *   BUTTON 0, BUTTON 1, and so on all the way up to BUTTON 9. So whichever 
+ *   (valid) button the player tries to press s/he'll be told to type on the 
+ *   keypad instead.
+ */</span>
+
++++ Button 'button; small 0 1 2 3 4 5 6 7 8 9; key' 
+    
+    &quot;There are ten small buttons, numbered 0 to 9. &quot;
+    
+    makePushed = &quot;Instead of pushing individual buttons, just TYPE number ON
+        KEYPAD. &quot;    
+;
+
+<span class="comment">/*   
+ *   COMPONENT
+ *
+ *   This simply represents the red light that's mentioned in the 
+ *   description of the alarm panel.
+ */</span>
+
++++ redLight: Component 'red light' 
+    &quot;It's &lt;&lt;alarmPanel.isOn ? 'flashing' : 'off'&gt;&gt;. &quot;
+;
+
+<span class="comment">/*  
+ *   NOISE
+ *
+ *   Until the alarm is switched off it beeps continuously. The Noise represents
+ *   the beep. Until the alarm is switched off the player will be told that &quot;A
+ *   beeping comes from the white box&quot; on every turn. This will also be the
+ *   response to LISTEN, or LISTEN TO BEEP or LISTEN TO BOX.
+ *
+ *   Note that in this case we don't locate the beep in the box, or it will be
+ *   out of scope when the box is closed.
+ */</span>
+
++ beep: Noise 'beeping sound;;beep' 
+    &quot;A beeping sound comes from the white box. &quot;
+      
+    <span class="comment">/*  We want this sound to stop once the alarm is switched off. */</span>
+    isEmanating = (alarmPanel.isOn)
+    
+    <span class="comment">/*  
+     *   We want this sound to be mentioned every turn that the alarm is on.
+     *   Here we'll just use the beep's afterAction method to do the trick; a
+     *   more sophisticated implementation could make use of the sensory
+     *   extension.
+     */</span>
+    afterAction()
+    {
+        if(!gActionIn(Listen, ListenTo) &amp;&amp; isEmanating)
+            desc;
+    }
+;
+
+<span class="comment">/*  
+ *   IMMOVABLE
+ *
+ *   The hatstand provides a rather implausible excuse for illustrating a 
+ *   spring lever (see below). We make it Immovable rather than a Fixture, 
+ *   say, because it's not clearly impossible for the PC to take the 
+ *   hatstand, we'll just rule it out as pointless instead.
+ */</span>
+
+
++ hatStand: Immovable 'hat-stand; tall old wooden (hat); stand hatstand'   
+    &quot;It's a tall wooden stand, with a number of pegs for hanging hats on. There
+    are no hats on the stand at the moment, but closer examination suggests that
+    one of the pegs is hinged. &quot;
+    
+    specialDesc = &quot;An old wooden hat-stand lurks to one side. &quot;
+    
+    cannotTakeMsg = 'You don\'t want to be encumbered with it, so you may as
+        well leave it where it is. '
+;
+
+<span class="comment">/*  
+ *   SPRING LEVER
+ *
+ *   As Spring Lever is a lever that returns to its original position when it 
+ *   is released, making it functionally equivalent to a Button. This 
+ *   somewhat contrived example of a Spring Lever drops the alarm box key 
+ *   onto the floor when it is first pulled. It hardly matters if the player 
+ *   doesn't discover this since the skeleton key in the black case will do 
+ *   the job just as well.
+ */</span>
+
+++ peg: Lever, Component 'hinged peg'
+    dobjFor(Pull)
+    {
+        action()
+        {
+            if(silverKey.isIn(nil))
+            {
+                &quot;When you pull the peg a silver key drops onto the floor. &quot;;
+                silverKey.moveInto(hall);
+            }
+            else
+                &quot;You pull the peg but it springs back into place when you let
+                go again. &quot;;
+        }
+    }
+    
+;
+
+<span class="comment">/*  
+ *   Another KEY. 
+ */</span>
+
+silverKey: Key 'small silver key'    
+    actualLockList = [whiteBox]
+;
+
+
+//------------------------------------------------------------------------------
+<span class="comment">/*  ROOM */</span>
+
+study: Room 'Study'
+    &quot;A large wooden desk stands in the middle of the room, facing a television
+    in the corner. The way out to the hall lies west, but to the north a
+    door-sized panel has been set into the wall. &quot;
+    west = hall
+    out asExit(west)
+    north = panel
+;
+
+<span class="comment">/*  
+ *   INDIRECT LOCKABLE, DOOR
+ *
+ *   An Indirect Lockable is something that is locked and unlocked by some
+ *   mechanism other than a key. We'll meet the odd mechanism for unlocking this
+ *   door below.
+ *
+ *   Note the use of -&gt;cubbyPanel in the template. This is an alternative way of
+ *   defining the otherSide property.
+ */</span>
+
++ panel: Door -&gt;cubbyPanel 'panel; door-sized'
+    &quot;It's about the shape and size of a door, but there's no handle or lock --
+    at least, none visible. &quot;
+    
+    lockability = indirectLockable
+;
+
+<span class="comment">/*  
+ *   SURFACE, HEAVY
+ *
+ *   A study ought to have a desk it it, if nothing else, so we'll provide 
+ *   one. This desk will have a drawer that contains a clue to finding the 
+ *   safe and opening it.
+ */</span>
+
++ Surface, Heavy 'desk; large wooden desk; top' 
+    &quot;The baron must have very tidy working habits, since the top of his desk
+    looks &lt;&lt;contents.length() &gt; 0 ? 'almost' : ''&gt;&gt; entirely bare. You note,
+    however, that the desk has a drawer. &quot;
+    
+    <span class="comment">/* 
+     *   Redirect opening, closing, locking, unlocking and looking in to the 
+     *   drawer.
+     */</span>
+    remapIn = drawer
+;
+
+<span class="comment">/*  
+ *   KEYED CONTAINER
+ *
+ *   The drawer is another KeyedContainer. Again it can be unlocked either with
+ *   its own key or with the PC's skeleton key. This time we'll show the other
+ *   way of defining the relationship between locks and keys by listing the keys
+ *   that can unlock it in its keyList property.
+ */</span>
+
+++ drawer: KeyedContainer, Component 'drawer; small'
+    &quot;It's not very big. &quot;
+    
+    keyList = [skeletonKey, drawerKey]
+    dobjFor(Pull) asDobjFor(Open)
+    dobjFor(Push) asDobjFor(Close)
+    
+;
+
+<span class="comment">/*  
+ *   AN OPENABLE NOTEBOOK
+ *
+ *   Most openable objects will be either doors or containers, but a few 
+ *   other things can be opened as well, such as books. To illustrate this 
+ *   we'll make this notebook openable.
+ */</span>
+
++++ notebook: Thing 'small red notebook;; book'
+    &quot;It's a small red notebook. &quot;
+    readDesc = &quot;Most of the pages are blank, but towards the back you find
+        someone has written &lt;q&gt;&lt;&lt;tvDial.advertising&gt;&gt; is safe:
+        &lt;&lt;dial.combination&gt;&gt;&lt;/q&gt;&quot;
+    
+    isOpenable = true
+    dobjFor(Read) { preCond = [objHeld, objOpen] }
+;
+
+
+
+<span class="comment">/*  
+ *   MULTIPLEX CONTAINER
+ *
+ *   The small wooden box is going to be used to illustrate the Settable 
+ *   class (in the form of a slider used to unlock it). Note that we have to 
+ *   make the box a Multiplex Container, because we're going to add an external 
+ *   component; if we made smallBox an lockable container directly (a very 
+ *   easy trap to fall into) we'd find that the external component (the 
+ *   slider) actually ended up locked up inside the box, where it would be 
+ *   permanently inaccessible.
+ */</span>
+
+++ smallBox: Thing 'small wooden box; carved'
+    &quot;It is delicately carved, and has a strange slider on one side. &quot;
+    
+    <span class="comment">/* 
+     *   INDIRECT LOCKABLE
+     *
+     *   The subContainer provides an example of an IndirectLockable 
+     *   OpenableContainer, that is a container locked and unlocked by some 
+     *   means other than a key.
+     */</span>
+    
+    remapIn: SubComponent, OpenableContainer
+    {
+        bulkCapacity = 2
+        lockability = indirectLockable
+    }
+;
+
+<span class="comment">/*  
+ *   KEY
+ *
+ *   Inside the small wooden box we put the key to the desk drawer. Since we've
+ *   listed this key in the keyList property of the drawer, we don't need to
+ *   define this key's actualLockList property.
+ */</span>
+
++++ drawerKey: Key 'small gold key' 
+    subLocation = &amp;remapIn    
+;
+
+<span class="comment">/*   
+ *   SETTABLE
+ *
+ *   As an example of the base Settable class we'll implement a slider on the
+ *   outside of the box that's used to unlock it. To unlock the box the 
+ *   player must spell out OPEN with the initial letters of the composers' 
+ *   names. It doesn't matter here that this isn't a particularly fair 
+ *   puzzle (a) because the player can always use the skeleton key instead 
+ *   and (b) this is only a demo, after all, and the point is to illustrate 
+ *   the Setter class, not to create a great puzzle.
+ *
+ *   It's more important that Settable only provides a framework, so that to 
+ *   make it work as a slider we shall have to do quite a bit of the work 
+ *   ourselves.
+ */</span>
+ 
+
++++ slider: Settable, Component 'slider;;pointer' 
+    &quot;The slider has a pointer which can be set to one of the names engraved
+    along its length (which all seem to be names of composers): Elgar, Nielsen,
+    Offenbach or Pachabel. It's currently set to &lt;&lt;curSetting&gt;&gt;. &quot;
+    
+    curSetting = 'Elgar'
+    
+    <span class="comment">/* 
+     *   This is not a standard library property on Settable (although it is 
+     *   on some of Settable's subclasses); it's one we're defining for 
+     *   ourselves.
+     */</span>
+    validSettings = ['Elgar', 'Nielsen', 'Offenbach', 'Pachabel']
+    
+    
+    <span class="comment">/*  
+     *   We define a custom settingHistory property to contain a record of 
+     *   the initial letters of the last four settings the player moved the 
+     *   slider to (so we can check if this ever spells 'OPEN')
+     */</span>
+    
+    settingHistory = ''
+    
+    makeSetting(val)
+    {
+        inherited(val);
+        
+        <span class="comment">/* Add the first letter of the setting string to the settingHistory */</span>
+        settingHistory += val.substr(1,1);
+        
+        <span class="comment">/* 
+         *   If settingHistory is longer than four letters, keep only the 
+         *   last four letters
+         */</span>
+        if(settingHistory.length() &gt; 4)
+            settingHistory = settingHistory.substr(-1, 4);
+            
+    }
+    
+    <span class="comment">/* Make the setting initially capitalized */</span>
+    canonicalizeSetting(val)
+    {
+        return val.substr(1,1).toUpper() + val.substr(2).toLower();
+    }
+    
+    dobjFor(SetTo)
+    {
+        action()
+        {
+                        
+            inherited();
+            
+            <span class="comment">/* 
+             *   If the latest setting makes the last four settings 
+             *   (including the latest) spell OPEN then unlock the box; 
+             *   otherwise lock it.
+             */</span>
+            if(settingHistory == 'open')
+            {
+                smallBox.remapIn.makeLocked(nil);
+                &quot;As you set the pointer to &lt;&lt;curSetting&gt;&gt; you hear a faint click
+                from the box. &quot;;
+            }
+            else
+            {
+                &quot;You set the pointer to &lt;&lt;curSetting&gt;&gt;. &quot;;
+                smallBox.remapIn.makeLocked(true);
+            }
+        }
+                
+    }
+;
+
+
+<span class="comment">/*  
+ *   HEAVY 
+ *
+ *   A television may seem a highly unlikely device for opening a door, but 
+ *   Baron von Epresser is a bit of a weirdo, and the TV allows us to 
+ *   illustrate a few more devices and contraptions.
+ */</span>
+
++ tv: Heavy 'television;; tv telly screen' 
+    &quot;Beneath the screen the TV has a switch and a dial. &lt;&lt;tvSwitch.isOn ?
+      reportResponse(tvDial.curSetting, nil) : 'The screen is currently
+          blank. '&gt;&gt;&quot;
+    
+    <span class="comment">/* 
+     *   The reportResponse() method shows what's on the TV screen when the 
+     *   dial is turned to val. If trigger is true it also unlocks and opens 
+     *   the panel when val is 'advertising' (we don't want this effect when 
+     *   reportResponse() is called from desc(), i.e. when the player is 
+     *   simply examining the TV).
+     */</span>
+    
+    reportResponse(val, trigger)
+    {
+        
+        &quot;The screen shows &quot;;
+        switch(val.toLower())
+        {
+            case 'sport': 
+            case 'sports': &quot;a football match. &quot;; break;
+            case 'soap': &quot;episode 34,954,221,345 of the world's longest running
+                soap-opera, in which the Amoeba family are still quarreling
+                over evolutionary challenges. &quot;;
+            break;
+            case 'news': &quot;a news broadcast that looks even more depressing than
+                usual: your least favourite political party is 12 points ahead
+                in the polls, interest rates are set to double, and every key
+                public sector worker is going on strike indefinitely pending the
+                grant of the unions' demands for 53 weeks' holiday a year.&quot;; 
+            break;
+            case 'weather': &quot;the latest weather forecast: scattered showers,
+                sunny periods, hail, snow, heatwave, drought, and floods at
+                various times and sundry odd places. &quot;; break;
+            case 'drama': &quot;a particularly gory production of &lt;i&gt;Hamlet&lt;/i&gt;. &quot;; break;
+            case 'music': &quot;a classical concert -- one of Mahler's extra-long
+                symphonies by the look of it. &quot;; break;
+            case 'advertising': 
+            case 'home shopping': &quot;a series of advertisements for useless items
+                you never knew you wanted and certainly can't afford. &quot;; 
+            if(trigger)
+            {
+                &quot;The panel slides &lt;&lt;panel.isOpen ? 'shut' : 'open'&gt;&gt;. &quot;;
+                panel.makeLocked(!panel.isLocked);
+                panel.makeOpen(!panel.isOpen);                    
+            }
+            
+            break;
+            default: &quot;little of interest. &quot;; break;
+        }
+    }
+    
+    dobjFor(SwitchOn) { remap = tvSwitch }
+    dobjFor(SwitchOff) { remap= tvSwitch }
+;
+
+
+<span class="comment">/*  
+ *   SWITCH 
+ *
+ *   We could simply have made the TV a switch, since most people will 
+ *   probably try to turn it on an off directly (which we also allow through 
+ *   the remap statements above). But since the description of the TV refers 
+ *   to it as a separate object we may as well implement it separately.
+ *
+ *   Note that Switch is a subclass of OnOffControl and behaves almost 
+ *   identically except that it also responds to the commands SWITCH and 
+ *   FLIP, which toggle it between its on and off states. Since the two 
+ *   classes are so similar we shall not provide a separate example of an 
+ *   OnOffControl.
+ */</span>
+
+++ tvSwitch: Switch, Component 'switch; on-off'
+    &quot;It's just a simple on-off switch. &quot;
+    makeOn(val)
+    {
+        inherited(val);
+        if(val)
+            tv.reportResponse(tvDial.curSetting, true);
+        else
+            &quot;The screen goes blank. &quot;;
+    }
+;
+
+
+<span class="comment">/*  
+ *   DIAL
+ *
+ *   A Dial is a specialization of Settable, representing a dial that 
+ *   can be turned to a number of author-defined settings. 
+ */</span>
+
+++ tvDial: Dial, Component 'dial'
+    &quot;The dial can be turned to &lt;&lt;listSettings()&gt;&gt;; it's currently turned to
+    &lt;&lt;curSetting&gt;&gt;. &quot;
+    
+    <span class="comment">/* 
+     *   validSettings is a library property on LabeledDial, but we need to 
+     *   define what the valid settings are.
+     *
+     *   Note that while five of the settings have been defined with literal 
+     *   strings, two have been defined with properties of the dial object. 
+     *   This incidentally shows that properties and strings can safely be 
+     *   mixed in a list such as this, but it also shows how we might make 
+     *   the list adaptive.
+     */</span>
+    validSettings = [sport, 'soap', 'news', 'weather', 'drama',
+        advertising, 'music' ]
+    
+    
+    curSetting = validSettings[1]
+    
+    <span class="comment">/*  
+     *   listSettings() is a custom method we are defining here so that the 
+     *   description of the dial will automatically (and accurately) reflect 
+     *   the validSettings defined above.
+     */</span>
+    listSettings()
+    {
+        foreach(local cur in validSettings)                
+        {            
+            if(validSettings.indexOf(cur) == validSettings.length())
+                &quot;or &lt;&lt;cur&gt;&gt;&quot;;
+            else
+                &quot;&lt;&lt;cur&gt;&gt;, &quot;;
+        }
+    }
+    makeSetting(val)
+    { 
+        inherited(val);
+        
+        <span class="comment">/* 
+         *   If the TV is on, we need to change what it displays in 
+         *   accordance with the new setting, and report the change.
+         */</span>
+        if(tvSwitch.isOn)
+            tv.reportResponse(val, true);
+    }    
+    
+    <span class="comment">/*  
+     *   We define these two settings through properties since British and 
+     *   American players might expect to see them described differently.
+     */</span>
+    
+    advertising = (me.nationality == british ? 'advertising' : 'home shopping')
+    sport = ( me.nationality == british ? 'sport' : 'sports')
+;
+
+
+//------------------------------------------------------------------------------
+<span class="comment">/* ROOM */</span>
+
+cubbyHole: Room 'Cubby Hole'
+    &quot;This really is no more than a tiny cubby hole, with fully half the space
+    taken up with a huge safe. The only other feature of interest here is the
+    green lever set in the wall, next to the sliding panel to the south. &quot;
+    south = cubbyPanel
+    out asExit(south)
+;
+
+<span class="comment">/*  
+ *   INDIRECT LOCKABLE, DOOR
+ *
+ *   The cubby panel represents the other side of the panel in the study. It 
+ *   too is an indirect lockable, but we'll provide a different (and simpler)
+ *   mechanism for locking and unlocking it from this side.
+ */</span>
+
++ cubbyPanel: Door  -&gt;panel 'panel; sliding'
+;
+
+<span class="comment">/*   
+ *   LEVER
+ *
+ *   A Lever can be in one of two states: pushed and pulled. It can then be 
+ *   pulled and pushed respectively to change states. Here we use a Lever to 
+ *   provide a simple mechanism for opening/unlocking and closing/locking the
+ *   sliding panel from inside the cubby hole.
+ */</span>
+
++ Lever, Fixture 'green lever' 
+    &quot;It's set at a convenient height in the wall. &quot;
+    makePulled(stat)
+    {
+        cubbyPanel.makeOpen(stat);
+        cubbyPanel.makeLocked(!stat);
+        &quot;The panel slides &lt;&lt;stat ? 'open' : 'closed'&gt;&gt;. &quot;;
+    }
+;
+
+
+
+<span class="comment">/*  
+ *   MULTIPLEX CONTAINER
+ *
+ *   Like the small wooden box on the desk above, the safe needs to be 
+ *   implemented as a Mutiplex Container since it has an exterior component, in
+ *   this case the dial used to unlock it.
+ */</span>
+
++ safe: Heavy 'safe; huge; door' 
+    &quot;Apart from looking huge and impregnable, the most interesting feature of
+    the safe is the black dial set in the middle of its door. &quot; 
+    
+    remapOn: SubComponent { }
+    remapIn: SubComponent, OpenableContainer 
+    {
+        cannotLockMsg = 'Presumably, you have to use the dial. '
+        cannotUnlockMsg = (cannotLockMsg)
+        lockability = indirectLockable
+    }
+    
+;
+
+<span class="comment">/*   
+ *   NUMBERED DIAL
+ *
+ *   NumberedDial is a specialization of Dial. As its name suggests it can be
+ *   used to represent a dial that can be turned to a range of mumeric values.
+ *   Here we use it for a classic combination lock.
+ */</span>
+
+
+++ dial: NumberedDial, Component 'black dial' 
+    &quot;It's a black dial which can be turned to any number from 0 to 99; it's
+    currently turned to &lt;&lt;curSetting&gt;&gt;. &quot;
+    
+    <span class="comment">/* 
+     *   The following three properties are standard library properties for a
+     *   NumberedDial. Note the oddity that while minSetting and maxSetting 
+     *   have to be defined with integer values, curSetting has to be 
+     *   defined (and used) as a string.
+     */</span>
+    minSetting = 0
+    maxSetting = 99
+    curSetting = '15'
+    
+    <span class="comment">/*   
+     *   Since we're using the dial as a combination lock, we'd better give 
+     *   it a combination. Again, this is a string property (since it will be
+     *   matched against values of curSetting, which is a string). 
+     */</span>
+    combination = '239756'
+    
+    <span class="comment">/*   
+     *   We also need a property to store the numbers to which the dial has 
+     *   been turned, so that we can tell when the correct combination has 
+     *   been entered.
+     */</span>
+    numbersDialled = ['0','0','0']
+    
+    
+    dobjFor(SetTo)
+    {
+        action()
+        {
+            inherited;
+            
+            <span class="comment">/* Keep a record of the last three numbers dialled */</span>
+            numbersDialled[1] = numbersDialled[2];
+            numbersDialled[2] = numbersDialled[3];
+            numbersDialled[3] = curSetting;
+            
+            <span class="comment">/* 
+             *   If the last three numbers dialled match the combination, 
+             *   unlock the safe, otherwise lock it if it is closed.
+             */</span>
+            
+            if(numbersDialled[1] + numbersDialled[2] + numbersDialled[3] ==
+               combination)
+            {
+                safe.remapIn.makeLocked(nil);
+                &quot;As you turn the dial to &lt;&lt;curSetting&gt;&gt;, a satisfying
+                &lt;i&gt;click&lt;/i&gt; comes from the safe. &quot;;
+            }
+            else if(!safe.remapIn.isOpen)
+            {
+                safe.remapIn.makeOpen(nil);
+            }
+        }
+        
+    }
+;
+
+<span class="comment">/*   
+ *   READABLE 
+ *
+ *   Finally, we implement the letter the PC has come to retrieve. In a real 
+ *   game we'd doubtless want to put other things in the safe as well, but 
+ *   since this is a demo the letter alone will do.
+ */</span>
+
+++ letter: Thing 'letter; love incriminating; love-letter'
+    &quot;One glance suffices to tell you that this is the letter you came to
+    recover: a youthful indiscretion, written to an inappropriate lover. You
+    have no desire to read it through; merely remembering it is quite
+    embarrassing enough. Once you're out of here you'll destroy it. &quot;
+    subLocation = &amp;remapIn
+    
+    readDesc = &quot;You have no desire to read it right now. You know all too well
+        what it says. &quot;
+;
+
+//==============================================================================
+
+modify finishOptionAmusing
+    doOption()
+    {
+        if(!me.hasSeen(skeletonKey))
+            &quot;Try looking in the black case you're carrying.\b&quot;;
+        
+        if(!me.hasSeen(doorKey))
+            &quot;Try looking under the flowerpot.\b&quot;;
+        
+        if(torch.name == 'plastic tube')
+            &quot;Try calling the plastic tube by its proper name next time. &quot;;
+        
+        if(torch.name == torch.britishName)
+            &quot;Next time, see what happens if you call the torch a flashlight.\b&quot;;
+        
+        if(torch.name == torch.americanName)
+            &quot;Next time, see what happens if you call the flashlight a torch.\b&quot;;
+        
+        if(!me.hasSeen(silverKey))
+            &quot;Try taking a closer look at the hat-stand in the hall and see if
+            there's anything you can pull on it.\b&quot;;
+        
+        if(!me.hasSeen(drawerKey))
+            &quot;Take a closer look at the box on the desk and see if you can get
+            it to OPEN.\b&quot;;
+        
+        &quot;Try turning the dial on the TV to see what's on the various
+        channels.\b&quot;;
+        
+        
+        <span class="comment">/* 
+         *   We need to return true to tell the caller that we've done with 
+         *   this option and we want to display the list of options again.
+         */</span>
+        return true;
+    }
+;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='LockGadget.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>
