@@ -271,8 +271,11 @@ QDefaults: Special
         if(a.isIn(nil) || b.isIn(nil) || b.isHidden)
             return nil;
         
-        /* we can see it if it's in light and there's a clear path to it */
-        return (inLight(b) || b == a.outermostVisibleParent && b.litWithin())
+        /* 
+         *   we can see it if it's in light and we're outside it or it's our enclosing container and
+         *   it's lit within, and there's a clear path to it
+         */
+        return ((Q.inLight(b) && !a.isIn(b))|| b == a.outermostVisibleParent && b.litWithin())
             && sightBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
                               
     }

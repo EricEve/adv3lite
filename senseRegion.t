@@ -1475,7 +1475,7 @@ QSenseRegion: Special
          *   A can't see B if B isn't in the light or there's something other
          *   than a room or A or B blocking the sight path between them
          */
-        if(!(Q.inLight(b) || (b == a.outermostVisibleParent && b.litWithin()) )
+        if(!((Q.inLight(b) && !a.isIn(b))|| (b == a.outermostVisibleParent && b.litWithin()) )
            || blockList.indexWhich({x: x not in (a, b) && !x.ofKind(Room)} ) != nil)            
             return nil;
         
