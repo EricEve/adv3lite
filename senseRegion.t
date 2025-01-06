@@ -1475,7 +1475,7 @@ QSenseRegion: Special
          *   A can't see B if B isn't in the light or there's something other
          *   than a room or A or B blocking the sight path between them
          */
-        if(!((Q.inLight(b) && !a.isIn(b))|| (b == a.outermostVisibleParent && b.litWithin()) )
+        if(!(inLightFor(a, b))
            || blockList.indexWhich({x: x not in (a, b) && !x.ofKind(Room)} ) != nil)            
             return nil;
         
@@ -1519,6 +1519,14 @@ QSenseRegion: Special
         return nil;
     }
     
+    inLight(a) { return next(); }
+    
+    
+    /* is B lit from the perspect of A, who may be inside B. */
+    inLightFor(a, b)
+    {
+        return next();
+    }
     
     /*
      *   Can A hear B?  We return true if there's a clear sound path from A
