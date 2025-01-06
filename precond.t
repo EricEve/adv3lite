@@ -130,6 +130,30 @@ containerOpen: PreCondition
     
 ;
 
+containerInteriorVisible: containerOpen
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   if we have a non-nil remapIn property, that's the container
+         *   representing us, so we need to use it instead.
+         */        
+        if(obj.remapIn != nil)
+            obj = obj.remapIn;
+        
+        /* 
+         *   If the object is transparent or the actor is inside it, thie preconidition is met, so
+         *   we return true.
+         */
+        if(obj.isTransparent || gActor.isIn(obj))
+            return true;
+        
+        /* Otherwse use the containerOpen handling. */
+        return inherited(obj, allowImplicit);    
+    }
+;
+
+
+
 /* A PreCondition to check whether an object is open. */
 objOpen: PreCondition
     

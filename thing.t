@@ -1660,12 +1660,13 @@ class Thing:  ReplaceRedirector, Mentionable
             
             /* 
              *   Don't list the inventory of any actors, or of any items that
-             *   don't want their contents listed, or any items we can't see in,
+             *   don't want their contents listed, or any items we can't see in
+             *   if the actor isnt' in them.
              *   or of any items that don't have any contents to list.
              */
             if(obj.contType == Carrier 
                || obj.(obj.(lister).contentsListedProp) == nil
-               || obj.canSeeIn() == nil
+               || (!gActor.isIn(obj) && obj.canSeeIn() == nil)
                || obj.contents.length == 0)
                 continue;
             
@@ -5270,7 +5271,7 @@ class Thing:  ReplaceRedirector, Mentionable
       
     dobjFor(LookIn)
     {
-        preCond = [objVisible, containerOpen]
+        preCond = [objVisible, containerInteriorVisible]
         
         remap = remapIn
                 
