@@ -1,0 +1,438 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>TadsObject</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+TadsObject
+<br><span class="navnp"><a class="nav" href="strcomp.htm"><i>Prev:</i> StringComparator</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tempfile.htm"><i>Next:</i> TemporaryFile</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>TadsObject</h1>
+
+<p>The objects and classes that you define in your program are of
+intrinsic class TadsObject.  Everything that has "object" as its
+superclass is really a subclass of intrinsic class TadsObject.
+
+<p>For example:
+
+<p><div class="code"><pre>
+class Item: object;
+myObj: object;
+</pre></div>
+
+<p>Both Item and myObj are of intrinsic class TadsObject.
+
+<h2>TadsObject methods</h2>
+
+<p>TadsObject is a subclass of the root intrinsic class, Object, so
+all of the methods that Object defines are inherited by TadsObject
+instances as well.  In addition to the Object methods, TadsObject
+provides its own methods, described below.
+
+<p><span class="code">createClone()</span>
+<div class=fdef>
+
+Creates a new object that is an identical copy of this object.  The
+new object will have the same superclasses as the original, and the
+identical set of properties defined in the original.
+
+<p>No constructor is called in creating the new object, since the
+object is explicitly initialized by this method to have the exact
+property values of the original.
+
+<p>The clone is a "shallow" copy of the original, which means that the
+clone refers to all of the same objects as the original.  For example,
+if a property of the original points to a Vector, the corresponding
+property of the clone points to the same Vector, not a copy of the
+Vector.
+
+</div>
+
+<p><span class="code">createInstance(...)</span>
+<div class=fdef>
+
+Creates a new instance of the target object.  This method's arguments
+are passed directly to the constructor, if any, of the new object;
+this method doesn't make any other use of the arguments.  The method
+creates the object, invokes the new object's constructor, then returns
+the new object.
+
+<p>This method can be especially useful in static methods defined in
+base classes that are further subclassed, because it essentially
+allows a parameterized "new" operator.  For example, suppose we had a
+base class, Coin, which you subclass into several types: GoldCoin,
+SilverCoin, CopperCoin.  For each of these classes, you want to
+provide a method that creates a new instance of that kind of coin.
+Using the <span class="code">new</span> operator, you'd have to write a separate method in
+each subclass:
+
+<p><div class="code"><pre>
+class Coin: object;
+class GoldCoin: Coin
+  createCoin() { return new GoldCoin(); }
+;
+class SilverCoin: Coin
+  createCoin() { return new SilverCoin(); }
+;
+class CopperCoin: Coin
+  createCoin() { return new CopperCoin(); }
+;
+</pre></div>
+
+<p>This gets increasingly tedious as we add new subclasses.  What we'd
+really like to do is something like this:
+
+<p><div class="code"><pre>
+class Coin: object
+  createCoin() { return new self(); } // illegal!
+;
+</pre></div>
+
+<p>This would let all the subclasses inherit this one implementation,
+which would create the appropriate kind of object depending on the
+subclass on which the method was invoked.  We can't write exactly this
+code, though, because the <span class="code">new</span> operator doesn't allow a variable like
+<span class="code">self</span> to be used as its argument.
+
+<p>So, it's <span class="code">createInstance()</span> to the rescue.  This method lets us
+do exactly what we'd like: create an instance of the current class,
+writing the code only once in the base class.  Using <span class="code">createInstance(),</span>
+we can rewrite the method to get the effect we want:
+
+<p><div class="code"><pre>
+class Coin: object
+  createCoin() { return createInstance(); }
+;
+</pre></div>
+
+</div>
+
+<p><span class="code">createInstanceOf(...)</span>
+<div class=fdef>
+
+Creates a new instance based on multiple superclasses.  This is a
+static (class-level) method, so you can call it directly on
+TadsObject.  With no arguments, this simply creates a basic TadsObject
+instance; this is equivalent to the <span class="code">createInstance()</span> method.
+
+<p>The arguments give the superclasses, in "dominance" order.  The
+superclasses appear in the argument list in the same order in which
+they'd appear in an object definition: the first argument corresponds
+to the leftmost superclass in an ordinary object definition.  Each
+argument is either a class or a list.  If an argument is a list, the
+first element of the list must be a class, and the remainder of the
+elements are the arguments to pass to that class's constructor.  If an
+argument is simply a class (not a list), then the constructor for this
+superclass is not invoked at all.
+
+<p>For example, suppose we had the following class definitions:
+
+<p><div class="code"><pre>
+class A: object
+  construct(a, b) { ... }
+;
+
+class B: object
+  construct(a, b, c) { ... }
+;
+
+class C: object
+  construct() { ... }
+;
+
+class D: A, B, C
+  construct(x, y)
+  {
+    inherited A(x, y);
+    inherited C();
+
+  }
+;
+</pre></div>
+
+<p>Now, suppose that we had never actually defined class D, but we
+want to create an instance dynamically as though it class D had been
+defined.  We could obtain this effect like so:
+
+<p><div class="code"><pre>
+local d = TadsObject.createInstanceOf([A, x, y], B, [C]);
+</pre></div>
+
+<p>This creates a new instance with superclasses A, B, and C, in that
+dominance order.  During construction of the new object, we will
+inherit A's constructor, passing <span class="code">(x,y)</span> as arguments, and we'll
+inherit C's constructor with no arguments.  Note that we pass a list
+containing C alone; this indicates that we do want to call the
+constructor, since the argument is passed as a list rather than as
+simply the object C, but that we have no arguments to send to C's
+constructor.  Note also that we don't invoke B's constructor at all,
+since B is specified without being wrapped in a list.
+
+<p>Note that if constructors are invoked at all, they can only be
+called in the same order in which they appear in the superclass list.
+
+</div>
+
+<p><span class="code">createTransientInstance(...)</span>
+<div class=fdef>
+
+This works like <span class="code">createInstance()</span>, except that the new instance is
+transient.
+
+</div>
+
+<p><span class="code">createTransientInstanceOf(...)</span>
+<div class=fdef>
+
+This works like <span class="code">createInstanceOf()</span>, except that the new instance is
+transient.
+
+</div>
+
+<p><span class="code">getMethod(<i>prop</i>)</span>
+<div class=fdef>
+
+Gets a function pointer to one of the object's methods.  <i>prop</i>
+is a property pointer value giving the property of the object to
+retrieve.  If this property contains a method, <span class="code">getMethod()</span> returns
+a function pointer to the method's code.  If the property contains a
+self-printing string, the return value is an ordinary string value
+with the text of the printed string.  If the property is any other
+type of data, or is undefined, the result is <span class="code">nil</span>.
+
+<p>Note that a double-quoted string that contains embedded
+("interpolated") expressions with <span class="code">&lt;&lt; &gt;&gt;</span> is really a function.  This
+means that if you call <span class="code">getMethod()</span> on a property containing a
+string with embedded expressions, you'll get back a function pointer
+result rather than a string expression.
+
+<p>When the returned value is a function, it can be called like an
+ordinary function.  You wouldn't normally do this, though, because the
+call would have a <span class="code">nil</span> value for <span class="code">self</span>, which means that the
+method would trigger a run-time error if it tried to access any
+properties or other methods of <span class="code">self</span>.  Instead, the main use for
+the returned function pointer would be to assign the function as a
+different method of the same object, or as a method of another object,
+using <span class="code">setMethod()</span>.
+
+<p>Note that <span class="code">getMethod()</span> can also return an anonymous function
+object.  Methods originally defined in the source code will always be
+returned as regular function pointers (of type TypeFuncPtr).  An
+anonymous function will be returned only for a method that was
+explicitly set to an anonymous functions via <span class="code">setMethod()</span>.  In this
+case, the same anonymous function object that was passed to
+<span class="code">setMethod()</span> will be returned from <span class="code">getMethod()</span>.
+
+<p>(Ordinary methods are also "anonymous" functions in that they're
+not named.  But these aren't what we normally call anonymous function
+objects, which are the type of object created with the <span class="code">function</span>
+syntax.)
+
+</div>
+
+<a name="setMethod"></a>
+<p><span class="code">setMethod(<i>prop</i>, <i>func</i>)</span>
+<div class=fdef>
+
+Assigns the function <i>func</i> as a method of the object, using the
+property <i>prop</i>.
+
+<p><i>prop</i> is the property pointer to assign.  This specifies the
+property that will be used for the newly assigned method.  Any previous
+method or data value for this property will be replaced with the
+new function.
+
+<p><i>func</i> can be:
+
+<ul class=doublespace>
+   
+   <li>A regular (named) function pointer, which becomes a method with
+   the same arguments as the function.  The function itself isn't
+   changed by this; you can also still call it directly as an
+   ordinary function.
+
+   <li>A <a href="proccode.htm#floatingMethods">floating
+   method</a> pointer, which becomes a method with the same arguments.
+
+   <li>An anonymous function, which becomes a method with the same
+   arguments as the anonymous function.  The anonymous function itself
+   isn't changed in any way by this; you can still call it directly, too.
+
+   <li>An anonymous method, which becomes a method with the same
+   arguments as the anonymous method.
+
+   <li>A <a href="dynfunc.htm">DynamicFunc</a>, which becomes a
+   method with the same arguments as the dynamically compiled code.
+
+   <li>A single-quoted string value, which will be displayed on
+   evaluating the property, as though it had been initially defined as a
+   double-quoted string property of the object.
+
+   <li>Any value retrieved by a call to <span class="code">getMethod()</span>, on this object
+   or any other object.
+   
+</ul>
+
+<p>After calling this method, invoking <i>prop</i> on this object
+will result in calling the function <i>func</i> as though it had
+always been a method of the object.  <span class="code">self</span> will be set, and the
+method can use <span class="code">inherited</span> to inherit from this object's class
+structure.
+
+<p>It's important to note how the naming works.  The new method is
+callable under the name <i>prop</i> - <b>not</b> under the name of
+the function that was used to create it.  For example:
+
+<p><div class="code"><pre>
+method foo(x) { return x*x; }
+obj: object;
+
+main(args)
+{
+  obj.setMethod(&amp;square, foo);
+  local x = obj.square(10);
+}
+</pre></div>
+
+<p>The name of the new method is <span class="code">square</span>, <i>not</i> <span class="code">foo</span>.
+<span class="code">foo</span> is still just a floating method; the new, full-fledged method is
+established under the property name, not the function name.
+
+<p>The method relationship created by <span class="code">setMethod()</span> is non-exclusive.
+You're free to use <span class="code">setMethod()</span> to assign the same function pointer
+(or other value) as a method of multiple objects at once.  The
+value doesn't lose its regular meaning, either: as we said above,
+if you supply a function pointer to <span class="code">setMethod()</span>, you can still
+call the same function as an ordinary function, too.
+
+<p>Note that when you define an ordinary function, the compiler
+doesn't let you refer to <span class="code">self</span> or any other method context
+variables (such as <span class="code">targetprop</span> or <span class="code">definingobj</span>) within the
+function body, since these variables normally aren't valid in a
+function.  This also means that you can't define a function that uses
+<span class="code">inherited</span> or <span class="code">delegated</span>.  There are two ways of dealing with
+this:
+
+<ul class=doublespace>
+
+   <li>First, you can define a method of one object, and "move" it to a
+different object: use <span class="code">getMethod()</span> to retrieve the method
+information from the original object, and pass the result to
+<span class="code">setMethod()</span> to add the method to the other object.  <span class="code">self</span> and
+the other method context variables are dynamic, so they'll
+automatically reflect the new object context when you call the moved
+version of the method.  (This doesn't really move the method; it
+really just copies it. You can still call it in the old object as
+well, where it will still reflect its original context.)  This is a good
+approach when you need the same method functionality in an ordinary
+object anyway, since you can simply copy it as needed to new objects.
+
+   <li>Second, you can use the <span class="code">method</span> syntax to define a
+<a href="proccode.htm#floatingMethods">floating method</a>,
+which is really just an ordinary function that <i>does</i> have
+access to <span class="code">self</span>, <span class="code">targetprop</span>, and the others, and that
+can use <span class="code">inherited</span> and <span class="code">delegated</span>.  This is a good approach
+when the function's only purpose is to be plugged into objects
+via <span class="code">setMethod()</span>, since it avoids creating a dummy
+template object just to define a method.
+
+</ul>
+
+<p>When you use an anonymous function with <span class="code">setMethod()</span>, you should
+keep in mind that <span class="code">self</span> and the other method context variables are
+shared with the scope where the function was defined.  Consider this
+example:
+
+<p><div class="code"><pre>
+obj1: object
+   init()
+   {
+       obj2.setMethod(&amp;a, { x: self.prop = x; });
+   }
+;
+obj2: object
+   prop = nil
+;
+
+main(args)
+{
+    obj1.init();
+    obj2.a(100);
+}
+</pre></div>
+
+<p>Here we've set up a new method for <span class="code">obj2</span>, named <span class="code">a</span>.  We then
+invoke the new method.  The question is: what's the value of
+<span class="code">obj2.prop</span> when we're done?  At first glance you might think it
+should be 100, since the newly created method sets <span class="code">self.prop</span> to
+the argument value, and the new method is part of <span class="code">obj2</span>, ergo we
+must be setting <span class="code">obj2.prop</span> to 100.  But that's not what happens:
+the value of <span class="code">obj2.prop</span> is <span class="code">nil</span> when we're done.
+
+<p>The reason is the little detail we mentioned about how an anonymous
+function shares its method context with its lexically enclosing scope.
+Because the anonymous function was created within the confines of
+<span class="code">obj1.init</span>, the <span class="code">self</span> in effect at the moment of the function's
+creation was <span class="code">obj1</span>.  And this is the <span class="code">self</span> that the function
+will use forever, no matter how many times it's invoked.  It's in the
+nature of an anonymous function: it shares everything with its
+lexically enclosing scope, including <span class="code">self</span>.
+
+<p>In this example, though, that's not the effect we're after.  We'd
+like instead to create a method that assigns a value to the property
+<span class="code">prop</span> of whatever object we attach the method to.  In other words,
+we want to create a real live method, not a function that's stuck
+to someone else's method context.
+
+<p>The way to do this is to replace the anonymous function with an
+anonymous method.  An anonymous method <i>isn't</i> stuck to the
+method context that was in effect when it was created, but instead
+uses the live context whenever it's called.  This is an easy change
+to make: we just need to use the <span class="code">method</span> syntax to define
+the anonymous method.
+
+<p><div class="code"><pre>
+obj2.setMethod(&amp;a, method(x) { self.prop = x; });
+</pre></div>
+
+<p>With this change, running the program will indeed set <span class="code">obj2.prop</span>
+to 100.
+
+</div>
+
+<p><span class="code">setSuperclassList(<i>lst</i>)</span>
+<div class=fdef>
+
+Sets the object's superclasses to the values in <i>lst</i>, which must
+be a list
+(or <a href="opoverload.htm#listlike">list-like object</a>)
+containing objects.  The object's superclass list is replaced with
+the given superclass list.  The objects in <i>lst</i> must all be
+TadsObject objects, with one exception: lst is allowed to be
+<span class="code">[TadsObject]</span> (that is, a single-element list containing the
+TadsObject class itself), in which case the object becomes a root
+TadsObject object.
+
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+TadsObject
+<br><span class="navnp"><a class="nav" href="strcomp.htm"><i>Prev:</i> StringComparator</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tempfile.htm"><i>Next:</i> TemporaryFile</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

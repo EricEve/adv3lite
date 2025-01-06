@@ -1,0 +1,283 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Object</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Object
+<br><span class="navnp"><a class="nav" href="lookup.htm"><i>Prev:</i> LookupTable</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="rexpat.htm"><i>Next:</i> RexPattern</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Object</h1>
+
+<p>Every object in a running program, including objects your program
+defines via "object" and "class" definitions and instances of
+intrinsic classes, ultimately derives from the intrinsic class
+Object.
+
+<p>You can never instantiate Object directly, since this is an
+"abstract" class.  However, since every object is a subclass of
+Object, every object in the system inherits the methods defined by
+Object.
+
+<h2>Object methods</h2>
+
+<p>The Object class defines a number of methods.  Since all objects
+are subclasses of Object, all objects inherit these methods.  Most of
+these methods are related to the the relationships between objects and
+classes.
+
+<p><span class="code">getSuperclassList()</span>
+<div class=fdef>
+
+Returns a list containing the immediate superclasses of the object.
+The list contains only the object's direct superclasses, which are the
+superclasses that were explicitly listed in the object's declaration
+for static objects, or the class used with the <span class="code">new</span> operator for
+dynamic objects.  This function returns an empty list for an object
+with no superclass.  For an object with more than one direct
+superclass, the list contains the superclasses in the same order in
+which they were specified in the object's declaration.
+
+<p>For example, consider these definitions:
+
+<p><div class="code"><pre>
+class A: object;
+class B: object;
+class C: B;
+myObj: C, A;
+</pre></div>
+
+<p>The result of <span class="code">myObj.getSuperclassList()</span> will be the list <span class="code">[C, A]</span>.
+Note that class B is not included in the list, because it is not a
+direct superclass of myObj, but is a superclass only indirectly
+through class C.
+
+</div>
+
+<p><span class="code">getPropList()</span>
+<div class=fdef>
+
+Returns a list of the properties directly defined by this object.
+Each entry in the list is a property pointer value.  The returned list
+contains only properties directly defined by the object; inherited
+properties are not included, but may be obtained by explicitly
+traversing the superclass list and calling this method on each
+superclass.
+
+</div>
+
+<a name="getPropParams"></a>
+<p><span class="code">getPropParams(<i>prop</i>)</span>
+<div class=fdef>
+
+Returns information on the parameters taken by the given property or
+method of this object.  The return value is a list with three
+elements:
+
+<ul>
+
+<li>[1] is the minimum number of arguments taken by the method;
+
+<li>[2] is the number of additional optional arguments taken by the method;
+
+<li>[3] is true if the method accepts any number of additional
+arguments, <span class="code">nil</span> if not.
+
+</ul>
+
+<p>The second element gives the number of optional arguments; only
+intrinsic methods will ever yield a non-zero value for this element,
+because regular methods cannot specify optional arguments.  For
+example, the <span class="code">substring()</span> method of the String intrinsic class can take
+either one or two arguments, so its return list is <span class="code">[1, 1, nil]</span>,
+indicating that the function takes a minimum of one argument, can take
+one additional optional argument, but does not take an unlimited
+varying argument list after those arguments.
+
+<p>If the third element is <span class="code">true</span>, it indicates that the method was
+defined with the "..." varying argument list notation.
+
+<p>If the specified property is not defined for the object, the method
+returns <span class="code">[0, 0, nil]</span>, because it's valid to invoke the property
+with no arguments in this case.
+
+</div>
+
+<p><span class="code">isClass()</span>
+<div class=fdef>
+
+Returns <span class="code">true</span> if the object was declared as a "class", <span class="code">nil</span> otherwise.
+
+</div>
+
+<p><span class="code">isTransient()</span>
+<div class=fdef>
+
+Returns <span class="code">true</span> if the object is transient, <span class="code">nil</span> otherwise.  A
+transient object is one that was created with <span class="code">new transient</span>
+<i> <span class="code">classname</span></i>, or with a class-specific method that creates
+transient instances (such as <span class="code">TadsObject.createTransientInstance()</span> or
+<span class="code">TadsObject.createTransientInstanceOf()</span>).
+
+</div>
+
+<p><span class="code">ofKind(<i>cls</i>)</span>
+<div class=fdef>
+
+Determines if the object is an instance of the class <i>cls</i>, or an
+instance of any subclass of <i>cls</i>.  Returns <span class="code">true</span> if so,
+<span class="code">nil</span> if not.  This method always returns true if <i>cls</i> is
+Object, since every object ultimately derives from the Object
+intrinsic class.
+
+</div>
+
+<p><span class="code">propDefined(<i>prop</i>, <i>flags</i>?)</span>
+<div class=fdef>
+
+Determines if the object defines or inherits the property <i>prop</i>
+(a property pointer value - specify this by applying an ampersand
+prefix (<span class="code">&amp;</span>) to a property name), according to the <i>flags</i>
+value.  If <i>flags</i> is not specified, a default value of
+<span class="code">PropDefAny</span> is used.  The valid <i>flags</i> values are:
+
+<ul>
+
+<li><span class="code">PropDefAny</span> - the function returns <span class="code">true</span> if the object
+defines or inherits the property.
+
+<li><span class="code">PropDefDirectly</span> - the function returns <span class="code">true</span> only if the
+object directly defines the property; if it inherits the property from
+a superclass, the function returns <span class="code">nil</span>.
+
+<li><span class="code">PropDefInherits</span> - the function returns <span class="code">true</span> only if the
+object inherits the property from a superclass; if it defines the
+property directly, or doesn't define or inherit the property at all,
+the function returns <span class="code">nil</span>.
+
+<li><span class="code">PropDefGetClass</span> - the function returns the superclass object from
+which the property is inherited, or this object if the object defines
+the property directly.  If the object doesn't define or inherit the
+property, the function returns <span class="code">nil</span>.
+
+
+</ul>
+
+</div>
+
+<p><span class="code">propInherited(<i>prop</i>, <i>origTargetObj</i>, <i>definingObj</i>, <i>flags</i>?)</span>
+<div class=fdef>
+
+Determines if the object inherits the property <i>prop</i> (a property
+pointer value).  <i>origTargetObj</i> is the "original target object,"
+which is the object on which the method was originally invoked; that
+is, it's the object on the left-hand side of the <span class="code">.</span> operator in the
+expression that originally invoked the method.  <i>definingObj</i> is
+the "defining object," which is the object defining the method which
+will be inheriting the superclass implementation.
+
+<p>The return value depends on the value of the <i>flags</i> argument:
+
+<ul>
+
+<li><span class="code">PropDefAny</span> - the function returns <span class="code">true</span> if the object
+inherits the property, <span class="code">nil</span> otherwise.
+
+<li><span class="code">PropDefGetClass</span> - the function returns the class object from
+which the property is inherited, or <span class="code">nil</span> if the property is not
+inherited.
+
+</ul>
+
+<p>This method is most useful for determining if the currently active
+method will invoke an inherited version of the method if it uses the
+inherited operator; this is done by passing <span class="code">targetprop</span> for the
+<i>prop</i> parameter, <span class="code">targetobj</span> for the <i>origTargetObj</i>
+parameter, and <span class="code">definingobj</span> for the <i>definingObj</i> parameter.
+When a class is designed as a "mix in" (which means that the class is
+designed to be used with multiple inheritance as one of several base
+classes, and adds some isolated functionality that is "mixed" with the
+functionality of the other base classes), it sometimes useful to be
+able to check to see if the method is inherited from any other base
+classes involved in multiple inheritance.  This method allows the
+caller to determine exactly what inherited will do.
+
+<p>Note that the inheritance order is deterministic (i.e., it will
+always be the same for a given situation), and that it depends on the
+full class tree of the original target object.  For example, suppose
+we have a set of class definitions like this:
+
+<p><div class="code"><pre>
+class A: object  x() { "A.x\n"; inherited(); }
+class B: object  x() { "B.x\n"; inherited(); }
+
+class C: B, A    x() { "C.x\n"; inherited(); }
+</pre></div>
+
+<p>Now suppose we run some code like so:
+
+<p><div class="code"><pre>
+new B().x();
+new C().x();
+</pre></div>
+
+<p>The first line will simply display "B.x".  B inherits directly from
+TadsObject, so when B.x() calls <span class="code">inherited()</span>, it will find no
+definition of <span class="code">x()</span> in any base class (since TadsObject doesn't define
+it), so inherited() will do nothing.
+
+<p>The second line, however, will display this:
+
+<p><div class="code"><pre>
+C.x
+B.x
+A.x
+</pre></div>
+
+<p>So, even though the call to <span class="code">inherited()</span> in <span class="code">B.x()</span> went
+straight to TadsObject when <span class="code">B.x()</span> was invoked from the first line
+above, the same call to inherited() in <span class="code">B.x()</span> proceeds to <span class="code">A.x()</span>
+when invoked from the second line above.  The difference is that C
+inherits from both B and A.  B is the first superclass, so the call to
+<span class="code">inherited()</span> in <span class="code">C.x()</span> proceeds to <span class="code">B.x(</span>).  But C also
+inherits from A, and the superclass order is defined so that A comes
+after B in C's superclass list.  So, the call to <span class="code">inherited()</span> in
+<span class="code">B.x()</span> proceeds to <span class="code">A.x()</span> this time, since that's the next
+superclass in inheritance order for the original target object.
+
+</div>
+
+<p><span class="code">propType(<i>prop</i>)</span>
+<div class=fdef>
+
+Returns the datatype of the given property of the given object, or <span class="code">nil</span>
+if the object does not define or inherit the property.  This function
+does not evaluate the property, but merely determines its type.  The
+return value is one of the <span class="code">TYPE_xxx</span> values (see the
+<a href='reflect.htm'>reflection</a> section for the list).
+
+</div>
+
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Object
+<br><span class="navnp"><a class="nav" href="lookup.htm"><i>Prev:</i> LookupTable</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="rexpat.htm"><i>Next:</i> RexPattern</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Source File Character Sets</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Source File Character Sets
+<br><span class="navnp"><a class="nav" href="progstru.htm"><i>Prev:</i> Source Code Structure</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="preproc.htm"><i>Next:</i> The Preprocessor</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Source File Character Sets</h1>
+
+<p>Internally, TADS 3 uses Unicode to represent all text strings.
+Unicode was created to provide a single character set that can
+represent virtually all of the characters used by all of the world's
+written languages.
+
+<p>Unfortunately, most computers today don't use Unicode as their
+native format, so your source files will probably use some other
+character set (but if you do use Unicode for your source files, <a
+href='#unisource'>see below</a>).  For example, if you're a Windows
+user in the United States or Western Europe, your source files
+probably use "code page 1252," which includes the ASCII characters
+plus the accented letters and special symbols commonly used in Western
+European languages such as French, Spanish, and German.  Macintosh
+users in these parts of the world use a different, Mac-specific
+character set, which includes almost exactly the same set of glyphs
+but assigns different character codes to most of the accented letters
+and special symbols.
+
+<p>The TADS 3 compiler is designed to work with these diverse system
+character sets.  When the compiler reads your source file, it
+automatically translates the characters from the local format used by
+your operating system into Unicode characters.  Only Unicode
+characters are stored in the compiled version of your program (the
+image file).
+
+<p>The TADS 3 compiler uses an external file called a "character
+mapping file" to translate from your source format into Unicode.  The
+character map is a file that comes with the compiler; its name ends
+with ".tcm" (TADS Character Map).  In most cases, you won't need to
+worry about this file, because the compiler will automatically load
+the appropriate mapping for your operating system.  However, in some
+cases you might want to specify a mapping explicitly, rather than
+allowing the compiler to choose; for example, if the source file
+you're compiling was originally created on a different type of
+computer, and you didn't translate the file into your local character
+set, you might need to use the mapping for that other computer.  In
+addition, you might be intentionally using a non-standard character
+set; if you have a machine localized for Western Europe, but you're
+writing a game in Russian, you'll probably prepare your source file in
+a Cyrillic character set rather than your computer's default Western
+Europe setting.
+
+<h2>Specifying the Source Character Set to the Compiler</h2>
+
+<p>You must tell the compiler which character set your source code
+uses.  The compiler gives you two ways to do this: the -cs option,
+which specifies the default character set for all source files; and
+the #charset directive, which specifies the character set for an
+individual file within the file itself.
+
+<h2>Specifying the Default Character Set</h2>
+
+To specify a default character set for all source files, use the
+compiler's -cs option.  Specify the name of the mapping after the
+option - this is simply the filename minus the ".tcm" suffix.  For
+example, to compile source code created using code page 1250 (Windows
+Central/Eastern Europe), you'd use this command:
+
+<p><div class="cmdline"><pre>
+t3make -cs cp1250 mygame.t
+</pre></div>
+
+<p>If the TADS 3 distribution doesn't include a mapping file for the
+character set you're using, you can <a href='cmap.htm'>build your own
+mapping file</a>. 
+
+<p>The compiler provides several built-in character set names that you
+can use, in addition to those supplied by mapping files:
+
+<ul>
+
+<li>US-ASCII - US ASCII 7-bit Default, which is a simple mapping for
+plain ASCII characters.  This encoding represents each character with
+a single byte, and the value in each byte is in the range 0-127.
+
+<li>UTF-16LE - "little-endian" 16-bit Unicode (also known as UCS-2
+encoding).  In a file encoded in UTF-16, each character is represented
+by two consecutive bytes; in the little-endian version, each byte pair
+has the low-order 8 bits first.  This is the typical Unicode encoding
+used on Windows machines; most Unicode-enabled text editors on Windows
+use this encoding.
+
+<li>UTF-16BE - "big-endian" 16-bit UTF-16, which places the high-order
+byte of each 16-bit character first.  This is the typical Unicode
+encoding used on Macintosh systems.
+
+<li>UTF-8 - This is a multi-byte encoding that represents each
+character with a varying number of bytes.  All of the plain ASCII
+characters are represented with a single byte; many other characters,
+including most of the characters from Western alphabets, are
+represented with two bytes; and other characters take three bytes.
+This encoding is more compact than UTF-16 for any text with lots of
+plain ASCII characters, since UTF-8 requires only one byte for each
+such character; however, this encoding isn't very commonly supported
+by text editors.
+
+</ul>
+
+<p>These built-in character set translations don't require any
+external mapping files.
+
+<h2>Specifying an Individual File's Character Set</h2>
+
+<p>The -cs option specifies the default character set; the mapping you
+specify with this option applies to each source file involved in the
+compilation (including header files), except for files that specify
+their own character set with the #charset directive.  If present, this
+directive must be the very first thing in the file - comments can't
+precede it, and even spaces are not allowed before it.  The directive
+takes the name of the character set in double quotes - the name used
+here is the same name you'd use in a -cs option:
+
+<p><div class="code"><pre>
+#charset "cp1250"
+</pre></div>
+
+<p>If the #charset directive is present at the start of a file, it
+overrides any -cs option that was specified for the compilation.  This
+makes it easy to mix source files that use different character sets in
+a single compilation.
+
+<p>Note that a #charset directive applies only to the file containing
+the directive:
+
+<ul>
+
+<li>If a file uses #charset to specify the character set, then
+includes a header file with #include, the header file uses to the
+default (-cs) character set, unless the header file itself specifies a
+#charset.
+
+<li>If an included file uses #charset, it applies only to the included
+file.  Once the compiler finishes reading the included file and
+returns to the enclosing source file, the compiler returns to the
+character set that was in effect in the enclosing source file.
+
+</ul>
+
+<p>An individual file can only use a single character set.  It is not
+possible to switch character sets mid-stream with a new #charset
+directive.
+
+<p>Note that you cannot use #charset in files encoded in UTF-16
+(16-bit Unicode) - the compiler recognizes this directive only in
+single-byte or multi-byte files.
+
+<h2><a name='unisource'></a>Using Unicode Source Files</h2>
+
+<p>Since you can't use #charset in Unicode UTF-16 files, the compiler
+requires a different method of recognizing such files.  Fortunately,
+this is usually completely automatic, because there is a standard way
+of flagging UTF-16 files; most text editors include this special
+flagging, and the TADS 3 compiler recognizes it.  If you're using a
+cooperating text editor, you will not need to do anything more.
+
+<p>UTF-16 encodes each Unicode character in two bytes.  There are two
+different UTF-16 formats: one that stores the more significant byte of
+each character first, and one that stores the less significant byte
+first.  It might seem strange that this supposedly standardized format
+allows for this potentially confusing variation, but different types
+of computer hardware have different native byte ordering, and the
+creators of the Unicode standard felt it was important to allow
+programmers to use native byte ordering for whatever platform they
+were working on, to avoid the need to switch the bytes around when
+loading a file into memory.  The creators of the Unicode standard also
+recognized the potential for confusion this variation would create
+when moving a file from one type of computer to another, so they
+resolved it by defining a special Unicode character that would allow
+unambiguous byte order sensing.  The Unicode character code 0xFEFF
+serves this purpose; importantly, the character 0xFFFE is explicitly
+not valid.  So, if a program reading a UTF-16 file sees the byte
+sequence FE FF, the program knows that it is reading a big-endian
+UTF-16 file.  Likewise, if a program sees the sequence FF FE, it knows
+that it can't be a big-endian UTF-16 file, because 0xFFFE is illegal;
+so, the program knows the file must be a little-endian UTF-16 file.
+
+<p>The TADS 3 compiler looks at the first two bytes of each file it
+reads.  If these two bytes are FE FF, the compiler assumes the file is
+encoded in big-endian UTF-16; if the bytes are FF FE, the compiler
+assumes the file is encoded in little-endian UTF-16.
+
+<p>Most Unicode-enabled text editors include the byte-order marker
+automatically, since this is part of the Unicode standard.  However,
+if your text editor does not automatically insert the marker, you must
+either insert it manually (as the first character of the file), or use
+the -cs compiler option to specify the appropriate encoding - UTF-16BE
+or UTF-16LE - as described earlier.
+
+<p>Note that you shouldn't normally see the 0xFEFF marker character
+when you display or print your file, since the Unicode standard
+specifies that this character is to be rendered as a non-breaking,
+zero-width space - in other words, invisible.
+
+<p>Finally, note that the character codes 0xFE and 0xFF are valid
+characters in some single-byte character sets.  If you're using a
+single-byte character set, and the first two characters of your file
+happen to have byte codes 0xFE and 0xFF (in either order), the
+compiler will incorrectly sense that the file is encoded in UTF-16.
+It seems rather improbable that this would happen by chance, but if it
+does, you can avoid confusing the compiler simply by inserting a space
+character or a #charset directive at the very start of the file, or by
+using the -cs compiler option.
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Source File Character Sets
+<br><span class="navnp"><a class="nav" href="progstru.htm"><i>Prev:</i> Source Code Structure</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="preproc.htm"><i>Next:</i> The Preprocessor</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,2189 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Expressions and Operators</title>
+
+<style type="text/css"><!--
+
+table.truth {
+    background=#E0E0E0;
+    margin-left: 2em;
+    border: none;
+    border-collapse: collapse;
+    border: 1px solid #d0d0d0;
+}
+
+table.truth td, table.truth th {
+    padding: 0.1ex 1em;
+    text-align: center;
+    border: 1px solid #d0d0d0;
+}
+
+table.ops td {
+    padding: 0.25ex 1em;
+    line-height: 2em;
+}
+table.ops td a {
+    text-decoration: none;
+}
+table.ops td.1 {
+    text-align: left;
+}
+
+table.truth tr {
+    vertical-align: top;
+}
+
+table.truth tr.odd {
+    background: #F0F0F0;
+}
+table.truth tr.even {
+}
+
+span.opnote {
+    font-size: 90%;
+    font-style: italic;
+}
+        
+--></style>
+
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Expressions and Operators
+<br><span class="navnp"><a class="nav" href="gc.htm"><i>Prev:</i> Garbage Collection and Finalization</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="proccode.htm"><i>Next:</i> Procedural Code</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Expressions and Operators</h1>
+
+<p>The TADS 3 language uses an algebraic style of notation for
+expressions.  Constants (strings, integers, floating point values),
+variables, and object references can be combined with operators to
+form expressions.  Most operators are written with punctuation marks,
+and many of these come from ordinary arithmetic, such as "+" to add
+two values and "*" to multiply.  C/C++ and Java programmers will
+find that the operators are almost entirely the same as in those
+languages.
+
+<p>The way to think about expressions is that every expression is a
+miniature program.  An expression specifies a precise, step-by-step
+procedure for carrying out a calculation.  Every expression has a
+well-defined, single-threaded order of operations: to carry out the
+formula, you just do one thing at a time, from the first step to the
+last step, until you've carried out the whole procedure expressed in
+the formula.
+
+<p>The steps in the procedure embodied in an expression are the
+operators.  To carry out an expression's procedure, you figure out
+which operator to apply first, based on the precedence order and the
+associativity (left-to-right or right-to-left) of the operators; the
+operator with the highest precedence goes first.  You apply this
+operator to its operand or operands.  This yields a value - for
+example, if our expression is 3+4*5, we'd first carry out the
+multiplication, computing 4 times 5, which yields 20.  You replace the
+sub-expression in the overall formula with its yielded value, and then
+continue to the operator with the next highest precedence: so we'd
+rewrite the formula as 3+20 and proceed to the addition.  This would
+yield 23, so we'd use this to replace the 3+20.  Our whole formula
+would now be down to 23 - there are no more operators left, so we're
+done.
+
+<p>The main reason that it's important to look at expressions this
+way, and important to understand the order of evaluation, is that
+parts of expressions can trigger "side effects."  For example, the
+function-call operator invokes a function, which could display
+something in the output window, play some music, create a disk file,
+or any manner of thing that a function can do.  Other side effects are
+more direct: some operators assign values to variables, so evaluating
+such an operator has the side effect of changing the value in a
+variable.  The important thing to understand is that if any part of an
+expression does have a side effect, the effect will occur precisely at
+the step in the expression-procedure where that operator is reached.
+
+
+<h2>Operator placement: prefix, postfix, binary, ternary</h2>
+
+<p>The operators fall into four positioning categories that
+determine how an operator is placed relative to the value or
+values it acts upon.
+
+<p>A <b>unary prefix</b> operator acts on a single value, and the
+operator comes just before the value.  For example, logical negation:
+<span class="code">!a</span>
+
+<p>A <b>unary postfix</b> operator acts on a single value, which the
+operator immediately <i>follows</i>.  For example, list indexing:
+<span class="code">a[7]</span>
+
+<p>Note that most unary operators are <i>either</i> prefix or
+postfix operators, but two can be used both ways: the increment
+and decrement operators, <span class="code">++</span> and <span class="code">--</span>.
+
+<p>A <b>binary</b> operator acts on two values.  The operator is
+placed between the two values it acts upon.  For example, arithmetic
+addition: <span class="code">a + b</span>
+
+<p>There's one <b>ternary</b> operator, the conditional operator,
+which acts on three values.  This operator comes in two pieces: a "?",
+which goes between the first and second operands, and a ":", which
+goes between the second and third operands:
+<span class="code">x ? 'yes' : 'no'</span>
+
+<h2>Operator precedence</h2>
+
+<p>The operators are arranged in a hierarchy of precedence.  The
+precedence order of the arithmetic operators is generally the same
+as in ordinary algebra; for example, 3+4*2 evalutes to 11, because
+the multiplication operator has higher precedence than the addition
+operator.
+
+<p>You can override the standard order of evaluation by explicitly
+grouping part of an expression in parentheses.  For example, (3+4)*2
+evaluates to 14, since the parentheses tell the compiler to evaluate
+the addition first, even though the multiplication would normally have
+higher precedence.
+
+<p>The order of precedence is shown below.  The operators are listed
+in order of decreasing precedence.  When multiple operators are listed
+together on a line, those operators are all at the same precedence
+level. 
+
+<p>
+<table class="ops truth" cellspacing=0 cellpadding=0
+   style="width: 50%; margin: 1em 4em;">
+<tr class="odd">
+   <td class=1>Primary
+   <td>
+      <a href="#new">new</a> <br>
+      <a href="#inherited">inherited</a> <br>
+      <a href="#delegated">delegated</a> <br>
+      <a href="#defined">defined</a> <br>
+      <a href="#__objref">__objref</a> <br>
+      <a href="#addressof">&amp;<span class=opnote>x</span></a> <br>
+<tr class=even>
+   <td class=1>Postfix
+   <td>
+      <a href="#postinc"><span class=opnote>x</span>++</a> <br>
+      <a href="#postdec"><span class=opnote>x</span>&ndash;&ndash;</a> <br>
+      <a href="#index">[]</a> <br>
+      <a href="#getprop">.</a> <br>
+      <a href="#call"><span class=opnote>x</span>()</a> <br>
+<tr class=odd>
+   <td class=1>Unary
+   <td>
+      <a href="#preinc">++<span class=opnote>x</span></a> <br>
+      <a href="#predec">&ndash;&ndash;<span class=opnote>x</span></a> <br>
+      <a href="#lognot">!</a> <br>
+      <a href="#bitnot">~</a> <br>
+      <a href="#pos">+<span class=opnote>x</span></a> <br>
+      <a href="#neg">&ndash;<span class=opnote>x</span></a> <br>
+<tr class=even>
+   <td class=1>Multiplicative
+   <td>
+      <a href="#times">*</a> <br>
+      <a href="#divide">/</a> <br>
+      <a href="#mod">%</a> <br>
+<tr class=odd>
+   <td class=1>Additive
+   <td>
+      <a href="#plus">+</a> <br>
+      <a href="#minus">&ndash;</a> <br>
+<tr class=even>
+   <td class=1>Bit-shift
+   <td>
+      <a href="#shl">&lt;&lt;</a> <br>
+      <a href="#ashr">&gt;&gt;</a> <br>
+      <a href="#lshr">&gt;&gt;&gt;</a> <br>
+<tr class=odd>
+   <td class=1>Comparison
+   <td>
+      <a href="#lt">&lt;</a> <br>
+      <a href="#le">&lt;=</a> <br>
+      <a href="#gt">&gt;</a> <br>
+      <a href="#ge">&gt;=</a> <br>
+<tr class=even>
+   <td class=1>Equality
+   <td>
+      <a href="#eq">==</a> <br>
+      <a href="#ne">!=</a> <br>
+      <a href="#isin">is in</a> <br>
+      <a href="#notin">not in</a> <br>
+<tr class=odd>
+   <td class=1>Bitwise AND
+   <td>
+      <a href="#bitand">&amp;</a> <br>
+<tr class=even>
+   <td class=1>Bitwise XOR
+   <td>
+      <a href="#bitxor">^</a> <br>
+<tr class=odd>
+   <td class=1>Bitwise OR
+   <td>
+      <a href="#bitor">|</a> <br>
+<tr class=even>
+   <td class=1>Conditional AND
+   <td>
+      <a href="#logand">&amp;&amp;</a> <br>
+<tr class=odd>
+   <td class=1>Conditional OR
+   <td>
+      <a href="#logor">||</a> <br>
+<tr class=even>
+   <td class=1>If-nil
+   <td>
+      <a href="#ifnil">??</a> <br>
+<tr class=odd>
+   <td class=1>Conditional
+   <td>
+      <a href="#cond">? :</a> <br>
+<tr class=even>
+   <td class=1>Expression chaining
+   <td>
+      <a href="#comma">,</a> <br>
+<tr class=odd>
+   <td class=1>Assignment
+   <td>
+      <a href="#asi">=</a> <br>
+      <a href="#asi">+=</a> <br>
+      <a href="#asi">&ndash;=</a> <br>
+      <a href="#asi">*=</a> <br>
+      <a href="#asi">/=</a> <br>
+      <a href="#asi">%=</a> <br>
+      <a href="#asi">&amp;=</a> <br>
+      <a href="#asi">|=</a> <br>
+      <a href="#asi">^=</a> <br>
+      <a href="#asi">&lt;&lt;=</a> <br>
+      <a href="#asi">&gt;&gt;=</a> <br>
+      <a href="#asi">&gt;&gt;&gt;=</a> <br>
+
+</table>
+
+<h2>Operator associativity</h2>
+
+<p>Each operator has a standard "associativity," which controls the
+default order of evaluation when two operators at the same precedence
+level are used consecutively.  In almost all most cases, the standard
+associativity will produce the results you'd expect from ordinary
+arithmetic, so most of the time you won't even notice it; but it's
+worth going over the precise rules, to help explain any odd cases
+that might come up.
+
+<p>When binary operators at the same precedence level are combined,
+evaluation proceeds in left-to-right order, <i>except</i> for the
+assignment operators (=, +=, *=, etc).  For example, 6-3-2 is
+evaluated as (6-3)-2.  This is true of all binary operators except the
+assignment operators, which work right to left: a=b=3 is evaluated as
+a=(b=3) - that is, the value 3 is first assigned to b, yielding the
+assigned value (3) as the result of the overall sub-expression, and
+then this result is assigned to a.
+
+<p>The conditional operator is right-associative.  This comes into
+play in an expression like this: <span class="code">a ? b : c ? d : e</span>.  Because the
+conditional operator groups right to left, the expression is evaluated
+as <span class="code">a ? b : (c ? d : e)</span>.  This might look backwards at first, but
+it yields the grouping that most people would intuitively assume by
+thinking about it as a series of if-then-else branches: if <i>a</i>
+then <i>b</i>, else if <i>c</i> then <i>d</i>, else <i>e</i>.  Don't
+let the parentheses confuse you into thinking that the parenthesized
+part has to be evaluated first, by the way - it doesn't.  In fact,
+<span class="code">a</span> is evaluated first here, because we always evaluate the
+controlling expression of a condition before evaluating either of the
+two result operands.  Associativity and order of evaluation are
+different things.
+
+<p>You can always override the default associativity by using
+parentheses.  For example:
+
+<p><div class="code"><pre>
+local a = b - (c - d);
+</pre></div>
+
+<p>Without the parentheses, the calculation would have proceeded
+from left to right, so we would first have calculated (b-c) and then
+subtracted d from the result.  The parentheses override this,
+ensuring that the calculation begins by calculating (c-d), then
+subtracting this from b.
+
+<h2>Operators in detail</h2>
+
+<p>This section describes each operator's syntax and usage.
+
+<h3><a name="new"></a>new</h3>
+
+<p>The <span class="code">new</span> operator is used to create a new instance of a class
+dynamically.  The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synLit>new</span> <span class=synPar>className</span> <span class=synMark>[</span> <span class=synPar>argumentList</span> <span class=synMark>]</span> 
+</pre></div>
+
+<p>If the argument list is omitted entirely, it's equivalent to
+using an empty argument list - so the following two lines are
+equivalent:
+
+<p><div class="code"><pre>
+x = new MyClass;
+x = new MyClass();
+</pre></div>
+
+<p>When this operator is evaluated, the VM creates an instance of the
+given class, and immediately invokes the method named "construct" of
+the new object, passing the list of arguments specified.  A run-time
+error results if the "construct" method's parameter list doesn't have
+the same number of parameters as the argument list in the "new"
+expression.
+
+<p>The class must be specified by name.  It's not legal to use a
+variable or other expression here; you can only use the literal name
+of a class. (If you need to create an instance of a class determined
+by a variable or other expression, you can use the createInstance()
+method of the Object intrinsic class.)
+
+<p>The result value of the expression is the new object reference.
+
+<h3><a name="inherited"></a>inherited</h3>
+
+<p>The <span class="code">inherited</span> operator invokes the method that the currently
+executing method overrides.
+
+<p><div class="syntax"><pre>
+<span class=synLit>inherited</span> <span class=synMark>[</span> <span class=synPar>superclass</span> <span class=synMark>]</span>  <span class=synMark>[</span> <span class=synLit>.</span> <span class=synPar>propertySpec</span> <span class=synMark>]</span>  <span class=synMark>[</span> <span class=synPar>argumentList</span> <span class=synMark>]</span> 
+</pre></div>
+
+<p>(See <a href='#commonEles'>below</a> for the syntax of the
+<i>propertySpec</i> and <i>argumentList</i> elements.)
+
+<p>If the superclass name is specified, it must be a literal class
+name; it can't be a variable or other expression.  If the superclass
+name is specified, the method of the given superclass is invoked,
+regardless of which method the current method actually overrides.
+
+<p>If superclass is omitted, the VM automatically determines which
+method the current method overrides.  This determination is made
+dynamically, because a given method in a given object might override
+different base class methods depending on the superclass composition
+of the actual instance.  The overridden method is the one that
+<i>would have been called</i> instead of the current method, when the
+current method was called, if the current method had never been defined.
+
+<p>If the <i>propertySpec</i> is included, the VM invokes the
+specified property, regardless of the property under which the current
+method is defined.  If <i>propertySpec</i> is omitted, the VM
+automatically uses the same property under which the current method is
+defined.
+
+<p>If the argument list is omitted entirely, it's equivalent to
+an empty argument list.
+
+<p>The result of this expression is the return value of the inherited
+method.  If the target property isn't defined or inherited by the
+target superclass, the return value is nil.
+
+<p>This operator can only be used within a method.
+
+<p>Example:
+
+<p><div class="code"><pre>
+myObject: Thing
+  test(x)
+  {
+    return inherited(x) + 1;
+  }
+;
+</pre></div>
+
+<p>Refer to the <a href='inherit.htm'>inheritance model</a>
+section for information on inheritance order.
+
+<h3><a name="delegated"></a>delegated</h3>
+
+<p>This operator is similar to <span class="code">inherited</span>, but allows you to
+specify an unrelated object to specify the target object, and further
+allows you to delegate to any object, regardless of any inheritance
+relationship with the current method's defining object.
+
+<p>The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synLit>delegated</span> <span class=synPar>objectExpr</span> <span class=synMark>[</span> <span class=synLit>.</span><span class=synPar>propertySpec</span> <span class=synMark>]</span>  <span class=synMark>[</span> <span class=synPar>argumentList</span> <span class=synMark>]</span> 
+</pre></div>
+
+<p>This operator is useful when you want to circumvent the normal
+inheritance relationships between objects, and call a method in an
+unrelated object as though it were inherited from a base class of the
+current object.  For example, you might want to create an object that
+sometimes acts as though it were derived from one base class, and
+sometimes acts as though it were derived from another class, based on
+some dynamic state in the object.  Or, you might wish to create a
+specialized set of inheritance relationships that don't fit into the
+usual class tree model.
+
+<p><span class="code">delegated</span> invokes a method in another object while retaining
+the same "self" object as the caller.
+
+<p>For example:
+
+<p><div class="code"><pre>
+myObj: MyClass
+  handler = myOtherObj
+  test(x) { return delegated handler.test(x); }
+;
+</pre></div>
+
+<p>In this example, the <span class="code">test()</span> method delegates its processing to
+the <span class="code">test()</span> method of the object given by the <span class="code">handler</span> property
+of the <span class="code">self</span> object, which in this case is the <span class="code">myOtherObj</span>
+object.  When <span class="code">myObj.test()</span> executes, its <span class="code">self</span> object will be
+the same as it was in <span class="code">myObj.test()</span>, because delegated preserves
+the <span class="code">self</span> object in the delegatee.
+
+<p>In the delegatee, the targetobj pseudo-variable contains the object
+that was the target of the delegated expression.
+
+
+
+<h3><a name="defined"></a>defined(<span class=opnote>sym</span>)</h3>
+
+<p>This operator tests whether or not a symbol is defined.  If
+<i>sym</i> is defined in the program's global symbol table (as a
+function, property, or object name), <span class="code">defined(</span><i>sym</i><span class="code">)</span>
+yields <span class="code">true</span>, otherwise it yields <span class="code">nil</span>.
+
+<p>Note that <span class="code">defined</span> has a separate meaning within an <span class="code">#if</span>
+preprocessor directive.  In an <span class="code">#if</span> directive, <span class="code">defined(x)</span>
+determines if <span class="code">x</span> is defined among the <b>preprocessor</b>
+(<span class="code">#define</span>) symbols.  Outside of <span class="code">#if</span> expressions, <span class="code">defined</span>
+tests to see if a symbol is defined in the compiler's global
+symbol table, among the objects, functions, and properties.
+
+<p><span class="code">defined</span> has a constant value at compile-time.  This means that
+if it's used as the controlling expression of a condition (such as in
+an <span class="code">if</span> statement or the <span class="code">?:</span> operator), the compiler applies
+the condition at compile time, not at run time.  In particular,
+if <span class="code">x</span> isn't defined, <span class="code">defined(x)</span> is <span class="code">nil</span>, so any code
+that's conditional on <span class="code">defined(x)</span> is simply factored out - the
+compiler effectively strips that code out of the final program.
+This property is extremely useful, in that you can "hide" a reference
+to a symbol behind <span class="code">defined()</span>, and that reference will be stripped
+out of the program if the symbol isn't defined.  For example:
+
+<p><div class="code"><pre>
+if (defined(foo) &amp;&amp; foo.isOpen)
+   ...
+</pre></div>
+
+<p>If <span class="code">foo</span> is defined, this turns into simply <span class="code">if (foo.isOpen</span>).
+Otherwise, it turns into <span class="code">if (nil)</span>, because of the short-circuit
+feature of the <span class="code">&amp;&amp;</span> operator (when the first operand of <span class="code">&amp;&amp;</span> is a
+constant <span class="code">nil</span> value, the compiler skips the second operand
+entirely).  This means that the <span class="code">foo.isOpen</span> part of the expression
+won't cause an "unknown symbol" error when <span class="code">foo</span> isn't defined,
+since that part of the expression will be skipped entirely.  In this
+example, the compiler will also skip the entire body of the <span class="code">if</span>,
+since the controlling is <span class="code">nil</span>.
+
+<p>This operator is especially useful in libraries where you want to
+make a module optional, but still want to be able to reference that
+optional module from other modules when it's present.  For example,
+suppose we create a library with a "score" module that some games wish
+to include and some games wish to omit.  Suppose further that we want
+to reference an object in the score module from the status line
+module, so that the status line can display the current score.  The
+tricky thing about this situation is that a direct reference to the
+object in the status line module will effectively make the score
+module required, since omitting the score module would also omit that
+referenced object, causing a link error.  The <span class="code">defined()</span> operator
+solves the problem: rather than referencing the score object
+directly, we can make the reference conditional on the object's
+existence:
+
+<p><div class="code"><pre>
+local score = (defined(libScore) ? libScore.totalScore : nil);
+</pre></div>
+
+<p>This solves the problem because defined(libScore) has a constant
+value during compilation.  If the score module is included, the
+<span class="code">libScore</span> object is present, so <span class="code">defined(libScore)</span> turns into
+<span class="code">true</span>; if the score module is omitted, <span class="code">defined(libScore)</span>
+becomes <span class="code">nil</span>.  In either case, when the control expression of the
+<span class="code">?:</span> operator is a constant, the compiler knows it only has to
+compile one branch or the other; so when <span class="code">defined(libScore)</span> is nil,
+the compiler entirely omits the first branch, eliminating the
+problematic reference to <span class="code">libScore</span>.  But when <span class="code">libScore</span>
+<i>is</i> included in the build, the expression turns into
+<span class="code">libScore.totalScore</span>, allowing the status line module to get access
+to the score information as we wanted.  We've thus succeeded in making
+the score module optional, but without giving up extra features in
+other parts of the library that make use of the score module when it's
+available.
+
+
+<h3><a name="__objref"></a>__objref(<span class=opnote>sym [, mode]</span>)</h3>
+
+<p>This operator is similar to <a href="#defined">defined</a>, but
+is specifically for object references.  If <i>sym</i> is the name of
+a defined object, the result of the operator is the object reference
+value, as though you had written simply <i>sym</i> in the first place.
+If the symbol isn't defined, or refers to something other than an object
+(such as a property or function name), the result of the expression
+is <span class="code">nil</span>.
+
+<p>The <i>mode</i> element is optional.  If specified, this must be
+the literal text <span class="code">warn</span> or <span class="code">error</span>.  If it's <span class="code">warn</span>, the
+compiler will display a warning message if the symbol isn't a defined
+object; if it's <span class="code">error</span>, the compiler displays an error message.
+(The message is the same in either case; the difference is that
+warnings allow the build to proceed to completion, while errors stop
+it at the end of the current source file.)  If <i>mode</i> isn't
+specified at all, there's no message of any kind of the symbol isn't
+a defined object; the expression simply yields <span class="code">nil</span> as its value.
+
+<p><div class="code"><pre>
+local x = __objref(Action, warn);
+if (x == nil)
+   "Action isn't defined in this build!\n";
+</pre></div>
+
+
+<h3><a name="addressof"></a>&amp;<span class=opnote>x</span></h3>
+
+<p>The unary <span class="code">&amp;</span> operator yields a property ID value for a given
+property name, <i>or</i> a pointer to a function, <i>or</i> a pointer
+to a built-in function.  The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synLit>&amp;</span> <span class=synPar>propertyName</span>
+<span class=synLit>&amp;</span> <span class=synPar>functionName</span>
+<span class=synLit>&amp;</span> <span class=synPar>intrinsicFunctionName</span>
+</pre></div>
+
+<p>When applied to a property name, this operator simply yields the
+property ID value for the named property.  It <i>does not</i> invoke
+the property.  This operator has no side effects.
+
+<p>Similarly, when applied to the name of a function or a built-in
+function, it yields a pointer to the function, without invoking the
+function.
+
+<p>Property ID values and function pointers are useful because they
+let you <i>decide</i> what you're going to call at one point in the
+code, but actually <i>perform</i> the call in some other part of the
+program.  The part that performs the call doesn't have to know exactly
+what it's invoking, since that's determined by the pointer value.
+This is a powerful tool, especially for writing reusable utility code.
+For example, this approach is often used to iterate through complex
+data structures: a single piece of code that knows how to do the
+iteration can be reused for all sorts of different tasks, because the
+actual task to perform for each item in the collection is specified
+through a function pointer.  What's more, the task-specific functions
+can be reused for iterating through completely different structures,
+since they don't have to know anything about how the iteration part
+works.  It makes for a very clean division of labor.
+
+
+<h3><a name="postinc"></a>
+   <a name="postdec"></a>
+   <a name="preinc"></a>
+   <a name="predec"></a>
+   ++, &ndash;&ndash;</h3>
+
+<p>The <span class="code">++</span> and <span class="code">--</span> operators increment or decrement
+the contents of their operand.  The operand must be an
+<a href="#lvalue">lvalue</a>, which is any expression
+that you can assign a value to.
+
+<p>When these operators are used as <i>prefix</i> operators, preceding
+the operand, they increment/decrement the
+operand <i>first</i>, then they yield as the result value the
+<i>modified</i> value of the lvalue.
+
+<p>When these operators are used as <i>postfix</i> operators,
+following the operand, they start by
+temporarily saving the current value of the operand.
+Then they increment/decrement the operand, and finally they yield the
+<i>saved</i> value as the result of the expression.
+
+<p>Whether used as prefix or postfix operators, these operators
+have the side effect of changing the target lvalue at the time
+at which the operator is evaluated.
+
+<p><div class="code"><pre>
+local x = 5;
+local a = x++;
+local b = ++x;
+</pre></div>
+
+<p>In the example above, we first assign a value of 5 to the local
+variable x.  Then we evaluate <span class="code">x++</span>: since this is the postfix form,
+it first saves the old value of x, then increments the contents of x,
+then yields the old value as the result of the expression - so x is
+changed to 6, but the value yielded by the expression is 5, so 5 is
+assigned to a.  Next, we evaluate <span class="code">++x</span>: this first increment x,
+then yields the new value of x as the result - so x is changed to 7,
+and the value yielded is 7, so 7 is stored in b.  So, when we're done,
+x is 7, a is 5, and b is 7.
+
+<p>Here's a summary of each combination:
+
+<p>
+<table class="truth ops">
+   <tr><th>initial a <th>expression <th>final a <th>final b
+   <tr class=1>
+      <td>15 <td><span class="code">b = ++a;</span> <td>16 <td>16
+   <tr>
+      <td>22 <td><span class="code">b = a++;</span> <td>23 <td>22
+   <tr class=1>
+      <td>17 <td><span class="code">b = --a;</span> <td>16 <td>16
+   <tr>
+      <td>99 <td><span class="code">b = a--;</span> <td>98 <td>99
+</table>
+
+<h3><a name="index"></a>[ ]</h3>
+
+<p>This operator is used to index a list or lookup table value.  The
+syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synPar>expression</span> <span class=synLit>[</span> <span class=synPar>expression</span><span class=synLit>]</span>
+</pre></div>
+
+<p>The first expression is evaluated first.  This expression must yield
+a value that is valid for indexing: a List, a Vector, or a LookupTable.
+The second expression must yield a valid index value for the value to
+be indexed.  In the case of a List or a Vector, this must be an integer
+value, and must be within range (from 1 to the length of the list or
+vector).  In the case of a LookupTable, this can be any value.
+
+<p>The operator yields as its result the element of the list, vector,
+or lookup table at the given index.  In the case of a lookup table, if
+the given index has never been assigned a value, the result is nil
+(there's no error in this case - it's perfectly legal).
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = ['a', 'b', 'c', 'd'];
+local y = x[3];  // stores 'c' in y
+</pre></div>
+
+<h3><a name="getprop"></a>.</h3>
+
+<p>This operator evaluates a property or method of an object.  The
+syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synPar>expression</span> <span class=synLit>.</span> <span class=synPar>propertySpec</span> <span class=synMark>[</span> <span class=synPar>argumentList</span> <span class=synMark>]</span> 
+</pre></div>
+
+<p>(For details on the <i>propertySpec</i> and <i>argumentList</i>
+elements, see <a href='#commonEles'>below</a>.)
+
+<p>The expression must evaluate to an object reference.  This gives
+the target object, whose property or method will be evaluated.
+
+<p>If the argument list is omitted, it's equivalent to specifying an
+empty argument list.
+
+<p>Evaluating this type of expression invokes the given property or
+method of the given object, passing the given arguments.  The argument
+must match in number the parameter list defined in the method that's
+being invoked; if not, a run-time error occurs.
+
+<p>If a method is invoked, the result of the expression is the
+return value of the method.  If it's a simple value property rather
+than a method, the result of the expression is the property value.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = myObject.test(3);
+</pre></div>
+
+<h3><a name="call"></a>( )</h3>
+
+<p>This operator invokes a function.  It can be used to invoke a function
+by name, or through a function pointer expression.  The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synPar>expression</span> <span class=synLit>(</span> <span class=synMark>[</span> <span class=synPar>argument</span> <span class=synMark>[</span> <span class=synLit>,</span> <span class=synPar>argument</span> <span class=synMark>...</span> <span class=synMark>]</span>  <span class=synMark>]</span>  <span class=synLit>)</span>
+</pre></div>
+
+<p>The expression can be simply the literal name of a function, or it
+can be any expression that yields a pointer to a function.
+
+<p>A pointer to a named function is obtained simply by using the
+function's name without the function call operator (i.e., with no
+argument list).
+
+<p>For example, this code stores a pointer to the function MyFunc in a
+local variable, then invokes the function through the local variable:
+
+<p><div class="code"><pre>
+local x = MyFunc;
+local y = x(1, 2, 3);
+</pre></div>
+
+<h3><a name="lognot"></a>!</h3>
+
+<p>The <span class="code">!</span> operator yields the logical negation of an expression.
+This is a unary prefix operator: it goes immediately before its
+operand value.
+
+<p>The logical negation of a value depends upon its type:
+
+<ul>
+<li>!true == nil
+<li>!0 == true
+<li>!n == nil for any integer n != 0
+<li>!x == nil if x is a string, list, object reference, enum, or property ID
+value
+</ul>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = true;
+local y = !x;  // stores nil in y
+</pre></div>
+
+<h3><a name="bitnot"></a>~</h3>
+
+<p>The <span class="code">~</span> operator yields the bitwise inverse
+of an integer value.  The bitwise inverse is the value that results
+from reversing each bit of the value's binary representation (i.e.,
+changing each 0 to 1 and each 1 to 0).
+
+<p>For example, 17 has the binary representation 10001, so its bitwise
+negation is, in binary, 11111111111111111111111111101110, or
+FFFFFFEE in hex, or, as a signed decimal value, -18.
+
+<p>This operator is particularly useful for manipulating bit-mask
+values, where a set of bit flags are combined with the <span class="code">|</span>
+(bitwise-OR) operator.
+
+<p>Example:
+
+<p><div class="code"><pre>
+#define FLAG_A    0x0001
+#define FLAG_B    0x0002
+#define FLAG_C    0x0004
+
+local x = FLAG_A | FLAG_B;
+x = ~x;
+</pre></div>
+
+<h3><a name="pos"></a>+<span class=opnote>x</span></h3>
+
+<p>The <span class="code">+</span> operator, when used as a unary prefix
+operator (that is, immediately preceding a single operand expression),
+simply evaluates and yields its operand value.  It has no other
+effect.
+
+<p>The compiler generates an error if this operator is applied to a
+constant expression other than an integer or BigNumber value.
+However, this restriction doesn't apply at run-time; at run-time, the
+operator simply has no effect other than to evaluate its operand.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = +x;
+</pre></div>
+
+<h3><a name="neg"></a>&ndash;<span class=opnote>x</span></h3>
+
+<p>The <span class="code">-</span> operator, when used as a unary prefix
+operator (that is, immediately preceding a single operand expression),
+yields the arithmetic negative of a numeric value.  It can be applied
+to integers and BigNumber values; applying it to any other type causes
+a run-time error.
+
+<p>The result is of the same type as the operand.  In the case of
+a BigNumber, the result has the same precision as the operand.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = -x;
+</pre></div>
+
+<h3><a name="times"></a>*</h3>
+
+<p>This operator multiplies two numeric values, yielding the
+arithmetic product.  The operands can be integers or BigNumbers.
+
+<p>See <a href='#arith'>below</a> for details on how integers
+and BigNumber operands are handled.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 1.7;
+local z = x * y;
+</pre></div>
+
+<h3><a name="divide"></a>/</h3>
+
+<p>This operator divides one numeric value by another, yielding
+the quotient.
+
+<p>If both inputs are integers, the calculation performs an integer
+division.  This means that the result is the quotient with any
+fractional part discarded.  Note that the result is <b>not</b>
+rounded to the nearest integer - the fractional part is simply
+discarded.  For example, 8/3 yields 2, and (-8)/3 yields -2.
+
+<p>See <a href='#arith'>below</a> for details on how BigNumber
+operands are handled.
+
+<p>If the right-hand operand is zero, a run-time error results.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 12;
+local z = x / y;
+</pre></div>
+
+<h3><a name="mod"></a>%</h3>
+
+<p>This is the modulo operator.  It calculates the remainder that
+results from dividing one integer value by another.  The operands must
+both be integers.
+
+<p>The result of this operation produces a value such that, for any
+integers a and b, (a/b)*b + a%b equals a.  This relationship holds for
+both positive and negative values.
+
+<p>If the right-hand operand is zero, a run-time error results.
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 12;
+local z = x % y;
+</pre></div>
+
+<h3><a name="plus"></a>+</h3>
+
+<p>This operator calculates the arithmetic sum of two numbers,
+concatenates strings, and appends values to lists.
+
+<ul class=doublespace>
+
+<li>If the first operand is an integer or a BigNumber, the operator
+calculates the arithmetic sum of the values.  The second operand must
+be an integer or BigNumber, or a run-time error is generated.  See <a
+href='#arith'>below</a> for details on how integers and BigNumber
+operands are handled.
+
+<li>If the first operand is a string, the operator first converts
+the second operand to a string using the default conversion,
+then creates a new string whose text is the concatenation of
+the first string with the converted second operand.  For example,
+'abc' + 123 yields 'abc123'.
+
+<li>If the first operand is a list or a Vector, and the second operand
+is a list or a Vector, the result is a new object of the same type as
+the first operand, consisting of all of the elements in the original
+first operand plus all of the elements of the second operand.  The
+first operand's elements are at the beginning of the new list/Vector,
+and the second operand's elements are at the end; the elements are in
+the same order they were in the original lists.  The original operands
+are <b>not</b> modified.  For example, [1, 2, 3] + [4, 5, 6] yields 
+[1, 2, 3, 4, 5, 6].
+
+<li>If the first operand is a list or a Vector, and the second is any
+type other than a list or Vector, the operator  returns a new object of
+the same type as the first operand, consisting of the original
+elements of the first operand plus one additional element, at the
+end of the new list/Vector, containing the second operand.  The
+original operands are <b>not</b> modified.  For example, [1, 2, 3] + 4
+yields [1, 2, 3, 4].
+
+</ul>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 12;
+local z = x + y;
+
+local lst = [1, 2, 3];
+lst = lst + x;
+
+local str = 'testing';
+str = str + y;
+</pre></div>
+
+<h3><a name="minus"></a>&ndash;</h3>
+
+<p>This operator calculates the arithmetic difference of two numbers,
+or removes elements from a list or Vector.
+
+<ul class=doublespace>
+
+<li>If the first operand is an integer or a BigNumber, the operator
+subtracts the second value from the first and yields the result.  The
+second operand must be an integer or a BigNumber, or a run-time error
+is generated.  See <a href='#arith'>below</a> for details on how
+integers and BigNumber operands are handled.
+
+<li>If the first operand is a list or a Vector, and the second is a
+list or a Vector, the result is a new object of the same type as the
+first operand, consisting of all of the elements of the original first
+operand that <b>do not</b> appear in the second list or Vector.  This
+effectively "subtracts" the elements from the first operand.  The
+elements are compared using the same rules as the <span class="code">==</span> operator.
+The original operands are <b>not</b> modified.  For example, [1, 2, 3,
+4, 4, 4] - [2, 4] yields [1, 3].
+
+<li>If the first operand is a list or a Vector, and the second is any
+type other than list or Vector, the result is a new object of the same
+type as the first operand, consisting of all of the elements of the
+original first operand that <b>do not</b> equal the second operand
+value.  This effectively "subtracts" the second operand value from the
+list.  The elements are compared using the same rules as the <span class="code">==</span>
+operator.  The original operands are <b>not</b> modified.  For
+example, [1, 2, 3, 4] - 3 yields [1, 2, 4].
+
+</ul>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 12;
+local z = x + y;
+
+local lst = [12, 37, 42, 54];
+lst = lst - x;
+</pre></div>
+
+
+<h3><a name="shl"></a>&lt;&lt;</h3>
+
+<p>Left shift.  Both operands must be integers. <i>a</i> <span class="code">&lt;&lt;</span>
+<i>n</i> shifts the bits of the binary representation of <i>a</i> left
+(towards the most significant bit) by <i>n</i> places.  The high-order
+<i>n</i> bits are simply discarded; the low-order <i>n</i> bits are
+filled with zeros.  This is equivalent to multiplying <i>a</i> by
+2<sup><i>n</i></sup>.  If the result overflows the 32-bit integer
+type, there's no error; the overflowing high-order bits are simply
+discarded.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 2;
+local z = x &lt;&lt; y;
+</pre></div>
+
+<p>TADS doesn't have separate operators for arithmetic and logical
+left shifts, because both always yield the same results.  This is in
+contrast to the right shift, where we have separate operators for
+arithmetic right shift (<span class="code">&gt;&gt;</span>) and logical right shift (<span class="code">&gt;&gt;&gt;</span>)
+because of the difference in results for negative values.
+
+<h3><a name="ashr"></a>&gt;&gt;</h3>
+
+<p>Arithmetic right shift.  Both operands must be integers.  <i>a</i>
+<span class="code">&gt;&gt;</span> <i>n</i> shifts the bits of the binary representation of
+<i>a</i> right (toward the least significant bit position) by <i>n</i>
+bits.  The least significant <i>n</i> bits of <i>a</i> are discarded,
+and the <i>n</i> vacated high-order bits are filled in with the
+original high-order bit of <i>a</i>.  If <i>a</i> is positive,
+this is equivalent to dividing <i>a</i> by 2<sup><i>n</i></sup>.  If
+<i>a</i> is negative, the result is equivalent to to dividing <i>a</i>
+by 2<sup><i>n</i></sup> and then rounding towards negative infinity
+(note that this differs from the <span class="code">/</span> operator, which rounds towards
+zero: -3/2 == -1, whereas -3&gt;&gt;1 == -2).
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 2;
+local z = x &gt;&gt; y;
+</pre></div>
+
+<p>The difference between the arithmetic right shift and the logical
+right shift is the treatment of the vacated high-order bits.  The
+arithmetic shift preserves the sign of the original value by filling
+the vacated bits with the original value's most significant
+bit; the logical shift always fills the vacated bits with zeros.  If
+<i>a</i> is positive, <i>a</i> <span class="code">&gt;&gt;</span> <i>n</i> and <i>a</i>
+<span class="code">&gt;&gt;&gt;</span> <i>n</i> have the same result.
+
+
+<h3><a name="lshr"></a>&gt;&gt;&gt;</h3>
+
+<p>Logical right shift.  Both operands must be integers.  <i>a</i>
+<span class="code">&gt;&gt;&gt;</span> <i>n</i> shifts the bits of the binary representation of
+<i>a</i> right (toward the least significant bit position) by <i>n</i>
+bits.  The least significant <i>n</i> bits of <i>a</i> are discarded,
+and the <i>n</i> vacated high-order bits are filled with zeros.  If
+<i>a</i> is positive, this is equivalent to dividing <i>a</i> by
+2<sup><i>n</i></sup>.  If <i>a</i> is negative, the result is
+equivalent to dividing (2<sup>32</sup>+<i>a</i>) by 2<sup><i>n</i></sup>.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 2;
+local z = x &gt;&gt;&gt; y;
+</pre></div>
+
+<p>The difference between the arithmetic right shift and the logical
+right shift is the treatment of the vacated high-order bits.  The
+arithmetic shift preserves the sign of the original value by filling
+the vacated bits with the original value's most significant
+bit; the logical shift always fills the vacated bits with zeros.  For
+positive values of <i>a</i>, <i>a</i> <span class="code">&gt;&gt;</span> <i>n</i> and <i>a</i>
+<span class="code">&gt;&gt;&gt;</span> <i>n</i> have the same result.
+
+
+<h3>
+   <a name="lt"></a>&gt; &nbsp;
+   <a name="le"></a>&lt; &nbsp;
+   <a name="gt"></a>&gt;= &nbsp;
+   <a name="ge"></a>&lt=</h3>
+
+<p>These operators each compare two values.  Each operator yields true if
+its comparison holds for the two values, nil if not.
+
+<ul>
+<li><i>a</i> &gt; <i>b</i> yields true if <i>a</i> is greater than <i>b</i>
+<li><i>a</i> &lt; <i>b</i> yields true if <i>a</i> is less than <i>b</i>
+<li><i>a</i> &gt;= <i>b</i> yields true if <i>a</i> is greater than or equal to <i>b</i>
+<li><i>a</i> &lt;= <i>b</i> yields true if <i>a</i> is less than or equal to <i>b</i>
+</ul>
+
+<p>The meaning of the comparison depends upon the types of the values
+being compared:
+
+<ul class=doublespace>
+
+<li>If both values are integers, the values are compared arithmetically.
+
+<li>If both values are strings, the contents of the strings are
+compared character by character.  First, we compare the first
+character of the first string to the first character of the second
+string.  If the two characters are unequal, the result is the result
+of an integer comparison of the Unicode values of the two characters.
+If the two are equal, we proceed to compare the second character of
+the first string to the second character of the second string.  Again,
+if they're unequal, the result is the the result of comparing the two
+Unicode values, and if they're equal we proceed to the third character
+of each string.  This proceeds until we either find a pair of
+characters that differ, or we reach the end of one or the other
+string.  If we reach the end of both strings at the same time, the two
+strings are equal; otherwise, the shorter of the two strings is
+considered to be less than the the longer string.
+
+<li>If both values are BigNumbers, the values are compared arithmetically.
+
+<li>If one value is a BigNumber and other is an integer, the integer
+is first converted to a BigNumber, then the two values are comapred
+arithmetically.
+
+<li>For any other combination of types, a run-time error ("invalid
+comparison") is generated.
+
+</ul>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 37;
+local y = 2;
+local z = x &gt; y; // stores true in z
+</pre></div>
+
+<h3>
+   <a name="isin"></a>is in &nbsp;
+   <a name="notin"></a>not in
+</h3>
+
+<p>These operators compare one value to each value in a set of values.
+<span class="code">is in</span> yields true if the first value is equal
+to any of the values in the set, and <span class="code">not in</span>
+yields true if the first value is <b>not</b> equal to any of the values
+in the set.
+
+<p>The syntax of these operators is unusual:
+
+<p><div class="syntax"><pre>
+<span class=synPar>expr</span> <span class=synLit>is</span> <span class=synLit>in</span> <span class=synLit>(</span> <span class=synPar>expr1</span> <span class=synMark>[</span> <span class=synLit>,</span> <span class=synPar>expr2</span> <span class=synMark>...</span> <span class=synMark>]</span>  <span class=synLit>)</span>
+<span class=synPar>expr</span> <span class=synLit>not</span> <span class=synLit>in</span> <span class=synLit>(</span> <span class=synPar>expr1</span> <span class=synMark>[</span> <span class=synLit>,</span> <span class=synPar>expr2</span> <span class=synMark>...</span> <span class=synMark>]</span>  <span class=synLit>)</span>
+</pre></div>
+
+<p>The first expression, <i>expr</i>, is the value to find in the set.
+The values in the parentheses - <i>expr1</i> and so on - are the set
+of values to search.
+
+<p>Any of the values can be of any type.
+
+<p>Note that within the set, the comma has special meaning as the
+expression separator.  This special meaning supersedes the normal
+"comma operator" within the set, so if you want to use the comma
+operator within one of the set expressions, you must enclose that
+expression in parentheses.
+
+<p>This type of operator proceeds as follows.  First, it evaluates the
+left-hand expression.  It then evaluates the first expression in the
+set, and compares it to the left-hand value.  If the two values are
+equal, the operator immediately stops and yields its value (true in
+the case of <span class="code">is in</span>, nil in the case of <span class="code">not in</span>.  If the two
+values are unequal, the operator evaluates the second expression in
+the set, and repeats the comparison.
+
+<p>The comparisons are performed according to the same rules used
+by the == and != operators.
+
+<p>It's important to note that these operators only evaluate the
+expressions in the set <i>until they find a match</i>.  The set
+expressions are evaluated one at a time in left-to-right order, and
+the operator stops evaluating the expressions as soon as it finds a
+match.  Also, note that the left-hand expression is evaluated only
+once, no matter how many set expressions must be compared.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local x = 17;
+local y = 5;
+local y = (x + 3) is in (y*1, y*2, y*3, y*4, y*5);
+</pre></div>
+
+<h3><a name="eq"></a>== &nbsp;
+   <a name="ne"></a>!=</h3>
+
+<p>These operators test for equality and inequality, respectively.
+<span class="code">==</span> yields true if the two values being
+compared are equal, nil if not.  <span class="code">!=</span> yields
+nil if the two values are equal, true if not.
+
+<p>The meaning of the comparison varies according to the types of
+the values being compared:
+
+<ul class=doublespace>
+
+<li>If both values are nil, the result is "equal."
+
+<li>If both values are true, the result is "equal."
+
+<li>If both values are integers, the result is "equal" if the integers
+are arithmetically equal, "not equal" otherwise.
+
+<li>If both values are BigNumbers, the result is "equal" if the values
+are arithmetically equal, "not equal" otherwise.
+
+<li>If one value is a BigNumber and the other is an integer, the
+integer is first converted to a BigNumber, then the comparison
+proceeds as for a pair of BigNumbers.
+
+<li>If both values are enums, the result is "equal" if the two values
+contain the same enum value, "not equal" otherwise.
+
+<li>If both values are strings, the two strings are compared character
+by character (the first character of each string is compared, then
+the second character of each, and so on).  If the two strings are
+of the same length and contain the identical characters, the result
+is "equal," otherwise "not equal."
+
+<li>If both values are lists, or both are Vectors, or one is a list
+and one is a Vector, the two are compared element by element (that is,
+the first element of the first list or vector is compared to the first
+element of the second, then the second elements are compared to one
+another, and so on).  Each pair of elements is compared using these
+same rules, as though a stand-alone <span class="code">==</span> or
+<span class="code">!=</span> test were being performed on that pair of
+values.  If the two lists/Vectors are of the same length, and all
+of the elements are equal, the overall result is "equal," otherwise
+"not equal."
+
+<li>If both values are ByteArray objects, the two byte arrays are
+compared element by element (the first byte of the first is compared
+with the first byte of the second, then the second bytes are compared
+to one another, and so on).  If the two byte arrays are of the same
+length and each pair of bytes is equal, the overall result is "equal,"
+otherwise "not equal."e
+
+<li>If both values are CharacterSet objects, the result is "equal"
+if the two objects have the same character set name, "not equal"
+otherwise.
+
+<li>If both values are function pointers, the result is "equal"
+if the two values refer to the same function, "not equal" otherwise.
+
+<li>If both values are property IDs, the result is "equal" if
+the two values contain the same property ID, "not equal" otherwise.
+
+<li>If either value is any other type of object, the result is "equal"
+if both values are references to the same object, otherwise "not
+equal."  (Note that this comparison is <i>by reference</i>: the
+"contents" of the objects are not even considered.  The only thing
+that matters is that the two values contain references to the same
+object.)
+
+<li>For any other combination of values, the result is "not equal."
+
+</ul>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 17;
+local b = 34.0 / 2.0;
+local c = (a == b);  // assigns true to c, since 17 == 17.0
+</pre></div>
+
+<h3><a name="bitand"></a>&amp;</h3>
+
+<p>This operator calculates the bitwise AND of two integers.  Both
+operand values must be integers, otherwise a run-time error ("integer
+value required") is generated.
+
+<p>The "bitwise AND" of two values is the result of applying the
+boolean AND operator to each pair of bits from the binary
+representations of the operands.  That is, the lowest-order bit of the
+result is the result of ANDing the lowest-order bit of the first
+operand with the lowest-order bit of the second operand; the second
+bit of the result of ANDing the second bits of the two operands
+together; and so on for all 32 bits of the integer values.
+
+<p>The "truth table" for the boolean AND operator is as follows:
+
+<p><table class=truth cellpadding=0 cellspacing=0>
+<tr><th>a<th>b<th>a &amp; b
+<tr class=odd>
+   <td class=truth>0<td>0<td>0
+<tr class=even>
+   <td>0<td>1<td>0
+<tr class=odd>
+   <td>1<td>0<td>0
+<tr class=even>
+   <td>1<td>1<td>1
+</table>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 0x00FF; // all 1's in the low-order 8 bits
+local b = 123456; // in hex, this is 0x1E240
+local c = a &amp; b;  // yields 0x40, or decimal 64
+</pre></div>
+
+<h3><a name="bitxor"></a>^</h3>
+
+<p>This operator calculates the exclusive OR ("XOR") of its
+operands.  The result depends on the types of the operands:
+
+<ul class=doublespace>
+
+<li>If both values are integers, the result is the "bitwise"
+XOR of the two integer values.  This means that each pair of
+bits from the binary representations of the two values is
+XORed together to form the integer result.
+
+<li>If both values are either true or nil, the result is
+the logical XOR of the two values (so the result value is
+either true or nil).
+
+<li>If one value is either true or nil, and the other is
+an integer, the integer is coerced to a logical value, then
+the operator proceeds as for two true/nil operands.  To coerce
+an integer to a logical value, 0 is treated as nil and
+any non-zero integer is treated as true.
+
+<li>For any other combination of values, an error ("no logical
+conversion") is generated.
+
+</ul>
+
+<p>The "truth table" for the boolean XOR operator is as follows:
+
+<p><table class="truth" cellpadding=0 cellspacing=0>
+<tr><th>a<th>b<th>a ^ b
+<tr class=odd>
+   <td>0<td>0<td>0
+<tr class=even>
+   <td>0<td>1<td>1
+<tr class=odd>
+   <td>1<td>0<td>1
+<tr class=even>
+   <td>1<td>1<td>0
+</table>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 0x00FF; // all 1's in the low-order 8 bits
+local b = 123456; // in hex, this is 0x1E240
+local c = a ^ b;  // yields 0x1E200, or 123392 decimal
+</pre></div>
+
+<h3><a name="bitor"></a>|</h3>
+
+<p>This operator calculates the bitwise OR of two integers.  Both
+operand values must be integers, otherwise a run-time error ("integer
+value required") is generated.
+
+<p>The "bitwise OR" of two values is the result of applying the
+boolean OR operator to each pair of bits from the binary
+representations of the operands.  That is, the lowest-order bit of the
+result is the result of ORing the lowest-order bit of the first
+operand with the lowest-order bit of the second operand; the second
+bit of the result of ORing the second bits of the two operands
+together; and so on for all 32 bits of the integer values.
+
+<p>The "truth table" for the boolean OR operator is as follows:
+
+<p><table class="truth" cellpadding=0 cellspace=0>
+<tr><th>a<th>b<th>a | b
+<tr class=odd>
+   <td>0<td>0<td>0
+<tr class=even>
+   <td>0<td>1<td>1
+<tr class=odd>
+   <td>1<td>0<td>1
+<tr class=even>
+   <td>1<td>1<td>1
+</table>
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 0x00FF; // all 1's in the low-order 8 bits
+local b = 123456; // in hex, this is 0x1E240
+local c = a | b;  // yields 0x1E2FF, or 123647 decimal
+</pre></div>
+
+<h3><a name="logand"></a>&amp;&amp;</h3>
+
+<p>This operator computes the <i>logical</i> AND of its operands.
+
+<p>For the purposes of this operator, an operand value is considered
+logically "false" if it's nil or 0, or logically "true" if it's any
+other value or type.  Given this, the truth table for the operator is
+as follows:
+
+<p><table class="truth" cellpadding=0 cellspacing=0>
+<tr><th>a<th>b<th>a &amp;&amp; b
+<tr class=odd>
+   <td>"false"<td>"false"<td>nil
+<tr class=even>
+   <td>"false"<td>"true"<td>nil
+<tr class=odd>
+   <td>"true"<td>"false"<td>nil
+<tr class=even>
+   <td>"true"<td>"true"<td>true
+</table>
+
+<p>This is a "short-circuit" operator.  This means that it stops
+evaluating its operands <i>as soon as it knows the outcome</i>.  The
+operator always evaluates its left operand first.  If the left operand
+is "false" (as defined above), the operator <i>immediately</i> knows
+that its overall result will be nil, without even looking at the
+second operand - if the first operand is "false," it doesn't matter
+what the second operand is, because the result will be nil in any
+case.  This is where the short-circuit behavior comes in: since the
+operator already knows the result will be nil, it simply stops there
+and yields its value, <i>without ever having evaluated the second
+operand</i>.  This is important if the second operand has side
+effects, because it means that the side effects will never be
+triggered if the first operand evaluates to "false."  On the other
+hand, if the first operand evaluates to "true," then the operator must
+proceed to evaluate the second operand - thereby triggering its side
+effects - in order to determine the outcome.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 0;
+local b = 1;
+local c = (a != 0 &amp;&amp; b++ == 17);
+</pre></div>
+
+<p>After running the code above, the value of b will be 1.  Look at
+that carefully: that <span class="code">b++</span> is never executed, because the <span class="code">&amp;&amp;</span>
+operator short-circuits that part of the expression - it never bothers
+to evaluate the <span class="code">b++</span>, because it can see that the overall AND
+expression will be nil just by evaluating the <span class="code">a != 0</span> part.
+
+<h3><a name="logor"></a>||</h3>
+
+<p>This operator computes the <i>logical</i> OR of its operands.
+
+<p>For the purposes of this operator, an operand value is considered
+logically "false" if it's nil or 0, or logically "true" if it's any
+other value or type.  Given this, the truth table for the operator is
+as follows:
+
+<p><table class="truth" cellspacing=0 cellpadding=0>
+<tr><th>a<th>b<th>a || b
+<tr class=odd>
+   <td>"false"<td>"false"<td>nil
+<tr class=even>
+   <td>"false"<td>"true"<td>true
+<tr class=odd>
+   <td>"true"<td>"false"<td>true
+<tr class=even>
+   <td>"true"<td>"true"<td>true
+</table>
+
+<p>As with <span class="code">&amp;&amp;</span>, this is a "short-circuit" operator - see the
+description of <span class="code">&amp;&amp;</span> for details.  In the case of <span class="code">||</span>, the
+operator stops after evaluating the first operand if the first operand
+value is "true" - since the result will necessarily be true in this
+case, regardless of the value of the second operand, the operator
+bypasses the evaluation of the second operand entirely.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 0;
+local b = 1;
+local c = (a == 0 || b++ == 17);
+</pre></div>
+
+<p>After running the code above, the value of b will be 1 - the
+<span class="code">b++</span> evaluation is skipped because the
+<span class="code">||</span> operator can tell that its result
+will be true as soon as it evaluates the first operand,
+<span class="code">a == 0</span>.
+
+<h3><a name="ifnil"></a>??</h3>
+
+<p>This operator tests a value to see if it's <span class="code">nil</span>, and yields
+a second value if so.  It takes two operands:
+
+<p><div class="code"><pre>
+a ?? b
+</pre></div>
+
+<p>If <i>a</i> is any value other than <span class="code">nil</span>, the result is
+<i>a</i>.  If <i>a</i> is <span class="code">nil</span>, the result is <i>b</i>.
+The operator evaluates <i>a</i> exactly once, and it evaluates
+<i>b</i> <b>only if</b> <i>a</i> is <span class="code">nil</span>.
+
+<p>One way to read this operator verbally is "<i>a</i> else <i>b</i>".
+
+<p><span class="code">??</span> is concise and efficient for the
+common situation where you want to substitute a suitable default value
+if another value is <span class="code">nil</span>.  This comes up a lot with function and
+method arguments, return values from functions you call, and property
+values you're using that were originally assigned by other parts of
+the code.
+
+<p>For example, suppose the property <span class="code">location</span> gives an object's
+container, and <span class="code">nil</span> means that the object isn't currently in any
+location.  Now suppose we have some code that wants to check if an
+object's location is lit.  If we just wrote <span class="code">obj.location.isLit</span>,
+we'd trigger a run-time error when the location is <span class="code">nil</span>, since it's
+an error to get a property of <span class="code">nil</span>.  The traditional way to handle
+this is an <span class="code">if</span> test:
+
+<p><div class="code"><pre>
+local lit;
+if (obj.location == nil)
+   lit = nil;
+else
+   lib = obj.location.isLit;
+</pre></div>
+
+<p>We can simplify this with the <span class="code">??</span> operator:
+
+<p><div class="code"><pre>
+local lit = (obj.location ?? limbo).isLit;
+</pre></div>
+
+<p>If <span class="code">obj.location</span> is a valid object, the <span class="code">??</span> operator yields
+that object as the result, so we take its <span class="code">isLit</span> property.  If the
+location is <span class="code">nil</span>, though, the <span class="code">??</span> operator returns the right
+operand, <span class="code">limbo</span>, which we've defined separately as an object
+representing where objects go when they're not in
+play.  Since <span class="code">limbo</span> is an ordinary object, the property evaluation
+succeeds without triggering an error.
+
+<p>The <span class="code">??</span> approach is not only shorter to write than the
+<span class="code">if</span> test, but it's also more efficient.
+The <span class="code">if</span> test evaluates <span class="code">obj.location</span> twice - once to test
+if the location is <span class="code">nil</span>, and again to get the <span class="code">isLit</span> property if
+it isn't.  The <span class="code">??</span> operator skips this extra step.
+
+<p>Note that <span class="code">(a ?? b)</span> <b>isn't</b> quite the same
+as <span class="code">(a != nil ? a : b)</span>, which might appear to be equivalent
+at first glance.  The <span class="code">??</span> operator only evaluates
+<i>a</i> <b>once</b>, regardless of the outcome.  The
+version using <span class="code">? :</span> evaluates <i>a</i> <b>twice</b>, because
+that operator always evaluates the condition, and then always
+evaluates either the "true" or "false" operand.  If <i>a</i> has
+side effects (such as a function call, assignment, <span class="code">++</span> operator,
+etc.), the side effects will only be triggered once when using the
+<span class="code">??</span> operator.
+
+<h3><a name="cond"></a>? :</h3>
+
+<p>The "conditional" operator is unusual in that it takes three
+operand values.  The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synPar>condExpr</span> <span class=synLit>?</span> <span class=synPar>thenExpr</span> <span class=synLit>:</span> <span class=synPar>elseExpr</span>
+</pre></div>
+
+<p>One way to read this operator is like this:  "if <i>condition</i>
+then <i>then-part</i> else <i>else-part</i>."  The operator first
+evaluates the condition expression, <i>condExpr</i>.  If this
+evaluates to true, a non-zero integer, or any other type or value,
+the operator then evaluates the "then part," <i>thenExpr</i>, and
+yields its value as the overall result.  If the condition expression
+evaluates to 0 or nil, the operator instead next evaluates the
+"else part," <i>elseExpr</i>, and yields <i>its</i> value as the
+overall result.
+
+<p>Note that no matter what happens, <i>only one</i> of
+<i>thenExpr</i> or <i>elseExpr</i> is ever evaluated.  The condition
+expression is always evaluated in any case, and is always evaluated
+first.
+
+<p>This operator has another unusual feature: it associates
+right-to-left.  Because this operator has so many parts, this can be
+confusing.  Some people mistakenly take it to mean that a nested
+conditional is executed first:
+
+<p><div class="code"><pre>
+local x = a ? b ? c : d : e;  // which do we evaluate first, a or b???
+</pre></div>
+
+<p>At first glance, you might look at this and think that the
+right-to-left association means that we'd have to evaluate b first.
+After all, we have two <span class="code">?</span> operators in a row,
+and those operators associate right-to-left, so we have to do the one
+on the right first, right?  Actually, that's wrong.  Here, we do
+<b>not</b> have a case of associativity at all - we have a simple case
+of nesting.  If you look at this carefully, you'll see that
+associativity doesn't even apply here, simply because there's
+absolutely no ambiguity about how to interpret the expression.  Try
+putting parentheses into the expression to control the order of
+evaluation - you'll find that there's only one way you can do it:
+
+<p><div class="code"><pre>
+local x = a ? (b ? c : d) : e;
+</pre></div>
+
+<p>There's simply no other distinct and valid way to parenthesize this
+expression.  There's no question of associativity, so instead we
+simply rely on the basic rule of the <span class="code">?:</span>
+operator: <i>the condition expression is always evaluated first</i>,
+before either of the other parts.  So the answer to the question posed
+above is that we evaluate a first.
+
+<p>So where does the right-to-left associativity even matter?  The
+answer is that it comes into play when the second <span class="code">?:</span> operator
+occurs in the "else" part of the expression:
+
+<p><div class="code"><pre>
+local x = a ? b : c ? d : e;
+</pre></div>
+
+<p>In this case, there really is some ambiguity in how to parenthesize
+this.  Here are the two possibilities:
+
+<p><div class="code"><pre>
+local x = (a ? b : c) ? d : e;
+local x = a ? b : (c ? d : e);
+</pre></div>
+
+<p>See the difference?  In the first case, we treat the whole first
+conditional <span class="code">a ? b : c</span> as the condition
+expression of the second conditional.  In the second case, we treat
+the second conditional <span class="code">c ? d : e</span> as the "else"
+part of the first conditional.
+
+<p>So which is it?  Since we know that this operator has right-to-left
+associativity, it's easy to see that the second grouping is the right
+one - right-to-left associativity simply means that you add
+parentheses starting at the right end when you need to resolve
+ambiguity.  And it's fortunate that the second grouping is the one
+that most people would intuitively assume just by reading the original
+expression - naively, the original looks like it should read "if a
+then b, else if c then d, else e."  This is no coincidence, of course;
+the whole point of making this operator associate right-to-left is
+that it produces this intuitive result.
+
+<h3><a name="comma"></a>,</h3>
+
+<p>The "comma" operator simply evaluates its two operands in
+sequence, first the left operand, then the right operand, and
+yields the result of the right operand.
+
+<p>This operator might seem strangely pointless, but it comes in handy
+in a number of situations.  For one, this operator is useful in
+<span class="code">for</span> statements, since it lets you write a whole series of
+initializers or re-initializers in a slot that's nominally designed
+for a single expression.  Another place where the comma operator is
+often used is in macros, since it allows you to write a macro that
+evaluates a whole series of expressions, but as a unit acts as though
+it were a single function call that you can drop into an arbitrary
+expression.
+
+<p>Example:
+
+<p><div class="code"><pre>
+local a = 7;
+local b = a++, a++, a++, a/2;
+</pre></div>
+
+<p>When this code is done, a has the value 10, since the second
+line incremented it three separate times; and b has the value
+5, since the comma operator yields the result of the right-hand
+operand.  (In this case, since we have several comma operators
+in a row, we rely on the left-to-right associativity of the
+operator: we execute the subexpressions from left to right, and
+yield the value of the <i>last</i> subexpression.)
+
+<h3><a name="asi"></a>= &nbsp; <i>op</i>=</h3>
+
+<p>The simple assignment operator, <span class="code">=</span>,
+evaluates its right-hand operand first, then assigns the resulting
+value to the "lvalue" on the left.  (See <a
+href='#commonEles'>below</a> for an explanation of lvalues.)
+
+<p>The <span class="code">op=</span> operators combine a calculation
+and an assignment.  An expression of the form
+<span class=code><i>a</i> <i>op</i>= <i>b</i></span> is equivalent
+to <span class=code><i>a</i> = <i>a</i> <i>op</i> <i>b</i></span>.
+These operators evaluate the left operand first, then the
+right operand; they then perform the implied calculation exactly
+as though it were written as a separate calculation, and finally
+assign the result to the lvalue.
+
+<p>The valid <span class=code><i>op</i>=</span> operators are:
+
+<p><div class="code"><pre>
++=  -=  *=  /=  %=  &amp;=  |=  ^=  &gt;&gt;=  &gt;&gt;&gt;=  &lt;&lt;=
+</pre></div>
+
+<p>In addition to performing an assignment, an assignment operator
+yields a result value.  The result is simply the value assigned.
+For example:
+
+<p><div class="code"><pre>
+local a = 10, b = 20;
+local c = (a = 7) + (b += 5);
+</pre></div>
+
+<p>The subexpression <span class="code">(a = 7)</span> yields the
+value assigned, in this case 7.  The subexpression
+<span class="code">(b += 5)</span> yields 25, because that's the
+result of adding 5 to b.  So, after this code finishes, c has
+the value 32.
+
+<p>The assignment operators are right-to-left associative.  For
+example:
+
+<p><div class="code"><pre>
+local a = b = 7;
+</pre></div>
+
+<p>This is equivalent to <span class="code">a = (b = 7)</span>: first,
+the <span class="code">b = 7</span> sub-expression is evaluated,
+which assigns the value 7 to b and yields 7 as the result; then
+the result is assigned to a.
+
+<h2><a name='commonEles'></a>Common expression syntax elements</h2>
+
+<p>This section explains the syntax elements that several of the
+operators above refer to.
+
+<h3><a name="lvalue"></a>lvalue</h3>
+
+<p>An <i>lvalue</i> is a "left-hand side value," so named because it
+can be used on the left-hand side of an assignment operator.  This
+type of expression is something that you can assign a value to.
+
+<p>There are several kinds of lvalues.  You can assign to:
+
+<ul class=doublespace>
+<li>a local variable
+<li>an element of a list or a lookup table, indexed with the
+    <span class="code">[ ]</span> operator
+<li>a property of self or of another specified object
+</ul>
+
+<p>The syntax of an <i>lvalue</i> is:
+
+<p><div class="syntax"><pre>
+<span class=synPar>localName</span>
+<span class=synPar>expression</span> <span class=synLit>[</span> <span class=synPar>expression</span><span class=synLit>]</span>
+<span class=synPar>propertySpec</span>
+<span class=synPar>expression</span> <span class=synLit>.</span> <span class=synPar>propertySpec</span>
+</pre></div>
+
+<p>When an indexed list value is used as an lvalue, it has some
+special behavior.  Lists are immutable, so assigning a new value to an
+element of a list requires creating a new list that's a copy of the
+original, but with the assigned element replaced with its new value.
+Now, the new list has to be referenced somewhere, otherwise its
+creation would have been a pointless excercise.  Therefore, when an
+indexed list value is used as an lvalue, <i>and</i> the indexed value
+is <i>also</i> an lvalue, the newly-created list is assigned to the
+indexed-value lvalue.  If the indexed value isn't itself an lvalue,
+the new list is still created, but its value is never assigned
+anywhere, so it will simply be discarded by the garbage collector.
+
+<p>For example:
+
+<p><div class="code"><pre>
+local l1 = [1, 2, 3];
+local l2 = l1;
+l1[2] = 10;
+</pre></div>
+
+<p>The first line assigns a list to local variable l1, and the second
+line sets l2 to refer to the same list.  The two variables contain the
+same list reference at this point.  The third line assigns a value to
+an indexed element of the list in l1.  Since lists are immutable, this
+must create a new list, [1, 10, 3] - the original list is left
+unchanged, and a new list object is created.  The reference to the new
+list is then assigned to l1.  This won't affect l2: the original list
+is still there, unchanged, and l2 still contains a reference to the
+original.  So when the code is finished, l1 and l2 refer to different
+lists: l1 refers to the new list [1, 10, 3], and l2 refers to the
+original list [1, 2, 3].
+
+<p>Note that none of this applies to Vector or LookupTable objects,
+because those types are mutable (i.e., their contents can be changed
+dynamically).
+
+
+<h3>propertySpec</h3>
+
+<p>The <i>propertySpec</i> element is a property name or expression
+that specifies a property.  When a <i>propertySpec</i> is required,
+you can supply either of these forms:
+
+<p><div class="syntax"><pre>
+<span class=synPar>propertyName</span>
+<span class=synLit>(</span> <span class=synPar>expression</span> <span class=synLit>)</span>
+</pre></div>
+
+<p>The first form simply specifies the literal name of a property.
+
+<p>The second form lets you use any expression to calculate the
+property; the expression must yield a property pointer value.  Note
+that the expression must be enclosed in parentheses.
+
+<h3>argumentList</h3>
+
+<p>An <i>argumentList</i> element lets you specify the arguments to
+a function or method.  The syntax is:
+
+<p><div class="syntax"><pre>
+<span class=synLit>(</span> <span class=synMark>[</span> <span class=synPar>expression</span> <span class=synMark>[</span> <span class=synLit>,</span> <span class=synPar>expression</span> <span class=synMark>...</span> <span class=synMark>]</span>  <span class=synLit>)</span>
+</pre></div>
+
+<p>Each <i>expression</i> can be any valid expression.  Note, though,
+that the comma has a special meaning in this context: it separates
+successive argument expressions.  This means that if you want to use
+the general-purpose "comma operator" within one of these expressions,
+you must enclose the expression in parentheses, so that the compiler
+can tell that it's a comma operator rather than an argument separator.
+
+<p>Note that an empty argument list - just an empty pair of
+parentheses - is valid.  This signifies an argument list with zero
+arguments.
+
+<h2><a name='arith'></a>Arithmetic type conversions</h2>
+
+<p>Most of the arithmetic operators can accept any combination of
+numeric operands.  This means that you can perform arithmetic on
+integers, BigNumbers, or combinations of the two types.
+
+<p>The one-operand ("unary") operators generally yield a value
+of the same type and precision as the operand.  That is, if the
+operand is an integer, the result is an integer; if the operand
+is a BigNumber, the result is a BigNumber of the same precision
+as the operand.
+
+<p>The two-operand ("binary") arithmetic operators generally
+yield a value of the same type and precision as the operand
+with the greater precision.  Specifically:
+
+<ul class=doublespace>
+
+<li>If both operands are integers, the result is an integer.
+
+<li>If one operand is a BigNumber and the other is an integer, the
+result is a BigNumber.  The precision of the result is the greater
+of the BigNumber operand's precision, or the
+<a href="bignum.htm#intconv">default precision</a> for converting
+an integer a BigNumber.
+
+<li>If both operands are BigNumbers, the result is a BigNumber with
+the same precision as the operand with the higher precision.
+</ul>
+
+<p>Any exceptions to these rules are mentioned in the descriptions
+of the individual arithmetic operators.
+
+<h3>Integer overflow and automatic promotion</h3>
+
+<p>When you use the basic arithmetic operators (<span class="code">+</span>, <span class="code">-</span>, <span class="code">*</span>,
+<span class="code">/</span>, and the corresponding compound operators such as <span class="code">++</span> and
+<span class="code">+=</span>) with integer operands, the result is normally an integer as
+well.  However, the integer type has a limited range, from
+-2,147,483,648 to +2,147,483,647.  If you perform a computation with a
+result outside of this range, it's called an integer overflow, because
+the result is too large (or too small) to be represented with the
+integer type.  For example, adding 1,000,000,000 to 2,000,000,000
+yields 3,000,000,000, which is too large to represent as an integer.
+
+<p>When an integer overflow occurs with one of the basic operators,
+TADS automatically changes the result to a
+<a href="bignum.htm">BigNumber</a>.  This is called a "promotion",
+because BigNumber is a superior type in the sense that it's capable of
+storing a wider range of values than the integer type.  (Superior in
+this case just means bigger, not better.  BigNumbers and integers each
+have their own advantages.  BigNumbers have a wider range, but
+integers are much faster and use less memory.  That's why TADS
+doesn't just do everything with BigNumbers to start with.)  The
+promotion ensures that results are arithmetically correct even when
+they're out of bounds for the integer type.  For the most part, TADS
+lets you use integer and BigNumber values interchangeably, so you
+probably won't even notice in most cases.
+
+<p>The bit-oriented operators, such as <span class="code">&amp;</span>, <span class="code">|</span>, <span class="code">~</span>, <span class="code">&lt;&lt;</span>,
+and <span class="code">&gt;&gt;</span>, don't perform any promotions.  These operators are
+specifically intended for manipulating bit patterns stored as
+integers, so promotions don't make sense for them.
+
+<p>(The automatic promotion is a new feature starting in version
+3.1.1.  Before 3.1.1, TADS behaved like the more system-oriented
+languages like C and C++, and simply ignored overflows.  Results were
+truncated to fit the 32-bit integer type, by discarding overflowing
+bits.  It's difficult to do anything sensible with such an overflowing
+result, because information is lost in the truncation, so you can't
+determine the actual arithmetically correct result from the truncated
+value.  The only really good approach was to avoid overflows in the
+first place, which is difficult if you're working with external data
+or anything entered by a user.  The new treatment with automatic
+promotions is more in keeping with the general philosophy of TADS as a
+high-level environment where you don't have to worry about
+hardware-level details like this.)
+
+<p>The compiler similarly promotes constant integer expressions to
+BigNumber when they overflow the integer type.  The compiler shows a
+warning message for each integer expression it promotes; since
+integers and BigNumbers can't always be used interchangeably, the
+warning ensures that you know about the conversion, in case it wasn't
+what you intended.  You can remove the warning on a case-by-case basis
+by explicitly using floating-point notation, by adding a decimal point
+to the number in question.  The compiler doesn't promote integers
+stated in hex or octal notation (e.g., 0x80000000 or 040000000000) as
+long as they fit within an <i>unsigned</i> 32-bit integer, which
+allows values up to 4294967295 (0xFFFFFFFF in hex).  Hex and octal are
+often used for things like bit masks or binary file format parsing,
+where you want to specify a bit pattern rather than an arithmetic
+value, so the compiler assumes that's your intention when you use
+these formats.  However, the compiler will promote even a hex or octal
+number if it exceeds the 32-bit unsigned limit, since there's simply
+no way to fit such a value into a 32-bit integer, no matter how you
+interpret its signedness.  For example, 0x100000000 will be promoted
+to BigNumber even though it's stated in hex.  Entering a value in hex
+also won't stop the compiler from promoting the result of a constant
+expression if the result value overflows a <i>signed</i> integer,
+since once you start performing arithmetic, everything is back in the
+signed integer domain.  For example, (0x7FFFFFFF + 1) will result in a
+promotion, even though the seemingly equivalent 0x80000000 won't.
+Hex values over 0x7fffffff are treated as negative integers
+for the purposes of arithmetic evaluations, so (0x80000000 - 1)
+results in an overflow and yields -2147483649, not 0x7FFFFFFF.
+
+
+<h2>Pseudo-variables</h2>
+
+<p>In addition to constant values and ordinary variables, TADS 3 has
+several "pseudo-variables" that you can use within expressions.  We
+call these pseudo-variables because they <i>look</i> like variables,
+syntactically, but they don't behave like ordinary variables.  For one
+thing, you don't have to define their names anywhere, because they're
+built into the VM.  Another difference is that you can't assign new
+values to these variables - they're "read-only" from the program's
+perspective.
+
+<p>The pseudo-variables give you access to information within the
+VM about the current execution context.  The VM automatically keeps
+these up-to-date as the execution context changes, so at any given
+time you can use these variables to get information about the code
+that's currently executing.
+
+<h3>self</h3>
+
+<p>The <span class="code">self</span> pseudo-variable provides a reference to the object
+whose method was <i>originally</i> invoked to reach the current
+method.  Because of inheritance, this is not necessarily the object or
+class where the current method is actually defined.  For example:
+
+<p><div class="code"><pre>
+class Base: object
+  name = 'Base'
+  test()
+  {
+    "Base.test: self = &lt;&lt;self.name&gt;&gt;\n";
+  }
+;
+
+class Sub: Base
+  name = 'Sub'
+;
+
+main(args)
+{
+  local obj = new Sub();
+  obj.name = 'my new object';
+  obj.test();
+}
+</pre></div>
+
+<p>In this example, when we invoke <span class="code">obj.test()</span>,
+the VM will see that the object inherits the method from the class
+Base - there are no overriding definitions of the method, so we invoke
+this inherited definition.  Even though the method is <i>defined</i>
+in class Base, though, <span class="code">self</span> will still be the
+object that was in the variable <span class="code">obj</span>, so the
+name displayed will be "my new object".
+
+<p><span class="code">self</span> remains unchanged when you use <span class="code">inherited</span> or
+<span class="code">delegated</span>.  For example, suppose we change the class Sub in the
+example above as follows:
+
+<p><div class="code"><pre>
+class Sub: Base
+  name = 'Sub'
+  test()
+  {
+    "Sub.test: self = &lt;&lt;self.name&gt;&gt;\n";
+    inherited();
+  }
+;
+</pre></div>
+
+<p>Now when we run this code, calling <span class="code">obj.test()</span> will invoke the
+method in class Sub, since this overrides the one defined in class
+Base.  This method will display the name of the object, and as before,
+this will be "my new object", since <span class="code">self</span> is the original target of
+the method invocation.  After displaying the message, the Sub method
+will inherit the base class method, so we'll now proceed to the
+original one in class Base.  This will display the object name a
+second time, and it will <i>still</i> be the same name - "my new
+object" - because <span class="code">self</span> is not changed by an <span class="code">inherited</span> call.
+The same would apply if we used <span class="code">delegated</span>.
+
+<p>The "self" object is implied any time you call a method or evaluate
+a property without explicitly specifying which object is to be
+targeted.  For example, we could rewrite the "test" method in class
+Base above as follows:
+
+<p><div class="code"><pre>
+class Base: object
+  name = 'Base'
+  test()
+  {
+    "Base.test: self = &lt;&lt;name&gt;&gt;\n";
+  }
+;
+</pre></div>
+
+<p>Notice how we've removed the "self." prefix from the "name"
+property evaluation.  Even though we've removed the explicit mention
+of "self" as the target object, the new version works exactly like the
+original, because "self" implied any time there's a method or property
+call with no target object specified.
+
+<p><span class="code">self</span> is valid only in method contexts -
+that is, within methods defined in objects or classes.  It's not valid
+within functions; a function isn't associated with any object, and
+thus a call to a function doesn't involve targeting any object.
+
+<h3>targetprop</h3>    
+
+<p>The pseudo-variable <span class="code">targetprop</span> provides
+access at run-time to the current target property, which is the
+property that was invoked to reach the current method.  This
+complements <span class="code">self</span>, which gives the object whose
+property was invoked.
+
+<p>You can use this variable only in contexts where <span class="code">self</span> is valid.
+
+<h3>targetobj</h3>
+
+<p>The pseudo-variable <span class="code">targetobj</span> provides
+access at run-time to the original target object of the current
+method.  This is the object that was specified in the method call that
+reached the current method.  The target object remains unchanged when
+you use <span class="code">inherited</span> to inherit a superclass
+method, because the method is still executing in the context of the
+original call to the inheriting method.
+
+<p>The <span class="code">targetobj</span> value is the same as <span class="code">self</span> in normal method
+calls, but <i>not</i> in calls initiated with the <span class="code">delegated</span>
+keyword.  When <span class="code">delegated</span> is used, the value of <span class="code">self</span> stays the
+same as it was in the delegating method, and <span class="code">targetobj</span> gives the
+target of the <span class="code">delegated</span> call.
+
+<p>You can use this variable only in contexts where <span class="code">self</span> is valid.
+
+<h3>definingobj</h3>
+
+<p>This pseudo-variable provides access at run-time to the current
+method definer.  This is the object that actually defines the method
+currently executing; in most cases, this is the object that defined
+the current method code in the source code of the program.
+
+<p>You can use this variable only in contexts where <span class="code">self</span> is valid.
+
+
+<h3>argcount</h3>
+
+<p>This pseudo-variable contains an integer value giving the number of
+arguments that the caller supplied to the current function or method.
+This value is valid whether or not the current method or function
+takes varying arguments (although it's probably not particularly
+useful otherwise).  The <span class="code">argcount</span> value is always the <b>total</b>
+number of arguments - for a varying-parameter function or method,
+this means that any named arguments are included in the total.
+
+<h3><a name="invokee">invokee</a></h3>
+
+<p><span class="code">invokee</span> provides a pointer to the currently executing function.
+
+<p>For a regular function, <span class="code">invokee</span> is a pointer to the function.
+The same value can be obtained by using the name of the function
+without an argument list.
+
+<p><div class="code"><pre>
+myfunc(x)
+{
+   // f and g will have the same values
+   local f = invokee, g = myfunc;
+}
+</pre></div>
+
+<p>For an anonymous function, <span class="code">invokee</span> is the anonymous function
+object.  This lets an anonymous function invoke itself recursively.
+
+<p><div class="code"><pre>
+local factorial = new function(x) {
+   if (x &lt;= 0)
+       return 1;
+   else
+       return x * invokee(x-1);
+};
+</pre></div>
+
+<p>For a dynamic function, <span class="code">invokee</span> is the dynamic function object.
+As with anonymous functions, this can be used for recursive invocation.
+
+<p>For an ordinary method, defined as part of an object definition in
+the source code, <span class="code">invokee</span> is a function pointer to the method's
+code.  Unlike regular function pointers, it's not usually a good idea
+to invoke a method function pointer directly, since doing so would
+call the method code with a nil value for <span class="code">self</span>.  This will cause a
+run-time error if the method tries to evaluate a property of <span class="code">self</span>,
+inherit, or otherwise reference <span class="code">self</span>.  The main way to use this
+kind of function pointer is with <a href="tadsobj.htm"><span class="code">setMethod</span></a>.
+
+<p>For a dynamic method defined with <a href="tadsobj.htm"><span class="code">setMethod</span></a>,
+<span class="code">invokee</span> yields the original value passed to <span class="code">setMethod</span> when the
+method was created.  As with oridinary method pointers, it's not always
+safe to invoke this value directly as a function pointer, since doing
+so passes a nil value for <span class="code">self</span>, and the underlying code of a method
+usually assumes that there's a valid <span class="code">self</span> in effect.
+
+</ul>
+
+
+<h2>Notes for TADS 2 users</h2>
+
+<p>TADS 2 users will notice some changes to the expression syntax.
+Most of these are simply additions, but there are a few changes to
+constructs you're familiar with from the old system.
+
+<h3>No more Pascal-style assignments</h3>
+
+<p>The Pascal-style assignment (:=) and equality (=) operators are no
+longer allowed.  TADS 3 allows <b>only</b> the Java/C-style operators.
+There's no compiler option for changing this.  Although some people
+prefer the Pascal style of these operators, it was too confusing to
+have different, switchable syntax options, so the new language uses
+the Java/C style exclusively.
+
+<h3>No more "delete" operator</h3>
+
+<p>The "delete" operator has been deleted from the language.  It's no
+longer necessary, since the T3 VM has automatic garbage collection:
+the system deletes objects automatically when they're no longer
+reachable through any references anywhere in the program.  Not only
+does this eliminate a lot of tedious coding work, but more importantly
+eliminates several classes of bugs that plague
+programs written in languages like C and C++, where memory must be
+managed explicitly.  With automatic garbage collection, it's
+impossible to create a dangling pointer, for example, or free the same
+memory twice.
+
+<h3>"self." is always implied</h3>
+
+<p>In TADS 3, you can almost always omit "self." prefix when calling
+a method or evaluating a property of the "self" object.
+
+<p>Essentially the only time you need to write "self." explicitly is
+when invoking a method through a property ID variable.  In this case,
+the "self."  is required, since otherwise there's no way for the
+compiler to know that you want to invoke the method rather than just
+evaluate the variable.
+
+<p>All other method and property invocations implicitly target "self"
+if no other "obj." prefix is used.  This was often true in TADS 2 as
+well, but with the important caveat that it only worked when the
+property to be invoked was already defined as a property name, earlier
+in the source file.  Because of this snag, TADS 2 programmers usually
+found themselves writing "self." explicitly every time, to avoid the
+uncertainty.
+
+<p>TADS 3 compiles in two passes, so it recognizes every property name
+everywhere, regardless of the order of the definitions in the source
+files.  This means that you can safely and reliably drop the "self."
+prefixes.  This makes for more concise and readable code, and saves a
+lot of typing.  Of course, you can still write "self."  explicitly if
+you want to, and on occasion it's clearer to do so.  But most of the
+time you can just leave it out.
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Expressions and Operators
+<br><span class="navnp"><a class="nav" href="gc.htm"><i>Prev:</i> Garbage Collection and Finalization</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="proccode.htm"><i>Next:</i> Procedural Code</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

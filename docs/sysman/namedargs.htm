@@ -1,0 +1,867 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Named Arguments
+<br><span class="navnp"><a class="nav" href="optparams.htm"><i>Prev:</i> Optional Parameters</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="except.htm"><i>Next:</i> Exceptions and Error Handling</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<title>Named Arguments</title>
+
+<h1>Named Arguments</h1>
+
+<p>The usual way to pass argument values to functions and methods is
+<b>positionally</b>.  The first (leftmost) value in the caller's
+argument list is assigned to the first parameter name in the callee,
+the second argument value goes into the second parameter name, and so
+on.
+
+<p>TADS offers an alternative way to link up argument values with
+parameter variables, where the association is made explicitly by name.
+We call this feature <b>named arguments</b>.
+
+<p>The basic idea behind named arguments is that the caller spells
+out the parameter name to use for each argument value.  The values are
+then assigned to the callee's parameter variables according to the
+names the caller specified, rather than by position.  This lets the
+caller list the arguments in any order; since the names are given
+explicitly, the callee can figure out which value goes in which
+variable without paying any attention to the order of the arguments.
+
+<p>For more information on when and why to use named parameters,
+see the section on <a href="#benefits">Motivation and benefits</a>
+below.
+
+
+
+<h2>Syntax</h2>
+
+<p>There are two separate places where named arguments introduce extra
+syntax: <b>definitions</b> of functions and methods, and
+<b>invocations</b> of functions and methods.
+
+<p>When you define a function or method, you indicate that it will
+receive named parameter values by adding a colon suffix to each
+parameter name:
+
+<p><div class="code"><pre>
+diff(a:, b:)
+{
+  return a - b;
+}
+</pre></div>
+
+<p>Note how we've written the parameter list in the function
+definition: we've placed a colon after each variable name.  This looks
+a little weird; after all, in real life, a colon practically always
+means that something is about to follow, but here we just sort of stop
+after it.  But there is a method to the madness: it's designed to
+parallel the syntax we use for <b>calling</b> a function with named
+arguments:
+
+<p><div class="code"><pre>
+local x = diff(a: 5, b: 3);
+</pre></div>
+
+<p>This says that we want to assign the value 5 to the variable "a" in
+the callee, and assign 3 to "b".  Because everything has a name, the
+order doesn't matter - we can get exactly the same effect by rewriting
+it like this:
+
+<p><div class="code"><pre>
+local x = diff(b: 3, a: 5);
+</pre></div>
+
+<p>It's important to understand that the caller and callee must
+<b>both</b> use the special syntax.  TADS always assumes that
+arguments are positional, unless you say otherwise.  The callee won't
+even bother looking for names among the arguments unless you tell it
+that it should, via the colon suffixes on the parameter names.  The
+caller won't bother including the names in the values it sends to the
+callee unless you tell it to, via the "name:" prefixes.  In order to
+make the connection, the caller and callee both have to use the
+special protocol.
+
+
+
+<h3>Optional named parameters</h3>
+
+<p>A named parameter can be declared as optional, using the same
+syntax as for an optional positional parameter.  In the case of
+a named parameter, the "<span class="code">?</span>" suffix or "<span class="code">=</span> <i>expression</i>"
+clause go <i>after</i> the "<span class="code">:</span>" suffix.  For example:
+
+<p><div class="code"><pre>
+f(a:, b:?)
+{
+}
+</pre></div>
+
+<p>This defines a function that takes a required named parameter
+<span class="code">a</span>, and an optional named parameter <span class="code">b</span>.
+
+<p>Refer to the <a href="optparams.htm">optional parameters chapter</a>
+for full details.
+
+
+<h2>Mixing named and positional arguments</h2>
+
+<p>You might have noticed that when we declare a function, we have to
+specify the named-argument protocol individually for each parameter, by
+adding the colon suffix.  You might wonder what would happen if you
+were to include colons on some of the variables, but not all of them.
+Would TADS just assume that the rest were named as well?  The answer
+is no: if you don't include a colon, a parameter is positional,
+even if there are also named parameters in the same list.
+
+<p>In other words, you can freely mix positional and named parameters.
+
+<p>If you define a function with a mixture of positional and named
+parameters, the compiler essentially pulls out the named items and
+sets them aside, and uses whatever is left over as an ordinary
+positional list.  When calling the function, the same thing happens:
+the compiler sets aside the named values, and uses the remaining
+unnamed items as a positional list.  It then lines up the caller's
+positional items with the callee's positional items, in order, just as
+with an ordinary function call, and then separately assigns the named
+items to the corresponding variables in the callee.
+
+<p>This means that named arguments can be interspersed with positional
+arguments in any order.  The positional items obviously have to be in
+the right order relative to one another, though.
+
+<p>Here's an example of a function definition that mixes the two
+parameter styles:
+
+<p><div class="code"><pre>
+putIn(dobj, iobj, cmd:, actor:)
+{
+  // ... do something ...
+}
+</pre></div>
+
+<p>The first two parameters are positional, since they don't have the
+colon suffix.  The next two are named.  We could have put the named
+items first in the list, or between <span class="code">dobj</span> and <span class="code">iobj</span>, without
+changing anything.
+
+<p>We can now call the function like so:
+
+<p><div class="code"><pre>
+putIn(book, drawer, cmd:new Command('put book in drawer'), actor:me);
+</pre></div>
+
+<p>As with the definition, the order of the named items doesn't matter,
+so this would have the same effect:
+
+<p><div class="code"><pre>
+putIn(cmd:new Command('put book in drawer'), book, actor:me, drawer);
+</pre></div>
+
+
+<h2>Missing and extra named arguments</h2>
+
+<p>With ordinary positional arguments, the caller and callee have to
+agree on exactly the same argument list.  If an argument is missing,
+or if there's an extra argument, a run-time error occurs.  TADS is
+strict about this because a mismatch usually indicates that the
+programmer had the wrong idea about either the invocation or the
+definition.
+
+<p>For named arguments, an error occurs if a caller expects an
+argument that the caller didn't supply.  The logic is the same as
+with positional argument mismatches: if the caller expects to receive
+an argument, and the caller didn't provide it, the programmer probably
+got something wrong.
+
+<p>For example, for the <span class="code">putIn()</span> function that we defined earlier,
+suppose we call it like this:
+
+<p><div class="code"><pre>
+putIn(book, drawer, actor:me);
+</pre></div>
+
+<p>This will trigger an argument mismatch error, because <span class="code">putIn()</span>
+expects to receive an argument named <span class="code">cmd</span>, and there's no such
+thing in our list.
+
+<p>However, the opposite case <i>doesn't</i> trigger an error: it's
+okay for a caller to supply <b>extra</b> named arguments that the callee
+doesn't ask for.  For example, this will work without a hitch:
+
+<p><div class="code"><pre>
+putIn(book, drawer, actor:me, cmd:new Command('put book in drawer'), verb:'put in');
+</pre></div>
+
+<p>There are two reasons that extra named arguments are allowed.
+
+<p>First, the naming makes it much less likely (than with positional
+arguments) that the caller and callee are mutually confused about the
+information being passed.  If the caller supplies extra information
+beyond what the callee uses, that's probably fine; it probably just
+means that the callee didn't need all of that information after all.
+
+<p>This is particularly useful with polymorphism - that is, overriding
+methods in objects.  When you call a method on an object, you might
+not care about the class, only that the object provides the method you
+want to call.  If you want to show a description, say, you might call
+a "describe" method; that might be handled by a definition of the
+method in the class Thing, or an overridden version in Container,
+Decoration, Actor, etc.  Some overridden versions might want to know
+the point of view object; others might not care.  Because extra named
+arguments are okay, you can safely pass in a "pov:" argument, and the
+overrides that don't use it will simply ignore it.
+
+<p>Second, the extended visibility feature (see below) means that any
+extra arguments might actually be intended for subroutines called by
+the function or method you're invoking.  Since the extra argument
+won't trigger an error, it will be able to "pass through" the callee
+and reach the subroutine.
+
+
+<h2>Extended visibility</h2>
+
+<p>Named arguments are visible not only in the immediate callee, but
+also in any functions or methods it calls.  This is called <b>extended
+visibility</b>: unlike regular local variables, named arguments are
+visible in all nested calls.
+
+<p>For example, consider the following:
+
+<p><div class="code"><pre>
+f(a:)
+{
+   "a=&lt;&lt;a&gt;&gt;!\n";
+}
+
+g()
+{
+   f();
+}
+
+main(args)
+{
+   g(a: 'hello');
+}
+</pre></div>
+
+<p>What will this print out?  If you didn't know about the extended
+visibility rule we just explained, you'd expect that the call from
+<span class="code">g()</span> to <span class="code">f()</span> would trigger an error, because the caller <span class="code">g()</span>
+doesn't supply the named parameter "a:" that the callee <span class="code">f()</span>
+expects.  (As we saw earlier, if a function expects a named argument
+and doesn't receive it from its caller, a run-time error occurs.)
+
+<p>But that's not what happens.  Extended visibility ensures that the
+"a:" value that <span class="code">main()</span> supplied in its call to <span class="code">g()</span> passes
+through <span class="code">g()</span>, and ultimately reaches <span class="code">f()</span>.  Remember that it's
+okay to pass <b>extra</b> named arguments, so it's okay that <span class="code">g()</span>
+doesn't want an "a:" parameter - <span class="code">g()</span> simply ignores the extra
+value, but the extra value nonetheless remains available for use in
+anything that <span class="code">g()</span> calls.
+
+<p>So, the result is to print out "a=hello!".
+
+<p>In this respect, named arguments resemble global variables.
+However, they're much more structured than globals in a few important
+respects.  ("Structured" means "good" to serious programmers - and to
+the rest of us, it means it's easier to write code with fewer errors.)
+
+<p>First, a function that uses a named argument must explicitly
+declare its interest, by putting a "name:" item in its parameter list.
+This lets the system flag an error when a function uses a value that's
+not provided by a caller.  With a global, there's no structural way to
+know whether a global is valid at any given time, so we can't know
+when we access it if it's safe to do so.
+
+<p>Second, when you store a value in a global, you can't be sure that
+someone else wasn't already storing something else there.  This is
+especially problematic in recursive code, since the "someone else"
+might be an earlier call to yourself!  The Adv3 library frequently
+uses try-catch-finally blocks to save and restore the values of
+globals for just this reason, but that's an ad hoc solution, and the
+problem with ad hoc solutions is always that they're prone to error by
+virtue of having to be hand-coded every time.  Named arguments are
+stored in the call stack, so they naturally work well with recursive
+code.
+
+<p>Third, the "lifetime" of a named argument is limited to the
+function or method call where it appears.  When that function returns,
+the named argument automatically disappears.  When you assign a value
+to a global, in contrast, it stays there until you assign a new value,
+so there's a danger that you might forget to change a global when its
+value becomes out-of-date.
+
+
+<h3>Overriding a named argument for nested calls</h3>
+
+<p>We saw earlier how named arguments automatically "pass through" a
+function to any methods or functions it calls as subroutines.
+However, a function that receives a named argument is also free to
+override the value when it calls other functions.  It does this simply
+by using the standard named argument syntax when making calls itself.
+
+<p><div class="code"><pre>
+f(a:)
+{
+  "This is f: a=&lt;&lt;a&gt;&gt;!\n";
+}
+
+g(a:)
+{
+  "This is g: a=&lt;&lt;a&gt;&gt;!\n";
+  f(a: 'goodbye');
+  "This is g again - a=&lt;&lt;a&gt;&gt;!\n";
+}
+
+main(args)
+{
+  g(a: 'hello');
+}
+</pre></div>
+
+<p>This will print out the following:
+
+<p><div class="code"><pre>
+This is g: a=hello!
+This is f: a=goodbye!
+This is g again: a=hello!
+</pre></div>
+
+<p>Note that the call to <span class="code">f()</span> from within <span class="code">g()</span> overrides "a:" for
+the subroutine call, but it <i>doesn't</i> affect the value of "a"
+within <span class="code">g()</span> itself.  When <span class="code">f()</span> returns, "a" still has the same
+value originally passed to <span class="code">g()</span>.
+
+<p>A function that receives named arguments can use this technique to
+override all, some, or none of the arguments when it calls other
+functions.  Any variables that you don't override will pass through
+to other functions because of extended visibility.
+
+
+<h2>Assigning to a named argument variable</h2>
+
+<p>A named argument variable in a callee is really just an ordinary
+local variable.  The only special thing about it is that when the
+function is called, the system looks for the variable name among
+the named arguments, and assigns the value it finds to the local
+variable.  After that, the variable acts just like any other local.
+
+<p>This means that you're free to assign a new value to the variable
+within the function.  This works exactly the same way it does for
+ordinary positional parameters.  In particular, the assignment only
+changes the <b>local</b> copy of the value.  It <b>doesn't</b> change
+any values in the caller.  Importantly, it also <b>doesn't</b> change
+the named argument value that's passed through to other functions or
+methods called as subroutines.
+
+<p>Let's look at an example illustrating these points.
+
+<p><div class="code"><pre>
+f(a:)
+{
+  "This is f: a=&lt;&lt;a&gt;&gt;!\n";
+}
+
+g(a:)
+{
+  a = 'goodbye';
+  f();
+  "This is g: a=&lt;&lt;a&gt;&gt;!\n";
+}
+
+main(args)
+{
+  local x = 'hello';
+  g(a: x);
+  "This is main: x=&lt;&lt;x&gt;&gt;!\n";
+}
+</pre></div>
+
+<p>This will print out the following:
+
+<p><div class="code"><pre>
+This is f: a=hello!
+This is g: a=goodbye!
+This is main: x=hello!
+</pre></div>
+
+<p>The first thing to observe is that <span class="code">f()</span> still sees "a:" with the
+original value passed from <span class="code">main()</span>, even though <span class="code">g()</span> assigned a
+new value to its copy of "a".  The key is that the assignment in
+<span class="code">g()</span> only affects the <b>copy</b> of "a" in <span class="code">g()</span>.  Within
+<span class="code">g()</span>, "a" is just a local variable that happens to be initialized
+with the named argument value of "a:".  So even though we assigned a
+new value to that copy, it doesn't affect the named argument value
+itself, so when we call <span class="code">f()</span> the named argument value it sees for
+<i>its</i> copy of "a" is still 'hello'.
+
+<p>If you want <span class="code">f()</span> to see the modified value of "a", you simply
+pass the new value in the call to <span class="code">f()</span> as an explicit named
+argument:
+
+<p><div class="code"><pre>
+f(a: a);
+</pre></div>
+
+<p>Second, note that the assignment in <span class="code">g()</span> really does alter the
+local copy of "a" within <span class="code">g()</span>, since when <span class="code">f()</span> returns, the
+local variable "a" still contains the newly assigned value.  The call
+to <span class="code">f()</span> doesn't change that.
+
+<p>Third, we can see that the value that <span class="code">main()</span> passed under the
+name "a:" was never affected by any of this.  In that respect there's
+no difference between named and positional parameters, but we thought
+it would be worth pointing out anyway.
+
+
+<h2>Named arguments in anonymous functions</h2>
+
+<p>You can use named arguments in anonymous functions, the same way
+as for any other function.
+
+<p>One thing to note is that the syntax for short-form anonymous
+functions can look a little strange when named parameters are used:
+
+<p><div class="code"><pre>
+local f = { a: : a + 1 };
+</pre></div>
+
+<p>The odd bit is that a colon normally ends the argument list
+in a short-form function like this.  But the compiler knows that
+a colon might be part of a named argument, so when it sees a colon,
+it looks to see if there are other arguments following.
+
+<p>Note that you <b>must</b> put a space between the two consecutive
+colons in this situation.  TADS treats the sequence "::" as a special
+separate symbol, akin to "++" or "--".  (TADS doesn't use "::" for
+anything at the moment, but the compiler recognizes it as a special
+symbol anyway just in case it's needed in the future.)
+
+<p>When an anonymous function is invoked, any named arguments are
+taken from the <b>current</b> call context at the time of invocation.
+This is the same way that ordinary positional arguments to anonymous
+functions work, so this should be no surprise.  For example:
+
+<p><div class="code"><pre>
+f(a:)
+{
+  "This is f: a=&lt;&lt;a&gt;&gt;!\n";
+  return function(a:) { "This is anonymous: a=&lt;&lt;a&gt;&gt;!\n"; };
+}
+
+g(func)
+{
+  func();
+}
+
+main(args)
+{
+  local func = f(a: 'hello');
+  func(a: 'goodbye');
+}
+</pre></div>
+
+<p>This prints out:
+
+<p><div class="code"><pre>
+This is f: a=hello!
+This is anonymous: a=goodbye!
+</pre></div>
+
+<p>Note how the value of "a:" in the anonymous function is taken from
+the arguments at the time it's called, <i>not</i> from the time it was
+created.  That might be fairly obvious in that example, from the way
+we explicitly pass "a:" when we call the anonymous function, but
+consider this slightly subtler version:
+
+<p><div class="code"><pre>
+f(a:)
+{
+  "This is f: a=&lt;&lt;a&gt;&gt;!\n";
+  return function(a:) { "This is anonymous: a=&lt;&lt;a&gt;&gt;!\n"; };
+}
+
+g(func)
+{
+  func();
+}
+
+main(args)
+{
+  local func = f(a: 'hello');
+  g(func, a: 'goodbye');
+}
+</pre></div>
+
+<p>This prints out exactly the same thing.  Here, the 'goodbye' value
+of "a:" passes through the call to <span class="code">g()</span> and into the anonymous
+function.
+
+
+<h2>Named arguments and multi-methods</h2>
+
+<p>You can pass named arguments when calling a multi-method, and you
+can include named arguments in multi-method parameter lists.  However,
+the named arguments have no effect on which version of the function is
+invoked.  The function selection is based purely on the positional
+arguments.
+
+
+<h2>Reflection for named arguments</h2>
+
+<p>Named arguments have some dynamic access capabilities similar to
+the <a href="reflect.htm">reflection</a> system for objects.
+
+<p>You can retrieve a list of all of the named arguments in effect
+by calling the function <span class="code">t3GetNamedArgList()</span>.  Each element of
+the list is a string giving the name of a named argument.
+
+<p>To get the value for a named argument given its name, use
+<span class="code">t3GetNamedArg()</span>.
+
+<p>Positional arguments are not accessible via these functions, of
+course.
+
+<p>(These functions are part of the <a href="t3vm.htm">t3vm</a> set.)
+
+
+<h2><a name="benefits">Motivation and benefits</a></h2>
+
+<p>Named argument features exist in many other programming languages,
+although they're not common in C-like languages such as TADS.  The
+usual benefit claimed is that they improve code clarity, by spelling
+out the role of each argument value in a call.  This can be especially
+helpful with functions that take many arguments.  The trade-off is the
+additional verbosity.  For simple functions with one or two arguments,
+the roles of the arguments are often obvious enough that it's not
+worth the extra typing.
+
+<p>But named arguments in TADS have a different motivation.  While the
+improved code clarity can be a nice side effect, it wasn't the main
+reason for adding the feature to the language.  The real motivation
+was a particular problem that comes up repeatedly in IF library design.
+
+<p>The nature of IF programming is that the system (the library) makes
+a lot of calls to user code (the game).  A lot of these calls are
+polymorphic: the system defines the basic shape of a class, and the
+game defines instances of the class.  The game inherits a lot of code
+from the base classes in the library, but it also overrides many of
+the methods.  The library is designed to work with generic base
+classes like "Thing," but the actual objects involved at run-time will
+be subclasses or customized instances defined by the game.  So when
+the library calls a method, it doesn't know exactly what code it's
+going to invoke; it just knows the <i>interface</i> to the method,
+such as its name and argument list, but the actual
+<i>implementation</i> of the method will end up being provided by a
+subclass or a custom individual object in the game.
+That's the polymorphism at work.
+
+<p>When the library calls these game-defined methods, the library
+often has a lot of context information to supply.  For example, when
+printing a description of an objects, there might be a point of view,
+a list of things that are visible, information on light levels and
+distances, etc.  In some cases, the game-defined method needs some or
+all of this information to do its work.  In other cases - in fact,
+probably in most cases - it doesn't care about the extra information
+and just wants to print a simple, fixed description.
+
+<p>So the question is: how do we pass all of that extra information to
+the game methods that want it, without inconveniencing the ones that
+don't?
+
+<p>The obvious solution to passing the extra information is simply to
+include it as function arguments.  In cases where the parameter
+information is almost always needed, this is fine; it's reasonably
+convenient for every override to include the same argument list,
+because every override will need the information anyway.  However, in
+many cases, the extra information is only rarely used.  In these cases
+it's inconvenient to require everyone to define a parameter list that
+only a few instances will ever use.  It would be annoying if you had
+to type out something like this every time you wanted to write an
+object's description:
+
+<p><div class="code"><pre>
+desc(actor, pov, visList, lightList, distanceList)
+{
+   "It's green.";
+}
+</pre></div>
+
+<p>One approach that TADS <i>could</i> have taken, but didn't, would
+be to mimic Javascript by simply ignoring extra positional parameters.
+That would let you define the method above as simply <span class="code">desc = "It's green"</span>.
+The library would pass all of the extra context arguments,
+but since the method doesn't define them in its parameter list, they'd
+just be silently ignored.  That seems to be a good idiom in
+Javascript, and it certainly works fine for a simple example like
+printing a description.  However, this approach doesn't help in
+slightly more complex cases where the library calls one user function,
+which calls another, which calls another, which finally wants to look
+at the arguments.  In order for that final nested callee to get at the
+arguments, all of the <i>intermediate</i> levels of function calls
+would have to pass them along explicitly.  That would mean every
+intermediate callee would have to declare the parameter names and
+supply them in its nested calls.  This entirely defeats the purpose of
+making them optional.  What's more, we'd never be able flag errors for
+mismatched parameters, and those errors are often useful in catching
+serious coding problems.  Finally, even a simple function like
+<span class="code">desc</span> would still be inconvenient to define if it just wanted
+the distanceList value in this example, since to get
+at the 5th positional parameter you'd need to include the 1st through
+4th.
+
+<p>So TADS didn't take the Javascript approach of making all parameters
+optional.
+
+<p>Another approach is to use "layered" methods.  First, the library
+makes a call to a <span class="code">complexDesc</span> method that takes the huge long list of
+parameters.  Second, the library provides a base class definition of
+this method that simply calls a <i>second</i> method that doesn't
+take any parameters:
+
+<p><div class="code"><pre>
+class Thing
+  complexDesc(actor, pov, visList, lightList, distanceList) { desc; }
+;
+</pre></div>
+
+<p>When the game wants to supply a simple description that doesn't
+use any of the parameters, it defines the simple <span class="code">desc</span> method.
+When it needs the parameters, it instead overrides the layered
+<span class="code">complexDesc</span> method.
+
+<p>The layered approach works reasonably well, and in fact the Adv3
+library uses it in a number of places.  The drawback is that it
+basically doubles the number of methods you have to keep track of.  You
+have to know about both the simple and complex versions of the call,
+understand how they interact, and know which one to call and which one
+to override in different situations.  Layering can also create subtle
+complications with subclassing.  If you subclass a class that overrides
+the "complex" form of the method, you have to be aware that the
+"simple" version will never be called in the subclass.  This is
+particularly problematic if you (or, worse, the TADS library) adds
+that complex override after you've already created the subclass: code
+you wrote for your simple version of the method suddenly stops
+working, and you have to figure out that you need to retrofit the
+subclass to account for the change in the base class.
+
+<p>Yet another approach is to use global variables.  Rather than
+passing context information in function parameters, we store the
+context information in a set of global variables, then we call the
+function that might need the information.
+
+<p>This is, in fact, the approach that the Adv3 library has
+traditionally used to handle most of the situations we're discussing.
+The usual Adv3 idiom looks like this:
+
+<p><div class="code"><pre>
+call_user_method(a, b, c)
+{
+   local old_a = global.a;
+   local old_b = global.b;
+   local old_c = global.c;
+   try
+   {
+      global.a = a;
+      global.b = b;
+      global.c = c;
+
+      user_method();
+   }
+   finally
+   {
+      global.a = old_a;
+      global.b = old_b;
+      global.c = old_c;
+   }
+}
+</pre></div>
+
+<p>The idea is that we pass the information in a bunch of global
+variables, and in order to ensure that recursive calls don't corrupt
+the globals, we save and restore the old values each time we call the
+user method.  If the user method wants to access the context
+information, it can look at the values in the globals; if not, it can
+just ignore them.  In either case there's minimal typing involved in
+writing the user method, because it doesn't take any arguments.
+
+<p>This works well enough, but it has some drawbacks.  First, it's
+tedious to write the code that makes the call, since we have to do all
+that saving and restoring.  Second, the globals muddy the waters quite
+a bit for the game author, since it's never quite clear when the
+globals are valid.  There's nothing structural in the code that
+indicates when they're in effect.  Third, the save/restore idiom above
+ensures that <i>we</i> don't corrupt <i>someone else's</i> settings in
+the globals, but it does nothing to protect us against someone else
+making changes.  We have to rely upon everyone else being equally
+courteous, which (as any etiquette columnist would tell you) is a
+dubious proposition in modern society.
+
+<p>This, then, is the common library coding problem that led to the
+named argument feature.  Named arguments let a caller pass extra
+information that a callee can use if necessary, without adding any
+syntax burden to callees that don't need it.  Named arguments
+propagate automatically to nested callees, even if intermediate
+callers ignore them.  They have a well-defined lifetime, and the
+system can detect when a callee uses one that isn't currently defined.
+
+<p>To some extent, named arguments can be seen as a formalization of
+the Adv3 global variable idiom.  But they also solve some of the
+inherent problems with globals.  For one thing, they eliminate all of
+that manual coding on the calling side, making the code easier to
+read and more reliable.  For another, callees must explicitly register
+their interest in named parameters, so the system can detect when a
+routine uses a variable that isn't available.  This helps by catching
+errors at the source, rather than leaving you on your own to puzzle
+out why some global variable is nil or (worse) out of date.  Another
+advantage over globals is that callees can't corrupt the caller's
+named argument values, but callees are still free to override them for
+their own nested calls, in a structured and syntactically concise way.
+
+
+<h3>Performance considerations</h3>
+
+<p>When deciding between named arguments and positional arguments, the
+most important factors you should consider are code clarity and
+convenience of implementation.  However, in case you're curious about
+the performance impact, this section gives some low-level details
+about how named arguments are implemented within the virtual machine
+and how they perform compared to other alternatives.  The bottom line
+is that named arguments are quite efficient for the typical use case
+we've been describing, where a caller is invoking polymorphic code
+that uses certain parameter values only a minority of the time, and
+used properly will run faster than the alternatives.
+
+<p>Named arguments are somewhat more expensive than positional
+arguments in terms of execution speed and memory.  The costs are
+incurred at two points: making a call that involves named arguments,
+and entering a function that receives named arguments as parameters.
+
+<p>On the calling side, there's almost no additional time cost to
+passing named arguments, compared to passing the same number of
+positional arguments.  Named arguments are pushed onto the internal
+machine stack exactly as positional arguments are.  The only added
+time cost is that one additional T3 assembly language instruction
+("opcode") must be executed on return, to discard the named arguments
+from the machine stack.  This additional instruction execution time is
+negligible.
+
+<p>There's also a small memory cost on the calling side.  The compiler
+generates a static table of named argument names and stack positions
+for each call that passes named arguments.  This table's size is
+roughly equal to the total number of characters in all of the names
+of the named arguments, plus some fixed overhead.
+
+<p>On the receiving side - that is, entering a function that has one
+more named arguments in its parameter list - there's a time cost to
+initializing each named argument.  The function on entry must scan the
+stack for each named argument it receives, and copy the value to a
+local variable.  (It might seem wasteful to make the extra copy, but the
+alternatives are far worse.  One alternative would be to repeat the
+search on each use; searching twice would be far more costly in terms
+of time than searching once and making the copy.  The second
+alternative would be to store a pointer to the source value rather
+than making a copy.  This wouldn't save any time or memory, as storing
+the pointer would be equivalent to storing the copied value, and would
+add an additional time cost on each reference due to the need to
+follow the pointer.)
+
+<p>The search for a named parameter takes time proportional to the
+number of named arguments passed in the entire call chain to the
+current function, plus time proportional to the depth of the call
+chain.  The proportionality constants for both factors are small,
+since each enclosing stack level can be found with a couple of native
+pointer dereferences, and the named argument table (or lack thereof)
+at a stack level can be found with a couple more pointer dereferences.
+
+<p>The only memory cost on the callee side is the extra stack slot
+allocated per named parameter received, for the local copy of the value.
+
+<p>When entering a callee that <i>doesn't</i> list any named
+parameters in its argument list, the presence of named arguments in
+the stack from one or more callers costs absolutely nothing.
+
+<p>The typical usage pattern for named parameters is that a caller
+passes them <i>just in case</i> a callee - probably an indirect
+callee, i.e., a callee of a callee - needs them.  The whole point of
+named parameters is that they're extra information that's usually not
+needed, so on the majority of calls, they'll be passed to routines
+that ignore them.  The implementation is very efficient for this
+pattern, since virtually all of the time costs are on the receiving
+end.  That is, the majority of callees who ignore the extra parameters
+will incur no cost at all.  The overall integrated cost, then, is
+(a) the extra time it takes for the caller to push the extra
+arguments, and (b) the time it takes a callee to look up the
+named arguments it uses <i>times</i> the percentage of invocations
+of callees who perform this step at all.
+
+<p>Compared with the alternatives, using named arguments should in
+many cases be a net performance improvement:
+
+<ul class=doublespace>
+
+   <li>Vs. globals: On the calling side, the cost of globals is
+   probably five to ten times the cost of named arguments.  For
+   the latter, we simply push each argument value onto the stack.
+   For globals, we have to save the old global values in locals 
+   (requiring an object property fetch plus a stack copy), set
+   their new values (a stack copy plus a property put), and
+   restore them after the call (a stack copy plus an object property
+   put).  On the receiving side, it's probably about a wash: one
+   property fetch per value accessed, vs. the stack scan above per
+   named argument received; the two costs are probably similar,
+   and they should exactly correspond between the two models in
+   terms of frequency.  So overall we save time on the call, and
+   don't lose anything on the receiving end, thus we have a net
+   improvement.
+
+   <li>Vs. regular positional arguments: On the caller's side, the two
+   costs are almost identical, since we're just passing arguments
+   in both cases.  (With named arguments we have the very slight
+   additional cost of the extra opcode to discard the named arguments
+   on return.)  On the receiving side where the callee <i>doesn't</i>
+   access the parameters, but has to call indirect callees, we
+   save big: it's absolutely free to receive named arguments that
+   you don't use, whereas callees that need to pass along positional
+   arguments to their own callees must do an extra stack copy per
+   argument.  On the receiving side where the callee does access
+   a parameter, the extra argument approach is cheaper, since it's
+   essentially free to receive a positional stack argument vs.
+   the stack scan for receiving a named argument.  So the net
+   result in this case depends on the mix of callees that use an
+   argument value and those that don't.  If most callees use most
+   of their arguments, named parameters are slower; if most callees
+   ignore most of their arguments, named arguments will be faster.
+   The exact tipping point depends on too many situational factors
+   for a general-purpose calculation, but it's probably a safe
+   guess that an argument that's only actually used by 10%
+   of callees will be faster as a named argument, that an argument
+   that's accessed 90% of the time will be faster as a regular argument,
+   and that the big gray area in between "depends".
+
+</ul>
+
+<p>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Named Arguments
+<br><span class="navnp"><a class="nav" href="optparams.htm"><i>Prev:</i> Optional Parameters</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="except.htm"><i>Next:</i> Exceptions and Error Handling</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

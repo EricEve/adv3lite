@@ -1,0 +1,324 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Exceptions and Error Handling</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Exceptions and Error Handling
+<br><span class="navnp"><a class="nav" href="namedargs.htm"><i>Prev:</i> Named Arguments</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="anonfn.htm"><i>Next:</i> Anonymous Functions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Exceptions and Error Handling</h1>
+
+<p>TADS 3 provides a "structured exception handling" mechanism, which
+lets the program to signal and handle unusual conditions in a
+structured manner.  TADS 3 exceptions work very much like Java
+exceptions, so if you've used Java you'll find the TADS 3 exception
+mechanism familiar.
+
+<p>Conceptually, an exception is any unusual condition.  Exceptions
+usually indicate errors, but they don't have to; they can also be used
+for a variety of other purposes, such as terminating a procedure early
+or recovering from a resource shortage.  An exception is represented
+by an object; you can tell what kind of exception you have by looking
+at the class of the exception object.  Exception objects are the same
+as any other objects, so you can create as many different types of
+exception classes as you need.
+
+<p>Exception handling has two components: "throwing" and "catching."
+
+<p>When something unusual occurs in your program that you wish to
+handle using the exception mechanism, you "throw an exception."  This
+means that you create a new object to describe the unusual condition
+or error, then use the <span class="code">throw</span> statement to throw the exception.
+The <span class="code">throw</span> statement is a little like <span class="code">return</span> or <span class="code">goto</span>, in
+that it abruptly transfers execution somewhere else; hence any
+statement immediately following a <span class="code">throw</span> is unreachable (unless, of
+course, it can be reached by a label or some other means that doesn't
+involve going through the <span class="code">throw</span> statement).
+
+<p>Where does <span class="code">throw</span> send execution?  This is where "catching"
+comes in.  When you throw an exception, the VM looks for an enclosing
+block of code protected within a <span class="code">try</span> block.  This search is done
+according to the "call chain" - the series of function and method
+calls that have been made so far to reach the current point in the
+code.  The VM looks for the nearest enclosing <span class="code">try</span> statement
+in the call chain - this might be in the current method, actually
+enclosing the code with the <span class="code">throw</span>, or it might be in one of the
+callers.  The VM searches outward from the current method.
+
+<p>When the VM finds the first enclosing <span class="code">try</span> statement, it looks
+at the statement's <span class="code">catch</span> clauses.  If there's a <span class="code">catch</span> for a
+superclass of the thrown exception, the VM transfers control to the
+code within that <span class="code">catch</span> clause's handler block; otherwise, the VM
+skips that <span class="code">try</span> and continues searching for the next enclosing
+<span class="code">try</span>.
+
+<p>For each <span class="code">try</span> statement that encloses the current code but
+doesn't define a <span class="code">catch</span> block for the thrown exception, the VM
+checks to see if the <span class="code">try</span> has an associated <span class="code">finally</span> block, and
+executes the enclosed code before looking for an enclosing <span class="code">try</span>
+block.
+
+
+<p>If the VM searches the entire call stack without finding any
+enclosing <span class="code">try</span> block with a <span class="code">catch</span> for the thrown exception, the
+VM terminates the program.  If it has to do this, the VM checks the
+<span class="code">exceptionMessage</span> property of the unhandled exception object, and
+displays the value of that property if it's a (single-quoted) string
+value.  This at least lets the user see a message describing the
+error that forced the program to terminate.
+
+
+<p>A <span class="code">try</span> statement looks like this:
+
+<p><div class="code"><pre>
+try
+{
+  // some code that might throw an exception, or call
+  // a function or method that might do so
+}
+catch (FirstExceptionClass exc1)
+{
+  // handle FirstExceptionClass exceptions
+  // exc1 is a local with the thrown exception object
+}
+catch (SecondExceptionClass exc2)
+{
+  // handle SecondExceptionClass exceptions
+  // exc2 is a local with the thrown exception object
+}
+finally
+{
+  // do some cleanup work – this gets called
+  // whether an exception occurs or not
+}
+</pre></div>
+ 
+<p>A <span class="code">try</span> statement can have as many <span class="code">catch</span> clauses as needed –
+it can even have no <span class="code">catch</span> clauses at all.  The <span class="code">finally</span> clause
+is optional, but only one is allowed if it's present at all, and it
+must follow all of the <span class="code">catch</span> clauses.
+
+<p>Each <span class="code">catch</span> clause has a name following the name of the
+exception.  The <span class="code">catch</span> defines a new local variable with the given
+name – the variable is local to the code within the <span class="code">catch</span> clause.
+When the exception is caught, the VM will store a reference to the
+thrown exception object in this variable; this is, of course, the same
+object that was used in the <span class="code">throw</span> statement that threw the
+exception in the first place.
+
+<p>The VM searches for a <span class="code">catch</span> clause that matches the exception
+class starting with the first <span class="code">catch</span> associated with the <span class="code">try</span>,
+and considers each <span class="code">catch</span> in turn until it finds a match.  A
+<span class="code">catch</span> matches if the named class is a superclass of the exception
+behing handled.  Because the <span class="code">catch</span> clauses are tried in order, you
+can have one handler for a specific type of exception, and also have a
+later handler for a superclass of the first exception; the specific
+type will be handled by the first handler, since the VM will find that
+handler earlier than the more general handler.  In such cases, only
+the first matching handler will be invoked.
+
+<p>If a <span class="code">finally</span> clause is present, the VM will always execute the
+code contained within, no matter how control leaves the <span class="code">try</span> block.
+If control leaves via an exception that isn't handled by any of the
+<span class="code">try</span> statement's <span class="code">catch</span> clauses, the VM will execute the
+<span class="code">finally</span> code before it continues the search for the next enclosing
+<span class="code">try</span>.  If no exceptions occur, so control leaves the <span class="code">try</span> block
+normally, the <span class="code">finally</span> code is executed immediately after the last
+statement in the main <span class="code">try</span> block.  If an exception is thrown but
+one of the <span class="code">try</span> statement's <span class="code">catch</span> clauses catches the
+exception, the VM executes the <span class="code">finally</span> code immediately after the
+last statement in the <span class="code">catch</span> block (or, if control is transfered
+out of the <span class="code">catch</span> block in some other way - <span class="code">goto</span>, <span class="code">return</span>,
+<span class="code">throw</span>, etc. - the <span class="code">finally</span> is executed just before that control
+transfer).
+
+ 
+<p>Note that the code in a <span class="code">finally</span> clause will execute <i>no
+matter how execution leaves the <span class="code">try</span> block</i>.  This even includes
+<span class="code">goto</span>, <span class="code">return</span>, <span class="code">break</span>, and <span class="code">continue</span> statements.  If the
+<span class="code">try</span> block contains a <span class="code">return</span> statement, the program will first
+calculate the value of the expression being returned (if any), then it
+will execute the <span class="code">finally</span> code, and only then will control transfer
+back to the caller of the current function or method.  (It's important
+that the return value is calculated first, because it counts as code
+that's protected by the <span class="code">try</span>.  If an exception is thrown while
+calculating that value, it'll be handled the same as any other
+exception thrown inside the <span class="code">try</span>.)  If you use <span class="code">goto</span>, <span class="code">break</span>,
+or <span class="code">continue</span> within the <span class="code">try</span> block to jump to a statement that's
+outside the <span class="code">try</span> block, the program will execute the <span class="code">finally</span>
+code just before jumping to the target statement.
+
+
+<p>Here's an example that illustrates how all of this works.
+
+<p><div class="code"><pre>
+#include "tads.h"
+
+class ResourceError: Exception;
+class ParsingError: Exception;
+
+main(args)
+{
+  a();
+}
+
+a()
+{
+  b(1);
+  b(2);
+  b(3);
+}
+
+b(x)
+{
+  "This is b(&lt;&lt;x&gt;&gt;)\n";
+  try
+  {
+    c(x);
+  }
+  catch (Exception exc)
+  {
+    "b: Caught an exception: &lt;&lt;exc.exceptionMessage&gt;&gt;\n";
+  }
+  "Done with b(&lt;&lt;x&gt;&gt;)\n";
+}
+
+c(x)
+{
+  "This is c(&lt;&lt;x&gt;&gt;)\n";
+  try
+  {
+    d(x);
+  }
+  catch(ParsingError perr)
+  {
+    "c: Caught a parsing error: &lt;&lt;perr.exceptionMessage&gt;&gt;\n";
+  }
+  finally
+  {
+    "In c's finally clause\n";
+  }
+  "Done with c(&lt;&lt;x&gt;&gt;)\n";
+}
+
+d(x)
+{
+  "This is d(&lt;&lt;x&gt;&gt;)\n";
+  e(x);
+  "Done with d(&lt;&lt;x&gt;&gt;)\n";
+}
+
+e(x)
+{
+  "This is e(&lt;&lt;x&gt;&gt;)\n";
+  if (x == 1)
+  {
+    "Throwing resource error...\n";
+    throw new ResourceError('some resource error');
+  }
+  else if (x == 2)
+  {
+    "Throwing parsing error...\n";
+    throw new ParsingError('some parsing error');
+  }
+  "Done with e(&lt;&lt;x&gt;&gt;)\n";
+}
+</pre></div>
+
+<p>When this program is run, it will show the following output:
+
+<p><div class="code"><pre>
+This is b(1)
+This is c(1)
+This is d(1)
+This is e(1)
+Throwing resource error...
+In c's finally clause
+b:  Caught an exception:  some resource error
+Done with b(1)
+This is b(2)
+This is c(2)
+This is d(2)
+This is e(2)
+Throwing parsing error...
+c:  Caught a parsing error:  some parsing error
+In c's finally clause
+Done with c(2)
+Done with b(2)
+This is b(3)
+This is c(3)
+This is d(3)
+This is e(3)
+Done with e(3)
+Done with d(3)
+In c's finally clause
+Done with c(3)
+Done with b(3)
+</pre></div>
+ 
+<p>This illustrates several aspects of exceptions.
+
+<p>First, note that function <span class="code">d()</span> doesn't have any exception
+handlers (i.e., it has no <span class="code">try</span> block).  Since this function is not
+concerned with catching any exceptions that occur within itself or
+functions it calls, it doesn't need any exception handlers.  This is
+one of the advantages of exceptions over using return codes to
+indicate errors: intermediate routines that don't care about
+exceptions don't need to include any code to check for them.  When
+searching for a <span class="code">try</span> block, the VM simply skips function <span class="code">d()</span> if
+it's in the call chain, since it has no handlers.
+
+<p>Second, note that function <span class="code">c()</span> only handles ParsingError
+exceptions.  Since this function has no handlers for any other
+exception types, the VM skips past this function when trying to find a
+handler for the <span class="code">ResourceError</span> exception.  So, not only can a
+function ignore exceptions entirely, but it can selectively include
+handlers only for the specific exceptions it wants to handle, and
+ignore anything else.
+
+<p>Third, note that, once an exception is caught, it no longer
+disrupts the program's control flow.  In other words, an exception
+isn't "re-thrown" after it's caught, unless you explicitly throw it
+again with another <span class="code">throw</span> statement in the handler that caught it.
+
+<h2>Handling VM Run-Time Errors</h2>
+
+<p>When your program does something illegal, such as trying to
+multiple two strings together or extracting an element from a list at
+an invalid index, a run-time error occurs.  TADS 3 treats all run-time
+errors as ordinary exceptions; this means that you can handle run-time
+errors using the same try/catch mechanism that you use to handle your
+own exceptions.
+
+<p>The system library defines the <span class="code">RuntimeError</span> class, which serves
+as the base class for all VM run-time errors.
+
+<p>When a VM run-time error occurs, the VM create and throws a new
+<span class="code">RuntimeError</span> instance.  The <span class="code">errno_</span> property of this object is
+set to the VM error number describing the error that occurred, and the
+<span class="code">exceptionMessage</span> property is set to the VM error text for the
+error.  You can inspect these properties directly, but if you just
+want to display the error message, you should call the
+<span class="code">displayException()</span> method of the error object.
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Exceptions and Error Handling
+<br><span class="navnp"><a class="nav" href="namedargs.htm"><i>Prev:</i> Named Arguments</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="anonfn.htm"><i>Next:</i> Anonymous Functions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

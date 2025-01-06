@@ -1,0 +1,246 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Basic Tokenizer</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="lib.htm">The System Library</a> &gt; 
+Basic Tokenizer
+<br><span class="navnp"><a class="nav" href="init.htm"><i>Prev:</i> Program Initialization</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="libmisc.htm"><i>Next:</i> Miscellaneous Library Definitions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Basic Tokenizer</h1>
+
+<p>"Tokenizing" is the process of scanning a string of characters,
+such as a line of text that the user types at a command prompt, and
+converting the character string into a list of words and punctuation
+marks.  Each item in this list is called a "token."  During parsing,
+we wish to deal with tokens, not directly with the original character
+string; it's much easier and faster to work with tokens.  To parse a
+string, we must find word boundaries, skip whitespace, and find
+matching delimiters (such as quotes and parentheses); we do all of
+this work in advance, when we tokenize the string, so that we don't
+have to do it repeatedly while analyzing the syntax of the command.
+
+<p>TADS 3 has no built-in tokenizer.  Instead, the system library
+provides a class called Tokenizer that does this job.  You can
+create a custom tokenizer, if desired, by subclassing Tokenizer.
+The adv3 library does this to provide a more elaborate set of
+lexical rules for the English parser.
+
+<h2>Calling the Tokenizer</h2>
+
+<p>To use the Tokenizer class, <span class="code">#include &lt;tok.h&gt;</span> in your source
+code.  (You'll also have to include the library module tok.t in your
+build, but you're probably already doing this indirectly by including
+the standard system library file, system.tl, in your build.)
+
+<p>To use the default rules defined in the class, simply use the class
+directly; to tokenize a string, make a call like this:
+
+<p><div class="code"><pre>
+local str, tokList;
+
+str = inputLine();
+tokList = Tokenizer.tokenize(str);
+</pre></div>
+
+<p>The <span class="code">tokenize()</span> method scans the string and converts it into a
+list of tokens.  The return value is a list consisting of one element
+per token.  Information about each token can be obtained using the
+following macros:
+
+<ul class=doublespace>
+
+<li><span class="code">getTokVal(<i>tok</i>)</span> returns the parsed value of the token.  This is
+usually a string corresponding to the text matched by the regular
+expression, but can be another type if the token rule generated it
+with some other value type.
+
+<li><span class="code">getTokType(<i>tok</i>)</span> returns the type of the token.  This is a token
+type enumerator value assigned by the rule that matched the token.  The
+default Tokenizer rules produce tokens of type <span class="code">tokPunct</span> (punctuation
+marks), <span class="code">tokWord</span> (words), <span class="code">tokString</span> (strings), and <span class="code">tokInt</span> (integer
+numbers).
+
+<li><span class="code">getTokOrig(<i>tok</i>)</span> returns the original source text the token
+matched.  This information is included because some token rules
+perform conversions on the value; for example, dictionary word tokens
+usually have their values converted to all upper-case or all
+lower-case for convenience in string comparisons.  The original text
+is included so that the exact original token input can be easily
+reconstructed if needed.
+
+</ul>
+
+<p>The following code displays the parsed value of each token in a string:
+
+<p><div class="code"><pre>
+for (local i = 1, local cnt = tokList.length() ; i &lt;= cnt ; ++i)
+  "[&lt;&lt;i&gt;&gt;] = &lt;&lt;getTokVal(tokList[i])&gt;&gt;\n";
+</pre></div>
+
+<p>(For the curious, the actual representation of a token is a list
+containing three elements: element 1 is the token value, element 2 is
+the token type, and element 3 is the original matched text.  For more
+readable code and greater flexibility in case of future changes to
+this format, you should always use the <span class="code">getTokXxx()</span> macros rather than
+referring to the list elements directly.)
+
+<h2>Customizing the Tokenizer</h2>
+
+<p>You can customize the rules the Tokenizer class uses.  To do this,
+subclass Tokenizer and override the <span class="code">rules_</span> property.  This
+property's value must be a list of lists.  Each sublist consists of
+five elements: a string giving the name of the rule; a regular
+expression specifying a pattern to match; a token type, which is the
+enum token value to assign to tokens matching the regular expression;
+a conversion rule, specifying how the token text to be stored in the
+result list is obtained; and a match method property pointer, which
+allows a programmatic check to determine whether or not the token
+matches the rule.
+
+<p>The name is for your use in identifying the rule.  You can give a
+rule whatever name you like.  The tokenizer class has methods that
+manipulate the rule set at run-time; rule names are used to identify
+which rules to operate on with these methods.
+
+<p>The conversion rule can be <span class="code">nil</span>, a string, or a property
+pointer.  If the conversion rule is <span class="code">nil</span>, then the token text stored in
+the result list will simply be the exact text of the input string that
+matches the regular expression.  If the rule is a string, it specifies
+a replacement string, using the same rules as <span class="code">rexReplace()</span>, that's
+applied to the matching text; the result of the replacement is stored
+in the result list.  If the conversion rule is a property pointer, it
+specifies a property (of <span class="code">self</span>, which is the Tokenizer object which
+is doing the work) to be evaluated to yield the value to be stored in
+the result list; this property is called as follows:
+
+<p><span class="code">self.(<i>prop</i>)(<i>txt</i>, <i>typ</i>, <i>results</i>)</span>
+
+<p>In this argument list, <i>txt</i> is a string giving the text that
+was matched for the token; <i>typ</i> is the token type enum value
+from the rule list; and <i>results</i> is a Vector containing the
+token output list under construction.  This method simply adds any
+number of token entries to the results list by calling
+<span class="code">results.append()</span>.  The method need not add any tokens; the default
+tokenizer rule for whitespace, for example, uses a processor method
+called <span class="code">tokCvtSkip()</span>, which doesn't do anything at all, which means
+that whitespace characters in the input result in no tokens in the
+results list.
+
+<p>The match method can be <span class="code">nil</span> or a property pointer.  If it's
+<span class="code">nil</span>, the regular expression solely determines what text matches
+the rule.  If the match method is a property pointer, though, the
+tokenizer calls the property (on <span class="code">self</span>, the Tokenizer object which is
+doing the work) as follows:
+
+<p><span class="code">self.(<i>prop</i>)(<i>txt</i>)</span>
+
+<p>This method can examine the text to determine if it's really a
+match for the rule; the method returns true if the text matches the
+rule, nil if not.  The match method can be used for more complex
+checks that cannot be performed with the regular expression pattern;
+for example, a match method can check to see if the token is a known
+dictionary word, so that a rule only matches known dictionary words.
+
+<h2>Rule Processing Order</h2>
+
+<p>The rules are specified in order of priority.  The tokenizer starts
+with the first rule; if the first rule's regular expression matches
+(and the rule's match method, if present, returns <span class="code">true</span>), the tokenizer
+uses the match and ignores all of the remaining rules.  If the first
+rule's regular expression does not match (or its match method returns
+<span class="code">nil</span>), the tokenizer tries the second rule, and so on until it runs out
+of rules.
+
+<p>Each time the tokenizer finds a matching rule, it adds the result
+of applying the conversion rule to the result list, along with the
+token type specified by the rule.  The tokenizer then removes the
+matching text from the input string.  If that leaves the input string
+empty, the tokenizer returns the result list to the caller.  If the
+input string is not yet empty, the tokenizer starts over, searching
+from the first rule to find a match to the remainder of the string.
+The tokenizer repeats this process until the input string is empty.
+
+<p>If the tokenizer exhausts its list of rules, it throws a
+<span class="code">TokErrorNoMatch</span> exception.  This exception object has a property,
+<span class="code">remainingStr_</span>, which gives the text of the remainder of the string at
+the point at which the tokenizer could find no matching rule.
+
+<h2>Customization Example</h2>
+
+<p>Suppose we wished to build a simple four-function calculator, which
+reads arithmetic expressions typed by the user and displays the
+results.  For this calculator, we'd need to recognize two types of
+tokens: operators, and numbers.  There's already a tokInt type defined
+by the Tokenizer class, but we'd have to define our own token type for
+operators:
+
+<p><div class="code"><pre>
+enum token tokOp;
+</pre></div>
+
+<p>The default tokenizer rules won't work for the calculator because
+they don't accept all of the punctuation marks we'd need to use for
+operators (and besides, the default rules classify the punctuation
+marks they do recognize as type tokPunct, when we want tokOp tokens).
+
+<p>We'll need the following token rules:
+
+<ul>
+
+<li>Whitespace, which we want to ignore so that the user can use
+spaces freely to format expressions.
+
+<li>Integers, which consist of a series of one or more digits.
+
+<li>Operators, which are the special punctuation marks that indicate
+arithmetic operations.
+
+</ul>
+
+<p>Here's how our subclass would look to implement these rules:
+
+<p><div class="code"><pre>
+CalcTokenizer: Tokenizer
+  rules_ =
+  [
+    /* skip whitespace */
+    ['whitespace', R'[ \t]+', nil, &amp;tokCvtSkip, nil],
+
+    /* integer numbers */
+    ['integer', R'[0-9]+', tokInt, nil, nil],
+
+    /* operators */
+    ['operator', R'[()+*-/]', tokOp, nil, nil]
+  ]
+;
+</pre></div>
+
+<p>To tokenize using our customized rules, we'd simply call our
+subclasses tokenizer rather than the default tokenizer:
+
+<p><div class="code"><pre>
+tokList = CalcTokenizer.tokenize(str);
+</pre></div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="lib.htm">The System Library</a> &gt; 
+Basic Tokenizer
+<br><span class="navnp"><a class="nav" href="init.htm"><i>Prev:</i> Program Initialization</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="libmisc.htm"><i>Next:</i> Miscellaneous Library Definitions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

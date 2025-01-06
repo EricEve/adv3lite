@@ -1,0 +1,1628 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Regular Expressions</title>
+
+<style type="text/css"><!--
+
+table {
+  margin-left: 2em;
+  background: #f0f0f0;
+}
+
+td {
+  padding-left: 1em;
+  padding-right: 1em;
+}
+
+tr.odd {
+  background: #e0e0e0;
+}
+
+--></style>
+
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Regular Expressions
+<br><span class="navnp"><a class="nav" href="tadsgen.htm"><i>Prev:</i> tads-gen Function Set</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tadsio.htm"><i>Next:</i> tads-io Function Set</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Regular Expressions</h1>
+
+<p>TADS provides a powerful string processing feature known as regular
+expressions.  A regular expression is a string matching pattern that's
+a little bit like a "wildcard" string often used in file system
+commands, but much more powerful.
+
+<p>If you've used other languages with regular expressions, you'll
+probably find the TADS implementation very similar to what you're used to.
+Modern regular expression systems have converged on a <i>mostly</i>
+standard syntax that grew out of the Unix "grep" language.  There's a
+core of about 80% of the syntax that's identical in most modern
+systems, TADS included, with the rest varying slightly (or sometimes
+not so slightly) from one implementation to the next.  If you're
+familiar with Perl or Javascript, the TADS syntax will be immediately
+familiar.
+
+<p>The table below is a quick-reference summary of all of the TADS
+regular expression syntax elements.  If you're already experienced
+with regular expressions from other languages, you might want to scan
+the table to note where the TADS syntax differs from what you're
+used to.
+
+<p>After the table, there's a tutorial and detailed reference,
+covering all of the TADS regular expression features.  It tries to
+explain the concepts involved, so that it can serve as a good
+introduction for regular expression novices.  For more experienced
+users, you'll also find details of the TADS implementation and syntax
+idiosyncrasies.
+
+<p>For more information on the specific functions and objects where
+regular expressions are used, refer to <a
+href='rexpat.htm'>RexPattern</a> intrinsic class, which stores
+compiled patterns, and the specific <a href='tadsgen.htm'>regular
+expression functions</a>, <span class="code">rexMatch()</span>, <span
+class="code">rexSearch()</span>, <span
+class="code">rexReplace()</span>, and <span
+class="code">rexGroup()</span>.
+
+<p>You can define static RexPattern objects using the regular
+expression literal syntax:
+
+<p><div class="code"><pre>
+local r = R'%w+';
+</pre></div>
+
+<p>See <a href="rexpat.htm#rexlit">regular expression literals</a>
+in the RexPattern section for details.
+
+
+
+<h2>TADS Regular Expression Quick Reference</h2>
+
+<p>
+<table>
+<tr class=odd><td><span class="code">|</span>
+    <td><a href="#alternation">Alternation</a> operator
+<tr><td><span class="code">( )</span>
+    <td><a href="#grouping">Grouping</a> operator
+<tr class=odd><td><span class="code">+</span>
+    <td><a href="#closures">Repeat</a> preceding expression one or more times
+<tr><td><span class="code">+?</span>
+    <td><a href="#closures">Repeat</a> expression one or more times, taking
+       <a href="#shortestMatch">shortest match</a> when ambiguous
+<tr class=odd><td><span class="code">*</span>
+    <td><a href="#closures">Repeat</a> preceding expression zero or more times
+<tr><td><span class="code">*?</span>
+    <td><a href="#closures">Repeat</a> zero or more times, taking
+       <a href="#shortestMatch">shortest match</a> when ambiguous
+<tr class=odd><td><span class="code">?</span>
+    <td><a href="#closures">Repeat</a> preceding expression zero or one times
+<tr><td><span class="code">??</span>
+    <td><a href="#closures">Repeat</a> zero or one times, taking
+       <a href="#shortestMatch">shorter match</a> when ambiguous
+<tr class=odd><td><span class="code"> {n}</span>
+    <td>Match exactly n <a href="#repetition">repetitions</a>
+       of the preceding expression
+<tr><td><span class="code"> {n,m}</span>
+    <td>Match at least n and at most m <a href="#repetition">repetitions</a>
+       of the preceding expression
+<tr class=odd><td><span class="code"> {n,}</span>
+    <td>Match at least n <a href="#repetition">repetitions</a>
+       of the preceding expression
+<tr><td><span class="code"> { }?</span>
+    <td>Match <a href="#repetition">repetitions</a>,
+       taking <a href="#shortestMatch">shortest match</a> when ambiguous
+<tr class=odd><td><span class="code">.</span>
+    <td>Match <a href="#wildcards">any single character</a>
+<tr><td><span class="code">^</span>
+    <td>Match only at <a href="#startOfString">beginning of string</a>
+<tr class=odd><td><span class="code">$</span>
+    <td>Match only at <a href="#endOfString">end of string</a>
+<tr><td><span class="code">[ ]</span>
+    <td><a href="#wildcards">Character range</a>
+<tr class=odd><td><span class="code">[^ ]</span>
+    <td>Exclusive <a href="#wildcards">character range</a>
+<tr><td><span class="code">&lt;Alpha&gt;</span>
+    <td>Any single alphabetic character
+       (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;Upper&gt;</span>
+    <td>Any single upper-case alphabetic character
+       (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;Lower&gt;</span>
+    <td>Any single lower-case alphabetic character
+       (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;Digit&gt;</span>
+    <td>Any single digit character
+       (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;AlphaNum&gt;</span>
+    <td>Any single alphabetic or digit character
+       (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;Space&gt;</span>
+    <td>Any single space character
+       (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;Punct&gt;</span>
+    <td>Any single punctuation mark character
+       (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;Newline&gt;</span>
+    <td>Any single newline character: carriage return (u000D),
+       line feed (u000A), blank line '\b' (u000B),
+       Unicode line separator (u2028), Unicode paragraph separator (u2029)
+       (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;x&gt;</span>
+    <td>The literal character "x"
+       (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;a-z&gt;</span>
+    <td>Any character in the range a-z (equivalent to [a-z])
+       (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;x|y|z&gt;</span>
+    <td>"x", "y", or "z" (equivalent to [xyz])
+   (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;a-f|w-z&gt;</span>
+    <td>Any character in "a" through "f" or "w" through "z"
+   (equivalent to [a-fw-z]
+   (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;Digit|Upper&gt;</span>
+    <td>Any character matching <span class="code">&lt;Digit&gt;</span> or <span class="code">&lt;Upper&gt;</span>
+   (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">&lt;Digit|x|y&gt;</span>
+    <td>Any digit character, or either "x" or "y"
+   (<a href="#classes">character class</a>)
+<tr><td><span class="code">&lt;^Digit&gt;</span>
+    <td>Any character except a digit
+   (<a href="#classes">character class</a>)
+<tr class=odd><td><span class="code">%1</span>
+    <td>Match the same text that the first parenthesized group matched
+       (<a href="#groups">back-reference</a>)
+<tr><td><span class="code">%2</span>
+    <td>Match the same text as the second parenthesized group
+       (<a href="#groups">back-reference</a>)
+<tr class=odd><td><span class="code">%9</span>
+    <td>Match the same text as the ninth parenthesized group
+       (<a href="#groups">back-reference</a>)
+<tr><td><span class="code">%&lt;</span>
+    <td>Match only at the <a href="#startOfWord">beginning of a word</a>
+<tr class=odd><td><span class="code">%&gt;</span>
+    <td>Match only at the <a href="#endOfWord">end of a word</a>
+<tr><td><span class="code">%b</span>
+    <td>Match at any <a href="#wordBoundary">word boundary</a>
+<tr class=odd><td><span class="code">%B</span>
+    <td>Match only at a non-<a href="#wordBoundary">word boundary</a>
+<tr><td><span class="code">%d</span>
+    <td>Match any digit character
+<tr class=odd><td><span class="code">%D</span>
+    <td>Match any non-digit character
+<tr><td><span class="code">%s</span>
+    <td>Match any whitespace character
+<tr class=odd><td><span class="code">%S</span>
+    <td>Match any non-whitespace character
+<tr><td><span class="code">%v</span>
+    <td>Match any vertical whitespace character
+<tr class=odd><td><span class="code">%v</span>
+    <td>Match anything <i>except</i> a vertical whitespace character
+<tr><td><span class="code">%w</span>
+    <td>Match any single <a href="#wordChar">word character</a>
+<tr class=odd><td><span class="code">%W</span>
+    <td>Match any single non-<a href="#wordChar">word character</a>
+<tr><td><span class="code">&lt;Case&gt;</span>
+    <td>Make the match <a href="#case">case-sensitive</a> (default)
+<tr class=odd><td><span class="code">&lt;NoCase&gt;</span>
+    <td>Make the match insensitive to <a href="#case">case</a>
+<tr><td><span class="code">&lt;FirstBegin&gt;</span>
+    <td>Find the match that begins earliest in the search text (default)
+       (<a href="#globalFlags">global flags</a>)
+<tr class=odd><td><span class="code">&lt;FB&gt;</span>
+    <td>Same as <FirstBegin>
+       (<a href="#globalFlags">global flags</a>)
+<tr><td><span class="code">&lt;FirstEnd&gt;</span>
+    <td>Find the match that ends earliest in the search text
+       (<a href="#globalFlags">global flags</a>)
+<tr class=odd><td><span class="code">&lt;FE&gt;</span>
+    <td>Same as <FirstEnd>
+       (<a href="#globalFlags">global flags</a>)
+<tr><td><span class="code">&lt;Max&gt;</span>
+    <td>Find the longest match (default)
+       (<a href="#globalFlags">global flags</a>)
+<tr class=odd><td><span class="code">&lt;Min&gt;</span>
+    <td>Find the shortest match
+       (<a href="#globalFlags">global flags</a>)
+<tr><td><span class="code">%</span>
+    <td><a href="#quotingSpecials">Quote</a>
+       the following special character (except "<" and ">")
+<tr class=odd><td><span class="code">(?: )</span>
+    <td><a href="#nonCapGroups">Non-capturing group</a>
+<tr><td><span class="code">(?= )</span>
+    <td>Positive look-ahead <a href="#assertions">assertion</a>
+<tr class=odd><td><span class="code">(?! )</span>
+    <td>Negative look-ahead <a href="#assertions">assertion</a>
+<tr><td><span class="code">(?&lt;= )</span>
+    <td>Positive look-back <a href="#assertions">assertion</a>
+<tr class=odd><td><span class="code">(?&lt;! )</span>
+    <td>Negative look-back <a href="#assertions">assertion</a>
+<tr><td><span class="code">&lt;langle&gt;</span>
+    <td>The character "&lt;" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;rangle&gt;</span>
+    <td>The character "&gt;" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;lsquare&gt;</span>
+    <td>The character "[" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;rsquare&gt;</span>
+    <td>The character "]" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;lparen&gt;</span>
+    <td>The character "(" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;rparen&gt;</span>
+    <td>The character ")" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;lbrace&gt;</span>
+    <td>The character "{" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;rbrace&gt;</span>
+    <td>The character "}" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;vbar&gt;</span>
+    <td>The character "|" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;caret&gt;</span>
+    <td>The character "^" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;period&gt;</span>
+    <td>The character "." (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;dot&gt;</span>
+    <td>The character "." (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;squote&gt;</span>
+    <td>The character "'" (a single quote)
+       (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;dquote&gt;</span>
+    <td>The character '"' (a double quote)
+       (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;star&gt;</span>
+    <td>The character "*" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;plus&gt;</span>
+    <td>The character "+" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;percent&gt;</span>
+    <td>The character "%" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;dollar&gt;</span>
+    <td>The character "$" (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;backslash&gt;</span>
+    <td>The character "\" (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;return&gt;</span>
+    <td>The carriage return (CR) character (code u000D)
+        (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;linefeed&gt;</span>
+    <td>The line feed (LF) character (code u000A)
+        (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;tab&gt;</span>
+    <td>The tab character (code u0009)
+        (<a href="#namedChars">named characters</a>)
+<tr><td><span class="code">&lt;nul&gt;</span>
+    <td>The null character (code u0000)
+        (<a href="#namedChars">named characters</a>)
+<tr class=odd><td><span class="code">&lt;null&gt;</span>
+    <td>The null character (code u0000)
+        (<a href="#namedChars">named characters</a>)
+</table>
+
+<h2>Introduction</h2>
+
+<p>A regular expression is sometimes called a "pattern," because it
+doesn't usually specify a literal string of characters to find, but
+rather specifies a sort of "wildcard" pattern that can match many
+possible strings.  What makes regular expressions powerful is that you
+can specify a whole range of possibilities without actually listing
+all of the possibilities individually.  In fact, you can easily
+specify a pattern that matches an infinite number of possibilities
+(and do so quite compactly).
+
+<p>The syntax for regular expressions is a bit scary at first,
+because it's almost completely based on punctuation marks.  The
+advantage is that it's a very compact syntax, but at the cost of
+sometimes being hard to read.  The set of special symbols involved
+isn't too large, though, so it doesn't take too long to learn what
+all of the symbols mean.
+ 
+<p>The simplest kind of regular expression is simply a string of
+literal text.  For example, this is a valid regular expression:
+
+<p><div class="code"><pre>
+abc
+</pre></div>
+
+<p>This simply matches the string "abc", because the pattern consists
+entirely of "ordinary characters," and each ordinary character of the
+regular expression is matched literally to a character of the string
+to be searched.
+
+<p>An "ordinary character" is any character that doesn't have some
+other meaning in the regular expression language.  All of the
+alphabetic characters (including accented characters), all of the
+digits, and space characters of all kinds are ordinary characters.
+The following punctuation marks have special meanings:
+
+<p><div class="code"><pre>
+% &lt; &gt; + . * ? [ ^ $ | ( ) {
+</pre></div>
+
+<p>Everything else is an ordinary character.
+
+<p><a name="quotingSpecials"></a>
+You can use almost all of the special characters as though they
+were ordinary characters by putting a percent sign (<span class="code">%</span>) in front of
+them.  So, to search for the letters "abc" enclosed in parentheses, we
+could write this:
+
+<p><div class="code"><pre>
+%(abc%)
+</pre></div>
+
+<p>By putting the percent signs in front of the parentheses, you
+remove the special meaning from the parentheses and turn them into
+ordinary characters that literally match the search text.
+
+<p>Note one pair of exceptions to the <span class="code">%</span> rule: the sequences <span class="code">%&lt;</span> and
+<span class="code">%&gt;</span> have special meanings of their own, so you can't use <span class="code">%&lt;</span> to
+match a less-than sign, and you can't use <span class="code">%&gt;</span> to match a greater-than
+sign.  To match these characters, you must use a range expression or a
+named character expression; we'll see these in more detail later, but
+for now just note that we can match angle brackets like this:
+
+<p><div class="code"><pre>
+&lt;langle&gt;abc&lt;rangle&gt;
+</pre></div>
+
+<p><span class="code">&lt;langle&gt;</span> matches a single left angle bracket (<span class="code">&lt;</span>),
+and <span class="code">&lt;rangle&gt;</span> matches a single right angle bracket (<span class="code">&gt;</span>).
+Thus, the pattern above matches the string "&lt;abc&gt;".
+
+<p>The meanings of all of the special characters, and how they
+combine, are explained in the sections that follow.
+
+<h2>Concatenation</h2>
+
+<p>Even the simple string above uses one of the construction
+principles that lets you build complex search patterns.  The string
+above consists of three ordinary characters that are concatenated
+together to form a longer string.  When you concatenate a regular
+expression element to a regular expression, you get a new regular
+expression that matches what the first one matches, plus what the new
+element matches.  This is pretty obvious for simple cases like "abc",
+because if we add a new element - say the letter "d" - we get a new
+regular expression which matches a longer literal string:
+
+<p><div class="code"><pre>
+abcd
+</pre></div>
+
+<h2><a name="alternation"></a>Alternation</h2>
+
+<p>Another construction principle that lets you combine expressions is
+alternation.  With alternation, you specify that the pattern matches
+one regular expression or another regular expression.  You specify
+alternation with the character <span class="code">|</span> (the vertical bar).
+
+<p>We know that the expression <span class="code">abc</span> matches the literal string "abc",
+and the expression <span class="code">def</span> matches the literal string "def".  So, we
+could combine these with alternation to make a new regular expression
+that matches either "abc" or "def":
+
+<p><div class="code"><pre>
+abc|def
+</pre></div>
+
+
+<h2><a name="namedChars"></a>Named characters</h2>
+
+<p>Each of the special characters (except angle brackets) can be
+entered literally in an expression using a percent sign (<span class="code">%</span>) to quote
+the character, as shown above.  In addition, these characters, plus a
+few others, can be entered by name, by enclosing the character's name
+in angle brackets (<span class="code">&lt; &gt;</span>).  To search for an asterisk, for example,
+you could write this expression:
+
+<p><div class="code"><pre>
+&lt;star&gt;
+</pre></div>
+
+<p>The named character notation is equivalent to using <span class="code">%</span> to quote
+the special characters.  The named notation is provided as an
+alternative because it often results in expressions that are easier to
+read than the <span class="code">%</span> equivalents.
+
+<p>The special character names and the corresponding characters are:
+
+<p>
+<table>
+<tr class=odd><td><span class="code">&lt;lparen&gt;</span> <td>(
+<tr><td><span class="code">&lt;rparen&gt;</span> <td>)
+<tr class=odd><td><span class="code">&lt;lsquare&gt;</span> <td>[
+<tr><td><span class="code">&lt;rsquare&gt;</span> <td>]
+<tr class=odd><td><span class="code">&lt;lbrace&gt;</span> <td>{
+<tr><td><span class="code">&lt;rbrace&gt;</span> <td>}
+<tr class=odd><td><span class="code">&lt;langle&gt;</span> <td>&lt;
+<tr><td><span class="code">&lt;rangle&gt;</span> <td>&gt;
+<tr class=odd><td><span class="code">&lt;vbar&gt;</span> <td>|
+<tr><td><span class="code">&lt;caret&gt;</span> <td>^
+<tr class=odd><td><span class="code">&lt;period&gt;</span> <td>.
+<tr><td><span class="code">&lt;dot&gt;</span> <td>.
+<tr class=odd><td><span class="code">&lt;squote&gt;</span> <td>'
+<tr><td><span class="code">&lt;dquote&gt;</span> <td>"
+<tr class=odd><td><span class="code">&lt;star&gt;</span> <td>*
+<tr><td><span class="code">&lt;plus&gt;</span> <td>+
+<tr class=odd><td><span class="code">&lt;percent&gt;</span> <td>%
+<tr><td><span class="code">&lt;question&gt;</span> <td>?
+<tr class=odd><td><span class="code">&lt;dollar&gt;</span> <td>$
+<tr><td><span class="code">&lt;backslash&gt;</span> <td>\
+<tr class=odd><td><span class="code">&lt;return&gt;</span> <td>carriage return (Unicode u000D)
+<tr><td><span class="code">&lt;linefeed&gt;</span> <td>line feed (Unicode u000A)
+<tr class=odd><td><span class="code">&lt;tab&gt;</span> <td>tab (Unicode u0009)
+<tr><td><span class="code">&lt;nul&gt;</span> <td>null character (Unicode u0000)
+<tr class=odd><td><span class="code">&lt;null&gt;</span> <td>null character (Unicode u0000)
+</table>
+
+
+<p>These names aren't sensitive to case: <span class="code">&lt;LANGLE&gt;</span> is the same as
+<span class="code">&lt;LAngle&gt;</span> and <span class="code">&lt;langle&gt;</span>.
+
+<p>The named characters are actually a type of "character class,"
+which we'll get to in a moment.  This means that you can combine named
+characters with the <span class="code">|</span> symbol, and reverse the sense of the match
+with the <span class="code">^</span> symbol, just as with character classes.  For example,
+the following matches a period, plus sign, or asterisk:
+
+<p><div class="code"><pre>
+&lt;period|plus|star&gt;
+</pre></div>
+
+<p>and the following matches anything <i>except</i> a question mark:
+
+<p><div class="code"><pre>
+&lt;^question&gt;
+</pre></div>
+
+<h2><a name="wildcards"></a>Wildcards, ranges, and classes</h2>
+
+<p>If you've ever used an operating system like DOS or Unix, you're
+probably familiar with "wildcard" characters for file directory
+listings.  A wildcard is a character that matches any other character.
+
+<p>Regular expressions have a wildcard character, too, but it's not
+what you might expect if you're thinking about filename wildcards from
+DOS or Unix.  The regular expression wildcard character is the period
+(<span class="code">.</span>).  This simply matches any single character.  So, if we wanted to
+match the word "the" followed by a space followed by any three
+characters, we'd write this:
+
+<p><div class="code"><pre>
+the ...
+</pre></div>
+
+<p>Regular expressions don't stop at simple wildcards, though: they
+let you get much more specific.  First, you can use "ranges," which
+let you match one of a selected group of specific characters.  For
+example, if you want to match any single character that is a vowel,
+you could write a range like this:
+
+<p><div class="code"><pre>
+[aeiouAEIOU]
+</pre></div>
+
+<p>You might wonder why we wrote each vowel twice.  It's because
+regular expressions are case-sensitive by default - "a" in an
+expression matches "a" in a string, but not "A".  When you want an
+expression to be indifferent to case distinctions, you can make
+it case-insensitive with the <a href="case"><span class="code">&lt;NoCase&gt;</span> flag</a>.
+
+<p>You can use a range expression in an expression wherever an
+ordinary character can go.  So, to write a pattern that matches
+"button", followed by a space, followed by a digit from 0 to 9, you
+could write this:
+
+<p><div class="code"><pre>
+button [0123456789]
+</pre></div>
+
+<p>Ranges can also specify that you want to exclude characters.  An
+"exclusive" range works just the opposite of a regular range: it
+matches anything that's not listed in the range.  You specify an
+exclusive range by putting a caret (<span class="code">^</span>) as the first character inside
+the brackets of the range.  So, to match any single character that
+isn't a vowel, you'd write this:
+
+<p><div class="code"><pre>
+[^aeiouAEIOU]
+</pre></div>
+
+<p>Note that exclusive ranges match anything that's not in the range,
+so the range above will match anything that isn't a vowel, including
+digits, spaces, and punctuation characters.
+
+<p>You can also use a range to specify contiguous portions of the
+Unicode character set simply by giving the endpoints of the portion.
+Do this by listing the ends of the range, separated by a hyphen (<span class="code">-</span>).
+For example, to match any letter in the Roman alphabet, not including
+any accented characters, you'd write this:
+
+<p><div class="code"><pre>
+[a-zA-Z]
+</pre></div>
+
+<p>This matches any character whose Unicode character code value is
+between "a" and "z" inclusive, or between "A" and "Z" inclusive.  (The
+Unicode character set includes the ASCII character set as a subset,
+assigning the same character code values as ASCII does to the ASCII
+characters - so if you're familiar with Unix-style regular expression
+ranges, you'll find that Unicode ranges end up working exactly the same
+way.)
+
+<p>You can use exclusion with subset ranges as well:
+
+<p><div class="code"><pre>
+[^a-zA-Z]
+</pre></div>
+
+<p>This matches any single character that is not in the Roman alphabet.
+
+<p>If you want to include the character <span class="code">^</span> in a range expression, you
+can do so, as long as it's not the first character - if the <span class="code">^</span>
+appears as the first character, it's taken to indicate an exclusive
+range.  So, to specify a match for either an ampersand or a caret,
+you'd have to write the range expression like this:
+
+<p><div class="code"><pre>
+[&amp;^]
+</pre></div>
+
+<p>Similarly, note that, if you want to include a hyphen character in
+a range expression, it must be the first character in the range list.
+If a hyphen appears anywhere else, it's taken as a subset specifier.
+So, to write a range that matches a pound sign or a hyphen, you'd have
+to write this:
+
+<p><div class="code"><pre>
+[-#]
+</pre></div>
+
+<p>In addition, if you want to include a right square bracket in a
+search string, it must be the first character in an inclusive range,
+or the first character after <span class="code">^</span> in an exclusive range.
+
+<p>Combining all of the rules above, if we wanted to write an
+inclusive search for all of the special range characters - hyphen,
+caret, and right square bracket - we'd have to write this:
+
+<p><div class="code"><pre>
+[]-^]
+</pre></div>
+
+<p>And to write a search that excludes all of these characters:
+
+<p><div class="code"><pre>
+[^]-^]
+</pre></div>
+
+<p>The two examples above are the exact orders needed for these
+special situations.  If you want to write these ranges and include
+additional characters, insert them at the end of the range, just
+before the closing square bracket.  If you don't want to include all
+of the special characters, take out the ones you don't want from the
+example above, leaving the remaining ones in the same order.
+
+<p>Note that, other than the three special range characters (<span class="code">^</span>
+<span class="code">-</span> <span class="code">]</span>), all of the characters that are special elsewhere in a
+pattern lose their special meaning within a range.  So, the following
+range expression matches a period, a star, or a percent sign:
+
+<p><div class="code"><pre>
+[.*%]
+</pre></div>
+
+<p><a name="classes"></a>
+Ranges are useful for matching a specific group of characters, but
+it's harder to write a good range expression for more complex
+character sets, such as any alphabetic character or any digit.
+Unicode has so many different groups of alphabetic characters, since
+it includes support for so many different languages, that it would
+take a lot of work to list all of the different alphabetic ranges.
+Fortunately, TADS regular expressions provide a shorthand notation for
+certain important character sets, called "character classes."
+
+<p>Each character class is written as a name enclosed in angle
+brackets (<span class="code">&lt;</span> and <span class="code">&gt;</span>).  Each class matches a single character.  The
+classes are:
+
+<ul class=doublespace>
+
+<li><span class="code">&lt;Alpha&gt;</span> - matches any single alphabetic character.  This class
+matches anything that the Unicode character database classifies as
+alphabetic, so this includes accented characters and characters from
+non-Roman alphabets.
+
+<li><span class="code">&lt;Upper&gt;</span> - matches any single upper-case alphabetic character.
+Like <span class="code">&lt;Alpha&gt;</span>, this class uses Unicode classifications, so it matches
+accented upper-case characters.
+
+<li><span class="code">&lt;Lower&gt;</span> - matches any single lower-case alphabetic character.
+
+<li><span class="code">&lt;Digit&gt;</span> - matches any single digit character.
+
+<li><span class="code">&lt;AlphaNum&gt;</span> - matches any single alphanumeric character.
+
+<li><span class="code">&lt;Space&gt;</span> - matches any horizontal whitespace character. 
+These include regular spaces (' ', Unicode u0020), tab
+('\t', Unicode u0009), ASCII form feed (Unicode u000C), ASCII control
+character IC1 (Unicode u001F), the Unicode non-breaking space (u00A0),
+the various Unicode typographical spaces (u2000 through u200B), and
+the several miscellaneous Unicode control characters that the Unicode
+classifies as whitespace (u0085, u1680, u202f, u205f, u3000).  This
+does <i>not</i> include vertical spacing characters, such as line feed
+('\n') or carriage return characters, or the TADS quoted space
+character ('\ ').
+
+<li><span class="code">&lt;VSpace&gt;</span> - matches any vertical whitespace
+character.  These are the line-separator characters: carriage return
+('\r', Unicode u000D), line feed ('\n', Unicode u000A), the TADS
+"blank line" character ('\b', Unicode u000B), ASCII control characters
+IC2 through IC4 (Unicode u001C through u001E), and the Unicode line
+and paragraph separators (Unicode u2028 and u2029)
+
+<li><span class="code">&lt;Punct&gt;</span> - matches any punctuation mark character, as classified by
+the Unicode standard.
+
+<li><span class="code">&lt;Newline&gt;</span> - matches any single newline character: carriage
+return (u000D), line feed (u000A), the TADS blank line character '\b'
+(u000B), Unicode line separator (u2028), Unicode paragraph separator
+(u2029).
+
+</ul>
+
+<p>Note that the class names are not case-sensitive (regardless of
+whether or not the search itself is), so <span class="code">&lt;Alpha&gt;</span>, <span class="code">&lt;alpha&gt;</span>, and
+<span class="code">&lt;ALPHA&gt;</span> are equivalent.
+
+<p>You can use a character class in place of an ordinary character.
+So, to search for a five-letter word starting with an upper-case
+letter followed by four lower-case letters, we could write this:
+
+<p><div class="code"><pre>
+&lt;Upper&gt;&lt;lower&gt;&lt;lower&gt;&lt;lower&gt;&lt;lower&gt;
+</pre></div>
+
+<p>Character classes can be combined using <span class="code">|</span> to separate class
+names.  For example, if you want to write an expression that matches
+any upper-case letter or any digit, you could write this:
+
+<p><div class="code"><pre>
+&lt;Upper|Digit&gt;
+</pre></div>
+
+<p>This is equivalent to writing <span class="code">(&lt;upper&gt;|&lt;digit&gt;)</span>, but is a little
+more concise.
+
+<p>Character classes can be complemented using <span class="code">^</span> as the first
+character inside the angle brackets.  For example, to match any
+character other than an upper-case letter, you could write this:
+
+<p><div class="code"><pre>
+&lt;^Upper&gt;
+</pre></div>
+
+<p>You can complement combined character classes as well.  This
+matches any character except a space or punctuation mark:
+
+<p><div class="code"><pre>
+&lt;^Space|Punct&gt;
+</pre></div>
+
+<p>Note that the <span class="code">^</span> applies to the entire class expression, not just
+to the first element, so the example above does not match punctuation
+marks.
+
+<p>You can combine character classes and literal characters in a
+single angle-bracket expression.  For example, suppose you want to
+match the characters of a C++ identifier.  The first character of an
+identifier in C++ must be an alphabetic character or an underscore
+("_"), and subsequent characters can be letters, numbers, or
+underscores.  You could use this expression:
+
+<p><div class="code"><pre>
+&lt;Alpha|_&gt;&lt;Alpha|Digit|_&gt;*
+</pre></div>
+
+<p>You can also use literal ranges, just like in square bracket
+expressions, and combine these with individual literals or classes.
+For example, to match any upper-case letter, but only lower-case "a"
+through "m", you could write this:
+
+<p><div class="code"><pre>
+&lt;Upper|a-m&gt;
+</pre></div>
+
+<p>You might have noticed by now that angle bracket expressions using
+literals are very similar to square bracket expressions.  However,
+there's one crucial difference in the syntax: inside angle brackets,
+each individual literal character or literal range must be separated
+from others by bars (<span class="code">|</span>).  For example, consider this square-bracket
+range:
+
+<p><div class="code"><pre>
+[13579a-f]
+</pre></div>
+
+<p>To write the same expression with angle brackets, you must separate
+each digit from the next by a bar:
+
+<p><div class="code"><pre>
+&lt;1|3|5|7|9|a-f&gt;
+</pre></div>
+
+<p>The bars are required because the regular expression compiler would
+otherwise not be able to tell for sure what something like this means:
+
+<p><div class="code"><pre>
+&lt;Alpha&gt;
+</pre></div>
+
+<p>Were it not for the rule about separating literals with vertical
+bars, this could either mean any alphabetic character or any of the
+characters "A", "l", "p", "h", or "a".  Thanks to the rule that
+literals must be separated with bars, there is no ambiguity: <span class="code">&lt;Alpha&gt;</span>
+can only mean any alphabetic character.  You might think that you
+should be allowed to get away without the bars when the literals don't
+spell a character class name or the name of a special character.
+However, if this were allowed, it could create problems in the future:
+what you think is a meaningless string of literals now could take on a
+new meaning in a future version.  So, to avoid any confusion or future
+compatibility problems, the bars are required for all literals.
+
+<p>All of the named characters (<span class="code">&lt;lparan&gt;</span>, <span class="code">&lt;period&gt;</span>, and so on)
+are essentially just very narrow character classes, so you can freely
+mix them with literals and character classes in angle-bracketed
+patterns.  For example, to match any upper-case letter or an open or
+close parenthesis, you could use this expression:
+
+<p><div class="code"><pre>
+&lt;Upper|lparen|rparen&gt;
+</pre></div>
+
+<h2><a name="closures"></a>Closures and optionality</h2>
+
+<p>If you've used filename patterns on DOS or Unix, you're probably
+wondering by now how you match a variable-length string, the way the
+"*" character does for filename matches on these systems.  Regular
+expressions let you do this, but in a different and more powerful way
+than filename patterns do.
+
+<p>There are three ways of specifying variable-length regular
+expression matches.  The first is the "optionality" operator, which
+specifies that the immediately preceding expression character is
+optional - specifically, that the preceding character can be present
+zero or one times in the match string.  The optionality operator is
+the question mark, <span class="code">?</span>, and immediately follows the character to be
+made optional.  So, to search for either "you" or "your", we could
+write this:
+
+<p><div class="code"><pre>
+your?
+</pre></div>
+
+<p>The second variable-length operator is the one-or-more "closure."
+This operator is the plus sign, <span class="code">+</span>, and specifies that the
+immediately preceding character is to be repeated once or more - any
+number of times, as long as it appears at least once.  So, to match a
+string of any number of copies of the letter "A", we'd write this:
+
+<p><div class="code"><pre>
+A+
+</pre></div>
+
+<p>This matches "A", "AA", "AAA", and so on without limit.
+
+<p>The third variable-length operator is almost the same: it's the
+zero-or-more closure.  This operator is the asterisk, <span class="code">*</span>.  This
+specifies that the preceding character is to match any number of
+times, and furthermore that it need not be present at all.
+
+<p><div class="code"><pre>
+abcd*
+</pre></div>
+
+<p>This matches "abc", or "abcd", or "abcdd", or "abcddd", and so on.
+
+<p>You can apply the closure operators to more complex expressions
+than a single ordinary character.  For example, to search for one or
+more digits, you could write this:
+
+<p><div class="code"><pre>
+&lt;digit&gt;+
+</pre></div>
+
+<p>To search for any word of any length written with an upper-case
+initial letter and lower-case letters following, you'd write this:
+
+<p><div class="code"><pre>
+&lt;upper&gt;&lt;lower&gt;*
+</pre></div>
+
+<p>To search for any number of repetitions of an arithmetic operator
+character, we could write this amusing sequence of punctuation marks:
+
+<p><div class="code"><pre>
+[-+*/]*
+</pre></div>
+
+<p>Closures normally match as much text as they possibly can, but you
+can change this using the shortest-match modifier, as we'll see a
+little later.
+
+<p>(In case you're wondering why <span class="code">*</span> and <span class="code">+</span> are called "closures":
+this term comes from the set mathematics from which the concept of
+regular expressions descends.  A set is said to be "closed" under an
+operator if, for every element of the set, applying the operator to
+the element yields another element of the set.  The operator of
+interest in this case is concatenation.  Suppose we wished to form a
+set of strings closed under the concatenation operator: we could start
+with a string X, but then we'd have to include XX (X concatenated with
+itself) in the set, plus XXX (X concatenated with this new member XX),
+XXXX, and so on, forever forming longer strings.  The set wouldn't be
+closed under concatenation until we've added a string of X's of every
+possible length.  This set would obviously be inconvenient to write
+out in research papers without some kind of trick, which is where <span class="code">*</span>
+and <span class="code">+</span> come in: these symbols give us a way to express a set that's
+closed under concatenation - hence infinite if non-trivial - with a
+finite notation, and thereby provide closure to the notation.  Glad
+you asked?  Happily, this level of formalism is not needed in the
+course of using regular expressions.)
+
+<h2><a name="repetition"></a>Intervals (counted repetitions)</h2>
+
+<p>It is often useful to match a certain number of repetitions of a
+given character.  The obvious way to express a repetition is with
+ordinary concatenation; for example, if we wanted to find a string of
+five A's, we could write this:
+
+<p><div class="code"><pre>
+AAAAA
+</pre></div>
+
+<p>This type of thing is less convenient when we want to find
+something that takes up more space than a single letter, though; for
+example, a pattern matching any five lower-case letters is cumbersome
+when written with concatenation:
+
+<p><div class="code"><pre>
+&lt;lower&gt;&lt;lower&gt;&lt;lower&gt;&lt;lower&gt;&lt;lower&gt;
+</pre></div>
+
+<p>The regular expression language has a more convenient way: the
+interval operator.  This operator immediately follows an expression
+character, and specifies that the preceding character is to be
+repeated a given number of times.  The interval operator is written by
+placing a number if curly braces (<span class="code"> { }</span>).  We can use this operator to
+re-write our example more concisely:
+
+<p><div class="code"><pre>
+&lt;lower&gt;{5}
+</pre></div>
+
+<p>The interval operator can also be used to specify a range of
+repetitions.  You can put two numbers between the braces, separating
+the two by a comma.  The first number is the minimum repeat count, and
+the second is the maximum count.  For example, to match a string of
+three, four, five, six, or seven digits, we could write this:
+
+<p><div class="code"><pre>
+&lt;digit&gt;{3,7}
+</pre></div>
+
+<p>Finally, the interval operator can specify an unlimited maximum
+count.  To do this, include the comma, but omit the upper bound.  For
+example, to match at least five digits in a row, we would write:
+
+<p><div class="code"><pre>
+&lt;digit&gt;{5,}
+</pre></div>
+
+<h2><a name="grouping"></a>Grouping</h2>
+
+<p>Each construction rule has a default grouping.  For example, the
+alternation operator (<span class="code">|</span>) considers everything to the left of the <span class="code">|</span>
+to be one complete regular expression, and everything to the right to
+be another complete expression: so the pattern <span class="code">abc|def</span> matches
+"abc" or "def".  Sometimes, however, you will want to change the
+default grouping, to extend or limit the extent to which an operator
+applies.  You can do this by putting a portion of the expression in
+parentheses (<span class="code">(</span> and <span class="code">)</span>).
+
+<p>For example, suppose we wanted to construct an expression that
+matches either "the red ball" or "the blue ball".  We might first
+attempt something like this:
+
+<p><div class="code"><pre>
+the red|blue ball
+</pre></div>
+
+<p>However, this wouldn't work the way we want: the <span class="code">|</span> operator
+applies to everything to its left and right, so what this expression
+actually matches is "the red" or "blue ball".  This is where
+parentheses come in handy: we can enclose in parentheses the part of
+the expression to which we want to apply the <span class="code">|</span> operator:
+
+<p><div class="code"><pre>
+the (red|blue) ball
+</pre></div>
+
+<p>You can also use parentheses to achieve the opposite effect with
+the closure operators.  Using parentheses, you can make the closure
+operators apply to more than just the single character preceding the
+closure.  For example, to match any number of repetitions of the word
+"the" followed by a space, you could write this:
+
+<p><div class="code"><pre>
+(the )+
+</pre></div>
+
+<p>Similarly, you can use parentheses to control the reach of the
+interval operator:
+
+<p><div class="code"><pre>
+(the ){2,3}
+</pre></div>
+
+<p>You can use parentheses within parentheses for more complex
+grouping.  For example, to search for the word "the" followed by any
+number of repetitions of "ball", and then repeating the whole thing
+any number of times, we'd write this:
+
+<p><div class="code"><pre>
+(the (ball )+)+
+</pre></div>
+
+<h2><a name="groups"></a>Group matches</h2>
+
+<p>Parenthesized groups have another use besides controlling operator
+grouping.  Each time you use parentheses, the regular expression
+matcher automatically assigns a "group number" to the expression
+contained within the parentheses.  The group numbers start at 1, and
+increase each time the parser encounters an open parenthesis.
+(Nesting doesn't matter for numbering - the order of appearance of the
+open parentheses establishes the group numbering.)
+
+<p>The regular expression functions let you look at the exact text
+that matched a particular group after a search.  For example, suppose
+you defined a search like this:
+
+<p><div class="code"><pre>
+say "(.*)" to (&lt;alphanum&gt;*)
+</pre></div>
+
+<p>This expression has two groups.  Group number 1 is the part within
+the quote marks.  Group number two is the part after "to".  Now,
+suppose we match this string:
+
+<p><div class="code"><pre>
+say "hello there" to Mark
+</pre></div>
+
+<p>If we ask the regular expression matcher for group number 1, it
+will give us the string "hello there" (no quotes - the group is inside
+the quotes, so the quotes won't be part of the group string).
+Similarly, group number 2 is the string "Mark".
+
+<p>Groups can also be used within an expression.  If you write the
+sequence <span class="code">%1</span> in an expression, it specifies a match to the same thing
+that group number 1 already matched in the same string.  Similarly,
+<span class="code">%2</span> matches the same text as group number 2, and so on, up to <span class="code">%9</span>
+for group 9.  This allows you to look for repeated sequences that are
+separated from one another.  For example:
+
+<p><div class="code"><pre>
+(&lt;alphanum&gt;*) is %1
+</pre></div>
+
+<p>This will match any string of the form "word is word", where the
+two words are the same.  So, it will match "red is red" and "blue is
+blue", but it won't match "blue is red".
+
+<h2><a name="nonCapGroups"></a>Non-capturing groups</h2>
+
+<p>As we've seen above, the grouping syntax (putting a portion of the
+regular expression in parentheses) has two uses: first, to control the
+reach of an operator such as <span class="code">*</span> or <span class="code">|</span>; second, to capture part of
+the matching text, for use in a group match (such as <span class="code">%1</span>) or for
+replacement or extraction.
+
+<p>When you're only grouping part of the expression to control the
+reach of an operator, the text-capture feature is sometimes
+undesirable.  In particular, because groups are numbered by position,
+adding a new group into an existing expression requires that you
+adjust the numbering for any other groups.  For example, suppose we
+defined an expression like this:
+
+<p><div class="code"><pre>
+to (.*) %1
+</pre></div>
+
+<p>Now, suppose we wanted to change this slightly by making it
+recognize "of" as well as "to".  We'd change it to something like
+this:
+
+<p><div class="code"><pre>
+(to|of) (.*) %1
+</pre></div>
+
+<p>Unfortunately, we've forgotten something: the group that was
+originally number 1 is now number 2, because we've added another group
+before it.
+
+<p>This example is so simple that renumbering its groups wouldn't pose
+much of a challenge, but we might simply forget; and for a complicated
+expression, this could become a real maintenance problem.
+
+<p>Fortunately, the regular expression language has a feature that
+lets you mark a group as non-capturing.  A non-capturing group still
+has the same operator grouping effects as a normal group, but it
+doesn't capture its matching text, and it doesn't affect the numbering
+for any other groups.
+
+<p>To make a non-capturing group, add the sequence <span class="code">?:</span> immediately
+after the group's opening parenthesis.  (This might seem like a
+strange bit of syntax, because the question mark character is normally
+used as a closure operator.  However, the <span class="code">?</span> closure operator is
+always a postfix operator - it has to follow the sub-expression that
+it modifies.  When a <span class="code">?</span> appears immediately following an open
+parenthesis, it's simply not meaningful as a closure operator, because
+there's no sub-expression that it can modify in this position.  The
+regular expression language thus can assign this separate meaning to a
+question mark that immediately follows an open parenthesis.)
+
+<p>So, let's re-write our example with a non-capturing group:
+
+<p><div class="code"><pre>
+(?:to|of) (.*) %1
+</pre></div>
+
+<h2>Special matches</h2>
+
+<p>The regular expression matcher provides a number of special match
+types.
+
+<p><a name="startOfString"></a>
+<span class="code">^</span> matches the very beginning of the
+search string.  If specified, this has to be the first character in
+the pattern (or the first character within a parenthesized group at a
+top-level alternation).  The "^" character doesn't match any
+characters - it simply matches if the search position is the very
+start of the string.
+
+<p><a name="endOfString"></a> <span class="code">$</span> matches the very end
+of the string.  This must be the last character in the pattern or
+within a parenthesized group at a top-level alternation.
+
+<p><a name="startOfWord"></a>
+<span class="code">%&lt;</span> matches the start of a word, which is defined
+as a position where the preceding character is not a word character,
+and the following character is.  A word character is any alphanumeric
+character.  <span class="code">%&lt;</span> doesn't actually match any characters - it just
+requires that the current position is the start of a word.
+
+<p><a name="endOfWord"></a>
+<span class="code">%&gt;</span> matches the end of a word.
+
+<p><a name="wordBoundary"></a>
+<span class="code">%b</span> matches any word boundary, which is either the
+beginning or ending of a word.
+
+<p><span class="code">%B</span> matches anywhere that is not a word boundary.
+
+<p><span class="code">%d</span> matches any digit character (this is equivalent to <span class="code">&lt;digit&gt;</span>;
+it's just shorthand notation for the same thing).
+
+<p><span class="code">%D</span> matches any non-digit character (equivalent to <span class="code">&lt;^digit&gt;</span>).
+
+<p><span class="code">%s</span> matches any horizontal whitespace character (equivalent
+to <span class="code">&lt;space&gt;</span>).
+
+<p><span class="code">%S</span> matches any character that isn't a horizontal whitespace character
+(this is the same as <span class="code">&lt;^space&gt;</span>).
+
+<p><span class="code">%v</span> matches any vertical whitespace character
+(this is the same as <span class="code">&lt;vspace&gt;</span>).
+
+<p><span class="code">%V</span> matches any character that isn't a vertical whitespace character
+(the same as <span class="code">^vspace&gt;</span>).
+
+<p><a name="wordChar"></a>
+<span class="code">%w</span> matches any word character, which is defined as
+an alphanumeric character (equivalent to <span class="code">&lt;AlphaNum&gt;</span>).
+
+<p><span class="code">%W</span> matches any non-word character.
+
+<p>Several of the special sequences above have character class
+equivalents, as noted.  For example, <span class="code">%s</span> can also be written as
+<span class="code">&lt;space&gt;</span>.  The reason for the duplicate notation is simply that
+these particular classes tend to be used quite frequently, so it's
+convenient to have a shorter way to write them.  (Another reason is
+it's fairly standard these days for regular expression languages to
+define "backslash" equivalents of these - for example, Javascript
+defines <span class="code">\s</span> the same way we define <span class="code">%s</span>, <span class="code">\S</span> the way we define
+<span class="code">%S</span>, etc.  People who regularly use Javascript, php, Perl, etc
+would miss these if something close weren't available in TADS.)
+
+
+<h2><a name="case"></a>Case sensitivity</h2>
+
+<p>By default, searches are sensitive to case, which means that an
+upper-case letter in the search pattern will match only the same
+upper-case letter in the string being searched, and a lower-case
+letter will only match the same lower-case letter.  You can, however,
+make a search insensitive to case.  To do this, add the <span class="code">&lt;NoCase&gt;</span>
+flag to the search pattern.  There's also a <span class="code">&lt;Case&gt;</span> flag to make
+the case sensitivity explicit, but this is the default, so you won't
+usually need to specify it.
+
+<p>The <span class="code">&lt;Case&gt;</span> and <span class="code">&lt;NoCase&gt;</span> flags don't match anything
+themselves; they're just flag sequences that control the overall
+search mode.  You can put these anywhere in the search, but normally
+you'd just want to put them at the start of the search string to avoid
+confusion.  These flags are global, which means that the entire search
+is case-sensitive or case-insensitive; you can't make part of your
+search string sensitive to case and another part insensitive.  If the
+flags appear more than once, only the last one that appears is obeyed.
+
+<p>For example, to search for a match to "abc", ignoring case, we'd
+write this:
+
+<p><div class="code"><pre>
+&lt;NoCase&gt;abc
+</pre></div>
+
+<p>When you use <span class="code">&lt;NoCase&gt;</span>, pattern matcher will match "A" in a
+pattern to "a" or "A" in a string, and will likewise match "a" in the
+pattern to "a" or "A" in a string.  The pattern matcher does this by
+using the "case folding" for each character.  The case folding for a
+character is defined in the Unicode character database; in most cases,
+it's the result of converting the character to upper case and then
+back to lower case.
+
+<p>Case folding sometimes causes one character to be replaced by two
+or more characters.  For example, the German sharp S, &#223;, is
+replaced by "ss" when case-folded.  The handling for such characters
+varies according to where they occur:
+
+<ul class=doublespace>
+
+   <li>When the <b>pattern</b> contains a character that expands when
+   folded, that character will match both its original version and its
+   expanded version in the string.  For example, the pattern '.*&#223;'
+   will match 'wei&#223;', since the &#223; characters match before
+   any case folding occurs, and will also match 'weiss', since the
+   &#223; in the pattern folds to 'ss'.
+
+   <li>When the <b>subject string</b> contains an expanding character,
+   it will match the expanded version in the pattern only when the
+   expansion is contiguous in the pattern.
+   For example, the string '&#223;' matches the pattern 'ss', because
+   the &#223; case-folds to 'ss', which matches contiguous literals
+   in the pattern.  However, the string '&#223;' <b>won't</b> match
+   the patterns '(s)(s)' or 's+', because
+   because neither pattern contains the
+   contiguous literal sequence 'ss'.
+   (Part of the reason for this limitation is that it avoids conceptual
+   problems with grouping.  If '(s)(s)' matched '&#223;',
+   it would result in a somewhat bizarre situation in which the second
+   capture group started in the middle of a character from the subject
+   string.)
+
+   <li>Case folding only applies to a subject string character when
+   it's matched against a literal character in the pattern.  For
+   example, '&#223;' won't match the pattern '..', since the case
+   folding isn't considered at all when matching '.' (or any other
+   non-literal) in the pattern.
+
+</ul>
+
+
+<h2><a name="assertions"></a>Assertions</h2>
+
+<p>An assertion is a test that applies to the characters immediately
+following or preceding the current match point, without consuming any
+characters.  The test is, naturally, written as a regular expression,
+embedded within the overall expression.
+
+<p>There are <i>positive assertions</i>, which require that the
+adjacent characters in the subject string match the sub-expression,
+and <i>negative assertions</i>, which require that the adjacent
+characters <i>don't</i> match the sub-expression.
+
+<p>Further, assertions can test the characters in the subject string
+that follow the current position, or those that precede it.
+<i>Look-ahead assertions</i> test the characters following the current
+position; <i>look-behind assertions</i> test the characters preceding
+the current position.
+
+<p>The positive/negative attribute combines with the look-ahead/look-behind
+attribute, making four kinds of assertions total.  The syntax for
+the four types is as follows:
+
+<ul class=doublespace>
+
+   <li><span class="code">(?=</span><i>expression</i><span class="code">)</span> - a positive look-ahead assertion.
+      The <i>expression</i> must match the text in the subject string
+      immediately following the match position, or the whole expression
+      fails.
+
+   <li><span class="code">(?!</span><i>expression</i><span class="code">)</span> - a negative look-ahead assertion.
+      The <i>expression</i> must <i>not</i> match the text in the subject
+      string immediately following the match position.  If the expression
+      <i>does</i> match the text, the whole expression fails.
+
+   <li><span class="code">(?&lt;=</span><i>expression</i><span class="code">)</span> - a positive look-back assertion.
+      The <i>expression</i> must match the subject string text
+      immediately <i>preceding</i> the current match position.
+
+   <li><span class="code">(?&lt;!</span><i>expression</i><span class="code">)</span> - a negative look-back assertion.
+      The <i>expression</i> must <i>not</i> match the subject string text
+      immediately <i>preceding</i> the current match position.
+
+</ul>
+
+<p>The syntax is a little obtuse, but there's a certain logic to it.
+Positive assertions use "=", which you can think of as "the text has
+to equal this pattern".  Negative assertions use "!", which is the C
+logical NOT operator: "the text must <b>not</b> match this".
+Look-back assertions are signaled with "&lt;", which looks like a
+backwards-pointing arrow.
+
+<h3>Examples</h3>
+
+<p>Assertions are useful for cases where you want to filter a simple
+pattern so that it only includes certain specific matches, or excludes
+certain matches.
+
+<p>For example, suppose you wanted to find words in a string, but
+you want to skip certain small words such as "the" and "of".  We
+start by writing the basic expression to match a word:
+
+<p><div class="code"><pre>
+&lt;%%w+%&gt;
+</pre></div>
+
+<p>That matches a series of word characters (%w), making sure that
+we start and end at word boundaries.  This meets half of our
+requirement, but now we have to exclude our list of small words.
+To do this, we can use an assertion.  A look-ahead assertion
+will work for this situation: at the start of the word match,
+we want to make sure that the word that follows isn't one of
+our excluded words.  Since we're excluding matches, we use a
+negative assertion.
+
+<p><div class="code"><pre>
+(?!%&lt;(the|of)%&gt;)&lt;%%w+%&gt;
+</pre></div>
+
+<p>This works by asserting at the start of each potential match that
+the characters that follow (it's a look-ahead assertion) don't match
+(it's a negative assertion) the sub-pattern <span class="code">%&lt;(the|of)%&gt;</span> -
+that is, the complete word "the" or "of.  If the characters that
+follow <i>do</i> match the sub-pattern, we don't have a match.
+
+<p>Assertions are also useful for matching only in certain contexts.
+For example, suppose we want to find the first word in a sentence:
+a word that's either at the beginning of the string, or that follows
+a period, exclamation point, or question mark.  For this, we can
+use another generic word search, and apply a look-back assertion
+to make sure that the word is preceded by one of these punctuation
+marks.
+
+<p><div class="code"><pre>
+(?&lt;=^|[.!?]&lt;space&gt;+)%&lt;%w+%&gt;
+</pre></div>
+
+<p>This checks before each possible word match that the match is
+preceded by either the start of the line (<span class="code">^</span>) or by a
+sentence-ending punctuation mark followed by one or more spaces.
+
+<p>Note that, unlike some regular expression systems, TADS doesn't
+require look-back assertions to have fixed lengths.  That means that
+it's legal to use open-ended repetition operators (<span class="code">*</span>, <span class="code">+</span>, and
+<span class="code"> {n,}</span>), as we just did in the example.  The reason that some
+other RE languages don't allow this is that it can make for a really
+complicated and lengthy search, because the matcher has to search
+backwards for a match to the assertion.  TADS optimizes the search
+when possible by limiting it to the maximum length of possible matches
+for the assertion, when there is a maximum length.  An assertion
+involving an open-ended repetition like <span class="code">*</span> doesn't have a maximum
+length, so the matcher has to search the whole string (back to
+the beginning of the string) in those cases.
+
+
+<h2><a href="globalFlags"></a>First beginning/ending,
+   longest/shortest match</h2>
+
+<p>As we saw above in the examples for the shortest-match closure
+modifier, there are times when a particular expression can match a
+string in several different ways.  For example, consider this pattern:
+
+<p><div class="code"><pre>
+say (.*) to (.*)
+</pre></div>
+
+<p>For many strings, there will be only one way to match this.  In
+some cases, though, we could type a string that could be interpreted
+different ways.  For example:
+
+<p><div class="code"><pre>
+say time to go to Bob
+</pre></div>
+
+<p>This could match in several different ways.  We could end up with
+group 1 as "time to go" and group 2 as "Bob".  We could also have
+group 1 as "time" and group 2 as "go to Bob".  We could also have
+group 1 as "time" and group 2 as "go", or even an empty group 2 - <span class="code">.*</span>
+can match zero characters, after all.
+
+<p>Normally, the matcher will give us the longest match that begins
+earliest in the search string.  The matcher will furthermore give the
+earliest groups in the string the longest matches.  So, of all of the
+choices above, the matcher will normally pick the one where group 1 is
+longest and group 2 is longest given that group 1 is already longest -
+thus, group 1 is "time to go" and group 2 is "Bob".
+
+<p>You can, however, control this behavior.
+
+<p>Two flags control whether the matcher picks the longest or shortest
+match for a string.  If you put the <span class="code">&lt;Max&gt;</span> flag somewhere in your
+expression (it's a global flag, so it doesn't matter where it goes),
+the parser will always choose the longest string it can for each
+subexpression, giving precedence to the earliest expression.  This is
+the default behavior.  If you use the <span class="code">&lt;Min&gt;</span> flag, though, the matcher
+will use the shortest match that it possibly can for the overall
+match.  Thus, consider this new expression:
+
+<p><div class="code"><pre>
+&lt;Min&gt;say (.*) to (.*)
+</pre></div>
+
+<p>Now if match this to "say time to go to Bob", we'll get "time" for
+group 1, and an empty group 2.
+
+<p>Note that the matcher still always tries to give the earliest
+groups the longest matches, but this is only after figuring out which
+is the shortest overall match.  Consider this example:
+
+<p><div class="code"><pre>
+tell (.*) to (.*)
+</pre></div>
+
+<p>If we type in something like "tell Bob to eat my shorts", there's
+no ambiguity.  But if we try a string like "tell Bob to go to the
+store", the parser matches group 1 as "Bob to go" and group 2 as "the
+store", which isn't what we want.  How do we solve this?
+
+<p>Unfortunately, <span class="code">Min</span> doesn't help us much with a situation like
+this, because the second group is free to match nothing at all.  So,
+if we try this:
+
+<p><div class="code"><pre>
+&lt;Min&gt;tell (.*) to (.*)
+</pre></div>
+
+<p>and we try "tell Bob to go to the store", we'll have "Bob" for
+group 1, as we want, but now we'll have an empty group 2 - the
+shortest match to the string is simply "tell bob to ", since the
+second group can match nothing.  We could change the expression like
+so:
+
+<p><div class="code"><pre>
+&lt;Min&gt;tell (.*) to (.*)$
+</pre></div>
+
+<p>This forces the expression to match to the end of the string.  But
+this still doesn't do what we want, because now the first group will
+be "Bob to go" and the second will be "the store" - so we're back
+where we started.  The reason that <span class="code">&lt;Min&gt;</span> doesn't help us here is that
+<span class="code">&lt;Min&gt;</span> affects only the length of the complete match, and doesn't
+affect the matcher's preference for putting the longer string in the
+earlier group in case of ambiguity.
+
+<p>You can solve this kind of problem in many cases using the
+shortest-match modifier.  In some cases, though, you might want even
+more control.  A good approach in these cases is to use two separate
+regular expressions applied in sequence.  For the first, we eliminate
+the second anything-goes wildcard sequence, and end the expression at
+the "to":
+
+<p><div class="code"><pre>
+tell (.*) to&lt;space&gt;
+</pre></div>
+
+<p>Now, this reduces the ambiguity of the expression, but it still
+doesn't do what we want - when we match "tell Bob to go to the store",
+we again find that group 1 is "Bob to go", since the parser by default
+matches the longest sequence it can.  However, we finally have a
+situation where the <span class="code">&lt;Min&gt;</span> flag solves our problem:
+
+<p><div class="code"><pre>
+&lt;Min&gt;tell (.*) to&lt;space&gt;
+</pre></div>
+
+<p>This gives us what we want - group 1 is simply "Bob", since the
+shortest possible string that matches the complete pattern is now
+"tell Bob to ".  We can finish by using the match length for the
+overall expression to learn what's left in the rest of the string,
+which gives us what we formerly tried to get from the second group.
+
+<p>You can also specify whether the matcher finds the matching string
+that begins first or ends first.  By default, the matcher finds a
+string that begins earliest in the search string.  However, there are
+times when you might want to find the string that ends earliest.  To
+do this, use the <span class="code">&lt;FirstEnd&gt;</span> flag, which you can also write as
+simply <span class="code">&lt;FE&gt;</span>.  The default flag, <span class="code">&lt;FirstBegin&gt;</span> or <span class="code">&lt;FB&gt;</span>,
+finds the string that begins earliest.
+
+<h2><a name="shortestMatch"></a>Individual shortest-match closures</h2>
+
+<p>The <span class="code">&lt;Min&gt;</span> and <span class="code">&lt;Max&gt;</span> flags above control the "greedy"
+behavior of closures globally.  In many cases, though, it's better to
+control the behavior of individual closures.
+
+<p>Going back to our example:
+
+<p><div class="code"><pre>
+tell%&gt;(.*)%&lt;to%&gt;(.*)
+</pre></div>
+
+<p>As we've seen, this produces the wrong results for "tell him to go
+to the store", because the first <span class="code">(.*)</span> group is "greedy" and wants
+to vacuum up as many characters as it can, causing it to match " him
+to go ", leaving just " the store" for the second group.
+
+<p>You can handle this particular case with the global <span class="code">&lt;Min&gt;</span> flag
+as shown earlier, but it's often better to be able to control one
+closure at a time.  To do this, we use the <i>shortest-match modifier</i>.
+The syntax for this is simply to add a "?" character right after the
+closure operator:
+
+<p><div class="code"><pre>
+tell%&gt;(.*?)%&lt;to%&gt;(.*)
+</pre></div>
+
+<p>If we try the string "tell him to go to the store" again with this
+new expression, the first group matches as little as it possibly can,
+in this case " him ", leaving " to the store" for the second group.
+
+<p>You can use the shortest-match modifier with all of the closures
+(<span class="code">*</span>, <span class="code">?</span>, and <span class="code">+</span>), as well as with the interval operator (<span class="code"> { }</span>).
+
+
+
+<h2>Examples</h2>
+
+<p>If we were writing a C++ compiler, we'd want to write regular
+expressions for the lexical tokens that make up the language.  For
+example, a symbol is any string of characters starting with a letter
+or an underscore, followed by any number of letters, digits, or
+underscores; C++ symbols are limited to the ASCII character set, so we
+can use range expressions rather than the <alpha> class and the like:
+
+<p><div class="code"><pre>
+&lt;nocase&gt;[a-z_][a-z_0-9]*
+</pre></div>
+
+<p>A C-style comment (/* … */) is a little tricky.  At first glance,
+we might try something simple like this:
+
+<p><div class="code"><pre>
+/%*.*%*/
+</pre></div>
+
+<p>This won't do quite what we want, though: suppose we tried matching
+something like this:
+
+<p><div class="code"><pre>
+a /* destination */ = 1 /* value */;
+</pre></div>
+
+<p>Our expression match would give us everything from the first slash
+to the final slash - the one before the semicolon.  This is incorrect,
+because we've mistaken the part between the two comments as part of
+one big comment.  To rectify this, we can use the shortest-match
+modifier with the ".*" part of the expression:
+
+<p><div class="code"><pre>
+/%*.*?%*/
+</pre></div>
+
+<p>Character strings are even trickier.  We can start with a similar
+sort of expression:
+
+<p><div class="code"><pre>
+".*?"
+</pre></div>
+
+<p>This almost does the trick, but misses one important case: in C++,
+a string can contain a quotation mark, if it's preceded by a backslash
+character.  To handle this case, we can handle backslashes specially:
+we'll treat a backslash and the immediately following character as a
+group, and then alternatively handle anything that isn't a backslash:
+
+<p><div class="code"><pre>
+"([^\]|\.)*?"
+</pre></div>
+
+<p>(Note that, if you were coding this expression within a string in
+your source code, you'd have to double the backslashes, because the
+TADS compiler considers them significant in the same way a C++
+compiler would.)
+
+<p>Moving on to other types of patterns, here's an expression that
+matches a North American telephone number, with optional area code:
+
+<p><div class="code"><pre>
+(%([0-9][0-9][0-9]%))?&lt;space&gt;*[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]
+</pre></div>
+
+<p>Or, more compactly using intervals:
+
+<p><div class="code"><pre>
+(%([0-9]{3}%))?&lt;space&gt;*[0-9]{3}-[0-9]{4}
+</pre></div>
+
+<p>The next expression matches a C-style floating point number.  These
+numbers start with an optional sign character, then have either a
+string of digits, a decimal point, and a string of zero or more
+digits; or a decimal point followed by one or more digits.  After this
+is an optional exponent, written with the letter "E" (capital or
+small) followed by an optional sign followed by one or more digits.
+
+<p><div class="code"><pre>
+[-+]?([0-9]+%.?|[0-9]*%.[0-9]+)([eE][-+]?[0-9]+)?
+</pre></div>
+
+<p>Note the way we constructed the alternation that gives us the
+mantissa (the part before the exponent).  We use the alternation to
+gives us one of two expressions:
+
+<p><div class="code"><pre>
+[0-9]+%.?
+[0-9]*%.[0-9]+
+</pre></div>
+
+<p>The first expression matches a string of one or more digits,
+followed by an optional decimal point.  This matches numbers that have
+no decimal point at all, as well as numbers that end in a decimal
+point.  The second expression matches zero or more digits, a decimal
+point, and then one or more digits.  One might wonder why we didn't
+write the expression more simply like this:
+
+<p><div class="code"><pre>
+[0-9]*%.?[0-9]*
+</pre></div>
+
+<p>In other words, as zero or more digits, an optional decimal, and
+zero or more digits.  The reason we didn't write the expression this
+way is that everything in this expression is optional - this one would
+match an empty string.  It would also match a period, without any
+digits on either side.  Obviously, we don't want to consider either an
+empty string or simply a period as a valid floating point number, so
+this simpler form of the expression is a little too general.  The
+alternation solves these problems, because it allows for starting with
+a decimal, ending with a decimal, or containing an embedded decimal,
+but there must always be one or more digits on one side or the other
+of the decimal.
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Regular Expressions
+<br><span class="navnp"><a class="nav" href="tadsgen.htm"><i>Prev:</i> tads-gen Function Set</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="tadsio.htm"><i>Next:</i> tads-io Function Set</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
