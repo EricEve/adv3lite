@@ -1411,8 +1411,8 @@ class Thing:  ReplaceRedirector, Mentionable
     listContents(lister = &roomContentsLister)
     {    
         
-        /* Don't list the contents if we can't see in */
-        if(!canSeeIn())
+        /* Don't list the contents if we can't see in and we're not inside */
+        if(!canSeeIn() && !gActor.isIn(self))
             return;
         
         /* 
@@ -5793,7 +5793,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     iobjFor(PutIn)
     {
-        preCond = [containerOpen, touchObj]
+        preCond = [containerInteriorAccessible, touchObj]
         
         remap = remapIn        
         

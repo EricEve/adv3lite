@@ -130,6 +130,13 @@ containerOpen: PreCondition
     
 ;
 
+/* 
+ *   A precondition to check whether a container's interior is visible (for looking inside the
+ *   object). If this is defined on the action handling of an object, it only takes effect if that
+ *   object behaves like a container, in which case either it, or its remapIn object, must be open
+ *   for the action to proceed.
+ */
+
 containerInteriorVisible: containerOpen
     checkPreCondition(obj, allowImplicit) 
     { 
@@ -152,7 +159,32 @@ containerInteriorVisible: containerOpen
     }
 ;
 
-
+/* 
+ *   A precondition to check whether a container's interior is accessible (for putting something
+ *   inside the object).
+ *
+ */
+containerInteriorAccessible: containerOpen
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   if we have a non-nil remapIn property, that's the container
+         *   representing us, so we need to use it instead.
+         */        
+        if(obj.remapIn != nil)
+            obj = obj.remapIn;
+        
+        /* 
+         *   If the actor is inside us, thie preconidition is met, so
+         *   we return true.
+         */
+        if(gActor.isIn(obj))
+            return true;
+        
+        /* Otherwse use the containerOpen handling. */
+        return inherited(obj, allowImplicit);    
+    }
+;
 
 /* A PreCondition to check whether an object is open. */
 objOpen: PreCondition
