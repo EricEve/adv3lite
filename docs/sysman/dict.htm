@@ -1,0 +1,622 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Dictionary</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Dictionary
+<br><span class="navnp"><a class="nav" href="date.htm"><i>Prev:</i> Date</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dynfunc.htm"><i>Next:</i> DynamicFunc</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Dictionary</h1>
+
+<p>To facilitate command parsing, TADS 3 provides an intrinsic class
+called Dictionary.  A Dictionary is a specialized type of lookup
+table designed specifically to work with the <a
+href='gramprod.htm'>GrammarProd</a> intrinsic class, which is used to
+create parsers.  A Dictionary stores the vocabulary for a grammar;
+more generically speaking, it stores associations between keys and
+objects, and can be efficiently searched for a key to yield all of the
+objects associated with the key.
+
+<p>A "key" is a combination of a string and a property ID.  The
+Dictionary class includes a property ID with each key so that object
+associations can be differentiated by type; each property is a type of
+association.  In practical terms, the property used in a Dictionary
+key will usually be a vocabulary property, such as <span class="code">noun</span> or
+<span class="code">adjective</span>.  A given word might be used with some objects as a noun,
+but with other objects as an adjective; for example, "card" might be
+used as a noun with an "ID Card" object, but as an adjective with a
+"card slot" object.  The Dictionary class differentiates by property
+ID to allow for searching a Dictionary object for the objects matching
+a word in a particular usage context.
+
+<p>To use the Dictionary class, you should <span class="code">#include &lt;dict.h&gt;</span>.
+If you're using the adv3 library, the library headers will do this for you
+automatically.
+
+<h2>Comparators</h2>
+
+<p>The Dictionary class allows the program to customize the way input
+strings are matched to dictionary strings.  This customization is
+handled through a "comparator" object; this is simply an object that
+provides a specific set of methods, which the Dictionary calls to
+perform its comparisons.
+
+<p>You can set a Dictionary object's comparator at any time by calling
+the Dictionary's <span class="code">setComparator()</span> method.  This method takes the
+comparator object as an argument.  When you set the comparator,
+subsequent look-up operations are performed using the matching rules
+contained in the new comparator.
+
+<p>The intrinsic class <a href='strcomp.htm'>StringComparator</a>
+provides a customizable comparator implementation, compatible with the
+Dictionary requirements, that's very fast (since it's implemented as
+native code in the interpreter).  When the StringComparator class
+doesn't provide enough flexibility, you can define your own completely
+custom comparator by implementing the set of required methods.
+
+<p>The Dictionary class assumes that comparator objects are immutable.
+That is, once a comparator is installed in a dictionary, the
+dictionary assumes that the return values from the required methods,
+for a given set of argument values, will never change.  This is
+important because it allows the dictionary to assume it will never
+need to rebuild its internal tables except when a new comparator is
+installed.  If you want to change the comparison rules, you must
+create and install a new comparator object; never attempt to change
+the comparison rules by modifying the comparator itself.
+
+<p>A comparator object must define the following methods:
+
+<p><span class="code">calcHash(<i>str</i>)</span>
+<div class=fdef>
+
+Calculate and return the "hash code" for the given string <i>str</i>.
+The hash code is simply an arbitrary integer value; its purpose is to
+allow the dictionary to divide its overall set of words into many
+bins, which reduces the amount of work necessary when searching for a
+particular string by limiting the search to the strings in one bin.
+When storing a string, the dictionary computes the hash value by
+calling this method, then stores the string in a bin specified by the
+hash value.  When looking up a string, the dictionary computes the
+string's hash value, and then only has to look in the bin given by the
+hash value.
+
+<p>Note that this function doesn't have to worry about how many bins
+the dictionary is using.  The dictionary will automatically take the
+value modulo the bin count (i.e., the dictionary will divide the value
+returned from calcHash() by the number of bins, and use the integer
+remainder of this division to select the bin; this will inherently be
+in the correct range).
+
+<p>The hash value returned from this method is arbitrary, hence the
+method can implement any algorithm it wants for computing the value.
+However, there is one absolute requirement that the method must obey,
+and a couple of properties that the algorithm should have:
+
+<ul class=doublespace>
+
+<li>The absolute requirement is that, for any two strings <i>s1</i>
+and <i>s2</i>, if <span class="code">matchValues(s1, s2)</span> indicates a match (i.e., it
+returns anything other than zero or <span class="code">nil</span>), then <span class="code">calcHash(s1)</span>
+must equal <span class="code">calcHash(s2)</span>.  (This does <b>not</b> imply that the
+hash values for two non-matching strings must be different: hash
+"collisions," in which two strings do not match but happen to have the
+same hash value, are specifically allowed.
+
+<li>A highly desirable property of the hash function is that it runs
+quickly.  The point of the hash is to reduce the amount of work needed
+to look up a word by very quickly picking only one bin to look in.  If
+the hash function takes a long time to compute, then the speed
+advantage of this approach is reduced.
+
+<li>Another highly desirable property is that the hash values for the
+set of all words in the dictionary should distribute uniformly.  This
+is important because it will ensure that about an equal number of
+words goes into each bin, so that we don't have many empty bins and a
+few bins with all of the words; if the words were to clump into a few
+bins, then we wouldn't get much advantage out of limiting the
+searching to one bin per word looked up.  There's no sure way to
+guarantee uniform hash distribution, especially given that the set of
+words in a particular dictionary can't be predicted in most cases;
+however, practice has shown that certain types of hash functions
+generally work pretty well.  If you are writing your own comparator
+object, you can find information on how to write a good hash function
+in practically any textbook on computer algorithms.
+
+</ul>
+
+</div>
+
+<p><span class="code">matchValues(<i>inputStr</i>, <i>dictStr</i>)</span>
+<div class=fdef>
+
+Match the input string <i>inputStr</i> to the dictionary string
+<i>dictStr</i>.  Returns zero or <span class="code">nil</span> if the values do not match, or
+any other value if they do match.  Because any non-zero and non-nil
+value indicates a match, this routine is free to encode additional
+information about the match in the return value; typically,
+implementations use bit flags (a combination of binary values OR'd
+together) for this purpose.
+
+<p>Note the asymmetry of the argument: the first argument is always an
+input string, which is a string to be matched (such as the string
+argument to the findWord() method); the second is always a dictionary
+string, which is a string already stored in the dictionary that is
+being compared with the input word.  Some implementations might take
+advantage of this distinction to permit certain types of
+approximations in input strings; for example, an implementation might
+allow an input string to be abbreviated to a leading substring of the
+dictionary string, so that "flashl" matches "flashlight," but not vice
+versa.
+
+</div>
+
+<h2>Compiler Support</h2>
+
+<p>The TADS 3 compiler has built-in support for the Dictionary
+intrinsic class.  (This built-in support is part of the compiler, not
+the interpreter; as far as the interpreter is concerned, a Dictionary
+object is the same as any other kind of object.)  The compiler support
+is provided by the statements <span class="code">dictionary</span> and <span class="code">dictionary property</span>,
+and by recognition of dictionary properties when defined in object
+property lists.
+
+<p>The <span class="code">dictionary</span> statement has two purposes.  First, it defines a
+new object instance of class Dictionary, if the name has not been
+previously defined.  Second, it establishes the active dictionary,
+which is the dictionary into which the compiler will insert each
+dictionary word defined with an object.
+
+<p>The <span class="code">dictionary property</span> statement tells the compiler that a
+given property is henceforth a "dictionary property."  This means
+that, whenever the property is subsequently used in an object
+definition, the property defines dictionary words for the object.  The
+compiler then automatically enters the words into the active
+dictionary under the given property.
+
+<p>Here's some sample code that demonstrates how these statements work.
+
+<p><div class="code"><pre>
+// create a new dictionary and make it active
+dictionary myDict;
+
+// establish the dictionary properties
+dictionary property noun, adjective, plural;
+
+// define an object
+redBook: Book
+    noun = 'book' 'booklet'
+    adjective = 'red'
+;
+</pre></div>
+
+<p>Note that dictionary properties use a special "implied list"
+syntax: there's no need to enclose a vocabulary property's string list
+in square brackets.  In fact, the TADS 3 compiler doesn't even allow
+list notation for dictionary properties - you <i>must</i> use the
+implied list format.
+
+<h2><a name="spellingCorrection">Spelling correction</a></h2>
+
+<p>The Dictionary class provides support for spelling correction
+through the <span class="code">correctSpelling()</span> method, which generates a list of
+possible corrections for a misspelled word.  This method by itself
+doesn't constitute a complete spelling corrector, but it makes it a
+lot easier to write a spelling corrector, since it does a lot of the
+heavy lifting.  Implementing a complete spelling corrector is beyond
+the scope of the Dictionary class, since a full corrector would
+normally use application-specific context information to rank the
+possible dictionary matches to a misspelled word.  For example, to
+correct spelling in an IF game's command line input, a corrector could
+analyze the grammatical context of the misspelled word in the overall
+command line, as well as the current state of the world model (such as
+the list of nearby objects).  That sort of context information is
+outside of the the Dictionary class's domain.
+
+<p>You might wonder, then, why the Dictionary class would involve
+itself in spelling correction at all.  The equivalent functionality of
+<span class="code">correctSpelling()</span> could be implemented separately from the
+Dictionary class, and in fact extension libraries that do this are
+already available.  If the rest of the spelling corrector has to be
+implemented externally, why not this part as well?  The reason is
+efficiency.  Generating a list of candidate words is one of the key
+performance bottlenecks in spelling correction, and there's a special
+advantage to integrating this process with the Dictionary data.  This
+isn't just the obvious advantage of a native code version, although
+that's also an important factor for such a compute-intensive task.
+The bigger advantage is a particularly fast algorithm that's only
+possible with direct access to the Dictionary data.
+
+<p>For the technically inclined, here are some details.  Most spelling
+correctors are based on an "edit distance" formula, usually the
+Levenshtein distance.  A corrector must take a misspelled input word
+and produce a set of candidate corrections based on the edit distance
+formula.  The fastest algorithms for producing candidate sets based on
+the Levenshtein distance use state-machine automata.  TADS uses a
+relatively new algorithm that's particular efficient.  It involves a
+special dual automaton that simultaneously traverses a Levenshtein
+state machine and a dictionary "trie", which is state machine
+version of the dictionary data.  The algorithm's efficiency
+comes from the integration of the two state machines, which allows the
+automaton to avoid blind alleys that a regular Levenshtein automaton
+has to traverse.  The dual automaton immediately detects dead ends in
+the Levensthein paths because it considers the dictionary data at
+every step.  This greatly reduces the search space and thus the
+execution time.  It would be possible to build the same algorithm
+externally by maintaining a side copy of the dictionary's contents,
+but that would require some way to keep the copy synchronized with the
+main dictionary.  It's simpler to build the algorithm within the
+dictionary so that everything stays in sync naturally.
+
+
+<h2>Dictionary methods</h2>
+
+<p><span class="code">addWord(<i>obj</i>, <i>str</i>, <i>vocabProp</i>)</span>
+<div class=fdef>
+
+Add an object to the dictionary with the given string and property
+key.  <i>str</i> can be a string value, or can be a list (or Vector or
+other <a href="opoverload.htm#listlike">list-like object</a>)
+containing strings.  If <i>str</i> is a list of strings, the result is
+the same as calling <span class="code">addWord()</span> once for each string in the list.
+If the word association to be added is already defined (i.e., another
+entry with the same string, object, and property already exists), the
+new association is simply ignored.  <i>obj</i> is the object to
+associate with the given vocabulary word or words, and
+<i>vocabProp</i> is the dictionary property ID (<span class="code">&amp;noun</span>,
+<span class="code">&amp;adjective</span>, etc) to use for the association.
+
+</div>
+
+<p><span class="code">correctSpelling(<i>str</i>, <i>maxEditDistance</i>)</span>
+<div class=fdef>
+
+Returns a list of words in the dictionary that are possible spelling
+corrections for the given string <i>str</i>.  The returned list
+contains each word defined in the dictionary whose edit distance from
+<i>str</i> is less than or equal to <i>maxEditDistance</i>.
+
+<p><i>maxEditDistance</i> is an integer giving the maximum edit distance
+to include in the results.
+
+<p>The edit distance between two words is defined as the smallest
+number of single-character insertions, deletions, replacements, and
+transpositions necessary to transform one word into another.  This is
+often called the "Levenshtein distance", but note that our version
+isn't strictly a Levenshtein distance because we count transposition
+as one step.  (A transposition is a reversal of the positions of two
+adjacent letters, such as changing "edti" to "edit" by switching the
+"ti" to "it".  The strict definition of the Levenshtein distance
+doesn't include transpositions, so a transposition counts as two steps
+- an insertion plus a deletion - in an actual Levenshtein distance.)
+
+<p>The concept of edit distance and its use in spelling correction are
+well documented on the Web, so we won't go into a lot more detail
+here.  For more information, a good starting point is the
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia
+article</a>.
+
+<p>The return value is a list with all of the words in the dictionary
+that match <i>str</i> within the specified maximum edit distance.  Any
+given dictionary word will appear only once in the returned list.
+The list is in arbitrary order.  Each element of the list is a sublist,
+[<i>word</i>, <i>dist</i>, <i>repl</i>]:
+
+<ul class=doublespace>
+
+   <li><i>word</i> is a string giving the matching dictionary word.
+
+   <li><i>dist</i> is an integer giving the actual edit distance
+   between <i>word</i> and the search string <i>str</i>; this ranges
+   from 0 for an exact match up to the maximum edit distance you
+   requested.
+
+   <li><i>repl</i> is the number of character replacements that must
+   be performed to transform <i>str</i> into <i>word</i>.  The
+   edit distance <i>dist</i> includes this figure, since a single-character
+   replacement is one of the edit operations counted in the distance.
+   <i>repl</i> is called out separately because some spelling correctors
+   consider a replacement to be a heavier change than other edits, and
+   use replacements to break ties.  For example, consider "book" and
+   "box" as corrections for "bok": both have edit distance 1, but some
+   correctors might choose "book" over "box" as the correction because
+   "book" can be corrected by inserting an "o", while "box" requires
+   replacing the "k" with an "x".
+
+</ul>
+
+<p>If the Dictionary has a StringComparator object as its current
+comparator, the results will take into account its case folding
+setting, truncation length, and character mappings.  These
+"approximations" are <b>not</b> considered to be edits, so they don't
+count against the maximum edit distance.  Note an important
+limitation, though: custom comparators that aren't of the
+StringComparator class are ignored.  If you use your own object type
+(not a StringComparator object) as the comparator, this method will
+only find matches based on the exact text of the dictionary words.
+This limitation is necessary because the custom comparator interface
+doesn't provide enough information for the spelling corrector to
+figure inexact matches of other kinds.
+
+<p>How do you choose a maximum edit distance?  Unfortunately, there's
+no theoretically perfect choice.  Other factors in the overall design
+of a spelling corrector will affect the choice, so the best approach
+is to experiment with different distances to find the best one for
+your specific implementation.  The basic trade-off is that if you pick
+a value that's too low, you won't find as many possible matches, so
+the match that the user actually intended might be missed; but if you
+pick a value that's too high, you'll get lots of false positives,
+and it'll be hard to find the right match among all the chaff.
+Higher distances also make the search take longer, for
+obvious reasons.
+
+<p>The literature on spelling correction suggests that 2 is a pretty
+good all-purpose limit for edit distance in almost any application.
+However, you'll probably do even better by varying this slightly
+according to the word length.  Our own empirical testing suggests a
+roughly logarithmic scale works best: edit distance 1 for short words
+(four letters or fewer), 2 for medium words (up to seven letters), and
+3 for longer words.  Apart from empirical experience, there are some
+intuitive reasons for using these numbers.  For very short words
+(three or four letters), two edits seems to be too many simply because
+it's possible to transform any short word into almost any other short
+word in two edits.  For long words, the chances of multiple typos
+increase, and the chances of false matches thin out considerably, so
+it seems worthwhile to increase the distance limit for these words.
+
+
+</div>
+
+<p><span class="code">findWord(<i>str</i>, <i>vocabProp</i>?)</span>
+<div class=fdef>
+
+Search the dictionary for the given string and property ID.  Returns a
+list giving all of the matching objects; if there are no objects,
+returns an empty list.  If <i>vocabProp</i> is omitted or is <span class="code">nil</span>,
+the method returns all of the objects that match the string with
+<i>any</i> property.
+
+<p>The returned list consists of two elements for each matching
+object.  The first element of each pair is the matching object; the
+second element is the return value from the current comparator's
+<span class="code">matchValues()</span> method for the match.  For example, suppose that the
+comparator simply returns <span class="code">nil</span> for no match or <span class="code">true</span> for a
+match; the result list might then look like this:
+
+<p><div class="code"><pre>
+[blueBook, true, booklet, true, matchbook, true]
+</pre></div>
+
+<p>The <span class="code">matchValues()</span> result is included because some comparators
+use the result to supply additional information about the match.  For
+example, StringComparator encodes information on case folding,
+truncation, and equivalence mappings.  The caller could use this
+information to choose some matches over others, for example.
+
+</div>
+
+<p><span class="code">forEachWord(<i>func</i>)</span>
+<div class=fdef>
+
+Invokes the callback function <i>func</i> on each word association in
+the dictionary.  <i>func</i> is invoked as <span class="code">(<i>func</i>)(<i>obj</i>, <i>str</i>, <i>vocabProp</i>)</span>,
+where <i>obj</i>, <i>str</i>, and <i>vocabProp</i> have
+the same meanings they do in <span class="code">addWord()</span>.  Note that a given string
+can appear many times in a dictionary, so <i>func</i> can be invoked
+with the same <i>str</i> value multiple times, once for each
+string/object/property association.
+
+</div>
+
+<p><span class="code">isWordDefined(<i>str</i>)</span>
+<div class=fdef>
+
+Searches the dictionary for the given string and determines if it's
+associated with any objects.  If the word occurs in the dictionary at
+all, this function returns <span class="code">true</span>; otherwise, it returns <span class="code">nil</span>.
+
+</div>
+
+<p><span class="code">removeWord(<i>obj</i>, <i>str</i>, <i>vocabProp</i>)</span>
+<div class=fdef>
+
+Removes from the dictionary the object's association with the given
+string and property ID key.  Only the specific association of object,
+string, and property is removed; if the same object is also associated
+with other strings, the object is not removed from those other
+associations, and likewise if the same string and property are
+associated with different objects, those object associations are not
+removed.  <i>str</i> can be a string value, or it can be a list (or
+Vector or other <a href="opoverload.htm#listlike">list-like
+object</a>) containing strings.  If it's a list of strings, the result
+is the same as calling <span class="code">removeWord()</span> separately for each string in
+the list.  If the word association to be removed is not defined, the
+operation is simply ignored.
+
+</div>
+
+<p><span class="code">setComparator(<i>compObj</i>)</span>
+<div class=fdef>
+
+<p>Set the comparator object.  All subsequent dictionary operations
+are performed with the new comparator object.  If <i>compObj</i> is
+<span class="code">nil</span>, the dictionary simply matches input strings to dictionary strings
+exactly.
+
+<p>Once installed, the dictionary considers a comparator object to be
+immutable.  That is, the dictionary assumes that the return values
+from the required methods of the comparator for a given set of inputs
+will never change.  If you want to change the comparison rules for a
+dictionary, you must create and install a new comparator object: never
+attempt to change the comparison rules by modifying an existing
+comparator.
+
+<p>Note that changing the comparator is a relatively expensive
+operation, because the dictionary must rebuild its internal table for
+the new comparator; programs should thus avoid changing comparators
+except when necessary.
+
+</div>
+
+<h2>Notes</h2>
+
+<p>There are a few other important things to know about dictionaries.
+
+<p><b>Dictionaries and garbage collection:</b> A dictionary references
+its objects "weakly."  This means that adding an object to a
+dictionary does not prevent the garbage collector from deleting the
+object.  If an object is referenced in a dictionary, but the object
+becomes otherwise unreachable, the garbage collector will delete the
+object, and will at the same time remove all of the object's
+associations from the dictionary.  While this might seem strange at
+first glance, it is actually very useful, because it means that you
+don't have to worry about manually deleting dictionary references to
+objects that have become unneeded.
+
+<p>Because dictionaries reference their entries weakly, the mere
+presence of an object in a dictionary never keeps the garbage
+collector from deleting the object.  Hence, if an object in a
+dictionary becomes otherwise unreachable, the collector will
+eventually delete the object.  This is normally desirable, because
+dictionaries are usually used only as a performance optimization to
+make it quicker to find an object given its name.  However, it is
+sometimes the case that a dictionary is the primary way to access a
+group of objects; in these cases, the weak references that a
+dictionary uses are undesirable because they don't prevent your
+objects from being deleted.  In these cases, you must create some
+other explicit reference to your objects; an easy way to accomplish
+this is to add each such object to a list stored in a property of a
+static object.  You must take care to remove these explicit references
+when their objects are no longer needed, so that the objects can be
+deleted.
+
+<p><b>Creating dictionaries dynamically:</b> You can create a
+dictionary object at run-time using the <span class="code">new</span> operator.  Note that,
+when doing this, you should be sure to <span class="code">#include &lt;dict.h&gt;</span> in your
+source file to ensure that the compiler knows about the Dictionary
+class.
+
+<p><div class="code"><pre>
+// include the system header defining the Dictionary class
+#include &lt;dict.h&gt;
+
+myFunc()
+{
+  // create a new dictionary (with the default
+  // string comparator)
+  local dict = new Dictionary();
+
+  // add some words
+  dict.addWord(redBook, 'red', &amp;adjective);
+  dict.addWord(redBook, 'book', &amp;noun);
+}
+</pre></div>
+
+<p><b>Using multiple dictionaries in the compiler:</b> You can use
+multiple dictionaries at compile-time simply by using a new
+<span class="code">dictionary</span> statement for each dictionary.  You can switch back to
+an existing dictionary with another <span class="code">dictionary</span> statement naming the
+original dictionary.  The <span class="code">dictionary</span> statement establishes the active
+dictionary, which remains in effect until the next <span class="code">dictionary</span>
+statement.  Multiple dictionaries might be useful in certain
+situations, such as when you want to create different parsing modes,
+each having their own separate vocabulary words.
+
+<p><b>Dynamic object creation and dictionaries:</b> When you create a
+new simulation object with operator <span class="code">new</span>, the interpreter will
+<b>not</b> automatically add any vocabulary to any dictionary for the
+object.  While this might seem a deficiency, remember that the
+interpreter doesn't think of Dictionary objects as anything special,
+so it doesn't have any idea that you might want some random object
+creation to have a side effect on a completely unrelated object (such
+as a Dictionary).
+
+<p>If you're using the adv3 library, you won't notice this lack of
+automatic action on the part of the interpreter, because the adv3
+library <i>does</i> provide automatic vocabulary handling for new
+objects, via constructors in the basic simulation-object classes.
+
+<p>If you're defining your own library, you'll probably want to put
+something like this in the constructors for your simulation
+object base classes:
+
+<p><div class="code"><pre>
+class Thing: object
+  construct()
+  {
+    // add all of my vocabulary to the default dictionary
+    libDict.addWord(self, noun, &amp;noun);
+    libDict.addWord(self, adjective, &amp;adjective);
+    libDict.addWord(self, plural, &amp;plural);
+  }
+;
+</pre></div>
+
+<p>As long as each class derived from Thing (or from subclasses of
+Thing) properly inherits its superclass constructor from its own
+constructor, the library code will take care of adding the vocabulary
+words for the new instance, taking advantage of the accessibility of
+the dictionary property values that TADS 3 provides.
+
+<p><b>Dictionary vs. LookupTable:</b> The Dictionary class is in some
+ways similar to the LookupTable intrinsic class, in that both objects
+allow you to associate keys with values and efficiently look up a
+value by key.  However, Dictionary is considerably more specialized
+than the general-purpose LookupTable: Dictionary allows multiple
+values to be associated with a key, and provides the composite
+property/string key.  Dictionary is also designed specifically to
+store its specialized data, and makes more efficient use of memory
+than a more general implementation would.  In addition, Dictionary
+allows the string comparison rules to be customized through the
+comparator object.
+
+<h2>Notes for TADS 2 users</h2>
+
+<p>The TADS 2 functions for manipulating the parser dictionary don't
+exist in TADS 3.  The equivalent functionality is implemented through
+methods on the Dictionary object.
+
+<p>Even though code that defines vocabulary words for an object looks
+similar to the way it did in TADS 2, though, there are some important
+differences:
+
+<ul class=doublespace>
+
+<li>First, the <span class="code">noun</span> and <span class="code">adjective</span> properties behave at run-time
+like ordinary properties: the compiler sets the values of these
+properties to simple string lists containing the strings actually
+defined, plus any strings inherited from superclasses.  You can use
+and modify these properties during program execution just like any
+other, but since they're nothing special to the interpreter, changing
+them has no effect on the dictionary.  Updating the dictionary requires
+explicitly using Dictionary methods (<span class="code">addWord()</span>, etc).
+
+<li>Second, the Dictionary object created by the <span class="code">dictionary</span>
+statement is a full-fledged object at run-time.  This means that you
+can call Dictionary methods on this object in your program, to look up
+words and modify the dictionary dynamically.  There was no equivalent
+object in TADS 2.
+
+</ul>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Dictionary
+<br><span class="navnp"><a class="nav" href="date.htm"><i>Prev:</i> Date</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="dynfunc.htm"><i>Next:</i> DynamicFunc</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
+

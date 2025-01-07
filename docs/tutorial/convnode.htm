@@ -190,6 +190,22 @@ Angela Wants Answers
 </pre></div>
 <br>
 
+<p>This is quite a lot of typing, however, and if we find ourselves needing quite a few NodeEndCheck objects in our game we'll probably find ourselves repeating much the same coding pattern with each of them. Rather than doing that, we can abbreviate the definition of our NodeEndChecks by using their <b>sayBlockXXX</b> properties, where XXX is one of Bye, Leave or Boredom, corresponding to the reasons <code>canEndConversation(reason)</code> checks for. Our previous NodeEndCheck can then instead be written:</p>
+
+
+<p><div class="code"><pre>
+++ NodeEndCheck
+    sayBlockBye = &quot;&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; {the subj angela}
+            complains. &lt;q&gt;Why are you so bothered about this man Cortez?&lt;/q&gt; &quot;
+                              
+    sayBlockTravel = 'This doesn\'t seem a good point to break off the conversation.'    
+;
+</pre></div>
+<br>
+<p>Note that here we use a double-quoted string for <code>sayBlockBye</code> and single-quoted string for <code>sayBlockTravel</code>. This effectively makes <code>canEndConversation</code> return <code>blockEndConv</code> in the first case (because Angela has spoken) and nil in the second (because she hasn't).</p> 
+
+<p>If we wanted to save ourselves even more typing we could abbreviate <code>NodeEndCheck</code> to <code>NEC</code> (but we shan't do it here in case it ends up looking a bit cryptic). </p>
+
 <h2>Angela Demands an Answer</h2>
 
 <p>In the first Conversation Node we implemented above, the player could reply YES or NO or just let the matter pass, since Angela's question could easily have been purely rhetorical. In the second, Angela makes some attempt to insist on an answer, but lets the matter go if the player refuses to give one. A third type of Conversation Node might be one in which Angela absolutely demands an answer and the game can't proceed until she gets one.</p>
@@ -287,28 +303,41 @@ Angela Wants Answers
 ;
 </pre></div>
 
-<p>Note how we add a <span class="code">&lt;.convstay&gt;</span> tag to each of the default responses to ensure that we remain in the current Conversation Node. The next step is to prevent the player from breaking off the conversation prematurely, which we can once again do with a NodeEndCheck object:</p>
-
+<p>Note how we add a <span class="code">&lt;.convstay&gt;</span> tag to each of the default responses to ensure that we remain in the current Conversation Node. If, as in this case, we want our DefaultTopic to keep us in the ConvNode, we can save ourselves a bit of typing by using the <b>DefaultConvstayTopic</b> instead. The following has the same effect as the DefaultAnyTopic we've just defined:</p>
  <p><div class="code"><pre>
-++ NodeEndCheck
-    canEndConversation(reason)
-    {
-        switch(reason)
-        {
-        case endConvBye:
-            "&lt;q&gt;Oh no, you're not avoiding my question like that!&lt;/q&gt; she tells
-            you. &lt;q&gt;Tell me, why are you wearing that pilot's uniform?&lt;/q&gt; ";
-            return blockEndConv;
-        case endConvLeave:
-            "&lt;q&gt;You're not going anywhere until you tell me what you're doing in
-            that uniform!&lt;/q&gt; {the subj angela} insists. ";
-            return blockEndConv;
-        default:
-            return nil;
-        }
-    }
+++ DefaultConvstayTopic, ShuffledEventList
+    [
+        '&lt;q&gt;No, but answer my question,&lt;/q&gt; she interrupts you. &lt;q&gt;What are you
+        doing in that uniform?&lt;/q&gt; ',
+        
+        '&lt;q&gt;That\'s not what I asked,&lt;/q&gt; she complains. &lt;q&gt;Tell me why you\'re
+        wearing that uniform!&lt;/q&gt; ',
+        
+        '&lt;q&gt;Why are you wearing that uniform?&lt;/q&gt; she insists, brushing aside
+        your irrelevant remarks. ',
+        
+        '&lt;q&gt;That still doesn\'t tell me what you\'re doing with that
+        uniform,&lt;/q&gt; she complains. &lt;q&gt;Why are you wearing it?&lt;/q&gt; '
+    ]
 ;
 </pre></div>
+
+<p>Another benefit of using <code>DefaultConvstayTopic</code> here is that it also guards against the player breaking out of a ConvNode by trying to KISS, HIT or FEEL Angela at this point.</p>
+
+<p>The next step is to prevent the player from breaking off the conversation prematurely, which we can once again do with a NodeEndCheck object:</p>
+
+ <p><div class="code"><pre>
+++ NodeEndCheck		
+    sayBlockBye = &quot;&lt;q&gt;Oh no, you're not avoiding my question like that!&lt;/q&gt; she tells
+            you. &lt;q&gt;Tell me, why are you wearing that pilot's uniform?&lt;/q&gt; &quot;
+    sayBlockLeave = &quot;&lt;q&gt;You're not going anywhere until you tell me what you're doing in
+            that uniform!&lt;/q&gt; {the subj angela} insists. &quot;	
+    
+    defaultVal = nil   
+;
+</pre></div>
+
+<p>Note that here we define both sayBlockXXX properties as double-quoted strings, since they both report Angela saying something (we'll see the significance of that shortly). We also define <b>defaultVal</b> as nil, meaning that we want to silently block the ending of the conversation for any other reason (such as Angela becoming bored with the player's failure to respond).</p>
 
 <p>The other thing the player could try to deflect Angela's question is to carry out a whole lot of irrelevant non-conversational commands (even just a repeated WAIT or I or LOOK). To have Angela express her impatience at such a tactic we can allow her to insist on an answer on each turn we remain in the node and there hasn't been a conversational exchange. For that purpose we can define a <strong>NodeContinuationTopic</strong> (which we also locate in the ConvNode in question):</p>
 
@@ -355,24 +384,15 @@ Angela Wants Answers
     fly this plane?&lt;/q&gt; &lt;.convstay&gt;"
 ;
 
-++ NodeEndCheck
-    canEndConversation(reason)
-    {
-        switch(reason)
-        {
-        case endConvBye:
-            "&lt;q&gt;That's not an answer!&lt;/q&gt; she complains. &lt;q&gt;Tell me, are
-            you proposing to fly this plane yourself?&lt;/q&gt; ";
-            return blockEndConv;
-        case endConvLeave:
-            "&lt;q&gt;Don't walk off until you've told me whether you're proposing to
+++ NodeEndCheck       
+    sayBlockBye =  &quot;&lt;q&gt;That's not an answer!&lt;/q&gt; she complains. &lt;q&gt;Tell me, are
+            you proposing to fly this plane yourself?&lt;/q&gt; &quot;
+    
+    sayBlockLeave = &quot;&lt;q&gt;Don't walk off until you've told me whether you're proposing to
             fly this plane,&lt;/q&gt; {the subj angela} insists. &lt;q&gt;Well, are
-            you?&lt;/q&gt; ";
-            return blockEndConv;
-        default:
-            return nil;
-        }
-    }
+            you?&lt;/q&gt; &quot;
+    
+    defaultVal = nil
 ;
 
 ++ NodeContinuationTopic

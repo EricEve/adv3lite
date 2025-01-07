@@ -1,0 +1,377 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Running Programs: The Interpreter</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="tools.htm">The Tools</a> &gt; 
+Running Programs: The Interpreter
+<br><span class="navnp"><a class="nav" href="aloneexe.htm"><i>Prev:</i> Stand-Alone Executables</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="langsec.htm"><i>Next:</i> The Language</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Running Programs: The Interpreter</h1>
+
+<p>The TADS 3 Interpreter is the application that executes a TADS 3
+program.
+
+<p>The name of the interpreter varies by platform, and some platforms
+might have more than one interpreter.  On Windows systems, for
+example, there are two versions: t3run, a plain-text version that runs
+in an MS-DOS console window; and htmlt3, a graphical version that
+includes support for full HTML display, including pictures and sounds.
+In the examples below, we'll show the name of the DOS interpreter; you
+should substitute the appropriate name for your platform.
+
+<h2>Interpreter Command Syntax</h2>
+
+<p>For systems with a graphical user interface, you will usually start
+the TADS 3 interpreter by selecting an image file program in your
+system's desktop or other graphical interface.  The exact method
+varies by system, so you should check your system-specific release
+notes for details.
+
+<p>For command-line systems, the interpreter accepts this command
+syntax:
+
+<p><div class="cmdline"><pre>
+t3run options imageName imageParams
+</pre></div>
+
+<p>The options, if present, let you modify the interpreter's default
+behavior.  You don't have to specify any options, and options you do
+specify can be listed in any order, as long as they all preceded the
+name of the image file you want to run.
+
+<p>The imageName is the name of the program you want to run.
+
+<p>The imageParams are additional parameters that you wish to send to
+the image file program itself.  The interpreter doesn't do anything
+with these parameters except pass them to the image file.  The image
+file program interprets these parameters, so what you specify here
+depends entirely on the program you're running.
+
+<p>The interpreter options are:
+
+<ul class=doublespace>
+
+<li>-banner - show the interpreter's name and version banner.  By
+default, the interpreter doesn't show its own banner unless there's an
+error in the command-line syntax, so that the image file program has
+more complete control over what appears on the display.  You can use
+this option if you want to check the interpreter version (which might
+be useful information if you're reporting a bug, for example, or if
+you're encountering a problem running a program and suspect that the
+problem is due to a version incompatibility).
+
+<li>-cs <i>xxx</i> - use <i>xxx</i> as the keyboard and display
+character set.  By default, the interpreter will attempt to determine
+the correct character set automatically, so in most cases you will not
+need to specify this option.  However, in some cases, it might not be
+possible for the operating system to determine the correct character
+set; for example, if you're connected via a remote terminal, the
+operating system might not be able to read the terminal's
+configuration, in which case the OS would not know what character set
+the terminal is using.  You can use this option in such cases to
+specify the correct character set.  Note that this option only selects
+the "mapping" that the interpreter uses to convert text between your
+terminal's character set and the interpreter's internal Unicode
+characters; this option does not change your terminal's character set.
+If you want to change your terminal's character set, you must use
+whatever method that your operating system or terminal provides for
+making this change.  Refer to the section on <a
+href='cmap.htm'>character sets</a> for more details.
+
+<li>-csl <i>xxx</i> - use <i>xxx</i> as the log file character set.
+By default, the interpreter uses a suitable default that depends on
+local conventions.  This option lets you override the default to
+choose a specific character set for log file output.
+
+<li><a name="-d-option">-d <i>path</i></a> - use <i>path</i> as the
+default working directory.  The default if this option isn't specified
+is the directory containing the .t3 file.  The File object uses this
+directory as the default when the program opens files specified with
+relative paths.  This directory also becomes the base directory for
+the purposes of the file safety settings, so if a restrictive setting
+is in effect, reads and/or writes will be limited to <i>path</i> and
+its subdirectories.
+
+<p>Note that the -d option doesn't affect the path for resource
+files; that's specified separately with <a href="#-R-option">-R</a>.
+
+<li>-i <i>file</i> - read command-line input from <i>file</i>, rather
+than reading from the keyboard.  If you specify this option, the
+interpreter will read commands from the given file whenever the
+inputLine() method (in the <a href='tadsio.htm'>"tads-io" function
+set</a>) is invoked.  This option reads the script in "quiet" mode,
+meaning that no output is displayed on the console while the script is
+running.  See <a href='scripts.htm'>Script Files</a> for information
+on how input scripts are interpreted.
+
+<li>-I <i>file</i> - read command-line input from <i>file</i>.  This
+is similar to the <tt>-i</tt> option, but <tt>-I</tt> reads the script
+in "echo" mode, meaning that output is displayed to the console while
+the script is being read, just as though the user were actually
+sitting at the keyboard typing the input.
+
+<li>-l <i>file</i> - log all console input and output to <i>file</i>.
+Text will also be shown on the display.  The -i and -l options are
+useful for creating test scripts, because you can read a set of
+pre-written commands from an input file with -i, and capture the
+resulting output to another file with -l.  You can later compare the
+logging file with a reference copy to check for changes.
+
+<li>-norand - do not "seed" the random number generator.  By default,
+at startup, the interpreter automatically scrambles the starting point
+of the built-in <span class="code">rand()</span> function using some truly random data
+obtained from the operating system.  This ensures that <span class="code">rand()</span>
+generates different random number sequences on each run.  However,
+it's sometimes desirable for the "random" sequence to be predictable,
+such as when you're testing a program.  If you use the
+<tt>-norand</tt> option, the system will use a fixed starting point
+for the <span class="code">rand()</span> sequence.  This means that <span class="code">rand()</span> will return
+the same sequence of numbers every time you run the program, which is
+good for situations like testing because it makes the results
+repeatable on every run.  Note that <tt>-norand</tt> doesn't make the
+<span class="code">rand()</span> results <i>appear</i> any less random - rather, it makes
+the sequence repeatable, so that you get the same apparently random
+sequence of numbers on each run.
+
+<li><a name="network-safety">-ns<i>level</i> <b>or</b>
+-ns<i>C</i><i>S</i></a> - set the network safety levels for <i>Client</i>
+and <i>Server</i> network features.
+This lets you limit the ability of the game program to access network
+functions.  You can specify the <i>Client</i> and <i>Server</i> levels
+separately, or, if you supply just one digit, the same
+level applies to both client and server.  Each level is given as a
+digit from 0 to 2; higher digits mean higher safety, or more
+restrictions on the program.
+
+<ul class=doublespace>
+
+   <li>The <i>client</i> setting controls the program's ability to
+access network services as a client.  This controls <i>outgoing</i>
+connections, from the program to other services or other computers on
+the network.  For example, the program might want to download
+information from a Web server via HTTP.
+
+   <ul>
+      <li>0 - Minimum safety.  The program will be allowed to access any
+      site on the network as a client.
+
+      <li>1 - Local access only.  The program will only be allowed to
+      access network services on the <i>same machine</i> that the program
+      is running on.  No access will be allowed to other machines.
+
+      <li>2 - No network access.  The program will not be allowed to
+      access network services as a client at all.
+   </ul>
+
+   <li>The <i>server</i> setting controls the program's ability to
+create network services that accept network connections from other
+processes or other machines.  This controls <i>incoming</i>
+connections, where the program provides a network service that other
+applications can access.  For example, the program could create an
+HTTP server that allows other machines to access Web pages served by
+the program.
+
+   <ul>
+      <li>0 - Minimum safety. The program will be allowed to create
+      network services that accept connections from any machine on
+      the network.
+
+      <li>1 - Local access only.  The program will only be allowed to
+      create servers that are accessible from other applications running
+      on the <i>same machine</i> that the program is running on.  For
+      example, you could open a Web browser in another window to access
+      the program's Web server, but you won't be able to access it from
+      another machine on the network.
+
+      <li>2 - No network access.  The program will not be allowed to
+      create network services or accept network connections at all.
+   </ul>
+
+</ul>
+
+<p>For example, to allow the program to make outgoing connections to
+any other machine, but prohibit it from setting up any servers of its
+own, you'd specify <span class="code">-ns02</span> (minimum client safety, no server access).
+To allow local access for both client and server functions, use <span class="code">-ns1</span>.
+
+<li>-o <i>file</i> - log all console input (but not output) to
+<i>file</i>.  This option lets you easily prepare a command file for
+later use with -i.
+
+<li>-plain - run in "plain" mode, which displays text without any
+cursor positioning, highlighting, terminal control sequences, or other
+non-text operations.  The exact behavior of plain mode varies by
+platform, and some interpreters ignore this mode entirely.  Here are
+some examples:
+
+        <ul>
+
+        <li>The DOS interpreter normally uses BIOS calls to display
+        characters, position the cursor, and change text colors.  In plain
+        mode, it uses standard DOS output instead, and does not attempt to
+        position the cursor or change colors.
+
+        <li>The Unix interpreter normally uses terminal escape sequences and
+        control characters to position the cursor and control output.  In
+        plain mode, the Unix interpreter does not generate any control
+        characters or escape sequences.
+
+        <li>The Windows HTML interpreter ignores plain mode, because it's
+        meaningless for a native Windows GUI application to run in "text"
+        mode.
+
+        <li>Macintosh interpreters generally ignore plain mode, because
+        there's no such thing as "text" mode on the Macintosh.
+
+        </ul>
+
+Note that plain mode has nothing to do with character sets: plain mode
+isn't "ASCII" mode or "7-bit" mode, and doesn't affect how accented
+characters are displayed.  Rather, plain mode makes the interpreter
+treat the display as a simple character stream, preventing it from
+using any special display features like cursor positioning and text
+colors.  This lets you pipe the interpreter's text output to a file or
+to a another program; for example, sight-impaired users can use this
+to pipe the interpreter's output through a text-to-speech device.
+Plain mode makes this easier by eliminating cursor control sequences
+and the like that could confuse other programs reading the output.
+
+<li>-r <i>file</i> - restore the saved state from <i>file</i> and
+resume execution.  If this is specified, the image file's main
+entrypoint will never be called; instead, the program will begin
+execution as though it had just returned from the call to the save()
+function that created the saved state file.  If this option is
+specified, the image file need not be specified, because the
+interpreter can automatically determine the image file to load from
+the saved state file (each saved state file records the name of the
+image file that created it).  However, if the image file name is
+specified, the image filename information stored in the saved state
+file is ignored and the specified image file is used instead.
+
+<li><a name="-R-option">-R <i>folder</i></a> - set the root folder for
+individual resources.  When a resource (such as a JPEG image or a
+sound file) is needed, and the resource can't be found in the compiled
+game file or in any resource bundle file, the interpreter will look
+for the resource as a separate file.  By default, the interpreter
+looks for these files in the directory containing the compiled game
+file, but if the -R option is specified, then the interpreter will
+look in this folder instead.  (Note that this option doesn't establish
+a "search path"; only one -R option can be in effect. Also, this
+option only affects the individual resources; it doesn't affect
+resource bundle (.3rN) files.)
+
+<li><a name="file-safety"></a>-s<i>level</i> set the "file safety"
+level.  This sets restrictions on the .t3 program's access to your
+file system, to protect your local disk against malicious or errant
+programs.  <i>level</i> is a digit from 0 to 4, <b>or</b> you can
+specify two digits, the first for read access and the second for write
+access.  If you use only one digit, the same level is used for both
+read and write access.
+
+<p>Higher safety levels are more restrictive.  By default, the
+interpreter uses level 2, which limits read/write access to the
+"sandbox" directory (and its subdirectories).  The sandbox is normally
+the same as the working directory set with
+<a href="#-d-option">-d</a>, but you can override it with
+<a href="#-sd-option">-sd</a>.  If you know the program comes from a
+trustworthy source, and it needs to access files outside of its
+sandbox directory, you can manually give it full access to all files
+with <span class="code">-s0</span>.  If the source of the program is dubious, you can
+prohibit all file access with <span class="code">-s4</span>.
+
+<p>The possible safety level settings are:
+
+        <ul class=doublespace>
+
+        <li>0 - Minimum safety.  The program is allowed to read and
+        write files anywhere on your system.
+
+        <li>1 - The program is allowed to read files from anywhere on
+        your system, but it can only write to files contained in the
+        <a href="#-sd-option">sandbox</a> directory (or its
+        subdirectories).
+
+        <li>2 - The program is allowed to read and write files only in
+        the <a href="#-sd-option">sandbox</a> directory (or its
+        subdirectories).  This is the default setting, because it gives 
+        the program the flexibility to create and read files, but only
+        within the restricted sandbox area.
+
+        <li>3 - The program is allowed to read files only from the 
+        default working directory (or its subdirectories),
+        and it won't be allowed to write files at all.
+
+        <li>4 - The program is denied all access to files:
+        it's not allowed to read or write files anywhere on your
+        system.
+
+        </ul>
+
+<p>Certain files are exempt from the file safety restrictions:
+
+<ul class=doublespace>
+
+   <li>Temporary files, created through the
+   <a href="tempfile.htm">TemporaryFile</a> object.  These aren't
+   subject to file safety restrictions because they're inherently
+   sandboxed; they can only be created through the TemporaryFile
+   class, which imposes its own limits that are more restrictive
+   than the normal file safety rules.
+
+   <li><a href="file.htm#specialFiles">Special files</a>, which
+   are also controlled by the system and thus inherently sandboxed.
+
+   <li><a href="build.htm#resources">Resource files</a>, since
+   these are restricted to read access and are limited to the
+   program's own data.
+   
+   <li><a name="filename.htm">FileName</a> objects representing names
+   manually chosen by the user via the
+   <a href="tadsio.htm#inputFile">inputFile()</a> function.  These
+   FileName objects are marked with an internal attribute that allows
+   them to bypass the file safety settings for the selected access mode
+   only (that is, a file selected through an Open dialog can be
+   read, and one selected via a Save dialog can be written).  The
+   manual interaction with the user establishes the user's explicit
+   intent to operate on the selected file in the manner proposed by
+   the dialog.  The core goal of the file safety mechanism
+   is to give the user the final say over which files the program
+   may access, so this extension of permissions for a manual
+   selection is a straightforward way of giving the user that final
+   say on a file-by-file basis.
+
+</ul>
+
+<li><a name="-sd-option">-sd <i>dir</i></a> - set the sandbox
+directory for the <a href="#file-safety">file safety</a> feature.  The
+default sandbox directory is the same as the working directory set
+with <a href="#-d-option">-d</a>, or simply the folder containing the
+.t3 file if there's no -d option.
+
+
+</ul>
+
+</ul>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="tools.htm">The Tools</a> &gt; 
+Running Programs: The Interpreter
+<br><span class="navnp"><a class="nav" href="aloneexe.htm"><i>Prev:</i> Stand-Alone Executables</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="langsec.htm"><i>Next:</i> The Language</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

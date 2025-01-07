@@ -17,6 +17,7 @@ property isNoise;
 property enumerateSuggestions;
 property hyperlinkSuggestions;
 property thinkDesc;
+property follow;
 
 DefineSystemAction(Quit)
    

@@ -1,0 +1,646 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 17 (adv3)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Exercise17.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 17 - Light Sources (adv3)</h1>
+
+<p>This game is a demonstration of the standard library light and fire classes. </p>
+
+<p>The game presented here follows the specifications of Exercises 17 in <i>Learning TADS 3</i>. The specification is:</p>
+
+<p>Write a short game in which the player character has to explore a small network of dark caves to find a magic glowing crystal. Implement the full variety of different kinds of light sources for exploring the caves. The player character starts only with a book of matches, each of which only stays lit for a couple of turns before burning out. There’s a candle in the first cave (but only with a limited life). Another cave contains an oil lamp, but it's low on oil. Yet another cave contains an oil can you can refill it from, and another cave contains a flashlight. The final cave contains a rusty old box containing the crystal.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+/*<span class="comment">   
+ *   LIGHT &amp; FIRE
+ *
+ *   This is a demonstration of the standard library light and fire classes. 
+ *   It's not at all an exciting game, and playing it straight through will 
+ *   not be particularly informative. You'll get more out of it by 
+ *   experimenting with the different kind of light sources provided.
+ */</span>
+
+
+/*<span class="comment"> 
+ *   Include the main header for the standard TADS 3 adventure library.
+ *   Note that this does NOT include the entire source code for the
+ *   library; this merely includes some definitions for our use here.  The
+ *   main library must be &quot;linked&quot; into the finished program by including
+ *   the file &quot;adv3.tl&quot; in the list of modules specified when compiling.
+ *   In TADS Workbench, simply include adv3.tl in the &quot;Source Files&quot;
+ *   section of the project.
+ *   
+ *   Also include the US English definitions, since this game is written
+ *   in English.  
+ */</span>
+#include &lt;adv3.h&gt;
+#include &lt;en_us.h&gt;
+
+/*<span class="comment">
+ *   VERSION INFO
+ *
+ *   Our game credits and version information.  This object isn't required 
+ *   by the system, but our GameInfo initialization above needs this for 
+ *   some of its information.
+ *
+ *   You'll have to customize some of the text below, as marked: the name of 
+ *   your game, your byline, and so on.
+ */</span>
+versionInfo: GameID
+    IFID = 'f679cdf5-2cc7-6438-ca9c-175f25f2ee68'
+    name = 'LightFire'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;
+                  Eric Eve&lt;/a&gt;'
+    version = '0.3'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demo of Light and Fire classes'
+    htmlDesc = 'A demo of Light and Fire classes'
+;
+
+/*<span class="comment">
+ *   GAME MAIN
+ *
+ *   The &quot;gameMain&quot; object lets us set the initial player character and 
+ *   control the game's startup procedure.  Every game must define this 
+ *   object.  For convenience, we inherit from the library's GameMainDef 
+ *   class, which defines suitable defaults for most of this object's 
+ *   required methods and properties.  
+ */</span>
+gameMain: GameMainDef
+    /*<span class="comment"> the initial player character is 'me' */</span>
+    initialPlayerChar = me
+    showIntro()
+    {
+        &quot;You have travelled a long way to get here, but finally you arrived at
+        the caves in which the legendary magic crystal is said to be concealed.
+        Determined to overcome all dangers and difficulties you are ready to
+        embark on your quest to recover the Crystal That Glows In The Dark!\b&quot;;
+    }
+;
+
+/*<span class="comment"> 
+ *   Starting location - we'll use this as the player character's initial
+ *   location.  The name of the starting location isn't important to the
+ *   library, but note that it has to match up with the initial location
+ *   for the player character, defined in the &quot;me&quot; object below.
+ *   
+ *   Our definition defines two strings.  The first string, which must be
+ *   in single quotes, is the &quot;name&quot; of the room; the name is displayed on
+ *   the status line and each time the player enters the room.  The second
+ *   string, which must be in double quotes, is the &quot;description&quot; of the
+ *   room, which is a full description of the room.  This is displayed when
+ *   the player types &quot;look around,&quot; when the player first enters the room,
+ *   and any time the player enters the room when playing in VERBOSE mode.
+ *   
+ *   The name &quot;startRoom&quot; isn't special - you can change this any other
+ *   name you'd prefer.  The player character's starting location is simply
+ *   the location where the &quot;me&quot; actor is initially located.  
+ */</span>
+startRoom: Room 'Start Room'
+    &quot;The cave you came to visit stands just to the north. To the south lies the
+    way back to civilization. &quot;
+    north = smallCave
+    south: TravelConnector
+    {
+        /*<span class="comment"> 
+         *   Don't allow travel this way until the PC has seen the crystal 
+         *   and is carrying it.
+         */</span>
+        
+        canTravelerPass(traveler)
+        {
+            return me.hasSeen(crystal) &amp;&amp; crystal.isIn(me);
+        }
+        explainTravelBarrier(traveler)
+        {
+            &quot;You came all the way here to collect the crystal and you're not
+            leaving without it! &quot;;
+        }
+        
+        /*<span class="comment">  
+         *   When travel is allowed, simply end the game with a message 
+         *   saying that the player has won.
+         */</span>
+        
+        noteTraversal(traveler)
+        {
+            &quot;The crystal recovered, you go triumphantly on your way. &quot;;
+            finishGameMsg(ftVictory, [finishOptionUndo, finishOptionAmusing]);
+        }
+    }
+;
+
+/*<span class="comment">
+ *   PLAYER CHARACTER
+ *
+ *   Define the player character.  The name of this object is not important, 
+ *   but it MUST match the name we use to initialize 
+ *   gameMain.initialPlayerChar above.
+ *
+ *   Note that we aren't required to define any vocabulary or description 
+ *   for this object, because the class Actor, defined in the library, 
+ *   automatically provides the appropriate definitions for an Actor when 
+ *   the Actor is serving as the player character.  Note also that we don't 
+ *   have to do anything special in this object definition to make the Actor 
+ *   the player character; any Actor can serve as the player character, and 
+ *   we'll establish this one as the PC in main(), below.  
+ */</span>
++ me: Actor
+    desc = &quot;You look as ready as you'll ever be. &quot;
+;
+
+/*<span class="comment">
+ *   READABLE
+ *
+ *   We provide a Readable object so that you can test trying to read it in 
+ *   the inadequate light (brightness = 2) provided by a matchstick.
+ */</span>
+++ Readable 'handwriten note' 'note'
+    &quot;It's a handwritten note from the friend who tipped you off about the
+    magic crystal. &quot;
+    readDesc = &quot;It says, &lt;q&gt;You should find the crystal in the deepest
+        cave.&lt;/q&gt; &quot;
+;
+
+/*<span class="comment">  
+ *   MATCHBOOK
+ *
+ *   A Matchbook is a special kind of Dispenser for Matchsticks.
+ */</span>
+
+++ matchbook: Matchbook 'amber matchbox/matchbook/book/(matches)' 'matchbook'
+    &quot;It's amber in colour, but otherwise unremarkable. &quot;
+;
+
+/*<span class="comment">
+ *   MATCHSTICK
+ *
+ *   A Matchstick can be lit and will stay alight for a short number of 
+ *   turns, during which it will give enough light to see by, but not to 
+ *   read by. While it's alight it can be used to light other objects, such 
+ *   as the candle and the oil lamp below.
+ *
+ *   Before putting ten Matchsticks in our Matchbook, we'll modify the 
+ *   Matchstick class to add some vocab words and a name. We could of course 
+ *   modify other properties to change the standard behaviour if we wanted, 
+ *   but we'll stick with the library defaults here. 
+ */</span>
+
+modify Matchstick 
+    vocabWords = 'match*matches' 
+    name = 'match'
+;
+
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
++++ Matchstick;
+
+
+/*<span class="comment">  ENTERABLE */</span>
+
++ Enterable -&gt; smallCave 'narrow cave entrance' 'cave entrance'
+    &quot;The cave entrance just to the north is narrow, but wide enough for you to
+    enter. &quot;
+;
+
+//------------------------------------------------------------------------------
+/*<span class="comment">  DARKROOM */</span>
+
+smallCave: DarkRoom 'Small Cave'
+    &quot;It's fortunate you didn't bring a cat, because there'd hardly be room to
+    swing it in here. The exit lies to the south, and you could also squeeze
+    through the narrow gap to the northwest. &quot;
+    south = startRoom
+    out asExit(south)
+    northwest = largeCave
+;
+
+/*<span class="comment">  
+ *   FIRE SOURCE &amp; CANDLE 
+ *
+ *   A Candle is an object that can be lit and will stay alight for a certain
+ *   length of time before going out. FireSource is a mix-in class which 
+ *   will allow a lit candle to set light to other things (such as the oil 
+ *   lamp defined below).
+ */</span>
+
++ FireSource, Candle 'red candle' 'red candle'
+    initSpecialDesc = &quot;A red candle lies on the ground. &quot;
+    
+    /*<span class="comment"> 
+     *   We'll make this candle a bit dimmer than the library default to 
+     *   illustrate another object that's not bright enough to read by.
+     */</span>
+    brightnessOn = 2
+;
+
+/*<span class="comment">  
+ *   ENTRY PORTAL
+ *
+ *   Since we mentioned a narrow gap in the room description we should 
+ *   probably implement it.
+ */</span>
+
++ EntryPortal -&gt; largeCave 'narrow gap' 'narrow gap'
+    &quot;It's lucky you went on a diet before you came here; you should just about
+    be able to get through it. &quot;
+;
+
+//------------------------------------------------------------------------------
+
+largeCave: DarkRoom 'Large Cave'
+    &quot;This cave is so large you could almost get lost in it; even so it's clear
+    enough that the only viable exits are to southeast, northeast and west. &quot;
+    southeast = smallCave
+    northeast = roundCave
+    west = deadEnd
+;
+
+/*<span class="comment">  
+ *   FUELED LIGHT SOURCE 
+ *
+ *   A FueledLightSource is a light source that consumes fuel as it burns. 
+ *   The Library provides quite a bit of the implementation for this class, 
+ *   but we need to do more work to make it function in a particular object 
+ *   (unless we use the Candle subclass). Here we'll use a FueledLightSource 
+ *   to implement an oil lamp. 
+ */</span>
+
++ oilLamp: FueledLightSource 'fine old brass oil lamp' 'oil lamp'
+    &quot;It's a fine old brass oil lamp. &quot;
+        
+    /*<span class="comment"> 
+     *   We need to define dobjFor(BurnWith) to provide some means of 
+     *   lighting the oil lamp. This definition will allow us to ligh the 
+     *   lamp either with the candle or with a match.
+     */</span>
+    
+    dobjFor(BurnWith)
+    {
+        verify() {}
+        action()
+        {
+            &quot;You light the lamp with {the iobj/him}. &quot;;
+            makeLit(true);
+        }
+    }
+    
+    /*<span class="comment">  
+     *   We also want the player to be able to extinguish the lamp once it's 
+     *   lit.
+     */</span>
+    
+    dobjFor(Extinguish)
+    {
+        verify() {}
+        action()
+        {
+            &quot;You douse the lamp. &quot;;
+            makeLit(nil);
+        }
+    }
+    
+    /*<span class="comment">  
+     *   We'll start the lamp very low on oil, so we'll need to allow it to 
+     *   be refueled. We'll assume it can be refuelled by pouring oil into 
+     *   it, so we add an action handler for the PourInto action with the 
+     *   lamp as the indirect object.
+     */</span>
+        
+    iobjFor(PourInto)
+    {
+        verify() 
+        {
+            if(fuelLevel == maxFuelLevel)
+                illogicalAlready('The oil lamp is already full. ');
+            if(isLit)
+                illogicalNow('You can\'t pour anything into the lamp while
+                    it\'s lit. ');
+        }
+        check()
+        {
+            if(gDobj != oilCan)
+                failCheck('That won\'t do much good! ');
+        }
+        action()
+        {
+            &quot;You pour enough oil into the lamp to fill it. &quot;;
+            fuelLevel = maxFuelLevel;
+        }
+    }
+    
+    /*<span class="comment"> Start the lamp off nearly out of fuel. */</span>
+    
+    fuelLevel = 4
+    
+    /*<span class="comment"> 
+     *   This is a custom property we are defining for our own use, not a 
+     *   library property.
+     */</span>
+    maxFuelLevel = 50
+    
+    /*<span class="comment">  
+     *   By default, the library version of the burnDaemon() reduces the 
+     *   fuelLevel by 1 each time the FueledLightSource is lit, and makes it 
+     *   go out once the fuelLevel reaches 0. We can override this to display
+     *   messages when the lamp is about to go out, before calling the 
+     *   inherited behaviour (which we still need).
+     */</span>
+    
+    burnDaemon()
+    {
+        switch(fuelLevel)
+        {
+            case 3: &quot;&lt;.p&gt;The lamp starts to dim. &quot;; break;
+            case 2: &quot;&lt;.p&gt;The lamp flickers, as if it's about to go out. &quot;; break;
+            case 1: &quot;&lt;.p&gt;The lamp flame gutters; it really is about to go out.&quot;; 
+            break;
+        }
+        inherited;
+    }
+    
+    
+    /*<span class="comment"> Customize the message for the lamp running out of fuel. */</span>    
+    sayBurnedOut()
+    {
+        &quot;The oil lamp flickers and goes out. &quot;;
+    }
+;
+
+//------------------------------------------------------------------------------
+
+deadEnd: DarkRoom 'Dead End'
+    &quot;The passage from the Large Cave rapidly peters out to this dead end. The
+    way back is to the east. &quot;
+    east = largeCave
+    out asExit(east)
+;
+
++ oilCan: Thing 'oil can/oil/oilcan' 'can of oil'
+    initSpecialDesc = &quot;A can of oil rests on the floor. &quot;
+    dobjFor(PourInto)
+    {
+        preCond = [objHeld]
+        verify() {}
+    }
+    
+    /*<span class="comment"> 
+     *   This is a bit of a hack: when we're pouring oil from this lamp into 
+     *   something we want it referred to as 'oil' rather than 'the can of 
+     *   oil'
+     */</span>
+    theName = (gActionIs(PourInto) ? 'oil' : inherited)
+;
+
+//------------------------------------------------------------------------------
+
+roundCave: DarkRoom 'Round Cave'   
+    &quot;The cave is roughly round, and looks like it once had exits in all
+    directions, but rockfalls have blocked all but two of them, those to east
+    and southwest. &quot;
+    east = squareCave
+    southwest = largeCave
+;
+
+/*<span class="comment">  
+ *   FLASHLIGHT 
+ *
+ *   A Flashlight is a LightSource that can be turned on and off. 
+ */</span>
+
++ Flashlight 'old black plastic flashlight/torch' 'flashlight'
+    &quot;It's an old black plastic torch. &quot;
+    initSpecialDesc = &quot;A flashlight lies abandoned in at the centre of the cave.
+        &quot;
+;
+
+/*<span class="comment">  
+ *   DECORATION 
+ *
+ *   Since we mentioned rockfalls in the room description we'll give them a 
+ *   minimal implementation - as a Decoration.
+ */</span>
+
++ Decoration 'rock falls/rockfalls/exits' 'rockfalls'
+    &quot;Rockfalls block all the exits except those to the east and southwest. &quot;
+    isPlural = true
+;
+
+//------------------------------------------------------------------------------
+
+squareCave: DarkRoom 'Square Cave'
+    &quot;This cave is so perfectly square that you suspect it must be artificial.
+    The only way out is to the west. &quot;
+    west = roundCave
+    out asExit(west)
+;
+
+/*<span class="comment">  
+ *   OPENABLE CONTAINER 
+ *
+ *   Rather than leaving the crystal in plain view we'll put it in a box.
+ */</span>
+
++ OpenableContainer 'rusty old iron box' 'iron box'
+    &quot;It's started to rust. &lt;&lt; moved ? '' : 'It looks like it may have been here
+        quite a while'&gt;&gt;. &quot;
+    initSpecialDesc = &quot;An iron box nestles against a wall. &quot;  
+    
+;
+
+/*<span class="comment">  
+ *   LIGHT SOURCE
+ *
+ *   A plain LightSource is a Thing that gives off constant light. To make 
+ *   this one more interesting we'll make it light up only when it would 
+ *   otherwise be dark.
+ */</span>
+
+
+++ crystal: LightSource 'magic glowing dim dull blue crystal' 'magic crystal'
+    &quot;It is &lt;&lt;isLit ? 'glowing with a steady light' : 'a dull blue colour'&gt;&gt;. &quot;
+    
+    /*<span class="comment"> 
+     *   After each turn when the crystal is in scope, check whether it 
+     *   would be light if the crystal were not lit. If it would and the 
+     *   crystal was previously unlit, report that the crystal has ceased to 
+     *   glow. If it would be dark without the crystal and the crystal was 
+     *   previously unlit, make it lit and report the fact.
+     */</span>
+    afterAction()
+    {
+        /*<span class="comment"> Keep track of whether the crystal was lit when we started. */</span>
+        local wasLit = isLit;
+        
+        /*<span class="comment"> 
+         *   Make it unlit so we can test what the light would be like 
+         *   without it.
+         */</span>
+        isLit = nil;
+        
+        /*<span class="comment">   Then test the light level. */</span>
+        if(senseAmbientMax([sight]) &gt; 1)            
+        {
+            if(wasLit)
+            {
+               &quot;The crystal grows dim and stops glowing. &quot;;
+               return;
+            }
+        }
+        else if(!wasLit)
+        {
+            &quot;The crystal starts glowing. &quot;;
+            isLit = true;
+            return;
+        }
+        
+        /*<span class="comment"> 
+         *   Restore the crystal to its starting lit/unlit state if we didn't
+         *   report any change.
+         */</span>
+        isLit = wasLit;
+    }
+    
+    getState = (isLit ? crystalLitState : crystalUnlitState)
+    allStates = [crystalLitState, crystalUnlitState]
+;
+    
+/*<span class="comment">  
+ *   THING STATES
+ *
+ *   The library defines lightSourceStateOn and lightSourceStateOff as the 
+ *   ThingStates for a LightSource. Here we provide customized versions to 
+ *   cater for the extra vocabulary (glowing, dim, dull) associated with the 
+ *   two states/
+ */</span>
+
+crystalLitState: lightSourceStateOn
+    stateTokens = ['lit', 'glowing']
+;
+
+crystalUnlitState: lightSourceStateOff
+    stateTokens = ['unlit', 'dim', 'dull']
+;
+
+//==============================================================================
+/*<span class="comment">   
+ *   SUPPLYING THE AMUSING OPTION
+ */</span>
+     
+
+modify finishOptionAmusing
+    doOption()
+    {
+        &quot;Try reading the note inside the caves using different light-sources:
+        a match, the candle, the oil-lamp, the flashlight and the crystal.\b&quot;;
+        
+        if(!oilCan.seen)
+            &quot;Try going west from the large cave and see what you find.\b&quot;;
+        else if(oilLamp.fuelLevel &lt; 5)
+            &quot;Try refilling the oil lamp.\b&quot;;
+        
+        &quot;Once you've recovered the crystal, try extinguishing all the other
+        light sources while you're still in the caves.\b
+        
+        Then try lighting one of your other light-sources again.\b&quot;;   
+        
+        
+        
+        /*<span class="comment"> 
+         *   this option has now had its full effect, so tell the caller
+         *   to go back and ask for a new option 
+         */</span>
+
+        return true;
+    }
+;
+
+
+
+//==============================================================================
+/*<span class="comment">   
+ *   MODIFYING A VERBRULE
+ *
+ *   At one point the game describes a gap the PC could squeeze through, so 
+ *   it would be good to make SQUEEZE THROUGH a synonym for GO THROUGH. We 
+ *   can do this either with a new VerbRule or by modifying an existing one. 
+ *   Here we'll illustrate the second method.
+ */</span>
+
+modify VerbRule(GoThrough)
+    ('walk' | 'go' | 'squeeze') ('through' | 'thru')
+        singleDobj
+    :
+;
+
+/*<span class="comment">  
+ *   The player might type FILL LAMP WITH OIL instead of POUR OIL INTO LAMP; 
+ *   defining the following VerbRule makes the two synoynmous. Note how we 
+ *   fill the iobj and dobj roles in this new VerbRule: FILL X WITH Y is the 
+ *   same as POUR Y INTO X, so in the FILL version the normal roles of 
+ *   direct and indirect object are reversed from that of the normal way of 
+ *   phrasing the PourIntoAction.
+ */</span>
+
+VerbRule(FillWith)
+    'fill' singleIobj 'with' singleDobj
+    : PourIntoAction
+    verbPhrase = 'fill/filling (with what) (what)'
+;
+
+/*<span class="comment">  
+ *   The player might also type just FILL LAMP; this VerbRule handles that by
+ *   treating it as an incomplete PourIntoAction and prompting for what 
+ *   should be used to fill it.
+ */</span>
+
+VerbRule(FillWithWhat)
+    'fill' singleIobj
+    : PourIntoAction
+    /*<span class="comment"> 
+     *   This verbPhrase looks back to front; this is a consequence of 
+     *   reversing the normal dobj and iobj roles. If the player types FILL 
+     *   LAMP, this VerbRule takes Lamp to be the Indirect object of a 
+     *   PourInto command (effectively POUR SOMETHING INTO LAMP) and then 
+     *   prompts for (or in this game, chooses a default) direct object. The 
+     *   parser will then construct the default object announcement on the 
+     *   assumption that the dobj comes before the iobj placeholder in the 
+     *   verbPhrase string, but we want the iobj announcement to say 'filling
+     *   with the oil lamp' not 'filling the oil lamp'.
+     */</span>
+    verbPhrase = 'fill/filling (with what) (what)'
+    askDobjResponseProd = withSingleNoun
+    construct()
+    {
+        dobjMatch = new EmptyNounPhraseProd();
+        dobjMatch.responseProd = withSingleNoun;
+    }
+;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> |  <a href='Exercise17.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

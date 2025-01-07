@@ -1,0 +1,448 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Operator Overloading</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Operator Overloading
+<br><span class="navnp"><a class="nav" href="inlineobj.htm"><i>Prev:</i> Inline Objects</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="multmeth.htm"><i>Next:</i> Multi-Methods</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Operator Overloading</h1>
+
+<p>TADS lets you define custom meanings for many of the "algebraic"
+operators when applied to regular objects.  This is known as
+<i>overloading</i> an operator, because it assigns a meaning to the
+operator when it's used with a datatype outside of its usual domain.
+
+<p>Note that the term is <i>overloading</i>, not <i>overriding</i>,
+and there's an important difference between the two.  Overriding would
+mean you're changing the existing meaning of an operator; TADS <b>doesn't</b>
+let you do this.  For example, you can't change the meaning of "+"
+as it applies to integer values, because the TADS virtual machine has a
+built-in definition for that operator on that combination of types.
+Overloading, in contrast, is the extension of an operator to a new type
+that it normally doesn't work with, so it's not superseding anything
+that's already built into the system.
+
+<p>If you're not familiar with operator overloading from other
+programming languages, and you want an overview of what it's good for,
+you can skip ahead to the section on <a href="#uses">uses</a>.
+
+
+<h2>How operators are applied</h2>
+
+<p>Before we talk about how to overload an operator, we have to know
+<i>where</i> to put the overload.  To determine that, it's important
+to understand how TADS applies operators to values.
+
+<p>TADS is a dynamically typed language: the datatype of a variable or
+expression isn't declared in the source code, but is determined based
+on the actual values being used at the moment the expression is
+executed.  As such, the exact meaning of an operator can't be known
+until operator is carried out on live data.  Many operators have
+meanings that vary according to the types of the values they're
+applied to.  For example, <span class="code">+</span> can mean integer addition, string
+concatenation, or list appending.
+
+<p>Each time an operator is executed, its meaning is determined by
+looking at a specific one of its operands.  (An operand is a value
+that an operator is applied to.  In <span class="code">3 + 4</span>, the operator is <span class="code">+</span>
+and the operands are <span class="code">3</span> and <span class="code">4</span>.)  The choice of which operand
+controls the meaning is fixed for each operator: it's always the same,
+no matter what types are involved.
+
+<ul class=doublespace>
+
+   <li>A <b>unary</b> operator is one that applies to a single
+   operand value, such as <span class="code">-3</span> or <span class="code">~x</span>.  A unary operator's meaning
+   is determined by the type of its single operand.
+
+   <li>A <b>binary</b> operator is one that applies to two values,
+   such as <span class="code">1 + 7</span> or <span class="code">lst[i]</span>.  All of the overloadable
+   binary operators use the <b>left</b> operand as the controlling
+   operand.  For example, <span class="code">'hello' + 7</span> is interpreted
+   as a string concatenation, because the left operand is a string.
+
+   <li>A <b>ternary</b> operator applies to three values.  The only
+   overloadable ternary operator is <span class="code">x[y] = z</span>, and the type of this
+   operator is determined by the leftmost operand <span class="code">x</span>.
+
+</ul>
+
+<p>So, each time an operator is evaluated, TADS first fully evaluates
+each operand to get the actual, live value of that sub-expression.  It
+then looks at the datatype of the value for the controlling operand.
+
+<p>If this is one of the primitive types, such as integer or nil, TADS
+simply carries out its built-in definition of the operator for that
+type.  There's no way to change this through operator overloading;
+<span class="code">3 + 4</span> will always yield 7.
+
+<p>If the controlling operand is an object value, and it's an object
+of one of the intrinsic class types (String, List, LookupTable, etc.),
+the machine checks to see if that class defines a meaning for the
+operator.  For example, String defines <span class="code">+</span> as concatenation, and
+List defines <span class="code">[]</span> as indexing the list.
+If there's a built-in meaning for the operator, TADS carries out that
+meaning.  As with the primitive types, there's no way to change this
+through operator overloading.
+
+<p>If the controlling operand is an object value, and the object
+doesn't have a built-in meaning for the operator, <i>this</i> is where
+operator overloading kicks in.  TADS checks to see if the object
+defines or inherits an <span class="code">operator</span> method for this specific operator.
+If so, TADS invokes the method, and uses the return value of the method
+as the operator result.
+
+<p>If there's no built-in definition for the operator, and there's
+no corresponding <span class="code">operator</span> method defined by the controlling operand
+value, TADS gives up and throws a run-time error to signal that the
+operator isn't valid for that combination of types.
+
+
+<h2>Defining an overloaded operator</h2>
+
+<p>An overloaded operator is a special kind of method.  You define it
+alongside ordinary properties and methods when you define a class or
+object.  An overload method uses a special name that starts with the
+keyword <span class="code">operator</span>, followed by the operator to be overloaded,
+followed by an ordinary argument list and method body.
+
+<p>For example, to overload the <span class="code">+</span> operator for a
+class, you'd define a method called "<span class="code">operator +</span>":
+
+<p><div class="code"><pre>
+class ScopeList: object
+   operator +(x)
+   {
+     local l = new ScopeList();
+     l.scope = scope;
+     l.scope += x;
+     return l;
+   }
+
+   scope = []
+;
+</pre></div>
+
+<p>An <span class="code">operator</span> method is always invoked on the controlling
+operand of the operator.  This is the <span class="code">self</span> value for the method.
+The remaining operands are passed as arguments to the method.  This
+means that the number of arguments is always one less than the number
+of operands.
+
+<p>That's why the <span class="code">operator +</span> we defined in the example
+above only takes one argument.  Since the controlling operand of
+a binary operator is the left operand, the expression <span class="code">a + b</span>
+effectively becomes a call to <span class="code">a.operator +(b)</span>.  (That's not
+real syntax, though: you can't use <span class="code">operator+</span> to make a call
+to the method.  To call the method you have to use the algebraic
+syntax, <span class="code">a + b</span>.)
+
+<p>Apart from the special naming syntax, an operator overload method
+is written just like an ordinary method.  It's fine to trigger side
+effects (such as displaying text on the screen), call other
+methods and functions as normal, and call <span class="code">inherited</span> and
+<span class="code">delegated</span> as usual.  Note, though, that the <span class="code">operator</span> syntax
+can't be used as a method name in a regular method call or in an
+<span class="code">inherited</span> or <span class="code">delegated</span>, so you can't straightforwardly have
+class Sub's <span class="code">operator +</span> method inherit, say, class Base's
+<span class="code">operator *</span> method.
+
+<p>The method should return a value to be used as the result of the
+operator expression.  If there's no explicit <span class="code">return</span> statement, the
+compiler will supply <span class="code">nil</span> as the default return value, as it does
+for any other method.
+
+
+<h2>Overloadable operators</h2>
+
+<p>The following operators are overloadable:
+
+<style type="text/css">
+<!--
+table.ops {
+    margin-left: 4em;
+}
+table.ops th {
+    padding-bottom: 1em;
+}
+table.ops td {
+    padding: 0.5ex 1em 0.5ex 1em;
+    text-align: center;
+}
+-->
+</style>
+
+<p>
+<table class=ops>
+
+   <tr><th>Operator<th>Type<th>Expression Syntax<th>Definition Syntax
+   <tr><td><span class="code">+</span><td>binary<td><span class="code">a + b</span><td><span class="code">operator +(b)</span>
+   <tr><td><span class="code">negate</span><td>unary<td><span class="code">-a</span><td><span class="code">operator negate()</span>
+   <tr><td><span class="code">-</span><td>binary<td><span class="code">a - b</span><td><span class="code">operator -(b)</span>
+   <tr><td><span class="code">*</span><td>binary<td><span class="code">a * b</span><td><span class="code">operator *(b)</span>
+   <tr><td><span class="code">/</span><td>binary<td><span class="code">a / b</span><td><span class="code">operator /(b)</span>
+   <tr><td><span class="code">%</span><td>binary<td><span class="code">a % b</span><td><span class="code">operator %(b)</span>
+   <tr><td><span class="code">^</span><td>binary<td><span class="code">a ^ b</span><td><span class="code">operator ^(b)</span>
+   <tr><td><span class="code">&lt;&lt;</span><td>binary<td><span class="code">a &lt;&lt; b</span><td><span class="code">operator &lt;&lt;(b)</span>
+   <tr><td><span class="code">&gt;&gt;&gt;</span><td>binary<td><span class="code">a &gt;&gt;&gt; b</span><td><span class="code">operator &gt;&gt;&gt;(b)</span>
+   <tr><td><span class="code">&gt;&gt;</span><td>binary<td><span class="code">a &gt;&gt; b</span><td><span class="code">operator &gt;&gt;(b)</span>
+   <tr><td><span class="code">~</span><td>unary<td><span class="code">~a</span><td><span class="code">operator ~()</span>
+   <tr><td><span class="code">|</span><td>binary<td><span class="code">a | b</span><td><span class="code">operator |(b)</span>
+   <tr><td><span class="code">&amp;</span><td>binary<td><span class="code">a &amp; b</span><td><span class="code">operator &amp;(b)</span>
+   <tr><td><span class="code">[]</span><td>binary<td><span class="code">a[b]</span><td><span class="code">operator [](b)</span>
+   <tr><td><span class="code">[]=</span><td>ternary<td><span class="code">a[b] = c</span><td><span class="code">operator []=(b, c)</span>
+
+</table>
+
+<p>You can only overload the operators listed above.  Notably,
+you can't overload any of the comparison operators (<span class="code">==</span>, <span class="code">!=</span>,
+<span class="code">&lt;</span>, <span class="code">&lt;=</span>, <span class="code">&gt;</span>, <span class="code">&gt;=</span>), the logical operators
+(<span class="code">&amp;&amp;</span> and <span class="code">||</span>), the "if-nil" operator (<span class="code">??</span>),
+or the conditional operator (<span class="code">? :</span>).
+You also can't overload the regular assignment operator (<span class="code">=</span>),
+but you <i>can</i> override the index-and-assign operator, <span class="code">[]=</span>.
+
+<p>The compound assignment operators, such as <span class="code">+=</span> and <span class="code">-=</span>,
+also can't be separately overloaded.  However, when these operators
+are executed, the system actually handles them as though they were
+written out as separate steps, so the non-assignment part will
+still invoke your overload.  For example, the code <span class="code">a += b</span> will
+invoke <span class="code">a.operator +(b)</span> to compute the value to assign to <span class="code">a</span>.
+The same applies to the increment and decrement operators, <span class="code">++</span>
+and <span class="code">--</span>.  The compiler decomposes <span class="code">a++</span> into <span class="code">a = a+1</span>,
+so while you can't overload <span class="code">++</span> separately, you can still
+intervene in such an expression by overloading <span class="code">+</span>.
+
+<p>You've probably noticed the odd man out in the table, "operator
+negate".  This is unary negation operator, which in actual expressions
+is just a minus sign "<span class="code">-</span>".  Now, the minus sign is also used as the
+two-operand subtraction operator.  The language gets away with reusing
+the same symbol for "negative a" and "a minus b" in expressions
+because it's always clear from context which is which.  But with
+operator overloading, there's no such context in one important
+situation, which is getting a property pointer: does "<span class="code">&amp;operator-</span>"
+mean "operator minus" or "operator negate"?  TADS solves this problem
+by defining "<span class="code">operator -</span>" solely as the subtraction operator,
+and renaming the negation operator to "<span class="code">operator negate</span>".
+
+<p>The indexing operator's method syntax might also look odd,
+because you'd normally write the argument to <span class="code">[]</span> inside the
+brackets.  But the correct syntax is as shown in the table, with
+the argument in parentheses after the brackets.  This makes the
+method syntax consistent for all of the different operators.
+
+<p>The index-and-assign operator is worth mentioning because it might
+not be obvious what the return value from this method would mean.  The
+primary function of the operator is to assign a value to the indexed
+element.  So should it simply return the assigned value?  No: it
+should actually return the <i>container</i> value.  In many cases,
+this is simply <span class="code">self</span>, but not always.  Some types create a new
+object when any change is made to their contents.  That's how List
+works, for example.  When you assign to a list element, a new list is
+created to reflect the update, leaving the original list object
+unchanged.  This is required because a list is immutable .  For this
+case, the <span class="code">[]=</span> operator method returns the newly created container
+object (the new List object in the List example).  If your
+<span class="code">operator []=</span> method modifies the object's own contents directly,
+way Vector and LookupTable do, you should simply return <span class="code">self</span>,
+since the "new" container reflecting the changes is simply the
+original container, <span class="code">self</span>.
+
+
+<h2>Property pointers to overload methods</h2>
+
+<p>You can't call an operator overload method by name (you can call it
+only through the actual operator syntax), but you <i>can</i> get a
+pointer an overload property.  Use the <span class="code">&amp;</span> operator as normal, and
+simply use the same name as the method definition uses.  For example:
+
+<p><div class="code"><pre>
+if (obj.propDefined(&amp;operator -))
+   "- is defined for 'obj'\n";
+</pre></div>
+
+
+<h2><a name="listlike">List-like objects</a></h2>
+
+<p>One of the consequences of being able to overload operators is that
+you can create custom objects that mimic the built-in List type.  Not
+only can you use these as though they were lists in your own code, but
+you can also pass them to most system functions and methods that 
+require List arguments.
+
+<p>For the purposes of <b>system</b> functions and methods, a
+list-like object is defined as an object that provides the following:
+
+<ul class=doublespace>
+   <li>An <span class="code">operator []</span> overload method
+   <li>A <span class="code">length()</span> method taking zero arguments
+</ul>
+
+<p>Most intrinsic functions and methods will interpret an object
+providing these methods as list-like.  The "..." argument expansion
+operator also recognizes this interface.
+
+<p>An object that meets this definition <b>must</b> return an integer
+value from its <span class="code">length()</span> method.  The system will invoke it
+expecting to get an element count as the result, so a non-integer
+return value will trigger a type conversion error.
+
+<p>Note that if you plan to use a custom object as though it were a
+list in your own functions and methods, you might also want to include
+the Collection method <span class="code">createIterator()</span>.  This method is required
+for an object to be used with the <span class="code">foreach</span> or <span class="code">for..in</span> statements.
+This isn't
+required for system functions that take List arguments, because those
+callers only expect the basic List-style interface.  But by adding
+<span class="code">createIterator()</span>, you can ensure that your object behaves like a
+generic Collection for places where you own code might use it with
+<span class="code">foreach</span> or <span class="code">for..in</span>.
+
+<p>You might also want to define <span class="code">operator []=</span>, since if you're
+passing it to code written to expect true List values, the code
+might assign element values.
+
+
+<h2>Intrinsic classes</h2>
+
+<p>It's legal to add overloaded operators for intrinsic classes.  The
+syntax is the same as for a regular operator overload method, and goes
+in a <span class="code">modify</span> definition for the intrinsic class, the same as for
+any other intrinsic class extensions.
+
+<p>You can <i>add</i> an operator to an intrinsic class, but you can't
+override an operator that's already defined.  In other words, you can
+only add operators that the intrinsic class doesn't define internally.
+For example, you can't override <span class="code">operator +</span> for String, because
+String defines <span class="code">+</span> as the concatenation operator.
+
+<p>If you attempt to override an operator on an intrinsic class that's
+already defined by the built-in class, the compiler will accept the
+definition without a complaint, but the method will never be called at
+run-time.  The virtual machine always looks first for a native
+definition for an operator, and only looks for an overloaded operator
+method if the native method doesn't exist.  This is the same way that
+all intrinsic class methods work, actually: you can't override
+String.length() either, because a native version is given priority
+over an extension in a <span class="code">modify</span> definition.
+
+
+<h2>Limitations</h2>
+
+<p>You can only overload the operators specifically listed earlier.
+Other operators aren't eligible for overloading.
+
+<p>You can't change the syntax or precedence of an operator.  For
+example, you can't redefine <span class="code">&lt;&lt;</span> as a unary operator, or change
+<span class="code">[]</span> from a postfix to a prefix, or give <span class="code">+</span> higher precedence
+than <span class="code">*</span>.
+
+<p>There's no way to create new operators.
+
+<p>It's not possible to override an operator that's defined for a
+system type.  For example, you can't redefine <span class="code">[]</span> for a List, or
+<span class="code">+</span> for a String.
+
+<p>There's no way to override operators on primitive (non-object)
+types, such as integers.
+
+<p>propDefined(), propType(), getPropList(), and getPropParams() don't
+work for the built-in operators of intrinsic classes, such as
+<span class="code">operator +</span> for a String or <span class="code">operator []</span> for a List.  They'll simply
+act as though you're talking about an undefined method.  For example,
+<span class="code">'x'.propDefined(&amp;operator +)</span> will return nil, even though <span class="code">+</span>
+certainly does work with strings.  The VM-defined operators of intrinsic
+classes are essentially built in, so there's no equivalent of
+an <span class="code">operator</span> method represented in the type system.  For the same
+reason, you can't inherit from or delegate to a built-in operator
+of an intrinsic class.
+
+
+<h2><a name="uses">Typical uses</a></h2>
+
+<p>Operator overloading has been a feature of mainstream programming
+languages since the 1960s; modern examples include C++ and Python.
+Over the years, some common patterns of usage have emerged, as well
+as some pitfalls.
+
+<p>The original use case, which motivated the first implementations,
+was custom numeric types.  The canonical example is complex numbers,
+but there are also vectors (in the mathematical sense), tensors, etc.
+An extended numeric type is a natural fit for the algebraic operators,
+since that's exactly the notation that mathematicians have always used
+for them.  The ability to define the standard operators on new numeric
+types lets you create types that can be used almost as though they
+were native.  Using algebraic operators can make it easier to write
+code using the types than if you had to use function calls, and can
+make the code not only more concise to write, but easier to understand
+when read.
+
+<p>The second common use is for creating types that aren't numerical
+in nature, but where some of the algebraic operators still have
+intuitive meanings.  The String and List classes are built-in
+examples: in both cases, the <span class="code">+</span> operator has a fairly intuitive
+meaning, even though it doesn't involve arithmetic addition.  As with
+numeric types, operator definitions can make custom object types
+easier to use and make code at once more concise and clearer.
+
+<p>The second-and-a-half use is for creating your own custom objects
+that mimic built-in objects that use operators.  For example, you
+could create a special "Scope List" class that represents the set of
+objects in scope, but which can be used as though it were an ordinary
+list by code that doesn't need to access its special features.  You
+could do this by defining the <span class="code">+</span> and <span class="code">[]</span> (indexing) operators on
+the object to act the same way they do with a regular List object.
+
+<p>The third use is simply to make code more concise, by using
+operators for frequently called methods instead of spelling out method
+names.  This is only subtly different from the second case; the
+distinction we're drawing is that you can define an operator on an
+object even when there <i>isn't</i> an obvious, intuitive meaning
+that's somehow analogous to the usual arithmetic meaning of the
+operator.  In these cases you don't define operators for their
+clarity, but only for their concision.  For example, the C++ standard
+libraries redefine <span class="code">&gt;&gt;</span> and <span class="code">&lt;&lt;</span> on file stream objects as "read"
+and "write" operators.  This has nothing to do with the ordinary
+arithmetic meaning of the operators, so in that sense it's a
+completely arbitrary reassignment of the operators, but it at least
+has a sort of visual logic to it.
+
+<p>This third use of overloading is somewhat controversial.  Among C++
+developers, it's taken for granted and largely accepted, because the
+language's inventor embedded the idea in the standard C++ libraries
+from the beginning.  However, the criticism is that it hurts code
+clarity by arbitrarily redefining what an operator does, to such an
+extent that a reader would never guess the meaning of the code just by
+looking at it.  Most people would intuitively know what <span class="code">+</span> does
+when applied to a String or List, but unless you've read the C++ I/O
+documentation, you'd probably never guess that <span class="code">&lt;&lt;</span> can sometimes
+write to the console.  (In fact, the TADS VM source code itself, which
+is written in C++, is largely free of overloaded operators out of just
+these concerns.)  If you're writing an extension or library that other
+people will use, it's probably best to use this sort of overloading
+sparingly.
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="langsec.htm">The Language</a> &gt; 
+Operator Overloading
+<br><span class="navnp"><a class="nav" href="inlineobj.htm"><i>Prev:</i> Inline Objects</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="multmeth.htm"><i>Next:</i> Multi-Methods</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

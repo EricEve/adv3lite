@@ -1539,7 +1539,7 @@ modify Actor
          *   we're expecting an answer to a question we've just asked). If we
          *   find one and execute it, end there.
          */
-        if(!conversedThisTurn && activeKeys.length > 0 &&
+        if(!conversedThisTurn && activeKeys.length > 0 && canTalkTo(gPlayerChar) &&             
            initiateTopic(nodeObj))
                         return;
         
@@ -4317,8 +4317,8 @@ class GreetingTopic: MiscTopic
  *   defined an ImpHelloTopic, which will then take preference.
  */
 class HelloTopic: GreetingTopic    
-    /* A HelloTopic matches either helloTopicObj or impHelloTopicObj */
-    matchObj = [helloTopicObj, impHelloTopicObj]    
+    /* A HelloTopic matches either helloTopicObj or impHelloTopicObj or expHelloTopicObj */
+    matchObj = [helloTopicObj, impHelloTopicObj, expHelloTopicObj]    
     
     handleTopic()    
     {
@@ -5527,13 +5527,19 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
                return block(&sayBlockBoredom);
             break;
             
-            /* For anything else, return true to allow the conversation to be ended */
+            /* 
+             *   For anything else, return our default value (true or nil to allow the conversation
+             *   to be ended or to block it silently.
+             */
         default:
-            return true;
+            return defaultVal;
         }
         
-        /*If we reach here, return true to allow the conversation to be ended. */
-        return true;
+        /*
+         *   If we reach here, return our default value (true or nil to allow the conversation to be
+         *   ended or to block it silently..
+         */
+        return defaultVal;
     }
     
     /* 
@@ -5569,7 +5575,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
         {
         case TypeSString:
             say(self.(prop));
-                return nil;
+            return nil;
         case TypeCode:
             return self.(prop);
         case TypeDString:
@@ -5587,10 +5593,36 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
                 return blockEndConv;
             }
             
+            /* This is proviced to handle cases not handled by any other mechanism. */
+            if(obj.propDefined(&block))
+                return obj.block();
+            
+            return defaultVal;
+            /* 
+             *   This is provided to allow a way to force a true result for a particular case when
+             *   defaultVal is nil.
+             */
+        case TypeTrue:
             return true;
             
+            /* 
+             *   This is provided to allow a way to force a nil result for a particular case when
+             *   defaultVal is nil.
+             */
+        case TypeEnum:
+            return nil;
+                   
+            /* 
+             *   This is provided as an alternative way to allow a way to to handle cases not
+             *   handled by any other mechanism.
+             */
+        case TypeProp:
+            local nprop = self.(prop);
+            return self.(nprop);  
+             
+            
         default:
-            return true;
+            return defaultVal;
             
         }
     }
@@ -5602,6 +5634,13 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
      *   canEndConversation() method.
      */    
     handleTopic() { }  
+    
+    /* 
+     *   The default value canEndConversation should return if nothing else intervenes. By default
+     *   this is true, to allow ending the conversation by default, but in particular cass we could
+     *   set this to nil to sllently rule out ending the conversation.
+     */
+    defaultVal = true;
 ;
 
 

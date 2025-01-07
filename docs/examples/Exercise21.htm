@@ -1,0 +1,1182 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 21 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Sensibility.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 21 - Sense and Sensibility (adv3Lite)</h1>
+
+<p>Sense and Sensibility is an adv3Lite game demonstrating Senses, SenseRegions, MultiLocs and the like</p>
+
+<p>The game follows the specification of Exercise 21 in <i>Learning TADS 3 with Adv3Lite</i>:
+
+<p>A town has to be evacuated due to imminent flooding from a nearby river. In one corner of the town square an old woman is sleeping on a bench. The player character, a policeman, has to wake her and persuade her to leave, but she proves resistant to being woken up. The square is large enough to need implementing as four rooms (one for each corner), although they are all visible from one another. An ornamental fountain, into which someone has thrown a coin, stands in the centre of the square, and the water gushing from the fountain makes a sound that should be audible throughout the square. In another corner of the square stands a barrel organ that can be played or pushed around; the player can try playing the organ next to the old woman but this merely makes her wake up for a moment, complain about the noise, and then go back to sleep, as does shouting or blowing a whistle.
+</p>
+
+<p>Along the north side of the square runs a building that can be entered from the northeast corner of the square. Inside the building are two rooms, a hall and a chamber; the hall is entered from the square, and the chamber has a window (too small to crawl through) overlooking the northwest corner of the square. The chamber contains a radio that can be heard in the hall (when it’s switched on) and in the square (when the window is open). It also contains a whistle. The radio starts out inside a packing case which is opaque to sight but transparent to sound.<p>
+
+<p>From the northwest corner of the square you can go west into a park, which consists of two locations visible from each other. A river (the one that’s about to flood) runs alongside the west side of the park. In the south end of the park (nearest the square) a bonfire is smouldering by the river, letting off acrid-smelling smoke. In the north end of the park (furthest from the square) are a basket of rotting fish (stinking appropriately) and a tall tree with a trumpet caught out of reach in its branches. The branch holding the trumpet can be reached via the ladder that needs to be fetched from the hall. Playing the trumpet in the immediate vicinity of the old woman wakes her up fully and wins the game.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+<span class='comment'>/*
+ *   SENSE &amp; SENSIBILITY
+ *
+ *   A demonstration of Senses, SenseRegions, MultiLocs and the like.
+ */</span>
+
+versionInfo: GameID
+    IFID = '0c5628bc-e220-496d-ac6d-10dcadcb7015'
+    name = 'Exercise 21 - Sense and Sensbility'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demonstration of Senses, Multilocs and the like in adv3Lite.'
+    htmlDesc = 'A demonstration of Senses, Multilocs and the like in adv3Lite.'
+;
+
+gameMain: GameMainDef
+    <span class='comment'>/* Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        &quot;It looks a fine day now, but there have been several days of
+        exceptionally heavy rain. The water is now pouring off the hills,
+        swelling the river, and several severe flood warnings are in place.
+        Your job is to make sure there's no one left in this part of town.\b&quot;;
+    }
+;
+
+<span class='comment'>/*  
+ *   CUSTOM SOUND EVENT CLASS
+ *
+ *   We define a custom SoundEvent class to allow certain objects to respond to
+ *   'sound events' that are triggered in their hearing. An alternative would
+ *   have been to use the SoundEvent class defined in the sensory.t extension,
+ *   but here we show how to build one from scratch.
+ */</span>
+class SoundEvent: object
+    <span class='comment'>/* 
+     *   Triggering a sound event causes the notifySoundEvent() method to be
+     *   called on every object that can hear its source (provided in the obj
+     *   parameter). Most objects don't define (our custom) notifySoundEvent()
+     *   method, so this will mostly do nothing, but a couple of objects below
+     *   do.     
+     */</span>
+    triggerEvent(obj) 
+    {
+        <span class='comment'>/* Get a list of everything in obj's Room */</span>
+        local lst = obj.getOutermostRoom.allContents;
+        
+        <span class='comment'>/* Add all the items in rooms with an audio connection to obj's room */</span>
+        foreach(local rm in obj.getOutermostRoom.audibleRooms)
+            lst = lst.appendUnique(rm.allContents);
+        
+        <span class='comment'>/* 
+         *   Reduce the list to the subset of objects that can actually hear obj
+         */</span>
+        lst = lst.subset({o: Q.canHear(o, obj)});
+        
+        <span class='comment'>/*   
+         *   Call the notifySoundEvent event method on every item in our reduced
+         *   list.
+         */</span>
+        foreach(local cur in lst)
+            cur.notifySoundEvent(self, obj);    
+        
+    }
+;
+<span class='comment'>/* 
+ *   REGIONS
+ *
+ *   We define a couple of regions; an outdoorRegion to represent every room
+ *   that's outdoors, and a squareRegion that's a SenseRegion containing every
+ *   room in the square.
+ */</span>
+
+outdoorRegion: Region
+;
+
+<span class='comment'>/*  
+ *   SENSE REGION
+ *
+ *   A SenseRegion is a region with sensory connections between its rooms. The
+ *   squareRegion is also in the outdoorRegion (all the rooms in the square are
+ *   oudoors).
+ */</span>
+squareRegion: SenseRegion
+    regions = [outdoorRegion]
+;
+
+<span class='comment'>/*  
+ *   We'll define a custom SquareRoom class to save ourselves a bit of 
+ *   typing on each of the rooms representing the four corners of the square.
+ */</span>
+
+class SquareRoom: Room
+    <span class='comment'>/* 
+     *   corner is a custom property. It will be used to hold a string saying
+     *   which corner of the square this is: northeast, northwest, 
+     *   southeast, or southwest.
+     */</span>
+    corner = ''
+    
+    <span class='comment'>/*   
+     *   We next use the custom corner property to construct the destName (a 
+     *   standard library property) of this square).
+     */</span>
+    vocab = ('the ' + corner + ' corner of the square')
+      
+    
+    regions = [squareRegion]
+;
+
+
+
+
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*  
+ *   We now create a square comprising four corners. These will be joined by 
+ *   a SenseRegion (see below) so that the player character can see 
+ *   from any part of the square into any other part.
+ */</span>
+
+squareNW: SquareRoom 'Main Square (NW)'
+    &quot;This square is said to date from the fourteenth century, and from the state
+    of the surrounding buildings you can well believe it. The square continues
+    to south and east, with a large ornamental fountain at the centre of the
+    square blocking the way diagonally across the square to the southeast.
+    A long building runs along the north side of the square; its entrance is
+    off to the east, though a small window overlooks this corner of the square.
+    To the west lies the way into the park. &quot;
+    
+    corner = 'northwest'
+    south = squareSW
+    east = squareNE
+    west = parkS
+    
+    <span class='comment'>/*  
+     *   Below we shall be defining a SenseConnector representing a window 
+     *   between this room and a chamber in the building to the north. This 
+     *   means that when the PC is in squareNW objects inside the chamber 
+     *   will also be listed. To make it clear where they are and how the PC 
+     *   can see them we want them to be listed specially, preceded by 
+     *   &quot;Through the window, you see...&quot;. We do this be overriding 
+     *   remoteRoomContentsLister().
+     */</span>
+    
+    remoteContentsLister() 
+    { 
+        if(gPlayerChar.isIn(chamber))
+            
+            <span class='comment'>/*  
+             *   CUSTOM ROOM LISTER
+             *
+             *   A lister that can be customized very simply by supplying two
+             *   strings: a prefix string that comes before the list of 
+             *   objects listed in the other location (here 'Through the 
+             *   window you see') and a suffix string that comes after it 
+             *   (here just a full-stop/period).
+             */</span>
+            return new CustomRoomLister('Through the window, {i} {see}'); 
+        else
+            return inherited;
+    } 
+    
+    regions = [squareRegion, windowRegion]
+;
+
+<span class='comment'>/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player'you'  
+    &quot;You're a young police officer. &quot;    
+;
+
+
++ Fixture 'building; old crumbling'
+    &quot;It's very old, and looks a bit crumbling, but it's been there quite a few
+    centuries now and will probably be around for several centuries to come. 
+    Immediately to the north a window looks out from the building over the
+    square. &quot;
+;
+
+//------------------------------------------------------------------------------
+
+squareNE: SquareRoom 'Main Square (NE)'
+    &quot;From this corner of the square a door leading into the building to the
+    north. The square continues to south and west, with the fountain at its
+    centre lying to the southwest. &quot;
+    corner = 'northeast'
+    south = squareSE
+    west = squareNW
+    
+    north = doorOutside
+;
+
++ Enterable 'building; grand'
+    &quot;The building runs along the entire north side of the square, and looks
+    rather grand, in a slightly faded sort of way. The door into the building
+    is just to the north. &quot;
+    
+    connector = doorOutside
+;
+
+++ doorOutside: Door -&gt;doorInside 'door;;entrance'
+;
+
+//------------------------------------------------------------------------------
+
+squareSW: SquareRoom 'Main Square (SW)'
+    &quot;The main street out of the square runs off to the south from here. The
+    square continues to north and east, with the fountain at its centre
+    blocking the way northeast. &quot;
+        
+    corner = 'southwest'
+    north = squareNE
+    east = squareSE
+    south { &quot;You can't leave until you make sure you've got everyone safely away
+        from the area. &quot;; 
+    }
+;
+
+<span class='comment'>/*  
+ *   TRAVEL PUSHABLE
+ *
+ *   A Travel Pushable is an object that can be pushed from one location to
+ *   another but not picked up and carried. We make an ordinary object into a
+ *   Travel Pushable by defining its canPushTravel property to be true.
+ */</span>
++ barrelOrgan: Heavy 'barrel organ; gaudy red'
+    &quot;It's painted a gaudy red and has a handle that can be turned to crank out
+    a tune. &quot;
+    
+    <span class='comment'>/* 
+     *   A Heavy is would nor normally be listed in a room description, but
+     *   since this one is moveable we'd like it to be, so we override isListed
+     *   to make it so.
+     */</span>
+    isListed = true
+    
+    
+    canPushTravel = true    
+
+    <span class='comment'>/* 
+     *   By overriding this method we can customize the message used to announce
+     *   the barrel organ's arrival in its new location.
+     */</span>
+    describeMovePushable (connector, dest)
+    {
+        &quot;The barrel organ slows to a halt. &quot;;
+    }
+    
+;
+
+++ handle: Component 'handle' 
+    dobjFor(Turn)
+    {
+        verify() { }
+        action()
+        {
+            &quot;You turn the handle of the barrel organ a few times; it cranks out
+            a wheezy version of some Verdi aria. &quot;;
+            
+            <span class='comment'>/* When the music plays, trigger the associated SoundEvent. */</span>
+            organEvent.triggerEvent(self);
+        }
+    }
+;
+
+<span class='comment'>/* This DOER turns PLAY ORGAN into TURN HANDLE */</span>
+Doer 'play barrelOrgan'
+    execAction(c)
+    {
+        doInstead(Turn, handle);
+    }
+;
+
+<span class='comment'>/* 
+ *   The SoundEvent that's triggered by playing the organ. SoundEvent is a
+ *   custom class we defined above.
+ */</span>
+organEvent: SoundEvent;
+
+//------------------------------------------------------------------------------
+squareSE: SquareRoom 'Main Square (SE)'
+    &quot;A long wooden bench stands in the southeast corner of the square, for the
+    benefit of those who want to rest their legs. The square continues to north
+    and west, but direct access to the northwest corner from here is blocked by
+    the fountain at the centre of the square. &quot;
+    corner = 'southeast'
+    north = squareNE
+    west = squareSW    
+;
+
++ bench: Platform, Heavy 'bench;long weathered wooden'
+    &quot;It looks well weathered, and you vaguely recall it was placed there in
+    memory of some local worthy at the beginning of the last century. &quot;
+    bulkCapacity = 30
+      
+;
+
+<span class='comment'>/*   
+ *   ACTOR 
+ *
+ */</span>
+++ oldLady: Actor 'old lady; wizzened; woman someone person; her'     
+    &quot;She looks rather wizzened. You wonder if she's as old as the bench she's
+    sitting on. &quot;
+    
+    
+    <span class='comment'>/*  
+     *   The notifySoundEvent method is where we put the code defining the old
+     *   lady's response to a SoundEvent.
+     */</span>
+    notifySoundEvent(event, source) 
+    { 
+        <span class='comment'>/*  
+         *   We'll make the old lady's response differ according to whether 
+         *   the source of hand is close by or in a different corner of the 
+         *   square.
+         */</span>
+        if(source.isIn(getOutermostRoom))
+            <span class='comment'>/* 
+             *   There are a number of different soundEvents in the game, 
+             *   and we'd like them to provoke different responses. We could 
+             *   do this with a series of if statements or a switch 
+             *   statement here, but it's neater and more in common with 
+             *   TADS 3 programming style to farm actor responses out to 
+             *   TopicEntry objects as possible, and we can do that by 
+             *   calling initiateTopic here and defining the different 
+             *   responses on a series of InitiateTopics.
+             */</span>
+            initiateTopic(event);
+           
+        else
+        {
+          &quot;&lt;.p&gt;The woman starts, wakes up momentarily, looking confused, then
+          settles down to snooze again. &quot;;
+        }
+    }
+    uselessToAttackMsg = 'You\'ll be dismissed from the force and lose your
+        pension if you start attacking old ladies. '
+    
+    <span class='comment'>/* 
+     *   Override the normal handling of greeting an Actot to have this old lady ignore the player
+     *   character.
+     */</span>
+    sayHello = &quot;The old lady remains profoundly asleep. &quot;
+;
+
+<span class='comment'>/*   
+ *   ACTOR STATE
+ *
+ *   We could almost use a HermitActorState here, except that we want the 
+ *   InitiateTopics to work.
+ */</span>
+
++++ ActorState
+    <span class='comment'>/*  The old lady starts out in this ActorState. */</span>
+    isInitState = true
+    
+    <span class='comment'>/*  This will be appended to her description. */</span>
+    stateDesc = &quot;She looks profoundly asleep. &quot;
+    
+    <span class='comment'>/*  
+     *   This is how she will be listed in a room description when the player
+     *   character is in the same room as her.
+     */</span>
+    specialDesc = &quot;An old lady is snoozing on the bench.&lt;.reveal lady&gt; &quot;
+    
+    <span class='comment'>/*   
+     *   This is how she will be listed in a room description when the PC is 
+     *   in a different part of the square.
+     */</span>
+    remoteSpecialDesc(actor) 
+    { 
+        <span class='comment'>/*  
+         *   When the PC first sees the old lady from a distance, it's not 
+         *   clear who or what she is, so we just describe her as 'someone'. 
+         *   Once the PC has seen the old lady close too, it'll be apparent 
+         *   even from a distance that she's still the same old lady, so 
+         *   we'll switch to calling her that.
+         */</span>        
+        &quot;&lt;&lt;gRevealed('lady') ? 'The old lady' : 'Someone'&gt;&gt; is sitting on the
+        bench in the southeast corner of the square. &quot;; 
+    }
+    
+;
+
+<span class='comment'>/*   
+ *   INITIATE TOPIC
+ *
+ *   An InitiateTopic is executed in response to calling initateTopic() on 
+ *   the actor. In this game we're doing that in response to SoundEvents.
+ */</span>
+++++ InitiateTopic @whistleEvent
+    &quot;&lt;.p&gt;The old woman opens her eyes and covers her ears. Giving you a furious
+    stare she snaps, &lt;q&gt;Do stop that &lt;i&gt;terrible&lt;/i&gt; noise, officer! Can\'t
+    you see I\'m trying to sleep?&lt;/q&gt; Without waiting for a reply, she dozes
+    off again. &quot;
+;
+
+++++ InitiateTopic @yellEvent
+    &quot;&lt;.p&gt;The old lady wakes with a start and glares at you fiercely. &lt;q&gt;There's
+    no need to shout!&lt;/q&gt; she tells you, &lt;q&gt;It's quite unnecessary! When I was a
+    girl, young people used to treat their elders with respect!&lt;/q&gt;\b
+    Her rebuke delivered, she dozes off agains traight away. &quot;
+;    
+
+
+<span class='comment'>/*  
+ *   Playing the trumpet in the presence of the old lady finally succeeds in 
+ *   getting her attention, and so wins the game.
+ */</span>
+++++ InitiateTopic @trumpetEvent
+    topicResponse()
+    {
+        &quot;&lt;.p&gt;The old woman wakes up with a start and springs smartly to
+        attention. Now that you have her attention you explain about the
+        imminent flooding, and the two of you leave the square together.&lt;.p&gt;&quot;;
+        finishGameMsg(ftVictory, [finishOptionUndo]);
+    }
+;
+
+<span class='comment'>/*  
+ *   CATCH-ALL INITIATE TOPIC 
+ *
+ *   We use this Catch-all InitiateTopic to deal with any SoundEvent for which 
+ *   we haven't defined an InitiateTopic above.
+ */</span>
+
+++++ InitiateTopic +80 @SoundEvent
+    &quot;&lt;.p&gt;The old woman wakes up and throws you a baleful glance. &lt;q&gt;Can't you
+    let an old woman sleep?&lt;/q&gt; she complains. Without waiting for a reply, she
+    leans back, closes her eyes, and dozes straight off again. &quot;
+;
+
+<span class='comment'>/*   
+ *   DEFAULT ANY TOPIC
+ *
+ *   We use this DefaultAnyTopic to provide a response to any conversational 
+ *   command addressed to the old lady.
+ */</span>
+++++ DefaultAnyTopic
+    &quot;She ignores you, preferring to snooze on. &quot;
+;
+
+<span class='comment'>/*  
+ *   MULTILOC
+ *
+ *   The fountain stands at the centre of the square, and is thus equally 
+ *   accessible from all four corners. We can represent this by making the 
+ *   fountain a MultiLoc (which must be mixed-in with one or more 
+ *   Thing-derived classes in order to represent a physical object) and 
+ *   locating it in all four corners of the square.
+ */</span>
+fountain: MultiLoc, Container, Fixture 'fountain; stone; figure pool' 
+    &quot;Whatever the stone figure originally was at the centre of the fountain, it
+    has long since been worn unrecognizable by the water constantly pouring from
+    it into the pool. &quot;   
+    locationList = [squareRegion]
+    
+    listenDesc = &quot;A gentle tinkling sound comes from the fountain. &quot;
+;
+
+<span class='comment'>/*  
+ *   Note that while this coin is in the fountain it can be taken from any 
+ *   corner of the square.
+ */</span>
++ coin: Thing 'copper coin; old ; penny' 
+    &quot;It's just an old penny. &quot;
+    
+    sightSize = small
+;
+
+<span class='comment'>/*  
+ *   SIMPLE NOISE
+ *
+ *   The sound of the fountain doesn't need to be described different under 
+ *   different circumstances, so we can use a SimpleNoise to represent it.
+ */</span>
++ Noise 'tinkling; gentle; sound' 
+    &quot;It's the gentle sound of running water. &quot;
+;
+
++ Decoration 'water; running' 
+    &quot;It's pretty transparent, and undoubtedly wet. &quot;
+    notImportantMsg = 'You\'re happy to leave the water alone. '
+;
+
+
+<span class='comment'>/*  
+ *   MULTILOC, DISTANT
+ *
+ *   We can also use a MultiLoc to represent a distant object that can be 
+ *   seen (and looks much the same) from a number of different locations. 
+ *   One obvious example would be the sun, which should be visible from 
+ *   every outdoor location.
+ */</span>
+MultiLoc, Distant 'sun; bright shining'
+    &quot;The sun is shining bright today -- far too bright to look at directly. &quot;
+    
+    <span class='comment'>/*  
+     *   Rather than listing each OutdoorRoom, we can simply specify that 
+     *   the sun should appear in every OutdoorRoom.
+     */</span>
+    locationList = [outdoorRegion]
+;
+
+//------------------------------------------------------------------------------
+
+hall: Room 'Hall'
+    &quot;This hall is almost empty; whoever lives here has obviously taken the
+    precaution of packing everything away and putting it in safe storage in
+    anticipation of the flood. A door leads out to the south, and a second exit
+    leads west. &quot;
+    south = doorInside
+    west = chamber
+    out asExit(south)
+;
+
++ doorInside: Door -&gt;doorOutside 'door' 
+;
+
++ ladder: Platform 'ladder; long wooden sturdy'
+    &quot;It's quite long, and looks reasonably sturdy. &quot;
+    initSpecialDesc = &quot;A long wooden ladder leans against the wall. &quot;
+    dobjFor(Climb) asDobjFor(Board)
+    dobjFor(ClimpUp) asDobjFor(Board)
+    dobjFor(ClimbDown) asDobjFor(GetOff)
+    bulk = 8
+    
+    <span class='comment'>/*  
+     *   You can't lie down on a ladder, and you wouldn't normally think of 
+     *   sitting on one.
+     */</span>
+    canLieOnMe = nil
+    sitOnScore = 70
+;
+
+//------------------------------------------------------------------------------
+
+<span class='comment'>/* 
+ *   ANOTHER SENSE REGION
+ *
+ *   We define another SenseRegion to represent the SensoryConnection between
+ *   the rooms on either side of the window.
+ */</span>
+
+windowRegion: SenseRegion
+    
+    
+;
+
+<span class='comment'>/*  
+ *   WINDOW
+ *
+ *   Both squareNW and chamber mention a window - the same window, in fact, 
+ *   seen from different sides. 
+ *
+ *   One can often open and close windows, so we should make it openable 
+ *   too.
+ */</span>
+
+
+window: MultiLoc, Fixture 'window; small'
+    &quot;It's &lt;&lt;if isOpen&gt;&gt;open, but it's too small to climb through&lt;&lt;else&gt;&gt;
+    closed&lt;&lt;end&gt;&gt;. &quot;
+    
+    isOpenable = true
+    
+    locationList = [windowRegion]
+    
+    
+    <span class='comment'>/*  
+     *   One obviously ought to be able to Look Through a window, but we 
+     *   need to define handling for this specially.
+     */</span>         
+    dobjFor(LookThrough)
+    {
+        action()
+        {
+            <span class='comment'>/* 
+             *   First print some introductory text depending on the 
+             *   location of the actor who's doing the looking.
+             */</span>
+            &quot;You look &lt;&lt;gActor.isIn(chamber) ? 'out' : 'in'&gt;&gt; through the
+            window and see &lt;&lt;gActor.isIn(chamber) ? 'the square' : 'a
+                chamber'&gt;&gt;&quot;;
+            
+            <span class='comment'>/*   
+             *   Then list the objects that can be seen through the window 
+             *   from the point of view of the actor. Here we do this by 
+             *   constructing a list of listable objects.
+             */</span>
+            
+            local other = gActor.isIn(chamber) ? squareNW : chamber;
+            
+            local lst = other.contents.subset({o: o.isListed});
+            if(lst.length &gt; 0)
+                &quot;, in which you can see &lt;&lt;makeListStr(lst)&gt;&gt;&quot;;
+            
+            &quot;.\b&quot;;
+        }
+    }
+    
+        
+    cannotGoThroughMsg = 'The window is not big enough for you to fit through. '
+    cannotEnterMsg = (cannotGoThroughMsg)
+;
+
+
+
+//------------------------------------------------------------------------------
+
+chamber: Room 'Chamber'
+    &quot;This chamber is almost as bare as the hall, and presumably for much the
+    same reasons; just about everything has been safely packed away elsewhere in
+    case of flooding. From the shape and size of the room and the style of the
+    wallpaper you'd guess that in normal times it might be a sitting-room. A
+    window overlooks the square to the north, but the only way out is to the
+    east. &quot;
+    east = hall
+    out asExit(east)
+    
+    regions = [windowRegion]
+    
+    inRoomName(pov)
+    {
+        if(pov.isIn(squareNW))
+            return 'through the window';
+        else
+            return inherited(pov);
+    }
+    
+    <span class='comment'>/* 
+     *   We have put the chamber and the northwest corner of the square in a
+     *   common SenseRegion, since they're connected by a window, but we only
+     *   want sound to pass through the window when the window is open. To
+     *   enforce this we can use the canHearOutTo() method of the hall, so that
+     *   it returns true only when the window is open. By default this will mean
+     *   that canHearInFrom(loc) on the hall will follow the same condition.
+     *   Note that these methods can only be used to impose additional
+     *   restrictions on sense passing - they can't be used to provide sensory
+     *   connections that aren't already provided by a SenseRegion.
+     */</span>
+    canHearOutTo(loc)
+    {
+        return window.isOpen;
+    }
+    
+    <span class='comment'>/* Logically it makes sense that a closed window would block smells too. */</span>
+    canSmellOutTo(loc) { return window.isOpen; }
+;
+
++ Decoration 'wallpaper; green striped'
+    &quot;It's striped, in alternativing shades of green. &quot;
+;
+
++ OpenableContainer 'large wooden box; packing; case'
+    &quot;It might be a packing case of some sort. &quot;
+    <span class='comment'>/*  
+     *   By specifying that the box is made of 'paper' we allow sounds and 
+     *   smells (but not sight or touch) to pass through it even when it's 
+     *   closed. This means that we can hear the radio (when it's on) even 
+     *   when it's shut in the box.
+     */</span>
+    
+    bulkCapacity = 4
+;
+
+<span class='comment'>/*  
+ *   SWITCH
+ *
+ *   A Switch is something that can be switched on and off. Here we use it to
+ *   implement a radio that makes a noise only when it's turned on.
+ */</span>
+++ radio: Switch 'radio' 
+    isOn = true
+    makeOn(stat)
+    {
+        inherited(stat);
+        if(stat)
+        {
+            &quot;Turning on the radio makes a sudden burst of loud music pour forth.
+            &quot;;
+            <span class='comment'>/* 
+             *   When the radio is turned on, trigger a SoundEvent to 
+             *   represent the sudden incidence of a loud noise that wasn't 
+             *   there before.
+             */</span>
+            musicEvent.triggerEvent(radio);
+        }
+        else
+            &quot;The radio falls silent. &quot;;
+    }
+    
+    listenDesc = &quot;&lt;&lt;if isOn&gt;&gt;&lt;&lt;if Q.canSee(gPlayerChar, self)&gt;&gt;The radio is
+        playing loud music. &lt;&lt;else&gt;&gt;There's some loud music playing. &lt;&lt;end&gt;&gt;
+        &lt;&lt;else&gt;&gt;The radio is quite silent. &lt;&lt;end&gt;&gt;&quot;
+   
+    soundSize = large
+    
+    <span class='comment'>/* 
+     *   Don't mention our listenDesc in response to a LISTEN command unless
+     *   we're on
+     */</span>
+    isProminentNoise = isOn
+    
+
+;
+
+<span class='comment'>/*  
+ *   NOISE
+ *
+ *   We can create a Noise object to represent the sound the radio makes when
+ *   it's turned on. Note the distinction between this Noise (which represents
+ *   the ongoing Sensory Emanation that occurs for as long as the radio is on)
+ *   and the musicEvent SensoryEvent which represents the event of the radio
+ *   being turned on (a continuously playing radio might fade into the
+ *   background of our consciousness; a radio suddenly turned on is likely to
+ *   burst in on our consciousness; the Noise represents the former and the
+ *   SoundEvent the latter.
+ *
+ *   Note that it would probably have been easier to do this by using the
+ *   definition of Noise provided in the sensory.t extension (which does quite a
+ *   bit of the work for us), but here we're sticking to features provided in
+ *   the main library.
+ */</span>
++++ Noise '() music; loud operatic; sound noise wagner'
+    &quot;&lt;&lt;if Q.canSee(gPlayerChar, self)&gt;&gt; &lt;&lt;descWithSource&gt;&gt; &lt;&lt;else&gt;&gt;
+    &lt;&lt;descWithoutSource&gt;&gt; &lt;&lt;end&gt;&gt;&quot;
+    
+    <span class='comment'>/*  The noise is only audible when the radio is turned on. */</span>
+    isEmanating = (radio.isOn)
+    
+    isHidden = !isEmanating
+    
+    <span class='comment'>/*  The response to LISTEN TO MUSIC when we can see the radio. */</span>
+    descWithSource = &quot;The radio is playing something loud and operatic -- Wagner
+        perhaps. &quot;
+    
+    <span class='comment'>/*  The response to LISTEN TO MUSIC when we can't see the radio. */</span>
+    descWithoutSource = &quot;The music sounds loud and operatic -- Wagner
+        perhaps. &quot;
+    
+   
+;
+
++ whistle: Instrument 'whistle; silver'
+    &quot;It's silver in colour, a bit like a policeman's whistle. &quot;
+    
+    <span class='comment'>/*  
+     *   The following two properties are custom properties we define on our 
+     *   custom Instrument class, for which see below. Since there are two 
+     *   musical instruments in the game -- this whistle and a trumpet -- we 
+     *   can save ourselves some work by defining a new class to implement 
+     *   their common behaviour and then just customizing individual 
+     *   Instruments with these two properties. 
+     *
+     *   When the whistle is blown, whistleEvent will be triggered, and the 
+     *   message &quot;You bloe a shrill blast on the whistle&quot; displayed.
+     */</span>
+    soundEvent = whistleEvent
+    playDesc = 'You blow a shrill blast on the whistle. '
+;
+
+<span class='comment'>/*  The two SoundEvents referred to above. */</span>
+
+musicEvent: SoundEvent;
+whistleEvent: SoundEvent;
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*  
+ *   REGION
+ *
+ *   We're about to implement a park comprising two locations, so we'll 
+ *   start by joining them together with a DistanceConnector, so that we can 
+ *   see from one end of the park into the other. 
+ */</span>
+
+parkRegion: SenseRegion
+    regions = [outdoorRegion]
+;
+
+
+parkS: Room 'Park (South)'
+     &quot;The park occupies a large area, peppered with trees, shrubs and bushes.
+     An abandonded bonfire is smouldering down by the swollen river. The park
+     continues to the north, and the way back to the square lies eastwards. &quot;
+    east = squareNW
+    north = parkN
+    
+    <span class='comment'>/*  
+     *   The phrase to use to describe the location of objects left here when
+     *   viewed from the other end of the park.
+     */</span>
+    inRoomName(pov) { return 'in the south end of the Park'; }
+    
+    regions = [parkRegion]
+;
+
++ Fixture 'bonfire; smouldering bonfire; fire'
+    &quot;It's still smouldering nicely, giving off lots of smoke. But it won't be
+    for much longer if the river bursts its banks. &quot;
+    feelDesc = &quot;It feels hot. &quot;
+;
+
+<span class='comment'>/*  
+ *   A DECORATION USED TO REPRESENT SMOKE
+ *
+ *   Smoke is only marginally tangible, but for our purposes it can be quite 
+ *   adequately represented by a Decoration. 
+ */</span>
+++ Decoration 'smoke; billowing thick'
+    &quot;Thick smoke is billowing up from the smouldering fire. &quot;
+    
+    <span class='comment'>/* We don't want the parser referring to 'a smoke' or even 'some smoke' */</span>
+    aName = (name)
+    
+    <span class='comment'>/*  The smoke should be clearly visible from a distance. */</span>
+    sightSize = large
+    smellSize = large
+    
+    decorationActions = [Examine, SmellSomething]
+    
+    smellDesc = &quot;The acrid smell of smoke wafts from the bonfire down by the 
+        river. &quot;
+    
+    notImportantMsg = '{I} {can\'t} do that to smoke. '
+;
+
+<span class='comment'>/*  
+ *   ODOR
+ *
+ *   We use the same description for the smell of the as for the smoke itself.
+ *   The Odor object is used to represent the smell as opposed to the object
+ *   emitting the smell, but in the case of smoke that's arguably a distinction
+ *   scarcely worth making. Still, we'll use an Odor object here to provide
+ *   another example of its use.
+ */</span>
++++ Odor 'smell; acrid'
+    desc = location.smellDesc
+    
+    
+    <span class='comment'>/* The smell should be quite apparent at a distance. */</span>
+    smellSize = large
+    
+;
+
+//------------------------------------------------------------------------------
+
+
+parkN: Room 'Park (North)' 'north end of the park'
+    &quot;The park occupies a large area, peppered with trees, shrubs and bushes,
+    bounded by the swollen river to the west. The park continues to the south. &quot;
+    
+    south = parkS
+    
+    <span class='comment'>/*  
+     *   The phrase to use to describe the location of objects left here when
+     *   viewed from the other end of the park.
+     */</span>
+    inRoomName(pov) { return 'in the north end of the Park'; }
+    
+    regions = [parkRegion]
+;
+
++ Fixture 'elm tree; tall' 
+    &quot;The elm tree is really quite tall. Its lowest branch is a bit too high for you to reach
+    unaided. &quot;
+    sightSize = large
+;
+
+
+<span class='comment'>/*  
+ *   PUTTING SOMETHING OUT OF REACH
+ *
+ *   We don't want the player character to be able to reach the trumpet without
+ *   the ladder, so we can put it out of reach using the checkReach() method of
+ *   the branch, which also restricts access to the contents of the branch.
+ */</span>
++ Fixture, Surface 'branch; lowest' 
+    &quot;It's about half way up the tree. &quot; 
+    
+    
+    <span class='comment'>/*  
+     *   The PC can only reach this branch if s/he's standing on the 
+     *   ladder.
+     */</span>
+    checkReach(obj)
+    {
+        <span class='comment'>/* 
+         *   Note that the checkReach method only needs to display some text to
+         *   prevent reaching the object, so we use the method to explain why
+         *   the branch can't be reached if the actor isn't on the ladder.
+         */</span>
+        if(!obj.isIn(ladder))
+            &quot;The branch is too high up to reach. &quot;;
+    }
+    
+    <span class='comment'>/* 
+     *   We won't allow anything other than the trumpet to be put on the 
+     *   branch.
+     */</span>
+    notifyInsert(obj)
+    {
+        if(obj != trumpet)
+        {
+            gMessageParams(obj);
+            &quot;{I} {can\'t} put {the obj} on the branch. &quot;;
+            exit;
+        }        
+    }
+;
+
+<span class='comment'>/*  
+ *   The trumpet is the second instrument in the game. Once again we'll use 
+ *   our custom Instrument class (defined below).
+ */</span>
+++ trumpet: Instrument 'trumpet; brass; object instrument' 
+    &quot;&lt;&lt;if moved&gt;&gt;Despite its sojourn up an elm tree, it looks in perfectly good
+    working order. &lt;&lt;else&gt;&gt; It's a strange place for a trumpet, perhaps someone
+    left it there for a prank, or perhaps someone felt a strange urge to play
+    their trumpet halfway up an elm tree.&lt;&lt;end&gt;&gt; &quot;
+    
+  
+    <span class='comment'>/*  
+     *   The initial (until moved) description of the trumpet in a room 
+     *   description when it's viewed from a remote location (the other end 
+     *   of the park).
+     */</span>
+    remoteInitSpecialDesc (actor)
+    {
+        &quot;The sun glints off a brass object somewhere up a tree in the north end
+        of the park. &quot;;
+    }
+    initSpecialDesc = &quot;For some reason, there's a trumpet hanging from a branch
+        half-way up the elm tree. &quot;
+    
+    <span class='comment'>/*  The sound event that's triggered when the trumpet is played. */</span>
+    soundEvent = trumpetEvent
+    
+    <span class='comment'>/*  The text that's displayed when the trumpet is played. */</span>
+    playDesc = 'You blast out a stirring rendition of the National Anthem. '
+;
+
++ basket: OpenableContainer 'small wicker basket'
+    &quot;It looks like the sort of basket that might be used by a fisherman. &quot;
+    
+
+    bulkCapacity = 2
+    initSpecialDesc = &quot;A small wicker basket lies abandoned by the river. &quot;
+    
+    <span class='comment'>/*  
+     *   Another way of specifying how the basket should be listed in a room 
+     *   description when viewed from afar.
+     */</span>
+    remoteInitSpecialDesc(pov)
+    { 
+        &quot;Through the trees and shrubs you can just make out        
+        a basket sitting by the river in the far end of the park. &quot;;
+    }
+    
+    <span class='comment'>/*  
+     *   We wan't to be able to smell the fish even when the basket is closed,
+     *   on the basis that the smell of rotting fish would probably manage to
+     *   seep through the weave of the basket. We can do that by setting its
+     *   canSmellIn property to true. There's also a canSmellOut property, but
+     *   we don't need it here since the player character will never be inside
+     *   the basket.
+     */</span>
+    canSmellIn = true
+;
+
+
+<span class='comment'>/* Something smelly in the basket */</span>
+++ fish: Thing 'rotting fish;; herring'
+    &quot;It's hard to tell what it was -- a herring perhaps (possibly a red one). &quot;
+    cannotEatMsg = 'It looks far too far gone to be edible. '
+    tasteDesc = &quot;&lt;&lt;cannotEatMsg&gt;&gt;&quot;
+    
+    smellDesc = &quot;&lt;&lt;if gPlayerChar.canSee(self)&gt;&gt;A terrible rotting smell comes
+        from the fish. &lt;&lt;else&gt;&gt;There's a terrible smell of something rotting.
+        &lt;&lt;end&gt;&gt; &quot; 
+;
+
+<span class='comment'>/*  
+ *   ODOR
+ *
+ *   We use an Odor object to represent the smell of the fish. This object can
+ *   describe the smell of the fish in a number of ways, as illustrated below.
+ *
+ *   Once again, we could have saved ourselves a little bit of work here by
+ *   using the Odor class defined in the sensory.t extension, which already
+ *   implements the descWithSource/descWithoutSource distinction in its
+ *   definition of the desc property.
+ */</span>
+
++++ Odor 'terrible rotting smell; ; stink stench'
+    &quot;&lt;&lt;if gPlayerChar.canSee(fish)&gt;&gt;&lt;&lt;descWithSource&gt;&gt; &lt;&lt;else&gt;&gt;
+    &lt;&lt;descWithoutSource&gt;&gt; &lt;&lt;end&gt;&gt; &quot;
+    
+    
+    <span class='comment'>/* The response to SMELL STENCH when we can see the fish */</span>
+    descWithSource = &quot;It's the now quite unmistakeable smell of rotting fish. &quot;
+    
+    <span class='comment'>/* The response to SMELL STENCH when we can't see the fish */</span>
+    descWithoutSource = &quot;It's a truly horrible smell; something rotting -- a
+        fish perhaps. &quot;
+    
+    
+    <span class='comment'>/* As horrible as the smell is, we probably can't smell it at a distance */</span>
+    smellSize = small
+    
+    
+;
+
+<span class='comment'>/*  The SoundEvent associaated with playing the trumpet. */</span>
+
+trumpetEvent: SoundEvent
+;
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*  
+ *   MULTILOC
+ *
+ *   A MultiFaceted object is one that runs through several locations, such 
+ *   as this river that runs along the west side of the park. Whereas the 
+ *   MultiLoc statue in the square was one physical object in one location 
+ *   accessible from all four corners of the square (because it lay on their 
+ *   joint boundaries at the centre of the square, in the case of the river 
+ *   we have two segments of the same object (the river) that are 
+ *   nevertheless physically distinct.
+ */</span>
+
+MultiLoc, Fixture 'river; fast flowing; bank water'   
+    &quot;The river running along the west side of the park is flowing much faster
+    than usual, and looks exceptionally high; it could burst its banks at any
+    moment. &quot;
+    locationList = [parkRegion]  
+;
+
+<span class='comment'>/*  
+ *   MULTILOC DECORATION 
+ */</span>
+
+MultiLoc, Decoration 'trees, shrubs and bushes;;; them'
+    &quot;A variety of trees, shrubs and bushes have been tastefully distributed
+    around the park, and carefully tended over the years. You only hope that
+    they won't be damaged by the flood waters if and when the river bursts
+    its banks. &quot;
+    
+    locationList = [parkRegion]
+    
+    <span class='comment'>/*  
+     *   The response we get from the trees if a SoundEvent is triggered in
+     *   their vicinity.
+     */</span>
+    notifySoundEvent(event, source) 
+    {
+        &quot;The sudden noise makes a flock of birds take flight and flutter
+        away from the trees. &quot;;
+    }
+    
+;
+
+//==============================================================================
+
+<span class='comment'>/*  
+ *   We've defined a couple of Musical Instruments, now we need to define a 
+ *   custom Play action so they can be played or blown.
+ */</span>
+DefineTAction(Play)
+;
+
+VerbRule(Play)
+    ('play' | 'blow') singleDobj
+    : VerbProduction
+    action = Play
+    verbRule = 'play/playing (what)'
+    missingQ = 'what do you want to play'
+;
+
+
+<span class='comment'>/*  We need to ensure that there's handling for the PlayAction on Thing. */</span>
+modify Thing
+    dobjFor(Play)
+    {
+        preCond = [touchObj]
+        verify() { illogical('I} can\'t play {that dobj}. '); }
+    }
+;
+
+
+<span class='comment'>/*  
+ *   Finally, we define our custom Instrument class, so that it knows how to 
+ *   handle a Play command.
+ */</span>
+class Instrument: Thing
+    dobjFor(Play)
+    {
+        <span class='comment'>/* We need to hold a wind instrument in order to play it. */</span>
+        preCond = [objHeld]
+        verify() {}
+        action()
+        {
+            <span class='comment'>/* Display the custom playDesc property. */</span>
+            say(playDesc);
+            
+            <span class='comment'>/* trigger the SoundEvent associated with this instrument. */</span>
+            if(soundEvent)
+                soundEvent.triggerEvent(self);
+        }
+    }
+    
+    <span class='comment'>/*  The SoundEvent associated with this instrument. */</span>
+    soundEvent = nil
+    
+    <span class='comment'>/*  The description of this instrument being played. */</span>
+    playDesc = nil     
+;
+
+<span class='comment'>/*  
+ *   Yelling also makes a noise, so we'll associate a SoundEvent with that too.
+ */</span>
+
+modify Yell
+    execAction(cmd)
+    {
+        inherited(cmd);
+        yellEvent.triggerEvent(gActor);
+    }
+;
+
+yellEvent: SoundEvent;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Sensibility.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

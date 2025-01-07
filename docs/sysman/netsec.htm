@@ -1,0 +1,179 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Network Safety in TADS</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Network Safety
+<br><span class="navnp"><a class="nav" href="tadsnet.htm"><i>Prev:</i> tads-net Function Set</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scripts.htm"><i>Next:</i> Input Scripts</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Network Safety in TADS</h1>
+
+<p>Starting with version 3.1, TADS offers several networking features
+in the interpreter.  Networking creates a certain amount of risk,
+since the whole point is to enable data transfer between distant
+machines whose owners don't know each other personally.
+
+<p>Some people are justifiably nervous about running applications with
+any sort of networking features.  TADS therefore gives the user
+control over how much, if any, network access is available to the game
+program.  This section explains how these "network safety" features
+work.  We also offer some analysis of why we think the TADS networking
+features are relatively safe by design, to help you decide on
+appropriate safety level settings.
+
+
+<h2>Safety level settings</h2>
+
+<p>You can limit the networking features that a game program can
+access using the "network safety level" setting.  This is an
+interpreter feature under the end user's control; games can't override
+it.
+
+<p>There are actually two separate network safety level settings.  The
+<i>client</i> level controls the game program's ability to initiate
+connections to other machines.  For example, this applies when the
+game tries to establish an HTTP connection to a Web server to download
+a page.  The <i>server</i> level controls the game's ability to set
+up services of its own that can accept connections from other
+machines.
+
+<p>For each role (client or server), there are three levels of access
+you can grant.  The levels are given as numbers, with higher numbers
+meaning higher "safety" - i.e., more restricted access.
+
+<ul>
+
+   <li>Level 0: All network access.  This is the minimum safety level;
+   it allows unrestricted access to the network for both local and
+   remote Internet connections.
+
+   <li>Level 1: Local access only.  This only allows access to or from
+   other programs on the <i>same computer</i>.  No other machines on the
+   network will be accessible.
+
+   <li>Level 2: No network access.  This is the highest safety level;
+   it completely disables the network functions.
+
+</ul>
+
+<p>The network safety level settings are controlled via interpreter
+options.  The user interface varies by interpreter.  In HTML TADS for
+Windows, the Options dialog controls these settings.  For command-line
+interpreters, the <span class="code">-ns</span> option controls the safety level.  See the
+<a href="terp.htm#network-safety">interpreter documentation</a> for
+details.
+
+<p>The default safety settings are Level 1, local access only, for
+both client and server functions.
+
+
+<h2>Just how risky is it?</h2>
+
+<p>We obviously can't make blanket assurances that the TADS networking
+features are completely free of risk.  All past experience with
+networked systems shows that there are always security holes and
+exploitable bugs.  Even so, we think that the TADS network setup is
+relatively secure.
+
+<p>When you hear "Web server", you might think of the million-and-one
+exploitable holes in the popular Web scripting languages.  You might
+also think of the difficulty of configuring a server like Apache, and
+the danger of exposing the machine to hackers if you configure it
+wrong.
+
+<p>Fortunately, The TADS Web server simply isn't comparable to those
+systems.  Most of their common security risks don't apply to the
+TADS networking system.
+
+<p>First, for a general-purpose server like Apache, its whole purpose
+in life is to serve up files from your hard disk.  Half of the
+configuration is basically to tell it what <i>not</i> to do.  TADS
+takes the opposite approach: the TADS Web server doesn't answer
+<i>any</i> requests on its own.  The only thing it does automatically
+is parse the protocol and forward requests to the game program.
+Everything else is up to the game program.
+
+<p>Second, even before the networking features came along, TADS
+<i>already</i> had a number of security features that made it safer to
+run third-party software on your system.  TADS is a "sandboxed"
+system: games can't run native machine code, so they can only do what
+the interpreter specifically enables them to do.  This means that they
+can't invoke the operating system directly; they can only access the
+OS through built-in functions and classes, which intentionally
+restrict which OS resources a game can access (the "file safety"
+settings, for example, let the user control file system access).
+
+<p>As we explained above, the TADS Web server doesn't do anything on
+its own: it's up to the game itself to handle requests.  That means a
+TADS Web server can only do what a TADS game can do, therefore a
+TADS Web server is subject to the same sandboxing features as a
+regular TADS game.
+
+<p>Third, many of the common "gotchas" in server programming systems
+like php come from language features that aren't relevant in TADS.
+For example, the common php "variable injection" attack isn't possible
+in TADS: request parameters are cleanly isolated in an object
+structure, and can't "leak" into the language to impersonate
+variables.  The php "remote include" attack isn't possible in TADS for
+similar reasons.
+
+
+
+
+<h2>Firewalls, proxies, security suites</h2>
+
+<p>If your computer is on a home network, you probably have some sort
+of hardware security device on the network, such as a broadband router
+with a firewall.  If you're on a business network, you probably have a
+more elaborate dedicated firewall or VPN router.  These devices are
+designed to isolate the local (home or business) network from the
+public Internet, to prevent hackers from outside your local network
+from accessing computers within your network.  In addition, many
+people run firewall software directly on their computers to block any
+attacks that make it past the hardware routers and firewalls, as well
+as attacks that originate from other PCs within the local network.
+
+<p>The TADS network safety level controls are completely independent
+of any of these security devices or software you're using.  The TADS
+safety level restrictions are purely additive to any external security
+measures.  TADS can't and won't bypass, override, or reconfigure any
+of your other firewalls: even if you set the safety level to 0 in
+TADS, it doesn't remove any of the other restrictions or firewalls you
+have in place.
+
+<p>This is particularly important to understand if you want to run a
+TADS program that accepts connections across the Internet.  Setting
+server safety level 0 in TADS allows the game program to create a
+server that can accept connections from any other machine.  However,
+for a remote machine to connect to the game, it first has to be able
+to connect to your machine.  Firewalls are usually set up to prevent
+this, by blocking incoming connections from the Internet entirely.  In
+order to set up a game server at home, you'll probably have to
+specially configure your broadband router or firewall to allow
+incoming connections to your machine.  This is beyond the scope of
+this chapter, so we'll have to refer you to the instruction manuals
+for your network boxes and/or your PC's firewall software.
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Network Safety
+<br><span class="navnp"><a class="nav" href="tadsnet.htm"><i>Prev:</i> tads-net Function Set</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scripts.htm"><i>Next:</i> Input Scripts</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

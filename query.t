@@ -59,6 +59,12 @@ Q: object
      */
     inLight(a)
         { return Special.first(&inLight).inLight(a); }
+    
+    /* 
+     *   Is B in gthe light from the perspective of A, where A may be either inside or outside B?
+     */
+    inLightFor(a, b)
+        { return Special.first(&inLightFor).inLightFor(a); }
 
     /*
      *   Can A see B?
@@ -260,6 +266,20 @@ QDefaults: Special
         return par != nil && par.litWithin();
     }
 
+    /* is B lit from the perspect of A, who may be inside B. */
+    inLightFor(a, b)
+    {
+        /* 
+         *   The special case is where A wishes to view B and B is A's outermostVisibleParent, such
+         *   as a closed, opaque booth. In that case B is in light if it's lit from within.
+         */
+        if(b == a.outermostVisibleParent())
+            return b.litWithin();
+        /* Otherwise b is lit for if b is in light. */
+        else
+            return inLight(b);
+    }
+    
     /*
      *   Can A see B?  We return true if and only if B is in light and there's a
      *   clear sight path from A to B. Also A can't see B is B is explicitly
@@ -271,9 +291,11 @@ QDefaults: Special
         if(a.isIn(nil) || b.isIn(nil) || b.isHidden)
             return nil;
         
-        /* we can see it if it's in light and there's a clear path to it */
-        return inLight(b)
-            && sightBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
+        /* 
+         *   we can see it if it's in light and we're outside it or it's our enclosing container and
+         *   it's lit within, and there's a clear path to it
+         */
+        return inLightFor(a, b) && sightBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
                               
     }
 
@@ -1015,7 +1037,13 @@ class ScopeList: object
     operator[](idx) { return vec_[idx]; }
 
     /* is the given object in scope? */
-    find(obj) { return status_[obj] != nil; }
+    find(obj)         
+    { 
+        if(status_ == nil)
+            status_ = new LookupTable(64, 128);
+        
+        return status_[obj] != nil; 
+    }
 
     /* get the subset of the objects in scope matching the given condition */
     subset(func) { return vec_.subset(func); }

@@ -19,7 +19,7 @@ Things
 <p>If you've had any experience writing Interactive Fiction, especially with TADS (2 or 3) or with earlier versions of Inform (up to version 6, at any rate) you'll know that a great deal of IF programming is taken up with defining objects. In the adv3Lite library the kind of object you'll probably find yourself defining most often is the Thing, which represents a physical object in the game world. Every physical object in an adv3Lite game will either be a Thing or an object based on a subclass of Thing. The adv3 library has a very extensive hierarchy of classes derived from Thing. The adv3Lite library attempts to prune that hierarchy drastically so that just about any game object (with a few exceptions such as rooms, doors and keys) can be defined as a Thing. But if you prefer to do things the adv3 way (and that might make for more readable code, quite apart from other possible benefits), you can use many of the Thing classes (Container, OpenableContainer, KeyedContainer, Decoration, Surface, Platform, Distant, and the like) provided you include the module extras.t in your build (it will be included by default). All the class definitions do there, however, is define one or two properties on Thing you could just as easily define for yourself. In this section, we shall focus on how to define a Thing, and describe how to make a Thing behave like a Container, Surface, ComplexContainer, Platform, Wearable, Switch and so forth just by defining a few properties.</p>
 
 <p>We shall start with the basic properties you'll need to define on just about any thing, then go on to properties concerned with <a href='#knowledge'>knowledge </a>
-of the thing, then discuss the <a href="#containment">containment properties</a>, and then the other <a href="#behaviour">behavioural properties</a>,  <a href="#sensory">sensory properties</a> and a few other <a href="#misc">miscellanoeus properties</a>. We shall not go into any depth on most of the properties and methods principally intended for internal use by the library; instead, we shall try to keep things as simple as we can.</q>
+of the thing, then discuss the <a href="#containment">containment properties</a>, and then the other <a href="#behaviour">behavioural properties</a>,  <a href="#sensory">sensory properties</a> and a few other <a href="#misc">miscellanoeus properties</a>. We shall not go into any depth on most of the properties and methods principally intended for internal use by the library; instead, we shall try to keep things as simple as we can. We shall, however, end with a substantial discussion of the <a href='#vocab'><b>vocab</b></a> property, which can do a lot of work for us.</p>
 
 <p>Just one further note before we start looking at the properties of Thing (and this is extremely important because it will apply to everything else in adv3Lite): When we give the definition of a property, please play close attention to the type of data it should be defined with; common data types such as objects, numbers, single-quoted strings and double-quoted strings are <em>not</em> interchangeable, and if you try to define a property that requires one kind of data with data of a different type things won't work as you expect. For example, the following three property definitions are anything but equivalent:</p>
 
@@ -530,7 +530,7 @@ class Odor: Thing
 
 <br>
 
-<h2><a name=vocab>The vocab Property in Detail</a></h2>
+<h2><a name='vocab'>The vocab Property in Detail</a></h2>
 <p>(Note, the following description is taken mostly from Mike Robert's comments in the Mercury english.t file, with some modifications to reflect features modified in adv3Lite):</p>
 
 <p>The vocab string is designed to make it as quick and easy as
@@ -590,8 +590,10 @@ as a proper name if you don't want it to be.</p>
  brackets: 'John[n] Smith' overrides the assumption that 'John' is
  an adjective.  Use [n] to make a word a noun, [adj] to make it an
  adjective, [prep] to make it a preposition, [weak] to make it a <a name="weaktok-idx">weak token</a>
- and [pl] to make it a
- plural.  These annotations are stripped out of the name when it's
+ and [pl] to make it a muti-object plural (e.g. 'oxen' if we have several ox objects in the game)
+ plural or [pn] to make it a single-object plural noun (e.g. 'leaves' if we have one object
+ representing a whole bunch of leaves). We'll explain plurals further <a href='#plurals'>below</a>.
+ These annotations are stripped out of the name when it's
  displayed.</p>
  
 <p>A <em>weak token</em> is a word that an object will allow in a match,
@@ -640,8 +642,11 @@ do it makes no difference: the libary simply converts '(his) head' into
  you can still add them.  Put the prepositions in the adjective
  list, and explicitly annotate each one as a preposition by adding
  "[prep]" at the end, as in "to[prep]".</p>
-    
- <p>Next, there's the matter of plurals.  For each noun, we'll try to
+ <a name='plurals'></a>
+ <p>Next, there's the matter of plurals. First the more common case of
+ plurals applying (or potentially applying) to multiple objects that
+ share the same plural (e.g. 'men' for Jack, Bill and Fred).
+ For each noun, we'll try to
  automatically infer a plural according to the spelling pattern.
  We also have a table of common irregular plurals that we'll apply.
  For irregular words that aren't in the table, you can override the
@@ -656,6 +661,19 @@ do it makes no difference: the libary simply converts '(his) head' into
  when it's displayed.  We don't try to generate a plural for a
  proper noun (a noun that starts with a capital letter), but you
  can provide explicit plurals.</p>
+ 
+ <p>The other kind of plural only comes into play with objects that
+ are ambiguously plural, such as a Decoration which could be referred to 
+ either as 'foliage' or 'leaves'. In most cases we don't need to worry 
+ about this, but there may occasionally be cases when we want to know
+ whether the player referred to such an object with a singular or 
+ plural name in his/her current command (so we can customize the text
+ of our response accordingly, e.g. "It is all around you" or "They are
+ all around you." Should you need to do this you can mark any plural
+ names for the object with [pn], for example <code>'foliage; thick green; leaves[pn]; it them'</code>.
+ You can then use the method <strong>usedPluralToken()</strong> to determine whether the 
+ player used any of the plural names for the object in the current command.</P
+ 
      
  <p>For words longer than the truncation length in the string
  comparator, you can set the word to match exactly by adding '=' as

@@ -1,0 +1,1303 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 11 (adv3)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Exercise11.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 11 - Laying Out the Map (adv3)</h1>
+
+<p>This is a demonstration of Room and Connector classes. A real game would be much 
+   more fully implemented. Here we've kept the number of 
+  non-Room-or-Connector objects to the minimum needed to demonstrate the 
+  use of the various kinds of room and connector. We've also included a vehicle and Push Traveler
+  to illustrate how these might work with Travel Barriers. </p>
+
+<p>The specification of the game in <i>Learning TADS 3</i> is:</p>  
+<p>The game starts in a hall, from which there are four exits. One exit leads down via a flight of stairs to a cellar. One leads south via a path to the kitchen. One leads north through the front door. And one leads east directly into the lounge, but the description of the hall suggests that you go through an archway to get there</p>
+<p>From the kitchen a passageway leads north back to the hall, but there’s a secret panel to the east and a laundry chute to the west (you can go down the chute but not back up it). In the kitchen is a flashlight which can be used to explore dark rooms.
+The cellar is a dark room, from which a flight of stairs leads back up into the hall. On the west side of the cellar is the bottom end of the laundry chute, from which the player can only emerge (but not go back up again).</p>
+<p>In addition to the exit west back out to the hall (which should describe the player character returning to the hall when s/he goes that way), the lounge has an oak door leading south. On the other side of the oak door is a study. On the west wall of the study is a bookcase which is in fact the other side of the secret panel on the east wall of the kitchen (so that opening the bookcase allows direct access between the kitchen and the study). In the study is a pair of special shoes (make them of class Wearable).</p>
+<p>The front door leads north into a drive. To the north of the drive is a road, but the player character doesn’t want to go there. To the west lies a wood that’s so dense that if the player character tries to enter it s/he soon has to turn back. An oak tree stands in the middle of the drive and the player can climb it.</p>
+<p>From the drive a path leads east onto a lawn. To east and south the lawn is enclosed by a bend in the river, but a path leads west back to the drive. Also, there’s a boat moored up on the river, and you can board the boat to the east. Boarding the boat from the lawn takes you to its main deck. From there you can go starboard back to the lawn or aft to the main cabin. Once in the main cabin you can go out or forward to the main deck, or port into the sleeping cabin.</p>
+<p>Across the river is a meadow, but you can only walk across the river if you're wearing the special shoes, and of course you can't ride the bike across the river.</p>
+<p>A bicycle is parked in the drive. The player character can ride the bicycle on the level, but not up the tree or up or down stairs or around the boat. The player character can carry the bicycle but can't climb the tree while carrying the bicycle.</p>
+
+<div class='code'><pre>
+#charset "us-ascii"
+
+<span class="comment">/*   
+ *   CONNECTORS.T
+ *
+ *   Demonstration of Room and Connector classes. A real game would be much 
+ *   more fully implemented. Here we've kept the number of 
+ *   non-Room-or-Connector objects to the minimum needed to demonstrate the 
+ *   use of the various kinds of room and connector.
+ */</span>
+
+
+<span class="comment">/*
+ *   Copyright (c) 1999, 2002 by Michael J. Roberts.  Permission is
+ *   granted to anyone to copy and use this file for any purpose.  
+ *   
+ *   This is a starter TADS 3 source file.  This is a complete TADS game
+ *   that you can compile and run.
+ *   
+ *   To compile this game in TADS Workbench, open the &quot;Build&quot; menu and
+ *   select &quot;Compile for Debugging.&quot;  To run the game, after compiling it,
+ *   open the &quot;Debug&quot; menu and select &quot;Go.&quot;
+ *   
+ *   This is the &quot;advanced&quot; starter game - it has only the minimum set of
+ *   definitions needed for a working game.  If you would like some more
+ *   examples, create a new game, and choose the &quot;introductory&quot; version
+ *   when asked for the type of starter game to create.  
+ */</span>
+
+<span class="comment">/* 
+ *   Include the main header for the standard TADS 3 adventure library.
+ *   Note that this does NOT include the entire source code for the
+ *   library; this merely includes some definitions for our use here.  The
+ *   main library must be &quot;linked&quot; into the finished program by including
+ *   the file &quot;adv3.tl&quot; in the list of modules specified when compiling.
+ *   In TADS Workbench, simply include adv3.tl in the &quot;Source Files&quot;
+ *   section of the project.
+ *   
+ *   Also include the US English definitions, since this game is written
+ *   in English.  
+ */</span>
+#include &lt;adv3.h&gt;
+#include &lt;en_us.h&gt;
+
+<span class="comment">/*
+ *   VERSION INFO
+ *
+ *   Our game credits and version information.  This object isn't required 
+ *   by the system, but our GameInfo initialization above needs this for 
+ *   some of its information.
+ *
+ *   You'll have to customize some of the text below, as marked: the name of 
+ *   your game, your byline, and so on.
+ */</span>
+versionInfo: GameID
+    IFID = 'bf1fea6f-f375-9cae-4504-f1f0905510b2'
+    name = 'Connectors'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;
+                  Eric Eve&lt;/a&gt;'
+    version = '0.5'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'Demonstration of Room and TravelConnector classes.'
+    htmlDesc = 'Demonstration of Room and TravelConnector classes.'
+;
+
+<span class="comment">/*
+ *   GAME MAIN
+ *
+ *   The &quot;gameMain&quot; object lets us set the initial player character and 
+ *   control the game's startup procedure.  Every game must define this 
+ *   object.  For convenience, we inherit from the library's GameMainDef 
+ *   class, which defines suitable defaults for most of this object's 
+ *   required methods and properties.  
+ */</span>
+gameMain: GameMainDef
+    <span class="comment">/* the initial player character is 'me' */</span>
+    initialPlayerChar = me
+    showIntro()
+    {
+        &quot;You've just bought a new property, so you thought you'd take a quick
+        look round the house and grounds.&lt;.p&gt;&quot;;
+    }
+;
+
+<span class="comment">/* 
+ *   ROOM
+ *
+ *   Starting location - we'll use this as the player character's initial 
+ *   location.  The name of the starting location isn't important to the 
+ *   library, but note that it has to match up with the initial location for 
+ *   the player character, defined in the &quot;me&quot; object below.
+ *
+ *   Our definition defines two strings.  The first string, which must be in 
+ *   single quotes, is the &quot;name&quot; of the room; the name is displayed on the 
+ *   status line and each time the player enters the room.  The second 
+ *   string, which must be in double quotes, is the &quot;description&quot; of the 
+ *   room, which is a full description of the room.  This is displayed when 
+ *   the player types &quot;look around,&quot; when the player first enters the room, 
+ *   and any time the player enters the room when playing in VERBOSE mode. 
+ *   
+ */</span>
+hall: Room 'Hall'
+    &quot;The hall is empty, but a passage runs south, and there's an archway to the
+    east as well as the front door to the north. A flight of stairs leads down.
+    &quot;
+    <span class="comment">/* 
+     *   Only the east property points directly to another room; the other 
+     *   three directional properties point to various other kinds of 
+     *   TravelConnector: a ThroughPassage, a StairwayDown, and a Door.
+     */</span>
+    south = hallPassage
+    down = hallStairs
+    north = frontDoorInside
+    east = lounge
+    
+    <span class="comment">/* A simple illustration of the travelerEntering() method */</span>
+    
+    enteringRoom(traveler, origin)
+    {
+        if(traveler == bicycle)
+            &quot;It occurs to you that you'd better not ride your bike into the hall
+            too often, or you'll leave tyre marks on the floor. &quot;;
+    }
+;
+
+<span class="comment">/*
+ *   THING  - PLAYER CHARACTER
+ *
+ *   Define the player character.  The name of this object is not important, 
+ *   but it MUST match the name we use to initialize 
+ *   gameMain.initialPlayerChar above.
+ *
+ *   Note that we aren't required to define any vocabulary or description 
+ *   for this object, because the class Actor, defined in the library, 
+ *   automatically provides the appropriate definitions for an Actor when 
+ *   the Actor is serving as the player character.  Note also that we don't 
+ *   have to do anything special in this object definition to make the Actor 
+ *   the player character; any Actor can serve as the player character, and 
+ *   we'll establish this one as the PC in main(), below.  
+ */</span>
++ me: Actor
+    desc = &quot;You look splendidly equipped to explore the area. &quot;
+;
+
+
+
+<span class="comment">/*
+ *   STAIRWAY DOWN
+ *
+ *   A StairwayDown is something you can climb down, so a flight of stairs 
+ *   is an obvious example. We can't a bicycle or push a trolley down a 
+ *   staircase, though, so we'll attach a couple of travel barriers to the 
+ *   stairway to prevent this. For the definition of these traval barrier 
+ *   objects see below. For the moment note how defining them as objects 
+ *   allows them to be used on many different TravelConnectors.
+ *
+ *   Nome of the three TravelConnectors we go on to define here (hallStairs, 
+ *   hallPassage and frontDoorInside) apparently state where they lead to. 
+ *   Their destinations are the locations of the objects which form their 
+ *   other ends, which are defined later on.
+ */</span>
+
+
++ hallStairs: StairwayDown 'flight/stairs' 'flight of stairs'
+    travelBarrier = [bikeBarrier, trolleyBarrier]
+;
+
+<span class="comment">/*  
+ *   THROUGH PASSAGE 
+ *
+ *   This is simply a passage the Player Character can ENTER or GO THROUGH. 
+ *   The Player Character will automatically go through this passage if s/he 
+ *   leaves the hall to the south. 
+ */</span>
+
++ hallPassage: ThroughPassage 'narrow passage' 'passage'
+    &quot;The narrow passage leads off to the south. &quot;
+;
+
+<span class="comment">/*  
+ *   DOOR 
+ *
+ *   This is a very basic door, without any kind of lock. The player 
+ *   character can GO THROUGH IT explicitly, or will be taken through it if 
+ *   s/he leaves the hall to the north. If the door is closed it will be 
+ *   opened with an implicit action. 
+ *
+ */</span>
+
++ frontDoorInside: Door 'front door' 'front door'
+;
+
+<span class="comment">/* 
+ *   ENTRY PORTAL
+ *
+ *   An EntryPortal is something we can go through. The -&gt; lounge in the 
+ *   template points to the travel connector that's traversed when we go 
+ *   through the arch. In this case the connector is simply the destination 
+ *   room (the lounge). 
+ */</span>
+
++ hallArch: EntryPortal -&gt; lounge 'carved painted white wood arch/archway' 'arch'
+    &quot;It's a carved wood arch, painted white. &quot;
+;
+
+//------------------------------------------------------------------------------
+<span class="comment">/* Another ROOM */</span>
+
+kitchen: Room 'Kitchen'
+    &quot;The kitchen has been stripped of everything, pending its total
+    refurbishment. A passage leads off to the north, and there's a laundry chute
+    in the west wall&lt;&lt;secretPanel.isOpen ? ', and a large square opening in the
+        east one' : '' &gt;&gt;. &quot;
+    north = kitchenPassage
+    west = laundryChute
+    east = secretPanel
+;
+
+<span class="comment">/* 
+ *   TRAVEL PUSHABLE
+ *
+ *   We need to supply a TravelPushable in order to demonstrate the use of 
+ *   PushTravelBarrier.
+ */</span>
+
++ trolley: TravelPushable, Surface 'trolley' 'trolley'
+    <span class="comment">/* 
+     *   Without a specialDesc the trolley wouldn't show up in a room 
+     *   description, since TravelPushable inherits from NonPortable.
+     */</span>
+    specialDesc = &quot;There's a trolley here. &quot;
+    
+    <span class="comment">/* 
+     *   By default pushing a TravelPushable results in a plain-vanilla 
+     *   message &quot;You push the trolley into the area. &quot; We can override 
+     *   describeMovePushable() to provide a more specific message.
+     */</span>
+    
+    describeMovePushable(traveler, connector)
+    {
+        &quot;You push the trolley into &lt;&lt;traveler.location.destName&gt;&gt;. &quot;;
+    }
+;
+
+<span class="comment">/* 
+ *   FLASHLIGHT
+ *
+ *   We need to supply some kind of light source, otherwise it will be 
+ *   impossible to explore the DarkRoom example (the cellar)
+ */</span>
+
+++ torch: Flashlight 'red plastic flashlight/torch/light' 'flashlight'    
+    &quot;It's made of red plastic. &quot;
+;
+
+<span class="comment">/* 
+ *   THROUGH PASSAGE (again)
+ *
+ *   Note that we link the kitchenPassage to the hallPassage so that when we 
+ *   enter one we arrive in the location of the other.
+ */</span>
+
++ kitchenPassage: ThroughPassage -&gt;hallPassage 'passage' 'passage'
+;
+
+<span class="comment">/* 
+ *   THROUGH PASSAGE, ROOM PART ITEM &amp; TRAVEL WITH MESSAGE
+ *
+ *   Since the laundry chute is described as being on the west wall, we'll 
+ *   make it a RoomPartItem and set it up so that it's described in response 
+ *   to EXAMINE WEST WALL.
+ *
+ *   Since travelling via a laundry chute is a little unusual, we should 
+ *   probably describe the travel here. One way of doing this is by adding 
+ *   TravelWithMessage to the class list and defining the travelDesc property.
+ *
+ *   A more complete implementation of the laundry chute might allow the 
+ *   player to put things in it which then fall down into the cellar, but we 
+ *   don't need that complication for this demo game, so it's left as an 
+ *   exercise for the interested reader. 
+ */</span>
+
++ laundryChute: RoomPartItem, TravelWithMessage, ThroughPassage 
+    'laundry chute' 'laundry chute'
+    &quot;Although it's intended for laundry, it's large enough for a person to fit
+    into as well. &quot;
+    specialNominalRoomPartLocation = defaultWestWall
+    specialDesc = &quot;A laundry chute is set in the west wall. &quot;
+    travelBarrier = [bikeBarrier, trolleyBarrier]
+    travelDesc = &quot;You find yourself tumbling rapidly down the laundry chute
+        until you are unceremoniously ejected from its lower end, landing with a
+        bone-shaking bump. &quot;;
+;
+
+<span class="comment">/*   
+ *   HIDDEN DOOR
+ *
+ *   A HiddenDoor is one that doesn't reveal its presence at all (it can't be
+ *   sensed) unless it's open.
+ */</span>
+
++ secretPanel: HiddenDoor -&gt;bookcase 'large square opening' 'opening'
+;
+
+//------------------------------------------------------------------------------
+
+<span class="comment">/* DARK ROOM */</span>
+
+cellar: DarkRoom 'Cellar'    
+    &quot;The cellar is bare, since the last owners moved all their rubbish out and
+    you haven't moved your own rubbish in yet. A flight of stairs leads up, and
+    the end of the laundry chute protrudes from the west wall. &quot;
+    
+    <span class="comment">/* 
+     *   By default a DarkRoom displays &quot;In the dark&quot; and &quot;It's pitch black&quot; 
+     *   as its name and description respectively, but we can change that on 
+     *   individual dark rooms by overriding the following two properties.
+     */</span>
+    roomDarkName = 'Cellar (in the dark) '
+    roomDarkDesc = &quot;It's too dark to see anything in here, but you can just make
+        out some stairs leading up. &quot;
+    up = cellarStairs
+    west = cellarChute
+;
+
+<span class="comment">/*  
+ *   STAIRWAY UP 
+ *
+ *   Note that this points to the hallStairs StairwayDown object as its other
+ *   end, so climbing these stairs will take us to the location of the 
+ *   hallStairs (i.e. the hall) whereas climbing down the hall stairs will 
+ *   bring us here (to the cellar).      
+ */</span>
+
++ cellarStairs: StairwayUp -&gt; hallStairs 'flight/stairs' 'flight of stairs'
+    <span class="comment">/* 
+     *   By giving the stairs a brightness of 1 we make them dimly visible 
+     *   even when the cellar is dark. This will allow the player to climb 
+     *   the stairs even if s/he arrives in the cellar via the laundry chute 
+     *   without a light source (which would otherwise leave the player 
+     *   character totally stuck). Note that giving the stairs a brightness 
+     *   of 1 makes only the stairs visible in the dark; they will not 
+     *   illuminate anything else/
+     */</span>
+    brightness = 1
+;
+
+  <span class="comment">/* 
+   *   EXIT ONLY PASSAGE
+   *
+   *   This is where we emerge from if we enter the laundry chute in the 
+   *   kitchen. It's an ExitOnlyPassage since we can't climb back up the 
+   *   chute. The purpose of this passage is thus to provide the other end 
+   *   of the laundry chute that starts in the kitchen.
+   */</span>
+
++ cellarChute: RoomPartItem, ExitOnlyPassage -&gt;laundryChute 
+    'laundry end/chute' 'laundry chute'
+    dobjFor(Climb) asDobjFor(TravelVia)
+    dobjFor(TravelVia)
+    {
+       action()
+        {
+            reportFailure('There\'s no way you can climb back up the chute. ');
+        }
+    }
+    
+    specialNominalRoomPartLocation = defaultWestWall
+    specialDesc = &quot;The end of the laundry chute protrudes from the north wall. &quot;
+;
+
+//------------------------------------------------------------------------------
+
+  <span class="comment">/* 
+   *   A WALL (A ROOM PART)
+   *
+   *   In the lounge we'll demonstrate one way of modeling two exits in the 
+   *   same direction, in this case two doors leading through the south 
+   *   wall. We'll start by providing a customized south wall that describes 
+   *   the two doors when it is examined.
+   */</span>
+
+loungeSouthWall: defaultSouthWall
+    desc = &quot;Two doors, one oak and the other pine, lead through the south wall.
+        &quot;
+;
+
+<span class="comment">/*  Another ROOM */</span>
+
+lounge: Room 'Lounge' 
+    &quot;This will be a comfortable enough room once it is furnished, no doubt. At
+    the moment, though, there's nothing here except an exit to the west and a
+    pair of doors (one oak, one pine) leading south. &quot;
+    
+    <span class="comment">/* 
+     *   TRAVEL MESSAGE
+     *
+     *   TravelMessage is a subclass of TravelConnector that displays a 
+     *   message (travelDesc) when the player characters traverses it. The 
+     *   two properties defined in the template used below are the 
+     *   destination and travelDesc.
+     */</span>
+    
+    west: TravelMessage { -&gt;hall &quot;You &lt;&lt;travelMethod()&gt;&gt; back out into the hall. &quot; }
+    
+    <span class="comment">/* 
+     *   ASK CONNECTOR
+     *
+     *   If the player types SOUTH it's unclear which of the two doors 
+     *   leading south s/he wants to go through. We handle this with an 
+     *   AskConnector, which asks which of its travelObjs the player wants 
+     *   to go through.
+     *
+     *   Note, however, that if one door is open and the other closed, the 
+     *   parser will automatically choose the open door without asking 
+     *   (whether or not you think that's a good idea, that's how the 
+     *   standard library behaves).
+     */</span>
+    
+    south: AskConnector {
+        travelObjs = [pineDoor, oakDoor]
+        travelAction = GoThroughAction
+        promptMessage = &quot;There are two doors you could go through to the south. &quot;
+        travelObjsPhrase = 'of them'
+    }
+    
+    <span class="comment">/* Replace the defaultSouthWall with our own customized version. */</span>
+    
+    roomParts = static inherited - defaultSouthWall + loungeSouthWall
+;
+
+<span class="comment">/* 
+ *   AUTO-CLOSING DOOR
+ *
+ *   We'll make the oak door auto-closing, which means it'll close itself 
+ *   after anyone goes through it.
+ */</span>
+
++ oakDoor: AutoClosingDoor 'oak door*doors' 'oak door'    
+;
+
+<span class="comment">/*  An ordinary DOOR */</span>
+
++ pineDoor: Door 'pine door*doors' 'pine door'
+    <span class="comment">/* 
+     *   A Door is a subclass of TravelConnector, so we can attach travel 
+     *   barriers to it directly.
+     */</span>
+    travelBarrier = [bikeBarrier, trolleyBarrier]
+;
+
+//------------------------------------------------------------------------------
+
+<span class="comment">/*  Yet Another ROOM */</span>
+
+study: Room 'Study'
+    &quot;This long, rectangular room is currently unfurnished, but you've earmarked
+    it for your study. There's an oak door to the north, and an empty bookcase
+    &lt;&lt;bookcase.isOpen ? 'has swung open from' : 'rests against'&gt;&gt; the west
+    wall. &quot;
+    north = studyDoor    
+    out asExit(north)
+    west =  bookcase
+;
+
+<span class="comment">/*  The other side of the AUTO-CLOSING DOOR */</span>
+
++ studyDoor: AutoClosingDoor -&gt; oakDoor 'oak door*doors' 'oak door'    
+;
+    
+  <span class="comment">/* 
+   *   SECRET DOOR
+   *
+   *   A SecretDoor is something that doesn't look like a door at all unless 
+   *   it's open. Here we'll use a bookcase as a secret door. When closed, 
+   *   it'll just look like a bookcase; when open, the player can go through 
+   *   it to the kitchen.  
+   *
+   *   Since it's described as a bookcase people might try to put things on 
+   *   it or in it, so we'll make it a Surface to allow this. Note that 
+   *   making a Container wouldn't have worked, since the isOpen property of 
+   *   Container would conflict with the isOpen property of SecretDoor.
+   */</span>
+
++ bookcase: Surface, SecretDoor 
+    'large square wooden empty (book) bookcase/case/shelf/shelves' 'bookcase'
+    &quot;It's a large, square, wooden bookcase, currently empty. &lt;&lt;isOpen ? 'It has
+        swung open, revealing a secret exit behind' : ''&gt;&gt; &quot;
+    
+    <span class="comment">/* 
+     *   Since this is a secret door, it won't respond to OPEN and CLOSE 
+     *   commands, so we need to provide some other means of opening and 
+     *   closing it. This could be with a concealed lever or secret button, 
+     *   but since we want to keep the use of other objects to a minimum 
+     *   here, we'll just let the player PULL the bookcase open and PUSH it 
+     *   closed.    
+     */</span>
+    
+    dobjFor(Pull)
+    {
+        verify()
+        {
+            if(isOpen)
+                illogicalAlready('It\'s already fully open. ');
+        }
+        action()
+        {
+            makeOpen(true);
+            &quot;The bookcase swings open, revealing an opening behind. &quot;;
+        }
+    }
+    
+    dobjFor(Push)
+    {
+        verify()
+        {
+            if(!isOpen)
+                inherited;
+        }
+        action()
+        {
+            makeOpen(nil);
+            &quot;You push the bookcase shut again. &quot;;
+        }
+    }
+    
+    <span class="comment">/* 
+     *   We'll also make MOVE BOOKCASE act like PUSH BOOKCASE if it's open 
+     *   and PULL BOOKCASE if it's closed.
+     */</span>
+    
+    dobjFor(Move)
+    {
+        verify() {  }
+        action()
+        {
+            if(isOpen)
+                replaceAction(Push, self);
+            else
+                replaceAction(Pull, self);
+        }
+    }
+    
+    <span class="comment">/* Make PUT X IN BOOKCASE behave like PUT X ON BOOKCASE */</span>
+    
+    iobjFor(PutIn) remapTo(PutOn, DirectObject, self)
+;
+
+ <span class="comment">/* 
+  *   HIDDEN
+  *
+  *   There's an opening behind the bookcase that we can only see when the 
+  *   bookcase is open. We can implement that with a Hidden object.
+  */</span>
+
++ Hidden 'secret large square opening/exit' 'opening'
+    &quot;It's a large square opening. &quot;
+    dobjFor(Enter) remapTo(Enter, bookcase)
+    dobjFor(GoThrough) remapTo(GoThrough, bookcase)
+    discovered = (bookcase.isOpen)
+;
+
+//------------------------------------------------------------------------------
+
+ <span class="comment">/* 
+  *   FLOORLESS ROOM
+  *
+  *   It's quite difficult to come up with a realistic example of 
+  *   FloorlessRoom, since FloorlessRoom = Floorless, Room, i.e. and indoor 
+  *   room without a floor, whereas the obvious kinds of floorless room 
+  *   (such as the top of a tree or mast) are more likely to be outdoors. 
+  *   We'll meet a more obvious Floorless, OutdoorRoom at the top of a tree 
+  *   below; in the meantime this example is a little contrived.
+  */</span>
+
+floorlessChamber: FloorlessRoom 'Floorless Chamber'
+    &quot;For some reason this room has no floor, &lt;&lt;shoes.wornBy == me ? 'but since
+        you are wearing the special shoes, you float effortlessly in the air' :
+      'so you are forced to hang onto the door to stop yourself falling'&gt;&gt;. &quot;
+       
+    bottomRoom = cellar
+    north = chamberDoor
+    out asExit(north)
+    
+    <span class="comment">/* 
+     *   the receiveDrop() method of a floorless room defines what happens 
+     *   to an object that's dropped here. Normally the object falls to the 
+     *   location defined in bottomRoom, but we want to treat the shoes as a 
+     *   special case, so we override receiveDrop() to make the shoes remain 
+     *   the Floorless Chamber when dropped, while using the inherited 
+     *   handling for everything else.
+     */</span>
+    
+    receiveDrop(obj, desc)
+    {
+        if(obj == shoes)
+        {
+            &quot;The special shoes remain hovering in the air. &quot;;
+            shoes.moveInto(self);
+        }
+        else
+            inherited(obj, desc);
+    }
+    
+    <span class="comment">/*
+     *   A demonstration of roomBeforeAction and roomAfterAction. You 
+     *   obviously can\'t jump in a room without a floor, so Jumping is a 
+     *   good candidate for an action to rule out in a roomBeforeAction().  
+     */</span>
+    
+    roomBeforeAction()
+    {
+        if(gActionIs(Jump))
+            
+            <span class="comment">/* 
+             *   Using failCheck(msg) is a shortcut way of writing:
+             *
+             *       reportFailure(msg); 
+             *       exit;
+             *
+             *   Where the exit stops the action in its track. failCheck() is
+             *   defined as a method of Thing, so can only be used on 
+             *   Thing-derived classes.
+             */</span>
+            failCheck('You can\'t; there\'s no floor, so your feet aren\'t
+                touching it. ');
+    }
+    
+    roomAfterAction()
+    {
+        if(gActionIs(Yell))
+            &quot;Your shout echoes strangely round the floorless chamber. &quot;;
+    }
+;
+
+<span class="comment">/*  Another ordinary DOOR */</span>
+
++ chamberDoor: Door -&gt;pineDoor 'pine door*doors' 'pine door'
+    noteTraversal(traveler)
+    {
+        if(shoes.wornBy == me)
+            &quot;The shoes seem to lose some of their levitational effect as
+            you step out of the floorless chamber, and you find yourself
+            firmly back on the ground. &quot;;
+    }
+;
+
+<span class="comment">/* 
+ *   WEARABLE
+ *
+ *   These shoes will be useful both for this FloorlessRoom and for the 
+ *   example of a RoomConnector below, where they are used in connection 
+ *   with a canTravelerPass() method. Although they don't strictly belong in 
+ *   a game demonstrating rooms and connectors, it's almost impossible to 
+ *   demonstrate every type of connector without at least a few other 
+ *   objects. 
+ */</span>
+
++ shoes: Wearable 'anti-gravity special brown pair/shoes' 'pair of brown shoes'
+    &quot;They're brown in colour, and marked &lt;q&gt;water-repellant levitationals&lt;/q&gt;. &quot;
+    isInInitState = (isDirectlyIn(floorlessChamber))
+    initSpecialDesc =  &quot;A pair of shoes hover in the air, defying gravity. &quot;    
+    isPlural = true
+    dobjFor(Wear)
+    {
+        action()
+        {
+            if(gActor.isIn(floorlessChamber))
+                &quot;Putting on the shoes allows you to float in the floorless
+                chamber without having to hang on to the door. &quot;;
+            inherited;
+        }
+    }
+    
+    dobjFor(Doff)
+    {
+        action()
+        {
+            if(gActor.isIn(floorlessChamber))            
+                &quot;You hang tightly on the door with one hand while gingerly
+                removing the shoes with the other.&quot;;
+           
+            inherited;
+        }
+    }
+    
+;
+
+//------------------------------------------------------------------------------
+
+<span class="comment">/* 
+ *   OUTDOOR ROOM
+ *
+ *   The drive is the first OutdoorRoom defined in this game. It's an 
+ *   OutdoorRoom because it models an exterior location (i.e. one without 
+ *   walls, and with a sky instead of a ceiling.
+ */</span>
+
+drive: OutdoorRoom 'Front Drive'
+    &quot;The drive opens out into a busy road to the north. A path leads off to the
+    east, while to the east stand some dense woods. The south side of the drive
+    is occupied by a large house, while a tall oak tree grows right in the
+    middle of the drive. &quot;
+    south = frontDoorOutside
+    in asExit(south)
+    up = oakTree
+    
+    <span class="comment">/* 
+     *   FAKE CONNECTOR &amp; DEAD END CONNECTOR
+     *
+     *   Note the difference between the FakeConnector and the 
+     *   DeadEndConnector that follow. The FakeConnector models travel that 
+     *   is not even attempted (although there's no physical barrier 
+     *   preventing it), while the DeadEndConnector models travel into and 
+     *   back out of an area that's not actually implemented in the game.
+     */</span>
+    
+    north: FakeConnector { &quot;You don't want to wander out into the road right
+        now; at this time of day the traffic is so busy that it's just not safe
+        for &lt;&lt; me.isIn(bicycle) ? 'cyclists' : 'pedestrians'&gt;&gt;. &quot; }
+    west: DeadEndConnector { -&gt; 'the woods' &quot;You &lt;&lt;travelMethod()&gt;&gt; into the
+        woods, but the paths become so confusing that for a while you are 
+        lost. Eventually you find your way back onto a familiar path and manage
+        to return to your starting point. &quot; }
+    east = drivePath
+    
+    <span class="comment">/* 
+     *   ATMOSPHERE LIST
+     *
+     *   The atmosphereList can be used for a series of atmospheric messages 
+     *   that the room will automatically display when this property is 
+     *   defined. We attach a ShuffledEventList to this property to make the 
+     *   messages display in shuffled-random order.
+     */</span>   
+    
+    atmosphereList: ShuffledEventList
+    {
+        [
+            'A lorry rumbles past on the road. ',
+            'The sound of a loud siren wails from the road. ',
+            'A pair of rabbits scuttle off into the woods. ',
+            'A flock of pigeons flies overhead. ',
+            'The sun comes out from behind a cloud. ',
+            'A gust of wind rustles the oak tree. '
+        ]
+        
+        <span class="comment">/* 
+         *   We probably don't want to see one of these messages every turn, 
+         *   so we'll set them to display only once every two turns on 
+         *   average.
+         */</span>        
+        eventPercent = 50
+    }
+;
+
+<span class="comment">/*  
+ *   ENTERABLE 
+ *
+ *   We use an Enterable to represent the outside of the house. Thus can be 
+ *   entered via the front door, so we point the house's connector property 
+ *   to the frontDoorOutside object using the -&gt; section of the template.
+ */</span>
+
++ house: Enterable -&gt; frontDoorOutside 'large house' 'large house'
+    &quot;It's a large house with a front door that\'s &lt;&lt;frontDoorOutside.isOpen ?
+      'invitingly open' : 'firmly closed'&gt;&gt;. &quot;
+;
+
+++ frontDoorOutside: Door -&gt;frontDoorInside 'front door' 'front door'
+;
+
+<span class="comment">/* 
+ *   A less conventional STAIRWAY UP
+ *
+ *   A StairwayUp can be used for things other than stairs; anything 
+ *   climbable is a candidate for a StairwayUp, including a tree.
+ *
+ *   But note that we can hardly ride a bicycle up a tree, or push a trolley 
+ *   up one, so we attach the appropriate travel barriers to prevent this.
+ */</span>     
+
+
++ oakTree: StairwayUp 'large oak tree' 'large oak tree'
+    travelBarrier = [bikeBarrier, trolleyBarrier]
+    canTravelerPass(traveler) { return !bicycle.isIn(traveler); }
+    explainTravelBarrier(traveler)
+    {
+        &quot;You can hardly climb the tree carrying the bicycle. &quot;;
+    }
+;
+
+<span class="comment">/* PATH PASSAGE */</span>
+
++ drivePath: PathPassage 'path' 'path'
+    &quot;The path leads off to the east. &quot;
+;
+
+<span class="comment">/* 
+ *   VEHICLE combined with CHAIR
+ *
+ *   We need a Vehicle to demonstrate VehicleBarriers, so we'll provide this 
+ *   bicycle.
+ */</span>
+
++ bicycle: Chair, Vehicle 'old cycle/bicycle/bike' 'bicycle'
+    &quot;It's old, but it looks functional enough. &quot;
+    initSpecialDesc = &quot;An old bicycle leans against the front of the house. &quot;
+    
+    <span class="comment">/* 
+     *   The bike is perfectly usable without the following action handling, 
+     *   but RIDE BIKE and RIDE BIKE &lt;direction&gt; (e.g. RIDE BIKE NORTH) are 
+     *   such obvious commands to try that it seems worth implementing them.
+     *
+     *   We start by implementing RIDE BIKE. If the player character is not 
+     *   already on the bike we make this equivalent to SIT ON BIKE, 
+     *   otherwise we ask the player which direction the bike should be 
+     *   ridden in. 
+     */</span>
+    
+    dobjFor(Ride)
+    {
+        verify() { }
+        action()
+        {
+            if(!gActor.isIn(self))
+                replaceAction(SitOn, self);
+            else
+                &quot;Which way do you want to ride the bike? &quot;;
+        }
+    }
+    
+    <span class="comment">/*
+     *   The other obvious form of command is RIDE BIKE &lt;dir&gt; (e.g. RIDE BIKE
+     *   NORTH). We implement that next. 
+     */</span>
+    
+    dobjFor(RideDir)
+    {
+        <span class="comment">/* 
+         *   Adding this precondition makes the player character sit on the 
+         *   bike as an implicit action before moving the bike if the player 
+         *   types RIDE BIKE &lt;dir&gt; while the player character isn't on the 
+         *   bike.
+         */</span>
+        
+        preCond = [actorDirectlyInRoom]
+        verify() { }
+        
+        <span class="comment">/* 
+         *   There doesn't seem to be a very straightforward way to remap 
+         *   RIDE BIKE NORTH to GO NORTH, so we use this slightly more 
+         *   complicated way instead. Basically we find which 
+         *   TravelConnector lies in the direction of the proposed travel 
+         *   and then attempt to Travel Via that connector.
+         */</span>
+        
+        action()
+        {
+            local conn;
+            
+            <span class="comment">/* ask the actor's location for the connector in our direction */</span>
+            conn = gActor.location.getTravelConnector(gAction.dirMatch.dir, gActor);
+            
+            <span class="comment">/* perform a nested TravelVia on the connector */</span>
+            nestedAction(TravelVia, conn);            
+        }      
+        
+    }
+;
+
+<span class="comment">/* 
+ *   ENTERABLE
+ *
+ *   We want ENTER WOODS to behave the same way as WEST. We do that by 
+ *   pointing the associated connector to the location's west property.
+ */</span>
+
++ Enterable -&gt;(location.west) 'dense woods/wood/trees' 'dense woods'
+    isPlural = true
+;
+
+//------------------------------------------------------------------------------
+<span class="comment">/*  
+ *   FLOORLESS
+ *
+ *   Here we combine Floorless with OutdoorRoom since this location has no 
+ *   walls either; the only room part applicable at the top of the tree is 
+ *   the defaultSky.
+ */</span>
+
+topOfTree: Floorless, OutdoorRoom 'Top of Tree' 'the top of the tree'
+    &quot;The top of the tree doesn't afford much of a view, since the leaves and
+    branches get in the way. &quot;
+    bottomRoom = drive
+    down = trunk
+;
+
+<span class="comment">/*  An unconventional STAIRWAY DOWN to match the StairwayUp at the bottom */</span>
+
++ trunk: StairwayDown -&gt; oakTree 'trunk/tree' 'trunk'
+;
+
+//------------------------------------------------------------------------------
+<span class="comment">/*   Another OUTDOOR ROOM */</span>
+
+lawn: OutdoorRoom 'Lawn'
+    &quot;This large lawn is enclosed to east and south by a bend in a river, though
+    you could board the boat that's moored up just to the east. A path leads
+    west back to the main drive. &quot;
+    west = gardenPath    
+    east = mainDeck
+    south = riverConnector
+    
+    <span class="comment">/* 
+     *   NO TRAVEL MESSAGE
+     *
+     *   The NoTravelMessage provides a custom message to explain why travel 
+     *   is not possible in a particular direction. In a real game we'd 
+     *   doubtless need to implement the shrubbery object too.
+     */</span>
+    
+    north: NoTravelMessage { &quot;Even if you could force your way through the think
+        shrubbery, which you can't, on the far side of it runs the main road,
+        which you'd rather avoid right now. &quot;}
+;
+
+<span class="comment">/*  TRAVEL WITH MESSAGE combined with PATH PASSAGE */</span>
+
++ gardenPath: TravelWithMessage, PathPassage -&gt;drivePath
+    'path' 'path'
+    travelDesc = &quot;You &lt;&lt;travelMethod()&gt;&gt; back down the path. &quot;
+;
+
+<span class="comment">/* 
+ *   ENTERABLE
+ *
+ *   We'll provide a boat here in order to give examples of ShipBoard rooms. */</span>
+
+
++ boat: Enterable -&gt;mainDeck 'large boat' 'large boat'
+    &quot;It's about fifteen feet long. &quot;
+   specialDesc = &quot;A large boat is moored up on the river at the bottom of the
+       garden, just to the east. &quot;
+    dobjFor(Board) asDobjFor(Enter)
+    getFacets = [boat2] // see below
+;
+
+//------------------------------------------------------------------------------
+
+ <span class="comment">/* 
+  *   A MULTILOC DECORATION
+  *
+  *   The river is not strictly essential in this demonstration game, but 
+  *   since it's mentioned rather prominently, it would seem needlessly 
+  *   sloppy not to implement it, albeit in minimal form.
+  */</span>
+
+
+MultiLoc, Decoration 'swollen river' 'river'
+    &quot;Swollen by recent heavy rain, the river runs broad and fast. &quot;
+    locationList = [lawn, meadow]
+;
+
+ <span class="comment">/* 
+  *   ROOM CONNECTOR
+  *
+  *   A RoomConnector provides a two-way connection between neighbouring 
+  *   locations. Since in the simplest case this can be done simply by 
+  *   pointing the appropriate direction properties of the two rooms to link 
+  *   the rooms to each other, there's no point exemplifying the simplest 
+  *   case. A RoomConnector is only useful if it embodies a travel barrier 
+  *   or some side-effect of travel, such as displaying a message, so here 
+  *   we'll exemplify both.
+  */</span>
+
+
+riverConnector: RoomConnector
+    <span class="comment">/* 
+     *   The room1 and room2 properties contain the two locations connected 
+     *   by this RoomConnector.
+     */</span>
+    room1 = lawn
+    room2 = meadow
+       
+    <span class="comment">/*
+     *   Note that if the PC is riding the bicycle, the traveler will be the 
+     *   bicycle, not the PC, and the bicycle can never wear the shoes; thus 
+     *   this canTravelerPass() method will only allow the PC to pass on foot
+     *   wearing the shoes. It will also prevent the trolley from being 
+     *   pushed across the river, since the trolley can never where the 
+     *   shoes either (nor can the PushTravel object created to handle 
+     *   moving the trolley).
+     */</span>
+    canTravelerPass(traveler) { return shoes.wornBy == traveler; }
+    explainTravelBarrier(traveler)
+    {
+        
+        <span class="comment">/* 
+         *   The tricky case is where we're trying to push the trolley 
+         *   across the river. At that point the first object trying to 
+         *   travel via this connector will be an temporary PushTraveler 
+         *   object created to handle the push travel action. We need to 
+         *   make a special test for this condition.
+         */</span>       
+        
+        switch(traveler)
+        {
+        case me:
+            &quot;You aren't equipped for walking on water. &quot;; break;
+        case bicycle:
+            &quot;You can hardly cycle across the river. &quot;; break;
+        default:
+            if(traveler.ofKind(PushTraveler))
+               &quot;You can't push &lt;&lt;traveler.obj_.theName&gt;&gt; across the river. &quot;; 
+            else
+                &quot;You can't cross the river. &quot;; 
+            break;
+        }
+    }
+    
+    <span class="comment">/* 
+     *   We can use noteTraversal() to describe what happens when an actor 
+     *   crosses the river. Note that this message will display for *any* 
+     *   actor crossing the river, not just the player character. In this 
+     *   game the player character is the only actor, so that's okay; the 
+     *   effect is exactly the same as if we'd added TravelWithMessage to the
+     *   class list and defined a travelDesc. In a game which had mobile 
+     *   actors in addition to the player character, using TravelWithMessage 
+     *   and travelDesc would be a better choice.
+     */</span>
+    
+    noteTraversal(traveler)
+    {
+        &quot;Aided by the special shoes, you are able to walk across the river. &quot;;
+    }
+;
+
+//------------------------------------------------------------------------------
+<span class="comment">/*  Another OUTDOOR ROOM */</span>
+
+meadow: OutdoorRoom 'Meadow' 
+    &quot;This vast meadow stretches as far as you can see in every direction except
+    north, where it is bounded by the river. &quot;
+    
+    <span class="comment">/* 
+     *   Here we override the standard &quot;You can't go that way&quot; message and 
+     *   provide our own version instead.
+     */</span>
+    
+    cannotGoThatWayMsg = 'It\'s your own property you want to explore, and this
+        meadow clearly isn\'t part of it. '
+    north = riverConnector
+;
+
+//------------------------------------------------------------------------------
+
+ <span class="comment">/*  
+  *   SHIPBOARD
+  *
+  *   We add a few locations aboard a boat to demonstrate Shipboard, 
+  *   ShipboardRoom and the various shipboard directions. Since the main deck
+  *   has no walls, we need to combine Shipboard with OutdoorRoom. 
+  */</span>
+
+mainDeck: Shipboard, OutdoorRoom 'Main Deck'
+    &quot;The main deck is tidy to the point of bareness. The main cabin lies aft,
+    and you can leave the boat to starboard. &quot;
+    
+    <span class="comment">/* 
+     *   Since we're now aboard a boat we can now use the shipboard 
+     *   directions port, starboard, fore and aft, so we'll use these to 
+     *   define the direction properties on all these boat-location. Since 
+     *   the boat is moored up and will never move in this game, the compass 
+     *   directions will map unambiguously onto the shipboard directions, 
+     *   and since the player might use these too, we'll implement them via 
+     *   asExit macros. Note that it's the shipboard directions that will 
+     *   show up in the exit lister, since these are the ones we define 
+     *   directly.
+     */</span>
+    
+    starboard = lawn
+    west asExit(starboard)
+    out asExit(starboard)
+    aft = mainCabin
+    south asExit(aft)
+    in asExit(aft)
+    fore: NoTravelMessage { &quot;You don't want to walk off the bow! &quot; }
+    north asExit(fore)
+;
+
+<span class="comment">/* 
+ *   EXITABLE
+ *
+ *   Providing this Exitable object here allows us to handle commands like 
+ *   LEAVE THE BOAT or GET OUT OF THE BOAT.
+ */</span>
+
++ boat2: Exitable -&gt; lawn 'boat' 'boat'
+    &quot;It's about fifteen feet long from stem to stern. &lt;&lt;location.desc()&gt;&gt;&quot;
+    dobjFor(GetOffOf) asDobjFor(GetOutOf)
+    
+    <span class="comment">/* 
+     *   We make boat and boat2 facets of each other so that if, for 
+     *   example, the player were to type ENTER BOAT followed by LEAVE IT, 
+     *   the parser would know what IT refers to (since the parser now 
+     *   recognizes boat and boat2 as facets of the same object.
+     */</span>
+    getFacets = [boat]
+;
+
+<span class="comment">/*  
+ *   SHIPBOARD ROOM
+ *
+ *   Both the main cabin and the sleeping cabin are effectively indoor 
+ *   locations aboard the boat, that is they have walls, floor and ceiling, 
+ *   so we can use the ShipboardRoom class for both of them.
+ */</span>
+
+mainCabin: ShipboardRoom 'Main Cabin'
+    &quot;The main cabin is bare, since the boat is being refitted. The way back out
+    to the deck is fore, while the sleeping cabin lies to port. &quot;
+    fore = mainDeck
+    north asExit(fore)
+    out asExit(fore)
+    port = sleepingCabin
+    east asExit(port)
+;
+
+sleepingCabin: ShipboardRoom 'Sleeping Cabin'
+    &quot;There would normally be a bunk here, but it's been removed while the boat
+    is being refitted. The way out back to the main cabin is to starboard. &quot;
+    starboard = mainCabin
+    west asExit(starboard)
+    out asExit(starboard)
+;
+
+//==============================================================================
+<span class="comment">/* 
+ *   VEHICLE BARRIER &amp; PUSH TRAVEL BARRIER
+ *
+ *   We define a TravelBarrier and a VehicleBarier for use on a number of 
+ *   TravelConnectors.
+ */</span>
+
+modify TravelBarrier
+    replace explainTravelBarrier(traveler, ...) {}
+;
+
+bikeBarrier: VehicleBarrier
+    explainTravelBarrier(traveler)
+    {
+        &quot;You can't ride the bike that way. &quot;;
+    }    
+;
+
+trolleyBarrier: PushTravelBarrier
+    <span class="comment">/* 
+     *   This illustrates one way in which we can customise the message 
+     *   explaining why the trolley can't be pushed through certain 
+     *   connectors. We wouldn't want to do this for a whole lot of 
+     *   different travel barriers and connectors, so in a more complicated 
+     *   game we'd probably devise a more generalized scheme.
+     */</span>
+    
+    explainTravelBarrier(traveler)
+    {
+        &quot;You can't push the trolley &quot;;
+
+        if(connector &amp;&amp; connector.ofKind(ThroughPassage))
+            &quot;through &lt;&lt;connector.theName&gt;&gt;. &quot;;        
+        else if(connector &amp;&amp; connector.ofKind(StairwayDown))
+            &quot;down &lt;&lt;connector.theName&gt;&gt;. &quot;;
+        else if(connector &amp;&amp; connector.ofKind(StairwayUp))
+            &quot;up &lt;&lt;connector.theName&gt;&gt; &quot;;                
+        else
+            &quot;that way. &quot;;        
+    }
+    <span class="comment">/* 
+     *   PushTravelBarrier doesn't provide a connector property by default; 
+     *   we define it here and ensure it gets updated correctly by modifying 
+     *   TravelConnector as below.
+     */</span>
+    
+    connector = nil
+;
+
+<span class="comment">/*  MODIFYING TRAVELCONNECTOR */</span>
+
+modify TravelConnector
+    checkTravelBarriers(dest)
+    {
+        <span class="comment">/* 
+         *   Let trolleyBarrier that we're the connector that travel is 
+         *   about to be attempted via, so that 
+         *   trolleyBarrier.explainTravelBarrier() can refer to us in its 
+         *   message.
+         */</span>
+        trolleyBarrier.connector = self;
+        inherited(dest);
+    }
+;    
+
+
+ <span class="comment">/* 
+  *   Defining a FUNCTION
+  *
+  *   Since we've used travel messages on several TravelConnectors that can 
+  *   be traversed either on foot or on the bicycle, it's helpful to have a 
+  *   utility function that gives us a verb appropriate to the means of 
+  *   locomotion.
+  */</span>
+
+travelMethod()
+{
+    return me.isIn(bicycle) ? 'cycle' : 'walk';
+}
+
+//==============================================================================
+
+<span class="comment">/*  
+ *   NEW ACTIONS
+ *
+ *   Add a couple of new actions for riding the bike, since RIDE BIKE or RIDE
+ *   BIKE EAST etc. would be such natural actions to try
+ */</span>
+
+
+DefineTAction(Ride)
+;
+
+VerbRule(Ride)
+    ('ride' | 'mount') singleDobj
+    :  RideAction
+    verbPhrase = 'ride/riding (what)'
+;
+
+DefineTAction(RideDir)
+;
+
+VerbRule(RideDir)
+    'ride' singleDobj ('to' ('the'|) |) singleDir
+    : RideDirAction
+    verbPhrase = 'ride/riding (what) (where)'
+;
+
+modify Thing
+    dobjFor(Ride)
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotRideMsg); }
+    }
+    dobjFor(RideDir)
+    {
+        preCond = [touchObj]
+        verify() { illogical(cannotRideMsg); }
+    }
+    
+    cannotRideMsg = '{That dobj/he} {is} not something you can ride. '
+;
+
+
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Exercise11.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

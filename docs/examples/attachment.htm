@@ -1,0 +1,2163 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 22 (adv3)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Exercise22.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 22 - Attachments (adv3)</h1>
+
+<p>Attachments is a demonstration of adv3 Attachable classes.</p>
+
+<p>The game follows the specification of Exercise 22 in <i>Learning TADS 3</i>:
+
+<p>The player character is the only survivor aboard a small scouting space-ship that has just been attacked, holing its hull so that all the air is evacuated, killing everyone else aboard. The player character has survived since he was suited up making repairs to the antenna on the outside of the ship when the attack occurred. The attacking vessel has departed, but now the player character must effect repairs to take his own ship to safety.
+The player character starts the game in the airlock. He is wearing a space suit to which is attached an air cylinder (nearly exhausted) and a helmet; a lamp is currently plugged into the helmet but can be unplugged from it and plugged in elsewhere for recharging. Just as the game begins, the lights aboard ship go out, indicating a power failure. The outer and inner airlock doors are operated by levers, with dials indicating the air pressure outside the hull, inside the airlock, and inside the ship.</p>
+
+<p>Just inboard of the airlock is a storage chamber with a rack containing a spare air cylinder (full enough to last the whole game and more), a charging socket, an equipment locker, a freezer, and a winch (fixed in place). Inside the equipment locker are two connectors (for joining lengths of cable), a short length of cable, and a roll of hull repair fabric. To operate the winch while the main power supply is out, it is necessary to attach one end of the cable to the winch and the other to the charging socket. The charging socket can also be used to recharge the lamp, when the lamp is plugged into it. A hawser runs from the winch; one end of the hawser can be carried by the player character into other locations (in which case there’ll be a length of hawser running all the way back to the winch); if the free end of the hawser is attached to something (such as a pile of debris) and the winch then operated (by pressing a button on it while the winch has power), the hawser will be rewound, dragging whatever’s attached to the other end with it.
+Aft of the storage hold is the Engine Room. Here there’s a power switch that can be turned on to restore power to the whole ship, but only once the main fault has been repaired, and an airflow control lever than can be pulled to repressurize the ship, but only once the hole in the hull has been repaired.</p>
+<p>
+Forward of the Storage Hold is the Living Quarters, which took the brunt of the blast from the attacking vessel, and now has a large hole in part of the hull. This can be repaired by attaching a square of fabric from the locker to the hull. To one side of the Living Quarters is the door into a cabin, but this won’t open until pressure has been restored to the ship. Along the floor of the Living Quarters is an electrical conduit which contains the main power cable for the ship (now exposed by the same blast that tore through the hull). A length of the cable has been burned away, and must be repaired by attaching the short length of cable from the locker to the two ends of the severed cable by means of the electrical connectors (also from the locker). Unfortunately, the mass of debris left over from the blast blocks access to the conduit to repair the cable, and can only be removed by using the winch and hawser.
+Once the hull has been patched the ship can be repressurized (using the lever in the Engine Room), and once the ship has been repressurized the cabin door can be opened, allowing access to the cabin. Inside the cabin is a bed and a cabinet, the latter containing a security card.</p>
+<p>
+Forward of the Living Quarters is the Bridge, containing (amongst anything else you think should be on the Bridge of a scouting space-ship) a card reader and green button. If the green button is pressed once main power has been restored and the security card is attached to the card reader, the controls come back to life, and the game is won.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+<span class='comment'>/*  
+ *   ATTACHMENT
+ *
+ *   A demonstration of TADS 3 Attachable classes.
+ *
+ *   Handling Attachables is not always straightforward, to say the least, so
+ *   this is the most complex of the demo games. If you have not already 
+ *   done so, you may want to become familiar with the other demo games first.
+ *
+ *   Attachables are complicated because there is so many different ways in 
+ *   which they could behave that the library classes can only provide a 
+ *   general framework which the game author must customize to suit each 
+ *   particular case. For example, if I attach a rope to a heavy box lying 
+ *   on the floor and then try to walk out of the room still holding the 
+ *   rope, a number of different things might happen, including:
+ *
+ *   (1)    I walk into the next room, still holding the rope, dragging the 
+ *   box along behind me. 
+ *
+ *   (2)    I walk into the next room, still holding the rope, but it 
+ *   becomes detached from the box. 
+ *
+ *   (3)    I walk into the next room, still holding the rope, which is so 
+ *   long that it has not yet become taut. 
+ *
+ *   (4)    I am jerked to a halt by the rope, which has become taut, and 
+ *   cannot leave the room while I am holding the rope. 
+ *
+ *   (5)    I walk into the room, but am forced to let go of the rope in the 
+ *   process.
+ *
+ *   And those are just the possibilitis involving a rope attached to a box; 
+ *   many other kind of attachment relationships are possible.
+ *
+ *   Given the vast number of possibilities, this demonstration game cannot 
+ *   hope to cover them all, and will only attempt a small range by way of 
+ *   illustration.
+ *
+ *   Also, because this game is already quite complex enough, and is intended
+ *   primarily to illustrate the use of Attachables, this comments in the 
+ *   source code will be largely restricted to those parts of the code 
+ *   relating to the implementation of Attachable objects.
+ *
+ *   Finally, this demonstration game makes use of a custom SimpleAttachable 
+ *   class which is supplied in the <a href='#simple'>accompanying file</a>. For details of 
+ *   SimpleAttachable, see the comments in SimpleAttachable.t.
+ */</span>
+
+
+
+<span class='comment'>/*
+ *   Copyright (c) 1999, 2002 by Michael J. Roberts.  Permission is
+ *   granted to anyone to copy and use this file for any purpose.  
+ *   
+ *   This is a starter TADS 3 source file.  This is a complete TADS game
+ *   that you can compile and run.
+ *   
+ *   To compile this game in TADS Workbench, open the &quot;Build&quot; menu and
+ *   select &quot;Compile for Debugging.&quot;  To run the game, after compiling it,
+ *   open the &quot;Debug&quot; menu and select &quot;Go.&quot;
+ *   
+ *   This is the &quot;advanced&quot; starter game - it has only the minimum set of
+ *   definitions needed for a working game.  If you would like some more
+ *   examples, create a new game, and choose the &quot;introductory&quot; version
+ *   when asked for the type of starter game to create.  
+ */</span>
+
+<span class='comment'>/* 
+ *   Include the main header for the standard TADS 3 adventure library.
+ *   Note that this does NOT include the entire source code for the
+ *   library; this merely includes some definitions for our use here.  The
+ *   main library must be &quot;linked&quot; into the finished program by including
+ *   the file &quot;adv3.tl&quot; in the list of modules specified when compiling.
+ *   In TADS Workbench, simply include adv3.tl in the &quot;Source Files&quot;
+ *   section of the project.
+ *   
+ *   Also include the US English definitions, since this game is written
+ *   in English.  
+ */</span>
+#include &lt;adv3.h&gt;
+#include &lt;en_us.h&gt;
+
+<span class='comment'>/*
+ *   Our game credits and version information.  This object isn't required
+ *   by the system, but our GameInfo initialization above needs this for
+ *   some of its information.
+ *   
+ *   You'll have to customize some of the text below, as marked: the name
+ *   of your game, your byline, and so on.
+ */</span>
+versionInfo: GameID
+    IFID = '55e2c590-f3b5-749e-e06a-3e3555b45329'
+    name = 'Attachment'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;
+                  Eric Eve&lt;/a&gt;'
+    version = '0.2'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demonstration of TADS 3 Attachable classes.'
+    htmlDesc = 'A demonstration of TADS 3 Attachable classes.'
+    
+    showAbout()
+    {
+        &quot;This is primarily a demonstration of TADS 3 Attachables. The game can
+        be played through to a winning conclusion (or a losing one!), but it has
+        been designed with demonstrating Attachables in mind rather than
+        creating something that is a particularly great game.\b
+        If you do want to play through the game and find you get stuck, remember
+        that this is demonstration of attachable objects. Most of the things you
+        need to do in this game will involve attaching (or detaching) objects to
+        one another.&lt;.p&gt;&quot;;
+    }
+;
+
+<span class='comment'>/*
+ *   The &quot;gameMain&quot; object lets us set the initial player character and
+ *   control the game's startup procedure.  Every game must define this
+ *   object.  For convenience, we inherit from the library's GameMainDef
+ *   class, which defines suitable defaults for most of this object's
+ *   required methods and properties.  
+ */</span>
+gameMain: GameMainDef
+    <span class='comment'>/* the initial player character is 'me' */</span>
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        &quot;You weren't keen on being the one ordered outside to go and fix the
+        transmission aerial, but that space-walk probably saved your life.\b
+        The Federation warship (at least, you assume it was a Federation
+        warship) appeared as if from nowhere and struck without warning, holing
+        the tiny spy-ship with a single blast of its laser canon, and throwing
+        you from your precarious perch. You very much doubt anyone inside the
+        ship could have survived -- no one else was suited up and the
+        decompression would have killed them almost instantly.\b
+        Fortunately the hostile warship vanished as suddenly as it appeared,
+        assuming its work was done and not even bothering to check for
+        survivors. There very nearly weren't any; it took you over an hour to
+        work your way back to the ship and in through the airlock, by which
+        time the oxygen in your tank was all but exhausted. Removing your
+        helmet you gasped gratefully at the air in the airlock, remembering to
+        switch off your helmet lamp as it, too, was starting to dim.\b
+        But it seems your troubles are far from over yet.\b&quot;;
+    }
+;
+
+<span class='comment'>/*  
+ *   The game takes place entirely aboard a spaceship, so compass directions 
+ *   will have no meaning, which also mean we can't refer to the 'north 
+ *   wall' the 'east wall' and the like. We therefore override ShipboardRoom 
+ *   to disallow movement in compass directions, and provide it with a 
+ *   suitable set of room parts suitable for a ship.
+ */</span>
+modify ShipboardRoom
+    north: NoTravelMessage { &quot;That direction has no meaning here; aboard ship
+        you can go port (P), starboard (SB), fore (F) or aft (A). &quot;}
+    south asExit(north)
+    east asExit(north)
+    west asExit(north)
+    northeast asExit(north)
+    northwest asExit(north)
+    southeast asExit(north)
+    southwest asExit(north)
+    
+    <span class='comment'>/* At the start of the game the power is off and all rooms are dark. */</span>
+    brightness = (powerSwitch.isOn ? 3 : 0)
+    
+    <span class='comment'>/* 
+     *   A custom property representing the air pressure in the room (in 
+     *   bar). In this game this will be either 0 or 1.
+     */</span>
+    pressure = 0
+    
+    roomParts = [deck, defaultCeiling, portWall, starboardWall, aftWall,
+        foreWall]
+;
+
+<span class='comment'>/* Custom room parts for a ship. */</span>
+
+portWall: DefaultWall 'p port wall/hull*walls' 'port wall';
+starboardWall: DefaultWall 'sb starboard wall/hull*walls' 'starboard wall';
+aftWall: DefaultWall 'a aft wall/bulkhead*walls*bulkheads' 'aft bulkhead';
+foreWall: DefaultWall 'f fore forward wall/bulkhead*walls*bulkheads'
+    'forward bulhead'
+;
+
+deck: Floor 'floor/ground/deck' 'deck';
+
+<span class='comment'>/* Define a message that'll be shown just before the first command prompt. */</span>
+
+InitObject
+    execute()
+    {
+        new OneTimePromptDaemon(self, &amp;message);
+    }
+    
+    message = &quot;The airlock light just went out, another casualty of the damage
+        inflicted by the Federation warship. The artificial gravity still seems
+        to be working, though, so some backup batteries must still have some
+        charge left in them. &quot;
+;
+
+<span class='comment'>/*  
+ *   A Custom class for Doors that are opened and closed by an external 
+ *   mechanism, not by using OPEN and CLOSE commands.
+ */</span>
+
+class IndirectDoor: Door
+    dobjFor(Open) { verify { illogical (cannotOpenMsg); } }
+    dobjFor(Close) { verify { illogical(cannotCloseMsg); } }
+    dobjFor(Lock) { verify { illogical(cannotLockMsg); } }
+    dobjFor(LockWith) { verify { illogical(cannotLockMsg); } }
+    dobjFor(Unlock) { verify { illogical(cannotUnlockMsg); } }
+    dobjFor(UnlockWith) { verify { illogical(cannotUnlockMsg); } }
+    cannotOpenMsg = '{The dobj/he} {is} operated with a lever. '
+    cannotCloseMsg = (cannotOpenMsg)
+    cannotLockMsg = '{The dobj/he} {has} no lock. '
+    cannotUnlockMsg = (cannotLockMsg)
+;
+
+//------------------------------------------------------------------------------
+
+<span class='comment'>/* The starting location. */</span>
+
+airlock: ShipboardRoom 'Main Airlock'
+    &quot;This small airlock, on the port side of the ship, is just about large
+    enough for one man to stand in -- two would be uncomfortably cosy. A pair
+    of levers control the airlock doors, and a trio of dials indicate the air
+    pressure inside and outside the airlock. &quot;
+    starboard = innerDoor
+    port = outerDoor
+    pressure = 1
+    out asExit(starboard)
+    roomBeforeAction()
+    {
+        if(gActionIs(Out) &amp;&amp; outerDoor.isOpen)
+            replaceAction(Port);    
+    }
+;
+
++ redLever: DoorLever, CustomFixture 'red lever*levers' 'red lever'
+    &quot;It's marked &lt;q&gt;Outer Door&lt;/q&gt;. &quot;
+    otherLever = greenLever
+    myDoor = outerDoor
+    collectiveGroups = [leverGroup]
+
+;
+
++ greenLever: DoorLever, CustomFixture 'green lever*levers' 'green lever'
+    &quot;It's marked &lt;q&gt;Inner Door&lt;/q&gt;. &quot;
+    otherLever = redLever
+    myDoor = innerDoor
+    
+    dobjFor(Push)
+    {
+        verify()
+        {
+            if(hawser.isIn(airlock))
+                illogicalNow('You can\'t close the inner door while the hawser
+                    is running through it. ');
+            inherited;
+        }
+    }
+    collectiveGroups = [leverGroup]
+;
+
++ leverGroup: CollectiveGroup, Fixture '*levers' 'levers'
+    &quot;There's a red lever (controlling the outer door), and a green lever
+    (controlling the inner door). &quot;
+;
+
++ portDial: CustomFixture 'port dial*dials' 'port dial'
+    &quot;The port dial shows the air pressure beyond the port (outer) door;  i.e.
+    outside the ship; it currently registers 0 bar&quot;
+    collectiveGroups = [dialGroup]
+;
+
++ centreDial: CustomFixture 'center centre central middle dial*dials' 
+    'central dial'
+    &quot;The central dial shows the air pressure inside the airlock; it currently
+    registers &lt;&lt;airlock.pressure&gt;&gt; bar. &quot;
+    collectiveGroups = [dialGroup]
+;
+
++ starboardDial: CustomFixture 'starboard dial*dials' 'starboard dial'
+    &quot;The starboard dial shows the air pressue beyond the starboard (inner)
+    door, it currenly registers &lt;&lt;storageCompartment.pressure&gt;&gt; bar.&quot;
+    collectiveGroups = [dialGroup]
+;
+
++ dialGroup: CollectiveGroup, Fixture '*dials' 'dials'
+   &quot;The port dial indicates that air pressure beyond the port (outer) door is
+   currenly 0 bar. The central dial shows that the air pressure inside the
+   airlock is currently &lt;&lt;airlock.pressure&gt;&gt; bar. The starboard dial shows that
+   the air pressure beyond the starboard (inner) door, i.e. outside the ship is
+   currently &lt;&lt;storageCompartment.pressure&gt;&gt; bar. &quot;
+;
+
++ innerDoor: IndirectDoor 'inner door' 'inner door'
+;
+
++ outerDoor: IndirectDoor, FakeConnector 'outer door' 'outer door'
+    
+    travelDesc = &quot;You don't want to go back out there again; you've had quite
+        enough space-walking for now. &quot;
+    
+    destination: OutdoorRoom { pressure = 0 }
+;
+
+<span class='comment'>/*  The Player Character */</span>
+
++ me: Actor
+;
+
+<span class='comment'>/*  
+ *   SIMPLE ATTACHABLE
+ *
+ *   SimpleAttachable is a custom class defined in the accompanying file. 
+ *
+ *   We make the spaceSuit a SimpleAttachable so that an OxygenTank can be 
+ *   attached to it.
+ *
+ *   SimpleAttachable is designed to model an asymmetric attachment, where 
+ *   one of the attached objects is the major attachment and all the others 
+ *   are its minor attachments (we'd consider a limpet mine to be attached 
+ *   to a battleship, not the other way round - the battleship would be the 
+ *   major attachment and the mine the minor attachment). If the major 
+ *   attachment is moved, its minor attachments move with it. If a minor 
+ *   attachment is moved (e.g. by the player character taking it) it becomes 
+ *   detached from the major attachment (think of a magnet attached to a 
+ *   fridge). 
+ *
+ *   By default, a SimpleAttachment is designed to be used with other 
+ *   SimpleAttachments: both the major attachment and its minor attachments 
+ *   should be of class SimpleAttachable.
+ */</span>
+++ spaceSuit: SimpleAttachable, Wearable 'dark blue space suit/spacesuit' 
+    'space suit'
+    &quot;It's dark blue, the colour of a naval uniform. &quot;
+    wornBy = me
+     
+    <span class='comment'>/* 
+     *   The space suit is the major attachable here (any oxygen tank 
+     *   attached to it will move round with it). We set it up as the major 
+     *   attachments by listing the minor attachments that can be attached 
+     *   to it.
+     */</span>
+    minorAttachmentItems = [emptyTank, fullTank]    
+    
+    
+    <span class='comment'>/* Prevent the player removing the space suit in a vacuum. */</span>
+    dobjFor(Doff)
+    {
+        check()
+        {
+            if(gActor.getOutermostRoom.pressure == 0)
+                failCheck('That would be fatal; there\'s no air in this place.
+                    ');
+        }
+    }
+;
+
+<span class='comment'>/*       
+ *   OxygenTank is a custom class defined below; it inherits from 
+ *   SimpleAttachable. By locating emptyTank in spaceSuit we ensure that the 
+ *   empty tank starts out attached to the space suit at the start of the 
+ *   game.
+ */</span>
+
++++ emptyTank : OxygenTank 'empty oxygen tank' 'empty oxygen tank'    
+    airLevel = 4
+;
+
+<span class='comment'>/*  
+ *   The helmet is another SimpleAttachable so we can attach a lamp to it 
+ *   (and detach the lamp from it.
+ */</span>
+
+++ helmet: SimpleAttachable, Wearable 'standard space helmet' 'helmet'
+    &quot;Its a standard issue space helmet. &quot;
+    
+    <span class='comment'>/* The lamp is the only object that can be attached to the helmet. */</span>
+    minorAttachmentItems = [lamp]
+    
+    
+    <span class='comment'>/* 
+     *   While the player character is wearing the helmet, he's dependent on 
+     *   the air it contains (or can get from the oxygen cylinder) to 
+     *   breathe, so we need to model the breathing and air supply. We do 
+     *   this with a DAEMON.
+     */</span>    
+    breathingDaemonID = nil
+    
+    breathingDaemon()
+    {
+        <span class='comment'>/* Reduce the airLevel by one each turn the helmet is worn. */</span>
+        airLevel --;
+        
+        <span class='comment'>/* 
+         *   If there's an oxygen tank attached to the space suit and the 
+         *   tank contains enough air, refresh the air supply in the helmet.
+         */</span>
+        if(myTank &amp;&amp; myTank.airLevel &gt; 0)
+        {
+            local newAir = min(myTank.airLevel, maxLevel - airLevel);
+            if(newAir &gt; 1)
+                &quot;There's a sudden rush of fresh oxygen into your helmet. &quot;;
+            airLevel += newAir;
+            myTank.airLevel -= newAir;
+        }
+        
+        <span class='comment'>/* 
+         *   If the air in the helmet is running out, display a warning 
+         *   message.
+         */</span>
+        switch(airLevel)
+        {
+            case 4: &quot;The air inside your helmet is starting to feel very stale.
+                &quot;; break;
+            case 3: &quot;The air in your helmet is scarcely breathable. &quot;; break;
+            case 2: &quot;The air in your helmet is so stale you are beginning to
+                faint. &quot;; break;
+            case 1: &quot;You can scarcely breathe at all; you are about to pass out.
+                &quot;; break;
+            
+            <span class='comment'>/* 
+             *   Once there's no air left, the player character dies of 
+             *   asphyxiation.
+             */</span>
+            case 0: &quot;For want of breathable air, you lose consciousness. &quot;; 
+            finishGameMsg(ftDeath, [finishOptionUndo] );           
+        }
+        
+    }
+    
+    <span class='comment'>/* 
+     *   A custom property defining which oxygen tank the helmet is getting 
+     *   its air supply from. This will be the tank attached to the suit. 
+     */</span>
+    myTank = (spaceSuit.attachedObjects.valWhich({x: x.ofKind(OxygenTank) }))
+    
+    <span class='comment'>/* The amount of air in the helmet (a custom property). */</span>
+    airLevel = 5
+    
+    <span class='comment'>/* The maximum amount of air the helment can hold. */</span>
+    maxLevel = 5
+    
+    dobjFor(Wear)
+    {
+        action()
+        {            
+            inherited;
+            <span class='comment'>/* 
+             *   When the helmet is put on, it starts full of air, but we 
+             *   then need to start the breathing daemon.
+             */</span>
+            airLevel = maxLevel;
+            breathingDaemonID = new Daemon(self, &amp;breathingDaemon, 1);
+        }
+        
+    }
+    
+    dobjFor(Doff)
+    {
+        check()
+        {
+            <span class='comment'>/* 
+             *   Don't allow the player character to remove the helmet in a 
+             *   vacuum.
+             */</span>
+            if(gActor.getOutermostRoom.pressure == 0)
+                failCheck('That would be certain death; your location is
+                    unpressurised. ');
+        }
+        
+        action()
+        {
+            inherited;
+            
+            <span class='comment'>/* When the helmet is removed, stop the breathing daemon. */</span>
+            if(breathingDaemonID)
+            {
+                breathingDaemonID.removeEvent();
+                breathingDaemonID = nil;
+            }
+            
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   PLUG ATTACHABLE
+ *
+ *   PlugAttachable is a mix-in class for use with other Attachable classes 
+ *   to make PLUG INTO and UNPLUG FROM behave like ATTACH TO and DETACH FROM.
+ *
+ *   We make the lamp a PlugAttachable so it can be plugged into a charging 
+ *   socket. 
+ *
+ *   It's also a SimpleAttachable. It can be attached either to the helmet 
+ *   or to the charging socket, but that's defined on them.
+ */</span>
+
++++ lamp: PlugAttachable, SimpleAttachable, FueledLightSource, Flashlight     
+    '(helmet) lamp' 'lamp'
+    &quot;It's designed to be attached to the helmet, but can be detached for
+    charging. It can also be turned on and off. &quot;    
+    
+    <span class='comment'>/*  
+     *   Give it a brightness of 1 when off so it's still in scope for the 
+     *   player to turn it on.
+     */</span>
+    brightnessOff = 1
+    
+    <span class='comment'>/*  
+     *   When the lamp is attached to the socket, it is charged up again. We 
+     *   control this with a charging daemon, so that the longer it's plugged
+     *   in, the more charge it receives.
+     */</span>
+    chargeDaemonID = nil
+    
+    handleAttach(other)
+    {
+        inherited(other);
+        
+        <span class='comment'>/* Start the charging daemon when we're plugged into the socket. */</span>
+        if(other == chargingSocket)
+        {
+            chargeDaemonID = new Daemon(self, &amp;chargeDaemon, 1);
+            if(fuelLevel &lt; 10)
+            {
+                &quot;The lamp starts to shine more brightly as soon as it's plugged
+                in. &quot;;
+                fuelLevel = 10;
+            }
+        }
+    }
+    
+    handleDetach(other)
+    {
+        inherited(other);
+        
+        <span class='comment'>/* Stop the charging daemon when we're removed from the socket. */</span>
+        if(other == chargingSocket)
+        {
+            chargeDaemonID.removeEvent();
+            chargeDaemonID = nil;
+        }            
+    }
+    
+    chargeDaemon()
+    {
+        <span class='comment'>/* Increase the charge in the lamp each turn it's plugged in. */</span>
+        if(fuelLevel &lt; maxCharge)
+            fuelLevel += 20;
+    }
+    
+    <span class='comment'>/* burnDaemon() is a library method, standard for a FuelLightSource. */</span>
+    
+    burnDaemon()
+    {       
+        <span class='comment'>/* 
+         *   We override burnDaemon to display a series of messages when the 
+         *   lamp is about to go out.
+         */</span>
+        switch(fuelLevel)
+        {
+            case 5: &quot;The lamp is definitely dimmer. &quot;; break;
+            case 4: &quot;The lamp starts to flicker. &quot;; break;
+            case 3: &quot;The lamp seems very dim now. &quot;; break;
+            case 2: &quot;The lamp is about to go out. &quot;; break;
+            case 1: &quot;The lamp gives its final flicker. &quot;; break;
+        }
+        inherited();
+    }
+    
+    maxCharge = 100000
+;
+
+<span class='comment'>/*  
+ *   DoorLever is custom class we use for the code common to the two levers 
+ *   that control the doors in the airlock.
+ */</span>
+class DoorLever: Lever, CustomFixture
+    
+    <span class='comment'>/* A custom property - the other lever (used for various purposes). */</span>
+    otherLever = nil
+    
+    <span class='comment'>/* The door controlled by this lever. */</span>
+    myDoor = nil
+    
+    dobjFor(Pull)
+    {
+        verify()
+        {
+            
+            inherited;
+            <span class='comment'>/* 
+             *   This lever can't be pulled when the other one is, since we 
+             *   shouldn't have both airlock doors open at once.
+             */</span>
+            gMessageParams(otherLever);
+            if(otherLever.isPulled)
+                illogicalNow('{The dobj/he} is temporarily locked in place while
+                    {the otherLever/he} is pulled down, to prevent both airlock
+                    doors being opened at once. ');
+        }
+        
+        check()
+        {
+            inherited();
+            <span class='comment'>/* 
+             *   Don't let the player open a door if there's a vacuum on the 
+             *   other side and the player is not wearing both suit and 
+             *   helmet, since that would be fatal.
+             */</span>            
+            if((helmet.wornBy != gActor || spaceSuit.wornBy != gActor)
+               &amp;&amp; myDoor.destination.pressure == 0)
+                failCheck('Opening ' + myDoor.theName + ' would be fatal to you
+                    right now. ');
+        }
+    }
+    
+    <span class='comment'>/* Pulling the lever opens the corresponding door; pushing it closes it. */</span>
+    
+    makePulled(stat)
+    {
+        inherited(stat);
+        myDoor.makeOpen(stat);
+        &quot;\^&lt;&lt;myDoor.theName&gt;&gt; slides &lt;&lt;stat ? 'open' : 'closed'&gt;&gt;. &quot;;
+        if(stat &amp;&amp; airlock.pressure != myDoor.destination.pressure)
+        {   
+            &quot;There's a sudden rush of air. &quot;;
+            airlock.pressure = myDoor.destination.pressure;
+        }
+    }
+    
+    <span class='comment'>/* Make MOVE LEVER pull it or push is as appropriate. */</span>
+    dobjFor(Move) 
+    {
+        remap = [isPulled ? PushAction : PushAction, self] 
+    }
+    
+    cannotTakeMsg = '{The dobj/he} is firmly fitted to the bulkhead. '
+;
+    
+//------------------------------------------------------------------------------
+
+storageCompartment: ShipboardRoom 'Storage Compartment'
+    &quot;The equipment locker looks secure, as does the food freezer. The airlock
+    door is to port, controlled by a red button, while the engine room
+    lies aft and the living quarters are foreward. There's a charging socket on
+    the bulkhead, and a winch off to one side (normally used to haul supplies
+    aboard the ship). &quot; 
+    roomFirstDesc = &quot;This area seems to have been largely undamaged by the
+        blast from the enemy warship, although anything not nailed down was
+        probably swept away by the explosive decompression elsewhere in the
+        ship, since there was no time for the bulkheads to seal. &lt;&lt;desc&gt;&gt;&quot;
+    aft = engineRoom
+    port = airlockDoor
+    fore = livingQuarters    
+;
+
++ airlockDoor: IndirectLockable, Door -&gt;innerDoor 'airlock door' 'airlock door'
+    
+;
+
++ Button, CustomFixture 'red button' 'red button'
+    dobjFor(Push)
+    {
+        
+        action()
+        {
+            if(hawser.isIn(airlock) &amp;&amp; airlockDoor.isOpen)
+                failCheck('You can\'t close the airlock door while the cable is
+                    running through it. ');
+            
+            airlockDoor.makeOpen(!airlockDoor.isOpen);
+            &quot;The airlock door slides &lt;&lt;airlockDoor.isOpen ? 'open' : 'closed'&gt;&gt;.
+              &quot;;            
+        }
+    }
+;
+
++ Container, Fixture 'rack' 'rack'
+;
+
+<span class='comment'>/* OxygenTank is a custom class defined below. */</span>
+
+++ fullTank: OxygenTank 'full -' 'full oxygen tank'
+    initSpecialDesc = &quot;A single oxygen tank remains in the rack by the airlock;
+        you hope it's still full. &quot;
+    airLevel = 5000
+;
+
+<span class='comment'>/* 
+ *   PLUG ATTACHABLE, SIMPLE ATTACHABLE 
+ *
+ *   The charging socket is both a PlugAttachable (so we can plug things into
+ *   it) and a SimpleAttachable (which means anything attached to it will 
+ *   be moved into it, as we'll make it the major attachment).
+ */</span>
+
++ chargingSocket: PlugAttachable, SimpleAttachable, CustomFixture     
+    'charging socket' 'charging socket'
+    &quot;&lt;&lt; powerSwitch.isOn ? 'With the power back on, there should be no
+        difficulty getting a charge from the socket' : 'Although the main power
+            is off, the charging socket has a backup battery which should
+            hopefully have retained enough charge for your purposes' &gt;&gt;.&quot;
+    
+    <span class='comment'>/* The list of items that can be attached to the charging socket. */</span>
+    minorAttachmentItems = [lamp, blackCable]
+;
+    
++ equipmentLocker: LockableContainer, CustomFixture 
+    'equipment locker' 'equipment locker'
+;
+
+++ Decoration 'various pieces/equipment' 'pieces of equipment'
+   &quot;&lt;&lt;notImportantMsg&gt;&gt;&quot;
+    notImportantMsg = (livingQuarters.seen ? 'There\'s nothing else you
+        need here right now. ' : 'Once you\'ve assessed the damage you\'ll know
+            what you need to repair it. ')
+    isListed = true
+    isListedInContents = true
+    isPlural = true
+    aName = ('various ' + name)
+;
+
+<span class='comment'>/*  
+ *   CableConnector (NEARBY ATTACHABLE)
+ *
+ *   A CableConnector is another custom class (defined below). As can be seen
+ *   below, CableConnector subclasses from NearbyAttachable. The purpose of 
+ *   CableConnectors is to join two lengths of cable together.
+ *
+ *   The following four items are also defines to be of class PresentLater, 
+ *   with a plKey of 'repair', so that they can all be brought into play 
+ *   when needed with the singe statement 
+ *   PresentLater.makePresentByKey('repair').
+ */</span>
+
+++ redConnector: PresentLater, CableConnector 'red -' 'red cable connector'
+    plKey = 'repair'
+;
+
+++ yellowConnector: PresentLater, CableConnector 'yellow -' 
+    'yellow cable connector'
+    plKey = 'repair'
+;
+
+<span class='comment'>/*  
+ *   PLUG ATTACHABLE
+ *
+ *   The black cable is a PlugAttachable so it can be plugged into things. 
+ *   It's also of class Cable, which is defined below. Cable derives from 
+ *   NearbyAttachable, which creates a slight complication in that we also 
+ *   want to be able to attach the black cable to the charging socket, which 
+ *   is a SimpleAttachable. This is dealt with in the canAttachTo() method.
+ */</span>
+
+++ blackCable: PresentLater, PlugAttachable, Cable 'black length/cable' 
+    'length of black cable'
+    &quot;It's a standard electrical cable, about a couple of metres long. &quot;
+    plKey = 'repair'
+    
+    <span class='comment'>/* 
+     *   getNearbyAttachmentLocs() is a standard library method defined on 
+     *   NearbyAttachable, from which the blackCable inherits via Cable 
+     *   (defined below). 
+     *
+     *   This method returns a list with three elements. The first element 
+     *   is the target location for 'self', and the second is the target 
+     *   location for 'other', the object we're attaching to. The third 
+     *   element is an integer giving the priority; a higher number means 
+     *   higher priority. 
+     *
+     *   The priority is an arbitrary value that we use to determine which 
+     *   of the two objects involved in the attach gets to decide on the 
+     *   target locations. We call this method on both of the two objects 
+     *   being attached to one another, then we use the target locations 
+     *   returned by the object that claims the higher priority. If the two 
+     *   priorities are equal, we pick one arbitrarily. 
+     *
+     *   In this case we want to try to ensure that the blackCable ends up 
+     *   in the location of whatever its attached to; the main purpose of 
+     *   the black cable is to join two sections of a severed cable running 
+     *   through a conduit, so we want the cable to end up in that conduit. 
+     *   The default implementation would tend to keep detaching the cable 
+     *   and moving back to the player's inventory if the player didn't 
+     *   attach everything in exactly the right order, which would be 
+     *   needlessly frustrating. 
+     *
+     */</span>
+    
+    getNearbyAttachmentLocs(other)
+    {
+        return [other.location, other.location, 0];
+    }
+    
+    
+    <span class='comment'>/*  
+     *   After every ATTACH TO action involving an ElectricalConnector (a 
+     *   custom class defined below), check to see whether the action has 
+     *   completed an electrical connection between the two sections of 
+     *   cable that need to be re-connected.        
+     */</span>    
+    afterAction()
+    {
+        if(gActionIs(AttachTo) &amp;&amp; gDobj.ofKind(ElectricalConnector) &amp;&amp;
+           aftCable.isElectricallyConnectedTo(foreCable))
+            &quot;You complete the connection between the fore and aft sections of
+            the severed cable. &quot;;
+    }
+    
+    <span class='comment'>/*  
+     *   We want it to be possible to attach this black cable to the socket 
+     *   and the winch, but the socket and winch are SimpleAttachables, and 
+     *   normally we can only attach a SimpleAttachable to another 
+     *   SimpleAttachable. We can get round that by invoking 
+     *   SimpleAttachable's canAttachTo method here as well as our own to 
+     *   test attachability. 
+     */</span>    
+    canAttachTo(obj)
+    {
+        return inherited(obj) || delegated SimpleAttachable(obj);
+    }
+;
+
+++ roll: PresentLater, Thing 'hull repair grey gray roll/fabric' 
+    'roll of hull repair fabric'
+    &quot;The fabric is grey with a faintly metallic appearance. It can be used to
+    make temporary repairs to breaches in the hull. It won't protect against
+    impact from large objects or weapons fire, but it's good enough to keep out
+    light dust to shield against harmful cosmic radiation. It's also good
+    enough to make an airtight seal so that the ship can be repressurized. &quot;
+    
+    plKey = 'repair'
+    dobjFor(Take)
+    {
+        check()
+        {
+            if(fabric.moved)
+                failCheck('You don\'t need any more of the fabric right now. ');
+        }
+        action()
+        {
+            fabric.moveInto(gActor);
+            &quot;You unroll the fabric, cut of a square of the size you need,
+            and return the roll to the locker. &quot;;
+        }
+    }
+;
+
+
++ freezer: LockableContainer, CustomFixture 'large freezer' 'freezer'
+    &quot;It's a large freezer; it needs to be in order to supply provisions to the
+    crew for several weeks. &quot;
+;
+
+++ Decoration 'food' 'food'
+    &quot;There's plenty of food, at any rate; whatever else kills you, it won't be
+    starvation. &quot;
+    isListedInContents = true
+    isListed = true
+    
+    notImportantMsg = ( helmet.wornBy == me ? 'You can\'t eat while
+        you\'re wearing your helmet, so you may as well leave the food alone for
+        now. ' : 'You can worry about eating once you\'ve got the ship away from
+            here. ')    
+    
+    isMassNoun = true
+;
+
+<span class='comment'>/*  
+ *   PLUG ATTACHABLE     SIMPLE ATTACHABLE
+ *
+ *   We make the winch a PlugAttachable and the SimpleAttachable so the black
+ *   cable can be plugged into it.
+ */</span>
++ winch: PlugAttachable, SimpleAttachable, Fixture 'winch/casing' 'winch'
+    &quot;The winch, fixed firmly to the floor, is used for moving heavy loads
+    around the ship. It is controlled by the blue button on its casing. &quot;
+    minorAttachmentItems = [blackCable]
+;
+
+++ Button, Component 'blue button*button' 'blue button'
+     dobjFor(Push)
+    {
+        action()
+        {
+            <span class='comment'>/*  
+             *   If power hasn't been restored, the only way to get the 
+             *   winch to work is to connect it to the charging socket with 
+             *   the black cable. For this connection to be made the black 
+             *   cable must be attached both to the winch and to the socket.
+             */</span>            
+            if(!powerSwitch.isOn &amp;&amp; !(blackCable.isAttachedTo(winch) &amp;&amp;
+                                      blackCable.isAttachedTo(chargingSocket)))
+            {
+                &quot;Nothing happens, presumably because the winch has no power. &quot;;
+                return;
+            }
+            
+            if(hawser.isIn(storageCompartment))
+                &quot;The winch emits a short whine and the hawser twitches a couple
+                of times, but since the hawser is just about fully rewound, no
+                more happens. &quot;;
+            else if(hawser.isAttachedTo(debris))
+            {
+                &quot;The winch whines and the hawser goes taut. The pitch of the
+                whine rises as the winch strains to move the hawser. For a
+                moment or two nothing more happens, but then there's a loud
+                scraping noise up forward, and the hawser slowly drags a mass of
+                debris back into the storage chamber. &quot;;
+                debris.moveInto(storageCompartment);
+            }
+            else
+            {
+                &quot;The winch springs into life, rewinding the hawser all the way
+                back into the storage compartment. &quot;;
+                hawser.moveInto(storageCompartment);
+            }
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   SIMPLE ATTACHABLE 
+ *
+ *   We make the hawser a SimpleAttachable so that (a) we can attach it to 
+ *   things (in this game, only the debris) and (b) so it moves with whatever
+ *   its attached to).
+ */</span>
++ hawser: SimpleAttachable, Thing 
+    'winch loose free length/cable/hawser/end' 'hawser'
+    &quot;&lt;&lt;specialDesc&gt;&gt;&quot;
+    
+    <span class='comment'>/* Vary the description of the hawser depending on where it is. */</span>
+    specialDesc()
+    {
+        switch(getOutermostRoom)
+        {
+            case storageCompartment: &quot;A short length of hawser dangles from the
+                winch. &quot;; break;
+        case bridge:
+            case livingQuarters: &quot;The hawser runs aft. &quot;; break;
+            case engineRoom: &quot;The hawser runs off for'ard. &quot;; break;
+        case airlock:
+            case cabin: &quot;The hawser runs out through the door to port. &quot;; break;
+        }
+    }
+    specialDescBeforeContents = nil
+    specialDescListingOrder = 100
+    getFacets = [proxyHawser1, proxyHawser2]
+    aName = (theName)
+;
+
+<span class='comment'>/* 
+ *   If the hawser object is not in the storage compartment, there must be a 
+ *   length of hawser running from the the winch to wherever the other end 
+ *   of the hawser is. In that case we need a proxy object to describe the 
+ *   length of hawser that's visible inside the storage compartment.
+ *   ProxyHawser is a custom class defined below.
+ */</span>
++ proxyHawser1: ProxyHawser 'winch length/cable/hawser' 'hawser'
+    &quot;The hawser from the winch runs &lt;&lt;cableDir()&gt;&gt;. &quot;
+    
+    <span class='comment'>/* 
+     *   We want this length of hawser to be visible only when the real 
+     *   hawser object is elsewhere.
+     */</span>
+    discovered = (!hawser.isIn(storageCompartment))
+      
+    <span class='comment'>/* 
+     *   Describe which way the hawser runs depending on where the other end 
+     *   of the hawser is.
+     */</span>
+    cableDir()
+    {
+        switch(hawser.getOutermostRoom)
+        {
+            case engineRoom: &quot;aft&quot;; break;
+            case airlock: &quot;port, into the airlock&quot;; break;
+            default: &quot;foreward&quot;; break;
+        }
+    }
+    
+    <span class='comment'>/* 
+     *   The other objects that can represents sections of the hawser are 
+     *   facets of this object.
+     */</span>
+    getFacets = [hawser, proxyHawser2]
+    
+;
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*  
+ *   Define our custom CABLE CONNECTOR class.
+ *
+ *   This descends from our custom ElecticalConnector class (defined below), 
+ *   which in turn descends from NearbyAttachable.
+ */</span>
+class CableConnector: ElectricalConnector 
+    'cable plastic ring/connector*connectors' 'cable connector'    
+    &quot;In appearance, it lools like a plastic ring. Its function is to join one
+    length of cable to another. &quot;
+    
+    <span class='comment'>/* 
+     *   The getNearbyAttachmentLocs() method is defined in the library for 
+     *   NearbyAttachable. It controls where a NearbyAttachable ends up when 
+     *   its attached to something. For a full description, see the comment 
+     *   in blackCable above. 
+     *
+     *   In this case we need the two cable connectors to end up connected 
+     *   to the two segments of cable in the conduit, so if what we're 
+     *   connecting to is in the conduit, that's where we want everything to 
+     *   end up. We define getNearbyAttachmentLocs accordingly. 
+     */</span>
+    getNearbyAttachmentLocs(other)
+    {
+        if (other.isIn(conduit))
+        {
+            <span class='comment'>/* the other is where we want it, so use its location */</span>
+            return [other.location, other.location, 5];
+        }
+        else
+        {
+            <span class='comment'>/* 
+             *   the other can be moved, so use our own location.
+             */</span>
+            return [location, location, 0];
+        }
+    }    
+;
+
+<span class='comment'>/* 
+ *   Definition of the custom CABLE class.
+ *
+ *   Cable derives from our custom ElectricalConnector class (defined 
+ *   immediately below). The only customizetion required on this class is to 
+ *   define what a Cable can connect to: Cables can connect to 
+ *   CableConnectors.
+ */</span>
+class Cable: ElectricalConnector
+    canAttachTo(obj)
+    {
+        return obj.ofKind(CableConnector);                        
+    }   
+;
+
+<span class='comment'>/*   
+ *   ELECTRICAL CONNECTOR     NEARBY ATTACHABLE
+ *
+ *   Our custom ElectricalConnector class derives from the library's 
+ *   NearbyAttachable class. A NearbyAttachable is an Attachable that 
+ *   enforces the condition that the attached objects must be in a 
+ *   particular location. By default this is the location that one of the 
+ *   objects is already in, but this can be customised by overriding 
+ *   getNearbyAttachmentLocs(). 
+ */</span>
+class ElectricalConnector: NearbyAttachable, Thing
+    
+    <span class='comment'>/* 
+     *   isElectricallyConnectedTo() is a custom method to test whether an 
+     *   electrical connection exists between two ElectricalConnectors. An 
+     *   electrical connection exists if the two ElectricalConnectors are 
+     *   directly or indirectly attached; they're indirectly attached if 
+     *   there's a chain of attached objects between them.    
+     */</span>    
+    isElectricallyConnectedTo(obj)
+    {
+        local vec = new Vector(10, [self]);
+        local i = 0, cur;
+               
+        while(i &lt; vec.length)           
+        {
+            cur = vec[++i];
+            vec.appendUnique(cur.attachedObjects);
+            if(vec.indexOf(obj))
+                return true;                       
+        } 
+        
+        return nil;
+    }
+    
+    <span class='comment'>/* 
+     *   movedWhileAttached() is a library method defined on the Attachable 
+     *   class. It's overridden on the NearbyAttachable class to detach 
+     *   objects if one of them is moved while they're attached to each 
+     *   other. This could be irritating in this game: if, for example the 
+     *   player first attached the cable connectors to the black cable and 
+     *   then tried to attach the cable connectors to the cable ends in the 
+     *   counduit, the cable connectors would become detached from the black 
+     *   cable. In this case we'd rather the cable connectors remained 
+     *   attached to the black cable and the black cable moved into the 
+     *   conduit along with the cable connectors, so we override 
+     *   moveWhileAttached() accordingly. 
+     */</span>    
+    moveWhileAttached(movedObj, newCont)
+    {
+        <span class='comment'>/* 
+         *   If anything is being moved into the conduit, move its 
+         *   attachments there as well, because that's where we want them 
+         *   all to end up.
+         */</span>
+        if(newCont == conduit)
+        {
+            if(movedObj != self)
+                <span class='comment'>/* Don't trigger any more movement notifications! */</span>
+                baseMoveInto(newCont);
+        }
+        else
+            inherited(movedObj, newCont);
+        
+    }
+    
+    
+;
+
+//------------------------------------------------------------------------------
+engineRoom: ShipboardRoom 'Engine Room'
+    &quot;The engine room also looks undamaged. So far as you can tell from a quick
+    scan of the instruments, the main engine is undamaged. &lt;&lt;controls.desc&gt;&gt; &quot;
+    fore = storageCompartment
+    out asExit(fore)
+;
+
++ controls: Decoration 'mass/instruments/controls' 'instruments'
+    &quot;There's a mass of instruments and controls here, but
+    \v&lt;&lt;controls.notImportantMsg&gt;&gt;&quot;
+    isPlural = true
+    notImportantMsg = 'The only ones that concern you right now are the large
+        red switch controlling the ship\'s power, the yellow lever
+        controlling its air supply, and the pressure gauge showing the air
+        pressure inside the ship.'
+;
+
++ powerSwitch: Switch, CustomFixture 'large red switch' 'large red switch'
+    &quot;The switch is currently &lt;&lt;onDesc&gt;&gt;. &quot;
+    makeOn(stat)
+    {
+        if(stat)
+        {
+            if(!aftCable.isElectricallyConnectedTo(foreCable))
+                failCheck('The switch snaps back into the off position; as a
+                    safety measure it won\'t stay on when there\'s a major
+                    fault somewhere in the system. ');
+            &quot;The lights come on all over the ship. &quot;; 
+        }
+        else
+            &quot;The ship's lighting goes off again. &quot;;
+    
+        inherited(stat);
+    }
+;
+
++ airLever: Lever, CustomFixture 'yellow lever' 'yellow lever'
+    dobjFor(Pull)
+    {
+        check()
+        {
+            if(!lqWall.repaired)
+                failCheck('If you turn on the air supply without first repairing
+                    the damage to the hull, you\'ll simply waste all the air; 
+                    it\'ll rush out though the breach in the hull as fast as it
+                    tries to fill the ship. ');
+        }
+    }
+    
+    makePulled(stat)
+    {
+        inherited(stat);
+        if(stat &amp;&amp; location.pressure == 0)
+        {
+            &quot;There's a hiss of air rushing from vents all over the ship, and
+            the needle in the pressure gauge starts to rise. &quot;;
+            forEachInstance(ShipboardRoom, { loc: loc.pressure = 1 } );
+        }
+    }
+;
+
++ Fixture 'pressure gauge/needle' 'pressure gauge'
+    &quot;The needle on the gauge indicates that the pressure inside the ship is
+    currently &lt;&lt;location.pressure&gt;&gt; bar. &quot;
+;
+
+
+//------------------------------------------------------------------------------
+<span class='comment'>/*  
+ *   ATTACHABLE
+ *
+ *   Attachable is the base class for all the other Attachable classes we 
+ *   have seen. It is a mix-in class which must be combined with a 
+ *   Thing-derived class or object. 
+ *
+ *   Here we use it to define a wall to which something (namely, a piece of 
+ *   fabric) can be attached.
+ */</span> 
+lqWall: Attachable, starboardWall
+    desc = &quot;&lt;&lt;repaired ? 'The starboard wall now looks airtight' : 'There\'s a
+        gaping hole in the wall'&gt;&gt;. &quot;
+    
+    <span class='comment'>/* 
+     *   The starboard wall is always 'the starboard wall', never 'a 
+     *   starboard wall'
+     */</span>
+    aName = (theName)
+    
+    <span class='comment'>/*  
+     *   isMajorItemFor() is a standard library method. If it returns true 
+     *   for obj, then obj is described as being attached to us, rather than 
+     *   vice versa. We want to see messages like 'a piece of fabric is 
+     *   attached to the starboard wall'; 'the starboard wall is attached to 
+     *   a piece of fabric' would look wrong. We therefore override this 
+     *   method accordingly.
+     */</span>
+    isMajorItemFor(obj) { return obj == fabric; }
+    
+    <span class='comment'>/*  
+     *   repaired is a custom property to indicate when the wall has been 
+     *   repaired by attaching the piece of fabric.
+     */</span>
+    repaired = (isAttachedTo(fabric))
+;
+
++ gapingHole: Component 'gaping hole' 'gaping hole'
+    &quot;It's roughly circular, and about a metre in diameter. &quot;
+    
+    <span class='comment'>/* 
+     *   Make ATTACH FABRIC TO HOLE equivalent to ATTACH FABRIC TO STARBOARD 
+     *   WALL.
+     */</span>
+    iobjFor(AttachTo) remapTo(AttachTo, DirectObject, lqWall)
+;
+
+
+
+livingQuarters: ShipboardRoom 'Living Quarters'
+    &quot;It was obviously this area that took the brunt of the laser blast. If that
+    wasn't immediately apparent from the gaping hole in the hull where the
+    starboard cabins should be, it's apparent from the wreckage of what was
+    once the crew lounge, although it looks as if one of the sleeping cabins to
+    port might still be usable. The storage compartment lies aft, while the way
+    foreward leads to the bridge. &quot;
+    
+    roomFirstDesc = &quot;&lt;&lt;desc&gt;&gt;\bThere's no sign of any other members of the
+        crew. They were almost certainly all sucked out through the hole in the
+        hull by the rapid decompression.
+        &lt;&lt;PresentLater.makePresentByKey('repair')&gt;&gt;&quot;
+    aft = storageCompartment
+    port = cabinDoor
+    fore = bridge
+    roomParts = static inherited - starboardWall + lqWall
+;
+
+<span class='comment'>/*  
+ *   PERMANENT ATTACHABLE     LOCKABLE
+ *
+ *   A PermanentAttachment, as its name suggests, is something that's 
+ *   described as being permanently attached to something else. As an 
+ *   example we'll attach a sing to this door, so we'll make this door a 
+ *   PermanentAttachment too.
+ */</span>
+
++ cabinDoor: Lockable, PermanentAttachment, Door 'cabin door' 'cabin door'
+    &quot;A sign is attached to the door. &quot;
+    
+    
+    <span class='comment'>/*  
+     *   Normally making both sides of a Door a Lockable (as opposed to 
+     *   LockableWithKey or IndirectLockable) doesn't achieve much, since 
+     *   the door is simply unlocked with an implicit action when it's 
+     *   opened. In this case, however, we can achieve a significant effect 
+     *   by using a check condition to restrict unlocking the door - the 
+     *   door won't unlock until the ship has been pressurized.
+     */</span>         
+    dobjFor(Unlock)
+    {
+        check() 
+        {
+            if(location.pressure == 0)
+            {
+                failCheck('The cabin door won\'t unlock; it must be the only
+                    pressure seal that\'s holding, in which case you won\'t get
+                    the door open until you restore pressure to the ship. That
+                    may be just as well, of course; if there\'s someone still in
+                    the cabin that pressure seal may be the only thing keeping
+                    them alive. ');
+            }
+        }
+    }
+    
+    
+    <span class='comment'>/* The door can't be closed if there's a hawser running through it. */</span>
+    dobjFor(Close)
+    {
+        verify()
+        {
+            if(hawser.isIn(cabin))
+                illogicalNow('You can\'t close the door while the cable\'s
+                    running through it. ');
+            inherited;
+        }
+    }
+    
+    <span class='comment'>/* 
+     *   The message to display if someone tries to detach the sign from the 
+     *   door.
+     */</span>
+    cannotDetachMsgFor(obj)
+    {        
+        return 'The sign is firmly attached to the door; you can\'t budge it. ';
+    }
+;
+
+<span class='comment'>/*  
+ *   PERMANENT ATTACHMENT CHILD
+ *
+ *   A PermanentAttachmentChild is something that's permanently attached to 
+ *   its parent. By locating the PermanentAttachmentChild in its parent 
+ *   object we ensure that the library automatically makes them attached to 
+ *   each other.
+ *
+ *   This keeps the sign attached to the door (in the sense that the library 
+ *   will consider them as attached throughout the game), but it doesn't stop
+ *   the player from taking the sign, and if we make the sign simply a 
+ *   Thing it will be listed as being 'in' the Door. So the sign needs also 
+ *   be be some NonPortable class, such as Component.
+ *
+ *   We could have achieved the same effect by simply making the sign a 
+ *   Component and overriding its cannotDetachMsg. About the only gain from 
+ *   using PermanentAttachmentChild is that DETACH DOOR FROM SIGN is handled 
+ *   the same as DETACH SIGN FROM DOOR.
+ */</span>
+     
+
+
+++ PermanentAttachmentChild, Component 'sign' 'sign'
+    &quot;The sign says &lt;q&gt;CAPTAIN&lt;/q&gt;. &quot;
+    cannotTakeComponentMsg(obj)
+    {
+        gMessageParams(obj);
+        return 'You can\'t take the sign; it\'s attached to {the obj/him}. ';
+    }
+    
+;
+
+
++ conduit: Container, CustomFixture 'cable conduit' 'cable conduit'
+    
+    isInInitState = (!aftCable.isElectricallyConnectedTo(foreCable))
+    initSpecialDesc = &quot;Amongst other things, the blast has exposed the main
+        power conduit running along the floor, showing that part of the main
+        power cable has been burned away completely. &lt;&lt;isOpen ? '' :
+          'Unfortunately, it looks as if the debris from the blast might make
+          it difficult to get at the conduit. '&gt;&gt;&quot;
+    
+    
+    <span class='comment'>/*  
+     *   Customise the way our contents are listed, so that when the cables 
+     *   are all joined up our listing says so.
+     */</span>
+    contentsLister: thingContentsLister 
+    {
+        showListSuffixWide(itemCount, pov, parent)
+        { lexicalParent.showListSuffixWide(); }              
+    }
+    
+    descContentsLister:  thingDescContentsLister
+    {
+        showListSuffixWide(itemCount, pov, parent)
+        { lexicalParent.showListSuffixWide(); }
+    }
+
+    showListSuffixWide()
+    {
+        &quot;&lt;&lt; isInInitState ? '' : ', with all the cables now joined together in
+            a continuous run'&gt;&gt;. &quot;;
+    }
+    
+    <span class='comment'>/* 
+     *   The conduit starts off covered with debris that makes it difficult 
+     *   to get at, although we can see what's inside. To simulate that we 
+     *   make it start off as a closed Container (so the Player Character 
+     *   can't reach inside) made of glass (so the Player Character can see 
+     *   inside). Moving the debris automatically 'opens' the container so 
+     *   that its contents become fully accessible.
+     */</span>    
+    material = glass
+    isOpen = (debris.moved)
+    
+    cannotMoveThroughMsg = 'The debris covering the conduit blocks your access
+        to it. '
+;
+
+<span class='comment'>/* 
+ *   FixedCable is a custom class defined below (inheriting from 
+ *   NearbyAttachable). Since the fore and aft sections of the cable are 
+ *   meant to be a couple of metres apart, the same CableConnector can't be 
+ *   simultaneously attached to both the foreCable and the aftCable.
+ */</span>
+++ aftCable: FixedCable 'aft -' 'aft section of cable'
+    &quot;It's a short length of cable running from the aft end of the conduit until
+    it ends about two metres short of the fore end, the central part of the
+    cable having been burned away. &quot;
+    canAttachTo(obj)
+    {
+        return inherited(obj) &amp;&amp; !obj.isAttachedTo(foreCable);
+    }
+    
+;
+
+++ foreCable: FixedCable 'fore -' 'fore section of cable'
+    &quot;It's a short length of cable running from the forward end of the conduit
+    until it ends about two metres short of the aft end, the central part of
+    the cable having been burned away. &quot;
+    canAttachTo(obj)
+    {
+        return inherited(obj) &amp;&amp; !obj.isAttachedTo(aftCable);
+    }
+    
+;
+
+<span class='comment'>/*  
+ *   SIMPLE ATTACHABLE 
+ *
+ *   The debris is a SimpleAttachable so we can attach the hawser to it to 
+ *   drag it out of the way using the winch. We also make it of class Heavy 
+ *   so we can't move it by hand.
+ */</span>
+
++ debris: SimpleAttachable, Heavy 'metal fused mass/pile/debris/wreckage' 
+    'pile of debris'
+    &quot;It's a mass of metal fused together by the laser blast that holed the ship;
+    at a rough guess it's what's left of the wardroom table plus parts of the
+    starboard side cabins. &quot;
+    
+    <span class='comment'>/* Allow the hawser to be attached to the debris. */</span>
+    minorAttachmentItems = [hawser]
+    
+    specialDesc = &quot;A mass of fused metal debris is strewn over the deck. &quot;
+;
+
+<span class='comment'>/* 
+ *   As with proxyHawser1 above, we need an object to represent the section 
+ *   of hawser running through the living quarters if the end of the hawser 
+ *   has been taken beyond the living quarters to either the bridge or the 
+ *   cabin. ProxyHawser is a custom class defined below.
+ */</span>
++ proxyHawser2: ProxyHawser
+    desc = &quot;The hawser runs aft back to the storage compartment and
+        &lt;&lt;cableDir()&gt;&gt;. &quot;
+    discovered = (hawser.isIn(bridge) || hawser.isIn(cabin))
+    
+    cableDir()
+    {
+        switch(hawser.getOutermostRoom)
+        {
+            case bridge: &quot;foreward to the bridge&quot;; break;
+            case cabin: &quot;port, into the cabin&quot;; break;
+            default: &quot;foreward&quot;; break;
+        }
+    }
+    getFacets = [hawser, proxyHawser1]
+    
+    
+;
+
+<span class='comment'>/*  
+ *   Define the custom ProxyHawser class to represent lengths of hawser 
+ *   passing through a location when the free end of the hawser is elsewhere.
+ */</span>
+class ProxyHawser: Hidden, CustomFixture 'winch length/cable/hawser' 'hawser'
+    specialDescBeforeContents = nil
+    specialDesc = (desc)
+    
+    cannotTakeMsg = 'There\'s not much point picking up the middle of the
+        hawser. '
+    dobjFor(Pull)
+    {
+        verify() {}
+        action()
+        {
+            if(hawser.isAttachedTo(debris))
+               failCheck('You can\'t pull the hawser by hand; the load at its
+                   far end is too heavy. ');
+            else
+            {
+                hawser.moveInto(gActor.location);
+                &quot;You keep pulling the hawser until its loose end appears. &quot;;
+            }   
+        }
+    }
+;
+
+<span class='comment'>/*  
+ *   Define the custom FixedCable class, used to define the two ends of the 
+ *   cable left in the conduit.
+ */</span>
+class FixedCable : Cable, CustomFixture 
+    'end/section/cable*cables*ends*sections'
+    
+    explainCannotAttachTo (obj)
+    {  
+        &quot;The fore and aft sections of cable are too far apart for
+        &lt;&lt;obj.theName&gt;&gt; to be attached to both of them at the same time. &quot;;
+    }
+    isListedInContents = true
+    isListed = true
+    aName = theName
+;
+
+//------------------------------------------------------------------------------
+
+cabin: ShipboardRoom 'Sleeping Cabin'
+    &quot;This cabin seems to have escaped any serious damage, and there's a bunk
+    you can sleep in if you ever get time for sleep, with a bedside cabinet
+    placed conveniently next to it. &quot;
+    starboard = cabinDoorInside
+    out asExit(starboard)
+;
+
++ cabinDoorInside: Lockable, Door -&gt; cabinDoor 'cabin door*doors' 'cabin door'
+    <span class='comment'>/* We can\'t close the door if the hawser is running through it. */</span>
+    dobjFor(Close)
+    {
+        verify()
+        {
+            if(hawser.isIn(cabin))
+                illogicalNow('You can\'t close the door while the cable\'s
+                    running through it. ');
+            inherited;
+        }
+    }
+;
+
++ Bed, Fixture 'bed/bunk' 'bunk'
+;
+
++ ComplexContainer, Fixture 'small metal bedside cabinet' 'bedside cabinet'
+    &quot;It's a small metal cabinet with a door. &quot;
+    subSurface: ComplexComponent, Surface {}
+    subContainer: ComplexComponent, LockableContainer { }
+;
+
+++ ContainerDoor 'cabinet door*doors' 'cabinet door'
+;
+
+<span class='comment'>/* 
+ *   SIMPLE ATTACHMENT
+ *
+ *   This one really is simple. 
+ */</span>
+
+++ securityCard: SimpleAttachable, Thing    
+    'white purple security card/markings' 'security card'
+    &quot;It's a plain white card, about 8cm by 4cm, with purple markings. &quot;
+    subLocation = &amp;subContainer
+;
+
+//------------------------------------------------------------------------------
+
+<span class='comment'>/* 
+ *   PERMANENT ATTACHMENT
+ *
+ *   We make the bridgeFloor a PermanentAttachment so we can attach the 
+ *   chair to it.
+ */</span>
+bridgeFloor: PermanentAttachment, deck
+    isMajorItemFor(obj) { return true; }
+    attachedObjects = [bridgeChair]
+;
+
+
+bridge: ShipboardRoom 'Bridge'
+    &quot;&lt;q&gt;Bridge&lt;/q&gt; is perhaps a grandiose title for this small control cabin,
+    but it's functionally the bridge, since this is where the ship is flown
+    from. A single chair, firmly attached to the floor, faces a bank of
+    instruments; there used to be another chair for the person watching the spy
+    scans, but it must have been sucked out by the decompression, since the way
+    out aft lies open. &quot;
+    aft = livingQuarters
+    out asExit(aft)
+    roomParts = static inherited - deck + bridgeFloor
+;
+
+<span class='comment'>/* 
+ *   PERMANENT ATTACHMENT 
+ *
+ *   We make the bridgeChair a PermanentAttachment because it's described as 
+ *   attached to the deck. Note that in this case we have to set up the 
+ *   attachment relationship by hand by defining the attachedObjects on both 
+ *   the bridgeChair and the bridgeFloor. 
+ */</span>
+
++ bridgeChair: PermanentAttachment, Chair, CustomFixture 
+    'large pilot\'s chair' 'pilot\'s chair'
+    &quot;It's a large chair, arranged to face the bank of instruments used to fly
+    the ship. &quot;
+    attachedObjects = [bridgeFloor]
+   
+    cannotTakeMsg = 'The chair is securely attached to the floor; that\'s
+        why it\'s still there despite the decompression. '
+    
+    <span class='comment'>/* baseCannotDetachMsg is a library property. */</span>
+    baseCannotDetachMsg = 'That would be hard to do; the chair looks welded to
+        the deck. But in any case you have no need to move it. '
+       
+;
+
++ Decoration
+    'multicoloured control bank/instruments/dispays/screens/buttons/switches
+    /knobs/dials/readouts/panel/controls'  'bank of instruments'
+    &quot;There are multicoloured displays, screens, buttons, switches, knobs, dials
+    and readouts aplenty, none of them active. The whole lot can be turned on
+    by pressing the green button right in the middle of the control
+    panel&lt;&lt;conditions()&gt;&gt;.&quot;
+    
+    conditions()
+    {
+        local cardOK = (securityCard.isAttachedTo(cardReader));
+        if(powerSwitch.isOn &amp;&amp; cardOK)
+            return;
+        
+        &quot;, but nothing will happen until &quot;;
+        if(!powerSwitch.isOn)
+            &quot;the main power supply is switched on &lt;&lt;cardOK ? '' : 'and '&gt;&gt;&quot;;
+        if(!cardOK)
+            &quot;a security card is attached to the card reader&quot;;         
+        
+    }
+    
+    notImportantMsg = 'At this point, only the green button and the card reader
+        need concern you. '
+    canMatchThem = true
+;
+
+
++ greenButton: Button, Fixture 'green button' 'green button'
+    dobjFor(Push)
+    {
+        action()
+        {
+            if(!powerSwitch.isOn)
+                &quot;Nothing happens; there's no power. &quot;;
+            else if(!securityCard.isAttachedTo(cardReader))
+                &quot;Nothing happens; this model of ship won't respond to the
+                controls unless a security card is attached to the card reader.
+                &quot;;
+            else
+            {
+                &quot;The instruments spring to life, indicating that the ship is
+                ready to fly. It's unlikely that the Federation warship that
+                attacked before will come back for a second look, but there's no
+                point hanging around, so you set course for the nearest imperial
+                world and head back for safety.\b&quot;;
+                finishGameMsg(ftVictory, [finishOptionUndo]);
+            }
+        }
+    }
+;
+
+<span class='comment'>/* 
+ *   SIMPLE ATTACHMENT 
+ *
+ *   Another SimpleAttachment that's actuall simple. We just define the 
+ *   minorAttachementItems property to contain the list of things that can be
+ *   attached to it: in this case, just the securityCard.
+ */</span>
++ cardReader: SimpleAttachable, Fixture 'card reader' 'card reader'
+    &quot;It's about 8cm by 4cm. &quot;
+    minorAttachmentItems = [securityCard]
+;
+
+//==============================================================================
+<span class='comment'>/*  
+ *   Define the custom OxygenTank class. 
+ *
+ *   It's another SIMPLE ATTACHABLE, but it's made a bit more complicated by 
+ *   the fact that only one OxygenTank can be attached to the space suit at 
+ *   a time.
+ */</span>
+class OxygenTank: SimpleAttachable, Thing
+    vocabWords = 'silver metal air oxygen cylinder/tank*cylinders/tanks'
+     
+    <span class='comment'>/* 
+     *   If there's another OxygenCylinder attached to the space suit when 
+     *   the player tries to attach this one, insist that the other one is 
+     *   detached first. 
+     */</span>
+    handleAttach(other)
+    {
+        if(other == spaceSuit &amp;&amp; other.attachedObjects.indexWhich({x:
+            x.ofKind(OxygenTank) &amp;&amp; x != self }) != nil)
+        {
+            <span class='comment'>/* 
+             *   By the time we get here the attachment relationship will 
+             *   already have been set up, so we need to undo it again.
+             */</span>
+            detachFrom(other);
+            failCheck('You\'ll have to remove the other tank first. ');
+        }
+        inherited(other);        
+    }
+   
+;
+
+<span class='comment'>/*  
+ *   ATTACHABLE
+ *
+ *   The piece of fabric used to repair the ship's hull can be handled quite 
+ *   simply. We could have used SimpleAttachable or NearbyAttachable for 
+ *   this job, but here we'll illustrate a fairly simple example of using 
+ *   the base Attachable class.
+ */</span>
+fabric: Attachable, Thing 'dull grey gray metallic square/fabric' 
+    'square of fabric'
+    &quot;It's just over a metre square, and of a dull metallic grey colour.
+    &lt;&lt;isAttachedTo(lqWall) ? 'Now that' : 'When'&gt;&gt; it\'s attached to the
+    starboard hull, covering the hole, it should provide an airtight seal. &quot;
+    
+    <span class='comment'>/* 
+     *   Don't allow the fabric to be detached from the hull once it's 
+     *   attached.
+     */</span>
+    canDetachFrom(obj) { return nil; }
+    
+    <span class='comment'>/* 
+     *   The only thing we can attach the fabric to is the starboard wall in 
+     *   the living quarters.
+     */</span>
+    canAttachTo(obj) { return obj == lqWall; }
+    
+    <span class='comment'>/* 
+     *   handleAttach() is a standard library method of Attachable we can 
+     *   use to handle the effects of attaching one object to another. Here 
+     *   we want the fabric to be moved to the wall (we don't want the 
+     *   player character to be left still holding it after it's attached), 
+     *   but we don't want the fabric to be listed any more as an 
+     *   independent object on the room; we also want to remove the hole, 
+     *   since once the fabric is covering it, it's effectively no longer 
+     *   there.
+     */</span>    
+    handleAttach(other)
+    {
+        if(other == lqWall)
+        {
+            gapingHole.moveInto(nil);
+            moveInto(lqWall);
+            isListed = nil;
+            &quot;You place the fabric over the hole, covering it completely. The
+            outer edges of the fabric cling to the inner hull, making a seal
+            that should be air-tight enough for you to repressurize the ship. &quot;;
+        }
+    }
+    
+    <span class='comment'>/* Explain why we can't detach the fabric from the wall. */</span>
+    cannotDetachMsgFor(obj)
+    {
+        return obj == lqWall ? 'Now that you\'ve covered the hole you don\'t
+            want to expose it again. ' : inherited(obj);
+
+    }
+    
+    <span class='comment'>/* 
+     *   Attaching at Attachable to something doesn't prevent it from being 
+     *   taken. Here we'll make being detached a precondition of being 
+     *   taken. An attempt to take the fabric once it's been attached to the 
+     *   wall will then be blocked by the failure to detach it.
+     */</span>
+    dobjFor(Take) { preCond = static inherited + objNotAttached }
+    dobjFor(TakeFrom) { preCond = static inherited + objNotAttached }
+    
+;
+
+modify Attachable
+    
+    <span class='comment'>/*  
+     *   Treat FASTEN and UNFASTEN as synonyms for ATTACH and DETACH on all 
+     *   Attachables.
+     */</span>
+    
+    dobjFor(FastenTo) asDobjFor(AttachTo)
+    iobjFor(FastenTo) asIobjFor(AttachTo)
+    dobjFor(Unfasten) asDobjFor(Detach)
+    dobjFor(UnfastenFrom) asDobjFor(DetachFrom)
+    iobjFor(UnfastenFrom) asIobjFor(DetachFrom)
+    
+;
+
+modify VerbRule(About)
+    'about' | 'help'
+    :
+;
+</pre></div>
+
+<a name="simple"><h2>The SimpleAttachable file</h2></a>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;adv3.h&gt;
+#include &lt;en_us.h&gt;
+
+<span class='comment'>/*  
+ *   SIMPLE ATTACHABLE
+ *
+ *   SimpleAttachable version 1.0 by Eric Eve
+ *
+ *   This file defines the SimpleAttachable class together with some 
+ *   supporting objects. Feel free to use this in your own games if you find 
+ *   it useful.
+ *
+ *   Attachables in general are complicated to handle, because they can 
+ *   behave in so many different ways. The SimpleAttachable class is meant 
+ *   to make handling one common case easier, in particular the case where a 
+ *   smaller object is attached to a larger object and then moves round with 
+ *   it.
+ *
+ *   More formally, a SimpleAttachable enforces the following rules:
+ *
+ *   (1)    In any attachment relationship between SimpleAttachables, one 
+ *   object must be the major attachment, and all the others will be that 
+ *   object's minor attachments (if there's a fridge with a red magnet and a 
+ *   blue magnet attached, the fridge is the major attachement and the 
+ *   magnets are its minor attachments).
+ *
+ *   (2)    A major attachment can have many minor attachments attached to 
+ *   it at once, but a minor attachment can only be attached to one major 
+ *   attachment at a time (this is a consequence of (3) below).
+ *
+ *   (3)    When a minor attachment is attached to a major attachment, the 
+ *   minor attachment is moved into the major attachment. This automatically 
+ *   enforces (4) below.
+ *
+ *   (4)    When a major attachment is moved (e.g. by being taken or pushed 
+ *   around), its minor attachments automatically move with it.
+ *
+ *   (5)    When a minor attachment is taken, it is automatically detached 
+ *   from its major attachment (if I take a magnet, I leave the fridge 
+ *   behind).
+ *
+ *   (6)    When a minor attachment is detached from a major attachment it 
+ *   is moved into the major attachment's location. 
+ *
+ *   (7)     The same SimpleAttachable can be simultaneously a minor item 
+ *   for one object and a major item for one or more other objects (we could 
+ *   attach a metal paper clip to the magnet while the magnet is attached to 
+ *   the fridge; if we take the magnet the paper clip comes with it while the
+ *   fridge is left behind).
+ *
+ *   (8)    If a SimpleAttachable is attached to a major attachment while 
+ *   it's already attached to another major attachment, it will first be 
+ *   detached from its existing major attachment before being attached to 
+ *   the new one (ATTACH MAGNET TO OVEN will trigger an implicit DETACH 
+ *   MAGNET FROM FRIDGE if the magnet was attached to the fridge).
+ *
+ *   (9)    Normally, both the major and the minor attachments should be of 
+ *   class SimpleAttachable. 
+ *
+ *
+ *   Setting up a SimpleAttachable is then straightforward, since all the 
+ *   complications are handled on the class. In the simplest case all the 
+ *   game author needs to do is to define the minorAttachmentItems property 
+ *   on the major SimpleAttachable to hold a list of items that can be 
+ *   attached to it, e.g.:
+ *
+ *   minorAttachmentItems = [redMagnet, blueMagnet]
+ *
+ *   If a more complex way of deciding what can be attached to a major 
+ *   SimpleAttachable is required, override its isMajorItemFor() method 
+ *   instead, so that it returns true for any obj that can be attached, e.g.:
+ *
+ *   isMajorItemFor(obj) { return obj.ofKind(Magnet); }
+ *
+ *   One further point to note: if you want a Container-type object to act 
+ *   as a major SimpleAttachment, you'll need to make it a ComplexContainer.
+ *
+ */</span>
+
+
+ModuleID
+  name = 'SimpleAttachable'
+  byLine = 'by Eric Eve'
+  htmlByLine = 'by &lt;A href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+  version = '1.0'  
+;
+
+
+class SimpleAttachable: Attachable
+    
+    <span class='comment'>/* Move the minor attachment into the major attachment. */</span>
+    handleAttach(other)
+    {
+        if(other.isMajorItemFor(self))           
+            moveInto(other);
+        
+    }
+    
+    <span class='comment'>/* 
+     *   When we're detached, if we were in the other object move us into the
+     *   other object's location.
+     */</span>
+    handleDetach(other)
+    {
+        if(isIn(other))
+            moveInto(other.location);
+    }
+    
+    <span class='comment'>/* 
+     *   If a minor attachment is taken, first detach it from its major 
+     *   attachment.
+     */</span>
+    dobjFor(Take)
+    {
+        preCond = (nilToList(inherited) + objNotAttachedToMajor)
+    }
+    
+    
+    <span class='comment'>/*  
+     *   If we're attached to a major attachment, treat TAKE US FROM MAJOR as
+     *   equivalent to DETACH US FROM MAJOR.
+     */</span>
+    dobjFor(TakeFrom) maybeRemapTo(isAttachedToMajor, DetachFrom, self,
+                                   location)
+       
+    <span class='comment'>/*  
+     *   If we're already attached to a major attachment, detach us from it 
+     *   before attaching us to a different major atttachment.
+     */</span>
+    dobjFor(AttachTo)
+    {
+        preCond = (nilToList(inherited) + objDetachedFromLocation)
+    }
+       
+    iobjFor(AttachTo)
+    {
+        preCond = (nilToList(inherited) + objDetachedFromLocation)
+    }
+    
+    <span class='comment'>/*  We're a major item for any item in our minorAttachmentItems list. */</span>
+    isMajorItemFor(obj)
+    {
+        return nilToList(minorAttachmentItems).indexOf(obj) != nil;
+    }
+    
+    <span class='comment'>/*  
+     *   The list of items that can be attached to us for which we would be 
+     *   the major attachment item.
+     */</span>
+    minorAttachmentItems = []
+    
+    <span class='comment'>/*   
+     *   A pair of convenience methods to determined if we're attached to any
+     *   items that are major or minor attachments relative to us.
+     */</span>
+    isAttachedToMajor = (location &amp;&amp; location.isMajorItemFor(self))
+    isAttachedToMinor = (contents.indexWhich({x: self.isMajorItemFor(x)}) !=
+                      nil)
+    
+    <span class='comment'>/*   
+     *   Define if this item be listed when it's a minor item attached to 
+     *   another item.
+     */</span>
+    isListedWhenAttached = true
+    
+    isListed = (isAttachedToMajor ? isListedWhenAttached : inherited )
+    
+    isListedInContents = (isAttachedToMajor ? nil : inherited )
+    
+    <span class='comment'>/*  
+     *   Customise the listers so that if we contain minor items as 
+     *   attachments they're shows as being attached to us, not as being in 
+     *   us.
+     */</span>    
+    contentsLister =  (isAttachedToMinor ? majorAttachmentLister : inherited)
+    
+    inlineContentsLister = (isAttachedToMinor ? inlineListingAttachmentsLister :
+                        inherited )
+
+   
+    <span class='comment'>/*  
+     *   A SimpleAttachment can be attached to another SimpleAttachment if 
+     *   one of the SimpleAttachments is a major item for the other.
+     */</span>
+    canAttachTo(obj)
+    {
+        return isMajorItemFor(obj) || obj.isMajorItemFor(self);
+    }
+    
+    
+    <span class='comment'>/*  
+     *   If I start the game located in an object that's a major item for me, 
+     *   presumbably we're meant to start off attached.
+     */</span>
+    initializeThing()
+    {
+        inherited;
+        
+        if(location &amp;&amp; location.isMajorItemFor(self))            
+            attachTo(location);
+    }
+;
+
+<span class='comment'>/*  
+ *   Custom lister to show the contents of a major attachment as being 
+ *   attached to it.
+ */</span>
+inlineListingAttachmentsLister: ContentsLister
+    showListEmpty(pov, parent) { }
+    showListPrefixWide(cnt, pov, parent)
+        { &quot; (to which &lt;&lt;cnt &gt; 1 ? '{are|were}' : '{is|was}'&gt;&gt;  attached &quot;; }
+    showListSuffixWide(itemCount, pov, parent)
+        { &quot;)&quot;; }
+;
+
+<span class='comment'>/*  Special precondition for use when taking a minor attachment. */</span>
+
+objNotAttachedToMajor: PreCondition
+    
+    <span class='comment'>/* 
+     *   Other things being equal, prefer to take an item that's not a minor 
+     *   attachment (if the blue magnet is attached to the fridge and the red
+     *   magnet is lying on the floor, then make TAKE MAGNET take the red 
+     *   one).
+     */</span>
+    verifyPreCondition(obj) 
+    { 
+        if(obj.location.isMajorItemFor(obj))
+            logicalRank(90, 'attached');
+    }
+
+    
+    checkPreCondition(obj, allowImplicit)
+    {
+        <span class='comment'>/* 
+         *   if we don't already have any non-permanent attachments  that 
+         *   are the major attachments for us, we're fine (as we don't 
+         *   require removing permanent attachments); nothing more needs to 
+         *   be done.  
+         */</span>
+        if (obj.attachedObjects.indexWhich(
+            {x: x.isMajorItemFor(obj) &amp;&amp; !obj.isPermanentlyAttachedTo(x) 
+                  }) == nil)
+            return nil;
+
+                
+        local major = obj.attachedObjects.valWhich({x: x.isMajorItemFor(obj)});
+        
+        <span class='comment'>/* 
+         *   Try implicitly detaching us from our major attachment.  
+         */</span>
+        if (allowImplicit &amp;&amp; tryImplicitAction(DetachFrom, obj, major))
+        {
+            <span class='comment'>/* 
+             *   if we're still attached to a major attachment, we failed, 
+             *   so abort
+             */</span>
+            if (obj.attachedObjects.indexWhich(
+                {x: !obj.isPermanentlyAttachedTo(x) 
+                  &amp;&amp; x.isMajorItemFor(obj)}) != nil)
+                exit;
+
+            <span class='comment'>/* tell the caller we executed an implied action */</span>
+            return true;
+        }
+
+        <span class='comment'>/* we must detach first */</span>
+        reportFailure(&amp;mustDetachMsg, obj);
+        exit;
+    }
+;
+
+<span class='comment'>/*  
+ *   Special precondition to detach us from an existing major attachment 
+ *   before attaching us to another one. This needs to be different from 
+ *   objNotAttachedToMajor so that we don't perform any unnecessary 
+ *   detachments. 
+ */</span>
+
+objDetachedFromLocation: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        /* 
+         *   If the other object involved in the command is not a majorItem   
+         *   for us, or we're not already in an object that we're attached 
+         *   to which is our major item, then there's nothing to do. 
+         */</span>
+        
+        local other = (obj == gDobj ? gIobj : gDobj);
+        local loc = obj.location;
+            
+        if(!other.isMajorItemFor(obj) || 
+            !(loc.isMajorItemFor(obj) &amp;&amp; obj.isAttachedTo(loc)))
+            return nil;
+
+                
+               
+        <span class='comment'>/* 
+         *   if we don't already have any non-permanent attachments  that 
+         *   are the major attachments for us, we're fine (as we don't 
+         *   require removing permanent attachments); nothing more needs to 
+         *   be done.  
+         */</span>
+        if (allowImplicit &amp;&amp; tryImplicitAction(DetachFrom, obj, loc))
+        {
+            <span class='comment'>/* if we're still attached to anything, we failed, so abort */</span>
+            if (loc.isMajorItemFor(obj) &amp;&amp; obj.isAttachedTo(loc))
+                exit;
+
+            <span class='comment'>/* tell the caller we executed an implied action */</span>
+            return true;
+        }
+
+        <span class='comment'>/* we must detach first */</span>
+        reportFailure(&amp;mustDetachMsg, obj);
+        exit;
+    }
+    
+;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='Exercise22.htm'>adv3Lite version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

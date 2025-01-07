@@ -1,0 +1,1034 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+<html><head><link rel="StyleSheet" href="main.css" type="text/css" media="screen"> 
+<head>
+<title>Exercise 15 (adv3Lite)</title>
+</head>
+<body>
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='fuseDaemon.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+
+<h1>Exercise 15 - Fuses and Daemons (adv3Lite)</h1>
+
+<p>This game is primarily intended as a demonstration of FUSES and DAEMONS, but this these classes can hardly be demonstrated in the abstract, so  we embed the demonstration in a brief game about Bomb Disposal. We also take the opportunity to demonstrate the INITOBJECT, PREINITOBJECT, 
+COLLECTIVEGROUP and CONSULTABLE classes, all of which fit neatly in the game, but don't obviously fit in any other demo.</p>
+
+<p>The game presented here combines the specifications of Exercises 15 and 16 in <i>Learning TADS 3 with adv3Lite</i>. The joint specification is:</p>
+
+<p>The player character starts in a living room in wartime London, in which an unexploded bomb lies on the floor. He has 25 turns in which to defuse the bomb, after which it will explode. To defuse the bomb he has to remove a metal cap from it, which can only be removed with the aid of his spanner. This is one of his tools, which starts out in his black tool bag, which is out in the hall. The tool bag also contains his wire cutters and his bomb disposal manual.</p>
+
+<p>Removing the cap from the bomb reveals five coloured wires in the detonator: red, blue, green, yellow, black. Cutting the right wire will defuse the bomb, but cutting the wrong one will make it go off. To find out which is the right wire, the player must determine which kind of bomb it is and then look it up in the bomb disposal manual. The serial number of the bomb is on the underside of the casing, so the player must look under the bomb to find it.</p>
+
+<p>Out in the hall an inquisitive rat is scurrying around, so we should display a series of messages describing what it’s up to. We should also display a series of random messages describing sounds coming from outside the house. Finally, when there’s only five turns left, the bomb should start ticking louder, as a hint to the player that he needs to hurry up.</p>
+
+<p>Complete the Bomb Disposal example by adding appropriate introductory text and suitable winning and losing endings. Also add start-up code to randomize which is the correct wire for the player to cut.</p>
+
+<div class='code'><pre>
+#charset &quot;us-ascii&quot;
+
+#include &lt;tads.h&gt;
+#include &quot;advlite.h&quot;
+
+
+<span class="comment">/*   
+ *   EXERCISE 15 - BOMB DISPOSAL
+ *
+ *   This game is primarily intended as a demonstration of FUSES and DAEMONS,
+ *   but this these classes can hardly be demonstrated in the abstract, so 
+ *   we embed the demonstration in a brief game. We also take the 
+ *   opportunity to demonstrate the INITOBJECT, PREINITOBJECT, 
+ *   COLLECTIVEGROUP and CONSULTABLE classes, all of which fit neatly in the 
+ *   game, but don't obviously fit in any other demo.
+ */</span>
+
+
+
+
+versionInfo: GameID
+    IFID = 'a78974ac-6485-414a-92bc-72411c1a81f1'
+    name = 'Exercise 15 - Bomb Disposal'
+    byline = 'by Eric Eve'
+    htmlByline = 'by &lt;a href=&quot;mailto:eric.eve@hmc.ox.ac.uk&quot;&gt;Eric Eve&lt;/a&gt;'
+    version = '1'
+    authorEmail = 'Eric Eve &lt;eric.eve@hmc.ox.ac.uk&gt;'
+    desc = 'A demonstration of Fuse and Daemon classes (and also InitObject,
+        PreinitObject, CollectiveGroup and Consultable).'
+    htmlDesc = 'A demonstration of Fuse and Daemon classes (and also
+        InitObject, PreinitObject, CollectiveGroup and Consultable).'
+;
+
+gameMain: GameMainDef
+    <span class="comment">/* Define the initial player character; this is compulsory */</span>
+    initialPlayerChar = me
+    
+    showIntro()
+    {
+        &quot;There was another air raid on London last night. Many houses were
+        damaged, but in this one the bomb failed to explode. Your job is to
+        disarm it before it does. \b&quot;;
+    }
+;
+
+<span class="comment">/*   
+ *   INITOBJECT
+ *
+ *   An InitObject is an object with an execute() method that's automatically
+ *   invoked when the game starts, so it can be a useful place to put code 
+ *   we want to execute at the start of the game. InitObject can be used as a
+ *   standalone, or mixed in with some other class (typically to add 
+ *   initialization behaviour to an object).
+ *
+ *   An InitObject is a good place to set up a Daemon we want to start at the
+ *   beginning of the game, which is how we're using it here. In this case 
+ *   we mix InitObject with a ShuffledEventList we'll use to display random 
+ *   atmosphere strings. There are only two rooms in this game, and we want 
+ *   these strings to be displayed in both of them, so this provides a good 
+ *   alternative to using the atmosphereList properties of the individual 
+ *   rooms.  
+ */</span>
+
+<span class="comment">/* 
+ *   An InitObject is an object who execute() methos is executed at the start of the game. We use to
+ *   it to create a Daemon (which cannot be done at PreInit),
+ */</span>
+InitObject, ShuffledEventList
+    [
+        'There\'s a loud jangling from a fire-engine hurrying down the street.
+        ',
+        'Your sergeant pokes his head round the door to see how you\'re getting
+        on. You send him away again; there\'s no need the two of you getting
+        blown up if this goes wrong. ',
+        'An aeroplane drones overhead. ',
+        'A siren wails in the distance. ',
+        'Somewhere in the distance, a dog barks. ',
+        'You hear the sound of running feet outside the house. ',
+        'Outside the house a policeman shouts to a group of children to stand
+        clear. '
+    ]
+    
+    <span class="comment">/*  
+     *   DAEMON
+     *
+     *   The execute method is called when the game starts. The code in this 
+     *   execute() method creates a Daemon that will run every turn. What 
+     *   this Daemon will do is to call the doScript() method on self (i.e. 
+     *   this object) every turn. We don't need to store a reference to this 
+     *   Daemon since it will carry on running for as long as the game 
+     *   continues.
+     */</span>
+    
+    execute() { new Daemon(self, &amp;doScript, 1); }
+        
+    <span class="comment">/*   
+     *   Once we've displayed all these messages once, reduce their 
+     *   frequency to 50%. We make the compiler do the work of counting the 
+     *   number of items in the eventList; using the static keyword means 
+     *   that the compiler will compute the value and store it in the 
+     *   eventReduceAfter property, so the expression won't need to be 
+     *   evaluated each time during game-play.
+     */</span>    
+    eventReduceTo = 50
+    eventReduceAfter =  static eventList.length()
+;
+
+
+<span class="comment">/*   
+ *   ONE_TIME_PROMPT_DAEMON
+ *
+ *   A PromptDaemon is a special kind of Daemon that runs every turn just 
+ *   before the command prompt is displayed. A OneTimePromptDaemon is a 
+ *   special kind of PromptDaemon that runs only once (and then disables 
+ *   itself); it's useful to make something happen at the very end of a 
+ *   single turn, or, as here, just before the first command prompt (after 
+ *   the opening text and the room description have been displayed). Here We 
+ *   use an InitObject to set up a OneTimePromptDaemon that displays a 
+ *   message just before the first command prompt.
+ */</span>
+InitObject
+    execute() { new OneTimePromptDaemon(self, &amp;toolMessage); }
+    toolMessage = &quot;You left your bag of tools out in the hall; you'll need to
+        collect them once you've taken a quick look at the bomb. &quot;
+;
+
+
+<span class="comment">/* 
+ *   Starting location - we'll use this as the player character's initial
+ *   location.  The name of the starting location isn't important to the
+ *   library, but note that it has to match up with the initial location
+ *   for the player character, defined in the &quot;me&quot; object below.
+ *   
+ *   Our definition defines two strings.  The first string, which must be
+ *   in single quotes, is the &quot;name&quot; of the room; the name is displayed on
+ *   the status line and each time the player enters the room.  The second
+ *   string, which must be in double quotes, is the &quot;description&quot; of the
+ *   room, which is a full description of the room.  This is displayed when
+ *   the player types &quot;look around,&quot; when the player first enters the room,
+ *   and any time the player enters the room when playing in VERBOSE mode.
+ *   
+ *   The name &quot;startRoom&quot; isn't special - you can change this any other
+ *   name you'd prefer.  The player character's starting location is simply
+ *   the location where the &quot;me&quot; actor is initially located.  
+ */</span>
+startRoom: Room 'Living Room'
+    &quot;The living room is a shambles. A layer of dust and debris covers
+    everything, presumably showered down from the gaping hole in the ceiling. &quot;
+    north = lrDoor
+    out asExit(north)
+;
+
+<span class="comment">/* 
+ *   The player character object. This doesn't have to be called me, but me is a
+ *   convenient name. If you change it to something else, rememember to change
+ *   gameMain.initialPlayerChar accordingly.
+ */</span>
+
++ me: Player 'you'          
+;
+
++ lrDoor: Door 'door'
+    otherSide = hallDoor
+;
+
+
+<span class="comment">/*   
+ *   INITOBJECT
+ *
+ *   Here we use InitObject combined with a physical game object to set up a 
+ *   couple of Fuses associated with it.
+ *
+ *   A Fuse in adv3Lite is an event that executes at some specified number of 
+ *   turns after it is first set up. Unlike a Daemon which executes every 
+ *   turn (or every so many turns) it executes only once and is then removed.
+ *
+ *   Although a Fuse can be used for anything, the term naturally conjurs up 
+ *   the idea of an explosion, and that's how we're using it here -- in 
+ *   conjunction with a bomb!
+ */</span>
++ bomb: InitObject, Surface, Immovable 
+    'bomb; unexploded black smooth; casing uxb' 
+    &quot;It's a long beast, with a smooth black casing. &lt;&lt;cap.isIn(self) ? 'At one
+        end is the cap that covers the detonator. ' : ''&gt;&gt;&quot;
+    
+    <span class="comment">/*  This method will be called when the game starts. */</span>
+    execute()
+    {
+        <span class="comment">/*   
+         *   FUSE
+         *
+         *   The next statement sets up a Fuse that will call the explode() 
+         *   method on the bomb in 25 turns from now. We need to store a 
+         *   reference to the Fuse since we'll want to stop it if the player 
+         *   succeeds in disabling the bomb before it explodes.
+         *
+         *   There are only two rooms in the game, and the player character 
+         *   will be equally aware of the bomb exploding (and equally dead 
+         *   as a result) whichever of the two rooms he's in when it goes 
+         *   off, so a simple Fuse will do here (as opposed to a SenseFuse).
+         */</span>
+        fuseID = new Fuse(self, &amp;explode, 25);
+        
+        
+        <span class="comment">/*
+         *   SENSEFUSE
+         *
+         *   A SenseFuse is much like a Fuse, except that anything it tries 
+         *   to display when it executes is only displayed if the PC is in a 
+         *   position to sense it. In this case we will make the bomb start 
+         *   to tick louder after 20 turns (as a hint to the player that 
+         *   time is running out), but obviously the player character won't 
+         *   hear that unless he's in the same room as the bomb, so we use a 
+         *   SenseFuse to ensure that the output from the Fuse is only 
+         *   displayed if the player can hear the bomb at that point (this 
+         *   is what the final two parameters define: self -- the object to 
+         *   be sensed, and sound -- the sense in question). The first three 
+         *   parameters have the same meaning as before; unless it's 
+         *   disabled first this senseFuse will call ticking.louden() in 20 
+         *   turns from the start of the game.
+         */</span>             
+        senseFuseID = new SenseFuse(ticking, &amp;louden, 20, &amp;canHear);        
+    }
+    
+    <span class="comment">/*   
+     *   fuseID and senseFuseID are custom properties we use to store 
+     *   references to the Fuse and the SenseFuse. We need to store them 
+     *   both so we can disable both fuses if the player succeeds in 
+     *   defusing the bomb.
+     */</span>
+    fuseID = nil
+    senseFuseID = nil
+    
+    
+    <span class="comment">/*  
+     *   A custom method which describes the explosion of the bomb and ends 
+     *   the game in the PC's death when the bomb explodes. Note that this 
+     *   can be called either as a result of the Fuse executing or as a 
+     *   result of the PC cutting the wrong wire when attempting to defuse 
+     *   the bomb.
+     */</span>
+    explode()
+    {
+        &quot;With a loud roar and a cloud of smoke and flying debris the bomb
+        explodes!\b&quot;;
+        finishGameMsg(ftDeath, [finishOptionUndo]);
+    }
+    
+    <span class="comment">/*   
+     *   The makeSafe() method is a custom method that disables both fuses 
+     *   if and when the player manages to defuse the bomb.
+     */</span>    
+    makeSafe()
+    {
+        fuseID.removeEvent();
+        senseFuseID.removeEvent();
+        fuseID = nil;
+        senseFuseID = nil;
+        
+        <span class="comment">/*   
+         *   PROMPT DAEMON
+         *
+         *   A PromptDaemon is a special kind of Daemon that's called each 
+         *   turn, just before the command prompt is displayed. Here we set 
+         *   up a PromptDaemon to display a message to prompt the player to 
+         *   leave the house (and so end the game) once the bomb has been 
+         *   defused.
+         */</span>
+        new PromptDaemon(self, &amp;safeMessage);
+    }
+    
+    <span class="comment">/*   The message to display each turn once the bomb has been defused. */</span>
+    safeMessage = &quot;&lt;.p&gt;Now that you've disabled the bomb, you'd better go out
+        and tell everyone it's safe. &quot;
+     
+    
+    specialDesc = &quot;An unexploded bomb lies in the middle of the room. &quot;
+    listenDesc = ticking.desc
+    
+    <span class="comment">/*   
+     *   The lookUnderMsg is displayed in response to the command LOOK 
+     *   UNDER THE BOMB. The manual (implemented below) provides hints that 
+     *   the player needs to find this model number somewhere on the bomb 
+     *   casing.
+     */</span>
+    lookUnderMsg = 'On the underside of the casing you can just make out the
+        characters ZP640. '
+;
+
+<span class="comment">/*  We'll give this bomb a suitably menacing tick. */</span>
+++ ticking: Noise 'faint ticking sound' 
+    &quot;&lt;&lt;if isEmanating&gt;&gt;A &lt;&lt;name&gt;&gt; is coming from the bomb&lt;&lt;else&gt;&gt;The bomb has
+    fallen silent&lt;&lt;end&gt;&gt;. &quot;
+    
+    <span class="comment">/*  
+     *   The ticking stops once the bomb has been defused. In adv3Lite
+     *   isEmanating is a custom property we've defined for this object, not a
+     *   property defined in the library
+     */</span>
+    isEmanating = (bomb.fuseID != nil)
+    
+    <span class="comment">/*  
+     *   Make the ticking get louder. Change the name to 'loud ticking 
+     *   sound' and amend the vocabulary to suit, then display a message to 
+     *   say that the ticking has got louder.
+     */</span>
+    louden()
+    {
+        replaceVocab('loud ticking sound');
+       
+        &quot;The bomb suddenly starts ticking louder. &quot;;
+    }
+   
+    <span class="comment">/* 
+     *   If the ticking sound is still emanating and the player didn't
+     *   explicitly issue a Listen command we'll display a message about the
+     *   ticking of the bomb on each turn.
+     */</span>
+    afterAction()
+    {
+        if(isEmanating &amp;&amp; !gActionIn(Listen, ListenTo))
+            desc;
+    }
+;
+
+
+<span class="comment">/*  To get at the detonator the PC first has to remove this cap. */</span>
+++ cap: Fixture 'cap; round black metal detonator' 
+    &quot;It's a round metal cap, black like the rest of the bomb. &quot;
+    
+    <span class="comment">/* 
+     *   To remove the cap the player character needs to turn it with his 
+     *   spanner, so we need custom handling for the TurnWith handling.
+     */</span>
+    dobjFor(TurnWith)
+    {        
+        verify() {}
+        action()
+        {
+            &quot;You turn {the dobj} with {the iobj}, and remove it from the
+            bomb, revealing the detonator compartment (in which you can see five
+            wires: one red, one yellow, one green, one blue, and one black). &quot;;
+            
+            <span class="comment">/*  
+             *   Since the cap behaves rather differently once it's been 
+             *   removed from the bomb, it's easier to implement it as two 
+             *   different game objects (which will look like the same 
+             *   object to the player). It would be possible to use a single 
+             *   object, but probably messier and more bug-prone.
+             *
+             *   So when the cap is unscrewed, we need to replace it with the
+             *   object representing the unscrewed cap.
+             */</span>
+            moveInto(nil);
+            cap2.moveInto(gActor);
+        }
+    }
+ 
+    
+    <span class="comment">/*  
+     *   Provide custom messages for some obvious actions that might be 
+     *   tried on this cap.
+     */</span>
+    cannotUnscrewMsg = 'You can\'t do that with your bare hands. '
+    cannotTurnMsg = (cannotUnscrewMsg)
+    cannotTakeMsg = 'You can\'t; it\'s tightly screwed on. '
+    cannotOpenMsg = 'You need to unscrew it. '
+    cannotPushMsg = (cannotOpenMsg)
+    cannotPullMsg = (cannotOpenMsg)
+    cannotMoveMsg = (cannotOpenMsg)
+    
+    isTurnable = nil
+    
+    <span class="comment">/*  
+     *   So far as the player is concerned, cap and cap2 are the same 
+     *   object, so we make sure the parser knows this. This ensures that if 
+     *   the player types TURN CAP WITH SPANNER followed by X IT, the 
+     *   EXAMINE command will still work, even though cap will have been 
+     *   replaced by cap2 in the course of carrying out the first command.
+     */</span>
+    getFacets = [cap2]
+;
+
+<span class="comment">/*  
+ *   Implementing a container-like object that only becomes accessible (and 
+ *   indeed, visible) once a cap or lid is removed is just a little tricky. 
+ *   Here we do it with something that's a mix of several classes.
+ *
+ *   We're also making this an InitObject so that it can make a random 
+ *   choice of which is the safe wire to cut at the start of the game.
+ *
+ *   We make the detonator a RestrictedContainer so that it can contain, and 
+ *   if necessarily conceal, its existing contents (five wires), without 
+ *   allowing anything else to be put in it.
+ */</span>
+++ detonator: InitObject, Fixture, Container 
+    'detonator compartment' 
+    
+    <span class="comment">/*  
+     *   The detonator compartment becomes accessible when the cap is removed.
+     *   We can simulate that by making it hidden while the cap is on the bomb.
+     */</span>
+    isHidden = (cap.isIn(bomb))
+    
+    <span class="comment">/*  
+     *   By making this Container open only when it is discovered, we ensure 
+     *   that its contents are inaccessible only when the cap is removed. 
+     *   Note that a Container can have an isOpen property even if it is not 
+     *   an OpenableContainer; it can still be opened and closed under 
+     *   program control, though not by the player issuing OPEN and CLOSE 
+     *   commands.
+     */</span>
+    isOpen = (!isHidden)
+
+    <span class="comment">/*  Choose a random wire to be the right one to cut. */</span>
+    execute()
+    {
+        <span class="comment">/* 
+         *   Normally we'd want this random choice to give a different 
+         *   result each time, so we'd call randomize() to re-seed the 
+         *   random number generator. But when we're testing it's useful if 
+         *   the 'random' results are the same each time through, so we'll 
+         *   exclude the call to randomize() from the debug build.
+         */</span>
+      #ifndef __DEBUG
+        randomize();
+      #endif
+        
+        safeWire = rand(redWire, blueWire, greenWire, yellowWire, blackWire);
+        safeWire.safeToCut = true;
+    }
+    
+    safeWire = nil
+    
+    notifyInsert(obj)
+    {
+        &quot;You'd better not put anything in there; you might set the bomb off! &quot;;
+        exit;
+    }
+
+;
+
+<span class="comment">/*  
+ *   The contents of this detonator are fairly basic: we just put five 
+ *   coloured wires there. The Wire class is defined below. 
+ */</span>
+
++++ redWire: Wire 'red +'
+;
+
++++ blueWire: Wire 'blue +'
+;
+
++++ greenWire: Wire  'green +'
+;
+
++++ yellowWire: Wire 'yellow +'      
+;
+
++++ blackWire: Wire 'black +'
+;
+
+<span class="comment">/*   
+ *   COLLECTIVE GROUP
+ *
+ *   We can use a CollectiveGroup to stand in for all five wires when the 
+ *   player uses a command including the plural WIRES. This can often give a 
+ *   better response than having the parser list a response for each 
+ *   individual wire. 
+ *
+ *   We define wireGroup with only the plural vocabulary for wires. 
+ */</span>
+
++++ wireGroup: CollectiveGroup 'wires'
+    &quot;There are five wires in the detonator: one red, one yellow, one green, one
+    blue, and one black. &lt;&lt;detonator.safeWire.hasBeenCut ? '\^' +
+      detonator.safeWire.theName + ' has been cut.' : ''&gt;&gt;&quot;
+    
+    <span class="comment">/*  
+     *   Define which actions we want this CollectiveGroup to handle when the
+     *   player directs a command to WIRES in the plural; all other commands
+     *   will be handled by each of the individual wires.
+     *
+     *   We'll handle EXAMINE, CUTWITH, PULL, BREAK, MOVE, PUSH and TAKE
+     */</span>    
+    
+    collectiveActions = [Examine, CutWith, Pull, Break, Move, Push, Take]
+    
+    dobjFor(CutWith) 
+    { 
+        verify()         
+        {
+            <span class="comment">/*  Warn the player that cutting all the wires would be fatal. */</span>
+            illogical('If you cut all the wires you\'ll certainly detonate the
+                bomb. ');
+        }
+    }
+    
+    <span class="comment">/*  
+     *   Provide a suitable message refusing to TAKE WIRES, MOVE WIRES, PUSH 
+     *   WIRES, PULL WIRES or BREAK WIRES. This is much neater than having 
+     *   the parser respond with the same message five times over, once for 
+     *   each wire.
+     */</span>
+    dobjFor(Take) { verify() { illogical(Wire.cannotTakeMsg); } }
+    dobjFor(Move) { verify() { illogical(Wire.cannotTakeMsg); } }
+    dobjFor(Push) { verify() { illogical(Wire.cannotTakeMsg); } }
+    dobjFor(Pull) { verify() { illogical(Wire.cannotTakeMsg); } }
+    dobjFor(Break) { verify() { illogical(Wire.cannotTakeMsg); } }
+;
+
+<span class="comment">/*   Define the custom Wire class. */</span>
+class Wire: Immovable 'wire'
+    &quot;\^&lt;&lt;theName&gt;&gt; &lt;&lt;hasBeenCut ? 'has been cut' : 'is intact'&gt;&gt;. &quot;
+    
+    cannotTakeMsg = 'You know perfectly well that messing with any of those
+        wires could set the bomb off. '
+    
+    cannotCutMsg = 'You can\'t cut {the dobj} with your bare hands. '
+    
+    <span class="comment">/* This is set on the 'right' wire to cut at the start of the game. */</span>
+    safeToCut = nil
+    
+    <span class="comment">/* 
+     *   Keep track of whether this wire has been cut so it can describe 
+     *   itself accordingly.
+     */</span>
+    hasBeenCut = nil    
+    
+    <span class="comment">/*   Define the custom handling for CUT whichever WIRE (with cutter) */</span>
+    dobjFor(CutWith)
+    {
+        preCond = [touchObj]
+        verify()
+        {
+            <span class="comment">/*  
+             *   Once it's been cut, there's no point in trying to cut it 
+             *   again.
+             */</span>
+            if(hasBeenCut)
+                illogicalNow('{The subj dobj} has already been cut. ');
+        }
+        action()
+        {
+            hasBeenCut = true;
+            
+            <span class="comment">/*  
+             *   If we're the safe wire, say so and make the bomb safe (stop 
+             *   the fuses).
+             */</span>
+            if(safeToCut)
+            {
+                &quot;You cut {the dobj} and the bomb stops ticking. &quot;;
+                bomb.makeSafe();
+            }
+            else
+                <span class="comment">/* Otherwise, the bomb explodes. */</span>
+                bomb.explode();
+        }
+    }        
+    
+    <span class="comment">/*  
+     *   Although this is a Immovable, we want the wires to be listed 
+     *   in response to LOOK IN DETONATOR.
+     */</span>
+    isListedInContents = true
+    
+    <span class="comment">/*  The CollectiveGroup object for all Wires. */</span>
+    collectiveGroups = [wireGroup]
+;
+
+
++ Decoration 'some debris;;dust'
+    &quot;A layer of dust and debris covers everything in the room. &quot;
+;
+
++ Decoration 'furniture; grey gray; chairs sofa table; it them' 
+    &quot;Whatever the furniture was like before the bomb, it's all grey with dust
+    now: table, chairs and sofa all equally ruined. &quot;
+;
+
++ Distant 'ceiling; gaping; hole' 
+    &quot;A gaping hole in the ceiling indicates where the bomb fell through before
+    it landed on the floor and failed to explode. &quot;
+    
+    specialDesc = &quot;There's a gaping hole in the ceiling. &quot;
+;
+
+
+   
+    <span class="comment">/*  Treat UNSCREW CAP WITH X as equivalent to TURN CAP WITH X */</span>
+
+Doer 'unscrew cap with Thing'
+    execAction(c)
+    {
+        doInstead(TurnWith, cap, gIobj);
+    }
+;
+
+//------------------------------------------------------------------------------
+
+
+hall: Room 'Hall'
+    &quot;This small, cramped hall is in keeping with the modest proportions of the
+    house. The front door is to the north, while other doors lead to west, east
+    and south, and a flight of stairs runs up to the floor above. &quot;
+    
+    east() { &quot;There's no need to go into any other part of the house; the bomb
+        you're concerned with is in the living room, just to the south. &quot;; }
+    west() { east; }
+    south = hallDoor    
+    up = hallStairs
+    north = frontDoor
+    out asExit(north)
+    in asExit(south)
+    
+    
+;
+
++ hallDoor: Door 'living room door'
+    otherSide = lrDoor
+;
+
++ frontDoor: Door 'front door'
+    <span class="comment">/* Don't let the PC leave until the bomb has been defused. */</span>
+    canTravelerPass(traveler)  {  return bomb.fuseID == nil; }
+    explainTravelBarrier(traveler)
+    {
+        &quot;You're not leaving until you're sure that bomb is safe! &quot;;
+    }
+    
+    <span class="comment">/*  Once the player goes through the door, the game is over (and won). */</span>
+    noteTraversal(traveler)
+    {
+        &quot;You leave the house knowing that you've done a good job. You're also
+        quite glad to be getting out alive!\b&quot;;
+        finishGameMsg(ftVictory, [finishOptionUndo]);
+    }
+    
+    <span class="comment">/* 
+     *   This door doesn't really go anywhere, but to satisfy the library and to
+     *   allow the noteTraversal() method to execute to end the game, we can
+     *   employ the trick of making this door its own other side.
+     */</span>
+    otherSide = self
+;
+
+<span class="comment">/*  
+ *   StairwayUp with canTravelerPass restriction to make a flight of stairs that
+ *   can't actually be climbed.
+ */</span>
++ hallStairs: StairwayUp 
+    'flight of stairs;;; it them'
+    
+    canTravelerPass(traveler) { return nil; }
+    explainTravelBarrier(traveler)
+    {
+        &quot;There's no telling what damage the bomb did when it fell through the
+        house, so it's probably not safe to go upstairs; but in any case, you
+        don't need to. &quot;;    
+    }
+;
+
+<span class="comment">/*   
+ *   We put a rat in the hall to provide an example of a SenseDaemon, 
+ *   although in practice if we really wanted a rat like this we'd probably 
+ *   implement it a little differently (see the NPC demo: what we'd probably 
+ *   do is to give the rat a HermitActorState that was also a 
+ *   ShuffledEventList and we'd get the SenseDaemon behaviour for free).  
+ */</span>
++ rat: InitObject, Thing, ShuffledEventList     
+    'rat; small grey gray; rodent animal mammal' 
+    &quot;It's a small grey mammal. &quot;
+    
+    <span class="comment">/*   
+     *   SENSEDAEMON
+     *
+     *   We use a SenseDaemon to display the messages describing what the 
+     *   rat is doing since we only want these messages to appear when the 
+     *   rat is in the same room as the PC.
+     *
+     *   Since rat is also an InitObject, its execute() method will be 
+     *   called on the first turn. This method sets up a SenseDaemon (we 
+     *   don't actually need to store a reference to it here, but we'll just 
+     *   illustrate how it's done). The SenseDaemon will call the rat's 
+     *   doScript method every turn, but will only display the output when 
+     *   the rat can be seen by the PC.     
+     */</span>         
+    execute() { daemonID = new SenseDaemon(self, &amp;doScript, 1); }
+    daemonID = nil
+    
+    eventList =
+    [
+        'The rat glances up at you curiously. ',
+        'The rat scuttles into a corner. ',
+        'The rat scratches at the front door. ',
+        'The rat gnaws at the floor. ',
+        'The rat lies down. ',
+        'The rat approaches you, sniffing curiously. ',
+        'The rat runs round the room, as if being chased by a phantom cat. ',
+        'The rat tries to hide in a shadow. '
+    ]
+    eventReduceAfter = static eventList.length()
+    eventReduceTo = 50
+    
+    <span class="comment">/*  
+     *   The following method will display &quot;A rat has found its way into the 
+     *   hall&quot; the first time the rat is mentioned in the room description 
+     *   and &quot;The rat is still in the hall&quot; each time thereafter.
+     */</span>
+    specialDesc = &quot;&lt;&lt;one of&gt;&gt;A rat has found its way into &lt;&lt;or&gt;&gt;The rat is still
+        in &lt;&lt;stopping&gt;&gt; the hall. &quot; 
+    
+    cannotTakeMsg = 'The rat scuttles away, evading your grasp. '
+    
+    <span class="comment">/* 
+     *   It's not illogical to attempt to attack a rat; we'll just make it
+     *   futile
+     */</span>
+    isAttackable = true
+    futileToAttackMsg = (cannotTakeMsg)
+;
+
+<span class="comment">/*  The PC's bag of tools. */</span>
++ blackBag: OpenableContainer 'black bag'
+    &quot;It's the bag you always carry your bomb disposal kit around in. &quot;
+    owner = me
+    specialDesc = &quot;Your black bag lies in the middle of the hall, just where you
+        left it. &quot;
+;
+
+++ spanner: Thing 'spanner; adjustable; wrench' 
+    &quot;It's adjustable, and you find that it usually turns anything that can be
+    turned at all. &quot;
+    iobjFor(TurnWith)
+    {
+        preCond =[objHeld]
+        verify() {}
+    }
+;
+
+++ wireCutter: Thing 'wire cutter'
+    &quot;You've cut many a wire with it and it hasn't let you down yet. &quot;
+    iobjFor(CutWith)
+    {
+        preCond = [objHeld]
+        verify() {}
+    }
+;
+
+
+<span class="comment">/*   
+ *   CONSULTABLE
+ *
+ *   A Consultable is something we can look things up in, using commands like
+ *   CONSULT MANUAL ABOUT BOMB or LOOK UP BOMBS IN MANUAL. It's an ideal 
+ *   class to use for something like a bomb-disposal manual.
+ *
+ *   We also givee the manual a readDesc, both because it's obviously 
+ *   something that the player might try to read, and also so that reading 
+ *   can provide information on how to use it. 
+ */</span>
+++ manual: Consultable 'bomb disposal manual; dark thick blue; book'      
+    &quot;It's a thick blue book that gets thicker by the week as you and your
+    colleagues learn more and more about the bombs the Luftwaffe keep dropping
+    on Britain. &quot;
+    
+    readDesc =  &quot;The manual emphasizes that the Luftwaffe keep changing the
+        detonators on their bombs with each new model with the express purpose
+        of making life difficult -- precarious even -- for people like you.
+        It's vital that you establish what model of bomb it is before
+        attempting any action, otherwise you'll probably blow yourself up. Once
+        you've established the model of bomb you can look up the procedure for
+        disabling it in this manual. &quot;
+    
+    <span class="comment">/* 
+     *   We'll make it that the PC has to hold the manual to read it (or look
+     *   things up in it).
+     */</span>
+    dobjFor(Read) { preCond = [objHeld] }
+    dobjFor(ConsultAbout) { preCond = [objHeld] }     
+        
+;
+
+<span class="comment">/*   
+ *   CONSULT TOPIC
+ *
+ *   We use ConsultTopics to implement the various items of information 
+ *   contained in a Consultable (just as we use TopicEntries - AskTopic and 
+ *   the like - to provide conversational responses for an NPC.
+ *
+ *   LOOK UP BOMB is an obvious thing for the player to try, so we'll start 
+ *   by provided a response to that. We do that by matching this 
+ *   ConsultTopic to the bomb object. We'll then simply repeat the response 
+ *   you'd get from READ MANUAL. 
+ */</span>     
++++ ConsultTopic @bomb
+    &quot;&lt;&lt;manual.readDesc&gt;&gt;&quot;
+;
+
+<span class="comment">/*  
+ *   Reading the manual tells the player that it's necessary to discover 
+ *   which model of bomb we're dealing with, so the player might try LOOK UP 
+ *   BOMB MODEL or LOOK UP MODEL OF BOMB or some variant of that. We'll 
+ *   provide a response to this by matching this ConsultTopic on the tModel 
+ *   topic (defined below). The response should nudge the player towards 
+ *   trying to find a bomb model number on the casing.
+ */</span>     
++++ ConsultTopic @tModel
+    &quot;According to the manual, the model number of a bomb should be stamped or
+    engraved somewhere on its casing. &quot; 
+;
+
+
+<span class="comment">/*  
+ *   LOOK UNDER BOMB reveals the model number to be ZP640, so we need to 
+ *   provide a response to that which tells the player which wire to cut. We 
+ *   could create another topic to match on, but instead we'll demonstrate 
+ *   matching on a regular expression. If the regular expression syntax is a 
+ *   bit baffling, don't worry about it too much: this one will match on 
+ *   ZP640, or TYPE ZP640 or MODEL ZP640
+ */</span>
++++ ConsultTopic '(type|model){0,1}&lt;space&gt;*zp640'
+    &quot;The manual suggests than on a type ZP640 bomb you need to cut
+    &lt;&lt;detonator.safeWire.theName&gt;&gt;. &quot;
+;
+
+<span class="comment">/*  
+ *   We can also use regular expressions to match more general patterns. This
+ *   ConsultTopic will match any purely numeric entry (e.g. LOOK UP 12345) 
+ *   and display a response explaining that purely numeric codes are not used.
+ */</span>
++++ ConsultTopic +70 '^&lt;digit&gt;+$'
+    &quot;There's no entry for that. The Germans don't seem to be using purely
+    numerical codes for their bombs; their codes tend to be either a few letters
+    follows by a few numbers or a few numbers followed by a few letters. &quot;
+;
+
+<span class="comment">/*   
+ *   PREINIT OBJECT
+ *
+ *   The manual is described as being a thick one, so we might expect to find
+ *   entries for bomb codes other than ZP640. This ConsultTopic will match 
+ *   on any pattern consisting of 1-4 letters followed by 1-4 numbers, or 1-4
+ *   numbers followed by 1-4 letters, so that the manual will seem to have 
+ *   entries for a vast range of codes. It will then assign a random 
+ *   description to the wire that would need to be cut for that kind of bomb.
+ *
+ *   One complication is that we don't want this ConsultTopic to match 
+ *   ZP640, so we give it a lower matchScore than the ZP640 ConsultTopic (80 
+ *   instead of the default 100, which is what the +80 in the template means).
+ *
+ *   The second complication is that if the player enters the same code 
+ *   twice, s/he ought to see the same response. If we kept returning a 
+ *   random description, then repeatedly looking up, say, PTR534 would tell 
+ *   the player first to cut the green wire, then the pink wire, and then 
+ *   the long wire (say) and this would look wrong. We therefore store the 
+ *   random response this ConsultTopic gives in a LookupTable, so that if 
+ *   the player subsequently looks up the same code, this ConsultTopic will 
+ *   give the same response. 
+ *
+ *   That's where the PreinitObject comes in -- we use the execute() method 
+ *   of PreinitObject to set up the LookupTable. A PreinitObject is much 
+ *   like an InitObject except that its execute() method is run as the last 
+ *   stage of compilation rather than at game setup. This means that the 
+ *   results of the PreinitObject's execute() method are stored in the game 
+ *   image file and don't have to be recomputed each time the game starts. 
+ *   PreinitObjects can't be used to display anything or start up Fuses or 
+ *   Daemons, but they can be used to perform calculations or, as here, set 
+ *   up data structures. 
+ */</span>
+
+
++++ PreinitObject, ConsultTopic +80 
+    '^(&lt;alpha&gt;{1,4}&lt;digit&gt;{1,4}|&lt;digit&gt;{1,4}&lt;alpha&gt;{1,4})$'
+    &quot;The manual indicates that the proper procedure for disabling a type
+    &lt;&lt;gTopicText.toUpper&gt;&gt; bomb is to cut the &lt;&lt;wireDesc(gTopicText.toUpper)&gt;&gt;
+    wire. &quot;
+    
+    <span class="comment">/* 
+     *   The custom method we define to return an appropriate description of 
+     *   the wire that needs to be cut for this type of bomb.
+     */</span>
+    wireDesc(txt)
+    {
+        <span class="comment">/* 
+         *   First see if we've already stored an entry for this type of 
+         *   bomb in our LookupTable.
+         */</span>
+        local resp = descTab[txt];
+        
+        <span class="comment">/*   
+         *   If not, pick a random description from the list and enter it 
+         *   into the LookupTable against this kind of bomb.
+         */</span>
+        if(resp == nil)
+        {
+            resp =  rand('green', 'red', 'blue', 'orange', 'mauve', 'black', 
+                         'white', 'grey', 'pink', 'short', 'long', 'thick', 
+                         'thin', 'straight', 'curly');
+            
+            descTab[txt] = resp;
+        }
+        
+        <span class="comment">/*  Either way, then return the result. */</span>
+        return resp;
+    }
+    
+    descTab = nil
+    
+    <span class="comment">/*   
+     *   Set up the LookupTable in Preinit and then populate it with a few 
+     *   sample values.
+     */</span>
+    execute()
+    {
+        descTab = new LookupTable(10, 20);
+        <span class="comment">/*  
+         *   We don't really need these entries, but this illustrates how we 
+         *   can set up data at Preinit; it also illustrates how a 
+         *   LookupTable is used. We store an entry into a table by setting 
+         *   tab[key] = value, and then retrieve it by asking for tab[key]. 
+         */</span>
+        descTab['A1'] = 'best';
+        descTab['M25'] = 'orbital';
+        descTab['K9'] = 'dog-eared';
+    }
+;
+
+<span class="comment">/*  
+ *   We've allowed MODEL ZP640 or TYPE ZP640 in addition to just ZP640 as a 
+ *   possible target of a LookUp command that references the bomb we actually
+ *   need. The following ConsultTopic uses a regular expression to trap 
+ *   LOOK UP MODEL/TYPE anything else and show a message telling the player 
+ *   simply to enter the code (and the format of codes expected) without 
+ *   preceding it with MODEL or TYPE. We don't want this ConsultTopic to 
+ *   match TYPE ZP640 or MODEL ZP640, though, so we give it a matchScore of 
+ *   90 (lower than the default of 100 used on the ZP640 ConsultTopic).
+ */</span>
++++ ConsultTopic +90 '^(model|type).+'
+    &quot;There's no need to include MODEL or TYPE, just look up the code, e.g, LOOK
+    UP RD99; note that the model number of these German bombs is normally one
+    to four digits followed by one to four letters, or one to four letters
+    followed by one to four digits. &quot;
+;
+
+<span class="comment">/*   
+ *   DEFAULT CONSULT TOPIC
+ *
+ *   Finally, we provide a DefaultConsultTopic to respond to anything not 
+ *   covered by the foregoing ConsultTopics, e.g. LOOK UP GLOBAL WARMING or 
+ *   CONSULT MANUAL ABOUT BAKED BEANS.
+ */</span>
++++ DefaultConsultTopic
+    &quot;The manual doesn't have anything useful to say about that. &quot;
+;
+
+<span class="comment">/*   The Topic object used above. */</span>
+tModel: Topic '(bomb) model;; models number';
+
+
+
+
+
+
+//------------------------------------------------------------------------------
+
+<span class="comment">/*   
+ *   The other object representing the cap, once it's been removed from the 
+ *   detonator. For the most part it's just an ordinary Thing, which is given
+ *   the same description as the cap.
+ */</span>
+cap2: Thing 'cap; metal (detonator)'
+    &quot;&lt;&lt;cap.desc&gt;&gt;&quot;
+    
+    <span class="comment">/* Let the parser know we're really the same physical object as cap. */</span>
+    getFacets = [cap]
+    
+    <span class="comment">/* 
+     *   Assume that PUT CAP ON BOMB means replace it on the detonator; in 
+     *   which case we move the original cap object back to the bomb and 
+     *   move cap2 back into nil.
+     */</span>
+    dobjFor(PutOn)
+    {
+        action()
+        {
+            if(gIobj == bomb)
+            {
+                &quot;You replace the cap on the bomb. &quot;;
+                moveInto(nil);
+                cap.moveInto(bomb);
+            }
+        }
+    }
+;
+</pre></div>
+
+<div class="nav">
+  <a class="nav" href="exercises.htm">Examples Index</a> | <a href='fuseDaemon.htm'>adv3 version</a>
+  
+  </div>
+  <hr>
+</body>
+</html>

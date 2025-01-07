@@ -1,0 +1,1660 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Byte Packing</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Byte Packing
+<br><span class="navnp"><a class="nav" href="scripts.htm"><i>Prev:</i> Input Scripts</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="bignum.htm"><i>Next:</i> BigNumber</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Byte Packing</h1>
+
+<p>Byte packing is a new feature in TADS 3.1 designed to simplify
+binary file manipulation.  The byte packer lets you read and write
+complex data structures in binary files with very compact code.  You
+don't have to manually twiddle bits or shuffle bytes; the byte packer
+provides automatic translations between TADS datatypes and many common
+byte formats.  It's not tied to any set of pre-defined file formats,
+either - it's really a "mini language" that makes it possible to read
+and write almost any binary file format you're likely to come across.
+
+<p>The TADS byte packer is based on the similar facilities in Perl and
+php.  If you know one of those languages, you'll find all of this
+pretty familiar - but be aware that there are some differences,
+so you should at least read the reference section below.
+
+<p>If you're not already familiar with the basic ideas from Perl or
+php, skip down past the reference tables, and you'll find a full
+tutorial introduction.
+
+
+<h2>Quick reference</h2>
+<style type="text/css">
+table.reftab {
+    margin: 1em 1em 1em 2em;
+}
+table.reftab td {
+    padding: 1ex 1em;
+}
+table.reftab tr {
+    vertical-align: top;
+}
+</style>
+
+<h3>Methods</h3>
+
+<table class="reftab">
+   <tr><td><a href="file.htm#packBytes">File</a>
+      <td>
+         <span class="code">packBytes(<i>format</i>, ...)</span><br>
+         <span class="code">unpackBytes(<i>format</i>)</span>
+   </tr>
+
+   <tr><td><a href="bytearr.htm#packBytes">ByteArray</a>
+      <td>
+         <span class="code">packBytes(<i>index</i>, <i>format</i>, ...)</span><br>
+         <span class="code">ByteArray.packBytes(<i>format</i>, ...)</span><br>
+         <span class="code">unpackBytes(<i>index</i>, <i>format</i>)</span>
+   </tr>
+
+   <tr><td><a href="string.htm#packBytes">String</a>
+      <td>
+         <span class="code">String.packBytes(<i>format</i>, ...)</span><br>
+         <span class="code">unpackBytes(<i>format</i>)</span>
+   </tr>
+</table>
+
+
+<h3>Type codes</h3>
+<table class="reftab">
+
+   <tr><td>a <td>Latin-1 character string, padded with null bytes.
+      When unpacking, null bytes are removed from the end of the string.
+   </tr>
+
+   <tr><td>A <td>Latin-1 character string, padded with spaces.  When
+      unpacking, trailing spaces are removed from the end of the string.
+   </tr>
+
+   <tr><td>b <td>Byte string.  The source value for packing can be a string
+      or ByteArray; if a string, each character is packed as a byte, so
+      all characters must be in the Unicode range 0 to 255.  Unpacks
+      as a ByteArray.
+   </tr>
+
+   <tr><td>c <td>8-bit signed integer ("char", in C terminology),
+      -128 to 127; unpacks to integer.  Packs to one byte.
+   </tr>
+
+   <tr><td>C <td>8-bit unsigned integer, 0 to 255; unpacks to integer.
+   </tr>
+
+   <tr><td>d <td>Double-precision floating point number ("double" in C).
+      Packed in standard IEEE 754-2008 64-bit binary interchange format,
+      but in little-endian byte order.  Use <span class="code">d&gt;</span> to pack in the IEEE
+      standard big-endian order.  Packs to 8 bytes; unpacks as BigNumber.
+      This type can store about 16 decimal digits of precision, and
+      can represent absolute values up to 1.7976931348623158e+308.
+   </tr>
+
+   <tr><td>f <td>Single-precision floating point number ("float" in C).
+      Packed in standard IEEE 754-2008 32-bit binary interchange format,
+      but in little-endian byte order.  Use <span class="code">d&gt;</span> to pack in the IEEE
+      standard big-endian order.  Packs to 4 bytes; unpacks as BigNumber.
+      This type can store about 7 decimal digits of precision, and
+      can represent absolute values up to 3.402823466e+38F.
+   </tr>
+
+   <tr><td>h <td>Packs from a string containing hexadecimal digits to
+      a byte string, packing two hex digits into each byte.  The digits
+      are packed low nibble first: e.g., the string '14' is packed into
+      a byte value 0x41, which is the ASCII character 'A'.
+      A repeat count gives the length in hex digits for the unpacked
+      string, but the "!" suffix changes this to the packed byte length.
+   </tr>
+
+   <tr><td>H <td>Same as 'h', but packs the high nibble of each digit
+      pair first: e.g., the string '41' is packed into byte value 0x41.
+   </tr>
+
+   <tr><td>k <td>Compressed unsigned integer value.  Packs as a series
+      of base-128 (7-bit) "digits", one digit per byte, most significant
+      byte first; the 8th bit (0x80) is set on each byte except the
+      last, to indicate where the value ends.  Unpacks as a
+      regular integer if the value fits in a 32-bit signed value,
+      otherwise unpacks as BigNumber.  This format can in principle
+      store values of unlimited size, but there's an implementation
+      limit of about 10<sup>500</sup>.  Only unsigned (non-negative)
+      values can be stored with this type.
+   </tr>
+
+   <tr><td>l <td>32-bit signed integer ("long" in C terms), -2,147,483,648o
+      to 2,147,483,647; unpacks as an integer.  Packs to four bytes.
+   </tr>
+
+   <tr><td>L <td>32-bit unsigned integer, 0 to 4,294,967,295.  Unpacks
+      as BigNumber, since a regular TADS integer can only store positive
+      values up to 2,147,483,647.
+   </tr>
+
+   <tr><td>q <td>64-bit signed integer ("quad word"), -9,223,372,036,854,775,808
+      to 9,223,372,036,854,775,807; unpacks as BigNumber.  Packs to eight bytes.
+   </tr>
+
+   <tr><td>Q <td>64-bit unsigned integer, 0 to 18,446,744,073,709,551,615.
+   </tr>
+
+   <tr><td>s <td>16-bit signed integer ("short" in C terms), -32,768
+      to 32,767; unpacks as an integer.  Packs to two bytes.
+   </tr>
+
+   <tr><td>S <td>16-bit unsigned integer, 0 to 65,535; unpacks as
+      integer.
+   </tr>
+
+   <tr><td>u <td>UTF-8 character string, padded with null bytes.  The length
+      is in bytes in UTF-8 notation.
+   </tr>
+
+   <tr><td>U <td>UTF-8 character string, padded with spaces.
+   </tr>
+
+   <tr><td>w <td>"Wide character" Unicode string, in UCS-2 format,
+      16 bits per character; padded with null characters.  The length is
+      in characters, but the "!" suffix changes to the packed byte
+      length (two bytes per character).  The default byte order
+      is little-endian; use <span class="code">w&gt;</span> for big-endian.
+   </tr>
+
+   <tr><td>W <td>Wide characters, UCS-2 format, padded with space characters.
+   </tr>
+
+   <tr><td>x <td>Packs a null byte; on unpack, skips forward by one byte
+      in the file.  Doesn't consume an argument value when packing, or produce
+      a result value when unpacking.  If there's a count suffix, packs or
+      skips that many bytes.  With "!", packs null bytes or skips bytes
+      to the given alignment boundary, relative to the start of the current
+      format string.
+   </tr>
+
+   <tr><td>X <td>Skips backwards one byte in the file; doesn't consume
+      an argument value or produce a result value.  With a count suffix,
+      skips backwards by that many bytes.  With "!", skips back to the
+      nearest previous alignment boundary.
+   </tr>
+
+   <tr><td>@ <td>Moves the file pointer to a byte offset from the start
+      of the current group (in parentheses or square brackets), or from
+      the start of the format string if not in a group.  The offset
+      is given as the suffix: <span class="code">@15</span> moves to byte offset 15.  When
+      packing, if the position is moved forward, the bytes from the
+      current position to the new position are filled with null bytes.
+      Each iteration of a repeated group resets the zero point for the group.
+      If the ! qualifier is used (e.g., <span class="code">@15!</span>, the position is relative
+      start of the entire format string rather than the current group.
+
+      <p>When unpacking, <span class="code">@?</span> returns the current byte offset in the
+         file relative to the current group, and <span class="code">@!?</span> returns the offset 
+         relative to the whole format string.  These codes do nothing when
+         packing.
+   </tr>
+
+   <tr><td>"<i>text</i>" <td>Packs the literal bytes <i>text</i>.  Each
+      character in <i>text</i> is treated as a byte value, so <i>text</i>
+      can only contain characters in the Unicode range 0-255.  To use a
+      quote mark (") within <i>text</i>, write two in a row ("").
+
+      <p>On unpacking, this simply skips the number of bytes implied
+      by <i>text</i>.  This doesn't return any value in the result list,
+      and it doesn't check that the bytes in the file actually match the
+      literal bytes given.
+   </tr>
+
+   <tr><td>{<i>hex-digits</i>} <td>Packs the literal bytes encoded by
+      the series of hex digit pairs.  For example, <span class="code"> '{4142434445}'</span>
+      packs the bytes "ABCDE", since 0x41 is the ASCII code for "A",
+      0x42 for "B", etc.
+
+      <p>On unpacking, this simply skips the number of bytes implied
+      by the digit string.  This doesn't return any value in the result
+      list, and it doesn't check that the bytes in the file actually
+      match the literal bytes given.
+   </tr>
+
+</table>
+
+<h3>Qualifiers</h3>
+
+<p>A type code can be followed by one or more qualifiers.  The order
+of the qualifiers doesn't matter.
+
+<table class="reftab">
+
+   <tr><td><i>number</i> <td>For integer and floating point types
+      (cCsSlLqQdf), specifies the repeat count: the given number of
+      values are written.  E.g., <span class="code">s5</span> packs five 16-bit integer values.
+
+      <p>For string types (aAbuUwWhH), the number qualifier specifies the
+      length of the <b>unpacked</b> string.  For aAbuU, the length is in
+      bytes; for wW, it's in characters; for hH, it's in hex digits in
+      the unpacked string.  The "!" qualifier changes the count to
+      reflect the <b>packed byte length</b> for wWhH.
+
+      <p>For padding (xX), specifies the number of bytes to skip.
+
+      <p>For positioning (@), specifies the offset from the start of
+      the group (or the start of the format string, if not in a group).
+
+      <p>Combining the <span class="code">*</span> qualifier with a number qualifier (e.g.,
+      <span class="code">H30*</span>) makes the number an upper limit when unpacking (and has
+      no effect when packing); see below.
+
+   </tr>
+
+   <tr><td>* <td>In place of a numeric qualifier, <span class="code">*</span> means "infinity"
+      for the count or length.
+      Packs all remaining argument values for a numeric type, or the
+      full string for a string type.  Unpacks the entire rest of the
+      file.
+
+      <p>You can also combine * with a numeric count for unpacking,
+      as in <span class="code">H30*</span>.  The combination of a number and <span class="code">*</span> means
+      to unpack <i>up to</i> the numeric limit, but stop earlier if
+      there's not enough source material to fulfill the count.  Normally,
+      trying to unpack more items than are actually available would
+      cause an error, because the unpacker would try to read past the
+      end of the source bytes.  When using a count and * with a
+      multi-byte item (such as one of the integer types) or a group,
+      the file must end exactly at an item or group boundary - that is,
+      there must not be any extraneous extra bytes after the last item.
+      This is because the unpacker checks to see if it has reached the
+      very end of the source object just before unpacking each iteration
+      of the repeated item; if extraneous bytes follow the last item
+      or group, the unpacker will think there's another item
+      available and will go ahead with unpacking it, triggering a read
+      error when the end of the source object is encountered midway
+      through the iteration.
+      
+   </tr>
+   
+   <tr><td>:<i>type</i> <td>(where <i>type</i> is one of the type codes
+      listed above, such as <span class="code">q</span> for a quad-word integer)
+      Equivalent to specifying the packed byte length of the
+      given type as a numeric repeat count.  For example,
+      <span class="code">:q</span> is equivalent to a repeat count of <span class="code">8</span>, because the packed
+      size of the q type is 8 bytes.  This is most useful with the x and
+      X codes (e.g., <span class="code">X:q</span> skips backwards 8 bytes), but can be used
+      with any item.
+      
+   </tr>
+   
+   <tr><td>0 <td>For types auwhH, specifies null termination as the
+      length indicator.  When packing, a null byte (or a two-byte
+      null character, for type 'w') is added after the end of the
+      string.  When unpacking, the length is determined by reading
+      characters until reaching the null terminator.  Unpacking
+      skips the null terminator in the file, and doesn't include
+      it in the result value.
+
+      <p>'0' can be combined with a fixed length by adding the length
+      qualifier after the '0', as in 'a015'.  This packs a fixed-width
+      string as normal, then adds the null terminator (so 'a015' packs
+      to 16 bytes).  When unpacking, the null terminator is simply
+      skipped.
+
+      <p>Not allowed for other types.
+   
+   <tr><td>! <td>For wide character (wW) and hex digit (hH) string types,
+      changes the length count into a byte length.
+
+      <p>For padding (xX), changes the length count into an alignment
+      size.  E.g., <span class="code">x4!</span> pads just enough to position the next byte at
+      a multiple of 4 bytes from the start of the format string.
+
+      <p>For positioning (@), makes the position relative to
+      the start of the entire format string (rather than the current
+      group).
+
+      <p>When unpacking a square bracketed group, specifies that
+      <i>each iteration</i> of the group is to be unpacked into a
+      sublist, rather than unpacking the whole group into a single
+      sublist.  For example, unpacking <span class="code">[L S]3!</span> returns a list
+      of three sublists, each of which contains two elements (a
+      long integer and a short integer).
+   </tr>
+
+   <tr><td><span class="code">?</span> <td>Changes @ to a query operator: when unpacking,
+      <span class="code">@?</span> returns an integer value giving the current byte offset
+      within the file, relative to the start of the current group,
+      and <span class="code">@?!</span> returns the file offset relative to the start of the
+      entire format string.
+
+      <p>Has no effect with other types.
+   
+   <tr><td><span class="code">&gt;</span> <td>Change the byte order of a multi-byte type to
+      big-endian.  For integers, the most significant byte of the
+      value is packed first.  For floating-point numbers, packs
+      the byte with the sign bit and exponent first, followed by
+      the mantissa bytes from most to least significant.  For
+      wide Unicode strings, packs the more significant byte of
+      each character first (this doesn't change the order of the
+      characters themselves, though, obviously).
+
+      <p>This can be applied to a group, in which case it makes
+      everything in the group big-endian by default.
+   </tr>
+   
+   <tr><td><span class="code">&lt;</span> <td>Use little-endian byte order.  This is the
+      default for all types, but <span class="code">&lt;</span> can be used to override
+      the order for an item within a group that has the <span class="code">&gt;</span>
+      qualifier, because everything within a group inherits the
+      endian-ness of the group.  For integers, this packs the least significant
+      byte first.  For floating-point numbers, it packs the mantissa
+      bytes first, from least significant to most significant,
+      followed by the byte with the sign bit and exponent.  For
+      wide Unicode strings, packs the less significant byte of
+      each character first.
+
+      <p>This can be applied to a group, in which case it makes
+      everything within the group little-endian by default.
+   </tr>
+
+   <tr><td><span class="code">~</span> <td>When unpacking an integer type, uses the smallest
+      type that will hold the value.  Specifically, when unpacking
+      L, q, and Q, returns an integer value if the packed value fits
+      in a 32-bit signed integer (-2,147,483,648 to 2,147,483,647),
+      otherwise returns a BigNumber.  These types always return BigNumber
+      by default, even for values that would fit an integer.
+
+      <p><span class="code">~</span> can be applied to a parenthesized or square-bracketed
+      group, in which case it applies to each individual item within
+      the group.
+
+      <p>This qualifier has no effect when packing.
+   </tr>
+
+   <tr><td><span class="code">%</span> <td>When packing values, ignores type limit overflows,
+      and instead packs a truncated value.  The value stored in case
+      of overflow depends on the type:
+
+      <ul class=doublespace>
+
+         <li>Integers (cCsSlLqQ): a value that's too large for the type
+         is "truncated" by dropping the most significant bits until it fits.
+         For example, <span class="code">packBytes('s%', 0x12345678)</span> will pack the
+         value 0x5678, dropping all but the low-order 16 bits.
+
+         <li>Character and byte strings (aAb): The qualifier affects
+         each character individually in the string.  Each character 
+         that's outside the 0-255 range is truncated to 8 bits unsigned.
+
+         <li>Floating point (df): A value that's too large to represent
+         in the IEEE 754-2008 format is stored as "infinity", which is
+         a special, distinguished value within the IEEE and BigNumber
+         type systems.
+
+      </ul>
+
+      <p><span class="code">%</span> can be applied to a parenthesized or square-bracketed
+      group, in which case it applies to each individual item within
+      the group.
+
+      <p>This qualifier has no effect when unpacking.  The default
+      packing behavior when this qualifier isn't specified is to
+      thrown an error on overflow.
+
+</table>
+
+<h3>Other syntax</h3>
+
+<table class="reftab">
+   <tr><td><nobr>( ) </nobr><td>Parentheses group a set of items.  Groups can
+      be repeated by using a count suffix, as in <span class="code">(l s)3</span>, or a
+      length prefix, as in <span class="code">C/(l s)</span>.
+
+      <p>The following attributes can be applied to a group:
+      <span class="code">&lt;</span> <span class="code">&gt;</span> <span class="code">~</span> <span class="code">%</span>.  Attributes applied to a group are inherited
+      by everything within the group.  For example,
+      <span class="code">(l s q)&gt;</span> is equivalent to <span class="code">l&gt; s&gt; q&gt;</span>.
+   </tr>
+
+   <tr><td><nobr>[ ] </nobr><td>Square brackets group items
+      the same as parentheses,
+      but indicate that the grouped items are taken from a list in the
+      packing arguments, or unpacked into a list in the unpacking results.
+      For example, unpacking <span class="code">'s [l]3 s</span>' might return
+      <span class="code">[1, [2, 3, 4], 5]</span>.
+
+      <p>As with parenthesized groups, when any of the qualifiers
+      <span class="code">&lt;</span> <span class="code">&gt;</span> <span class="code">~</span> <span class="code">%</span> are applied to the group, they're inherited
+      by all items within the group.
+
+      <p>If the <span class="code">!</span> modifier is used, each iteration
+      of the group is packed from or unpacked into a separate sublist.
+      Without this modifier, the entire group is packed/unpacked as a
+      single sublist.
+   </tr>
+
+   <tr><td>/ <td>Count prefix.  Use the syntax <i>count-type</i> <span class="code">/</span>
+      <i>repeated-item</i>.  The <i>count-type</i> value is packed
+      first, as a length prefix, then the repeated items are packed:
+      <span class="code">fp.packBytes('S/l', 100, 200, 300)</span> packs an unsigned 16-bit
+      integer "3" as the number of items, then three 32-bit integers.
+      If the repeated item is a string, the count is the length of
+      the string in the normal units for the type: 'S/a' packs the
+      length in characters of string, immediately followed by the
+      string.  The repeated item can be a group, which lets you
+      pack a count prefix for a complex item such as a counted-length
+      string or group of integers: 'S/(C/a)' packs a prefix-counted
+      list of prefix-length strings, 'S/[a4 s l]' packs a prefix-counted
+      list of structures with three elements each.
+
+      <p>Be careful when repeating a fixed-length string.  When an
+      item has both a count prefix and a repeat count suffix, the
+      prefix overrides the suffix.  For example, <span class="code">C/A4</span> means
+      "one counted-length Latin-1 string", because the "C/" prefix
+      supersedes the "4" suffix.  To pack a counted-length list of
+      four-character strings, you must use <span class="code">C/(A4)</span>.
+   </tr>
+</table>
+
+
+<h3>Miscellaneous notes</h3>
+
+<p>Spaces can be used anywhere in a format string.  They're simply
+ignored, so you can use them for grouping to make the code easier to
+read.
+
+<p>All of the signed integer types use "two's complement" notation
+in the packed format.
+
+
+<h2>Introduction to byte packing</h2>
+
+<p>The byte packer makes it easier to read and write binary files, by
+taking care of the details of translating between TADS data values and
+different byte formats.  It provides a wide range of translations for
+common byte formats, including signed and unsigned integers from 8 to
+64 bits, IEEE standard single- and double-precision floating point
+formats, big-endian and little-endian byte ordering for all multi-byte
+types, fixed-length strings, variable-length strings using length
+prefixes, ASCII, Latin-1, and Unicode strings, and more.  The byte
+packer has a compact and powerful programming interface that lets you
+read and write complex structures with a couple of lines of code.
+
+<p>One key thing to understand is that the byte packer doesn't have
+any knowledge of any particular file format - for example, it doesn't
+have a special mode for JPEG files.  It might have been convenient if
+it did, but it would also be limiting, since there's no way it could
+know about every format out there (not to mention that new formats are
+being invented all the time).  The byte packer is more like a toolkit.
+Instead of knowing about particular file formats, it knows about the
+common components that make up most file formats.  Taken together,
+these components let you build your own readers and writers for almost
+any format you might encounter.
+
+
+<h2>Packing and unpacking</h2>
+
+<p>The byte packer has two basic operations: packing and unpacking.
+Packing is the process of taking one or more variable values in your
+program (numbers, strings, etc) and converting them to bytes in a file
+- you pack the values into bytes.  Unpacking is the reverse, where you
+read bytes from a file and convert them into TADS values in your
+program.
+
+<p>You can actually pack and unpack bytes into and out of other
+objects besides files - specifically ByteArrays and strings.
+Everything works the same way regardless of the underlying byte
+storage location.  So whenever we talk about reading or writing "the
+file", understand that we're talking generically about whatever
+underlying data source you're using.
+
+<p>You pack bytes using the <span class="code">packBytes()</span> method.  For files, this
+is a method on the File object.  It's essentially a replacement for
+<span class="code">writeBytes()</span>.  Instead of having to prepare the individual byte
+values yourself, as you do with <span class="code">writeBytes()</span>, the <span class="code">packBytes()</span>
+method combines the steps of translating data values into the desired
+byte representation and writing the resulting bytes to the file.  (You
+can still use <span class="code">writeBytes()</span> - it's not obsolete by any means -
+and you can freely mix <span class="code">packBytes()</span> and <span class="code">writeBytes()</span> calls
+for the same file.  You probably won't
+need to, though, since <span class="code">packBytes()</span> can do anything
+<span class="code">writeBytes()</span> can do, usually with a lot less hassle.)
+
+<p>Unpacking uses the <span class="code">unpackBytes()</span> method, which is also a
+method on the File object.  This method can serve as a replacement for
+<span class="code">readBytes()</span>.  It combines the steps of reading bytes from
+the file and translating them into data values.
+   
+   
+<h2>Format strings</h2>
+
+<p>As we explained earlier, the byte packer doesn't have a "JPEG mode"
+- it doesn't have any built-in knowledge of any particular file
+formats.  Instead, it relies on you to tell it how a file is
+structured.  You have to tell the packer two things: the TADS datatype
+you want, and the byte format to use for the type.  It's not enough to
+just know the TADS type, since there's no single, universal format for
+any type.  Even for something as simple as an integer, there are
+several variations.  You have to tell the byte packer which storage
+variation to use for each value.
+
+<p>The key to these conversions is called a <i>format string</i>.
+This is a string that you write in a little sub-language that defines
+the type conversions.
+
+<p>The format string language is pretty simple.  The basic idea is
+that you write one "type code" (which is a single character, usually a
+letter) for each value you want to convert.  The packer steps through
+the format string and matches up each type code with the corresponding
+value in the argument list, in order.
+
+<p>As a simple example, the type code for a 32-bit signed integer is
+"l". That's a lower-case "L", not a digit 1.  The "L" stands for
+"long integer".  This and a lot of the other type names come from the
+C programming language, so if you know C they'll be immediately
+intuitive, and if you don't know C they'll seem pretty random.  C's
+type system has integer types in several sizes - meaning the amount of
+memory they take up, usually measured in bits.  The smallest is the
+"char" type, which sounds like it's for character strings but is
+really just a small integer type, taking up only 8 bits.  The next
+size up is "short integer", which is usually 16 bits; then "long
+integer", at 32 bits.  The latest generation of processors also have
+64-bit integers, which C calls "long longs" - but we call these
+"quads", because they take up four "words" of memory, and because
+we're already using the letter "l" for the 32-bit long.
+
+<p>Anyway, on to the example.  To write a series of integers to a file, you
+write something like this:
+
+<p><div class="code"><pre>
+local fp = File.openRawFile('myfile.bin', FileAccessWrite);
+fp.packBytes('l l l', 1, 2, 3);
+</pre></div>
+
+<p>The format string is the first argument to <span class="code">packBytes</span> - in this
+case, the string <span class="code">'l l l'</span>.  The spaces in the string are
+meaningless; you can include spaces anywhere in the string without
+changing the meaning.  As we'll see shortly, items can be more complex
+than a single character, so spacing things out can help make your code
+more readable.
+
+<p>The code above matches up each 'l' in the format string to an
+integer value in the argument list, and writes the value to the file
+as a series of four bytes.  The 'l' format takes a 32-bit integer
+value and splits it up into four 8-bit chunks, writing each 8-bit
+chunk as a byte in the file.  Bytes are 8 bits each, so a 32-bit
+integer divides up evenly into 4 bytes.  In the file, we arrange the
+bytes in order from least significant (i.e., containing the lowest
+bit places of the number) to most significant.  So after
+running this code, the file contains 12 bytes, which look like
+this in hexadecimal format:
+
+<p><div class="code"><pre>
+01 00 00 00 02 00 00 00 03 00 00 00
+</pre></div>
+
+<p>To unpack this file - that is, read the bytes from the file and
+convert them back into TADS data values - we use the <span class="code">unpackBytes</span>
+method.  We once again need a format string to tell us how to
+interpret the bytes.  Fortunately, the unpacking format string uses
+exactly the same syntax as the packing format string, so there's no
+new syntax to learn for this part.  In fact, in most cases, you'll use
+exactly the same format string to unpack a given set of values that
+you used to pack the values in the first place.  That's the case
+here:
+
+<p><div class="code"><pre>
+local fp = File.openRawFile('myfile.bin', FileAccessRead);
+local vals = fp.unpackBytes('l l l');
+</pre></div>
+
+<p>The unpacker reads just enough bytes to satisfy the items in the
+format string, converting each item into the corresponding data value.
+For an integer type such as 'l', the unpacker converts the bytes into
+an integer value.  The <span class="code">unpackBytes()</span> function returns a list
+containing the values it unpacked, in sequence, so <span class="code">vals</span> now
+contains the list <span class="code">[1, 2, 3]</span>.
+
+
+<h3>Repeat counts</h3>
+
+<p>The format string syntax has a shorthand for a repeated
+item.  Instead of writing <span class="code">'l l l'</span>, we can write:
+
+<p><div class="code"><pre>
+fp.packBytes('l3', 1, 2, 3);
+</pre></div>
+
+<p>The "3" after the "l" means "pack (or unpack) three copies of
+this".  You can use this notation with any integer or floating point
+type.
+
+<p>For string types, which we'll come to shortly, you can also use a
+number suffix, but it means something different.  For a string, a
+number suffix specifies the length of the string rather than a
+repeat count.
+
+
+<h3>More on integers</h3>
+
+<p>Let's go back and take another look at the file we've been working on.
+Recall that the bytes in the file, in hexadecimal, are:
+
+<p><div class="code"><pre>
+01 00 00 00 02 00 00 00 03 00 00 00
+</pre></div>
+
+<p>The first integer value, 1, takes up the first four bytes of the
+file.  Remember that type code 'l' means "32-bit integer", and 32 bits
+take up 4 bytes, because it's 8 bits to the byte.  The default byte
+ordering is little-endian - least significant byte first - so the
+value 1, which we can write in hex as 0x00000001, comes out as the
+byte sequence 01 00 00 00.  The values 2 and 3 follow in the same
+format.
+
+<p>It might be easier to see how endian-ness works with a larger
+number that isn't mostly zeros.  Let's take 305,419,896.  Why this
+number?  Because it happens to have a nice hex representation:
+0x12345678.  Remember elementary school and the tens place, hundreds
+place, thousands place, etc.?  With hex numbers we have the same idea,
+but of course it's not multiples of 10, but rather multiples of 16.
+In 0x12345678, the highest "place" digit is the 1, just as in our
+decimal version the highest would be the 3 in the hundred-millions
+place.  We call this highest-place digit the "most significant digit",
+because it's the one that carries the biggest single slice of the
+number.  The next most significant hex digit is the 2, and so on down to
+the 8.  There's yet another way we can look at this, which is to
+split up the number into pairs of hex digits: 12 34 56 78.  Now if we
+consider each <i>pair</i> to be a "place", we can see that the most
+significant pair is 12, and the least significant is 78.  Is it
+starting to make sense why we wanted to write this in hex?  Note how
+we've split the integer into four pieces, exactly like 'l' splits
+it into four bytes.  In fact, the four hex digits pairs correspond
+exactly to the four bytes.  This is no accident; it's the main reason
+computer programmers like hex so much.  Just as we had the most
+significant digit pair, we now have the most significant byte.
+Endian-ness is all about how we arrange those bytes in the file.  In
+little-endian order, we write them in sequence from least significant
+byte to most significant, which in this case would give us 78 56 34
+12.  In big-endian order, we write them the other way around, 12 34 56
+78.
+
+<p>The packer has variations for four sizes of signed integers: 8-bit
+('c', for "character"), 16-bit ('s', for "short integer"), 32-bit ('l',
+for "long integer"), and 64-bit ('q', for "quad word integer").
+
+<p>For each integer size, the packer also has an "unsigned" version.
+"Unsigned" means that the value doesn't have a plus or minus sign -
+it's always taken to be positive or zero, so you can't store a
+negative value in an unsigned integer slot.  Why would you want such a
+limitation?  It's because by throwing out the negative numbers, you
+roughly double the highest positive value that the slot can hold.  For
+example, a signed short (16-bit) integer can hold values from -32,768
+to +32,767, but an unsigned short can hold values from 0 to 65,535.
+In a lot of cases, a particular value simply can't be negative because
+the physical quantity it represents can't be negative - for example,
+if an integer represents the height or width of a picture, only
+positive values are meaningful, since there's no such thing as a
+negative width.  When you know for a fact that a value can never be
+negative, you can use an unsigned integer field in order to get the
+extra capacity for storing higher positive values.
+
+<p>The unsigned type codes are all simply the upper-case versions of
+the signed equivalents: C, S, L, and Q.
+
+<p>Finally, the packer lets you control the byte order.  Recall that
+the packer always uses little-endian byte order by default.  Many file
+formats call for big-endian order, though, so the packer lets you
+override the default.  To use big-endian order for any integer type,
+place a <span class="code">&gt;</span> after the type code.  You can also mark a type as
+explicitly little-endian by putting a <span class="code">&lt;</span> after the type code.
+
+<p>So if we wanted to change our format to store big-endian, unsigned,
+16-bit values, here's what we'd write:
+
+<p><div class="code"><pre>
+fp.packBytes('S3&gt;', 1, 2, 3);
+</pre></div>
+
+<p>The file would now look like this:
+
+<p><div class="code"><pre>
+00 01 00 02 00 03
+</pre></div>
+
+<p>The <span class="code">3</span> and the <span class="code">&gt;</span> are both suffix codes.  These apply to the
+immediately preceding item only.  For example, if we wrote <span class="code">'lS3&gt;'</span>,
+this would write one signed little-endian long, followed by three
+unsigned big-endian shorts.  You can probably see how spaces would help
+make this clearer: <span class="code">'l S3&gt;'</span> means exactly the same thing but is a bit
+easier to read.  (Then again, spaces can also make things less
+clear: <span class="code">'lS 3&gt;'</span> means exactly the same thing as <span class="code">'l S3&gt;'</span>, even
+though it might look like the 'l' and 'S' are meant to be grouped.
+But the space doesn't change anything, no matter where you put it.)
+
+<p>The types c, C, s, and S all correspond to TADS integer values.
+Note that these types have smaller range than the TADS integer type.
+If you try to pack a value that doesn't fit, it'll trigger a
+"numeric overflow" error.  For example, this will cause an error:
+
+<p><div class="code"><pre>
+fp.packBytes('c', 1000);
+</pre></div>
+
+<p>The ranges for the integer types are as follows:
+
+<p>
+<style type="text/css">
+table.types {
+    margin: 1em 1em 1em 2em;
+}
+table.types th {
+    padding: 0.25ex 1em;
+    text-align: left;
+}
+table.types td {
+    padding: 0.25ex 1em;
+    text-align: left;
+}
+table.types .c1 {
+    text-align: center;
+}
+</style>
+<table class="types">
+   <tr><th class="c1">Code</th><th>Description</th><th>Range</th></tr>
+   <tr><td class="c1">c <td>Signed "char", 8 bits <td>-128 .. 127 </tr>
+   <tr><td class="c1">C <td>Unsigned "char", 8 bits <td>0 .. 255 </tr>
+   <tr><td class="c1">s <td>Signed "short", 16 bits <td>-32,768 .. 32,767 </tr>
+   <tr><td class="c1">S <td>Unsigned "short", 16 bits <td>0 .. 65,535 </tr>
+   <tr><td class="c1">l <td>Signed "long", 32 bits <td>-2,147,483,648 .. 2,147,483,647 </tr>
+   <tr><td class="c1">L <td>Unsigned "long", 32 bits <td>0 .. 4,294,967,295 </tr>
+   <tr><td class="c1">q <td>Signed "quad", 64 bits <td>-9,223,372,036,854,775,808 ..
+      9,223,372,036,854,775,807 </tr>
+   <tr><td class="c1">Q <td>Unsigned "quad", 64 bits <td>0
+      ..18,446,744,073,709,551,615 </tr>
+</table>
+
+<p>The type 'l' (lower-case L, signed 32-bit long) corresponds exactly
+to the TADS integer type, so you can't trigger an overflow with it.
+
+<p>'L' is the unsigned 32-bit long, so it'll cause an error if you try
+to pack a negative value into this type.  On the other hand, TADS
+integers can't store values as large as an 'L' can, so it's impossible
+to overflow this type in the positive direction with an integer value.
+You can, however, store such large values in a BigNumber.  When you
+unpack an item with type 'L', by default, the value is returned as a
+BigNumber.  This is true even if the value would fit into a regular
+32-bit integer.  The reasoning is that even if the unpacked value would
+fit a regular integer, you're asserting via the 'L' that you're
+<i>using</i> it as an unsigned 32-bit value, so you might perform
+arithmetic on the value that would push it over the regular integer
+type's limits.  You can override this by using the ~ qualifier,
+as in <span class="code">'L~'</span>, which tells the unpacker to return the value as
+regular integer if it'll fit, otherwise as a BigNumber.
+
+<p>The types 'q' and 'Q' are for 64-bit integers.  TADS doesn't have a
+64-bit integer type per se - regular TADS integer values have to fit
+in 32 bits.  But the BigNumber type is readily capable of storing any
+value that will fit in a 64-bit integer, so in most cases you'll use
+BigNumbers as the source values when packing types q and Q.  You can
+also use regular integers, of course; the packer automatically "sign
+extends" a regular integer value to the full 64 bits to fill out the
+file slot.  When unpacking q and Q items, the unpacker always returns
+BigNumber values by default, even when the unpacked value would fit in
+an integer, just as for type L.  And as with type L, you can override
+this with the ~ qualifier, which unpacks a q or Q value as an
+integer when it'll fit, and as a BigNumber when it won't.
+
+<p>The main reason for using <span class="code">~</span>, by the way, is that integers are
+quite a lot faster than BigNumber values for most calculations, and
+use less memory.  If you're doing anything very complicated with the
+unpacked data, or reading very large files, this could make a
+difference.  It's probably not worth worrying about for small files
+or simple processing.
+
+
+<h3>Ignoring overflows</h3>
+
+<p>If an integer value is out of bounds for the item type, as listed
+in the table above, the packer throws a "numeric overflow" error by
+default.  You can tell the packer to ignore these errors, though.
+To do this, add the <span class="code">%</span> qualifier to the type.  For example, to
+pack a short integer without checking for overflow, you'd
+write <span class="code">'s%'</span>.
+
+<p>The <span class="code">%</span> qualifier tells the packer to "truncate" any integer
+values that don't fit in the type code's range.  This means that
+the packer simply discards as many bits of the value as needed to
+make it fit, at the most significant end of the value.  For example,
+if you pack 0x123456 with <span class="code">'s%'</span>, only the low-order 16 bits are
+actually packed, which means the value stored is 0x3456.
+
+<p>The reason that the <span class="code">%</span> keeps only the lowest bits of the value
+is that this is the behavior typical in C or Perl/php programs in
+similar situations.  This behavior thus provides a degree of
+compatibility for programs ported from or based on code written in
+those languages.  It's not exactly safe or programmer-friendly, since
+careless use could lead you to create corrupted files without
+realizing it, but that's why it's not the default.
+
+<p>The symbol <span class="code">%</span>, by the way, is meant to suggest a "modulo" or
+remainder calculation, which is exactly what happens when a value
+overflows.  An overflowing value is effectively reduced modulo the
+largest possible value for the type (i.e., it's divided by the upper
+bound for the type, and only the remainder is kept).
+
+
+<h3>Data conversions</h3>
+
+<p>Up to now we've mostly taken for granted that there's an obvious
+correspondence between packed formats and TADS value types.  The
+various integer formats (c C s S l) translate to and from TADS
+integers, and the "quad" formats (q Q) are for BigNumbers.  The odd man
+out is the L format, which is too big for a TADS integer half the
+time, so it gets promoted to BigNumber when unpacked.
+
+<p>For unpacking purposes, that natural corrspondence is exactly
+what the unpacker uses to determine the type of each returned value.
+(But remember that you can also use the <span class="code">~</span> qualifier for q, Q, and L,
+to unpack  into integers instead of BigNumbers whenever possible.)
+
+<p>When packing, though, you get a lot more flexibility.  The byte
+packer will automatically convert whatever type you supply to the
+suitable type for the format:
+
+<ul class=doublespace>
+
+   <li>For an integer type, you can supply an integer value, a BigNumber,
+   or a string.  BigNumber values with fractional portions are rounded
+   to the nearest integers.  Strings are parsed in decimal format, as
+   though you ran them through <span class="code">toInteger()</span>.  If a converted value
+   doesn't fit within the range limits of the format code, a numeric
+   overflow error is triggered.
+
+   <li>For "quad word" types (q Q, and the quasi-quad type L),
+   you can supply an integer, BigNumber, or string.  All of these are
+   converted just as for the shorter integer types.
+   
+   <li>For a string type, you can supply a string, an integer, a BigNumber,
+   or <span class="code">nil</span>.  Integers and BigNumbers are converted to their decimal
+   text representations, and <span class="code">nil</span> is treated as an empty string.
+
+</ul>
+
+<h3>Compressed integers</h3>
+
+<p>There's one more integer format, which takes a rather different
+approach.  Type 'k' stores an unsigned integer of any size, using a
+compressed format.  You can pack an integer or BigNumber (or a string,
+which will be converted to BigNumber first) to this type.  'k' is an
+unsigned type, so the value can't be less than zero, but there's no
+hard upper limit (there is an implementation limit that's currently
+about 10<sup>500</sup>, though).
+
+<p>On unpacking, a 'k' item will be converted to a regular integer if
+it fits, otherwise it'll be returned as a BigNumber value.
+
+<p>The packed byte format for 'k' uses a variable number of bytes.
+The length depends on how large the integer value is - the larger the
+value, the more bytes it takes.  That's what makes it a compressed
+type.  A type like 'l' always uses the same number of bytes no matter
+what value is stored, which often results in storing lots of
+extraneous bytes full of zeros.  'k', on the other hand, only stores
+as many bytes as needed to represent the actual values, which can cut
+down on the overall file size if the most likely values are small
+numbers.
+
+<p>The format is as follows: take the binary representation of the
+value and divide it into 7-bit chunks.  Find the most significant
+chunk that contains a non-zero bit; discard the rest.  Now store the
+chunks in bytes, from most significant to least significant.  Set the
+8th bit (the high-order bit, 0x80) on every byte except the last
+(least significant).
+
+<p>The Perl documentation calls this format a "BER compressed integer"
+(BER is for Binary Encoded Representation).  That terminology seems to
+be a source of some confusion, because "BER" is more commonly used in
+reference to a standard called ASN.1, which defines BER as the
+confusingly similar-sounding but completely unrelated Binary Encoding
+Rules.  To be clear, the 'k' coding doesn't have anything to do with
+ASN.1.  The TADS byte packer includes this format because it
+reportedly comes up from time to time in existing file formats.
+
+
+<h3>Character strings</h3>
+
+<p>The byte packer can store strings in fixed-sized chunks of the
+file, or with varying lengths.  It can translate between TADS's
+internal Unicode format and single-byte Latin-1, Unicode UTF-8
+encoding, or Unicode UCS-2 encoding.
+
+<p>Here are the basic string types:
+
+<ul class=doublespace>
+   <li>a - Latin-1, pad with null bytes ("a" is for ASCII - Latin-1 is
+   essentially an extended version of ASCII)
+
+   <li>A - Latin-1, pad with spaces
+
+   <li>w - 16-bit Unicode (UCS-2), default little-endian byte order,
+   pad with null characters ("w" is for
+   "wide character" - a C-ism for 16-bit characters, as opposed to the
+   plain old 8-bit "char").  Use <span class="code">w&gt;</span> for big-endian order.
+
+   <li>W - 16-bit unicode (UCS-2), pad with space characters
+
+   <li>u - Unicode UTF-8, pad with spaces ("u" is for UTF-8)
+   <li>U - Unicode UTF-8, pad with null bytes
+</ul>
+
+<p>You've probably noticed the pattern: the lower-case version of a
+code pads with null bytes, and the upper-case version pads with
+spaces.
+
+<p>You might notice that the byte packer doesn't have codes for the
+full plethora of character sets that you can use for ordinary text
+files - it can only work with Latin-1 and the two Unicode formats.
+That shouldn't be a limitation in practice, since virtually all
+standard binary formats that you're likely to encounter will
+themselves use ASCII (which is a subset of Latin-1), Latin-1, or
+Unicode.  If you should find yourself with a need for, say, Latin-2
+conversions, you'll need an extra step: convert the string to or from
+a ByteArray, and use the 'b' code (see "byte strings" below) to pack
+or unpack it.
+
+<p>If you pack a string into type 'a' or 'A', any characters outside
+of the Latin-1 range are written as '?'.  The u, U, w, and W formats
+can represent every character TADS can internally.
+
+<p>If you use the <span class="code">%</span> qualifier with 'a' or 'A', it changes the
+behavior for characters outside the Latin-1 range.  'a%' or 'A%' treat
+characters outside the range as integer overflows, which are then
+truncated to fit the 8-bit character type using the same scheme we saw
+earlier for regular integer fields.  For example, the character U+0170
+is truncated to 8 bits, yielding U+0070.
+
+<p>Some existing file formats store strings in fixed-length fields.
+In some cases, this is because all possible strings for a given field
+are of exactly the same length; for example, the chunk type field in a
+TADS .t3 file is always exactly four characters.  In many cases,
+strings in a fixed-length field can still vary in length, up to the
+fixed maximum; when a shorter string is stored, it's simply padded out
+to the full length by adding spaces or "null" characters (zero bytes)
+after the end of the string.  For example, if you have a 16-byte
+field, you can pack a string into it like this:
+
+<p><div class="code"><pre>
+fp.packBytes('a16', 'test string');
+</pre></div>
+
+<p>The resulting bytes in the file will look like this (hex 20 is the
+ASCII code for a space character):
+
+<p><div class="code"><pre>
+t e s t 20 s t r i n g 00 00 00 00 00
+</pre></div>
+
+<p>If you write a string that's longer than 16 characters with 'a16',
+the string will be truncated to 16 characters.
+
+<p>For a, A, u, and U, the length is given in <b>bytes</b>, as stored
+in the file.  For a and A, this is obvious, because one character
+always equals one byte in Latin-1.  For u and U, though, it can be a
+little complicated, because a single character can turn into one, two,
+or three bytes in UTF-8.  If you write a string with 'u16', you can
+store <i>up to</i> 16 characters - but since some characters might
+take two or three bytes, the actual number stored might be smaller.
+The byte packer will never store an "incomplete" character - in other
+words, it'll never cut off the string between two bytes making up one
+character.  If the packer has to cut a 'u' string short, it'll do so
+on a full character boundary, so that the packed bytes always
+constitute a well-formed string.  The reason that u and U lengths are
+specified in bytes rather than characters is that the whole notion of
+"fixed length" applies to the file's bytes.  "16 UTF-8 characters"
+isn't a fixed byte length, whereas "16 bytes in UTF-8 format" is.
+
+<p>For w and W, the length is given in <b>characters</b>.  The actual
+byte length is twice the character length: if you write a 'w16'
+string, you're storing 32 bytes.  Likewise, when unpacking, 'w16'
+reads 32 bytes from the file.  You can override this by adding
+the "!" qualifier: this says that the count should be in bytes
+after all.  So if you write 'w16!', the packer will only write
+16 bytes, which will only be room for 8 characters.
+
+<p>You specify a fixed-length string using a number suffix on the
+string type code.  You'll recall that with integers, a numeric suffix
+means "write this many copies of the type".  With strings, it's
+different: a number after a string means "write this many charaters in
+the string".
+
+<p>For varying-length strings, the most common approach is to store
+the length of a string somewhere in the file before the string.  That
+way, when the file reader comes to the string, it knows in advance how
+many bytes it has to read to fetch the string.  A frequent idiom is
+to store the length of the string <i>immediately</i> preceding the
+string's bytes.  This is so common that the byte packer has a
+special syntax for it: you first specify one of the integer codes,
+then you write a slash "/", followed by the string code.  The string
+code in this case doesn't need a length suffix, since the "/" tells
+the packer to write the exact length of the string.  For example:
+
+<p><div class="code"><pre>
+fp.packBytes('C/a', 'Hi!');
+</pre></div>
+
+<p>This first stores an 8-bit unsigned integer containing the length,
+then the bytes of the string in ASCII format.  Here's how the file looks:
+
+<p><div class="code"><pre>
+03 H i !
+</pre></div>
+
+<p>When unpacking, the file reader knows from the "/" to interpret the
+"C" code as a length prefix, so it knows exactly how many bytes to read
+for the string.
+
+<p>Note that the number stored for a "/" length prefix will always use
+the same length units for the type that a count suffix would use.  In
+other words "C/a" and "C/u" store the length of the string in bytes,
+while "C/w" stores the length in characters.
+
+<p>By the way, you can also use a string type for the length count.
+This can be useful if you're working with a file format that's based
+on human-readable text.  When you use a string format for the length
+prefix, the packer converts the length value to a string, in decimal
+format; the unpacker converts the string back to a number to use as
+the length.  For example:
+
+<p><div class="code"><pre>
+fp.packBytes('A3/a', 'Hello from the string packer!');
+</pre></div>
+
+<p>That code stores "29 " - two digits plus a space to fill out the three
+bytes of the 'A3' format - followed by the bytes of the string.
+
+<p>There's one catch with using a string type as the length prefix:
+you can only use a fixed-length string.  'A3/' is fine, but 'A*/'
+won't work.
+
+
+<h3>Null-terminated strings</h3>
+
+<p>In some file formats, varying-length strings aren't stored with a
+length prefix, but have their extents marked by adding a null byte at
+the end of the string.  This is the way C/C++ programs represent
+strings in memory, so some file formats use the same approach.
+
+<p>The special '0' qualifier lets you pack and unpack null-terminated
+strings.  For example:
+
+<p><div class="code"><pre>
+fp.packBytes('a0', 'Null-terminated!');
+</pre></div>
+
+<p>This is stored in the file as follows:
+
+<p><div class="code"><pre>
+N u l l - t e r m i n a t e d ! 00
+</pre></div>
+
+<p>When unpacking, the unpacker reads a character at a time from the
+file, and stops when it reaches the null.  The null isn't part of
+the returned string; the unpacker ends the string just before it,
+then skips the null in the file so that the reader is positioned
+at the next value in the file.
+
+<p>You can use null termination with a, u, w, h, and H strings.  It's
+not allowed with the space-padded versions because it would be
+confusing to use different characters for padding and termination.
+With a, u, h, and H strings, one null byte is stored at the end of the
+string; with w strings, two null bytes are stored, since every
+character in a w string takes two bytes.
+
+<p>You can combine null termination with fixed-length strings.  To do
+this, be sure to write the length after the '0', since doing it the
+other way around would make the zero look like part of the length
+value.  For example, to write a fixed length of 16 plus null
+termination, use 'a016' (not 'a160', which specifies a 160-character
+string).  When you use null termination with a fixed-length string,
+the packer writes the null <i>in addition to</i> the fixed length
+portion - so 'a016' writes 17 bytes in total.
+
+<p>When packing, there's no real value to combining fixed-length and
+null termination.  The packer simply writes the fixed-length string as
+normal, then writes an extra null byte (or pair of bytes for 'w')
+after the string.  This guarantees null termination, but you could do
+the same thing by adding an 'x' after the string (or 'x2' for the
+'w' format).  When
+unpacking, though, there's a useful extra feature with the
+combination.  The unpacker reads the fixed-length string as normal,
+skips the null byte in the file, then scans the string for embedded
+null characters.  If it finds one, it terminates the string there.
+This is useful because some third-party file writers might leave
+garbage in a fixed-length string field after the first null, knowing
+that readers will ignore anything past the null.  (This is
+particularly likely with C programs that copy memory structures
+directly to disk.)  Without the '0' qualifier, the ordinary a, u, and
+w types remove null padding from the <i>end</i> of the string, but
+they don't scan for earlier embedded nulls.
+
+
+<h3>Byte strings</h3>
+
+<p>Sometimes you'll want to store a string or a ByteArray's contents
+as raw bytes, rather than as text characters.  There are three codes for
+this:
+
+<ul class=doublespace>
+
+   <li>b - stands for "byte string".  This code stores the characters
+   of a string, or the contents of a ByteArray, as unsigned 8-bit bytes.
+
+   <li>h, H - "hex string".  These codes take a string composed
+   of hexadecimal digits, and pack each pair of digits into binary byte
+   in the file.  Little "h" reads the hex digits "low nibble first",
+   meaning that the first digit of each pair is stored as the low-order
+   half of the packed byte.  Capital "H" reads the hex digits in the
+   opposite order.
+
+</ul>
+
+<p>When packing, the "b" format is almost identical to the "a" format.
+It has only one difference: if you pack a character string using the
+"b" format, and it contains any character with a Unicode value outside
+of the range 0-255, the packer throws an error ("numeric overflow").
+This is because you can't store a higher number value in a single
+byte.  The "a" code, on the other hand, quietly stores a "?"  for each
+such character.
+
+<p>You can change the overflow handling of the "b" format by adding
+the "%" qualifier.  "b%" acts as though it were packing a series of
+8-bit integers with truncation, so any character outside of the
+0-255 range is simply truncated to 8 bits.  For example, character
+U+0170 is written as 0x70, since only the low-order 8 bits are kept.
+
+<p>When unpacking, the b format has an important difference from "a".
+Whereas "a" returns a String value with the unpacked data, "b" returns
+a ByteArray.  You can unpack the same data either way; it's just a
+matter of which is more convenient for you.
+
+<p>The length for the b format (as a repeat count suffix, or as a "/"
+prefix) is counted in bytes, as you'd probably expect.
+
+<p>The h and H formats give you a third way to unpack raw bytes.
+These codes unpack into strings containing printable hex digits.
+For example, suppose we have a file with these bytes:
+
+<p><div class="code"><pre>
+H e l l o !
+</pre></div>
+
+<p>Now let's unpack it with 'H12'.  This returns the string
+'48656C6C6F21'.  The first pair of digits, '48', is the hex value
+of the ASCII code for 'H'.  The second pair, '65', is the hex code
+for 'e'.  And so on.
+
+<p>Note that 'H12' unpacks only six bytes.  This is because the units
+for h and H are <i>unpacked digits</i>, and each byte in the file
+corresponds to two digits in the unpacked string.  You can override
+this and change the units to bytes using the "!" suffix.  Changing
+the code to 'H6!' unpacks six bytes, which will return a string
+of 12 hex digits.
+
+
+<h3>Floating point values</h3>
+
+<p>The byte packer has support for two floating point formats: 'd' for
+"double precision" and 'f' for "float".  These are both represented in
+the file using the IEEE 754-2008 interchange format.  'd' is stored
+using the binary 64-bit sub-format (base 2, 11-bit exponent, 52-bit
+mantissa), and 'f' uses the binary 32-bit sub-format (base 2, 7-bit
+exponent, 24-bit mantissa).
+
+<p>BigNumber values can store much larger absolute values than the 'd'
+and 'f' types can represent.  If you pack a BigNumber value that
+doesn't fit, a numeric overflow error is thrown.  You can change this
+by adding the <span class="code">%</span> qualifier.  'd%' and 'f%' won't throw errors when
+confronted with numbers that are too large, but instead pack
+"infinity" values.  "Infinity" is a special distinguished value in
+the IEEE type scheme, meaning that the result of a calculation was too
+large to store in the type.
+
+<p>For consistency with the integer types, the default byte order for
+these types is little-endian.  For a floating point value,
+little-endian means that the least significant byte of the mantissa is
+stored first, and the byte with the sign bit and exponent is stored
+last.  Note that this byte order is backwards from the IEEE standard,
+which calls for big-endian order.  You can force standard big-endian
+order using the <span class="code">&gt;</span> suffix as usual: <span class="code">d&gt;</span> and <span class="code">f&gt;</span> store
+precisely the formats defined in the standard.
+
+<p>The IEEE 754-2008 interchange format is a standard, portable
+format.  It also happens to be the native format (modulo endian-ness)
+on a number of platforms, but that's beside the point - it doesn't
+matter to TADS whether your platform uses this format or some other
+format, or doesn't have a native floating point type at all.  TADS
+converts directly between the standard IEEE 754-2008 representation
+and its internal BigNumber representation, guaranteeing that the
+conversions are identical across all platforms.
+
+<p>The 'd' and 'f' types are provided mostly for the sake of
+completeness.  Floating point numbers seem to be rare in binary file
+formats, probably because (a) the IEEE standard for interchange
+formats is quite recent, and before that there really wasn't a
+well-defined universal format, and (b) even if there had been a
+portable standard, it's quite complex to translate from one floating
+point format to another, so in all likelihood no one would have
+bothered anyway.  Case in point, the Perl and php byte packers both
+explicitly punt on this: they simply store the native machine formats.
+Now that a portable standard exists, though, it's possible that we'll
+see floats used more readily in future binary formats; so you could
+look at the inclusion of these types in TADS as a bit of
+future-proofing.  It also has a pragmatic use: the "native" formats on
+PCs and Linux systems just happen to be byte-for-byte identical to the
+IEEE formats, so those supposedly non-portable Perl and php output
+files will just happen to be readable in TADS with the 'd' and 'f'
+formats, as long as the files were created on a PC.
+
+<p>If you're defining your own custom file format, you can of course
+use these types for storing floating point BigNumber values.  Be aware
+that these types have limited precision, though: the 'd' type can
+store the equivalent of about 17 decimal digits, and 'f' stores a mere
+7.  If you need to preserve higher precisions, you're better off
+storing a BigNumber as a string value.
+
+
+<h3>Grouping</h3>
+
+<p>You can group a series of codes using parentheses, ( ).  This lets
+you apply a repeat count and a byte order suffix to a whole series of
+items at once.
+
+<p>Suppose you're working with a file format that stores pairs of
+names and numbers.  For each one, we'll write <span class="code">'C/a l'</span> - a
+counted-length string, followed by a 32-bit integer.  Now suppose
+we have six of these to store.  We could write it as
+<span class="code">'C/a l C/a l C/a l C/a l C/a l C/a l'</span>.  But that's tedious;
+using parentheses and a repeat count suffix, we could shorten
+this to <span class="code">'(C/a l)6'</span>.
+
+<p>Note that the whole group is repeated on each iteration.  The
+packer runs through the entire contents of the group once, then starts
+over at the beginning of the group for each repetition.
+
+<p>Groups can be nested: <span class="code">'(l (C/a)2)3'</span> is the same as
+<span class="code">'l C/a C/a l C/a C/a l C/a C/a'</span>.
+
+<p>One of the simplest uses of groups is to repeat a string format.
+Remember that a repeat count suffix (or a "/" prefix) for a string
+format specifies the number of bytes or characters in the string.
+If you want to pack or unpack multiple strings, use a group.  For
+example, to write four Latin-1 strings with a fixed length of 15 bytes,
+you can write <span class="code">'(a15)4'</span>.  To write six length-prefixed Unicode
+strings, use '<span class="code">'(C/u)6'</span>.
+
+<p>Grouping is also handy if you need to apply a byte-order override
+to a group of items.  For example, you can simplify <span class="code">'l&gt; s&gt; s&gt; S&gt;'</span>
+by grouping it as <span class="code">'(l s s S)&gt;'</span>.  Within a group, you can override
+the group byte order: <span class="code">'(l&lt; s s S)&gt;'</span> treats all of the items as
+big-endian except the first.
+
+<h3>List grouping</h3>
+
+<p>You can also use square brackets, [ ], for grouping.  Square
+bracket groups work the same way as parenthesis groups for the repeat
+count and endian-ness modifier.  The difference is that the argument
+value for packing must be a list, and the result value when unpacking
+is represented as a list.
+
+<p>When packing, a square bracket group reads its contents from a
+list in the arguments:
+
+<p><div class="code"><pre>
+fp.packBytes('C/a [l s]3', 'string', [1, 2, 3, 4, 5]);
+</pre></div>
+
+<p>Note how the <span class="code">[l s]3</span> corresponds to the list value
+<span class="code">[1, 2, 3, 4, 5]</span> in the arguments.
+
+<p>You might also notice that the format code <span class="code">[l s]3</span> specifies six
+items to pack, but the list argument only contains five values.  What
+happens with that sixth packed item?  When a value list is too short
+for a square-bracket group in the format list, the packer simply packs
+a default value for each missing item.  For integers or floating point
+numbers, the default is zero; for string types, it's an empty string.
+
+<p>If a list argument contains too many items, on the other hand,
+the packer simply ignores the extra items.
+
+<p>When unpacking, a square bracket group is unpacked as a sublist
+in the result list.  We can unpack the file we just packed above,
+like this:
+
+<p><div class="code"><pre>
+local lst = fp.unpackBytes('C/a [l s]3');
+</pre></div>
+
+<p>This returns the list <span class="code">['string', [1, 2, 3, 4, 5, 0]</span>.  As you
+can see, the unpacker create a sublist for the grouped item.  Whenever
+the unpacker sees a square-bracket group in the format list, it uses a
+list for that group in the return value list.
+
+<p>Note that the sublist for the group contains six entries, even
+though our original input list for <span class="code">packBytes()</span> had five values.
+Remember what we said about the default: the packer stored a default
+value of zero in the file for the missing sixth slot.  The unpacker
+didn't supply the default - that was actually stored in the file when
+we packed it.  The unpacker simply returned the zero value that it
+read from the file.
+
+<h3>Structure grouping</h3>
+
+<p>When packing or unpacking a group, you can also tell the packer to
+treat each iteration of the group as a separate sublist.  This is
+often convenient when packing or unpacking object structures.
+
+<p>To pack or unpack a group as a list per iteration, use the "!"
+with the square-bracketed group.
+
+<p>Let's revisit the example above, but this time unpack the
+group data into sublists:
+
+<p><div class="code"><pre>
+local lst = fp.unpackBytes('C/a [l s]3!');
+</pre></div>
+
+<p>In this case, the return list will be
+<span class="code">['string', [1, 2], [3, 4], [5, 0]]</span>.  Rather than returning the
+entire group as a single sublist with six items, the unpacker
+returns a separate sublist for each iteration of the group.
+
+<p>This can be handy when you're unpacking data into object
+structures, since it lets you use list iteration functions like
+<span class="code">mapAll()</span> to transform the unpacked data into objects.  For
+example, if we have a file that contains a list of structures,
+each of which consists of a 32-bit integer and a 16-bit integer,
+we could read the file into a custom object with something
+like this:
+
+<p><div class="code"><pre>
+class InfoObj: object
+  construct(lst)
+  {
+     aLong = lst[1];
+     aShort = lst[2];
+  }
+  aLong = nil
+  aShort = nil
+;
+
+readInfoObjects(fp)
+{
+  return fp.unpackBytes('[L S]5!').mapAll({x: new InfoObj(x)});
+}
+</pre></div>
+
+<p>This tells unpackBytes() to read five of the long/short structures
+from the file, returning each one as a list with two elements.  The
+overall unpackBytes() result is then a list of five of these sublists.
+We apply mapAll() to the list, transforming each sublist into an
+InfoObj instance that we construct from the sublist data.  This
+leaves us with a list of five InfoObj objects.  In one line, we've
+decoded this section of the file into structured object data.
+
+
+
+<h3>Variable-length groups</h3>
+
+<p>Square-bracket groups have another important ability: you can
+use them with the "/" prefix count syntax.  Going back to the example
+above, suppose that we don't want to use a fixed count of three for
+the list group, but instead use the actual length of the list.  We
+could do this using the usual "/" syntax, but this time we apply
+it to the whole group rather than an individual item:
+
+<p><div class="code"><pre>
+fp.packBytes('C/s C/[l s]', 'string', [1, 2, 3, 4, 5]);
+</pre></div>
+
+<p>When you use the "/" prefix with a square-bracket group, the packer
+figures out how many iterations of the group will be needed to store
+all of the items in the list value, and uses that as the repeat count.
+It writes out the repeat count prefix, just as when you use "/" with
+a single item, then iterates through the list.  So for the example
+above, the bytes in the file will be:
+
+<p><div class="code"><pre>
+05 s t r i n g 03 01 00 00 00 02 00 03 00 00 00 04 00 05 00 00 00 00 00
+</pre></div>
+
+<p>When we unpack with the same format string, the result will be
+<span class="code">['string', [1, 2, 3, 4, 5, 0]]</span>, just as when we explicitly entered
+the repeat count of 3.
+
+<p>You can use a string type, such as 'A', for the length prefix type.
+If you do, the string 
+   
+
+<h3>Auto repeat count</h3>
+
+<p>Sometimes you'll want to pack a list of values, all of the same
+type, without knowing in advance how many values there are.  As we've
+seen, you can use the "/" prefix to automatically count up the
+elements and pack them, but that also stores the counter prefix.
+When you want automatic counting <i>without</i> storing the count,
+you can use the special repeat count "*":
+
+<p><div class="code"><pre>
+fp.packBytes('s*', 1, 2, 3, 4, 5);
+</pre></div>
+
+<p>The * repeat count simply packs everything remaining in the
+argument list, without storing a repeat count anywhere.  When a
+starred item matches up with a list value, the packer writes
+out everything in the list to the starred item, then continues
+with the next item as normal:
+
+<p><div class="code"><pre>
+fp.packBytes('s* a15', [1, 2, 3], 'hello!');
+</pre></div>
+
+<p>That writes the three 16-bit integer values, followed by the string.
+
+<p>On unpacking, a * means <i>unpack the whole rest of the file</i>.
+For example, to unpack an entire file into a byte array, you could
+simply write
+
+<p><div class="code"><pre>
+local fp = File.openFile('test.bin', FileAccessRead);
+local b = fp.unpackBytes('b*');
+fp.closeFile();
+</pre></div>
+
+<p>Be careful with * on unpacking, since it could read a lot of data
+if you accidentally use it in the middle of a large file.
+
+
+<h3>"Up to" repeat counts</h3>
+
+<p>It's sometimes useful to pack or unpack a repeated item up to some
+limit, <i>or</i> to the end of the actual data being packed/unpacked,
+whichever comes first.  So far, we've seen how to pack or unpack an
+exact number of items, as in <span class="code">s30</span>; we've also seen how to pack the
+whole rest of the argument list, or unpack the whole rest of hte file,
+as in <span class="code">s*</span>.  But what if you want to unpack 30 items, but stop if
+the file runs out of data before unpacking all 30?
+
+<p>You can do this using an "up to" count.  Specify an up-to count by
+combining a numeric limit and *.  For example, <span class="code">s30*</span> packs or
+unpacks up to 30 short-integer values, but stops if the end of the
+arguments (when packing) or file (unpacking) is encountered midway
+through the set.
+
+<p>When packing, the limiting factor for most types is the argument
+list itself (or the sublist, if packing a grouped sublist).  For
+character string types, the limiting factor is the length of the
+string.  For example, packing a 10-character string with 'a30*' packs
+all 10 characters of the string, with no padding added, while packing
+a 50-character string with the same 'a30*' packs only the first 30
+characters of the string.
+
+<p>When unpacking, the limiting factor is the length of the file,
+ByteArray, or string you're unpacking from.
+
+
+<h3>Padding and positioning</h3>
+
+<p>There are a couple of special codes that don't pack or unpack
+data values, but rather move the read or write position in the file.
+
+<p>The code 'x' adds padding to the file when packing, in the form of
+null bytes (bytes with the value 0).  Use a count suffix with 'x' to
+write more than one null byte: 'x4' writes four null bytes.  'x'
+doesn't consume any values from the argument list.  During unpacking,
+'x' simply skips forward by one byte (or by multiple bytes, if there's
+a suffix count).  The unpacker simply skips the bytes; it doesn't add
+any values to the result list for the skipped bytes.
+
+<p>'x' is often handy when working with standard file formats.  Many
+formats require specific byte layouts with some areas filled with null
+bytes for padding, which is exactly what 'x' takes care of.
+
+<p>Every so often, a file format calls for a fixed byte value or
+string of byte values other than zeros.  There are two format codes
+that help with this.  First, you can enclose a string of ordinary
+charactres in double quotes in the pack string, and the packer will
+simply write those characters as bytes:
+
+<p><div class="code"><pre>
+fp.packBytes('"hello"');
+</pre></div>
+
+<p>This packs the bytes h, e, l, l, o.  The characters within the
+double quotes are treated as byte values, so each character must
+be in the Unicode value range 0-255, or an error will occur.  Note
+that this format code doesn't use any argument values - it simply
+packs the bytes you specify directly in the format string.  By
+the same token, this code won't return any values when unpacking.
+In fact, this format code doesn't do anything when unpacking
+except skip the number of bytes implied.  It doesn't even verify
+that the bytes in the file match the text in the format code.
+In other words, unpacking <span class="code">'"hello"'</span> is exactly the same as
+unpacking <span class="code">'xxxxx'</span> or <span class="code">'x5'</span>}.
+
+<p>The second "literal" packing format is a string of hex digit
+pairs enclosed in curly braces.  Each pair of hex digits gives
+a byte value.  For example, we could write our <span class="code">'"hello"'</span>
+example above like this instead, and get the same effect:
+
+<p><div class="code"><pre>
+fp.packBytes('{68 65 6C 6C 6F}');
+</pre></div>
+
+<p>You can, of course, use repeat counts with these formats.
+For example, you could write 100 ASCII "A" bytes to a file like so:
+
+<p><div class="code"><pre>
+fp.packBytes('"A"100');
+</pre></div>
+
+<p>Our next code doesn't write anything at all - in fact, it sort of
+"unwrites".  'X' moves the file position backwards by one byte.  With
+a suffix count, it moves the file position back multiple bytes.  For
+example, 'X15' moves the file position backwards by 15 bytes.  As with
+'x', this code doesn't consume any argument values when packing, and
+it doesn't produce any output values when unpacking.
+
+<p>You can use 'X' during unpacking to unpack the same bytes more
+than once, with different interpretations.  For example, 'l X4 H8'
+unpacks four bytes as a 32-bit signed integer, then goes back and
+unpacks the same four bytes again as a hex byte string.
+
+<p>'x' and 'X' let you specify the repeat count using the size of
+another item type code.  To do this, write ":<i>code</i>" as the suffix.
+For example, 'x:l' writes four null bytes, because the size of an 'l'
+code is four bytes.  If you use a character or byte string type
+after ":", the effective count is the size of a single character
+for that type: 'x:a' counts as one byte, 'x:w' as two bytes.  'x:u'
+and 'x:h' count as one byte each.
+
+<p>'@' lets you set a position in the file, relative to the start of
+the current parenthesized or square-bracketed group.  You use a number
+suffix with @, but it's not the usual repeat count.  The number after
+@ gives a byte offset from the start of the current group, starting at
+0 for the first byte of the group.  The file is positioned to that
+offset before the next byte to be packed or unpacked.
+
+<p>If you use @ outside of any group, it refers to the offset from
+the start of the whole format string.
+
+<p>For example, packing 'L @3 x' first packs a 32-bit integer into
+four bytes, then moves the file pointer to the last byte of the
+integer (offset 3 means three bytes after the first byte, which is the
+fourth byte written by 'L'), then overwrites that last byte with a
+null byte.  So this forces the high-order 8 bits of the integer to be
+zero, effectively truncating the integer to 24 bits.
+
+<p>If a group containing an @ item is repeated, the @ offset refers
+to the start of the current iteration of the group.  In other words,
+the starting point for @ is reset for each repetition of the group.
+
+<h3>Alignment</h3>
+
+<p>The 'x' and 'X' codes have one more trick up their sleeves: they
+make it easy to add "alignment" padding.  In some file formats, an
+item might have to be aligned on a particular boundary, meaning its
+byte location has to be a multiple of some size.  This is especially
+common for file formats designed to be read directly into memory
+structures, because this kind of alignment is a hardware requirement
+on many machines.  The most common alignment requirements are even
+alignment, meaning simply that each item has to be at an even numbered
+byte offset in the file, and size alignment, meaning that an item has
+to be at a byte offset that's a multiple of its own size (e.g., a
+32-bit value would have to be at a multiple of 4 bytes, a 64-bit value
+at a multiple of 8 bytes, etc).
+
+<p>To do alignment with 'x' and 'X', add the '!' qualifier.  For 'x',
+this tells the packer to add enough padding to get to the next
+multiple of the size.  For example, 'x2!' makes sure the next item
+will be at an even byte offset.  If the current offset is already
+even, 'x2!' doesn't do anything; if the offset is odd, it adds a
+single null byte.  When unpacking, 'x2!' simply skips ahead to the
+next even byte offset.
+
+<p>'X<i>size</i>!' moves the file position backwards to the nearest
+previous multiple of the size.  As with 'x', if the current byte
+offset is already a multiple of the size, 'X!' does nothing.
+
+<p>'x!' and 'X!' do nothing if you don't specify a size.  The default
+size is one byte, and of course every offset is an even multiple of 1.
+
+<p>You can combine the '!' and ':<i>type</i>' qualifiers to align to
+the size of a type.  For example, 'x:l!' aligns to a four-byte
+(32-bit) boundary.
+
+<p>The offsets for 'x' and 'X' are always counted from the start of
+the current format string (not from the start of the file or the start
+of the group).
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 System Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="builtins.htm">The Intrinsics</a> &gt; 
+Byte Packing
+<br><span class="navnp"><a class="nav" href="scripts.htm"><i>Prev:</i> Input Scripts</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="bignum.htm"><i>Next:</i> BigNumber</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

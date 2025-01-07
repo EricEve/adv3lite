@@ -1411,8 +1411,8 @@ class Thing:  ReplaceRedirector, Mentionable
     listContents(lister = &roomContentsLister)
     {    
         
-        /* Don't list the contents if we can't see in */
-        if(!canSeeIn())
+        /* Don't list the contents if we can't see in and we're not inside */
+        if(!canSeeIn() && !gActor.isIn(self))
             return;
         
         /* 
@@ -1660,12 +1660,13 @@ class Thing:  ReplaceRedirector, Mentionable
             
             /* 
              *   Don't list the inventory of any actors, or of any items that
-             *   don't want their contents listed, or any items we can't see in,
+             *   don't want their contents listed, or any items we can't see in
+             *   if the actor isnt' in them.
              *   or of any items that don't have any contents to list.
              */
             if(obj.contType == Carrier 
                || obj.(obj.(lister).contentsListedProp) == nil
-               || obj.canSeeIn() == nil
+               || (!gActor.isIn(obj) && obj.canSeeIn() == nil)
                || obj.contents.length == 0)
                 continue;
             
@@ -3759,7 +3760,8 @@ class Thing:  ReplaceRedirector, Mentionable
 
         /* if any interior contents shine outwards, we're lit within */
         if (contents.indexWhich(
-            { c: c.locType.ofKind(IntLocType) && c.shinesOut() }) != nil)
+            { c: c.locType.ofKind(IntLocType) && !c.ofKind(Floor)
+              && c.shinesOut() }) != nil)
             return true;
 
         /* 
@@ -5269,7 +5271,7 @@ class Thing:  ReplaceRedirector, Mentionable
       
     dobjFor(LookIn)
     {
-        preCond = [objVisible, containerOpen]
+        preCond = [objVisible, containerInteriorVisible]
         
         remap = remapIn
                 
@@ -5791,7 +5793,7 @@ class Thing:  ReplaceRedirector, Mentionable
         
     iobjFor(PutIn)
     {
-        preCond = [containerOpen, touchObj]
+        preCond = [containerInteriorAccessible, touchObj]
         
         remap = remapIn        
         
@@ -9981,9 +9983,9 @@ class SubComponent : Thing
 
         return match;
     }
-
-    /* Use the parent's disambiguation vocabulary if the parent is not in scope. */
-    matchNameDisambig(tokens) {
+    
+    matchNameDisambig(tokens)
+    {
         local match = inherited(tokens);
         if(location != nil)
             match |= location.matchNameDisambig(tokens);

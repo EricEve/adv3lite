@@ -1473,13 +1473,14 @@ QSenseRegion: Special
         
         /* 
          *   A can't see B if B isn't in the light or there's something other
-         *   than a room blocking the sight path between them
+         *   than a room or A or B blocking the sight path between them
          */
-        if(!Q.inLight(b) || blockList.indexWhich({x: !x.ofKind(Room)} ) != nil)            
+        if(!(inLightFor(a, b))
+           || blockList.indexWhich({x: x not in (a, b) && !x.ofKind(Room)} ) != nil)            
             return nil;
         
               
-               /* 
+        /* 
          *   A can see B if A and B are in the same room or if B is in one of
          *   the rooms in A's room's visibleRoom's list and B can be seen
          *   remotely from A's pov.
@@ -1488,7 +1489,7 @@ QSenseRegion: Special
        
         /* 
          *   If a and b are in different rooms and b is in a container whose contents can't be seen
-         *   remotely, then a can't see be
+         *   remotely, then a can't see b.
          */
         if(ar != br && sightBlockingContainer(a, b))
             return nil;
@@ -1518,6 +1519,14 @@ QSenseRegion: Special
         return nil;
     }
     
+    inLight(a) { return next(); }
+    
+    
+    /* is B lit from the perspect of A, who may be inside B. */
+    inLightFor(a, b)
+    {
+        return next();
+    }
     
     /*
      *   Can A hear B?  We return true if there's a clear sound path from A
@@ -1541,10 +1550,10 @@ QSenseRegion: Special
         
         
         /* 
-         *   A can't hear B if B there's something other than a room blocking
+         *   A can't hear B if B there's something other than a room  or A or B blocking
          *   the sound path between them
          */
-        if(blockList.indexWhich({x: !x.ofKind(Room)} ) != nil)            
+        if(blockList.indexWhich({x: !x.ofKind(Room) && x not in (a, b)} ) != nil)            
             return nil;
         
         
@@ -1588,7 +1597,7 @@ QSenseRegion: Special
          *   A can't smell B if B there's something other
          *   than a room blocking the scent path between them
          */
-        if(blockList.indexWhich({x: !x.ofKind(Room)} ) != nil)            
+        if(blockList.indexWhich({x: !x.ofKind(Room) && x not in (a, b)}) != nil)            
             return nil;
         
         
@@ -1678,7 +1687,7 @@ QSenseRegion: Special
         
         return blockList;
     }
-    
+     
     /* 
      *   Is o the kind of object that would block movement from one room to the
      *   room containing b? It is unless o is a room and the room and b are both

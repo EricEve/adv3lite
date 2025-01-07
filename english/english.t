@@ -16,6 +16,8 @@
  *   identified with [Required].  
  */
 
+property pluralTokens; 
+
 /* ------------------------------------------------------------------------ */
 /*
  *   English module options. 
@@ -967,7 +969,7 @@ class LMentionable: object
     /* 
      *   Initialize vocabulary for one word from the 'vocab' list.  'w' is
      *   the word text, with optional part-of-speech and plural-form
-     *   annotations ([n], [adj], [prep], [pl], (-s)).  It can also have a
+     *   annotations ([n], [pn], [adj], [prep], [pl], (-s)).  It can also have a
      *   special flag character as its final character: '=' for an exact
      *   match (no truncation and no character approximations), or '~' for
      *   fuzzy matches (truncation and approximation allowed).
@@ -994,10 +996,13 @@ class LMentionable: object
             matchFlags &= ~(MatchPrep | MatchAdj | MatchNoun | MatchPlural |
                             MatchWeak);
             
+            local ann = rexGroup(1)[3];
+            
             /* note the new part of speech */
-            switch (rexGroup(1)[3])
+            switch (ann)
             {
             case 'n':
+            case 'pn':
                 matchFlags |= MatchNoun;
                 break;
 
@@ -1020,6 +1025,10 @@ class LMentionable: object
 
             /* strip the annotation from the word string */
             w = w.findReplace(posPat, '', ReplaceOnce);
+            
+            /* If w has been marked as a plural noun, add it to our plural tokens. */
+            if(ann == 'pn')
+                pluralTokens = valToList(pluralTokens).appendUnique([w]);
         }
         
         /* 
@@ -1321,7 +1330,7 @@ class LMentionable: object
         R"<lsquare><alpha>+<rsquare>|<lbrace><alphanum|-|'|,|~|=>+<rbrace>"
 
     /* pattern for part-of-speech annotations */
-    posPat = R'<lsquare>(n|adj|pl|prep|weak)<rsquare>'
+    posPat = R'<lsquare>(n|pn|adj|pl|prep|weak)<rsquare>'
 
     /* pattern for plural annotations */
     pluralPat = R"<lbrace>(<alphanum|-|'|space|,|~|=>+)<rbrace>"
@@ -1907,6 +1916,29 @@ class LMentionable: object
      *   it (e.g. to provide a subject for a verb to agree with).
      */
     dummyName = ''
+   
+    /* 
+     *   If we're ambiguously plural (meaning we can be referred to by either singular or plural
+     *   noun(s)) we can list the plural nouns in pluralToken so we can see whether one of them was
+     *   used in the player's input referring to us. Alternatively we can annotate any such plural
+     *   nouns in our vocab property by annotating it with [pn] and the library will add to our
+     *   pluralTokens list for us, e.g.:
+     *
+     *   Decoration 'leaves[pn]; abundant; foliage; them it' ;
+     */
+    // pluralTokens = []
+    
+    /* 
+     *   Did the player use one of our plural tokens when they referred to us on this turn? Game
+     *   code can call this method to check whether we were referred to by a plural or singular name
+     *   and adjust our response accordingly.
+     */
+    usedPluralToken()
+    {
+        return propDefined(&pluralTokens) && 
+            valToList(pluralTokens).overlapsWith(gCommand.verbProd.tokenList.mapAll({x:
+                getTokVal(x)}));
+    } 
 ;
 
 
