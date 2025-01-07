@@ -9911,12 +9911,18 @@ class SubComponent : Thing
         if(location == nil)
             location = lexicalParent;
 
+        /* Store our original vocabLikelihood */
         origVocabLikelihood = vocabLikelihood;
+                      
+        initializeSubComponent(location);
 
         inherited;
     }
-
-    /* 
+   
+    /* Out original vocabLikelihood, which will be set to our vocabLikelihood at preinit. */ 
+    origVocabLikelihood = 0
+    
+     /* 
      * The contType of a SubComponent is deduced based on what remapFoo
      * property it's attached to.
      */
@@ -9999,14 +10005,19 @@ class SubComponent : Thing
     nameAs(parent) {}
 
     /*
-     * DEPRECATED. This method used to be responsible for configuring what
-     * parent object a SubComponent related to, but it never worked correctly
-     * for any object other than the SubComponent's lexicalParent. Now
-     * SubComponents use their location property for this, and if the location
-     * is initially nil then it will be changed to the lexicalParent.
+     *   If we're an enterable container then we and our parent object may alternate as the parser'c
+     *   choice when the player refers to us. In such a case, this method makes this SubComponent
+     *   and its parent facets of each other so that if the player refers to us with the appropriate
+     *   pronound (probably iT) the parser will pick whichever of the SubComponent and the parent is
+     *   in scope.
      */
-     initializeSubComponent(parent) {
-        location = parent;
+     initializeSubComponent(parent) 
+     {       
+        if(parent.remapIn == self && isEnterable)
+        {
+            parent.getFacets = valToList(parent.getFacets).appendUnique([self]);
+            getFacets = valToList(getFacets).appendUnique([parent]);
+        }
      }
 ;
 
