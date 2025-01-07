@@ -9904,18 +9904,19 @@ class SubComponent : Thing
      /* Preinitialize a SubComponent. */
     preinitThing() {
         /* 
-         * Normally, a SubComponent is defined as an anonymous object and
-         * we use its lexicalParent as its location. However, if its
-         * location is otherwise defined, we won't override it.
+         *   Normally, a SubComponent is defined as an anonymous object and we use its lexicalParent
+         *   as its location. However, if its location is otherwise defined, we won't override it.
          */
         if(location == nil)
             location = lexicalParent;
-
+        
+        initializeSubComponent(location);
+        
         /* Store our original vocabLikelihood */
         origVocabLikelihood = vocabLikelihood;
-                      
-        initializeSubComponent(location);
-
+        
+        
+        
         inherited;
     }
    
@@ -10011,14 +10012,23 @@ class SubComponent : Thing
      *   pronound (probably iT) the parser will pick whichever of the SubComponent and the parent is
      *   in scope.
      */
-     initializeSubComponent(parent) 
-     {       
-        if(parent.remapIn == self && isEnterable)
+    initializeSubComponent(parent) 
+    {       
+        if(parent.remapIn == self)
         {
             parent.getFacets = valToList(parent.getFacets).appendUnique([self]);
             getFacets = valToList(getFacets).appendUnique([parent]);
+            
+            
+            /* 
+             *   If we've been defined as a separate object then we need to give ourselves a
+             *   vocabLikehood boost to avoid a spurious disambiguation prompt in response to a LOOK
+             *   IN command.
+             */
+            if(lexicalParent == nil && vocabLikelihood == 0)
+                vocabLikelihood = 10;
         }
-     }
+    } 
 ;
 
 
