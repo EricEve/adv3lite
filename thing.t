@@ -9114,7 +9114,7 @@ class Thing:  ReplaceRedirector, Mentionable
     }
     
     okayPushIntoMsg = BMsg(okay push into, '{I} <<if matchPullOnly>> pull{s/ed}
-                <<else>> push{es/ed}<<end>>} {the dobj} into {the iobj}. ')
+                <<else>> push{es/ed}<<end>> {the dobj} into {the iobj}. ')
     
     iobjFor(PushTravelEnter)
     {
