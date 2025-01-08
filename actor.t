@@ -5561,9 +5561,9 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
      *.   An event list, in which case its doScript method is called and we return blockEndConv to
      *   treat it as as conversational response.
      */
-// sayBlockTravel() {}
-// sayBlockBye () {}
-// sayBlockBoredMsg() {}
+     // sayBlockTravel() {}
+     // sayBlockBye () {}
+     // sayBlockBoredMsg() {}
     
     /* 
      *   The method that handles prop (a proprty pointer) according to its property type. For the

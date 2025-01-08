@@ -308,7 +308,8 @@ modify Room
          *   Reduce our list to that subset of the list that is visible to the
          *   pov object.
          */
-        local lst = contents.subset({o: o.isVisibleFrom(pov) && !o.isHidden});
+        local lst = contents.subset({o: o.isVisibleFrom(pov) && !o.isHidden
+                                    && gActor.canSee(o)});
         
         /* 
          *   Sort the objects to be listed into three separate lists: those with
@@ -849,7 +850,7 @@ modify Thing
      *   nullifies the distinction between a medium and a large sightSize, since
      *   the remoteDesc will be used in either case.
      */
-// remoteDesc(pov) { desc; }
+     // remoteDesc(pov) { desc; }
     
     
     
@@ -860,7 +861,7 @@ modify Thing
      *   property nullifies the distinction between a medium and a large
      *   soundSize, since the remoteListenDesc will be used in either case.
      */
-// remoteListenDesc(pov) { listenDesc; }
+     // remoteListenDesc(pov) { listenDesc; }
     
     
     /*  
@@ -870,7 +871,7 @@ modify Thing
      *   nullifies the distinction between a medium and a large smellSize, since
      *   the remoteSmellDesc will be used in either case.
      */
-// remoteSmellDesc(pov) { smellDesc; }
+     // remoteSmellDesc(pov) { smellDesc; }
     
     /*   
      *   The name given to this object when it's the container for another
