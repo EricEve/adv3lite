@@ -219,8 +219,95 @@ grammar directionName(nornoreast): 'nornoreast' | 'nne' : Production
 
 <p>When the actor is in object such as a Booth (or other enterable container), we normally show the enclosing room's <code>interiorDesc</code> provided the actor can see out to the enclosing Room (either because the Booth is open or because it's transparent). If the enclosing room can't be seen, we use the Booth's <code>interiorDesc</code>. For some Booth-type objects (such as a small garden shed, for instance) we may prefer to use the Booth's <code>interiorDesc</code> even when the actor couid see out through the open door, say. We can achieve this by overriding the Booth's <strong>useInteriorDesc</strong> to true. We could also do this on a Platform type object, which might be appropriate if the Platform represents a large area such as a stage.</p>
 
+<p>Here's an example of how we might implement a shed in a garden as an enterable container with a ContainerDoor. We'll assume that the garden is part of a larger SenseRegion, but we don't want an actor to be able to see the other rooms (apart from the garden, that is) when the actor is inside the shed (this is probably more realistic):</p>
 
+<p><div class=code><pre>
+backGarden: Room 'Back Garden'
+    "The garden has a neglected, overgrown air about it. It stretches from the back of the tall
+    house to the west to a flight of steps leading down to a wooden jetty to the east. A small
+    garden shed located against one border wall faces a small greenhouse backed against the fence
+    opposite. "
+	
+    <span class='comment'>/* We'd need to define these other objects in a real game, of course. */</span>
+    regions = [jettyRegion, outdoors]
+    west = jettySteps
+    down asExit(west)        
+    
+    <span class='comment'>/* 
+     *   Arrange it so that when the actor is inside the garden shed they can't see any other room
+     *   in the SenseRegion (even when the shed is open). It makes sense that the shed door would
+     *   offer only a limited view over the garden.
+     */</span>
+    canSeeOutTo(loc)
+    {
+        return !gActor.isIn(gardenShed);
+    }
+    
+    <span class='comment'>/* But we should be able to see into the garden from anywhere else in its SenseRegion */</span>
+    canSeeInFrom(loc) { return true; }
+;
 
++ gardenShed: Fixture, Booth 'garden shed; small wooden'
+    <span class='comment'>/* Vary our description according to whehter we're being viewed from the outside and the inside */</span>
+    &quot;&lt;&lt;if gLocation == self.remapIn&gt;&gt;&lt;&lt;remapIn.interiorDesc&gt;&gt;&lt;&lt;else&gt;&gt;&lt;&lt;exteriorDesc&gt;&gt;&lt;&lt;end&gt;&gt; &quot;
+     
+   <span class='comment'>/* This is a custom property we've defined for this particular case; not a library property. */</span>
+    exteriorDesc = "It's a small wooden shed. "
+    
+    remapIn: SubComponent {
+        isEnterable = true
+        isOpenable = true
+        isOpen = nil
+        
+        interiorDesc = &quot;Unlike the Tardis, this small shed is no bigger on the inside than the
+            outside, meaning it's pretty cramped. Light streams in through a small window &lt;&lt;if
+              isOpen&gt;&gt; and the open door, through which you can see part of the garden and the
+            greenhouse opposite&lt;&lt;end&gt;&gt;. &quot;
+        
+        desc = interiorDesc
+        useInteriorDesc = true
+        allowReachOut(obj) { return nil; }
+        lockability = lockableWithKey
+    }   
+;
+
+++ lawnmower: Heavy 'lawnmower; lawn; mower'
+    canPushTravel = true
+    specialDesc = "An ancient lawnmower rests on the ground &lt;&lt;location.objInName&gt;&gt;. "
+    sLoc(In)
+;
+
+++ Decoration 'small window'
+    "The window is quite dirty but you can see that it looks towards the house. "
+    isLit = true
+    sLoc(In)
+    lookThroughMsg = 'The window looks towards the house. '
+    decorationActions = inherited + [LookThrough]
+;
+
+++ ContainerDoor '(shed) door; sturdy wooden rusty;lock'
+    "It's a sturdy wooden door with a rusty lock. "
+;
+
+++ Component 'small window; (shed) exterior'
+    "The window on the side of the shed is no more than about nine inches square and faces the
+    house. "
+    
+    <span class='comment'>/*
+     * Adjusting the vocabLikelihood of this window object according to whether the actor is inside or outside 
+     * the shed is probably the easiest way of ensuring the parser chooses the right window object when
+     * both are in scope. Another approach might be to use filterResolveList(). It's best to avoid implementing
+     * both sides of the window as a MultiLoc in this situation, since this risks presenting the player
+     * with odd disambuguation messages.
+     */</span>
+    vocabLikelihood = (gActor.isIn(location) ? -10 : 10)
+    lookThroughMsg = 'The window is too dirty to see much through. '
+    
+    disambigName = 'exterior shed window'
+;
+</pre></div>
+
+<p>This example probably reaches the limit of how room-like an enterable container can be made to get. Note how almost everything to do with the shed has to be defined on or with reference to its <code>remapIn</code> property.</p>
 <br>
 
 <h2><a name="regions">Regions</a></h2>
