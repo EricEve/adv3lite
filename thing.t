@@ -1343,6 +1343,14 @@ class Thing:  ReplaceRedirector, Mentionable
     roomSubContentsLister = lookContentsLister
     
     /* 
+     *   Do we want to use our interior desc even if we can see out to an enclosing location? By
+     *   default we don't, but we may want to change this to true on Booths (or other enterable
+     *   containers) where the immediate surroundings would be more apparent to someone viewing from
+     *   within than those of the enlosing location.
+     */
+    useInteriorDesc = nil
+    
+    /* 
      *   Look around within this Thing (Room or Booth) to provide a full
      *   description of this location as seen from within, including our
      *   headline name, our internal description, and a listing of our visible
@@ -1359,12 +1367,34 @@ class Thing:  ReplaceRedirector, Mentionable
         /* Begin by displaying our name */
         "<.roomname><<roomHeadline(gPlayerChar)>><./roomname>\n";
         
+        /* The object whose interiorDesc we want to use. Normally this will be ourselves. */
+        local descObj = self;
+        
+        /* Start from the actor's location and work outwards. */
+        local loc = gActor.location;        
+        
+        /* 
+         *   Iterate outwards till we've either reached ourselves or the outermost room or else a
+         *   location that wants to use its interiorDesc in any case.
+         */
+        while(loc && loc != self)
+        {
+            if(loc.useInteriorDesc)
+            {
+                descObj = loc;
+                break;
+            }
+            
+            loc = loc.location;
+        }
+        
+        
         /* If we're illuminate show our description and list our contents. */
         if(isIlluminated)
         {
             /* Display our interior description. */
             if(gameMain.verbose || !visited || gActionIs(Look))
-                "<.roomdesc><<interiorDesc>><./roomdesc><.p>";
+                "<.roomdesc><<descObj.interiorDesc>><./roomdesc><.p>";
             
             /* List our contents. */
             "<.roomcontents>";
@@ -6898,7 +6928,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   Our exitLocation is the location an actor should be moved to when s/he
      *   gets off/out of us.
      */
-    exitLocation = (lexicalParent == nil ? location : lexicalParent.location)
+    exitLocation = location
     
     /*   Our staging location is where we need to be to get on/in us */
     stagingLocation = (exitLocation)
@@ -10032,6 +10062,12 @@ class SubComponent : Thing
                 vocabLikelihood = 10;
         }
     } 
+    
+    /* 
+     *   Our exit location will normally be our location's (i.e. parent object's) location. If for
+     *   any reason that's nil will use our lexicalParent's location instead.
+     */
+    exitLocation = (location == nil ? lexicalParent.location : location.location)
 ;
 
 

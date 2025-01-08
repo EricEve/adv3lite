@@ -744,6 +744,12 @@ class Room: TravelConnector, Thing
         return self.(prop);
     }
     
+    /* 
+     *   We always want to use the interiorDesx of a Room when looking around within it (assuming no
+     *   Boothlike object intervenes.
+     */
+    useInteriorDesc = true
+    
     /* For use by SenseRegion - the list of rooms visible from this room */
     visibleRooms = []
 ;
