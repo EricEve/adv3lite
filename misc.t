@@ -1810,7 +1810,101 @@ modify Object
     {  
         func();
     }
-;
+    
+    
+    /* 
+     *   Attempt to display prop appropriately according to it data type
+     *   (single-quoted string, double-quoted string, integer or code). The prop
+     *   parameter must be provided as a property pointer.
+     */
+    display(prop)
+    {
+        local str;
+        switch(propType(prop))
+        {
+            /* 
+             *   If prop is a single-quoted string or an integer, simply display
+             *   it.
+             */
+        case TypeSString:
+        case TypeInt:    
+            say(self.(prop));
+            break;
+            
+            /* If prop is a double-quoted string, display it by executing it. */
+        case TypeDString:
+            self.(prop);
+            break;
+            
+            /* if prop is a method, execute it. */
+        case TypeCode:
+            /* 
+             *   In case prop is a method that returns a single-quoted string,
+             *   note the return value from executing prop.
+             */
+            str = self.(prop);
+            
+            /* If it's a string, display it. */
+            if(dataType(str) == TypeSString && str > '')
+                say(str);
+            break;
+        default:
+            /* do nothing */
+            break;
+        }
+    }
+    
+    /* 
+     *   Attempt to display the message defined in the property prop, and return true if anything is
+     *   displayed. Otherwise, if the altMsg parameter is supplied (either as a single-quoted string
+     *   or as a property pointer) display it instead, and then in any case return nil to tell the
+     *   caller that nothing was displayed by prop.
+     *
+     *   This method is primarily for use with properties such as smellDesc and listenDesc on Thing
+     *   for which alternatives may need to be displayed if they don't display anything, but custom
+     *   classes and objects created by game authors may wish to use it for their own purposes.
+     */
+    
+    displayAlt(prop, altMsg?)
+    {        
+        /* 
+         *   If attempting to display the prop property results in some output,
+         *   return true to inform our caller of the fact.
+         */
+        if(gOutStream.watchForOutput({: display(prop) }))
+            return true;
+        
+        
+        /* 
+         *   If we reach this point, prop failed to produce any output, so if
+         *   altMsg has been provided as a single-quoted string, display it.
+         */
+        if(dataType(altMsg) == TypeSString)
+            say(altMsg);
+        
+        /*  
+         *   Otherwise, if altMsg has been provided as a property pointer,
+         *   display it using the display() method.
+         */        
+        if(dataType(altMsg) == TypeProp)
+            display(altMsg);
+        
+        /* 
+         *   Tell our caller that there was no output from attempting to display
+         *   prop.
+         */
+        return nil;
+    }
+    
+    /* 
+     *   Check if displaying prop could possibly produce any output. The only tests we apply here is
+     *   that prop is not defined as nil.
+     */
+    checkDisplay(prop)    
+    {          
+        return propType(prop) != TypeNil;
+    }
+ ;
 
 
 
