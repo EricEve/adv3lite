@@ -910,15 +910,15 @@ class ImplicitActionFilter: OutputFilter
          *   action, but just in case we return the text unchanged if there is
          *   no gAction.
          */
-        if(gAction == nil)
+//        if(gAction == nil)
             return txt;
         
         /* 
          *   If we do have have a gAction, prepend any pending implicit action
          *   announcements to the text we output.
          */
-        return gAction.buildImplicitActionAnnouncement(true, !gAction.isImplicit)
-            + txt;
+//        return gAction.buildImplicitActionAnnouncement(true, !gAction.isImplicit)
+//            + txt;
     }   
 ;
 

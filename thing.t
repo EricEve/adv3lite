@@ -4991,8 +4991,8 @@ class Thing:  ReplaceRedirector, Mentionable
          */
         check()
         {
-            if(isLocked)
-                say(lockedMsg);
+            if(isLocked)           
+                say(lockedMsg);            
         }
         
         action()
@@ -6312,7 +6312,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
     
     
-    okayLockMsg = 'Locked.|{I} {lock} {1}. '
+    okayLockMsg = 'Locked.|{I} lock{s/ed} {1}. '
     
     withKeyMsg = BMsg(with key, '<.assume>with {1}<./assume>\n', useKey_.theName)
     
