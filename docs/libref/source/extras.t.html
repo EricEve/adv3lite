@@ -1,0 +1,1353 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>extras.t</title></head><body>
+<table class=ban><tr><td><h1>extras.t</h1><td align=right><a href="../file/extras.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>
+<a name="5"></a>/*
+<a name="6"></a> *   ***************************************************************************
+<a name="7"></a> *   extras.t
+<a name="8"></a> *
+<a name="9"></a> *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+<a name="10"></a> *
+<a name="11"></a> *
+<a name="12"></a> *
+<a name="13"></a> *
+<a name="14"></a> *   This file contains a number of (in principle) optional classes that can be
+<a name="15"></a> *   used in addition to Thing. A game does not need to use any of these classes
+<a name="16"></a> *   since authors can always just set the appropriate properties on thing, but
+<a name="17"></a> *   some authors may find them a convenience, or may find that using them
+<a name="18"></a> *   improves the clarity of their code.
+<a name="19"></a> */
+<a name="20"></a>
+<a name="21"></a>property tooFarAwayToHearMsg;
+<a name="22"></a>property tooFarAwayToSmellMsg;
+<a name="23"></a>property smellSize;
+<a name="24"></a>property soundSize;
+<a name="25"></a>
+<a name="26"></a>/* 
+<a name="27"></a> *   We define SensoryEmanation to be the base class for Odor and Noise. It
+<a name="28"></a> *   doesn't add any functionality here, but makes it possible for the sensory.t
+<a name="29"></a> *   extension to add functionality to this class.
+<a name="30"></a> */
+<a name="31"></a>class SensoryEmanation: Decoration
+<a name="32"></a>    
+<a name="33"></a>    /* 
+<a name="34"></a>     *   There's no point in including a SensoryEmanation in any command applying to ALL unless the
+<a name="35"></a>     *   command is one of our decoration actions.
+<a name="36"></a>     */
+<a name="37"></a>    hideFromAll(action) { return decorationActions.indexOf(action) == nil; }
+<a name="38"></a>;
+<a name="39"></a>
+<a name="40"></a>/* 
+<a name="41"></a> *   An Odor is an object representing a smell (as opposed to the object that
+<a name="42"></a> *   might be emitting that smell). The desc property of an Odor is displayed in
+<a name="43"></a> *   response to EXAMINE or SMELL; any other action is responded to with the
+<a name="44"></a> *   notImportantMsg.
+<a name="45"></a> */
+<a name="46"></a>class Odor: SensoryEmanation
+<a name="47"></a>        
+<a name="48"></a>    /*  An Odor responds to EXAMINE SOMETHING or SMELL SOMETHING */
+<a name="49"></a>    decorationActions = [Examine, SmellSomething]
+<a name="50"></a>    
+<a name="51"></a>    /*  
+<a name="52"></a>     *   The message to display when any other action is attempted with an Odor
+<a name="53"></a>     */
+<a name="54"></a>    notImportantMsg = BMsg(only smell, '{I} {can\'t} do that to a smell. ')
+<a name="55"></a>    
+<a name="56"></a>    /*   Treat Smelling an Odor as equivalent to Examining it. */
+<a name="57"></a>    dobjFor(SmellSomething) asDobjFor(Examine)   
+<a name="58"></a>    
+<a name="59"></a>    dobjFor(Examine) { preCond = [objSmellable] }
+<a name="60"></a>    
+<a name="61"></a>    /* 
+<a name="62"></a>     *   Since we turn SMELL into EXAMINE we want our sightSize to be our
+<a name="63"></a>     *   smellSize.
+<a name="64"></a>     */
+<a name="65"></a>    sightSize = smellSize
+<a name="66"></a>    
+<a name="67"></a>    /*   
+<a name="68"></a>     *   For the same reason we want to use our tooFarAwayToSmellMsg for our
+<a name="69"></a>     *   tooFarWayToSeeDetailMsg.
+<a name="70"></a>     */
+<a name="71"></a>    tooFarAwayToSeeDetailMsg = tooFarAwayToSmellMsg    
+<a name="72"></a>    
+<a name="73"></a>    isOdor = true
+<a name="74"></a>    
+<a name="75"></a>    
+<a name="76"></a>    
+<a name="77"></a>;
+<a name="78"></a>
+<a name="79"></a>
+<a name="80"></a>/* 
+<a name="81"></a> *   A Noise is an object representing a sound (as opposed to the object that
+<a name="82"></a> *   might be emitting that sound). The desc property of a Noise is displayed in
+<a name="83"></a> *   response to EXAMINE or LISTEN TO; any other action is responded to with the
+<a name="84"></a> *   notImportantMsg.
+<a name="85"></a> */
+<a name="86"></a>class Noise: SensoryEmanation    
+<a name="87"></a>    
+<a name="88"></a>    /*  A Noise responds to EXAMINE SOMETHING or LISTEN TO SOMETHING */
+<a name="89"></a>    decorationActions = [Examine, ListenTo]
+<a name="90"></a>       
+<a name="91"></a>    /*  
+<a name="92"></a>     *   The message to display when any other action is attempted with a Noise
+<a name="93"></a>     */
+<a name="94"></a>    notImportantMsg = BMsg(only listen, '{I} {can\'t} do that to a sound. ')
+<a name="95"></a>    
+<a name="96"></a>    /*   Treat Listening to a Noise as equivalent to Examining it. */
+<a name="97"></a>    dobjFor(ListenTo) asDobjFor(Examine)    
+<a name="98"></a>    
+<a name="99"></a>    dobjFor(Examine) { preCond = [objAudible] }
+<a name="100"></a>    
+<a name="101"></a>    /* 
+<a name="102"></a>     *   Since we turn LISTEN TO into EXAMINE we want our sightSize to be our
+<a name="103"></a>     *   soundSize.
+<a name="104"></a>     */
+<a name="105"></a>    sightSize = soundSize
+<a name="106"></a>    
+<a name="107"></a>    /*   
+<a name="108"></a>     *   For the same reason we want to use our tooFarAwayToHearlMsg for our
+<a name="109"></a>     *   tooFarWayToSeeDetailMsg.
+<a name="110"></a>     */
+<a name="111"></a>    tooFarAwayToSeeDetailMsg = tooFarAwayToHearMsg
+<a name="112"></a>    
+<a name="113"></a>    isNoise = true
+<a name="114"></a>;
+<a name="115"></a>
+<a name="116"></a>/* A Container is a Thing that other things can be put inside */
+<a name="117"></a>class Container: Thing
+<a name="118"></a>    /* Containers are open by default */
+<a name="119"></a>    isOpen = true
+<a name="120"></a>    
+<a name="121"></a>    /* 
+<a name="122"></a>     *   The containment type of a container is In; i.e. things located in a
+<a name="123"></a>     *   Container are considered to be in it.
+<a name="124"></a>     */
+<a name="125"></a>    contType = In
+<a name="126"></a>;
+<a name="127"></a>
+<a name="128"></a>/*  An OpenableContainer is a Container that can be opened and closed. */
+<a name="129"></a>class OpenableContainer: Container
+<a name="130"></a>    
+<a name="131"></a>    /* Most OpenableContainers start out closed. */
+<a name="132"></a>    isOpen = nil
+<a name="133"></a>    
+<a name="134"></a>    /* An OpenableContainer is openable */
+<a name="135"></a>    isOpenable = true
+<a name="136"></a>;
+<a name="137"></a>
+<a name="138"></a>/*  
+<a name="139"></a> *   A LockableContainer is an OpenableContainer that can be locked and unlocked
+<a name="140"></a> *   without the aid of a key.
+<a name="141"></a> */
+<a name="142"></a>class LockableContainer: OpenableContainer
+<a name="143"></a>    lockability = lockableWithoutKey
+<a name="144"></a>    
+<a name="145"></a>    /* We usually want a LockableContainer to start out locked. */
+<a name="146"></a>    isLocked = true
+<a name="147"></a>;
+<a name="148"></a>
+<a name="149"></a>/*  
+<a name="150"></a> *   A KeyedContainer is an OpenableContainer that can be locked and unlocked
+<a name="151"></a> *   only with the aid of a key.
+<a name="152"></a> */
+<a name="153"></a>class KeyedContainer: OpenableContainer
+<a name="154"></a>    lockability = lockableWithKey
+<a name="155"></a>    
+<a name="156"></a>    /* We usually want a KeyedContainer to start out locked. */
+<a name="157"></a>    isLocked = true
+<a name="158"></a>;
+<a name="159"></a>
+<a name="160"></a>/*  A Surface is a Thing that other things can be placed on top of */
+<a name="161"></a>class Surface: Thing
+<a name="162"></a>    
+<a name="163"></a>    /* The contents of a Surface are considered to be on the Surface */
+<a name="164"></a>    contType = On
+<a name="165"></a>    
+<a name="166"></a>    /* 
+<a name="167"></a>     *   Searching a Surface may involve look for what's on it as well as what's
+<a name="168"></a>     *   in it.
+<a name="169"></a>     *
+<a name="170"></a>     *   We put this code here rather than checking for contType == On on a
+<a name="171"></a>     *   Thing to avoid burdening Thing with overcomplicated code for a rather
+<a name="172"></a>     *   special case.
+<a name="173"></a>     */
+<a name="174"></a>    
+<a name="175"></a>    dobjFor(Search)
+<a name="176"></a>    {
+<a name="177"></a>        preCond = [objVisible, touchObj]
+<a name="178"></a>        verify() {}
+<a name="179"></a>        check() {}
+<a name="180"></a>        action()
+<a name="181"></a>        {
+<a name="182"></a>            if(hiddenIn.length == 0 
+<a name="183"></a>               &amp;&amp; contents.countWhich({x: x.searchListed}) == 0)
+<a name="184"></a>            {
+<a name="185"></a>                say(nothingOnMsg);
+<a name="186"></a>                return;
+<a name="187"></a>            }
+<a name="188"></a>            
+<a name="189"></a>            local onList = contents.subset({x: x.searchListed});
+<a name="190"></a>            
+<a name="191"></a>            if(onList.length &gt; 0)
+<a name="192"></a>                listContentsOn(onList);
+<a name="193"></a>            
+<a name="194"></a>            if(hiddenIn.length &gt; 0)            
+<a name="195"></a>                findHidden(&amp;hiddenIn, In);
+<a name="196"></a>        }
+<a name="197"></a>    }
+<a name="198"></a>    
+<a name="199"></a>    nothingOnMsg = BMsg(nothing on, '{I} {find} nothing of interest on
+<a name="200"></a>        {the dobj}. ')
+<a name="201"></a>    
+<a name="202"></a>    /* 
+<a name="203"></a>     *   List what's on me. We put this in a separate method to make it easier
+<a name="204"></a>     *   to customise on a per object basis.
+<a name="205"></a>     */
+<a name="206"></a>    listContentsOn(lst)
+<a name="207"></a>    {
+<a name="208"></a>        lookInLister.show(lst, self, true);
+<a name="209"></a>    }    
+<a name="210"></a>;
+<a name="211"></a>
+<a name="212"></a>/* 
+<a name="213"></a> *   A Plaftorm is a Surface that the player character (and other actors) can
+<a name="214"></a> *   get on.
+<a name="215"></a> */
+<a name="216"></a>class Platform: Surface
+<a name="217"></a>    isBoardable = true
+<a name="218"></a>;
+<a name="219"></a>
+<a name="220"></a>/*   
+<a name="221"></a> *   A Booth is a Container that the player character (and other actors) can get
+<a name="222"></a> *   in.
+<a name="223"></a> */
+<a name="224"></a>class Booth: Container
+<a name="225"></a>    isEnterable= true
+<a name="226"></a>;
+<a name="227"></a>
+<a name="228"></a>
+<a name="229"></a>/*  An Underside is a Thing that other things can be put under */
+<a name="230"></a>class Underside: Thing
+<a name="231"></a>    
+<a name="232"></a>    /* The contents of an Underside are considered to be under it. */
+<a name="233"></a>    contType = Under
+<a name="234"></a>;
+<a name="235"></a>
+<a name="236"></a>/*  An RearContainer is a Thing that other things can be put behind */
+<a name="237"></a>class RearContainer: Thing
+<a name="238"></a>    
+<a name="239"></a>    /* The contents of an RearContainer are considered to be behind it. */
+<a name="240"></a>    contType = Behind
+<a name="241"></a>;
+<a name="242"></a>
+<a name="243"></a>/*  A Wearable is a Thing that can be worn */
+<a name="244"></a>class Wearable: Thing
+<a name="245"></a>    isWearable = true
+<a name="246"></a>;
+<a name="247"></a>
+<a name="248"></a>/*  A Food is a Thing that can be eaten */
+<a name="249"></a>class Food: Thing
+<a name="250"></a>    isEdible = true
+<a name="251"></a>;
+<a name="252"></a>
+<a name="253"></a>/*  
+<a name="254"></a> *   A Fixture is a Thing that can't be picked up and carried around (and so
+<a name="255"></a> *   can't be put anywhere either).
+<a name="256"></a> */
+<a name="257"></a>class Fixture: Thing
+<a name="258"></a>    isFixed = true
+<a name="259"></a>;
+<a name="260"></a>
+<a name="261"></a>/*   
+<a name="262"></a> *   A Decoration is a Fixture that can only be EXAMINEd. Any other action
+<a name="263"></a> *   results in the display of its notImportantMsg. It's normally used for
+<a name="264"></a> *   objects that are purely scenery.
+<a name="265"></a> */
+<a name="266"></a>class Decoration: Fixture
+<a name="267"></a>    isDecoration = true
+<a name="268"></a>    
+<a name="269"></a>    
+<a name="270"></a>    /* 
+<a name="271"></a>     *   Game code may wish to hide decorations from all commands applied to ALL. Tbis can be
+<a name="272"></a>     *   achieved by overriding hideFromAll() as shown below. This is not done in the library since
+<a name="273"></a>     *   making this change at version 1.61 would compromise backward compatibility.
+<a name="274"></a>     */    
+<a name="275"></a>    // hideFromAll(action) { return true; }
+<a name="276"></a>;
+<a name="277"></a>
+<a name="278"></a>/* 
+<a name="279"></a> *   A Component is an object that's (usually permanently) part of something
+<a name="280"></a> *   else, like the handle of a suitcase or a dial on a safe.
+<a name="281"></a> */
+<a name="282"></a>class Component: Fixture    
+<a name="283"></a>    cannotTakeMsg = BMsg(cannot take component, '{I} {can\'t} have {that cobj},
+<a name="284"></a>        {he dobj}{\'s} part of {1}. ', location.theName)
+<a name="285"></a>    
+<a name="286"></a>    locType = PartOf
+<a name="287"></a>;
+<a name="288"></a>
+<a name="289"></a>
+<a name="290"></a>/*  
+<a name="291"></a> *   A Distant is a Decoration that's considered too far away to be interacted
+<a name="292"></a> *   with by any command other than EXAMINE
+<a name="293"></a> */
+<a name="294"></a>class Distant: ProxyDest, Decoration
+<a name="295"></a>   
+<a name="296"></a>    /* Message to say that this object is too far away. */
+<a name="297"></a>    notImportantMsg = BMsg(distant, '{The subj cobj} {is} too far away. ')
+<a name="298"></a>    
+<a name="299"></a>    /* 
+<a name="300"></a>     *   The base Decoration class includes GoTo as a decorationAction. For a
+<a name="301"></a>     *   Distant object (e.g. the sun or moon or a distanct mountain) this will
+<a name="302"></a>     *   often be inappropriate. Where an object is 'locally distant' as it
+<a name="303"></a>     *   were, i.e. a sign mounted high up on a wall, you can override the
+<a name="304"></a>     *   destination property to give the location that a GO TO action should
+<a name="305"></a>     *   take the player character to; decorationActions will then include GoTo,
+<a name="306"></a>     *   since GO TO SIGN would then be a reasonable way for the player to get
+<a name="307"></a>     *   to the location of the sign.
+<a name="308"></a>     */
+<a name="309"></a>    decorationActions = destination ? [Examine, GoTo] : [Examine]
+<a name="310"></a>    
+<a name="311"></a>    /* 
+<a name="312"></a>     *   If this Distant represents an object that's notionally in another
+<a name="313"></a>     *   location, setting destination to that location will allow the GO TO
+<a name="314"></a>     *   command to take the actor to that location. If destination is specified
+<a name="315"></a>     *   it should normally be a room (usually one adjacent to that this Distant
+<a name="316"></a>     *   object is located in. For an object like the sky, the sun or a distant
+<a name="317"></a>     *   mountain this should be left as nil.
+<a name="318"></a>     */
+<a name="319"></a>    destination = nil
+<a name="320"></a>    
+<a name="321"></a>    /* A Distant is too far away for any action that requires touching. */
+<a name="322"></a>    checkReach(actor)
+<a name="323"></a>    {
+<a name="324"></a>        say(notImportantMsg);
+<a name="325"></a>    }
+<a name="326"></a>    
+<a name="327"></a>    
+<a name="328"></a>    /* 
+<a name="329"></a>     *   Going To a Distant object is unlike a normal GoTo, since if the object
+<a name="330"></a>     *   is meant to be Distant, going to its location (the normal response to a
+<a name="331"></a>     *   GO TO command) is precisely what we don't want to happen. We therefore
+<a name="332"></a>     *   need to provide custom GoTo handling on a Distant object.
+<a name="333"></a>     */
+<a name="334"></a>    dobjFor(GoTo) 
+<a name="335"></a>    {
+<a name="336"></a>        verify()
+<a name="337"></a>        {
+<a name="338"></a>            /* 
+<a name="339"></a>             *   Unless the actor is in our location and we have a destination,
+<a name="340"></a>             *   we don't want to field a GoTo command, so we make it as
+<a name="341"></a>             *   illogical as possible. If we don't have a destination we
+<a name="342"></a>             *   shouldn't reach this point anyway since GoTo shouldn't be one
+<a name="343"></a>             *   of our decorationActions, but writing the test this way will
+<a name="344"></a>             *   make this verify routine prevent the action even if
+<a name="345"></a>             *   decorationActions is overridden, if there's a nil destination.
+<a name="346"></a>             */
+<a name="347"></a>            if(!gActor.isIn(getOutermostRoom) || destination == nil)
+<a name="348"></a>                inaccessible(notImportantMsg);
+<a name="349"></a>        }
+<a name="350"></a>        
+<a name="351"></a>        action() 
+<a name="352"></a>        {
+<a name="353"></a>            /* 
+<a name="354"></a>             *   Calculate the route from the actor's current room to the
+<a name="355"></a>             *   location where the target object was last seen, using the
+<a name="356"></a>             *   routeFinder to carry out the calculations if it is present. In
+<a name="357"></a>             *   this case we use routeFinder rather than pcRouteFinder since
+<a name="358"></a>             *   the PC can presumably see the way s/he needs to go even if s/he
+<a name="359"></a>             *   hasn't gone that way before.
+<a name="360"></a>             */
+<a name="361"></a>            local route = defined(routeFinder)? routeFinder.findPath(
+<a name="362"></a>                gActor.getOutermostRoom, destination.getOutermostRoom) : nil;
+<a name="363"></a>            
+<a name="364"></a>            /*  
+<a name="365"></a>             *   If we don't find a route, just display a message saying we
+<a name="366"></a>             *   don't know how to get to our destination.
+<a name="367"></a>             */
+<a name="368"></a>            if(route == nil)
+<a name="369"></a>                sayDontKnowHowToGetThere();
+<a name="370"></a>            
+<a name="371"></a>            /*  
+<a name="372"></a>             *   If the route we find has only one element in its list, that
+<a name="373"></a>             *   means that we're where we last saw the target but it's no
+<a name="374"></a>             *   longer there, so we don't know where it's gone. In which case
+<a name="375"></a>             *   we display a message saying we don't know how to reach our
+<a name="376"></a>             *   target.
+<a name="377"></a>             */
+<a name="378"></a>            else if(route.length == 1)
+<a name="379"></a>                sayDontKnowHowToReach();
+<a name="380"></a>            
+<a name="381"></a>            /*  
+<a name="382"></a>             *   If the route we found has at least two elements, then use the
+<a name="383"></a>             *   first element of the second element as the direction in which
+<a name="384"></a>             *   we need to travel, and use the Continue action to take a step
+<a name="385"></a>             *   in that direction.
+<a name="386"></a>             */
+<a name="387"></a>            else
+<a name="388"></a>            {
+<a name="389"></a>                local dir = route[2][1];
+<a name="390"></a>                Continue.takeStep(dir, destination.getOutermostRoom);               
+<a name="391"></a>            }; 
+<a name="392"></a>        }
+<a name="393"></a>    }
+<a name="394"></a>       
+<a name="395"></a>    
+<a name="396"></a>;
+<a name="397"></a>
+<a name="398"></a>
+<a name="399"></a>
+<a name="400"></a>  
+<a name="401"></a>
+<a name="402"></a>/* An Unthing is an object that represents the absence of a thing */
+<a name="403"></a>class Unthing: Decoration
+<a name="404"></a>    
+<a name="405"></a>    /* An Unthing can't respond to any actions, as it isn't there */
+<a name="406"></a>    decorationActions = []
+<a name="407"></a>    
+<a name="408"></a>    /* 
+<a name="409"></a>     *   The message to display when the player character tries to interact with
+<a name="410"></a>     *   this object; by default we just say it isn't there, but game code will
+<a name="411"></a>     *   normally want to override this message to explain the reason for the
+<a name="412"></a>     *   absence.
+<a name="413"></a>     */  
+<a name="414"></a>    notImportantMsg = BMsg(unthing absent, '{The subj cobj} {isn\'t} {here}. ')
+<a name="415"></a>                   
+<a name="416"></a>    /* 
+<a name="417"></a>     *   Users coming from adv3 may be used to Unthings having a notHereMsg, so
+<a name="418"></a>     *   we'll define this to be the same as the notImportantMsg
+<a name="419"></a>     */
+<a name="420"></a>    notHereMsg = notImportantMsg
+<a name="421"></a>    
+<a name="422"></a>    
+<a name="423"></a>    /* An Unthing should never be included in ALL */
+<a name="424"></a>    hideFromAll(action) { return true; }
+<a name="425"></a>    
+<a name="426"></a>    /* 
+<a name="427"></a>     *   A player is more likely to be trying to refer to something that is
+<a name="428"></a>     *   present than something that isn't, so we give Unthings a substantially
+<a name="429"></a>     *   reduced vocabLikelihood
+<a name="430"></a>     */
+<a name="431"></a>    vocabLikelihood = -100
+<a name="432"></a>             
+<a name="433"></a>    /* 
+<a name="434"></a>     *   If there's anything else in the match list, remove myself from the
+<a name="435"></a>     *   matches
+<a name="436"></a>     */
+<a name="437"></a>    filterResolveList(np, cmd, mode)
+<a name="438"></a>    {
+<a name="439"></a>        if(np.matches.length &gt; 1)
+<a name="440"></a>            np.matches = np.matches.subset({m: m.obj != self});
+<a name="441"></a>    }
+<a name="442"></a>    
+<a name="443"></a>    
+<a name="444"></a>    /* Make Unthings verify with the lowest possible score */         
+<a name="445"></a>    dobjFor(Default)
+<a name="446"></a>    {
+<a name="447"></a>        verify()
+<a name="448"></a>        {
+<a name="449"></a>            inaccessible(notHereMsg);               
+<a name="450"></a>        }
+<a name="451"></a>    }
+<a name="452"></a>    
+<a name="453"></a>    iobjFor(Default)
+<a name="454"></a>    {
+<a name="455"></a>        verify()
+<a name="456"></a>        {
+<a name="457"></a>            inaccessible(notHereMsg);               
+<a name="458"></a>        }
+<a name="459"></a>    }
+<a name="460"></a>    
+<a name="461"></a>    /* 
+<a name="462"></a>     *   Giving an order to an Unthing should give the same response as any
+<a name="463"></a>     *   other command involving an Unthing.
+<a name="464"></a>     */
+<a name="465"></a>    handleCommand(action)
+<a name="466"></a>    {
+<a name="467"></a>        say(notHereMsg);
+<a name="468"></a>    }
+<a name="469"></a>    
+<a name="470"></a>    /* 
+<a name="471"></a>     *   If this property us defined, then it should hold the object we're standing in for that
+<a name="472"></a>     *   currently isn't present.
+<a name="473"></a>     */
+<a name="474"></a>    unObject = nil
+<a name="475"></a>    
+<a name="476"></a>    
+<a name="477"></a>    preinitThing()
+<a name="478"></a>    {
+<a name="479"></a>        /* 
+<a name="480"></a>         *   If we have an unObject defined but no vocab defined, set our vocab to be the vocsb of
+<a name="481"></a>         *   out unObject and then initialize our vocab and name from it.
+<a name="482"></a>         */
+<a name="483"></a>        if(unObject &amp;&amp; vocab == nil)
+<a name="484"></a>        {
+<a name="485"></a>            vocab = unObject.vocab;            
+<a name="486"></a>            initVocab();
+<a name="487"></a>            
+<a name="488"></a>            /* Make the Unthing and the unObject facets of each other. */
+<a name="489"></a>            getFacets = [unObject];
+<a name="490"></a>            unObject.getFacets = valToList(unObject.getFacets) + self;
+<a name="491"></a>            
+<a name="492"></a>        }
+<a name="493"></a>        
+<a name="494"></a>        /* Carry out the inherited handling. */
+<a name="495"></a>        inherited();
+<a name="496"></a>        
+<a name="497"></a>    }
+<a name="498"></a>    
+<a name="499"></a>    /* 
+<a name="500"></a>     *   Since we're not here, we can't be reached. This won't matter in most game code, but
+<a name="501"></a>     *   defining this method ensures we get an appropriate response to canReach(obj).
+<a name="502"></a>     */
+<a name="503"></a>    checkReach(obj)
+<a name="504"></a>    {
+<a name="505"></a>        say(notHereMsg);
+<a name="506"></a>    }
+<a name="507"></a>;
+<a name="508"></a>
+<a name="509"></a>/*  
+<a name="510"></a> *   A CollectiveGroup is a an object that can represent a set of other objects
+<a name="511"></a> *   for particular actions. For any of the objects in the myObjects list the
+<a name="512"></a> *   CollectiveGroup will handle any of the actions in the myActions list; all
+<a name="513"></a> *   the other actions will be handled by the individual objects.
+<a name="514"></a> */
+<a name="515"></a>class CollectiveGroup: Fixture
+<a name="516"></a>    
+<a name="517"></a>    /* 
+<a name="518"></a>     *   The list of actions this CollectiveGroup will handle; all the rest will
+<a name="519"></a>     *   be handled by the individual objects.
+<a name="520"></a>     */
+<a name="521"></a>    collectiveActions = [Examine]
+<a name="522"></a>    
+<a name="523"></a>    /* 
+<a name="524"></a>     *   Is action to be treated as a collective action by this group (i.e.
+<a name="525"></a>     *   handled by this CollectiveGroup object); by default it is if it's one
+<a name="526"></a>     *   of the actions listed in our collectiveActions property.
+<a name="527"></a>     */
+<a name="528"></a>    isCollectiveAction(action)
+<a name="529"></a>    {
+<a name="530"></a>        return collectiveActions.indexWhich({a: action.ofKind(a)}) != nil;
+<a name="531"></a>    }
+<a name="532"></a>    
+<a name="533"></a>    /* 
+<a name="534"></a>     *   If the current action is one of the collective Actions, then filter all
+<a name="535"></a>     *   myObjects from the resolve list; otherwise filter myself out from the
+<a name="536"></a>     *   resolve list.
+<a name="537"></a>     */
+<a name="538"></a>    filterResolveList(np, cmd, mode)
+<a name="539"></a>    {
+<a name="540"></a>        /* If there are fewer than two matches, don't do any filtering */
+<a name="541"></a>        if(np.matches.length &lt; 2)
+<a name="542"></a>            return;
+<a name="543"></a>        
+<a name="544"></a>        if(isCollectiveAction(cmd.action))
+<a name="545"></a>           np.matches = np.matches.subset(
+<a name="546"></a>               {m: valToList(m.obj.collectiveGroups).indexOf(self) == nil});
+<a name="547"></a>        else
+<a name="548"></a>            np.matches = np.matches.subset({m: m.obj != self });           
+<a name="549"></a>           
+<a name="550"></a>    }    
+<a name="551"></a>    
+<a name="552"></a>    /* Obtain the list of the objects belonging to me that are in scope. */
+<a name="553"></a>    myScopeObjects()
+<a name="554"></a>    {
+<a name="555"></a>        return Q.scopeList(gActor).toList.subset(
+<a name="556"></a>            {o: valToList(o.collectiveGroups).indexOf(self) != nil});
+<a name="557"></a>    }
+<a name="558"></a>    
+<a name="559"></a>    /* 
+<a name="560"></a>     *   The default descriptions of a CollectiveGroup: By default we just list
+<a name="561"></a>     *   those of our members that are in scope.
+<a name="562"></a>     */
+<a name="563"></a>    desc()
+<a name="564"></a>    {
+<a name="565"></a>        /* 
+<a name="566"></a>         *   Get a list of all the objects in scope that belong to this
+<a name="567"></a>         *   Collective Group.
+<a name="568"></a>         */
+<a name="569"></a>        local lst = myScopeObjects();
+<a name="570"></a>        
+<a name="571"></a>        /*  
+<a name="572"></a>         *   Obtain the sublist of these that are currently held by the player
+<a name="573"></a>         *   character
+<a name="574"></a>         */
+<a name="575"></a>        local heldLst = lst.subset({o: o.isIn(gPlayerChar)});
+<a name="576"></a>        
+<a name="577"></a>        /*  
+<a name="578"></a>         *   Subtract the list of held items from the list of in-scope items to
+<a name="579"></a>         *   obtain a list of other items in scope.
+<a name="580"></a>         */
+<a name="581"></a>        lst -= heldLst;
+<a name="582"></a>        
+<a name="583"></a>        /*   If none of our items are in scope, say so */
+<a name="584"></a>        if(nilToList(lst).length == 0 &amp;&amp; nilToList(heldLst).length == 0)
+<a name="585"></a>            DMsg(collective group empty, 'There{\'s} no {1} {here}. ', name);
+<a name="586"></a>        
+<a name="587"></a>        /*  
+<a name="588"></a>         *   Otherwise display lists of which of my members the player character
+<a name="589"></a>         *   is carrying and which others are also present.
+<a name="590"></a>         */
+<a name="591"></a>        else
+<a name="592"></a>        {
+<a name="593"></a>            if(heldLst.length &gt; 0)
+<a name="594"></a>                DMsg(carrying collective group, '{I} {am} carrying {1}. ',
+<a name="595"></a>                     makeListStr(heldLst));
+<a name="596"></a>            
+<a name="597"></a>            if(lst.length &gt; 0)            
+<a name="598"></a>                DMsg(collective group members, 'There{\'s} {1} {here}. ',       
+<a name="599"></a>                     makeListStr(lst));
+<a name="600"></a>        }
+<a name="601"></a>    }
+<a name="602"></a>    
+<a name="603"></a>    /* A CollectiveGroup isn't normally listed as an item in its own right. */
+<a name="604"></a>    isListed = nil
+<a name="605"></a>;
+<a name="606"></a>
+<a name="607"></a>
+<a name="608"></a>
+<a name="609"></a>/* 
+<a name="610"></a> *   A Heavy is a Fixture that's too heavy to be picked up. We make Heavy a
+<a name="611"></a> *   Fixture rather than an Immovable since it should normally be obvious that
+<a name="612"></a> *   something is too heavy to be moved.
+<a name="613"></a> */
+<a name="614"></a>
+<a name="615"></a>class Heavy: Fixture
+<a name="616"></a>    cannotTakeMsg = BMsg(too heavy, '{The subj cobj} {is} too heavy to move. ')
+<a name="617"></a>    
+<a name="618"></a>;
+<a name="619"></a>
+<a name="620"></a>/*  
+<a name="621"></a> *   An Immovable is something that can't be picked up, although it may not be
+<a name="622"></a> *   immediately obvious that it can't be moved. For that reason we rule out
+<a name="623"></a> *   taking an Immovable at the check stage rather than the verify stage (this
+<a name="624"></a> *   is what distinquished an Immovable from a Fixture).
+<a name="625"></a> */
+<a name="626"></a>class Immovable: Thing
+<a name="627"></a>    
+<a name="628"></a>    /* Respond to an attempt to TAKE by ruling it out at the check stage. */
+<a name="629"></a>    dobjFor(Take)
+<a name="630"></a>    {
+<a name="631"></a>        check() { say(cannotTakeMsg); }                
+<a name="632"></a>    }
+<a name="633"></a>    
+<a name="634"></a>    /* The message to display to explain why this object can't be taken. */
+<a name="635"></a>    cannotTakeMsg = BMsg(cannot take immovable, '{I} {cannot} take {the cobj}.
+<a name="636"></a>        ')
+<a name="637"></a>    
+<a name="638"></a>    /* 
+<a name="639"></a>     *   Although an Immovable can't be picked up it's possible that it could be moved around, e.g.,
+<a name="640"></a>     *   by pushing or pulling it, and this must be the case if it can PushTravel and/or PullTravel.
+<a name="641"></a>     */
+<a name="642"></a>    isMoveable = (canPushTravel || canPullTravel)    
+<a name="643"></a>;
+<a name="644"></a>
+<a name="645"></a>
+<a name="646"></a>/*  
+<a name="647"></a> *   A StairwayUp is Thing the player character can climb up. It might represent
+<a name="648"></a> *   an upward staircase, but it could also represent a tree, mast or hillside,
+<a name="649"></a> *   for example. A StairwayUp is also a TravelConnector so it can be defined on
+<a name="650"></a> *   the appropriate direction property of its enclosing room.
+<a name="651"></a> */
+<a name="652"></a>class StairwayUp: TravelConnector, Thing
+<a name="653"></a>    
+<a name="654"></a>    /* Climbing a StairwayUp is equivalent to travelling via it. */
+<a name="655"></a>    dobjFor(Climb)
+<a name="656"></a>    {        
+<a name="657"></a>        action() { travelVia(gActor); }        
+<a name="658"></a>    }
+<a name="659"></a>    
+<a name="660"></a>    /* Climbing up a Stairway up is the same as Climbing it. */
+<a name="661"></a>    dobjFor(ClimbUp) asDobjFor(Climb)
+<a name="662"></a>    
+<a name="663"></a>    /* A StairwayUp is usually something fixed in place. */
+<a name="664"></a>    isFixed = true
+<a name="665"></a>    
+<a name="666"></a>    /*  A StairwayUp is climbable */
+<a name="667"></a>    isClimbable = true
+<a name="668"></a>    
+<a name="669"></a>    /* 
+<a name="670"></a>     *   The appropriate PushTravelAction for pushing something something up a
+<a name="671"></a>     *   StairwayUp.
+<a name="672"></a>     */
+<a name="673"></a>    PushTravelVia = PushTravelClimbUp
+<a name="674"></a>    
+<a name="675"></a>    /*  
+<a name="676"></a>     *   Display message announcing that traveler (typically an NPC whose
+<a name="677"></a>     *   departure is witnessed by the player character) has left via this
+<a name="678"></a>     *   staircase.
+<a name="679"></a>     */
+<a name="680"></a>    sayDeparting(traveler)
+<a name="681"></a>    {
+<a name="682"></a>        gMessageParams(traveler);
+<a name="683"></a>        DMsg(say departing up stairs, '{The subj traveler} {goes} up
+<a name="684"></a>            {1}. ', theName);
+<a name="685"></a>    }
+<a name="686"></a>    
+<a name="687"></a>    
+<a name="688"></a>    /* 
+<a name="689"></a>     *   Display message announcing that follower is following leader up
+<a name="690"></a>     *   this staircase.
+<a name="691"></a>     */
+<a name="692"></a>    sayActorFollowing(follower, leader)
+<a name="693"></a>    {
+<a name="694"></a>        /* Create message parameter substitutions for the follower and leader */
+<a name="695"></a>        gMessageParams(follower, leader);  
+<a name="696"></a>        
+<a name="697"></a>        DMsg(say following up staircase, '{The subj follower} follow{s/ed} {the
+<a name="698"></a>            leader} up {1}. ', theName);
+<a name="699"></a>    }
+<a name="700"></a>    
+<a name="701"></a>    traversalMsg = BMsg(traverse stairway up, 'up {1}', theName)
+<a name="702"></a>;
+<a name="703"></a>
+<a name="704"></a>
+<a name="705"></a>/*  
+<a name="706"></a> *   A StairwayDown is Thing the player character can climb down. It might
+<a name="707"></a> *   represent an downward staircase, but it could also represent a tree, mast
+<a name="708"></a> *   or hillside, for example. A StairwayDown is also a TravelConnector so it
+<a name="709"></a> *   can be defined on the appropriate direction property of its enclosing room.
+<a name="710"></a> */
+<a name="711"></a>class StairwayDown: TravelConnector, Thing
+<a name="712"></a>    
+<a name="713"></a>    /* Climbing down a StairwayDown is equivalent to travelling via it. */
+<a name="714"></a>    dobjFor(ClimbDown)
+<a name="715"></a>    {       
+<a name="716"></a>        action { travelVia(gActor); }
+<a name="717"></a>    }
+<a name="718"></a>    
+<a name="719"></a>    /* A StairwayDown is usually something fixed in place. */
+<a name="720"></a>    isFixed = true
+<a name="721"></a>    
+<a name="722"></a>    /*  A StairwayDown is something one can climb down */
+<a name="723"></a>    canClimbDownMe = true
+<a name="724"></a>    
+<a name="725"></a>    /* 
+<a name="726"></a>     *   The appropriate PushTravelAction for pushing something something down a
+<a name="727"></a>     *   StairwayDown.
+<a name="728"></a>     */
+<a name="729"></a>    PushTravelVia = PushTravelClimbDown
+<a name="730"></a>    
+<a name="731"></a>    /*  
+<a name="732"></a>     *   Display message announcing that traveler (typically an NPC whose
+<a name="733"></a>     *   departure is witnessed by the player character)has left via this
+<a name="734"></a>     *   staircase.
+<a name="735"></a>     */
+<a name="736"></a>    sayDeparting(traveler)
+<a name="737"></a>    {
+<a name="738"></a>        gMessageParams(traveler);
+<a name="739"></a>        DMsg(say departing down stairs, '{The subj traveler} {goes} down
+<a name="740"></a>            {1}. ', theName);
+<a name="741"></a>    }
+<a name="742"></a>    
+<a name="743"></a>    /* 
+<a name="744"></a>     *   Display message announcing that follower is following leader down
+<a name="745"></a>     *   this staircase.
+<a name="746"></a>     */
+<a name="747"></a>    sayActorFollowing(follower, leader)
+<a name="748"></a>    {
+<a name="749"></a>        /* Create message parameter substitutions for the follower and leader */
+<a name="750"></a>        gMessageParams(follower, leader);  
+<a name="751"></a>        
+<a name="752"></a>        DMsg(say following down staircase, '{The subj follower} follow{s/ed}
+<a name="753"></a>            {the leader} down {1}. ', theName);
+<a name="754"></a>    }
+<a name="755"></a>    
+<a name="756"></a>    traversalMsg = BMsg(traverse stairway down, 'down {1}', theName)
+<a name="757"></a>    
+<a name="758"></a>    cannotClimbMsg = BMsg(cannot climb stairway down, '{I} {can\'t} climb {the
+<a name="759"></a>        dobj}, but {i} could go down {him dobj}. ')
+<a name="760"></a>;
+<a name="761"></a>
+<a name="762"></a>/* A double sided (aks two-way) Stairway */
+<a name="763"></a>class DSStairway: DSCon, StairwayUp
+<a name="764"></a>    
+<a name="765"></a>    /* 
+<a name="766"></a>     *   The room at the upper end of this staircase. The library will try to determine which end of
+<a name="767"></a>     *   this stairway is the upper and end which the lower according to whether it's room1 or room2
+<a name="768"></a>     *   that points to us on its up or down property, so game code need not specify the upper or
+<a name="769"></a>     *   lower end unless neither room at the ends of this stairway point to us via up or down,
+<a name="770"></a>     *   either directly or via an asExit() macro. If the ends need to be specified manually, there
+<a name="771"></a>     *   is no need to specify both, since whiohever end is explicitly defined will implicitly
+<a name="772"></a>     *   define what the other end is.
+<a name="773"></a>     */     
+<a name="774"></a>    upperEnd = nil
+<a name="775"></a>    
+<a name="776"></a>    /* The room at the lower end of this staircase */
+<a name="777"></a>    lowerEnd = nil
+<a name="778"></a>    
+<a name="779"></a>    /* 
+<a name="780"></a>     *   initialise this SymStairway by first carrying out the inherited initialization and then
+<a name="781"></a>     *   trying to determine which end of the stairway is the upperEnd and which the lowerEnd.
+<a name="782"></a>     */
+<a name="783"></a>    preinitThing
+<a name="784"></a>    {
+<a name="785"></a>        /* Carry out the inherited handling. */
+<a name="786"></a>        inherited();
+<a name="787"></a>        
+<a name="788"></a>        /* Attempt to determine which end of the Stairway is which. */       
+<a name="789"></a>        findUpperAndLowerEnds();
+<a name="790"></a>    }
+<a name="791"></a>    
+<a name="792"></a>    /* 
+<a name="793"></a>     *   Method which attempts to determine which end of the staircase is the upper and which the
+<a name="794"></a>     *   lower based on the up and/or down properties defined in room1 and room2.
+<a name="795"></a>     */
+<a name="796"></a>    findUpperAndLowerEnds()
+<a name="797"></a>    {
+<a name="798"></a>        /* 
+<a name="799"></a>         *   If the lower end is not yet defined and room1 points to us on its up property, then our
+<a name="800"></a>         *   lower end must be room1.
+<a name="801"></a>         */
+<a name="802"></a>        if(lowerEnd == nil &amp;&amp; room1 &amp;&amp; room1.getConnector(&amp;up) == self)        
+<a name="803"></a>            lowerEnd = room1;
+<a name="804"></a>        
+<a name="805"></a>        /* 
+<a name="806"></a>         *   If the upper end is not yet defined and room1 points to us on its down property, then
+<a name="807"></a>         *   our upper end must be room 1.
+<a name="808"></a>         */
+<a name="809"></a>        if(upperEnd == nil &amp;&amp; room1 &amp;&amp; room1.getConnector(&amp;down) == self)        
+<a name="810"></a>            upperEnd = room1;
+<a name="811"></a>        
+<a name="812"></a>        /* 
+<a name="813"></a>         *   If the lower end is not yet defined and room2 points to us on its up property, then our
+<a name="814"></a>         *   lower end must be room 2.
+<a name="815"></a>         */
+<a name="816"></a>        if(lowerEnd == nil &amp;&amp; room2 &amp;&amp; room2.getConnector(&amp;up) == self)        
+<a name="817"></a>            lowerEnd = room2;
+<a name="818"></a>        
+<a name="819"></a>        /* 
+<a name="820"></a>         *   If the upper end is not yet defined and room2 points to us on its down property, then
+<a name="821"></a>         *   our upper end must be room 2.
+<a name="822"></a>         */
+<a name="823"></a>        if(upperEnd == nil &amp;&amp; room2 &amp;&amp; room2.getConnector(&amp;down) == self)        
+<a name="824"></a>            upperEnd = room2;
+<a name="825"></a>        
+<a name="826"></a>        /* 
+<a name="827"></a>         *   If the upper end is not yet defined but the lower end is, then our upper end must be
+<a name="828"></a>         *   whichever room isn't the lower end.
+<a name="829"></a>         */       
+<a name="830"></a>        if(upperEnd == nil &amp;&amp; lowerEnd)
+<a name="831"></a>            upperEnd = lowerEnd == room1 ? room2 : room1;
+<a name="832"></a>        
+<a name="833"></a>        /* 
+<a name="834"></a>         *   If the lower end is not yet defined but the upper end is, then our lower end must be
+<a name="835"></a>         *   whichever room isn't the upper end.
+<a name="836"></a>         */ 
+<a name="837"></a>        if(lowerEnd == nil &amp;&amp; upperEnd)
+<a name="838"></a>            lowerEnd = upperEnd == room1 ? room2 : room1;    
+<a name="839"></a>    }
+<a name="840"></a>    
+<a name="841"></a>    /* 
+<a name="842"></a>     *   The appropriate PushTravelAction for pushing something something up or down a
+<a name="843"></a>     *   SymStairway.
+<a name="844"></a>     */
+<a name="845"></a>    PushTravelVia = location.isOrIsIn(lowerEnd) ? PushTravelClimbUp : PushTravelClimbDown
+<a name="846"></a>    
+<a name="847"></a>    /*  
+<a name="848"></a>     *   Display message announcing that traveler (typically an NPC whose
+<a name="849"></a>     *   departure is witnessed by the player character) has left via this
+<a name="850"></a>     *   staircase. 
+<a name="851"></a>     */
+<a name="852"></a>    sayDeparting(traveler)
+<a name="853"></a>    {
+<a name="854"></a>        if(location.isOrIsIn(lowerEnd))
+<a name="855"></a>            inherited(traveler);
+<a name="856"></a>        else
+<a name="857"></a>            delegated StairwayDown(traveler);
+<a name="858"></a>    }
+<a name="859"></a>    
+<a name="860"></a>    /* 
+<a name="861"></a>     *   Display message announcing that follower is following leader up
+<a name="862"></a>     *   this staircase.
+<a name="863"></a>     */
+<a name="864"></a>    sayActorFollowing(follower, leader)
+<a name="865"></a>    {
+<a name="866"></a>        /* Create message parameter substitutions for the follower and leader */
+<a name="867"></a>        if(location.isOrIsIn(lowerEnd))
+<a name="868"></a>            delegated StairwayUp(follower, leader);
+<a name="869"></a>        else
+<a name="870"></a>            delegated StairwayDown(follower, leader);
+<a name="871"></a>    }
+<a name="872"></a>    
+<a name="873"></a>    /* The message for traversing this stairway - we delegate to Thing's message. */
+<a name="874"></a>    traversalMsg = location.isOrIsIn(lowerEnd) ? delegated StairwayUp : delegated StairwayDown
+<a name="875"></a>    
+<a name="876"></a>    
+<a name="877"></a>    /* a trio of short service methods to provide convenient abbreviations in game code */
+<a name="878"></a>    
+<a name="879"></a>    /* Is the player character in our upper end room? */
+<a name="880"></a>    inUpper = (upperEnd &amp;&amp; gPlayerChar.isIn(upperEnd))
+<a name="881"></a>    
+<a name="882"></a>    /* Is the player character in our lower end room? */
+<a name="883"></a>    inLower = (lowerEnd &amp;&amp; gPlayerChar.isIn(lowerEnd))
+<a name="884"></a>    
+<a name="885"></a>    /* 
+<a name="886"></a>     *   Return a or b depending on whether or not the player character is in our upperEnd room.
+<a name="887"></a>     *   This is primarily intended to ease the writing of descriptions or travelDescs which vary
+<a name="888"></a>     *   slightly according to which end we're at, e.g. "The stairs lead steeply &lt;&lt;byUpLo('down',
+<a name="889"></a>     *   'up')&gt;&gt; "
+<a name="890"></a>     */
+<a name="891"></a>    byEnd(arg) { return inUpper ? arg[1] : arg[2]; }
+<a name="892"></a>    
+<a name="893"></a>    /* 
+<a name="894"></a>     *   Retuen 'down' or 'up' depending on whether we're at the upper or lower end of the stairway.
+<a name="895"></a>     */
+<a name="896"></a>    upOrDown = inUpper ? downDir.name : upDir.name
+<a name="897"></a>    
+<a name="898"></a>    dobjFor(Climb)
+<a name="899"></a>    {        
+<a name="900"></a>        verify()
+<a name="901"></a>        {
+<a name="902"></a>            /* You can't climb up from the upper end of a staircase. */
+<a name="903"></a>            if(gActor.isIn(upperEnd))
+<a name="904"></a>                illogicalNow(cannotClimbMsg);
+<a name="905"></a>        }
+<a name="906"></a>    }
+<a name="907"></a>    
+<a name="908"></a>    cannotClimbMsg = BMsg(cant climb from here, '{I} {can\'t} climb up {the dobj} from {here}. ')
+<a name="909"></a>    
+<a name="910"></a>    dobjFor(ClimbDown)
+<a name="911"></a>    {
+<a name="912"></a>        verify()
+<a name="913"></a>        {
+<a name="914"></a>            /* You can't climb up from the upper end of a staircase. */
+<a name="915"></a>            if(gActor.isIn(lowerEnd))
+<a name="916"></a>                illogicalNow(cannotClimbDownMsg);
+<a name="917"></a>        }
+<a name="918"></a>        
+<a name="919"></a>        action()
+<a name="920"></a>        {
+<a name="921"></a>            delegated StairwayDown();
+<a name="922"></a>        }
+<a name="923"></a>        
+<a name="924"></a>        report()
+<a name="925"></a>        {
+<a name="926"></a>            delegated StairwayDown();
+<a name="927"></a>        }
+<a name="928"></a>    }
+<a name="929"></a>    
+<a name="930"></a>    cannotClimbDownMsg = BMsg(cant climb doen from here, 
+<a name="931"></a>                              '{I} {can\'t} climb down {the dobj} from {here}. ')
+<a name="932"></a>    
+<a name="933"></a>    iobjFor(PushTravelClimbUp)
+<a name="934"></a>    {
+<a name="935"></a>        verify()
+<a name="936"></a>        {
+<a name="937"></a>            inherited();
+<a name="938"></a>            
+<a name="939"></a>            if(gActor.isIn(upperEnd))
+<a name="940"></a>                illogicalNow(cannotPushClimbMsg);
+<a name="941"></a>        }        
+<a name="942"></a>    }
+<a name="943"></a>    
+<a name="944"></a>    iobjFor(PushTravelClimbDown)
+<a name="945"></a>    {
+<a name="946"></a>        verify()
+<a name="947"></a>        {
+<a name="948"></a>            inherited();
+<a name="949"></a>            
+<a name="950"></a>            if(gActor.isIn(lowerEnd))
+<a name="951"></a>                illogicalNow(cannotPushClimbDownMsg);
+<a name="952"></a>        }        
+<a name="953"></a>    }
+<a name="954"></a>    
+<a name="955"></a>    cannotPushClimbMsg = BMsg(cannot push climb here, '{I} {can\'t} ascend {the iobj} from {here}.
+<a name="956"></a>        ')
+<a name="957"></a>    
+<a name="958"></a>    cannotPushClimbDownMsg = BMsg(cannot push climb down here, '{I} {can\'t} descend {the iobj} from {here}.
+<a name="959"></a>        ')
+<a name="960"></a>;
+<a name="961"></a>
+<a name="962"></a>
+<a name="963"></a>
+<a name="964"></a>
+<a name="965"></a>
+<a name="966"></a>/* A Passage represents a physical object an actor can travel through, like a
+<a name="967"></a>     passage or portal. A Passage is also a TravelConnector so it
+<a name="968"></a> *   can be defined on the appropriate direction property of its enclosing room.
+<a name="969"></a> */
+<a name="970"></a>class Passage: TravelConnector, Thing
+<a name="971"></a>
+<a name="972"></a>    /* Going through a Passage is equivalent to travelling via it. */
+<a name="973"></a>    dobjFor(GoThrough)
+<a name="974"></a>    {        
+<a name="975"></a>        preCond = [travelPermitted, touchObj]
+<a name="976"></a>        
+<a name="977"></a>        action() { travelVia(gActor); }
+<a name="978"></a>    }
+<a name="979"></a>    
+<a name="980"></a>    iobjFor(PushTravelThrough)
+<a name="981"></a>    {
+<a name="982"></a>        preCond = [travelPermitted, touchObj]
+<a name="983"></a>    }  
+<a name="984"></a>    
+<a name="985"></a>    
+<a name="986"></a>    /* Entering a Passage is the same as going through it */
+<a name="987"></a>    dobjFor(Enter) asDobjFor(GoThrough)
+<a name="988"></a>    
+<a name="989"></a>     /* Going along a Passage is the same as going through it */
+<a name="990"></a>    dobjFor(GoAlong) asDobjFor(GoThrough)
+<a name="991"></a>    
+<a name="992"></a>    /* A Passage is usually something fixed in place. */
+<a name="993"></a>    isFixed = true
+<a name="994"></a>    
+<a name="995"></a>    /*  A Passage is something one can go through */
+<a name="996"></a>    canGoThroughMe = true
+<a name="997"></a>    
+<a name="998"></a>    /* 
+<a name="999"></a>     *   The appropriate PushTravelAction for pushing something something
+<a name="1000"></a>     *   through a Passage.
+<a name="1001"></a>     */
+<a name="1002"></a>    PushTravelVia = PushTravelThrough
+<a name="1003"></a>;
+<a name="1004"></a>
+<a name="1005"></a>
+<a name="1006"></a>
+<a name="1007"></a>/*  
+<a name="1008"></a> *   A PathPassage is a Passage that represents a path, so that following it or
+<a name="1009"></a> *   going down it is equivalent to going through it.
+<a name="1010"></a> */
+<a name="1011"></a>class PathPassage: Passage
+<a name="1012"></a>    /* Make following a path the same as going through it. */
+<a name="1013"></a>    dobjFor(Follow) asDobjFor(GoThrough)
+<a name="1014"></a>    
+<a name="1015"></a>    /* Make going down a path the same as going through it. */
+<a name="1016"></a>    dobjFor(ClimbDown) asDobjFor(GoThrough)
+<a name="1017"></a>    
+<a name="1018"></a>    /* Make going up a path the same as going through it. */
+<a name="1019"></a>    dobjFor(ClimbUp) asDobjFor(GoThrough)
+<a name="1020"></a>    
+<a name="1021"></a>    /* One most naturally talks of going 'down' a path */
+<a name="1022"></a>    traversalMsg = BMsg(traverse path passage, 'down {1}', theName)
+<a name="1023"></a>;
+<a name="1024"></a>
+<a name="1025"></a>
+<a name="1026"></a>/* A double sided (i.e., two-way) Passage. */
+<a name="1027"></a>class DSPassage: DSCon, Passage
+<a name="1028"></a>;
+<a name="1029"></a>
+<a name="1030"></a>/* A double sided (.e., two-way) PathPassage. */
+<a name="1031"></a>class DSPathPassage: DSCon, PathPassage
+<a name="1032"></a>;
+<a name="1033"></a>
+<a name="1034"></a>/* 
+<a name="1035"></a> *   A double-sided (or two-way) TravelConnector. The room1 and room2 properties must be defined to
+<a name="1036"></a> *   stipulate the two rooms the TravelConnector connects.
+<a name="1037"></a> */
+<a name="1038"></a>class DSTravelConnector: DSBase, TravelConnector        
+<a name="1039"></a>;
+<a name="1040"></a>
+<a name="1041"></a>
+<a name="1042"></a>/* 
+<a name="1043"></a> *   ProxyDest is a mix-in class for use with an object that represents the
+<a name="1044"></a> *   exterior of a room, such as a hut in a field. Its purpose is to remove such
+<a name="1045"></a> *   an object as the possible target of a GO TO command provided there's
+<a name="1046"></a> *   another alternative. This prevents a GO TO command from taking the player
+<a name="1047"></a> *   character from the appropriate room to an inappropriate destination.
+<a name="1048"></a> */
+<a name="1049"></a>class ProxyDest: object
+<a name="1050"></a>    filterResolveList(np, cmd, mode) 
+<a name="1051"></a>    {
+<a name="1052"></a>        /* Carry out the inherited handling. */
+<a name="1053"></a>        inherited(np, cmd, mode);
+<a name="1054"></a>        
+<a name="1055"></a>        /* 
+<a name="1056"></a>         *   If we're the potential target of a GO TO command and there are
+<a name="1057"></a>         *   other possible matches, remove ourselves from the list of matches.
+<a name="1058"></a>         */
+<a name="1059"></a>        if(cmd.action == GoTo &amp;&amp; np.matches.length &gt; 1)
+<a name="1060"></a>            np.matches = np.matches.subset({m: m.obj != self});
+<a name="1061"></a>    }   
+<a name="1062"></a>;
+<a name="1063"></a>
+<a name="1064"></a>/*  
+<a name="1065"></a> *   An Enterable is a Thing one can go inside. It is usually used to represent
+<a name="1066"></a> *   the exterior of an object like a building, so that going inside will take
+<a name="1067"></a> *   the actor to a new location representing the interior.
+<a name="1068"></a> */
+<a name="1069"></a>class Enterable: ProxyDest, Fixture
+<a name="1070"></a>    
+<a name="1071"></a>    /* To enter an Enterable the actor must travel via its connector. */
+<a name="1072"></a>    dobjFor(Enter)
+<a name="1073"></a>    {
+<a name="1074"></a>        verify() {}
+<a name="1075"></a>        action() { connector.travelVia(gActor); }
+<a name="1076"></a>    }
+<a name="1077"></a>    
+<a name="1078"></a>    /* The handling of an attempt to push something inside this object */
+<a name="1079"></a>    iobjFor(PushTravelEnter)
+<a name="1080"></a>    {
+<a name="1081"></a>        /* 
+<a name="1082"></a>         *   To push something inside this object we must be able to touch this
+<a name="1083"></a>         *   object.
+<a name="1084"></a>         */
+<a name="1085"></a>        preCond = [touchObj]
+<a name="1086"></a>        
+<a name="1087"></a>        /* Check whether our connector allows push travel through it */
+<a name="1088"></a>        check() { connector.checkPushTravel(); }
+<a name="1089"></a>        
+<a name="1090"></a>        /* Carry out the attempt to push something inside us. */
+<a name="1091"></a>        action()
+<a name="1092"></a>        {
+<a name="1093"></a>            /* 
+<a name="1094"></a>             *   If our connector defines a PushTravelVia action, use that
+<a name="1095"></a>             *   action to push the direct object via our connector. The use of
+<a name="1096"></a>             *   replaceAction means that the handling will end there.
+<a name="1097"></a>             */
+<a name="1098"></a>            if(connector.PushTravelVia)
+<a name="1099"></a>                replaceAction(connector.PushTravelVia, gDobj, connector);
+<a name="1100"></a>            
+<a name="1101"></a>            
+<a name="1102"></a>            /* Otherwise, make our direct object travel vis our connector */
+<a name="1103"></a>            connector.travelVia(gDobj);
+<a name="1104"></a>            
+<a name="1105"></a>            /* 
+<a name="1106"></a>             *   If the push travel attempt was successful, which we assume it
+<a name="1107"></a>             *   was if the direct object ended up in our connector's
+<a name="1108"></a>             *   destination, display a message to say the push travel succeeded
+<a name="1109"></a>             *   and make the actor travel via our connector.
+<a name="1110"></a>             */
+<a name="1111"></a>            if(gDobj.isIn(connector.destination))
+<a name="1112"></a>            {
+<a name="1113"></a>                say(okayPushIntoMsg);
+<a name="1114"></a>                connector.travelVia(gActor);
+<a name="1115"></a>            }           
+<a name="1116"></a>        }
+<a name="1117"></a>    }
+<a name="1118"></a>    
+<a name="1119"></a>    /*   
+<a name="1120"></a>     *   Our connector is the TravelConnector via which an actor travels on
+<a name="1121"></a>     *   entering this object. This may be a Room, or some other TravelConnector
+<a name="1122"></a>     *   object such as a Door on our outside through which the actor must pass
+<a name="1123"></a>     *   to get inside.
+<a name="1124"></a>     *
+<a name="1125"></a>     *   We set connector = destination since on occasion it may seem more
+<a name="1126"></a>     *   natural to authors to set the destination property (when it leads
+<a name="1127"></a>     *   straight to a room) and sometimes more natural to set the connector
+<a name="1128"></a>     *   property (when it's a door, say). With connector = (destination) by
+<a name="1129"></a>     *   default, it should work either way.
+<a name="1130"></a>     */
+<a name="1131"></a>    connector = (destination)
+<a name="1132"></a>    
+<a name="1133"></a>    /*   
+<a name="1134"></a>     *   If entering this object leads straight to another room, it may seem
+<a name="1135"></a>     *   more natural to define a destination property; provided we don't
+<a name="1136"></a>     *   override connector as well, this has the same effect as pointing
+<a name="1137"></a>     *   connector directly to the room.     
+<a name="1138"></a>     */
+<a name="1139"></a>    destination = nil
+<a name="1140"></a>    
+<a name="1141"></a>    /* An Enterable is usually enterable */
+<a name="1142"></a>    isEnterable = true
+<a name="1143"></a>    
+<a name="1144"></a>;
+<a name="1145"></a>
+<a name="1146"></a>/* 
+<a name="1147"></a> *   A SecretDoor is a Door that doesn't appear to be a door when it's closed,
+<a name="1148"></a> *   and which must be opened by some external mechanism (other than by an OPEN
+<a name="1149"></a> *   command)
+<a name="1150"></a> */
+<a name="1151"></a>class SecretDoor: Door
+<a name="1152"></a>    /* You can only go through a SecretDoor when it's open */
+<a name="1153"></a>    canGoThroughMe = isOpen
+<a name="1154"></a>    
+<a name="1155"></a>    /* A SecretDoor only functions as a TravelConnector when it's open */
+<a name="1156"></a>    isConnectorApparent = isOpen   
+<a name="1157"></a>    
+<a name="1158"></a>    /* 
+<a name="1159"></a>     *   We can't use an OPEN command to open a SecretDoor, but by default we'll
+<a name="1160"></a>     *   allow a CLOSE command to close it. To disallow this override isOpenable
+<a name="1161"></a>     *   to nil
+<a name="1162"></a>     */
+<a name="1163"></a>    isOpenable = isOpen
+<a name="1164"></a>    
+<a name="1165"></a>    /*   
+<a name="1166"></a>     *   The vocab string (including the name) that applies to this SecretDoor
+<a name="1167"></a>     *   when it's open. This might be somewhat different from that which
+<a name="1168"></a>     *   applies when it's closed. For example, opening a bookcase might turn it
+<a name="1169"></a>     *   into a passage or an opening. If you don't want to the vocab to change
+<a name="1170"></a>     *   when this SecretDoor is opened and closed, leave vocabWhenOpen as nil.
+<a name="1171"></a>     */     
+<a name="1172"></a>    vocabWhenOpen = nil
+<a name="1173"></a>    
+<a name="1174"></a>    /*  
+<a name="1175"></a>     *   The vocab string (including the name) that applies to this SecretDoor
+<a name="1176"></a>     *   when it's closed. If the SecretDoor starts out closed there's no need
+<a name="1177"></a>     *   to define this explicitly as it will be copied from the vocab property
+<a name="1178"></a>     *   at preInit.
+<a name="1179"></a>     *
+<a name="1180"></a>     *   To define a SecretDoor that's effectively invisible when closed, give
+<a name="1181"></a>     *   it a vocab property comprising an empty string (i.e. '', not nil); this
+<a name="1182"></a>     *   will make it impossible for the player to refer to it when it's closed.
+<a name="1183"></a>     */
+<a name="1184"></a>    vocabWhenClosed = nil
+<a name="1185"></a>    
+<a name="1186"></a>    /*   Preinitialize a SecretDoor */
+<a name="1187"></a>    preinitThing()
+<a name="1188"></a>    {
+<a name="1189"></a>        /* Carry out the inherited handling */
+<a name="1190"></a>        inherited();
+<a name="1191"></a>        
+<a name="1192"></a>        /* 
+<a name="1193"></a>         *   If the door starts out open, copy its initial vocab to its
+<a name="1194"></a>         *   vocabWhenOpen property.
+<a name="1195"></a>         */
+<a name="1196"></a>        if(isOpen)
+<a name="1197"></a>            vocabWhenOpen = vocab;
+<a name="1198"></a>        
+<a name="1199"></a>        /*  
+<a name="1200"></a>         *   If the door starts out closed, copy its initial vocab to its
+<a name="1201"></a>         *   vocabWhenClosed property.
+<a name="1202"></a>         */
+<a name="1203"></a>        else
+<a name="1204"></a>            vocabWhenClosed = vocab;
+<a name="1205"></a>    }
+<a name="1206"></a>    
+<a name="1207"></a>    /* Carry out opening or closing a SecretDoor */
+<a name="1208"></a>    makeOpen(stat)
+<a name="1209"></a>    {
+<a name="1210"></a>        /* Perform the inherited handling */
+<a name="1211"></a>        inherited(stat);
+<a name="1212"></a>        
+<a name="1213"></a>        /* 
+<a name="1214"></a>         *   If we're opening the SecretDoor and it has a non-nil vocabWhenOpen
+<a name="1215"></a>         *   property and its vocabWhenOpen property is different from its
+<a name="1216"></a>         *   current vocab, then reinitialize its vocab from the vocabWhenOpen
+<a name="1217"></a>         *   property.
+<a name="1218"></a>         */
+<a name="1219"></a>        if(stat &amp;&amp; vocabWhenOpen &amp;&amp; vocab != vocabWhenOpen)
+<a name="1220"></a>            replaceVocab(vocabWhenOpen);
+<a name="1221"></a>        
+<a name="1222"></a>        /* 
+<a name="1223"></a>         *   If we're closing the SecretDoor and it has a non-nil
+<a name="1224"></a>         *   vocabWhenClosed property and its vocabWhenClosed property is
+<a name="1225"></a>         *   different from its current vocab, then reinitialize its vocab from
+<a name="1226"></a>         *   the vocabWhenClosed property.
+<a name="1227"></a>         */
+<a name="1228"></a>        if(!stat &amp;&amp; vocabWhenClosed &amp;&amp; vocab != vocabWhenClosed)
+<a name="1229"></a>            replaceVocab(vocabWhenClosed);
+<a name="1230"></a>    }
+<a name="1231"></a>;
+<a name="1232"></a>
+<a name="1233"></a>/* A Switch is a Thing than can be turned on and off */
+<a name="1234"></a>class Switch: Thing
+<a name="1235"></a>    
+<a name="1236"></a>    /* A Switch is switchable */
+<a name="1237"></a>    isSwitchable = true
+<a name="1238"></a>    
+<a name="1239"></a>    /* FLIP SWITCH is equivalent to SWITCH SWITCH */
+<a name="1240"></a>    dobjFor(Flip) asDobjFor(SwitchVague)
+<a name="1241"></a>;
+<a name="1242"></a>
+<a name="1243"></a>/*  
+<a name="1244"></a> *   A Flashlight is a light source that can be turned on and off; in other
+<a name="1245"></a> *   words it's a Switch that's lit when on.
+<a name="1246"></a> */
+<a name="1247"></a>class Flashlight: Switch
+<a name="1248"></a>    
+<a name="1249"></a>    /* Turning a Flashlight on and off makes it lit or unlit */
+<a name="1250"></a>    makeOn(stat)
+<a name="1251"></a>    {
+<a name="1252"></a>        inherited(stat);
+<a name="1253"></a>        makeLit(stat);
+<a name="1254"></a>    }
+<a name="1255"></a>    
+<a name="1256"></a>    /* Lighting a Flashlight is equivalent to switching it on */
+<a name="1257"></a>    dobjFor(Light) asDobjFor(SwitchOn)
+<a name="1258"></a>    
+<a name="1259"></a>    /* Extinguishing a Flashlight is equivalent to switching it off */
+<a name="1260"></a>    dobjFor(Extinguish) asDobjFor(SwitchOff)
+<a name="1261"></a>;
+<a name="1262"></a>
+<a name="1263"></a>/* 
+<a name="1264"></a> *   A ContainerDoor can be used as part of a multiply-containing object to
+<a name="1265"></a> *   represent the door of the container-like object defined on its remapIn
+<a name="1266"></a> *   property. A ContainerDoor is open or closed if the underlying container is
+<a name="1267"></a> *   open or closed, and remaps all container-appropriate actions to the remapIn
+<a name="1268"></a> *   object of its location.
+<a name="1269"></a> */
+<a name="1270"></a>class ContainerDoor: Fixture
+<a name="1271"></a>    /* We're open if our location's container is open */
+<a name="1272"></a>    isOpen = (location.remapIn.isOpen)
+<a name="1273"></a>    
+<a name="1274"></a>    /* 
+<a name="1275"></a>     *   Redirect all container-appropriate actions to the remapIn object of our
+<a name="1276"></a>     *   location, so that opening, closing, locking and unlocking this door
+<a name="1277"></a>     *   will perform the equivalent action on our container object.
+<a name="1278"></a>     */
+<a name="1279"></a>    remapIn = location.remapIn
+<a name="1280"></a>    
+<a name="1281"></a>    cannotTakeMsg = BMsg(cannot take container door, '{I} {can\'t} have {the
+<a name="1282"></a>        cobj}; {he dobj}{\'s} part of {1}. ', location.theName)
+<a name="1283"></a>;
+<a name="1284"></a>
+<a name="1285"></a>
+<a name="1286"></a>
+<a name="1287"></a>/* 
+<a name="1288"></a> *   A MinorItem is an unobtrusive and possibly unimportant portable object that's worth
+<a name="1289"></a> *   implementing in the game but sufficiently minor as to be not worth mentioning (in response to X
+<a name="1290"></a> *   or FOO ALL) unless it's either directly held by the player character or directly in the
+<a name="1291"></a> *   enclosing room. (Based on Joey Cramsey's Trinket class).
+<a name="1292"></a> */
+<a name="1293"></a>class MinorItem: Thing 
+<a name="1294"></a>    /* 
+<a name="1295"></a>     *   We're listed in response to a LOOK command only if we're not fixed in place and we can't be
+<a name="1296"></a>     *   ignored for the current action or our current location.
+<a name="1297"></a>     */    
+<a name="1298"></a>    lookListed = (!canBeIgnored(gAction) &amp;&amp; !isFixed)
+<a name="1299"></a>    
+<a name="1300"></a>    /* We're excluded from a FOO ALL action if we can be ignored for FOO. */
+<a name="1301"></a>    hideFromAll(action) 
+<a name="1302"></a>    {
+<a name="1303"></a>        return canBeIgnored(action);
+<a name="1304"></a>    }
+<a name="1305"></a>
+<a name="1306"></a>    /* 
+<a name="1307"></a>     *   We can be ignored for action unless we're directly in our enclosing room or directly in the
+<a name="1308"></a>     *   player character's location or carried by the player character or, if desired, the action
+<a name="1309"></a>     *   is TAKEFROM or PutXX
+<a name="1310"></a>     */
+<a name="1311"></a>    canBeIgnored(action) 
+<a name="1312"></a>    {
+<a name="1313"></a>        /* 
+<a name="1314"></a>         *   If we are exposed, in the middle of the room or the actor's location (e.g. a
+<a name="1315"></a>         *   platform or booth), then we cannot be ignored.
+<a name="1316"></a>         */
+<a name="1317"></a>        if (location is in (getOutermostRoom(), gActor.location))         
+<a name="1318"></a>            return nil;
+<a name="1319"></a>        
+<a name="1320"></a>        
+<a name="1321"></a>        /* Allow actions like DROP ALL if we are being directly carried. */
+<a name="1322"></a>        if (isDirectlyHeldBy(gActor))         
+<a name="1323"></a>            return nil;
+<a name="1324"></a>        
+<a name="1325"></a>        
+<a name="1326"></a>        /* Allow an explicit TAKE FROM or PUT somewhere if our allowTakeFromPut flag allows it. */        
+<a name="1327"></a>        if(action is in (TakeFrom, PutIn, PutOn, PutBehind, PutUnder))
+<a name="1328"></a>            return !includeTakeFromPutAll;
+<a name="1329"></a>        
+<a name="1330"></a>        
+<a name="1331"></a>        // Otherwise, pay us no mind in X ALL.
+<a name="1332"></a>        return true;
+<a name="1333"></a>        
+<a name="1334"></a>    }   
+<a name="1335"></a>        
+<a name="1336"></a>    /* 
+<a name="1337"></a>     *   Flag: do we want to be included in TAKE ALL FROM X, and PUT ALL IN/ON/UNDER/BEHIND X? by
+<a name="1338"></a>     *   default we do.
+<a name="1339"></a>     */
+<a name="1340"></a>    includeTakeFromPutAll = true
+<a name="1341"></a>;
+<a name="1342"></a>
+<a name="1343"></a>
+<a name="1344"></a>
+<a name="1345"></a>
+<a name="1346"></a>
+<a name="1347"></a> 
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

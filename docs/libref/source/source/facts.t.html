@@ -1,0 +1,1300 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>facts.t</title></head><body>
+<table class=ban><tr><td><h1>facts.t</h1><td align=right><a href="../file/facts.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include "advlite.h"
+<a name="5"></a>
+<a name="6"></a>/*
+<a name="7"></a> *   ****************************************************************************
+<a name="8"></a> *    facts.t 
+<a name="9"></a> *
+<a name="10"></a> *    This module forms part of the adv3Lite library 
+<a name="11"></a> *    (c) 2024 Eric Eve
+<a name="12"></a> */
+<a name="13"></a>
+<a name="14"></a>
+<a name="15"></a>/* 
+<a name="16"></a> *   A Fact encapsulates an item of knowledge (or supposed knowledge) keyed on the fact tags in the
+<a name="17"></a> *   appropriate object's informedNameTab. Note that for the purposes of thid module, a Fact is not
+<a name="18"></a> *   something that is necessarily true, but simply somethhing that some actor or Consultable in the
+<a name="19"></a> *   game has asserted to be true.
+<a name="20"></a> */
+<a name="21"></a>class Fact: object
+<a name="22"></a>    /* Our name is the fact tag (used in gInformed() stateement or the like) that identifies us. */
+<a name="23"></a>    name = nil
+<a name="24"></a>    
+<a name="25"></a>    /* 
+<a name="26"></a>     *   Our descripition. This should a single-quoted string with no closing punctuation that could
+<a name="27"></a>     *   follow 'that'; for example 'Spain is a country in Europe' or 'it rained yesterday'
+<a name="28"></a>     */
+<a name="29"></a>    desc = nil
+<a name="30"></a>    
+<a name="31"></a>    /* 
+<a name="32"></a>     *   We can if we wish vary the way this fact is described according to the source that's
+<a name="33"></a>     *   supplying it and the topic matched by the TopicEntry that's called this method; by default
+<a name="34"></a>     *   we just return desc here. Note that any such variation shouldn't change the content of the
+<a name="35"></a>     *   description but only the way it's phrased; e.g. 'Madrid is the capital of Spain' rather
+<a name="36"></a>     *   than 'the capital of Spain is Madrid' depending on whether the topic is Madrid or Spain.
+<a name="37"></a>     *
+<a name="38"></a>     *   By default we try to adapt the desc to the source and sender if it contains an
+<a name="39"></a>     *   actorParamName in square brackets, e.g. [bob], which we replace with 'Bob', 'I' or 'he'
+<a name="40"></a>     *   according to context
+<a name="41"></a>     */        
+<a name="42"></a>    qualifiedDesc(source, topic, sender)
+<a name="43"></a>//    qualifiedDesc(source, topic, narrator?)
+<a name="44"></a>    {                
+<a name="45"></a>        local rexS = rexSearch(sourcepat, desc);
+<a name="46"></a>        if(rexS)
+<a name="47"></a>        {
+<a name="48"></a>            local rm = rexS[3];
+<a name="49"></a>            local rml = rexS[2];
+<a name="50"></a>            local tag = rm.substr(2, rml-2);
+<a name="51"></a>            local subject = libGlobal.nameTable_[tag];
+<a name="52"></a>            
+<a name="53"></a>            local repstr = '';
+<a name="54"></a>            
+<a name="55"></a>            if(sender.ofKind(FactHelper) &amp;&amp; valToList(sourcesListed).length == 1
+<a name="56"></a>               &amp;&amp; valToList(sourcesListed[1] == subject))
+<a name="57"></a>                repstr = '{he ' + tag + '}';                
+<a name="58"></a>            
+<a name="59"></a>            else if(sender.narrator == subject)
+<a name="60"></a>                repstr = '{the subj fpo}';
+<a name="61"></a>            else
+<a name="62"></a>                repstr = '{the subj ' + tag + '}';
+<a name="63"></a>            
+<a name="64"></a>            return desc.findReplace(rm, repstr);
+<a name="65"></a>            
+<a name="66"></a>        }
+<a name="67"></a>        return desc;
+<a name="68"></a>    }
+<a name="69"></a>    
+<a name="70"></a>    /* 
+<a name="71"></a>     *   Our RexPattern for searching for a string of characters between square brackets, e.g. [bob]
+<a name="72"></a>     */
+<a name="73"></a>    sourcepat = static new RexPattern('&lt;lsquare&gt;&lt;AlphaNum&gt;*&lt;rsquare&gt;')
+<a name="74"></a>
+<a name="75"></a>       
+<a name="76"></a>    /* The list of topics (Topics and Things, i.e. game objects) that this fact relates to.*/         
+<a name="77"></a>    topics = []
+<a name="78"></a>    
+<a name="79"></a>    /* 
+<a name="80"></a>     *   The list of actors and other objects - typically Consultables - that start the game knowing
+<a name="81"></a>     *   about us. If any actors in the list should start out dissenting from the defaultTruthValue
+<a name="82"></a>     for this fact then this can be set by using two item list of the form [actor, value] in place
+<a name="83"></a>     of just the actor, e.g. you could have [me, bob, susan, [thomas, dubious]]. 
+<a name="84"></a>     */
+<a name="85"></a>    initiallyKnownBy = []
+<a name="86"></a>    
+<a name="87"></a>    /* 
+<a name="88"></a>     *   The truth value that most characters in this game are likely to assign to this fact. The
+<a name="89"></a>     *   other possible values defined in the library are likely, dubious, unlikely and untrue. Game
+<a name="90"></a>     *   authors are free to invent other values if they wish.
+<a name="91"></a>     */
+<a name="92"></a>    defaultTruthValue = true
+<a name="93"></a>    
+<a name="94"></a>    /* Obtain a list of everything that knows this fact */
+<a name="95"></a>    currentlyKnownBy()
+<a name="96"></a>    {
+<a name="97"></a>        /* Set up a new Vector */
+<a name="98"></a>        local vec = new Vector;
+<a name="99"></a>        
+<a name="100"></a>        /* Iterate through every Thing in the game. */
+<a name="101"></a>        for(local obj = firstObj(Thing); obj != nil; obj = nextObj(obj, Thing))
+<a name="102"></a>        {
+<a name="103"></a>            /* If obj knows about us, add obj to our vector. */
+<a name="104"></a>            if(obj.knowsAbout(self.name))
+<a name="105"></a>                vec.append(obj);
+<a name="106"></a>        }        
+<a name="107"></a>        
+<a name="108"></a>        /* Convert the Vector to a List and return the result. */
+<a name="109"></a>        return vec.toList();
+<a name="110"></a>    }
+<a name="111"></a>    
+<a name="112"></a>    /* Initialise this fact at preInit. */
+<a name="113"></a>    initializeFact()
+<a name="114"></a>    {
+<a name="115"></a>        /* Run through all the actors (or other sources) in out initiallyKnownBy list. */
+<a name="116"></a>        foreach(local actor in initiallyKnownBy)           
+<a name="117"></a>        {
+<a name="118"></a>            /* Set val to the default truth value for this Fact. */
+<a name="119"></a>            local val = defaultTruthValue;
+<a name="120"></a>            
+<a name="121"></a>            /* 
+<a name="122"></a>             *   If actor is given as an list, the first element should be the actor and the second
+<a name="123"></a>             *   a value (such as likely or dubious) to associate with this fact on this actor)
+<a name="124"></a>             */
+<a name="125"></a>            if(dataType(actor) == TypeList)
+<a name="126"></a>            {
+<a name="127"></a>                /* Provided we have a second element, set val to it. */
+<a name="128"></a>                if(actor.length() &gt; 1)                    
+<a name="129"></a>                    val = actor[2];                
+<a name="130"></a>                
+<a name="131"></a>                /* Set the actor to our first element. */
+<a name="132"></a>                actor = actor[1];
+<a name="133"></a>            }
+<a name="134"></a>            
+<a name="135"></a>            /* Create an entry in the actor's informedNameTab and set its value to ourself. */
+<a name="136"></a>            actor.setInformed(name);
+<a name="137"></a>            actor.informedNameTab[name] = val;
+<a name="138"></a>        }
+<a name="139"></a>        
+<a name="140"></a>        /* If we have a pcComment defined, add it to our pcCommentTab */
+<a name="141"></a>        if(pcComment)
+<a name="142"></a>            setPcComment(gPlayerChar, pcComment);
+<a name="143"></a>    }
+<a name="144"></a>    
+<a name="145"></a>    /* 
+<a name="146"></a>     *   LookUpTable containing lists of which sources have imparted this Fact to which actor;
+<a name="147"></a>     *   actor defaults to gPlayerChar we use a LookUpTable here in case the player character
+<a name="148"></a>     *   changes during the courss of play.
+<a name="149"></a>     */     
+<a name="150"></a>    sourcesTab = nil
+<a name="151"></a>    
+<a name="152"></a>    /* 
+<a name="153"></a>     *   LookUpTable containing lists of whom actor has imparted this Fact; actor defaults to
+<a name="154"></a>     *   gPlayerChar we use a LookUpTable here in case the player character changes during the
+<a name="155"></a>     *   courss of play.
+<a name="156"></a>     */
+<a name="157"></a>    targetsTab = nil
+<a name="158"></a>    
+<a name="159"></a>    /* Add a source (of information) to our sourcesTab table. */
+<a name="160"></a>    addSource(source, actor = gPlayerChar)
+<a name="161"></a>    {
+<a name="162"></a>        /* If we haven't created a sourceTab LookupTable yet, do so now. */
+<a name="163"></a>        if(sourcesTab == nil)
+<a name="164"></a>            sourcesTab = new LookupTable(5,5);
+<a name="165"></a>        
+<a name="166"></a>        /* 
+<a name="167"></a>         *   Retrieve the value from the sourcesTab table corresponding to actor (which will
+<a name="168"></a>         *   normally be the current player character.
+<a name="169"></a>         */
+<a name="170"></a>        local item = valToList(sourcesTab[actor]);
+<a name="171"></a>        
+<a name="172"></a>        /* Add our new source to the list of sources in this value without duplicating it. */
+<a name="173"></a>        item = item.appendUnique([source]);
+<a name="174"></a>        
+<a name="175"></a>        /* Store the updated value back in sourcesTab. */
+<a name="176"></a>        sourcesTab[gPlayerChar] = item;
+<a name="177"></a>                               
+<a name="178"></a>    }
+<a name="179"></a>    
+<a name="180"></a>    /* Add a target to our targetTab table */
+<a name="181"></a>    addTarget(target, actor = gPlayerChar)
+<a name="182"></a>    {
+<a name="183"></a>        /* If we haven't created a targetsTab LookupTable yet, do so now. */
+<a name="184"></a>        if(targetsTab == nil)
+<a name="185"></a>            targetsTab = new LookupTable(5,5);
+<a name="186"></a>        
+<a name="187"></a>        /* 
+<a name="188"></a>         *   Retrieve the value from the sourcesTab table corresponding to actor (which will
+<a name="189"></a>         *   normally be the current player character.
+<a name="190"></a>         */
+<a name="191"></a>        local item = valToList(targetsTab[actor]);
+<a name="192"></a>        
+<a name="193"></a>        /* Add our new source to the list of sources in this value without duplicating it. */
+<a name="194"></a>        item = item.appendUnique([target]);
+<a name="195"></a>        
+<a name="196"></a>        /* Store the updated value back in targetsTab. */
+<a name="197"></a>        targetsTab[gPlayerChar] = item;
+<a name="198"></a>    }
+<a name="199"></a>    
+<a name="200"></a>    /* 
+<a name="201"></a>     *   Get a list of the sources who have imparted this Fact to actor; actor dafaults to the
+<a name="202"></a>     *   player character and must normally have been the player character at some point for this to
+<a name="203"></a>     *   return anything but an empty list.
+<a name="204"></a>     */
+<a name="205"></a>    getSources(actor = gPlayerChar)
+<a name="206"></a>    {
+<a name="207"></a>        return sourcesTab ? valToList(sourcesTab[actor]) : []; 
+<a name="208"></a>    }
+<a name="209"></a>    
+<a name="210"></a>    /* 
+<a name="211"></a>     *   Get a list of the targets actor has imparted this Fact to; actor dafaults to the player
+<a name="212"></a>     *   character and must normally have been the player character at some point for this to return
+<a name="213"></a>     *   anything but an empty list.
+<a name="214"></a>     */
+<a name="215"></a>    getTargets(actor = gPlayerChar)
+<a name="216"></a>    {
+<a name="217"></a>        return valToList(targetsTab[actor]); 
+<a name="218"></a>    }
+<a name="219"></a>    
+<a name="220"></a>    /* 
+<a name="221"></a>     *   If our caller wants to list sources of information (listSources = true), then return a
+<a name="222"></a>     *   string containing a suitably formatted list of sources; otherwise return nil. This can then
+<a name="223"></a>     *   be used by TopicEntries (typically Thoughts) that want to list the sources of information
+<a name="224"></a>     *   along with the content of that information.
+<a name="225"></a>     */
+<a name="226"></a>    sourceIntro(listSources)
+<a name="227"></a>    {
+<a name="228"></a>        /* Start by creating an emptry string. */
+<a name="229"></a>        local srcList = '';
+<a name="230"></a>        
+<a name="231"></a>        /* Reset the list of sources we're listing. */
+<a name="232"></a>        sourcesListed = [];
+<a name="233"></a>        
+<a name="234"></a>        /* 
+<a name="235"></a>         *   Only add to it if our caller actually wants to show a list of sources (thia allows the
+<a name="236"></a>         *   caller to insert a call to sourceIntro() passing the value or a user defined property
+<a name="237"></a>         *   to determine whether anything is listed or not).
+<a name="238"></a>         */
+<a name="239"></a>        if(listSources)
+<a name="240"></a>        {
+<a name="241"></a>            /* 
+<a name="242"></a>             *   obtain a list of the sources that have imparted this Fact to the current player
+<a name="243"></a>             *   character.
+<a name="244"></a>             */
+<a name="245"></a>            local objList = getSources();
+<a name="246"></a>            
+<a name="247"></a>            /*  
+<a name="248"></a>             *   Remove the player character from this list (we don't want to report that the player
+<a name="249"></a>             *   character informed themself.
+<a name="250"></a>             */
+<a name="251"></a>            objList -= gPlayerChar;
+<a name="252"></a>                  
+<a name="253"></a>            
+<a name="254"></a>            /* 
+<a name="255"></a>             *   We only need to do any more if there's anything left in our list of source objects.
+<a name="256"></a>             */
+<a name="257"></a>            if(objList.length &gt; 0)                
+<a name="258"></a>            {
+<a name="259"></a>                /* Store our list of sources */
+<a name="260"></a>                sourcesListed = objList;
+<a name="261"></a>                
+<a name="262"></a>                /* 
+<a name="263"></a>                 *   Store a list of the names of the sources of the information from our list of
+<a name="264"></a>                 *   Facts.
+<a name="265"></a>                 */
+<a name="266"></a>                srcList = objList.mapAll({x:x.theName});
+<a name="267"></a>                
+<a name="268"></a>                /* 
+<a name="269"></a>                 *   Append a message explaining that these people/things were the sources of
+<a name="270"></a>                 *   information and append it to a formatted list of the source names.
+<a name="271"></a>                 */
+<a name="272"></a>                srcList = andList(srcList) + BMsg(told me that, ' told {me} that ');
+<a name="273"></a>            }            
+<a name="274"></a>        }
+<a name="275"></a>        
+<a name="276"></a>        /* Return the string that results. */
+<a name="277"></a>        return srcList;
+<a name="278"></a>    }
+<a name="279"></a>    
+<a name="280"></a>    sourcesListed = nil
+<a name="281"></a>
+<a name="282"></a>    
+<a name="283"></a>    /* 
+<a name="284"></a>     *   A single-quoted string containing the initial player character's initial comment or thought
+<a name="285"></a>     *   on this Fact; this can be left at nil if the PC doesn't have one. This will be appended to
+<a name="286"></a>     *   the description of this Fact when listed by a Thought, so should be a sentence fragment
+<a name="287"></a>     *   starting with a lower case letter (or some form of parenthetic punctuation) and without a
+<a name="288"></a>     *   full stop at the end.
+<a name="289"></a>     */
+<a name="290"></a>    pcComment = nil
+<a name="291"></a>    
+<a name="292"></a>    /*  
+<a name="293"></a>     *   A table containing platey characters' comments on this Fact. We use a LookpTable here in
+<a name="294"></a>     *   case the player character changes, so we can retrieve the comment relevant to the current
+<a name="295"></a>     *   player character
+<a name="296"></a>     .*/
+<a name="297"></a>    pcCommentTab = nil
+<a name="298"></a>    
+<a name="299"></a>    /* 
+<a name="300"></a>     *   Get the current player character's comment on this Fact; source is the source from which
+<a name="301"></a>     *   the PC learned the Fact and topic is the topic the Player Character is thinking about. By
+<a name="302"></a>     *   default this method returns different results for different player characters, but game
+<a name="303"></a>     *   code will need to override this method to return different comments for different sources
+<a name="304"></a>     *   and/or topics.
+<a name="305"></a>     */         
+<a name="306"></a>    getPcComment(source, topic)
+<a name="307"></a>    {
+<a name="308"></a>        /* 
+<a name="309"></a>         *   If our pcCommentTab hasn't been created yet, we don't have any player character
+<a name="310"></a>         *   comments, so just return nil
+<a name="311"></a>         .*/
+<a name="312"></a>        if(pcCommentTab == nil)
+<a name="313"></a>            return nil;
+<a name="314"></a>        
+<a name="315"></a>        /* Otherwise return the comment relating to the current player character. */
+<a name="316"></a>        return pcCommentTab[gPlayerChar];
+<a name="317"></a>    }
+<a name="318"></a>    
+<a name="319"></a>    /* 
+<a name="320"></a>     *   Set actor's comment on this fact; normally actor will be the current player character; txt
+<a name="321"></a>     *   is a single-quoted string containing the comment, which will usually be appended to the
+<a name="322"></a>     *   description of the fact.
+<a name="323"></a>     */
+<a name="324"></a>    setPcComment(actor, txt)    
+<a name="325"></a>    {
+<a name="326"></a>        /* If we don't yet have a LookUpTable for pcComments, create one. */
+<a name="327"></a>        if(pcCommentTab == nil)
+<a name="328"></a>            pcCommentTab = new LookupTable(5, 5);
+<a name="329"></a>            
+<a name="330"></a>        /* Set the actor's comment to txt. */ 
+<a name="331"></a>        pcCommentTab[actor] = txt;
+<a name="332"></a>    }
+<a name="333"></a>    
+<a name="334"></a>        
+<a name="335"></a>    /* 
+<a name="336"></a>     *   Our priority (what is our relevant importance). Facts with a higher priority will be listed
+<a name="337"></a>     *   earlier in any list of facts. We set a defaul priority of 100.
+<a name="338"></a>     */
+<a name="339"></a>    priority = 100
+<a name="340"></a>    
+<a name="341"></a>    /*   
+<a name="342"></a>     *   Alternatively we can use our list order to determine the order in which facts will be
+<a name="343"></a>     *   listed. By default we use give everything a list order of 1.
+<a name="344"></a>     */
+<a name="345"></a>    listOrder = 1
+<a name="346"></a>    
+<a name="347"></a>    /*   
+<a name="348"></a>     *   Deduct our listOrder from our priority to get the adjustedPriority that will actualy be
+<a name="349"></a>     *   used to sort facts in the desired order. This allows game authors to use either property
+<a name="350"></a>     *   (or possibly a combination of both) to determine the listing order.
+<a name="351"></a>     */
+<a name="352"></a>    adjustedPriority = (priority - listOrder)
+<a name="353"></a>;
+<a name="354"></a>
+<a name="355"></a>/* 
+<a name="356"></a> *   The factManager object initializes Facts at preInit and provides a number of service methods
+<a name="357"></a> *   for dealing with Facts.
+<a name="358"></a> */
+<a name="359"></a>factManager: PreinitObject
+<a name="360"></a>    
+<a name="361"></a>    /* 
+<a name="362"></a>     *   A LookUpTable of all the Facts defined in the game, to allow a Fact to be accessed via its
+<a name="363"></a>     *   name property.
+<a name="364"></a>     */
+<a name="365"></a>    factTab = nil
+<a name="366"></a>    
+<a name="367"></a>    /* Add a fact to our factTab */
+<a name="368"></a>    addFact(fact)
+<a name="369"></a>    {
+<a name="370"></a>        /* If our LookupTable hasn't been created yet, create it now. */
+<a name="371"></a>        if(factTab == nil)
+<a name="372"></a>            factTab = new LookupTable(30, 30);
+<a name="373"></a>        
+<a name="374"></a>        /* Add the new Fact to our factTab. */
+<a name="375"></a>        factTab[fact.name] = fact;
+<a name="376"></a>    }
+<a name="377"></a>    
+<a name="378"></a>    /* Retrieve a Fact from our factTab via its name (passed as the tag parameter. */    
+<a name="379"></a>    getFact(tag) { return factTab != nil ? factTab[tag] : nil; }
+<a name="380"></a>    
+<a name="381"></a>    /* Retrieve the base description of a Fact via its name (passed as the tag parameter. */ 
+<a name="382"></a>    getFactDesc(tag)
+<a name="383"></a>    {
+<a name="384"></a>        /* Get the corresponding Fact. */
+<a name="385"></a>        local fact = getFact(tag);
+<a name="386"></a>        
+<a name="387"></a>        /* If we've found one, return its base desc property, otherwise return nil. */
+<a name="388"></a>        return fact == nil ? nil : fact.desc();
+<a name="389"></a>    }
+<a name="390"></a>           
+<a name="391"></a>    /* 
+<a name="392"></a>     *   Retrieve the qualified description of a Fact: actor is the actor or Consultable that is the
+<a name="393"></a>     *   source of the information, tag is the fact's name (name property, not programmatic name)
+<a name="394"></a>     *   and topic is the topic that has just been matched by a TopicEntry, while sender will
+<a name="395"></a>     *   normally be self.
+<a name="396"></a>     */
+<a name="397"></a>    getQualifiedFactDesc(actor, tag,  topic, sender)
+<a name="398"></a>    {
+<a name="399"></a>        /* Retrieve the Fact corresponding to tag. */
+<a name="400"></a>        local fact = getFact(tag); 
+<a name="401"></a>        
+<a name="402"></a>        /* If we've found a fact, return its qualified description, otherwise return nil */        
+<a name="403"></a>        return fact == nil ? nil : fact.qualifiedDesc(actor, topic, sender);      
+<a name="404"></a>    }
+<a name="405"></a>    
+<a name="406"></a>       
+<a name="407"></a>    /* 
+<a name="408"></a>     *   Get the player character's comment on the fact whose name is tag when it is retrieved in
+<a name="409"></a>     *   relation to topic (typically by a THINK ABOUT topic commannd).
+<a name="410"></a>     */
+<a name="411"></a>    getPcComment(tag, topic)
+<a name="412"></a>    {
+<a name="413"></a>        /* Find the fact relating to tag */
+<a name="414"></a>        local fact = getFact(tag);
+<a name="415"></a>        
+<a name="416"></a>        /* If there isn't one, issue a warning message if debugging, and return nil in any case. */
+<a name="417"></a>        if(fact == nil)
+<a name="418"></a>        {
+<a name="419"></a>#ifdef __DEBUG            
+<a name="420"></a>            "WARNING! No such fact as &lt;&lt;tag&gt;&gt; to retrieve PC comment from. ";
+<a name="421"></a>#endif
+<a name="422"></a>            return nil;
+<a name="423"></a>        }
+<a name="424"></a>        /* 
+<a name="425"></a>         *   Otherwise retrieve the player character's comment from the relevant fact and return the
+<a name="426"></a>         *   result.
+<a name="427"></a>         */
+<a name="428"></a>        else
+<a name="429"></a>            return fact.getPcComment(gPlayerChar, topic);
+<a name="430"></a>    }
+<a name="431"></a>    
+<a name="432"></a>    /* 
+<a name="433"></a>     *   Set the current player character's comment on the Fact identified by tag; txt is a
+<a name="434"></a>     *   single-quote string containing the comment.
+<a name="435"></a>     */
+<a name="436"></a>    setPcComment(tag, txt)
+<a name="437"></a>    {
+<a name="438"></a>        /* First retrieve the fact. */
+<a name="439"></a>        local fact = getFact(tag);
+<a name="440"></a>        
+<a name="441"></a>        /* 
+<a name="442"></a>         *   If we don't find one, return nil, after issuing a warning message if the game has been
+<a name="443"></a>         *   compiled for debugging.
+<a name="444"></a>         */
+<a name="445"></a>        if(fact == nil)
+<a name="446"></a>        {
+<a name="447"></a>#ifdef __DEBUG               
+<a name="448"></a>            "WARNING! No such fact as &lt;&lt;tag&gt;&gt; to set PC Comment for.";
+<a name="449"></a>#endif        
+<a name="450"></a>            ;
+<a name="451"></a>        }
+<a name="452"></a>        /* Otherwise set the current player character's comment to txt. */
+<a name="453"></a>        else
+<a name="454"></a>            fact.setPcComment(gPlayerChar, txt);
+<a name="455"></a>    }
+<a name="456"></a>    
+<a name="457"></a>    
+<a name="458"></a>    /* Setup method to call at preInit. */
+<a name="459"></a>    execute()
+<a name="460"></a>    {
+<a name="461"></a>        /* Iterate through the full list of Facts in the game. */
+<a name="462"></a>        for(local fact = firstObj(Fact); fact!= nil; fact = nextObj(fact, Fact))
+<a name="463"></a>        {
+<a name="464"></a>            /* Initialize the current fact. */
+<a name="465"></a>            fact.initializeFact();
+<a name="466"></a>            
+<a name="467"></a>            /* Then add it to our database of Facts. */
+<a name="468"></a>            addFact(fact);
+<a name="469"></a>        }                
+<a name="470"></a>    }
+<a name="471"></a>    
+<a name="472"></a>    
+<a name="473"></a>;
+<a name="474"></a>
+<a name="475"></a>/* 
+<a name="476"></a> *   Mix-in class for use with IopicEntries (typically Thoughts or ConsultTopics, though game
+<a name="477"></a> *   authors are free to experiment with mixing it in with ActorTopicEntries, probably most usefully
+<a name="478"></a> *   AskTopics or DefaultAskTopics), to provide additional functionality relating to Facts, in
+<a name="479"></a> *   particular to generate a suitably formatted list of facts relating to the topic the TopicEntry
+<a name="480"></a> *   has just matched, thereby automating the response to commands like THINK ABOUT X or LOOK UP X
+<a name="481"></a> *   IN BOOK.
+<a name="482"></a> */
+<a name="483"></a>class FactHelper: object
+<a name="484"></a>    /* 
+<a name="485"></a>     *   Get a sorted list of the facts known to our actor that are associated with the topic
+<a name="486"></a>     *   matched by our TopicEntry.
+<a name="487"></a>     */
+<a name="488"></a>    getFacts()
+<a name="489"></a>    {
+<a name="490"></a>        /* 
+<a name="491"></a>         *   Get our responding actor (the current interlocutor the player character is currently in
+<a name="492"></a>         *   conversation with, or the Consultable we're looking something up in, or the player
+<a name="493"></a>         *   character if we're thinking).
+<a name="494"></a>         */
+<a name="495"></a>        local actor = getActor();
+<a name="496"></a>        
+<a name="497"></a>        /* Note the topic (Topic or Thing) matched by our TopicEntry. */
+<a name="498"></a>        local top = topicMatched;
+<a name="499"></a>        
+<a name="500"></a>        /* A list of the Fact names we match in response to being queried. */
+<a name="501"></a>        tagList = [];
+<a name="502"></a>        
+<a name="503"></a>        /* 
+<a name="504"></a>         *   If our actor's informedNameTab hasn't been created, return an empty list, since there's
+<a name="505"></a>         *   nothing to look up.
+<a name="506"></a>         */
+<a name="507"></a>        if(actor.informedNameTab == nil)
+<a name="508"></a>            return [];
+<a name="509"></a>        
+<a name="510"></a>        /* Set up a new Vector to build our collection of Facts. */
+<a name="511"></a>        local vec = new Vector();
+<a name="512"></a>        
+<a name="513"></a>        /* Set up a local variable to store a current Fact object.*/
+<a name="514"></a>        local factObj;
+<a name="515"></a>        
+<a name="516"></a>        /* Get a list of keys (= Fact names) from our actor's informedNameTab */
+<a name="517"></a>        local keyList = actor.informedNameTab.keysToList();
+<a name="518"></a>        
+<a name="519"></a>        /* Iterate through our list of keys. */
+<a name="520"></a>        foreach(local fkey in keyList)
+<a name="521"></a>        {
+<a name="522"></a>            /* Retrieve the Fact object corresponding to the current key. */
+<a name="523"></a>            factObj = factManager.getFact(fkey);
+<a name="524"></a>            
+<a name="525"></a>            /* 
+<a name="526"></a>             *   If we found a Fact object and the topic matched by our TopicEntry is in the list of
+<a name="527"></a>             *   the Fact object's list of associated topics, add the current key to our tagList and
+<a name="528"></a>             *   append the Fact object to our vector.
+<a name="529"></a>             */
+<a name="530"></a>            if(factObj &amp;&amp; factObj.topics.find(top))
+<a name="531"></a>            {
+<a name="532"></a>                tagList += fkey;
+<a name="533"></a>                vec.append(factObj);
+<a name="534"></a>            }
+<a name="535"></a>        }
+<a name="536"></a>        
+<a name="537"></a>        /* Sort the vector. convert it to a list, and then return the result. */
+<a name="538"></a>        return vec.sort(true, {a, b: a.adjustedPriority - b.adjustedPriority}).toList();        
+<a name="539"></a>        
+<a name="540"></a>    }
+<a name="541"></a>    
+<a name="542"></a>    /* 
+<a name="543"></a>     *   A list of the tags (Fact tag names) we're currently interested in. Note that this is
+<a name="544"></a>     *   populated by a call to getFacts().
+<a name="545"></a>     */
+<a name="546"></a>    tagList = nil
+<a name="547"></a>       
+<a name="548"></a>    /* 
+<a name="549"></a>     *   The prefix to be used to a list of facts. We specify nothing here since subclasses will
+<a name="550"></a>     *   override as approprite.
+<a name="551"></a>     */
+<a name="552"></a>    prefix = ''
+<a name="553"></a>    
+<a name="554"></a>    /*   
+<a name="555"></a>     *   The suffix to appear at the end of our list or item; normally this will be a full stop
+<a name="556"></a>     *   followed by a space.
+<a name="557"></a>     */
+<a name="558"></a>    suffix = '. '
+<a name="559"></a>    
+<a name="560"></a>    /*   
+<a name="561"></a>     *   The message to display if we don't find any matching facts. Subclasses will override as
+<a name="562"></a>     *   appropriate.
+<a name="563"></a>     */
+<a name="564"></a>    noFactsMsg = ''     
+<a name="565"></a>    
+<a name="566"></a>    /* 
+<a name="567"></a>     *   The parenthetical message to append to a listed fact if the player character has been
+<a name="568"></a>     *   informed of something they already knew.
+<a name="569"></a>     */
+<a name="570"></a>    knewFactAlreadyMsg = BMsg(knew fact already, ' (but {i} knew that already)')
+<a name="571"></a>    
+<a name="572"></a>    /* 
+<a name="573"></a>     *   Return a message stating that a fact was already known if the player character started out
+<a name="574"></a>     *   knowing it from the beginning of the game or an empty string otherwise. This makes it safe
+<a name="575"></a>     *   to call this method without knowing whether it's applicable, since this method will
+<a name="576"></a>     *   determine the applicabilitly.
+<a name="577"></a>     */     
+<a name="578"></a>    alreadyKnewMsg(fact)
+<a name="579"></a>    {
+<a name="580"></a>        /* 
+<a name="581"></a>         *   We only want to append a message saying the player character already knew this message
+<a name="582"></a>         *   if the player character is among the list of sources in its initiallyKnownBy list and
+<a name="583"></a>         *   there is at least one other source that is not the player character (so that when
+<a name="584"></a>         *   reported the fact will be prefixed by 'so-and-so told you that').
+<a name="585"></a>         */
+<a name="586"></a>        if(fact.initiallyKnownBy.find(gPlayerChar) 
+<a name="587"></a>                        &amp;&amp; fact.getSources.indexWhich({x: x!= gPlayerChar}))
+<a name="588"></a>            return knewFactAlreadyMsg;
+<a name="589"></a>        
+<a name="590"></a>        /* Otherwise simply return an empty string. */
+<a name="591"></a>        return '';
+<a name="592"></a>    }
+<a name="593"></a>    
+<a name="594"></a>    /* 
+<a name="595"></a>     *   The word or phrase used to introduce the description of a fact or list of facts. In English
+<a name="596"></a>     *   this is simply 'that'.
+<a name="597"></a>     */
+<a name="598"></a>    factIntro = BMsg(fact intro, 'that')
+<a name="599"></a>    
+<a name="600"></a>    /* 
+<a name="601"></a>     *   The topicResponse to be provided by the TopicEntry we're mixed-in with. This performs the
+<a name="602"></a>     *   main purpose of the FactHelper mix-in class by providing an automated suitably-formatted
+<a name="603"></a>     *   list of the facts (and possibly their sources) associated with the topic matched by our
+<a name="604"></a>     *   TopicEntry. This can be used to automate the response to THINK ABOUT X or LOOK UP X IN
+<a name="605"></a>     *   WHATEVER, provided Facts have been used elsewhere to provide previous responses.
+<a name="606"></a>     */         
+<a name="607"></a>    topicResponse()
+<a name="608"></a>    {
+<a name="609"></a>        /* 
+<a name="610"></a>         *   Start by obtaining the list of facts associated with the topic our TopicEntry has just
+<a name="611"></a>         *   matched.
+<a name="612"></a>         */
+<a name="613"></a>        local factList = getFacts();        
+<a name="614"></a>               
+<a name="615"></a>        /* 
+<a name="616"></a>         *   tagList will have just been populated by the call to getFacts. It contains the list of
+<a name="617"></a>         *   name tags corresponding to those facts, If the list is empty we have no facts to
+<a name="618"></a>         *   display so we just display an appopriate message to that effect.
+<a name="619"></a>         */        
+<a name="620"></a>        if(tagList.length == 0)
+<a name="621"></a>            "&lt;&lt;noFactsMsg&gt;&gt;";
+<a name="622"></a>        else
+<a name="623"></a>        {
+<a name="624"></a>            /* 
+<a name="625"></a>             *   If we have only one fact to report or we don't want line breaks between facts, use
+<a name="626"></a>             *   the continuous single sentence form of listing.
+<a name="627"></a>             */
+<a name="628"></a>            if(tagList.length == 1 || addLineBreaks == nil)
+<a name="629"></a>            {
+<a name="630"></a>                /* 
+<a name="631"></a>                 *   Create a list of strings each of which starts with our factIntro (typically
+<a name="632"></a>                 *   'that') then (if requested) the list of sources who imparted this purported
+<a name="633"></a>                 *   fact to the Player Character, then the qualfied description of the fact.
+<a name="634"></a>                 */
+<a name="635"></a>                local factListStr = factList.mapAll({x: factIntro + ' ' + x.sourceIntro(listSources) + 
+<a name="636"></a>                                      x.qualifiedDesc(getActor, topicMatched, self)});
+<a name="637"></a>                
+<a name="638"></a>                /* Combine this list of strings into a suitably formalled single string. */
+<a name="639"></a>                local resp = andList(factListStr);
+<a name="640"></a>                
+<a name="641"></a>                /* 
+<a name="642"></a>                 *   If we're using the sentence format because we've only one fact to list, append
+<a name="643"></a>                 *   an explanation that we already knew this fact if other people have also
+<a name="644"></a>                 *   imparted it to us.
+<a name="645"></a>                 */
+<a name="646"></a>                if(tagList.length == 1)
+<a name="647"></a>                    resp += alreadyKnewMsg(factManager.getFact(tagList[1]));
+<a name="648"></a>                
+<a name="649"></a>                /* 
+<a name="650"></a>                 *   Display a single sentence listing all the facts the PC knows (or has been
+<a name="651"></a>                 *   informed about) in connection with the topic our TopicEntry matched.
+<a name="652"></a>                 */
+<a name="653"></a>                "&lt;&lt;prefix&gt;&gt; &lt;&lt;resp&gt;&gt;&lt;&lt;suffix&gt;&gt;" ;
+<a name="654"></a>            }
+<a name="655"></a>            else
+<a name="656"></a>            {      
+<a name="657"></a>                /* 
+<a name="658"></a>                 *   If we're listing several facts line by line, start with a general introduction
+<a name="659"></a>                 *   to our list (of the form 'You recall that ').
+<a name="660"></a>                 */
+<a name="661"></a>                "&lt;&lt;prefix&gt;&gt; &lt;&lt;factIntro&gt;&gt;: ";
+<a name="662"></a>                
+<a name="663"></a>                /* 
+<a name="664"></a>                 *   Then iterate through our sorted list of facts to list each one on a separate
+<a name="665"></a>                 *   line.
+<a name="666"></a>                 */
+<a name="667"></a>                foreach(local fact in factList)
+<a name="668"></a>                {
+<a name="669"></a>                    /* 
+<a name="670"></a>                     *   Start on a new line, then list the sources of the information (if
+<a name="671"></a>                     *   listSources if true) then describe the fact, and then append the notice
+<a name="672"></a>                     *   that the Player Character already knew this fact if the Player Character is
+<a name="673"></a>                     *   listed in the fact's initiallyKnownBy list.
+<a name="674"></a>                     */
+<a name="675"></a>                    "\n\^&lt;&lt;fact.sourceIntro(listSources)&gt;&gt;  &lt;&lt;fact.qualifiedDesc(getActor,
+<a name="676"></a>                        topicMatched, self)&gt;&gt;&lt;&lt;alreadyKnewMsg(fact)&gt;&gt;";                   
+<a name="677"></a>                    
+<a name="678"></a>                    /* Conclude each line with a dfull stop. */
+<a name="679"></a>                    ".";
+<a name="680"></a>                }
+<a name="681"></a>            }
+<a name="682"></a>            
+<a name="683"></a>            /* 
+<a name="684"></a>             *   Next loop through our list of tags to reveal them (so the game author doesn't also
+<a name="685"></a>             *   need to insert a &lt;.reveal tag&gt;) and, if requested, update the sources of
+<a name="686"></a>             *   information for each fact.
+<a name="687"></a>             */
+<a name="688"></a>            foreach(local tag in tagList)
+<a name="689"></a>            {
+<a name="690"></a>                /* 
+<a name="691"></a>                 *   If libGlobal.informOnReveal is true (the default) then reveal the tag (which
+<a name="692"></a>                 *   also adds it to the player characters informedNameTab).
+<a name="693"></a>                 */
+<a name="694"></a>                if(libGlobal.informOnReveal)
+<a name="695"></a>                    gReveal(tag);
+<a name="696"></a>                /* 
+<a name="697"></a>                 *   Otherwise we want to separate revealing from informing the player character, so
+<a name="698"></a>                 *   we only do the latter.
+<a name="699"></a>                 */
+<a name="700"></a>                else
+<a name="701"></a>                    gPlayerChar.setInformed(tag);
+<a name="702"></a>                
+<a name="703"></a>                /* If we want to update the sources of this fact, then do so. */
+<a name="704"></a>                if(updateSources)
+<a name="705"></a>                {
+<a name="706"></a>                    /* Obtain the fact object corresponding to tag. */
+<a name="707"></a>                    local factObj = factManager.getFact(tag);
+<a name="708"></a>                    
+<a name="709"></a>                    /* 
+<a name="710"></a>                     *   Add getActor() (the current source of information) to the list of sources
+<a name="711"></a>                     *   for this fact.
+<a name="712"></a>                     */
+<a name="713"></a>                    factObj.addSource(getActor);
+<a name="714"></a>                }
+<a name="715"></a>                
+<a name="716"></a>            }
+<a name="717"></a>        }
+<a name="718"></a>        
+<a name="719"></a>        
+<a name="720"></a>    }
+<a name="721"></a>    
+<a name="722"></a>    /* 
+<a name="723"></a>     *   Since we're typically going to be used to make a catch-all TopicEntry, we'll normally want
+<a name="724"></a>     *   to match any Thing or Topic in the game.
+<a name="725"></a>     */
+<a name="726"></a>    matchObj = [Thing, Topic]
+<a name="727"></a>    
+<a name="728"></a>    /* 
+<a name="729"></a>     *   Do we want our topicResponse() method to update the list of sources on the Facts it lists?
+<a name="730"></a>     *   We probably if we're mixed in with a ConsultTopic (to note the corresponding Consultable as
+<a name="731"></a>     *   the source of information) but not if we're mixed in with a Thought (since the Player
+<a name="732"></a>     *   Character must already effecitvely be a potential source of the information they're
+<a name="733"></a>     *   recalling).
+<a name="734"></a>     */
+<a name="735"></a>    updateSources = true
+<a name="736"></a>    
+<a name="737"></a>    /* 
+<a name="738"></a>     *   Do we want to list the sources of the facts our topicResponse is reporting? We might well
+<a name="739"></a>     *   want to do so on a ConsultTopic but probably not on a Thought, so we default to nil here.
+<a name="740"></a>     */
+<a name="741"></a>    listSources = nil
+<a name="742"></a>       
+<a name="743"></a>    /* 
+<a name="744"></a>     *   Do we want to insert line breaks between each item in a list of fact descriptions (so that
+<a name="745"></a>     *   we get a vertical list of facts or list them all in a continous sentence (addLineBreas =
+<a name="746"></a>     *   nil, the default).
+<a name="747"></a>     */
+<a name="748"></a>    addLineBreaks = nil    
+<a name="749"></a>;
+<a name="750"></a>
+<a name="751"></a>
+<a name="752"></a>
+<a name="753"></a>/* 
+<a name="754"></a> *   A FactConsultTopic can be used to generate an automated response to a potentially wide range of
+<a name="755"></a> *   queries directed to the associated Consultable, provided that the Consultable in question has
+<a name="756"></a> *   been listed in the various relevant facts' initiallyKnownBy list (or subquently added to its
+<a name="757"></a> *   informedNameTab if the Consultable is updatable). A DefaultFactConsultTopic can also act like a
+<a name="758"></a> *   regular DefaultConsultTopic when its Consultable has no facts corresponding to the topic that's
+<a name="759"></a> *   just been looked up.
+<a name="760"></a> */
+<a name="761"></a> 
+<a name="762"></a>class FactConsultTopic:  FactHelper, ConsultTopic
+<a name="763"></a>    /* 
+<a name="764"></a>     *   We give a FactConsultTopic a matchScore of 50 since it's not a mere DefaultConsultTopic
+<a name="765"></a>     *   that always gives a generic response to the effect that the Consultable has no useful
+<a name="766"></a>     *   information on every topic the DefaultTopic attempts to handle, but on the other hand we
+<a name="767"></a>     *   want it to defer to any regular ConsultTopic that gives a more tailored response to a
+<a name="768"></a>     *   particular topic or topics.
+<a name="769"></a>     */
+<a name="770"></a>    matchScore = 50    
+<a name="771"></a>    
+<a name="772"></a>    prefix = BMsg(consult prefix, '{The subj dobj} inform{s/ed} {me}')
+<a name="773"></a>    noFactsMsg = BMsg(no consult, '{The subj dobj} {has} nothing useful to say on that subject. ')
+<a name="774"></a>;
+<a name="775"></a>
+<a name="776"></a>/* 
+<a name="777"></a> *   A FactThought can be used to generate an automated response to a potentially wide range of
+<a name="778"></a> *   requests to THINK ABOUT SO-AND-SO, provided that the Player Character has been listed in the
+<a name="779"></a> *   various relevant facts' initiallyKnownBy list (or subquently added to its informedNameTab if the
+<a name="780"></a> *   Consultable is updatable). A FactThought can also act like a DefaultThought when the player
+<a name="781"></a> *   character knows no Facts corresponding to the topic that's being thought about. It will also
+<a name="782"></a> *   defer to any specific Thoughts with a matchScore higher than 50.
+<a name="783"></a> */
+<a name="784"></a>class FactThought: FactHelper, Thought
+<a name="785"></a>    /* 
+<a name="786"></a>     *   We give a FactThought a matchScore of 50 since it's not a mere DefaultThought
+<a name="787"></a>     *   that always gives a generic response to the effect that the player character has no
+<a name="788"></a>     *   information on whatever topic the player attempts to think about, but on the other hand we
+<a name="789"></a>     *   want it to defer to any regular Thoughts that gives a more tailored response to a
+<a name="790"></a>     *   particular topic or topics.
+<a name="791"></a>     */
+<a name="792"></a>    matchScore = 50    
+<a name="793"></a>    
+<a name="794"></a>    prefix = BMsg(thoughts prefix, '{I} recall{s/ed}')
+<a name="795"></a>    
+<a name="796"></a>    noFactsMsg = BMsg(no thoughts, 'Nothing relevant {dummy} {comes} to mind. ')
+<a name="797"></a>    
+<a name="798"></a>    /* 
+<a name="799"></a>     *   Enable a Tnought to show the player character's comment on a fact that's being listed as
+<a name="800"></a>     *   being thought about.
+<a name="801"></a>     */        
+<a name="802"></a>    alreadyKnewMsg(fact)
+<a name="803"></a>    {
+<a name="804"></a>        /* 
+<a name="805"></a>         *   Retrieve the player characte's comment on fact in relation to the topic matched by this
+<a name="806"></a>         *   Thought.
+<a name="807"></a>         */
+<a name="808"></a>        local txt = fact.getPcComment(getActor, topicMatched);
+<a name="809"></a>         
+<a name="810"></a>        /* 
+<a name="811"></a>         *   If we find a comment, prepend a space to sepaarate it from the description of the fact
+<a name="812"></a>         *   and then return the result. We then skip adding any 'but you already knew that' message
+<a name="813"></a>         *   since it would seem redundant - or overkill - to show both comments.
+<a name="814"></a>         */
+<a name="815"></a>        if(txt)
+<a name="816"></a>            return ' ' + txt;
+<a name="817"></a>        
+<a name="818"></a>        /* 
+<a name="819"></a>         *   Otherwise return the inherited result (normally a message saying the PC already knew
+<a name="820"></a>         *   the fact, should that be the case).
+<a name="821"></a>         */
+<a name="822"></a>        return inherited(fact);
+<a name="823"></a>    }
+<a name="824"></a>    
+<a name="825"></a>        
+<a name="826"></a>    /* 
+<a name="827"></a>     *   It makes senss to list sources on a Thought, since for the most part we'll be listing what
+<a name="828"></a>     *   the player character has been told, not what the PC necessarily believes to be the case (as
+<a name="829"></a>     *   it otherwise would appear without attribution of the facts) and it's conceivable that
+<a name="830"></a>     *   different sources may have given conflicting information to the Player Character, so it
+<a name="831"></a>     *   becomes important for our response to say something like "John told us that Bill killed
+<a name="832"></a>     *   Janet and Mavis told us that Bill died of natural causes."
+<a name="833"></a>     */
+<a name="834"></a>    listSources = true
+<a name="835"></a>    
+<a name="836"></a>    /*   
+<a name="837"></a>     *   The listing with attributions will likely look better and be easier to follow if it
+<a name="838"></a>     *   includes like breaks between facts.
+<a name="839"></a>     */
+<a name="840"></a>    addLineBreaks = true
+<a name="841"></a>    
+<a name="842"></a>    /* 
+<a name="843"></a>     *   There's no point updating Facts with the sources of the Player Character's own thought; the
+<a name="844"></a>     *   response to THINK ABOUT X should report on what the Player Charater already knows without
+<a name="845"></a>     *   changing the game state.
+<a name="846"></a>     */
+<a name="847"></a>    updateSources = nil
+<a name="848"></a>;
+<a name="849"></a>
+<a name="850"></a>    
+<a name="851"></a>    
+<a name="852"></a>/* Modifications to Topic Entry to work with Facts */
+<a name="853"></a>
+<a name="854"></a>modify TopicEntry
+<a name="855"></a>    /* 
+<a name="856"></a>     *   We can use revealFact(tag) to both reveal the tag (add it to the list of fact tags that
+<a name="857"></a>     *   have been revealed and stored in the player character's informedNameTab - what the PC has been
+<a name="858"></a>     *   informed about) and display the description of the corresponding Fact. We need to use this
+<a name="859"></a>     *   method if we want the game to keep track of who has imparted particular facts to the Player
+<a name="860"></a>     *   Character. Game authors will most likely use this method in the topicResponse of AskTopics
+<a name="861"></a>     *   or QueryTopics.
+<a name="862"></a>     */
+<a name="863"></a>    revealFact(tag)
+<a name="864"></a>    {
+<a name="865"></a>        /* If for any reason we're called with a nil tag, simply return nil and end there. */
+<a name="866"></a>        if(tag == nil) return nil;   
+<a name="867"></a>        
+<a name="868"></a>        /*
+<a name="869"></a>         *   If the informOnReveal option is true, then we want to both update the revealed list on
+<a name="870"></a>         *   libGlobal and the informedNameTab on the Player Character (and the call to gReveal will do
+<a name="871"></a>         *   both).
+<a name="872"></a>         */
+<a name="873"></a>        if(libGlobal.informOnReveal)        
+<a name="874"></a>            gReveal(tag); 
+<a name="875"></a>        /* Otherwise we just update the player character's informedNameTab. */
+<a name="876"></a>        else
+<a name="877"></a>            gPlayerChar.setInformed(tag);
+<a name="878"></a>        
+<a name="879"></a>        /* Get the fact associated with tag. */
+<a name="880"></a>        local fact = factManager.getFact(tag);
+<a name="881"></a>        
+<a name="882"></a>        narrator = getActor();
+<a name="883"></a>        
+<a name="884"></a>        if(fact)
+<a name="885"></a>        {
+<a name="886"></a>            /* 
+<a name="887"></a>             *   Add getActor (our current interlocutor or possibly consultable) to our fact's list
+<a name="888"></a>             *   of sources.
+<a name="889"></a>             */
+<a name="890"></a>            fact.addSource(getActor);
+<a name="891"></a>            
+<a name="892"></a>            /*  
+<a name="893"></a>             *   return our fact's description, which can be embedded in our topicResponse or an
+<a name="894"></a>             *   element of our eventList.
+<a name="895"></a>             */
+<a name="896"></a>            
+<a name="897"></a>            return fact.qualifiedDesc(getActor, topicMatched, self);
+<a name="898"></a>        }
+<a name="899"></a>        
+<a name="900"></a>        return nil;
+<a name="901"></a>    }
+<a name="902"></a>    
+<a name="903"></a>    /* 
+<a name="904"></a>     *   We can use informFact to update our current interlocutor's InformedTab list (removing th
+<a name="905"></a>     *   need to use a separate &lt;.inform&gt; tag to do so), to update the fact's target list (i.e. the
+<a name="906"></a>     *   list of people who have been informed of the fact by the current player character), and to
+<a name="907"></a>     *   return a description of the fact that can be embedded in the topicResponse of a TellTopic,
+<a name="908"></a>     *   or SayTopic. The actor parameter, if specified, should be the actor being informed, which
+<a name="909"></a>     *   will usually be the current interlocutor in a conversational context.
+<a name="910"></a>     */
+<a name="911"></a>    informFact(tag, actor = getActor())
+<a name="912"></a>    {
+<a name="913"></a>        /* If for any reason we're called with a nil tag, simply return nil and end there. */
+<a name="914"></a>        if(tag == nil) return nil;        
+<a name="915"></a>        
+<a name="916"></a>        /* 
+<a name="917"></a>         *   Update our current interloctutor's (or actor's if a different actor is specified)
+<a name="918"></a>         *   informedNameTab with our fact tag name.
+<a name="919"></a>         */
+<a name="920"></a>        actor.setInformed(tag);
+<a name="921"></a>        
+<a name="922"></a>        narrator = gPlayerChar;
+<a name="923"></a>        
+<a name="924"></a>        /* Get the fact corresponding to the tag. */
+<a name="925"></a>        local fact = factManager.getFact(tag);
+<a name="926"></a>        
+<a name="927"></a>        if(fact)
+<a name="928"></a>        {
+<a name="929"></a>            /* 
+<a name="930"></a>             *   Add actor to the fact's list of targets (the people to whom this fact has been
+<a name="931"></a>             *   imparted). Note that the library does nothing with this list; it's available for
+<a name="932"></a>             *   game code to use as desired.
+<a name="933"></a>             */
+<a name="934"></a>            fact.addTarget(actor);
+<a name="935"></a>            
+<a name="936"></a>            /* 
+<a name="937"></a>             *   Return a description of the Fact that can be used in this TopicEntry's
+<a name="938"></a>             *   showResponse() method or eventList property.
+<a name="939"></a>             */
+<a name="940"></a>            return fact.qualifiedDesc(actor, topicMatched, self);
+<a name="941"></a>        }
+<a name="942"></a>        
+<a name="943"></a>        return nil;
+<a name="944"></a>    }
+<a name="945"></a>    
+<a name="946"></a>    qualifiedDesc(actor, tag, topic, sender)    
+<a name="947"></a>    {
+<a name="948"></a>        return factManager.getQualifiedFactDesc(actor, tag, topic, sender);
+<a name="949"></a>    }
+<a name="950"></a>
+<a name="951"></a>    
+<a name="952"></a>    /* 
+<a name="953"></a>     *   Simply display the descrption of the Fact corresponding to tag without changing the game
+<a name="954"></a>     *   state. This might conceivably be of use, for example, in a Thought.
+<a name="955"></a>     */
+<a name="956"></a>    factText(tag, actor = getActor)
+<a name="957"></a>    {
+<a name="958"></a>        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, self);
+<a name="959"></a>    }    
+<a name="960"></a>    
+<a name="961"></a>    narrator = nil
+<a name="962"></a>    
+<a name="963"></a>    matchTopic(top)
+<a name="964"></a>    {
+<a name="965"></a>        /* Reset our narrator */
+<a name="966"></a>        narrator = nil;
+<a name="967"></a>        
+<a name="968"></a>        return inherited(top);
+<a name="969"></a>    }
+<a name="970"></a>;
+<a name="971"></a>
+<a name="972"></a>
+<a name="973"></a>
+<a name="974"></a>
+<a name="975"></a>/* Modifications to ActorTopicEntry to work with Facts. */
+<a name="976"></a>modify ActorTopicEntry
+<a name="977"></a>    /* 
+<a name="978"></a>     *   The knowledge tag associated with this ActorTopicEntry. If it's nil, we ignore it. This is
+<a name="979"></a>     *   the tag for a fact our actor is being told about in response to something we'vr asked.
+<a name="980"></a>     */
+<a name="981"></a>    aTag = nil
+<a name="982"></a>    
+<a name="983"></a>    /* If we define a aTag we're only active if our associated actor knows about our aTag. */
+<a name="984"></a>    active = inherited &amp;&amp; (aTag == nil &amp;&amp; tTag == nil) ? true : 
+<a name="985"></a>                           (aTag ? getActor.informedAbout(aTag) :
+<a name="986"></a>                           gActor.informedAbout(tTag))                          
+<a name="987"></a>        
+<a name="988"></a>    /* Carry out additional initialization to set our matchObj from our aTag */
+<a name="989"></a>    initializeTopicEntry()
+<a name="990"></a>    {
+<a name="991"></a>        /* First carry out the inherited handling. */
+<a name="992"></a>        inherited();
+<a name="993"></a>        
+<a name="994"></a>        /* 
+<a name="995"></a>         *   If we have a non-nil aTag or tTag and the user hasn't already set matchObj, set
+<a name="996"></a>         *   matchObj from the Fact defined by aTag if it's non-nil or else tTag.
+<a name="997"></a>         */
+<a name="998"></a>        if((aTag || tTag) &amp;&amp; matchObj == nil)
+<a name="999"></a>        {
+<a name="1000"></a>            /* Obtain the Fact corresponding to whichever tag is non-nil */
+<a name="1001"></a>            local fact = gFact(aTag ?? tTag);
+<a name="1002"></a>            
+<a name="1003"></a>            /* If we found one, set our matchObj to our fact's topic list. */
+<a name="1004"></a>            if(fact)
+<a name="1005"></a>                matchObj = fact.topics;
+<a name="1006"></a>        }
+<a name="1007"></a>    }
+<a name="1008"></a>    
+<a name="1009"></a>    /* 
+<a name="1010"></a>     *   Short-name method for retrieving the description of the fact associated with aTag and
+<a name="1011"></a>     *   updating what the player character knows and the fact's list of sources.
+<a name="1012"></a>     */
+<a name="1013"></a>    revTag()
+<a name="1014"></a>    {
+<a name="1015"></a>        return revealFact(aTag);
+<a name="1016"></a>    }
+<a name="1017"></a>    
+<a name="1018"></a>    /* 
+<a name="1019"></a>     *   Short-nae method of retrieving the description of the fact associated with aTag or tTag
+<a name="1020"></a>     *   without carrying out any further side-effects.
+<a name="1021"></a>     */
+<a name="1022"></a>    fText() { return factText(aTag ?? tTag); }
+<a name="1023"></a>    
+<a name="1024"></a>    /* 
+<a name="1025"></a>     *   The fact tag we're going to inform and reference if we are telling (imparting information
+<a name="1026"></a>     *   to the other actor we're talking to.
+<a name="1027"></a>     */
+<a name="1028"></a>    tTag = nil
+<a name="1029"></a>    
+<a name="1030"></a>    infTag() { return informFact(tTag); } 
+<a name="1031"></a>    
+<a name="1032"></a>    /* Get the relevant qualified fact description */
+<a name="1033"></a>    qualifiedDesc(actor, tag, topicMatched)    
+<a name="1034"></a>    {
+<a name="1035"></a>        return factManager.getQualifiedFactDesc(actor, tag, topicMatched, self);
+<a name="1036"></a>    }   
+<a name="1037"></a>;
+<a name="1038"></a>
+<a name="1039"></a>/* Modificstions to SayTopic to work with Facts. */
+<a name="1040"></a>modify SayTopic
+<a name="1041"></a>    /* 
+<a name="1042"></a>     *   The modification allows the user to specify a tTag and extraVocab instead of a
+<a name="1043"></a>     *   matchPattern.
+<a name="1044"></a>     */
+<a name="1045"></a>    
+<a name="1046"></a>    matchPattern()
+<a name="1047"></a>    {
+<a name="1048"></a>        /* 
+<a name="1049"></a>         *   If we have tTag defined, use it to construct what our matchPattern would otherwise have
+<a name="1050"></a>         *   been.
+<a name="1051"></a>         */
+<a name="1052"></a>        if(tTag)
+<a name="1053"></a>        {
+<a name="1054"></a>            /* Get the fact corresponding to our tTag */
+<a name="1055"></a>            local fact = gFact(tTag);
+<a name="1056"></a>            
+<a name="1057"></a>            /* 
+<a name="1058"></a>             *   If we've found one, set our matchPattern to its name and append a semicolon
+<a name="1059"></a>             *   followed by our extraVocab.
+<a name="1060"></a>             */
+<a name="1061"></a>            if(fact)
+<a name="1062"></a>            {
+<a name="1063"></a>               matchPattern = fact.desc + ';' + extraVocab;  
+<a name="1064"></a>                
+<a name="1065"></a>            }
+<a name="1066"></a>            /* 
+<a name="1067"></a>             *   Otherwise all we can do is to append a semicolon and the extra vocab to our
+<a name="1068"></a>             *   non-fact-matching tTag.
+<a name="1069"></a>             */
+<a name="1070"></a>            else matchPattern = tTag + ';' + extraVocab;  
+<a name="1071"></a>        }
+<a name="1072"></a>        
+<a name="1073"></a>        /* Return our new matchPattern. */
+<a name="1074"></a>        return matchPattern; 
+<a name="1075"></a>    }
+<a name="1076"></a>    
+<a name="1077"></a>    /* 
+<a name="1078"></a>     *   The matchPattern of a SayTopic normally contains what will be the vocab string of the Topic
+<a name="1079"></a>     *   created for the SayTopic to match on. The fact name only provides the name part of this, so
+<a name="1080"></a>     *   we make provision for supplying additional vocab after the name part. For example if the
+<a name="1081"></a>     *   fact you want to impart ihas the desc 'you love her', you might want to set extraVocab to
+<a name="1082"></a>     *   'i' to produce the vocab 'you love her; i' so that it will match 'I love you' as well as
+<a name="1083"></a>     *   'you love her'.
+<a name="1084"></a>     */    
+<a name="1085"></a>    extraVocab = nil
+<a name="1086"></a>    
+<a name="1087"></a>;
+<a name="1088"></a>
+<a name="1089"></a>
+<a name="1090"></a>modify InitiateTopic
+<a name="1091"></a>    /* Modification to allow InitiateTopic to match a Fact name. */
+<a name="1092"></a>    matchTopic(top)
+<a name="1093"></a>    {
+<a name="1094"></a>        /* Store a reference to our caller in our agendaItem property. */
+<a name="1095"></a>        agendaItem = libGlobal.agendaItem;
+<a name="1096"></a>        
+<a name="1097"></a>        /* If we have a matchPattern, first test whether it's a fact name. */
+<a name="1098"></a>        if(matchPattern != nil &amp;&amp; matchPattern == top)
+<a name="1099"></a>        {
+<a name="1100"></a>            /* Attempt to find the fact with name top. */
+<a name="1101"></a>            local fact = gFact(top);
+<a name="1102"></a>            
+<a name="1103"></a>            /* I've we've found a fact, proceed accordinglay. */
+<a name="1104"></a>            if(fact)
+<a name="1105"></a>            {
+<a name="1106"></a>                /* Note the fact we have matched. */
+<a name="1107"></a>//                topicMatched = fact;
+<a name="1108"></a>                
+<a name="1109"></a>                /* 
+<a name="1110"></a>                 *   If our topicResponse is going to reveal information about thio fact, set out
+<a name="1111"></a>                 *   rTag (= aTag) to the fact name just matched.
+<a name="1112"></a>                 */
+<a name="1113"></a>                if(revealing)
+<a name="1114"></a>                    rTag = top;
+<a name="1115"></a>                
+<a name="1116"></a>                /* 
+<a name="1117"></a>                 *   Note that we don't set tTag otherwise, since if the actor isn't imparting new
+<a name="1118"></a>                 *   information but instead asking a queastion, we must assume that no factual
+<a name="1119"></a>                 *   information has yet been conveyed in either direction.
+<a name="1120"></a>                 */
+<a name="1121"></a>                
+<a name="1122"></a>                
+<a name="1123"></a>                /* Return the sum of our matchScore and scoreBooster */
+<a name="1124"></a>                return matchScore + scoreBooster();
+<a name="1125"></a>            }
+<a name="1126"></a>        }
+<a name="1127"></a>        
+<a name="1128"></a>        /* Otherwise return our inherited score. */
+<a name="1129"></a>        return inherited(top);
+<a name="1130"></a>    }
+<a name="1131"></a>    
+<a name="1132"></a>    /* Flag: is the actor revealing information abouut the flag matched? */
+<a name="1133"></a>    revealing = true   
+<a name="1134"></a>;
+<a name="1135"></a>
+<a name="1136"></a>/* 
+<a name="1137"></a> *   Modications to AltTopic to work with the modifications to ActorTopicEntry with the FACTS
+<a name="1138"></a> *   module.
+<a name="1139"></a> */
+<a name="1140"></a>modify AltTopic
+<a name="1141"></a>    /* Take our tTag from our location's tTag */
+<a name="1142"></a>    tTag = location.tTag
+<a name="1143"></a>    
+<a name="1144"></a>    /* Take our rTag from our location's aTag */
+<a name="1145"></a>    aTag = location.aTag
+<a name="1146"></a>    
+<a name="1147"></a>    /* Take our matchoObj from our location's matchObj */
+<a name="1148"></a>    matchObj = location.matchObj
+<a name="1149"></a>    
+<a name="1150"></a>    /* Take our revealing flag from our location's revealing */
+<a name="1151"></a>    revealing = location.revealing
+<a name="1152"></a>;
+<a name="1153"></a>
+<a name="1154"></a>/* 
+<a name="1155"></a> *   modify actorPreinit so that factMananger's happens first. This ensures that factManager's
+<a name="1156"></a> *   factTab has been populated and is availabe to actor-related object preinitialization.
+<a name="1157"></a> */
+<a name="1158"></a>modify actorPreinit
+<a name="1159"></a>    execBeforeMe = inherited + factManager;   
+<a name="1160"></a>;
+<a name="1161"></a>
+<a name="1162"></a>modify thingPreinit
+<a name="1163"></a>   execBeforeMe = inherited + factManager;   
+<a name="1164"></a>; 
+<a name="1165"></a>    
+<a name="1166"></a>/* 
+<a name="1167"></a> *   Modifications to the Consultable class to allow it to include fact tag strings in its
+<a name="1168"></a> *   topicEntryList. This consists of a list of items each of which is itself a list; item{1],
+<a name="1169"></a> *   passed at the topkey parameter, is the Thing or Topic to be matched; item[2], passed at the txt
+<a name="1170"></a> *   parameter, is either the text to be displayed or a fact name string for a fact whose
+<a name="1171"></a> *   descriptiopn we want displayed.
+<a name="1172"></a> */
+<a name="1173"></a>modify Consultable
+<a name="1174"></a>     setTopicResponse(top, topkey, txt)
+<a name="1175"></a>    {
+<a name="1176"></a>        /* First attempt to get the fact corresponding to the txt string */
+<a name="1177"></a>        local fact = gFact(txt);
+<a name="1178"></a>        
+<a name="1179"></a>        /* 
+<a name="1180"></a>         *   If we find one, replace txt with the desc of gFact(txt) plus a tag to reveal the fact
+<a name="1181"></a>         *   to the player character. Otherwise we'll skip this and simply set up our new
+<a name="1182"></a>         *   ConsultTopic to display txt.
+<a name="1183"></a>         */
+<a name="1184"></a>        if(fact)
+<a name="1185"></a>        {            
+<a name="1186"></a>            /* Store txt in a new local variable .*/
+<a name="1187"></a>            local tag = txt;
+<a name="1188"></a>            
+<a name="1189"></a>            /* 
+<a name="1190"></a>             *   Construct the &lt;.reveal tag&gt; or &lt;.know tag&gt; to reveal the fact to the player
+<a name="1191"></a>             *   character, dependinng on whether libGobal.informOnReveal is true or false.
+<a name="1192"></a>             */
+<a name="1193"></a>            local rTag = '. &lt;.' + (libGlobal.informOnReveal ? 'reveal ' : 'known ') + tag + '&gt;';
+<a name="1194"></a>            
+<a name="1195"></a>            /* 
+<a name="1196"></a>             *   Set txt to the qualified desription of our fact, adjusted according to the source
+<a name="1197"></a>             *   of information (this Consultable) and the topic being looked up (topkey).
+<a name="1198"></a>             */
+<a name="1199"></a>            txt = fact.qualifiedDesc(self, topkey, self);    
+<a name="1200"></a>            
+<a name="1201"></a>            /* 
+<a name="1202"></a>             *   Prepend the instruction to make the first letter of txt upper case and append our
+<a name="1203"></a>             *   reveal tag.
+<a name="1204"></a>             */
+<a name="1205"></a>            txt ='\^' + txt + rTag;
+<a name="1206"></a>            
+<a name="1207"></a>            /* Add this Consultable as a source of information about our fact. */
+<a name="1208"></a>            fact.addSource(self);
+<a name="1209"></a>        }
+<a name="1210"></a>        
+<a name="1211"></a>        /* Carry out the inherited handling. */
+<a name="1212"></a>        inherited(top, topkey, txt);  
+<a name="1213"></a>    }
+<a name="1214"></a>    
+<a name="1215"></a>;
+<a name="1216"></a>
+<a name="1217"></a>#ifdef __DEBUG
+<a name="1218"></a>/* Debgugging command to list all the Facts defined in the game. */
+<a name="1219"></a>VerbRule(ListFacts)
+<a name="1220"></a>    'list' 'facts'
+<a name="1221"></a>    :VerbProduction
+<a name="1222"></a>    action = ListFacts
+<a name="1223"></a>    verbPhrase = 'list/listing facts'
+<a name="1224"></a>;
+<a name="1225"></a>
+<a name="1226"></a>DefineSystemAction(ListFacts)
+<a name="1227"></a>    execAction(cmd)
+<a name="1228"></a>    {
+<a name="1229"></a>        /* First check whether any facts have been added to the facts table. */
+<a name="1230"></a>        if(factManager.factTab == nil)
+<a name="1231"></a>        {
+<a name="1232"></a>            DMsg(no facts defined, 'No Facts have been defined in this game. ');
+<a name="1233"></a>            return;
+<a name="1234"></a>        }
+<a name="1235"></a>        
+<a name="1236"></a>        /* Get a list of fact names */
+<a name="1237"></a>        local keyList = factManager.factTab.keysToList();
+<a name="1238"></a>        
+<a name="1239"></a>        /* Sort the list of facts in alphabetical order of their names. */
+<a name="1240"></a>        keyList = keyList.sort(nil, {a,b: a.compareTo(b)});
+<a name="1241"></a>        
+<a name="1242"></a>        /* Then list each fact name along with its corresponding description. */
+<a name="1243"></a>        foreach(local item in keyList)
+<a name="1244"></a>        {
+<a name="1245"></a>            "&lt;b&gt;&lt;&lt;item&gt;&gt;&lt;/b&gt;: &lt;&lt;factManager.getFactDesc(item)&gt;&gt;\n";
+<a name="1246"></a>        }
+<a name="1247"></a>    }
+<a name="1248"></a>;
+<a name="1249"></a>
+<a name="1250"></a>VerbRule(FactInfo)
+<a name="1251"></a>    'fact' 'info' literalDobj
+<a name="1252"></a>    : VerbProduction
+<a name="1253"></a>    action = FactInfo
+<a name="1254"></a>    verbPhrase = 'show/showing fact info'
+<a name="1255"></a>    missingQ = 'which fact do you want info for'
+<a name="1256"></a>;
+<a name="1257"></a>
+<a name="1258"></a>DefineSystemAction(FactInfo)
+<a name="1259"></a>    execAction(cmd)
+<a name="1260"></a>    {
+<a name="1261"></a>        literal = cmd.dobj.name.toLower;
+<a name="1262"></a>        
+<a name="1263"></a>        local fact = factManager.getFact(literal);
+<a name="1264"></a>        
+<a name="1265"></a>        if(fact == nil)
+<a name="1266"></a>        {
+<a name="1267"></a>            DMsg(no such fact, '''No fact with the name '&lt;&lt;literal&gt;&gt;' is defined in the game. ''');
+<a name="1268"></a>            return;
+<a name="1269"></a>        }
+<a name="1270"></a>        
+<a name="1271"></a>        "Name = &lt;&lt;fact.name&gt;&gt;\n";
+<a name="1272"></a>        "Desc = &lt;&lt;fact.desc&gt;&gt;\n";
+<a name="1273"></a>        "Topics = &lt;&lt;showContents(fact.topics)&gt;&gt;\n";
+<a name="1274"></a>        "Initially Known By = &lt;&lt;showContents(fact.initiallyKnownBy)&gt;&gt;\n";
+<a name="1275"></a>        "Currenly Known By = &lt;&lt;showContents(fact.currentlyKnownBy())&gt;&gt;\n";
+<a name="1276"></a>        
+<a name="1277"></a>    }
+<a name="1278"></a>    
+<a name="1279"></a>    showContents(lst)
+<a name="1280"></a>    {
+<a name="1281"></a>        local i = 0;
+<a name="1282"></a>        "[";
+<a name="1283"></a>        foreach(local obj in lst)
+<a name="1284"></a>        {
+<a name="1285"></a>            "&lt;&lt;obj.name&gt;&gt;";
+<a name="1286"></a>            if(++i &lt; lst.length)
+<a name="1287"></a>                ", ";
+<a name="1288"></a>        }
+<a name="1289"></a>        
+<a name="1290"></a>        "]"; 
+<a name="1291"></a>    }
+<a name="1292"></a>;
+<a name="1293"></a>
+<a name="1294"></a>#endif
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

@@ -1,0 +1,1191 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>messages.t</title></head><body>
+<table class=ban><tr><td><h1>messages.t</h1><td align=right><a href="../file/messages.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>
+<a name="5"></a>/*
+<a name="6"></a> *   ***************************************************************************
+<a name="7"></a> *   messages.t
+<a name="8"></a> *
+<a name="9"></a> *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve, but is
+<a name="10"></a> *   based substantially on the Mercury Library (c) 2012 Michael J. Roberts
+<a name="11"></a> */
+<a name="12"></a>
+<a name="13"></a>/* ------------------------------------------------------------------------ */
+<a name="14"></a>/*
+<a name="15"></a> *   Global narration parameters.  This object's properties control the way
+<a name="16"></a> *   parameter-based messages are generated.  The message generator
+<a name="17"></a> *   consults the narration parameters each time it generates a message, so
+<a name="18"></a> *   you can change the settings on the fly, and subsequent output will
+<a name="19"></a> *   automatically adapt to the latest settings.  
+<a name="20"></a> */
+<a name="21"></a>Narrator: object
+<a name="22"></a>    /*
+<a name="23"></a>     *   The verb tense of the narration.  This is one of the VerbTense
+<a name="24"></a>     *   objects (Present, Past, Perfect, Past Perfect, Future, Future
+<a name="25"></a>     *   Perfect).  This controls the way {verb} substitution parameters
+<a name="26"></a>     *   are generated, which in turn affects most library messages.  The
+<a name="27"></a>     *   default is Present, which is the conventional tense for most IF.
+<a name="28"></a>     *   
+<a name="29"></a>     *   Examples of the English tenses:
+<a name="30"></a>     *   
+<a name="31"></a>     *.    Present: Bob opens the box.
+<a name="32"></a>     *.    Past: Bob opened the box.
+<a name="33"></a>     *.    Perfect: Bob has opened the box.
+<a name="34"></a>     *.    Past Perfect: Bob had opened the box.
+<a name="35"></a>     *.    Future: Bob will open the box.
+<a name="36"></a>     *.    Future Perfect: Bob will have opened the box.
+<a name="37"></a>     *   
+<a name="38"></a>     *   (Language modules are free to add their own tenses if the target
+<a name="39"></a>     *   language has others that would be of interest to IF authors.
+<a name="40"></a>     *   They're also free to ignore any of the "standard" tenses we
+<a name="41"></a>     *   define.  At a minimum, though, some form of present tense should
+<a name="42"></a>     *   always be provided, since most IF is narrated in the present.  If
+<a name="43"></a>     *   you need to differentiate among different present tenses, you
+<a name="44"></a>     *   might prefer to define your own IDs instead of using the generic
+<a name="45"></a>     *   Present, but you should still support *some* present tense that's
+<a name="46"></a>     *   suitable for narration.  Some type of past tense usable in
+<a name="47"></a>     *   narration is also nice to have.  The others are probably of
+<a name="48"></a>     *   marginal value; in English, at least, other tenses are rare in any
+<a name="49"></a>     *   kind of narrative fiction, and are mostly limited to experimental
+<a name="50"></a>     *   or novelty use.)  
+<a name="51"></a>     */
+<a name="52"></a>    tense = (gameMain.usePastTense ? Past : Present)
+<a name="53"></a>;
+<a name="54"></a>
+<a name="55"></a>/*
+<a name="56"></a> *   Root class for verb tenses
+<a name="57"></a> */
+<a name="58"></a>class VerbTense: object
+<a name="59"></a>    /*
+<a name="60"></a>     *   Tense name.  This is just an identifier for internal and degugging
+<a name="61"></a>     *   purposes, so we don't bother farming it out to the language module
+<a name="62"></a>     *   for translation. 
+<a name="63"></a>     */
+<a name="64"></a>    name = nil
+<a name="65"></a>;
+<a name="66"></a>
+<a name="67"></a>Present: VerbTense
+<a name="68"></a>    name = 'present'
+<a name="69"></a>;
+<a name="70"></a>Past: VerbTense
+<a name="71"></a>    name = 'past'
+<a name="72"></a>;
+<a name="73"></a>Perfect: VerbTense
+<a name="74"></a>    name = 'perfect'
+<a name="75"></a>;
+<a name="76"></a>PastPerfect: VerbTense
+<a name="77"></a>    name = 'past perfect'
+<a name="78"></a>;
+<a name="79"></a>Future: VerbTense
+<a name="80"></a>    name = 'future'
+<a name="81"></a>;
+<a name="82"></a>FuturePerfect: VerbTense
+<a name="83"></a>    name = 'future perfect'
+<a name="84"></a>;
+<a name="85"></a>
+<a name="86"></a>
+<a name="87"></a>/* ------------------------------------------------------------------------ */
+<a name="88"></a>/*
+<a name="89"></a> *   Show a message.
+<a name="90"></a> *
+<a name="91"></a> *   This looks for a customized version of the message text, as defined in
+<a name="92"></a> *   CustomMessages objects.  If we don't find one, we use the provided default
+<a name="93"></a> *   message text.
+<a name="94"></a> *
+<a name="95"></a> *   Substitution parameters take the form {x y z} - curly braces with one or
+<a name="96"></a> *   more space-delimited tokens.  The first token is the parameter name, and
+<a name="97"></a> *   any additional tokens are arguments.  The parameter names and their
+<a name="98"></a> *   arguments are up to the language module to define.
+<a name="99"></a> *
+<a name="100"></a> *   In addition to the parameters, the string itself can have two sections,
+<a name="101"></a> *   separated by a vertical bar, '|'.  The first section (before the bar) is
+<a name="102"></a> *   the "terse" string, which is for a straightforward acknowledgment of a
+<a name="103"></a> *   simple, ordinary action: "Taken", "Dropped", etc. The terse string is used
+<a name="104"></a> *   only if the Command argument's actor is the player character, AND the
+<a name="105"></a> *   command doesn't have any disambiguated objects.  If these conditions aren't
+<a name="106"></a> *   met, the second half of the string, the "verbose" version, is used.
+<a name="107"></a> *
+<a name="108"></a> *   Once we have the message text, we perform parameter substitutions.
+<a name="109"></a> *   Parameters can be provided as strings, which are substituted in literally;
+<a name="110"></a> *   or as objects, whose names are inserted according to the grammar in the
+<a name="111"></a> *   template text.
+<a name="112"></a> */
+<a name="113"></a>
+<a name="114"></a>message(id, txt, [args])    
+<a name="115"></a>    {
+<a name="116"></a>        
+<a name="117"></a>        txt = buildMessage(id, txt, args...);
+<a name="118"></a>        
+<a name="119"></a>        
+<a name="120"></a>        /* 
+<a name="121"></a>         *   use the oSay function to output the text to avoid an infinite
+<a name="122"></a>         *   recursive call through say.
+<a name="123"></a>         */        
+<a name="124"></a>        oSay(txt);       
+<a name="125"></a>    }
+<a name="126"></a>
+<a name="127"></a>/* 
+<a name="128"></a> *   Build a message to be shown by message()
+<a name="129"></a> *
+<a name="130"></a> *   We put this in a separate function to make it easy to obtain the text of a
+<a name="131"></a> *   message for subsequent use without first displaying it.
+<a name="132"></a> */
+<a name="133"></a>buildMessage(id, txt, [args])
+<a name="134"></a>{
+<a name="135"></a>    
+<a name="136"></a>    /* look for a customized version of the message */
+<a name="137"></a>    local cm = nil;
+<a name="138"></a>    foreach (local c in CustomMessages.all)
+<a name="139"></a>    {
+<a name="140"></a>        /* 
+<a name="141"></a>         *   if this customizer is active and defines the message, and it
+<a name="142"></a>         *   has a higher priority than any previous customizer we've
+<a name="143"></a>         *   already found, remember it as the best candidate so far 
+<a name="144"></a>         */
+<a name="145"></a>        if (c.active &amp;&amp; c.msgTab[id] != nil
+<a name="146"></a>            &amp;&amp; (cm == nil || c.priority &gt; cm.priority))
+<a name="147"></a>            cm = c;
+<a name="148"></a>    }
+<a name="149"></a>
+<a name="150"></a>    /* show debugging information, if desired */
+<a name="151"></a>    IfDebug(messages, debugMessage(id, txt, cm, args));
+<a name="152"></a>
+<a name="153"></a>    /* if we found an override, use it instead of the provided text */
+<a name="154"></a>    if (cm != nil)
+<a name="155"></a>        txt = cm.msgTab[id];
+<a name="156"></a>    
+<a name="157"></a>    /* if txt is a function pointer, retrieve the value it returns */
+<a name="158"></a>    if(dataType(txt) == TypeFuncPtr)
+<a name="159"></a>        txt = txt();
+<a name="160"></a>
+<a name="161"></a>    /* set up a sentence context for the expansion */
+<a name="162"></a>    local ctx = new MessageCtx(args);
+<a name="163"></a>
+<a name="164"></a>    /* 
+<a name="165"></a>     *   Carry out any language-specific adjustments to the text prior to any
+<a name="166"></a>     *   further processing
+<a name="167"></a>     */
+<a name="168"></a>    txt = langAdjust(txt);
+<a name="169"></a>    
+<a name="170"></a>    /* 
+<a name="171"></a>     *   First look for a tense-swithing message substitution of the form
+<a name="172"></a>     *   {present-string|past-string} and choose whichever is appropriate to the
+<a name="173"></a>     *   tense of the game.
+<a name="174"></a>     */   
+<a name="175"></a>    local bar, openBrace = 0, closeBrace = 0, newTxt = txt;
+<a name="176"></a>    for(;;)
+<a name="177"></a>    {
+<a name="178"></a>        /* Find the next opening brace */
+<a name="179"></a>        openBrace = txt.find('{', closeBrace + 1);
+<a name="180"></a>        
+<a name="181"></a>        /* If there isn't one, we're done, so leave the loop. */
+<a name="182"></a>        if(openBrace == nil)
+<a name="183"></a>            break;
+<a name="184"></a>        
+<a name="185"></a>        /* Find the next vertical bar that follows the opening brace */
+<a name="186"></a>        bar = txt.find('|', openBrace);
+<a name="187"></a>        
+<a name="188"></a>        /* If there isn't one, we're done, so leave the loop. */
+<a name="189"></a>        if(bar == nil)
+<a name="190"></a>            break;
+<a name="191"></a>        
+<a name="192"></a>        /* Find the next closing brace that follows the opening brace */
+<a name="193"></a>        closeBrace = txt.find('}', openBrace);
+<a name="194"></a>        
+<a name="195"></a>        /* If there isn't one, we're done, so leave the loop. */
+<a name="196"></a>        if(closeBrace == nil)
+<a name="197"></a>            break;
+<a name="198"></a>        
+<a name="199"></a>        /* 
+<a name="200"></a>         *   If the bar doesn't come before the closing brace, then it's not
+<a name="201"></a>         *   between the two braces, so we don't want to process it in this
+<a name="202"></a>         *   circuit of the loop. Instead we need to see if there's another
+<a name="203"></a>         *   opening brace on the next iteration.
+<a name="204"></a>         */
+<a name="205"></a>        if(bar &gt; closeBrace)
+<a name="206"></a>            continue;
+<a name="207"></a>        
+<a name="208"></a>        /* 
+<a name="209"></a>         *   Extract the string that starts with the opening brace we found and
+<a name="210"></a>         *   ends with the closing brace we found.
+<a name="211"></a>         */
+<a name="212"></a>        local pString = txt.substr(openBrace, closeBrace - openBrace + 1);
+<a name="213"></a>        
+<a name="214"></a>        /*   
+<a name="215"></a>         *   If the game is in the past tense, extract the second part of this
+<a name="216"></a>         *   above string (that following the bar up to but not including the
+<a name="217"></a>         *   closing brace). Otherwise extract the first part (that following
+<a name="218"></a>         *   but not including the opening brace up to but not including the
+<a name="219"></a>         *   bar)
+<a name="220"></a>         */
+<a name="221"></a>        local subString = (gameMain.usePastTense || Narrator.tense == Past) ?
+<a name="222"></a>            txt.substr(bar + 1, closeBrace - bar - 1) : txt.substr(openBrace +
+<a name="223"></a>                1, bar - openBrace - 1);
+<a name="224"></a>        
+<a name="225"></a>        /* 
+<a name="226"></a>         *   In the copy of our original text string, replace the string in
+<a name="227"></a>         *   braces with the substring we just extracted from it.
+<a name="228"></a>         */
+<a name="229"></a>        newTxt = newTxt.findReplace(pString, subString, ReplaceOnce);
+<a name="230"></a>        
+<a name="231"></a>    }
+<a name="232"></a>    
+<a name="233"></a>    /* Copy our adjusted string back to our original string */
+<a name="234"></a>    txt = newTxt;
+<a name="235"></a>    
+<a name="236"></a>    /* check for separate PC and NPC messages */
+<a name="237"></a>    bar = txt.find('|');
+<a name="238"></a>    if (bar != nil)
+<a name="239"></a>    {
+<a name="240"></a>        /* there's a bar - check to see if the terse format can be used */
+<a name="241"></a>        if (ctx.cmd != nil &amp;&amp; ctx.cmd.terseOK())
+<a name="242"></a>            txt = txt.left(bar - 1);
+<a name="243"></a>        else
+<a name="244"></a>            txt = txt.substr(bar + 1);
+<a name="245"></a>    }
+<a name="246"></a>
+<a name="247"></a>    /* get the message object */
+<a name="248"></a>    local mo = MessageParams.langObj;
+<a name="249"></a>
+<a name="250"></a>    /* apply substitutions */
+<a name="251"></a>    for (local i = 1 ; i &lt;= txt.length() ; )
+<a name="252"></a>    {
+<a name="253"></a>        /* find the end of the current sentence */
+<a name="254"></a>        local eos = txt.find(R'&lt;.|!|?&gt;&lt;space&gt;', i) ?? txt.length() + 1;  
+<a name="255"></a>
+<a name="256"></a>        /* 
+<a name="257"></a>         *   Build a list of the parameters in the sentence, and preprocess
+<a name="258"></a>         *   each one.  We need to preprocess the entire sentence before we
+<a name="259"></a>         *   can expand any of it, because some parameters can depend upon
+<a name="260"></a>         *   other parameters later in the sentence.  For example, some
+<a name="261"></a>         *   languages generally place the subject after the verb; to
+<a name="262"></a>         *   generate the verb with proper agreement, we need to know the
+<a name="263"></a>         *   subject when we expand the verb, which means we need to have
+<a name="264"></a>         *   scanned the entire sentence before we expand the verb.
+<a name="265"></a>         */
+<a name="266"></a>        ctx.startSentence();
+<a name="267"></a>        local plst = new Vector(10);
+<a name="268"></a>        for (local j = i ; ; )
+<a name="269"></a>        {
+<a name="270"></a>            /* find the next parameter */
+<a name="271"></a>            local lb = txt.find('{', j);
+<a name="272"></a>            if (lb == nil || lb &gt;= eos)
+<a name="273"></a>                break;
+<a name="274"></a>
+<a name="275"></a>            /* find the end of the parameter */
+<a name="276"></a>            local rb = txt.find('}', lb + 1);
+<a name="277"></a>            if (rb == nil)
+<a name="278"></a>                break;
+<a name="279"></a>
+<a name="280"></a>            /* pull out the parameter string */
+<a name="281"></a>            local param = txt.substr(lb + 1, rb - lb - 1);
+<a name="282"></a>
+<a name="283"></a>            /* turn it into a space-delimited token list */
+<a name="284"></a>            param = param.trim().split(' ');
+<a name="285"></a>            
+<a name="286"></a>            /* 
+<a name="287"></a>             *   do the preliminary expansion, but discard the result -
+<a name="288"></a>             *   this gives the expander a chance to update any effect on
+<a name="289"></a>             *   the sentence context 
+<a name="290"></a>             */
+<a name="291"></a>            mo.expand(ctx, param);
+<a name="292"></a>
+<a name="293"></a>            /* add it to the list */
+<a name="294"></a>            plst.append([lb, rb, param]);
+<a name="295"></a>
+<a name="296"></a>            /* move past this item */
+<a name="297"></a>            j = rb + 1;
+<a name="298"></a>        }
+<a name="299"></a>
+<a name="300"></a>        /* restart the sentence */
+<a name="301"></a>        ctx.endPreScan();
+<a name="302"></a>
+<a name="303"></a>        /* do the actual expansion */
+<a name="304"></a>        local delta = 0;
+<a name="305"></a>        for (local j = 1 ; j &lt;= plst.length() ; ++j)
+<a name="306"></a>        {
+<a name="307"></a>            /* pull out this item */
+<a name="308"></a>            local cur = plst[j];
+<a name="309"></a>            local lb = cur[1], rb = cur[2], param = cur[3];
+<a name="310"></a>            local paramLen = rb - lb + 1;
+<a name="311"></a>
+<a name="312"></a>            /* get the expansion */
+<a name="313"></a>            local sub = mo.expand(ctx, param);
+<a name="314"></a>
+<a name="315"></a>            /* 
+<a name="316"></a>             *   if it starts with a "backspace" character ('\010', which
+<a name="317"></a>             *   is a ^H character, the standard ASCII backspace), delete
+<a name="318"></a>             *   any spaces immediate preceding the substitution parameter 
+<a name="319"></a>             */
+<a name="320"></a>            if (sub.startsWith('\010'))
+<a name="321"></a>            {
+<a name="322"></a>                /* count spaces immediately preceding the parameter */
+<a name="323"></a>                local m = lb + delta - 1, spCnt = 0;
+<a name="324"></a>                while (m &gt;= 1 &amp;&amp; txt.toUnicode(m) == 32)
+<a name="325"></a>                    --m, ++spCnt;
+<a name="326"></a>
+<a name="327"></a>                /* if we found any spaces, splice them out */
+<a name="328"></a>                if (spCnt != 0)
+<a name="329"></a>                {
+<a name="330"></a>                    /* splice out the spaces */
+<a name="331"></a>                    txt = txt.splice(m + 1, spCnt, '');
+<a name="332"></a>
+<a name="333"></a>                    /* adjust our delta for the deletion */
+<a name="334"></a>                    delta -= spCnt;
+<a name="335"></a>                }
+<a name="336"></a>
+<a name="337"></a>                /* remove the backspace from the replacement text */
+<a name="338"></a>                sub = sub.substr(2);
+<a name="339"></a>            }
+<a name="340"></a>
+<a name="341"></a>            /* splice the replacement text into the string */
+<a name="342"></a>//            txt = txt.splice(lb + delta, paramLen, sub);
+<a name="343"></a>            txt = txt.substr(1, lb + delta -1) + sub + txt.substr(lb + delta 
+<a name="344"></a>                + paramLen );
+<a name="345"></a>
+<a name="346"></a>            /* adjust our delta to the next item for the splice */
+<a name="347"></a>            delta += sub.length() - paramLen;
+<a name="348"></a>        }
+<a name="349"></a>
+<a name="350"></a>        /* move to the end of the sentence */
+<a name="351"></a>        i = eos + delta + 1;
+<a name="352"></a>    }
+<a name="353"></a>
+<a name="354"></a>
+<a name="355"></a>    return txt;
+<a name="356"></a>}
+<a name="357"></a>
+<a name="358"></a>/*
+<a name="359"></a> *   Message debugging.  This shows the message before processing: the ID,
+<a name="360"></a> *   the default source text with the {...} parameters, the overriding
+<a name="361"></a> *   custom source text, and the arguments.  
+<a name="362"></a> */
+<a name="363"></a>#ifdef __DEBUG
+<a name="364"></a>debugMessage(id, txt, cm, args)
+<a name="365"></a>{
+<a name="366"></a>    if(id is in (nil,'','command results prefix', 'command prompt', 'command
+<a name="367"></a>        results suffix') 
+<a name="368"></a>       || outputManager.curOutputStream != mainOutputStream)       
+<a name="369"></a>        return;
+<a name="370"></a>    
+<a name="371"></a>    local idchk = [id, libGlobal.totalTurns];
+<a name="372"></a>    
+<a name="373"></a>    if(DebugCtl.messageIDs[idchk] != nil)
+<a name="374"></a>        return;
+<a name="375"></a>    else
+<a name="376"></a>        DebugCtl.messageIDs[idchk] = true; 
+<a name="377"></a>    
+<a name="378"></a>    oSay('\nmessage(id=&lt;&lt;id&gt;&gt;, default text=\'&lt;&lt;txt&gt;&gt;\' ');
+<a name="379"></a>    if (cm != nil)
+<a name="380"></a>        oSay('custom text=\'&lt;&lt;cm.msgTab[id]&gt;&gt;\'');
+<a name="381"></a>
+<a name="382"></a>    if (args.length() != 0)
+<a name="383"></a>    {
+<a name="384"></a>        oSay(', args={ ');
+<a name="385"></a>        for (local i = 1 ; i &lt;= args.length() ; ++i)
+<a name="386"></a>        {
+<a name="387"></a>            local a = args[i];
+<a name="388"></a>            if (i &gt; 1)
+<a name="389"></a>                oSay(', ');
+<a name="390"></a>            if (dataType(a) == TypeSString)
+<a name="391"></a>                oSay(''''&lt;&lt;args[i]&gt;&gt;'''');
+<a name="392"></a>            else
+<a name="393"></a>                oSay('object(name=&lt;&lt;a.name&gt;&gt;)');
+<a name="394"></a>        }
+<a name="395"></a>        oSay(' }');
+<a name="396"></a>    }
+<a name="397"></a>    oSay(')\n');
+<a name="398"></a>}
+<a name="399"></a>#endif
+<a name="400"></a>
+<a name="401"></a>
+<a name="402"></a>/* ------------------------------------------------------------------------ */
+<a name="403"></a>/*
+<a name="404"></a> *   Noun parameter roles for MessageCtx.noteObj() 
+<a name="405"></a> */
+<a name="406"></a>
+<a name="407"></a>/* the noun is the subject of the sentence */
+<a name="408"></a>enum vSubject;
+<a name="409"></a>
+<a name="410"></a>/* the noun is an object of the verb */
+<a name="411"></a>enum vObject;
+<a name="412"></a>
+<a name="413"></a>/* 
+<a name="414"></a> *   the role is ambiguous (it's not marked clearly in the case or
+<a name="415"></a> *   position, for example) 
+<a name="416"></a> */
+<a name="417"></a>enum vAmbig;
+<a name="418"></a>
+<a name="419"></a>/* the noun is a possessive, not the subject or the object */
+<a name="420"></a>enum vPossessive;
+<a name="421"></a>/* ------------------------------------------------------------------------ */
+<a name="422"></a>/*
+<a name="423"></a> *   Message expansion sentence context.  This keeps track of the parts of
+<a name="424"></a> *   the sentence we've seen so far in the substitution parameters.
+<a name="425"></a> *   
+<a name="426"></a> *   The sentence context is important for expanding certain items.  For
+<a name="427"></a> *   verbs, it tells us which object is the subject, so that we can
+<a name="428"></a> *   generate the agreeing conjugation of the verb (in number and
+<a name="429"></a> *   grammatical person).  For direct and indirect objects, it lets us
+<a name="430"></a> *   generate a reflexive when the same object appears in a second role
+<a name="431"></a> *   ("You can't put the box in itself").
+<a name="432"></a> */
+<a name="433"></a>class MessageCtx: object
+<a name="434"></a>    construct(args)
+<a name="435"></a>    {
+<a name="436"></a>        /* remember the message arguments */
+<a name="437"></a>        self.args = args;
+<a name="438"></a>
+<a name="439"></a>        /* if there's a Command among the arguments, note it */
+<a name="440"></a>        cmd = gCommand;
+<a name="441"></a>
+<a name="442"></a>        /* if there's no command, use the placeholder */
+<a name="443"></a>        if (cmd == nil)
+<a name="444"></a>            cmd = messageDummyCommand;
+<a name="445"></a>    }
+<a name="446"></a>
+<a name="447"></a>    /* start a new sentence */
+<a name="448"></a>    startSentence()
+<a name="449"></a>    {
+<a name="450"></a>        /* forget any subject/object information */
+<a name="451"></a>        subj = nil;
+<a name="452"></a>        vobj = nil;
+<a name="453"></a>        gotVerb = nil;
+<a name="454"></a>        reflexiveAnte.clear();
+<a name="455"></a>
+<a name="456"></a>        /* note that we're on the initial scan */
+<a name="457"></a>        prescan = true;
+<a name="458"></a>
+<a name="459"></a>        /* we're starting a new scan, so reset the previous parameter */
+<a name="460"></a>        lastParam = nil;
+<a name="461"></a>    }
+<a name="462"></a>
+<a name="463"></a>    /* 
+<a name="464"></a>     *   End the pre-expansion scan.  The expander makes two passes over
+<a name="465"></a>     *   each sentence.  The first scan doesn't actually do any
+<a name="466"></a>     *   substitutions, but merely invokes each parameter to give it a
+<a name="467"></a>     *   chance to exert its side effects on the sentence context.  The
+<a name="468"></a>     *   second scan actually applies the substitutions.  At the end of the
+<a name="469"></a>     *   first pass, the expander calls this to let us finalize the initial
+<a name="470"></a>     *   scan and prepare for the second scan.  
+<a name="471"></a>     */
+<a name="472"></a>    endPreScan()
+<a name="473"></a>    {
+<a name="474"></a>        /* 
+<a name="475"></a>         *   Forget the reflexive antecedent.  Reflexives are generally
+<a name="476"></a>         *   anaphoric (i.e., they refer back to earlier clauses in the
+<a name="477"></a>         *   same sentence), so we generally don't care about anything we
+<a name="478"></a>         *   found later in the same sentence. 
+<a name="479"></a>         */
+<a name="480"></a>        reflexiveAnte.clear();
+<a name="481"></a>
+<a name="482"></a>        /* we're no longer on the initial scan */
+<a name="483"></a>        prescan = nil;
+<a name="484"></a>
+<a name="485"></a>        /* we're starting a new scan, so reset the previous parameter */
+<a name="486"></a>        lastParam = nil;
+<a name="487"></a>    }
+<a name="488"></a>
+<a name="489"></a>    /*
+<a name="490"></a>     *   Note a parameter value.  Some parameters refer back to the
+<a name="491"></a>     *   immediately preceding parameter, so it's useful to have the most
+<a name="492"></a>     *   recent value stashed away.  Returns the parameter value as given.
+<a name="493"></a>     */
+<a name="494"></a>    noteParam(val)
+<a name="495"></a>    {
+<a name="496"></a>        /* remember the value */
+<a name="497"></a>        return lastParam = val;
+<a name="498"></a>    }
+<a name="499"></a>
+<a name="500"></a>    /*
+<a name="501"></a>     *   Convert a parameter value to a string representation suitable for
+<a name="502"></a>     *   message substitution. 
+<a name="503"></a>     */
+<a name="504"></a>    paramToString(val)
+<a name="505"></a>    {
+<a name="506"></a>        switch (dataType(val))
+<a name="507"></a>        {
+<a name="508"></a>        case TypeSString:
+<a name="509"></a>            return val;
+<a name="510"></a>            
+<a name="511"></a>        case TypeInt:
+<a name="512"></a>            return toString(val);
+<a name="513"></a>
+<a name="514"></a>        case TypeObject:
+<a name="515"></a>            if (val.ofKind(Mentionable) || val.ofKind(Pronoun))
+<a name="516"></a>                return val.name;
+<a name="517"></a>            else if (val.ofKind(List) || val.ofKind(Vector))
+<a name="518"></a>                return val.mapAll({ x: paramToString(x) }).join(', ');
+<a name="519"></a>            else if (val.ofKind(BigNumber))
+<a name="520"></a>                return toString(val);
+<a name="521"></a>            else
+<a name="522"></a>                return '(object)';
+<a name="523"></a>
+<a name="524"></a>        case true:
+<a name="525"></a>            return 'true';
+<a name="526"></a>
+<a name="527"></a>        case nil:
+<a name="528"></a>            return '';
+<a name="529"></a>
+<a name="530"></a>        default:
+<a name="531"></a>            return '(?)';
+<a name="532"></a>        }
+<a name="533"></a>    }
+<a name="534"></a>
+<a name="535"></a>    /*
+<a name="536"></a>     *   Convert a parameter value to a numeric representation.  If the
+<a name="537"></a>     *   value is an integer or BigNumber, we return it as is; if a list or
+<a name="538"></a>     *   vector, we return the number of elements; if nil, 0; if a string,
+<a name="539"></a>     *   the parsed numeric value of the string; otherwise we simply return
+<a name="540"></a>     *   1.  
+<a name="541"></a>     */
+<a name="542"></a>    paramToNum(val)
+<a name="543"></a>    {
+<a name="544"></a>        switch (dataType(val))
+<a name="545"></a>        {
+<a name="546"></a>        case TypeSString:
+<a name="547"></a>            return toInteger(val);
+<a name="548"></a>
+<a name="549"></a>        case TypeInt:
+<a name="550"></a>            return val;
+<a name="551"></a>
+<a name="552"></a>        case TypeObject:
+<a name="553"></a>            if (val.ofKind(BigNumber))
+<a name="554"></a>                return val;
+<a name="555"></a>            if (val.ofKind(List) || val.ofKind(Vector))
+<a name="556"></a>                return val.length();
+<a name="557"></a>            return 1;
+<a name="558"></a>
+<a name="559"></a>        case TypeList:
+<a name="560"></a>            return val.length();
+<a name="561"></a>
+<a name="562"></a>        case nil:
+<a name="563"></a>            return 0;
+<a name="564"></a>
+<a name="565"></a>        default:
+<a name="566"></a>            return 1;
+<a name="567"></a>        }
+<a name="568"></a>    }
+<a name="569"></a>
+<a name="570"></a>    /*
+<a name="571"></a>     *   Note an object being used as a parameter in the given sentence
+<a name="572"></a>     *   role.  The role is one of the noun role enums defined above:
+<a name="573"></a>     *   vSubject, vObject, or vAmbig.  If the object is a subject, we'll
+<a name="574"></a>     *   save it as the sentence subject, so that we can generate an
+<a name="575"></a>     *   agreeing verb.  Regardless of role, we'll also save it as a
+<a name="576"></a>     *   reflexive antecedent, so that we can generate a reflexive pronoun
+<a name="577"></a>     *   if we see the same object again in another role in the same
+<a name="578"></a>     *   sentence.  
+<a name="579"></a>     */
+<a name="580"></a>    noteObj(obj, role)
+<a name="581"></a>    {
+<a name="582"></a>        /* remember the object as the last parameter value */
+<a name="583"></a>        noteParam(obj);
+<a name="584"></a>
+<a name="585"></a>        /* 
+<a name="586"></a>         *   If the role is ambiguous, guess at the role based on the
+<a name="587"></a>         *   general sentence order. 
+<a name="588"></a>         */
+<a name="589"></a>        if (role == vAmbig &amp;&amp; MessageParams.langObj.sentenceOrder != nil)
+<a name="590"></a>        {
+<a name="591"></a>            /* get the sentence order flags */
+<a name="592"></a>            local so = MessageParams.langObj.sentenceOrder;
+<a name="593"></a>
+<a name="594"></a>            /* figure whether the subject/object is before/after the verb */
+<a name="595"></a>            local ssv = (so.find(R'S.*V') != nil ? -1 : 1);
+<a name="596"></a>            local osv = (so.find(R'O.*V') != nil ? -1 : 1);
+<a name="597"></a>
+<a name="598"></a>            /* figure whether the subject or object comes first */
+<a name="599"></a>            local fo = (so.find(R'S.*O') != nil ? vSubject : vObject);
+<a name="600"></a>
+<a name="601"></a>            /* figure which side of the verb we're on (-1 before, 1 after) */
+<a name="602"></a>            local sv = (gotVerb ? 1 : -1);
+<a name="603"></a>
+<a name="604"></a>            /*
+<a name="605"></a>             *   If we're on the right side of the verb for both subject
+<a name="606"></a>             *   and object: if we have an object, this is the subject; if
+<a name="607"></a>             *   we have a subject, this is the object; if we have neither
+<a name="608"></a>             *   this is the first role in sentence order.
+<a name="609"></a>             *   
+<a name="610"></a>             *   Otherwise, if we're on the subject side of the verb, and
+<a name="611"></a>             *   we don't have a subject, this is the subject.
+<a name="612"></a>             *   
+<a name="613"></a>             *   Otherwise, if we're on the object side of the verb, and we
+<a name="614"></a>             *   don't have an object, this is an object.  
+<a name="615"></a>             */
+<a name="616"></a>            if (ssv == sv &amp;&amp; osv == sv)
+<a name="617"></a>                role = (subj != nil ? vObject :
+<a name="618"></a>                        vobj != nil ? vSubject : fo);
+<a name="619"></a>            else if (ssv == sv &amp;&amp; subj == nil)
+<a name="620"></a>                role = vSubject;
+<a name="621"></a>            else if (osv == sv &amp;&amp; vobj == nil)
+<a name="622"></a>                role = vObject;
+<a name="623"></a>        }
+<a name="624"></a>
+<a name="625"></a>        /* if it's the subject, remember it as such */
+<a name="626"></a>        if (role == vSubject)
+<a name="627"></a>            subj = obj;
+<a name="628"></a>        else if (role == vObject)
+<a name="629"></a>            vobj = obj;
+<a name="630"></a>
+<a name="631"></a>        /* 
+<a name="632"></a>         *   Only record the reflexive antecent for the subject, so that the
+<a name="633"></a>         *   reflexive pronoun is used when an actor or object tries to act on
+<a name="634"></a>         *   itself.
+<a name="635"></a>         */
+<a name="636"></a>        if(role != vSubject)
+<a name="637"></a>            return;
+<a name="638"></a>        
+<a name="639"></a>        /* 
+<a name="640"></a>         *   If there's nothing in the reflexive antecedent list that uses
+<a name="641"></a>         *   the same pronoun, add this to the list.  Otherwise, replace
+<a name="642"></a>         *   the object that used the same antecedent. 
+<a name="643"></a>         */
+<a name="644"></a>//        local p = obj.pronoun();
+<a name="645"></a>//        local idx = reflexiveAnte.indexWhich({ o: o.pronoun() == p });
+<a name="646"></a>        
+<a name="647"></a>        /* 
+<a name="648"></a>         *   The foregoing rule seems to generate false positives (that is, it
+<a name="649"></a>         *   can result in reflexive pronouns where they're not appropriate), so
+<a name="650"></a>         *   we'll try the different strategy of looking for anything in the
+<a name="651"></a>         *   reflexive ante list. The reason for this is that if a new
+<a name="652"></a>         *   subject is introduced into the sentence, it doesn't have to be the
+<a name="653"></a>         *   same gender as the previous subject to become the most likely
+<a name="654"></a>         *   antecedent for a reflexive.
+<a name="655"></a>         */
+<a name="656"></a>        local idx = reflexiveAnte.indexWhich({ o: o.ofKind(Thing) });
+<a name="657"></a>        
+<a name="658"></a>        if (idx == nil)
+<a name="659"></a>        {
+<a name="660"></a>            /* 
+<a name="661"></a>             *   There's no object with this pronoun yet - add it.  We want
+<a name="662"></a>             *   to keep earlier antecedents with different pronouns
+<a name="663"></a>             *   because we can still refer back to earlier objects
+<a name="664"></a>             *   reflexively as long as it's clear which one we're talking
+<a name="665"></a>             *   about.  The distinct pronouns provide that clarity. 
+<a name="666"></a>             */
+<a name="667"></a>            reflexiveAnte.append(obj);
+<a name="668"></a>        }
+<a name="669"></a>        else
+<a name="670"></a>        {
+<a name="671"></a>            /* 
+<a name="672"></a>             *   We already have an object with this pronoun, so replace it
+<a name="673"></a>             *   with the new one.  Reflexives generally bind to the prior
+<a name="674"></a>             *   noun phrase that matches the pronoun *and* is closest in
+<a name="675"></a>             *   terms of word order.  Once another noun phrase intervenes
+<a name="676"></a>             *   in word order, we can only refer back to an earlier one by
+<a name="677"></a>             *   reflexive pronoun if the earlier noun is distinguishable
+<a name="678"></a>             *   from the later one by its use of a distinct pronoun from
+<a name="679"></a>             *   the later one.  For example, we can say "Bob asked Sue
+<a name="680"></a>             *   about himself", because "himself" could only refer to Bob,
+<a name="681"></a>             *   but most people would take "Bob asked Sam about himself"
+<a name="682"></a>             *   to mean that Bob is asking about Sam.  
+<a name="683"></a>             */
+<a name="684"></a>            reflexiveAnte[idx] = obj;
+<a name="685"></a>        }
+<a name="686"></a>    }
+<a name="687"></a>
+<a name="688"></a>    /*
+<a name="689"></a>     *   Note a verb parameter. 
+<a name="690"></a>     */
+<a name="691"></a>    noteVerb()
+<a name="692"></a>    {
+<a name="693"></a>        /* note that we got a verb */
+<a name="694"></a>        gotVerb = true;
+<a name="695"></a>    }
+<a name="696"></a>
+<a name="697"></a>    /* 
+<a name="698"></a>     *   Was the last parameter value plural?  If the value is numeric, 1
+<a name="699"></a>     *   is singular and anything else is plural.  If it's a list, a
+<a name="700"></a>     *   one-element list is singular and anything else is plural.  If it's
+<a name="701"></a>     *   a Mentionable, the 'plural' property determines it. 
+<a name="702"></a>     */
+<a name="703"></a>    lastParamPlural()
+<a name="704"></a>    {
+<a name="705"></a>        switch (dataType(lastParam))
+<a name="706"></a>        {
+<a name="707"></a>        case TypeInt:
+<a name="708"></a>            return lastParam != 1;
+<a name="709"></a>
+<a name="710"></a>        case TypeObject:
+<a name="711"></a>            if (lastParam.ofKind(Mentionable) || lastParam.ofKind(Pronoun))
+<a name="712"></a>                return lastParam.plural;
+<a name="713"></a>            else if (lastParam.ofKind(List) || lastParam.ofKind(Vector))
+<a name="714"></a>                return lastParam.length() != 1;
+<a name="715"></a>            else if (lastParam.ofKind(BigNumber))
+<a name="716"></a>                return lastParam != 1;
+<a name="717"></a>            else
+<a name="718"></a>                return nil;
+<a name="719"></a>
+<a name="720"></a>        case TypeList:
+<a name="721"></a>            return lastParam.length() != 1;
+<a name="722"></a>
+<a name="723"></a>        default:
+<a name="724"></a>            return nil;
+<a name="725"></a>        }
+<a name="726"></a>    }
+<a name="727"></a>
+<a name="728"></a>    /*
+<a name="729"></a>     *   Is the actor involved in the Command the PC?  If there's a Command
+<a name="730"></a>     *   with an actor, we check to see if it's the PC.  If there's no
+<a name="731"></a>     *   Command or no actor, we assume that the PC is the relevant actor
+<a name="732"></a>     *   (since there's nothing else specified anywhere) and return true.  
+<a name="733"></a>     */
+<a name="734"></a>    actorIsPC()
+<a name="735"></a>    {
+<a name="736"></a>        return cmd == nil || cmd.actor == nil
+<a name="737"></a>            || cmd.actor == gPlayerChar;
+<a name="738"></a>    }
+<a name="739"></a>
+<a name="740"></a>    /* the last parameter value */
+<a name="741"></a>    lastParam = nil
+<a name="742"></a>
+<a name="743"></a>    /* are we on the initial pre-expansion scan? */
+<a name="744"></a>    prescan = nil
+<a name="745"></a>
+<a name="746"></a>    /* the subject of the sentence (as a Mentionable object) */
+<a name="747"></a>    subj = nil
+<a name="748"></a>
+<a name="749"></a>    /* the last object of the verb we saw */
+<a name="750"></a>    vobj = nil
+<a name="751"></a>
+<a name="752"></a>    /* have we seen a verb parameter in this sentence yet? */
+<a name="753"></a>    gotVerb = nil
+<a name="754"></a>    
+<a name="755"></a>    /* the message argument list */
+<a name="756"></a>    args = nil
+<a name="757"></a>
+<a name="758"></a>    /* the Command object among the arguments, if any */
+<a name="759"></a>    cmd = nil
+<a name="760"></a>
+<a name="761"></a>    /* 
+<a name="762"></a>     *   The reflexive antecedents.  Each time we see an object in a
+<a name="763"></a>     *   non-subject role, and the object has different pronoun usage from
+<a name="764"></a>     *   any previous entry, we'll add it to this list.  If we see the same
+<a name="765"></a>     *   object subsequently in another non-subject role, we'll know that
+<a name="766"></a>     *   we should generate a reflexive pronoun for the object rather than
+<a name="767"></a>     *   the name or a regular pronoun:
+<a name="768"></a>     *   
+<a name="769"></a>     *   You can't put the tongs in the box with the tongs -&gt; with
+<a name="770"></a>     *   themselves
+<a name="771"></a>     */
+<a name="772"></a>    reflexiveAnte = perInstance(new Vector(5))
+<a name="773"></a>;
+<a name="774"></a>
+<a name="775"></a>/*
+<a name="776"></a> *   Dummy command placeholder for messages generated without a command.
+<a name="777"></a> */
+<a name="778"></a>messageDummyCommand: object
+<a name="779"></a>    /* use the player character as the actor */
+<a name="780"></a>    actor = (gPlayerChar)
+<a name="781"></a>    
+<a name="782"></a>;
+<a name="783"></a>
+<a name="784"></a>/*
+<a name="785"></a> *    Use the message builder to format a message without supplying a key
+<a name="786"></a> *    to look up at alternative message. We can use this with library
+<a name="787"></a> *    messages that employ object properties (e.g. cannotTakeMsg) or user
+<a name="788"></a> *    code.
+<a name="789"></a> *
+<a name="790"></a> *    dmsg() displays the resultant message.
+<a name="791"></a> */
+<a name="792"></a>dmsg(txt, [args])
+<a name="793"></a>{
+<a name="794"></a>    message('', txt, args...);
+<a name="795"></a>}
+<a name="796"></a>
+<a name="797"></a>
+<a name="798"></a>/* bmsg returns the text of a message formatted by the message formatter. */
+<a name="799"></a>bmsg(txt, [args])
+<a name="800"></a>{
+<a name="801"></a>    return buildMessage('', txt, args...);
+<a name="802"></a>}
+<a name="803"></a>
+<a name="804"></a>/* ------------------------------------------------------------------------ */
+<a name="805"></a>/*
+<a name="806"></a> *   Message customizer object.  Language extensions and games can use this
+<a name="807"></a> *   class to define their own custom messages that override the default
+<a name="808"></a> *   English messages used throughout the library.
+<a name="809"></a> *   
+<a name="810"></a> *   Each CustomMessages object can define a list of messages to be
+<a name="811"></a> *   customized.  This lets you centrally locate all of your custom
+<a name="812"></a> *   messages by putting them all in a single object, if you wish.
+<a name="813"></a> *   Alternatively, you can create separate objects, if you prefer to keep
+<a name="814"></a> *   them with some other body of code they apply to.  In either case, the
+<a name="815"></a> *   library gathers them all up during preinit.  
+<a name="816"></a> */
+<a name="817"></a>class CustomMessages: object
+<a name="818"></a>    /*
+<a name="819"></a>     *   The priority determines the precedence of a message defined in
+<a name="820"></a>     *   this object, if the same message is defined in more than one
+<a name="821"></a>     *   CustomMessages object.  The message with the highest priority is
+<a name="822"></a>     *   the one that's actually displayed.
+<a name="823"></a>     *   
+<a name="824"></a>     *   The library defines one standard priority level: 100 is the
+<a name="825"></a>     *   priority for language module overrides.  Each language module
+<a name="826"></a>     *   provides a translated set of the standard library messages, via a
+<a name="827"></a>     *   CustomMessages object with priority 100.  (The default English
+<a name="828"></a>     *   messages defined in-line throughout the library via DMsg() macros
+<a name="829"></a>     *   effectively have a priority of negative infinity, since any custom
+<a name="830"></a>     *   message of any priority overrides a default.)
+<a name="831"></a>     *   
+<a name="832"></a>     *   Games will generally want to override all library messages,
+<a name="833"></a>     *   including translations, so we set the default here to 200.  
+<a name="834"></a>     */
+<a name="835"></a>    priority = 200
+<a name="836"></a>
+<a name="837"></a>    /*
+<a name="838"></a>     *   Is this customizer active?  If you want to change the messages at
+<a name="839"></a>     *   different points in the course of the game, you can use this to
+<a name="840"></a>     *   turn sets of messages on and off.  For example, if your game
+<a name="841"></a>     *   includes narrator changes at certain points, you can create
+<a name="842"></a>     *   separate sets of messages per narrator.  By default, we make all
+<a name="843"></a>     *   customizations active, but you can override this to turn selected
+<a name="844"></a>     *   messages on and off as needed.  Note that the library consults
+<a name="845"></a>     *   this every time it looks up a message, so you can change the value
+<a name="846"></a>     *   dynamically, or use a method whose return value changes
+<a name="847"></a>     *   dynamically.  
+<a name="848"></a>     */
+<a name="849"></a>    active = true
+<a name="850"></a>
+<a name="851"></a>    /*
+<a name="852"></a>     *   The message list.  This can contain any number of messages; the
+<a name="853"></a>     *   order isn't important.  Each message is defined with a Msg()
+<a name="854"></a>     *   macro:
+<a name="855"></a>     *   
+<a name="856"></a>     *.     Msg(id key, 'Message text'),  ...
+<a name="857"></a>     *   
+<a name="858"></a>     *   The "id key" is the message ID that the library uses in the DMsg()
+<a name="859"></a>     *   message that you're customizing.  (DON'T use quotes around the ID
+<a name="860"></a>     *   key.)  The message text is a single-quoted string giving the
+<a name="861"></a>     *   message text.  This can contain curly-brace replacement
+<a name="862"></a>     *   parameters.  
+<a name="863"></a>     */
+<a name="864"></a>    messages = []
+<a name="865"></a>
+<a name="866"></a>    /*
+<a name="867"></a>     *   Construction.  Build the lookup table of our messages for fast
+<a name="868"></a>     *   access at run-time. 
+<a name="869"></a>     */
+<a name="870"></a>    construct()
+<a name="871"></a>    {
+<a name="872"></a>        /* add me to the master list of message customizers */
+<a name="873"></a>        CustomMessages.all += self;
+<a name="874"></a>
+<a name="875"></a>        /* create the lookup table */
+<a name="876"></a>        msgTab = new LookupTable(64, 128);
+<a name="877"></a>
+<a name="878"></a>        /* populate it with our key-&gt;string mappings */
+<a name="879"></a>        for (local i = 1, local len = messages.length() ; i &lt;= len ; i += 2)
+<a name="880"></a>            msgTab[messages[i]] = messages[i+1];
+<a name="881"></a>    }
+<a name="882"></a>
+<a name="883"></a>    /* message lookup table - this maps ID keys to message text strings */
+<a name="884"></a>    msgTab = nil
+<a name="885"></a>
+<a name="886"></a>    /* 
+<a name="887"></a>     *   class property: the master list of CustomMessages objects defined
+<a name="888"></a>     *   throughout the game 
+<a name="889"></a>     */
+<a name="890"></a>    all = []
+<a name="891"></a>;
+<a name="892"></a>
+<a name="893"></a>/* ------------------------------------------------------------------------ */
+<a name="894"></a>/*
+<a name="895"></a> *   Message Parameter Handler.  This object defines and handles parameter
+<a name="896"></a> *   expansion for '{...}' strings in displayed messages.
+<a name="897"></a> *   
+<a name="898"></a> *   The language module must provide one instance of this class.  The name
+<a name="899"></a> *   of the instance doesn't matter - we'll find it at preinit time.  The
+<a name="900"></a> *   object must provide the 'params' property giving the language-specific
+<a name="901"></a> *   list of substitution parameter names and handler functions.  
+<a name="902"></a> */
+<a name="903"></a>class MessageParams: object
+<a name="904"></a>    /*
+<a name="905"></a>     *   Expand a parameter string.  'ctx' is a MessageCtx object with the
+<a name="906"></a>     *   current sentence context.  This contains the message expansion
+<a name="907"></a>     *   arguments (ctx.args), the Command object from the arguments
+<a name="908"></a>     *   (ctx.cmd), and information on the grammar elements of the
+<a name="909"></a>     *   sentence.  'params' is the list of space-delimited tokens within
+<a name="910"></a>     *   the curly-brace parameter string.  Returns the string to
+<a name="911"></a>     *   substitute for the parameter in the message output.  
+<a name="912"></a>     */
+<a name="913"></a>    expand(ctx, params)
+<a name="914"></a>    {
+<a name="915"></a>        /* look up the parameter name */
+<a name="916"></a>        local pname = params[1].trim();
+<a name="917"></a>        local t = paramTab[pname.toLower()];
+<a name="918"></a>
+<a name="919"></a>        /* 
+<a name="920"></a>         *   If we found an entry, let the entry handle it.  If there's no
+<a name="921"></a>         *   matching entry, it's basically an error: return the original
+<a name="922"></a>         *   parameter source text, with the braces restored, so that it'll
+<a name="923"></a>         *   be obvious in the output.
+<a name="924"></a>         */
+<a name="925"></a>        local txt = nil;
+<a name="926"></a>        if (t != nil)
+<a name="927"></a>        {
+<a name="928"></a>            /* 
+<a name="929"></a>             *   If we have not previously identified a subject for this
+<a name="930"></a>             *   context, use the dummy_ object, which provides a dummy third
+<a name="931"></a>             *   person singular noun as a default subject for the verb.
+<a name="932"></a>             */
+<a name="933"></a>            if(ctx.subj == nil)
+<a name="934"></a>                ctx.subj = dummy_;
+<a name="935"></a>            
+<a name="936"></a>            /* we found the parameter - get the translation */
+<a name="937"></a>            txt = t[2](ctx, params);
+<a name="938"></a>            
+<a name="939"></a>            /* 
+<a name="940"></a>             *   if this isn't a pre-scan, and the parameter name starts
+<a name="941"></a>             *   with a capital, mimic that pattern in the result 
+<a name="942"></a>             */
+<a name="943"></a>            if (txt != nil &amp;&amp; !ctx.prescan &amp;&amp; rexMatch(R'&lt;upper&gt;', pname) != nil)
+<a name="944"></a>                txt = txt.firstChar().toUpper() + txt.delFirst();
+<a name="945"></a>        }
+<a name="946"></a>
+<a name="947"></a>        /* 
+<a name="948"></a>         *   if we failed to find an expansion, and this isn't just a
+<a name="949"></a>         *   pre-scan, return the source text as an error indication 
+<a name="950"></a>         */
+<a name="951"></a>        if (txt == nil &amp;&amp; !ctx.prescan)
+<a name="952"></a>            txt = '{' + params.join(' ') + '}';
+<a name="953"></a>
+<a name="954"></a>        /* return the result */
+<a name="955"></a>        return txt;
+<a name="956"></a>    }
+<a name="957"></a>
+<a name="958"></a>    /* 
+<a name="959"></a>     *   Parameter mapping list.  This is a list of lists: [name, func],
+<a name="960"></a>     *   where 'name' is the parameter name (as a string), and 'func' is
+<a name="961"></a>     *   the expansion handler function.
+<a name="962"></a>     *   
+<a name="963"></a>     *   The parameter name must be all lower case.  During expansion, we
+<a name="964"></a>     *   convert the first space-delimited token within the {curly brace}
+<a name="965"></a>     *   parameter string to lower case, then look for an entry in the list
+<a name="966"></a>     *   with the matching parameter name.  If we find an entry, we call
+<a name="967"></a>     *   its handler function.
+<a name="968"></a>     *   
+<a name="969"></a>     *   The handler function is a pointer to a function that takes two
+<a name="970"></a>     *   arguments: func(params, ctx), where 'params' is the list of tokens
+<a name="971"></a>     *   within the {curly braces} of the substitution string, as a list of
+<a name="972"></a>     *   strings, where each string is a space-delimited token in the
+<a name="973"></a>     *   original {curly brace} string; and 'ctx' is the MessageCtx object
+<a name="974"></a>     *   for the expansion.  The function returns a string giving the
+<a name="975"></a>     *   expansion of the parameter.
+<a name="976"></a>     *   
+<a name="977"></a>     *   The parameter list must be provided by the language module, since
+<a name="978"></a>     *   each language's list of parameters and expansions will vary.  
+<a name="979"></a>     */
+<a name="980"></a>    params = [ ]
+<a name="981"></a>
+<a name="982"></a>    /*
+<a name="983"></a>     *   Some parameters expand to properties of objects involved in the
+<a name="984"></a>     *   command.  cmdInfo() makes it easier to define the expansion
+<a name="985"></a>     *   functions for such parameters.  We search the parameters for a
+<a name="986"></a>     *   Command object, and if we find it, we retrieve a particular source
+<a name="987"></a>     *   object and evaluate a particular property on the source object to
+<a name="988"></a>     *   get the result string.
+<a name="989"></a>     *   
+<a name="990"></a>     *   For example, {the dobj} could be handled via cmdInfo('ctx, dobj',
+<a name="991"></a>     *   &amp;theName, vSubject): we find the current 'dobj' object in the
+<a name="992"></a>     *   Command, then evaluate the &amp;theName property on that object.
+<a name="993"></a>     *   
+<a name="994"></a>     *   'ctx' is the MessageCtx object with the current sentence context.
+<a name="995"></a>     *   
+<a name="996"></a>     *   'src' is the source object in the Command.  This can be given as a
+<a name="997"></a>     *   property pointer (&amp;actor, say), in which case we simply evaluate
+<a name="998"></a>     *   that property of the Command object (cmd.(src)) to get the source
+<a name="999"></a>     *   object.  Or, it can be a string giving a NounRole name (dobj,
+<a name="1000"></a>     *   iobj, acc), in which case we'll retrieve the current object for
+<a name="1001"></a>     *   the noun role from the Command.  Or, it can be a string with a
+<a name="1002"></a>     *   number, in which case we'll use the number as an index into the
+<a name="1003"></a>     *   argument list.
+<a name="1004"></a>     *   
+<a name="1005"></a>     *   'objProp' is the property of the source object to evaluate to get
+<a name="1006"></a>     *   the expansion string.
+<a name="1007"></a>     *   
+<a name="1008"></a>     *   'role' is vSubject if this is a noun phrase with subject usage (in
+<a name="1009"></a>     *   most languages, this is a noun phrase in the nominative case; in
+<a name="1010"></a>     *   English this is called subjective case).  It's vObject for any
+<a name="1011"></a>     *   other noun phrase role (direct object, prepositional object, etc).
+<a name="1012"></a>     *   If the role isn't clear from the context (the case marking of the
+<a name="1013"></a>     *   parameter, or the position), use vAmbig to mark it as ambiguous.  
+<a name="1014"></a>     */
+<a name="1015"></a>    cmdInfo(ctx, src, objProp, role)
+<a name="1016"></a>    {
+<a name="1017"></a>        try
+<a name="1018"></a>        {
+<a name="1019"></a>            /* we don't have a source object yet */
+<a name="1020"></a>            local srcObj = nil;
+<a name="1021"></a>            
+<a name="1022"></a>            /* if the source is a role name, get the corresponding property */
+<a name="1023"></a>            if (dataType(src) == TypeSString)
+<a name="1024"></a>            {
+<a name="1025"></a>                /* check for a number */
+<a name="1026"></a>                if (rexMatch(R'&lt;digit&gt;+', src) != nil)
+<a name="1027"></a>                {
+<a name="1028"></a>                    /* it's an argument index */
+<a name="1029"></a>                    src = ctx.args[toInteger(src)];
+<a name="1030"></a>                }
+<a name="1031"></a>                else
+<a name="1032"></a>                {
+<a name="1033"></a>                    /* Find the source object corresponding to the string */
+<a name="1034"></a>                    src = findStrParam(src, role);
+<a name="1035"></a>                
+<a name="1036"></a>                /* 
+<a name="1037"></a>                 *   If we didn't find an object, return nil to the caller to
+<a name="1038"></a>                 *   indicate an error
+<a name="1039"></a>                 */     
+<a name="1040"></a>                
+<a name="1041"></a>                    if(src == nil)
+<a name="1042"></a>                        return nil;
+<a name="1043"></a>                
+<a name="1044"></a>                }
+<a name="1045"></a>                    
+<a name="1046"></a>            }
+<a name="1047"></a>
+<a name="1048"></a>            /* retrieve the source object from the command */
+<a name="1049"></a>            if (dataType(src) == TypeProp)
+<a name="1050"></a>                srcObj = ctx.cmd.(src);
+<a name="1051"></a>            else if (dataType(src) == TypeObject 
+<a name="1052"></a>                     &amp;&amp; (src.ofKind(Mentionable) || src.ofKind(Pronoun)
+<a name="1053"></a>                         || src.ofKind(LiteralObject) ||
+<a name="1054"></a>                         src.ofKind(ResolvedTopic)))
+<a name="1055"></a>                srcObj = src;
+<a name="1056"></a>
+<a name="1057"></a>            /* check for reflexivity */
+<a name="1058"></a>            if (srcObj != nil &amp;&amp; role == vObject &amp;&amp; !ctx.prescan)
+<a name="1059"></a>            {
+<a name="1060"></a>                local r = cmdInfoReflexive(ctx, srcObj, objProp);
+<a name="1061"></a>                if (r != nil)
+<a name="1062"></a>                    return r;
+<a name="1063"></a>            }
+<a name="1064"></a>
+<a name="1065"></a>            /* note the object's role in the sentence context */
+<a name="1066"></a>            if (srcObj != nil)
+<a name="1067"></a>                ctx.noteObj(srcObj, role);
+<a name="1068"></a>
+<a name="1069"></a>            /* 
+<a name="1070"></a>             *   if we're in pre-scan mode, skip the actual expansion;
+<a name="1071"></a>             *   otherwise evaluate the target property on the source
+<a name="1072"></a>             *   object to get the expansion text 
+<a name="1073"></a>             */
+<a name="1074"></a>            return ctx.prescan ? nil : srcObj.(objProp);
+<a name="1075"></a>        }
+<a name="1076"></a>        catch (Exception e)
+<a name="1077"></a>        {
+<a name="1078"></a>            /* 
+<a name="1079"></a>             *   if anything went wrong, return nil to indicate we failed
+<a name="1080"></a>             *   to find an expansion
+<a name="1081"></a>             */
+<a name="1082"></a>            return nil;
+<a name="1083"></a>        }
+<a name="1084"></a>    }
+<a name="1085"></a>    
+<a name="1086"></a>    findStrParam(src, role)
+<a name="1087"></a>    {
+<a name="1088"></a>        local targetObj;
+<a name="1089"></a>        
+<a name="1090"></a>        if (gAction != nil)
+<a name="1091"></a>        {
+<a name="1092"></a>            /* get the target object by name through the action */
+<a name="1093"></a>            targetObj = gAction.getMessageParam(src);
+<a name="1094"></a>        }
+<a name="1095"></a>        else
+<a name="1096"></a>        {
+<a name="1097"></a>            /* there's no action, so we don't have a value yet */
+<a name="1098"></a>            targetObj = nil;
+<a name="1099"></a>        }
+<a name="1100"></a>        
+<a name="1101"></a>        if (targetObj == nil)
+<a name="1102"></a>        {
+<a name="1103"></a>            /* look up the name */
+<a name="1104"></a>            targetObj = libGlobal.nameTable_[src];
+<a name="1105"></a>            
+<a name="1106"></a>            /* 
+<a name="1107"></a>             *   if we found it, and the result is a function pointer or an
+<a name="1108"></a>             *   anonymous function, invoke the function to get the result
+<a name="1109"></a>             */
+<a name="1110"></a>            if (dataTypeXlat(targetObj) == TypeFuncPtr)
+<a name="1111"></a>            {
+<a name="1112"></a>                /* evaluate the function */
+<a name="1113"></a>                targetObj = (targetObj)();
+<a name="1114"></a>            }
+<a name="1115"></a>        }
+<a name="1116"></a>        
+<a name="1117"></a>        /* 
+<a name="1118"></a>         *   If we still haven't found a targetObj, try getting it from the
+<a name="1119"></a>         *   role's object property.
+<a name="1120"></a>         */
+<a name="1121"></a>        
+<a name="1122"></a>        if (targetObj == nil &amp;&amp; role != nil)
+<a name="1123"></a>        {
+<a name="1124"></a>            /* it's a role name - look up the role */
+<a name="1125"></a>            local role = NounRole.all.valWhich({ r: r.name == src });
+<a name="1126"></a>            
+<a name="1127"></a>            /* get the role's object property */
+<a name="1128"></a>            if(role != nil)
+<a name="1129"></a>               targetObj = role.objProp;
+<a name="1130"></a>        }
+<a name="1131"></a>        
+<a name="1132"></a>        /* 
+<a name="1133"></a>         *   If we still haven't found a targetObj, there's probably an error in
+<a name="1134"></a>         *   the way the object parameter was specified, but rather than
+<a name="1135"></a>         *   allowing this to cause a run-time error down the track, substitute
+<a name="1136"></a>         *   a dummy object and note the offending src parameter on an
+<a name="1137"></a>         *   appropiate property so that the text presented should make it clear
+<a name="1138"></a>         *   where the problem lies.
+<a name="1139"></a>         */
+<a name="1140"></a>        
+<a name="1141"></a>        if(targetObj == nil)
+<a name="1142"></a>        {
+<a name="1143"></a>            targetObj = dummy_;
+<a name="1144"></a>            dummy_.noteName('[' + src + ']');
+<a name="1145"></a>        }
+<a name="1146"></a>            
+<a name="1147"></a>        
+<a name="1148"></a>        return targetObj;
+<a name="1149"></a>    }
+<a name="1150"></a>
+<a name="1151"></a>    /* 
+<a name="1152"></a>     *   Parameter lookup table.  This maps a parameter name to its handler
+<a name="1153"></a>     *   function.  
+<a name="1154"></a>     */
+<a name="1155"></a>    paramTab = nil
+<a name="1156"></a>
+<a name="1157"></a>    /* the language module's instance of the class */
+<a name="1158"></a>    langObj = nil
+<a name="1159"></a>
+<a name="1160"></a>    /* construction - build the lookup table */
+<a name="1161"></a>    construct()
+<a name="1162"></a>    {
+<a name="1163"></a>        /* remember the instance */
+<a name="1164"></a>        MessageParams.langObj = self;
+<a name="1165"></a>
+<a name="1166"></a>        /* create the parameter table */
+<a name="1167"></a>        paramTab = new LookupTable(64, 128);
+<a name="1168"></a>        foreach (local p in params)
+<a name="1169"></a>            paramTab[p[1]] = p;
+<a name="1170"></a>    }
+<a name="1171"></a>;
+<a name="1172"></a>
+<a name="1173"></a>/* Dummy object to use as a fallback when a parameter can't be identified */
+<a name="1174"></a>
+<a name="1175"></a>dummy_: Thing
+<a name="1176"></a>    noteName(src) { }
+<a name="1177"></a>;
+<a name="1178"></a>
+<a name="1179"></a>pluralDummy_: Thing
+<a name="1180"></a>    noteName(src) { }
+<a name="1181"></a>;
+<a name="1182"></a>
+<a name="1183"></a>
+<a name="1184"></a>/*----------------------------------------------------------------------------*/
+<a name="1185"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

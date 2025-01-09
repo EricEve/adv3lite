@@ -1,0 +1,478 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>gadget.t</title></head><body>
+<table class=ban><tr><td><h1>gadget.t</h1><td align=right><a href="../file/gadget.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>
+<a name="5"></a>
+<a name="6"></a>/*
+<a name="7"></a> *   ***************************************************************************
+<a name="8"></a> *   gadget.t
+<a name="9"></a> *
+<a name="10"></a> *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+<a name="11"></a> *
+<a name="12"></a> *
+<a name="13"></a> *
+<a name="14"></a> *   This module contains definitions for various control gadgets like buttons,
+<a name="15"></a> *   levers and dials.
+<a name="16"></a> */
+<a name="17"></a>
+<a name="18"></a>/*  A Button is an object that does something when pressed */
+<a name="19"></a>class Button: Thing
+<a name="20"></a>    
+<a name="21"></a>    /* a button is usually fixed to something */
+<a name="22"></a>    isFixed = true
+<a name="23"></a>    
+<a name="24"></a>    /* Handle the Push command */
+<a name="25"></a>    dobjFor(Push)
+<a name="26"></a>    {
+<a name="27"></a>        /* A Button is a good choice for a PUSH command */
+<a name="28"></a>        verify() { logicalRank(120); }
+<a name="29"></a>        
+<a name="30"></a>        /* Execute our makePushed method when we're pushed */
+<a name="31"></a>        action() { makePushed(); }
+<a name="32"></a>        
+<a name="33"></a>        /* If nothing else happens, just say 'Click!' */
+<a name="34"></a>        report() { DMsg(click, 'Click!'); }
+<a name="35"></a>    }
+<a name="36"></a>    
+<a name="37"></a>    /* 
+<a name="38"></a>     *   Carry out the effects of pushing the button here. Particular Button
+<a name="39"></a>     *   objects will need to override this method to carry out the effect of
+<a name="40"></a>     *   pushing the button.
+<a name="41"></a>     */
+<a name="42"></a>    makePushed() { }
+<a name="43"></a>;
+<a name="44"></a>
+<a name="45"></a>/* 
+<a name="46"></a> *   A Lever is an object that can be in one of two positions: pulled (isPulled
+<a name="47"></a> *   = true) or pushed (isPulled = nil), and which can be pulled and pushed
+<a name="48"></a> *   between those two positions.
+<a name="49"></a> */
+<a name="50"></a>class Lever: Thing
+<a name="51"></a>    
+<a name="52"></a>    /* a lever is usually fixed to something */
+<a name="53"></a>    isFixed = true
+<a name="54"></a>    
+<a name="55"></a>    /* is this lever in the pulled or pushed position. */
+<a name="56"></a>    isPulled = nil
+<a name="57"></a>    
+<a name="58"></a>    /* 
+<a name="59"></a>     *   By default we make isPushed the opposite of isPulled, but we defined
+<a name="60"></a>     *   them as separate properties in case we want a lever that can be in more
+<a name="61"></a>     *   than two positions, and so might be in an intermediate position that is
+<a name="62"></a>     *   neither pushed nor pulled.
+<a name="63"></a>     */
+<a name="64"></a>    isPushed = (!isPulled)
+<a name="65"></a>    
+<a name="66"></a>    /* 
+<a name="67"></a>     *   Carry out pushing or pulling the lever. Note that this would need to be
+<a name="68"></a>     *   overridden on a Lever that can be in more than two states.
+<a name="69"></a>     */
+<a name="70"></a>    makePulled(stat)
+<a name="71"></a>    {
+<a name="72"></a>        /* Set isPulled to stat */
+<a name="73"></a>        isPulled = stat;
+<a name="74"></a>    }
+<a name="75"></a>    
+<a name="76"></a>    /* Handle Pulling this Lever */
+<a name="77"></a>    dobjFor(Pull)
+<a name="78"></a>    {
+<a name="79"></a>        verify()
+<a name="80"></a>        {
+<a name="81"></a>            /* 
+<a name="82"></a>             *   A Lever can't be pulled any further if it's already in the
+<a name="83"></a>             *   pulled position
+<a name="84"></a>             */
+<a name="85"></a>            if(isPulled)
+<a name="86"></a>                illogicalNow(alreadyPulledMsg);
+<a name="87"></a>        }
+<a name="88"></a>        
+<a name="89"></a>        /* Use the makePulled() method to handle pulling the lever */
+<a name="90"></a>        action() { makePulled(true); }
+<a name="91"></a>        
+<a name="92"></a>        /* The default report to display after pulling one or more levers */
+<a name="93"></a>        report() { DMsg(okay pulled, 'Done. |{I} pull{s/ed} {1}. ', gActionListStr); }
+<a name="94"></a>        
+<a name="95"></a>    }
+<a name="96"></a>    
+<a name="97"></a>    /* The message to display when we can't be pulled any further */
+<a name="98"></a>    alreadyPulledMsg = BMsg(already pulled, '{The subj dobj} {is} already in the
+<a name="99"></a>        pulled position. ')
+<a name="100"></a>    
+<a name="101"></a>    /* Handle Pushing this Lever */
+<a name="102"></a>    dobjFor(Push)
+<a name="103"></a>    {
+<a name="104"></a>        verify()
+<a name="105"></a>        {
+<a name="106"></a>            /* 
+<a name="107"></a>             *   A Lever can't be pushed any further if it's already in the
+<a name="108"></a>             *   pushed position
+<a name="109"></a>             */             
+<a name="110"></a>            if(isPushed)
+<a name="111"></a>                illogicalNow(alreadyPushedMsg);
+<a name="112"></a>        }
+<a name="113"></a>        
+<a name="114"></a>        /* Use the makePulled() method to handle pushing the lever */
+<a name="115"></a>        action() { makePulled(nil); }
+<a name="116"></a>        
+<a name="117"></a>        /* The default report to display after pushing one or more levers */
+<a name="118"></a>        report() { DMsg(okay pushed, 'Done. |{I} push{es/ed} {1}. ', gActionListStr); }
+<a name="119"></a>    }
+<a name="120"></a>    
+<a name="121"></a>    /* The message to display when we can't be pushed any further */
+<a name="122"></a>    alreadyPushedMsg = BMsg(already pushed, '{The subj dobj} {is} already in the
+<a name="123"></a>        pushed position. ');
+<a name="124"></a>    
+<a name="125"></a>;
+<a name="126"></a>
+<a name="127"></a>/* 
+<a name="128"></a> *   A Settable is anything that can be set to particular values, such as a
+<a name="129"></a> *   slider control or a dial. Various types of dial descending from Settable
+<a name="130"></a> *   are defined below.
+<a name="131"></a> */
+<a name="132"></a>class Settable: Thing
+<a name="133"></a>      
+<a name="134"></a>    /* 
+<a name="135"></a>     *   a list of the valid settings this Settable can have, given as list of
+<a name="136"></a>     *   single-quoted strings.
+<a name="137"></a>     */
+<a name="138"></a>    validSettings = []
+<a name="139"></a>
+<a name="140"></a>    /* our current setting */
+<a name="141"></a>    curSetting = nil
+<a name="142"></a>    
+<a name="143"></a>    /* 
+<a name="144"></a>     *   Put the setting into a standard form so it can be checked for validity.
+<a name="145"></a>     *   By default we turn it into lower case so that it doesn't matter what
+<a name="146"></a>     *   case the player types the desired setting in. We also strip any
+<a name="147"></a>     *   enclosing quotes that might have been used to pass an awkward value
+<a name="148"></a>     *   like "1.4" that the parser would otherwise misinterpret.
+<a name="149"></a>     */    
+<a name="150"></a>    canonicalizeSetting(val)
+<a name="151"></a>    {
+<a name="152"></a>        return stripQuotesFrom(val.toLower());
+<a name="153"></a>    }
+<a name="154"></a>    
+<a name="155"></a>    /*  Set this Settable to its new setting, val */
+<a name="156"></a>    makeSetting(val)
+<a name="157"></a>    {
+<a name="158"></a>        /* Update our current setting to the canonicalized version of val */
+<a name="159"></a>        curSetting = canonicalizeSetting(val);
+<a name="160"></a>    }
+<a name="161"></a>    
+<a name="162"></a>    /* 
+<a name="163"></a>     *   Check whether the proposed setting is valid. By default it is if the
+<a name="164"></a>     *   canonicalized version of val is present in our list of valid settings.
+<a name="165"></a>     */    
+<a name="166"></a>    isValidSetting(val)
+<a name="167"></a>    {
+<a name="168"></a>        /* Convert val into its canonicalized equivalent. */
+<a name="169"></a>        val = canonicalizeSetting(val);
+<a name="170"></a>        
+<a name="171"></a>        /* 
+<a name="172"></a>         *   Determine whether val is present in our list of valid settings and
+<a name="173"></a>         *   return true or nil accordingly
+<a name="174"></a>         */
+<a name="175"></a>        return validSettings.indexOf(val) != nil;
+<a name="176"></a>    }
+<a name="177"></a>    
+<a name="178"></a>    /* A Settable is something that can be set to various values */
+<a name="179"></a>    canSetMeTo = true
+<a name="180"></a>    
+<a name="181"></a>    /* Handle a SET TO command targeted at this Settable */
+<a name="182"></a>    dobjFor(SetTo)
+<a name="183"></a>    {    
+<a name="184"></a>        /* Check whether we're being set to a valid setting */
+<a name="185"></a>        check()
+<a name="186"></a>        {            
+<a name="187"></a>            /* 
+<a name="188"></a>             *   If the player is trying to set us to our current setting,
+<a name="189"></a>             *   display a message to that effect (which will halt the action).
+<a name="190"></a>             */
+<a name="191"></a>            if(curSetting == canonicalizeSetting(gLiteral))
+<a name="192"></a>                say(alreadySetMsg); 
+<a name="193"></a>            
+<a name="194"></a>            /*   
+<a name="195"></a>             *   If the player is trying to set us to an invalid setting,
+<a name="196"></a>             *   display a message to that effect (which will halt the action).
+<a name="197"></a>             */
+<a name="198"></a>            if(!isValidSetting(gLiteral))
+<a name="199"></a>                say(invalidSettingMsg);
+<a name="200"></a>        }
+<a name="201"></a>        
+<a name="202"></a>        /* Note that the action() handling for SET TO is defined on Thing */
+<a name="203"></a>    }
+<a name="204"></a>    
+<a name="205"></a>    invalidSettingMsg = BMsg(invalid setting, 'That {dummy} {is} not a valid
+<a name="206"></a>        setting for {the dobj}. ')
+<a name="207"></a>    
+<a name="208"></a>    alreadySetMsg = BMsg(already set, '{The subj dobj} {is} already set to {1}.
+<a name="209"></a>        ', curSetting)
+<a name="210"></a>    
+<a name="211"></a>    /*  
+<a name="212"></a>     *   Most gadgets of this sort are part of or attached to something else, so
+<a name="213"></a>     *   we make them fixed in place by default
+<a name="214"></a>     */
+<a name="215"></a>    isFixed = true
+<a name="216"></a>    
+<a name="217"></a>    dobjFor(Set)
+<a name="218"></a>    {
+<a name="219"></a>        action() { askMissingLiteral(SetTo); }
+<a name="220"></a>    }   
+<a name="221"></a>;
+<a name="222"></a>
+<a name="223"></a>
+<a name="224"></a>/* A Dial is Simply a Settable we can turn as well as set */
+<a name="225"></a>class Dial: Settable
+<a name="226"></a>    dobjFor(TurnTo) asDobjFor(SetTo)
+<a name="227"></a>    canTurnMeTo = true
+<a name="228"></a>    
+<a name="229"></a>    dobjFor(Turn) 
+<a name="230"></a>    {
+<a name="231"></a>        action() {askMissingLiteral(TurnTo); }
+<a name="232"></a>    }
+<a name="233"></a>;
+<a name="234"></a>
+<a name="235"></a>
+<a name="236"></a>/* 
+<a name="237"></a> *   A Numbered Dial is a Dial that can be turned to any integer in a defined
+<a name="238"></a> *   range of numbers.
+<a name="239"></a> */
+<a name="240"></a>class NumberedDial: Dial
+<a name="241"></a>    
+<a name="242"></a>    /* The lowest number to which this dial can be turned. */
+<a name="243"></a>    minSetting = 0
+<a name="244"></a>    
+<a name="245"></a>    /* The highest number to which this dial can be turned. */
+<a name="246"></a>    maxSetting = 100
+<a name="247"></a>    
+<a name="248"></a>    /* 
+<a name="249"></a>     *   If the spelledToInt() function is defined then allow the dial to be
+<a name="250"></a>     *   turned to a spelt-out number as well as a number given in digits, e.g.
+<a name="251"></a>     *   TURN DIAL TO FORTY-THREE as well as TURN DIAL TO 43.
+<a name="252"></a>     */
+<a name="253"></a>    canonicalizeSetting(val)
+<a name="254"></a>    {
+<a name="255"></a>        /* Get the inherited value */
+<a name="256"></a>        val = inherited(val);
+<a name="257"></a>        
+<a name="258"></a>        /* Try to convert it to a number */
+<a name="259"></a>        local num = defined(spelledToInt) ? spelledToInt(val) : nil;
+<a name="260"></a>        
+<a name="261"></a>        /* 
+<a name="262"></a>         *   If the conversion was successful, convert val to a string
+<a name="263"></a>         *   representation of the number (e.g. '43').
+<a name="264"></a>         */
+<a name="265"></a>        if(num)
+<a name="266"></a>            val = toString(num);
+<a name="267"></a>        
+<a name="268"></a>        /* Return val, changed as need be. */
+<a name="269"></a>        return val;
+<a name="270"></a>    }
+<a name="271"></a>    
+<a name="272"></a>    /* Is val a valid setting for this dial? */
+<a name="273"></a>    isValidSetting(val)
+<a name="274"></a>    {   
+<a name="275"></a>        /* Convert val into its canonicalized equivalent. */
+<a name="276"></a>        val = canonicalizeSetting(val);
+<a name="277"></a>        
+<a name="278"></a>        /* 
+<a name="279"></a>         *   Try converting val to either a real number or an integer depending
+<a name="280"></a>         *   on whether allowDecimal is true or nil.
+<a name="281"></a>         */        
+<a name="282"></a>        val = allowDecimal ? tryNum(val) : tryInt(val);
+<a name="283"></a>        
+<a name="284"></a>        /* 
+<a name="285"></a>         *   Val is valid if it lies between our minimum and maximum settings
+<a name="286"></a>         *   (inclusively)
+<a name="287"></a>         */
+<a name="288"></a>        return val != nil &amp;&amp; (val &gt;= minSetting &amp;&amp; val &lt;= maxSetting);            
+<a name="289"></a>    }        
+<a name="290"></a>    
+<a name="291"></a>    allowDecimal = nil
+<a name="292"></a>;
+<a name="293"></a>
+<a name="294"></a>
+<a name="295"></a>/* 
+<a name="296"></a> *   Mix-in class to help with inventory management. A BagOfHolding can be mixed
+<a name="297"></a> *   in with a Container (or, less usually, Surface, RearContainer or Underside)
+<a name="298"></a> *   to provide an object which, if held by the player character, will be used
+<a name="299"></a> *   to move objects in the player character's inventory to if his/her hands
+<a name="300"></a> *   become too full to pick up another object.
+<a name="301"></a> */
+<a name="302"></a>class BagOfHolding: object
+<a name="303"></a>    
+<a name="304"></a>    /* 
+<a name="305"></a>     *   The affinity for this BagOfHolding for obj. This can be used to
+<a name="306"></a>     *   determined how 'willing' a particular BagOfHolding is to contain obj. A
+<a name="307"></a>     *   value of less than 1 means that the BagOfHolding can't contain obj at
+<a name="308"></a>     *   all. The higher the affinity, the better the choice this BagOfHolding
+<a name="309"></a>     *   is for obj. The default value is 100, or 0 for a BagOfHolding's
+<a name="310"></a>     *   affinity for itself.
+<a name="311"></a>     */
+<a name="312"></a>    affinityFor(obj)
+<a name="313"></a>    {
+<a name="314"></a>        return obj == self ? 0 : 100;
+<a name="315"></a>    }
+<a name="316"></a>    
+<a name="317"></a>    /* 
+<a name="318"></a>     *   To be suitable to contain obj a BagOfHolding must have enough spare
+<a name="319"></a>     *   capacity for it. If it has, its suitability is its affinity for obj;
+<a name="320"></a>     *   otherwise it's 0. A BagOfHolding is also unsuitable if it's locked.
+<a name="321"></a>     */
+<a name="322"></a>    suitabilityFor(obj)
+<a name="323"></a>    {
+<a name="324"></a>        if(obj.bulk &gt; bulkCapacity - getBulkWithin || obj.bulk &gt; maxSingleBulk
+<a name="325"></a>           || isLocked || obj.isFixed)
+<a name="326"></a>            return 0;
+<a name="327"></a>        
+<a name="328"></a>        return affinityFor(obj);
+<a name="329"></a>    }
+<a name="330"></a>    
+<a name="331"></a>    /* 
+<a name="332"></a>     *   Class method to determine whether the actor is carrying a suitable
+<a name="333"></a>     *   BagOfHolding that could be used to move something from his inventory
+<a name="334"></a>     *   into, and then to move items from the actor's inventory into an
+<a name="335"></a>     *   appropriate bag of holding.
+<a name="336"></a>     */
+<a name="337"></a>    tryHolding(obj)
+<a name="338"></a>    {
+<a name="339"></a>        /* Obtain a Vector containing the BagsOfHolding carried by the actor. */
+<a name="340"></a>        local bohVec = gActor.contents.subset({x: x.ofKind(BagOfHolding)});
+<a name="341"></a>        
+<a name="342"></a>        /* 
+<a name="343"></a>         *   If the actor is not carrying a BagOfHolding, there's nothing more
+<a name="344"></a>         *   we can do, so just stop here.
+<a name="345"></a>         */
+<a name="346"></a>        if(bohVec.length == 0)
+<a name="347"></a>            return;
+<a name="348"></a>        
+<a name="349"></a>        /*  The amount of bulk we need to free up */
+<a name="350"></a>        local bulkToFree = gActor.getCarriedBulk + obj.bulk -
+<a name="351"></a>            gActor.bulkCapacity;
+<a name="352"></a>        
+<a name="353"></a>           
+<a name="354"></a>        
+<a name="355"></a>        local idx = 1;
+<a name="356"></a>        
+<a name="357"></a>        /* The number of items we need to free up */
+<a name="358"></a>        local carriedList = gActor.directlyHeld;
+<a name="359"></a>        
+<a name="360"></a>         /* The number of items we need to free up */
+<a name="361"></a>        local itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+<a name="362"></a>        
+<a name="363"></a>        while((bulkToFree &gt; 0  || itemsToFree &gt; 0) &amp;&amp; carriedList.length &gt;= idx)
+<a name="364"></a>        {
+<a name="365"></a>            local objToMove = carriedList[idx];
+<a name="366"></a>            
+<a name="367"></a>            /* 
+<a name="368"></a>             *   If we have more than one BagOfHolding available, sort our
+<a name="369"></a>             *   vector of BagsOfHolding in descending order of suitability
+<a name="370"></a>             */
+<a name="371"></a>            if(bohVec.length &gt; 1)
+<a name="372"></a>                bohVec.sort(SortDesc, {a, b: a.suitabilityFor(objToMove) -
+<a name="373"></a>                            b.suitabilityFor(objToMove) });
+<a name="374"></a>            
+<a name="375"></a>            /* 
+<a name="376"></a>             *   Choose the first one in the Vector, which will be the most
+<a name="377"></a>             *   suitable.
+<a name="378"></a>             */
+<a name="379"></a>            local bagToUse = bohVec[1];
+<a name="380"></a>            
+<a name="381"></a>            /* 
+<a name="382"></a>             *   If the most suitable bag of holding for the object we're trying
+<a name="383"></a>             *   to move isn't suitable, try again with another object.
+<a name="384"></a>             */
+<a name="385"></a>            if(bagToUse.suitabilityFor(objToMove) &lt; 1)
+<a name="386"></a>            {
+<a name="387"></a>                idx++;
+<a name="388"></a>                continue;
+<a name="389"></a>            }
+<a name="390"></a>            
+<a name="391"></a>            /* 
+<a name="392"></a>             *   Get the action needed to move an object into the selected
+<a name="393"></a>             *   BagOfHolding.
+<a name="394"></a>             */
+<a name="395"></a>            local action = bagToUse.moveAction();
+<a name="396"></a>            
+<a name="397"></a>            /*  
+<a name="398"></a>             *   If the action is nil, then there's something wrong with the
+<a name="399"></a>             *   selected BagOfHolding. Break of of the loop so we don't get
+<a name="400"></a>             *   stuck in an infinite loop.
+<a name="401"></a>             */
+<a name="402"></a>            
+<a name="403"></a>            if(action == nil)
+<a name="404"></a>                break;
+<a name="405"></a>            
+<a name="406"></a>            /* 
+<a name="407"></a>             *   Try moving the selected object into the selected bag using the
+<a name="408"></a>             *   appropriate action depending on the bag's contType
+<a name="409"></a>             */
+<a name="410"></a>            tryImplicitAction(action, objToMove, bagToUse);
+<a name="411"></a>            
+<a name="412"></a>            /* 
+<a name="413"></a>             *   Reset the index into the contents list to 1 so that if we need
+<a name="414"></a>             *   to select another object we start from the beginning again.
+<a name="415"></a>             */
+<a name="416"></a>            idx = 1;
+<a name="417"></a>            
+<a name="418"></a>            /* 
+<a name="419"></a>             *   Remove objToMove from the carried list. (Even if it wasn't
+<a name="420"></a>             *   actually moved for any reason, we don't want to try moving it
+<a name="421"></a>             *   again).
+<a name="422"></a>             */
+<a name="423"></a>            carriedList -= objToMove;
+<a name="424"></a>            
+<a name="425"></a>            /*  Recalculate the amount of bulk left to free */
+<a name="426"></a>            
+<a name="427"></a>            bulkToFree = gActor.getCarriedBulk + obj.bulk -
+<a name="428"></a>            gActor.bulkCapacity;        
+<a name="429"></a>            
+<a name="430"></a>            /* Recalculate the number of items we need to free */
+<a name="431"></a>            itemsToFree = gActor.directlyHeld.length() - gActor.maxItemsCarried + 1;
+<a name="432"></a>            
+<a name="433"></a>            
+<a name="434"></a>        }
+<a name="435"></a>        
+<a name="436"></a>    }
+<a name="437"></a>    
+<a name="438"></a>    /* The action needed to move an object into me. */
+<a name="439"></a>    moveAction()
+<a name="440"></a>    {
+<a name="441"></a>        switch(contType)
+<a name="442"></a>        {
+<a name="443"></a>        case In:
+<a name="444"></a>            return PutIn;
+<a name="445"></a>        case On:
+<a name="446"></a>            return PutOn;
+<a name="447"></a>        case Under:
+<a name="448"></a>            return PutUnder;
+<a name="449"></a>        case Behind:
+<a name="450"></a>            return PutBehind;
+<a name="451"></a>        }
+<a name="452"></a>        
+<a name="453"></a>        if(remapIn)
+<a name="454"></a>            return PutIn;
+<a name="455"></a>        if(remapOn)
+<a name="456"></a>            return PutOn;
+<a name="457"></a>        if(remapUnder)
+<a name="458"></a>            return PutUnder;
+<a name="459"></a>        if(remapBehind)
+<a name="460"></a>            return PutBehind;
+<a name="461"></a>        
+<a name="462"></a>        return nil;
+<a name="463"></a>    }
+<a name="464"></a>       
+<a name="465"></a>    /* 
+<a name="466"></a>     *   A BagOfHolding carried by the actor allows its contents to be dropped (via an implicit
+<a name="467"></a>     *   TakeFrom) without the actor havign to perform an explicit take.
+<a name="468"></a>     */
+<a name="469"></a>    canDropContents = true
+<a name="470"></a>    
+<a name="471"></a>;
+<a name="472"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

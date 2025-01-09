@@ -1,0 +1,852 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>spelling.t</title></head><body>
+<table class=ban><tr><td><h1>spelling.t</h1><td align=right><a href="../file/spelling.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* ------------------------------------------------------------------------ */
+<a name="5"></a>/*
+<a name="6"></a> *   Spelling corrector.  This object implements automatic spelling
+<a name="7"></a> *   correction on the player's input.  
+<a name="8"></a> */
+<a name="9"></a>spellingCorrector: object
+<a name="10"></a>    /*
+<a name="11"></a>     *   Find the first word token that isn't in the dictionary.  Returns
+<a name="12"></a>     *   the token index, or nil if we don't find any unknown words. 
+<a name="13"></a>     */
+<a name="14"></a>    findUnknownWord(toks)
+<a name="15"></a>    {
+<a name="16"></a>        /* scan for a word that's not in the dictionary */
+<a name="17"></a>        for (local i = 1, local len = toks.length() ; i &lt;= len ; ++i)
+<a name="18"></a>        {
+<a name="19"></a>            /* get this token */
+<a name="20"></a>            local tok = toks[i];
+<a name="21"></a>
+<a name="22"></a>            /* if it's a word, and it's not defined, return its index */
+<a name="23"></a>            if (isWordToken(tok) &amp;&amp; !isWordDefined(getTokVal(tok)))
+<a name="24"></a>                return i;
+<a name="25"></a>        }
+<a name="26"></a>
+<a name="27"></a>        /* we didn't find any unknown words */
+<a name="28"></a>        return nil;
+<a name="29"></a>    }
+<a name="30"></a>
+<a name="31"></a>    /*
+<a name="32"></a>     *   Attempt to correct a typographical error in a token list.
+<a name="33"></a>     *   
+<a name="34"></a>     *   'toks' is a token list to be corrected, and 'idx' is the index of
+<a name="35"></a>     *   the first unknown word.  'err' is ParseError that triggered the
+<a name="36"></a>     *   spelling check.  We use the error to filter the list of candidates
+<a name="37"></a>     *   for corrected spellings: for a general verb syntax error, for
+<a name="38"></a>     *   example, we'll look for words that are used in verb phrases, and
+<a name="39"></a>     *   for noun resolution we'll look for words associated with in-scope
+<a name="40"></a>     *   objects.
+<a name="41"></a>     *   
+<a name="42"></a>     *   If we fail to find a correction, the return value is nil.
+<a name="43"></a>     *   
+<a name="44"></a>     *   If we find a correction, the return value is a list of token
+<a name="45"></a>     *   lists.  It's a list rather than a single correction because we
+<a name="46"></a>     *   might be unable to break a tie; rather than picking one
+<a name="47"></a>     *   arbitrarily, we return all of the candidates.  This allows the
+<a name="48"></a>     *   caller to try the different possibilities.  The caller will
+<a name="49"></a>     *   generally have more information than we have here about the
+<a name="50"></a>     *   overall context, so it's in a better position to make a final
+<a name="51"></a>     *   judgment about how to break a tie.
+<a name="52"></a>     *   
+<a name="53"></a>     *   Note that we only correct a single error per call.  If the token
+<a name="54"></a>     *   list has additional unknown words, the caller can continue parsing
+<a name="55"></a>     *   and call here again to get candidate corrections for the next
+<a name="56"></a>     *   word, and so on until all unknown words are resolved.  We use this
+<a name="57"></a>     *   iterative approach because the first correction might change the
+<a name="58"></a>     *   parser's guess about where the error lies; by waiting, we get the
+<a name="59"></a>     *   benefit of the revised context information for correcting each
+<a name="60"></a>     *   additional word.  
+<a name="61"></a>     */
+<a name="62"></a>    correct(toks, idx, err)
+<a name="63"></a>    {
+<a name="64"></a>        /*
+<a name="65"></a>         *   Check for extra or missing spaces.  These are common typing
+<a name="66"></a>         *   errors, but our Levenshtein-distance corrector misses these
+<a name="67"></a>         *   because it only handles one word at a time.  So, we need to
+<a name="68"></a>         *   check for these separately.  
+<a name="69"></a>         */
+<a name="70"></a>        local spc = checkSpacing(toks, idx, err);
+<a name="71"></a>
+<a name="72"></a>        /* get the token in question */
+<a name="73"></a>        local a = toks[idx], aw = getTokVal(a);
+<a name="74"></a>        
+<a name="75"></a>        /* 
+<a name="76"></a>         *   If the player has entered a number that's out of range, don't attempt to correct it,
+<a name="77"></a>         *   since this will probably just be confusing.
+<a name="78"></a>         */
+<a name="79"></a>        if(err.ofKind(OrdinalRangeError))
+<a name="80"></a>            return nil;
+<a name="81"></a>
+<a name="82"></a>        /* 
+<a name="83"></a>         *   if the token is completely non-alphabetic, don't attempt
+<a name="84"></a>         *   correction - these are probably misplaced punctuation marks or
+<a name="85"></a>         *   completely spurious entries, so any attempted correction would
+<a name="86"></a>         *   almost certainly be wrong 
+<a name="87"></a>         */
+<a name="88"></a>        if (aw.find(R'&lt;alpha&gt;') == nil)
+<a name="89"></a>            return nil;
+<a name="90"></a>
+<a name="91"></a>        /* get a list of candidates for the corrected word */
+<a name="92"></a>        local wlst = getCandidates(aw), wlen = wlst.length();
+<a name="93"></a>
+<a name="94"></a>        /* build a list of candidate token lists */
+<a name="95"></a>        local clst = new Vector(wlen + 1);
+<a name="96"></a>        foreach (local w in wlst)
+<a name="97"></a>        {
+<a name="98"></a>            /* skip one-character candidates */
+<a name="99"></a>            if (w[1].length() &lt; 2)
+<a name="100"></a>                continue;
+<a name="101"></a>
+<a name="102"></a>            /*
+<a name="103"></a>             *   create the candidate token list: make a copy of the
+<a name="104"></a>             *   original token list, and substitute this candidate word
+<a name="105"></a>             *   for the unknown word 
+<a name="106"></a>             */
+<a name="107"></a>            local toks2 = toks;
+<a name="108"></a>            getTokVal(toks2[idx]) = w[1];
+<a name="109"></a>            getTokOrig(toks2[idx]) = matchCase(w[1], getTokOrig(toks2[idx]));
+<a name="110"></a>            
+<a name="111"></a>            /* add it to the list of candidates */
+<a name="112"></a>            clst.append(new CorrectionCandidate(toks2, w[2], w[3], idx, err));
+<a name="113"></a>        }
+<a name="114"></a>        
+<a name="115"></a>        /* if we found a possible spacing correction, add that as well */
+<a name="116"></a>        if (spc != nil)
+<a name="117"></a>            clst.append(spc);
+<a name="118"></a>
+<a name="119"></a>        /* filter out candidates with rankings of zero */
+<a name="120"></a>        clst = clst.subset({ c: c.ranking != 0 });
+<a name="121"></a>
+<a name="122"></a>        /* if the list is empty, we have no corrections to propose */
+<a name="123"></a>        if (clst.length() == 0)
+<a name="124"></a>            return nil;
+<a name="125"></a>
+<a name="126"></a>        /*   
+<a name="127"></a>         *   sort by descending match quality: high rank first, then
+<a name="128"></a>         *   shorter edit distance first, then fewer replacements first
+<a name="129"></a>         */
+<a name="130"></a>        clst.sort(SortDesc,
+<a name="131"></a>                  { a, b: a.ranking != b.ranking ? a.ranking - b.ranking :
+<a name="132"></a>                          a.editDist != b.editDist ? b.editDist - a.editDist :
+<a name="133"></a>                          b.replCnt - a.replCnt });
+<a name="134"></a>
+<a name="135"></a>        /* 
+<a name="136"></a>         *   return all of the candidates tied for best - just return the
+<a name="137"></a>         *   token lists 
+<a name="138"></a>         */
+<a name="139"></a>        return clst.mapAll({ x: x.tokenList });
+<a name="140"></a>    }
+<a name="141"></a>
+<a name="142"></a>    /* 
+<a name="143"></a>     *   Find spacing corrections for the token at the given index.  This
+<a name="144"></a>     *   looks for extra inserted spaces, missing spaces, and spaces
+<a name="145"></a>     *   transposed with adjacent letters.  We return a list of proposed
+<a name="146"></a>     *   changes; each element is a list of three token values, giving the
+<a name="147"></a>     *   preceding, current and next token in the proposed change.  The
+<a name="148"></a>     *   preceding and/or next can be nil, in which case we're not
+<a name="149"></a>     *   proposing changes to those tokens.
+<a name="150"></a>     *   
+<a name="151"></a>     *   Note that all spacing changes have edit distance 1.  All of our
+<a name="152"></a>     *   corrections are single character insertions or deletions, or pair
+<a name="153"></a>     *   transpositions (which we count as one edit).  
+<a name="154"></a>     */
+<a name="155"></a>    checkSpacing(toks, idx, err)
+<a name="156"></a>    {
+<a name="157"></a>        /* note the total number of tokens */
+<a name="158"></a>        local len = toks.length();
+<a name="159"></a>
+<a name="160"></a>        /* get this token, and its base text */
+<a name="161"></a>        local a = toks[idx], aw = getTokVal(a), alen = aw.length();
+<a name="162"></a>
+<a name="163"></a>        /* if this isn't a word token, don't bother with spacing changes */
+<a name="164"></a>        if (!isWordToken(a))
+<a name="165"></a>            return nil;
+<a name="166"></a>
+<a name="167"></a>        /* start with a copy of the input list */
+<a name="168"></a>        local ret = new Vector(len, toks);
+<a name="169"></a>        
+<a name="170"></a>        /*
+<a name="171"></a>         *   If the word isn't in the dictionary, look for a missing space.
+<a name="172"></a>         *   That is, try inserting a space at each character position to
+<a name="173"></a>         *   see if we can make two good words in place of this bad word.  
+<a name="174"></a>         */
+<a name="175"></a>        if (!isWordDefined(aw))
+<a name="176"></a>        {
+<a name="177"></a>            /* try each character position from 2 to last-minus-1 */
+<a name="178"></a>            for (local i = 2 ; i &lt; alen ; ++i)
+<a name="179"></a>            {
+<a name="180"></a>                /* check to see if splitting here makes two good words */
+<a name="181"></a>                if (isWordDefined(aw.substr(1, i - 1))
+<a name="182"></a>                    &amp;&amp; isWordDefined(aw.substr(i)))
+<a name="183"></a>                {
+<a name="184"></a>                    /* this works - keep the split tokens */
+<a name="185"></a>                    ret[idx] = [aw.substr(1, i- 1), getTokType(a),
+<a name="186"></a>                                getTokOrig(a).substr(1, i - 1)];
+<a name="187"></a>                    ret.insertAt(idx + 1,
+<a name="188"></a>                                 [aw.substr(i), getTokType(a),
+<a name="189"></a>                                  getTokOrig(a).substr(i)]);
+<a name="190"></a>                    
+<a name="191"></a>                    /* return the updated list */
+<a name="192"></a>                    return new CorrectionCandidate(
+<a name="193"></a>                        ret.toList(), 1, 0, idx, err);
+<a name="194"></a>                }
+<a name="195"></a>            }
+<a name="196"></a>        }
+<a name="197"></a>        
+<a name="198"></a>        /* if there's a previous word, try combinations with it */
+<a name="199"></a>        if (idx &gt; 1 &amp;&amp; correctPairSpacing(ret, idx - 1))
+<a name="200"></a>            return new CorrectionCandidate(ret.toList(), 1, 0, idx - 1, err);
+<a name="201"></a>
+<a name="202"></a>        /* if there's a next word, try combinations with it */
+<a name="203"></a>        if (idx &lt; len &amp;&amp; correctPairSpacing(ret, idx))
+<a name="204"></a>            return new CorrectionCandidate(ret.toList(), 1, 0, idx, err);
+<a name="205"></a>
+<a name="206"></a>        /* we didn't find any changes to make */
+<a name="207"></a>        return nil;
+<a name="208"></a>    }
+<a name="209"></a>
+<a name="210"></a>    /*
+<a name="211"></a>     *   Try correcting spelling based on changes to the spacing between a
+<a name="212"></a>     *   pair of tokens.  We'll try deleting the intervening space
+<a name="213"></a>     *   entirely, and we'll try transposing the space with each adjacent
+<a name="214"></a>     *   letter.  'toks' is a vector that we'll modify in place; 'idx' is
+<a name="215"></a>     *   the index of the first word of the pair.  We return true if we
+<a name="216"></a>     *   make a correction, nil if not.  
+<a name="217"></a>     */
+<a name="218"></a>    correctPairSpacing(toks, idx)
+<a name="219"></a>    {
+<a name="220"></a>        /* get the two tokens */
+<a name="221"></a>        local a = toks[idx], aw = getTokVal(a), alen = aw.length();
+<a name="222"></a>        local b = toks[idx+1], bw = getTokVal(b), blen = bw.length();
+<a name="223"></a>        
+<a name="224"></a>        /* 
+<a name="225"></a>         *   If one or the other token isn't a word, or both the current
+<a name="226"></a>         *   word and the next word are already in the dictionary, don't
+<a name="227"></a>         *   bother with the combinations after all.  We only make edits
+<a name="228"></a>         *   when they're clearly improvements, meaning that we go from
+<a name="229"></a>         *   having an unrecognized word to having a recognized word.  If
+<a name="230"></a>         *   both words are already recognized, we can't improve anything.
+<a name="231"></a>         */
+<a name="232"></a>        if (!isWordToken(b) || !isWordToken(b)
+<a name="233"></a>            || (isWordDefined(aw) &amp;&amp; isWordDefined(bw)))
+<a name="234"></a>            return nil;
+<a name="235"></a>            
+<a name="236"></a>        /* try deleting the space between this word and the next */
+<a name="237"></a>        if (isWordDefined(aw + bw))
+<a name="238"></a>        {
+<a name="239"></a>            /* a+b is a word - keep the combined token */
+<a name="240"></a>            toks[idx] = concatTokens(a, b);
+<a name="241"></a>
+<a name="242"></a>            /* delete the second token, since we're combining the two */
+<a name="243"></a>            toks.removeElementAt(idx + 1);
+<a name="244"></a>
+<a name="245"></a>            /* indicate that we made a change */
+<a name="246"></a>            return true;
+<a name="247"></a>        }
+<a name="248"></a>
+<a name="249"></a>        /* 
+<a name="250"></a>         *   try transposing the space between the words with the final
+<a name="251"></a>         *   letter of the first word: that is, try removing the final
+<a name="252"></a>         *   letter of the first word and attaching it to the second word 
+<a name="253"></a>         */
+<a name="254"></a>        local a2 = aw.delLast();
+<a name="255"></a>        local b2 = aw.lastChar() + bw;
+<a name="256"></a>        if (alen &gt; 1 &amp;&amp; isWordDefined(a2) &amp;&amp; isWordDefined(b2))
+<a name="257"></a>        {
+<a name="258"></a>            /* that worked - apply the change */
+<a name="259"></a>            toks[idx] = [a2, getTokType(a), getTokOrig(a).delLast()];
+<a name="260"></a>            toks[idx+1] = [b2, getTokType(b),
+<a name="261"></a>                           getTokOrig(a).lastChar() + getTokOrig(b)];
+<a name="262"></a>
+<a name="263"></a>            /* indicate that we made a change */
+<a name="264"></a>            return true;
+<a name="265"></a>        }
+<a name="266"></a>
+<a name="267"></a>        /* 
+<a name="268"></a>         *   try transposing the space after this word with the first
+<a name="269"></a>         *   letter of the next word 
+<a name="270"></a>         */
+<a name="271"></a>        local a3 = aw + bw.firstChar();
+<a name="272"></a>        local b3 = bw.delFirst();
+<a name="273"></a>        if (blen &gt; 1 &amp;&amp; isWordDefined(a3) &amp;&amp; isWordDefined(b3))
+<a name="274"></a>        {
+<a name="275"></a>            /* that worked - apply the change */
+<a name="276"></a>            toks[idx] = [a3, getTokType(a),
+<a name="277"></a>                         getTokOrig(a) + getTokOrig(b).firstChar()];
+<a name="278"></a>            toks[idx+1] = [b3, getTokType(b), getTokOrig(b).delFirst()];
+<a name="279"></a>
+<a name="280"></a>            /* indicate that we made a change */
+<a name="281"></a>            return true;
+<a name="282"></a>        }
+<a name="283"></a>
+<a name="284"></a>        /* indicate that we didn't make any changes */
+<a name="285"></a>        return nil;
+<a name="286"></a>    }
+<a name="287"></a>
+<a name="288"></a>    /* the dictionary object we use for looking up words */
+<a name="289"></a>    dict = cmdDict
+<a name="290"></a>
+<a name="291"></a>    /*
+<a name="292"></a>     *   Is the given word defined?  We check the command dictionary for
+<a name="293"></a>     *   the word. 
+<a name="294"></a>     */
+<a name="295"></a>    isWordDefined(w) { return dict.isWordDefined(w); }
+<a name="296"></a>
+<a name="297"></a>    /*
+<a name="298"></a>     *   Get a list of similar words, with their Levenshtein edit distances
+<a name="299"></a>     *   This returns a list of [word, distance] values.  
+<a name="300"></a>     */
+<a name="301"></a>    getCandidates(w)
+<a name="302"></a>    {
+<a name="303"></a>        /* 
+<a name="304"></a>         *   Figure the maximum Levenshtein distance to allow.  Use a
+<a name="305"></a>         *   roughly logarithmic scale: for short words (four letters or
+<a name="306"></a>         *   less), allow only one edit; for medium words (five to seven
+<a name="307"></a>         *   letters), allow two edits; for longer words, allow up to three
+<a name="308"></a>         *   edits. 
+<a name="309"></a>         */
+<a name="310"></a>        local wlen = w.length();
+<a name="311"></a>        local maxDist = (wlen &lt;= 4 ? 1 : wlen &lt;= 7 ? 2 : 3);
+<a name="312"></a>
+<a name="313"></a>        /* ask the dictionary for the word list */
+<a name="314"></a>        return dict.correctSpelling(w, maxDist);
+<a name="315"></a>    }
+<a name="316"></a>;
+<a name="317"></a>
+<a name="318"></a>/* ------------------------------------------------------------------------ */
+<a name="319"></a>/*
+<a name="320"></a> *   Spelling correction candidate.  This tracks a modified token list with
+<a name="321"></a> *   a corrected word, to keep track of which word was corrected and how
+<a name="322"></a> *   well it ranks by our selection criteria.  
+<a name="323"></a> */
+<a name="324"></a>class CorrectionCandidate: object
+<a name="325"></a>    construct(toks, dist, repl, idx, err)
+<a name="326"></a>    {
+<a name="327"></a>        /* save the basic data */
+<a name="328"></a>        tokenList = toks;
+<a name="329"></a>        editDist = dist;
+<a name="330"></a>        wordIdx = idx;
+<a name="331"></a>        replCnt = repl;
+<a name="332"></a>
+<a name="333"></a>        /* assign the ranking via the error */
+<a name="334"></a>        ranking = err.rankCorrection(toks, idx, spellingCorrector.dict);
+<a name="335"></a>    }
+<a name="336"></a>
+<a name="337"></a>    /* the corrected token list */
+<a name="338"></a>    tokenList = nil
+<a name="339"></a>
+<a name="340"></a>    /* ranking */
+<a name="341"></a>    ranking = nil
+<a name="342"></a>
+<a name="343"></a>    /* the edit distance between the original and corrected words */
+<a name="344"></a>    editDist = 0
+<a name="345"></a>
+<a name="346"></a>    /* number of character replacements included in the edit distance */
+<a name="347"></a>    replCnt = 0
+<a name="348"></a>
+<a name="349"></a>    /* the index of the corrected word */
+<a name="350"></a>    wordIdx = 1
+<a name="351"></a>;
+<a name="352"></a>
+<a name="353"></a>
+<a name="354"></a>
+<a name="355"></a>/* ------------------------------------------------------------------------ */
+<a name="356"></a>/*
+<a name="357"></a> *   Action Dictionary.  This is a lookup table that we generate during
+<a name="358"></a> *   preinit from the vocabulary words associated with 'predicate' grammar
+<a name="359"></a> *   rules.  We map each vocabulary word to the Action objects it's
+<a name="360"></a> *   associated with.
+<a name="361"></a> *   
+<a name="362"></a> *   The standard dictionary contains all of these words as well, but it
+<a name="363"></a> *   maps them all to the generic 'predicate' GrammarProd object.  That
+<a name="364"></a> *   doesn't help us identify which words are associated with which
+<a name="365"></a> *   actions.  That information is sometimes needed, such as during
+<a name="366"></a> *   spelling correction.
+<a name="367"></a> *   
+<a name="368"></a> *   Note that the system library file gramprod.t must be included in the
+<a name="369"></a> *   build, so that GrammarAltInfo is defined.  
+<a name="370"></a> */
+<a name="371"></a>actionDictionary: PreinitObject
+<a name="372"></a>    /* initialize */
+<a name="373"></a>    execute()
+<a name="374"></a>    {
+<a name="375"></a>        /* get the table into a local for faster access */
+<a name="376"></a>        local atab = wordToAction = new LookupTable(128, 256);
+<a name="377"></a>        local xtab = xwords = new LookupTable(128, 256);
+<a name="378"></a>        
+<a name="379"></a>        /* run through each predicate rule */
+<a name="380"></a>        foreach (local gi in predicate.getGrammarInfo())
+<a name="381"></a>        {
+<a name="382"></a>            /* if the match object is a VerbProduction, process it */
+<a name="383"></a>            if (gi.gramMatchObj.ofKind(VerbProduction))
+<a name="384"></a>            {
+<a name="385"></a>                /* get the action */
+<a name="386"></a>                local action = gi.gramMatchObj.action;
+<a name="387"></a>                
+<a name="388"></a>                /* 
+<a name="389"></a>                 *   get the word list - this is the subset of gramTokens
+<a name="390"></a>                 *   items with type GramTokTypeLiteral, with just the word
+<a name="391"></a>                 *   strings (the gramTokInfo members) pulled out 
+<a name="392"></a>                 */
+<a name="393"></a>                local wlst = gi.gramTokens
+<a name="394"></a>                    .subset({t: t.gramTokenType == GramTokTypeLiteral })
+<a name="395"></a>                    .mapAll({t: t.gramTokenInfo });
+<a name="396"></a>
+<a name="397"></a>                /* scan the token list */
+<a name="398"></a>                foreach (local w in wlst)
+<a name="399"></a>                {
+<a name="400"></a>                    /* add the action table entry */
+<a name="401"></a>                    if (atab[w] == nil)
+<a name="402"></a>                        atab[w] = [];
+<a name="403"></a>                    atab[w] += action;
+<a name="404"></a>
+<a name="405"></a>                    /* add the associated word table entry */
+<a name="406"></a>                    if (xtab[w] == nil)
+<a name="407"></a>                        xtab[w] = [];
+<a name="408"></a>                    xtab[w] += wlst;
+<a name="409"></a>                }
+<a name="410"></a>            }
+<a name="411"></a>        }
+<a name="412"></a>    }
+<a name="413"></a>
+<a name="414"></a>    /* 
+<a name="415"></a>     *   word-to-action table: this maps each vocabulary word to a list of
+<a name="416"></a>     *   the Action objects associated with the grammar rules in which it
+<a name="417"></a>     *   appears 
+<a name="418"></a>     */
+<a name="419"></a>    wordToAction = nil
+<a name="420"></a>
+<a name="421"></a>    /* 
+<a name="422"></a>     *   Associated word table: this maps each vocabulary word to a list of
+<a name="423"></a>     *   all of the other words that appear in predicate grammar rules in
+<a name="424"></a>     *   which the given word appears.  For example, 'up' will have a list
+<a name="425"></a>     *   like [pick, go, look], since it's used in rules for 'pick up', 'go
+<a name="426"></a>     *   up', 'look up'.  
+<a name="427"></a>     */
+<a name="428"></a>    xwords = nil
+<a name="429"></a>;
+<a name="430"></a>
+<a name="431"></a>
+<a name="432"></a>/* ------------------------------------------------------------------------ */
+<a name="433"></a>/*
+<a name="434"></a> *   SpellingHistory: this maintains the history of attempted spelling
+<a name="435"></a> *   corrections for the current command.  We process each word separately,
+<a name="436"></a> *   so each word has its own entry in the history.
+<a name="437"></a> *   
+<a name="438"></a> *   The point of maintaining a history is that it allows us to backtrack
+<a name="439"></a> *   if we decide that an earlier guess at a corrected word isn't going to
+<a name="440"></a> *   result in a working command after all.  If an earlier correction had
+<a name="441"></a> *   other equally good options, we can go back and try the other options
+<a name="442"></a> *   by unwinding the history.  
+<a name="443"></a> */
+<a name="444"></a>class SpellingHistory: object
+<a name="445"></a>    construct(parser)
+<a name="446"></a>    {
+<a name="447"></a>        /* remember the parser */
+<a name="448"></a>        self.parser = parser;
+<a name="449"></a>
+<a name="450"></a>        /* note the starting time */
+<a name="451"></a>        startTime = getTime(GetTimeTicks);
+<a name="452"></a>    }
+<a name="453"></a>
+<a name="454"></a>    /* have we made any corrections? */
+<a name="455"></a>    hasCorrections() { return cstack.length() != 0; }
+<a name="456"></a>
+<a name="457"></a>    /*
+<a name="458"></a>     *   Check for spelling errors in a token list, and attempt automatic
+<a name="459"></a>     *   spelling correction.  We'll scan the token list for a word that
+<a name="460"></a>     *   isn't in the dictionary.  If we find one, and spelling correction
+<a name="461"></a>     *   is enabled, we'll attempt to automatically correct the error.
+<a name="462"></a>     *   
+<a name="463"></a>     *   'toks' is the token list for the command line, and 'err' is the
+<a name="464"></a>     *   ParseError object indicating what error triggered the spelling
+<a name="465"></a>     *   check.
+<a name="466"></a>     *   
+<a name="467"></a>     *   Returns a new token list if we correct a spelling error, nil
+<a name="468"></a>     *   otherwise.  
+<a name="469"></a>     */
+<a name="470"></a>    checkSpelling(toks, err)
+<a name="471"></a>    {
+<a name="472"></a>        local t;
+<a name="473"></a>
+<a name="474"></a>        /* if spelling correction is disabled, we can't correct anything */
+<a name="475"></a>        if (!parser.autoSpell)
+<a name="476"></a>            return nil;
+<a name="477"></a>        
+<a name="478"></a>        /*  
+<a name="479"></a>         *   Don't try to correct an OrdinalRangeError; the player will have typed a number out of
+<a name="480"></a>         *   range and the correnction will probably be confusing.
+<a name="481"></a>         */
+<a name="482"></a>        if(err.ofKind(OrdinalRangeError))
+<a name="483"></a>            return nil;
+<a name="484"></a>
+<a name="485"></a>        /* if we've exhausted the spelling correction time limit, give up */
+<a name="486"></a>        #ifndef __DEBUG
+<a name="487"></a>        if (getTime(GetTimeTicks) &gt; startTime + parser.spellTimeLimit)
+<a name="488"></a>            return nil;
+<a name="489"></a>        #endif
+<a name="490"></a>
+<a name="491"></a>        /* check for an obvious typo - i.e., a word not in the dictionary */
+<a name="492"></a>        local idx = spellingCorrector.findUnknownWord(toks);
+<a name="493"></a>        local unknown = (idx != nil);
+<a name="494"></a>
+<a name="495"></a>        /*
+<a name="496"></a>         *   If we couldn't find any more *obvious* typos, we could have a
+<a name="497"></a>         *   more subtle error: a typo that misspells a word as another
+<a name="498"></a>         *   word that's coincidentally also in the dictionary: "no" for
+<a name="499"></a>         *   "on", "cattle" for "castle", etc.  So: pick a word that we
+<a name="500"></a>         *   haven't corrected yet on this pass, and try correcting it.
+<a name="501"></a>         *   
+<a name="502"></a>         *   Skip this step if we're already attempting a correction to a
+<a name="503"></a>         *   word that was in the dictionary.  This type of correction is
+<a name="504"></a>         *   much more speculative than for obvious typos (which is still
+<a name="505"></a>         *   somewhat speculative: a game dictionary is much smaller than
+<a name="506"></a>         *   the natural language's lexicon).  The odds of *multiple* typos
+<a name="507"></a>         *   that match dictionary words are geometrically smaller with
+<a name="508"></a>         *   each added typo.  The odds of a false positive are
+<a name="509"></a>         *   correspondingly higher.  To limit the damage we can do by wild
+<a name="510"></a>         *   guessing, then, we'll draw the line at one non-obvious typo
+<a name="511"></a>         *   correction per input.  
+<a name="512"></a>         */
+<a name="513"></a>        local limit = 1;
+<a name="514"></a>        if (idx == nil &amp;&amp; cstack.countWhich({ c: !c.unknown }) &lt; limit)
+<a name="515"></a>        {
+<a name="516"></a>            /*
+<a name="517"></a>             *   The odds of a typo matching a dictionary word decrease
+<a name="518"></a>             *   exponentially as word length increases (the number of
+<a name="519"></a>             *   possible letter combinations increases exponentially with
+<a name="520"></a>             *   word length, while the number of real words increases
+<a name="521"></a>             *   polynomially at best).  We're thus most likely to find a
+<a name="522"></a>             *   valid correction with the shortest words.  Get a list of
+<a name="523"></a>             *   word indexes sorted by increasing word length.  
+<a name="524"></a>             */
+<a name="525"></a>            local i, len = toks.length();
+<a name="526"></a>            local iv = new Vector(len);
+<a name="527"></a>            for (i = 1 ; i &lt;= len ; ++i)
+<a name="528"></a>                iv[i] = i;
+<a name="529"></a>
+<a name="530"></a>            iv.sort(SortAsc,
+<a name="531"></a>                    { a, b: getTokVal(toks[a]).length()
+<a name="532"></a>                    - getTokVal(toks[b]).length() });
+<a name="533"></a>            
+<a name="534"></a>            /* 
+<a name="535"></a>             *   scan for a word we haven't attempted to change yet; search
+<a name="536"></a>             *   in order of word length 
+<a name="537"></a>             */
+<a name="538"></a>            for (i = 1 ;
+<a name="539"></a>                 i &lt;= len
+<a name="540"></a>                 &amp;&amp; (!isWordToken(toks[iv[i]])
+<a name="541"></a>                     || corrections.indexOf(iv[i]) != nil) ;
+<a name="542"></a>                 ++i) ;
+<a name="543"></a>
+<a name="544"></a>            /* if we found an as-yet uncorrected word, try correcting it */
+<a name="545"></a>            if (i &lt;= len)
+<a name="546"></a>            {
+<a name="547"></a>                idx = iv[i];
+<a name="548"></a>                unknown = nil;
+<a name="549"></a>            }
+<a name="550"></a>        }
+<a name="551"></a>
+<a name="552"></a>        /* if we found something to correct, try correcting it */
+<a name="553"></a>        if (idx != nil)
+<a name="554"></a>        {
+<a name="555"></a>            /* try correcting this word */
+<a name="556"></a>            local candidates = spellingCorrector.correct(toks, idx, err);
+<a name="557"></a>
+<a name="558"></a>            /* if we found any candidates, try them out */
+<a name="559"></a>            if (candidates != nil)
+<a name="560"></a>            {
+<a name="561"></a>                /* add this to the list of corrections we've attempted */
+<a name="562"></a>                corrections += idx;
+<a name="563"></a>
+<a name="564"></a>                /*
+<a name="565"></a>                 *   Log the correction in the history stack.  If we're
+<a name="566"></a>                 *   already working on a non-obvious typo, don't stack it;
+<a name="567"></a>                 *   just replace the top of stack with the new state.  
+<a name="568"></a>                 */
+<a name="569"></a>                if (cstack.isEmpty() || (t = cstack.getTop()).unknown)
+<a name="570"></a>                {
+<a name="571"></a>                    /* log the correction in the history */
+<a name="572"></a>                    cstack.push(new SpellingCorrection(
+<a name="573"></a>                        toks, candidates, corrections, unknown, err));
+<a name="574"></a>                }
+<a name="575"></a>                else
+<a name="576"></a>                {
+<a name="577"></a>                    /* replace the top of stack */
+<a name="578"></a>                    t.candidates = candidates;
+<a name="579"></a>                    t.curCand = 1;
+<a name="580"></a>                }
+<a name="581"></a>
+<a name="582"></a>                /* log it for debugging */
+<a name="583"></a>                IfDebug(spelling,
+<a name="584"></a>                        "\nRespell: &lt;&lt;candidates[1].mapAll(
+<a name="585"></a>                            {x: getTokVal(x)}).join(' ')&gt;&gt;\n");
+<a name="586"></a>                
+<a name="587"></a>                /* return the first candidate token list */
+<a name="588"></a>                return candidates[1];
+<a name="589"></a>            }
+<a name="590"></a>        }
+<a name="591"></a>
+<a name="592"></a>        /* 
+<a name="593"></a>         *   We've run out of words to correct, so try backtracking.  Look 
+<a name="594"></a>         *   at the stack and see if there are any items with more 
+<a name="595"></a>         *   candidates to try out.  If so, try out the next candidate.
+<a name="596"></a>         */
+<a name="597"></a>        if (cstack.indexWhich({c: c.curCand &lt; c.candidates.length()}) != nil)
+<a name="598"></a>        {
+<a name="599"></a>            /* pop items until we reach one that hasn't been exhausted */
+<a name="600"></a>            while ((t = cstack.getTop()).curCand == t.candidates.length())
+<a name="601"></a>            {
+<a name="602"></a>                /* pop this stack item */
+<a name="603"></a>                local c = cstack.pop();
+<a name="604"></a>
+<a name="605"></a>                /* restore the attempted correction list before this point */
+<a name="606"></a>                corrections = c.corrections;
+<a name="607"></a>            }
+<a name="608"></a>
+<a name="609"></a>            /* log it for debugging */
+<a name="610"></a>            IfDebug(spelling, 
+<a name="611"></a>                    "\nRespell: &lt;&lt;t.candidates[t.curCand+1].mapAll(
+<a name="612"></a>                        {x: getTokVal(x)}).join(' ')&gt;&gt;\n");
+<a name="613"></a>
+<a name="614"></a>            /* return the next candidate from this item */
+<a name="615"></a>            return t.candidates[++t.curCand];
+<a name="616"></a>        }
+<a name="617"></a>
+<a name="618"></a>        /* no corrections are available */
+<a name="619"></a>        return nil;
+<a name="620"></a>    }
+<a name="621"></a>
+<a name="622"></a>    /*
+<a name="623"></a>     *   Roll back spelling changes to the last one that actually improved
+<a name="624"></a>     *   matters.  'toks' is the latest token list, and 'err' is the
+<a name="625"></a>     *   parsing error that we encountered attempting to parse this token
+<a name="626"></a>     *   list.
+<a name="627"></a>     *   
+<a name="628"></a>     *   If 'err' is a curable error, we'll leave things as they are.  The
+<a name="629"></a>     *   curable error means that the token list is now well-formed, but is
+<a name="630"></a>     *   missing some information we need to actually execute it.  Since
+<a name="631"></a>     *   it's well-formed, our spelling corrections must have made some
+<a name="632"></a>     *   kind of sense, so we'll assume they were correct.
+<a name="633"></a>     *   
+<a name="634"></a>     *   If the error isn't curable, though, our spelling corrections
+<a name="635"></a>     *   didn't result in a working command.  The way we pick candidate
+<a name="636"></a>     *   words tends to give us lots of false matches, so the fact that we
+<a name="637"></a>     *   didn't end up with meaningful syntax overall suggests that our
+<a name="638"></a>     *   guess for an individual word was a spurious match.
+<a name="639"></a>     *   
+<a name="640"></a>     *   To determine what we keep and what we roll back, we look at
+<a name="641"></a>     *   whether a change improved the intelligibility of the command.
+<a name="642"></a>     *   There are basically three stages of intelligibility that we can
+<a name="643"></a>     *   distinguish: (1) completely unintelligible, (2) valid verb
+<a name="644"></a>     *   structure but unknown noun phrases, and (3) valid verb structure
+<a name="645"></a>     *   AND resolvable noun phrases.
+<a name="646"></a>     *   
+<a name="647"></a>     *   We want to keep any attempted spelling corrections that
+<a name="648"></a>     *   successfully advanced us from one stage to the next, because the
+<a name="649"></a>     *   improved intelligibility is pretty good evidence that our
+<a name="650"></a>     *   corrections were in fact correct.  We DON'T want to keep any
+<a name="651"></a>     *   corrections that didn't advance the process, because we can't tell
+<a name="652"></a>     *   if they actually helped.  We're intentionally conservative about
+<a name="653"></a>     *   spelling correction, because spurious corrections are worse in an
+<a name="654"></a>     *   IF context than in most applications.  In IF, a spurious
+<a name="655"></a>     *   correction could be a spoiler, by revealing the existence of a
+<a name="656"></a>     *   dictionary word too early in the game.  To reduce spurious
+<a name="657"></a>     *   corrections, we only accept corrections that actually make the
+<a name="658"></a>     *   command more parseable.
+<a name="659"></a>     */
+<a name="660"></a>    rollback(toks, err)
+<a name="661"></a>    {
+<a name="662"></a>        /* set up a dummy history item for the new error */
+<a name="663"></a>        local h = new SpellingCorrection(toks, toks, corrections, nil, err);
+<a name="664"></a>
+<a name="665"></a>        /* if the error isn't curable, roll back unhelpful changes */
+<a name="666"></a>        if (!err.curable)
+<a name="667"></a>        {
+<a name="668"></a>            /* push the new error history item for easy scanning */
+<a name="669"></a>            cstack.push(h);
+<a name="670"></a>            local clen = cstack.length();
+<a name="671"></a>
+<a name="672"></a>            /* assume we'll roll back to the first element */
+<a name="673"></a>            local hidx = 1;
+<a name="674"></a>            h = cstack[1];
+<a name="675"></a>
+<a name="676"></a>            /* scan for the last stage upgrade in the list */
+<a name="677"></a>            for (local i = 2 ; i &lt;= clen ; ++i)
+<a name="678"></a>            {
+<a name="679"></a>                /* if this is an upgrade, don't roll back past here */
+<a name="680"></a>                if (cstack[i].parseError.errStage &gt; h.parseError.errStage)
+<a name="681"></a>                {
+<a name="682"></a>                    h = cstack[i];
+<a name="683"></a>                    hidx = i;
+<a name="684"></a>                }
+<a name="685"></a>            }
+<a name="686"></a>
+<a name="687"></a>            /* discard the history items from the last one on */
+<a name="688"></a>            cstack.removeRange(hidx, clen);
+<a name="689"></a>        }
+<a name="690"></a>
+<a name="691"></a>        /* return the history item we decided upon */
+<a name="692"></a>        return h;
+<a name="693"></a>    }
+<a name="694"></a>
+<a name="695"></a>    /*
+<a name="696"></a>     *   Note spelling changes between the original token list and the
+<a name="697"></a>     *   given token list. 
+<a name="698"></a>     */
+<a name="699"></a>    noteSpelling(newToks)
+<a name="700"></a>    {
+<a name="701"></a>        /* if there's nothing in the stack, there are no changes to report */
+<a name="702"></a>        if (cstack.length() == 0)
+<a name="703"></a>            return;
+<a name="704"></a>
+<a name="705"></a>        /* 
+<a name="706"></a>         *   Start by turning the token lists back into strings, then
+<a name="707"></a>         *   splitting them up into simple space-delimited tokens.  The
+<a name="708"></a>         *   full tokenizer can split tokens at delimiters other than
+<a name="709"></a>         *   spaces, but for our purposes we're only interested in the
+<a name="710"></a>         *   individual words tokens.  
+<a name="711"></a>         */
+<a name="712"></a>        local orig = cmdTokenizer.buildOrigText(cstack[1].oldToks).split(' ');
+<a name="713"></a>        newToks = cmdTokenizer.buildOrigText(newToks).split(' ');
+<a name="714"></a>        local newLen = newToks.length();
+<a name="715"></a>
+<a name="716"></a>        /* if there are no tokens, there's nothing to display */
+<a name="717"></a>        if (newLen == 0)
+<a name="718"></a>            return;
+<a name="719"></a>
+<a name="720"></a>        /* diff the word lists */
+<a name="721"></a>        local lcs = new LCS(orig, newToks);
+<a name="722"></a>
+<a name="723"></a>        /* translate the new tokens to a vector for faster updates */
+<a name="724"></a>        newToks = new Vector(newLen, newToks);
+<a name="725"></a>
+<a name="726"></a>        /* 
+<a name="727"></a>         *   Run through the new string, and highlight each word (via HTML)
+<a name="728"></a>         *   that's NOT in the common subsequence list.  Anything that's
+<a name="729"></a>         *   not in the common list is only in the new list, which means
+<a name="730"></a>         *   it's either an insertion or a replacement relative to the
+<a name="731"></a>         *   original string the user typed.  
+<a name="732"></a>         */
+<a name="733"></a>        for (local l = lcs.lcsB, local li = 1, local i = 1 ; i &lt;= newLen ; ++i)
+<a name="734"></a>        {
+<a name="735"></a>            /* check to see if this word is in the common subsequence */
+<a name="736"></a>            if (li &lt;= l.length() &amp;&amp; l[li] == i)
+<a name="737"></a>            {
+<a name="738"></a>                /* it's in the common sublist - advance the common index */
+<a name="739"></a>                ++li;
+<a name="740"></a>            }
+<a name="741"></a>            else
+<a name="742"></a>            {
+<a name="743"></a>                /* it's not in the common sublist - highlight it */
+<a name="744"></a>                newToks[i] = '&lt;b&gt;' + newToks[i] + '&lt;/b&gt;';
+<a name="745"></a>            }
+<a name="746"></a>        }
+<a name="747"></a>        
+<a name="748"></a>        /* reassemble the token list */
+<a name="749"></a>        local str = newToks[1];
+<a name="750"></a>        for (local i = 2 ; i &lt;= newLen ; ++i)
+<a name="751"></a>            str += ' ' + newToks[i];
+<a name="752"></a>
+<a name="753"></a>        /* for debugging, show the elapsed time for spelling correction */
+<a name="754"></a>        IfDebug(spelling, "\nElapsed spelling time: &lt;&lt;
+<a name="755"></a>              getTime(GetTimeTicks) - startTime&gt;&gt; ms\n");
+<a name="756"></a>
+<a name="757"></a>        /* 
+<a name="758"></a>         *   While we're using the ^ for ' substitution trick to deal with
+<a name="759"></a>         *   certain apostrophe-S words, we need to change ^s back to 's in the
+<a name="760"></a>         *   spelling checker's output.
+<a name="761"></a>         */
+<a name="762"></a>        str = str.findReplace('^s', '\'s');
+<a name="763"></a>        
+<a name="764"></a>        
+<a name="765"></a>        /*
+<a name="766"></a>         *   Announce a correction made by the spelling corrector.  The
+<a name="767"></a>         *   corrected string includes HTML markups to highlight the word
+<a name="768"></a>         *   or words that the spelling corrector changed.  
+<a name="769"></a>         */
+<a name="770"></a>        DMsg(corrected spelling, '(&lt;i&gt;{1}&lt;/i&gt;)&lt;br&gt;', str);
+<a name="771"></a>        
+<a name="772"></a>    }
+<a name="773"></a>
+<a name="774"></a>    /* our parser object */
+<a name="775"></a>    parser = nil
+<a name="776"></a>
+<a name="777"></a>    /* starting time (in GetTimeTicks time) */
+<a name="778"></a>    startTime = 0
+<a name="779"></a>
+<a name="780"></a>    /* 
+<a name="781"></a>     *   The indices of the words we've corrected so far.  We keep track of
+<a name="782"></a>     *   the corrections we've made so that we don't try to further correct
+<a name="783"></a>     *   a word we've already corrected.  (We *do* try multiple candidates
+<a name="784"></a>     *   per slot, but we do that by backtracking.) 
+<a name="785"></a>     */
+<a name="786"></a>    corrections = []
+<a name="787"></a>
+<a name="788"></a>    /* 
+<a name="789"></a>     *   The attempted correction stack.  Each time we correct a word,
+<a name="790"></a>     *   we'll add a SpellingCorrection item to the stack.  If we decide a
+<a name="791"></a>     *   correction didn't work after all (i.e., didn't yield a valid
+<a name="792"></a>     *   parsing), the stack lets us retract it and try a different
+<a name="793"></a>     *   correction candidate.  
+<a name="794"></a>     */
+<a name="795"></a>    cstack = perInstance(new Vector(10))
+<a name="796"></a>    
+<a name="797"></a>    /*
+<a name="798"></a>     *   Clear the history
+<a name="799"></a>     */
+<a name="800"></a>    clear()
+<a name="801"></a>    {
+<a name="802"></a>        corrections = [];
+<a name="803"></a>        
+<a name="804"></a>        cstack = new Vector(10);
+<a name="805"></a>    }
+<a name="806"></a>
+<a name="807"></a>;
+<a name="808"></a>
+<a name="809"></a>/* ------------------------------------------------------------------------ */
+<a name="810"></a>/*
+<a name="811"></a> *   SpellingCorrection: Each time we attempt a spelling correction, we'll
+<a name="812"></a> *   save information on the attempt in one of these objects.  
+<a name="813"></a> */
+<a name="814"></a>class SpellingCorrection: object
+<a name="815"></a>    construct(oldToks, candidates, corrections, unknown, err)
+<a name="816"></a>    {
+<a name="817"></a>        self.oldToks = oldToks;
+<a name="818"></a>        self.candidates = candidates;
+<a name="819"></a>        self.corrections = corrections;
+<a name="820"></a>        self.unknown = unknown;
+<a name="821"></a>        self.parseError = err;
+<a name="822"></a>    }
+<a name="823"></a>
+<a name="824"></a>    /* the token list before the spelling correction */
+<a name="825"></a>    oldToks = nil
+<a name="826"></a>
+<a name="827"></a>    /* 
+<a name="828"></a>     *   is this a correction for an unknown word (as opposed to a word
+<a name="829"></a>     *   that's in the dictionary, but still could be a typo)? 
+<a name="830"></a>     */
+<a name="831"></a>    unknown = nil
+<a name="832"></a>    
+<a name="833"></a>    /* the indices of the corrections so far, before this one */
+<a name="834"></a>    corrections = nil
+<a name="835"></a>
+<a name="836"></a>    /* the candidate list - this is a list of token lists */
+<a name="837"></a>    candidates = nil
+<a name="838"></a>
+<a name="839"></a>    /* the current candidate index */
+<a name="840"></a>    curCand = 1
+<a name="841"></a>
+<a name="842"></a>    /* the ParseError that triggered the spelling correction attempt */
+<a name="843"></a>    parseError = nil
+<a name="844"></a>;
+<a name="845"></a>    
+<a name="846"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

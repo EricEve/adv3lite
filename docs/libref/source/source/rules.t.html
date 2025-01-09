@@ -1,0 +1,801 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>rules.t</title></head><body>
+<table class=ban><tr><td><h1>rules.t</h1><td align=right><a href="../file/rules.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* 
+<a name="5"></a> *   RULES EXTENSION by Eric Eve July 2014
+<a name="6"></a> *
+<a name="7"></a> *   The rules.t extension allows Inform7-style rules and rulebooks to be
+<a name="8"></a> *   defined in a TADS 3 game.
+<a name="9"></a> */
+<a name="10"></a>
+<a name="11"></a>
+<a name="12"></a>
+<a name="13"></a>
+<a name="14"></a>/* 
+<a name="15"></a> *   A RuleBook is a container for one or more rules. Calling the follow()
+<a name="16"></a> *   method of a RuleBook causes each of its contained rules to be executed in
+<a name="17"></a> *   turn until one returns a non-null value. That value is then returned to the
+<a name="18"></a> *   caller of the RuleBook. [DEFINED IN RULES EXTENSION]
+<a name="19"></a> */     
+<a name="20"></a>class RuleBook: PreinitObject    
+<a name="21"></a>    
+<a name="22"></a>    /* A list of rules contained in this rulebook */
+<a name="23"></a>    contents = []
+<a name="24"></a>    
+<a name="25"></a>    /* 
+<a name="26"></a>     *   The actor to use for comparison with the who property for rules in this
+<a name="27"></a>     *   RuleBook. The default is gPlayerChar, but for some RuleBooks gActor may
+<a name="28"></a>     *   be more appropriate.
+<a name="29"></a>     */
+<a name="30"></a>    actor = gPlayerChar
+<a name="31"></a>    
+<a name="32"></a>    /* Add a rule to the contents of this rulebook [RULES EXTENSION] */
+<a name="33"></a>    addToContents(ru)
+<a name="34"></a>    {
+<a name="35"></a>        contents += ru;
+<a name="36"></a>    }
+<a name="37"></a>    
+<a name="38"></a>    /* Remove a rule from the contents of this rulebook [RULES EXTENSION] */
+<a name="39"></a>    removeFromContents(ru)
+<a name="40"></a>    {
+<a name="41"></a>        contents -= ru;
+<a name="42"></a>    }
+<a name="43"></a>    
+<a name="44"></a>    
+<a name="45"></a>    /* 
+<a name="46"></a>     *   Follow this Rule. This is the method game code will normally call to
+<a name="47"></a>     *   make use of this RuleBook. Each of our rules will be tested to see if
+<a name="48"></a>     *   it matches its conditions; we then run through those of our rules that
+<a name="49"></a>     *   match their rules in order of precedence until one returns a non-null
+<a name="50"></a>     *   value, which we then in turn return to our caller. If no rule returns a
+<a name="51"></a>     *   non-null value we return our own default value, which is normally nil.
+<a name="52"></a>     *
+<a name="53"></a>     *   This method can be called with as many arguments as the game code finds
+<a name="54"></a>     *   useful, or with none at all. Our arguments will then be passed on to
+<a name="55"></a>     *   each Rule that is called. The first argument will also be stored in our
+<a name="56"></a>     *   matchObj property, which our Rules can compare with their own matchObj
+<a name="57"></a>     *   condition to see if they match. This allows game code to, for example,
+<a name="58"></a>     *   run a RuleBook related to some object that isn't one of the objects
+<a name="59"></a>     *   directly involved in the current action. [RULES EXTENSION]
+<a name="60"></a>     */
+<a name="61"></a>    follow([args])
+<a name="62"></a>    {
+<a name="63"></a>        /* 
+<a name="64"></a>         *   If we have any arguments at all, store the first one in our
+<a name="65"></a>         *   matchObj property for comparison with our Rules' matchObj
+<a name="66"></a>         *   conditions.
+<a name="67"></a>         */
+<a name="68"></a>        if(args.length &gt; 0)
+<a name="69"></a>            matchObj = args[1];
+<a name="70"></a>        
+<a name="71"></a>        /* Carry out any custom initialization required. */
+<a name="72"></a>        initBook(args...);
+<a name="73"></a>        
+<a name="74"></a>        /* 
+<a name="75"></a>         *   Make sure that all the Rules in our contents list know that we're
+<a name="76"></a>         *   the RuleBook that's currently calling them. This is necessary in
+<a name="77"></a>         *   case the same Rule is associated with more than one RuleBook.
+<a name="78"></a>         */
+<a name="79"></a>        contents.forEach({ r: r.setRulebook(self) });
+<a name="80"></a>        
+<a name="81"></a>        /* Extract the subset of Rules that match their conditions. */
+<a name="82"></a>        local validRules = contents.subset({r: r.matchConditions});
+<a name="83"></a>        
+<a name="84"></a>        /* Sort the matching rules in descending order of precedence. */
+<a name="85"></a>        validRules = validRules.sort(SortDesc, {a, b: a.compareTo(b)} );
+<a name="86"></a>        
+<a name="87"></a>        /* 
+<a name="88"></a>         *   Go through each of the matching rules in turn, calling its follow
+<a name="89"></a>         *   method. If any rule returns a non-null value, stop running through
+<a name="90"></a>         *   the rules and return that value to our caller.
+<a name="91"></a>         */
+<a name="92"></a>        foreach(local ru in validRules)
+<a name="93"></a>        {
+<a name="94"></a>            IfDebug(rules, 
+<a name="95"></a>                    "[Executing rule: &lt;&lt;valToSym(ru)&gt;&gt; in rulebook
+<a name="96"></a>                    &lt;&lt;valToSym(self)&gt;&gt;]\n" );
+<a name="97"></a>            local res = ru.follow(args...);
+<a name="98"></a>            
+<a name="99"></a>            if(res != contValue)
+<a name="100"></a>                return res;
+<a name="101"></a>        }
+<a name="102"></a>        
+<a name="103"></a>        /* 
+<a name="104"></a>         *   If no rule returned a non-null value, return our own defaultVal to
+<a name="105"></a>         *   our caller.
+<a name="106"></a>         */
+<a name="107"></a>        return defaultVal;
+<a name="108"></a>    }
+<a name="109"></a>    
+<a name="110"></a>    
+<a name="111"></a>    /* 
+<a name="112"></a>     *   contValue (continue value) is the value that a Rule in this RuleBook
+<a name="113"></a>     *   needs to return to avoid the RuleBook stopping at that Rule (rather
+<a name="114"></a>     *   than going on to consider more Rules). By default this is null, which
+<a name="115"></a>     *   means by default a Rule that does not explicitly return a value (and so
+<a name="116"></a>     *   effectivelt returns nil) will stop the RuleBook. If you want the
+<a name="117"></a>     *   default behaviour for this RuleBook to be not for Rules to stop the
+<a name="118"></a>     *   book, then override this to nil. [RULES EXTENSION]
+<a name="119"></a>     */
+<a name="120"></a>    contValue = null
+<a name="121"></a>    
+<a name="122"></a>    /*  
+<a name="123"></a>     *   The default value to return to our caller. By default this is the same
+<a name="124"></a>     *   as our contValue , to make it easy to test whether we any rule returned
+<a name="125"></a>     *   a non-null value. By default a rule that does something will return
+<a name="126"></a>     *   nil, so if no rule does anything we want to return a different value.
+<a name="127"></a>     *   By making the defaultValue the same as the contValue, we ensure that we
+<a name="128"></a>     *   can tell our caller that no rule was executed (if that is indeed the
+<a name="129"></a>     *   case). [RULES EXTENSION]
+<a name="130"></a>     */
+<a name="131"></a>    defaultVal = contValue
+<a name="132"></a>    
+<a name="133"></a>    /*   
+<a name="134"></a>     *   The value our associated rules use by default to stop this RuleBook
+<a name="135"></a>     *   considering any further rules (when a Rule uses the stop macro). By
+<a name="136"></a>     *   default we use a value of true. [RULES EXTENSION]
+<a name="137"></a>     */    
+<a name="138"></a>    stopValue = true
+<a name="139"></a>    
+<a name="140"></a>    /* 
+<a name="141"></a>     *   Game code can use this method to initialize the values of custom
+<a name="142"></a>     *   RuleBook properties at the start of the processing of following a
+<a name="143"></a>     *   RuleBook. [RULES EXTENSION]
+<a name="144"></a>     */
+<a name="145"></a>    initBook([args]) { }
+<a name="146"></a>    
+<a name="147"></a>    /*   
+<a name="148"></a>     *   The object (or any other value) to be matched by our Rule's matchObj
+<a name="149"></a>     *   conditions if they have any. This property is set by our follow()
+<a name="150"></a>     *   method (from its first argument) and so should not normally be directly
+<a name="151"></a>     *   changed from game code. [RULES EXTENSION]
+<a name="152"></a>     */
+<a name="153"></a>    matchObj = nil
+<a name="154"></a>    
+<a name="155"></a>;
+<a name="156"></a>
+<a name="157"></a>/* Preinitializer for Rules. [DEFINED IN RULES EXTENSION]*/
+<a name="158"></a>rulePreinit:PreinitObject
+<a name="159"></a>    execute()
+<a name="160"></a>    {
+<a name="161"></a>        /* Initialize all the Rules in the game. */
+<a name="162"></a>        for(local ru = firstObj(Rule); ru != nil; ru = nextObj(ru, Rule))
+<a name="163"></a>        {
+<a name="164"></a>            ru.initializeRule();
+<a name="165"></a>        }       
+<a name="166"></a>    }
+<a name="167"></a>;
+<a name="168"></a>
+<a name="169"></a>
+<a name="170"></a>/* 
+<a name="171"></a> *   A Rule is an object that defines a set of conditions that need to be met
+<a name="172"></a> *   for it to be executed when its RuleBook is run and a method that's executed
+<a name="173"></a> *   when its conditions are met. A Rule can be associated with one or more
+<a name="174"></a> *   RuleBooks; it starts out in the RuleBook with which it is associated via
+<a name="175"></a> *   its + property (i.e. its location). [DEFINED IN RULES EXTENSION]
+<a name="176"></a> */
+<a name="177"></a>class Rule: object
+<a name="178"></a>    /* 
+<a name="179"></a>     *   Our location is the RuleBook with which we start out being associated.
+<a name="180"></a>     *   Normally this will be defined by locating a Rule inside its RukeBook
+<a name="181"></a>     *   using the + notation. [RULES EXTENSION]
+<a name="182"></a>     */
+<a name="183"></a>    location = nil
+<a name="184"></a>    
+<a name="185"></a>    /*   
+<a name="186"></a>     *   The rulebook that's currently considering us. Normally this will be our
+<a name="187"></a>     *   location, but it could be a different RuleBook if we belong to one.
+<a name="188"></a>     *   Note that this property is automatically set by the library and so it
+<a name="189"></a>     *   should never need to be altered by game code. [RULES EXTENSION]
+<a name="190"></a>     */
+<a name="191"></a>    rulebook = location
+<a name="192"></a>      
+<a name="193"></a>    /*   
+<a name="194"></a>     *   Set our current rulebook to r. Note that this method is normally called
+<a name="195"></a>     *   by the Rulebook that's running us, and shouldn't normally be used by
+<a name="196"></a>     *   game code. [RULES EXTENSION]
+<a name="197"></a>     */
+<a name="198"></a>    setRulebook(r) { rulebook = r; }
+<a name="199"></a>    
+<a name="200"></a>    /*   A list of all the rulebooks this rule is currently associated with. [RULES EXTENSION] */
+<a name="201"></a>    rulebooks = []    
+<a name="202"></a>    
+<a name="203"></a>    /*   
+<a name="204"></a>     *   Initialize this Rule by adding it to the contents list of its location
+<a name="205"></a>     *   and calculating its specificity (i.e. how specific its conditions are)
+<a name="206"></a>	 *   [RULES EXTENSION]
+<a name="207"></a>     */
+<a name="208"></a>    initializeRule()
+<a name="209"></a>    {
+<a name="210"></a>        if(location)
+<a name="211"></a>        {
+<a name="212"></a>            location.addToContents(self);               
+<a name="213"></a>            rulebooks += location;
+<a name="214"></a>        }
+<a name="215"></a>        
+<a name="216"></a>        specificity = calcSpecficity();
+<a name="217"></a>    }
+<a name="218"></a>    
+<a name="219"></a>    /* 
+<a name="220"></a>     *   Do whatever this Rule needs to do when its conditions are met. This
+<a name="221"></a>     *   method will need to be defined on each individual Rule in game code.
+<a name="222"></a>	 *   [RULES EXTENSION]
+<a name="223"></a>     */         
+<a name="224"></a>    follow([args])
+<a name="225"></a>    {
+<a name="226"></a>    }
+<a name="227"></a>    
+<a name="228"></a>    /* 
+<a name="229"></a>     *   The priority of this Rule. This can be used to alter the order in which
+<a name="230"></a>     *   this Rule is considered in its RuleBook. If two Rules have different
+<a name="231"></a>     *   priorities they will be run in priority order, highest priority first.
+<a name="232"></a>     *   The default value is 100. [RULES EXTENSION]
+<a name="233"></a>     */ 
+<a name="234"></a>    priority = 100
+<a name="235"></a>    
+<a name="236"></a>    /*   
+<a name="237"></a>     *   Where two Rules have the same priority, the one with the more specific
+<a name="238"></a>     *   conditions is taken first. The specificity property holds a measure of
+<a name="239"></a>     *   the Rule's specificity which is calculated by the calcSpecificity()
+<a name="240"></a>     *   method at PreInit. [RULES EXTENSION]
+<a name="241"></a>     */
+<a name="242"></a>    specificity = nil
+<a name="243"></a>    
+<a name="244"></a>    /* 
+<a name="245"></a>     *   Return true if this Rule should always execute after other (despite all
+<a name="246"></a>     *   other ranking criteria). By default we return true if and only if other
+<a name="247"></a>     *   is in our execAfter list. [RULES EXTENSION]
+<a name="248"></a>     */   
+<a name="249"></a>    runAfter(other)
+<a name="250"></a>    {
+<a name="251"></a>        return valToList(execAfter).indexOf(other) != nil;        
+<a name="252"></a>    }
+<a name="253"></a>    
+<a name="254"></a>    /* 
+<a name="255"></a>     *   A list of Rules this Rule should specifically run after; this overrides
+<a name="256"></a>     *   all other ranking. [RULES EXTENSION]
+<a name="257"></a>     */
+<a name="258"></a>    execAfter = []
+<a name="259"></a>    
+<a name="260"></a>    /* 
+<a name="261"></a>     *   Return true if this Rule should always execute before other (despite all
+<a name="262"></a>     *   other ranking criteria). By default we return true if and only if other
+<a name="263"></a>     *   is in our execBefore list. [RULES EXTENSION]
+<a name="264"></a>     */
+<a name="265"></a>    runBefore(other)
+<a name="266"></a>    {
+<a name="267"></a>        return valToList(execBefore).indexOf(other) != nil;
+<a name="268"></a>    }
+<a name="269"></a>    
+<a name="270"></a>    /*  
+<a name="271"></a>     *   A list of Rules this Rule should specifically run before; this
+<a name="272"></a>     *   overrides all other ranking except for runAfter/execAfter.     
+<a name="273"></a>     *   [RULES EXTENSION]
+<a name="274"></a>     */
+<a name="275"></a>    execBefore = []
+<a name="276"></a>    
+<a name="277"></a>    /*  
+<a name="278"></a>     *   A Rule is normally active (that is it will normally be considered when
+<a name="279"></a>     *   a RuleBook is being followed) but it can be temporarily disabled by
+<a name="280"></a>     *   setting its isActive property to nil. [RULES EXTENSION]
+<a name="281"></a>     */
+<a name="282"></a>    isActive = true
+<a name="283"></a>
+<a name="284"></a>    /* Make this Rule active [RULES EXTENSION] */
+<a name="285"></a>    activate() { isActive = true; }
+<a name="286"></a>    
+<a name="287"></a>    /* Make this Rule inactive [RULES EXTENSION] */
+<a name="288"></a>    deactivate() { isActive = nil; }
+<a name="289"></a>    
+<a name="290"></a>    /*
+<a name="291"></a>     *   Calculate the specificity of this Rule. The principles are (a) Rules
+<a name="292"></a>     *   that specify more conditions are more specific than Rule that specify
+<a name="293"></a>     *   fewer condition; (b) conditions involving specific objects are more
+<a name="294"></a>     *   specific that those relating to classes and (c) Rooms are more specific
+<a name="295"></a>     *   than Regions in a where condition. [RULES EXTENSION]
+<a name="296"></a>     */
+<a name="297"></a>    calcSpecficity()
+<a name="298"></a>    {       
+<a name="299"></a>        local p = 0;
+<a name="300"></a>       
+<a name="301"></a>        /* a 'when' has priority over no 'when' */
+<a name="302"></a>        if(propDefined(&amp;when))
+<a name="303"></a>            p += 10;
+<a name="304"></a>        
+<a name="305"></a>        /* 
+<a name="306"></a>         *   a 'where' has priority over no 'where', and a where property that
+<a name="307"></a>         *   specifies a Room is more specific than one that specifies a Region.
+<a name="308"></a>         */
+<a name="309"></a>        if(propDefined(&amp;where))
+<a name="310"></a>            p += valToList(where).indexWhich({r: r.ofKind(Room)}) ? 10 : 5;
+<a name="311"></a>        
+<a name="312"></a>        /* a 'during' has priority over no 'during' */
+<a name="313"></a>        if(propDefined(&amp;during))
+<a name="314"></a>            p += 10;
+<a name="315"></a>        
+<a name="316"></a>        /* a 'who' has priority over no 'who' */
+<a name="317"></a>        if(propDefined(&amp;who))
+<a name="318"></a>            p += 10;
+<a name="319"></a>        
+<a name="320"></a>        /* an 'action' has prioity over no 'action' */
+<a name="321"></a>        if(propDefined(&amp;action))
+<a name="322"></a>        {
+<a name="323"></a>            p += 5;
+<a name="324"></a>        }
+<a name="325"></a>        
+<a name="326"></a>        /* 
+<a name="327"></a>         *   A Rule that refers to command objects (direct, indirect and
+<a name="328"></a>         *   accessory) is more specific than one that does not, and particular
+<a name="329"></a>         *   objects are more specific than classes.
+<a name="330"></a>         */
+<a name="331"></a>        for(local prop in [&amp;dobj, &amp;iobj, &amp;aobj])
+<a name="332"></a>        {
+<a name="333"></a>            if(propDefined(prop))
+<a name="334"></a>            {
+<a name="335"></a>                p += valToList(self.(prop)).indexWhich( {x: !x.isClass()} ) !=
+<a name="336"></a>                nil ? 2 : 1;
+<a name="337"></a>            }                
+<a name="338"></a>        }
+<a name="339"></a>        
+<a name="340"></a>        /* 
+<a name="341"></a>         *   If matchObj is defined, then what we do with it depends on the type
+<a name="342"></a>         *   of value(s) it contains.
+<a name="343"></a>         */
+<a name="344"></a>        if(propDefined(&amp;matchObj))
+<a name="345"></a>        {
+<a name="346"></a>            switch(propType(&amp;matchObj))
+<a name="347"></a>            {
+<a name="348"></a>                /* If matchObj is nil, then ignore it. */
+<a name="349"></a>            case TypeNil:
+<a name="350"></a>                break;
+<a name="351"></a>                
+<a name="352"></a>                /* 
+<a name="353"></a>                 *   If it's an object, increase our specificity by 10, unless
+<a name="354"></a>                 *   it's a class, in which case only increase it by 5 (a class
+<a name="355"></a>                 *   is less specific than an object).
+<a name="356"></a>                 */
+<a name="357"></a>            case TypeObject:
+<a name="358"></a>                p += (matchObj.isClass ? 5 : 10);
+<a name="359"></a>                break;
+<a name="360"></a>                /* 
+<a name="361"></a>                 *   If it's a list, check what kind of values the list
+<a name="362"></a>                 *   contains.
+<a name="363"></a>                 */
+<a name="364"></a>            case TypeList:
+<a name="365"></a>                /*  
+<a name="366"></a>                 *   If the first item in the list is an object, assume the
+<a name="367"></a>                 *   whole list contains objects, then increase our specificity
+<a name="368"></a>                 *   by 10 if any of those objects is not a class, and by 5
+<a name="369"></a>                 *   otherwise (classes are less specific than objects).
+<a name="370"></a>                 */
+<a name="371"></a>                if(matchObj.length &gt; 0 &amp;&amp; dataType(matchObj[1]) == TypeObject)
+<a name="372"></a>                {
+<a name="373"></a>                    if(matchObj.indexWhich({o: !o.isClass}))
+<a name="374"></a>                        p += 10;
+<a name="375"></a>                    else
+<a name="376"></a>                        p += 5;
+<a name="377"></a>                }
+<a name="378"></a>                /* 
+<a name="379"></a>                 *   Otherwise, if it's some other kind of value, simply
+<a name="380"></a>                 *   increase our specificity by 10.
+<a name="381"></a>                 */
+<a name="382"></a>                else
+<a name="383"></a>                    p += 10;
+<a name="384"></a>                
+<a name="385"></a>                break;
+<a name="386"></a>                /* 
+<a name="387"></a>                 *   For any other kind of value, simply increase our
+<a name="388"></a>                 *   specificity by 10.
+<a name="389"></a>                 */
+<a name="390"></a>            default:
+<a name="391"></a>                p += 10;
+<a name="392"></a>                break;
+<a name="393"></a>                
+<a name="394"></a>            }
+<a name="395"></a>        }
+<a name="396"></a>        
+<a name="397"></a>        /* Check if our present property is defined. */
+<a name="398"></a>        if(propDefined(&amp;present))
+<a name="399"></a>        {
+<a name="400"></a>            if(dataType(&amp;present) == TypeObject &amp;&amp; present.isClass)
+<a name="401"></a>                p += 5;
+<a name="402"></a>            else
+<a name="403"></a>                p += 10;
+<a name="404"></a>        }
+<a name="405"></a>           
+<a name="406"></a>        
+<a name="407"></a>        
+<a name="408"></a>        /* Return the result of the calculation. */
+<a name="409"></a>        return p;       
+<a name="410"></a>    }
+<a name="411"></a>    
+<a name="412"></a>    
+<a name="413"></a>    /*
+<a name="414"></a>     *   Get the processing priority sorting order relative to another
+<a name="415"></a>     *   Rule. [RULES EXTENSION]
+<a name="416"></a>     */
+<a name="417"></a>    compareTo(other)
+<a name="418"></a>    {
+<a name="419"></a>        /*  
+<a name="420"></a>         *   If we specifically want this Rule to run after other, rank us after
+<a name="421"></a>         *   other
+<a name="422"></a>         */
+<a name="423"></a>        if(runAfter(other))           
+<a name="424"></a>            return -1;        
+<a name="425"></a>        
+<a name="426"></a>        /*   
+<a name="427"></a>         *   If we specifically want this Rule to run before other, rank us
+<a name="428"></a>         *   before other.
+<a name="429"></a>         */
+<a name="430"></a>        if(runBefore(other))
+<a name="431"></a>            return 1;        
+<a name="432"></a>        
+<a name="433"></a>        /* 
+<a name="434"></a>         *   If the two Rules have different priorities, rank them in order of
+<a name="435"></a>         *   priority.
+<a name="436"></a>         */
+<a name="437"></a>        if(priority != other.priority)   
+<a name="438"></a>            return priority &gt; other.priority ? 1 : -1;
+<a name="439"></a>        
+<a name="440"></a>        /*  
+<a name="441"></a>         *   Otherwise, if they have different speficifities, rank them in order
+<a name="442"></a>         *   of specificity.
+<a name="443"></a>         */
+<a name="444"></a>        if(specificity &gt;= other.specificity)
+<a name="445"></a>            return specificity &gt; other.specificity ? 1 : -1;
+<a name="446"></a>        
+<a name="447"></a>        /* 
+<a name="448"></a>         *   Failing all else, go by the relative location of the source
+<a name="449"></a>         *   code definitions: the definition that appears later in the
+<a name="450"></a>         *   source code takes precedence.  If the two are defined in
+<a name="451"></a>         *   different modules, the one in the later module takes
+<a name="452"></a>         *   precedence.  
+<a name="453"></a>         */
+<a name="454"></a>        if (sourceTextGroup != other.sourceTextGroup)
+<a name="455"></a>            return sourceTextGroup.sourceTextGroupOrder
+<a name="456"></a>            - other.sourceTextGroup.sourceTextGroupOrder;
+<a name="457"></a>
+<a name="458"></a>        /* they're in the same module, so the later one takes precedence */
+<a name="459"></a>        return sourceTextOrder - other.sourceTextOrder;
+<a name="460"></a>        
+<a name="461"></a>    }
+<a name="462"></a>    
+<a name="463"></a>    /* Check whether a Rule matches its where, when, who and during conditions. [RULES EXTENSION] */    
+<a name="464"></a>    matchConditions()    
+<a name="465"></a>    {
+<a name="466"></a>        /* If this Rule is currently inactive it can't match any conditions. */
+<a name="467"></a>        if(!isActive)
+<a name="468"></a>            return nil;
+<a name="469"></a>        
+<a name="470"></a>        /* first check the where condition, if there is one. */
+<a name="471"></a>        if(propDefined(&amp;where))
+<a name="472"></a>        {
+<a name="473"></a>            local whereLst = valToList(where);
+<a name="474"></a>                                    
+<a name="475"></a>            /* 
+<a name="476"></a>             *   if we can't match any item in the where list to the player
+<a name="477"></a>             *   char's current location, we don't meet the where condition, so
+<a name="478"></a>             *   return nil
+<a name="479"></a>             */
+<a name="480"></a>            if(whereLst.indexWhich( {loc: gActor.isIn(loc)}) == nil)
+<a name="481"></a>                return nil;
+<a name="482"></a>        }
+<a name="483"></a>        
+<a name="484"></a>        /* 
+<a name="485"></a>         *   Interpret 'when' as simply a routine that returns true or nil
+<a name="486"></a>         *   aocording to some condition defined by the author; so we simply
+<a name="487"></a>         *   test whether when returns nil if the property is defined.
+<a name="488"></a>         */        
+<a name="489"></a>        if(propDefined(&amp;when) &amp;&amp; when() == nil)
+<a name="490"></a>            return nil;       
+<a name="491"></a>        
+<a name="492"></a>         /* check the who condition, if there is one. */
+<a name="493"></a>        if(propDefined(&amp;who))
+<a name="494"></a>        {
+<a name="495"></a>            local whoLst = valToList(who);
+<a name="496"></a>                        
+<a name="497"></a>            
+<a name="498"></a>            /* 
+<a name="499"></a>             *   If we can't match any item in the who list to the current
+<a name="500"></a>             *   actor, we don't meet the who condition, so return nil
+<a name="501"></a>             */
+<a name="502"></a>            if(whoLst.indexOf(gActor) == nil)
+<a name="503"></a>                return nil;
+<a name="504"></a>        }
+<a name="505"></a>        
+<a name="506"></a>        
+<a name="507"></a>        /* 
+<a name="508"></a>         *   if we're using the scene manager and a during condition is
+<a name="509"></a>         *   specified, test whether the scene is currently happening.
+<a name="510"></a>         */        
+<a name="511"></a>        if(defined(sceneManager) &amp;&amp; propDefined(&amp;during))
+<a name="512"></a>        {
+<a name="513"></a>            local duringList = valToList(during);
+<a name="514"></a>            
+<a name="515"></a>            if(duringList.indexWhich({s: s.isHappening}) == nil)
+<a name="516"></a>                return nil;
+<a name="517"></a>        }
+<a name="518"></a>        
+<a name="519"></a>        /* 
+<a name="520"></a>         *   If we've specified an action to match, test whether gAction (the
+<a name="521"></a>         *   current action) matches it.
+<a name="522"></a>         */
+<a name="523"></a>        if(propDefined(&amp;action) 
+<a name="524"></a>           &amp;&amp; valToList(action).indexWhich({a: gAction.ofKind(a)}) == nil)
+<a name="525"></a>            return nil;
+<a name="526"></a>        
+<a name="527"></a>        
+<a name="528"></a>        /*  
+<a name="529"></a>         *   If we've specified a dobj, iobj and/or aobj to match, test whether
+<a name="530"></a>         *   they match the direct object, indirect object and/or accessory
+<a name="531"></a>         *   object of the current action (provided there is one, which there
+<a name="532"></a>         *   may not be at startup).
+<a name="533"></a>         */
+<a name="534"></a>        if(gAction)
+<a name="535"></a>        {
+<a name="536"></a>            for(local objs in [[&amp;dobj, gDobj], [&amp;iobj, gIobj], [&amp;aobj, gAobj]])
+<a name="537"></a>            {
+<a name="538"></a>                local prop = objs[1];
+<a name="539"></a>                local obj = objs[2];
+<a name="540"></a>                
+<a name="541"></a>                if(propDefined(prop) 
+<a name="542"></a>                   &amp;&amp; valToList(self.(prop)).indexWhich({o: obj.ofKind(o)}) == nil)
+<a name="543"></a>                    return nil;          
+<a name="544"></a>                
+<a name="545"></a>            }
+<a name="546"></a>        }
+<a name="547"></a>        
+<a name="548"></a>        /* 
+<a name="549"></a>         *   If we have a matchObj defined, test whether it matches our current
+<a name="550"></a>         *   rulebook's matchjObj.
+<a name="551"></a>         */
+<a name="552"></a>        if(propDefined(&amp;matchObj))
+<a name="553"></a>        {
+<a name="554"></a>            local mList = valToList(matchObj);
+<a name="555"></a>            local mo = rulebook.matchObj;
+<a name="556"></a>            
+<a name="557"></a>            if(mList.length &gt; 0)
+<a name="558"></a>            {
+<a name="559"></a>                /* 
+<a name="560"></a>                 *   If we want to match an object (or class), test whether the
+<a name="561"></a>                 *   rulebook's match obj is of the appropriate kind. Since an
+<a name="562"></a>                 *   object is always of its own kind, this tests either whether
+<a name="563"></a>                 *   the rulebook's matchObj appears in our matchObj list or
+<a name="564"></a>                 *   whether it belongs to one of the classes in our matchObh
+<a name="565"></a>                 *   list.
+<a name="566"></a>                 */
+<a name="567"></a>                if(dataType(mList[1]) == TypeObject)
+<a name="568"></a>                {
+<a name="569"></a>                    if(mList.indexWhich({o: mo.ofKind(o) } ) == nil)
+<a name="570"></a>                        return nil;
+<a name="571"></a>                }
+<a name="572"></a>                /* 
+<a name="573"></a>                 *   Otherwise, if we're not testing for an object, simply test
+<a name="574"></a>                 *   whether the value of our rulebook's matchObj is equal to
+<a name="575"></a>                 *   anyhting in our matchObj property.
+<a name="576"></a>                 */
+<a name="577"></a>                else if(mList.indexOf(mo) == nil)
+<a name="578"></a>                    return nil;               
+<a name="579"></a>                    
+<a name="580"></a>            }
+<a name="581"></a>        }       
+<a name="582"></a>        
+<a name="583"></a>        /* 
+<a name="584"></a>         *   If present is defined, check whether at least one of the items in
+<a name="585"></a>         *   the list is in the same room, or can be sensed.
+<a name="586"></a>         */
+<a name="587"></a>        if(propDefined(&amp;present))
+<a name="588"></a>        {
+<a name="589"></a>            local pList = valToList(present);
+<a name="590"></a>            
+<a name="591"></a>            /* 
+<a name="592"></a>             *   First test for the special case that the present property
+<a name="593"></a>             *   specifies a single class. In which case whether anything in the
+<a name="594"></a>             *   location of actor matches that class.
+<a name="595"></a>             */            
+<a name="596"></a>            if(pList.length == 1 &amp;&amp; dataType(pList[1]) == TypeObject &amp;&amp;
+<a name="597"></a>               pList[1].isClass())                
+<a name="598"></a>            {
+<a name="599"></a>                if(actor.getOutermostRoom.allContents.indexWhich(
+<a name="600"></a>                    {o: o.ofKind(present) }) == nil)
+<a name="601"></a>                    return nil;
+<a name="602"></a>            }
+<a name="603"></a>            
+<a name="604"></a>            /* 
+<a name="605"></a>             *   Check whether the first item in list is a property pointer. If
+<a name="606"></a>             *   it is we want to use it as a property of the Q object to test
+<a name="607"></a>             *   for a sense connection.
+<a name="608"></a>             */
+<a name="609"></a>            else if(pList.length &gt; 0 &amp;&amp; dataType(pList[1]) == TypeProp)
+<a name="610"></a>            {
+<a name="611"></a>                /* The first item in the list is a property pointer. */
+<a name="612"></a>                local prop = pList[1];
+<a name="613"></a>                
+<a name="614"></a>                /*  
+<a name="615"></a>                 *   Reduce the list to its remaining elements, which should all
+<a name="616"></a>                 *   be objects.
+<a name="617"></a>                 */
+<a name="618"></a>                pList = pList.sublist(2);
+<a name="619"></a>                
+<a name="620"></a>                /*  
+<a name="621"></a>                 *   If no item in pList has a sense path from the actor via the
+<a name="622"></a>                 *   prop property, we don't match.
+<a name="623"></a>                 */
+<a name="624"></a>                if(pList.indexWhich({o: Q.(prop)(actor, o) }) == nil)
+<a name="625"></a>                   return nil;
+<a name="626"></a>            }
+<a name="627"></a>            /* 
+<a name="628"></a>             *   Otherwise, simply test for the presence of one of the objects
+<a name="629"></a>             *   in the actor's room.
+<a name="630"></a>             */
+<a name="631"></a>            else
+<a name="632"></a>            {
+<a name="633"></a>                local loc = actor.getOutermostRoom();
+<a name="634"></a>                
+<a name="635"></a>                if(pList.indexWhich({o: o.isIn(loc)}) == nil)                    
+<a name="636"></a>                    return nil;
+<a name="637"></a>            }           
+<a name="638"></a>        }
+<a name="639"></a>        
+<a name="640"></a>        
+<a name="641"></a>        /* 
+<a name="642"></a>         *   If we haven't failed any of the conditions, we're okay to match, so
+<a name="643"></a>         *   return true.
+<a name="644"></a>         */
+<a name="645"></a>        return true;
+<a name="646"></a>    }
+<a name="647"></a>    
+<a name="648"></a>    /* Add this rule to another rulebook [RULES EXTENSION] */
+<a name="649"></a>    addTo(rb)
+<a name="650"></a>    {
+<a name="651"></a>        if(rb &amp;&amp; rb.ofKind(RuleBook))
+<a name="652"></a>        {
+<a name="653"></a>            rb.addToContents(self);
+<a name="654"></a>            rulebooks += rb;
+<a name="655"></a>        }
+<a name="656"></a>    }
+<a name="657"></a>    
+<a name="658"></a>    /* Remove this rule from a rulebook [RULES EXTENSION] */    
+<a name="659"></a>    removeFrom(rb)
+<a name="660"></a>    {
+<a name="661"></a>        if(rb &amp;&amp; rb.ofKind(RuleBook))
+<a name="662"></a>        {
+<a name="663"></a>            rb.removeFromContents(self);
+<a name="664"></a>            rulebooks -= rb;
+<a name="665"></a>            
+<a name="666"></a>            if(location == rb)
+<a name="667"></a>                location = nil;
+<a name="668"></a>        }
+<a name="669"></a>    }
+<a name="670"></a>    
+<a name="671"></a>    /* 
+<a name="672"></a>     *   Move this rule to another rulebook, removing it from all its current
+<a name="673"></a>     *   rulebooks. If rb is nil, simply remove this Rule from its current
+<a name="674"></a>     *   rulebooks. [RULES EXTENSION]
+<a name="675"></a>     */     
+<a name="676"></a>    moveInto(rb)
+<a name="677"></a>    {        
+<a name="678"></a>        
+<a name="679"></a>        /* 
+<a name="680"></a>         *   If rb is actually a RuleBook, add us to its contents and make rb
+<a name="681"></a>         *   our current location.
+<a name="682"></a>         */
+<a name="683"></a>        if(rb &amp;&amp; rb.ofKind(RuleBook))
+<a name="684"></a>        {
+<a name="685"></a>            rb.addToContents(self);
+<a name="686"></a>            
+<a name="687"></a>            location = rb;
+<a name="688"></a>        }
+<a name="689"></a>        
+<a name="690"></a>        /* 
+<a name="691"></a>         *   Remove us from the contents of all our previous rulebook
+<a name="692"></a>         */
+<a name="693"></a>        rulebooks.forEach({r: r.removeFromContents(self)});
+<a name="694"></a>        
+<a name="695"></a>        /* Add our new RuleBooks to our list of rulebooks */
+<a name="696"></a>        if(rb)
+<a name="697"></a>            rulebooks += rb;
+<a name="698"></a>        
+<a name="699"></a>        /* Make rb our currently active rulebook */
+<a name="700"></a>        rulebook = rb;
+<a name="701"></a>        
+<a name="702"></a>    }
+<a name="703"></a>    
+<a name="704"></a>    /*  
+<a name="705"></a>     *   The value this rule should return when the stop macro is used at the
+<a name="706"></a>     *   end of its follow method. By default we use our rulebook's stopValue.
+<a name="707"></a>	 *   [RULES EXTENSION]
+<a name="708"></a>     */
+<a name="709"></a>    stopValue = (rulebook.stopValue)
+<a name="710"></a>    
+<a name="711"></a>    /* 
+<a name="712"></a>     *   The actor to use to compare with the who property of this Rule. This
+<a name="713"></a>     *   will normally be gPlayerChar, but the value of this property is taken
+<a name="714"></a>     *   from our RuleBook's actor property. [RULES EXTENSION]
+<a name="715"></a>     */
+<a name="716"></a>    actor = (rulebook == nil ? gPlayerChar : rulebook.actor)
+<a name="717"></a>    
+<a name="718"></a>    
+<a name="719"></a>    /* ------------------------------------------------------------------- */ 
+<a name="720"></a>     /* 
+<a name="721"></a>      *   One or more of the following properties, if defined, determine what
+<a name="722"></a>      *   conditions this Rule needs to match in order to be executed.
+<a name="723"></a>      */
+<a name="724"></a>      
+<a name="725"></a>    /* 
+<a name="726"></a>     *   A Room or Region, or a list of Rooms and/or Regions in which our actor
+<a name="727"></a>     *   (usually either gActor or gPlayerChar - the latter by default - must be
+<a name="728"></a>     *   for this Rule to match. [RULES EXTENSION]
+<a name="729"></a>     */
+<a name="730"></a>    // where = []
+<a name="731"></a>    
+<a name="732"></a>    /*  
+<a name="733"></a>     *   A condition that must hold (or a method returning a Boolean value to
+<a name="734"></a>     *   determine whether or not appropriate conditions hold) for this Rule to
+<a name="735"></a>     *   match. This is only needed if none of the other properties in this
+<a name="736"></a>     *   section provide a way of speficifying the required conditions.
+<a name="737"></a>     */
+<a name="738"></a>    // when() {}
+<a name="739"></a>    
+<a name="740"></a>    /* 
+<a name="741"></a>     *   An actor, or a list of actors, one of whom must be performing the
+<a name="742"></a>     *   current action for this Rule to match. [RULES EXTENSION]
+<a name="743"></a>     */
+<a name="744"></a>    // who = []
+<a name="745"></a>    
+<a name="746"></a>    /*  
+<a name="747"></a>     *   A Scene, or a list of Scenes, one of which much be currently happening
+<a name="748"></a>     *   for this Rule to match. [RULES EXTENSION]
+<a name="749"></a>     */
+<a name="750"></a>    // during = []
+<a name="751"></a>    
+<a name="752"></a>    /* 
+<a name="753"></a>     *   An action, or a list of Actions, one of which (e.g. Take or Jump) must
+<a name="754"></a>     *   be the current action in order for this Rule to match. [RULES EXTENSION]
+<a name="755"></a>     */
+<a name="756"></a>    // action = []
+<a name="757"></a>    
+<a name="758"></a>    /* 
+<a name="759"></a>     *   An object (or class), or a list of objects (and or classes) one of
+<a name="760"></a>     *   which of each the direct, indirect and accessory objects of the current
+<a name="761"></a>     *   action must match in order for this Rule to match. (The accessory
+<a name="762"></a>     *   object is only relevant if the TIAAction extension is in use).
+<a name="763"></a>	 *   [RULES EXTENSION]
+<a name="764"></a>     */
+<a name="765"></a>    // dobj = []
+<a name="766"></a>    // iobj = []
+<a name="767"></a>    // aobj = []
+<a name="768"></a>    
+<a name="769"></a>    /* 
+<a name="770"></a>     *   An object, class, or other value, or a list of objects and/or classes
+<a name="771"></a>     *   or of other values, one of which must match the matchObj property of
+<a name="772"></a>     *   our rulebook (which is set by the first parameter of a call to that
+<a name="773"></a>     *   RuleBooks's follow() method) for this Rule to match. [RULES EXTENSION]
+<a name="774"></a>     */ 
+<a name="775"></a>    // matchObj = []
+<a name="776"></a>    
+<a name="777"></a>    
+<a name="778"></a>    /*  
+<a name="779"></a>     *   An object in the presence of which the actor must be for this rule to
+<a name="780"></a>     *   match. Presence normally means in the same room, but if this property
+<a name="781"></a>     *   is defined as a list and the first item in the list is a property
+<a name="782"></a>     *   pointer (&amp;canSee, &amp;canHear, &amp;canReach, &amp;canSmell), this property will
+<a name="783"></a>     *   be used to test for tne appropriate sense connection between the actor
+<a name="784"></a>     *   and at least one of the other items in the list instead. [RULES EXTENSION]
+<a name="785"></a>     */
+<a name="786"></a>    // present = []
+<a name="787"></a>;
+<a name="788"></a>
+<a name="789"></a>#ifdef __DEBUG
+<a name="790"></a>/* [RULES EXTENSION] include 'rules' in the list of debugging options. */
+<a name="791"></a>modify DebugCtl
+<a name="792"></a>   /* list of all debugging options */
+<a name="793"></a>    all = inherited + 'rules'
+<a name="794"></a>;
+<a name="795"></a>#endif
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

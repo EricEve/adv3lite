@@ -1,0 +1,3556 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>webui.t</title></head><body>
+<table class=ban><tr><td><h1>webui.t</h1><td align=right><a href="../file/webui.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2010 Michael J. Roberts.  All Rights Reserved.
+<a name="5"></a> *   
+<a name="6"></a> *   This module defines some useful helper functions for implementing a
+<a name="7"></a> *   TADS game with a Web-based user interface.  
+<a name="8"></a> */
+<a name="9"></a>
+<a name="10"></a>#include &lt;tads.h&gt;
+<a name="11"></a>#include &lt;tadsnet.h&gt;
+<a name="12"></a>#include &lt;httpsrv.h&gt;
+<a name="13"></a>#include &lt;httpreq.h&gt;
+<a name="14"></a>#include &lt;strbuf.h&gt;
+<a name="15"></a>#include &lt;file.h&gt;
+<a name="16"></a>
+<a name="17"></a>/* ------------------------------------------------------------------------ */
+<a name="18"></a>/* 
+<a name="19"></a> *   write a message to the system debug log
+<a name="20"></a> */
+<a name="21"></a>#define DbgMsg(msg) t3DebugTrace(T3DebugLog, msg)
+<a name="22"></a>
+<a name="23"></a>
+<a name="24"></a>/* ------------------------------------------------------------------------ */
+<a name="25"></a>/*
+<a name="26"></a> *   Session timeout settings.  Times are in milliseconds.
+<a name="27"></a> */
+<a name="28"></a>
+<a name="29"></a>/* 
+<a name="30"></a> *   Housekeeping interval.  We'll wait at least this long between
+<a name="31"></a> *   housekeeping passes.  
+<a name="32"></a> */
+<a name="33"></a>#define HousekeepingInterval  15000
+<a name="34"></a>
+<a name="35"></a>/*
+<a name="36"></a> *   Session startup timeout.  When we first start up, we'll give our first
+<a name="37"></a> *   client this long to establish a connection.  If we don't hear anything
+<a name="38"></a> *   from a client within this interval, we'll assume that the client
+<a name="39"></a> *   exited before it had a chance to set up its first connection, so we'll
+<a name="40"></a> *   terminate the server.
+<a name="41"></a> */
+<a name="42"></a>#define SessionStartupTimeout  90000
+<a name="43"></a>
+<a name="44"></a>/*
+<a name="45"></a> *   Ongoing session timeout.  After we've received our first connection,
+<a name="46"></a> *   we'll terminate the server if we go this long without any active
+<a name="47"></a> *   connections.  
+<a name="48"></a> */
+<a name="49"></a>#define SessionTimeout  120000
+<a name="50"></a>
+<a name="51"></a>/*
+<a name="52"></a> *   Event request timeout.  After an event request from a client has been
+<a name="53"></a> *   sitting in the queue for longer than this limit, we'll send a "keep
+<a name="54"></a> *   alive" reply to let the client know that we're still here.  The client
+<a name="55"></a> *   will just turn around and send a new request.  This periodic handshake
+<a name="56"></a> *   lets the client know we're still alive, and vice versa.  
+<a name="57"></a> */
+<a name="58"></a>#define EventRequestTimeout  90000
+<a name="59"></a>
+<a name="60"></a>/*
+<a name="61"></a> *   Client session timeout.  If we haven't seen a request from a given
+<a name="62"></a> *   client within this interval, we'll assume that the client has
+<a name="63"></a> *   disconnected, and we'll drop the client session state on this end.  
+<a name="64"></a> */
+<a name="65"></a>#define ClientSessionTimeout 60000
+<a name="66"></a>
+<a name="67"></a>
+<a name="68"></a>
+<a name="69"></a>/* ------------------------------------------------------------------------ */
+<a name="70"></a>/*
+<a name="71"></a> *   Some handy Vector extensions
+<a name="72"></a> */
+<a name="73"></a>modify Vector
+<a name="74"></a>    push(ele) { append(ele); }
+<a name="75"></a>    pop() { return getAndRemove(length()); }
+<a name="76"></a>    shift() { return getAndRemove(1); }
+<a name="77"></a>
+<a name="78"></a>    getAndRemove(idx)
+<a name="79"></a>    {
+<a name="80"></a>        /* get the element */
+<a name="81"></a>        local ret = self[idx];
+<a name="82"></a>
+<a name="83"></a>        /* remove it */
+<a name="84"></a>        removeElementAt(idx);
+<a name="85"></a>
+<a name="86"></a>        /* return the popped element */
+<a name="87"></a>        return ret;
+<a name="88"></a>    }
+<a name="89"></a>
+<a name="90"></a>    clear()
+<a name="91"></a>    {
+<a name="92"></a>        if (length() &gt; 0)
+<a name="93"></a>            removeRange(1, length());
+<a name="94"></a>    }
+<a name="95"></a>;
+<a name="96"></a>
+<a name="97"></a>/* ------------------------------------------------------------------------ */
+<a name="98"></a>/*
+<a name="99"></a> *   HTTPRequest extensions 
+<a name="100"></a> */
+<a name="101"></a>modify HTTPRequest
+<a name="102"></a>    /*
+<a name="103"></a>     *   Send a reply, catching "socket disconnect" exceptions.  In most
+<a name="104"></a>     *   cases, server objects will want to use this method rather than the
+<a name="105"></a>     *   native sendReply() so that they won't have to handle disconnect
+<a name="106"></a>     *   exceptions manually.
+<a name="107"></a>     *   
+<a name="108"></a>     *   Disconnect exceptions are common with HTTP: the protocol is
+<a name="109"></a>     *   stateless by design, so clients can close their sockets at any
+<a name="110"></a>     *   time.  Most modern browsers use HTTP 1.1, which allows the client
+<a name="111"></a>     *   to maintain an open socket indefinitely and reuse it serially for
+<a name="112"></a>     *   multiple requests, but browsers tend to close these reusable
+<a name="113"></a>     *   sockets after a few minutes of inactivity.
+<a name="114"></a>     *   
+<a name="115"></a>     *   When this routine encounters a disconnected socket, it deletes the
+<a name="116"></a>     *   client session record for the request, and then otherwise ignores
+<a name="117"></a>     *   the error.  This generally makes the client's socket management
+<a name="118"></a>     *   transparent to the server, since if the client is still running
+<a name="119"></a>     *   they'll just connect again with a new socket and retry any lost
+<a name="120"></a>     *   requests.  
+<a name="121"></a>     */
+<a name="122"></a>    sendReplyCatch(reply, contType?, stat?, headers?)
+<a name="123"></a>    {
+<a name="124"></a>        /* catch any errors */
+<a name="125"></a>        try
+<a name="126"></a>        {
+<a name="127"></a>            /* try sending the reply */
+<a name="128"></a>            sendReply(reply, contType, stat, headers);
+<a name="129"></a>        }
+<a name="130"></a>        catch (SocketDisconnectException sde)
+<a name="131"></a>        {
+<a name="132"></a>            /* notify the associated client session of the disconnect */
+<a name="133"></a>            local client = ClientSession.find(self);
+<a name="134"></a>            if (client != nil)
+<a name="135"></a>                client.checkDisconnect();
+<a name="136"></a>        }
+<a name="137"></a>    }
+<a name="138"></a>;
+<a name="139"></a>
+<a name="140"></a>/* ------------------------------------------------------------------------ */
+<a name="141"></a>/*
+<a name="142"></a> *   Web UI Session object.  This keeps track of miscellaneous items
+<a name="143"></a> *   associated with the game session.  
+<a name="144"></a> */
+<a name="145"></a>transient webSession: object
+<a name="146"></a>    /*
+<a name="147"></a>     *   Get the full URL to the given resource.
+<a name="148"></a>     */
+<a name="149"></a>    getFullUrl(resname)
+<a name="150"></a>    {
+<a name="151"></a>        return 'http://&lt;&lt;server.getAddress()&gt;&gt;:&lt;&lt;
+<a name="152"></a>            server.getPortNum()&gt;&gt;&lt;&lt;resname&gt;&gt;';
+<a name="153"></a>    }
+<a name="154"></a>
+<a name="155"></a>    /*
+<a name="156"></a>     *   Connect to the UI.  By default, we ask the webMainWin object to
+<a name="157"></a>     *   establish a connection, and we save the server object internally
+<a name="158"></a>     *   for future reference.  
+<a name="159"></a>     */
+<a name="160"></a>    connectUI(srv)
+<a name="161"></a>    {
+<a name="162"></a>        /* connect the UI to the main window object */
+<a name="163"></a>        webMainWin.connectUI(srv);
+<a name="164"></a>
+<a name="165"></a>        /* save a reference to the server object */
+<a name="166"></a>        server = srv;
+<a name="167"></a>
+<a name="168"></a>        /* 
+<a name="169"></a>         *   set the zero point for the connection time - for timeout
+<a name="170"></a>         *   purposes, the countdown starts now, since we obviously can't
+<a name="171"></a>         *   have a connection before this point 
+<a name="172"></a>         */
+<a name="173"></a>        lastClientTime = getTime(GetTimeTicks);
+<a name="174"></a>    }
+<a name="175"></a>
+<a name="176"></a>    /* 
+<a name="177"></a>     *   The session key.  This identifies the server as a whole, and is
+<a name="178"></a>     *   essentially an authentication mechanism that lets clients prove
+<a name="179"></a>     *   they got our address from an authorized source (rather than just
+<a name="180"></a>     *   stumbling across it via a port scan, say).  Clients must hand this
+<a name="181"></a>     *   to us on each request, either via a URL query parameter or via a
+<a name="182"></a>     *   cookie.  The normal setup (via WebResourceInit) is for the client
+<a name="183"></a>     *   to send us the key as a URL parameter on the initial request, at
+<a name="184"></a>     *   which point we'll pass it back as a set-cookie, removing the need
+<a name="185"></a>     *   for the client to include the key in subsequent URLs.
+<a name="186"></a>     *   
+<a name="187"></a>     *   The key is just a random number that's long enough that an
+<a name="188"></a>     *   interloper couldn't hope to guess it.  We generate this on the
+<a name="189"></a>     *   first evaluation, and it remains fixed at that point for as long
+<a name="190"></a>     *   as we're running.  
+<a name="191"></a>     */
+<a name="192"></a>    sessionKey = (sessionKey = generateRandomKey())
+<a name="193"></a>
+<a name="194"></a>    /*
+<a name="195"></a>     *   The collaborative session key.  This is a secondary session key
+<a name="196"></a>     *   that allows additional users to connect to the session for
+<a name="197"></a>     *   collaborative play.  
+<a name="198"></a>     */
+<a name="199"></a>    collabKey = (collabKey = generateRandomKey())
+<a name="200"></a>
+<a name="201"></a>    /*
+<a name="202"></a>     *   Validate a session key sent from the client 
+<a name="203"></a>     */
+<a name="204"></a>    validateKey(req, query)
+<a name="205"></a>    {
+<a name="206"></a>        /* get the key, either from the query string or from a cookie */
+<a name="207"></a>        local rkey = query['TADS_session'];
+<a name="208"></a>        if (rkey == nil)
+<a name="209"></a>            rkey = req.getCookie('TADS_session');
+<a name="210"></a>
+<a name="211"></a>        /* if there's no key, it's an error */
+<a name="212"></a>        if (rkey == nil)
+<a name="213"></a>        {
+<a name="214"></a>            /* no key -&gt; bad request */
+<a name="215"></a>            req.sendReply(400);
+<a name="216"></a>            return nil;
+<a name="217"></a>        }
+<a name="218"></a>
+<a name="219"></a>        /* the key has to match either the main key or the collab key */
+<a name="220"></a>        if (rkey != sessionKey &amp;&amp; rkey != collabKey)
+<a name="221"></a>        {
+<a name="222"></a>            /* invalid key -&gt; forbidden */
+<a name="223"></a>            req.sendReply(403);
+<a name="224"></a>            return nil;
+<a name="225"></a>        }
+<a name="226"></a>
+<a name="227"></a>        /* the session key is valid */
+<a name="228"></a>        return true;
+<a name="229"></a>    }
+<a name="230"></a>
+<a name="231"></a>    /* 
+<a name="232"></a>     *   The launcher's game ID.  This is the ID passed from the web server
+<a name="233"></a>     *   that launched the game, to let us know how the game is identified
+<a name="234"></a>     *   in the launcher database.  This is typically an IFDB TUID string.
+<a name="235"></a>     */
+<a name="236"></a>    launcherGameID = nil
+<a name="237"></a>
+<a name="238"></a>    /*
+<a name="239"></a>     *   The launcher's user name.  This is passed from the web server that
+<a name="240"></a>     *   launched the game, to let us know the host user's screen name.  We
+<a name="241"></a>     *   use this as the user's default screen name in multi-user games.  
+<a name="242"></a>     */
+<a name="243"></a>    launcherUsername = 'Host'
+<a name="244"></a>
+<a name="245"></a>    /* 
+<a name="246"></a>     *   The primary storage server session ID, for the user who launched
+<a name="247"></a>     *   the server.  If the user who launched the game logged in to a
+<a name="248"></a>     *   cloud storage server, this is the session ID that we use to
+<a name="249"></a>     *   transact business with the server on behalf of this logged-in
+<a name="250"></a>     *   user.  This token identifies and authenticates the user, but it's
+<a name="251"></a>     *   ephemeral and it's only valid for the current game server session,
+<a name="252"></a>     *   so it's not quite like a password.  This is the session for the
+<a name="253"></a>     *   launch user only; if other collaborative users join, they can get
+<a name="254"></a>     *   their own session IDs that will allow them to store files under
+<a name="255"></a>     *   their own private user folders on the server.  
+<a name="256"></a>     */
+<a name="257"></a>    storageSID = nil
+<a name="258"></a>
+<a name="259"></a>    /*
+<a name="260"></a>     *   Get the collaborative player launch URL.  This is a URL that the
+<a name="261"></a>     *   host can send to other players who wish to join the session as
+<a name="262"></a>     *   collaborative users.
+<a name="263"></a>     */
+<a name="264"></a>    getCollabUrl()
+<a name="265"></a>    {
+<a name="266"></a>        /* return the main window URL */
+<a name="267"></a>        return webSession.getFullUrl(
+<a name="268"></a>            '&lt;&lt;webMainWin.vpath&gt;&gt;?TADS_session=&lt;&lt;collabKey&gt;&gt;');
+<a name="269"></a>    }
+<a name="270"></a>
+<a name="271"></a>    /* list of active client sessions (ClientSession objects) */
+<a name="272"></a>    clientSessions = static new transient Vector()
+<a name="273"></a>
+<a name="274"></a>    /* add a client session */
+<a name="275"></a>    addClient(s)
+<a name="276"></a>    {
+<a name="277"></a>        clientSessions.append(s);
+<a name="278"></a>        lastClientTime = getTime(GetTimeTicks);
+<a name="279"></a>        everHadClient = true;
+<a name="280"></a>    }
+<a name="281"></a>
+<a name="282"></a>    /* remove a client session */
+<a name="283"></a>    removeClient(s)
+<a name="284"></a>    {
+<a name="285"></a>        clientSessions.removeElement(s);
+<a name="286"></a>        lastClientTime = getTime(GetTimeTicks);
+<a name="287"></a>    }
+<a name="288"></a>
+<a name="289"></a>    /* the HTTPServer object running our web session */
+<a name="290"></a>    server = nil
+<a name="291"></a>
+<a name="292"></a>    /*
+<a name="293"></a>     *   Run housekeeping tasks.  The network event processor calls this
+<a name="294"></a>     *   periodically to let us perform background cleanup tasks.  Returns
+<a name="295"></a>     *   the system tick time of the next housekeeping run.  
+<a name="296"></a>     */
+<a name="297"></a>    housekeeping()
+<a name="298"></a>    {
+<a name="299"></a>        /* 
+<a name="300"></a>         *   if it hasn't been long enough yet since the last housekeeping
+<a name="301"></a>         *   run, skip this 
+<a name="302"></a>         */
+<a name="303"></a>        if (getTime(GetTimeTicks) &lt; hkTime)
+<a name="304"></a>            return hkTime;
+<a name="305"></a>
+<a name="306"></a>        /* send keep-alives and check for dead client sessions */
+<a name="307"></a>        clientSessions.forEach(function(s)
+<a name="308"></a>        {
+<a name="309"></a>            /* send keep-alives to aged-out event requests */
+<a name="310"></a>            s.sendKeepAlive();
+<a name="311"></a>
+<a name="312"></a>            /* check to see if the client has disconnected */
+<a name="313"></a>            s.checkDisconnect();
+<a name="314"></a>        });
+<a name="315"></a>
+<a name="316"></a>        /* if there are no client sessions, check for server termination */
+<a name="317"></a>        if (clientSessions.length() == 0)
+<a name="318"></a>        {
+<a name="319"></a>            /* 
+<a name="320"></a>             *   There are no clients connected.  If we've exceeded the
+<a name="321"></a>             *   maximum interval for running without a client, shut down
+<a name="322"></a>             *   the server.  Use the initial connection time limit if
+<a name="323"></a>             *   we've never had a client, otherwise use the ongoing idle
+<a name="324"></a>             *   time limit.  
+<a name="325"></a>             */
+<a name="326"></a>            local limit = everHadClient
+<a name="327"></a>                ? SessionTimeout : SessionStartupTimeout;
+<a name="328"></a>
+<a name="329"></a>            if (getTime(GetTimeTicks) &gt; lastClientTime + limit)
+<a name="330"></a>            {
+<a name="331"></a>                /* no clients - shut down */
+<a name="332"></a>                throw new QuittingException();
+<a name="333"></a>            }
+<a name="334"></a>        }
+<a name="335"></a>        else
+<a name="336"></a>        {
+<a name="337"></a>            /* we have a session as of right now */
+<a name="338"></a>            lastClientTime = getTime(GetTimeTicks);
+<a name="339"></a>        }
+<a name="340"></a>
+<a name="341"></a>        /* update the housekeeping timer */
+<a name="342"></a>        return hkTime = getTime(GetTimeTicks) + HousekeepingInterval;
+<a name="343"></a>    }
+<a name="344"></a>
+<a name="345"></a>    /* system time (ms ticks) of next scheduled housekeeping pass */
+<a name="346"></a>    hkTime = 0
+<a name="347"></a>
+<a name="348"></a>    /* the last time we noticed that we had a client connected */
+<a name="349"></a>    lastClientTime = 0
+<a name="350"></a>
+<a name="351"></a>    /* have we ever had a client connection? */
+<a name="352"></a>    everHadClient = nil
+<a name="353"></a>;
+<a name="354"></a>
+<a name="355"></a>/*
+<a name="356"></a> *   Generate a random key.  This returns a 128-bit random number as a hex
+<a name="357"></a> *   string.  This is designed for ephemeral identifiers, such as session
+<a name="358"></a> *   keys.  
+<a name="359"></a> */
+<a name="360"></a>generateRandomKey()
+<a name="361"></a>{
+<a name="362"></a>    /* generate a long random hex string */
+<a name="363"></a>    return rand('xxxxxxxx%-xxxx%-xxxx%-xxxxxxxxxxxx%-xxxx');
+<a name="364"></a>}
+<a name="365"></a>
+<a name="366"></a>/* ------------------------------------------------------------------------ */
+<a name="367"></a>/*
+<a name="368"></a> *   Client session.  This represents a connection to one browser (or other
+<a name="369"></a> *   client application).  Each browser client is a separate session, so we
+<a name="370"></a> *   create one instance of this class per connected browser.  Note that
+<a name="371"></a> *   browser instances don't necessarily represent different users - a
+<a name="372"></a> *   single user could open multiple browser windows on the same server.
+<a name="373"></a> *   
+<a name="374"></a> *   We identify each browser instance via a session cookie, which we
+<a name="375"></a> *   establish when the client connects.  The browser sends the cookie with
+<a name="376"></a> *   each subsequent request, allowing us to tie the request to the browser
+<a name="377"></a> *   session we previously set up.  
+<a name="378"></a> */
+<a name="379"></a>class ClientSession: object
+<a name="380"></a>    construct(skey, ssid)
+<a name="381"></a>    {
+<a name="382"></a>        /* remember my session key and storage server SID */
+<a name="383"></a>        storageSID = ssid;
+<a name="384"></a>
+<a name="385"></a>        /* note if we're a secondary (collaborative play) user */
+<a name="386"></a>        isPrimary = (skey == webSession.sessionKey);
+<a name="387"></a>        
+<a name="388"></a>        /* add me to the master list of sessions */
+<a name="389"></a>        webSession.addClient(self);
+<a name="390"></a>
+<a name="391"></a>        /* note our last activity time */
+<a name="392"></a>        updateEventTime();
+<a name="393"></a>
+<a name="394"></a>        /* create a UI preferences object */
+<a name="395"></a>        uiPrefs = new WebUIPrefs(self);
+<a name="396"></a>    }
+<a name="397"></a>
+<a name="398"></a>    /* the UI preferences object for this session */
+<a name="399"></a>    uiPrefs = nil
+<a name="400"></a>
+<a name="401"></a>    /* 
+<a name="402"></a>     *   The client's "screen name" - this is the user-visible name that
+<a name="403"></a>     *   we'll show other users to identify commands and chat messages
+<a name="404"></a>     *   entered by this client.
+<a name="405"></a>     */
+<a name="406"></a>    screenName = ''
+<a name="407"></a>
+<a name="408"></a>    /* set the default screen name for a client */
+<a name="409"></a>    setDefaultScreenName()
+<a name="410"></a>    {
+<a name="411"></a>        /* 
+<a name="412"></a>         *   If this is the primary, the name is the launching user's
+<a name="413"></a>         *   screen name.  If not, it's 'Guest N', where N is the number of
+<a name="414"></a>         *   guest connections we have.  
+<a name="415"></a>         */
+<a name="416"></a>        screenName = (isPrimary ? webSession.launcherUsername :
+<a name="417"></a>                      'Guest &lt;&lt;webSession.clientSessions.countWhich(
+<a name="418"></a>                          {x: !x.isPrimary})&gt;&gt;');
+<a name="419"></a>    }
+<a name="420"></a>
+<a name="421"></a>    /* the client's IFDB user ID (a "TUID"), if logged in to IFDB */
+<a name="422"></a>    ifdbTuid = nil
+<a name="423"></a>
+<a name="424"></a>    /* the list of pending event requests from this client */
+<a name="425"></a>    pendingReqs = perInstance(new Vector())
+<a name="426"></a>
+<a name="427"></a>    /*
+<a name="428"></a>     *   The client's event queue.  When a server-to-client event occurs,
+<a name="429"></a>     *   we post it to each current client's queue.  When the client sends
+<a name="430"></a>     *   a get-event request, we satisfy it out of this queue.  
+<a name="431"></a>     */
+<a name="432"></a>    pendingEvts = perInstance(new Vector())
+<a name="433"></a>
+<a name="434"></a>    /*
+<a name="435"></a>     *   The client session key.  This identifies the client across
+<a name="436"></a>     *   requests.  We send this to the client as a cookie when they
+<a name="437"></a>     *   connect, so we get it back on each request.  
+<a name="438"></a>     */
+<a name="439"></a>    clientKey = perInstance(generateRandomKey())
+<a name="440"></a>
+<a name="441"></a>    /* 
+<a name="442"></a>     *   The storage server session key for the user connected to this
+<a name="443"></a>     *   session, if any.  We can have multiple users logged in to the game
+<a name="444"></a>     *   in collaborative play mode, each with their own separate storage
+<a name="445"></a>     *   server session.  This allows each user to have their own private
+<a name="446"></a>     *   preference settings, saved games, etc.  
+<a name="447"></a>     */
+<a name="448"></a>    storageSID = nil
+<a name="449"></a>
+<a name="450"></a>    /*
+<a name="451"></a>     *   Am I the primary player?  This is true if the player connected
+<a name="452"></a>     *   using the primary session key.  Collaborative players join through
+<a name="453"></a>     *   the separate collaborative session key.  
+<a name="454"></a>     */
+<a name="455"></a>    isPrimary = nil
+<a name="456"></a>
+<a name="457"></a>    /*
+<a name="458"></a>     *   Is this session alive?  When we detect that the client has
+<a name="459"></a>     *   disconnected, we'll set this to nil.  When waiting for a client in
+<a name="460"></a>     *   a modal event loop, this can be used to terminate the wait if the
+<a name="461"></a>     *   client disconnects.  
+<a name="462"></a>     */
+<a name="463"></a>    isAlive = true
+<a name="464"></a>
+<a name="465"></a>    /* 
+<a name="466"></a>     *   Last request time, in system ticks (ms).  We use this to determine
+<a name="467"></a>     *   how long it's been since we've heard from the client, for timeout
+<a name="468"></a>     *   purposes.  This is updated any time we receive a command or event
+<a name="469"></a>     *   request from the client, and each time we successfully send an
+<a name="470"></a>     *   event reply.  
+<a name="471"></a>     */
+<a name="472"></a>    lastEventTime = 0
+<a name="473"></a>
+<a name="474"></a>    /* update the last event time for this client */
+<a name="475"></a>    updateEventTime() { lastEventTime = getTime(GetTimeTicks); }
+<a name="476"></a>
+<a name="477"></a>    /* class method: broadcast an event message to all connected clients */
+<a name="478"></a>    broadcastEvent(msg)
+<a name="479"></a>    {
+<a name="480"></a>        /* send the event to each client in our active list */
+<a name="481"></a>        webSession.clientSessions.forEach({ c: c.sendEvent(msg) });
+<a name="482"></a>    }
+<a name="483"></a>
+<a name="484"></a>    /* send an event to this client */
+<a name="485"></a>    sendEvent(msg)
+<a name="486"></a>    {
+<a name="487"></a>        /* enqueue the event, then match it to a request if possible */
+<a name="488"></a>        pendingEvts.push(msg);
+<a name="489"></a>        processQueues();
+<a name="490"></a>    }
+<a name="491"></a>
+<a name="492"></a>    /* receive an event request from the client */
+<a name="493"></a>    requestEvent(req)
+<a name="494"></a>    {
+<a name="495"></a>        /* enqueue the request, then match it to an event if possible */
+<a name="496"></a>        pendingReqs.push(new ClientEventRequest(req));
+<a name="497"></a>        processQueues();
+<a name="498"></a>    }
+<a name="499"></a>
+<a name="500"></a>    /* flush outstanding events for this client */
+<a name="501"></a>    flushEvents()
+<a name="502"></a>    {
+<a name="503"></a>        /* discard any queued events */
+<a name="504"></a>        pendingEvts.clear();
+<a name="505"></a>
+<a name="506"></a>        /* send no-op replies to any pending event requests */
+<a name="507"></a>        while (pendingReqs.length() &gt; 0)
+<a name="508"></a>        {
+<a name="509"></a>            /* pull out the first request */
+<a name="510"></a>            local req = pendingReqs.shift();
+<a name="511"></a>
+<a name="512"></a>            /* 
+<a name="513"></a>             *   Send a reply.  Ignore any errors: the client probably
+<a name="514"></a>             *   canceled their side of the socket already, so we'll
+<a name="515"></a>             *   probably get a socket error sending the reply.  Since
+<a name="516"></a>             *   we're just canceling the request anyway, this is fine. 
+<a name="517"></a>             */
+<a name="518"></a>            try
+<a name="519"></a>            {
+<a name="520"></a>                /* send a no-op reply */
+<a name="521"></a>                req.req.sendReply('&lt;?xml version="1.0"?&gt;&lt;noOp&gt;&lt;/noOp&gt;',
+<a name="522"></a>                                  'text/xml', 200);
+<a name="523"></a>
+<a name="524"></a>                /* update the successful communications time */
+<a name="525"></a>                updateEventTime();
+<a name="526"></a>            }
+<a name="527"></a>            catch (Exception exc)
+<a name="528"></a>            {
+<a name="529"></a>                /* 
+<a name="530"></a>                 *   ignore errors - the client probably canceled their
+<a name="531"></a>                 *   side of the socket already, so we'll probably fail
+<a name="532"></a>                 *   sending the reply 
+<a name="533"></a>                 */
+<a name="534"></a>            }
+<a name="535"></a>        }
+<a name="536"></a>    }
+<a name="537"></a>
+<a name="538"></a>    /* 
+<a name="539"></a>     *   Send a keep-alive reply to each pending request from this client
+<a name="540"></a>     *   that's been waiting for longer than the timeout interval. 
+<a name="541"></a>     *   
+<a name="542"></a>     *   Javascript clients in principle will wait indefinitely for an
+<a name="543"></a>     *   XmlHttpRequest to complete, but in practice browsers tend to set
+<a name="544"></a>     *   fairly long but finite time limits.  If the time limit is exceeded
+<a name="545"></a>     *   for a request, the client will fail the request with an error.  To
+<a name="546"></a>     *   prevent this, our main event loop (processNetRequests)
+<a name="547"></a>     *   periodically calls this routine if no other events have occurred
+<a name="548"></a>     *   recently.  We'll clear out the pending event request queue for
+<a name="549"></a>     *   each client by sending a no-op reply to each event.  This tells
+<a name="550"></a>     *   the client that the server is still alive and connected but has
+<a name="551"></a>     *   nothing new to report.  
+<a name="552"></a>     */
+<a name="553"></a>    sendKeepAlive()
+<a name="554"></a>    {
+<a name="555"></a>        /* 
+<a name="556"></a>         *   Send no-op replies to any requests that have been in the queue
+<a name="557"></a>         *   for longer than the maximum event wait interval.  New requests
+<a name="558"></a>         *   are added to the end of the queue, so the first item in the
+<a name="559"></a>         *   queue is the oldest.  
+<a name="560"></a>         */
+<a name="561"></a>        local t = getTime(GetTimeTicks);
+<a name="562"></a>        while (pendingReqs.length() &gt; 0 &amp;&amp; t &gt;= pendingReqs[1].reqTimeout)
+<a name="563"></a>        {
+<a name="564"></a>            /* pull out the oldest request */
+<a name="565"></a>            local req = pendingReqs.shift();
+<a name="566"></a>
+<a name="567"></a>            try
+<a name="568"></a>            {
+<a name="569"></a>                /* send a no-op reply */
+<a name="570"></a>                req.req.sendReply(
+<a name="571"></a>                    '&lt;?xml version="1.0"?&gt;&lt;event&gt;&lt;keepAlive/&gt;&lt;/event&gt;',
+<a name="572"></a>                    'text/xml', 200,
+<a name="573"></a>                    ['Cache-control: no-store, no-cache, '
+<a name="574"></a>                     + 'must-revalidate, post-check=0, pre-check=0',
+<a name="575"></a>                     'Pragma: no-cache',
+<a name="576"></a>                     'Expires: Mon, 26 Jul 1997 05:00:00 GMT']);
+<a name="577"></a>
+<a name="578"></a>                /* successful communications, so note the last up time */
+<a name="579"></a>                updateEventTime();
+<a name="580"></a>            }
+<a name="581"></a>            catch (Exception exc)
+<a name="582"></a>            {
+<a name="583"></a>                /* couldn't send the reply - consider disconnecting */
+<a name="584"></a>                checkDisconnect();
+<a name="585"></a>            }
+<a name="586"></a>        }
+<a name="587"></a>    }
+<a name="588"></a>
+<a name="589"></a>    /* broadcast a downloadable file to all clients */
+<a name="590"></a>    broadcastDownload(desc)
+<a name="591"></a>    {
+<a name="592"></a>        /* add the download to all clients */
+<a name="593"></a>        webSession.clientSessions.forEach({c: c.addDownload(desc)});
+<a name="594"></a>    }
+<a name="595"></a>
+<a name="596"></a>    /* add a download to this client */
+<a name="597"></a>    addDownload(desc)
+<a name="598"></a>    {
+<a name="599"></a>        /* add the download to the table */
+<a name="600"></a>        downloads[desc.resName] = desc;
+<a name="601"></a>    }
+<a name="602"></a>
+<a name="603"></a>    /* 
+<a name="604"></a>     *   Cancel a downloadable file.  Removes the file from the download
+<a name="605"></a>     *   list and notifies the client that the file is no longer available.
+<a name="606"></a>     */
+<a name="607"></a>    cancelDownload(desc)
+<a name="608"></a>    {
+<a name="609"></a>        /* remove the file from our table */
+<a name="610"></a>        downloads.removeElement(desc.resName);
+<a name="611"></a>
+<a name="612"></a>        /* tell the client that the file is no longer available */
+<a name="613"></a>        webMainWin.sendWinEventTo(
+<a name="614"></a>            '&lt;cancelDownload&gt;&lt;&lt;desc.resPath.htmlify()&gt;&gt;&lt;/cancelDownload&gt;',
+<a name="615"></a>            self);
+<a name="616"></a>    }
+<a name="617"></a>
+<a name="618"></a>    /* this client's list of downloadable temporary files */
+<a name="619"></a>    downloads = perInstance(new LookupTable())
+<a name="620"></a>
+<a name="621"></a>    /* get a list of all of my downloadable files */
+<a name="622"></a>    allDownloads() { return downloads.valsToList(); }
+<a name="623"></a>
+<a name="624"></a>    /* process the request and response queues */
+<a name="625"></a>    processQueues()
+<a name="626"></a>    {
+<a name="627"></a>        /* keep going as long as we have requests and responses to pair up */
+<a name="628"></a>        while (pendingReqs.length() &gt; 0 &amp;&amp; pendingEvts.length() &gt; 0)
+<a name="629"></a>        {
+<a name="630"></a>            /* pull the first element out of each list */
+<a name="631"></a>            local req = pendingReqs.shift();
+<a name="632"></a>            local evt = pendingEvts[1];
+<a name="633"></a>
+<a name="634"></a>            /* 
+<a name="635"></a>             *   Answer the request with the event.  Since this is an API
+<a name="636"></a>             *   request masquerading as a page view, we need to generate a
+<a name="637"></a>             *   live reply to each new request to the same virtual
+<a name="638"></a>             *   resource path.  So, include some headers to tell the
+<a name="639"></a>             *   browser and any proxies not to cache the reply.  
+<a name="640"></a>             */
+<a name="641"></a>            try
+<a name="642"></a>            {
+<a name="643"></a>                /* send the reply */
+<a name="644"></a>                req.req.sendReply(
+<a name="645"></a>                    evt, 'text/xml', 200,
+<a name="646"></a>                    ['Cache-control: no-store, no-cache, '
+<a name="647"></a>                     + 'must-revalidate, post-check=0, pre-check=0',
+<a name="648"></a>                     'Pragma: no-cache',
+<a name="649"></a>                     'Expires: Mon, 26 Jul 1997 05:00:00 GMT']);
+<a name="650"></a>
+<a name="651"></a>                /* we've successfully sent the event - discard it */
+<a name="652"></a>                pendingEvts.shift();
+<a name="653"></a>
+<a name="654"></a>                /* update the successful communications time */
+<a name="655"></a>                updateEventTime();
+<a name="656"></a>            }
+<a name="657"></a>            catch (SocketDisconnectException sde)
+<a name="658"></a>            {
+<a name="659"></a>                /* the socket has been disconnected - consider disconnecting */
+<a name="660"></a>                checkDisconnect();
+<a name="661"></a>            }
+<a name="662"></a>            catch (Exception exc)
+<a name="663"></a>            {
+<a name="664"></a>                /*
+<a name="665"></a>                 *   Ignore other errors, since we can just turn around and
+<a name="666"></a>                 *   send the event again in response to the next event
+<a name="667"></a>                 *   request from the client - no information will be lost,
+<a name="668"></a>                 *   since we still have the event in the queue.  
+<a name="669"></a>                 */
+<a name="670"></a>            }
+<a name="671"></a>        }
+<a name="672"></a>    }
+<a name="673"></a>
+<a name="674"></a>    /* wait for the queues to empty in preparation for shutting down */
+<a name="675"></a>    shutdownWait(timeout)
+<a name="676"></a>    {
+<a name="677"></a>        /* process network requests until all clients disconnect */
+<a name="678"></a>        processNetRequests({: webSession.clientSessions.length() == 0 },
+<a name="679"></a>                           timeout);
+<a name="680"></a>    }
+<a name="681"></a>
+<a name="682"></a>    /*
+<a name="683"></a>     *   Check to see if the client is still alive.  If the client has no
+<a name="684"></a>     *   pending event requests, and we haven't heard from the client in
+<a name="685"></a>     *   more than the client session timeout interval, assume the client
+<a name="686"></a>     *   is no longer connected and kill the session object.
+<a name="687"></a>     *   
+<a name="688"></a>     *   This should be called whenever a sending a reply to a request
+<a name="689"></a>     *   fails with a Socket Disconnect exception.  We also run this
+<a name="690"></a>     *   periodically during routine housekeeping to check for clients that
+<a name="691"></a>     *   haven't even bothered to send a request.  
+<a name="692"></a>     */
+<a name="693"></a>    checkDisconnect()
+<a name="694"></a>    {
+<a name="695"></a>        /* if we don't have any pending requests, kill the session */
+<a name="696"></a>        if (pendingReqs.length() == 0
+<a name="697"></a>            &amp;&amp; getTime(GetTimeTicks) &gt;= lastEventTime + ClientSessionTimeout)
+<a name="698"></a>        {
+<a name="699"></a>            /* remove the client session from our master list */
+<a name="700"></a>            webSession.removeClient(self);
+<a name="701"></a>
+<a name="702"></a>            /* the session is now dead */
+<a name="703"></a>            isAlive = nil;
+<a name="704"></a>        }
+<a name="705"></a>    }
+<a name="706"></a>
+<a name="707"></a>    /*
+<a name="708"></a>     *   Class method: forcibly disconnect all clients.  This simply
+<a name="709"></a>     *   deletes the list of active clients and deletes any pending events
+<a name="710"></a>     *   in their queues.  This doesn't actually terminate their network
+<a name="711"></a>     *   connections, but simply clears out any pending work for each
+<a name="712"></a>     *   client that we've initiated on the server side.  
+<a name="713"></a>     */
+<a name="714"></a>    disconnectAll()
+<a name="715"></a>    {
+<a name="716"></a>        /* delete all pending events for each client */
+<a name="717"></a>        webSession.clientSessions.forEach({ s: s.pendingReqs.clear() });
+<a name="718"></a>
+<a name="719"></a>        /* delete the client list */
+<a name="720"></a>        webSession.clientSessions.clear();
+<a name="721"></a>    }
+<a name="722"></a>
+<a name="723"></a>    /* 
+<a name="724"></a>     *   Class method: Find a client session, given the session key or an
+<a name="725"></a>     *   HTTPRequest object.  
+<a name="726"></a>     */
+<a name="727"></a>    find(key)
+<a name="728"></a>    {
+<a name="729"></a>        /* 
+<a name="730"></a>         *   if the key is given as an HTTPRequest, find the key by URL
+<a name="731"></a>         *   parameter or cookie 
+<a name="732"></a>         */
+<a name="733"></a>        if (dataType(key) == TypeObject &amp;&amp; key.ofKind(HTTPRequest))
+<a name="734"></a>        {
+<a name="735"></a>            /* get the request */
+<a name="736"></a>            local req = key;
+<a name="737"></a>
+<a name="738"></a>            /* try the URL parameters and cookies */
+<a name="739"></a>            if ((key = req.getQueryParam('TADS_client')) == nil
+<a name="740"></a>                &amp;&amp; (key = req.getCookie('TADS_client')) == nil)
+<a name="741"></a>            {
+<a name="742"></a>                /* there's no client key, so there's no client */
+<a name="743"></a>                return nil;
+<a name="744"></a>            }
+<a name="745"></a>        }
+<a name="746"></a>
+<a name="747"></a>        /* find the client that matches the key string */
+<a name="748"></a>        return webSession.clientSessions.valWhich({ x: x.clientKey == key });
+<a name="749"></a>    }
+<a name="750"></a>
+<a name="751"></a>    /*
+<a name="752"></a>     *   Get the primary session.  This is the session for the original
+<a name="753"></a>     *   initiating user (the "host" in a multi-user game).  
+<a name="754"></a>     */
+<a name="755"></a>    getPrimary()
+<a name="756"></a>    {
+<a name="757"></a>        /* scan for a session with the host session key */
+<a name="758"></a>        return webSession.clientSessions.valWhich({ x: x.isPrimary });
+<a name="759"></a>    }
+<a name="760"></a>;
+<a name="761"></a>
+<a name="762"></a>/* ------------------------------------------------------------------------ */
+<a name="763"></a>/*
+<a name="764"></a> *   Client event request.  Each client session object keeps a queue of
+<a name="765"></a> *   pending event requests, representing incoming "GET /webui/getEvent"
+<a name="766"></a> *   requests that have yet to be answered.
+<a name="767"></a> */
+<a name="768"></a>class ClientEventRequest: object
+<a name="769"></a>    construct(req)
+<a name="770"></a>    {
+<a name="771"></a>        self.req = req;
+<a name="772"></a>        reqTimeout = getTime(GetTimeTicks) + EventRequestTimeout;
+<a name="773"></a>    }
+<a name="774"></a>
+<a name="775"></a>    /* the underlying HTTPRequest object */
+<a name="776"></a>    req = nil
+<a name="777"></a>
+<a name="778"></a>    /* 
+<a name="779"></a>     *   The system time (ms ticks) when the request times out.  If we
+<a name="780"></a>     *   don't have an actual event to send in response by this time, the
+<a name="781"></a>     *   housekeeper will generate a no-op reply just to let the client
+<a name="782"></a>     *   know that we're still here.  
+<a name="783"></a>     */
+<a name="784"></a>    reqTimeout = 0
+<a name="785"></a>;
+<a name="786"></a>
+<a name="787"></a>
+<a name="788"></a>
+<a name="789"></a>/* ------------------------------------------------------------------------ */
+<a name="790"></a>/*
+<a name="791"></a> *   A WebResource is a virtual file accessible via the HTTP server.  Each
+<a name="792"></a> *   resource object has a path, which can be given as a simple string that
+<a name="793"></a> *   must be matched exactly, or as a RexPattern object with a regular
+<a name="794"></a> *   expression to be matched.  Each object also has a "processRequest"
+<a name="795"></a> *   method, which the server invokes to answer the request when the path
+<a name="796"></a> *   is matched.  
+<a name="797"></a> */
+<a name="798"></a>class WebResource: object
+<a name="799"></a>    /*
+<a name="800"></a>     *   The virtual path to the resource.  This is the apparent URL path
+<a name="801"></a>     *   to this resource, as seen by the client.
+<a name="802"></a>     *   
+<a name="803"></a>     *   URL paths follow the Unix file system conventions in terms of
+<a name="804"></a>     *   format, but don't confuse the virtual path with an actual file
+<a name="805"></a>     *   system path.  The vpath doesn't have anything to do with the disk
+<a name="806"></a>     *   file system on the server machine or anywhere else.  That's why we
+<a name="807"></a>     *   call it "virtual" - it's merely the apparent location, from the
+<a name="808"></a>     *   client's perspective.
+<a name="809"></a>     *   
+<a name="810"></a>     *   When the server receives a request from the client, it looks at
+<a name="811"></a>     *   the URL sent by the client to determine which WebResource object
+<a name="812"></a>     *   should handle the request.  The server does this by matching the
+<a name="813"></a>     *   resource path portion of the URL to the virtual path of each
+<a name="814"></a>     *   WebResource, until it finds a WebResource that matches.  The
+<a name="815"></a>     *   resource path in the URL is the part of the URL following the
+<a name="816"></a>     *   domain, and continuing up to but not including any "?" query
+<a name="817"></a>     *   parameters.  The resource path always starts with a slash "/".
+<a name="818"></a>     *   For example, for the URL "http://192.168.1.15/test/path?param=1",
+<a name="819"></a>     *   the resource path would be "/test/path".
+<a name="820"></a>     *   
+<a name="821"></a>     *   The virtual path can be given as a string or as a RexPattern.  If
+<a name="822"></a>     *   it's a string, a URL resource path must match the virtual path
+<a name="823"></a>     *   exactly, including upper/lower case.  If the virtual path is given
+<a name="824"></a>     *   as a RexPattern, the URL resource path will be matched to the
+<a name="825"></a>     *   pattern with the usual regular expression rules.  
+<a name="826"></a>     */
+<a name="827"></a>    vpath = ''
+<a name="828"></a>
+<a name="829"></a>    /*
+<a name="830"></a>     *   Process the request.  This is invoked when we determine that this
+<a name="831"></a>     *   is the highest priority resource object matching the request.
+<a name="832"></a>     *   'req' is the HTTPRequest object; 'query' is the parsed query data
+<a name="833"></a>     *   as returned by req.parseQuery().  The query information is
+<a name="834"></a>     *   provided for convenience, in case the result depends on the query
+<a name="835"></a>     *   parameters.  
+<a name="836"></a>     */
+<a name="837"></a>    processRequest(req, query)
+<a name="838"></a>    {
+<a name="839"></a>        /* by default, just send an empty HTML page */
+<a name="840"></a>        req.sendReply('&lt;html&gt;&lt;title&gt;TADS&lt;/title&gt;&lt;/html&gt;', 'text/html', 200);
+<a name="841"></a>    }
+<a name="842"></a>
+<a name="843"></a>    /*
+<a name="844"></a>     *   The priority of this resource.  If the path is given as a regular
+<a name="845"></a>     *   expression, a given request might match more than one resource.
+<a name="846"></a>     *   In such cases, the matching resource with the highest priority is
+<a name="847"></a>     *   the one that's actually used to process the request.  
+<a name="848"></a>     */
+<a name="849"></a>    priority = 100
+<a name="850"></a>
+<a name="851"></a>    /*
+<a name="852"></a>     *   The group this resource is part of.  This is the object that
+<a name="853"></a>     *   "contains" the resource, via its 'contents' property; any object
+<a name="854"></a>     *   will work here, since it's just a place to put the contents list
+<a name="855"></a>     *   for the resource group.
+<a name="856"></a>     *   
+<a name="857"></a>     *   By default, we put all resources into the mainWebGroup object.
+<a name="858"></a>     *   
+<a name="859"></a>     *   The point of the group is to allow different servers to use
+<a name="860"></a>     *   different sets of resources, or to allow one server to use
+<a name="861"></a>     *   different resource sets under different circumstances.  When a
+<a name="862"></a>     *   server processes a request, it does so by looking through the
+<a name="863"></a>     *   'contents' list for a group of its choice.  
+<a name="864"></a>     */
+<a name="865"></a>    group = mainWebGroup
+<a name="866"></a>
+<a name="867"></a>    /*
+<a name="868"></a>     *   Determine if this resource matches the given request.  'query' is
+<a name="869"></a>     *   the parsed query from the request, as returned by
+<a name="870"></a>     *   req.parseQuery().  'req' is the HTTPRequest object representing
+<a name="871"></a>     *   the request; you can use this to extract more information from the
+<a name="872"></a>     *   request, such as cookies or the client's network address.
+<a name="873"></a>     *   
+<a name="874"></a>     *   This method returns true if the request matches this resource, nil
+<a name="875"></a>     *   if not.
+<a name="876"></a>     *   
+<a name="877"></a>     *   You can override this to specify more complex matching rules than
+<a name="878"></a>     *   you could achieve just by specifying the path string or
+<a name="879"></a>     *   RexPattern.  For example, you could make the request conditional
+<a name="880"></a>     *   on the time of day, past request history, cookies in the request,
+<a name="881"></a>     *   parameters, etc.  
+<a name="882"></a>     */
+<a name="883"></a>    matchRequest(query, req)
+<a name="884"></a>    {
+<a name="885"></a>        /* get the query path */
+<a name="886"></a>        local qpath = query[1];
+<a name="887"></a>
+<a name="888"></a>        /* by default, we match GET */
+<a name="889"></a>        local verb = req.getVerb().toUpper();
+<a name="890"></a>        if (verb != 'GET' &amp;&amp; verb != 'POST')
+<a name="891"></a>            return nil;
+<a name="892"></a>
+<a name="893"></a>        /* if the virtual path a string, simply match the string exactly */
+<a name="894"></a>        if (dataType(vpath) == TypeSString)
+<a name="895"></a>            return vpath == qpath;
+<a name="896"></a>
+<a name="897"></a>        /* if it's a regular expression, match the pattern */
+<a name="898"></a>        if (dataType(vpath) == TypeObject &amp;&amp; vpath.ofKind(RexPattern))
+<a name="899"></a>            return rexMatch(vpath, qpath) != nil;
+<a name="900"></a>
+<a name="901"></a>        /* we can't match other path types */
+<a name="902"></a>        return nil;
+<a name="903"></a>    }
+<a name="904"></a>
+<a name="905"></a>    /*
+<a name="906"></a>     *   Send a generic request acknowledgment or reply.  This wraps the
+<a name="907"></a>     *   given XML fragment in an XML document with the root type given by
+<a name="908"></a>     *   the last element in our path name.  If the 'xml' value is omitted,
+<a name="909"></a>     *   we send "&lt;ok/&gt;" by default.  
+<a name="910"></a>     */
+<a name="911"></a>    sendAck(req, xml = '&lt;ok/&gt;')
+<a name="912"></a>    {
+<a name="913"></a>        /* 
+<a name="914"></a>         *   Figure the XML document root element.  If we have a non-empty
+<a name="915"></a>         *   path, use the last element of the path (as delimited by '/'
+<a name="916"></a>         *   characters).  Otherwise, use a default root of &lt;reply&gt;.  
+<a name="917"></a>         */
+<a name="918"></a>        local root = 'reply';
+<a name="919"></a>        if (dataType(vpath) == TypeSString
+<a name="920"></a>            &amp;&amp; vpath.length() &gt; 0
+<a name="921"></a>            &amp;&amp; rexSearch(vpath, '/([^/]+)$') != nil)
+<a name="922"></a>            root = rexGroup(1)[3];
+<a name="923"></a>        
+<a name="924"></a>        /* send the reply, wrapping the fragment in a proper XML document */
+<a name="925"></a>        sendXML(req, root, xml);
+<a name="926"></a>    }
+<a name="927"></a>
+<a name="928"></a>    /*
+<a name="929"></a>     *   Send an XML reply.  This wraps the given XML fragment in an XML
+<a name="930"></a>     *   document with the given root element. 
+<a name="931"></a>     */
+<a name="932"></a>    sendXML(req, root, xml)
+<a name="933"></a>    {
+<a name="934"></a>        req.sendReply('&lt;?xml version="1.0"?&gt;\&lt;&lt;&lt;root&gt;&gt;&gt;&lt;&lt;xml&gt;&gt;&lt;/&lt;&lt;root&gt;&gt;&gt;',
+<a name="935"></a>                      'text/xml', 200);
+<a name="936"></a>    }
+<a name="937"></a>;
+<a name="938"></a>
+<a name="939"></a>/* ------------------------------------------------------------------------ */
+<a name="940"></a>/*
+<a name="941"></a> *   A resource file request handler.  This handles a request by sending
+<a name="942"></a> *   the contents of the resource file matching the given name.
+<a name="943"></a> *   
+<a name="944"></a> *   To expose a bundled game resource as a Web object that the client can
+<a name="945"></a> *   access and download via HTTP, simply create an instance of this class,
+<a name="946"></a> *   and set the virtual path (the vpath property) to the resource name.
+<a name="947"></a> *   See coverArtResource below for an example - that object creates a URL
+<a name="948"></a> *   for the Cover Art image so that the browser can download and display
+<a name="949"></a> *   it.
+<a name="950"></a> *   
+<a name="951"></a> *   You can expose *all* bundled resources in the entire game simply by
+<a name="952"></a> *   creating an object like this:
+<a name="953"></a> *   
+<a name="954"></a> *.     WebResourceResFile
+<a name="955"></a> *.         vpath = static new RexPattern('/')
+<a name="956"></a> *.     ;
+<a name="957"></a> *   
+<a name="958"></a> *   That creates a URL mapping that matches *any* URL path that
+<a name="959"></a> *   corresponds to a bundled resource name.  The library intentionally
+<a name="960"></a> *   doesn't provide an object like this by default, as a security measure;
+<a name="961"></a> *   the default configuration as a rule tries to err on the side of
+<a name="962"></a> *   caution, and in this case the cautious thing to do is to hide
+<a name="963"></a> *   everything by default.  There's really no system-level security risk
+<a name="964"></a> *   in exposing all resources, since the only files available as resources
+<a name="965"></a> *   are files you explicitly bundle into the build anyway; but even so,
+<a name="966"></a> *   some resources might be for internal use within the game, so we don't
+<a name="967"></a> *   want to just assume that everything should be downloadable.
+<a name="968"></a> *   
+<a name="969"></a> *   You can also expose resources on a directory-by-directory basis,
+<a name="970"></a> *   simply by specifying a longer path prefix:
+<a name="971"></a> *   
+<a name="972"></a> *.     WebResourceResFile
+<a name="973"></a> *.         vpath = static new RexPattern('/graphics/')
+<a name="974"></a> *.     ;
+<a name="975"></a> *   
+<a name="976"></a> *   Again, the library doesn't define anything like this by default, since
+<a name="977"></a> *   we don't want to impose any assumptions about how your resources are
+<a name="978"></a> *   organized.  
+<a name="979"></a> */
+<a name="980"></a>class WebResourceResFile: WebResource
+<a name="981"></a>    /* 
+<a name="982"></a>     *   Match a request.  A resource file resource matches if we match the
+<a name="983"></a>     *   virtual path setting for the resource, and the requested resource
+<a name="984"></a>     *   file exists.  
+<a name="985"></a>     */
+<a name="986"></a>    matchRequest(query, req)
+<a name="987"></a>    {
+<a name="988"></a>        return inherited(query, req) &amp;&amp; resExists(processName(query[1]));
+<a name="989"></a>    }
+<a name="990"></a>
+<a name="991"></a>    /* process the request: send the resource file's contents */
+<a name="992"></a>    processRequest(req, query)
+<a name="993"></a>    {
+<a name="994"></a>        /* get the local resource name */
+<a name="995"></a>        local name = processName(query[1]);
+<a name="996"></a>
+<a name="997"></a>        /* get the filename suffix (extension) */
+<a name="998"></a>        local ext = nil;
+<a name="999"></a>        if (rexSearch('%.([^.]+)$', name) != nil)
+<a name="1000"></a>            ext = rexGroup(1)[3];
+<a name="1001"></a>
+<a name="1002"></a>        local fp = nil;
+<a name="1003"></a>        try
+<a name="1004"></a>        {
+<a name="1005"></a>            /* open the file in the appropriate mode */
+<a name="1006"></a>            if (isTextFile(name))
+<a name="1007"></a>                fp = File.openTextResource(name);
+<a name="1008"></a>            else
+<a name="1009"></a>                fp = File.openRawResource(name);
+<a name="1010"></a>        }
+<a name="1011"></a>        catch (FileException exc)
+<a name="1012"></a>        {
+<a name="1013"></a>            /* send a 404 error */
+<a name="1014"></a>            req.sendReply(404);
+<a name="1015"></a>            return;
+<a name="1016"></a>        }
+<a name="1017"></a>
+<a name="1018"></a>        /* 
+<a name="1019"></a>         *   If the file suffix implies a particular mime type, set it.
+<a name="1020"></a>         *   There are some media types that are significant to browsers,
+<a name="1021"></a>         *   but which the HTTPRequest object can't infer based on the
+<a name="1022"></a>         *   contents, so as a fallback infer the media type from the
+<a name="1023"></a>         *   filename suffix if possible.
+<a name="1024"></a>         */
+<a name="1025"></a>        local mimeType = browserExtToMime[ext];
+<a name="1026"></a>
+<a name="1027"></a>        /* 
+<a name="1028"></a>         *   Send the file's contents.  Since resource files can be large
+<a name="1029"></a>         *   (e.g., images or audio files), send the reply asynchronously
+<a name="1030"></a>         *   so that we don't block other requests while the file is being
+<a name="1031"></a>         *   downloaded.  Browsers typically download multimedia resources
+<a name="1032"></a>         *   in background threads so that the UI remains responsive during
+<a name="1033"></a>         *   large downloads, so we have to be prepared to handle these
+<a name="1034"></a>         *   overlapped requests while a download proceeds.
+<a name="1035"></a>         */
+<a name="1036"></a>        req.sendReplyAsync(fp, mimeType);
+<a name="1037"></a>
+<a name="1038"></a>        /* done with the file */
+<a name="1039"></a>        fp.closeFile();
+<a name="1040"></a>    }
+<a name="1041"></a>
+<a name="1042"></a>    /* extension to MIME type map for important browser file types */
+<a name="1043"></a>    browserExtToMime = static [
+<a name="1044"></a>        'css' -&gt; 'text/css',
+<a name="1045"></a>        'js' -&gt; 'text/javascript'
+<a name="1046"></a>    ]
+<a name="1047"></a>
+<a name="1048"></a>    /*
+<a name="1049"></a>     *   Process the name.  This takes the path string from the query, and
+<a name="1050"></a>     *   returns the resource file name to look for.  By default, we simply
+<a name="1051"></a>     *   return the same name specified by the client, minus the leading
+<a name="1052"></a>     *   '/' (since resource paths are always relative).  
+<a name="1053"></a>     */
+<a name="1054"></a>    processName(n) { return n.substr(2); }
+<a name="1055"></a>
+<a name="1056"></a>    /*
+<a name="1057"></a>     *   Determine if the given file is a text file or a binary file.  By
+<a name="1058"></a>     *   default, we base the determination solely on the filename suffix,
+<a name="1059"></a>     *   checking the extension against a list of common file types.  
+<a name="1060"></a>     */
+<a name="1061"></a>    isTextFile(fname)
+<a name="1062"></a>    {
+<a name="1063"></a>        /* get the extension */
+<a name="1064"></a>        if (rexMatch('.*%.([^.]+)$', fname) != nil)
+<a name="1065"></a>        {
+<a name="1066"></a>            /* pull out the extension */
+<a name="1067"></a>            local ext = rexGroup(1)[3].toLower();
+<a name="1068"></a>
+<a name="1069"></a>            /* 
+<a name="1070"></a>             *   check against common binary types - if it's not there,
+<a name="1071"></a>             *   assume it's text 
+<a name="1072"></a>             */
+<a name="1073"></a>            return (binaryExts.indexOf(ext) == nil);
+<a name="1074"></a>        }
+<a name="1075"></a>        else
+<a name="1076"></a>        {
+<a name="1077"></a>            /* no extension - assume binary */
+<a name="1078"></a>            return nil;
+<a name="1079"></a>        }
+<a name="1080"></a>    }
+<a name="1081"></a>
+<a name="1082"></a>    /* table of common binary file extensions */
+<a name="1083"></a>    binaryExts = ['jpg', 'jpeg', 'png', 'mng', 'bmp', 'gif',
+<a name="1084"></a>                  'mpg', 'mp3', 'mid', 'ogg', 'wav',
+<a name="1085"></a>                  'pdf', 'doc', 'docx', 'swf',
+<a name="1086"></a>                  'dat', 'sav', 'bin', 'gam', 't3', 't3v'];
+<a name="1087"></a>;
+<a name="1088"></a>
+<a name="1089"></a>/*
+<a name="1090"></a> *   The resource handler for our standard library resources.  All of the
+<a name="1091"></a> *   library resources are in the /webuires resource folder.  This exposes
+<a name="1092"></a> *   everything in that folder as a downloadable Web object.  
+<a name="1093"></a> */
+<a name="1094"></a>webuiResources: WebResourceResFile
+<a name="1095"></a>    vpath = static new RexPattern('/webuires/')
+<a name="1096"></a>;
+<a name="1097"></a>
+<a name="1098"></a>/* the special cover art resource */
+<a name="1099"></a>coverArtResource: WebResourceResFile
+<a name="1100"></a>    vpath = static new RexPattern('/%.system/CoverArt%.(jpg|png)$')
+<a name="1101"></a>;
+<a name="1102"></a>
+<a name="1103"></a>/*
+<a name="1104"></a> *   Session initializer resource.  This is a mix-in class designed to be
+<a name="1105"></a> *   used for a special resource that initializes the session.  Mix this
+<a name="1106"></a> *   with a WebResource class to set up the initializer.  When you connect
+<a name="1107"></a> *   to the client via connectWebUI(), point the client to this resource.  
+<a name="1108"></a> *   
+<a name="1109"></a> *   There are two elements to setting up the session.  First, we need to
+<a name="1110"></a> *   set the program session key as a cookie.  The client obtains this from
+<a name="1111"></a> *   the registration mechanism, whose purpose is to launch the game
+<a name="1112"></a> *   program and send the connection information back to the client.  The
+<a name="1113"></a> *   client sends this to us in the form of a URL parameter, TADS_session.
+<a name="1114"></a> *   This key is essentially for authentication, to make sure that the
+<a name="1115"></a> *   client that we're talking to is actually the client that launched the
+<a name="1116"></a> *   program: only that client would be able to get the key, because we
+<a name="1117"></a> *   invent it and send it to the registrar, and the registrar only sends
+<a name="1118"></a> *   it back to the client session it's already established on its end.
+<a name="1119"></a> *   This prevents port scanners from finding our open port and trying to
+<a name="1120"></a> *   crawl our "site" or otherwise access our services.
+<a name="1121"></a> *   
+<a name="1122"></a> *   The second setup element is to create a client session key.  Whereas
+<a name="1123"></a> *   the program session key is for our entire service, the client session
+<a name="1124"></a> *   key is specific to this one connection.  If the user opens two browser
+<a name="1125"></a> *   windows on this server, each browser needs its own separate client
+<a name="1126"></a> *   session so that we can tell the traffic apart.  The client session key
+<a name="1127"></a> *   is simply another random key we generate, and again we pass it back to
+<a name="1128"></a> *   the client in a cookie.
+<a name="1129"></a> *   
+<a name="1130"></a> *   The reason we set cookies for both of these session keys is that it
+<a name="1131"></a> *   lets the client pass the information back to us on subsequent requests
+<a name="1132"></a> *   without having to encode another parameter in every URL.  We set
+<a name="1133"></a> *   session cookies in both cases; the program session is for
+<a name="1134"></a> *   authentication purposes and so we don't want it to be stored or
+<a name="1135"></a> *   shared, and the client session key is explicitly to identify this one
+<a name="1136"></a> *   browser session, so it obviously shouldn't be shared across browser
+<a name="1137"></a> *   instances or sessions.
+<a name="1138"></a> *   
+<a name="1139"></a> *   Note that instances should always provide a string (as opposed to a
+<a name="1140"></a> *   regular expression) for the virtual path (the 'vpath' property).  We
+<a name="1141"></a> *   have to send the path to the browser UI as part of the connection
+<a name="1142"></a> *   information, so we need a string we can send rather than a pattern to
+<a name="1143"></a> *   match.  
+<a name="1144"></a> */
+<a name="1145"></a>class WebResourceInit: object
+<a name="1146"></a>    /*
+<a name="1147"></a>     *   Connect to the client.  The program should call this after
+<a name="1148"></a>     *   creating its HTTPServer object, which you pass here as 'srv'.
+<a name="1149"></a>     *   This establishes the client UI connection, generating the path to
+<a name="1150"></a>     *   the start page.  
+<a name="1151"></a>     */
+<a name="1152"></a>    connectUI(srv)
+<a name="1153"></a>    {
+<a name="1154"></a>        /* 
+<a name="1155"></a>         *   point the client to our start page, adding the session key as
+<a name="1156"></a>         *   a query parameter 
+<a name="1157"></a>         */
+<a name="1158"></a>        connectWebUI(srv, '&lt;&lt;vpath&gt;&gt;?TADS_session=&lt;&lt;webSession.sessionKey&gt;&gt;');
+<a name="1159"></a>    }
+<a name="1160"></a>
+<a name="1161"></a>    /*
+<a name="1162"></a>     *   Process the request.  This sets up the program and client session
+<a name="1163"></a>     *   keys as cookies.  
+<a name="1164"></a>     */
+<a name="1165"></a>    processRequest(req, query)
+<a name="1166"></a>    {
+<a name="1167"></a>        /* get the session parameter from the query */
+<a name="1168"></a>        local skey = query['TADS_session'];
+<a name="1169"></a>
+<a name="1170"></a>        /* set the session cookie in the reply */
+<a name="1171"></a>        if (skey)
+<a name="1172"></a>            req.setCookie('TADS_session', '&lt;&lt;skey&gt;&gt;; path=/;');
+<a name="1173"></a>
+<a name="1174"></a>        /* check for a client session */
+<a name="1175"></a>        local ckey = req.getCookie('TADS_client');
+<a name="1176"></a>        if (ckey == nil || ClientSession.find(ckey) == nil)
+<a name="1177"></a>        {
+<a name="1178"></a>            /* 
+<a name="1179"></a>             *   There's no client session ID cookie, or the ID is invalid
+<a name="1180"></a>             *   or has expired.  Create a new client session.  
+<a name="1181"></a>             */
+<a name="1182"></a>
+<a name="1183"></a>            /* get the storage server session ID key from the request */
+<a name="1184"></a>            local ssid = query['storagesid'];
+<a name="1185"></a>
+<a name="1186"></a>            /* get the user name */
+<a name="1187"></a>            local uname = query['username'];
+<a name="1188"></a>
+<a name="1189"></a>            /* 
+<a name="1190"></a>             *   if there's no storage server session, and they're
+<a name="1191"></a>             *   connecting under the primary server session key, use the
+<a name="1192"></a>             *   primary user's storage server session
+<a name="1193"></a>             */
+<a name="1194"></a>            if (ssid == nil &amp;&amp; skey == webSession.sessionKey)
+<a name="1195"></a>                ssid = webSession.storageSID;
+<a name="1196"></a>
+<a name="1197"></a>            /* create the new session object */
+<a name="1198"></a>            local client = new transient ClientSession(skey, ssid);
+<a name="1199"></a>
+<a name="1200"></a>            /* if there's a user name, set it in the session */
+<a name="1201"></a>            if (uname != nil)
+<a name="1202"></a>                client.screenName = uname;
+<a name="1203"></a>            else
+<a name="1204"></a>                client.setDefaultScreenName();
+<a name="1205"></a>
+<a name="1206"></a>            /* send the client session ID to the browser as a cookie */
+<a name="1207"></a>            req.setCookie('TADS_client', '&lt;&lt;client.clientKey&gt;&gt;; path=/;');
+<a name="1208"></a>
+<a name="1209"></a>            /* if this is a guest, alert everyone to the new connection */
+<a name="1210"></a>            if (!client.isPrimary)
+<a name="1211"></a>                webMainWin.postSyntheticEvent('newGuest', client.screenName);
+<a name="1212"></a>        }
+<a name="1213"></a>
+<a name="1214"></a>        /* go return the underlying resource */
+<a name="1215"></a>        inherited(req, query);
+<a name="1216"></a>    }
+<a name="1217"></a>
+<a name="1218"></a>    /* the HTPTServer for communicating with the client */
+<a name="1219"></a>    server = nil
+<a name="1220"></a>;
+<a name="1221"></a>
+<a name="1222"></a>/* ------------------------------------------------------------------------ */
+<a name="1223"></a>/*
+<a name="1224"></a> *   A WebResourceGroup is a container for WebResource objects.  When a
+<a name="1225"></a> *   server receives a request, it looks in its group list to find the
+<a name="1226"></a> *   resource object that will handle the request.  
+<a name="1227"></a> */
+<a name="1228"></a>class WebResourceGroup: object
+<a name="1229"></a>    /*
+<a name="1230"></a>     *   Should this group handle the given request?  By default, we say
+<a name="1231"></a>     *   yes if the server that received the request is associated with
+<a name="1232"></a>     *   this group via the group's 'server' property.  
+<a name="1233"></a>     */
+<a name="1234"></a>    isGroupFor(req)
+<a name="1235"></a>    {
+<a name="1236"></a>        /* get the request's server object */
+<a name="1237"></a>        local srv = req.getServer();
+<a name="1238"></a>
+<a name="1239"></a>        /* 
+<a name="1240"></a>         *   if this server matches our 'server' property, or is in the
+<a name="1241"></a>         *   list of servers if 'server' is a list, we're the group for the
+<a name="1242"></a>         *   request 
+<a name="1243"></a>         */
+<a name="1244"></a>        return (srv == server
+<a name="1245"></a>                || (dataType(server) == TypeList
+<a name="1246"></a>                    &amp;&amp; server.indexOf(srv) != nil));
+<a name="1247"></a>    }
+<a name="1248"></a>
+<a name="1249"></a>    /*
+<a name="1250"></a>     *   The priority of the group, relative to other groups.  If the same
+<a name="1251"></a>     *   server matches multiple groups, this allows you to designate which
+<a name="1252"></a>     *   group has precedence.  A higher value means higher priority.
+<a name="1253"></a>     */
+<a name="1254"></a>    priority = 100
+<a name="1255"></a>
+<a name="1256"></a>    /*
+<a name="1257"></a>     *   The HTTPServer object or objects this group is associated with.
+<a name="1258"></a>     *   The general event processor uses this to route a request to the
+<a name="1259"></a>     *   appropriate resource group, by finding the group that's associated
+<a name="1260"></a>     *   with the server that received the request.
+<a name="1261"></a>     *   
+<a name="1262"></a>     *   To associate a group with multiple servers, make this a list.  
+<a name="1263"></a>     */
+<a name="1264"></a>    server = nil
+<a name="1265"></a>
+<a name="1266"></a>    /* the WebResource objects in the group */
+<a name="1267"></a>    contents = []
+<a name="1268"></a>
+<a name="1269"></a>    /*
+<a name="1270"></a>     *   Process a request.  This looks for the highest priority matching
+<a name="1271"></a>     *   resource in the group, then hands the request to that resource for
+<a name="1272"></a>     *   processing. 
+<a name="1273"></a>     */
+<a name="1274"></a>    processRequest(req)
+<a name="1275"></a>    {
+<a name="1276"></a>        /* parse the query */
+<a name="1277"></a>        local query = req.parseQuery();
+<a name="1278"></a>
+<a name="1279"></a>        /* 
+<a name="1280"></a>         *   Check for the session ID.  The session ID is required either
+<a name="1281"></a>         *   in a URL parameter or in a cookie.  If it's not present,
+<a name="1282"></a>         *   reject the request with a "403 Forbidden" error, since the
+<a name="1283"></a>         *   session is essentially an authentication token to tell us that
+<a name="1284"></a>         *   the client is in fact the same user that launched the game.
+<a name="1285"></a>         */
+<a name="1286"></a>        if (!webSession.validateKey(req, query))
+<a name="1287"></a>            return;
+<a name="1288"></a>
+<a name="1289"></a>        /* 
+<a name="1290"></a>         *   Search our list for the first resource that matches this
+<a name="1291"></a>         *   request.  The list is initialized in descending priority
+<a name="1292"></a>         *   order, so the first match we find will be the one with the
+<a name="1293"></a>         *   highest priority. 
+<a name="1294"></a>         */
+<a name="1295"></a>        local match = contents.valWhich({res: res.matchRequest(query, req)});
+<a name="1296"></a>
+<a name="1297"></a>        /* if we found a match, process it; otherwise return a 404 error */
+<a name="1298"></a>        if (match != nil)
+<a name="1299"></a>            match.processRequest(req, query);
+<a name="1300"></a>        else
+<a name="1301"></a>            req.sendReply(404);
+<a name="1302"></a>    }
+<a name="1303"></a>
+<a name="1304"></a>    /* class property: list of all WebResourceGroup objects */
+<a name="1305"></a>    all = []
+<a name="1306"></a>;
+<a name="1307"></a>
+<a name="1308"></a>/* ------------------------------------------------------------------------ */
+<a name="1309"></a>/*
+<a name="1310"></a> *   The default web resource group.  This is the default container for
+<a name="1311"></a> *   WebResource objects. 
+<a name="1312"></a> */
+<a name="1313"></a>mainWebGroup: WebResourceGroup
+<a name="1314"></a>    /* the default group matches any server, but with low priority */
+<a name="1315"></a>    isGroupFor(req) { return true; }
+<a name="1316"></a>    priority = 1
+<a name="1317"></a>;
+<a name="1318"></a>
+<a name="1319"></a>/* ------------------------------------------------------------------------ */
+<a name="1320"></a>/*
+<a name="1321"></a> *   At startup, put each WebResource object into the contents list for its
+<a name="1322"></a> *   group. 
+<a name="1323"></a> */
+<a name="1324"></a>PreinitObject
+<a name="1325"></a>    execute()
+<a name="1326"></a>    {
+<a name="1327"></a>        /* build the contents list for each resource group */
+<a name="1328"></a>        forEachInstance(WebResource, function(obj) {
+<a name="1329"></a>
+<a name="1330"></a>            /* get the group object for the resource */
+<a name="1331"></a>            local g = obj.group;
+<a name="1332"></a>
+<a name="1333"></a>            /* if the group doesn't have a contents list yet, create one */
+<a name="1334"></a>            if (g.contents == nil)
+<a name="1335"></a>                g.contents = [];
+<a name="1336"></a>
+<a name="1337"></a>            /* add this resource to the contents list */
+<a name="1338"></a>            g.contents += obj;
+<a name="1339"></a>        });
+<a name="1340"></a>
+<a name="1341"></a>        /* sort each group's contents list in priority order */
+<a name="1342"></a>        forEachInstance(WebResourceGroup, function(obj) {
+<a name="1343"></a>
+<a name="1344"></a>            /* sort the group's contents list */
+<a name="1345"></a>            obj.contents = obj.contents.sort(
+<a name="1346"></a>                SortDesc, { a, b: a.priority - b.priority });
+<a name="1347"></a>
+<a name="1348"></a>            /* add this group to the master list of groups */
+<a name="1349"></a>            WebResourceGroup.all += obj;
+<a name="1350"></a>        });
+<a name="1351"></a>
+<a name="1352"></a>        /* sort the groups in descending order of priority */
+<a name="1353"></a>        WebResourceGroup.all = WebResourceGroup.all.sort(
+<a name="1354"></a>            SortDesc, { a, b: a.priority - b.priority });
+<a name="1355"></a>    }
+<a name="1356"></a>;
+<a name="1357"></a>
+<a name="1358"></a>/* ------------------------------------------------------------------------ */
+<a name="1359"></a>/*
+<a name="1360"></a> *   Guest connection request.  This enables "switchboard" applications on
+<a name="1361"></a> *   remote servers that keep track of multi-user game sessions, to show
+<a name="1362"></a> *   users available sessions and connect new users to those sessions.
+<a name="1363"></a> *   
+<a name="1364"></a> *   The first step in setting up a switchboard is for the game server to
+<a name="1365"></a> *   register itself with the switchboard by sending a request on startup.
+<a name="1366"></a> *   That part is external to us - that's not handled within the game
+<a name="1367"></a> *   program but rather within the web server script that launches the
+<a name="1368"></a> *   game.  Here, then, we simply assume that this work is already done.
+<a name="1369"></a> *   
+<a name="1370"></a> *   The second step is that the switchboard needs to check back with the
+<a name="1371"></a> *   game server from time to time to see if it's still alive - essentially
+<a name="1372"></a> *   a "ping" operation.  We handle that here: if we respond to the
+<a name="1373"></a> *   request, we're obviously still alive.
+<a name="1374"></a> *   
+<a name="1375"></a> *   The third step is that we need to send the switchboard a URL that lets
+<a name="1376"></a> *   secondary users ("guests") connect to the game session.  We handle
+<a name="1377"></a> *   that here as well: our reply body is the client connection URL.  
+<a name="1378"></a> */
+<a name="1379"></a>guestConnectPage: WebResource
+<a name="1380"></a>    vpath = '/webui/guestConnect'
+<a name="1381"></a>    processRequest(req, query)
+<a name="1382"></a>    {
+<a name="1383"></a>        /* send the collaborative connection URL */
+<a name="1384"></a>        req.sendReply(webSession.getCollabUrl(), 'text/plain', 200);
+<a name="1385"></a>    }
+<a name="1386"></a>;
+<a name="1387"></a>
+<a name="1388"></a>/* ------------------------------------------------------------------------ */
+<a name="1389"></a>/* 
+<a name="1390"></a> *   getEvent request.  This is the mechanism we use to "send" events to
+<a name="1391"></a> *   the client.  The client sends a getEvent request to us, and we simply
+<a name="1392"></a> *   put it in a queue - we don't send back any response immediately.  As
+<a name="1393"></a> *   soon as we want to send an event to the client, we go through the
+<a name="1394"></a> *   queue of pending getEvent requests, and reply to each one with the
+<a name="1395"></a> *   event we want to send.  
+<a name="1396"></a> */
+<a name="1397"></a>eventPage: WebResource
+<a name="1398"></a>    vpath = '/webui/getEvent'
+<a name="1399"></a>    processRequest(req, query)
+<a name="1400"></a>    {
+<a name="1401"></a>        /* find the client */
+<a name="1402"></a>        local c = ClientSession.find(req);
+<a name="1403"></a>
+<a name="1404"></a>        /* if we found the client session object, send it the request */
+<a name="1405"></a>        if (c != nil)
+<a name="1406"></a>            c.requestEvent(req);
+<a name="1407"></a>        else
+<a name="1408"></a>            req.sendReply(400);
+<a name="1409"></a>    }
+<a name="1410"></a>
+<a name="1411"></a>    /* broadcast an event message to each client */
+<a name="1412"></a>    sendEvent(msg)
+<a name="1413"></a>    {
+<a name="1414"></a>        /* build the full XML message */
+<a name="1415"></a>        msg = '&lt;?xml version="1.0"?&gt;&lt;event&gt;&lt;&lt;msg&gt;&gt;&lt;/event&gt;';
+<a name="1416"></a>
+<a name="1417"></a>        /* send it to each client */
+<a name="1418"></a>        ClientSession.broadcastEvent(msg);
+<a name="1419"></a>    }
+<a name="1420"></a>
+<a name="1421"></a>    /* send an event to a particular client */
+<a name="1422"></a>    sendEventTo(msg, client)
+<a name="1423"></a>    {
+<a name="1424"></a>        /* build the full XML message */
+<a name="1425"></a>        msg = '&lt;?xml version="1.0"?&gt;&lt;event&gt;&lt;&lt;msg&gt;&gt;&lt;/event&gt;';
+<a name="1426"></a>
+<a name="1427"></a>        /* send it to the given client */
+<a name="1428"></a>        client.sendEvent(msg);
+<a name="1429"></a>    }
+<a name="1430"></a>;
+<a name="1431"></a>
+<a name="1432"></a>/*
+<a name="1433"></a> *   Flush events.  This cancels any pending event requests for the client.
+<a name="1434"></a> *   The client can use this after being reloaded to flush any outstanding
+<a name="1435"></a> *   event requests from a past incarnation of the page.  
+<a name="1436"></a> */
+<a name="1437"></a>flushEventsPage: WebResource
+<a name="1438"></a>    vpath = '/webui/flushEvents'
+<a name="1439"></a>    processRequest(req, query)
+<a name="1440"></a>    {
+<a name="1441"></a>        /* find the client */
+<a name="1442"></a>        local c = ClientSession.find(req);
+<a name="1443"></a>
+<a name="1444"></a>        /* if we found the client, send it the flush request */
+<a name="1445"></a>        if (c != nil)
+<a name="1446"></a>            c.flushEvents();
+<a name="1447"></a>
+<a name="1448"></a>        /* 
+<a name="1449"></a>         *   acknowledge the request; it's okay if we didn't find the
+<a name="1450"></a>         *   client session, since this just means there are no events to
+<a name="1451"></a>         *   flush for this client 
+<a name="1452"></a>         */
+<a name="1453"></a>        sendAck(req);
+<a name="1454"></a>    }
+<a name="1455"></a>;
+<a name="1456"></a>
+<a name="1457"></a>/*
+<a name="1458"></a> *   getState request.  The web page can send this to get a full accounting
+<a name="1459"></a> *   of the current state of the UI.  It does this automatically when first
+<a name="1460"></a> *   loaded, and again when the user manually refreshes the page.
+<a name="1461"></a> *   
+<a name="1462"></a> *   We handle this by asking the main window to generate its state.  
+<a name="1463"></a> */
+<a name="1464"></a>uiStatePage: WebResource
+<a name="1465"></a>    vpath = '/webui/getState'
+<a name="1466"></a>    processRequest(req, query)
+<a name="1467"></a>    {
+<a name="1468"></a>        /* get the window making the request */
+<a name="1469"></a>        local w = webMainWin.winFromPath(query['window']);
+<a name="1470"></a>        local client = ClientSession.find(req);
+<a name="1471"></a>
+<a name="1472"></a>        /* if we found the window, send the reply */
+<a name="1473"></a>        if (w)
+<a name="1474"></a>        {
+<a name="1475"></a>            /* send the uiState reply for the window */
+<a name="1476"></a>            sendXML(req, 'uiState', w.getState(client));
+<a name="1477"></a>        }
+<a name="1478"></a>        else
+<a name="1479"></a>        {
+<a name="1480"></a>            /* no window - send an error reply */
+<a name="1481"></a>            req.sendReply(406);
+<a name="1482"></a>        }
+<a name="1483"></a>    }
+<a name="1484"></a>;
+<a name="1485"></a>
+<a name="1486"></a>/* ------------------------------------------------------------------------ */
+<a name="1487"></a>/*
+<a name="1488"></a> *   Process network requests.  Continues until doneFunc() returns true, or
+<a name="1489"></a> *   a timeout or error occurs.  If we return because doneFunc() returned
+<a name="1490"></a> *   true, we'll return nil.  Otherwise, we'll return the NetEvent that
+<a name="1491"></a> *   terminated the wait.  
+<a name="1492"></a> */
+<a name="1493"></a>processNetRequests(doneFunc, timeout?)
+<a name="1494"></a>{
+<a name="1495"></a>    /* if there's a timeout, figure the ending time */
+<a name="1496"></a>    local endTime = (timeout != nil ? getTime(GetTimeTicks) + timeout : nil);
+<a name="1497"></a>
+<a name="1498"></a>    /* keep going until the 'done' function returns true */
+<a name="1499"></a>    while (doneFunc == nil || !doneFunc())
+<a name="1500"></a>    {
+<a name="1501"></a>        try
+<a name="1502"></a>        {
+<a name="1503"></a>            /* get the next housekeeping time */
+<a name="1504"></a>            local hkTime = webSession.hkTime;
+<a name="1505"></a>            
+<a name="1506"></a>            /* 
+<a name="1507"></a>             *   figure the time to the next timeout - stop at the caller's
+<a name="1508"></a>             *   ending time, or the next housekeeping time, whichever is
+<a name="1509"></a>             *   sooner 
+<a name="1510"></a>             */
+<a name="1511"></a>            local tf = (endTime != nil &amp;&amp; endTime &lt; hkTime ? endTime : hkTime);
+<a name="1512"></a>
+<a name="1513"></a>            /* figure the time remaining to the next timeout */
+<a name="1514"></a>            local dt = max(0, tf - getTime(GetTimeTicks));
+<a name="1515"></a>
+<a name="1516"></a>            /* 
+<a name="1517"></a>             *   Flush any pending output.  If we're waiting for user
+<a name="1518"></a>             *   input, this ensures that the last output is visible in the
+<a name="1519"></a>             *   UI while we await the next user action.  
+<a name="1520"></a>             */
+<a name="1521"></a>            flushOutput();
+<a name="1522"></a>
+<a name="1523"></a>            /* get the next network event */
+<a name="1524"></a>            local evt = getNetEvent(dt);
+<a name="1525"></a>
+<a name="1526"></a>            /* see what we have */
+<a name="1527"></a>            switch (evt.evType)
+<a name="1528"></a>            {
+<a name="1529"></a>            case NetEvRequest:
+<a name="1530"></a>                /*
+<a name="1531"></a>                 *   This is an incoming network request from a client.
+<a name="1532"></a>                 *   Check the protocol type of the request object.
+<a name="1533"></a>                 */
+<a name="1534"></a>                if (evt.evRequest.ofKind(HTTPRequest))
+<a name="1535"></a>                {
+<a name="1536"></a>                    /* 
+<a name="1537"></a>                     *   HTTP request - process it through the appropriate
+<a name="1538"></a>                     *   web resource group.  First, find the group that
+<a name="1539"></a>                     *   wants to handle the request.  
+<a name="1540"></a>                     */
+<a name="1541"></a>                    local req = evt.evRequest;
+<a name="1542"></a>                    local group = WebResourceGroup.all.valWhich(
+<a name="1543"></a>                        { g: g.isGroupFor(req) });
+<a name="1544"></a>
+<a name="1545"></a>                    /* 
+<a name="1546"></a>                     *   if there's a client associated with the request,
+<a name="1547"></a>                     *   update its last activity time
+<a name="1548"></a>                     */
+<a name="1549"></a>                    local client = ClientSession.find(req);
+<a name="1550"></a>                    if (client != nil)
+<a name="1551"></a>                        client.updateEventTime();
+<a name="1552"></a>
+<a name="1553"></a>                    /* if we found a group, let it handle the request */
+<a name="1554"></a>                    if (group != nil)
+<a name="1555"></a>                    {
+<a name="1556"></a>                        try
+<a name="1557"></a>                        {
+<a name="1558"></a>                            /* send the request to the group for processing */
+<a name="1559"></a>                            group.processRequest(req);
+<a name="1560"></a>                        }
+<a name="1561"></a>                        catch (Exception exc)
+<a name="1562"></a>                        {
+<a name="1563"></a>                            /* 
+<a name="1564"></a>                             *   Unhandled exception - something went wrong
+<a name="1565"></a>                             *   in the server, so the appropriate reply is
+<a name="1566"></a>                             *   500 Internal Server Error.  Send the
+<a name="1567"></a>                             *   exception message with the reply.  
+<a name="1568"></a>                             */
+<a name="1569"></a>                            local msg =
+<a name="1570"></a>                                'Unhandled exception processing request: '
+<a name="1571"></a>                                + exc.getExceptionMessage().specialsToText();
+<a name="1572"></a>                            req.sendReply(msg, 'text/plain', 500);
+<a name="1573"></a>                        }
+<a name="1574"></a>                    }
+<a name="1575"></a>                    else
+<a name="1576"></a>                    {
+<a name="1577"></a>                        /* no group - send back a 404 error */
+<a name="1578"></a>                        req.sendReply(404);
+<a name="1579"></a>                    }
+<a name="1580"></a>                }
+<a name="1581"></a>                break;
+<a name="1582"></a>
+<a name="1583"></a>            case NetEvTimeout:
+<a name="1584"></a>                /* 
+<a name="1585"></a>                 *   Timeout.  Always try running housekeeping on a
+<a name="1586"></a>                 *   timeout; the housekeeper will ignore this unless the
+<a name="1587"></a>                 *   time has actually come.
+<a name="1588"></a>                 */
+<a name="1589"></a>                hkTime = webSession.housekeeping();
+<a name="1590"></a>
+<a name="1591"></a>                /* 
+<a name="1592"></a>                 *   Check for a caller timeout.  If the caller's end time
+<a name="1593"></a>                 *   has arrived, pass the timeout back to the caller as a
+<a name="1594"></a>                 *   timeout event.
+<a name="1595"></a>                 */
+<a name="1596"></a>                if (endTime != nil &amp;&amp; getTime(GetTimeTicks) &gt;= endTime)
+<a name="1597"></a>                    return evt;
+<a name="1598"></a>
+<a name="1599"></a>                /* 
+<a name="1600"></a>                 *   it wasn't a caller timeout, so it must have been an
+<a name="1601"></a>                 *   internal housekeeping timeout, which we just handled;
+<a name="1602"></a>                 *   simply continue looping
+<a name="1603"></a>                 */
+<a name="1604"></a>                break;
+<a name="1605"></a>
+<a name="1606"></a>            case NetEvUIClose:
+<a name="1607"></a>                /* 
+<a name="1608"></a>                 *   UI Closed.  This tells us that the user has manually
+<a name="1609"></a>                 *   closed the UI window.  This only happens in the local
+<a name="1610"></a>                 *   stand-alone configuration, where the "browser" is an
+<a name="1611"></a>                 *   integrated part of the interpreter application,
+<a name="1612"></a>                 *   simulating the traditional TADS interpreter setup
+<a name="1613"></a>                 *   where the whole program is a single application
+<a name="1614"></a>                 *   running on one machine.  In this setup, closing the UI
+<a name="1615"></a>                 *   window should dismiss the whole application, since
+<a name="1616"></a>                 *   that's the convention on virtually all GUIs.
+<a name="1617"></a>                 */
+<a name="1618"></a>
+<a name="1619"></a>                /* disconnect all clients */
+<a name="1620"></a>                ClientSession.disconnectAll();
+<a name="1621"></a>
+<a name="1622"></a>                /* quit by signaling a "quit game" event */
+<a name="1623"></a>                throw new QuittingException();
+<a name="1624"></a>            }
+<a name="1625"></a>        }
+<a name="1626"></a>        catch (SocketDisconnectException sdx)
+<a name="1627"></a>        {
+<a name="1628"></a>            /* the client has closed its connection; ignore this */
+<a name="1629"></a>        }
+<a name="1630"></a>    }
+<a name="1631"></a>
+<a name="1632"></a>    /* indicate that the 'done' condition was triggered */
+<a name="1633"></a>    return nil;
+<a name="1634"></a>}
+<a name="1635"></a>
+<a name="1636"></a>/* ------------------------------------------------------------------------ */
+<a name="1637"></a>/*
+<a name="1638"></a> *   Web Window tracker.  This is a game object that controls and remembers
+<a name="1639"></a> *   the state of a "window" in the browser user interface.  By "window",
+<a name="1640"></a> *   we basically mean an HTML page, which might reside at the top level of
+<a name="1641"></a> *   the browser itself, or inside an IFRAME element within an enclosing
+<a name="1642"></a> *   page.
+<a name="1643"></a> *   
+<a name="1644"></a> *   Each WebWindow class corresponds to a particular HTML page that we
+<a name="1645"></a> *   serve the client.  The HTML page is the expression of the window in
+<a name="1646"></a> *   the browser, and the WebWindow object is the expression of the same
+<a name="1647"></a> *   information in the game program.  The two are different facets of the
+<a name="1648"></a> *   same conceptual UI object.  The reason we need the two separate
+<a name="1649"></a> *   expressions is that the server controls everything, but the client has
+<a name="1650"></a> *   to do the actual display work, and the two parts of the program speak
+<a name="1651"></a> *   different languages - the server is TADS, and the client is HTML.
+<a name="1652"></a> *   
+<a name="1653"></a> *   The WebWindow object on the server lets us easily reconstruct the UI
+<a name="1654"></a> *   state in a newly opened browser window, or when the user performs a
+<a name="1655"></a> *   page refresh.  This object's job is to send information to the client
+<a name="1656"></a> *   on demand that allows the client to display the page in its current
+<a name="1657"></a> *   state.
+<a name="1658"></a> *   
+<a name="1659"></a> *   Note that a given WebWindow/HTML page combination can be used more
+<a name="1660"></a> *   than once within the same UI.  The pages defined in the library are
+<a name="1661"></a> *   designed to be generic and reusable, so you might use the same window
+<a name="1662"></a> *   class more than once for different purposes within the UI.  The
+<a name="1663"></a> *   library pages can also be subclassed, by subclassing the WebWindow
+<a name="1664"></a> *   object and creating a customized copy of the corresponding HTML page
+<a name="1665"></a> *   resource.  
+<a name="1666"></a> */
+<a name="1667"></a>class WebWindow: WebResourceResFile
+<a name="1668"></a>    /*
+<a name="1669"></a>     *   The URL path to the window's HTML definition file, as seen by the
+<a name="1670"></a>     *   browser.  For the pre-defined library window types, we expose the
+<a name="1671"></a>     *   HTML file in the root of the URL namespace - e.g., "/main.htm".
+<a name="1672"></a>     *   The files are actually stored in the /webuires folder, but we
+<a name="1673"></a>     *   expose them to the browser as though they were in the root folder
+<a name="1674"></a>     *   to make embedded object references on the pages simpler.  The
+<a name="1675"></a>     *   browser figures the path to an embedded object relative to the
+<a name="1676"></a>     *   containing page, so by placing the containing page in the root
+<a name="1677"></a>     *   folder, embedded object paths don't have to worry about
+<a name="1678"></a>     *   referencing parent folders.  
+<a name="1679"></a>     */
+<a name="1680"></a>    vpath = nil
+<a name="1681"></a>
+<a name="1682"></a>    /* 
+<a name="1683"></a>     *   The window's actual source location, as a resource path.  A given
+<a name="1684"></a>     *   WebWindow subclass corresponds to a particular HMTL page, since
+<a name="1685"></a>     *   the class and the page are facets of the same conceptual object
+<a name="1686"></a>     *   (one facet is the browser expression, the other is the game
+<a name="1687"></a>     *   program expression).  
+<a name="1688"></a>     */
+<a name="1689"></a>    src = nil
+<a name="1690"></a>
+<a name="1691"></a>    /* process a request path referencing me into my actual resource path */
+<a name="1692"></a>    processName(n) { return src; }
+<a name="1693"></a>
+<a name="1694"></a>    /*
+<a name="1695"></a>     *   Resolve a window path name.  For container windows, this should
+<a name="1696"></a>     *   search the sub-windows for the given path.  By default, we match
+<a name="1697"></a>     *   simply if the path matches our name.
+<a name="1698"></a>     */
+<a name="1699"></a>    winFromPath(path)
+<a name="1700"></a>    {
+<a name="1701"></a>        return path == name ? self : nil;
+<a name="1702"></a>    }
+<a name="1703"></a>
+<a name="1704"></a>    /*
+<a name="1705"></a>     *   Flush the window.  This sends any buffered text to the UI. 
+<a name="1706"></a>     */
+<a name="1707"></a>    flushWin() { }
+<a name="1708"></a>
+<a name="1709"></a>    /*
+<a name="1710"></a>     *   Write text to the window.  Subclasses with stream-oriented APIs
+<a name="1711"></a>     *   must override this.  
+<a name="1712"></a>     */
+<a name="1713"></a>    write(txt) { }
+<a name="1714"></a>
+<a name="1715"></a>    /*
+<a name="1716"></a>     *   Clear the window.  Subclasses must override this. 
+<a name="1717"></a>     */
+<a name="1718"></a>    clearWindow() { }
+<a name="1719"></a>
+<a name="1720"></a>    /*
+<a name="1721"></a>     *   Get the window's current state.  This returns a string containing
+<a name="1722"></a>     *   an XML fragment that describes the state of the window.  This
+<a name="1723"></a>     *   information is sent to the HTML page when the browser asks for the
+<a name="1724"></a>     *   current layout state when first loaded or when the page is
+<a name="1725"></a>     *   refreshed.  The XML format for each subclass is specific to the
+<a name="1726"></a>     *   Javascript on the class's HTML page.  
+<a name="1727"></a>     */
+<a name="1728"></a>    getState(client) { return ''; }
+<a name="1729"></a>
+<a name="1730"></a>    /* send an event related to this window to all clients */
+<a name="1731"></a>    sendWinEvent(evt)
+<a name="1732"></a>    {
+<a name="1733"></a>        /* 
+<a name="1734"></a>         *   send the event message, adding a &lt;window&gt; parameter to
+<a name="1735"></a>         *   identify the source
+<a name="1736"></a>         */
+<a name="1737"></a>        eventPage.sendEvent('&lt;window&gt;&lt;&lt;pathName&gt;&gt;&lt;/window&gt;&lt;&lt;evt&gt;&gt;');
+<a name="1738"></a>    }
+<a name="1739"></a>
+<a name="1740"></a>    /* send a window event to a specific client */
+<a name="1741"></a>    sendWinEventTo(evt, client)
+<a name="1742"></a>    {
+<a name="1743"></a>        eventPage.sendEventTo('&lt;window&gt;&lt;&lt;pathName&gt;&gt;&lt;/window&gt;&lt;&lt;evt&gt;&gt;', client);
+<a name="1744"></a>    }
+<a name="1745"></a>
+<a name="1746"></a>    /* specialsToHtml context */
+<a name="1747"></a>    sthCtx = perInstance(new SpecialsToHtmlState())
+<a name="1748"></a>
+<a name="1749"></a>    /* the name of this window */
+<a name="1750"></a>    name = nil
+<a name="1751"></a>
+<a name="1752"></a>    /* the full path name of this window, in "win.sub.sub" format */
+<a name="1753"></a>    pathName = nil
+<a name="1754"></a>;
+<a name="1755"></a>
+<a name="1756"></a>/* ------------------------------------------------------------------------ */
+<a name="1757"></a>/*
+<a name="1758"></a> *   Layout Window.  This is a specialized Web Window tracker for our
+<a name="1759"></a> *   layout page type, which is displayed using the resource file
+<a name="1760"></a> *   webuires/layout.htm.  This page is designed as a container of more
+<a name="1761"></a> *   specialized sub-window pages; its job is to divide up the window space
+<a name="1762"></a> *   into IFRAME elements that display the sub-windows, and to manage the
+<a name="1763"></a> *   geometry of the IFRAMEs.
+<a name="1764"></a> *   
+<a name="1765"></a> *   The layout page is primarily designed to be the top-level page of the
+<a name="1766"></a> *   web UI.  The idea is to set up a layout page as the navigation URL for
+<a name="1767"></a> *   the browser, so the layout page fills the browser window.  You then
+<a name="1768"></a> *   arrange your functional windows within the layout page - a command
+<a name="1769"></a> *   window, a status line window, etc.  This arrangement is similar to
+<a name="1770"></a> *   banner window in HTML TADS, but IFRAMEs are considerably more
+<a name="1771"></a> *   flexible; for example, they don't have to tile the main window, and
+<a name="1772"></a> *   you can size them in the full range of units CSS provides.
+<a name="1773"></a> *   
+<a name="1774"></a> *   Layout windows aren't limited to the top level, though.  Since you can
+<a name="1775"></a> *   put any HTML page within an IFRAME, you can put another layout window
+<a name="1776"></a> *   within an IFRAME, to further subdivide the space inside the IFRAME.  
+<a name="1777"></a> */
+<a name="1778"></a>class WebLayoutWindow: WebWindow
+<a name="1779"></a>    /*
+<a name="1780"></a>     *   Resolve a window path name 
+<a name="1781"></a>     */
+<a name="1782"></a>    winFromPath(path)
+<a name="1783"></a>    {
+<a name="1784"></a>        /* get the first element and the rest of the path */
+<a name="1785"></a>        local idx = path.find('.');
+<a name="1786"></a>        if (idx == nil)
+<a name="1787"></a>            idx = path.length() + 1;
+<a name="1788"></a>
+<a name="1789"></a>        /* pull out the first element and the rest */
+<a name="1790"></a>        local head = path.substr(1, idx - 1);
+<a name="1791"></a>        local tail = path.substr(idx + 1);
+<a name="1792"></a>
+<a name="1793"></a>        /* if the first element doesn't match our name, it's not a match */
+<a name="1794"></a>        if (head != name)
+<a name="1795"></a>            return nil;
+<a name="1796"></a>
+<a name="1797"></a>        /* if that's the end of the path, we have our match */
+<a name="1798"></a>        if (tail == '')
+<a name="1799"></a>            return self;
+<a name="1800"></a>
+<a name="1801"></a>        /* match the rest of the path against our children */
+<a name="1802"></a>        foreach (local w in frames)
+<a name="1803"></a>        {
+<a name="1804"></a>            local match = w[1].winFromPath(tail);
+<a name="1805"></a>            if (match != nil)
+<a name="1806"></a>                return match;
+<a name="1807"></a>        }
+<a name="1808"></a>
+<a name="1809"></a>        /* no match */
+<a name="1810"></a>        return nil;
+<a name="1811"></a>    }
+<a name="1812"></a>
+<a name="1813"></a>    /*
+<a name="1814"></a>     *   Create a new window within the layout.  This creates an IFRAME in
+<a name="1815"></a>     *   the browser, laid out according to the 'pos' argument, and
+<a name="1816"></a>     *   displays the given window object within the frame.
+<a name="1817"></a>     *   
+<a name="1818"></a>     *   If the window already exists, this updates the window with the new
+<a name="1819"></a>     *   layout settings.
+<a name="1820"></a>     *   
+<a name="1821"></a>     *   'win' is a WebWindow object that will be displayed within the
+<a name="1822"></a>     *   IFRAME.  This method automatically loads the HTML resource from
+<a name="1823"></a>     *   the WebWindow into the new IFRAME.
+<a name="1824"></a>     *   
+<a name="1825"></a>     *   'name' is the name of the window.  Each window within a layout
+<a name="1826"></a>     *   must have a distinct name.  This allows you to refer to the
+<a name="1827"></a>     *   dimensions of other windows in 'pos' parameters.  The name should
+<a name="1828"></a>     *   be alphanumeric.
+<a name="1829"></a>     *   
+<a name="1830"></a>     *   'pos' is the layout position for the new frame.  This is a string
+<a name="1831"></a>     *   in this format: 'left, top, width, height', where 'left' is the
+<a name="1832"></a>     *   horizontal position of the top left corner, 'top' is the vertical
+<a name="1833"></a>     *   position of the top left corner, 'width' is the width of the
+<a name="1834"></a>     *   window, and 'height' is the height.  Each element can be specified
+<a name="1835"></a>     *   as a Javascript-style arithmetic expression.  Within the
+<a name="1836"></a>     *   expression, you can use a mix of any of the following:
+<a name="1837"></a>     *   
+<a name="1838"></a>     *.   123   - a number, representing a number of pixels on the display
+<a name="1839"></a>     *.   5em   - 5 'em' units, relative to the main BODY font in the window
+<a name="1840"></a>     *.   5en   - 5 'en' units in the main BODY font
+<a name="1841"></a>     *.   5ex   - 5 'ex' units in the main BODY font
+<a name="1842"></a>     *.   window.width - the width in pixels of the enclosing window
+<a name="1843"></a>     *.   window.height - the height in pixels of the enclosing window
+<a name="1844"></a>     *.   50%   - percentage of the width or height of the enclosing window
+<a name="1845"></a>     *.   content.width - the width in pixels of the contents of the frame
+<a name="1846"></a>     *.   content.height - the height in pixels of the contents of the frame
+<a name="1847"></a>     *.   x.left   - horizontal coordinate of leftmost edge of window 'x'
+<a name="1848"></a>     *.   x.right  - horizontal coordinate of rightmost edge of window 'x'
+<a name="1849"></a>     *.   x.top    - vertical coordinate of top edge of window 'x'
+<a name="1850"></a>     *.   x.bottom - vertical coordinate of bottom edge of window 'x'
+<a name="1851"></a>     *.   x.width  - width in pixels of window 'x'
+<a name="1852"></a>     *.   x.height - height in pixels of window 'x'
+<a name="1853"></a>     *   
+<a name="1854"></a>     *   The "window" dimensions refer to the *enclosing* window.  If this
+<a name="1855"></a>     *   layout window is the main page of the UI, this is simply the
+<a name="1856"></a>     *   browser window itself.  For a layout window nested within another
+<a name="1857"></a>     *   frame, this is the enclosing frame.
+<a name="1858"></a>     *   
+<a name="1859"></a>     *   Percentage units apply to the enclosing window.  When a percentage
+<a name="1860"></a>     *   is used in the 'left' or 'width' slot, it applies to the width of
+<a name="1861"></a>     *   the enclosing window; in the 'top' or 'height' slot, it applies to
+<a name="1862"></a>     *   the height.
+<a name="1863"></a>     *   
+<a name="1864"></a>     *   The "content" dimensions refer to the contents of the frame we're
+<a name="1865"></a>     *   creating.  This is the size of the contents as actually laid out
+<a name="1866"></a>     *   in the browser.
+<a name="1867"></a>     *   
+<a name="1868"></a>     *   "x.left" and so on refer to the dimensions of other frames *within
+<a name="1869"></a>     *   this same layout window*.  'x' is the name of another window
+<a name="1870"></a>     *   within the same layout, as specified by the 'name' argument given
+<a name="1871"></a>     *   when the window was created.  
+<a name="1872"></a>     */
+<a name="1873"></a>    createFrame(win, name, pos)
+<a name="1874"></a>    {
+<a name="1875"></a>        /* set the window's internal name to its full path name */
+<a name="1876"></a>        win.name = name;
+<a name="1877"></a>        win.pathName = self.name + '.' + name;
+<a name="1878"></a>
+<a name="1879"></a>        /* add the window to our list */
+<a name="1880"></a>        frames[name] = [win, pos];
+<a name="1881"></a>
+<a name="1882"></a>        /* notify the UI */
+<a name="1883"></a>        sendWinEvent('&lt;subwin&gt;'
+<a name="1884"></a>                     + '&lt;name&gt;&lt;&lt;name&gt;&gt;&lt;/name&gt;'
+<a name="1885"></a>                     + '&lt;pos&gt;&lt;&lt;pos&gt;&gt;&lt;/pos&gt;'
+<a name="1886"></a>                     + '&lt;src&gt;&lt;&lt;win.vpath.htmlify()&gt;&gt;&lt;/src&gt;'
+<a name="1887"></a>                     + '&lt;/subwin&gt;');
+<a name="1888"></a>    }
+<a name="1889"></a>
+<a name="1890"></a>    /*
+<a name="1891"></a>     *   Flush this window.  For a layout window, we simply flush each
+<a name="1892"></a>     *   child window.  
+<a name="1893"></a>     */
+<a name="1894"></a>    flushWin()
+<a name="1895"></a>    {
+<a name="1896"></a>        /* flush each child window */
+<a name="1897"></a>        frames.forEach({w: w[1].flushWin()});
+<a name="1898"></a>    }
+<a name="1899"></a>
+<a name="1900"></a>    /*
+<a name="1901"></a>     *   Get the state. 
+<a name="1902"></a>     */
+<a name="1903"></a>    getState(client)
+<a name="1904"></a>    {
+<a name="1905"></a>        /* build an XML fragment describing the list of frames */
+<a name="1906"></a>        local s = '';
+<a name="1907"></a>        frames.forEachAssoc(function(name, info) {
+<a name="1908"></a>            s += '&lt;subwin&gt;&lt;name&gt;&lt;&lt;name&gt;&gt;&lt;/name&gt;'
+<a name="1909"></a>                + '&lt;pos&gt;&lt;&lt;info[2]&gt;&gt;&lt;/pos&gt;'
+<a name="1910"></a>                + '&lt;src&gt;&lt;&lt;info[1].vpath.htmlify()&gt;&gt;&lt;/src&gt;'
+<a name="1911"></a>                + '&lt;/subwin&gt;';
+<a name="1912"></a>        });
+<a name="1913"></a>
+<a name="1914"></a>        /* return the completed state object */
+<a name="1915"></a>        return s;
+<a name="1916"></a>    }
+<a name="1917"></a>
+<a name="1918"></a>    /* 
+<a name="1919"></a>     *   The table of active frames within this layout.  This table is
+<a name="1920"></a>     *   keyed by window name; each entry is a list of [win, pos], where
+<a name="1921"></a>     *   'win' is the WebWindow object for the window, and 'pos' is its
+<a name="1922"></a>     *   position parameter.  
+<a name="1923"></a>     */
+<a name="1924"></a>    frames = perInstance(new LookupTable(16, 32))
+<a name="1925"></a>
+<a name="1926"></a>    /* my virtual path and the actual resource file location */
+<a name="1927"></a>    vpath = '/layoutwin.htm'
+<a name="1928"></a>    src = 'webuires/layoutwin.htm'
+<a name="1929"></a>;
+<a name="1930"></a>
+<a name="1931"></a>/* ------------------------------------------------------------------------ */
+<a name="1932"></a>/*
+<a name="1933"></a> *   Command Window.  This object keeps track of the state of command
+<a name="1934"></a> *   window within the web UI.  
+<a name="1935"></a> */
+<a name="1936"></a>class WebCommandWin: WebWindow
+<a name="1937"></a>    /*
+<a name="1938"></a>     *   Write to the window 
+<a name="1939"></a>     */
+<a name="1940"></a>    write(txt)
+<a name="1941"></a>    {
+<a name="1942"></a>        /* add the text to the output buffer */
+<a name="1943"></a>        outbuf.append(txt);
+<a name="1944"></a>    }
+<a name="1945"></a>
+<a name="1946"></a>    /*
+<a name="1947"></a>     *   Flush the buffers 
+<a name="1948"></a>     */
+<a name="1949"></a>    flushWin()
+<a name="1950"></a>    {
+<a name="1951"></a>        /* get the current output buffer */
+<a name="1952"></a>        local txt = toString(outbuf).specialsToHtml(sthCtx);
+<a name="1953"></a>
+<a name="1954"></a>        /* add it to the state buffer (text since last input) */
+<a name="1955"></a>        textbuf.append(txt);
+<a name="1956"></a>
+<a name="1957"></a>        /* send the text to the client via an event */
+<a name="1958"></a>        sendWinEvent('&lt;say&gt;&lt;&lt;txt.htmlify()&gt;&gt;&lt;/say&gt;');
+<a name="1959"></a>
+<a name="1960"></a>        /* we've now processed the pending output buffer */
+<a name="1961"></a>        outbuf.deleteChars(1);
+<a name="1962"></a>    }
+<a name="1963"></a>
+<a name="1964"></a>    /*
+<a name="1965"></a>     *   Read a line of input in this window.  Blocks until the reply is
+<a name="1966"></a>     *   received.  Returns nil on timeout.  
+<a name="1967"></a>     */
+<a name="1968"></a>    getInputLine(timeout?)
+<a name="1969"></a>    {
+<a name="1970"></a>        /* flush buffered output */
+<a name="1971"></a>        flushWin();
+<a name="1972"></a>        
+<a name="1973"></a>        /* clear out the last input */
+<a name="1974"></a>        lastInput = nil;
+<a name="1975"></a>        lastInputClient = nil;
+<a name="1976"></a>        lastInputReady = nil;
+<a name="1977"></a>        
+<a name="1978"></a>        /* set the UI state */
+<a name="1979"></a>        mode = 'inputLine';
+<a name="1980"></a>        isInputOpen = true;
+<a name="1981"></a>        
+<a name="1982"></a>        /* send the inputLine event to the client */
+<a name="1983"></a>        sendWinEvent('&lt;inputLine/&gt;');
+<a name="1984"></a>        
+<a name="1985"></a>        /* process network events until we get our input or we time out */
+<a name="1986"></a>        processNetRequests(
+<a name="1987"></a>            {: lastInputReady || webMainWin.syntheticEventReady() },
+<a name="1988"></a>            timeout);
+<a name="1989"></a>
+<a name="1990"></a>        /* move the current textbuf contents to the scrollback list */
+<a name="1991"></a>        textbufToScrollback(lastInput);
+<a name="1992"></a>
+<a name="1993"></a>        /* back to 'working' mode */
+<a name="1994"></a>        mode = 'working';
+<a name="1995"></a>
+<a name="1996"></a>        /* check the result */
+<a name="1997"></a>        if (lastInput != nil)
+<a name="1998"></a>        {
+<a name="1999"></a>            /* we got a reply - mark the input line as closed in the UI */
+<a name="2000"></a>            isInputOpen = nil;
+<a name="2001"></a>
+<a name="2002"></a>            /* reset to the start of the line in the output context */
+<a name="2003"></a>            sthCtx.resetLine();
+<a name="2004"></a>
+<a name="2005"></a>            /* remember the source of the command */
+<a name="2006"></a>            webMainWin.curCmdClient = lastInputClient;
+<a name="2007"></a>
+<a name="2008"></a>            /* return the Line Input event */
+<a name="2009"></a>            return [InEvtLine, lastInput];
+<a name="2010"></a>        }
+<a name="2011"></a>        else if (webMainWin.syntheticEventReady())
+<a name="2012"></a>        {
+<a name="2013"></a>            /* there's a synthetic event available - return it */
+<a name="2014"></a>            return webMainWin.getSyntheticEvent();
+<a name="2015"></a>        }
+<a name="2016"></a>        else
+<a name="2017"></a>        {
+<a name="2018"></a>            /* we didn't get a reply, so we timed out */
+<a name="2019"></a>            return [InEvtTimeout, ''];
+<a name="2020"></a>        }
+<a name="2021"></a>    }
+<a name="2022"></a>
+<a name="2023"></a>    /*
+<a name="2024"></a>     *   Cancel an input line that was interrupted by a timeout 
+<a name="2025"></a>     */
+<a name="2026"></a>    cancelInputLine(reset)
+<a name="2027"></a>    {
+<a name="2028"></a>        /* if the input line is open, send the cancel event */
+<a name="2029"></a>        if (isInputOpen)
+<a name="2030"></a>        {
+<a name="2031"></a>            /* send the cancel event to the client */
+<a name="2032"></a>            sendWinEvent('&lt;cancelInputLine reset="&lt;&lt;
+<a name="2033"></a>                reset ? 'yes' : 'no'&gt;&gt;" /&gt;');
+<a name="2034"></a>
+<a name="2035"></a>            /* the input line is closed */
+<a name="2036"></a>            isInputOpen = nil;
+<a name="2037"></a>
+<a name="2038"></a>            /* reset to the start of the line in the output context */
+<a name="2039"></a>            sthCtx.resetLine();
+<a name="2040"></a>        }
+<a name="2041"></a>    }
+<a name="2042"></a>
+<a name="2043"></a>    /*
+<a name="2044"></a>     *   Get the state of this command window 
+<a name="2045"></a>     */
+<a name="2046"></a>    getState(client)
+<a name="2047"></a>    {
+<a name="2048"></a>        return '&lt;mode&gt;&lt;&lt;mode&gt;&gt;&lt;/mode&gt;&lt;scrollback&gt;'
+<a name="2049"></a>            + scrollback.join()
+<a name="2050"></a>            + '&lt;sbitem&gt;&lt;text&gt;&lt;&lt;toString(textbuf).htmlify()&gt;&gt;&lt;/text&gt;&lt;/sbitem&gt;'
+<a name="2051"></a>            + '&lt;/scrollback&gt;';
+<a name="2052"></a>    }
+<a name="2053"></a>
+<a name="2054"></a>    /*
+<a name="2055"></a>     *   Receive input from the client 
+<a name="2056"></a>     */
+<a name="2057"></a>    receiveInput(req, query)
+<a name="2058"></a>    {
+<a name="2059"></a>        /* remember the text */
+<a name="2060"></a>        lastInput = query['txt'];
+<a name="2061"></a>
+<a name="2062"></a>        /* remember the source of the input */
+<a name="2063"></a>        lastInputClient = ClientSession.find(req);
+<a name="2064"></a>
+<a name="2065"></a>        /* set the input-ready flag so we exit the modal input loop */
+<a name="2066"></a>        lastInputReady = true;
+<a name="2067"></a>
+<a name="2068"></a>        /* get the user who entered the command */
+<a name="2069"></a>        local user = (lastInputClient != nil
+<a name="2070"></a>                      ? lastInputClient.screenName : '');
+<a name="2071"></a>
+<a name="2072"></a>        /* tell any other windows listening in about the new input */
+<a name="2073"></a>        sendWinEvent('&lt;closeInputLine&gt;'
+<a name="2074"></a>                     + (lastInput != nil ?
+<a name="2075"></a>                        '&lt;text&gt;&lt;&lt;lastInput.htmlify()&gt;&gt;&lt;/text&gt;' : '')
+<a name="2076"></a>                     + '&lt;user&gt;&lt;&lt;user.htmlify()&gt;&gt;&lt;/user&gt;'
+<a name="2077"></a>                     + '&lt;/closeInputLine&gt;');
+<a name="2078"></a>
+<a name="2079"></a>        /* reset to the start of the line in the output context */
+<a name="2080"></a>        sthCtx.resetLine();
+<a name="2081"></a>    }
+<a name="2082"></a>
+<a name="2083"></a>    /*
+<a name="2084"></a>     *   Clear the window 
+<a name="2085"></a>     */
+<a name="2086"></a>    clearWindow()
+<a name="2087"></a>    {
+<a name="2088"></a>        /* flush the output buffer */
+<a name="2089"></a>        flushWin();
+<a name="2090"></a>
+<a name="2091"></a>        /* 
+<a name="2092"></a>         *   clear the transcript - if the user refreshes the browser
+<a name="2093"></a>         *   window, we want to show a blank window
+<a name="2094"></a>         */
+<a name="2095"></a>        textbuf.deleteChars(1);
+<a name="2096"></a>        scrollback.clear();
+<a name="2097"></a>
+<a name="2098"></a>        /* send a clear window event */
+<a name="2099"></a>        sendWinEvent('&lt;clearWindow/&gt;');
+<a name="2100"></a>
+<a name="2101"></a>        /* reset to the start of the line in the output context */
+<a name="2102"></a>        sthCtx.resetLine();
+<a name="2103"></a>    }
+<a name="2104"></a>
+<a name="2105"></a>    /*
+<a name="2106"></a>     *   Move the current text buffer contents to the scrollback list.  If
+<a name="2107"></a>     *   this would make the scrollback list exceed the limit, we'll drop
+<a name="2108"></a>     *   the oldest item.
+<a name="2109"></a>     *   
+<a name="2110"></a>     *   'cmd' is the command line text of the last input.  We include this
+<a name="2111"></a>     *   in the srollback list with special tagging so that the UI can
+<a name="2112"></a>     *   display it in a custom style, if it wants.  
+<a name="2113"></a>     */
+<a name="2114"></a>    textbufToScrollback(cmd)
+<a name="2115"></a>    {
+<a name="2116"></a>        /* get the current buffer, tagged as a &lt;text&gt; entry in the list */
+<a name="2117"></a>        local t = '&lt;text&gt;&lt;&lt;toString(textbuf).htmlify()&gt;&gt;&lt;/text&gt;';
+<a name="2118"></a>
+<a name="2119"></a>        /* add the command line tagged as &lt;input&gt; */
+<a name="2120"></a>        if (cmd != nil)
+<a name="2121"></a>            t += '&lt;input&gt;&lt;&lt;cmd.htmlify()&gt;&gt;&lt;/input&gt;';
+<a name="2122"></a>        
+<a name="2123"></a>        /* add the buffer to the scrollback list */
+<a name="2124"></a>        scrollback.append('&lt;sbitem&gt;&lt;&lt;t&gt;&gt;&lt;/sbitem&gt;');
+<a name="2125"></a>
+<a name="2126"></a>        /* if this pushes us past the limit, drop the oldest item */
+<a name="2127"></a>        if (scrollback.length() &gt; scrollbackLimit)
+<a name="2128"></a>            scrollback.shift();
+<a name="2129"></a>
+<a name="2130"></a>        /* clear text buffer */
+<a name="2131"></a>        textbuf.deleteChars(1);
+<a name="2132"></a>    }
+<a name="2133"></a>
+<a name="2134"></a>    /*
+<a name="2135"></a>     *   Show a "More" prompt 
+<a name="2136"></a>     */
+<a name="2137"></a>    showMorePrompt()
+<a name="2138"></a>    {
+<a name="2139"></a>        /* flush the output buffer */
+<a name="2140"></a>        flushWin();
+<a name="2141"></a>        
+<a name="2142"></a>        /* send a "More" prompt event to the UI */
+<a name="2143"></a>        sendWinEvent('&lt;morePrompt/&gt;');
+<a name="2144"></a>        mode = 'morePrompt';
+<a name="2145"></a>        moreMode = true;
+<a name="2146"></a>
+<a name="2147"></a>        /* process events until More mode is done */
+<a name="2148"></a>        processNetRequests({: !moreMode });
+<a name="2149"></a>
+<a name="2150"></a>        /* return the default mode */
+<a name="2151"></a>        mode = 'working';
+<a name="2152"></a>    }
+<a name="2153"></a>
+<a name="2154"></a>    /* 
+<a name="2155"></a>     *   receive notification from the client that the user has responded
+<a name="2156"></a>     *   to the More prompt, ending the pause
+<a name="2157"></a>     */
+<a name="2158"></a>    endMoreMode()
+<a name="2159"></a>    {
+<a name="2160"></a>        /* no longer in More mode */
+<a name="2161"></a>        moreMode = nil;
+<a name="2162"></a>    }
+<a name="2163"></a>
+<a name="2164"></a>    /* main window text buffer since last input read */
+<a name="2165"></a>    textbuf = perInstance(new StringBuffer(4096))
+<a name="2166"></a>
+<a name="2167"></a>    /*
+<a name="2168"></a>     *   Scrollback list.  After each input, we add the contents of
+<a name="2169"></a>     *   'textbuf' to this list.  If this pushes the list past the limit,
+<a name="2170"></a>     *   we drop the oldest item.  This is used to reconstruct a reasonable
+<a name="2171"></a>     *   amount of scrollback history when a new client connects, or when
+<a name="2172"></a>     *   an existing client refreshes the page.  
+<a name="2173"></a>     */
+<a name="2174"></a>    scrollback = perInstance(new Vector())
+<a name="2175"></a>
+<a name="2176"></a>    /*
+<a name="2177"></a>     *   The scrollback limit, as a number of command inputs.  Each input
+<a name="2178"></a>     *   interaction adds one item to the scrollback list.  When the number
+<a name="2179"></a>     *   of items in the list exceeds the limit set here, we drop the
+<a name="2180"></a>     *   oldest item.  
+<a name="2181"></a>     */
+<a name="2182"></a>    scrollbackLimit = 10
+<a name="2183"></a>
+<a name="2184"></a>    /* pending output buffer, since last flush */
+<a name="2185"></a>    outbuf = perInstance(new StringBuffer(4096))
+<a name="2186"></a>
+<a name="2187"></a>    /* the text of the last input line we received from the client */
+<a name="2188"></a>    lastInput = nil
+<a name="2189"></a>
+<a name="2190"></a>    /* is input ready? */
+<a name="2191"></a>    lastInputReady = nil
+<a name="2192"></a>
+<a name="2193"></a>    /* client session who sent the last input line */
+<a name="2194"></a>    lastInputClient = nil
+<a name="2195"></a>
+<a name="2196"></a>    /* 
+<a name="2197"></a>     *   Is an input line open?  This is true between sending an
+<a name="2198"></a>     *   &lt;inputLine&gt; event and either getting a reply, or explicitly
+<a name="2199"></a>     *   sending a close or cancel event. 
+<a name="2200"></a>     */
+<a name="2201"></a>    isInputOpen = nil
+<a name="2202"></a>
+<a name="2203"></a>    /* flag: we're in More mode */
+<a name="2204"></a>    moreMode = nil
+<a name="2205"></a>
+<a name="2206"></a>    /* 
+<a name="2207"></a>     *   Current UI mode.  This is 'working' if the program is running and
+<a name="2208"></a>     *   in the process of computing and/or generating output; 'inputLine'
+<a name="2209"></a>     *   if we're waiting for the user to enter a line of input;
+<a name="2210"></a>     *   'morePrompt' if we're showing a "More" prompt.  
+<a name="2211"></a>     */
+<a name="2212"></a>    mode = 'working'
+<a name="2213"></a>
+<a name="2214"></a>    /* my virtual path, and the actual resource file location */
+<a name="2215"></a>    vpath = '/cmdwin.htm'
+<a name="2216"></a>    src = 'webuires/cmdwin.htm'
+<a name="2217"></a>;
+<a name="2218"></a>
+<a name="2219"></a>/* 
+<a name="2220"></a> *   input-line event page 
+<a name="2221"></a> */
+<a name="2222"></a>inputLinePage: WebResource
+<a name="2223"></a>    vpath = '/webui/inputLine'
+<a name="2224"></a>    processRequest(req, query)
+<a name="2225"></a>    {
+<a name="2226"></a>        /* find the window */
+<a name="2227"></a>        local w = webMainWin.winFromPath(query['window']);
+<a name="2228"></a>
+<a name="2229"></a>        /* dispatch to the window if we found it */
+<a name="2230"></a>        if (w != nil)
+<a name="2231"></a>        {
+<a name="2232"></a>            /* send the input to the window */
+<a name="2233"></a>            w.receiveInput(req, query);
+<a name="2234"></a>
+<a name="2235"></a>            /* acknowledge the request */
+<a name="2236"></a>            sendAck(req);
+<a name="2237"></a>        }
+<a name="2238"></a>        else
+<a name="2239"></a>            req.sendReply(406);
+<a name="2240"></a>    }
+<a name="2241"></a>;
+<a name="2242"></a>
+<a name="2243"></a>/*
+<a name="2244"></a> *   "More" prompt done event page
+<a name="2245"></a> */
+<a name="2246"></a>morePromptDonePage: WebResource
+<a name="2247"></a>    vpath = '/webui/morePromptDone'
+<a name="2248"></a>    processRequest(req, query)
+<a name="2249"></a>    {
+<a name="2250"></a>        /* find the target winodw */
+<a name="2251"></a>        local w = webMainWin.winFromPath(query['window']);
+<a name="2252"></a>        if (w != nil)
+<a name="2253"></a>        {
+<a name="2254"></a>            /* release More mode in the server window */
+<a name="2255"></a>            w.endMoreMode();
+<a name="2256"></a>
+<a name="2257"></a>            /* acknowledge the request */
+<a name="2258"></a>            sendAck(req);
+<a name="2259"></a>        }
+<a name="2260"></a>        else
+<a name="2261"></a>            req.sendReply(406);
+<a name="2262"></a>    }
+<a name="2263"></a>;
+<a name="2264"></a>
+<a name="2265"></a>
+<a name="2266"></a>/* ------------------------------------------------------------------------ */
+<a name="2267"></a>/*
+<a name="2268"></a> *   Set Preferences command
+<a name="2269"></a> */
+<a name="2270"></a>setPrefsPage: WebResource
+<a name="2271"></a>    vpath = '/webui/setPrefs'
+<a name="2272"></a>    processRequest(req, query)
+<a name="2273"></a>    {
+<a name="2274"></a>        /* get the request body */
+<a name="2275"></a>        local f = req.getBody();
+<a name="2276"></a>        if (f == nil)
+<a name="2277"></a>        {
+<a name="2278"></a>            errorReply(req, 'Error saving preferences: no data received');
+<a name="2279"></a>            return;
+<a name="2280"></a>        }
+<a name="2281"></a>        else if (f == 'overflow')
+<a name="2282"></a>        {
+<a name="2283"></a>            errorReply(req, 'Error saving preferences: message too large');
+<a name="2284"></a>            return;
+<a name="2285"></a>        }
+<a name="2286"></a>
+<a name="2287"></a>        /* get the client session for the request */
+<a name="2288"></a>        local cli = ClientSession.find(req);
+<a name="2289"></a>        if (cli == nil)
+<a name="2290"></a>        {
+<a name="2291"></a>            errorReply(req, 'Error saving preferences: missing session');
+<a name="2292"></a>            return;
+<a name="2293"></a>        }
+<a name="2294"></a>
+<a name="2295"></a>        /* process the file through the profile reader */
+<a name="2296"></a>        cli.uiPrefs.readSettings(f);
+<a name="2297"></a>
+<a name="2298"></a>        /* save the updated settings */
+<a name="2299"></a>        cli.uiPrefs.saveSettings();
+<a name="2300"></a>
+<a name="2301"></a>        /* done with the file */
+<a name="2302"></a>        f.closeFile();
+<a name="2303"></a>
+<a name="2304"></a>        /* done - acknowledge the request */
+<a name="2305"></a>        sendAck(req);
+<a name="2306"></a>    }
+<a name="2307"></a>
+<a name="2308"></a>    /* send an error as the reply to a request, formatted into XML */
+<a name="2309"></a>    errorReply(req, msg)
+<a name="2310"></a>    {
+<a name="2311"></a>        sendXML(req, 'reply', '&lt;error&gt;&lt;&lt;msg.htmlify()&gt;&gt;&lt;/error&gt;');
+<a name="2312"></a>    }
+<a name="2313"></a>;
+<a name="2314"></a>
+<a name="2315"></a>/*
+<a name="2316"></a> *   UI Settings list.  This represents a named UI settings profile in the
+<a name="2317"></a> *   Web UI.  A profile is a list of name/value pairs.
+<a name="2318"></a> *   
+<a name="2319"></a> *   Most of the name keys are style IDs defined in the javascript for on
+<a name="2320"></a> *   the UI side - see main.js.  These style IDs are arbitrary keys we
+<a name="2321"></a> *   define to identify UI elements - "mainFont" for the main font name,
+<a name="2322"></a> *   "statusBkg" for the status-line window's background color, etc.  Each
+<a name="2323"></a> *   style ID generally corresponds to a dialog control widget in the
+<a name="2324"></a> *   preferences dialog in the javascript UI, and also corresponds to one
+<a name="2325"></a> *   or more CSS style selectors.  The mapping from style ID to CSS is
+<a name="2326"></a> *   defined in the UI javascript (see prefsMapper in main.js).
+<a name="2327"></a> *   
+<a name="2328"></a> *   The non-style key "profileName" is the user-visible name of this
+<a name="2329"></a> *   profile.  Internally, we refer to profiles using ID values, which are
+<a name="2330"></a> *   arbitrary identifiers generated by the UI when it creates a new
+<a name="2331"></a> *   profile (it currently uses integer keys).  
+<a name="2332"></a> */
+<a name="2333"></a>class WebUIProfile: object
+<a name="2334"></a>    construct(id)
+<a name="2335"></a>    {
+<a name="2336"></a>        self.profileID = id;
+<a name="2337"></a>        self.settings = new LookupTable();
+<a name="2338"></a>    }
+<a name="2339"></a>
+<a name="2340"></a>    /* set a preference item in the profile */
+<a name="2341"></a>    setItem(id, val)
+<a name="2342"></a>    {
+<a name="2343"></a>        settings[id] = val;
+<a name="2344"></a>    }
+<a name="2345"></a>
+<a name="2346"></a>    /* call a callback for each style: func(id, val) */
+<a name="2347"></a>    forEach(func)
+<a name="2348"></a>    {
+<a name="2349"></a>        settings.forEachAssoc(func);
+<a name="2350"></a>    }
+<a name="2351"></a>
+<a name="2352"></a>    /* internal ID of the profile */
+<a name="2353"></a>    profileID = ''
+<a name="2354"></a>
+<a name="2355"></a>    /* table of style value strings, keyed by style ID */
+<a name="2356"></a>    settings = nil
+<a name="2357"></a>;
+<a name="2358"></a>
+<a name="2359"></a>/*
+<a name="2360"></a> *   Web UI preferences.  This object contains the in-memory version of the
+<a name="2361"></a> *   display style preferences file.
+<a name="2362"></a> *   
+<a name="2363"></a> *   Each client session has its own copy of this object, because each
+<a name="2364"></a> *   client can be associated with a different user, and each user has
+<a name="2365"></a> *   their own preferences file.  
+<a name="2366"></a> */
+<a name="2367"></a>class WebUIPrefs: object
+<a name="2368"></a>    construct(c)
+<a name="2369"></a>    {
+<a name="2370"></a>        /* remember our client session object */
+<a name="2371"></a>        clientSession = c;
+<a name="2372"></a>
+<a name="2373"></a>        /* load the initial settings from the user's config file */
+<a name="2374"></a>        loadSettings();
+<a name="2375"></a>    }
+<a name="2376"></a>
+<a name="2377"></a>    /* read the settings file */
+<a name="2378"></a>    loadSettings()
+<a name="2379"></a>    {
+<a name="2380"></a>        /* open the preferences file; do nothing if that fails */
+<a name="2381"></a>        local f = openSettingsFile(FileAccessRead);
+<a name="2382"></a>        if (f == nil)
+<a name="2383"></a>            return;
+<a name="2384"></a>
+<a name="2385"></a>        /* read the settings from the file */
+<a name="2386"></a>        readSettings(f);
+<a name="2387"></a>
+<a name="2388"></a>        /* done with the file */
+<a name="2389"></a>        f.closeFile();
+<a name="2390"></a>    }
+<a name="2391"></a>
+<a name="2392"></a>    /* read settings from a file */
+<a name="2393"></a>    readSettings(f)
+<a name="2394"></a>    {
+<a name="2395"></a>        /* set up our table of profiles */
+<a name="2396"></a>        local pros = profileTab = new LookupTable();
+<a name="2397"></a>
+<a name="2398"></a>        /* we don't have a current profile selection yet */
+<a name="2399"></a>        curProfile = nil;
+<a name="2400"></a>
+<a name="2401"></a>        /* read the file */
+<a name="2402"></a>        for (;;)
+<a name="2403"></a>        {
+<a name="2404"></a>            /* read the next line */
+<a name="2405"></a>            local l = f.readFile();
+<a name="2406"></a>            if (l == nil)
+<a name="2407"></a>                break;
+<a name="2408"></a>
+<a name="2409"></a>            /* if it's a valid line, process it */
+<a name="2410"></a>            if (rexMatch(curProPat, l) != nil)
+<a name="2411"></a>            {
+<a name="2412"></a>                /* current profile setting */
+<a name="2413"></a>                curProfile = rexGroup(1)[3];
+<a name="2414"></a>            }
+<a name="2415"></a>            else if (rexMatch(proItemPat, l) != nil)
+<a name="2416"></a>            {
+<a name="2417"></a>                /* style item definition - pull out the parts */
+<a name="2418"></a>                local proid = rexGroup(1)[3];
+<a name="2419"></a>                local key = rexGroup(2)[3];
+<a name="2420"></a>                local val = rexGroup(3)[3];
+<a name="2421"></a>
+<a name="2422"></a>                /* if the profile isn't in the table yet, add it */
+<a name="2423"></a>                local pro = pros[proid];
+<a name="2424"></a>                if (pro == nil)
+<a name="2425"></a>                    pros[proid] = pro = new WebUIProfile(proid);
+<a name="2426"></a>
+<a name="2427"></a>                /* add this item to the table */
+<a name="2428"></a>                pro.setItem(key, val);
+<a name="2429"></a>            }
+<a name="2430"></a>        }
+<a name="2431"></a>    }
+<a name="2432"></a>
+<a name="2433"></a>    /* current profile ID pattern - current-profile:xxx */
+<a name="2434"></a>    curProPat = static new RexPattern('current-profile=([^\n]*)\n?$')
+<a name="2435"></a>
+<a name="2436"></a>    /* setting ID pattern for profile items - nnn.xxx=yyy */
+<a name="2437"></a>    proItemPat = static new RexPattern('([^.]+)%.([^=]+)=([^\n]*)\n?$')
+<a name="2438"></a>
+<a name="2439"></a>    /* save the current settings to the user's config file */
+<a name="2440"></a>    saveSettings()
+<a name="2441"></a>    {
+<a name="2442"></a>        /* if there's no profile table, there's nothing to write */
+<a name="2443"></a>        if (profileTab == nil)
+<a name="2444"></a>            return;
+<a name="2445"></a>
+<a name="2446"></a>        try
+<a name="2447"></a>        {
+<a name="2448"></a>            /* open the preferences file; do nothing if that fails */
+<a name="2449"></a>            local f = openSettingsFile(FileAccessWrite);
+<a name="2450"></a>            if (f == nil)
+<a name="2451"></a>                return;
+<a name="2452"></a>            
+<a name="2453"></a>            /* write the current profile ID */
+<a name="2454"></a>            f.writeFile('current-profile=&lt;&lt;curProfile&gt;&gt;\n');
+<a name="2455"></a>            
+<a name="2456"></a>            /* write the profiles */
+<a name="2457"></a>            profileTab.forEachAssoc(function(id, pro) 
+<a name="2458"></a>            {
+<a name="2459"></a>                /* write each element of this profile */
+<a name="2460"></a>                pro.forEach(function(key, val)
+<a name="2461"></a>                {
+<a name="2462"></a>                    /* write this profile item */
+<a name="2463"></a>                    f.writeFile('&lt;&lt;id&gt;&gt;.&lt;&lt;key&gt;&gt;=&lt;&lt;val&gt;&gt;\n');
+<a name="2464"></a>                });
+<a name="2465"></a>            });
+<a name="2466"></a>
+<a name="2467"></a>            /* done with the file */
+<a name="2468"></a>            f.closeFile();
+<a name="2469"></a>        }
+<a name="2470"></a>        catch (Exception e)
+<a name="2471"></a>        {
+<a name="2472"></a>            /* 
+<a name="2473"></a>             *   couldn't save the file; this isn't fatal, so just log an
+<a name="2474"></a>             *   error event 
+<a name="2475"></a>             */
+<a name="2476"></a>            webMainWin.postSyntheticEvent(
+<a name="2477"></a>                'logError', 'An error occurred saving your setting changes.
+<a name="2478"></a>                    (Details: &lt;&lt;e.getExceptionMessage()&gt;&gt;)');
+<a name="2479"></a>        }
+<a name="2480"></a>    }
+<a name="2481"></a>
+<a name="2482"></a>    /* open the settings file */
+<a name="2483"></a>    openSettingsFile(access)
+<a name="2484"></a>    {
+<a name="2485"></a>        /* get the filename; abort if we don't have a file */
+<a name="2486"></a>        local name = getSettingsFile();
+<a name="2487"></a>        if (name == nil)
+<a name="2488"></a>            return nil;
+<a name="2489"></a>
+<a name="2490"></a>        /* open the file */
+<a name="2491"></a>        try
+<a name="2492"></a>        {
+<a name="2493"></a>            /* open the file and return the handle */
+<a name="2494"></a>            return File.openTextFile(name, access, 'ascii');
+<a name="2495"></a>        }
+<a name="2496"></a>        catch (Exception exc)
+<a name="2497"></a>        {
+<a name="2498"></a>            /* failed to open the file */
+<a name="2499"></a>            return nil;
+<a name="2500"></a>        }
+<a name="2501"></a>    }
+<a name="2502"></a>
+<a name="2503"></a>    /* get the settings file path */
+<a name="2504"></a>    getSettingsFile()
+<a name="2505"></a>    {
+<a name="2506"></a>        /* if we're in local stand-alone mode, use the local Web UI file */
+<a name="2507"></a>        if (getLaunchHostAddr() == nil)
+<a name="2508"></a>            return WebUIPrefsFile;
+<a name="2509"></a>
+<a name="2510"></a>        /* if there's a storage server session, the file is on the server */
+<a name="2511"></a>        if (clientSession.storageSID != nil)
+<a name="2512"></a>            return '~&lt;&lt;clientSession.storageSID&gt;&gt;/special/2';
+<a name="2513"></a>
+<a name="2514"></a>        /* 
+<a name="2515"></a>         *   We're in client/server mode, but there's no storage server.
+<a name="2516"></a>         *   In this mode, we don't have any server-side location to store
+<a name="2517"></a>         *   files, so we can't save or restore the configuration.
+<a name="2518"></a>         */
+<a name="2519"></a>        return nil;
+<a name="2520"></a>    }
+<a name="2521"></a>
+<a name="2522"></a>    /* get the current settings as XML, to send to the web UI */
+<a name="2523"></a>    getXML()
+<a name="2524"></a>    {
+<a name="2525"></a>        /* if there's no profile table, there are no settings to return */
+<a name="2526"></a>        if (profileTab == nil)
+<a name="2527"></a>            return '';
+<a name="2528"></a>
+<a name="2529"></a>        /* create a buffer for the results */
+<a name="2530"></a>        local s = new StringBuffer();
+<a name="2531"></a>
+<a name="2532"></a>        /* add the current profile */
+<a name="2533"></a>        s.append('&lt;currentProfile&gt;&lt;&lt;curProfile&gt;&gt;&lt;/currentProfile&gt;');
+<a name="2534"></a>
+<a name="2535"></a>        /* add each profile's contents */
+<a name="2536"></a>        profileTab.forEachAssoc(function(id, pro)
+<a name="2537"></a>        {
+<a name="2538"></a>            /* open this profile section */
+<a name="2539"></a>            s.append('&lt;profile&gt;&lt;id&gt;&lt;&lt;id&gt;&gt;&lt;/id&gt;');
+<a name="2540"></a>
+<a name="2541"></a>            /* add each style element */
+<a name="2542"></a>            pro.forEach(function(id, val) {
+<a name="2543"></a>                s.append('&lt;item&gt;'
+<a name="2544"></a>                         + '&lt;id&gt;&lt;&lt;id.htmlify()&gt;&gt;&lt;/id&gt;'
+<a name="2545"></a>                         + '&lt;value&gt;&lt;&lt;val.htmlify()&gt;&gt;&lt;/value&gt;'
+<a name="2546"></a>                         + '&lt;/item&gt;');
+<a name="2547"></a>            });
+<a name="2548"></a>
+<a name="2549"></a>            /* close this profile's section */
+<a name="2550"></a>            s.append('&lt;/profile&gt;');
+<a name="2551"></a>        });
+<a name="2552"></a>
+<a name="2553"></a>        /* return the result as an XML string */
+<a name="2554"></a>        return toString(s);
+<a name="2555"></a>    }
+<a name="2556"></a>
+<a name="2557"></a>    /* the client session for this preference list */
+<a name="2558"></a>    clientSession = nil
+<a name="2559"></a>
+<a name="2560"></a>    /* 
+<a name="2561"></a>     *   profile table - this is a LookupTable of WebUIProfile objects
+<a name="2562"></a>     *   keyed by profile name 
+<a name="2563"></a>     */
+<a name="2564"></a>    profileTab = nil
+<a name="2565"></a>
+<a name="2566"></a>    /* current active profile selected by the user */
+<a name="2567"></a>    curProfile = nil
+<a name="2568"></a>;
+<a name="2569"></a>
+<a name="2570"></a>
+<a name="2571"></a>/* ------------------------------------------------------------------------ */
+<a name="2572"></a>/*
+<a name="2573"></a> *   Status line window 
+<a name="2574"></a> */
+<a name="2575"></a>class WebStatusWin: WebWindow
+<a name="2576"></a>    /* my request path and actual resource path */
+<a name="2577"></a>    vpath = '/statwin.htm'
+<a name="2578"></a>    src = 'webuires/statwin.htm'
+<a name="2579"></a>
+<a name="2580"></a>    /* 
+<a name="2581"></a>     *   Set the room and score/turns portions of the status line.  This
+<a name="2582"></a>     *   sets the left side of the status line to the 'room' text (which
+<a name="2583"></a>     *   can contain HTML markups), and the right side to the the
+<a name="2584"></a>     *   score/turns values, if present.  If the turn counter is omitted
+<a name="2585"></a>     *   but the score value is present, we'll just show the score value;
+<a name="2586"></a>     *   otherwise we'll format these as "score/turns".  If no score value
+<a name="2587"></a>     *   is present, we'll leave the right side blank.  
+<a name="2588"></a>     */
+<a name="2589"></a>    setStatus(room, score?, turns?)
+<a name="2590"></a>    {
+<a name="2591"></a>        /* set up the room text in the left portion */
+<a name="2592"></a>        local msg = '&lt;div class="statusleft"&gt;&lt;&lt;room&gt;&gt;&lt;/div&gt;';
+<a name="2593"></a>
+<a name="2594"></a>        /* 
+<a name="2595"></a>         *   format the right side: 'score/turns', 'score', or empty,
+<a name="2596"></a>         *   depending on what the caller specified 
+<a name="2597"></a>         */
+<a name="2598"></a>        local rt = (score != nil ? toString(score) : '')
+<a name="2599"></a>            + (turns != nil ? '/' + turns : '');
+<a name="2600"></a>
+<a name="2601"></a>        /* if there's a right side, wrap it with right alignment */
+<a name="2602"></a>        if (rt != '')
+<a name="2603"></a>            msg += '&lt;div class="statusright"&gt;&lt;&lt;rt&gt;&gt;&lt;/div&gt;';
+<a name="2604"></a>
+<a name="2605"></a>        /* 
+<a name="2606"></a>         *   our left/right divisions are floats, which some browsers don't
+<a name="2607"></a>         *   count against the container size; so add a clear:all division
+<a name="2608"></a>         *   to make sure we count the height properly 
+<a name="2609"></a>         */
+<a name="2610"></a>        msg += '&lt;div style="clear: both;"&gt;&lt;/div&gt;';
+<a name="2611"></a>
+<a name="2612"></a>        /* set the text */
+<a name="2613"></a>        setStatusText(msg);
+<a name="2614"></a>    }
+<a name="2615"></a>
+<a name="2616"></a>    /* 
+<a name="2617"></a>     *   Set the text of the status line.  This sets the entire status
+<a name="2618"></a>     *   window to the given HTML text, without any additional formatting.
+<a name="2619"></a>     */
+<a name="2620"></a>    setStatusText(msg)
+<a name="2621"></a>    {
+<a name="2622"></a>        /* setting new text, so reset the stream context */
+<a name="2623"></a>        sthCtx.resetState();
+<a name="2624"></a>
+<a name="2625"></a>        /* set the new text */
+<a name="2626"></a>        txt_.deleteChars(1);
+<a name="2627"></a>        txt_.append(msg.specialsToHtml(sthCtx));
+<a name="2628"></a>
+<a name="2629"></a>        /* note that we have new text to send to the UI */
+<a name="2630"></a>        deltas_ = true;
+<a name="2631"></a>    }
+<a name="2632"></a>
+<a name="2633"></a>    /* add text to the status line */
+<a name="2634"></a>    write(msg)
+<a name="2635"></a>    {
+<a name="2636"></a>        /* add the text */
+<a name="2637"></a>        txt_.append(msg.specialsToHtml(sthCtx));
+<a name="2638"></a>
+<a name="2639"></a>        /* note that we have new text to send to the UI */
+<a name="2640"></a>        deltas_ = true;
+<a name="2641"></a>    }
+<a name="2642"></a>
+<a name="2643"></a>    /* clear the window */
+<a name="2644"></a>    clearWindow()
+<a name="2645"></a>    {
+<a name="2646"></a>        setStatusText('');
+<a name="2647"></a>    }
+<a name="2648"></a>
+<a name="2649"></a>    /* flush pending text to the window */
+<a name="2650"></a>    flushWin()
+<a name="2651"></a>    {
+<a name="2652"></a>        /* if we have any deltas since the last flush, send changes */
+<a name="2653"></a>        if (deltas_)
+<a name="2654"></a>        {
+<a name="2655"></a>            /* 
+<a name="2656"></a>             *   Send a set-text event, along with a resize.  The resize
+<a name="2657"></a>             *   ensures that the status line adjusts to the current
+<a name="2658"></a>             *   content size, assuming the window is using automatic
+<a name="2659"></a>             *   content-height sizing.  
+<a name="2660"></a>             */
+<a name="2661"></a>            sendWinEvent(
+<a name="2662"></a>                '&lt;text&gt;&lt;&lt;toString(txt_).htmlify()&gt;&gt;&lt;/text&gt;&lt;resize/&gt;');
+<a name="2663"></a>
+<a name="2664"></a>            /* reset the deltas counter */
+<a name="2665"></a>            deltas_ = nil;
+<a name="2666"></a>        }
+<a name="2667"></a>    }
+<a name="2668"></a>
+<a name="2669"></a>    /*
+<a name="2670"></a>     *   Refigure the window size.  The status line is generally set up to
+<a name="2671"></a>     *   be automatically sized to its contents, which requires that we
+<a name="2672"></a>     *   tell the UI when it's time to recalculate the layout to reflect
+<a name="2673"></a>     *   the current contents after a change.  
+<a name="2674"></a>     */
+<a name="2675"></a>    resize() { sendWinEvent('&lt;resize/&gt;'); }
+<a name="2676"></a>
+<a name="2677"></a>    /* get the current state to send to the browser */
+<a name="2678"></a>    getState(client)
+<a name="2679"></a>    {
+<a name="2680"></a>        return '&lt;text&gt;&lt;&lt;toString(txt_).htmlify()&gt;&gt;&lt;/text&gt;';
+<a name="2681"></a>    }
+<a name="2682"></a>
+<a name="2683"></a>    /* do we have any deltas since the last flush? */
+<a name="2684"></a>    deltas_ = nil
+<a name="2685"></a>
+<a name="2686"></a>    /* the current status message */
+<a name="2687"></a>    txt_ = perInstance(new StringBuffer(512))
+<a name="2688"></a>;
+<a name="2689"></a>
+<a name="2690"></a>/* ------------------------------------------------------------------------ */
+<a name="2691"></a>/*
+<a name="2692"></a> *   The standard "main window" of our user interface.  This is the game
+<a name="2693"></a> *   object that represents the default initial HTML page that the player's
+<a name="2694"></a> *   web browser connects to.  We build this out of three base classes:
+<a name="2695"></a> *   
+<a name="2696"></a> *   - WebResourceInit, because this is the starting page that the browser
+<a name="2697"></a> *   initially connects to.  This class does the initial handshaking to set
+<a name="2698"></a> *   up the session.
+<a name="2699"></a> *   
+<a name="2700"></a> *   - WebResourceResFile, because we store the HTML for the page in a
+<a name="2701"></a> *   resource file.  This class does the work of sending the resource
+<a name="2702"></a> *   file's contents to the browser.
+<a name="2703"></a> *   
+<a name="2704"></a> *   - WebLayoutWindow, because the default main page is also a layout
+<a name="2705"></a> *   window, which is basically a container for IFRAME elements where we
+<a name="2706"></a> *   plug in the sub-windows that make up the game's user interface.
+<a name="2707"></a> *   
+<a name="2708"></a> *   Games can customize the front page in any way they like.  If you want
+<a name="2709"></a> *   to customize the HTML of the main page, you can substitute a different
+<a name="2710"></a> *   HTML (.htm) file, and change the processName() method to return the
+<a name="2711"></a> *   name of that file.  If you want to use something other than a layout
+<a name="2712"></a> *   window as the front page, you can simply replace this whole class.  
+<a name="2713"></a> */
+<a name="2714"></a>transient webMainWin: WebResourceInit, WebLayoutWindow, WebResourceResFile
+<a name="2715"></a>    /* 
+<a name="2716"></a>     *   match the webuires directory path as the URL path, but map this to
+<a name="2717"></a>     *   main.htm as the underlying resource name 
+<a name="2718"></a>     */
+<a name="2719"></a>    vpath = '/'
+<a name="2720"></a>    processName(n) { return 'webuires/main.htm'; }
+<a name="2721"></a>
+<a name="2722"></a>    /* the top window is always called "main" */
+<a name="2723"></a>    name = 'main'
+<a name="2724"></a>    pathName = 'main'
+<a name="2725"></a>
+<a name="2726"></a>    /* the window title */
+<a name="2727"></a>    title = 'TADS'
+<a name="2728"></a>
+<a name="2729"></a>    /* set the window title */
+<a name="2730"></a>    setTitle(title)
+<a name="2731"></a>    {
+<a name="2732"></a>        /* remember the title */
+<a name="2733"></a>        self.title = title;
+<a name="2734"></a>
+<a name="2735"></a>        /* update the browser */
+<a name="2736"></a>        sendWinEvent('&lt;setTitle&gt;&lt;&lt;title.htmlify()&gt;&gt;&lt;/setTitle&gt;');
+<a name="2737"></a>    }
+<a name="2738"></a>
+<a name="2739"></a>    /*
+<a name="2740"></a>     *   Client session for current command line input.  Certain modal
+<a name="2741"></a>     *   interactions, such as file dialogs, are directed only to the
+<a name="2742"></a>     *   client that initiated the current command.  
+<a name="2743"></a>     */
+<a name="2744"></a>    curCmdClient = nil
+<a name="2745"></a>
+<a name="2746"></a>    /* get the state */
+<a name="2747"></a>    getState(client)
+<a name="2748"></a>    {
+<a name="2749"></a>        /* get the inherited layout state */
+<a name="2750"></a>        local s = inherited(client);
+<a name="2751"></a>
+<a name="2752"></a>        /* add the preference settings */
+<a name="2753"></a>        s += '&lt;prefs&gt;&lt;&lt;client.uiPrefs.getXML()&gt;&gt;&lt;/prefs&gt;';
+<a name="2754"></a>
+<a name="2755"></a>        /* add the window title */
+<a name="2756"></a>        s += '&lt;title&gt;&lt;&lt;title.htmlify()&gt;&gt;&lt;/title&gt;';
+<a name="2757"></a>
+<a name="2758"></a>        /* add the input event, input file, and input dialog states */
+<a name="2759"></a>        s += inputEventState;
+<a name="2760"></a>        s += inputDialogState;
+<a name="2761"></a>        s += menuSysState;
+<a name="2762"></a>
+<a name="2763"></a>        /* if this is the command client, include the file dialog state */
+<a name="2764"></a>        if (client == curCmdClient)
+<a name="2765"></a>            s += fileDialogState;
+<a name="2766"></a>
+<a name="2767"></a>        /* add the downloadable file list */
+<a name="2768"></a>        s += client.allDownloads().mapAll(
+<a name="2769"></a>            { x: x.isReady
+<a name="2770"></a>              ? '&lt;offerDownload&gt;&lt;&lt;x.resPath.htmlify()&gt;&gt;&lt;/offerDownload&gt;'
+<a name="2771"></a>              : '' }
+<a name="2772"></a>            ).join();
+<a name="2773"></a>
+<a name="2774"></a>        /* return the result */
+<a name="2775"></a>        return s;
+<a name="2776"></a>    }
+<a name="2777"></a>
+<a name="2778"></a>    /* wait for an input event */
+<a name="2779"></a>    getInputEvent(timeout)
+<a name="2780"></a>    {
+<a name="2781"></a>        /* flush buffered output */
+<a name="2782"></a>        flushWin();
+<a name="2783"></a>
+<a name="2784"></a>        /* send the get-event request to the client */
+<a name="2785"></a>        inputEventState = '&lt;getInputEvent/&gt;';
+<a name="2786"></a>        inputEventResult = nil;
+<a name="2787"></a>        sendWinEvent(inputEventState);
+<a name="2788"></a>
+<a name="2789"></a>        /* process network events until we get an input event */
+<a name="2790"></a>        processNetRequests({: inputEventResult != nil }, timeout);
+<a name="2791"></a>
+<a name="2792"></a>        /* check what happened */
+<a name="2793"></a>        if (inputEventResult)
+<a name="2794"></a>        {
+<a name="2795"></a>            /* we got an input event - return it */
+<a name="2796"></a>            return inputEventResult;
+<a name="2797"></a>        }
+<a name="2798"></a>        else
+<a name="2799"></a>        {
+<a name="2800"></a>            /* 
+<a name="2801"></a>             *   There's no result, so we timed out.  Tell the UI to cancel
+<a name="2802"></a>             *   the input event mode.  
+<a name="2803"></a>             */
+<a name="2804"></a>            inputEventState = '';
+<a name="2805"></a>            sendWinEvent('&lt;cancelInputEvent/&gt;');
+<a name="2806"></a>
+<a name="2807"></a>            /* return a timeout event */
+<a name="2808"></a>            return [InEvtTimeout];
+<a name="2809"></a>        }
+<a name="2810"></a>    }
+<a name="2811"></a>
+<a name="2812"></a>    /* receive an input event */
+<a name="2813"></a>    receiveInputEvent(req, query)
+<a name="2814"></a>    {
+<a name="2815"></a>        local typ = query['type'];
+<a name="2816"></a>        local param = query['param'];
+<a name="2817"></a>
+<a name="2818"></a>        switch (typ)
+<a name="2819"></a>        {
+<a name="2820"></a>        case 'key':
+<a name="2821"></a>            inputEventResult = [InEvtKey, param];
+<a name="2822"></a>            break;
+<a name="2823"></a>
+<a name="2824"></a>        case 'href':
+<a name="2825"></a>            inputEventResult = [InEvtHref, param];
+<a name="2826"></a>            break;
+<a name="2827"></a>
+<a name="2828"></a>        default:
+<a name="2829"></a>            inputEventResult = [InEvtEof];
+<a name="2830"></a>            break;
+<a name="2831"></a>        }
+<a name="2832"></a>    }
+<a name="2833"></a>
+<a name="2834"></a>    /* show the file selector dialog */
+<a name="2835"></a>    getInputFile(prompt, dialogType, fileType, flags)
+<a name="2836"></a>    {
+<a name="2837"></a>        /* mappings from FileTypeXxx to storage manager type codes */
+<a name="2838"></a>        local typeMap = [
+<a name="2839"></a>            FileTypeLog -&gt; 'log',
+<a name="2840"></a>            FileTypeData -&gt; 'dat',
+<a name="2841"></a>            FileTypeCmd -&gt; 'cmd',
+<a name="2842"></a>            FileTypeText -&gt; 'txt',
+<a name="2843"></a>            FileTypeBin -&gt; 'bin',
+<a name="2844"></a>            FileTypeT3Image -&gt; 't3',
+<a name="2845"></a>            FileTypeT3Save -&gt; 't3v',
+<a name="2846"></a>            * -&gt; '*'];
+<a name="2847"></a>
+<a name="2848"></a>        /* get the storage server session for the command client */
+<a name="2849"></a>        local sid = curCmdClient.storageSID;
+<a name="2850"></a>
+<a name="2851"></a>        /* 
+<a name="2852"></a>         *   If we have a session, get the URL to the storage server file
+<a name="2853"></a>         *   selection dialog.  Note that we don't specify the session in
+<a name="2854"></a>         *   the URL, since the storage server separately maintains the
+<a name="2855"></a>         *   session with the client via a cookie.  
+<a name="2856"></a>         */
+<a name="2857"></a>        local url = nil;
+<a name="2858"></a>        if (sid != nil)
+<a name="2859"></a>            url = getNetStorageURL(
+<a name="2860"></a>                'fileDialog?filetype=&lt;&lt;typeMap[fileType]&gt;&gt;'
+<a name="2861"></a>                + '&amp;dlgtype=&lt;&lt;dialogType == InFileOpen ? 'open' : 'save'&gt;&gt;'
+<a name="2862"></a>                + '&amp;prompt=&lt;&lt;prompt.urlEncode()&gt;&gt;'
+<a name="2863"></a>                + '&amp;ret=&lt;&lt;webSession.getFullUrl('/webui/inputFile')&gt;&gt;');
+<a name="2864"></a>
+<a name="2865"></a>        /* 
+<a name="2866"></a>         *   if there's no storage server, try using a client PC upload or
+<a name="2867"></a>         *   download 
+<a name="2868"></a>         */
+<a name="2869"></a>        if (url == nil)
+<a name="2870"></a>            return getInputFileFromClient(prompt, dialogType, fileType, flags);
+<a name="2871"></a>
+<a name="2872"></a>        /* 
+<a name="2873"></a>         *   set up the file dialog state description (store it in a
+<a name="2874"></a>         *   property, so that we can send it again as part of a state
+<a name="2875"></a>         *   request if the client window is reloaded from scratch) 
+<a name="2876"></a>         */
+<a name="2877"></a>        fileDialogState =
+<a name="2878"></a>            '&lt;fileDialog&gt;'
+<a name="2879"></a>            +   '&lt;prompt&gt;&lt;&lt;prompt.htmlify()&gt;&gt;&lt;/prompt&gt;'
+<a name="2880"></a>            +   '&lt;dialogType&gt;&lt;&lt;dialogType == InFileOpen
+<a name="2881"></a>                ? 'open' : 'save'&gt;&gt;&lt;/dialogType&gt;'
+<a name="2882"></a>            +   '&lt;fileType&gt;&lt;&lt;typeMap[fileType]&gt;&gt;&lt;/fileType&gt;'
+<a name="2883"></a>            +   '&lt;url&gt;&lt;&lt;url.htmlify()&gt;&gt;&lt;/url&gt;'
+<a name="2884"></a>            +   '&lt;/fileDialog&gt;';
+<a name="2885"></a>
+<a name="2886"></a>        /* 
+<a name="2887"></a>         *   Presume that the dialog will be canceled.  If the user clicks
+<a name="2888"></a>         *   the close box on the dialog, the dialog will be dismissed
+<a name="2889"></a>         *   without ever sending us a result.  This counts as a
+<a name="2890"></a>         *   cancellation, so it's the default result.  
+<a name="2891"></a>         */
+<a name="2892"></a>        fileDialogResult = [InFileCancel];
+<a name="2893"></a>
+<a name="2894"></a>        /* send the request to the current command client */
+<a name="2895"></a>        sendWinEventTo(fileDialogState, curCmdClient);
+<a name="2896"></a>
+<a name="2897"></a>        /* process network events until the dialog is dismissed */
+<a name="2898"></a>        processNetRequests(
+<a name="2899"></a>            {: fileDialogState == '' || !curCmdClient.isAlive });
+<a name="2900"></a>
+<a name="2901"></a>        /* return the dialog result */
+<a name="2902"></a>        return fileDialogResult;
+<a name="2903"></a>    }
+<a name="2904"></a>
+<a name="2905"></a>    /*
+<a name="2906"></a>     *   Get an input file from the client PC.  We'll attempt to upload or
+<a name="2907"></a>     *   download a file from/to the client PC, using a local temporary
+<a name="2908"></a>     *   file for the actual file operations.  This is a special form of
+<a name="2909"></a>     *   the input file dialog that we use when we're not connected to a
+<a name="2910"></a>     *   storage server.  
+<a name="2911"></a>     */
+<a name="2912"></a>    getInputFileFromClient(prompt, dialogType, fileType, flags)
+<a name="2913"></a>    {
+<a name="2914"></a>        /* use the appropriate procedure for Open vs Save */
+<a name="2915"></a>        if (dialogType == InFileOpen)
+<a name="2916"></a>        {
+<a name="2917"></a>            /*
+<a name="2918"></a>             *   Opening an existing file.  Show a dialog asking the user
+<a name="2919"></a>             *   to select a file to upload.  If the user uploads a file,
+<a name="2920"></a>             *   we'll use the local temp file created by the upload as the
+<a name="2921"></a>             *   result of the input dialog.  
+<a name="2922"></a>             */
+<a name="2923"></a>            fileDialogState =
+<a name="2924"></a>                '&lt;uploadFileDialog&gt;'
+<a name="2925"></a>                + '&lt;prompt&gt;&lt;&lt;prompt.htmlify()&gt;&gt;&lt;/prompt&gt;'
+<a name="2926"></a>                + '&lt;/uploadFileDialog&gt;';
+<a name="2927"></a>
+<a name="2928"></a>            /* presume the user will cancel the dialog */
+<a name="2929"></a>            fileDialogResult = [InFileCancel];
+<a name="2930"></a>
+<a name="2931"></a>            /* send the request to the UI */
+<a name="2932"></a>            sendWinEventTo(fileDialogState, curCmdClient);
+<a name="2933"></a>
+<a name="2934"></a>            /* process network events until the dialog is dismissed */
+<a name="2935"></a>            processNetRequests(
+<a name="2936"></a>                {: fileDialogState == '' || !curCmdClient.isAlive });
+<a name="2937"></a>
+<a name="2938"></a>            /* return the file dialog result */
+<a name="2939"></a>            return fileDialogResult;
+<a name="2940"></a>        }
+<a name="2941"></a>        else if (dialogType == InFileSave)
+<a name="2942"></a>        {
+<a name="2943"></a>            /*
+<a name="2944"></a>             *   Saving to a new file.  The caller is asking the user to
+<a name="2945"></a>             *   choose a name for a file that the caller *intends* to
+<a name="2946"></a>             *   create, but hasn't yet created.  HTTP can only do a
+<a name="2947"></a>             *   download as a transaction, though - we can offer an
+<a name="2948"></a>             *   existing file to the user to download, and the user will
+<a name="2949"></a>             *   choose the location for the download as part of that
+<a name="2950"></a>             *   transaction.  We don't have that file yet because the
+<a name="2951"></a>             *   standard protocol is to ask the user for the name first,
+<a name="2952"></a>             *   then write the selected file.
+<a name="2953"></a>             *   
+<a name="2954"></a>             *   So, we have to play a little game.  We don't ask the user
+<a name="2955"></a>             *   to save anything right now, because there's no file to
+<a name="2956"></a>             *   offer for download yet.  Instead, we silently generate a
+<a name="2957"></a>             *   local temporary file name and return that to our caller.
+<a name="2958"></a>             *   Our caller will create the temp file and write its data.
+<a name="2959"></a>             *   
+<a name="2960"></a>             *   The trick is that we wrap this temp file name in a
+<a name="2961"></a>             *   DownloadTempFile object.  When the caller finishes
+<a name="2962"></a>             *   writing, it will call closeFile() on the temp file.  The
+<a name="2963"></a>             *   system will pass that along to use by calling closeFile()
+<a name="2964"></a>             *   on our DownloadTempFile object.  At that point, we'll have
+<a name="2965"></a>             *   a completed temporary file, so we'll pop up a download box
+<a name="2966"></a>             *   at that point offering the file for download to the user.
+<a name="2967"></a>             *   The user can then select a local file on the client side,
+<a name="2968"></a>             *   and we'll send the temporary file's contents as the
+<a name="2969"></a>             *   download to store in the client file.  
+<a name="2970"></a>             */
+<a name="2971"></a>            return [InFileSuccess,
+<a name="2972"></a>                    tempFileDownloadPage.addFile(fileType, curCmdClient)];
+<a name="2973"></a>        }
+<a name="2974"></a>        else
+<a name="2975"></a>        {
+<a name="2976"></a>            /* unknown dialog type */
+<a name="2977"></a>            return [InFileFailure];
+<a name="2978"></a>        }
+<a name="2979"></a>    }
+<a name="2980"></a>
+<a name="2981"></a>    /*
+<a name="2982"></a>     *   Offer a file for download to the client.  'file' is a
+<a name="2983"></a>     *   DownloadTempFile object previously created by a call to
+<a name="2984"></a>     *   inputFile().  
+<a name="2985"></a>     */
+<a name="2986"></a>    offerDownload(file)
+<a name="2987"></a>    {
+<a name="2988"></a>        /* 
+<a name="2989"></a>         *   send the "offer download" event to the client - the client
+<a name="2990"></a>         *   will display an iframe with the file as an "attachment", which
+<a name="2991"></a>         *   will trigger the browser to offer it as a download 
+<a name="2992"></a>         */
+<a name="2993"></a>        sendWinEventTo(
+<a name="2994"></a>            '&lt;offerDownload&gt;&lt;&lt;file.resPath.htmlify()&gt;&gt;&lt;/offerDownload&gt;',
+<a name="2995"></a>            curCmdClient);
+<a name="2996"></a>    }
+<a name="2997"></a>
+<a name="2998"></a>    /* receive a file selection from the file selector dialog */
+<a name="2999"></a>    receiveFileSelection(req, query)
+<a name="3000"></a>    {
+<a name="3001"></a>        /* get the filename from the query */
+<a name="3002"></a>        local f = query['file'];
+<a name="3003"></a>        local desc = query['desc'];
+<a name="3004"></a>        local cancel = (query['cancel'] != nil);
+<a name="3005"></a>        local err = query['error'];
+<a name="3006"></a>
+<a name="3007"></a>        /* 
+<a name="3008"></a>         *   Set the file dialog result list. This uses the same format as
+<a name="3009"></a>         *   the native inputFile() routine: the first element is the
+<a name="3010"></a>         *   status code (Success, Failure, Cancel); on success, the second
+<a name="3011"></a>         *   element is the filename string.  We add two bits of 
+<a name="3012"></a>         */
+<a name="3013"></a>        if (err != nil)
+<a name="3014"></a>            fileDialogResult = [InFileFailure, err];
+<a name="3015"></a>        else if (cancel || f == nil || f == '')
+<a name="3016"></a>            fileDialogResult = [InFileCancel];
+<a name="3017"></a>        else
+<a name="3018"></a>        {
+<a name="3019"></a>            /* we got a filename - add the SID prefix if necessary */
+<a name="3020"></a>            if (rexMatch('~[^/]+/', f) == nil)
+<a name="3021"></a>                f = '~&lt;&lt;curCmdClient.storageSID&gt;&gt;/&lt;&lt;f&gt;&gt;';
+<a name="3022"></a>            
+<a name="3023"></a>            /* success - return the filename */
+<a name="3024"></a>            fileDialogResult = [InFileSuccess, f];
+<a name="3025"></a>
+<a name="3026"></a>            /* if there's a description string, return that as well */
+<a name="3027"></a>            if (desc != nil)
+<a name="3028"></a>                fileDialogResult += desc;
+<a name="3029"></a>        }
+<a name="3030"></a>    }
+<a name="3031"></a>
+<a name="3032"></a>    /* receive notification that the file dialog has been closed */
+<a name="3033"></a>    inputFileDismissed()
+<a name="3034"></a>    {
+<a name="3035"></a>        /* clear the file dialog state */
+<a name="3036"></a>        fileDialogState = '';
+<a name="3037"></a>    }
+<a name="3038"></a>
+<a name="3039"></a>    /* receive a file upload from the file upload dialog */
+<a name="3040"></a>    receiveFileUpload(req, query)
+<a name="3041"></a>    {
+<a name="3042"></a>        /* get the file from the request */
+<a name="3043"></a>        local fields = req.getFormFields(), file;
+<a name="3044"></a>        if (fields == 'overflow')
+<a name="3045"></a>        {
+<a name="3046"></a>            /* error */
+<a name="3047"></a>            fileDialogResult = [InFileFailure, libMessages.webUploadTooBig];
+<a name="3048"></a>        }
+<a name="3049"></a>        else if (fields != nil &amp;&amp; (file = fields['file']) != nil)
+<a name="3050"></a>        {
+<a name="3051"></a>            /* got it - save the contents to a local temporary file */
+<a name="3052"></a>            local tmpfile = new TemporaryFile();
+<a name="3053"></a>            local fpTmp = nil;
+<a name="3054"></a>            try
+<a name="3055"></a>            {
+<a name="3056"></a>                /* open the temp file */
+<a name="3057"></a>                fpTmp = File.openRawFile(tmpfile, FileAccessWrite);
+<a name="3058"></a>
+<a name="3059"></a>                /* make sure the input file is in raw binary mode */
+<a name="3060"></a>                local fpIn = file.file;
+<a name="3061"></a>                fpIn.setFileMode(FileModeRaw);
+<a name="3062"></a>
+<a name="3063"></a>                /* copy the contents */
+<a name="3064"></a>                fpTmp.writeBytes(fpIn);
+<a name="3065"></a>
+<a name="3066"></a>                /* close the temp file */
+<a name="3067"></a>                fpTmp.closeFile();
+<a name="3068"></a>
+<a name="3069"></a>                /* 
+<a name="3070"></a>                 *   Set the dialog result to the temp file.  The system
+<a name="3071"></a>                 *   will automatically delete the underlying file system
+<a name="3072"></a>                 *   object when the garbage collector deletes the
+<a name="3073"></a>                 *   TemporaryFile.  
+<a name="3074"></a>                 */
+<a name="3075"></a>                fileDialogResult = [InFileSuccess, tmpfile];
+<a name="3076"></a>            }
+<a name="3077"></a>            catch (Exception exc)
+<a name="3078"></a>            {
+<a name="3079"></a>                /* error - the dialog failed */
+<a name="3080"></a>                fileDialogResult = [InFileFailure, exc.getExceptionMessage()];
+<a name="3081"></a>
+<a name="3082"></a>                /* close and delete the temporary file */
+<a name="3083"></a>                if (fpTmp != nil)
+<a name="3084"></a>                    fpTmp.closeFile();
+<a name="3085"></a>                if (tmpfile != nil)
+<a name="3086"></a>                    tmpfile.deleteFile();
+<a name="3087"></a>            }
+<a name="3088"></a>        }
+<a name="3089"></a>        else
+<a name="3090"></a>        {
+<a name="3091"></a>            /* no file - consider it a cancellation */
+<a name="3092"></a>            fileDialogResult = [InFileCancel];
+<a name="3093"></a>        }
+<a name="3094"></a>
+<a name="3095"></a>        /* the dialog is dismissed */
+<a name="3096"></a>        fileDialogState = '';
+<a name="3097"></a>    }
+<a name="3098"></a>
+<a name="3099"></a>    /* show a generic inputDialog dialog */
+<a name="3100"></a>    getInputDialog(icon, prompt, buttons, defaultButton, cancelButton)
+<a name="3101"></a>    {
+<a name="3102"></a>        /* 
+<a name="3103"></a>         *   if one of the standard button sets was selected, turn it into
+<a name="3104"></a>         *   a list of localized button names
+<a name="3105"></a>         */
+<a name="3106"></a>        switch (buttons)
+<a name="3107"></a>        {
+<a name="3108"></a>        case InDlgOk:
+<a name="3109"></a>            buttons = [libMessages.dlgButtonOk];
+<a name="3110"></a>            break;
+<a name="3111"></a>
+<a name="3112"></a>        case InDlgOkCancel:
+<a name="3113"></a>            buttons = [libMessages.dlgButtonOk, libMessages.dlgButtonCancel];
+<a name="3114"></a>            break;
+<a name="3115"></a>
+<a name="3116"></a>        case InDlgYesNo:
+<a name="3117"></a>            buttons = [libMessages.dlgButtonYes, libMessages.dlgButtonNo];
+<a name="3118"></a>            break;
+<a name="3119"></a>
+<a name="3120"></a>        case InDlgYesNoCancel:
+<a name="3121"></a>            buttons = [libMessages.dlgButtonYes, libMessages.dlgButtonNo,
+<a name="3122"></a>                       libMessages.dlgButtonCancel];
+<a name="3123"></a>            break;
+<a name="3124"></a>        }
+<a name="3125"></a>
+<a name="3126"></a>        /* get a suitable localized title corresponding to the icon tyep */
+<a name="3127"></a>        local title = [InDlgIconNone -&gt; libMessages.dlgTitleNone,
+<a name="3128"></a>                       InDlgIconWarning -&gt; libMessages.dlgTitleWarning,
+<a name="3129"></a>                       InDlgIconInfo -&gt; libMessages.dlgTitleInfo,
+<a name="3130"></a>                       InDlgIconQuestion -&gt; libMessages.dlgTitleQuestion,
+<a name="3131"></a>                       InDlgIconError -&gt; libMessages.dlgTitleError][icon];
+<a name="3132"></a>        
+<a name="3133"></a>        /* build the dialog xml description */
+<a name="3134"></a>        inputDialogState =
+<a name="3135"></a>            '&lt;inputDialog&gt;'
+<a name="3136"></a>            +  '&lt;icon&gt;&lt;&lt;icon&gt;&gt;&lt;/icon&gt;'
+<a name="3137"></a>            +  '&lt;title&gt;&lt;&lt;title&gt;&gt;&lt;/title&gt;'
+<a name="3138"></a>            +  '&lt;prompt&gt;&lt;&lt;prompt.htmlify&gt;&gt;&lt;/prompt&gt;'
+<a name="3139"></a>            +  '&lt;buttons&gt;'
+<a name="3140"></a>            +     buttons.mapAll({b: '&lt;button&gt;&lt;&lt;b.htmlify()&gt;&gt;&lt;/button&gt;'})
+<a name="3141"></a>                  .join('')
+<a name="3142"></a>            +  '&lt;/buttons&gt;'
+<a name="3143"></a>            +  '&lt;defaultButton&gt;&lt;&lt;defaultButton&gt;&gt;&lt;/defaultButton&gt;'
+<a name="3144"></a>            +  '&lt;cancelButton&gt;&lt;&lt;cancelButton&gt;&gt;&lt;/cancelButton&gt;'
+<a name="3145"></a>            + '&lt;/inputDialog&gt;';
+<a name="3146"></a>
+<a name="3147"></a>        /* send the request to the client */
+<a name="3148"></a>        inputDialogResult = nil;
+<a name="3149"></a>        sendWinEvent(inputDialogState);
+<a name="3150"></a>
+<a name="3151"></a>        /* process network events until we get an answer */
+<a name="3152"></a>        processNetRequests({: inputDialogResult != nil });
+<a name="3153"></a>
+<a name="3154"></a>        /* return the dialog result */
+<a name="3155"></a>        return inputDialogResult;
+<a name="3156"></a>    }
+<a name="3157"></a>
+<a name="3158"></a>    /* receive a selection from the input dialog */
+<a name="3159"></a>    receiveInputDialog(req, query)
+<a name="3160"></a>    {
+<a name="3161"></a>        /* note the result button */
+<a name="3162"></a>        inputDialogResult = toInteger(query['button']);
+<a name="3163"></a>
+<a name="3164"></a>        /* if we didn't get a valid button index, select button 1 */
+<a name="3165"></a>        if (inputDialogResult == 0)
+<a name="3166"></a>            inputDialogResult = 1;
+<a name="3167"></a>
+<a name="3168"></a>        /* the dialog is no longer open */
+<a name="3169"></a>        inputDialogState = '';
+<a name="3170"></a>    }
+<a name="3171"></a>
+<a name="3172"></a>    /*
+<a name="3173"></a>     *   Post a synthetic event.  A synthetic event looks like a regular UI
+<a name="3174"></a>     *   or network event, but is generated internally instead of being
+<a name="3175"></a>     *   delivered from the underlying browser or network subsystems.
+<a name="3176"></a>     *   
+<a name="3177"></a>     *   'id' is a string giving the event type.  The remaining parameters
+<a name="3178"></a>     *   are up to each event type to define.  
+<a name="3179"></a>     */
+<a name="3180"></a>    postSyntheticEvent(id, [params])
+<a name="3181"></a>    {
+<a name="3182"></a>        /* add it to the synthetic event queue */
+<a name="3183"></a>        synthEventQueue.append([id] + params);
+<a name="3184"></a>    }
+<a name="3185"></a>
+<a name="3186"></a>    /* is a synthetic event ready? */
+<a name="3187"></a>    syntheticEventReady() { return synthEventQueue.length() &gt; 0; }
+<a name="3188"></a>
+<a name="3189"></a>    /* pull the next synthetic event from the queue */
+<a name="3190"></a>    getSyntheticEvent() { return synthEventQueue.shift(); }
+<a name="3191"></a>
+<a name="3192"></a>    /* 
+<a name="3193"></a>     *   file dialog state - this is the XML describing the currently open
+<a name="3194"></a>     *   file dialog; if the dialog isn't open, this is an empty string 
+<a name="3195"></a>     */
+<a name="3196"></a>    fileDialogState = ''
+<a name="3197"></a>
+<a name="3198"></a>    /* 
+<a name="3199"></a>     *   file dialog result - this is a result list using the same format
+<a name="3200"></a>     *   as the native inputFile() function 
+<a name="3201"></a>     */
+<a name="3202"></a>    fileDialogResult = nil
+<a name="3203"></a>
+<a name="3204"></a>    /* 
+<a name="3205"></a>     *   input dialog state - this is the XML describing an input dialog
+<a name="3206"></a>     *   while a dialog is running, or an empty string if not 
+<a name="3207"></a>     */
+<a name="3208"></a>    inputDialogState = ''
+<a name="3209"></a>
+<a name="3210"></a>    /* input dialog result - this is the button number the user selected */
+<a name="3211"></a>    inputDialogResult = nil
+<a name="3212"></a>
+<a name="3213"></a>    /* input event state */
+<a name="3214"></a>    inputEventState = ''
+<a name="3215"></a>
+<a name="3216"></a>    /* input event result */
+<a name="3217"></a>    inputEventResult = nil
+<a name="3218"></a>
+<a name="3219"></a>    /* menuSys state - menu system state (maintained by the menu module) */
+<a name="3220"></a>    menuSysState = ''
+<a name="3221"></a>
+<a name="3222"></a>    /* 
+<a name="3223"></a>     *   Synthetic event queue.  This is a vector of synthetic events, set
+<a name="3224"></a>     *   up in the [type, params...] format that the system inputEvent()
+<a name="3225"></a>     *   function and related functions use.  The 'type' code for a
+<a name="3226"></a>     *   synthetic evente is a string instead of the numeric identifier
+<a name="3227"></a>     *   that the system functions use.  
+<a name="3228"></a>     */
+<a name="3229"></a>    synthEventQueue = static new transient Vector()
+<a name="3230"></a>;
+<a name="3231"></a>
+<a name="3232"></a>/* ------------------------------------------------------------------------ */
+<a name="3233"></a>/*
+<a name="3234"></a> *   Temporary file download page.  This page serves temporary files
+<a name="3235"></a> *   created via inputFile() as HTTP downloads to the client.  
+<a name="3236"></a> */
+<a name="3237"></a>transient tempFileDownloadPage: WebResource
+<a name="3238"></a>    vpath = static new RexPattern('/clienttmp/')
+<a name="3239"></a>    processRequest(req, query)
+<a name="3240"></a>    {
+<a name="3241"></a>        /* 
+<a name="3242"></a>         *   look up the file - the key in our table is the ID string after
+<a name="3243"></a>         *   the /clienttmp/ path prefix 
+<a name="3244"></a>         */
+<a name="3245"></a>        local id = query[1].substr(12);
+<a name="3246"></a>        local client = ClientSession.find(req);
+<a name="3247"></a>        local desc = client.downloads[id];
+<a name="3248"></a>
+<a name="3249"></a>        /* check for cancellation */
+<a name="3250"></a>        if (query['cancel'] != nil)
+<a name="3251"></a>        {
+<a name="3252"></a>            /* 
+<a name="3253"></a>             *   acknowledge the request - do this before we cancel the
+<a name="3254"></a>             *   file, since removing the file will remove the link that
+<a name="3255"></a>             *   fired this request (the order probably isn't a big deal
+<a name="3256"></a>             *   one way or the other, and we probably can't really control
+<a name="3257"></a>             *   it anyway as the browser might process the ack and the
+<a name="3258"></a>             *   event out of order, but just in case) 
+<a name="3259"></a>             */
+<a name="3260"></a>            sendAck(req);
+<a name="3261"></a>
+<a name="3262"></a>            /* if we found the descriptor, cancel it */
+<a name="3263"></a>            if (desc != nil)
+<a name="3264"></a>                client.cancelDownload(desc);
+<a name="3265"></a>
+<a name="3266"></a>            /* done */
+<a name="3267"></a>            return;
+<a name="3268"></a>        }
+<a name="3269"></a>
+<a name="3270"></a>        /* if we didn't find it, return failure */
+<a name="3271"></a>        if (desc == nil)
+<a name="3272"></a>        {
+<a name="3273"></a>            req.sendReply(404);
+<a name="3274"></a>            return;
+<a name="3275"></a>        }
+<a name="3276"></a>
+<a name="3277"></a>        /* open the file */
+<a name="3278"></a>        local fp = nil;
+<a name="3279"></a>        try
+<a name="3280"></a>        {
+<a name="3281"></a>            fp = File.openRawFile(desc.tempFileName, FileAccessRead);
+<a name="3282"></a>        }
+<a name="3283"></a>        catch (Exception exc)
+<a name="3284"></a>        {
+<a name="3285"></a>            /* couldn't send the file - send a 404 */
+<a name="3286"></a>            req.sendReply(404);
+<a name="3287"></a>            return;
+<a name="3288"></a>        }
+<a name="3289"></a>
+<a name="3290"></a>        /* set up the download file headers */
+<a name="3291"></a>        local headers = [
+<a name="3292"></a>            'Content-Disposition: attachment; filename=&lt;&lt;desc.resName&gt;&gt;'
+<a name="3293"></a>            ];
+<a name="3294"></a>
+<a name="3295"></a>        try
+<a name="3296"></a>        {
+<a name="3297"></a>            /* send the file's contents */
+<a name="3298"></a>            req.sendReply(fp, desc.mimeType, 200, headers);
+<a name="3299"></a>        }
+<a name="3300"></a>        catch (Exception exc)
+<a name="3301"></a>        {
+<a name="3302"></a>            /* ignore errors */
+<a name="3303"></a>        }
+<a name="3304"></a>
+<a name="3305"></a>        /* done with the file */
+<a name="3306"></a>        fp.closeFile();
+<a name="3307"></a>
+<a name="3308"></a>        /* 
+<a name="3309"></a>         *   We've at least tried sending the file, so remove it from the
+<a name="3310"></a>         *   download list.  This was just a temp file, so there's no need
+<a name="3311"></a>         *   to keep it around even if we ran into an error sending it; if
+<a name="3312"></a>         *   the send failed, the user can just repeat the operation that
+<a name="3313"></a>         *   generated the file.  
+<a name="3314"></a>         */
+<a name="3315"></a>        client.cancelDownload(desc);
+<a name="3316"></a>    }
+<a name="3317"></a>
+<a name="3318"></a>    /* add a file to our list of downloadable files */
+<a name="3319"></a>    addFile(fileType, client)
+<a name="3320"></a>    {
+<a name="3321"></a>        /* 
+<a name="3322"></a>         *   Generate a server-side name template based on the file type.
+<a name="3323"></a>         *   The name doesn't matter to us, but browsers will display it to
+<a name="3324"></a>         *   the user, and many browsers use the server-side name as the
+<a name="3325"></a>         *   default name for the newly downloaded file in the "Save File"
+<a name="3326"></a>         *   dialog.  Many browsers also use the suffix to determine the
+<a name="3327"></a>         *   file type, ignoring any Content-Type headers.  
+<a name="3328"></a>         */
+<a name="3329"></a>        local tpl = [FileTypeLog -&gt; 'Script#.txt',
+<a name="3330"></a>                     FileTypeData -&gt; 'File#.dat',
+<a name="3331"></a>                     FileTypeCmd -&gt; 'Command#.txt',
+<a name="3332"></a>                     FileTypeText -&gt; 'File#.txt',
+<a name="3333"></a>                     FileTypeBin -&gt; 'File#.bin',
+<a name="3334"></a>                     FileTypeT3Image -&gt; 'Story#.t3',
+<a name="3335"></a>                     FileTypeT3Save -&gt; 'Save#.t3v',
+<a name="3336"></a>                     * -&gt; 'File#'][fileType];
+<a name="3337"></a>
+<a name="3338"></a>        /* figure the mime type based on the file type */
+<a name="3339"></a>        local mimeType = [FileTypeLog -&gt; 'text/plain',
+<a name="3340"></a>                          FileTypeCmd -&gt; 'text/plain',
+<a name="3341"></a>                          FileTypeT3Image -&gt; 'application/x-t3vm-image',
+<a name="3342"></a>                          FileTypeT3Save -&gt; 'application/x-t3vm-state',
+<a name="3343"></a>                          * -&gt; 'application/octet-stream'][fileType];
+<a name="3344"></a>
+<a name="3345"></a>        /* replace the '#' in the template with the next ID value */
+<a name="3346"></a>        tpl = tpl.findReplace('#', toString(nextID++));
+<a name="3347"></a>
+<a name="3348"></a>        /* create a new table entry */
+<a name="3349"></a>        local desc = new DownloadTempFile(tpl, mimeType);
+<a name="3350"></a>
+<a name="3351"></a>        /* add this download to each client */
+<a name="3352"></a>        client.addDownload(desc);
+<a name="3353"></a>
+<a name="3354"></a>        /* return the descriptor */
+<a name="3355"></a>        return desc;
+<a name="3356"></a>    }
+<a name="3357"></a>
+<a name="3358"></a>    /* next available ID */
+<a name="3359"></a>    nextID = 1
+<a name="3360"></a>;
+<a name="3361"></a>
+<a name="3362"></a>/* 
+<a name="3363"></a> *   Downloadable temporary file descriptor.  We create this object when
+<a name="3364"></a> *   the program calls inputFile() to ask for a writable file.  This lets
+<a name="3365"></a> *   the caller create and write a temporary file on the server side; when
+<a name="3366"></a> *   the caller is done with the file, we'll offer the file for download to
+<a name="3367"></a> *   the client through the UI.  
+<a name="3368"></a> */
+<a name="3369"></a>class DownloadTempFile: object
+<a name="3370"></a>    construct(res, mimeType)
+<a name="3371"></a>    {
+<a name="3372"></a>        tempFileName = new TemporaryFile();
+<a name="3373"></a>        resName = res;
+<a name="3374"></a>        resPath = '/clienttmp/&lt;&lt;res&gt;&gt;';
+<a name="3375"></a>        timeCreated = getTime(GetTimeTicks);
+<a name="3376"></a>        self.mimeType = mimeType;
+<a name="3377"></a>    }
+<a name="3378"></a>
+<a name="3379"></a>    /*
+<a name="3380"></a>     *   File spec interface.  This allows the DownloadTempFile to be used as
+<a name="3381"></a>     *   though it were a filename string.
+<a name="3382"></a>     *   
+<a name="3383"></a>     *   When the object is passed to one of the File.open methods, or to
+<a name="3384"></a>     *   saveGame(), setScriptFile(), etc., the system will call our
+<a name="3385"></a>     *   getFilename() method to determine the actual underlying file.
+<a name="3386"></a>     *   We'll return our temporary file object.
+<a name="3387"></a>     *   
+<a name="3388"></a>     *   When the underlying file is closed, the system calls our
+<a name="3389"></a>     *   closeFile() method to notify us.  
+<a name="3390"></a>     */
+<a name="3391"></a>    getFilename() { return tempFileName; }
+<a name="3392"></a>    closeFile()
+<a name="3393"></a>    {
+<a name="3394"></a>        /* mark the file as ready for download */
+<a name="3395"></a>        isReady = true;
+<a name="3396"></a>
+<a name="3397"></a>        /* offering the file to the client as an HTTP download */
+<a name="3398"></a>        webMainWin.offerDownload(self);
+<a name="3399"></a>    }
+<a name="3400"></a>
+<a name="3401"></a>    /* TemporaryFile object for the local temp file */
+<a name="3402"></a>    tempFileName = nil
+<a name="3403"></a>
+<a name="3404"></a>    /* root resource name, and full resource path */
+<a name="3405"></a>    resName = nil
+<a name="3406"></a>    resPath = nil
+<a name="3407"></a>
+<a name="3408"></a>    /* MIME type */
+<a name="3409"></a>    mimeType = nil
+<a name="3410"></a>
+<a name="3411"></a>    /* creation timestamp, as a system tick count value */
+<a name="3412"></a>    timeCreated = 0
+<a name="3413"></a>
+<a name="3414"></a>    /* is the file ready for download? */
+<a name="3415"></a>    isReady = nil
+<a name="3416"></a>
+<a name="3417"></a>    /* this is a web temp file */
+<a name="3418"></a>    isWebTempFile = true
+<a name="3419"></a>;
+<a name="3420"></a>
+<a name="3421"></a>/* ------------------------------------------------------------------------ */
+<a name="3422"></a>/*
+<a name="3423"></a> *   Input event page.  The client javascript does a GET on this resource
+<a name="3424"></a> *   to send us an input event.  
+<a name="3425"></a> */
+<a name="3426"></a>inputEventPage: WebResource
+<a name="3427"></a>    vpath = '/webui/inputEvent'
+<a name="3428"></a>    processRequest(req, query)
+<a name="3429"></a>    {
+<a name="3430"></a>        /* send the event to the main window object */
+<a name="3431"></a>        webMainWin.receiveInputEvent(req, query);
+<a name="3432"></a>
+<a name="3433"></a>        /* acknowledge the request */
+<a name="3434"></a>        sendAck(req);
+<a name="3435"></a>    }
+<a name="3436"></a>;
+<a name="3437"></a>
+<a name="3438"></a>/* ------------------------------------------------------------------------ */
+<a name="3439"></a>/*
+<a name="3440"></a> *   Input dialog event page.  The web UI sends a GET to this page when the
+<a name="3441"></a> *   user selects a button in an input dialog.  
+<a name="3442"></a> */
+<a name="3443"></a>inputDialogPage: WebResource
+<a name="3444"></a>    vpath = '/webui/inputDialog'
+<a name="3445"></a>    processRequest(req, query)
+<a name="3446"></a>    {
+<a name="3447"></a>        /* send the event to the main window */
+<a name="3448"></a>        webMainWin.receiveInputDialog(req, query);
+<a name="3449"></a>
+<a name="3450"></a>        /* acknowledge the request */
+<a name="3451"></a>        sendAck(req);
+<a name="3452"></a>    }
+<a name="3453"></a>;
+<a name="3454"></a>
+<a name="3455"></a>/* ------------------------------------------------------------------------ */
+<a name="3456"></a>/*
+<a name="3457"></a> *   File dialog event page.  This page is used by the IFDB Storage Server
+<a name="3458"></a> *   file dialog to return information to the game UI.  The IFDB dialog
+<a name="3459"></a> *   page can't itself perform scripting actions on the enclosing dialog
+<a name="3460"></a> *   frame, since it's being served from a different domain - browsers
+<a name="3461"></a> *   prohibit cross-domain scripting for security reasons.  The IFDB dialog
+<a name="3462"></a> *   must therefore navigate back to a page within the game server domain
+<a name="3463"></a> *   in order to return information through scripting.  This is that page:
+<a name="3464"></a> *   when the IFDB page is ready to return information, it navigates its
+<a name="3465"></a> *   frame to this page, passing the return values in the request
+<a name="3466"></a> *   parameters.  Since this page is served by the game server, within the
+<a name="3467"></a> *   game server domain, the browser allows it to use scripting actions on
+<a name="3468"></a> *   its enclosing frame.  We finish the job by dismissing the dialog in
+<a name="3469"></a> *   the UI.
+<a name="3470"></a> */
+<a name="3471"></a>inputFilePage: WebResource
+<a name="3472"></a>    vpath = '/webui/inputFile'
+<a name="3473"></a>    processRequest(req, query)
+<a name="3474"></a>    {
+<a name="3475"></a>        /* set the file selection in the main window */
+<a name="3476"></a>        webMainWin.receiveFileSelection(req, query);
+<a name="3477"></a>
+<a name="3478"></a>        /* 
+<a name="3479"></a>         *   We have our response, so dismiss the file dialog.  Do this by
+<a name="3480"></a>         *   sending back a page with script instructions to close the
+<a name="3481"></a>         *   containing dialog window.
+<a name="3482"></a>         */
+<a name="3483"></a>        req.sendReply(
+<a name="3484"></a>            '&lt;html&gt;&lt;body&gt;'
+<a name="3485"></a>            + '&lt;script type="text/javascript"&gt;'
+<a name="3486"></a>            + 'window.parent.dismissDialogById("inputFile");'
+<a name="3487"></a>            + '&lt;/script&gt;'
+<a name="3488"></a>            + '&lt;/body&gt;&lt;/html&gt;');
+<a name="3489"></a>    }
+<a name="3490"></a>;
+<a name="3491"></a>
+<a name="3492"></a>/*
+<a name="3493"></a> *   Cancel the input dialog.  This is called from the UI directly to
+<a name="3494"></a> *   cancel the file selection, when the user closes the dialog through the
+<a name="3495"></a> *   enclosing main page UI rather than from within the dialog.  This is
+<a name="3496"></a> *   useful if the dialog page fails to load, for example.
+<a name="3497"></a> *   
+<a name="3498"></a> *   Note: the upload file dialog also uses this.  The upload dialog is
+<a name="3499"></a> *   basically a variation on the regular input file dialog.  
+<a name="3500"></a> */
+<a name="3501"></a>inputFileCancel: WebResource
+<a name="3502"></a>    vpath = '/webui/inputFileDismissed'
+<a name="3503"></a>    processRequest(req, query)
+<a name="3504"></a>    {
+<a name="3505"></a>        /* note that the dialog has been dismissed */
+<a name="3506"></a>        webMainWin.inputFileDismissed();
+<a name="3507"></a>
+<a name="3508"></a>        /* acknowledge the request */
+<a name="3509"></a>        sendAck(req);
+<a name="3510"></a>    }
+<a name="3511"></a>;
+<a name="3512"></a>
+<a name="3513"></a>/*
+<a name="3514"></a> *   Receive results from the input file dialog 
+<a name="3515"></a> */
+<a name="3516"></a>uploadFilePage: WebResource
+<a name="3517"></a>    vpath = '/webui/uploadFileDialog'
+<a name="3518"></a>    processRequest(req, query)
+<a name="3519"></a>    {
+<a name="3520"></a>        /* send the request to the main window */
+<a name="3521"></a>        webMainWin.receiveFileUpload(req, query);
+<a name="3522"></a>
+<a name="3523"></a>        /* send back a script to dismiss the dialog */
+<a name="3524"></a>        req.sendReply(
+<a name="3525"></a>            '&lt;html&gt;&lt;body&gt;'
+<a name="3526"></a>            + '&lt;script type="text/javascript"&gt;'
+<a name="3527"></a>            + 'window.parent.dismissDialogById("uploadFile");'
+<a name="3528"></a>            + '&lt;/script&gt;'
+<a name="3529"></a>            + '&lt;/body&gt;&lt;/html&gt;');
+<a name="3530"></a>    }
+<a name="3531"></a>;
+<a name="3532"></a>
+<a name="3533"></a>/* ------------------------------------------------------------------------ */
+<a name="3534"></a>/*
+<a name="3535"></a> *   Receive the client's screen name setting 
+<a name="3536"></a> */
+<a name="3537"></a>setScreenNamePage: WebResource
+<a name="3538"></a>    vpath = '/webui/setScreenName'
+<a name="3539"></a>    processRequest(req, query)
+<a name="3540"></a>    {
+<a name="3541"></a>        /* set the name in the client session */
+<a name="3542"></a>        local cli = ClientSession.find(req);
+<a name="3543"></a>        if (cli != nil)
+<a name="3544"></a>            cli.screenName = query['name'];
+<a name="3545"></a>
+<a name="3546"></a>        /* acknowledge the request */
+<a name="3547"></a>        sendAck(req);
+<a name="3548"></a>    }
+<a name="3549"></a>;
+<a name="3550"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

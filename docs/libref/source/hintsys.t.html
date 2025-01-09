@@ -1,0 +1,972 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>hintsys.t</title></head><body>
+<table class=ban><tr><td><h1>hintsys.t</h1><td align=right><a href="../file/hintsys.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2000, 2006 by Michael J. Roberts.  All Rights Reserved. 
+<a name="5"></a> *   Adapted for adv3lite library by Eric Eve
+<a name="6"></a> *   
+<a name="7"></a> *   TADS 3 Library - Hint System
+<a name="8"></a> *   
+<a name="9"></a> *   This module provides a hint system framework.  Games can use this
+<a name="10"></a> *   framework to define context-sensitive hints for players.
+<a name="11"></a> *   
+<a name="12"></a> *   This module depends on the menus module to display the user interface.
+<a name="13"></a> */
+<a name="14"></a>
+<a name="15"></a>/* include the library header */
+<a name="16"></a>#include "advlite.h"
+<a name="17"></a>
+<a name="18"></a>
+<a name="19"></a>/* ------------------------------------------------------------------------ */
+<a name="20"></a>/*
+<a name="21"></a> *   We refer to some properties defined primarily in score.t - that's an
+<a name="22"></a> *   optional module, though, so make sure the compiler has heard of these. 
+<a name="23"></a> *   We do the same for some properties in eventList.t
+<a name="24"></a> */
+<a name="25"></a>property scoreCount;
+<a name="26"></a>property achieved;
+<a name="27"></a>property eventList;
+<a name="28"></a>
+<a name="29"></a>/* HintOpener provides some properties common to Goal and ExtraHint, in particuar
+<a name="30"></a> * those relating to opening and closing Goals and ExtraHints.
+<a name="31"></a> */
+<a name="32"></a>class HintOpener: object
+<a name="33"></a>    /*
+<a name="34"></a>     *   An optional object that, when seen by the player character, opens
+<a name="35"></a>     *   this goal.  It's often convenient to declare a goal open as soon
+<a name="36"></a>     *   as the player enters a particular area or has encountered a
+<a name="37"></a>     *   particular object.  For such cases, simply set this property to
+<a name="38"></a>     *   the room or object that opens the goal, and we'll automatically
+<a name="39"></a>     *   mark the goal as Open the next time the player asks for a hint
+<a name="40"></a>     *   after seeing the referenced object.  
+<a name="41"></a>     */
+<a name="42"></a>    openWhenSeen = nil
+<a name="43"></a>
+<a name="44"></a>    /*
+<a name="45"></a>     *   An option object that, when seen by the player character, closes
+<a name="46"></a>     *   this goal.  Many goals will be things like "how do I find the
+<a name="47"></a>     *   X?", in which case it's nice to close the goal when the X is
+<a name="48"></a>     *   found. 
+<a name="49"></a>     */
+<a name="50"></a>    closeWhenSeen = nil
+<a name="51"></a>
+<a name="52"></a>    /* 
+<a name="53"></a>     *   this is like openWhenSeen, but opens the topic when the given
+<a name="54"></a>     *   object is described (with EXAMINE) 
+<a name="55"></a>     */
+<a name="56"></a>    openWhenExamined = nil
+<a name="57"></a>
+<a name="58"></a>    /* close the goal when the given object is described */
+<a name="59"></a>    closeWhenExamined = nil
+<a name="60"></a>
+<a name="61"></a>    /*
+<a name="62"></a>     *   An optional object that, when moved, opens this goal.  It's often
+<a name="63"></a>     *   convenient to declare a goal open as soon as the player enters a
+<a name="64"></a>     *   particular area or has encountered a particular object.  For such
+<a name="65"></a>     *   cases, simply set this property to the object that opens the goal, and
+<a name="66"></a>     *   we'll automatically mark the goal as Open the next time the player asks
+<a name="67"></a>     *   for a hint after seeing the referenced object.
+<a name="68"></a>     */
+<a name="69"></a>    openWhenMoved = nil
+<a name="70"></a>    
+<a name="71"></a>    /*
+<a name="72"></a>     *   An optional object that, when moved, closes this goal.  Many goals will
+<a name="73"></a>     *   be things like "how do I find the X?", in which case it's nice to close
+<a name="74"></a>     *   the goal when the X is found.
+<a name="75"></a>     */
+<a name="76"></a>    closeWhenMoved = nil
+<a name="77"></a>    
+<a name="78"></a>    /*
+<a name="79"></a>     *   An optional Achievement object that opens this goal.  This goal
+<a name="80"></a>     *   will be opened automatically once the goal is achieved, if the
+<a name="81"></a>     *   goal was previously undiscovered.  This makes it easy to set up a
+<a name="82"></a>     *   hint topic that becomes available after a particular puzzle is
+<a name="83"></a>     *   solved, which is useful when a new puzzle only becomes known to
+<a name="84"></a>     *   the player after a gating puzzle has been solved.  
+<a name="85"></a>     */
+<a name="86"></a>    openWhenAchieved = nil
+<a name="87"></a>
+<a name="88"></a>    /*
+<a name="89"></a>     *   An optional Achievement object that closes this goal.  Once the
+<a name="90"></a>     *   achievement is completed, this goal's state will automatically be
+<a name="91"></a>     *   set to Closed.  This makes it easy to associate the goal with a
+<a name="92"></a>     *   puzzle: once the puzzle is solved, there's no need to show hints
+<a name="93"></a>     *   for the goal any more.  
+<a name="94"></a>     */
+<a name="95"></a>    closeWhenAchieved = nil
+<a name="96"></a>
+<a name="97"></a>    /*
+<a name="98"></a>     *   An optional Topic or Thing that opens this goal when the object
+<a name="99"></a>     *   becomes "known" to the player character.  This will open the goal
+<a name="100"></a>     *   as soon as gPlayerChar.knowsAbout(openWhenKnown) returns true.
+<a name="101"></a>     *   This makes it easy to open a goal as soon as the player comes
+<a name="102"></a>     *   across some information in the game.  
+<a name="103"></a>     */
+<a name="104"></a>    openWhenKnown = nil
+<a name="105"></a>
+<a name="106"></a>    /* an optional Topic or Thing that closes this goal when known */
+<a name="107"></a>    closeWhenKnown = nil
+<a name="108"></a>
+<a name="109"></a>    /*
+<a name="110"></a>     *   An optional &lt;.reveal&gt; tag name that opens this goal.  If this is
+<a name="111"></a>     *   set to a non-nil string, we'll automatically open this goal when
+<a name="112"></a>     *   the tag has been revealed via &lt;.reveal&gt; (or gReveal()). 
+<a name="113"></a>     */
+<a name="114"></a>    openWhenRevealed = nil
+<a name="115"></a>
+<a name="116"></a>    /* an optional &lt;.reveal&gt; tag that closes this goal when revealed */
+<a name="117"></a>    closeWhenRevealed = nil
+<a name="118"></a>
+<a name="119"></a>    
+<a name="120"></a>    
+<a name="121"></a>    /*
+<a name="122"></a>     *   An optional arbitrary check that opens the goal.  If this returns
+<a name="123"></a>     *   true, we'll open the goal.  This check is made in addition to the
+<a name="124"></a>     *   other checks (openWhenSeen, openWhenDescribed, etc).  This can be
+<a name="125"></a>     *   used for any custom check that doesn't fit into one of the
+<a name="126"></a>     *   standard openWhenXxx properties.  
+<a name="127"></a>     */
+<a name="128"></a>    openWhenTrue = nil
+<a name="129"></a>
+<a name="130"></a>    /* an optional general-purpose check that closes the goal */
+<a name="131"></a>    closeWhenTrue = nil
+<a name="132"></a>
+<a name="133"></a>    /*
+<a name="134"></a>     *   Determine if there's any condition that should open this goal.
+<a name="135"></a>     *   This checks openWhenSeen, openWhenDescribed, and all of the other
+<a name="136"></a>     *   openWhenXxx conditions; if any of these return true, then we'll
+<a name="137"></a>     *   return true.
+<a name="138"></a>     *   
+<a name="139"></a>     *   Note that this should generally NOT be overridden in individual
+<a name="140"></a>     *   instances; normally, instances would define openWhenTrue instead.
+<a name="141"></a>     *   However, some games might find that they use the same special
+<a name="142"></a>     *   condition over and over in many goals, often enough to warrant
+<a name="143"></a>     *   adding a new openWhenXxx property to Goal.  In these cases, you
+<a name="144"></a>     *   can use 'modify Goal' to override openWhen to add the new
+<a name="145"></a>     *   condition: simply define openWhen as (inherited || newCondition),
+<a name="146"></a>     *   where 'newCondition' is the new special condition you want to
+<a name="147"></a>     *   add.  
+<a name="148"></a>     */
+<a name="149"></a>    openWhen = (
+<a name="150"></a>        (openWhenSeen != nil &amp;&amp; gPlayerChar.hasSeen(openWhenSeen))
+<a name="151"></a>        || (openWhenExamined != nil &amp;&amp; openWhenExamined.examined)
+<a name="152"></a>        || (openWhenMoved != nil &amp;&amp; openWhenMoved.moved)
+<a name="153"></a>        || (openWhenAchieved != nil &amp;&amp; openWhenAchieved.scoreCount != 0)
+<a name="154"></a>        || (openWhenKnown != nil &amp;&amp; gPlayerChar.knowsAbout(openWhenKnown))
+<a name="155"></a>        || (openWhenRevealed != nil &amp;&amp; gRevealed(openWhenRevealed))
+<a name="156"></a>        || openWhenTrue)
+<a name="157"></a>
+<a name="158"></a>    /*
+<a name="159"></a>     *   Determine if there's any condition that should close this goal.
+<a name="160"></a>     *   We'll check closeWhenSeen, closeWhenDescribed, and all of the
+<a name="161"></a>     *   other closeWhenXxx conditions; if any of these return true, then
+<a name="162"></a>     *   we'll return true. 
+<a name="163"></a>     */
+<a name="164"></a>    closeWhen = (
+<a name="165"></a>        (closeWhenSeen != nil &amp;&amp; gPlayerChar.hasSeen(closeWhenSeen))
+<a name="166"></a>        || (closeWhenExamined != nil &amp;&amp; closeWhenExamined.examined)
+<a name="167"></a>        || (closeWhenMoved != nil &amp;&amp; closeWhenMoved.moved)
+<a name="168"></a>        || (closeWhenAchieved != nil &amp;&amp; closeWhenAchieved.scoreCount != 0)
+<a name="169"></a>        || (closeWhenKnown != nil &amp;&amp; gPlayerChar.knowsAbout(closeWhenKnown))
+<a name="170"></a>        || (closeWhenRevealed != nil &amp;&amp; gRevealed(closeWhenRevealed))
+<a name="171"></a>        || closeWhenTrue)
+<a name="172"></a>
+<a name="173"></a>;
+<a name="174"></a>
+<a name="175"></a>
+<a name="176"></a>/* ------------------------------------------------------------------------ */
+<a name="177"></a>/*
+<a name="178"></a> *   A basic hint menu object.  This is an abstract base class that
+<a name="179"></a> *   encapsulates some behavior common to different hint menu classes.  
+<a name="180"></a> */
+<a name="181"></a>class HintMenuObject: object
+<a name="182"></a>    /*
+<a name="183"></a>     *   The topic order.  When we're about to show a list of open topics,
+<a name="184"></a>     *   we'll sort the list in ascending order of this property, then in
+<a name="185"></a>     *   ascending order of title.  By default, we set this order value to
+<a name="186"></a>     *   1000; if individual goals don't override this, then they'll
+<a name="187"></a>     *   simply be sorted lexically by topic name.  This can be used if
+<a name="188"></a>     *   there's some basis other than alphabetical order for sorting the
+<a name="189"></a>     *   list.  
+<a name="190"></a>     */
+<a name="191"></a>    topicOrder = 1000
+<a name="192"></a>
+<a name="193"></a>    /*
+<a name="194"></a>     *   Compare this goal to another, for the purposes of sorting a list
+<a name="195"></a>     *   of topics.  Returns a positive number if this goal sorts after
+<a name="196"></a>     *   the other one, a negative number if this goal sorts before the
+<a name="197"></a>     *   other one, 0 if the relative order is arbitrary.
+<a name="198"></a>     *   
+<a name="199"></a>     *   By default, we'll sort by topicOrder if the topicOrder values are
+<a name="200"></a>     *   different, otherwise alphabetically by title.  
+<a name="201"></a>     */
+<a name="202"></a>    compareForTopicSort(other)
+<a name="203"></a>    {
+<a name="204"></a>        /* if the topicOrder values are different, sort by topicOrder */
+<a name="205"></a>        if (topicOrder != other.topicOrder)
+<a name="206"></a>            return topicOrder - other.topicOrder;
+<a name="207"></a>
+<a name="208"></a>        /* the topicOrder values are the same, so sort by title */
+<a name="209"></a>        if (title &gt; other.title)
+<a name="210"></a>            return 1;
+<a name="211"></a>        else if (title &lt; other.title)
+<a name="212"></a>            return -1;
+<a name="213"></a>        else
+<a name="214"></a>            return 0;
+<a name="215"></a>    }
+<a name="216"></a>;
+<a name="217"></a>
+<a name="218"></a>/*
+<a name="219"></a> *   A Goal represents an open task: something that the player is trying
+<a name="220"></a> *   to achieve.  A Goal is an abstract object, not part of the simulated
+<a name="221"></a> *   world of the game.
+<a name="222"></a> *   
+<a name="223"></a> *   Each goal is associated with a hint topic (usually shown as a
+<a name="224"></a> *   question, such as "How do I get past the guard?") and an ordered list
+<a name="225"></a> *   of hints.  The hints are usually ordered from most general to most
+<a name="226"></a> *   specific.  The idea is to let the player control how big a hint they
+<a name="227"></a> *   get; we start with a small nudge and work towards giving away the
+<a name="228"></a> *   puzzle completely, so the player can stop as soon as they see
+<a name="229"></a> *   something that helps.
+<a name="230"></a> *   
+<a name="231"></a> *   At any given time, a goal can be in one of three states:
+<a name="232"></a> *   
+<a name="233"></a> *   - Open: this means that the player is (or ought to be) aware of the
+<a name="234"></a> *   goal, but the goal hasn't yet been achieved.  Determining this
+<a name="235"></a> *   awareness is up to the goal.  In some cases, a goal is opened as soon
+<a name="236"></a> *   as the player has seen a particular object or entered a particular
+<a name="237"></a> *   area; in other cases, a goal might be opened by a scripted event,
+<a name="238"></a> *   such as a speech by an NPC telling the player they have to accomplish
+<a name="239"></a> *   something.  A goal could even be opened by viewing a hint for another
+<a name="240"></a> *   goal, because that hint could explain a gating goal that the player
+<a name="241"></a> *   might not otherwise been able to know about.
+<a name="242"></a> *   
+<a name="243"></a> *   - Undiscovered: this means that the player doesn't yet have any
+<a name="244"></a> *   reason to know about the goal.
+<a name="245"></a> *   
+<a name="246"></a> *   - Closed: this means that the player has accomplished the goal, or in
+<a name="247"></a> *   some cases that the goal has become irrelevant. 
+<a name="248"></a> *   
+<a name="249"></a> *   The hint system only shows goals that are Open.  We don't show Closed
+<a name="250"></a> *   goals because the player presumably has no need of them any longer;
+<a name="251"></a> *   we don't show Undiscovered goals to avoid giving away developments
+<a name="252"></a> *   later in the game before they become relevant.  
+<a name="253"></a> */
+<a name="254"></a>
+<a name="255"></a>class Goal: MenuTopicItem, HintMenuObject, HintOpener
+<a name="256"></a>    /*
+<a name="257"></a>     *   The topic question associated with the goal.  The hint system
+<a name="258"></a>     *   shows a list of the topics for the goals that are currently open,
+<a name="259"></a>     *   so that the player can decide what area they want help on.  
+<a name="260"></a>     */
+<a name="261"></a>    title = ''
+<a name="262"></a>
+<a name="263"></a>    /*
+<a name="264"></a>     *   Our parent menu - this is usually a HintMenu object.  In very
+<a name="265"></a>     *   simple hint systems, this could simply be a top-level hint menu
+<a name="266"></a>     *   container; more typically, the hint system will be structured
+<a name="267"></a>     *   into a menu tree that organizes the hint topics into several
+<a name="268"></a>     *   different submenus, for easier navigatino.  
+<a name="269"></a>     */
+<a name="270"></a>    location = nil
+<a name="271"></a>
+<a name="272"></a>    /*
+<a name="273"></a>     *   The list of hints for this topic.  This should be ordered from
+<a name="274"></a>     *   most general to most specific; we offer the hints in the order
+<a name="275"></a>     *   they appear in this list, so the earlier hints should give away
+<a name="276"></a>     *   as little as possible, while the later hints should get
+<a name="277"></a>     *   progressively closer to just outright giving away the answer.
+<a name="278"></a>     *   
+<a name="279"></a>     *   Each entry in the list can be a simple (single-quoted) string, or
+<a name="280"></a>     *   it can be a Hint object.  In most cases, a string will do.  A
+<a name="281"></a>     *   Hint object is only needed when displaying the hint has some side
+<a name="282"></a>     *   effect, such as opening a new Goal.  
+<a name="283"></a>     */
+<a name="284"></a>    menuContents = []
+<a name="285"></a>
+<a name="286"></a>    
+<a name="287"></a>    /*
+<a name="288"></a>     *   Has this goal been fully displayed?  The hint system automatically
+<a name="289"></a>     *   sets this to true when the last item in our hint list is
+<a name="290"></a>     *   displayed.
+<a name="291"></a>     *   
+<a name="292"></a>     *   You can use this, for example, to automatically remove the hint
+<a name="293"></a>     *   from the hint menu after it's been fully displayed.  (You might
+<a name="294"></a>     *   want to do this with a hint for a red herring, for example.  After
+<a name="295"></a>     *   the player has learned that the red herring is a red herring, they
+<a name="296"></a>     *   probably won't need to see that particular line of hints again, so
+<a name="297"></a>     *   you can remove the clutter in the menu by closing the hint after
+<a name="298"></a>     *   it's been fully displayed.)  To do this, simply add this to the
+<a name="299"></a>     *   Goal object:
+<a name="300"></a>     *   
+<a name="301"></a>     *.    closeWhenTrue = (goalFullyDisplayed)
+<a name="302"></a>     */
+<a name="303"></a>    goalFullyDisplayed = nil
+<a name="304"></a>
+<a name="305"></a>    /*
+<a name="306"></a>     *   Check our menu state and update it if necessary.  Each time our
+<a name="307"></a>     *   parent menu is about to display, it'll call this on its sub-items
+<a name="308"></a>     *   to let them update their current states.  This method can promote
+<a name="309"></a>     *   the state to Open or Closed if the necessary conditions for the
+<a name="310"></a>     *   goal have been met.
+<a name="311"></a>     *   
+<a name="312"></a>     *   Sometimes it's more convenient to set a goal's state explicitly
+<a name="313"></a>     *   from a scripted event; for example, if the goal is associated
+<a name="314"></a>     *   with a scored achievement, awarding the goal's achievement will
+<a name="315"></a>     *   set the goal's state to Closed.  In these cases, there's no need
+<a name="316"></a>     *   to use this method, since you're managing the goal's state
+<a name="317"></a>     *   explicitly.  The purpose of this method is to make it easy to
+<a name="318"></a>     *   catch goal state changes that can be reached by several different
+<a name="319"></a>     *   routes; in these cases, you can just write a single test for
+<a name="320"></a>     *   those conditions in this method rather than trying to catch every
+<a name="321"></a>     *   possible route to the new conditions and writing code in all of
+<a name="322"></a>     *   those.
+<a name="323"></a>     *   
+<a name="324"></a>     *   The default implementation looks at our openWhenSeen property.
+<a name="325"></a>     *   If this property is not nil, then we'll check the object
+<a name="326"></a>     *   referenced in this property; if our current state is
+<a name="327"></a>     *   Undiscovered, and the object referenced by openWhenSeen has been
+<a name="328"></a>     *   seen by the player character, then we'll change our state to
+<a name="329"></a>     *   Open.  We'll make the corresponding check for openWhenDescribed.  
+<a name="330"></a>     */
+<a name="331"></a>    updateContents()
+<a name="332"></a>    {
+<a name="333"></a>        /* 
+<a name="334"></a>         *   If we're currently Undiscovered, and our openWhenSeen object
+<a name="335"></a>         *   has been seen by the player charater, change our state to
+<a name="336"></a>         *   Open.  Likewise, if our gating achievement has been scored,
+<a name="337"></a>         *   open the goal.  
+<a name="338"></a>         */
+<a name="339"></a>        if (goalState == UndiscoveredGoal &amp;&amp; openWhen)
+<a name="340"></a>        {
+<a name="341"></a>            /* 
+<a name="342"></a>             *   the player has encountered our gating object, so open
+<a name="343"></a>             *   this goal 
+<a name="344"></a>             */
+<a name="345"></a>            goalState = OpenGoal;
+<a name="346"></a>        }
+<a name="347"></a>
+<a name="348"></a>        /* 
+<a name="349"></a>         *   if we're currently Undiscovered or Open, and our Achievement
+<a name="350"></a>         *   has been scored, then change our state to Closed - once the
+<a name="351"></a>         *   goal has been achieved, there's no need to offer hints on the
+<a name="352"></a>         *   topic any longer 
+<a name="353"></a>         */
+<a name="354"></a>        if (goalState is in (UndiscoveredGoal, OpenGoal) &amp;&amp; closeWhen)
+<a name="355"></a>        {
+<a name="356"></a>            /* the goal has been achieved, so close it */
+<a name="357"></a>            goalState = ClosedGoal;
+<a name="358"></a>        }
+<a name="359"></a>    }
+<a name="360"></a>
+<a name="361"></a>    /* display a sub-item, keeping track of when we've shown them all */
+<a name="362"></a>    displaySubItem(idx, lastBeforeInput, eol)
+<a name="363"></a>    {
+<a name="364"></a>        /* do the inherited work */
+<a name="365"></a>        inherited(idx, lastBeforeInput, eol);
+<a name="366"></a>
+<a name="367"></a>        /* if we just displayed the last item, note it */
+<a name="368"></a>        if (idx == menuContents.length())
+<a name="369"></a>            goalFullyDisplayed = true;
+<a name="370"></a>    }
+<a name="371"></a>
+<a name="372"></a>    /* we're active in our parent menu if our goal state is Open */
+<a name="373"></a>    isActiveInMenu = (goalState == OpenGoal)
+<a name="374"></a>
+<a name="375"></a>    /* 
+<a name="376"></a>     *   This goal's current state.  We'll start off undiscovered.  When a
+<a name="377"></a>     *   goal should be open from the very start of the game, this should
+<a name="378"></a>     *   be overridden and set to OpenGoal. 
+<a name="379"></a>     */
+<a name="380"></a>    goalState = UndiscoveredGoal
+<a name="381"></a>;
+<a name="382"></a>
+<a name="383"></a>/*
+<a name="384"></a> *   A Hint encapsulates one hint from a topic.  In many cases, hints can
+<a name="385"></a> *   be listed in a topic simply as strings, rather than using Hint
+<a name="386"></a> *   objects.  Hint objects provide a little more control, though; in
+<a name="387"></a> *   particular, a Hint object can specify some additional code to run
+<a name="388"></a> *   when the hint is shown, so that it can apply any side effects of
+<a name="389"></a> *   showing the hint (for example, when a hint is shown, it could mark
+<a name="390"></a> *   another Goal object as Open, which might be desirable if the hint
+<a name="391"></a> *   refers to another topic that the player might not yet have
+<a name="392"></a> *   encountered).  
+<a name="393"></a> */
+<a name="394"></a>class Hint: MenuTopicSubItem
+<a name="395"></a>    /* the hint text */
+<a name="396"></a>    hintText = ''
+<a name="397"></a>
+<a name="398"></a>    /*
+<a name="399"></a>     *   A list of other Goal objects that this hint references.  By
+<a name="400"></a>     *   default, when we show this hint for the first time, we'll promote
+<a name="401"></a>     *   each goal in this list from Undiscovered to Open.
+<a name="402"></a>     *   
+<a name="403"></a>     *   Sometimes, it's necessary to solve one puzzle before another can
+<a name="404"></a>     *   be solved.  In these cases, some hints for the first puzzle
+<a name="405"></a>     *   (which depends on the second), especially the later, more
+<a name="406"></a>     *   specific hints, might need to refer to the other puzzle.  This
+<a name="407"></a>     *   would make the player aware of the other puzzle even if they
+<a name="408"></a>     *   weren't already.  In such cases, it's a good idea to make sure
+<a name="409"></a>     *   that we make hints for the other puzzle available immediately,
+<a name="410"></a>     *   since otherwise the player might be confused by the absence of
+<a name="411"></a>     *   hints about it.  
+<a name="412"></a>     */
+<a name="413"></a>    referencedGoals = []
+<a name="414"></a>
+<a name="415"></a>    /*
+<a name="416"></a>     *   Get my hint text.  By default, we mark as Open any goals listed
+<a name="417"></a>     *   in our referencedGoals list, then return our hintText string.
+<a name="418"></a>     *   Individual Hint objects can override this as desired to apply any
+<a name="419"></a>     *   additional side effects.
+<a name="420"></a>     */
+<a name="421"></a>    getItemText()
+<a name="422"></a>    {
+<a name="423"></a>        /* scan the referenced goals list */
+<a name="424"></a>        foreach (local cur in referencedGoals)
+<a name="425"></a>        {
+<a name="426"></a>            /* if this goal is not yet discovered, open it */
+<a name="427"></a>            if (cur.goalState == UndiscoveredGoal)
+<a name="428"></a>                cur.goalState = OpenGoal;
+<a name="429"></a>        }
+<a name="430"></a>
+<a name="431"></a>        /* return our hint text */
+<a name="432"></a>        return hintText;
+<a name="433"></a>    }
+<a name="434"></a>;
+<a name="435"></a>
+<a name="436"></a>/*
+<a name="437"></a> *   A hint menu.  This same class can be used for the top-level hints
+<a name="438"></a> *   menu and for sub-menus within the hints menu.
+<a name="439"></a> *   
+<a name="440"></a> *   The typical hint menu system will be structured into a top-level hint
+<a name="441"></a> *   menu that contains a set of sub-menus for the main areas of the game;
+<a name="442"></a> *   each sub-menu will have a series of Goal items, each Goal providing a
+<a name="443"></a> *   set of answers to a particular question.  Something like this:
+<a name="444"></a> *   
+<a name="445"></a> *   topHintMenu: TopHintMenu 'Hints';
+<a name="446"></a> *.  + HintMenu 'General Questions';
+<a name="447"></a> *.  ++ Goal 'What am I supposed to be doing?' [answer, answer, answer];
+<a name="448"></a> *.  ++ Goal 'Amusing things to try' [thing, thing, thing];
+<a name="449"></a> *.  + HintMenu 'First Area';
+<a name="450"></a> *.  ++ Goal 'How do I get past the shark?' [answer, answer, answer];
+<a name="451"></a> *.  ++ Goal 'How do I open the fish tank?' [answer, answer, answer];
+<a name="452"></a> *.  + HintMenu 'Second Area';
+<a name="453"></a> *.  ++ Goal 'Where is the gold key?' [answer, answer, answer];
+<a name="454"></a> *.  ++ Goal 'How do I unlock the gold door?' [answer, answer, answer];
+<a name="455"></a> *   
+<a name="456"></a> *   Note that there's no requirement that the hint menu tree takes
+<a name="457"></a> *   exactly this shape.  A very small game could dispense with the
+<a name="458"></a> *   submenus and simply put all of the goals directly in the top hint
+<a name="459"></a> *   menu.  A very large game with lots of goals could add more levels of
+<a name="460"></a> *   sub-menus to make it easier to navigate the large number of topics.  
+<a name="461"></a> */
+<a name="462"></a>class HintMenu: MenuItem, HintMenuObject
+<a name="463"></a>    /* the menu's title */
+<a name="464"></a>    title = ''
+<a name="465"></a>
+<a name="466"></a>    /* update our contents */
+<a name="467"></a>    updateContents()
+<a name="468"></a>    {
+<a name="469"></a>        local vec = new Vector(16);
+<a name="470"></a>        
+<a name="471"></a>        /* 
+<a name="472"></a>         *   First, run through all of our sub-items, and update their
+<a name="473"></a>         *   contents.  We only want to show our active contents, so we
+<a name="474"></a>         *   need to check with each item to find out which is active. 
+<a name="475"></a>         */
+<a name="476"></a>        foreach (local cur in allContents)
+<a name="477"></a>            cur.updateContents();
+<a name="478"></a>
+<a name="479"></a>        /* create a vector containing all of our active items */
+<a name="480"></a>        foreach (local cur in allContents)
+<a name="481"></a>        {
+<a name="482"></a>            /* if this item is active, add it to the active vector */
+<a name="483"></a>            if (cur.isActiveInMenu)
+<a name="484"></a>                vec.append(cur);
+<a name="485"></a>        }
+<a name="486"></a>
+<a name="487"></a>        /* set our contents list to the list of active items */
+<a name="488"></a>        contents = vec;
+<a name="489"></a>    }
+<a name="490"></a>
+<a name="491"></a>    /* we're active in a menu if we have any active contents */
+<a name="492"></a>    isActiveInMenu = (contents.length() != 0)
+<a name="493"></a>
+<a name="494"></a>    /* add a sub-item to our contents */
+<a name="495"></a>    addToContents(obj)
+<a name="496"></a>    {
+<a name="497"></a>        /* 
+<a name="498"></a>         *   add the sub-item to our allContents list rather than our
+<a name="499"></a>         *   active contents 
+<a name="500"></a>         */
+<a name="501"></a>        allContents += obj;
+<a name="502"></a>    }
+<a name="503"></a>
+<a name="504"></a>    /* initialize our contents list */
+<a name="505"></a>    initializeContents()
+<a name="506"></a>    {
+<a name="507"></a>        /* sort our allContents list in the object-defined sorting order */
+<a name="508"></a>        allContents = allContents.sort(
+<a name="509"></a>            SortAsc, {a, b: a.compareForTopicSort(b)});
+<a name="510"></a>    }
+<a name="511"></a>
+<a name="512"></a>    /* 
+<a name="513"></a>     *   our list of all of our sub-items (some of which may not be
+<a name="514"></a>     *   active, in which case they'll appear in this list but not in our
+<a name="515"></a>     *   'contents' list, which contains only active contents) 
+<a name="516"></a>     */
+<a name="517"></a>    allContents = []
+<a name="518"></a>;
+<a name="519"></a>
+<a name="520"></a>/*
+<a name="521"></a> *   A hint menu version of the long topic menu.
+<a name="522"></a> */
+<a name="523"></a>class HintLongTopicItem: MenuLongTopicItem, HintMenuObject
+<a name="524"></a>    /* 
+<a name="525"></a>     *   presume these are always active - they're usually used for things
+<a name="526"></a>     *   like hint system instructions that should always be available 
+<a name="527"></a>     */
+<a name="528"></a>    isActiveInMenu = true
+<a name="529"></a>;
+<a name="530"></a>
+<a name="531"></a>/*
+<a name="532"></a> *   Top-level hint menu.  As a convenience, an object defined of this
+<a name="533"></a> *   class will automatically register itself as the top-level hint menu
+<a name="534"></a> *   during pre-initialization.  
+<a name="535"></a> */
+<a name="536"></a>class TopHintMenu: HintMenu, PreinitObject
+<a name="537"></a>    /* register as the top-level hint menu during pre-initialization */
+<a name="538"></a>    execute() { hintManager.topHintMenuObj = self; }
+<a name="539"></a>;
+<a name="540"></a>
+<a name="541"></a>/* ------------------------------------------------------------------------ */
+<a name="542"></a>/*
+<a name="543"></a> *   The default hint system user interface implementation.  All of the
+<a name="544"></a> *   hint-related verbs operate by calling methods in the object stored in
+<a name="545"></a> *   the global variable gHintSystem, which we'll by default initialize
+<a name="546"></a> *   with a reference to this object.  Games can replace this with their
+<a name="547"></a> *   own implementations if desired.  
+<a name="548"></a> */
+<a name="549"></a>hintManager: PreinitObject
+<a name="550"></a>    /* during pre-initialization, register as the global hint manager */
+<a name="551"></a>    execute() { gHintManager = self; }
+<a name="552"></a>    
+<a name="553"></a>    /*
+<a name="554"></a>     *   Disable hints - this is invoked by the HINTS OFF action.
+<a name="555"></a>     *   
+<a name="556"></a>     *   Some users don't like on-line hint systems because they find them
+<a name="557"></a>     *   to be too much of a temptation.  To address this concern, we
+<a name="558"></a>     *   provide this HINTS OFF command.  Players who want to ensure that
+<a name="559"></a>     *   their will-power won't crumble later on in the face of a
+<a name="560"></a>     *   difficult puzzle can type HINTS OFF early on, before the going
+<a name="561"></a>     *   gets rough; this will disable hints for the rest of the session.
+<a name="562"></a>     *   It's kind of like giving your credit card to a friend before
+<a name="563"></a>     *   going to the mall, making the friend promise that they won't let
+<a name="564"></a>     *   you spend more than such and such an amount, no matter how much
+<a name="565"></a>     *   you beg and plead.  
+<a name="566"></a>     */
+<a name="567"></a>    disableHints()
+<a name="568"></a>    {
+<a name="569"></a>        /* 
+<a name="570"></a>         *   Remember that hints have been disabled.  Keep this
+<a name="571"></a>         *   information in the transient session object, since we want
+<a name="572"></a>         *   the disabled status to last for the rest of this session,
+<a name="573"></a>         *   even if we restore or restart later.  
+<a name="574"></a>         */
+<a name="575"></a>        sessionHintStatus.hintsDisabled = true;
+<a name="576"></a>
+<a name="577"></a>        /* acknowledge it */
+<a name="578"></a>        DMsg(hints disabled, '&lt;.notification&gt;Hints are now disabled.&lt;./notification&gt; ');
+<a name="579"></a>    }
+<a name="580"></a>
+<a name="581"></a>    /*
+<a name="582"></a>     *   The top-level hint menu.  This must be provided by the game, and
+<a name="583"></a>     *   should be set during initialization.  If this is nil, hints won't
+<a name="584"></a>     *   be available.
+<a name="585"></a>     *   
+<a name="586"></a>     *   We don't provide a default top-level hint menu because we want to
+<a name="587"></a>     *   give the game maximum flexibility in defining this object exactly
+<a name="588"></a>     *   as it wants.  For convenience, an object of class TopHintMenu
+<a name="589"></a>     *   will automatically register itself during pre-initialization -
+<a name="590"></a>     *   but note that there should be only one such object in the entire
+<a name="591"></a>     *   game, since if there are more than one, only one will be
+<a name="592"></a>     *   arbitrarily chosen as the registered object.  
+<a name="593"></a>     */
+<a name="594"></a>    topHintMenuObj = nil
+<a name="595"></a>
+<a name="596"></a>    /*
+<a name="597"></a>     *   Show hints - invoke the hint system. 
+<a name="598"></a>     */
+<a name="599"></a>    showHints()
+<a name="600"></a>    {
+<a name="601"></a>        /* if there is no top-level hint menu, no hints are available */
+<a name="602"></a>        if (topHintMenuObj == nil)
+<a name="603"></a>        {
+<a name="604"></a>            Hints.sayHintsNotPresent();
+<a name="605"></a>            return;
+<a name="606"></a>        }
+<a name="607"></a>
+<a name="608"></a>        /* if hints are disabled, reject the request */
+<a name="609"></a>        if (sessionHintStatus.hintsDisabled)
+<a name="610"></a>        {
+<a name="611"></a>            DMsg(sorry hints disabled, '&lt;.parser&gt;Sorry, but hints have been
+<a name="612"></a>                disabled for this session, as you requested.  If you&amp;rsquo;ve
+<a name="613"></a>                changed your mind, you&amp;rsquo;ll have to save your current
+<a name="614"></a>                position, exit the TADS interpreter, and start a new interpreter
+<a name="615"></a>                session.&lt;./parser&gt; ');
+<a name="616"></a>            return;
+<a name="617"></a>        }
+<a name="618"></a>
+<a name="619"></a>        /* bring the hint menu tree up to date */
+<a name="620"></a>        topHintMenuObj.updateContents();
+<a name="621"></a>
+<a name="622"></a>        /* if there are no hints available, say so and give up */
+<a name="623"></a>        if (topHintMenuObj.contents.length() == 0)
+<a name="624"></a>        {
+<a name="625"></a>            DMsg(currently no hints, '&lt;.parser&gt;Sorry, no hints are currently
+<a name="626"></a>                available. Please check back later.&lt;./parser&gt; ');
+<a name="627"></a>            return;
+<a name="628"></a>        }
+<a name="629"></a>        
+<a name="630"></a>        /* if we haven't warned about hints, do so now */
+<a name="631"></a>        if (!showHintWarning())
+<a name="632"></a>            return;
+<a name="633"></a>
+<a name="634"></a>        /* display the hint menu */
+<a name="635"></a>        topHintMenuObj.display();
+<a name="636"></a>
+<a name="637"></a>        /* all done */
+<a name="638"></a>        DMsg(hints done, '&lt;.parser&gt;Done.&lt;./parser&gt; ');
+<a name="639"></a>    }
+<a name="640"></a>
+<a name="641"></a>    /*
+<a name="642"></a>     *   Show a warning before showing any hints.  By default, we'll show
+<a name="643"></a>     *   this at most once per session or once per saved game.  Returns
+<a name="644"></a>     *   true if we are to proceed to the hints, nil if not.  
+<a name="645"></a>     */
+<a name="646"></a>    showHintWarning()
+<a name="647"></a>    {
+<a name="648"></a>        /* 
+<a name="649"></a>         *   If we have previously warned in this session, or if we've
+<a name="650"></a>         *   warned in a previous session and the same game was later
+<a name="651"></a>         *   saved and restored, don't warn again.  The transient session
+<a name="652"></a>         *   object tells us if we've asked in this session; the normal
+<a name="653"></a>         *   persistent object tells us if we've asked in a previous
+<a name="654"></a>         *   session that we've since saved and restored. 
+<a name="655"></a>         */
+<a name="656"></a>        if (!sessionHintStatus.hintWarning &amp;&amp; !gameHintStatus.hintWarning)
+<a name="657"></a>        {
+<a name="658"></a>            /* 
+<a name="659"></a>             *   we haven't asked yet in either the session or the game,
+<a name="660"></a>             *   so show the warning now 
+<a name="661"></a>             */
+<a name="662"></a>            cquoteOutputFilter.deactivate();
+<a name="663"></a>            
+<a name="664"></a>             DMsg(showHintWarning, '&lt;.notification&gt;Warning: Some people
+<a name="665"></a>                 don&amp;rsquo;t like built-in hints, since the temptation to ask
+<a name="666"></a>                 for help prematurely can become overwhelming when hints are so
+<a name="667"></a>                 close at hand.  If you&amp;rsquo;re worried that your willpower
+<a name="668"></a>                 won&amp;rsquo;t hold up, you can disable hints for the rest of this
+<a name="669"></a>                 session by typing &lt;&lt;aHref('hints off', 'HINTS OFF')
+<a name="670"></a>       &gt;&gt;.  If you still want to see the hints now, type
+<a name="671"></a>                 &lt;&lt;aHref('hint', 'HINT')&gt;&gt;.&lt;./notification&gt; ');
+<a name="672"></a>            
+<a name="673"></a>            cquoteOutputFilter.activate();
+<a name="674"></a>                  
+<a name="675"></a>
+<a name="676"></a>            /* note that we've shown the warning */
+<a name="677"></a>            sessionHintStatus.hintWarning = true;
+<a name="678"></a>            gameHintStatus.hintWarning = true;
+<a name="679"></a>
+<a name="680"></a>            /* don't proceed to hints now; let them ask again */
+<a name="681"></a>            return nil;
+<a name="682"></a>        }
+<a name="683"></a>
+<a name="684"></a>        /* 
+<a name="685"></a>         *   They've already seen the warning before.  It's possible that
+<a name="686"></a>         *   they've seen it in a past session with the game and not
+<a name="687"></a>         *   otherwise during this session, but now that we're accessing
+<a name="688"></a>         *   the hint system once, don't bother with another warning for
+<a name="689"></a>         *   the rest of this session.  
+<a name="690"></a>         */
+<a name="691"></a>        sessionHintStatus.hintWarning = true;
+<a name="692"></a>
+<a name="693"></a>        /* proceed to the hints */
+<a name="694"></a>        return true;
+<a name="695"></a>    }
+<a name="696"></a>;
+<a name="697"></a>
+<a name="698"></a>/*
+<a name="699"></a> *   We keep several pieces of information about the status of the hint
+<a name="700"></a> *   system.  Some of it pertains to the current session, independently of
+<a name="701"></a> *   any saving/restoring/restarting, so we keep this information in a
+<a name="702"></a> *   transient object.  Some pertains to the present game, so we keep it
+<a name="703"></a> *   in an ordinary persistent object, so that it's saved and restored
+<a name="704"></a> *   along with the game.  
+<a name="705"></a> */
+<a name="706"></a>transient sessionHintStatus: object
+<a name="707"></a>    /* flag: we've warned about the hint system in this session */
+<a name="708"></a>    hintWarning = nil
+<a name="709"></a>
+<a name="710"></a>    /* flag: we've disabled hints for this session */
+<a name="711"></a>    hintsDisabled = nil
+<a name="712"></a>;
+<a name="713"></a>
+<a name="714"></a>gameHintStatus: object
+<a name="715"></a>    /* flag: we've warned about the hint system in this session */
+<a name="716"></a>    hintWarning = nil
+<a name="717"></a>;
+<a name="718"></a>
+<a name="719"></a>property achieved;
+<a name="720"></a>
+<a name="721"></a>//==============================================================================
+<a name="722"></a>/*
+<a name="723"></a> *   FRAMEWORK FOR THE EXTRA HINTS MECHANISM
+<a name="724"></a> *
+<a name="725"></a> *   The ExtraHint class provides a framework for providing players (especially
+<a name="726"></a> *   novice players) with extra hints, nudges, and tips during the course of
+<a name="727"></a> *   play. When it is activated (either at player request, or because the player
+<a name="728"></a> *   appears to be having trouble), a hint or tip can be displayed at the end of
+<a name="729"></a> *   the turn in response to what the player has just typed, or some condition
+<a name="730"></a> *   that has just become true, or which became true a certain number of turns
+<a name="731"></a> *   ago.
+<a name="732"></a> *
+<a name="733"></a> *   It is also possible to define conditions (typically the achievement of some
+<a name="734"></a> *   goal) that render a particular ExtraHint otiose, so that it is not
+<a name="735"></a> *   displayed if it is no longer needed.
+<a name="736"></a> *
+<a name="737"></a> *   We simply need to define objects of the ExtraHint class to encapsulate the
+<a name="738"></a> *   extra hints we want displayed.
+<a name="739"></a> *
+<a name="740"></a> *   A series of ExtraHints can be defined using a template if desired.
+<a name="741"></a> *
+<a name="742"></a> *   The first (optional) element in the template (e.g. -&gt;doorAchievement) is
+<a name="743"></a> *   the achievement we check to see if this ExtraHint has become redundant. For
+<a name="744"></a> *   example, if the player has already taken the flyer, flyer.achievement has
+<a name="745"></a> *   been achieved, and so we don't need this first ExtraHint.
+<a name="746"></a> *
+<a name="747"></a> *   The second (optional) element in the template (e.g. +1) is the hintDelay;
+<a name="748"></a> *   this is number of turns that should elapse between the openWhen condition
+<a name="749"></a> *   (see below) becoming true and the hint being offered. This optionally
+<a name="750"></a> *   allows the player a few turns to work on the solution before being offered
+<a name="751"></a> *   a gratuitous hint.
+<a name="752"></a> *
+<a name="753"></a> *   The third element in the template is simply the text of the extra hint to
+<a name="754"></a> *   display.
+<a name="755"></a> *
+<a name="756"></a> *   The openWhen property holds the condition that must be true before this
+<a name="757"></a> *   ExtraHint is displayed. In the case of the first ExtraHint, the condition
+<a name="758"></a> *   is that the player char has visited the location that contains the
+<a name="759"></a> *   telephone pole.
+<a name="760"></a> */
+<a name="761"></a>class ExtraHint: HintOpener
+<a name="762"></a>    location = extraHintManager
+<a name="763"></a>    
+<a name="764"></a>    /* 
+<a name="765"></a>     *   The condition under which we close this ExtraHint. By default we close
+<a name="766"></a>     *   it if either hintDone becomes true or our closeWhen condition is true.
+<a name="767"></a>     */
+<a name="768"></a>    checkClose()
+<a name="769"></a>    {       
+<a name="770"></a>        return hintDone || closeWhen;
+<a name="771"></a>    }
+<a name="772"></a>       
+<a name="773"></a>            
+<a name="774"></a>    /*  
+<a name="775"></a>     *   The number of turns between openWhen becoming true and this hint 
+<a name="776"></a>     *   being displayed.
+<a name="777"></a>     */
+<a name="778"></a>    hintDelay = 0
+<a name="779"></a>       
+<a name="780"></a>    /*  
+<a name="781"></a>     *   If the closeWhen condition is true we remove this ExtraHint from the
+<a name="782"></a>     *   list of potentially active ExtraHints and return nil to tell the 
+<a name="783"></a>     *   caller that this ExtraHint was not displayed. Otherwise we check if 
+<a name="784"></a>     *   this ExtraHint (a) meets its openWhen conditions to be displayed 
+<a name="785"></a>     *   and (b) is due to be displayed because hintDelay turns have passed 
+<a name="786"></a>     *   since it was open. If both conditions are met we show our text and 
+<a name="787"></a>     *   return true to tell our caller that an ExtraHint has been displayed 
+<a name="788"></a>     *   (important since we display at most one ExtraHint per turn). 
+<a name="789"></a>     *   Otherwise we return nil.
+<a name="790"></a>     */    
+<a name="791"></a>    doHint()
+<a name="792"></a>    {
+<a name="793"></a>        if(checkClose())
+<a name="794"></a>        {
+<a name="795"></a>            extraHintManager.removeFromContents(self);
+<a name="796"></a>            return nil;
+<a name="797"></a>        }
+<a name="798"></a>        
+<a name="799"></a>        if(openWhen)
+<a name="800"></a>        {
+<a name="801"></a>            if(openedWhen == nil)
+<a name="802"></a>                openedWhen = libGlobal.totalTurns;
+<a name="803"></a>            
+<a name="804"></a>            if(libGlobal.totalTurns &lt; (openedWhen + hintDelay))
+<a name="805"></a>               return nil;
+<a name="806"></a>               
+<a name="807"></a>            showHint();
+<a name="808"></a>            return true;
+<a name="809"></a>        }           
+<a name="810"></a>        return nil;
+<a name="811"></a>    }
+<a name="812"></a>    
+<a name="813"></a>    /* The text to display in relation to this ExtraHint */
+<a name="814"></a>    hintText = ""
+<a name="815"></a>    
+<a name="816"></a>    /* Show the text related to this ExtraHint */
+<a name="817"></a>    showHint()
+<a name="818"></a>    {
+<a name="819"></a>        "&lt;.extrahint&gt;";
+<a name="820"></a>        if(ofKind(Script))	
+<a name="821"></a>        {	    
+<a name="822"></a>            doScript();		
+<a name="823"></a>            
+<a name="824"></a>            /*  
+<a name="825"></a>             *   Reset openedWhen so that we don't display this hint again until
+<a name="826"></a>             *   after another hintDelay turns.
+<a name="827"></a>             */  
+<a name="828"></a>            openedWhen = libGlobal.totalTurns;
+<a name="829"></a>        }	
+<a name="830"></a>        else
+<a name="831"></a>            hintText();
+<a name="832"></a>        
+<a name="833"></a>        "&lt;./extrahint&gt;";	
+<a name="834"></a>        
+<a name="835"></a>        /* 
+<a name="836"></a>         *   Mark this hint as done now we've shown it, unless we're an
+<a name="837"></a>         *   EventList with more items to show.
+<a name="838"></a>         */
+<a name="839"></a>        if(eventList == nil || getScriptState() &gt; eventList.length)		
+<a name="840"></a>            hintDone = true;
+<a name="841"></a>        
+<a name="842"></a>	
+<a name="843"></a>    }
+<a name="844"></a>    
+<a name="845"></a>    /* Set the number of turns that must elapse before we display this hint */
+<a name="846"></a>    setDelay(val)
+<a name="847"></a>    {
+<a name="848"></a>        hintDone = nil;
+<a name="849"></a>        hintDelay = val;
+<a name="850"></a>    }
+<a name="851"></a>    
+<a name="852"></a>    /* 
+<a name="853"></a>     *   For internal use only: Flag; have we done with this hint (because we've
+<a name="854"></a>     *   displayed it)?
+<a name="855"></a>     */
+<a name="856"></a>    hintDone = nil
+<a name="857"></a>    
+<a name="858"></a>    /* The turn on which this ExtraHint was first opened */
+<a name="859"></a>    openedWhen = nil
+<a name="860"></a>    
+<a name="861"></a>    /* 
+<a name="862"></a>     *   Our priority. When two ExtraHints become available on the same term,
+<a name="863"></a>     *   the one with the higher priority will be displayed.
+<a name="864"></a>     */
+<a name="865"></a>    priority = 100
+<a name="866"></a>;
+<a name="867"></a>
+<a name="868"></a>extraHintStyleTag: StyleTag 'extrahint' '&lt;.p&gt;&lt;i&gt;' '&lt;/i&gt;&lt;.p&gt;';
+<a name="869"></a>
+<a name="870"></a>
+<a name="871"></a>/*  
+<a name="872"></a> *   The extraHintManager carries out the work of starting and stopping the 
+<a name="873"></a> *   display of ExtraHints, and determing which, if any, ExtraHint is ready 
+<a name="874"></a> *   to be displayed.
+<a name="875"></a> */
+<a name="876"></a>extraHintManager: PreinitObject
+<a name="877"></a>    
+<a name="878"></a>    /* Start the Daemon that checks whether to display any ExtraHints. */
+<a name="879"></a>    activate()  
+<a name="880"></a>    { 
+<a name="881"></a>        /* 
+<a name="882"></a>         *   First check that our daemonID is nil so we don't start another
+<a name="883"></a>         *   Daemon if one is already running.
+<a name="884"></a>         */
+<a name="885"></a>        if(daemonID == nil)
+<a name="886"></a>            daemonID = new Daemon(self, &amp;hintDaemon, 1);  
+<a name="887"></a>    }
+<a name="888"></a>    
+<a name="889"></a>    /* 
+<a name="890"></a>     *   Even if this module is included, there may be no ExtraHints defined in
+<a name="891"></a>     *   the game, in which case we might want to check whether any ExtraHints
+<a name="892"></a>     *   exist before offering them to the player.
+<a name="893"></a>     */
+<a name="894"></a>    extraHintsExist() 
+<a name="895"></a>    {
+<a name="896"></a>        return firstObj(ExtraHint) != nil;
+<a name="897"></a>    }
+<a name="898"></a>    
+<a name="899"></a>	/* Stop the Daemon that checks whether to display any ExtraHints. */
+<a name="900"></a>    deactivate()
+<a name="901"></a>    {
+<a name="902"></a>        if(daemonID)
+<a name="903"></a>        {
+<a name="904"></a>            daemonID.removeEvent();
+<a name="905"></a>            daemonID = nil;
+<a name="906"></a>        }
+<a name="907"></a>    }
+<a name="908"></a>    
+<a name="909"></a>    daemonID = nil
+<a name="910"></a>    
+<a name="911"></a>    /* The extraHintManager is activated if it has a running daemon */
+<a name="912"></a>    activated = (daemonID != nil)
+<a name="913"></a>    
+<a name="914"></a>    /* 
+<a name="915"></a>     *   When we're active we run through every ExtraHint object in our 
+<a name="916"></a>     *   contents and run its doHint() method till either we run out of 
+<a name="917"></a>     *   ExtraHint objects or we find one that displays an extra hint, and 
+<a name="918"></a>     *   so returns true.
+<a name="919"></a>     */
+<a name="920"></a>    hintDaemon()
+<a name="921"></a>    {
+<a name="922"></a>        foreach(local obj in contents)
+<a name="923"></a>        {
+<a name="924"></a>            if(obj.doHint())
+<a name="925"></a>                break;
+<a name="926"></a>        }
+<a name="927"></a>    }
+<a name="928"></a>    
+<a name="929"></a>    contents = []
+<a name="930"></a>    
+<a name="931"></a>    addToContents(obj)   {  contents += obj; }
+<a name="932"></a>    
+<a name="933"></a>    removeFromContents(obj) {  contents -= obj; }
+<a name="934"></a>    
+<a name="935"></a>    /* Build a list of all ExtraHints in our contents property at PreInit */
+<a name="936"></a>    execute() 
+<a name="937"></a>    { 
+<a name="938"></a>        /* First register our existence */
+<a name="939"></a>        gExtraHintManager = self;
+<a name="940"></a>        
+<a name="941"></a>        /* Then add every ExtraHint to our contents */
+<a name="942"></a>        forEachInstance(ExtraHint, {x: addToContents(x) });  
+<a name="943"></a>        
+<a name="944"></a>        /* Finally sort the ExtraHints in descending order of priority */
+<a name="945"></a>        contents = contents.sort(SortDesc, {a, b: a.priority - b.priority });
+<a name="946"></a>    }
+<a name="947"></a>    
+<a name="948"></a>    explainExtraHints()
+<a name="949"></a>    {
+<a name="950"></a>        DMsg(explain extra hints, 'If you\'re new to Interactive Fiction and
+<a name="951"></a>            would like to read a few extra hints and tips that will pop up here
+<a name="952"></a>            and there as you explore the story, type &lt;&lt;cmdStr('ON')&gt;&gt;. If you
+<a name="953"></a>            decide you don\'t want any more of these bonus tips, simply type
+<a name="954"></a>            &lt;&lt;cmdStr('OFF')&gt;&gt;. ' );
+<a name="955"></a>    }
+<a name="956"></a>    
+<a name="957"></a>    cmdStr(stat)
+<a name="958"></a>    {
+<a name="959"></a>        return BMsg(extra hint cmd str, 
+<a name="960"></a>        '&lt;&lt;aHref('EXTRA ' + stat, 'EXTRA ' + stat, 'Turning extra hints ' +
+<a name="961"></a>                stat.toLower)&gt;&gt;');
+<a name="962"></a>    }
+<a name="963"></a>;
+<a name="964"></a>
+<a name="965"></a>
+<a name="966"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

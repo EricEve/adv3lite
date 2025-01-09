@@ -1,0 +1,510 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>symconn.t</title></head><body>
+<table class=ban><tr><td><h1>symconn.t</h1><td align=right><a href="../file/symconn.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*---------------------------------------------------------------------------*/
+<a name="5"></a>/*
+<a name="6"></a> *   SYMMETRICAL CONNECTOR (SYMCONN) EXTENSION
+<a name="7"></a> */
+<a name="8"></a>
+<a name="9"></a>
+<a name="10"></a>symconnID: ModuleID
+<a name="11"></a>    name = 'Symconn'
+<a name="12"></a>    byline = 'by Eric Eve'
+<a name="13"></a>    htmlByline = 'by Eric Eve'
+<a name="14"></a>    version = '3'    
+<a name="15"></a>;
+<a name="16"></a>
+<a name="17"></a>/* Modification to Room for SymConn (symmetrical connector) extension */
+<a name="18"></a>modify Room
+<a name="19"></a>    /* 
+<a name="20"></a>     *   Modified for SYMCOMM EXTENSION to set up symmetrical connectors at
+<a name="21"></a>     *   preinit.
+<a name="22"></a>     */
+<a name="23"></a>    preinitThing()
+<a name="24"></a>    {
+<a name="25"></a>        /* Carry out the inherited handling. */
+<a name="26"></a>        inherited();
+<a name="27"></a>        
+<a name="28"></a>        /* 
+<a name="29"></a>         *   Go through each direction property listed in the Direction.opposites LookupTable.
+<a name="30"></a>         */
+<a name="31"></a>        foreach(local dir in Direction.allDirections)
+<a name="32"></a>        {
+<a name="33"></a>            
+<a name="34"></a>            /* 
+<a name="35"></a>             *   If this direction property on this room points to an object, then we may need to do
+<a name="36"></a>             *   some setting up.
+<a name="37"></a>             */
+<a name="38"></a>            if(propType(dir.dirProp) == TypeObject)
+<a name="39"></a>            {
+<a name="40"></a>                /* Note the object this property is attached to */
+<a name="41"></a>                local obj = self.(dir.dirProp);
+<a name="42"></a>                
+<a name="43"></a>                /* Note the property pointer for the reverse direction. */
+<a name="44"></a>                local revProp = Direction.oppositeProp(dir.dirProp);             
+<a name="45"></a>                
+<a name="46"></a>                /* 
+<a name="47"></a>                 *   If the object is a Room and its reverse direction property is nil, and the room
+<a name="48"></a>                 *   has no connection back to us, then point that other room's reverse direction
+<a name="49"></a>                 *   property to us, to make a symmetrical connection, provided we want reverse
+<a name="50"></a>                 *   connections set up automatically.
+<a name="51"></a>                 */
+<a name="52"></a>                if(obj.ofKind(Room) &amp;&amp; obj.propType(revProp) == TypeNil
+<a name="53"></a>                   &amp;&amp; autoBackConnections &amp;&amp; !obj.getDirectionTo(self))
+<a name="54"></a>                    obj.(revProp) = self;
+<a name="55"></a>                
+<a name="56"></a>                /*  
+<a name="57"></a>                 *   If the object is a SymConnector we need to carry out a different kind of
+<a name="58"></a>                 *   initialization.
+<a name="59"></a>                 */
+<a name="60"></a>                if(obj.ofKind(AutoConnector))
+<a name="61"></a>//                if(obj.ofKind(SymConnector))
+<a name="62"></a>                {
+<a name="63"></a>                    /* First get the object to initialize itself. */
+<a name="64"></a>                    obj.initConnector(self, dir);
+<a name="65"></a>                    
+<a name="66"></a>                    /* 
+<a name="67"></a>                     *   Note the destination to which the SymConnector should lead from the current
+<a name="68"></a>                     *   room. This may be nil if we're initializing this SymConnector from both its
+<a name="69"></a>                     *   rooms and we haven't initialized it from the other side yet.
+<a name="70"></a>                     */
+<a name="71"></a>                    local dest = (obj.room2 == self ? obj.room1 : obj.room2);
+<a name="72"></a>                    
+<a name="73"></a>                    dest = dest ?? obj.destination;
+<a name="74"></a>                    
+<a name="75"></a>                    /*  
+<a name="76"></a>                     *   If we have a destination and that destination's reverse direction property
+<a name="77"></a>                     *   isn't already set, and the destination has no other direction set to the
+<a name="78"></a>                     *   SymConnector, and we want to set up reverse directions automatically, then
+<a name="79"></a>                     *   set the reverse direction to point to the SymConnector.
+<a name="80"></a>                     */
+<a name="81"></a>                    if(dest &amp;&amp; dest.propType(revProp) == TypeNil &amp;&amp; !dest.getDirection(obj)
+<a name="82"></a>                       &amp;&amp; autoBackConnections)
+<a name="83"></a>                    {
+<a name="84"></a>                        dest.(revProp) = obj;
+<a name="85"></a>                        
+<a name="86"></a>                        if(obj.room1 == self &amp;&amp; obj.room2Dir == nil)
+<a name="87"></a>                            obj.room2Dir = Direction.allDirections.valWhich({d: d.dirProp ==
+<a name="88"></a>                                revProp});
+<a name="89"></a>                    }
+<a name="90"></a>                    
+<a name="91"></a>                                         
+<a name="92"></a>                }
+<a name="93"></a>                /* 
+<a name="94"></a>                 *   If we're attached to a TravelConnector that's neither a SymmConnector nor a
+<a name="95"></a>                 *   Room, and autoBackConnection is true, and it's not a Door, try
+<a name="96"></a>                 *   to set the reverse connection if it does not already exist.
+<a name="97"></a>                 */
+<a name="98"></a>                else if(obj.ofKind(TravelConnector) &amp;&amp; autoBackConnections &amp;&amp; !obj.ofKind(Room) 
+<a name="99"></a>                        &amp;&amp; !obj.ofKind(Door))
+<a name="100"></a>                {
+<a name="101"></a>                    /* Note the destination to which this TravelConnector leads. */
+<a name="102"></a>                    local dest = obj.getDestination(self);
+<a name="103"></a>                    
+<a name="104"></a>                    /* 
+<a name="105"></a>                     *   If we have a destination and there's no way back from it to here and the
+<a name="106"></a>                     *   reverse direction property of our destination is nil, then set that
+<a name="107"></a>                     *   property to point back to us.
+<a name="108"></a>                     */
+<a name="109"></a>                    if(dest &amp;&amp; !dest.getDirectionTo(self) &amp;&amp; dest.propType(revProp) == TypeNil)
+<a name="110"></a>                    {
+<a name="111"></a>                        dest.(revProp) = self;                        
+<a name="112"></a>                    }                   
+<a name="113"></a>                }                
+<a name="114"></a>                
+<a name="115"></a>                /* 
+<a name="116"></a>                 *   Ensure that any UnlistedProxyConnectors - usually defined by means of the
+<a name="117"></a>                 *   asExit(macro) - are matched by an UnlistedProxyConnector in the opposite
+<a name="118"></a>                 *   direction in destination room where the direction in question is either up or
+<a name="119"></a>                 *   down, provided we want to create automatic back connections.
+<a name="120"></a>                 */
+<a name="121"></a>                if(obj.ofKind(UnlistedProxyConnector) &amp;&amp; dir.dirProp is in (&amp;up, &amp;down)
+<a name="122"></a>                    &amp;&amp; autoBackConnections)
+<a name="123"></a>                {
+<a name="124"></a>                    local dest;
+<a name="125"></a>                    
+<a name="126"></a>                    /* 
+<a name="127"></a>                     *   obtain the direction property for which the 
+<a name="128"></a>                     *   UnlistedProxyConnector is a proxy.
+<a name="129"></a>                     */
+<a name="130"></a>                    local proxyProp = obj.direction.dirProp;
+<a name="131"></a>                    
+<a name="132"></a>                    /*  
+<a name="133"></a>                     *   If this direction property points to an object, get its destination
+<a name="134"></a>                     *   (assuming it's a TravelConnector or Room).
+<a name="135"></a>                     */
+<a name="136"></a>                    if(propType(proxyProp) == TypeObject)
+<a name="137"></a>                        dest = self.(proxyProp).getDestination(self);
+<a name="138"></a>                    
+<a name="139"></a>                    /*  
+<a name="140"></a>                     *   If we've found a destination, and its corresponding down or up property is
+<a name="141"></a>                     *   undefined, then set up an UnlistedProxyConnector accordingly.
+<a name="142"></a>                     */
+<a name="143"></a>                    if(dest &amp;&amp; dest.propType(revProp) == TypeNil)
+<a name="144"></a>                    {
+<a name="145"></a>                        local backDir = dest.getDirectionTo(self);                        
+<a name="146"></a>                        
+<a name="147"></a>                        if(backDir)
+<a name="148"></a>                            dest.(revProp) = new UnlistedProxyConnector(backDir);
+<a name="149"></a>                    }
+<a name="150"></a>                    
+<a name="151"></a>                }           
+<a name="152"></a>                              
+<a name="153"></a>            }            
+<a name="154"></a>        }   
+<a name="155"></a>        
+<a name="156"></a>    }
+<a name="157"></a>    
+<a name="158"></a>    /* 
+<a name="159"></a>     *   Flag - do we want the library (specifically the preInit method of Thing) to automatically
+<a name="160"></a>     *   create connections back (in the reverse direction) from any rooms our direction properties
+<a name="161"></a>     *   (directlt, or indirectly via a TravelConnector) point to? By default we do (since that was
+<a name="162"></a>     *   the part of the original purpose of the SymmConn extension) but game code can set this to
+<a name="163"></a>     *   nil (either on the Room class or on individual rooms) to suppress it if it's not wanted -
+<a name="164"></a>     *   which may be the case if the this extension is being used for SymmConnectors rather than
+<a name="165"></a>     *   automated back connections (which is now unlikely given the availabliity of DSConnectors in
+<a name="166"></a>     *   the main library).
+<a name="167"></a>     */         
+<a name="168"></a>    autoBackConnections = true
+<a name="169"></a>    
+<a name="170"></a>    /* 
+<a name="171"></a>     *   update the vocab of any SymPassages in our contents list that have seperate room1Vocab and
+<a name="172"></a>     *   room2Vocab
+<a name="173"></a>     */
+<a name="174"></a>    updateSymVocab()
+<a name="175"></a>    {
+<a name="176"></a>        /* loop through our contents */
+<a name="177"></a>        foreach(local obj in contents)            
+<a name="178"></a>        {
+<a name="179"></a>            /* 
+<a name="180"></a>             *   We're only interested in SymPassages (and subclasses thereof) that define both
+<a name="181"></a>             *   their room1Vocab and room2Vocab properties as single-quoted strings.
+<a name="182"></a>             */
+<a name="183"></a>            if(obj.ofKind(SymPassage) &amp;&amp; obj.propType(&amp;room1Vocab) == TypeSString 
+<a name="184"></a>               &amp;&amp; obj.propType(&amp;room2Vocab) == TypeSString)
+<a name="185"></a>            {
+<a name="186"></a>                /* 
+<a name="187"></a>                 *   The new vocab we want to update this obj with is is room1Vocab if we're in its
+<a name="188"></a>                 *   room1 and its room2Vocab otherwise.
+<a name="189"></a>                 */
+<a name="190"></a>                local newVocab = (obj.room1 == self ? obj.room1Vocab : obj.room2Vocab);
+<a name="191"></a>                
+<a name="192"></a>                /*   Update the vocab on obj. */
+<a name="193"></a>                obj.replaceVocab(newVocab);
+<a name="194"></a>            
+<a name="195"></a>            }
+<a name="196"></a>        }
+<a name="197"></a>    }
+<a name="198"></a>    
+<a name="199"></a>    /*  
+<a name="200"></a>     *   Modified in SYMCONN EXTENSION to update the vocab on any SymPassages in our destination.
+<a name="201"></a>     */
+<a name="202"></a>    notifyDeparture(traveler, dest)
+<a name="203"></a>    {
+<a name="204"></a>        /* first carry out the inherited handling */
+<a name="205"></a>        inherited(traveler, dest);
+<a name="206"></a>        
+<a name="207"></a>        /* then update the vocab on our destination's SymPassages */        
+<a name="208"></a>        if(gPlayerChar.isOrIsIn(traveler))
+<a name="209"></a>            dest.updateSymVocab();
+<a name="210"></a>    }
+<a name="211"></a>;
+<a name="212"></a>
+<a name="213"></a>/* Modification to DirState for SymConn (symmetrical connector) extension */
+<a name="214"></a>modify DirState    
+<a name="215"></a>    /* 
+<a name="216"></a>     *   We exclude SymStairway because including 'up' or 'down' in its vocab confuses the parser's
+<a name="217"></a>     *   interpretation of CLIMB UP and CLIMB DOWN.
+<a name="218"></a>     */
+<a name="219"></a>    appliesTo(obj)
+<a name="220"></a>    {
+<a name="221"></a>        return inherited(obj) &amp;&amp; ! obj.ofKind(SymStairway);
+<a name="222"></a>    }
+<a name="223"></a>;
+<a name="224"></a>
+<a name="225"></a>/* 
+<a name="226"></a> *   Ensure that the vocab of any SymPassages located in the player character's starting location
+<a name="227"></a> *   have the vocab appropriate to the side from which they're viewed.
+<a name="228"></a> */
+<a name="229"></a>symVocabPreinit: PreinitObject
+<a name="230"></a>    exec()
+<a name="231"></a>    {
+<a name="232"></a>        gPlayerChar.getOutermostRoom.updateSymVocab();
+<a name="233"></a>    }
+<a name="234"></a>    
+<a name="235"></a>    /* 
+<a name="236"></a>     *   The updateSymVocab() method depends on MultiLocs (which includes SymPassages) having
+<a name="237"></a>     *   already been added to their locations' contents list, so we need to ensure that the
+<a name="238"></a>     *   initialization of MultiLocs has been carried out first.
+<a name="239"></a>     */
+<a name="240"></a>    execBeforeMe = [multiLocInitiator]
+<a name="241"></a>;
+<a name="242"></a>
+<a name="243"></a>/* Mix-in class for automating the set-up of various kinds of SymmConnector */
+<a name="244"></a>class AutoConnector: object
+<a name="245"></a>    /*  
+<a name="246"></a>     *   Initialize this SymConnector by setting up its room1 and room2 properties if they are not
+<a name="247"></a>     *   already defined. This method is normally called from the preinitThing() method of the room
+<a name="248"></a>     *   that first defines this connector. [SYMCOMM EXTENSION]
+<a name="249"></a>     */
+<a name="250"></a>    initConnector(loc, dir)
+<a name="251"></a>    {
+<a name="252"></a>        
+<a name="253"></a>        /* 
+<a name="254"></a>         *   Check if room1 and room2 have been defined on our rooms list property, and assign
+<a name="255"></a>         *   them if so.         */
+<a name="256"></a>        
+<a name="257"></a>        rooms = valToList(rooms);
+<a name="258"></a> 
+<a name="259"></a>        /* 
+<a name="260"></a>         *   If there are at least 2 entries in our rooms list, assiagn the first entry to room1 and
+<a name="261"></a>         *   the second entry to room 2.
+<a name="262"></a>         */
+<a name="263"></a>        if(rooms.length &gt; 1)
+<a name="264"></a>        {
+<a name="265"></a>            room1 = rooms[1];
+<a name="266"></a>            room2 = rooms[2];
+<a name="267"></a>        }
+<a name="268"></a>                
+<a name="269"></a>        /*  
+<a name="270"></a>         *   If room1 hasn't been defined yet, set it to loc (the room whose
+<a name="271"></a>         *   preinitThing() method has called this method), provided loc isn't room2.
+<a name="272"></a>         */
+<a name="273"></a>        if(room1 == nil &amp;&amp; room2 != loc)
+<a name="274"></a>            room1 = loc;
+<a name="275"></a>        
+<a name="276"></a>        
+<a name="277"></a>        /*  
+<a name="278"></a>         *   If our destination property has been set to an object (which should
+<a name="279"></a>         *   be a room), carry out some further setting up.
+<a name="280"></a>         */
+<a name="281"></a>        if(propType(&amp;destination) == TypeObject &amp;&amp; room2 == nil)
+<a name="282"></a>        { 
+<a name="283"></a>            /* Set our room2 property to our destination */
+<a name="284"></a>            room2 = destination;    
+<a name="285"></a>           
+<a name="286"></a>        }
+<a name="287"></a>        
+<a name="288"></a>        /* if loc is room1, then set the direction from room1 to dir. */
+<a name="289"></a>        if(room1 == loc)
+<a name="290"></a>            room1Dir = dir;
+<a name="291"></a>        
+<a name="292"></a>        /* if loc is room2, then set the direction from room2 to dir. */
+<a name="293"></a>        if(room2 == loc)
+<a name="294"></a>            room2Dir = dir;
+<a name="295"></a>    }    
+<a name="296"></a>;
+<a name="297"></a>
+<a name="298"></a>
+<a name="299"></a>/* 
+<a name="300"></a> *   A Symmetrical Connector is a special type of TravelConnector between rooms that can be
+<a name="301"></a> *   traversed in either direction and that, optionally, can largely set itself up so that if the
+<a name="302"></a> *   dir property of room1 points to this SymConnector, the reverse dir property of room2 also
+<a name="303"></a> *   points to this SymConnector. [SYMCOMM EXTENSION]
+<a name="304"></a> *
+<a name="305"></a> *   SymConnector is a type of TravelConnector (from which it descends by inheritance). A
+<a name="306"></a> *   SymConnector can be traversed in both directions, and defining a SymConnector on a direction
+<a name="307"></a> *   property of one room automatically attaches it to the reverse direction property of the room to
+<a name="308"></a> *   which it leads. Otherwise, a SymConnector behaves much like any other TravelConnector, and can
+<a name="309"></a> *   be used to define travel barriers or the side-effects of travel in much the same way.
+<a name="310"></a> *
+<a name="311"></a> *   Internally a SymConnector defines a room1 property and a room2 property, room1 and room2 being
+<a name="312"></a> *   the two rooms reciprocally connected by the SymConnector. The room1 and room2 can be set by the
+<a name="313"></a> *   extension at preinit if the connector's destination is specified, but it's probably clearer and
+<a name="314"></a> *   safer to explictily set the room1 and room2 properties. 
+<a name="315"></a> */
+<a name="316"></a>class SymConnector: AutoConnector, DSTravelConnector
+<a name="317"></a>;
+<a name="318"></a>
+<a name="319"></a>
+<a name="320"></a>/* 
+<a name="321"></a> *   Mix-in class to add additional funcionality to SymConnector type objects that have a physical
+<a name="322"></a> *   presence in the game (such as passages and doors).
+<a name="323"></a> */
+<a name="324"></a>class PhysicalAutoConnector: AutoConnector
+<a name="325"></a>    /* Initialize this connector. */
+<a name="326"></a>    initConnector(loc, dir)
+<a name="327"></a>    {
+<a name="328"></a>        /* Carry out the inherited (SymConnector) handling. */
+<a name="329"></a>        inherited(loc, dir);
+<a name="330"></a>        
+<a name="331"></a>        /* 
+<a name="332"></a>         *   If it's not already there, move this physical connector into the two locations where it
+<a name="333"></a>         *   has a physical presence. Note that if this is being called from sides of the connector
+<a name="334"></a>         *   then the first time it's called either room1 or room2 may not yet be defined, so we
+<a name="335"></a>         *   need to test that room1 and room2 are not nil.
+<a name="336"></a>         */
+<a name="337"></a>        if(room1 &amp;&amp; !isIn(room1))
+<a name="338"></a>            moveIntoAdd(room1);
+<a name="339"></a>        
+<a name="340"></a>        if(room2 &amp;&amp; ! isIn(room2))
+<a name="341"></a>            moveIntoAdd(room2);
+<a name="342"></a>        
+<a name="343"></a>        /*
+<a name="344"></a>         *   Initialize either room1Vocab or room2Vocab to our initial vocab (as defined on the
+<a name="345"></a>         *   object in game code) if either room2Vocab or room1Vocab respectively has been
+<a name="346"></a>         *   overridden to contain a single quoted string.
+<a name="347"></a>         */
+<a name="348"></a>        if(propType(&amp;room2Vocab) == TypeSString)
+<a name="349"></a>            room1Vocab = vocab;
+<a name="350"></a>        else if(propType(&amp;room1Vocab) == TypeSString)
+<a name="351"></a>            room2Vocab = vocab;
+<a name="352"></a>        
+<a name="353"></a>    }
+<a name="354"></a>    
+<a name="355"></a>    
+<a name="356"></a>    
+<a name="357"></a>    
+<a name="358"></a>    /* 
+<a name="359"></a>     *   Our vocab when viewed from room1. If we want different vocab (including different names) on
+<a name="360"></a>     *   each side of this passage or door, we don't need to define both room1Vocab and room2Vocab
+<a name="361"></a>     *   since whichever we don't define will be initialized by the SYMCONN EXTENSION to our initial
+<a name="362"></a>     *   vocab. So we do need to ensure that our initial vocab will be that which applies to this
+<a name="363"></a>     *   passage/door on the side the player first encounters.
+<a name="364"></a>     */
+<a name="365"></a>    room1Vocab = nil
+<a name="366"></a>    
+<a name="367"></a>    /*   
+<a name="368"></a>     *   Our vocab from the perspective of room2, if we want different vocab to apply to the two
+<a name="369"></a>     *   sides of this passage/door.
+<a name="370"></a>     */
+<a name="371"></a>    room2Vocab = nil
+<a name="372"></a>    
+<a name="373"></a>;
+<a name="374"></a>
+<a name="375"></a>/* 
+<a name="376"></a> *   A Symmetrical Passage is a single passage object that can be traversed in either direction and
+<a name="377"></a> *   exists in both the locations it connects. [SYMCOMM EXTENSION]
+<a name="378"></a> *
+<a name="379"></a> *   A SymPassage is very like a SymDoor, except that it can't be opened or closed (at least, not
+<a name="380"></a> *   via player commands). The SymPassage class can be used to define passage-like objects such as
+<a name="381"></a> *   passageways and archways that connect one location to another. A SymPassage is otherwise
+<a name="382"></a> *   defined in exactly the same way as a SymDoor; from a player's perspective it is functionally
+<a name="383"></a> *   equivalent to a Passage, the differences from the game author's point of view being that it can
+<a name="384"></a> *   be defined using one game object instead of two and that this extension automatically takes
+<a name="385"></a> *   care of setting up the connection in the reverse direction.
+<a name="386"></a> */
+<a name="387"></a>class SymPassage: PhysicalAutoConnector, DSPassage   
+<a name="388"></a>;
+<a name="389"></a>
+<a name="390"></a>
+<a name="391"></a>/*  
+<a name="392"></a> *   A Symmetrical Door is a door that can be traversed in either direction and exists in both the
+<a name="393"></a> *   locations it connects. It behaves much like a regular Door, except that it uses only one
+<a name="394"></a> *   object, not two, to represent the door. It behaves even more like DSDoor, from which it
+<a name="395"></a> *   descends. [SYMCOMM EXTENSION]
+<a name="396"></a> *
+<a name="397"></a> *   You'd typically use it by pointing the appropriate direction property of one room to point to
+<a name="398"></a> *   it and then defining its room2 property as the room to which it leads, for example:
+<a name="399"></a> *
+<a name="400"></a> *.  redRoom: Room 'Red Room'
+<a name="401"></a> *.  "A door leads south. "
+<a name="402"></a> *.
+<a name="403"></a> *.   south = blackDoor
+<a name="404"></a> *. ;
+<a name="405"></a> *.
+<a name="406"></a> *. blackDoor: SymDoor 'black door'
+<a name="407"></a> *.   "It's black. "
+<a name="408"></a> *.   room2 = greenRoom
+<a name="409"></a> *. ;
+<a name="410"></a> *.
+<a name="411"></a> *. greenRoom: Room 'Green Room'
+<a name="412"></a> *.   "A door leads north. "
+<a name="413"></a> *. ;
+<a name="414"></a> *
+<a name="415"></a> *   Note that a Symdoor is a MultiLoc, so we don't use the + notation to set its location when
+<a name="416"></a> *   defining it; it exists in both locations. The SYMCOMMN EXTENSION will automatically set the
+<a name="417"></a> *   north property of room2 (here greenRoom) to point to the same door (here blackDoor).
+<a name="418"></a> *
+<a name="419"></a> *   Both sides of a SymDoor must have the same name ('black door' in the example above). You can,
+<a name="420"></a> *   however, give the two sides of a SymDoor different descriptions if you wish by defining its
+<a name="421"></a> *   room1Desc and room2Desc properties instead of its desc property (as you would expect, room1Desc
+<a name="422"></a> *   and room2Desc will then be the descriptions of the door as seen from room1 and room2
+<a name="423"></a> *   respectively, where room1 and room2 have the same meaning as they have on a SymConnector). You
+<a name="424"></a> *   can also give the two sides of the SymDoor different lockabilities by defining room1Lockability
+<a name="425"></a> *   and room2Lockability separately. Alternatively, if you want both sides to have the same locking
+<a name="426"></a> *   behaviour, just override the lockability property. The one thing you can't do (without some
+<a name="427"></a> *   clever extra coding of your own) is to define different keys for each side of a SymDoor.
+<a name="428"></a> *
+<a name="429"></a> *   It's sometimes convenient to refer to a door by the direction it leads in (e.g. "The west door"
+<a name="430"></a> *   or "The north door"). The symconn extension takes care of this for you automatically. For
+<a name="431"></a> *   example, the black door in the example above can be referred to by the player as 'south door'
+<a name="432"></a> *   when the player character is in redRoom and as 'north door' when the player character is
+<a name="433"></a> *   greenRoom and the game will know which door is meant, without the game author having to take
+<a name="434"></a> *   any steps to make this happen. If, however, you want to suppress this behaviour on a particular
+<a name="435"></a> *   SymDoor, you can do so simply by overriding its attachDir property to nil (attachDir is a
+<a name="436"></a> *   method that works out which direction property a SymDoor is attached to in the player
+<a name="437"></a> *   character's location, which is used by the DirState State object to add the appropriate
+<a name="438"></a> *   direction name adjectives, such as 'north', to the SymDoor's vocab).
+<a name="439"></a> */
+<a name="440"></a>class SymDoor: PhysicalAutoConnector, DSDoor    
+<a name="441"></a>;
+<a name="442"></a>
+<a name="443"></a>
+<a name="444"></a>    
+<a name="445"></a>/* 
+<a name="446"></a> *   A SymStairway is aingle object representing a stairway up from its lower end and a stairway
+<a name="447"></a> *   down from its upper end. At the minimum we need to point a direction property of the room at
+<a name="448"></a> *   one end of the SymStairway to point to the SymStairway and define the SymStairwa's room2 or
+<a name="449"></a> *   destination propety to be its other end.
+<a name="450"></a> *
+<a name="451"></a> *   If the SymStairway is defined on the up or down property of either of its ends, either
+<a name="452"></a> *   directtly or indirectly, then this extension can work out which end of the Stairway is which
+<a name="453"></a> *   (even if the up or down property points to the SymStairway indirectly via an asExit() macro)
+<a name="454"></a> *   Otherwise game code needs to define at least one of the SymStairway's upperEnd or lowerEnd
+<a name="455"></a> *   properties to point to the appropriate room.
+<a name="456"></a> *
+<a name="457"></a> *   [THE SYMCONN EXIENSION must be present in your project if you want to use a SymStairway]
+<a name="458"></a> */
+<a name="459"></a>class SymStairway: PhysicalAutoConnector, DSStairway
+<a name="460"></a>;
+<a name="461"></a>
+<a name="462"></a>
+<a name="463"></a>/*  
+<a name="464"></a> *   A SympPathPassage is a SymPassage that represents a path (or road or track or the like). so
+<a name="465"></a> *   that following it or going down it is equivalent to going through it.
+<a name="466"></a> */
+<a name="467"></a>class SymPathPassage: PhysicalAutoConnector, DSPathPassage
+<a name="468"></a>;
+<a name="469"></a>
+<a name="470"></a>
+<a name="471"></a>/* 
+<a name="472"></a> *   The noExit object can be used to block an exit that would otherwise be set
+<a name="473"></a> *   as a reciprocal exit by Room.preinitThing(). This can be used to prevent
+<a name="474"></a> *   this extension from creating symmetrical exits in cases where you don't
+<a name="475"></a> *   want them. E.g. if north from the smallCave leads to largeCave, but south
+<a name="476"></a> *   from largeCave doesn't lead anywhere (because the notional passage between
+<a name="477"></a> *   the caves curves round, say), then you can set largeCave.south to noExit to
+<a name="478"></a> *   prevent this extension from setting it to smallCave.
+<a name="479"></a> *
+<a name="480"></a> *   The noExit object is thus a TravelConnector that simulates the effect of a
+<a name="481"></a> *   nil exit in situations where a nil value might get overwritten by this
+<a name="482"></a> *   extension. [SYMCOMM EXTENSION]
+<a name="483"></a> */
+<a name="484"></a>noExit: TravelConnector
+<a name="485"></a>    /* 
+<a name="486"></a>     *   Since we're mimicking the absence of an exit, we don't want to be
+<a name="487"></a>     *   listed as one.
+<a name="488"></a>     */
+<a name="489"></a>    isConnectorListed = nil
+<a name="490"></a>    
+<a name="491"></a>    /*   We're not a real exit, so no actor can pass through us. */
+<a name="492"></a>    canTravelerPass(actor) { return nil; }
+<a name="493"></a>    
+<a name="494"></a>    /*   
+<a name="495"></a>     *   In order to behave just as a nil exit would, we call the actor's
+<a name="496"></a>     *   location's cannotGoThatWay() method to explain why travel isn't
+<a name="497"></a>     *   possible.
+<a name="498"></a>     */
+<a name="499"></a>    explainTravelBarrier(actor) 
+<a name="500"></a>    {
+<a name="501"></a>        actor.getOutermostRoom.cannotGoThatWay(gAction.direction);
+<a name="502"></a>    }
+<a name="503"></a>;
+<a name="504"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

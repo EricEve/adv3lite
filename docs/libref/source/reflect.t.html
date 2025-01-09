@@ -1,0 +1,421 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>reflect.t</title></head><body>
+<table class=ban><tr><td><h1>reflect.t</h1><td align=right><a href="../file/reflect.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2000, 2006 Michael J. Roberts
+<a name="5"></a> *   
+<a name="6"></a> *   This file is part of TADS 3.  
+<a name="7"></a> */
+<a name="8"></a>
+<a name="9"></a>#include &lt;tads.h&gt;
+<a name="10"></a>#include &lt;strbuf.h&gt;
+<a name="11"></a>#include "reflect.h"
+<a name="12"></a>
+<a name="13"></a>/* ------------------------------------------------------------------------ */
+<a name="14"></a>/*
+<a name="15"></a> *   Main reflection services object.
+<a name="16"></a> *   
+<a name="17"></a> *   During pre-initialization, we'll plug this into the _main module's
+<a name="18"></a> *   globals so that the _main module will know it can use reflection
+<a name="19"></a> *   services.  
+<a name="20"></a> */
+<a name="21"></a>reflectionServices: PreinitObject
+<a name="22"></a>    /* execute preinitialization */
+<a name="23"></a>    execute()
+<a name="24"></a>    {
+<a name="25"></a>        /* plug ourselves into the main globals */
+<a name="26"></a>        mainGlobal.reflectionObj = self;
+<a name="27"></a>
+<a name="28"></a>        /* store the main symbol table */
+<a name="29"></a>        symtab_ = t3GetGlobalSymbols();
+<a name="30"></a>
+<a name="31"></a>        /* create a reverse lookup table from the main symbol table */
+<a name="32"></a>        if (symtab_ != nil)
+<a name="33"></a>        {
+<a name="34"></a>            /* 
+<a name="35"></a>             *   create a lookup table for the reverse table - it'll be
+<a name="36"></a>             *   the same size as the original table, so create it using
+<a name="37"></a>             *   the same statistics 
+<a name="38"></a>             */
+<a name="39"></a>            reverseSymtab_ = new LookupTable(symtab_.getBucketCount(),
+<a name="40"></a>                                             symtab_.getEntryCount());
+<a name="41"></a>
+<a name="42"></a>            /* 
+<a name="43"></a>             *   for each entry in the main table, create an entry in the
+<a name="44"></a>             *   reverse table with the role of key and value reversed -
+<a name="45"></a>             *   this will allow us to look up any value and find its
+<a name="46"></a>             *   global symbol, if it has one 
+<a name="47"></a>             */
+<a name="48"></a>            symtab_.forEachAssoc({key, val: reverseSymtab_[val] = key});
+<a name="49"></a>        }
+<a name="50"></a>    }
+<a name="51"></a>
+<a name="52"></a>    /*
+<a name="53"></a>     *   Convert a value to a symbol, or to a string representation if
+<a name="54"></a>     *   it's not of a symbolic type.  
+<a name="55"></a>     */
+<a name="56"></a>    valToSymbol(val)
+<a name="57"></a>    {
+<a name="58"></a>        local sym;
+<a name="59"></a>
+<a name="60"></a>        /* the representation depends on the type */
+<a name="61"></a>        switch(dataType(val))
+<a name="62"></a>        {
+<a name="63"></a>        case TypeNil:
+<a name="64"></a>            return 'nil';
+<a name="65"></a>
+<a name="66"></a>        case TypeTrue:
+<a name="67"></a>            return 'true';
+<a name="68"></a>
+<a name="69"></a>        case TypeInt:
+<a name="70"></a>            return toString(val);
+<a name="71"></a>
+<a name="72"></a>        case TypeSString:
+<a name="73"></a>        case TypeList:
+<a name="74"></a>        case TypeObject:
+<a name="75"></a>            /* 
+<a name="76"></a>             *   If we're asking about 'self', inherit the handling.  Note
+<a name="77"></a>             *   that, for any object type, x.ofKind(x) is always true, so
+<a name="78"></a>             *   there's no need for a separate test to see if val equals
+<a name="79"></a>             *   self.  
+<a name="80"></a>             */
+<a name="81"></a>            if (val.ofKind(self))
+<a name="82"></a>                return inherited();
+<a name="83"></a>
+<a name="84"></a>            /* check for intrinsic classes */
+<a name="85"></a>            if (IntrinsicClass.isIntrinsicClass(val))
+<a name="86"></a>            {
+<a name="87"></a>                /* intrinsic classes should always be in the symbol table */
+<a name="88"></a>                sym = reverseSymtab_[val];
+<a name="89"></a>                return (sym != nil ? sym : '{intrinsicClass}');
+<a name="90"></a>            }
+<a name="91"></a>
+<a name="92"></a>            /* use our special value-to-symbol method on the object itself */
+<a name="93"></a>            return val.valToSymbol();
+<a name="94"></a>            
+<a name="95"></a>        case TypeProp:
+<a name="96"></a>            /* 
+<a name="97"></a>             *   this should usually convert to a symbol, but might have
+<a name="98"></a>             *   been allocated dynamically 
+<a name="99"></a>             */
+<a name="100"></a>            sym = reverseSymtab_[val];
+<a name="101"></a>            return (sym != nil ? sym : '{prop}');
+<a name="102"></a>
+<a name="103"></a>        case TypeFuncPtr:
+<a name="104"></a>            /* 
+<a name="105"></a>             *   look for a name; if it doesn't have one, it must be an
+<a name="106"></a>             *   anonymous function 
+<a name="107"></a>             */
+<a name="108"></a>            sym = reverseSymtab_[val];
+<a name="109"></a>            return (sym != nil ? sym : '{anonFunc}');
+<a name="110"></a>            
+<a name="111"></a>        case TypeEnum:
+<a name="112"></a>            /* these should always convert directly to symbols */
+<a name="113"></a>            sym = reverseSymtab_[val];
+<a name="114"></a>            return (sym != nil ? sym : '{enum}');
+<a name="115"></a>
+<a name="116"></a>        case TypeBifPtr:
+<a name="117"></a>            /* these should always convert directly to symbols */
+<a name="118"></a>            sym = reverseSymtab_[val];
+<a name="119"></a>            return (sym != nil ? sym : '{intrinsicFunc}');
+<a name="120"></a>
+<a name="121"></a>        case TypeNativeCode:
+<a name="122"></a>            return '{native code}';
+<a name="123"></a>
+<a name="124"></a>        default:
+<a name="125"></a>            return '???';
+<a name="126"></a>        }
+<a name="127"></a>    }
+<a name="128"></a>
+<a name="129"></a>    /*
+<a name="130"></a>     *   Format a stack frame object (of class T3StackInfo). 
+<a name="131"></a>     */
+<a name="132"></a>    formatStackFrame(fr, includeSourcePos)
+<a name="133"></a>    {
+<a name="134"></a>        local ret = new StringBuffer();
+<a name="135"></a>        
+<a name="136"></a>        /* see what kind of frame we have */
+<a name="137"></a>        if (fr.func_ != nil)
+<a name="138"></a>        {
+<a name="139"></a>            /* it's a function */
+<a name="140"></a>            ret.append(valToSymbol(fr.func_));
+<a name="141"></a>        }
+<a name="142"></a>        else if (fr.obj_ != nil)
+<a name="143"></a>        {
+<a name="144"></a>            /* 
+<a name="145"></a>             *   It's an object.property.  Check for one special case we
+<a name="146"></a>             *   want to show specially: if the object is an AnonFuncPtr
+<a name="147"></a>             *   object, ignore the property and just show it as an
+<a name="148"></a>             *   anonymous function. 
+<a name="149"></a>             */
+<a name="150"></a>            if (fr.obj_.ofKind(AnonFuncPtr))
+<a name="151"></a>                ret.append('{anonFunc}');
+<a name="152"></a>            else
+<a name="153"></a>            {
+<a name="154"></a>                ret.append(valToSymbol(fr.self_));
+<a name="155"></a>                ret.append('.');
+<a name="156"></a>                ret.append(valToSymbol(fr.prop_));
+<a name="157"></a>            }
+<a name="158"></a>        }
+<a name="159"></a>        else
+<a name="160"></a>        {
+<a name="161"></a>            /* no function or object - must be a system routine */
+<a name="162"></a>            ret.append('(System)');
+<a name="163"></a>        }
+<a name="164"></a>
+<a name="165"></a>        /* if it's not a system routine, add the argument list */
+<a name="166"></a>        if (fr.argList_ != nil)
+<a name="167"></a>        {
+<a name="168"></a>            /* add the open paren */
+<a name="169"></a>            ret.append('(');
+<a name="170"></a>            
+<a name="171"></a>            /* add the arguments */
+<a name="172"></a>            local i, len = fr.argList_.length();
+<a name="173"></a>            for (i = 1 ; i &lt;= len ; ++i)
+<a name="174"></a>            {
+<a name="175"></a>                /* if it's not the first one, add a comma */
+<a name="176"></a>                if (i != 1)
+<a name="177"></a>                    ret.append(', ');
+<a name="178"></a>
+<a name="179"></a>                /* add this value */
+<a name="180"></a>                ret.append(valToSymbol(fr.argList_[i]).htmlify());
+<a name="181"></a>            }
+<a name="182"></a>
+<a name="183"></a>            /* add any named arguments */
+<a name="184"></a>            if (fr.namedArgs_ != nil)
+<a name="185"></a>            {
+<a name="186"></a>                /* add each key from the named argument table */
+<a name="187"></a>                fr.namedArgs_.forEachAssoc(function(key, val)
+<a name="188"></a>                {
+<a name="189"></a>                    /* add a separator if this isn't the first item */
+<a name="190"></a>                    if (i++ != 1)
+<a name="191"></a>                        ret.append(', ');
+<a name="192"></a>
+<a name="193"></a>                    /* add this "name: value" */
+<a name="194"></a>                    ret.append(key);
+<a name="195"></a>                    ret.append(':');
+<a name="196"></a>                    ret.append(valToSymbol(val));
+<a name="197"></a>                });
+<a name="198"></a>            }
+<a name="199"></a>
+<a name="200"></a>            /* add the close paren */
+<a name="201"></a>            ret.append(')');
+<a name="202"></a>
+<a name="203"></a>            /* if desired, add the source location */
+<a name="204"></a>            if (includeSourcePos &amp;&amp; fr.srcInfo_ != nil)
+<a name="205"></a>            {
+<a name="206"></a>                ret.append(' ');
+<a name="207"></a>                ret.append(fr.srcInfo_[1]);
+<a name="208"></a>                ret.append(', line ');
+<a name="209"></a>                ret.append(fr.srcInfo_[2]);
+<a name="210"></a>            }
+<a name="211"></a>        }
+<a name="212"></a>
+<a name="213"></a>        /* return the result */
+<a name="214"></a>        return toString(ret);
+<a name="215"></a>    }
+<a name="216"></a>
+<a name="217"></a>    /* the global symbol table */
+<a name="218"></a>    symtab_ = nil
+<a name="219"></a>
+<a name="220"></a>    /* the global reverse-lookup symbol table */
+<a name="221"></a>    reverseSymtab_ = nil
+<a name="222"></a>;
+<a name="223"></a>
+<a name="224"></a>/* ------------------------------------------------------------------------ */
+<a name="225"></a>/*
+<a name="226"></a> *   Export the reflection services interfaces used by the VM
+<a name="227"></a> */
+<a name="228"></a>export reflectionServices 'reflection.reflectionServices';
+<a name="229"></a>export valToSymbol 'reflection.valToSymbol';
+<a name="230"></a>
+<a name="231"></a>/* ------------------------------------------------------------------------ */
+<a name="232"></a>/*
+<a name="233"></a> *   Modify the basic Object class to provide a to-symbol mapping
+<a name="234"></a> */
+<a name="235"></a>modify Object
+<a name="236"></a>    valToSymbol()
+<a name="237"></a>    {
+<a name="238"></a>        /* get my symbol from the global reflection table */
+<a name="239"></a>        local sym = reflectionServices.reverseSymtab_[self];
+<a name="240"></a>
+<a name="241"></a>        /* if we got a symbol, return it */
+<a name="242"></a>        if (sym != nil)
+<a name="243"></a>            return sym;
+<a name="244"></a>
+<a name="245"></a>        /* 
+<a name="246"></a>         *   We didn't get a symbol, so there's no source file name.  See
+<a name="247"></a>         *   if we can find source-file names for the superclasses, though.
+<a name="248"></a>         */
+<a name="249"></a>        sym = '{obj:';
+<a name="250"></a>        local found = nil;
+<a name="251"></a>        foreach (local sc in getSuperclassList())
+<a name="252"></a>        {
+<a name="253"></a>            local scSym;
+<a name="254"></a>
+<a name="255"></a>            /* add a comma to the list if this isn't the first element */
+<a name="256"></a>            if (sym != '{obj:')
+<a name="257"></a>                sym += ',';
+<a name="258"></a>                
+<a name="259"></a>            /* if we have a name here, add it to the list */
+<a name="260"></a>            if ((scSym = reflectionServices.reverseSymtab_[sc]) != nil)
+<a name="261"></a>            {
+<a name="262"></a>                /* note that we found a named superclass */
+<a name="263"></a>                found = true;
+<a name="264"></a>
+<a name="265"></a>                /* add the superclass name to the list */
+<a name="266"></a>                sym += scSym;
+<a name="267"></a>            }
+<a name="268"></a>            else
+<a name="269"></a>            {
+<a name="270"></a>                /* we don't have a name for this superclass; say so */
+<a name="271"></a>                sym += '{anonymous}';
+<a name="272"></a>            }
+<a name="273"></a>        }
+<a name="274"></a>
+<a name="275"></a>        /* 
+<a name="276"></a>         *   if we found any named superclasses, return the list of names;
+<a name="277"></a>         *   otherwise, just say (obj) 
+<a name="278"></a>         */
+<a name="279"></a>        return (found ? sym + '}' : '{obj}');
+<a name="280"></a>    }
+<a name="281"></a>;
+<a name="282"></a>
+<a name="283"></a>/* ------------------------------------------------------------------------ */
+<a name="284"></a>/*
+<a name="285"></a> *   Modify the String intrinsic class to provide a to-symbol mapping 
+<a name="286"></a> */
+<a name="287"></a>modify String
+<a name="288"></a>    valToSymbol()
+<a name="289"></a>    {
+<a name="290"></a>        local ret;
+<a name="291"></a>        local i;
+<a name="292"></a>        local start;
+<a name="293"></a>        
+<a name="294"></a>        /* start with an open quote */
+<a name="295"></a>        ret = '\'';
+<a name="296"></a>
+<a name="297"></a>        /* loop through the string to find each special character */
+<a name="298"></a>        for (i = 1, local len = length(), start = 1 ;
+<a name="299"></a>             i &lt;= len ; ++i)
+<a name="300"></a>        {
+<a name="301"></a>            local qu;
+<a name="302"></a>
+<a name="303"></a>            /* presume we won't add a quoted character on this round */
+<a name="304"></a>            qu = nil;
+<a name="305"></a>            
+<a name="306"></a>            /* see what we have here */
+<a name="307"></a>            switch(substr(i, 1))
+<a name="308"></a>            {
+<a name="309"></a>            case '\\':
+<a name="310"></a>                qu = '\\\\';
+<a name="311"></a>                break;
+<a name="312"></a>                
+<a name="313"></a>            case '\'':
+<a name="314"></a>                qu = '\\\'';
+<a name="315"></a>                break;
+<a name="316"></a>
+<a name="317"></a>            case '\n':
+<a name="318"></a>                qu = '\\n';
+<a name="319"></a>                break;
+<a name="320"></a>
+<a name="321"></a>            case '\t':
+<a name="322"></a>                qu = '\\t';
+<a name="323"></a>                break;
+<a name="324"></a>
+<a name="325"></a>            case '\b':
+<a name="326"></a>                qu = '\\b';
+<a name="327"></a>                break;
+<a name="328"></a>
+<a name="329"></a>            case '\ ':
+<a name="330"></a>                qu = '\\ ';
+<a name="331"></a>                break;
+<a name="332"></a>
+<a name="333"></a>            case '\^':
+<a name="334"></a>                qu = '\\^';
+<a name="335"></a>                break;
+<a name="336"></a>
+<a name="337"></a>            case '\v':
+<a name="338"></a>                qu = '\\v';
+<a name="339"></a>                break;
+<a name="340"></a>            }
+<a name="341"></a>
+<a name="342"></a>            /* 
+<a name="343"></a>             *   if we have a quoted character, add the part up to the
+<a name="344"></a>             *   quoted character plus the quoted character 
+<a name="345"></a>             */
+<a name="346"></a>            if (qu != nil)
+<a name="347"></a>            {
+<a name="348"></a>                /* add the part up to here but not including this char */
+<a name="349"></a>                if (i != start)
+<a name="350"></a>                    ret += substr(start, i - start);
+<a name="351"></a>
+<a name="352"></a>                /* add the quoted form of the character */
+<a name="353"></a>                ret += qu;
+<a name="354"></a>
+<a name="355"></a>                /* start again after this character */
+<a name="356"></a>                start = i + 1;
+<a name="357"></a>            }
+<a name="358"></a>        }
+<a name="359"></a>
+<a name="360"></a>        /* add the trailing unquoted part if we haven't already */
+<a name="361"></a>        if (i != start)
+<a name="362"></a>            ret += substr(start, i - start);
+<a name="363"></a>
+<a name="364"></a>        /* add a close quote and return the result */
+<a name="365"></a>        return ret + '\'';
+<a name="366"></a>    }
+<a name="367"></a>;
+<a name="368"></a>
+<a name="369"></a>/* ------------------------------------------------------------------------ */
+<a name="370"></a>/*
+<a name="371"></a> *   Modify the List intrinsic class to provide a to-symbol mapping 
+<a name="372"></a> */
+<a name="373"></a>modify List
+<a name="374"></a>    valToSymbol()
+<a name="375"></a>    {
+<a name="376"></a>        local ret;
+<a name="377"></a>        
+<a name="378"></a>        /* start off with an open bracket */
+<a name="379"></a>        ret = '[';
+<a name="380"></a>
+<a name="381"></a>        /* convert each element to symbolic form */
+<a name="382"></a>        for (local i = 1, local len = length() ; i &lt;= len ; ++i)
+<a name="383"></a>        {
+<a name="384"></a>            /* add a comma if this isn't the first element */
+<a name="385"></a>            if (i != 1)
+<a name="386"></a>                ret += ', ';
+<a name="387"></a>
+<a name="388"></a>            /* add this element converted to symbolic form */
+<a name="389"></a>            ret += reflectionServices.valToSymbol(self[i]);
+<a name="390"></a>        }
+<a name="391"></a>
+<a name="392"></a>        /* add the close bracket and return the result */
+<a name="393"></a>        return ret + ']';
+<a name="394"></a>    }
+<a name="395"></a>;
+<a name="396"></a>
+<a name="397"></a>
+<a name="398"></a>/* ------------------------------------------------------------------------ */
+<a name="399"></a>/*
+<a name="400"></a> *   If desired, modify the BigNumber intrinsic class to provide a
+<a name="401"></a> *   to-symbol mapping.  We only include this modification if the program
+<a name="402"></a> *   is compiled with REFLECT_BIGNUM defined.  
+<a name="403"></a> */
+<a name="404"></a>#ifdef REFLECT_BIGNUM
+<a name="405"></a>#include "bignum.h"
+<a name="406"></a>
+<a name="407"></a>modify BigNumber
+<a name="408"></a>    valToSymbol()
+<a name="409"></a>    {
+<a name="410"></a>        /* use the default formatting */
+<a name="411"></a>        return formatString(12);
+<a name="412"></a>    }
+<a name="413"></a>;
+<a name="414"></a>
+<a name="415"></a>#endif /* REFLECT_BIGNUM */
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

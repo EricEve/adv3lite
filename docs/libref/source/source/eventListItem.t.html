@@ -1,0 +1,506 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>eventListItem.t</title></head><body>
+<table class=ban><tr><td><h1>eventListItem.t</h1><td align=right><a href="../file/eventListItem.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   EventListItem Extension
+<a name="6"></a> *.  Version 1.1 17-Dec-2022
+<a name="7"></a> *.  By Eric Eve based on work by John Ziegler
+<a name="8"></a> */
+<a name="9"></a>
+<a name="10"></a>
+<a name="11"></a>/* 
+<a name="12"></a> *   An EventListItem is an object that can be used within an EventList but is only used when
+<a name="13"></a> *   certain conditions are met (its isReady property evaluates to true, the game clock time is at
+<a name="14"></a> *   or after any next firing time we have defined, and it hasn't already been used for any maximum
+<a name="15"></a> *   number of times we care to define).
+<a name="16"></a> *
+<a name="17"></a> *   EventListItems can be added to a regular EventList object by locating them within that object
+<a name="18"></a> *   using the + notation. [EVENTLISTITEM EXTENSION]
+<a name="19"></a> *
+<a name="20"></a> */
+<a name="21"></a>class EventListItem: PreinitObject
+<a name="22"></a>    /* 
+<a name="23"></a>     *   Add this EventListItem to the eventList of the EventList object with which is is to be
+<a name="24"></a>     *   associated.
+<a name="25"></a>     */
+<a name="26"></a>    execute()
+<a name="27"></a>    {
+<a name="28"></a>        /*
+<a name="29"></a>         *   if myListObj is defined, add us to that EventList object. whichList is by default
+<a name="30"></a>         *   &amp;eventList, but this could be changed to &amp;firstEvents or some other custom property
+<a name="31"></a>         */
+<a name="32"></a>        if(myListObj) 
+<a name="33"></a>            myListObj.(whichList) += self;
+<a name="34"></a>        
+<a name="35"></a>        /* 
+<a name="36"></a>         *   if we don't specify myListObj but we have a location, add us to our
+<a name="37"></a>         *   location.(whichList)
+<a name="38"></a>         */
+<a name="39"></a>        else if(location &amp;&amp; 
+<a name="40"></a>                location.propDefined(whichList) &amp;&amp; 
+<a name="41"></a>                location.(whichList)!=nil &amp;&amp; 
+<a name="42"></a>                location.(whichList).ofKind(Collection)) 
+<a name="43"></a>        {
+<a name="44"></a>            location.(whichList) += self;
+<a name="45"></a>            myListObj = location; 
+<a name="46"></a>        }
+<a name="47"></a>    }
+<a name="48"></a>    
+<a name="49"></a>    /* 
+<a name="50"></a>     *   we usually want to add objects to a ShuffledEventList's eventList property, but
+<a name="51"></a>     *   items/subclasses could change this to be added to firstEvents or some other alternate list
+<a name="52"></a>     *   within the EventList object
+<a name="53"></a>     */
+<a name="54"></a>    whichList = &amp;eventList
+<a name="55"></a>    
+<a name="56"></a>    /* 
+<a name="57"></a>     *   The EventList object to which we are to belong. If this is left at nil, our location will
+<a name="58"></a>     *   be used.
+<a name="59"></a>     */
+<a name="60"></a>    myListObj = nil
+<a name="61"></a>    
+<a name="62"></a>    /* 
+<a name="63"></a>     *   When the event list to which we've been added gets to us, it will call our doScript()
+<a name="64"></a>     *   method, so we use that to define what happens.
+<a name="65"></a>     */
+<a name="66"></a>    doScript()
+<a name="67"></a>    {
+<a name="68"></a>        /* If we're in a position to fire, then carry out our invocation. */
+<a name="69"></a>        if(canFire())
+<a name="70"></a>        {
+<a name="71"></a>            _invokeItem();
+<a name="72"></a>            
+<a name="73"></a>            /* If we've been mixed in with an EventList class, call the inherited handling. */
+<a name="74"></a>            if(ofKind(Script))
+<a name="75"></a>                inherited();
+<a name="76"></a>        }
+<a name="77"></a>        
+<a name="78"></a>        /* Otherwise, use our fallback routine. */
+<a name="79"></a>        else
+<a name="80"></a>            fallBack();
+<a name="81"></a>    }
+<a name="82"></a>    
+<a name="83"></a>    
+<a name="84"></a>    _invokeItem() 
+<a name="85"></a>    { 
+<a name="86"></a>        invokeItem(); 
+<a name="87"></a>        
+<a name="88"></a>        //keep track of how many times this item has shown
+<a name="89"></a>        ++fireCt;
+<a name="90"></a>        
+<a name="91"></a>        //keep track of when we fired last
+<a name="92"></a>        lastClock = gTurns;
+<a name="93"></a>        
+<a name="94"></a>        // automatically remove if we have exceeded our maxFireCt or met our doneWhen condition
+<a name="95"></a>        if((maxFireCt &amp;&amp; fireCt &gt;= maxFireCt) || doneWhen)
+<a name="96"></a>            setDone(); 
+<a name="97"></a>        
+<a name="98"></a>        /*  Delay our next use until at least minInterval turns have elapsed. */
+<a name="99"></a>        setDelay(minInterval);
+<a name="100"></a>        
+<a name="101"></a>        /* Reset our missed turn flag to nil as we haven't missed this turn. */
+<a name="102"></a>        missedTurn = nil;
+<a name="103"></a>    }
+<a name="104"></a>    
+<a name="105"></a>    /* 
+<a name="106"></a>     *   Here goes the code (or a double-quoted string) that carries out what we do when we're
+<a name="107"></a>     *   invoked. Game code will need to define what should happen here.
+<a name="108"></a>     */
+<a name="109"></a>    invokeItem()
+<a name="110"></a>    {
+<a name="111"></a>    }
+<a name="112"></a>    
+<a name="113"></a>    /* 
+<a name="114"></a>     *   This first turn on which we came up in our EventList but were unable to fire, or nil if we
+<a name="115"></a>     *   have either not missed or turn or fired on the previous occasion we could.
+<a name="116"></a>     */
+<a name="117"></a>    missedTurn = nil
+<a name="118"></a>    
+<a name="119"></a>    
+<a name="120"></a>    /* 
+<a name="121"></a>     *   The method that defines what this EventListItem does if it's invoked when it's not ready to
+<a name="122"></a>     *   fire.
+<a name="123"></a>     */
+<a name="124"></a>    fallBack()
+<a name="125"></a>    {
+<a name="126"></a>        /* 
+<a name="127"></a>         *   If possible, get our myListObj to use the next item in its list, so that it behaves as
+<a name="128"></a>         *   if we werem't here. However, we need to make sure it's safe to do that without getting
+<a name="129"></a>         *   into an infinite loop, so to be on the safe side we check (1) that there's at least one
+<a name="130"></a>         *   item in the list which our myListObj could invoke (i.e. something that's not an
+<a name="131"></a>         *   EventListItem that can't fire) and (2) that myListOnj is not a StopEventList that's
+<a name="132"></a>         *   reached its end, which might then repeatedly try to invoke us.
+<a name="133"></a>         */
+<a name="134"></a>        if(myListObj.(whichList).indexWhich({x: !(x.ofKind(EventListItem) &amp;&amp; !x.canFire())})
+<a name="135"></a>           &amp;&amp; !(myListObj.ofKind(StopEventList)&amp;&amp; myListObj.curScriptState &gt;= eventListLen))        
+<a name="136"></a>            myListObj.doScript();
+<a name="137"></a>        
+<a name="138"></a>        /* Otherwise, use our fallBackResponse */
+<a name="139"></a>        else
+<a name="140"></a>            fallBackResponse();
+<a name="141"></a>        
+<a name="142"></a>        /* 
+<a name="143"></a>         *   Unless we're done or we've already noted a missed turn, note that we missed our chance
+<a name="144"></a>         *   to fire with our own response this turn.
+<a name="145"></a>         */
+<a name="146"></a>        if(!isDone &amp;&amp; missedTurn == nil)
+<a name="147"></a>            missedTurn = gTurns;
+<a name="148"></a>    }
+<a name="149"></a>    
+<a name="150"></a>    /* 
+<a name="151"></a>     *   The response to use if all else fails, that is if there we cannot fire ourselves and there
+<a name="152"></a>     *   is no non-EventListItem (which could be used in our place) in the eventList to which we
+<a name="153"></a>     *   belong. This could, for exmple, display another message or it could just do nothing, which
+<a name="154"></a>     *   is the default. We only need to supply something here if we belong to an EventList that
+<a name="155"></a>     *   should display something every turn, for example as a response to a DefaultTopic or else if
+<a name="156"></a>     *   we are or may be the final item in a StopEventList.
+<a name="157"></a>     */
+<a name="158"></a>    fallBackResponse() { }
+<a name="159"></a>    
+<a name="160"></a>    
+<a name="161"></a>    /* 
+<a name="162"></a>     *   Is this EventListItem ready to fire? Note that this is addition to its not being done and
+<a name="163"></a>     *   having reached its ready time.
+<a name="164"></a>     */
+<a name="165"></a>    isReady = true
+<a name="166"></a>    
+<a name="167"></a>    /*  
+<a name="168"></a>     *   Can this EventListItem item fire? By default it can if its isReady condition is true and it
+<a name="169"></a>     *   is not already done (isDone != true) and the turn count exceeds its ready time.
+<a name="170"></a>     */
+<a name="171"></a>    canFire()
+<a name="172"></a>    {
+<a name="173"></a>        return isReady &amp;&amp; !isDone &amp;&amp; gTurns &gt;= readyTime;
+<a name="174"></a>    }
+<a name="175"></a>    
+<a name="176"></a>    /* Have we finished with this EventListItem? */
+<a name="177"></a>    isDone = nil
+<a name="178"></a>    
+<a name="179"></a>    /* Set this EventListItem as having been done */
+<a name="180"></a>    setDone() 
+<a name="181"></a>    { 
+<a name="182"></a>        isDone = true;                    
+<a name="183"></a>    }
+<a name="184"></a>           
+<a name="185"></a>    /* The number of times this EventListItem has fired. */
+<a name="186"></a>    fireCt = 0
+<a name="187"></a>     
+<a name="188"></a>    /* 
+<a name="189"></a>     *   Flag: can this EventListItem be removed from its eventList once isDone = true? By default
+<a name="190"></a>     *   it can, but note that this flag only has any effect when our EventList's resetEachCycle
+<a name="191"></a>     *   property is true. We might want to set this to nil if isDone might become nil again on this
+<a name="192"></a>     *   EventListItem, to avoid it being cleared out of its eventList.
+<a name="193"></a>     */
+<a name="194"></a>    canRemoveWhenDone = true
+<a name="195"></a>    
+<a name="196"></a>    /* 
+<a name="197"></a>     *   The maximum number of times we want this EventListItem to fire. The default value of nil
+<a name="198"></a>     *   means that this EventListItem can fire an unlimited unmber of times. For an EventListItem
+<a name="199"></a>     *   that fires only once, set maxFireCt to 1 or use the ELI1 subclass.
+<a name="200"></a>     */
+<a name="201"></a>    maxFireCt = nil
+<a name="202"></a>    
+<a name="203"></a>    /*   
+<a name="204"></a>     *   An alternative condition (which could be defined as a method) which, if true, causes this
+<a name="205"></a>     *   EventListItem to be finished with (set to isDone = true). Note that isDone will be set to
+<a name="206"></a>     *   try either if this EventListItem exceeds its maaFireCt or if its doneWhen method/property
+<a name="207"></a>     *   evaluates to true.
+<a name="208"></a>     */
+<a name="209"></a>    doneWhen = nil
+<a name="210"></a>    
+<a name="211"></a>    /* The last turn on which this EventListItem fired */
+<a name="212"></a>    lastClock = 0
+<a name="213"></a>    
+<a name="214"></a>    /* 
+<a name="215"></a>     *   The turn count that must be reached before we're ready to fire. By default this is 0, but
+<a name="216"></a>     *   game code can use this or set the setDelay() method to set/reset it.
+<a name="217"></a>     */
+<a name="218"></a>    readyTime = 0
+<a name="219"></a>    
+<a name="220"></a>    /*  The minimum interval (in number of turns) between repeated occurrences of this item. */
+<a name="221"></a>    minInterval = 0
+<a name="222"></a>    
+<a name="223"></a>    /*   
+<a name="224"></a>     *   Set the number of turns until this EventListItem can be used again. This could, for
+<a name="225"></a>     *   example, be called from invokeItem() to set a minimum interval before this EventListItem is
+<a name="226"></a>     *   repeated.
+<a name="227"></a>     */
+<a name="228"></a>    setDelay(turns)    
+<a name="229"></a>    {
+<a name="230"></a>        readyTime = gTurns + turns;
+<a name="231"></a>        return self;    
+<a name="232"></a>    }
+<a name="233"></a>    
+<a name="234"></a>    /* Get the actor with which we're associated if we have one. */
+<a name="235"></a>    getActor 
+<a name="236"></a>    { 
+<a name="237"></a>        local obj = [location, myListObj].valWhich({x:x &amp;&amp; (x.ofKind(ActorState) || 
+<a name="238"></a>            x.ofKind(Actor) || x.ofKind(AgendaItem)) });
+<a name="239"></a>        if(obj) 
+<a name="240"></a>            return obj.getActor;
+<a name="241"></a>        else 
+<a name="242"></a>            return nil; 
+<a name="243"></a>    }
+<a name="244"></a>    
+<a name="245"></a>    /* 
+<a name="246"></a>     *   Has this EventListItem been underused? By default it has if it hasn't been used at all or
+<a name="247"></a>     *   it missed out the last time it was called by not being ready, but game code can override if
+<a name="248"></a>     *   it wants to employ some other condition, such as the number of times we've been used in
+<a name="249"></a>     *   relation to other items in our listObj. The purpose of this is to allow RandomFiringScripts
+<a name="250"></a>     *   to prioritize underused EventListItems once they become ready to fire.
+<a name="251"></a>     */
+<a name="252"></a>    underused()
+<a name="253"></a>    {
+<a name="254"></a>        /* 
+<a name="255"></a>         *   By default we're underused if we've we've missed a turn on which we would have fired
+<a name="256"></a>         *   had we been ready to, but game code can override this to some other condition if
+<a name="257"></a>         *   desired, such as testing whether fireCt == 0
+<a name="258"></a>         */
+<a name="259"></a>        return (missedTurn != nil);
+<a name="260"></a>    }
+<a name="261"></a>    
+<a name="262"></a>    
+<a name="263"></a>    /* 
+<a name="264"></a>     *   Add this EventListItem to the whichList list of myListObj_. If specificied, whichList must
+<a name="265"></a>     *   be supplied as a property, and otherwise defaults to &amp;eventList. A minimium interval
+<a name="266"></a>     *   between firings of this EventList item can optionally be specified in the minInterval_
+<a name="267"></a>     *   parameter, but there is no need to do this if this EventList already defines its own
+<a name="268"></a>     *   minInterval or doesn't require one.
+<a name="269"></a>     */
+<a name="270"></a>    addToList(myListObj_, whichList_ = &amp;eventList, minInterval_?)
+<a name="271"></a>    {
+<a name="272"></a>        /* Store our parameters in the appropriate properties. */
+<a name="273"></a>        myListObj = myListObj_;
+<a name="274"></a>        
+<a name="275"></a>        whichList = whichList_;
+<a name="276"></a>        
+<a name="277"></a>        if(minInterval_)
+<a name="278"></a>            minInterval = minInterval_;
+<a name="279"></a>        
+<a name="280"></a>        /* Get our list object to add us to its appropriate list property. */
+<a name="281"></a>        myListObj.addItem(self, whichList);
+<a name="282"></a>               
+<a name="283"></a>    }
+<a name="284"></a>;
+<a name="285"></a>
+<a name="286"></a>
+<a name="287"></a>
+<a name="288"></a>/* 
+<a name="289"></a> *   Short form EventListItem class names for the convenience of game authors who want to save
+<a name="290"></a> *   typing.
+<a name="291"></a> */
+<a name="292"></a>class ELI: EventListItem;
+<a name="293"></a>
+<a name="294"></a>
+<a name="295"></a>/* A one-off EventListItem */
+<a name="296"></a>class ELI1: EventListItem
+<a name="297"></a>    maxFireCt = 1
+<a name="298"></a>;
+<a name="299"></a>
+<a name="300"></a>
+<a name="301"></a>modify EventList
+<a name="302"></a>    
+<a name="303"></a>    /* 
+<a name="304"></a>     *   Game code can call this method to remove all EventListItems that have been finished with
+<a name="305"></a>     *   (isDone = true) from the eventList of this EventList. This probably isn't necessary unless
+<a name="306"></a>     *   there are likely to be a large number of such items slowing down execution.
+<a name="307"></a>     */
+<a name="308"></a>    resetList()
+<a name="309"></a>    {
+<a name="310"></a>        /* 
+<a name="311"></a>         *   Reduce our eventList to exclude items that are EventListItems for which isDone is true
+<a name="312"></a>         *   and the canRemoveWhenDone flag is true.
+<a name="313"></a>         */        
+<a name="314"></a>        self.eventList = self.eventList.subset({x: !(objOfKind(x, EventListItem) &amp;&amp; x.isDone &amp;&amp;
+<a name="315"></a>            x.canRemoveWhenDone)});
+<a name="316"></a>        
+<a name="317"></a>        /* Recache our eventList's new length. */
+<a name="318"></a>        eventListLen = eventList.length();                                                
+<a name="319"></a>    }
+<a name="320"></a>    
+<a name="321"></a>    /* 
+<a name="322"></a>     *   Flag, do we want to reset the list each time we've run through all our items? By default we
+<a name="323"></a>     *   don't, but this might ba en appropriate place to call resetList() if we do want to call it.
+<a name="324"></a>     *   Note that this is in any case irrelevant on the base EventList class but may be relevant on
+<a name="325"></a>     *   some of its subclaases (CyclicEventList, RandomEventList and ShuffledEventList).
+<a name="326"></a>     */
+<a name="327"></a>    resetEachCycle = nil
+<a name="328"></a>    
+<a name="329"></a>    /* 
+<a name="330"></a>     *   Add an item to prop (usually eventList) property of this EventList, where prop should be
+<a name="331"></a>     *   supplied as a property pointer,
+<a name="332"></a>     */
+<a name="333"></a>    addItem(item, prop)
+<a name="334"></a>    {
+<a name="335"></a>        /* Add the item to the specified list. */
+<a name="336"></a>        self.(prop) += item;
+<a name="337"></a>        
+<a name="338"></a>        /* Chache our new eventList length. */
+<a name="339"></a>        eventListLen = eventList.length;
+<a name="340"></a>    }
+<a name="341"></a>       
+<a name="342"></a>;
+<a name="343"></a>
+<a name="344"></a>modify CyclicEventList
+<a name="345"></a>    advanceState()
+<a name="346"></a>    {
+<a name="347"></a>        /* 
+<a name="348"></a>         *   If we want to reset our eventList each cycle to clear out any spent EventListItems and
+<a name="349"></a>         *   our current script state has reache our eventList's length (so that we're at the end of
+<a name="350"></a>         *   a cycle), then call our resetList() method.
+<a name="351"></a>         */
+<a name="352"></a>        if(resetEachCycle &amp;&amp; curScriptState &gt;= eventListLen)
+<a name="353"></a>            resetList();
+<a name="354"></a>        
+<a name="355"></a>        
+<a name="356"></a>        /* Carry out the inherited handling */
+<a name="357"></a>        inherited();
+<a name="358"></a>    }
+<a name="359"></a>;
+<a name="360"></a>
+<a name="361"></a>/* Mofiications to ShuffledEventList for EventListItem extension */
+<a name="362"></a>modify ShuffledEventList
+<a name="363"></a>        
+<a name="364"></a>    /* 
+<a name="365"></a>     *   For the EventListItem extenstion we modify this method so that it first chooses any as yet
+<a name="366"></a>     *   unused EventListItem from our eventList that's now ready to fire. If none is found, we use
+<a name="367"></a>     *   the inherited behaviour to select the next item indicated by our shuffledList_ .
+<a name="368"></a>     */
+<a name="369"></a>    getNextRandom()
+<a name="370"></a>    {       
+<a name="371"></a>        /* 
+<a name="372"></a>         *   If we want to clear up isDone items and we have a shuffledList_ and that list has no
+<a name="373"></a>         *   more values available, then reset our list to remove the isDone items.
+<a name="374"></a>         */
+<a name="375"></a>        if(resetEachCycle &amp;&amp; shuffledList_ &amp;&amp; shuffledList_.valuesAvail == 0)
+<a name="376"></a>            resetList();           
+<a name="377"></a>        
+<a name="378"></a>        
+<a name="379"></a>        /* 
+<a name="380"></a>         *   If we have an underused EventListItem that's ready to fire, choose that.
+<a name="381"></a>         */          
+<a name="382"></a>        local idx = underusedReadyELIidx();
+<a name="383"></a>        
+<a name="384"></a>        /* 
+<a name="385"></a>         *   If we found a suitable value and idx is not nil, return idx. Otherwise use the
+<a name="386"></a>         *   inherited value
+<a name="387"></a>         */
+<a name="388"></a>        return idx ?? inherited();
+<a name="389"></a>    }
+<a name="390"></a>    
+<a name="391"></a>    /* 
+<a name="392"></a>     *   Reset our eventList to clear out EventListItems that are done with (isDone = true). This is
+<a name="393"></a>     *   not called from any library code by default, but can be called from game code if game
+<a name="394"></a>     *   authors are worried about an accumulation of too many spent EventListItems in any given
+<a name="395"></a>     *   eventList. For many games, this probably won't be necessary.
+<a name="396"></a>     *
+<a name="397"></a>     *   One potentially good place to call this from as at the end of each iteration of a
+<a name="398"></a>     *   ShuffledEventList, when the items are about to be reshuffled in any case. You can make this
+<a name="399"></a>     *   happen by setting the resetOnReshuffle property to true,
+<a name="400"></a>     */
+<a name="401"></a>    resetList()
+<a name="402"></a>    {
+<a name="403"></a>        /* Carry out the inherited handling */
+<a name="404"></a>        inherited();
+<a name="405"></a>        
+<a name="406"></a>        /* 
+<a name="407"></a>         *   recreate our shuffled integer list, since the existing one may index items that no
+<a name="408"></a>         *   lomger exist in our eventList.
+<a name="409"></a>         */
+<a name="410"></a>        shuffledList_ = new ShuffledIntegerList(1, eventListLen);
+<a name="411"></a>        
+<a name="412"></a>        /* apply our suppressRepeats option to the shuffled list */
+<a name="413"></a>        shuffledList_.suppressRepeats = suppressRepeats;
+<a name="414"></a>    }
+<a name="415"></a>    
+<a name="416"></a>    
+<a name="417"></a>    addItem(item, prop)
+<a name="418"></a>    {
+<a name="419"></a>        /* Carry out the inherited handling */
+<a name="420"></a>        inherited(item, prop);
+<a name="421"></a>        
+<a name="422"></a>        /* Reset our list to include the item we've just added and clear out any spent ones. */
+<a name="423"></a>        resetList();
+<a name="424"></a>    }
+<a name="425"></a>    
+<a name="426"></a>;
+<a name="427"></a>
+<a name="428"></a>
+<a name="429"></a>modify RandomEventList
+<a name="430"></a>    /*
+<a name="431"></a>     *   Get the next random state.  By default, we simply return a number from 1 to the number of
+<a name="432"></a>     *   entries in our event list.  This is a separate method to allow subclasses to customize the
+<a name="433"></a>     *   way the random number is selected. However, if we have an unused EventListItem that's ready
+<a name="434"></a>     *   to fire, we select that instead, to make sure it gets a look-in at the earliest possible
+<a name="435"></a>     *   opportunity.
+<a name="436"></a>     */
+<a name="437"></a>    getNextRandom()
+<a name="438"></a>    {
+<a name="439"></a>        /* 
+<a name="440"></a>         *   For a RandomEventList we regard a 'cycle' as being the firing of the number of items in
+<a name="441"></a>         *   the eventList (regardless of whether each individual item has been fired). So we
+<a name="442"></a>         *   increment our fireCt each time we're called, and then reset it to zero once it reaches
+<a name="443"></a>         *   our eventLiatLen. Then, if thie RandeomEventList wants to resetEachCycle, we clear out
+<a name="444"></a>         *   any spent EventListItems.
+<a name="445"></a>         */         
+<a name="446"></a>        if(++fireCt &gt;= eventListLen)
+<a name="447"></a>        {
+<a name="448"></a>            /* Reset our fireCt to zero */
+<a name="449"></a>            fireCt = 0;
+<a name="450"></a>            
+<a name="451"></a>            /* 
+<a name="452"></a>             *   Call resetList() to clear out any spent EventListItems if we want to reset each
+<a name="453"></a>             *   cycle.
+<a name="454"></a>             */
+<a name="455"></a>            if(resetEachCycle)
+<a name="456"></a>                resetList();
+<a name="457"></a>        }
+<a name="458"></a>        
+<a name="459"></a>        /* 
+<a name="460"></a>         *   If we have an underused EventListItem that's ready to fire, choose that
+<a name="461"></a>         */        
+<a name="462"></a>        local idx = underusedReadyELIidx();
+<a name="463"></a>        
+<a name="464"></a>         /* 
+<a name="465"></a>          *   If we found a suitable value and idx is not nil, return idx. Otherwise use the
+<a name="466"></a>          *   inherited value
+<a name="467"></a>          */
+<a name="468"></a>        return idx ?? inherited();
+<a name="469"></a>    }
+<a name="470"></a>    
+<a name="471"></a>    /* The number of times we have fired on this 'cycle '*/
+<a name="472"></a>    fireCt = 0
+<a name="473"></a>;
+<a name="474"></a>
+<a name="475"></a>modify RandomFiringScript    
+<a name="476"></a>    /* 
+<a name="477"></a>     *   Return the index within our eventList of any as yet unused EventListItem that's ready to
+<a name="478"></a>     *   fire. This is principally for the use of our RandomEventList and ShuffledEventList
+<a name="479"></a>     *   subclasses.
+<a name="480"></a>     */
+<a name="481"></a>    underusedReadyELIidx()    
+<a name="482"></a>    {
+<a name="483"></a>        /* Extract a subset list of EventListItems that can fire and are underused. */
+<a name="484"></a>        local lst = eventList.subset({x: objOfKind(x, EventListItem) &amp;&amp; x.canFire()
+<a name="485"></a>                                        &amp;&amp; x.missedTurn &amp;&amp; x.underused()});
+<a name="486"></a>        
+<a name="487"></a>        /* If the list is empty, we have no underused EventListItem ready to fire, so return nil. */
+<a name="488"></a>        if(lst.length &lt; 1)
+<a name="489"></a>            return nil;
+<a name="490"></a>        
+<a name="491"></a>        /* Sort the list in ascendcing order of their missedTurns. */
+<a name="492"></a>        lst = lst.sort({a, b: a.missedTurn - b.missedTurn});
+<a name="493"></a>        
+<a name="494"></a>        /* 
+<a name="495"></a>         *   Return the index of the first element in the list, which will be the one that missed
+<a name="496"></a>         *   its turn longest ago.
+<a name="497"></a>         */
+<a name="498"></a>        return eventList.indexOf(lst[1]); 
+<a name="499"></a>    }           
+<a name="500"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

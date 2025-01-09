@@ -1,0 +1,920 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>attachables.t</title></head><body>
+<table class=ban><tr><td><h1>attachables.t</h1><td align=right><a href="../file/attachables.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   ***************************************************************************
+<a name="6"></a> *   attachables.t
+<a name="7"></a> *
+<a name="8"></a> *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+<a name="9"></a> *
+<a name="10"></a> *
+<a name="11"></a> *
+<a name="12"></a> *   The attachables file provides a framework for simple and common case
+<a name="13"></a> *   attachables.
+<a name="14"></a> *
+<a name="15"></a> *   It treats attachment as an asymmetric relationship. ATTACH A TO B is not
+<a name="16"></a> *   the same as ATTACH B TO A. It also treats it as a many-to-one relationship:
+<a name="17"></a> *   the object that is attached can only be attached to one object at a time,
+<a name="18"></a> *   but the object it's attached to can have multiple objects attached to it.
+<a name="19"></a> *
+<a name="20"></a> */
+<a name="21"></a>
+<a name="22"></a>/* 
+<a name="23"></a> *   A SimpleAttachabe is a Thing that can be attached to other things or have
+<a name="24"></a> *   other things attached to it in the special case in which the attached
+<a name="25"></a> *   objects are located in the object to which they are attached.
+<a name="26"></a> *   SimpleAttachable is also the base class for other types of attachable.
+<a name="27"></a> */
+<a name="28"></a>class SimpleAttachable: Thing
+<a name="29"></a>    
+<a name="30"></a>    /* 
+<a name="31"></a>     *   Can an object be attached to this one? By default we return true if obj
+<a name="32"></a>     *   is on our list of allowableAttachments.
+<a name="33"></a>     */
+<a name="34"></a>    allowAttach(obj)
+<a name="35"></a>    {
+<a name="36"></a>        return valToList(allowableAttachments).indexWhich(
+<a name="37"></a>            {o: o.ofKind(obj) != nil});
+<a name="38"></a>    }
+<a name="39"></a>    
+<a name="40"></a>    /* A list of the objects or classes of objects that can be attached to me */
+<a name="41"></a>    allowableAttachments = []
+<a name="42"></a>    
+<a name="43"></a>    /* A list of the objects that are attached to me */
+<a name="44"></a>    attachments = []
+<a name="45"></a>    
+<a name="46"></a>    /* A SimpleAttachable can be attached to (some) other things. */
+<a name="47"></a>    isAttachable = true
+<a name="48"></a>    
+<a name="49"></a>    /* A SimpleAttachable can have (some) other things attached to it */
+<a name="50"></a>    canAttachToMe = true
+<a name="51"></a>    
+<a name="52"></a>    /* A SimpleAttachable can have (some) other things detached from it */
+<a name="53"></a>    canDetachFromMe = true    
+<a name="54"></a>    
+<a name="55"></a>    /* The list of things I'm currentl attached to */
+<a name="56"></a>    attachedToList = []
+<a name="57"></a>    
+<a name="58"></a>    /* The object, if any, I'm currently attached to*/
+<a name="59"></a>    attachedTo = (attachedToList == [] ? nil : attachedToList[1])
+<a name="60"></a>    
+<a name="61"></a>    /* 
+<a name="62"></a>     *   The object, if any, to which I'm initially attached (if I start out attached to anything).
+<a name="63"></a>     *   If this is defined, it should be another SimpleAttachable or subclass thereof.
+<a name="64"></a>     */
+<a name="65"></a>    initiallyAttachedTo = nil
+<a name="66"></a>    
+<a name="67"></a>    
+<a name="68"></a>    /* 
+<a name="69"></a>     *   The location this object should be moved to when it's attached to
+<a name="70"></a>     *   another object. A SimpleAttachment should normally be moved into the to
+<a name="71"></a>     *   which it's attached.
+<a name="72"></a>     */
+<a name="73"></a>    attachedLocation = (attachedTo)
+<a name="74"></a>    
+<a name="75"></a>    /*   
+<a name="76"></a>     *   The location this object should be moved to when it's detached. A
+<a name="77"></a>     *   SimpleAttachment should normally be moved into the location of the
+<a name="78"></a>     *   object it's just been detached from.
+<a name="79"></a>     */
+<a name="80"></a>    detachedLocation = (attachedTo.location)
+<a name="81"></a>    
+<a name="82"></a>    /* Attach this object to obj */
+<a name="83"></a>    attachTo(obj)
+<a name="84"></a>    {
+<a name="85"></a>        /* Note that we're now attached to the iobj of the attach action */
+<a name="86"></a>        makeAttachedTo(obj);         
+<a name="87"></a>        
+<a name="88"></a>        /* Add us to the iobj's list of attachments. */
+<a name="89"></a>        obj.attachments = obj.attachments.appendUnique([self]);
+<a name="90"></a>        
+<a name="91"></a>        /* 
+<a name="92"></a>         *   If we're already in our attached location, there's no need to move,
+<a name="93"></a>         *   otherwise move us into our attached location.
+<a name="94"></a>         */
+<a name="95"></a>        if(location != attachedLocation)
+<a name="96"></a>            actionMoveInto(attachedLocation);
+<a name="97"></a>    }
+<a name="98"></a>    
+<a name="99"></a>    /* Add the object we're now attached to to our attachedToList */
+<a name="100"></a>    makeAttachedTo(obj)
+<a name="101"></a>    {
+<a name="102"></a>        attachedToList = attachedToList.appendUnique([obj]);
+<a name="103"></a>    }
+<a name="104"></a>    
+<a name="105"></a>    /* Detach this item from obj */
+<a name="106"></a>    detachFrom(obj)
+<a name="107"></a>    {
+<a name="108"></a>        /* If we're not attached to obj, then there's nothing to do */
+<a name="109"></a>        if(!isAttachedTo(obj))
+<a name="110"></a>            return;
+<a name="111"></a>        
+<a name="112"></a>        /* If we're not already in our detachedLocation, move us there. */
+<a name="113"></a>        if(location != detachedLocation)
+<a name="114"></a>            moveInto(detachedLocation);
+<a name="115"></a>        
+<a name="116"></a>        /* 
+<a name="117"></a>         *   Remove us from the list of attachements of the object to which we
+<a name="118"></a>         *   were formerly attached.
+<a name="119"></a>         */
+<a name="120"></a>        obj.attachments -= self;
+<a name="121"></a>        
+<a name="122"></a>        /* Note that we're no longer attached to obj. */
+<a name="123"></a>        makeDetachedFrom(obj);
+<a name="124"></a>    }
+<a name="125"></a>    
+<a name="126"></a>    /* FRemove obj the list of objeccts attached to us */
+<a name="127"></a>    makeDetachedFrom(obj)
+<a name="128"></a>    {
+<a name="129"></a>        attachedToList -= obj;
+<a name="130"></a>    }
+<a name="131"></a>    
+<a name="132"></a>    
+<a name="133"></a>    /*  Handling for the ATTACH TO action */
+<a name="134"></a>    dobjFor(AttachTo)
+<a name="135"></a>    {
+<a name="136"></a>        preCond = [objHeld]
+<a name="137"></a>        
+<a name="138"></a>        verify()
+<a name="139"></a>        {
+<a name="140"></a>            /* Carry out the inherited handling. */
+<a name="141"></a>            inherited; 
+<a name="142"></a>            
+<a name="143"></a>            /* We can't be attached while we're already attached */
+<a name="144"></a>            if(attachedTo == gVerifyIobj)
+<a name="145"></a>                illogicalNow(alreadyAttachedMsg);
+<a name="146"></a>            else if(attachedTo != nil)
+<a name="147"></a>                illogicalNow(cannotAttachToMoreMsg);
+<a name="148"></a>        }
+<a name="149"></a>        
+<a name="150"></a>        action()
+<a name="151"></a>        {            
+<a name="152"></a>            attachTo(gIobj);
+<a name="153"></a>        }
+<a name="154"></a>        
+<a name="155"></a>        report()
+<a name="156"></a>        {
+<a name="157"></a>            say(okayAttachMsg);
+<a name="158"></a>        }
+<a name="159"></a>    }
+<a name="160"></a>    
+<a name="161"></a>   
+<a name="162"></a>    
+<a name="163"></a>    
+<a name="164"></a>    okayAttachMsg = BMsg(okay attach, '{I} attach{es/ed} {1} to {the iobj}. ',
+<a name="165"></a>                         gActionListStr) 
+<a name="166"></a>    
+<a name="167"></a>    alreadyAttachedMsg = BMsg(already attached, '{The subj dobj} {is} already
+<a name="168"></a>        attached to {1}. ', attachedTo.theName)
+<a name="169"></a>    
+<a name="170"></a>    cannotAttachToMoreMsg = BMsg(cannot attach to more, '{I} {can\'t} attach
+<a name="171"></a>        {the dobj} to anything else while {he dobj}{\'s} attached to {1}. ',
+<a name="172"></a>                                 makeListStr(attachedToList, &amp;theName))      
+<a name="173"></a>    
+<a name="174"></a>    iobjFor(AttachTo)
+<a name="175"></a>    {
+<a name="176"></a>        preCond = [touchObj]
+<a name="177"></a>        
+<a name="178"></a>        verify()
+<a name="179"></a>        {
+<a name="180"></a>            /* Carry out the inherited handling. */
+<a name="181"></a>            inherited;
+<a name="182"></a>            
+<a name="183"></a>            /* 
+<a name="184"></a>             *   If we don't allow the dobj to be attached to us, rule out the
+<a name="185"></a>             *   attachment.
+<a name="186"></a>             */
+<a name="187"></a>            if(!allowAttach(gVerifyDobj))
+<a name="188"></a>                illogical(cannotBeAttachedMsg);
+<a name="189"></a>        }
+<a name="190"></a>    }
+<a name="191"></a>    
+<a name="192"></a>    notAttachedMsg = BMsg(not attached, '{The subj dobj} {is}n\'t attached to
+<a name="193"></a>        anything. ')
+<a name="194"></a>    
+<a name="195"></a>    dobjFor(Detach)
+<a name="196"></a>    {
+<a name="197"></a>        verify()
+<a name="198"></a>        {                   
+<a name="199"></a>            /* We can't be detached if we're not attached to anything */
+<a name="200"></a>            if(attachedToList.length == 0)
+<a name="201"></a>                illogicalNow(notAttachedMsg);           
+<a name="202"></a>        
+<a name="203"></a>            /* We can't be detached if we're not detachable */
+<a name="204"></a>            else if(!isDetachable)
+<a name="205"></a>                implausible(cannotDetachMsg);
+<a name="206"></a>        }
+<a name="207"></a>        
+<a name="208"></a>        action()
+<a name="209"></a>        { 
+<a name="210"></a>            for(local cur in attachedToList)
+<a name="211"></a>               detachFrom(cur);                   
+<a name="212"></a>        }
+<a name="213"></a>        
+<a name="214"></a>        report()   {  say(okayDetachMsg);   }
+<a name="215"></a>        
+<a name="216"></a>    }
+<a name="217"></a>    
+<a name="218"></a>    okayDetachMsg = BMsg(okay detach, '{I} detach{es/ed} {1}. ', gActionListStr)
+<a name="219"></a>    
+<a name="220"></a>    
+<a name="221"></a>    dobjFor(DetachFrom)
+<a name="222"></a>    {
+<a name="223"></a>        verify()
+<a name="224"></a>        {
+<a name="225"></a>            /* 
+<a name="226"></a>             *   We can't be detached from anything if we're not attached to
+<a name="227"></a>             *   anything.
+<a name="228"></a>             */
+<a name="229"></a>            if(attachedToList.length == 0)
+<a name="230"></a>                illogicalNow(notAttachedMsg);  
+<a name="231"></a>            
+<a name="232"></a>            /* We can't be detached from the iobj if we're not attached to it */
+<a name="233"></a>            else if(!isAttachedTo(gVerifyIobj))
+<a name="234"></a>                illogicalNow(notAttachedToThatMsg);
+<a name="235"></a>            
+<a name="236"></a>            /* Carry out the inherited handling. */
+<a name="237"></a>            inherited;
+<a name="238"></a>        }
+<a name="239"></a>        
+<a name="240"></a>        
+<a name="241"></a>        
+<a name="242"></a>        action()
+<a name="243"></a>        {
+<a name="244"></a>            detachFrom(gIobj);            
+<a name="245"></a>        }
+<a name="246"></a>        
+<a name="247"></a>        report()
+<a name="248"></a>        {
+<a name="249"></a>            say(okayDetachFromMsg);            
+<a name="250"></a>        }
+<a name="251"></a>    }
+<a name="252"></a>    
+<a name="253"></a>    okayDetachFromMsg = BMsg(okay detach from, '{I} detach{es/ed} {1} from
+<a name="254"></a>        {the iobj}. ',  gActionListStr)
+<a name="255"></a>    
+<a name="256"></a>    cannotDetachMsg = BMsg(cannot detach this, '{The subj dobj} {cannot} be
+<a name="257"></a>        detached from {1}. ', location.theName)
+<a name="258"></a>    
+<a name="259"></a>    iobjFor(DetachFrom)
+<a name="260"></a>    {
+<a name="261"></a>        verify()
+<a name="262"></a>        {
+<a name="263"></a>            /* 
+<a name="264"></a>             *   Since we resolve the iobj first we can't tell whether the dobj
+<a name="265"></a>             *   is attached, but we can check whether anything at all is
+<a name="266"></a>             *   attached to this object.
+<a name="267"></a>             */
+<a name="268"></a>            if(attachments.length == 0)
+<a name="269"></a>                illogicalNow(nothingAttachedMsg);
+<a name="270"></a>            
+<a name="271"></a>            /* 
+<a name="272"></a>             *   Otherwise we can check whether our list of attachments overlaps with the list of
+<a name="273"></a>             *   tentative direct objects; if it does, we're probably a good choice of indirect
+<a name="274"></a>             *   object.             
+<a name="275"></a>             */
+<a name="276"></a>            
+<a name="277"></a>            else if(attachments.overlapsWith(gTentativeDobj))
+<a name="278"></a>                logicalRank(120);
+<a name="279"></a>            
+<a name="280"></a>                
+<a name="281"></a>            /* Carry out the inherited handling */
+<a name="282"></a>            inherited;
+<a name="283"></a>                
+<a name="284"></a>        }
+<a name="285"></a>    }
+<a name="286"></a>    
+<a name="287"></a>    cannotDetachFromMsg = BMsg(cannot detach from this , '{The {ubj dobj}
+<a name="288"></a>        {can\'t} be detached from {the iobj}. ')
+<a name="289"></a>    
+<a name="290"></a>    notAttachedToThatMsg = BMsg(not attached to that, '{The subj dobj} {isn\'t}
+<a name="291"></a>        attached to {the iobj}. ')
+<a name="292"></a>    
+<a name="293"></a>    nothingAttachedMsg = BMsg(nothing attached, 'There {dummy} {isn\'t} anything
+<a name="294"></a>        attached to {the iobj}. ')
+<a name="295"></a>
+<a name="296"></a>    /* Treat Fasten and Unfasten as equivalent to Attach and Detach */
+<a name="297"></a>    dobjFor(FastenTo) asDobjFor(AttachTo)
+<a name="298"></a>    iobjFor(FastenTo) asIobjFor(AttachTo)
+<a name="299"></a>    dobjFor(UnfastenFrom) asDobjFor(DetachFrom)
+<a name="300"></a>    iobjFor(UnfastenFrom) asIobjFor(DetachFrom)
+<a name="301"></a>    dobjFor(Unfasten) asDobjFor(Detach)
+<a name="302"></a>    
+<a name="303"></a>    /* 
+<a name="304"></a>     *   We can't take this object while it's attached. Note that this is
+<a name="305"></a>     *   assymetric: it applies only to the attached object (the one for which
+<a name="306"></a>     *   attachedTo != nil) not to the object it's attached to (which can be
+<a name="307"></a>     *   taken with the attached object still attached to it.
+<a name="308"></a>     */    
+<a name="309"></a>    dobjFor(Take)
+<a name="310"></a>    {
+<a name="311"></a>        preCond = [objDetached]
+<a name="312"></a>    }
+<a name="313"></a>                                
+<a name="314"></a> 
+<a name="315"></a>    /* 
+<a name="316"></a>     *   Check while any of my attachments object to my being moved while they
+<a name="317"></a>     *   are attached to me. If so, prevent the attempt to move me as the result
+<a name="318"></a>     *   of a player command.
+<a name="319"></a>     */        
+<a name="320"></a>    actionMoveInto(loc)
+<a name="321"></a>    {
+<a name="322"></a>       /* 
+<a name="323"></a>        *   See if there's an object among our attachments that objects to our
+<a name="324"></a>        *   being moved while we're attached to it.
+<a name="325"></a>        */
+<a name="326"></a>          
+<a name="327"></a>        local other = attachments.valWhich({o:
+<a name="328"></a>                                           !o.allowOtherToMoveWhileAttached});
+<a name="329"></a>        
+<a name="330"></a>        /* 
+<a name="331"></a>         *   If there is, display a message saying we can't be moved while the
+<a name="332"></a>         *   object object is attached, then stop the action. 
+<a name="333"></a>         */
+<a name="334"></a>        if(other != nil)
+<a name="335"></a>        {            
+<a name="336"></a>            sayCannotMoveWhileAttached(other);
+<a name="337"></a>            exit;
+<a name="338"></a>        }
+<a name="339"></a>        
+<a name="340"></a>        
+<a name="341"></a>        
+<a name="342"></a>        /* Carry out the inherited handling */   
+<a name="343"></a>        inherited(loc);
+<a name="344"></a>    }
+<a name="345"></a>    
+<a name="346"></a>    /* 
+<a name="347"></a>     *   Display a message saying we can't be moved while we're attached to
+<a name="348"></a>     *   other.
+<a name="349"></a>     */
+<a name="350"></a>    sayCannotMoveWhileAttached(other)
+<a name="351"></a>    {
+<a name="352"></a>        gMessageParams(other);            
+<a name="353"></a>        DMsg(cannot move while attached, '{The subj cobj} {cannot} be moved
+<a name="354"></a>            while {he cobj} {is} attached to {the other}. ');   
+<a name="355"></a>    }
+<a name="356"></a>    
+<a name="357"></a>    
+<a name="358"></a>    cannotBeAttachedMsg = BMsg(cannot be attached, '{The subj dobj} {cannot} be
+<a name="359"></a>        attached to {the iobj}. ')
+<a name="360"></a>    
+<a name="361"></a>    
+<a name="362"></a>    
+<a name="363"></a>    /* 
+<a name="364"></a>     *   By default I'm not listed as a separate object if I'm attached to
+<a name="365"></a>     *   something else.
+<a name="366"></a>     */
+<a name="367"></a>    isListed = (attachedTo == nil &amp;&amp; inherited)
+<a name="368"></a>    
+<a name="369"></a>    /* 
+<a name="370"></a>     *   Is obj attached to me? By default it is if it's in my list of
+<a name="371"></a>     *   attachements.
+<a name="372"></a>     */
+<a name="373"></a>    isAttachedToMe(obj)
+<a name="374"></a>    {
+<a name="375"></a>        return attachments.indexOf(obj) != nil;
+<a name="376"></a>    }
+<a name="377"></a>    
+<a name="378"></a>    
+<a name="379"></a>    /* 
+<a name="380"></a>     *   Is there an attachment relationship between myself and obj; there is
+<a name="381"></a>     *   either is obj is attached to me or if I'm attached to obj.
+<a name="382"></a>     */
+<a name="383"></a>    isAttachedTo(obj)
+<a name="384"></a>    {
+<a name="385"></a>        return isAttachedToMe(obj) || attachedTo == obj;
+<a name="386"></a>    }
+<a name="387"></a>    
+<a name="388"></a>    
+<a name="389"></a>    /* Our locType is Attached if we're attached so something. */
+<a name="390"></a>    locType()
+<a name="391"></a>    {
+<a name="392"></a>        if(attachedTo != nil)
+<a name="393"></a>            return Attached;
+<a name="394"></a>        else
+<a name="395"></a>            return inherited;
+<a name="396"></a>    }
+<a name="397"></a>    
+<a name="398"></a>    /* 
+<a name="399"></a>     *   If anything's attached to us, list our attachements when we're
+<a name="400"></a>     *   examined.
+<a name="401"></a>     */    
+<a name="402"></a>    examineStatus()
+<a name="403"></a>    {
+<a name="404"></a>        /* Carry out the inherited handling. */
+<a name="405"></a>        inherited;
+<a name="406"></a>        
+<a name="407"></a>        /* List our attachments, if we have any. */
+<a name="408"></a>        if(attachments.length &gt; 0)
+<a name="409"></a>            attachmentLister.show(attachments, self);
+<a name="410"></a>    }
+<a name="411"></a>    
+<a name="412"></a>    /* The lister to be used for listing our attachments. */
+<a name="413"></a>    attachmentLister = simpleAttachmentLister
+<a name="414"></a>    
+<a name="415"></a>    /* 
+<a name="416"></a>     *   If I'm attached, do I become firmly attached (so that I can't be
+<a name="417"></a>     *   removed without an explicit detachment)?
+<a name="418"></a>     */
+<a name="419"></a>    isFirmAttachment = true
+<a name="420"></a>    
+<a name="421"></a>    /*   
+<a name="422"></a>     *   Allow detachment through a simple DETACH command. (If this is nil
+<a name="423"></a>     *   detachment might still be programatically possible, e.g. by UNSCREWing
+<a name="424"></a>     *   something).
+<a name="425"></a>     */    
+<a name="426"></a>    isDetachable = true
+<a name="427"></a>    
+<a name="428"></a>    /*   
+<a name="429"></a>     *   Determine whether the object I'm attached to can be moved while I'm
+<a name="430"></a>     *   attached to it. For a SimpleAttachable we normally do allow this, since
+<a name="431"></a>     *   I simply move with the other object.
+<a name="432"></a>     */    
+<a name="433"></a>    allowOtherToMoveWhileAttached = true
+<a name="434"></a>    
+<a name="435"></a> 
+<a name="436"></a>    /* Preinitialize a SimpleAttachable */
+<a name="437"></a>    preinitThing()
+<a name="438"></a>    {
+<a name="439"></a>        /* carry out the inherited handling */
+<a name="440"></a>        inherited();
+<a name="441"></a>        
+<a name="442"></a>        /* if I'm attached to anything, add me to its attachment list */
+<a name="443"></a>        if(initiallyAttachedTo != nil)
+<a name="444"></a>        {
+<a name="445"></a>            /* 
+<a name="446"></a>             *   Ensure that the object we're attached to has an attachements property defined as a
+<a name="447"></a>             *   list so we don't get a runtime error if our initiallyAttachedTo object isn't a
+<a name="448"></a>             *   SimpleAttachable, although it should be.)
+<a name="449"></a>             */
+<a name="450"></a>            if(initiallyAttachedTo.attachments == nil)
+<a name="451"></a>                initiallyAttachedTo.attachments = [];
+<a name="452"></a>            
+<a name="453"></a>            /* Attach us to the other object. */
+<a name="454"></a>            attachTo(initiallyAttachedTo);          
+<a name="455"></a>        }
+<a name="456"></a>    }
+<a name="457"></a>;
+<a name="458"></a>
+<a name="459"></a>/* 
+<a name="460"></a> *   An AttachableComponent is an item that effectively becomes a component of
+<a name="461"></a> *   the object it's attached to, or is treated as a component if it starts out
+<a name="462"></a> *   attached.
+<a name="463"></a> */
+<a name="464"></a>class AttachableComponent: SimpleAttachable
+<a name="465"></a>   
+<a name="466"></a>    /* A Component is firmly attached to its parent. */
+<a name="467"></a>    isFirmAttachment = true
+<a name="468"></a>    
+<a name="469"></a>    /* A Component's locType is PartOf while it's attached */
+<a name="470"></a>    locType()
+<a name="471"></a>    {
+<a name="472"></a>        if(attachedTo != nil)
+<a name="473"></a>            return PartOf;
+<a name="474"></a>        else
+<a name="475"></a>            return inherited;
+<a name="476"></a>    }
+<a name="477"></a>    
+<a name="478"></a>    /* Preinitialize a Component. */
+<a name="479"></a>    preinitThing()
+<a name="480"></a>    {
+<a name="481"></a>        /* Carry out the inherited handling. */
+<a name="482"></a>        inherited Thing;
+<a name="483"></a>        
+<a name="484"></a>        /* 
+<a name="485"></a>         *   If we start out initiallyAttached, note that we're attached to our
+<a name="486"></a>         *   location and add us to our location's list of attachments.
+<a name="487"></a>         */
+<a name="488"></a>        if(initiallyAttached)
+<a name="489"></a>        {
+<a name="490"></a>            /* A Component is attached to its immediate location. */
+<a name="491"></a>            attachedToList = [location];
+<a name="492"></a>            
+<a name="493"></a>            /* 
+<a name="494"></a>             *   It's possible that we're a component of something that isn't an
+<a name="495"></a>             *   Attachable and doesn't provide the attachments property; in
+<a name="496"></a>             *   which case, initialize its attachments property now.
+<a name="497"></a>             */
+<a name="498"></a>            if(location.attachments == nil)
+<a name="499"></a>                location.attachments = [];
+<a name="500"></a>            
+<a name="501"></a>            /* Add ourselves to our locations list of attachments. */
+<a name="502"></a>            location.attachments = location.attachments.appendUnique([self]);
+<a name="503"></a>        }
+<a name="504"></a>    }
+<a name="505"></a>    
+<a name="506"></a>    /* 
+<a name="507"></a>     *   We can't normally detach a Component with a straightforward DETACH
+<a name="508"></a>     *   command.
+<a name="509"></a>     */
+<a name="510"></a>    isDetachable = nil
+<a name="511"></a>    
+<a name="512"></a>    /* 
+<a name="513"></a>     *   A Component is generally fixed in place (i.e. not separately takeable)
+<a name="514"></a>     *   if it's attached to something.
+<a name="515"></a>     */
+<a name="516"></a>    isFixed = (attachedTo != nil)
+<a name="517"></a>    
+<a name="518"></a>    /* 
+<a name="519"></a>     *   Assume that most components start out attached to their containers
+<a name="520"></a>     */    
+<a name="521"></a>    initiallyAttached = true
+<a name="522"></a>    
+<a name="523"></a>       
+<a name="524"></a>    cannotTakeMsg = (delegated Component) 
+<a name="525"></a>    
+<a name="526"></a>;
+<a name="527"></a>
+<a name="528"></a>/* 
+<a name="529"></a> *   A NearbyAttachable is (optionally) placed in the same location as the
+<a name="530"></a> *   object to which it is attached, and moves with the object it's attached to
+<a name="531"></a> *   (or, alternatively, can prevent the other object being moved while it's
+<a name="532"></a> *   attached to it).
+<a name="533"></a> */
+<a name="534"></a>class NearbyAttachable: SimpleAttachable
+<a name="535"></a>    
+<a name="536"></a>    /* 
+<a name="537"></a>     *   Our location when attached; by default this is the location of the item
+<a name="538"></a>     *   we're attached to (if there is one)
+<a name="539"></a>     */
+<a name="540"></a>    attachedLocation = (attachedTo == nil ? location : attachedTo.location)
+<a name="541"></a>    
+<a name="542"></a>    
+<a name="543"></a>    /*  
+<a name="544"></a>     *   Our location when detached; by default this is simply the location of
+<a name="545"></a>     *   the item to which we're attached, if there is one.
+<a name="546"></a>     */         
+<a name="547"></a>    detachedLocation = (attachedTo == nil ? location : attachedTo.location)
+<a name="548"></a>    
+<a name="549"></a>    /* 
+<a name="550"></a>     *   Before any action takes place when we're in scope, make a note of our
+<a name="551"></a>     *   current location if we're attached to anything
+<a name="552"></a>     */
+<a name="553"></a>    beforeAction()
+<a name="554"></a>    {
+<a name="555"></a>        if(attachedTo != nil)
+<a name="556"></a>            oldLocation = location;
+<a name="557"></a>    }
+<a name="558"></a>    
+<a name="559"></a>    /*  
+<a name="560"></a>     *   After any action takes place when we're attached to something, move us
+<a name="561"></a>     *   into our attachedLocation if we're not already there.
+<a name="562"></a>     */
+<a name="563"></a>    afterAction()
+<a name="564"></a>    {
+<a name="565"></a>        if(attachedTo != nil &amp;&amp; attachedLocation != oldLocation)
+<a name="566"></a>            moveInto(attachedLocation);
+<a name="567"></a>    }
+<a name="568"></a>    
+<a name="569"></a>    /* 
+<a name="570"></a>     *   Our location just before an action takes place when we're attached to
+<a name="571"></a>     *   something.
+<a name="572"></a>     */
+<a name="573"></a>    oldLocation = nil
+<a name="574"></a>;
+<a name="575"></a>
+<a name="576"></a>/* 
+<a name="577"></a> *   An Attachable is a NearbyAttachable that can be attached to more than one
+<a name="578"></a> *   thing at a time, like a length of cable connecting two devices.
+<a name="579"></a> */
+<a name="580"></a>class Attachable: NearbyAttachable
+<a name="581"></a>    
+<a name="582"></a>    /* 
+<a name="583"></a>     *   The maximum number of things I can be attached to at once. By default
+<a name="584"></a>     *   this is 2, since probably the most commonly use for an Attachable is to
+<a name="585"></a>     *   join or link two other things, but this can easily be overridden as
+<a name="586"></a>     *   required. If you want there to be no limit to the number of things I
+<a name="587"></a>     *   can be attached to at once, make maxAttachedTo nil.
+<a name="588"></a>     */
+<a name="589"></a>    maxAttachedTo = 2
+<a name="590"></a>   
+<a name="591"></a>    
+<a name="592"></a>    /* 
+<a name="593"></a>     *   Since an ATTACHABLE could potentially be in a many-to-many
+<a name="594"></a>     *   relationship, we may sometimes want to control the order of connection
+<a name="595"></a>     *   (i.e. which is considered to be the connected object and which the
+<a name="596"></a>     *   object it's connected to). If reverseConnect(obj) returns true then
+<a name="597"></a>     *   we'll turn CONNECT obj TO self into CONNECT self TO obj.
+<a name="598"></a>     */
+<a name="599"></a>    reverseConnect(obj)
+<a name="600"></a>    {
+<a name="601"></a>        return nil;
+<a name="602"></a>    }
+<a name="603"></a>    
+<a name="604"></a>    /*   
+<a name="605"></a>     *   We allow attachment to another obj either for the inherited reason
+<a name="606"></a>     *   (that obh is in my list of allowable attachements) or, if we want to
+<a name="607"></a>     *   reverse the connection with obj, that obj can be attached to us.
+<a name="608"></a>     */
+<a name="609"></a>    allowAttach(obj)
+<a name="610"></a>    {
+<a name="611"></a>        return inherited(obj) 
+<a name="612"></a>            || (reverseConnect(obj) &amp;&amp; obj.allowAttach(self));
+<a name="613"></a>    }
+<a name="614"></a>    
+<a name="615"></a>    dobjFor(AttachTo)
+<a name="616"></a>    {
+<a name="617"></a>        preCond = [touchObj]
+<a name="618"></a>        
+<a name="619"></a>        verify()
+<a name="620"></a>        {
+<a name="621"></a>            inherited Thing;  
+<a name="622"></a>            
+<a name="623"></a>            if(isAttachedTo(gVerifyIobj))
+<a name="624"></a>            {                            
+<a name="625"></a>                illogicalNow(alreadyAttachedToIobjMsg);
+<a name="626"></a>            }
+<a name="627"></a>            
+<a name="628"></a>            else if(maxAttachedTo != nil &amp;&amp; attachedToList.length &gt;= maxAttachedTo)
+<a name="629"></a>                illogical(cannotAttachToMoreMsg);
+<a name="630"></a>        }       
+<a name="631"></a>        
+<a name="632"></a>    }        
+<a name="633"></a>   
+<a name="634"></a>                      
+<a name="635"></a>    
+<a name="636"></a>    alreadyAttachedToIobjMsg = BMsg(alreadt attached to iobj, '{The subj dobj} {is} already
+<a name="637"></a>        attachd to {1}. ', gVerifyIobj.theName) 
+<a name="638"></a>    
+<a name="639"></a>    /* 
+<a name="640"></a>     *   I'm attached to obj in the broad sense of having an attachement
+<a name="641"></a>     *   relationship with obj either if obj is attached to me or if obj is in
+<a name="642"></a>     *   the list of things to which I'm attached.
+<a name="643"></a>     */
+<a name="644"></a>    isAttachedTo(obj)
+<a name="645"></a>    {
+<a name="646"></a>        return isAttachedToMe(obj) || attachedToList.indexOf(obj);
+<a name="647"></a>    }
+<a name="648"></a>    
+<a name="649"></a>    /* 
+<a name="650"></a>     *   By default an Attachable can be plugged into more than one thing at a
+<a name="651"></a>     *   time
+<a name="652"></a>     */
+<a name="653"></a>    multiPluggable = true
+<a name="654"></a>;
+<a name="655"></a>
+<a name="656"></a>reverseAttachableDoer: Doer 'attach SimpleAttachable to Attachable'
+<a name="657"></a>    execAction(c)
+<a name="658"></a>    {
+<a name="659"></a>        if(gIobj.reverseConnect(gDobj))
+<a name="660"></a>            doInstead(Attach, gIobj, gDobj);
+<a name="661"></a>        else
+<a name="662"></a>            inherited(c);            
+<a name="663"></a>    }    
+<a name="664"></a>;
+<a name="665"></a>
+<a name="666"></a>
+<a name="667"></a>/* 
+<a name="668"></a> *   PlugAttachable is a mix-in class for use in conjunction with either
+<a name="669"></a> *   SimpleAttachable or NearbyAttachable, enabling the commands PLUG X INTO Y,
+<a name="670"></a> *   UNPLUG X FROM Y, PLUG X IN and UNPLUG X, treating ATTACH and DETACH
+<a name="671"></a> *   commands as equivalent to these, and describing an object's attachments as
+<a name="672"></a> *   being plugged into it.
+<a name="673"></a> */
+<a name="674"></a>class PlugAttachable: object
+<a name="675"></a>    
+<a name="676"></a>    /* A PlugAttachable can be plugged into things. */
+<a name="677"></a>    isPlugable = true
+<a name="678"></a>    
+<a name="679"></a>    /* A PlugAttachable can have other things plugged into it. */
+<a name="680"></a>    canPlugIntoMe = true
+<a name="681"></a>    
+<a name="682"></a>    /* 
+<a name="683"></a>     *   Objects attached to this object should be described as plugged into it,
+<a name="684"></a>     *   so we need to use the appropriate lister.
+<a name="685"></a>     */
+<a name="686"></a>    attachmentLister = plugAttachableLister
+<a name="687"></a>    
+<a name="688"></a>    /*   
+<a name="689"></a>     *   Plugable objects could either be implemented so that an explicit socket
+<a name="690"></a>     *   needs to be specified (e.g. PLUG CABLE INTO SOCKET) or so that the
+<a name="691"></a>     *   socket can be left unspecified (e.g. PLUG TV IN). For the former case,
+<a name="692"></a>     *   make this property true; for the latter, make it nil.
+<a name="693"></a>     */
+<a name="694"></a>    needsExplicitSocket = true
+<a name="695"></a>    
+<a name="696"></a>    /*   Is this item plugged in to anything? */
+<a name="697"></a>    isPluggedIn = nil    
+<a name="698"></a>    
+<a name="699"></a>    /*   
+<a name="700"></a>     *   If this object represents the socket side of a plug-and-socket
+<a name="701"></a>     *   relationship, then the socketCapacity defines the total number of items
+<a name="702"></a>     *   that can be plugged into it once. By default we'll assume that a socket
+<a name="703"></a>     *   can only have one thing plugged into it at a time, but this can readily
+<a name="704"></a>     *   be overridded for items that can take more.
+<a name="705"></a>     */
+<a name="706"></a>    socketCapacity = 1
+<a name="707"></a>    
+<a name="708"></a>    /* Note whether we're plugged our unplugged. */
+<a name="709"></a>    makePlugged(stat)
+<a name="710"></a>    {
+<a name="711"></a>        isPluggedIn = stat;
+<a name="712"></a>    }
+<a name="713"></a>    
+<a name="714"></a>    dobjFor(PlugInto)    
+<a name="715"></a>    {
+<a name="716"></a>        verify()
+<a name="717"></a>        {
+<a name="718"></a>            /* Carry out the inherited handling. */
+<a name="719"></a>            inherited;
+<a name="720"></a>            
+<a name="721"></a>            /* We can't be plugged in if we're already plugged in. */
+<a name="722"></a>            if(isPluggedIn &amp;&amp; !multiPluggable)
+<a name="723"></a>                illogicalNow(alreadyAttachedMsg);
+<a name="724"></a>            
+<a name="725"></a>        }
+<a name="726"></a>        
+<a name="727"></a>        action() 
+<a name="728"></a>        { 
+<a name="729"></a>            /* 
+<a name="730"></a>             *   Carry out the action to attach us to the object we're being
+<a name="731"></a>             *   attached to.
+<a name="732"></a>             */
+<a name="733"></a>            actionDobjAttachTo(); 
+<a name="734"></a>            
+<a name="735"></a>            /* Note that we're now plugged in. */
+<a name="736"></a>            makePlugged(true);
+<a name="737"></a>        }
+<a name="738"></a>        
+<a name="739"></a>        report() { reportDobjAttachTo(); }        
+<a name="740"></a>    }
+<a name="741"></a>    
+<a name="742"></a>    okayAttachMsg = BMsg(okay plug, '{I} plug{s/?ed} {1} into {the iobj}. ',
+<a name="743"></a>                         gActionListStr) 
+<a name="744"></a>    
+<a name="745"></a>    alreadyAttachedMsg = BMsg(already plugged in, '{The subj dobj} {is} already
+<a name="746"></a>        plugged into {1}. ', attachedTo.theName)
+<a name="747"></a>    
+<a name="748"></a>    alreadyPluggedInMsg = BMsg(already plugged in vague, '{The subj {dobj} {is}
+<a name="749"></a>        already plugged in. ')
+<a name="750"></a>    
+<a name="751"></a>    iobjFor(PlugInto)
+<a name="752"></a>    {
+<a name="753"></a>        preCond = [touchObj]     
+<a name="754"></a>        
+<a name="755"></a>        verify()
+<a name="756"></a>        {
+<a name="757"></a>            /* Carry out the inherited handling. */
+<a name="758"></a>            inherited;
+<a name="759"></a>            
+<a name="760"></a>            /* 
+<a name="761"></a>             *   If the direct object is not one that can be plugged into us,
+<a name="762"></a>             *   rule out the action with an appropriate message.
+<a name="763"></a>             */                 
+<a name="764"></a>            if(!allowAttach(gVerifyDobj))
+<a name="765"></a>                illogical(cannotBeAttachedMsg);
+<a name="766"></a>        }
+<a name="767"></a>        
+<a name="768"></a>        check()
+<a name="769"></a>        {
+<a name="770"></a>            /* 
+<a name="771"></a>             *   If plugging anything else into us would exceed our
+<a name="772"></a>             *   socketCapacity, rule out the action with an appropriate
+<a name="773"></a>             *   message,
+<a name="774"></a>             */
+<a name="775"></a>            if(attachments.length &gt;= socketCapacity)
+<a name="776"></a>                say(cannotPlugInAnyMoreMsg);
+<a name="777"></a>        }
+<a name="778"></a>    }
+<a name="779"></a>    
+<a name="780"></a>    cannotPlugInAnyMoreMsg = BMsg(cannot plug in any more, '{I} {can\'t} plug
+<a name="781"></a>        any more into {the iobj}. ')
+<a name="782"></a>    
+<a name="783"></a>    
+<a name="784"></a>    iobjFor(AttachTo)
+<a name="785"></a>    {
+<a name="786"></a>        check()
+<a name="787"></a>        {
+<a name="788"></a>            /* Carry out the inherited handling. */
+<a name="789"></a>            inherited;
+<a name="790"></a>            
+<a name="791"></a>            /* 
+<a name="792"></a>             *   Make sure we don't exceed our socketCapacity if the player uses
+<a name="793"></a>             *   ATTACH TO rather than PLUG INTO; use the check method for
+<a name="794"></a>             *   PlugInto.
+<a name="795"></a>             */
+<a name="796"></a>            checkIobjPlugInto();
+<a name="797"></a>        }
+<a name="798"></a>    }
+<a name="799"></a>    
+<a name="800"></a>    cannotBeAttachedMsg = BMsg(cannot be plugged in, '{The subj dobj} {can\'t}
+<a name="801"></a>        be plugged into {the iobj}. ')
+<a name="802"></a>    
+<a name="803"></a>    
+<a name="804"></a>    dobjFor(UnplugFrom)
+<a name="805"></a>    {
+<a name="806"></a>        verify()
+<a name="807"></a>        {
+<a name="808"></a>            /*  Carry out the inherited checks */
+<a name="809"></a>            inherited;
+<a name="810"></a>            
+<a name="811"></a>            /*  If we're not plugged in we can't be unplugged from anything. */
+<a name="812"></a>            if(!isPluggedIn)
+<a name="813"></a>                illogicalNow(notAttachedMsg);  
+<a name="814"></a>            
+<a name="815"></a>            /*  
+<a name="816"></a>             *   If we're not attached to the direct object of the command, we
+<a name="817"></a>             *   can't be unplugged from it.
+<a name="818"></a>             */
+<a name="819"></a>            else if(attachedTo != gVerifyIobj)
+<a name="820"></a>                illogicalNow(notAttachedToThatMsg);
+<a name="821"></a>            
+<a name="822"></a>        }
+<a name="823"></a>        
+<a name="824"></a>        action() 
+<a name="825"></a>        { 
+<a name="826"></a>            /* Carry out the action handling for detaching from. */
+<a name="827"></a>            actionDobjDetachFrom(); 
+<a name="828"></a>            
+<a name="829"></a>            /* Note that we're no longer plugged in to anything. */
+<a name="830"></a>            makePlugged(nil);
+<a name="831"></a>        }
+<a name="832"></a>        report() { reportDobjDetachFrom(); }
+<a name="833"></a>    }
+<a name="834"></a>    
+<a name="835"></a>    okayDetachFromMsg = BMsg(okay unplug from, '{I} unplug{s/?ed} {1} from
+<a name="836"></a>        {the iobj}. ', gActionListStr)
+<a name="837"></a>    
+<a name="838"></a>    notAttachedMsg = BMsg(not plugged in, '{The subj dobj} {isn\'t} plugged into
+<a name="839"></a>        anything. ') 
+<a name="840"></a>    
+<a name="841"></a>    notAttachedToThatMsg = BMsg(not plugged into that, '{The subj dobj} {isn\'t}
+<a name="842"></a>        plugged into {the iobj}. ')
+<a name="843"></a>    
+<a name="844"></a>    
+<a name="845"></a>    dobjFor(Unplug)
+<a name="846"></a>    {
+<a name="847"></a>        verify()
+<a name="848"></a>        {
+<a name="849"></a>            /* Carry out the inherited checks. */
+<a name="850"></a>            inherited;
+<a name="851"></a>            
+<a name="852"></a>            /* If we're not plugged into anything, we can't be unplugged. */
+<a name="853"></a>            if(!isPluggedIn)
+<a name="854"></a>                illogicalNow(notAttachedMsg);   
+<a name="855"></a>        }
+<a name="856"></a>        
+<a name="857"></a>        action()
+<a name="858"></a>        {
+<a name="859"></a>            /* Note that we're no longer plugged in. */
+<a name="860"></a>            makePlugged(nil);
+<a name="861"></a>            
+<a name="862"></a>            /* 
+<a name="863"></a>             *   If plugging/unplugging this item requires an explicit socket to
+<a name="864"></a>             *   plug into/unplug from, then detach this item from whatever it's
+<a name="865"></a>             *   currently attached to.
+<a name="866"></a>             */
+<a name="867"></a>            if(needsExplicitSocket)
+<a name="868"></a>                actionDobjDetach();
+<a name="869"></a>        }
+<a name="870"></a>        
+<a name="871"></a>        report() { say(okayDetachMsg); }
+<a name="872"></a>    }
+<a name="873"></a>    
+<a name="874"></a>    okayDetachMsg = BMsg(okay unplug, '{I} unplug{s/?ed} {1}. ', gActionListStr)
+<a name="875"></a>    
+<a name="876"></a>    dobjFor(PlugIn)
+<a name="877"></a>    {
+<a name="878"></a>        verify()
+<a name="879"></a>        {
+<a name="880"></a>            /* Carry out the inherited handling. */
+<a name="881"></a>            inherited;
+<a name="882"></a>            
+<a name="883"></a>            /* 
+<a name="884"></a>             *   If we're already plugged in we can't be plugged in now, but the
+<a name="885"></a>             *   message to display depends on whether we require a specific
+<a name="886"></a>             *   socket to be plugged into.
+<a name="887"></a>             */
+<a name="888"></a>            if(isPluggedIn)
+<a name="889"></a>                illogicalNow(needsExplicitSocket ? alreadyAttachedMsg :
+<a name="890"></a>                             alreadyPluggedInMsg);
+<a name="891"></a>        }        
+<a name="892"></a>                
+<a name="893"></a>        
+<a name="894"></a>        action()
+<a name="895"></a>        {
+<a name="896"></a>            /* 
+<a name="897"></a>             *   If we need to specify a specific socket for this item to be
+<a name="898"></a>             *   plugged into, convert this action into a PlugInto action and
+<a name="899"></a>             *   ask for its indirect object (i.e. the socket to plug into).
+<a name="900"></a>             */
+<a name="901"></a>            if(needsExplicitSocket)
+<a name="902"></a>                askForIobj(PlugInto);
+<a name="903"></a>            
+<a name="904"></a>            /* Otherwise simply note that we're now plugged in. */
+<a name="905"></a>            else
+<a name="906"></a>                makePlugged(true);          
+<a name="907"></a>            
+<a name="908"></a>        }
+<a name="909"></a>        
+<a name="910"></a>        report() { DMsg(okay plug in, '{I} plug{s/?ed} in {1}. ', gActionListStr); }
+<a name="911"></a>        
+<a name="912"></a>    }
+<a name="913"></a>;
+<a name="914"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

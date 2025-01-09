@@ -1,0 +1,86 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>mobileCollectiveGroup.t</title></head><body>
+<table class=ban><tr><td><h1>mobileCollectiveGroup.t</h1><td align=right><a href="../file/mobileCollectiveGroup.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*---------------------------------------------------------------------------*/
+<a name="5"></a>/*   
+<a name="6"></a> *   MobileCollective Group Extension
+<a name="7"></a> *
+<a name="8"></a> *   This extension requires events.t and extras.t to be present also.
+<a name="9"></a> */
+<a name="10"></a>
+<a name="11"></a>
+<a name="12"></a>/* 
+<a name="13"></a> *   A MobileCollectiveGroup is a CollectiveGroup that can be used to represent
+<a name="14"></a> *   a collection of portable objects, different members of which may be in
+<a name="15"></a> *   scope at any given moment. A MobileCollectiveGroup is moved into the
+<a name="16"></a> *   player's location if more than one of its members is visible at the start
+<a name="17"></a> *   of any turn and moved into nil otherwise.
+<a name="18"></a> *   [MobileCollectiveGroup EXTENSION]
+<a name="19"></a> */
+<a name="20"></a>class MobileCollectiveGroup: PreinitObject, CollectiveGroup
+<a name="21"></a>    execute()
+<a name="22"></a>    {
+<a name="23"></a>        /* Set up a daemon to execute every turn */
+<a name="24"></a>        myDaemon = new Daemon(self, &amp;scopeCheck, 1);
+<a name="25"></a>        
+<a name="26"></a>        /* 
+<a name="27"></a>         *   Give the daemon a high event order so that it runs after other
+<a name="28"></a>         *   events if possible.
+<a name="29"></a>         */
+<a name="30"></a>        myDaemon.eventOrder = 10000;
+<a name="31"></a>        
+<a name="32"></a>        /* Set up a prompt daemon to execute just before the first turn */
+<a name="33"></a>        new OneTimePromptDaemon(self, &amp;scopeCheck);
+<a name="34"></a>        
+<a name="35"></a>        /* Create a new vector */
+<a name="36"></a>        local vec = new Vector;
+<a name="37"></a>        
+<a name="38"></a>        /* 
+<a name="39"></a>         *   Populate the vector with all the Things in the game that include
+<a name="40"></a>         *   this MobileCollectiveGroup in their collectiveGroups property.
+<a name="41"></a>         */
+<a name="42"></a>        for(local obj = firstObj(Thing); obj != nil; obj = nextObj(obj, Thing))
+<a name="43"></a>        {
+<a name="44"></a>            if(valToList(obj.collectiveGroups).indexOf(self))
+<a name="45"></a>                vec.append(obj);
+<a name="46"></a>        }
+<a name="47"></a>        
+<a name="48"></a>        /* 
+<a name="49"></a>         *   Convert the vector to a list and store the result in the myObjs
+<a name="50"></a>         *   property.
+<a name="51"></a>         */
+<a name="52"></a>        myObjs = vec.toList;
+<a name="53"></a>    }
+<a name="54"></a>    
+<a name="55"></a>    /*  
+<a name="56"></a>     *   If the player can see more than one of the objects that belong to this
+<a name="57"></a>     *   CollectiveGroup, move it to the player's location (so that it can stand
+<a name="58"></a>     *   in for those objects when required); otherwise move this
+<a name="59"></a>     *   CollectiveGroup out of the way. [MobileCollectiveGroup EXTENSION]
+<a name="60"></a>     */
+<a name="61"></a>    scopeCheck()
+<a name="62"></a>    {
+<a name="63"></a>        if(myObjs.countWhich({x: gPlayerChar.canSee(x)}) &gt; 1)
+<a name="64"></a>            moveInto(gPlayerChar.location);
+<a name="65"></a>        else
+<a name="66"></a>            moveInto(nil);        
+<a name="67"></a>    }
+<a name="68"></a>    
+<a name="69"></a>    /* 
+<a name="70"></a>     *   The list of objects belonging to this MobileCollectiveGroup; this is
+<a name="71"></a>     *   created automatically at PreInit. [MobileCollectiveGroup EXTENSION]
+<a name="72"></a>     */
+<a name="73"></a>    myObjs = nil
+<a name="74"></a>    
+<a name="75"></a>    /* 
+<a name="76"></a>     *   Store a reference to the Daemon used to update the location of this
+<a name="77"></a>     *   MobileCollectiveGroup. [MobileCollectiveGroup EXTENSION]
+<a name="78"></a>     */
+<a name="79"></a>    myDaemon = nil
+<a name="80"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

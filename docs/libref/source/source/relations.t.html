@@ -1,0 +1,1041 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>relations.t</title></head><body>
+<table class=ban><tr><td><h1>relations.t</h1><td align=right><a href="../file/relations.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* 
+<a name="5"></a> *   RELATIONS EXTENSION by Eric Eve July 2014
+<a name="6"></a> *
+<a name="7"></a> *   The relations.t extension allows Inform7-style relations to be
+<a name="8"></a> *   defined in a TADS 3 game.
+<a name="9"></a> */
+<a name="10"></a>
+<a name="11"></a> 
+<a name="12"></a>/* 
+<a name="13"></a> *   The Relation class is used to define any kind of binary relation you like
+<a name="14"></a> *   between objects, or between items of any other kind, e.g. x love y, or a is
+<a name="15"></a> *   the father of b, or c knows d.
+<a name="16"></a> *
+<a name="17"></a> *   REQUIRES THE RELATIONS EXTENSION.
+<a name="18"></a> */
+<a name="19"></a>class Relation: PreinitObject
+<a name="20"></a>    /* 
+<a name="21"></a>     *   A string name that can be used to refer to this relation, e.g. 'loves'
+<a name="22"></a>     *   or 'is the parent of' [RELATIONS EXTENSION]
+<a name="23"></a>     */
+<a name="24"></a>    name = nil
+<a name="25"></a>    
+<a name="26"></a>    /*   
+<a name="27"></a>     *   A string name that can be used to refer to this relation in reverse,
+<a name="28"></a>     *   e.g. 'loved by' or 'is a child of' [RELATIONS EXTENSION]
+<a name="29"></a>     */
+<a name="30"></a>    reverseName = nil
+<a name="31"></a>    
+<a name="32"></a>    /* 
+<a name="33"></a>     *   The type of relation we are; this can be one of oneToOne, oneToMany,
+<a name="34"></a>     *   manyToOne or manyToMany. [RELATIONS EXTENSION]
+<a name="35"></a>     */
+<a name="36"></a>    relationType = oneToOne
+<a name="37"></a>    
+<a name="38"></a>    /*   
+<a name="39"></a>     *   Flag: are we a reciprocal relation (i.e. does x relation b imply b
+<a name="40"></a>     *   relation x)? Note that only oneToOne and manyToMany relations can be
+<a name="41"></a>     *   reciprocal. [RELATIONS EXTENSION]
+<a name="42"></a>     */
+<a name="43"></a>    reciprocal = nil
+<a name="44"></a>    
+<a name="45"></a>    /*  
+<a name="46"></a>     *   A LookupTable to hold data about the items related via this relation.
+<a name="47"></a>     *   This is maintained by the library code and shouldn't normally be
+<a name="48"></a>     *   directly accessed via game code. [RELATIONS EXTENSION]
+<a name="49"></a>     */
+<a name="50"></a>    relTab = nil
+<a name="51"></a>    
+<a name="52"></a>    /*   Return a list of items related to a via this relation. [RELATIONS EXTENSION] */
+<a name="53"></a>    relatedTo(a)
+<a name="54"></a>    {       
+<a name="55"></a>        /* Get the list of things we're related to from our relation table. */
+<a name="56"></a>        local lst = valToList(relTab == nil ? [] : relTab[a]); 
+<a name="57"></a>        
+<a name="58"></a>        /* 
+<a name="59"></a>         *   If our list is empty and we're a reciprocal relation, try getting the list of the
+<a name="60"></a>         *   inverse relation's list.
+<a name="61"></a>         */
+<a name="62"></a>        if(lst == [] &amp;&amp; reciprocal)
+<a name="63"></a>            lst = inverselyRelatedTo(a);
+<a name="64"></a>        
+<a name="65"></a>        /* Return our list. */
+<a name="66"></a>        return lst;
+<a name="67"></a>            
+<a name="68"></a>    }
+<a name="69"></a>    
+<a name="70"></a>    /*   Test whether a is related to b via this relation. [RELATIONS EXTENSION] */
+<a name="71"></a>    isRelated(a, b)
+<a name="72"></a>    {       
+<a name="73"></a>        return relatedTo(a).indexOf(b) != nil;
+<a name="74"></a>    }
+<a name="75"></a>    
+<a name="76"></a>    /*   
+<a name="77"></a>     *   Return a list of items inverselty related to a via this relation (e.g.
+<a name="78"></a>     *   if this is loving relation, return a list of the people a is loved by.
+<a name="79"></a>	 *   [RELATIONS EXTENSION]
+<a name="80"></a>     */
+<a name="81"></a>    inverselyRelatedTo(a)
+<a name="82"></a>    {
+<a name="83"></a>        /*  
+<a name="84"></a>         *   Iterate over our LookUpTable to find key values that correspond to values of a. We call
+<a name="85"></a>         *   our listKeys method to do so.
+<a name="86"></a>         */        
+<a name="87"></a>        local lst = listKeys();
+<a name="88"></a>        
+<a name="89"></a>        /* Set up a Vector as a temporary store for our results. */
+<a name="90"></a>        local vec = new Vector;
+<a name="91"></a>        
+<a name="92"></a>        /* 
+<a name="93"></a>         *   Go through each key in the relTab LookupTable to see if a occurs in
+<a name="94"></a>         *   its corresponding value (which should be a list). If so append cur
+<a name="95"></a>         *   to our vector.
+<a name="96"></a>         */
+<a name="97"></a>        foreach(local cur in lst)
+<a name="98"></a>        {            
+<a name="99"></a>            if(isInverselyRelated(a, cur))
+<a name="100"></a>                vec.append(cur);
+<a name="101"></a>        }
+<a name="102"></a>        
+<a name="103"></a>        /* Convert the vector to a list and return the result. */
+<a name="104"></a>        return vec.toList();
+<a name="105"></a>    }
+<a name="106"></a>    
+<a name="107"></a>    /* Test whether a is inversely related to b via this relation. [RELATIONS EXTENSION] */
+<a name="108"></a>    isInverselyRelated(a, b)
+<a name="109"></a>    {
+<a name="110"></a>        /* 
+<a name="111"></a>         *   We're inversely related to a if we occur in the list of items to which a is related.         
+<a name="112"></a>         */
+<a name="113"></a>        return (valToList(relTab[b]).indexOf(a) != nil) || 
+<a name="114"></a>            ( reciprocal &amp;&amp; valToList(relTab[a]).indexOf(b) != nil);
+<a name="115"></a>    }
+<a name="116"></a>    
+<a name="117"></a>    /* 
+<a name="118"></a>     *   Make two objects related via this relation. The objs should be supplied
+<a name="119"></a>     *   as a two-element list (e.g. [a, b]) such that a will be related to b.
+<a name="120"></a>	 *   [RELATIONS EXTENSION]
+<a name="121"></a>     */
+<a name="122"></a>    addRelation(objs)
+<a name="123"></a>    {
+<a name="124"></a>        
+<a name="125"></a>        /* 
+<a name="126"></a>         *   If we do not already have a LookupTable associated with our relTab
+<a name="127"></a>         *   property, perform some sanity checks and then create one if all is
+<a name="128"></a>         *   okay.
+<a name="129"></a>         */
+<a name="130"></a>        if(relTab == nil)   
+<a name="131"></a>        {
+<a name="132"></a>            
+<a name="133"></a>            /* 
+<a name="134"></a>             *   Check whether the setting of the reciprocal property on this
+<a name="135"></a>             *   relation conflicts with the setting of the relationType
+<a name="136"></a>             *   property. Neither a oneToMany nor a manyToOne relation can be
+<a name="137"></a>             *   reciprocal (since oneToMany and manyToOne both imply an
+<a name="138"></a>             *   asymmetry), so issue a warning if there's a conflict.
+<a name="139"></a>             */
+<a name="140"></a>            if(reciprocal &amp;&amp; relationType is in (oneToMany, manyToOne))
+<a name="141"></a>            {
+<a name="142"></a>                "&lt;b&gt;ERROR!&lt;/b&gt; The &lt;&lt;name&gt;&gt; relation cannot be both &lt;&lt;if
+<a name="143"></a>                  relationType == oneToMany&gt;&gt;one-to-many&lt;&lt;else&gt;&gt;many to
+<a name="144"></a>                one&lt;&lt;end&gt;&gt; and reciprocal. ";
+<a name="145"></a>                
+<a name="146"></a>                return;
+<a name="147"></a>            }
+<a name="148"></a>            
+<a name="149"></a>            /* 
+<a name="150"></a>             *   If we do not yet have a LookupTable attached to our relTab,
+<a name="151"></a>             *   create it now.
+<a name="152"></a>             */
+<a name="153"></a>            relTab = new LookupTable;
+<a name="154"></a>            relTab.setDefaultValue([]);
+<a name="155"></a>        }
+<a name="156"></a>        
+<a name="157"></a>        /* 
+<a name="158"></a>         *   The obs parameter should have been supplied as a two element list,
+<a name="159"></a>         *   [a, b]. When we add this to our relTab LookupTable the first item
+<a name="160"></a>         *   in the list will be a key in the table and the second will be a
+<a name="161"></a>         *   value.
+<a name="162"></a>         */
+<a name="163"></a>        local key = objs[1];
+<a name="164"></a>        local val = objs[2];
+<a name="165"></a>        
+<a name="166"></a>        
+<a name="167"></a>        /* 
+<a name="168"></a>         *   if val is nil we're saying we don't want key to be related to
+<a name="169"></a>         *   anything, so remove it from the table
+<a name="170"></a>         */
+<a name="171"></a>        if(val == nil)
+<a name="172"></a>        {   
+<a name="173"></a>            /* 
+<a name="174"></a>             *   If we're a reciprocal relation then we also need to remove the
+<a name="175"></a>             *   other side of the relation; if a is no longer related to b then
+<a name="176"></a>             *   b is no longer related to a in a reciprocal relationship.
+<a name="177"></a>             */
+<a name="178"></a>            if(reciprocal)
+<a name="179"></a>            {
+<a name="180"></a>                /* 
+<a name="181"></a>                 *   relTab[key] should evaluate a list of the items to which
+<a name="182"></a>                 *   key is related. For each of these item remove key from the
+<a name="183"></a>                 *   list of items to which they in turn are related.
+<a name="184"></a>                 */
+<a name="185"></a>                foreach(local cur in relTab[key])
+<a name="186"></a>                    relTab[cur] = relTab[cur] - key;
+<a name="187"></a>            }
+<a name="188"></a>            
+<a name="189"></a>            /* 
+<a name="190"></a>             *   Simce key is no longer related to anything, we can remove it
+<a name="191"></a>             *   from the relTab LookupTable.
+<a name="192"></a>             */
+<a name="193"></a>            relTab.removeElement(key);
+<a name="194"></a>            
+<a name="195"></a>            /*   Then we're done. */
+<a name="196"></a>            return;
+<a name="197"></a>        }
+<a name="198"></a>        
+<a name="199"></a>        /* 
+<a name="200"></a>         *   If key is nil we're saying the reverse relation no longer applies
+<a name="201"></a>         *   to val, so we need to remove val wherever it appears.
+<a name="202"></a>         */
+<a name="203"></a>        if(key == nil)
+<a name="204"></a>        {
+<a name="205"></a>            /* 
+<a name="206"></a>             *   If we've a reciprocal relation, val is no longer related to
+<a name="207"></a>             *   anything, so we can remove the val entry from the relTab.
+<a name="208"></a>             */
+<a name="209"></a>            if(reciprocal)
+<a name="210"></a>                relTab.removeElement[val];
+<a name="211"></a>            
+<a name="212"></a>            /* Get a list of the keys in relTab */
+<a name="213"></a>            local lst = relTab.keysToList();
+<a name="214"></a>            
+<a name="215"></a>            /* 
+<a name="216"></a>             *   Iterate over that list removing val from the list of values
+<a name="217"></a>             *   associated with every key.
+<a name="218"></a>             */
+<a name="219"></a>            foreach(local cur in lst)
+<a name="220"></a>            {
+<a name="221"></a>                local curVal = relTab[cur];
+<a name="222"></a>                relTab[cur] = curVal - val;
+<a name="223"></a>            }
+<a name="224"></a>            
+<a name="225"></a>            /* Then we're done. */
+<a name="226"></a>            return;
+<a name="227"></a>        }
+<a name="228"></a>        
+<a name="229"></a>        /*  Note the current value associated with key in relTab. */
+<a name="230"></a>        local existing = relTab[key];
+<a name="231"></a>        
+<a name="232"></a>        /*  What happens next depends on our relationType */
+<a name="233"></a>        switch(relationType)
+<a name="234"></a>        {
+<a name="235"></a>            
+<a name="236"></a>        case oneToOne:
+<a name="237"></a>            /* 
+<a name="238"></a>             *   If we're a one-to-one relation, we can simply set the new value
+<a name="239"></a>             *   corresponding to key to [val], either thereby creating a new
+<a name="240"></a>             *   entry in the relTab LookupTable or overwriting the existing
+<a name="241"></a>             *   one. We make [val] a list since this is how the relTab
+<a name="242"></a>             *   LookupTable stores its values.
+<a name="243"></a>             */
+<a name="244"></a>            relTab[key] = [val];          
+<a name="245"></a>            
+<a name="246"></a>            /*  
+<a name="247"></a>             *   Ensure that val is not a value for any other key in the table,
+<a name="248"></a>             *   since in a one-to-one relationship each key can be related to
+<a name="249"></a>             *   at most one val, and each val to at most one key.
+<a name="250"></a>             */
+<a name="251"></a>            makeUnique(key, val);
+<a name="252"></a>            
+<a name="253"></a>            /*   
+<a name="254"></a>             *   If we're a reciprocal relationship we need to enter the same
+<a name="255"></a>             *   pair of items in relTab the other way round as well.
+<a name="256"></a>             */
+<a name="257"></a>            if(reciprocal)       
+<a name="258"></a>            {
+<a name="259"></a>                relTab[val] = [key];                          
+<a name="260"></a>                makeUnique(val, key);
+<a name="261"></a>            }
+<a name="262"></a>            break;
+<a name="263"></a>        case oneToMany:   
+<a name="264"></a>            
+<a name="265"></a>            /* Deliberate fall-through */
+<a name="266"></a>        case manyToMany:
+<a name="267"></a>            /* 
+<a name="268"></a>             *   In the case of a one-to-many or many-to-many relationships,
+<a name="269"></a>             *   several values can be associated with each key, so we append
+<a name="270"></a>             *   the new val to the list of values already associated with key.
+<a name="271"></a>             */            
+<a name="272"></a>            relTab[key] = (nilToList(existing)).appendUnique([val]);
+<a name="273"></a>            
+<a name="274"></a>            /*  
+<a name="275"></a>             *   If we're a reciprocal relationship we must also be a
+<a name="276"></a>             *   many-to-many one, or else we would not have reached this point
+<a name="277"></a>             *   (the block beginning if(relTab == nil) above would have
+<a name="278"></a>             *   prevented it). So, if we're reciprocal, we also add key to the
+<a name="279"></a>             *   list of values associated with val.
+<a name="280"></a>             */
+<a name="281"></a>            if(reciprocal)
+<a name="282"></a>                relTab[val] = nilToList(relTab[val]).appendUnique([key]);
+<a name="283"></a>            break;          
+<a name="284"></a>            
+<a name="285"></a>        case manyToOne:
+<a name="286"></a>            /* 
+<a name="287"></a>             *   For a many-to-one relationship, simply make [val] the new value
+<a name="288"></a>             *   corresponding to key.
+<a name="289"></a>             */
+<a name="290"></a>            relTab[key] = [val];
+<a name="291"></a>            
+<a name="292"></a>            break;
+<a name="293"></a>        }
+<a name="294"></a>    }
+<a name="295"></a>    
+<a name="296"></a>    /*  
+<a name="297"></a>     *   Ensure that key is the only entry in relTab with a value of [val].
+<a name="298"></a>	 *   [RELATIONS EXTENSION]
+<a name="299"></a>     *
+<a name="300"></a>     */
+<a name="301"></a>    makeUnique(key, val)
+<a name="302"></a>    {
+<a name="303"></a>        /* Get a list of all the keys in the relTab LookupTable. */
+<a name="304"></a>        local lst = relTab.keysToList();
+<a name="305"></a>        
+<a name="306"></a>        /* 
+<a name="307"></a>         *   Go through all the keys in relTab, deleting all that value a value
+<a name="308"></a>         *   of [val] apart from key.
+<a name="309"></a>         */
+<a name="310"></a>        foreach(local cur in lst)
+<a name="311"></a>        {
+<a name="312"></a>            if(cur != key &amp;&amp; relTab[cur] == [val])
+<a name="313"></a>                relTab.removeElement(cur);            
+<a name="314"></a>            
+<a name="315"></a>        }
+<a name="316"></a>    }
+<a name="317"></a>    
+<a name="318"></a>    /*  
+<a name="319"></a>     *   Remove this relation between the items specified in objs, which should
+<a name="320"></a>     *   be supplied as a two-element list [a, b], where a is the item that is
+<a name="321"></a>     *   no longer related to b. [RELATIONS EXTENSION]
+<a name="322"></a>     */     
+<a name="323"></a>    removeRelation(objs)
+<a name="324"></a>    {
+<a name="325"></a>        /* 
+<a name="326"></a>         *   If relTab hasn't been set up yet we've nothing to do, since no
+<a name="327"></a>         *   objects are yet related via this relation.
+<a name="328"></a>         */
+<a name="329"></a>        if(relTab == nil)
+<a name="330"></a>            return;
+<a name="331"></a>        
+<a name="332"></a>        /*  Extract the key and val values from our two-element objs list. */
+<a name="333"></a>        local key = objs[1];
+<a name="334"></a>        local val = objs[2];
+<a name="335"></a>        
+<a name="336"></a>        /*  
+<a name="337"></a>         *   What happens next depends on what kind of relation we are. Note
+<a name="338"></a>         *   that if we have a non-nil relTab at all, we'll already have checked
+<a name="339"></a>         *   we can only be a reciprocal relation if we're a one-to-one or
+<a name="340"></a>         *   many-to-many relation.
+<a name="341"></a>         */         
+<a name="342"></a>        switch(relationType)
+<a name="343"></a>        {
+<a name="344"></a>        case oneToOne:
+<a name="345"></a>        case manyToOne:
+<a name="346"></a>            /* 
+<a name="347"></a>             *   If the key can only be related to one value, simply remove the
+<a name="348"></a>             *   key from relTab.
+<a name="349"></a>             */
+<a name="350"></a>            relTab.removeElement(key);
+<a name="351"></a>            
+<a name="352"></a>            /*   
+<a name="353"></a>             *   If this relation is reciprocal, remove val from relTab as well,
+<a name="354"></a>             *   since if this relation no longer holds one way round, it can no
+<a name="355"></a>             *   hold the other way round either.
+<a name="356"></a>             */
+<a name="357"></a>            if(reciprocal)
+<a name="358"></a>                relTab.removeElement(val);
+<a name="359"></a>            break;
+<a name="360"></a>            
+<a name="361"></a>        case oneToMany:    
+<a name="362"></a>        case manyToMany:
+<a name="363"></a>            /* 
+<a name="364"></a>             *   If the key can be related to many values, remove val from the
+<a name="365"></a>             *   list of values it's related to.
+<a name="366"></a>             */            
+<a name="367"></a>            relTab[key] = relTab[key] - val;
+<a name="368"></a>            
+<a name="369"></a>            /*  
+<a name="370"></a>             *   If this relation is reciprocal, remove key from the list of
+<a name="371"></a>             *   values corresponding to val.
+<a name="372"></a>             */
+<a name="373"></a>            if(reciprocal)
+<a name="374"></a>                relTab[val] = relTab[val] - key;
+<a name="375"></a>            break;
+<a name="376"></a>        }
+<a name="377"></a>        
+<a name="378"></a>    }
+<a name="379"></a>    
+<a name="380"></a>    /* 
+<a name="381"></a>     *   Liat the keys (the items to which this relation applies). By default we list the keys in
+<a name="382"></a>     *   our relTab.
+<a name="383"></a>     */
+<a name="384"></a>    listKeys()
+<a name="385"></a>    {
+<a name="386"></a>        return relTab ? relTab.keysToList() : [];
+<a name="387"></a>    }
+<a name="388"></a>    
+<a name="389"></a>    
+<a name="390"></a>    /* Make relation[b] = c work like relate(b, relation, c) [RELATIONS EXTENSION] */
+<a name="391"></a>    operator []=(b, c)
+<a name="392"></a>    {
+<a name="393"></a>        addRelation([b, c]);
+<a name="394"></a>        return self;
+<a name="395"></a>    }
+<a name="396"></a>    
+<a name="397"></a>    /* make relation[b] work like related(b, relation) [RELATIONS EXTENSION] */
+<a name="398"></a>    operator [] (b)
+<a name="399"></a>    {
+<a name="400"></a>        return relatedTo(b);
+<a name="401"></a>    }      
+<a name="402"></a>;
+<a name="403"></a>
+<a name="404"></a>/* 
+<a name="405"></a> *   A DerivedRelation is one that doesn't maintain its own table of what it
+<a name="406"></a> *   related to what, but works out what is related to what on the basis of some
+<a name="407"></a> *   other relation(s) (e.g. a sibling relation might work by testing for common
+<a name="408"></a> *   parents).
+<a name="409"></a> *
+<a name="410"></a> *   REQUIRES THE RELATIONS EXTENSION
+<a name="411"></a> */
+<a name="412"></a>DerivedRelation: Relation
+<a name="413"></a>    
+<a name="414"></a>    /* 
+<a name="415"></a>     *   Especially if listKeys() hasn't been defined on this DerivedRelation, instances may need to
+<a name="416"></a>     *   override to provide a method that returns a list of items related to a via this
+<a name="417"></a>     *   relationship, on the basis of whatever criteria are appropriate.
+<a name="418"></a>     */
+<a name="419"></a>    relatedTo(a) 
+<a name="420"></a>    { 
+<a name="421"></a>        /* Construct a list from our listKeys() method less a. */
+<a name="422"></a>        local lst = listKeys() - a;
+<a name="423"></a>        
+<a name="424"></a>        /* Se up a new Vector as working storage. */
+<a name="425"></a>        local vec = new Vector();
+<a name="426"></a>        
+<a name="427"></a>        /* Loop through every fact in our list. */
+<a name="428"></a>        foreach(local fact in lst)
+<a name="429"></a>        {
+<a name="430"></a>            /* if a is related to fact, add a to our Vector of related items. */
+<a name="431"></a>            if(isRelated(a, fact))
+<a name="432"></a>                vec.appendUnique(fact);
+<a name="433"></a>        }
+<a name="434"></a>        
+<a name="435"></a>        /* Convert the vector to a list and return the result. */
+<a name="436"></a>        return vec.toList();    
+<a name="437"></a>    }
+<a name="438"></a>    
+<a name="439"></a>    /* 
+<a name="440"></a>     *   Game code must override this method to determine whether a is inversely related to b unless
+<a name="441"></a>     *   it either overrides inverselyRelatedTo() to return a list of items to which a is inversely
+<a name="442"></a>     *   related or the relation is a reciprocal one.
+<a name="443"></a>     */
+<a name="444"></a>    isInverselyRelated(a, b)
+<a name="445"></a>    {
+<a name="446"></a>        /* 
+<a name="447"></a>         *   If this relation defines its own inverselyRelatedTo property, check whether b occurs in
+<a name="448"></a>         *   the list of things related to a.
+<a name="449"></a>         */
+<a name="450"></a>        if(propDefined(&amp;inverselyRelatedTo, PropDefDirectly)) 
+<a name="451"></a>            return inverselyRelatedTo(a).find(b);
+<a name="452"></a>        
+<a name="453"></a>        /* Otherwise if we're reciprocal check whether b is related to a. */
+<a name="454"></a>        if(reciprocal)
+<a name="455"></a>            return isRelated(b, a);       
+<a name="456"></a>        
+<a name="457"></a>        /* Otherwise return an empty list */
+<a name="458"></a>        return [];
+<a name="459"></a>    }
+<a name="460"></a>    
+<a name="461"></a>    /* 
+<a name="462"></a>     *   If relatedTo has not been overriden to provide a list, instances need to override
+<a name="463"></a>     *   isRelated to provide a method that returns true or nil according to whether this
+<a name="464"></a>     *   DerivedRelationship holds between a and b. 
+<a name="465"></a>     */
+<a name="466"></a>    isRelated(a, b)
+<a name="467"></a>    {
+<a name="468"></a>        /* 
+<a name="469"></a>         *   If this relation has overridden its relatedTo method, assume that it has done so to
+<a name="470"></a>         *   generate its own list of items that are related, in which case use the inherited
+<a name="471"></a>         *   handling, which checks whether b is in the list of items to which a is related.
+<a name="472"></a>         */
+<a name="473"></a>        if(propDefined(&amp;relatedTo, PropDefDirectly))          
+<a name="474"></a>            return inherited(a, b);
+<a name="475"></a>        
+<a name="476"></a>        /* 
+<a name="477"></a>         *   Is this relation hasn't overridden its related method it should have overridden its
+<a name="478"></a>         *   isRalated method; as a fallback we just return nil, but this should never happen if
+<a name="479"></a>         *   this DerivedRelation has been properly set up.
+<a name="480"></a>         */
+<a name="481"></a>        return nil;
+<a name="482"></a>    }   
+<a name="483"></a>    
+<a name="484"></a>    /* 
+<a name="485"></a>     *   By default we don't permit the direct addition of relationships via
+<a name="486"></a>     *   this relation, since this is a relation dependent upon external
+<a name="487"></a>     *   conditions.
+<a name="488"></a>     */
+<a name="489"></a>    addRelation(objs)
+<a name="490"></a>    {
+<a name="491"></a>        DMsg(cannot add to derived relation, 'ERROR! You cannot explicitly
+<a name="492"></a>            relate items via a derived relation (%1). ', name);
+<a name="493"></a>    }
+<a name="494"></a>    
+<a name="495"></a>    /* 
+<a name="496"></a>     *   By default we don't permit the direct removal of relationships via
+<a name="497"></a>     *   this relation, since this is a relation dependent upon external
+<a name="498"></a>     *   conditions.
+<a name="499"></a>     */
+<a name="500"></a>    removeRelation(objs)
+<a name="501"></a>    {
+<a name="502"></a>        DMsg(cannot remove from derived relation, 'ERROR! You cannot explicitly
+<a name="503"></a>            remove a derived relation (%1) between items. ', name);
+<a name="504"></a>    }
+<a name="505"></a>    
+<a name="506"></a>    /* 
+<a name="507"></a>     *   We don't have any entries listed in the relTable, but there may be another way of building
+<a name="508"></a>     *   a list of the key values to which this DerivedRelalation applies; if so, particular
+<a name="509"></a>     *   instances can override this method to supply it here.
+<a name="510"></a>     */        
+<a name="511"></a>    listKeys()
+<a name="512"></a>    {
+<a name="513"></a>        return [];
+<a name="514"></a>    }   
+<a name="515"></a>   
+<a name="516"></a>;
+<a name="517"></a>
+<a name="518"></a>
+<a name="519"></a>/* 
+<a name="520"></a> *   Used internally by the RELATIONS EXTENSION to keep track of which relations
+<a name="521"></a> *   correspond to which (string) names.
+<a name="522"></a> */
+<a name="523"></a>relationTable: PreinitObject
+<a name="524"></a>    /* 
+<a name="525"></a>     *   LookupTable to restore data relating names to relations. Each key is a
+<a name="526"></a>     *   string containing a relation name. Each corresponding value is a
+<a name="527"></a>     *   two-item list [rel, type] where rel is the name of the corresponding
+<a name="528"></a>     *   relation object and type is either normalRelation or reverseRelation.
+<a name="529"></a>     */
+<a name="530"></a>    nameTab = static new LookupTable
+<a name="531"></a>    
+<a name="532"></a>    /*  
+<a name="533"></a>     *   Go through all the relations in the game and add their names and
+<a name="534"></a>     *   reverseNames to our nameTab.
+<a name="535"></a>     */
+<a name="536"></a>    execute()
+<a name="537"></a>    {
+<a name="538"></a>        for(local rel = firstObj(Relation); rel != nil; rel = nextObj(rel,
+<a name="539"></a>            Relation))
+<a name="540"></a>        {
+<a name="541"></a>            if(rel.name)
+<a name="542"></a>                nameTab[rel.name] = [rel, normalRelation];
+<a name="543"></a>            if(rel.reverseName)
+<a name="544"></a>                nameTab[rel.reverseName] = [rel, reverseRelation];           
+<a name="545"></a>        }
+<a name="546"></a>    }
+<a name="547"></a>
+<a name="548"></a>    /* 
+<a name="549"></a>     *   Get the relation corresponding to a string version of its name. Return
+<a name="550"></a>     *   a two-item list [rel, type] where rel is the name of the corresponding
+<a name="551"></a>     *   relation object and type is either normalRelation or reverseRelation.     *
+<a name="552"></a>         
+<a name="553"></a>     */
+<a name="554"></a>    getRelation(rel)
+<a name="555"></a>    {
+<a name="556"></a>        if(dataType(rel) == TypeSString)
+<a name="557"></a>            return nameTab[rel];
+<a name="558"></a>        /*
+<a name="559"></a>         *   If the rel argument is not supplied as a string, it's presumably
+<a name="560"></a>         *   the name of a relation object.
+<a name="561"></a>         */
+<a name="562"></a>        return [rel, normalRelation];
+<a name="563"></a>    }
+<a name="564"></a>    
+<a name="565"></a>    /* 
+<a name="566"></a>     *   Message to display when there's no relation in our nameTab
+<a name="567"></a>     *   corresponding to the name rel.
+<a name="568"></a>     */
+<a name="569"></a>    sayNoSuchRelation(rel)
+<a name="570"></a>    {
+<a name="571"></a>        DMsg(no such relation, 'ERROR, there is no such relation as &lt;q&gt;{1}&lt;/q&gt;. ',
+<a name="572"></a>             rel);
+<a name="573"></a>    }
+<a name="574"></a>;
+<a name="575"></a>
+<a name="576"></a>
+<a name="577"></a>
+<a name="578"></a>
+<a name="579"></a>/* 
+<a name="580"></a> *   Make a related to b via the rel relation. The rel parameter can be
+<a name="581"></a> *   specified either as an object (in which case its the relevant relation
+<a name="582"></a> *   object) or as a single-quoted string (in which cast it's either the name or
+<a name="583"></a> *   the reverseName of a relation object.
+<a name="584"></a> *
+<a name="585"></a> *   PART OF THE RELATIONS EXTENSION
+<a name="586"></a> */
+<a name="587"></a>relate(a, rel, b)
+<a name="588"></a>{
+<a name="589"></a>    /* Get the relation referred to by the rel parameter. */
+<a name="590"></a>    local relData = relationTable.getRelation(rel);
+<a name="591"></a>    
+<a name="592"></a>    /* Check that we actually found a relation before trying to use it. */
+<a name="593"></a>    if(relData == nil)
+<a name="594"></a>    {
+<a name="595"></a>        relationTable.sayNoSuchRelation(rel);
+<a name="596"></a>        return;
+<a name="597"></a>    }
+<a name="598"></a>    
+<a name="599"></a>    
+<a name="600"></a>    /* 
+<a name="601"></a>     *   If it's a normal relation, then use the addRelation method of the
+<a name="602"></a>     *   relation object to create a relation between a and b.
+<a name="603"></a>     */
+<a name="604"></a>    if(relData[2] == normalRelation)
+<a name="605"></a>        relData[1].addRelation([a, b]);
+<a name="606"></a>    
+<a name="607"></a>    /*  
+<a name="608"></a>     *   If it's a reverse relation (e.g. 'child of' when the relation is
+<a name="609"></a>     *   fatherOf) swap the a and b arguments round when calling the relation's
+<a name="610"></a>     *   addRelation() method (e.g. to make a the child of b using the fatherOf
+<a name="611"></a>     *   relation, we make b the father of a).
+<a name="612"></a>     */
+<a name="613"></a>    if(relData[2] == reverseRelation)
+<a name="614"></a>        relData[1].addRelation([b, a]);
+<a name="615"></a>    
+<a name="616"></a>}
+<a name="617"></a>
+<a name="618"></a>/* 
+<a name="619"></a> *   Remove the rel relation between a and b
+<a name="620"></a> *
+<a name="621"></a> *   PART OF THE RELATIONS EXTENSION
+<a name="622"></a> */
+<a name="623"></a>unrelate(a, rel, b)
+<a name="624"></a>{
+<a name="625"></a>    /* Get the relation referred to by the rel parameter. */
+<a name="626"></a>    local relData = relationTable.getRelation(rel);
+<a name="627"></a>    
+<a name="628"></a>    /* Check that we actually found a relation before trying to use it. */
+<a name="629"></a>    if(relData == nil)
+<a name="630"></a>    {
+<a name="631"></a>        relationTable.sayNoSuchRelation(rel);
+<a name="632"></a>        return;
+<a name="633"></a>    }    
+<a name="634"></a>    
+<a name="635"></a>    /* 
+<a name="636"></a>     *   If it's a normal relation, then use the removeRelation method of the
+<a name="637"></a>     *   relation object to remove the relation between a and b.
+<a name="638"></a>     */
+<a name="639"></a>    if(relData[2] == normalRelation)
+<a name="640"></a>        relData[1].removeRelation([a, b]);
+<a name="641"></a>    
+<a name="642"></a>    /*  
+<a name="643"></a>     *   If it's a reverse relation (e.g. 'child of' when the relation is
+<a name="644"></a>     *   fatherOf) swap the a and b arguments round when calling the relation's
+<a name="645"></a>     *   removeRelation() method (e.g. to make a no longer the child of b using
+<a name="646"></a>     *   the fatherOf relation, we make b no longer the father of a).
+<a name="647"></a>     */
+<a name="648"></a>    if(relData[2] == reverseRelation)
+<a name="649"></a>        relData[1].removeRelation([b, a]);  
+<a name="650"></a>    
+<a name="651"></a>}
+<a name="652"></a>
+<a name="653"></a>
+<a name="654"></a>/* 
+<a name="655"></a> *   If two arguments are supplied (e.g. related(a, knows)) returns a list of
+<a name="656"></a> *   items related to a via the rel relation. If three arguments are supplied
+<a name="657"></a> *   (e.g. related(a, knows, b)) then return true if a is related to b via the
+<a name="658"></a> *   knows relation and b otherwise.
+<a name="659"></a> *
+<a name="660"></a> *   PART OF THE RELATIONS EXTENSION
+<a name="661"></a> */
+<a name="662"></a>related(a, rel, b?)
+<a name="663"></a>{    
+<a name="664"></a>     /* Get the relation referred to by the rel parameter. */
+<a name="665"></a>    local relData = relationTable.getRelation(rel);
+<a name="666"></a>    
+<a name="667"></a>    
+<a name="668"></a>    /* Check that we actually found a relation before trying to use it. */
+<a name="669"></a>    if(relData == nil)
+<a name="670"></a>    {
+<a name="671"></a>        relationTable.sayNoSuchRelation(rel);
+<a name="672"></a>        return nil;
+<a name="673"></a>    }
+<a name="674"></a> 
+<a name="675"></a>    /* 
+<a name="676"></a>     *   If b has not been supplied, we've been asked to supply a list of
+<a name="677"></a>     *   objects related to a via rel.
+<a name="678"></a>     */
+<a name="679"></a>    if(b == nil)
+<a name="680"></a>    {
+<a name="681"></a>        if(relData[2] == normalRelation)
+<a name="682"></a>            return relData[1].relatedTo(a);
+<a name="683"></a>        else
+<a name="684"></a>            return relData[1].inverselyRelatedTo(a);
+<a name="685"></a>           
+<a name="686"></a>    }
+<a name="687"></a>    
+<a name="688"></a>    /* 
+<a name="689"></a>     *   Otherwise, if b has been supplied, we're being asked if a is related to
+<a name="690"></a>     *   b.
+<a name="691"></a>     */
+<a name="692"></a>    else
+<a name="693"></a>    {
+<a name="694"></a>        if(relData[2] == normalRelation)
+<a name="695"></a>            return relData[1].isRelated(a, b);
+<a name="696"></a>        else
+<a name="697"></a>            return relData[1].isInverselyRelated(a, b);
+<a name="698"></a>    }
+<a name="699"></a>}
+<a name="700"></a>
+<a name="701"></a>/* 
+<a name="702"></a> *   The relationPathfinder tries to find a path from start to target via the
+<a name="703"></a> *   rel relation. If it finds one it returns the shortest posssible list of
+<a name="704"></a> *   items starting with start and ending with target, in which each item in the
+<a name="705"></a> *   list is related to the next via the rel relation. E.g. if John is the
+<a name="706"></a> *   father of Jo, and Jo is the father of Jim, and Jim is the father of Jeremy,
+<a name="707"></a> *   relationPathfinder.findPath(John, fatherOf, Jeremy) should return a list
+<a name="708"></a> *   like [John, Jo, Jim, Jeremy] (assuming the appropriate definition of the
+<a name="709"></a> *   fatherOf relationship).
+<a name="710"></a> *
+<a name="711"></a> *   PART OF THE RELATIONS EXTENSION
+<a name="712"></a> */ 
+<a name="713"></a>relationPathfinder: Pathfinder
+<a name="714"></a>    
+<a name="715"></a>    /* 
+<a name="716"></a>     *   Find a path from start to target via the rel relation. The rel
+<a name="717"></a>     *   parameter may be supplied as a relation object, a relation string name
+<a name="718"></a>     *   or reverseName, or a list of any of these, in which case any of the
+<a name="719"></a>     *   relations contained in the list may be used to step from one object to
+<a name="720"></a>     *   the next.
+<a name="721"></a>     */
+<a name="722"></a>    findPath(start, rel, target)
+<a name="723"></a>    {
+<a name="724"></a>                
+<a name="725"></a>        local vec = new Vector();
+<a name="726"></a>        local relation;
+<a name="727"></a>        
+<a name="728"></a>        /* Go through every relation supplied in the rel parameter. */
+<a name="729"></a>        foreach(local cur in valToList(rel))
+<a name="730"></a>        {
+<a name="731"></a>            /* If it's an object, add it to our Vector as a normal relation. */
+<a name="732"></a>            if(dataType(cur) == TypeObject)
+<a name="733"></a>                vec.append([cur, normalRelation]);
+<a name="734"></a>            
+<a name="735"></a>            /* If it's a string, look it up in the relationTable. */
+<a name="736"></a>            if(dataType(cur) == TypeSString)
+<a name="737"></a>            {
+<a name="738"></a>                relation = relationTable.getRelation(cur);
+<a name="739"></a>                
+<a name="740"></a>                /* 
+<a name="741"></a>                 *   If we can't find the string in the relationTable, give up
+<a name="742"></a>                 *   and return nil, since there's an error in the rel
+<a name="743"></a>                 *   parameter. Also issue a warning message.
+<a name="744"></a>                 */
+<a name="745"></a>                if(relation == nil)
+<a name="746"></a>                {
+<a name="747"></a>                    relationTable.sayNoSuchRelation(rel);
+<a name="748"></a>                    return nil;
+<a name="749"></a>                }
+<a name="750"></a>                    
+<a name="751"></a>                /* If we found the relation, add it to our vector. */
+<a name="752"></a>                vec.append(relationTable.getRelation(cur));
+<a name="753"></a>            }
+<a name="754"></a>        }
+<a name="755"></a>        
+<a name="756"></a>        /* 
+<a name="757"></a>         *   Convert our vector to a list and store it in our relationList
+<a name="758"></a>         *   property.
+<a name="759"></a>         */
+<a name="760"></a>        relationList = vec.toList();       
+<a name="761"></a>        
+<a name="762"></a>        /*   
+<a name="763"></a>         *   Use the inherited handling to find the path and store it in a local
+<a name="764"></a>         *   variable.
+<a name="765"></a>         */
+<a name="766"></a>        local res = inherited(start, target);
+<a name="767"></a>        
+<a name="768"></a>        /* 
+<a name="769"></a>         *   If the result was nil, simply return nil to indicate that no path
+<a name="770"></a>         *   was found. Otherwise, if the rel parameter was passed as a list,
+<a name="771"></a>         *   return the resulting path list unchanged. Otherwise (if rel was
+<a name="772"></a>         *   passed as a single relation), return a list consisting of the
+<a name="773"></a>         *   objects (or other items) on the path only, since the relation
+<a name="774"></a>         *   information for each step would be redundant.
+<a name="775"></a>         *
+<a name="776"></a>         *   Thus, if rel was passes as a list, the return value might resemble,
+<a name="777"></a>         *   [[nil, john], ['child of', mark], ['sibling', mary]], whereas if it
+<a name="778"></a>         *   was passed as a single relation the return value might resemble
+<a name="779"></a>         *   [johh, mark, alan].
+<a name="780"></a>         */
+<a name="781"></a>        return res == nil ? nil : 
+<a name="782"></a>        (dataType(rel) == TypeList ? res : res.mapAll({e: e[2]})).toList(); 
+<a name="783"></a>    }
+<a name="784"></a>    
+<a name="785"></a>    findDestinations(cur)
+<a name="786"></a>    {
+<a name="787"></a>        /* Note the object our current path leads to */
+<a name="788"></a>        local obj = cur[steps - 1][2];
+<a name="789"></a>        
+<a name="790"></a>        /* Find everything related to this object via relation. */
+<a name="791"></a>        local lst = [];
+<a name="792"></a>        
+<a name="793"></a>        foreach(local rel in relationList)
+<a name="794"></a>        {
+<a name="795"></a>            local rname;
+<a name="796"></a>            
+<a name="797"></a>            if(rel[2] == normalRelation)
+<a name="798"></a>            {
+<a name="799"></a>                lst += rel[1].relatedTo(obj);
+<a name="800"></a>                rname = rel[1].name;
+<a name="801"></a>            }
+<a name="802"></a>            else
+<a name="803"></a>            {
+<a name="804"></a>                lst += rel[1].inverselyRelatedTo(obj);
+<a name="805"></a>                rname = rel[1].reverseName;
+<a name="806"></a>            }
+<a name="807"></a>            
+<a name="808"></a>            /* Find everything related to everything in the list. */
+<a name="809"></a>            foreach(local dest in lst)
+<a name="810"></a>            {
+<a name="811"></a>                local newPath = new Vector(cur);
+<a name="812"></a>                newPath.append([rname, dest]);
+<a name="813"></a>                pathsFound.append(newPath);
+<a name="814"></a>            }
+<a name="815"></a>        }
+<a name="816"></a>        
+<a name="817"></a>        
+<a name="818"></a>        
+<a name="819"></a>    }
+<a name="820"></a>    
+<a name="821"></a>    /* 
+<a name="822"></a>     *   Property used internally to hold the list of relations we're finding a
+<a name="823"></a>     *   route through.
+<a name="824"></a>     */
+<a name="825"></a>    relationList = nil
+<a name="826"></a>   
+<a name="827"></a>;
+<a name="828"></a>
+<a name="829"></a>/* 
+<a name="830"></a> *   Find a path from start to target via the rel relation, where rel can be a
+<a name="831"></a> *   single relation or a list of relations, and can be specified either via a
+<a name="832"></a> *   relation object name or a string name (or reverseName). We provide this as
+<a name="833"></a> *   a convenient wrapper for the more verbose method call.
+<a name="834"></a> *
+<a name="835"></a> *   PART OF THE RELATIONS EXTENSION.
+<a name="836"></a> */
+<a name="837"></a>relationPath(start, rel, target)
+<a name="838"></a>{
+<a name="839"></a>    return relationPathfinder.findPath(start, rel, target);    
+<a name="840"></a>}
+<a name="841"></a>
+<a name="842"></a>
+<a name="843"></a>#ifdef __DEBUG
+<a name="844"></a>/*  Debugging commands for RELATIONS EXTENSION */
+<a name="845"></a>
+<a name="846"></a>/* List relations defined in the game [RELATIONS EXTENSION] */
+<a name="847"></a>DefineSystemAction(ListRelations)
+<a name="848"></a>    execAction(c)
+<a name="849"></a>    {
+<a name="850"></a>        /* Get a list of relations defined in the relation table */
+<a name="851"></a>        local lst = relationTable.nameTab.keysToList();
+<a name="852"></a>        
+<a name="853"></a>        /* If the list is empty, say so and exit. */
+<a name="854"></a>        if(lst.length == 0)
+<a name="855"></a>        {
+<a name="856"></a>            DMsg(no relations defined, 'No relations are defined in this game.
+<a name="857"></a>                ');
+<a name="858"></a>        }
+<a name="859"></a>        
+<a name="860"></a>        /* Sort the list in order of name */
+<a name="861"></a>        lst = lst.sort(SortAsc, {a, b: a.compareIgnoreCase(b)});
+<a name="862"></a>        
+<a name="863"></a>        /* Go through every item in the list */
+<a name="864"></a>        foreach(local cur in lst)
+<a name="865"></a>        {
+<a name="866"></a>            /* Get the value relating to the name cur */
+<a name="867"></a>            local val = relationTable.nameTab[cur];
+<a name="868"></a>            
+<a name="869"></a>            /* 
+<a name="870"></a>             *   Only report it if it's a normalRelation (so that we don't
+<a name="871"></a>             *   duplicate relations in our list by also listing them with their
+<a name="872"></a>             *   reverseName.
+<a name="873"></a>             */
+<a name="874"></a>            if(val[2] == normalRelation)
+<a name="875"></a>            {
+<a name="876"></a>                /* The relation is the first item in val */
+<a name="877"></a>                local rel = val[1];
+<a name="878"></a>                
+<a name="879"></a>                /* Show the details of this relation. */
+<a name="880"></a>                showRelation(rel);
+<a name="881"></a>            }
+<a name="882"></a>        }
+<a name="883"></a>    }
+<a name="884"></a>    
+<a name="885"></a>    /* Show the details of relation rel. */
+<a name="886"></a>    showRelation(rel)
+<a name="887"></a>    {
+<a name="888"></a>        /* First display the programmatic object name */
+<a name="889"></a>        "&lt;b&gt;&lt;&lt;symTab.ctab[rel]&gt;&gt;&lt;/b&gt; ";
+<a name="890"></a>        
+<a name="891"></a>        /* If it's a DerivedRelation, say so. */
+<a name="892"></a>        if(rel.ofKind(DerivedRelation))
+<a name="893"></a>            "&lt;i&gt;(DerivedRelation)&lt;/i&gt; ";
+<a name="894"></a>        
+<a name="895"></a>        /* Then show the relationType (an enum). */
+<a name="896"></a>        "&lt;&lt;symTab.ctab[rel.relationType]&gt;&gt;: ";
+<a name="897"></a>        
+<a name="898"></a>        /* If rel is a reciprocal relation, say so. */
+<a name="899"></a>        if(rel.reciprocal)
+<a name="900"></a>            "(reciprocal): ";
+<a name="901"></a>        
+<a name="902"></a>        /* Show the (string) name of the relation. */
+<a name="903"></a>        "&lt;i&gt;name&lt;/i&gt; = '&lt;&lt;rel.name&gt;&gt;' ";
+<a name="904"></a>        
+<a name="905"></a>        /* If the relation has a reverseName, show that too. */
+<a name="906"></a>        if(rel.reverseName)
+<a name="907"></a>            "&lt;i&gt;reverseName&lt;/i&gt; = '&lt;&lt;rel.reverseName&gt;&gt;' ";
+<a name="908"></a>        
+<a name="909"></a>        /* Move to the next line. */
+<a name="910"></a>        "\n";
+<a name="911"></a>    }
+<a name="912"></a>;
+<a name="913"></a>
+<a name="914"></a>VerbRule(ListRelations)
+<a name="915"></a>    ('list'|) 'relations'
+<a name="916"></a>    :VerbProduction
+<a name="917"></a>    action = ListRelations
+<a name="918"></a>    verbPhrase = 'list/listing relations'
+<a name="919"></a>;
+<a name="920"></a>
+<a name="921"></a>/* Debugging action to list what a relation currently relates [RELATIONS EXTENSION]*/
+<a name="922"></a>DefineSystemAction(RelationDetails)
+<a name="923"></a>    execAction(c)
+<a name="924"></a>    {
+<a name="925"></a>        /* Note the literal string associated with this command. */
+<a name="926"></a>        literal = c.dobj.name;
+<a name="927"></a>        
+<a name="928"></a>        /* 
+<a name="929"></a>         *   Try to get the relation associated with this string value from the
+<a name="930"></a>         *   relationTable.
+<a name="931"></a>         */
+<a name="932"></a>        local relInfo = relationTable.getRelation(literal);
+<a name="933"></a>        
+<a name="934"></a>        /*  Set up a local variable to hold the relation object. */
+<a name="935"></a>        local rel;
+<a name="936"></a>        
+<a name="937"></a>        local lst = [];
+<a name="938"></a>        
+<a name="939"></a>        if(relInfo == nil)
+<a name="940"></a>        {
+<a name="941"></a>            /* 
+<a name="942"></a>             *   If we didn't find anything in the relationTable, it may be the
+<a name="943"></a>             *   tester entered the programmatic name instead of the string name
+<a name="944"></a>             *   of the relation; try looking up the programatic name of the
+<a name="945"></a>             *   relation in the global symbol table.
+<a name="946"></a>             */
+<a name="947"></a>            rel = t3GetGlobalSymbols()[literal];
+<a name="948"></a>            
+<a name="949"></a>            /*   
+<a name="950"></a>             *   If we didn't find anything, or what we found wasn't a Relation,
+<a name="951"></a>             *   say there's no such relation and exit.
+<a name="952"></a>             */
+<a name="953"></a>            if(rel == nil || dataType(rel) != TypeObject ||
+<a name="954"></a>               !rel.ofKind(Relation))
+<a name="955"></a>            {
+<a name="956"></a>                DMsg(no such relation, 'There is no such relation in the game as
+<a name="957"></a>                    {1}. ', literal);
+<a name="958"></a>                return;
+<a name="959"></a>            }
+<a name="960"></a>        }
+<a name="961"></a>        /* 
+<a name="962"></a>         *   Otherwise, if we found an entry in the relationTable, the relation
+<a name="963"></a>         *   we want is the first item in the list returned from that table.
+<a name="964"></a>         */
+<a name="965"></a>        else            
+<a name="966"></a>            rel = relInfo[1];        
+<a name="967"></a>        
+<a name="968"></a>        /*  Show the details of what that relation is. */
+<a name="969"></a>        ListRelations.showRelation(rel);
+<a name="970"></a>        
+<a name="971"></a>        
+<a name="972"></a>        
+<a name="973"></a>        /*  
+<a name="974"></a>         *   If it's a DerivedRelation, say so and exit; we can't list what a
+<a name="975"></a>         *   DerivedRelation relates.
+<a name="976"></a>         */
+<a name="977"></a>        if(rel.ofKind(DerivedRelation))
+<a name="978"></a>        {
+<a name="979"></a>            //            DMsg(cant list derived relation, '&lt;i&gt;Since {1} is a DerivedRelation,
+<a name="980"></a>            //                any items it relates cannot be listed.&lt;/i&gt; ', valToSym(rel));
+<a name="981"></a>            
+<a name="982"></a>            //            local vec = new Vector();
+<a name="983"></a>            
+<a name="984"></a>            
+<a name="985"></a>            
+<a name="986"></a>            lst = rel.listKeys();
+<a name="987"></a>            //           
+<a name="988"></a>        }
+<a name="989"></a>        else
+<a name="990"></a>            
+<a name="991"></a>            /* 
+<a name="992"></a>             *   Get a list of the keys in our relation's reltab table (which may be nil).
+<a name="993"></a>             */
+<a name="994"></a>            lst = rel.relTab == nil ? [] : rel.relTab.keysToList();
+<a name="995"></a>        
+<a name="996"></a>        
+<a name="997"></a>        /*  If the list is empty, say so and exit. */
+<a name="998"></a>        if(lst.length == 0)
+<a name="999"></a>        {
+<a name="1000"></a>            DMsg(no relations defined, '&lt;i&gt;no relations defined&lt;/i&gt; ');
+<a name="1001"></a>            return;
+<a name="1002"></a>        }
+<a name="1003"></a>        
+<a name="1004"></a>        /* Sort the list in ascending key order. */
+<a name="1005"></a>        lst = lst.sort(SortAsc, {a, b:
+<a name="1006"></a>                       symTab.ctab[a].compareIgnoreCase(symTab.ctab[b])});
+<a name="1007"></a>        
+<a name="1008"></a>        /* 
+<a name="1009"></a>         *   Go through each key in the list. This will be the object (or other
+<a name="1010"></a>         *   value) that relates to other objects via this relation.
+<a name="1011"></a>         */
+<a name="1012"></a>        foreach(local cur in lst)
+<a name="1013"></a>        {
+<a name="1014"></a>            /* 
+<a name="1015"></a>             *   Display the name of the current object and list the items to which it relates.
+<a name="1016"></a>             */
+<a name="1017"></a>            local name1 = valToSym(cur);
+<a name="1018"></a>            
+<a name="1019"></a>            "&lt;&lt;name1&gt;&gt; -&gt; &lt;&lt;valToSym(rel.relatedTo(cur))&gt;&gt;\n";           
+<a name="1020"></a>        }
+<a name="1021"></a>        
+<a name="1022"></a>    }
+<a name="1023"></a>    
+<a name="1024"></a>    literal = nil
+<a name="1025"></a>;
+<a name="1026"></a>
+<a name="1027"></a>/* [RELATIONS EXTENSION] List relation details */
+<a name="1028"></a>VerbRule(RelationDetails)
+<a name="1029"></a>    ('relation' | 'relations' | 'rel') literalDobj
+<a name="1030"></a>    : VerbProduction
+<a name="1031"></a>    action = RelationDetails
+<a name="1032"></a>    verbPhrase = 'list/listing relation details'
+<a name="1033"></a>;
+<a name="1034"></a>
+<a name="1035"></a>#endif
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

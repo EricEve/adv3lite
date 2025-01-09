@@ -1,0 +1,3726 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>grammar.t</title></head><body>
+<table class=ban><tr><td><h1>grammar.t</h1><td align=right><a href="../file/grammar.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* ------------------------------------------------------------------------ */
+<a name="5"></a>/*
+<a name="6"></a> *   The English command grammar.  These rules define the overall sentence
+<a name="7"></a> *   syntax its various components.
+<a name="8"></a> *   
+<a name="9"></a> *   We start parsing a new command at firstCommandPhrase (for the first
+<a name="10"></a> *   command on a line) or commandPhrase (for the second and subsequent
+<a name="11"></a> *   commands on the same line).  The difference between the two is that
+<a name="12"></a> *   firstCommandPhrase accepts actor orders (BOB, GO NORTH or TELL BOB TO
+<a name="13"></a> *   OPEN DOOR), while commandPhrase doesn't.  
+<a name="14"></a> *   
+<a name="15"></a> *   Other language modules are NOT required to duplicate the English
+<a name="16"></a> *   grammar tree rule-for-rule.  You must only define the rules marked
+<a name="17"></a> *   with [Required], since these are referenced from the base library
+<a name="18"></a> *   parser.  The [Required] grammar objects must exist and use the given
+<a name="19"></a> *   base names, but the number of rules for a given grammar, the tag
+<a name="20"></a> *   names, and the syntax defined within the rules are all up to the
+<a name="21"></a> *   language module.
+<a name="22"></a> *   
+<a name="23"></a> *   Rules NOT marked [Required] are internal to the English grammar:
+<a name="24"></a> *   they're only referenced from other parts of the English grammar, so
+<a name="25"></a> *   they're not required to exist in other languages.  A language module
+<a name="26"></a> *   is free to use its own completely different structure for the internal
+<a name="27"></a> *   rules, and should - the structure should be based on the natural
+<a name="28"></a> *   grammar of the implemented language, not on how the English rules here
+<a name="29"></a> *   are structured.  
+<a name="30"></a> *   
+<a name="31"></a> *   Note that the base library provides a number of XxxProduction classes
+<a name="32"></a> *   for structural elements that should be common to most or all languages
+<a name="33"></a> *   - NounPhraseProduction, PossessiveProduction, PronounProduction, etc.
+<a name="34"></a> *   As a language implementer, you're NOT required to implement any
+<a name="35"></a> *   grammar rules based on any of these classes.  But you'll probably want
+<a name="36"></a> *   to anyway, because these classes are designed to make your life a lot
+<a name="37"></a> *   easier by doing most of the work for you.  These classes provide code
+<a name="38"></a> *   that translates the information in the syntax tree into the
+<a name="39"></a> *   corresponding semantic information in the parser.  If you don't create
+<a name="40"></a> *   rules based on these classes, you'll have to instead write your own
+<a name="41"></a> *   code in the rules that propagates the required information into the
+<a name="42"></a> *   parser parser.  The XxxProduction classes are designed to be abstract
+<a name="43"></a> *   and language-independent, so if the base library does its job
+<a name="44"></a> *   correctly, it should be straightforward to use these classes at the
+<a name="45"></a> *   appropriate points in the grammar.  
+<a name="46"></a> */
+<a name="47"></a>
+<a name="48"></a>/*
+<a name="49"></a> *   firstCommandPhrase - the root grammar rule for the first command on a
+<a name="50"></a> *   command line.  [Required]
+<a name="51"></a> */
+<a name="52"></a>grammar firstCommandPhrase(commandOnly): commandPhrase-&gt;cmd_
+<a name="53"></a>    : CommandProduction
+<a name="54"></a>;
+<a name="55"></a>
+<a name="56"></a>grammar firstCommandPhrase(withActor):
+<a name="57"></a>    singleNounOnly-&gt;actor_ ',' commandPhrase-&gt;cmd_
+<a name="58"></a>    : CommandProduction
+<a name="59"></a>;
+<a name="60"></a>
+<a name="61"></a>grammar firstCommandPhrase(askTellActorTo):
+<a name="62"></a>    ('ask' | 'tell' | 'a' | 't') singleNounOnly-&gt;actor_
+<a name="63"></a>    'to' commandPhrase-&gt;cmd_
+<a name="64"></a>    : CommandProduction
+<a name="65"></a>
+<a name="66"></a>    /* 
+<a name="67"></a>     *   We're giving orders to the actor in the third person, because
+<a name="68"></a>     *   we're doing it indirectly.  The actual imperative predicate here
+<a name="69"></a>     *   is the TELL TO: this addresses the parser/narrator, who passes the
+<a name="70"></a>     *   command along to the actor at our request.  
+<a name="71"></a>     */
+<a name="72"></a>    actorPerson = 3
+<a name="73"></a>;
+<a name="74"></a>
+<a name="75"></a>/*
+<a name="76"></a> *   commandPhrase - the root grammar rule for the second and subsequent
+<a name="77"></a> *   command on a command line.  [Required]
+<a name="78"></a> */
+<a name="79"></a>grammar commandPhrase(definiteConj):
+<a name="80"></a>    predicate-&gt;cmd_
+<a name="81"></a>    | predicate-&gt;cmd_ commandOnlyConjunction-&gt;conj_ *
+<a name="82"></a>    : CommandProduction
+<a name="83"></a>;
+<a name="84"></a>
+<a name="85"></a>grammar commandPhrase(ambiguousConj):
+<a name="86"></a>    predicate-&gt;cmd_ commandOrNounConjunction-&gt;conj_
+<a name="87"></a>    commandPhrase-&gt;cmd2_
+<a name="88"></a>    : CommandProduction
+<a name="89"></a>;
+<a name="90"></a>
+<a name="91"></a>/*
+<a name="92"></a> *   Default command phrase - the root grammar rule for an implicit command
+<a name="93"></a> *   without a verb.  In the English version, this is simply a noun phrase,
+<a name="94"></a> *   which implicitly means "examine &lt;noun phrase&gt;".  Other languages might
+<a name="95"></a> *   wish to use particular noun phrase forms for this (e.g., an inflected
+<a name="96"></a> *   language might want to use the accusative form here).
+<a name="97"></a> */
+<a name="98"></a>grammar defaultCommandPhrase(examine):
+<a name="99"></a>    defaultVerbPhrase-&gt;cmd_
+<a name="100"></a>    : CommandProduction
+<a name="101"></a>;
+<a name="102"></a>
+<a name="103"></a>grammar defaultVerbPhrase(noun):
+<a name="104"></a>    singleDobj
+<a name="105"></a>    : VerbProduction
+<a name="106"></a>    action = Parser.DefaultAction
+<a name="107"></a>    verbPhrase = 'examine/examining (what)'
+<a name="108"></a>    missingQ = 'what do you want to examine'
+<a name="109"></a>;
+<a name="110"></a>
+<a name="111"></a>grammar actorBadCommandPhrase(main):
+<a name="112"></a>    singleNounOnly-&gt;actor_ ',' miscWordList
+<a name="113"></a>    | ('ask' | 'tell' | 'a' | 't') singleNounOnly-&gt;actor_ 'to' miscWordList
+<a name="114"></a>    : Production
+<a name="115"></a>;
+<a name="116"></a>
+<a name="117"></a>grammar commandOnlyConjunction(sentenceEnding):
+<a name="118"></a>    '.'
+<a name="119"></a>    | '!'
+<a name="120"></a>    | '?'
+<a name="121"></a>    : Production
+<a name="122"></a>
+<a name="123"></a>    /* 
+<a name="124"></a>     *   these end the sentence - meaning that after one of these, you can
+<a name="125"></a>     *   address a new actor 
+<a name="126"></a>     */
+<a name="127"></a>    endOfSentence = true
+<a name="128"></a>;
+<a name="129"></a>
+<a name="130"></a>grammar commandOnlyConjunction(nonSentenceEnding):
+<a name="131"></a>    'then'
+<a name="132"></a>    | 'and' 'then'
+<a name="133"></a>    | ',' 'then'
+<a name="134"></a>    | ',' 'and' 'then'
+<a name="135"></a>    | ';'
+<a name="136"></a>    : Production
+<a name="137"></a>;
+<a name="138"></a>
+<a name="139"></a>grammar commandOrNounConjunction(main):
+<a name="140"></a>    ','
+<a name="141"></a>    | 'and'
+<a name="142"></a>    | ',' 'and'
+<a name="143"></a>    : Production
+<a name="144"></a>;
+<a name="145"></a>
+<a name="146"></a>grammar nounConjunction(main):
+<a name="147"></a>    ','
+<a name="148"></a>    | 'and'
+<a name="149"></a>    | ',' 'and'
+<a name="150"></a>    : Production
+<a name="151"></a>;
+<a name="152"></a>
+<a name="153"></a>grammar nounList(terminal): terminalNounPhrase-&gt;np_ : Production
+<a name="154"></a>;
+<a name="155"></a>
+<a name="156"></a>grammar nounList(nonTerminal): completeNounPhrase-&gt;np_ : Production
+<a name="157"></a>;
+<a name="158"></a>
+<a name="159"></a>grammar nounList(list): nounMultiList-&gt;lst_ : Production
+<a name="160"></a>;
+<a name="161"></a>
+<a name="162"></a>grammar nounList(empty): [badness 500] : EmptyNounProduction
+<a name="163"></a>;
+<a name="164"></a>
+<a name="165"></a>grammar nounMultiList(multi):
+<a name="166"></a>    nounMultiList-&gt;np1_ nounConjunction terminalNounPhrase-&gt;np2_
+<a name="167"></a>    : NounListProduction
+<a name="168"></a>;
+<a name="169"></a>
+<a name="170"></a>grammar nounMultiList(nonterminal): nonTerminalNounMultiList-&gt;lst_
+<a name="171"></a>    : Production
+<a name="172"></a>;
+<a name="173"></a>
+<a name="174"></a>grammar nonTerminalNounMultiList(pair):
+<a name="175"></a>    completeNounPhrase-&gt;np1_ nounConjunction completeNounPhrase-&gt;np2_
+<a name="176"></a>    : NounListProduction
+<a name="177"></a>;
+<a name="178"></a>
+<a name="179"></a>grammar nonTerminalNounMultiList(multi):
+<a name="180"></a>    nonTerminalNounMultiList-&gt;np1_ nounConjunction completeNounPhrase-&gt;np2_
+<a name="181"></a>    : NounListProduction
+<a name="182"></a>;
+<a name="183"></a>
+<a name="184"></a>grammar exceptList(main): exceptListBody-&gt;lst_ : ExceptListProduction
+<a name="185"></a>;
+<a name="186"></a>
+<a name="187"></a>grammar exceptListBody(single): exceptNounPhrase-&gt;np_ : Production
+<a name="188"></a>;
+<a name="189"></a>
+<a name="190"></a>grammar exceptListBody(list):
+<a name="191"></a>    exceptNounPhrase-&gt;np1_ nounConjunction exceptListBody-&gt;np2_
+<a name="192"></a>    : NounListProduction
+<a name="193"></a>;
+<a name="194"></a>
+<a name="195"></a>grammar exceptNounPhrase(singleComplete): completeNounPhraseWithoutAll-&gt;np_
+<a name="196"></a>    : Production
+<a name="197"></a>;
+<a name="198"></a>
+<a name="199"></a>grammar exceptNounPhrase(singlePossessive): possessiveNounPhrase-&gt;poss_
+<a name="200"></a>    : Production
+<a name="201"></a>;
+<a name="202"></a>
+<a name="203"></a>/*
+<a name="204"></a> *   The singleNoun grammar rule is for predicate object slots that require
+<a name="205"></a> *   a single noun phrase (as opposed to a list of nouns).  This rule has
+<a name="206"></a> *   to be defined by each language, because the base parser uses it to
+<a name="207"></a> *   check for implicit EXAMINE commands.
+<a name="208"></a> *   
+<a name="209"></a> *   [Required] 
+<a name="210"></a> */
+<a name="211"></a>
+<a name="212"></a>grammar singleNoun(normal): singleNounOnly-&gt;np_ : Production
+<a name="213"></a>;
+<a name="214"></a>
+<a name="215"></a>grammar singleNoun(empty): [badness 500] : EmptyNounProduction
+<a name="216"></a>;
+<a name="217"></a>
+<a name="218"></a>/*
+<a name="219"></a> *   A user could attempt to use a noun list with more than one entry (a
+<a name="220"></a> *   "multi list") where a single noun is required.  This is a semantic
+<a name="221"></a> *   error rather than a grammatical error, so we define a grammar rule for
+<a name="222"></a> *   it (despite the obvious clash with the singleNoun name).  However, we
+<a name="223"></a> *   use the BadListProduction for this match object - this ensures that we
+<a name="224"></a> *   we score it lower than a version with out a list, and that if we make
+<a name="225"></a> *   it to the resolution stage, we'll display a suitable error message.  
+<a name="226"></a> */
+<a name="227"></a>grammar singleNoun(multiple):
+<a name="228"></a>    [badness 100] nounMultiList-&gt;np_
+<a name="229"></a>    : BadListProduction
+<a name="230"></a>;
+<a name="231"></a>
+<a name="232"></a>
+<a name="233"></a>grammar singleNounOnly(main):
+<a name="234"></a>    terminalNounPhrase-&gt;np_
+<a name="235"></a>    | completeNounPhrase-&gt;np_
+<a name="236"></a>    : Production
+<a name="237"></a>;
+<a name="238"></a>
+<a name="239"></a>grammar putPrepSingleNoun(main):
+<a name="240"></a>    putPrep-&gt;prep_ singleNoun-&gt;np_
+<a name="241"></a>    : Production
+<a name="242"></a>;
+<a name="243"></a>
+<a name="244"></a>grammar putPrep(main):
+<a name="245"></a>    'in' | 'into' | 'in' 'to'
+<a name="246"></a>    | 'on' | 'onto' | 'on' 'to' | 'upon'
+<a name="247"></a>    | 'behind'
+<a name="248"></a>    | 'under'
+<a name="249"></a>    : Production
+<a name="250"></a>;
+<a name="251"></a>
+<a name="252"></a>grammar inSingleNoun(main):
+<a name="253"></a>     singleNoun-&gt;np_ | ('in' | 'into' | 'in' 'to') singleNoun-&gt;np_
+<a name="254"></a>    : Production
+<a name="255"></a>;
+<a name="256"></a>
+<a name="257"></a>grammar forSingleNoun(main):
+<a name="258"></a>   singleNoun-&gt;np_ | 'for' singleNoun-&gt;np_ : Production
+<a name="259"></a>;
+<a name="260"></a>
+<a name="261"></a>grammar toSingleNoun(main):
+<a name="262"></a>   singleNoun-&gt;np_ | 'to' singleNoun-&gt;np_ : Production
+<a name="263"></a>;
+<a name="264"></a>
+<a name="265"></a>grammar throughSingleNoun(main):
+<a name="266"></a>   singleNoun-&gt;np_ | ('through' | 'thru') singleNoun-&gt;np_
+<a name="267"></a>   : Production
+<a name="268"></a>;
+<a name="269"></a>
+<a name="270"></a>grammar fromSingleNoun(main):
+<a name="271"></a>   singleNoun-&gt;np_ | 'from' singleNoun-&gt;np_ : Production
+<a name="272"></a>;
+<a name="273"></a>
+<a name="274"></a>grammar onSingleNoun(main):
+<a name="275"></a>   singleNoun-&gt;np_ | ('on' | 'onto' | 'on' 'to') singleNoun-&gt;np_
+<a name="276"></a>    : Production
+<a name="277"></a>;
+<a name="278"></a>
+<a name="279"></a>grammar withSingleNoun(main):
+<a name="280"></a>   singleNoun-&gt;np_ | 'with' singleNoun-&gt;np_ : Production
+<a name="281"></a>;
+<a name="282"></a>
+<a name="283"></a>grammar atSingleNoun(main):
+<a name="284"></a>   singleNoun-&gt;np_ | 'at' singleNoun-&gt;np_ : Production
+<a name="285"></a>;
+<a name="286"></a>
+<a name="287"></a>grammar outOfSingleNoun(main):
+<a name="288"></a>   singleNoun-&gt;np_ | 'out' 'of' singleNoun-&gt;np_ : Production
+<a name="289"></a>;
+<a name="290"></a>
+<a name="291"></a>grammar aboutTopicPhrase(main):
+<a name="292"></a>   'about' topicPhrase-&gt;np_ | topicPhrase-&gt;np_ 
+<a name="293"></a>   : TopicNounProduction
+<a name="294"></a>;
+<a name="295"></a>
+<a name="296"></a>grammar completeNounPhrase(main):
+<a name="297"></a>    completeNounPhraseWithAll-&gt;np_ | completeNounPhraseWithoutAll-&gt;np_
+<a name="298"></a>    : Production
+<a name="299"></a>;
+<a name="300"></a>
+<a name="301"></a>grammar completeNounPhrase(miscPrep):
+<a name="302"></a>    [badness 100] completeNounPhrase-&gt;np1_
+<a name="303"></a>        ('with' | 'into' | 'in' 'to' | 'through' | 'thru' | 'for' | 'to'
+<a name="304"></a>         | 'onto' | 'on' 'to' | 'at' | 'under' | 'behind')
+<a name="305"></a>        completeNounPhrase-&gt;np2_
+<a name="306"></a>    : Production
+<a name="307"></a>;
+<a name="308"></a>
+<a name="309"></a>grammar completeNounPhraseWithoutAll(main):
+<a name="310"></a>    qualifiedNounPhrase-&gt;np_ | pronounPhrase-&gt;np_
+<a name="311"></a>    : Production
+<a name="312"></a>;
+<a name="313"></a>
+<a name="314"></a>grammar pronounPhrase(it):   'it' : PronounProduction
+<a name="315"></a>    pronoun = It
+<a name="316"></a>;
+<a name="317"></a>grammar pronounPhrase(them): 'them' : PronounProduction
+<a name="318"></a>    pronoun = Them
+<a name="319"></a>;
+<a name="320"></a>grammar pronounPhrase(him):  'him' : PronounProduction
+<a name="321"></a>    pronoun = Him
+<a name="322"></a>;
+<a name="323"></a>grammar pronounPhrase(her):  'her' : PronounProduction
+<a name="324"></a>    pronoun = Her
+<a name="325"></a>;
+<a name="326"></a>
+<a name="327"></a>grammar pronounPhrase(itself): 'itself' : PronounProduction
+<a name="328"></a>    pronoun = Itself
+<a name="329"></a>;
+<a name="330"></a>
+<a name="331"></a>grammar pronounPhrase(themselves):
+<a name="332"></a>    'themself' | 'themselves' : PronounProduction
+<a name="333"></a>    pronoun = Themselves
+<a name="334"></a>;
+<a name="335"></a>
+<a name="336"></a>grammar pronounPhrase(himself): 'himself' : PronounProduction
+<a name="337"></a>    pronoun = Himself
+<a name="338"></a>;
+<a name="339"></a>
+<a name="340"></a>grammar pronounPhrase(herself): 'herself' : PronounProduction
+<a name="341"></a>    pronoun = Herself
+<a name="342"></a>;
+<a name="343"></a>
+<a name="344"></a>grammar pronounPhrase(you):
+<a name="345"></a>    'you' | 'yourself' | 'yourselves' : PronounProduction
+<a name="346"></a>    pronoun = You
+<a name="347"></a>;
+<a name="348"></a>grammar pronounPhrase(me): 'me' | 'myself' : PronounProduction
+<a name="349"></a>    pronoun = Me
+<a name="350"></a>;
+<a name="351"></a>
+<a name="352"></a>grammar pronounPhrase(us): 'us' | 'ourself' | 'ourselves'
+<a name="353"></a>    : PronounProduction
+<a name="354"></a>    pronoun = Us
+<a name="355"></a>;
+<a name="356"></a>
+<a name="357"></a>
+<a name="358"></a>grammar completeNounPhraseWithAll(main):
+<a name="359"></a>    'all' | 'everything'
+<a name="360"></a>    : Production
+<a name="361"></a>
+<a name="362"></a>    determiner = All
+<a name="363"></a>;
+<a name="364"></a>
+<a name="365"></a>grammar terminalNounPhrase(allBut):
+<a name="366"></a>    ('all' | 'everything') ('but' | 'except' | 'except' 'for')
+<a name="367"></a>        exceptList-&gt;except_
+<a name="368"></a>    : Production
+<a name="369"></a>
+<a name="370"></a>    determiner = All
+<a name="371"></a>;
+<a name="372"></a>
+<a name="373"></a>grammar terminalNounPhrase(pluralExcept):
+<a name="374"></a>    (qualifiedPluralNounPhrase-&gt;np_ | detPluralNounPhrase-&gt;np_)
+<a name="375"></a>    ('except' | 'except' 'for' | 'but' | 'but' 'not') exceptList-&gt;except_
+<a name="376"></a>    : Production
+<a name="377"></a>;
+<a name="378"></a>
+<a name="379"></a>grammar terminalNounPhrase(anyBut):
+<a name="380"></a>    'any' nounPhrase-&gt;np_
+<a name="381"></a>    ('but' | 'except' | 'except' 'for' | 'but' 'not') exceptList-&gt;except_
+<a name="382"></a>    : Production
+<a name="383"></a>
+<a name="384"></a>    determiner = Indefinite
+<a name="385"></a>;
+<a name="386"></a>
+<a name="387"></a>grammar qualifiedNounPhrase(main):
+<a name="388"></a>    qualifiedSingularNounPhrase-&gt;np_
+<a name="389"></a>    | qualifiedPluralNounPhrase-&gt;np_
+<a name="390"></a>    : Production
+<a name="391"></a>;
+<a name="392"></a>
+<a name="393"></a>grammar qualifiedSingularNounPhrase(definite):
+<a name="394"></a>    ('the' | 'the' 'one' | 'the' '1' | ) indetSingularNounPhrase-&gt;np_
+<a name="395"></a>    : Production
+<a name="396"></a>
+<a name="397"></a>    determiner = Definite
+<a name="398"></a>;
+<a name="399"></a>
+<a name="400"></a>grammar qualifiedSingularNounPhrase(indefinite):
+<a name="401"></a>    ('a' | 'an') indetSingularNounPhrase-&gt;np_
+<a name="402"></a>    : Production
+<a name="403"></a>
+<a name="404"></a>    determiner = Indefinite
+<a name="405"></a>;
+<a name="406"></a>
+<a name="407"></a>grammar qualifiedSingularNounPhrase(arbitrary):
+<a name="408"></a>    ('any' | 'one' | '1' | 'any' ('one' | '1')) indetSingularNounPhrase-&gt;np_
+<a name="409"></a>    : Production
+<a name="410"></a>
+<a name="411"></a>    determiner = Indefinite
+<a name="412"></a>;
+<a name="413"></a>
+<a name="414"></a>grammar qualifiedSingularNounPhrase(possessive):
+<a name="415"></a>    possessiveAdjPhrase-&gt;poss_ indetSingularNounPhrase-&gt;np_
+<a name="416"></a>    | indetSingularNounPhrase-&gt;np_ 'of' possessiveNounPhrase-&gt;poss_
+<a name="417"></a>    : Production
+<a name="418"></a>;
+<a name="419"></a>
+<a name="420"></a>grammar qualifiedSingularNounPhrase(anyPlural):
+<a name="421"></a>    ('any' | 'one' | 'any' 'one' | ) 'of' explicitDetPluralNounPhrase-&gt;np_
+<a name="422"></a>    : Production
+<a name="423"></a>
+<a name="424"></a>    determiner = Indefinite
+<a name="425"></a>;
+<a name="426"></a>
+<a name="427"></a>grammar qualifiedSingularNounPhrase(theOneIn):
+<a name="428"></a>    'the' 'one' ('that' ('is' | 'was') | 'that' tokApostropheS | )
+<a name="429"></a>    locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="430"></a>    : LocationalProduction
+<a name="431"></a>
+<a name="432"></a>    determiner = Definite
+<a name="433"></a>;
+<a name="434"></a>
+<a name="435"></a>grammar qualifiedSingularNounPhrase(theOneContaining):
+<a name="436"></a>    'the' 'one' contentsPrepOrVerb-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="437"></a>    : ContentsQualifierProduction
+<a name="438"></a>
+<a name="439"></a>    determiner = Definite
+<a name="440"></a>;
+<a name="441"></a>
+<a name="442"></a>grammar qualifiedSingularNounPhrase(anyOneIn):
+<a name="443"></a>    ('anything' | 'one') ('that' ('is' | 'was') | 'that' tokApostropheS | )
+<a name="444"></a>    locationPrep-&gt;prep_
+<a name="445"></a>    completeNounPhraseWithoutAll-&gt;cont_
+<a name="446"></a>    : LocationalProduction
+<a name="447"></a>
+<a name="448"></a>    determiner = Indefinite
+<a name="449"></a>;
+<a name="450"></a>
+<a name="451"></a>grammar locationPrep(in):
+<a name="452"></a>    'in' | 'inside' | 'inside' 'of'
+<a name="453"></a>    : LocationPrepProduction
+<a name="454"></a>
+<a name="455"></a>    locType = In
+<a name="456"></a>;
+<a name="457"></a>
+<a name="458"></a>grammar locationPrep(on):
+<a name="459"></a>    'on' | 'upon' | 'on' 'top' 'of'
+<a name="460"></a>    : LocationPrepProduction
+<a name="461"></a>
+<a name="462"></a>    locType = On
+<a name="463"></a>;
+<a name="464"></a>
+<a name="465"></a>grammar locationPrep(from):
+<a name="466"></a>    'from'
+<a name="467"></a>    : LocationPrepProduction
+<a name="468"></a>
+<a name="469"></a>    locType = nil
+<a name="470"></a>;
+<a name="471"></a>
+<a name="472"></a>grammar contentsPrep(main):
+<a name="473"></a>    'of' | 'containing'
+<a name="474"></a>    : Production
+<a name="475"></a>;
+<a name="476"></a>
+<a name="477"></a>grammar contentsPrepOrVerb(main):
+<a name="478"></a>    'contains' | 'has' | contentsPrep
+<a name="479"></a>    : Production
+<a name="480"></a>;
+<a name="481"></a>
+<a name="482"></a>grammar indetSingularNounPhrase(basic):
+<a name="483"></a>    nounPhraseWithContents-&gt;np_
+<a name="484"></a>    : Production
+<a name="485"></a>;
+<a name="486"></a>
+<a name="487"></a>grammar indetSingularNounPhrase(locational):
+<a name="488"></a>    nounPhraseWithContents-&gt;np_
+<a name="489"></a>    ('that' ('is' | 'was')
+<a name="490"></a>     | 'that' tokApostropheS
+<a name="491"></a>     | 'that' ('are' | 'were')
+<a name="492"></a>     | ) locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="493"></a>    : LocationalProduction
+<a name="494"></a>;
+<a name="495"></a>
+<a name="496"></a>grammar nounPhraseWithContents(basic):
+<a name="497"></a>    nounPhrase-&gt;np_
+<a name="498"></a>    : Production
+<a name="499"></a>;
+<a name="500"></a>
+<a name="501"></a>grammar nounPhraseWithContents(contents):
+<a name="502"></a>    nounPhraseWithContents-&gt;np_ contentsPrep-&gt;prep_ nounPhrase-&gt;cont_
+<a name="503"></a>    : ContentsQualifierProduction
+<a name="504"></a>;
+<a name="505"></a>
+<a name="506"></a>grammar qualifiedPluralNounPhrase(determiner):
+<a name="507"></a>    'any' detPluralOnlyNounPhrase-&gt;np_
+<a name="508"></a>    : Production
+<a name="509"></a>
+<a name="510"></a>    determiner = Indefinite
+<a name="511"></a>;
+<a name="512"></a>
+<a name="513"></a>grammar qualifiedPluralNounPhrase(anyNum):
+<a name="514"></a>    ('any' | ) numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="515"></a>    | ('any' | ) numberPhrase-&gt;quant_ 'of' explicitDetPluralNounPhrase-&gt;np_
+<a name="516"></a>    : QuantifierProduction
+<a name="517"></a>
+<a name="518"></a>    determiner = Indefinite
+<a name="519"></a>;
+<a name="520"></a>
+<a name="521"></a>grammar qualifiedPluralNounPhrase(allNum):
+<a name="522"></a>    'all' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="523"></a>    | 'all' numberPhrase-&gt;quant_ 'of' explicitDetPluralNounPhrase-&gt;np_
+<a name="524"></a>    : QuantifierProduction
+<a name="525"></a>
+<a name="526"></a>    /* 
+<a name="527"></a>     *   even though the wording is ALL, the number makes this definite:
+<a name="528"></a>     *   ALL SEVEN implies that there are EXACTLY seven things we're
+<a name="529"></a>     *   talking about 
+<a name="530"></a>     */
+<a name="531"></a>    determiner = Definite
+<a name="532"></a>;
+<a name="533"></a>
+<a name="534"></a>grammar qualifiedPluralNounPhrase(both):
+<a name="535"></a>    'both' detPluralNounPhrase-&gt;np_
+<a name="536"></a>    | 'both' 'of' explicitDetPluralNounPhrase-&gt;np_
+<a name="537"></a>    : QuantifierProduction
+<a name="538"></a>
+<a name="539"></a>    /* 
+<a name="540"></a>     *   BOTH is effectively equivalent to THE TWO - it implies that there
+<a name="541"></a>     *   are ONLY two objects we could be talking about 
+<a name="542"></a>     */
+<a name="543"></a>    determiner = Definite
+<a name="544"></a>    numval = 2
+<a name="545"></a>;
+<a name="546"></a>
+<a name="547"></a>grammar qualifiedPluralNounPhrase(definiteNum):
+<a name="548"></a>    'the' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="549"></a>    : QuantifierProduction
+<a name="550"></a>
+<a name="551"></a>    determiner = Definite
+<a name="552"></a>;
+<a name="553"></a>
+<a name="554"></a>grammar qualifiedPluralNounPhrase(all):
+<a name="555"></a>    'all' detPluralNounPhrase-&gt;np_
+<a name="556"></a>    | 'all' 'of' explicitDetPluralNounPhrase-&gt;np_
+<a name="557"></a>    : Production
+<a name="558"></a>
+<a name="559"></a>    determiner = All
+<a name="560"></a>;
+<a name="561"></a>
+<a name="562"></a>grammar qualifiedPluralNounPhrase(theOnesIn):
+<a name="563"></a>    ('the' 'ones' ('that' ('are' | 'were') | )
+<a name="564"></a>     | ('everything' | 'all')
+<a name="565"></a>       ('that' ('is' | 'was') | 'that' tokApostropheS | ))
+<a name="566"></a>    locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="567"></a>    : LocationalProduction
+<a name="568"></a>
+<a name="569"></a>    determiner = All
+<a name="570"></a>;
+<a name="571"></a>
+<a name="572"></a>grammar qualifiedPluralNounPhrase(theOnesContaining):
+<a name="573"></a>    ('the' 'ones' | 'everything' | 'all')
+<a name="574"></a>    contentsPrepOrVerb-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="575"></a>    : ContentsQualifierProduction
+<a name="576"></a>
+<a name="577"></a>    determiner = All
+<a name="578"></a>;
+<a name="579"></a>
+<a name="580"></a>grammar detPluralNounPhrase(main):
+<a name="581"></a>    indetPluralNounPhrase-&gt;np_ | explicitDetPluralNounPhrase-&gt;np_
+<a name="582"></a>    : Production
+<a name="583"></a>;
+<a name="584"></a>
+<a name="585"></a>grammar detPluralOnlyNounPhrase(main):
+<a name="586"></a>    implicitDetPluralOnlyNounPhrase-&gt;np_
+<a name="587"></a>    | explicitDetPluralOnlyNounPhrase-&gt;np_
+<a name="588"></a>    : Production
+<a name="589"></a>;
+<a name="590"></a>
+<a name="591"></a>grammar implicitDetPluralOnlyNounPhrase(main):
+<a name="592"></a>    indetPluralOnlyNounPhrase-&gt;np_
+<a name="593"></a>    : Production
+<a name="594"></a>;
+<a name="595"></a>
+<a name="596"></a>grammar explicitDetPluralNounPhrase(definite):
+<a name="597"></a>    'the' indetPluralNounPhrase-&gt;np_
+<a name="598"></a>    : Production
+<a name="599"></a>
+<a name="600"></a>    determiner = Definite
+<a name="601"></a>;
+<a name="602"></a>
+<a name="603"></a>grammar explicitDetPluralNounPhrase(definiteNumber):
+<a name="604"></a>    'the' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="605"></a>    : QuantifierProduction
+<a name="606"></a>
+<a name="607"></a>    determiner = Definite
+<a name="608"></a>;
+<a name="609"></a>
+<a name="610"></a>grammar explicitDetPluralNounPhrase(possessive):
+<a name="611"></a>    possessiveAdjPhrase-&gt;poss_ indetPluralNounPhrase-&gt;np_
+<a name="612"></a>    | indetPluralNounPhrase-&gt;np_ 'of' possessiveNounPhrase-&gt;poss_
+<a name="613"></a>    : Production
+<a name="614"></a>;
+<a name="615"></a>
+<a name="616"></a>grammar explicitDetPluralNounPhrase(possessiveNumber):
+<a name="617"></a>    possessiveAdjPhrase-&gt;poss_ numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="618"></a>    | 'the' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_ 
+<a name="619"></a>      'of' possessiveNounPhrase-&gt;poss_
+<a name="620"></a>    : QuantifierProduction
+<a name="621"></a>
+<a name="622"></a>    /* 
+<a name="623"></a>     *   the possessive makes this definite: BOB'S FIVE BOOKS implies that
+<a name="624"></a>     *   Bob has EXACTLY five books 
+<a name="625"></a>     */
+<a name="626"></a>    determiner = Definite
+<a name="627"></a>;
+<a name="628"></a>
+<a name="629"></a>grammar explicitDetPluralNounPhrase(possessiveNumber2):
+<a name="630"></a>    numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="631"></a>       'of' possessiveNounPhrase-&gt;poss_
+<a name="632"></a>    : QuantifierProduction
+<a name="633"></a>
+<a name="634"></a>    /* FIVE BOOKS OF BOB'S is indefinite */
+<a name="635"></a>    determiner = Indefinite
+<a name="636"></a>;
+<a name="637"></a>
+<a name="638"></a>grammar explicitDetPluralOnlyNounPhrase(definite):
+<a name="639"></a>    'the' indetPluralOnlyNounPhrase-&gt;np_
+<a name="640"></a>    : Production
+<a name="641"></a>
+<a name="642"></a>    determiner = Definite
+<a name="643"></a>;
+<a name="644"></a>
+<a name="645"></a>grammar explicitDetPluralOnlyNounPhrase(definiteNumber):
+<a name="646"></a>    'the' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="647"></a>    : QuantifierProduction
+<a name="648"></a>
+<a name="649"></a>    determiner = Definite
+<a name="650"></a>;
+<a name="651"></a>
+<a name="652"></a>grammar explicitDetPluralOnlyNounPhrase(possessive):
+<a name="653"></a>    possessiveAdjPhrase-&gt;poss_ indetPluralOnlyNounPhrase-&gt;np_
+<a name="654"></a>    | indetPluralOnlyNounPhrase-&gt;np_ 'of' possessiveNounPhrase-&gt;poss_
+<a name="655"></a>    : Production
+<a name="656"></a>;
+<a name="657"></a>
+<a name="658"></a>grammar explicitDetPluralOnlyNounPhrase(possessiveNumber):
+<a name="659"></a>    possessiveAdjPhrase-&gt;poss_ numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="660"></a>    | 'the' numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="661"></a>      'of' possessiveNounPhrase-&gt;poss_
+<a name="662"></a>    : QuantifierProduction
+<a name="663"></a>
+<a name="664"></a>    /* the possessive makes this definite */
+<a name="665"></a>    determiner = Definite
+<a name="666"></a>;
+<a name="667"></a>
+<a name="668"></a>grammar explicitDetPluralOnlyNounPhrase(possessiveNumber2):
+<a name="669"></a>    numberPhrase-&gt;quant_ indetPluralNounPhrase-&gt;np_
+<a name="670"></a>      'of' possessiveNounPhrase-&gt;poss_
+<a name="671"></a>    : QuantifierProduction
+<a name="672"></a>
+<a name="673"></a>    /* FIVE BOOKS OF BOB'S is indefinite */
+<a name="674"></a>    determiner = Indefinite
+<a name="675"></a>;
+<a name="676"></a>
+<a name="677"></a>grammar indetPluralNounPhrase(basic):
+<a name="678"></a>    pluralPhraseWithContents-&gt;np_
+<a name="679"></a>    : Production
+<a name="680"></a>;
+<a name="681"></a>
+<a name="682"></a>grammar indetPluralNounPhrase(locational):
+<a name="683"></a>    pluralPhraseWithContents-&gt;np_ ('that' ('are' | 'were') | )
+<a name="684"></a>    locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="685"></a>    : LocationalProduction
+<a name="686"></a>;
+<a name="687"></a>
+<a name="688"></a>grammar pluralPhraseWithContents(basic):
+<a name="689"></a>    pluralPhrase-&gt;np_
+<a name="690"></a>    : Production
+<a name="691"></a>;
+<a name="692"></a>
+<a name="693"></a>grammar pluralPhraseWithContents(contents):
+<a name="694"></a>    pluralPhraseWithContents-&gt;np_ contentsPrep-&gt;prep_ nounPhrase-&gt;cont_
+<a name="695"></a>    : ContentsQualifierProduction
+<a name="696"></a>;
+<a name="697"></a>
+<a name="698"></a>grammar indetPluralOnlyNounPhrase(basic):
+<a name="699"></a>    pluralPhrase-&gt;np_
+<a name="700"></a>    : Production
+<a name="701"></a>;
+<a name="702"></a>
+<a name="703"></a>grammar indetPluralOnlyNounPhrase(locational):
+<a name="704"></a>    pluralPhrase-&gt;np_ ('that' ('are' | 'were') | )
+<a name="705"></a>    locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="706"></a>    : LocationalProduction
+<a name="707"></a>;
+<a name="708"></a>
+<a name="709"></a>grammar nounPhrase(main): compoundNounPhrase-&gt;np_
+<a name="710"></a>    : CoreNounPhraseProduction
+<a name="711"></a>;
+<a name="712"></a>
+<a name="713"></a>grammar pluralPhrase(main): compoundPluralPhrase-&gt;np_
+<a name="714"></a>    : CoreNounPhraseProduction
+<a name="715"></a>;
+<a name="716"></a>
+<a name="717"></a>grammar compoundNounPhrase(simple): simpleNounPhrase-&gt;np_
+<a name="718"></a>    : Production
+<a name="719"></a>;
+<a name="720"></a>
+<a name="721"></a>grammar compoundNounPhrase(of):
+<a name="722"></a>    simpleNounPhrase-&gt;np1_ compoundNounPrep-&gt;prep_
+<a name="723"></a>      compoundNounArticle compoundNounPhrase-&gt;np2_
+<a name="724"></a>    : Production
+<a name="725"></a>;
+<a name="726"></a>
+<a name="727"></a>grammar compoundNounPrep(main):
+<a name="728"></a>    'of'-&gt;prep_ | 'to'-&gt;prep_ | 'for'-&gt;prep_ | 'from'-&gt;prep_ | 'with'-&gt;prep_
+<a name="729"></a>    : Production
+<a name="730"></a>;
+<a name="731"></a>
+<a name="732"></a>grammar compoundNounArticle(main):
+<a name="733"></a>    ('the' | 'a' | 'an' | )
+<a name="734"></a>    : Production
+<a name="735"></a>;
+<a name="736"></a>
+<a name="737"></a>grammar compoundPluralPhrase(simple): simplePluralPhrase-&gt;np_
+<a name="738"></a>    : Production
+<a name="739"></a>;
+<a name="740"></a>
+<a name="741"></a>grammar compoundPluralPhrase(of):
+<a name="742"></a>    simplePluralPhrase-&gt;np1_ compoundNounPrep-&gt;prep_
+<a name="743"></a>      compoundNounArticle-&gt;article_ compoundNounPhrase-&gt;np2_
+<a name="744"></a>    : Production
+<a name="745"></a>;
+<a name="746"></a>
+<a name="747"></a>grammar simpleNounPhrase(noun): nounWord-&gt;noun_ : Production
+<a name="748"></a>;
+<a name="749"></a>
+<a name="750"></a>grammar simpleNounPhrase(list): nounWord-&gt;noun_ simpleNounPhrase-&gt;np_
+<a name="751"></a>    : Production
+<a name="752"></a>;
+<a name="753"></a>
+<a name="754"></a>grammar simpleNounPhrase(literal): literalNounPhrase-&gt;noun_
+<a name="755"></a>    : Production
+<a name="756"></a>;
+<a name="757"></a>
+<a name="758"></a>grammar simpleNounPhrase(literalAndList):
+<a name="759"></a>    literalNounPhrase-&gt;noun_ simpleNounPhrase-&gt;np_
+<a name="760"></a>    : Production
+<a name="761"></a>;
+<a name="762"></a>
+<a name="763"></a>grammar simpleNounPhrase(adjAndOne): noun-&gt;noun_ 'one'
+<a name="764"></a>    : Production
+<a name="765"></a>;
+<a name="766"></a>
+<a name="767"></a>grammar simpleNounPhrase(adjAndOnes): noun-&gt;noun_ 'ones'
+<a name="768"></a>    : Production
+<a name="769"></a>;
+<a name="770"></a>
+<a name="771"></a>grammar simpleNounPhrase(misc):
+<a name="772"></a>    [badness 200] miscWordList-&gt;lst_ : Production
+<a name="773"></a>;
+<a name="774"></a>
+<a name="775"></a>grammar simpleNounPhrase(empty): [badness 600] : EmptyNounProduction
+<a name="776"></a>;
+<a name="777"></a>
+<a name="778"></a>grammar literalNounPhrase(number):
+<a name="779"></a>    numberPhrase-&gt;num_ | poundNumberPhrase-&gt;num_
+<a name="780"></a>    : Production
+<a name="781"></a>;
+<a name="782"></a>
+<a name="783"></a>grammar literalNounPhrase(string): quotedStringPhrase-&gt;str_
+<a name="784"></a>    : Production
+<a name="785"></a>;
+<a name="786"></a>
+<a name="787"></a>grammar nounWord(noun): noun-&gt;noun_ : Production
+<a name="788"></a>;
+<a name="789"></a>
+<a name="790"></a>grammar nounWord(nounApostS): nounApostS-&gt;noun_ tokApostropheS-&gt;apost_
+<a name="791"></a>    : Production
+<a name="792"></a>    grammarInfoForBuild()
+<a name="793"></a>    {
+<a name="794"></a>        /* recombine the noun and apostrophe-S into a single token */
+<a name="795"></a>        local gi = grammarInfo();
+<a name="796"></a>        return [gi[1], noun_ + apost_];
+<a name="797"></a>    }
+<a name="798"></a>;
+<a name="799"></a>
+<a name="800"></a>grammar nounWord(nounAbbr): noun-&gt;noun_ tokAbbrPeriod-&gt;period_
+<a name="801"></a>    : Production
+<a name="802"></a>;
+<a name="803"></a>
+<a name="804"></a>grammar possessiveAdjPhrase(its): 'its' : PossessiveProduction
+<a name="805"></a>    pronoun = It
+<a name="806"></a>;
+<a name="807"></a>grammar possessiveAdjPhrase(his): 'his' : PossessiveProduction
+<a name="808"></a>    pronoun = Him
+<a name="809"></a>;
+<a name="810"></a>grammar possessiveAdjPhrase(her): 'her' : PossessiveProduction
+<a name="811"></a>    pronoun = Her
+<a name="812"></a>;
+<a name="813"></a>grammar possessiveAdjPhrase(their): 'their' : PossessiveProduction
+<a name="814"></a>    pronoun = Them
+<a name="815"></a>;
+<a name="816"></a>grammar possessiveAdjPhrase(your): 'your' : PossessiveProduction
+<a name="817"></a>    pronoun = You
+<a name="818"></a>;
+<a name="819"></a>grammar possessiveAdjPhrase(my): 'my' : PossessiveProduction
+<a name="820"></a>    pronoun = Me
+<a name="821"></a>;
+<a name="822"></a>
+<a name="823"></a>grammar possessiveAdjPhrase(npApostropheS):
+<a name="824"></a>    nounPhrase-&gt;np_ tokApostropheS : PossessiveProduction
+<a name="825"></a>;
+<a name="826"></a>
+<a name="827"></a>grammar possessiveAdjPhrase(definiteNpApostropheS):
+<a name="828"></a>    'the' nounPhrase-&gt;np_ tokApostropheS : PossessiveProduction
+<a name="829"></a>
+<a name="830"></a>    determine = Definite
+<a name="831"></a>;
+<a name="832"></a>
+<a name="833"></a>grammar possessiveAdjPhrase(indefiniteNpApostropheS):
+<a name="834"></a>    ('a' | 'an') nounPhrase-&gt;np_ tokApostropheS : PossessiveProduction
+<a name="835"></a>
+<a name="836"></a>    determiner = Indefinite
+<a name="837"></a>;
+<a name="838"></a>
+<a name="839"></a>grammar possessiveNounPhrase(its): 'its': PossessiveProduction
+<a name="840"></a>    pronoun = It
+<a name="841"></a>;
+<a name="842"></a>grammar possessiveNounPhrase(his): 'his': PossessiveProduction
+<a name="843"></a>    pronoun = Him
+<a name="844"></a>;
+<a name="845"></a>grammar possessiveNounPhrase(hers): 'hers': PossessiveProduction
+<a name="846"></a>    pronoun = Her
+<a name="847"></a>;
+<a name="848"></a>grammar possessiveNounPhrase(theirs): 'theirs': PossessiveProduction
+<a name="849"></a>    pronoun = Them
+<a name="850"></a>;
+<a name="851"></a>grammar possessiveNounPhrase(yours): 'yours' : PossessiveProduction
+<a name="852"></a>    pronoun = You
+<a name="853"></a>;
+<a name="854"></a>grammar possessiveNounPhrase(mine): 'mine' : PossessiveProduction
+<a name="855"></a>    pronoun = Me
+<a name="856"></a>;
+<a name="857"></a>
+<a name="858"></a>grammar possessiveNounPhrase(npApostropheS):
+<a name="859"></a>    (nounPhrase-&gt;np_ | pluralPhrase-&gt;np_) tokApostropheS
+<a name="860"></a>    : PossessiveProduction
+<a name="861"></a>;
+<a name="862"></a>
+<a name="863"></a>grammar simplePluralPhrase(plural): simpleNounPhrase-&gt;noun_ : Production
+<a name="864"></a>;
+<a name="865"></a>
+<a name="866"></a>grammar simplePluralPhrase(adjAndOnes): noun-&gt;noun_ 'ones'
+<a name="867"></a>    : Production
+<a name="868"></a>;
+<a name="869"></a>
+<a name="870"></a>grammar simplePluralPhrase(empty): [badness 600] : EmptyNounProduction
+<a name="871"></a>;
+<a name="872"></a>
+<a name="873"></a>grammar simplePluralPhrase(misc):
+<a name="874"></a>    [badness 300] miscWordList-&gt;lst_ : Production
+<a name="875"></a>;
+<a name="876"></a>
+<a name="877"></a>grammar topicPhrase(main): singleNoun-&gt;np_ : TopicNounProduction
+<a name="878"></a>;
+<a name="879"></a>
+<a name="880"></a>grammar topicPhrase(misc): miscWordList-&gt;np_ : TopicNounProduction
+<a name="881"></a>;
+<a name="882"></a>
+<a name="883"></a>grammar quotedStringPhrase(main): tokString-&gt;str_ : Production
+<a name="884"></a>   getStringText() { return stripQuotesFrom(str_); }
+<a name="885"></a>;
+<a name="886"></a>
+<a name="887"></a>/*
+<a name="888"></a> *   Service routine: strip quotes from a *possibly* quoted string.  If the
+<a name="889"></a> *   string starts with a quote, we'll remove the open quote.  If it starts
+<a name="890"></a> *   with a quote and it ends with a corresponding close quote, we'll
+<a name="891"></a> *   remove that as well.  
+<a name="892"></a> */
+<a name="893"></a>stripQuotesFrom(str)
+<a name="894"></a>{
+<a name="895"></a>    local hasOpen;
+<a name="896"></a>    local hasClose;
+<a name="897"></a>
+<a name="898"></a>    /* presume we won't find open or close quotes */
+<a name="899"></a>    hasOpen = hasClose = nil;
+<a name="900"></a>
+<a name="901"></a>    /*
+<a name="902"></a>     *   Check for quotes.  We'll accept regular ASCII "straight" single
+<a name="903"></a>     *   or double quotes, as well as Latin-1 curly single or double
+<a name="904"></a>     *   quotes.  The curly quotes must be used in their normal
+<a name="905"></a>     */
+<a name="906"></a>    if (str.startsWith('\'') || str.startsWith('"'))
+<a name="907"></a>    {
+<a name="908"></a>        /* single or double quote - check for a matching close quote */
+<a name="909"></a>        hasOpen = true;
+<a name="910"></a>        hasClose = (str.length() &gt; 2 &amp;&amp; str.endsWith(str.substr(1, 1)));
+<a name="911"></a>    }
+<a name="912"></a>    else if (str.startsWith('`'))
+<a name="913"></a>    {
+<a name="914"></a>        /* single in-slanted quote - check for either type of close */
+<a name="915"></a>        hasOpen = true;
+<a name="916"></a>        hasClose = (str.length() &gt; 2
+<a name="917"></a>                    &amp;&amp; (str.endsWith('`') || str.endsWith('\'')));
+<a name="918"></a>    }
+<a name="919"></a>    else if (str.startsWith('\u201C'))
+<a name="920"></a>    {
+<a name="921"></a>        /* it's a curly double quote */
+<a name="922"></a>        hasOpen = true;
+<a name="923"></a>        hasClose = str.endsWith('\u201D');
+<a name="924"></a>    }
+<a name="925"></a>    else if (str.startsWith('\u2018'))
+<a name="926"></a>    {
+<a name="927"></a>        /* it's a curly single quote */
+<a name="928"></a>        hasOpen = true;
+<a name="929"></a>        hasClose = str.endsWith('\u2019');
+<a name="930"></a>    }
+<a name="931"></a>
+<a name="932"></a>    /* trim off the quotes */
+<a name="933"></a>    if (hasOpen)
+<a name="934"></a>    {
+<a name="935"></a>        if (hasClose)
+<a name="936"></a>            str = str.substr(2, str.length() - 2);
+<a name="937"></a>        else
+<a name="938"></a>            str = str.substr(2);
+<a name="939"></a>    }
+<a name="940"></a>
+<a name="941"></a>    /* return the modified text */
+<a name="942"></a>    return str;
+<a name="943"></a>}
+<a name="944"></a>
+<a name="945"></a>
+<a name="946"></a>grammar literalPhrase(string): quotedStringPhrase-&gt;str_ : LiteralNounProduction
+<a name="947"></a>;
+<a name="948"></a>
+<a name="949"></a>grammar literalPhrase(miscList): miscWordList-&gt;misc_ : LiteralNounProduction
+<a name="950"></a>;
+<a name="951"></a>
+<a name="952"></a>grammar literalPhrase(empty): [badness 400]: EmptyNounProduction
+<a name="953"></a>;
+<a name="954"></a>
+<a name="955"></a>grammar miscWordList(wordOrNumber):
+<a name="956"></a>    tokWord-&gt;txt_ | tokInt-&gt;txt_ | tokApostropheS-&gt;txt_
+<a name="957"></a>    | tokPoundInt-&gt;txt_ | tokString-&gt;txt_ | tokAbbrPeriod-&gt;txt_
+<a name="958"></a>    : MiscWordListProduction
+<a name="959"></a>;
+<a name="960"></a>
+<a name="961"></a>grammar miscWordList(list):
+<a name="962"></a>    (tokWord-&gt;txt_ | tokInt-&gt;txt_ | tokApostropheS-&gt;txt_ | tokAbbrPeriod-&gt;txt_
+<a name="963"></a>     | tokPoundInt-&gt;txt_ | tokString-&gt;txt_) miscWordList-&gt;lst_
+<a name="964"></a>    : MiscWordListProduction
+<a name="965"></a>;
+<a name="966"></a>
+<a name="967"></a>/*
+<a name="968"></a> *   The top-level disambiguation grammar.  The parser uses this to parse
+<a name="969"></a> *   input that might be an answer to a disambiguation prompt ("Which did
+<a name="970"></a> *   you mean...?").
+<a name="971"></a> *   
+<a name="972"></a> *   We accept whole noun phrases and various fragments of noun phrases in
+<a name="973"></a> *   response to these questions.  We accept fragments because (a) users
+<a name="974"></a> *   are accustomed from lots of other IF games to being able to respond
+<a name="975"></a> *   with a word or two, and (b) all we need is something that
+<a name="976"></a> *   distinguishes one object from another.
+<a name="977"></a> *   
+<a name="978"></a> *   This should use DisambigProduction as the base class for the match
+<a name="979"></a> *   tree item.
+<a name="980"></a> *   
+<a name="981"></a> *   [Required] 
+<a name="982"></a> */
+<a name="983"></a>grammar mainDisambigPhrase(main):
+<a name="984"></a>    disambigPhrase-&gt;dp_
+<a name="985"></a>    | disambigPhrase-&gt;dp_ '.'
+<a name="986"></a>    : DisambigProduction
+<a name="987"></a>;
+<a name="988"></a>
+<a name="989"></a>grammar disambigPhrase(all):
+<a name="990"></a>    'all' | 'everything' | 'all' 'of' 'them' : Production
+<a name="991"></a>
+<a name="992"></a>    determiner = All
+<a name="993"></a>;
+<a name="994"></a>
+<a name="995"></a>grammar disambigPhrase(both): 'both' | 'both' 'of' 'them'
+<a name="996"></a>    : QuantifierProduction
+<a name="997"></a>
+<a name="998"></a>    /* BOTH is definite because it implies there are EXACTLY two matches */
+<a name="999"></a>    determiner = Definite
+<a name="1000"></a>    numval = 2
+<a name="1001"></a>;
+<a name="1002"></a>
+<a name="1003"></a>grammar disambigPhrase(any): 'any' | 'any' 'of' 'them' : Production
+<a name="1004"></a>    determiner = Indefinite
+<a name="1005"></a>;
+<a name="1006"></a>
+<a name="1007"></a>grammar disambigPhrase(list): disambigList-&gt;lst_ : Production
+<a name="1008"></a>;
+<a name="1009"></a>
+<a name="1010"></a>grammar disambigPhrase(ordinalList):
+<a name="1011"></a>    disambigOrdinalList-&gt;lst_ 'ones'
+<a name="1012"></a>    | 'the' disambigOrdinalList-&gt;lst_ 'ones'
+<a name="1013"></a>    : Production
+<a name="1014"></a>
+<a name="1015"></a>    determiner = Definite
+<a name="1016"></a>;
+<a name="1017"></a>
+<a name="1018"></a>grammar disambigPhrase(locational):
+<a name="1019"></a>    locationPrep-&gt;prep_ completeNounPhraseWithoutAll-&gt;cont_
+<a name="1020"></a>    : LocationalProduction
+<a name="1021"></a>
+<a name="1022"></a>    determiner = Definite
+<a name="1023"></a>;
+<a name="1024"></a>
+<a name="1025"></a>grammar disambigOrdinalList(tail):
+<a name="1026"></a>    disambigOrdinalItem-&gt;np1_ ('and' | ',') disambigOrdinalItem-&gt;np2_
+<a name="1027"></a>    : NounListProduction
+<a name="1028"></a>;
+<a name="1029"></a>
+<a name="1030"></a>grammar disambigOrdinalList(head):
+<a name="1031"></a>    disambigOrdinalItem-&gt;np1_ ('and' | ',') disambigOrdinalList-&gt;np2_
+<a name="1032"></a>    : NounListProduction
+<a name="1033"></a>;
+<a name="1034"></a>
+<a name="1035"></a>dictionary property ordinalWord;
+<a name="1036"></a>grammar disambigOrdinalItem(main):
+<a name="1037"></a>    ordinalWord-&gt;ord_
+<a name="1038"></a>    : OrdinalProduction
+<a name="1039"></a>
+<a name="1040"></a>    determiner = Definite
+<a name="1041"></a>
+<a name="1042"></a>    /* look up the value of the ordinal word */
+<a name="1043"></a>    ordval() { return cmdDict.findWord(ord_, &amp;ordinalWord)[1].ordinalVal; }
+<a name="1044"></a>;
+<a name="1045"></a>
+<a name="1046"></a>grammar disambigList(single): disambigListItem-&gt;np1_ :
+<a name="1047"></a>    NounListProduction
+<a name="1048"></a>;
+<a name="1049"></a>
+<a name="1050"></a>grammar disambigList(list):
+<a name="1051"></a>    disambigListItem-&gt;np1_ commandOrNounConjunction disambigList-&gt;np2_
+<a name="1052"></a>    : NounListProduction
+<a name="1053"></a>;
+<a name="1054"></a>
+<a name="1055"></a>grammar disambigListItem(ordinal):
+<a name="1056"></a>    ordinalWord-&gt;ord_
+<a name="1057"></a>    | ordinalWord-&gt;ord_ 'one'
+<a name="1058"></a>    | 'the' ordinalWord-&gt;ord_
+<a name="1059"></a>    | 'the' ordinalWord-&gt;ord_ 'one'
+<a name="1060"></a>    : OrdinalProduction
+<a name="1061"></a>
+<a name="1062"></a>    determiner = Definite
+<a name="1063"></a>
+<a name="1064"></a>    /* look up the value of the ordinal word */
+<a name="1065"></a>    ordval() { return cmdDict.findWord(ord_, &amp;ordinalWord)[1].ordinalVal; }
+<a name="1066"></a>;
+<a name="1067"></a>
+<a name="1068"></a>grammar disambigListItem(noun):
+<a name="1069"></a>    completeNounPhraseWithoutAll-&gt;np_
+<a name="1070"></a>    | terminalNounPhrase-&gt;np_
+<a name="1071"></a>    : Production
+<a name="1072"></a>;
+<a name="1073"></a>
+<a name="1074"></a>grammar disambigListItem(plural):
+<a name="1075"></a>    pluralPhrase-&gt;np_
+<a name="1076"></a>    : Production
+<a name="1077"></a>
+<a name="1078"></a>    determiner = Definite
+<a name="1079"></a>;
+<a name="1080"></a>
+<a name="1081"></a>grammar disambigListItem(possessive):
+<a name="1082"></a>    possessiveNounPhrase-&gt;poss_
+<a name="1083"></a>    : Production
+<a name="1084"></a>;
+<a name="1085"></a>
+<a name="1086"></a>
+<a name="1087"></a>
+<a name="1088"></a>/*
+<a name="1089"></a> *   Ordinal words.  We define a limited set of these, since we only use
+<a name="1090"></a> *   them in a few special contexts where it would be unreasonable to need
+<a name="1091"></a> *   even as many as define here.
+<a name="1092"></a> */
+<a name="1093"></a>#define defOrdinal(str, val) object ordinalWord=#@str ordinalVal=val
+<a name="1094"></a>
+<a name="1095"></a>defOrdinal(former, 1);
+<a name="1096"></a>defOrdinal(first, 1);
+<a name="1097"></a>defOrdinal(second, 2);
+<a name="1098"></a>defOrdinal(third, 3);
+<a name="1099"></a>defOrdinal(fourth, 4);
+<a name="1100"></a>defOrdinal(fifth, 5);
+<a name="1101"></a>defOrdinal(sixth, 6);
+<a name="1102"></a>defOrdinal(seventh, 7);
+<a name="1103"></a>defOrdinal(eighth, 8);
+<a name="1104"></a>defOrdinal(ninth, 9);
+<a name="1105"></a>defOrdinal(tenth, 10);
+<a name="1106"></a>defOrdinal(eleventh, 11);
+<a name="1107"></a>defOrdinal(twelfth, 12);
+<a name="1108"></a>defOrdinal(thirteenth, 13);
+<a name="1109"></a>defOrdinal(fourteenth, 14);
+<a name="1110"></a>defOrdinal(fifteenth, 15);
+<a name="1111"></a>defOrdinal(sixteenth, 16);
+<a name="1112"></a>defOrdinal(seventeenth, 17);
+<a name="1113"></a>defOrdinal(eighteenth, 18);
+<a name="1114"></a>defOrdinal(nineteenth, 19);
+<a name="1115"></a>defOrdinal(twentieth, 20);
+<a name="1116"></a>defOrdinal(1st, 1);
+<a name="1117"></a>defOrdinal(2nd, 2);
+<a name="1118"></a>defOrdinal(3rd, 3);
+<a name="1119"></a>defOrdinal(4th, 4);
+<a name="1120"></a>defOrdinal(5th, 5);
+<a name="1121"></a>defOrdinal(6th, 6);
+<a name="1122"></a>defOrdinal(7th, 7);
+<a name="1123"></a>defOrdinal(8th, 8);
+<a name="1124"></a>defOrdinal(9th, 9);
+<a name="1125"></a>defOrdinal(10th, 10);
+<a name="1126"></a>defOrdinal(11th, 11);
+<a name="1127"></a>defOrdinal(12th, 12);
+<a name="1128"></a>defOrdinal(13th, 13);
+<a name="1129"></a>defOrdinal(14th, 14);
+<a name="1130"></a>defOrdinal(15th, 15);
+<a name="1131"></a>defOrdinal(16th, 16);
+<a name="1132"></a>defOrdinal(17th, 17);
+<a name="1133"></a>defOrdinal(18th, 18);
+<a name="1134"></a>defOrdinal(19th, 19);
+<a name="1135"></a>defOrdinal(20th, 20);
+<a name="1136"></a>
+<a name="1137"></a>/*
+<a name="1138"></a> *   the special 'last' ordinal - the value -1 is special to indicate the
+<a name="1139"></a> *   last item in a list
+<a name="1140"></a> */
+<a name="1141"></a>defOrdinal(last, -1);
+<a name="1142"></a>defOrdinal(latter, -1);
+<a name="1143"></a>
+<a name="1144"></a>
+<a name="1145"></a>grammar numberObjPhrase(main): numberPhrase-&gt;num_ : NumberNounProduction
+<a name="1146"></a>;
+<a name="1147"></a>
+<a name="1148"></a>grammar numberPhrase(digits): tokInt-&gt;num_ : NumberNounProduction
+<a name="1149"></a>    numval = (toInteger(num_))
+<a name="1150"></a>;
+<a name="1151"></a>
+<a name="1152"></a>grammar numberPhrase(spelled): spelledNumber-&gt;num_ : NumberNounProduction
+<a name="1153"></a>    numval = (num_.numval)
+<a name="1154"></a>;
+<a name="1155"></a>
+<a name="1156"></a>grammar poundNumberPhrase(main): tokPoundInt-&gt;num_ : NumberNounProduction
+<a name="1157"></a>;
+<a name="1158"></a>
+<a name="1159"></a>/*
+<a name="1160"></a> *   Number literals.  We'll define a set of special objects for numbers:
+<a name="1161"></a> *   each object defines a number and a value for the number.
+<a name="1162"></a> */
+<a name="1163"></a>dictionary property digitWord, teenWord, tensWord;
+<a name="1164"></a>#define defDigit(num, val) object digitWord=#@num numval=val
+<a name="1165"></a>#define defTeen(num, val)  object teenWord=#@num numval=val
+<a name="1166"></a>#define defTens(num, val)  object tensWord=#@num numval=val
+<a name="1167"></a>
+<a name="1168"></a>defDigit(one, 1);
+<a name="1169"></a>defDigit(two, 2);
+<a name="1170"></a>defDigit(three, 3);
+<a name="1171"></a>defDigit(four, 4);
+<a name="1172"></a>defDigit(five, 5);
+<a name="1173"></a>defDigit(six, 6);
+<a name="1174"></a>defDigit(seven, 7);
+<a name="1175"></a>defDigit(eight, 8);
+<a name="1176"></a>defDigit(nine, 9);
+<a name="1177"></a>defTeen(ten, 10);
+<a name="1178"></a>defTeen(eleven, 11);
+<a name="1179"></a>defTeen(twelve, 12);
+<a name="1180"></a>defTeen(thirteen, 13);
+<a name="1181"></a>defTeen(fourteen, 14);
+<a name="1182"></a>defTeen(fifteen, 15);
+<a name="1183"></a>defTeen(sixteen, 16);
+<a name="1184"></a>defTeen(seventeen, 17);
+<a name="1185"></a>defTeen(eighteen, 18);
+<a name="1186"></a>defTeen(nineteen, 19);
+<a name="1187"></a>defTens(twenty, 20);
+<a name="1188"></a>defTens(thirty, 30);
+<a name="1189"></a>defTens(forty, 40);
+<a name="1190"></a>defTens(fifty, 50);
+<a name="1191"></a>defTens(sixty, 60);
+<a name="1192"></a>defTens(seventy, 70);
+<a name="1193"></a>defTens(eighty, 80);
+<a name="1194"></a>defTens(ninety, 90);
+<a name="1195"></a>
+<a name="1196"></a>grammar spelledSmallNumber(digit): digitWord-&gt;num_ : Production
+<a name="1197"></a>    numval()
+<a name="1198"></a>    {
+<a name="1199"></a>        /* look up the units word in the dictionary */
+<a name="1200"></a>        return cmdDict.findWord(num_, &amp;digitWord)[1].numval;
+<a name="1201"></a>    }
+<a name="1202"></a>;
+<a name="1203"></a>
+<a name="1204"></a>grammar spelledSmallNumber(teen): teenWord-&gt;num_ : Production
+<a name="1205"></a>    numval()
+<a name="1206"></a>    {
+<a name="1207"></a>        /* look up the units word in the dictionary */
+<a name="1208"></a>        return cmdDict.findWord(num_, &amp;teenWord)[1].numval;
+<a name="1209"></a>    }
+<a name="1210"></a>;
+<a name="1211"></a>
+<a name="1212"></a>grammar spelledSmallNumber(tens): tensWord-&gt;num_ : Production
+<a name="1213"></a>    numval()
+<a name="1214"></a>    {
+<a name="1215"></a>        /* look up the units word in the dictionary */
+<a name="1216"></a>        return cmdDict.findWord(num_, &amp;tensWord)[1].numval;
+<a name="1217"></a>    }
+<a name="1218"></a>;
+<a name="1219"></a>
+<a name="1220"></a>grammar spelledSmallNumber(tensAndUnits):
+<a name="1221"></a>    tensWord-&gt;tens_ '-'-&gt;sep_ digitWord-&gt;units_
+<a name="1222"></a>    | tensWord-&gt;tens_ digitWord-&gt;units_
+<a name="1223"></a>    : Production
+<a name="1224"></a>    
+<a name="1225"></a>    //    numval = (tens_.numval + units_.numval)
+<a name="1226"></a>    numval()
+<a name="1227"></a>    {
+<a name="1228"></a>        return cmdDict.findWord(tens_, &amp;tensWord)[1].numval +
+<a name="1229"></a>            cmdDict.findWord(units_, &amp;digitWord)[1].numval;
+<a name="1230"></a>    }
+<a name="1231"></a>;
+<a name="1232"></a>
+<a name="1233"></a>grammar spelledSmallNumber(zero): 'zero' : Production
+<a name="1234"></a>    numval = 0
+<a name="1235"></a>;
+<a name="1236"></a>
+<a name="1237"></a>grammar spelledHundred(small): spelledSmallNumber-&gt;num_ : Production
+<a name="1238"></a>    numval = (num_.numval)
+<a name="1239"></a>;
+<a name="1240"></a>
+<a name="1241"></a>grammar spelledHundred(hundreds): spelledSmallNumber-&gt;hun_ 'hundred'
+<a name="1242"></a>    : Production
+<a name="1243"></a>
+<a name="1244"></a>    numval = (hun_.numval*100)
+<a name="1245"></a>;
+<a name="1246"></a>
+<a name="1247"></a>grammar spelledHundred(hundredsPlus):
+<a name="1248"></a>    spelledSmallNumber-&gt;hun_ 'hundred' spelledSmallNumber-&gt;num_
+<a name="1249"></a>    | spelledSmallNumber-&gt;hun_ 'hundred' 'and'-&gt;and_ spelledSmallNumber-&gt;num_
+<a name="1250"></a>    : Production
+<a name="1251"></a>
+<a name="1252"></a>    numval = (hun_.numval*100 + num_.numval)
+<a name="1253"></a>;
+<a name="1254"></a>
+<a name="1255"></a>grammar spelledHundred(aHundred): 'a' 'hundred' : Production
+<a name="1256"></a>;
+<a name="1257"></a>
+<a name="1258"></a>grammar spelledHundred(aHundredPlus):
+<a name="1259"></a>    'a' 'hundred' 'and' spelledSmallNumber-&gt;num_
+<a name="1260"></a>    : Production
+<a name="1261"></a>
+<a name="1262"></a>    numval = (100 + num_.numval)
+<a name="1263"></a>;
+<a name="1264"></a>
+<a name="1265"></a>grammar spelledThousand(thousands): spelledHundred-&gt;thou_ 'thousand'
+<a name="1266"></a>    : Production
+<a name="1267"></a>
+<a name="1268"></a>    numval = (thou_.numval*1000)
+<a name="1269"></a>;
+<a name="1270"></a>
+<a name="1271"></a>grammar spelledThousand(thousandsPlus):
+<a name="1272"></a>    spelledHundred-&gt;thou_ 'thousand' spelledHundred-&gt;num_
+<a name="1273"></a>    : Production
+<a name="1274"></a>
+<a name="1275"></a>    numval = (thou_.numval*1000 + num_.numval)
+<a name="1276"></a>;
+<a name="1277"></a>
+<a name="1278"></a>grammar spelledThousand(thousandsAndSmall):
+<a name="1279"></a>    spelledHundred-&gt;thou_ 'thousand' 'and' spelledSmallNumber-&gt;num_
+<a name="1280"></a>    : Production
+<a name="1281"></a>
+<a name="1282"></a>    numval = (thou_.numval*1000 + num_.numval)
+<a name="1283"></a>;
+<a name="1284"></a>
+<a name="1285"></a>grammar spelledThousand(aThousand): 'a' 'thousand' : Production
+<a name="1286"></a>    numval = 1000
+<a name="1287"></a>;
+<a name="1288"></a>
+<a name="1289"></a>grammar spelledThousand(aThousandAndSmall):
+<a name="1290"></a>    'a' 'thousand' 'and' spelledSmallNumber-&gt;num_
+<a name="1291"></a>    : Production
+<a name="1292"></a>
+<a name="1293"></a>    numval = (1000 + num_.numval)
+<a name="1294"></a>;
+<a name="1295"></a>
+<a name="1296"></a>grammar spelledMillion(millions): spelledHundred-&gt;mil_ 'million': Production
+<a name="1297"></a>    numval = (mil_.numval*1000000)
+<a name="1298"></a>;
+<a name="1299"></a>
+<a name="1300"></a>grammar spelledMillion(millionsPlus):
+<a name="1301"></a>    spelledHundred-&gt;mil_ 'million'
+<a name="1302"></a>    (spelledThousand-&gt;nxt_ | spelledHundred-&gt;nxt_)
+<a name="1303"></a>    : Production
+<a name="1304"></a>
+<a name="1305"></a>    numval = (mil_.numval*1000000 + nxt_.numval)
+<a name="1306"></a>;
+<a name="1307"></a>
+<a name="1308"></a>grammar spelledMillion(aMillion): 'a' 'million' : Production
+<a name="1309"></a>    numval = 1000000
+<a name="1310"></a>;
+<a name="1311"></a>
+<a name="1312"></a>grammar spelledMillion(aMillionAndSmall):
+<a name="1313"></a>    'a' 'million' 'and' spelledSmallNumber-&gt;num_
+<a name="1314"></a>    : Production
+<a name="1315"></a>
+<a name="1316"></a>    numval = (1000000 + num_.numval)
+<a name="1317"></a>;
+<a name="1318"></a>
+<a name="1319"></a>grammar spelledMillion(millionsAndSmall):
+<a name="1320"></a>    spelledHundred-&gt;mil_ 'million' 'and' spelledSmallNumber-&gt;num_
+<a name="1321"></a>    : Production
+<a name="1322"></a>
+<a name="1323"></a>    numval = (mil_.numval*1000000 + num_.numval)
+<a name="1324"></a>;
+<a name="1325"></a>
+<a name="1326"></a>grammar spelledNumber(main):
+<a name="1327"></a>    spelledHundred-&gt;num_
+<a name="1328"></a>    | spelledThousand-&gt;num_
+<a name="1329"></a>    | spelledMillion-&gt;num_
+<a name="1330"></a>    : Production
+<a name="1331"></a>
+<a name="1332"></a>    numval = (num_.numval)
+<a name="1333"></a>;
+<a name="1334"></a>
+<a name="1335"></a>/*
+<a name="1336"></a> *   The main grammar for an OOPS command.  This is separate from the main
+<a name="1337"></a> *   command grammar, since OOPS commands are somewhat special (in
+<a name="1338"></a> *   particular, they can't be mixed with other commands on an input line).
+<a name="1339"></a> *   
+<a name="1340"></a> *   The grammar tree for an OOPS command must include one or more
+<a name="1341"></a> *   OopsProduction objects.  Each of these must have a '-&gt;toks_' property
+<a name="1342"></a> *   that gives the sub-production with the literal token list of the
+<a name="1343"></a> *   correction.
+<a name="1344"></a> *   
+<a name="1345"></a> *   [Required] 
+<a name="1346"></a> */
+<a name="1347"></a>grammar oopsCommand(main):
+<a name="1348"></a>    oopsPhrase-&gt;oops_ | oopsPhrase-&gt;oops_ '.' : Production
+<a name="1349"></a>;
+<a name="1350"></a>
+<a name="1351"></a>grammar oopsPhrase(main):
+<a name="1352"></a>    'oops' miscWordList-&gt;toks_
+<a name="1353"></a>    | 'oops' ',' miscWordList-&gt;toks_
+<a name="1354"></a>    | 'o' miscWordList-&gt;toks_
+<a name="1355"></a>    | 'o' ',' miscWordList-&gt;toks_
+<a name="1356"></a>    : OopsProduction
+<a name="1357"></a>;
+<a name="1358"></a>
+<a name="1359"></a>/* ------------------------------------------------------------------------ */
+<a name="1360"></a>/*
+<a name="1361"></a> *   Direction grammar rules.
+<a name="1362"></a> */
+<a name="1363"></a>class DirectionName : object;
+<a name="1364"></a>
+<a name="1365"></a>#define DefineLangDir(root, dirNames, backPre, depName) \
+<a name="1366"></a>grammar directionName(root): dirNames: Production \
+<a name="1367"></a>   dir = root##Dir \
+<a name="1368"></a>; \
+<a name="1369"></a>\
+<a name="1370"></a>   root##Direction: DirectionName \
+<a name="1371"></a>   name = #@root \
+<a name="1372"></a>   backToPrefix = backPre\
+<a name="1373"></a>   departureName = depName 
+<a name="1374"></a>
+<a name="1375"></a>DefineLangDir(north, 'north' | 'n', 'back to the', 'to the north');
+<a name="1376"></a>DefineLangDir(south, 'south' | 's', 'back to the', 'to the south');
+<a name="1377"></a>DefineLangDir(east, 'east' | 'e', 'back to the', 'to the east');
+<a name="1378"></a>DefineLangDir(west, 'west' | 'w', 'back to the', 'to the west');
+<a name="1379"></a>DefineLangDir(northeast, 'northeast' | 'ne', 'back to the', 'to the northeast');
+<a name="1380"></a>DefineLangDir(northwest, 'northwest' | 'nw', 'back to the', 'to the northwest');
+<a name="1381"></a>DefineLangDir(southeast, 'southeast' | 'se', 'back to the', 'to the southeast');
+<a name="1382"></a>DefineLangDir(southwest, 'southwest' | 'sw', 'back to the', 'to the southwest');
+<a name="1383"></a>DefineLangDir(up, 'up' | 'u', 'back', 'upwards');
+<a name="1384"></a>DefineLangDir(down, 'down' | 'd', 'back', 'downwards');
+<a name="1385"></a>DefineLangDir(in, 'in', 'back', 'inwards');
+<a name="1386"></a>DefineLangDir(out, 'out', 'back', 'outwards');
+<a name="1387"></a>DefineLangDir(port, 'port' | 'p', 'back to', 'to port');
+<a name="1388"></a>DefineLangDir(starboard, 'starboard' | 'sb', 'back to', 'to starboard');
+<a name="1389"></a>DefineLangDir(aft, 'aft', 'back', 'going aft');
+<a name="1390"></a>DefineLangDir(fore, 'fore' | 'f' | 'forward' ,  'back', 'going forward');
+<a name="1391"></a>//
+<a name="1392"></a>
+<a name="1393"></a>/* ------------------------------------------------------------------------ */
+<a name="1394"></a>/*
+<a name="1395"></a> *   Yes or No phrase.  This is a reply to a simple Yes/No question.
+<a name="1396"></a> *   
+<a name="1397"></a> *   [Required] 
+<a name="1398"></a> */
+<a name="1399"></a>grammar yesOrNoPhrase(yes): 'yes' : YesOrNoProduction
+<a name="1400"></a>    answer = true
+<a name="1401"></a>;
+<a name="1402"></a>grammar yesOrNoPhrase(no): 'no' : YesOrNoProduction
+<a name="1403"></a>    answer = nil
+<a name="1404"></a>;
+<a name="1405"></a>
+<a name="1406"></a>
+<a name="1407"></a>/* ------------------------------------------------------------------------ */
+<a name="1408"></a>/*
+<a name="1409"></a> *   Verb grammar (predicate) rules for English.
+<a name="1410"></a> *   
+<a name="1411"></a> *   English's predicate syntax is highly positional.  That is, the role of
+<a name="1412"></a> *   each word in a predicate is determined largely by its position in the
+<a name="1413"></a> *   phrase.  There are a several common patterns to the predicate word
+<a name="1414"></a> *   order, but the specific pattern that applies to a given verb is
+<a name="1415"></a> *   essentially idiomatic to that verb, especially with respect to
+<a name="1416"></a> *   complement words (like the "up" in "pick up").  Our approach to
+<a name="1417"></a> *   defining the predicate grammar is therefore to define a separate,
+<a name="1418"></a> *   custom syntax rule for each verb.  This makes it easy to add rules for
+<a name="1419"></a> *   the odd little idioms in English verbs.
+<a name="1420"></a> *   
+<a name="1421"></a> *   For verbs that take indirect objects, the indirect object is usually
+<a name="1422"></a> *   introduced by a preposition (e.g., PUT KEY IN LOCK).  Since we
+<a name="1423"></a> *   consider the preposition in such a case to be part of the verb's
+<a name="1424"></a> *   grammatical structure, we write it directly into the grammar rule as a
+<a name="1425"></a> *   literal.  This means that we wouldn't be able to parse input that's
+<a name="1426"></a> *   missing the whole indirect object phrase (e.g., PUT KEY).  We don't
+<a name="1427"></a> *   want to just reject those without explanation, though, which means we
+<a name="1428"></a> *   have to define separate grammar rules for the truncated verbs.  Some
+<a name="1429"></a> *   of these cases are valid commands in their own right: UNLOCK DOOR and
+<a name="1430"></a> *   UNLOCK DOOR WITH KEY are both valid grammatically.  But PUT KEY isn't,
+<a name="1431"></a> *   so we need to mark this as missing its indirect object.  We do this by
+<a name="1432"></a> *   setting the missingRole property for these rules to the role (usually
+<a name="1433"></a> *   IndirectObject) of the phrase that's missing.
+<a name="1434"></a> *   
+<a name="1435"></a> *   Each VerbRule has several properties and methods that it can or must
+<a name="1436"></a> *   define:
+<a name="1437"></a> *   
+<a name="1438"></a> *   action [Required] - The associated Action that's executed when this
+<a name="1439"></a> *   verb is parsed.  The base library requires this property.
+<a name="1440"></a> *   
+<a name="1441"></a> *   verbPhrase - The message-building template for the verb.  The library
+<a name="1442"></a> *   uses this to construct messages to describe the associated action.
+<a name="1443"></a> *   The format is 'verb/verbing (dobj) (iobj) (accessory)'.  Each object
+<a name="1444"></a> *   role in parentheses consists of an optional preposition and the word
+<a name="1445"></a> *   'what' or 'whom'.  For example, 'ask/asking (whom) (about what)'.
+<a name="1446"></a> *   Outside of the parentheses, you can also include verb complement words
+<a name="1447"></a> *   before the first object or after the last, but never between objects:
+<a name="1448"></a> *   for example, 'pick/picking up (what)'.
+<a name="1449"></a> *   
+<a name="1450"></a> *   missingQ - the template for asking missing object questions.  This
+<a name="1451"></a> *   consists of one question per object, separated by semicolons, in the
+<a name="1452"></a> *   order dobj, iobj, accessory.  You only need as many questions as the
+<a name="1453"></a> *   verb has object slots (i.e., you only need an iobj question if the
+<a name="1454"></a> *   verb takes an indirect object).  The question is simply of the form
+<a name="1455"></a> *   "what do you want to &lt;verb&gt;", but you can also include the words "it"
+<a name="1456"></a> *   and "that" to refer to the "other" object(s) in the verb.  "It" will
+<a name="1457"></a> *   be replaced by it/him/her/them as appropriate, and "that" by
+<a name="1458"></a> *   that/them.  Use it-dobj, it-iobj, it-acc to specify which other object
+<a name="1459"></a> *   you're talking about (which is never necessary for two-object verbs,
+<a name="1460"></a> *   since there's only one other object).  Put the entire 'it' phrase,
+<a name="1461"></a> *   including prepositions, in parentheses to make it optional; it will be
+<a name="1462"></a> *   omitted if the object isn't part of the command input.  This is only
+<a name="1463"></a> *   necessary for objects appearing earlier in the verb rule, since it's
+<a name="1464"></a> *   resolved left to right.
+<a name="1465"></a> *   
+<a name="1466"></a> *   missingRole - the object role (DirectObject, etc) that's explicitly
+<a name="1467"></a> *   missing from this grammar syntax.  This is for rules that you define
+<a name="1468"></a> *   specifically to recognize partial input, like "PUT &lt;dobj&gt;".  The
+<a name="1469"></a> *   parser will ask for the missing object when it resolves such a rule.
+<a name="1470"></a> *   
+<a name="1471"></a> *   answerMissing(cmd, np) - the base library calls this when the player
+<a name="1472"></a> *   answers the parser's question asking for the missing noun phrase.
+<a name="1473"></a> *   'cmd' is the Command, and 'np' is the noun phrase parsed from the
+<a name="1474"></a> *   user's answer to the query.  This is called from the base library but
+<a name="1475"></a> *   isn't required, in that it's purely advisory.  The point of this
+<a name="1476"></a> *   routine is to let the verb change the command according to the reply.
+<a name="1477"></a> *   For example, in English, we have a generic Put &lt;dobj&gt; verb that asks
+<a name="1478"></a> *   where to put the dobj.  If the user says "in the box", we can change
+<a name="1479"></a> *   the action to Put In; if the user says "on the table", we can change
+<a name="1480"></a> *   the action to Put On.
+<a name="1481"></a> *   
+<a name="1482"></a> *   dobjReply, iobjReply, accReply - the noun phrase production to use for
+<a name="1483"></a> *   parsing a reply to the missing-object question for the corresponding
+<a name="1484"></a> *   role.  Players sometimes reply to a question like "What do you want to
+<a name="1485"></a> *   put it in?" by starting the answer with the same preposition in the
+<a name="1486"></a> *   question: "in the box".  To support this, you can specify a noun
+<a name="1487"></a> *   phrase production that starts with the appropriate preposition
+<a name="1488"></a> *   (inSingleNoun, onSingleNoun, etc). 
+<a name="1489"></a> *   
+<a name="1490"></a> *   (Note that the base library doesn't place any requirements on exactly
+<a name="1491"></a> *   how the verb rules are defined.  In particular, you don't have to
+<a name="1492"></a> *   define one rule per verb, the way we do in English.  The English
+<a name="1493"></a> *   module's one-verb/one-rule approach might not be a good fit when
+<a name="1494"></a> *   implementing a highly inflected language, since such languages are
+<a name="1495"></a> *   typically a lot more flexible about word order, creating a wide range
+<a name="1496"></a> *   of possible phrasings for each verb.  It might be easier to for such a
+<a name="1497"></a> *   language to define a set of universal verb grammar rules that cover
+<a name="1498"></a> *   the common structures for all verbs, and then define the individual
+<a name="1499"></a> *   verbs as simple vocabulary words that slot into this universal phrase
+<a name="1500"></a> *   structure.)  
+<a name="1501"></a> */
+<a name="1502"></a>
+<a name="1503"></a>VerbRule(Take)
+<a name="1504"></a>    ('take' | 'pick' 'up' | 'get') multiDobj
+<a name="1505"></a>    | 'pick' multiDobj 'up'
+<a name="1506"></a>    : VerbProduction
+<a name="1507"></a>    action = Take
+<a name="1508"></a>    verbPhrase = 'take/taking (what)'
+<a name="1509"></a>    missingQ = 'what do you want to take'
+<a name="1510"></a>;
+<a name="1511"></a>
+<a name="1512"></a>VerbRule(TakeFrom)
+<a name="1513"></a>    ('take' | 'get') multiDobj
+<a name="1514"></a>        ('from' | 'out' 'of' | 'off' | 'off' 'of') singleIobj
+<a name="1515"></a>    | 'remove' multiDobj 'from' singleIobj
+<a name="1516"></a>    : VerbProduction
+<a name="1517"></a>    action = TakeFrom
+<a name="1518"></a>    verbPhrase = 'take/taking (what) (from what)'
+<a name="1519"></a>    missingQ = 'what do you want to take;what do you want to take it from'
+<a name="1520"></a>;
+<a name="1521"></a>
+<a name="1522"></a>VerbRule(Remove)
+<a name="1523"></a>    'remove' multiDobj
+<a name="1524"></a>    : VerbProduction
+<a name="1525"></a>    action = Remove
+<a name="1526"></a>    verbPhrase = 'remove/removing (what)'
+<a name="1527"></a>    missingQ = 'what do you want to remove'
+<a name="1528"></a>;
+<a name="1529"></a>
+<a name="1530"></a>VerbRule(Drop)
+<a name="1531"></a>    ('drop' | 'put' 'down' | 'set' 'down') multiDobj
+<a name="1532"></a>    | ('put' | 'set') multiDobj 'down'
+<a name="1533"></a>    : VerbProduction
+<a name="1534"></a>    action = Drop
+<a name="1535"></a>    verbPhrase = 'drop/dropping (what)'
+<a name="1536"></a>    missingQ = 'what do you want to drop'
+<a name="1537"></a>;
+<a name="1538"></a>
+<a name="1539"></a>VerbRule(Examine)
+<a name="1540"></a>    ('examine' | 'inspect' | 'x' | 'look' 'at' | 'l' 'at') multiDobj
+<a name="1541"></a>    : VerbProduction
+<a name="1542"></a>    action = Examine
+<a name="1543"></a>    verbPhrase = 'examine/examining (what)'
+<a name="1544"></a>    missingQ = 'what do you want to examine'
+<a name="1545"></a>;
+<a name="1546"></a>
+<a name="1547"></a>VerbRule(LookX)
+<a name="1548"></a>    ('look'|'l') multiDobj
+<a name="1549"></a>    : VerbProduction
+<a name="1550"></a>    action = Examine
+<a name="1551"></a>    verbPhrase = 'examine/examining (what)'
+<a name="1552"></a>    missingQ = 'what do you want to look at'
+<a name="1553"></a>    
+<a name="1554"></a>    /* 
+<a name="1555"></a>     *   We give this a lower priority to ensure that LOOK AT FOO is parsed as
+<a name="1556"></a>     *   (LOOK AT) FOO rather than LOOK (AT FOO).
+<a name="1557"></a>     */
+<a name="1558"></a>    priority = 40
+<a name="1559"></a>;
+<a name="1560"></a>
+<a name="1561"></a>
+<a name="1562"></a>VerbRule(Read)
+<a name="1563"></a>    'read' multiDobj
+<a name="1564"></a>    : VerbProduction
+<a name="1565"></a>    action = Read
+<a name="1566"></a>    verbPhrase = 'read/reading (what)'
+<a name="1567"></a>    missingQ = 'what do you want to read'
+<a name="1568"></a>;
+<a name="1569"></a>
+<a name="1570"></a>VerbRule(LookIn)
+<a name="1571"></a>    ('look' | 'l') ('in' | 'inside') multiDobj
+<a name="1572"></a>    : VerbProduction
+<a name="1573"></a>    action = LookIn
+<a name="1574"></a>    verbPhrase = 'look/looking (in what)'
+<a name="1575"></a>    missingQ = 'what do you want to look in'   
+<a name="1576"></a>    priority = 60
+<a name="1577"></a>;
+<a name="1578"></a>
+<a name="1579"></a>VerbRule(Search)
+<a name="1580"></a>    'search' multiDobj
+<a name="1581"></a>    : VerbProduction
+<a name="1582"></a>    action = Search
+<a name="1583"></a>    verbPhrase = 'search/searching (what)'
+<a name="1584"></a>    missingQ = 'what do you want to search'
+<a name="1585"></a>;
+<a name="1586"></a>
+<a name="1587"></a>VerbRule(LookThrough)
+<a name="1588"></a>    ('look' | 'l' | 'peer') ('through' | 'thru' | 'out') multiDobj
+<a name="1589"></a>    : VerbProduction
+<a name="1590"></a>    action = LookThrough
+<a name="1591"></a>    verbPhrase = 'look/looking (through what)'
+<a name="1592"></a>    missingQ = 'what do you want to look through'
+<a name="1593"></a>;
+<a name="1594"></a>
+<a name="1595"></a>VerbRule(LookUnder)
+<a name="1596"></a>    ('search' | 'look' | 'l') 'under' multiDobj
+<a name="1597"></a>    : VerbProduction
+<a name="1598"></a>    action = LookUnder
+<a name="1599"></a>    verbPhrase = 'look/looking (under what)'
+<a name="1600"></a>    missingQ = 'what do you want to look under'
+<a name="1601"></a>;
+<a name="1602"></a>
+<a name="1603"></a>VerbRule(LookBehind)
+<a name="1604"></a>    ('search' | 'look' | 'l') 'behind' multiDobj
+<a name="1605"></a>    : VerbProduction
+<a name="1606"></a>    action = LookBehind
+<a name="1607"></a>    verbPhrase = 'look/looking (behind what)'
+<a name="1608"></a>    missingQ = 'what do you want to look behind'
+<a name="1609"></a>;
+<a name="1610"></a>
+<a name="1611"></a>VerbRule(Feel)
+<a name="1612"></a>    ('feel' | 'touch') multiDobj
+<a name="1613"></a>    : VerbProduction
+<a name="1614"></a>    action = Feel
+<a name="1615"></a>    verbPhrase = 'touch/touching (what)'
+<a name="1616"></a>    missingQ = 'what do you want to touch'
+<a name="1617"></a>;
+<a name="1618"></a>
+<a name="1619"></a>VerbRule(Taste)
+<a name="1620"></a>    'taste' multiDobj
+<a name="1621"></a>    : VerbProduction
+<a name="1622"></a>    action = Taste
+<a name="1623"></a>    verbPhrase = 'taste/tasting (what)'
+<a name="1624"></a>    missingQ = 'what do you want to taste'
+<a name="1625"></a>;
+<a name="1626"></a>
+<a name="1627"></a>VerbRule(SmellSomething)
+<a name="1628"></a>    ('smell' | 'sniff') multiDobj
+<a name="1629"></a>    : VerbProduction
+<a name="1630"></a>    action = SmellSomething
+<a name="1631"></a>    verbPhrase = 'smell/smelling (what)'
+<a name="1632"></a>    missingQ = 'what do you want to smell'
+<a name="1633"></a>;
+<a name="1634"></a>
+<a name="1635"></a>VerbRule(Smell)
+<a name="1636"></a>    'smell' | 'sniff'
+<a name="1637"></a>    : VerbProduction
+<a name="1638"></a>    action = Smell
+<a name="1639"></a>    verbPhrase = 'smell/smelling'
+<a name="1640"></a>;
+<a name="1641"></a>
+<a name="1642"></a>VerbRule(ListenTo)
+<a name="1643"></a>    ('hear' | 'listen' 'to' ) multiDobj
+<a name="1644"></a>    : VerbProduction
+<a name="1645"></a>    action = ListenTo
+<a name="1646"></a>    verbPhrase = 'listen/listening (to what)'
+<a name="1647"></a>    missingQ = 'what do you want to listen to'
+<a name="1648"></a>;
+<a name="1649"></a>
+<a name="1650"></a>VerbRule(Listen)
+<a name="1651"></a>    'listen' | 'hear'
+<a name="1652"></a>    : VerbProduction
+<a name="1653"></a>    action = Listen
+<a name="1654"></a>    verbPhrase = 'listen/listening'
+<a name="1655"></a>;
+<a name="1656"></a>
+<a name="1657"></a>
+<a name="1658"></a>VerbRule(PutIn)
+<a name="1659"></a>    ('put' | 'place' | 'set' | 'insert') multiDobj
+<a name="1660"></a>        ('in' | 'into' | 'in' 'to' | 'inside' | 'inside' 'of') singleIobj
+<a name="1661"></a>    : VerbProduction
+<a name="1662"></a>    action = PutIn
+<a name="1663"></a>    verbPhrase = 'put/putting (what) (in what)'
+<a name="1664"></a>    missingQ = 'what do you want to put (in it);what do you want to put it in'
+<a name="1665"></a>    iobjReply = inSingleNoun
+<a name="1666"></a>;
+<a name="1667"></a>
+<a name="1668"></a>VerbRule(PutOn)
+<a name="1669"></a>    ('put' | 'place' | 'drop' | 'set') multiDobj
+<a name="1670"></a>        ('on' | 'onto' | 'on' 'to' | 'upon') singleIobj
+<a name="1671"></a>    | 'put' multiDobj 'down' 'on' singleIobj
+<a name="1672"></a>    : VerbProduction
+<a name="1673"></a>    action = PutOn
+<a name="1674"></a>    verbPhrase = 'put/putting (what) (on what)'
+<a name="1675"></a>    missingQ = 'what do you want to put (on it);what do you want to put it on'
+<a name="1676"></a>    iobjReply = onSingleNoun
+<a name="1677"></a>;
+<a name="1678"></a>
+<a name="1679"></a>VerbRule(PutUnder)
+<a name="1680"></a>    ('put' | 'place' | 'set') multiDobj 'under' singleIobj
+<a name="1681"></a>    : VerbProduction
+<a name="1682"></a>    action = PutUnder
+<a name="1683"></a>    verbPhrase = 'put/putting (what) (under what)'
+<a name="1684"></a>    missingQ = 'what do you want to put (under it);'
+<a name="1685"></a>             + 'what do you want to put it under'
+<a name="1686"></a>;
+<a name="1687"></a>
+<a name="1688"></a>VerbRule(PutBehind)
+<a name="1689"></a>    ('put' | 'place' | 'set') multiDobj 'behind' singleIobj
+<a name="1690"></a>    : VerbProduction
+<a name="1691"></a>    action = PutBehind
+<a name="1692"></a>    verbPhrase = 'put/putting (what) (behind what)'
+<a name="1693"></a>    missingQ = 'what do you want to put (behind it);'
+<a name="1694"></a>    + 'what do you want to put it behind'
+<a name="1695"></a>;
+<a name="1696"></a>
+<a name="1697"></a>VerbRule(PutWhere)
+<a name="1698"></a>    [badness 500] ('put' | 'place') multiDobj
+<a name="1699"></a>    : VerbProduction
+<a name="1700"></a>    action = PutIn
+<a name="1701"></a>    verbPhrase = 'put/putting (what) (in what)'
+<a name="1702"></a>    missingQ = 'what do you want to put;where do you want to put it'
+<a name="1703"></a>
+<a name="1704"></a>    missingRole = IndirectObject
+<a name="1705"></a>    iobjReply = putPrepSingleNoun
+<a name="1706"></a>
+<a name="1707"></a>    /* 
+<a name="1708"></a>     *   when the player supplies our missing indirect object by answering
+<a name="1709"></a>     *   the "where do you want to put it" question, we'll change the
+<a name="1710"></a>     *   action according to the preposition in the indirect object reply 
+<a name="1711"></a>     */
+<a name="1712"></a>    answerMissing(cmd, np)
+<a name="1713"></a>    {
+<a name="1714"></a>        /* this only applies to the indirect object */
+<a name="1715"></a>        if (np.role == IndirectObject &amp;&amp; np.prod.prep_ != nil)
+<a name="1716"></a>        {
+<a name="1717"></a>            /* get the prepositions they used */
+<a name="1718"></a>            local preps = np.prod.prep_.getText();
+<a name="1719"></a>
+<a name="1720"></a>            /* 
+<a name="1721"></a>             *   look for a template with the same prepositions among the
+<a name="1722"></a>             *   various Put grammar rules 
+<a name="1723"></a>             */
+<a name="1724"></a>            foreach (local action in [PutIn, PutOn, PutBehind, PutUnder])
+<a name="1725"></a>            {
+<a name="1726"></a>                if (action.grammarTemplates
+<a name="1727"></a>                    .indexWhich({ t: t.find(preps) }) != nil)
+<a name="1728"></a>                {
+<a name="1729"></a>                    /* found it - use this action */
+<a name="1730"></a>                    cmd.action = action;
+<a name="1731"></a>                    return;
+<a name="1732"></a>                }
+<a name="1733"></a>            }
+<a name="1734"></a>        }
+<a name="1735"></a>    }
+<a name="1736"></a>
+<a name="1737"></a>    priority = 25
+<a name="1738"></a>;
+<a name="1739"></a>
+<a name="1740"></a>VerbRule(Wear)
+<a name="1741"></a>    ('wear' | 'don' | 'put' 'on') multiDobj
+<a name="1742"></a>    | 'put' multiDobj 'on'
+<a name="1743"></a>    : VerbProduction
+<a name="1744"></a>    action = Wear
+<a name="1745"></a>    verbPhrase = 'wear/wearing (what)'
+<a name="1746"></a>    missingQ = 'what do you want to wear'
+<a name="1747"></a>;
+<a name="1748"></a>
+<a name="1749"></a>VerbRule(Doff)
+<a name="1750"></a>    ('doff' | 'take' 'off') multiDobj
+<a name="1751"></a>    | 'take' multiDobj 'off'
+<a name="1752"></a>    : VerbProduction
+<a name="1753"></a>    action = Doff
+<a name="1754"></a>    verbPhrase = 'take/taking off (what)'
+<a name="1755"></a>    missingQ = 'what do you want to take off'
+<a name="1756"></a>;
+<a name="1757"></a>
+<a name="1758"></a>VerbRule(Kiss)
+<a name="1759"></a>    'kiss' singleDobj
+<a name="1760"></a>    : VerbProduction
+<a name="1761"></a>    action = Kiss
+<a name="1762"></a>    verbPhrase = 'kiss/kissing (whom)'
+<a name="1763"></a>    missingQ = 'whom do you want to kiss'
+<a name="1764"></a>;
+<a name="1765"></a>
+<a name="1766"></a>VerbRule(Query)
+<a name="1767"></a>    ('a' | 'ask') ('what' -&gt;qtype | 'who' -&gt;qtype | 'where' -&gt; qtype | 'why'
+<a name="1768"></a>                   -&gt;qtype | 'when' -&gt; qtype| 'how' -&gt; qtype | 'whether' -&gt;
+<a name="1769"></a>                    qtype | 'if' -&gt; qtype) topicDobj
+<a name="1770"></a>    : VerbProduction
+<a name="1771"></a>    action = Query
+<a name="1772"></a>    verbPhrase = 'ask/asking (what)'
+<a name="1773"></a>    missingQ = 'what do you want to ask'
+<a name="1774"></a>    priority = 60
+<a name="1775"></a>;
+<a name="1776"></a>
+<a name="1777"></a>VerbRule(Query2)
+<a name="1778"></a>    ('what' -&gt;qtype | 'who' -&gt;qtype | 'where' -&gt; qtype | 'why'
+<a name="1779"></a>                   -&gt;qtype | 'when' -&gt; qtype| 'how' -&gt; qtype) topicDobj
+<a name="1780"></a>    : VerbProduction
+<a name="1781"></a>    action = Query
+<a name="1782"></a>    verbPhrase = 'ask/asking (what)'
+<a name="1783"></a>    missingQ = 'what do you want to ask'
+<a name="1784"></a>    priority = 60
+<a name="1785"></a>;
+<a name="1786"></a>
+<a name="1787"></a>VerbRule(QueryAbout)
+<a name="1788"></a>    ('a' | 'ask') singleDobj ('what' -&gt;qtype | 'who' -&gt;qtype | 
+<a name="1789"></a>                               'where' -&gt; qtype | 'why'
+<a name="1790"></a>                   -&gt;qtype | 'when' -&gt; qtype| 'how' -&gt; qtype | 'whether' -&gt;
+<a name="1791"></a>                    qtype | 'if' -&gt; qtype)  topicIobj
+<a name="1792"></a>    : VerbProduction
+<a name="1793"></a>    action = QueryAbout
+<a name="1794"></a>    verbPhrase = 'ask/asking (what)'
+<a name="1795"></a>    missingQ = 'what do you want to ask'
+<a name="1796"></a>    priority = 60
+<a name="1797"></a>;
+<a name="1798"></a>
+<a name="1799"></a>VerbRule(QueryVague)
+<a name="1800"></a>    ('a' | 'ask'|) ('what' -&gt;qType | 'who' -&gt;qtype | 'where' -&gt; qtype | 'why'
+<a name="1801"></a>                   -&gt;qType | 'when' -&gt; qtype| 'how' -&gt; qtype | 'whether' -&gt;
+<a name="1802"></a>                    qtype | 'if' -&gt; qtype) 
+<a name="1803"></a>    : VerbProduction
+<a name="1804"></a>    action = QueryVague
+<a name="1805"></a>    verbPhrase = 'ask/asking (what)'
+<a name="1806"></a>    missingQ = 'what do you want to ask'
+<a name="1807"></a>    priority = 60
+<a name="1808"></a>;
+<a name="1809"></a>
+<a name="1810"></a>VerbRule(AuxQuery)
+<a name="1811"></a>    ('a' | 'ask'|) ('do' | 'does' | 'did' | 'is' | 'are'| 'have' | 'has' |'can' |
+<a name="1812"></a>     'could' | 'would' | 'should' | 'were' ) topicDobj
+<a name="1813"></a>    :VerbProduction
+<a name="1814"></a>    action = Query
+<a name="1815"></a>    missingQ = 'what do you want to ask'
+<a name="1816"></a>    priority = 60
+<a name="1817"></a>    qtype = 'if'
+<a name="1818"></a>;
+<a name="1819"></a>
+<a name="1820"></a>/* 
+<a name="1821"></a> *   For queries, turn an apostrophe-s form into the underlying qtype plus is so
+<a name="1822"></a> *   that the grammar defined immediately above can be matched.
+<a name="1823"></a> */
+<a name="1824"></a>
+<a name="1825"></a>queryPreParser: StringPreParser
+<a name="1826"></a>    doParsing(str, which)
+<a name="1827"></a>    {
+<a name="1828"></a>        local s = str.toLower();
+<a name="1829"></a>        
+<a name="1830"></a>        /* First, check that this looks like a query */
+<a name="1831"></a>        if(s.startsWith('a ') || s.startsWith('ask ') || s.substr(1, 3) is in
+<a name="1832"></a>           ('who', 'wha', 'whe', 'why', 'how'))
+<a name="1833"></a>        {
+<a name="1834"></a>            str = s.findReplace(['what\'s','who\'s', 'where\'s', 'why\'s',
+<a name="1835"></a>                'when\'s', 'how\'s'], ['what is', 'who is', 'where is', 'why
+<a name="1836"></a>                    is', 'when is', 'how is'], ReplaceOnce);        
+<a name="1837"></a>                       
+<a name="1838"></a>        
+<a name="1839"></a>        }
+<a name="1840"></a>
+<a name="1841"></a>    
+<a name="1842"></a>        return str;
+<a name="1843"></a>    }
+<a name="1844"></a>;
+<a name="1845"></a>
+<a name="1846"></a>VerbRule(AskFor)
+<a name="1847"></a>    ('ask' | 'a') singleDobj 'for' topicIobj
+<a name="1848"></a>    | ('ask' | 'a') 'for' topicIobj 'from' singleDobj
+<a name="1849"></a>    : VerbProduction
+<a name="1850"></a>    action = AskFor
+<a name="1851"></a>    verbPhrase = 'ask/asking (whom) (for what)'
+<a name="1852"></a>    missingQ = 'whom do you want to ask;what do you want to ask it for'
+<a name="1853"></a>    dobjReply = singleNoun
+<a name="1854"></a>    iobjReply = forSingleNoun
+<a name="1855"></a>;
+<a name="1856"></a>
+<a name="1857"></a>VerbRule(AskWhomFor)
+<a name="1858"></a>    ('ask' | 'a') 'for' topicIobj
+<a name="1859"></a>    : VerbProduction
+<a name="1860"></a>    action = AskFor
+<a name="1861"></a>    verbPhrase = 'ask/asking (whom) (for what)'
+<a name="1862"></a>    missingQ = 'whom do you want to ask;what do you want to ask it for'
+<a name="1863"></a>
+<a name="1864"></a>    priority = 25
+<a name="1865"></a>;
+<a name="1866"></a>
+<a name="1867"></a>VerbRule(AskForImplicit)
+<a name="1868"></a>    ('a' | 'ask')  'for' topicIobj
+<a name="1869"></a>    : VerbProduction
+<a name="1870"></a>    action = AskForImplicit
+<a name="1871"></a>    verbPhrase = 'ask/asking (whom) (for what)'
+<a name="1872"></a>    missingQ = 'whom do you want to ask;what do you want to ask it for'
+<a name="1873"></a>    iobjReply = topicPhrase
+<a name="1874"></a>    priority = 60
+<a name="1875"></a>;
+<a name="1876"></a>
+<a name="1877"></a>
+<a name="1878"></a>
+<a name="1879"></a>VerbRule(AskAbout)
+<a name="1880"></a>    ('ask' | 'a') singleDobj 'about' topicIobj
+<a name="1881"></a>    : VerbProduction
+<a name="1882"></a>    action = AskAbout
+<a name="1883"></a>    verbPhrase = 'ask/asking (whom) (about what)'
+<a name="1884"></a>    missingQ = 'whom do you want to ask;what do you want to ask it about'
+<a name="1885"></a>    dobjReply = singleNoun
+<a name="1886"></a>    iobjReply = aboutTopicPhrase
+<a name="1887"></a>;
+<a name="1888"></a>
+<a name="1889"></a>VerbRule(AskAboutImplicit)
+<a name="1890"></a>    ('a' | ('ask' | 'tell' 'me') ('about')) topicIobj
+<a name="1891"></a>    : VerbProduction
+<a name="1892"></a>    action = AskAboutImplicit
+<a name="1893"></a>    verbPhrase = 'ask/asking (whom) (about what)'
+<a name="1894"></a>    missingQ = 'whom do you want to ask;what do you want to ask it about'
+<a name="1895"></a>    iobjReply = topicPhrase
+<a name="1896"></a>    priority = 45
+<a name="1897"></a>;
+<a name="1898"></a>
+<a name="1899"></a>VerbRule(AskAboutWhat)
+<a name="1900"></a>    [badness 500] 'ask' singleDobj
+<a name="1901"></a>    : VerbProduction
+<a name="1902"></a>    action = AskAbout
+<a name="1903"></a>    verbPhrase = 'ask/asking (whom) (about what)'
+<a name="1904"></a>    missingQ = 'whom do you want to ask;what do you want to ask it about'
+<a name="1905"></a>
+<a name="1906"></a>    missingRole = IndirectObject
+<a name="1907"></a>    iobjReply = aboutTopicPhrase
+<a name="1908"></a>
+<a name="1909"></a>    priority = 25
+<a name="1910"></a>;
+<a name="1911"></a>
+<a name="1912"></a>
+<a name="1913"></a>VerbRule(TellAbout)
+<a name="1914"></a>    ('tell' | 't') singleDobj 'about' topicIobj
+<a name="1915"></a>    : VerbProduction
+<a name="1916"></a>    action = TellAbout
+<a name="1917"></a>    verbPhrase = 'tell/telling (whom) (about what)'
+<a name="1918"></a>    missingQ = 'whom do you want to tell;what do you want to tell it about'
+<a name="1919"></a>    dobjReply = singleNoun
+<a name="1920"></a>    iobjReply = aboutTopicPhrase
+<a name="1921"></a>;
+<a name="1922"></a>
+<a name="1923"></a>VerbRule(TellAboutImplicit)
+<a name="1924"></a>    ('t' | 'tell' 'about') topicIobj
+<a name="1925"></a>    : VerbProduction
+<a name="1926"></a>    action = TellAboutImplicit
+<a name="1927"></a>    verbPhrase = 'tell/telling (whom) (about what)'
+<a name="1928"></a>    missingQ = 'whom do you want to tell;what do you want to tell it about'
+<a name="1929"></a>    iobjReply = topicPhrase
+<a name="1930"></a>;
+<a name="1931"></a>
+<a name="1932"></a>VerbRule(TellAboutWhat)
+<a name="1933"></a>    [badness 500] 'tell' singleDobj
+<a name="1934"></a>    : VerbProduction
+<a name="1935"></a>    action = TellAbout
+<a name="1936"></a>    verbPhrase = 'tell/telling (whom) (about what)'
+<a name="1937"></a>    missingQ = 'whom do you want to tell;what do you want to tell it about'
+<a name="1938"></a>
+<a name="1939"></a>    missingRole = IndirectObject
+<a name="1940"></a>    dobjReply = singleNoun
+<a name="1941"></a>    iobjReply = aboutTopicPhrase
+<a name="1942"></a>
+<a name="1943"></a>    priority = 25    
+<a name="1944"></a>;
+<a name="1945"></a>
+<a name="1946"></a>VerbRule(TellTo)
+<a name="1947"></a>    'tell' singleDobj 'to' literalIobj
+<a name="1948"></a>    : VerbProduction
+<a name="1949"></a>    action = TellTo
+<a name="1950"></a>    verbPhrase = 'tell/telling (whom) (to what)'
+<a name="1951"></a>    missingQ = 'whom do you want to tell;what do you want to tell it to do'
+<a name="1952"></a>    iobjReply = literalPhrase
+<a name="1953"></a>;
+<a name="1954"></a>
+<a name="1955"></a>VerbRule(TalkAbout)
+<a name="1956"></a>    'talk' 'to' singleDobj 'about' topicIobj
+<a name="1957"></a>    : VerbProduction
+<a name="1958"></a>    action = TalkAbout
+<a name="1959"></a>    verbPhrase = 'talk/talking (to whom) (about what)'
+<a name="1960"></a>    missingQ = 'to whom do you want to talk;what do you want to talk to it about'
+<a name="1961"></a>    dobjReply = toSingleNoun
+<a name="1962"></a>    iobjReply = aboutTopicPhrase
+<a name="1963"></a>;
+<a name="1964"></a>
+<a name="1965"></a>VerbRule(TalkAboutImplicit)
+<a name="1966"></a>    'talk' 'about' topicIobj
+<a name="1967"></a>    : VerbProduction
+<a name="1968"></a>    action = TalkAboutImplicit
+<a name="1969"></a>    verbPhrase = 'talk/talking (about what)'
+<a name="1970"></a>    missingQ = 'what do you want to talk about'
+<a name="1971"></a>    iobjReply = topicPhrase
+<a name="1972"></a>;
+<a name="1973"></a>
+<a name="1974"></a>VerbRule(AskVague)
+<a name="1975"></a>    [badness 500] 'ask' singleDobj topicIobj
+<a name="1976"></a>    : VerbProduction
+<a name="1977"></a>    action = AskAbout
+<a name="1978"></a>    verbPhrase = 'ask/asking (whom)'
+<a name="1979"></a>    missingQ = 'whom do you want to ask;what do you want to ask it about'
+<a name="1980"></a>;
+<a name="1981"></a>
+<a name="1982"></a>VerbRule(TellVague)
+<a name="1983"></a>    ('tell'|'t') singleDobj topicIobj
+<a name="1984"></a>    : VerbProduction
+<a name="1985"></a>    action = TellAbout
+<a name="1986"></a>    verbPhrase = 'tell/telling (whom)'
+<a name="1987"></a>    missingQ = 'whom do you want to tell;what do you want to tell it about'
+<a name="1988"></a>    priority = 40
+<a name="1989"></a>;
+<a name="1990"></a>
+<a name="1991"></a>VerbRule(TalkTo)
+<a name="1992"></a>    ('greet' | 'say' 'hello' 'to' | 'talk' 'to') singleDobj
+<a name="1993"></a>    : VerbProduction
+<a name="1994"></a>    action = TalkTo
+<a name="1995"></a>    verbPhrase = 'talk/talking (to whom)'
+<a name="1996"></a>    missingQ = 'whom do you want to talk to'
+<a name="1997"></a>    dobjReply = singleNoun
+<a name="1998"></a>;
+<a name="1999"></a>
+<a name="2000"></a>VerbRule(Topics)
+<a name="2001"></a>    'topics'
+<a name="2002"></a>    : VerbProduction
+<a name="2003"></a>    action = Topics
+<a name="2004"></a>    verbPhrase = 'show/showing topics'
+<a name="2005"></a>;
+<a name="2006"></a>
+<a name="2007"></a>VerbRule(Hello)
+<a name="2008"></a>    ('say' | ) ('hello' | 'hallo' | 'hi')
+<a name="2009"></a>    : VerbProduction
+<a name="2010"></a>    action = Hello
+<a name="2011"></a>    verbPhrase = 'say/saying hello'
+<a name="2012"></a>     /* Give this priority over SAY TOPIC */
+<a name="2013"></a>    priority = 60
+<a name="2014"></a>;
+<a name="2015"></a>
+<a name="2016"></a>VerbRule(Goodbye)
+<a name="2017"></a>    ('say' | ()) ('goodbye' | 'good-bye' | 'good' 'bye' | 'bye')
+<a name="2018"></a>    : VerbProduction
+<a name="2019"></a>    action = Goodbye
+<a name="2020"></a>    verbPhrase = 'say/saying goodbye'
+<a name="2021"></a>;
+<a name="2022"></a>
+<a name="2023"></a>VerbRule(Yes)
+<a name="2024"></a>    'yes' | 'affirmative' | 'say' 'yes'
+<a name="2025"></a>    : VerbProduction
+<a name="2026"></a>    action = SayYes
+<a name="2027"></a>    verbPhrase = 'say/saying yes'
+<a name="2028"></a>    /* Give this priority over SAY TOPIC */
+<a name="2029"></a>    priority = 60
+<a name="2030"></a>;
+<a name="2031"></a>
+<a name="2032"></a>VerbRule(No)
+<a name="2033"></a>    'no' | 'negative' | 'say' 'no'
+<a name="2034"></a>    : VerbProduction
+<a name="2035"></a>    action = SayNo
+<a name="2036"></a>    verbPhrase = 'say/saying no'
+<a name="2037"></a>    /* Give this priority over SAY TOPIC */
+<a name="2038"></a>    priority = 60
+<a name="2039"></a>;
+<a name="2040"></a>
+<a name="2041"></a>VerbRule(Yell)
+<a name="2042"></a>    'yell' | 'scream' | 'shout' | 'holler'
+<a name="2043"></a>    : VerbProduction
+<a name="2044"></a>    action = Yell
+<a name="2045"></a>    verbPhrase = 'yell/yelling'
+<a name="2046"></a>;
+<a name="2047"></a>
+<a name="2048"></a>VerbRule(GiveTo)
+<a name="2049"></a>    ('give' | 'offer') multiDobj 'to' singleIobj
+<a name="2050"></a>    : VerbProduction
+<a name="2051"></a>    action = GiveTo
+<a name="2052"></a>    verbPhrase = 'give/giving (what) (to whom)'
+<a name="2053"></a>    missingQ = 'what do you want to give (to it);whom do you want to give it to'
+<a name="2054"></a>    iobjReply = toSingleNoun
+<a name="2055"></a>;
+<a name="2056"></a>
+<a name="2057"></a>VerbRule(GiveToType2)
+<a name="2058"></a>    ('give' | 'offer') singleIobj multiDobj
+<a name="2059"></a>    : VerbProduction
+<a name="2060"></a>    action = GiveTo
+<a name="2061"></a>    verbPhrase = 'give/giving (what) (to whom)'
+<a name="2062"></a>    missingQ = 'what do you want to give (to it);whom do you want to give it to'
+<a name="2063"></a>    iobjReply = toSingleNoun
+<a name="2064"></a>
+<a name="2065"></a>    /* this is a non-prepositional phrasing */
+<a name="2066"></a>    isPrepositionalPhrasing = nil
+<a name="2067"></a>;
+<a name="2068"></a>
+<a name="2069"></a>VerbRule(GiveToImplicit)
+<a name="2070"></a>    ('give' | 'offer') multiDobj
+<a name="2071"></a>    : VerbProduction
+<a name="2072"></a>    action = GiveToImplicit
+<a name="2073"></a>    verbPhrase = 'give/giving (what) (to whom)'
+<a name="2074"></a>    missingQ = 'what do you want to give (to it);whom do you want to give it to'
+<a name="2075"></a>
+<a name="2076"></a>    priority = 25
+<a name="2077"></a>;
+<a name="2078"></a>
+<a name="2079"></a>VerbRule(ShowTo)
+<a name="2080"></a>    'show' multiDobj 'to' singleIobj
+<a name="2081"></a>    : VerbProduction
+<a name="2082"></a>    action = ShowTo
+<a name="2083"></a>    verbPhrase = 'show/showing (what) (to whom)'
+<a name="2084"></a>    missingQ = 'what do you want to show (to it);whom do you want to show it to'
+<a name="2085"></a>    iobjReply = toSingleNoun
+<a name="2086"></a>;
+<a name="2087"></a>
+<a name="2088"></a>VerbRule(ShowToType2)
+<a name="2089"></a>    'show' singleIobj multiDobj
+<a name="2090"></a>    : VerbProduction
+<a name="2091"></a>    action = ShowTo
+<a name="2092"></a>    verbPhrase = 'show/showing (what) (to whom)'
+<a name="2093"></a>    missingQ = 'what do you want to show (to it);whom do you want to show it to'
+<a name="2094"></a>    iobjReply = toSingleNoun
+<a name="2095"></a>
+<a name="2096"></a>    /* this is a non-prepositional phrasing */
+<a name="2097"></a>    isPrepositionalPhrasing = nil
+<a name="2098"></a>;
+<a name="2099"></a>
+<a name="2100"></a>VerbRule(ShowToImplicit)
+<a name="2101"></a>    'show' multiDobj
+<a name="2102"></a>    : VerbProduction
+<a name="2103"></a>    action = ShowToImplicit
+<a name="2104"></a>    verbPhrase = 'show/showing (what) (to whom)'
+<a name="2105"></a>    missingQ = 'what do you want to show (to it);whom do you want to show it to'
+<a name="2106"></a>
+<a name="2107"></a>    priority = 25
+<a name="2108"></a>;
+<a name="2109"></a>
+<a name="2110"></a>
+<a name="2111"></a>VerbRule(Say)
+<a name="2112"></a>    'say' ('that' |) topicDobj
+<a name="2113"></a>    : VerbProduction
+<a name="2114"></a>    action = SayAction
+<a name="2115"></a>    verbPhrase = 'say/saying (what)'
+<a name="2116"></a>    missingQ = 'what do you want to say'
+<a name="2117"></a>;
+<a name="2118"></a>
+<a name="2119"></a>VerbRule(SayTo)
+<a name="2120"></a>    'say' ('that' |) topicIobj 'to' singleDobj
+<a name="2121"></a>    : VerbProduction
+<a name="2122"></a>    action = SayTo
+<a name="2123"></a>    verbPhrase = 'say/saying (what) (to whom)'
+<a name="2124"></a>    missingQ = 'what do you want to say it to; what do you want to say'
+<a name="2125"></a>;
+<a name="2126"></a>
+<a name="2127"></a>VerbRule(TellThat)
+<a name="2128"></a>    'tell' singleDobj 'that' topicIobj
+<a name="2129"></a>    : VerbProduction
+<a name="2130"></a>    action = SayTo
+<a name="2131"></a>    verbPhrase = 'say/saying (what) (to whom)'
+<a name="2132"></a>    missingQ = 'what do you want to say it to; what do you want to say'
+<a name="2133"></a>;
+<a name="2134"></a>    
+<a name="2135"></a>VerbRule(Think)
+<a name="2136"></a>    'think' | 'ponder' | 'cogitate'
+<a name="2137"></a>    : VerbProduction
+<a name="2138"></a>    action = Think
+<a name="2139"></a>    verbPhrase = 'think/thinking'
+<a name="2140"></a>;
+<a name="2141"></a>
+<a name="2142"></a>VerbRule(ThinkAbout)
+<a name="2143"></a>    ('think' | 'ponder' | 'cogitate') 'about' topicDobj
+<a name="2144"></a>    : VerbProduction
+<a name="2145"></a>    action = ThinkAbout
+<a name="2146"></a>    verbPhrase = 'think/thinking (about what)'
+<a name="2147"></a>    missingQ = 'what do you want to think about'
+<a name="2148"></a>;
+<a name="2149"></a>    
+<a name="2150"></a>
+<a name="2151"></a>VerbRule(Throw)
+<a name="2152"></a>    ('throw' | 'toss') multiDobj
+<a name="2153"></a>    : VerbProduction
+<a name="2154"></a>    action = Throw
+<a name="2155"></a>    verbPhrase = 'throw/throwing (what)'
+<a name="2156"></a>    missingQ = 'what do you want to throw'
+<a name="2157"></a>;
+<a name="2158"></a>
+<a name="2159"></a>VerbRule(ThrowAt)
+<a name="2160"></a>    ('throw' | 'toss') multiDobj 'at' singleIobj
+<a name="2161"></a>    : VerbProduction
+<a name="2162"></a>    action = ThrowAt
+<a name="2163"></a>    verbPhrase = 'throw/throwing (what) (at what)'
+<a name="2164"></a>    missingQ = 'what do you want to throw (at it);what do you want to throw it at'
+<a name="2165"></a>    iobjReply = atSingleNoun
+<a name="2166"></a>;
+<a name="2167"></a>
+<a name="2168"></a>VerbRule(ThrowTo)
+<a name="2169"></a>    ('throw' | 'toss') multiDobj 'to' singleIobj
+<a name="2170"></a>    : VerbProduction
+<a name="2171"></a>    action = ThrowTo
+<a name="2172"></a>    verbPhrase = 'throw/throwing (what) (to whom)'
+<a name="2173"></a>    missingQ = 'what do you want to throw (to it);whom do you want to throw to it'
+<a name="2174"></a>    iobjReply = toSingleNoun
+<a name="2175"></a>;
+<a name="2176"></a>
+<a name="2177"></a>VerbRule(ThrowToType2)
+<a name="2178"></a>    'throw' singleIobj multiDobj
+<a name="2179"></a>    : VerbProduction
+<a name="2180"></a>    action = ThrowTo
+<a name="2181"></a>    verbPhrase = 'throw/throwing (what) (to whom)'
+<a name="2182"></a>    missingQ = 'what do you want to throw (to it);whom do you want to throw it to'
+<a name="2183"></a>    iobjReply = toSingleNoun
+<a name="2184"></a>
+<a name="2185"></a>    /* this is a non-prepositional phrasing */
+<a name="2186"></a>    isPrepositionalPhrasing = nil
+<a name="2187"></a>;
+<a name="2188"></a>
+<a name="2189"></a>VerbRule(ThrowDir)
+<a name="2190"></a>    ('throw' | 'toss') multiDobj ('to' ('the' | ) | ) singleDir
+<a name="2191"></a>    : VerbProduction
+<a name="2192"></a>    action = ThrowDir
+<a name="2193"></a>
+<a name="2194"></a>    verbPhrase = 'throw/throwing (what)'
+<a name="2195"></a>    missingQ = 'what do you want to throw'
+<a name="2196"></a>;
+<a name="2197"></a>
+<a name="2198"></a>/* a special rule for THROW DOWN &lt;dobj&gt; */
+<a name="2199"></a>VerbRule(ThrowDirDown)
+<a name="2200"></a>    'throw' ('down' | 'd') multiDobj
+<a name="2201"></a>    : VerbProduction
+<a name="2202"></a>    action = ThrowDir
+<a name="2203"></a>    verbPhrase = ('throw/throwing (what) down')
+<a name="2204"></a>    missingQ = 'what do you want to throw down'
+<a name="2205"></a>;
+<a name="2206"></a>
+<a name="2207"></a>VerbRule(Follow)
+<a name="2208"></a>    'follow' singleDobj
+<a name="2209"></a>    : VerbProduction
+<a name="2210"></a>    action = Follow
+<a name="2211"></a>    verbPhrase = 'follow/following (whom)'
+<a name="2212"></a>    missingQ = 'whom do you want to follow'
+<a name="2213"></a>    dobjReply = singleNoun
+<a name="2214"></a>;
+<a name="2215"></a>
+<a name="2216"></a>VerbRule(Attack)
+<a name="2217"></a>    ('attack' | 'kill' | 'hit' | 'kick' | 'punch') singleDobj
+<a name="2218"></a>    : VerbProduction
+<a name="2219"></a>    action = Attack
+<a name="2220"></a>    verbPhrase = 'attack/attacking (whom)'
+<a name="2221"></a>    missingQ = 'whom do you want to attack'
+<a name="2222"></a>    dobjReply = singleNoun
+<a name="2223"></a>;
+<a name="2224"></a>
+<a name="2225"></a>VerbRule(AttackWith)
+<a name="2226"></a>    ('attack' | 'kill' | 'hit' | 'strike')
+<a name="2227"></a>        singleDobj 'with' singleIobj
+<a name="2228"></a>    : VerbProduction
+<a name="2229"></a>    action = AttackWith
+<a name="2230"></a>    verbPhrase = 'attack/attacking (whom) (with what)'
+<a name="2231"></a>    missingQ = 'whom do you want to attack;what do you want to attack it with'
+<a name="2232"></a>    dobjReply = singleNoun
+<a name="2233"></a>    iobjReply = withSingleNoun
+<a name="2234"></a>;
+<a name="2235"></a>
+<a name="2236"></a>VerbRule(Inventory)
+<a name="2237"></a>    'i' | 'inv' | 'inventory' | 'take' 'inventory'
+<a name="2238"></a>    : VerbProduction
+<a name="2239"></a>    action = Inventory
+<a name="2240"></a>    verbPhrase = 'take/taking inventory'
+<a name="2241"></a>;
+<a name="2242"></a>
+<a name="2243"></a>VerbRule(InventoryTall)
+<a name="2244"></a>    ('i' | 'inv' | 'inventory') 'tall'
+<a name="2245"></a>    : VerbProduction
+<a name="2246"></a>    action = InventoryTall
+<a name="2247"></a>    verbPhrase = 'take/making inventory tall'
+<a name="2248"></a>;
+<a name="2249"></a>
+<a name="2250"></a>VerbRule(InventoryWide)
+<a name="2251"></a>    ('i' | 'inv' | 'inventory') 'wide'
+<a name="2252"></a>    : VerbProduction
+<a name="2253"></a>    action = InventoryWide
+<a name="2254"></a>    verbPhrase = 'take/making inventory wide'
+<a name="2255"></a>;   
+<a name="2256"></a>
+<a name="2257"></a>
+<a name="2258"></a>VerbRule(Wait)
+<a name="2259"></a>    'z' | 'wait'
+<a name="2260"></a>    : VerbProduction
+<a name="2261"></a>    action = Wait
+<a name="2262"></a>    verbPhrase = 'wait/waiting'
+<a name="2263"></a>;
+<a name="2264"></a>
+<a name="2265"></a>VerbRule(Look)
+<a name="2266"></a>    'look' | 'look' 'around' | 'l' | 'l' 'around'
+<a name="2267"></a>    : VerbProduction
+<a name="2268"></a>    action = Look
+<a name="2269"></a>    verbPhrase = 'look/looking around'    
+<a name="2270"></a>;
+<a name="2271"></a>
+<a name="2272"></a>VerbRule(Quit)
+<a name="2273"></a>    'quit' | 'q'
+<a name="2274"></a>    : VerbProduction
+<a name="2275"></a>    action = Quit
+<a name="2276"></a>    verbPhrase = 'quit/quitting'
+<a name="2277"></a>;
+<a name="2278"></a>
+<a name="2279"></a>VerbRule(Again)
+<a name="2280"></a>    'again' | 'g'
+<a name="2281"></a>    : VerbProduction
+<a name="2282"></a>    action = Again
+<a name="2283"></a>    verbPhrase = 'repeat/repeating the last command'
+<a name="2284"></a>;
+<a name="2285"></a>
+<a name="2286"></a>VerbRule(Score)
+<a name="2287"></a>    'score' | 'status'
+<a name="2288"></a>    : VerbProduction
+<a name="2289"></a>    action = Score
+<a name="2290"></a>    verbPhrase = 'show/showing score'
+<a name="2291"></a>;
+<a name="2292"></a>
+<a name="2293"></a>VerbRule(FullScore)
+<a name="2294"></a>    'full' 'score' | 'fullscore' | 'full'
+<a name="2295"></a>    : VerbProduction
+<a name="2296"></a>    action = FullScore
+<a name="2297"></a>    verbPhrase = 'show/showing full score'
+<a name="2298"></a>;
+<a name="2299"></a>
+<a name="2300"></a>VerbRule(Notify)
+<a name="2301"></a>    'notify'
+<a name="2302"></a>    : VerbProduction
+<a name="2303"></a>    action = Notify
+<a name="2304"></a>    verbPhrase = 'show/showing notification status'
+<a name="2305"></a>;
+<a name="2306"></a>
+<a name="2307"></a>VerbRule(NotifyOn)
+<a name="2308"></a>    'notify' 'on'
+<a name="2309"></a>    : VerbProduction
+<a name="2310"></a>    action = NotifyOn
+<a name="2311"></a>    verbPhrase = 'turn/turning on score notification'
+<a name="2312"></a>;
+<a name="2313"></a>
+<a name="2314"></a>VerbRule(NotifyOff)
+<a name="2315"></a>    'notify' 'off'
+<a name="2316"></a>    : VerbProduction
+<a name="2317"></a>    action = NotifyOff
+<a name="2318"></a>    verbPhrase = 'turn/turning off score notification'
+<a name="2319"></a>;
+<a name="2320"></a>
+<a name="2321"></a>VerbRule(Save)
+<a name="2322"></a>    'save'
+<a name="2323"></a>    : VerbProduction
+<a name="2324"></a>    action = Save
+<a name="2325"></a>    verbPhrase = 'save/saving'
+<a name="2326"></a>;
+<a name="2327"></a>
+<a name="2328"></a>VerbRule(SaveString)
+<a name="2329"></a>    'save' quotedStringPhrase-&gt;fname_
+<a name="2330"></a>    : VerbProduction
+<a name="2331"></a>    action = Save
+<a name="2332"></a>    verbPhrase = 'save/saving'
+<a name="2333"></a>;
+<a name="2334"></a>
+<a name="2335"></a>VerbRule(Restore)
+<a name="2336"></a>    'restore'
+<a name="2337"></a>    : VerbProduction
+<a name="2338"></a>    action = Restore
+<a name="2339"></a>    verbPhrase = 'restore/restoring'
+<a name="2340"></a>;
+<a name="2341"></a>
+<a name="2342"></a>VerbRule(RestoreString)
+<a name="2343"></a>    'restore' quotedStringPhrase-&gt;fname_
+<a name="2344"></a>    : VerbProduction
+<a name="2345"></a>    action = Restore
+<a name="2346"></a>    verbPhrase = 'restore/restoring'
+<a name="2347"></a>;
+<a name="2348"></a>
+<a name="2349"></a>
+<a name="2350"></a>VerbRule(Restart)
+<a name="2351"></a>    'restart'
+<a name="2352"></a>    : VerbProduction
+<a name="2353"></a>    action = Restart
+<a name="2354"></a>    verbPhrase = 'restart/restarting'
+<a name="2355"></a>;
+<a name="2356"></a>
+<a name="2357"></a>VerbRule(Undo)
+<a name="2358"></a>    'undo'
+<a name="2359"></a>    : VerbProduction
+<a name="2360"></a>    action = Undo
+<a name="2361"></a>    verbPhrase = 'undo/undoing'
+<a name="2362"></a>;
+<a name="2363"></a>
+<a name="2364"></a>VerbRule(Version)
+<a name="2365"></a>    'version'
+<a name="2366"></a>    : VerbProduction
+<a name="2367"></a>    action = Version
+<a name="2368"></a>    verbPhrase = 'show/showing version'
+<a name="2369"></a>;
+<a name="2370"></a>
+<a name="2371"></a>VerbRule(Credits)
+<a name="2372"></a>    'credits'
+<a name="2373"></a>    : VerbProduction
+<a name="2374"></a>    action = Credits
+<a name="2375"></a>    verbPhrase = 'show/showing credits'
+<a name="2376"></a>;
+<a name="2377"></a>
+<a name="2378"></a>VerbRule(About)
+<a name="2379"></a>    'about'
+<a name="2380"></a>    : VerbProduction
+<a name="2381"></a>    action = About
+<a name="2382"></a>    verbPhrase = 'show/showing story information'
+<a name="2383"></a>;
+<a name="2384"></a>
+<a name="2385"></a>VerbRule(ScriptOn)
+<a name="2386"></a>    'script' | 'script' 'on'
+<a name="2387"></a>    : VerbProduction
+<a name="2388"></a>    action = ScriptOn
+<a name="2389"></a>    verbPhrase = 'start/starting scripting'
+<a name="2390"></a>;
+<a name="2391"></a>
+<a name="2392"></a>VerbRule(ScriptString)
+<a name="2393"></a>    'script' quotedStringPhrase-&gt;fname_
+<a name="2394"></a>    : VerbProduction
+<a name="2395"></a>    action = ScriptOn
+<a name="2396"></a>    verbPhrase = 'start/starting scripting'
+<a name="2397"></a>;
+<a name="2398"></a>
+<a name="2399"></a>VerbRule(ScriptOff)
+<a name="2400"></a>    'script' 'off' | 'unscript'
+<a name="2401"></a>    : VerbProduction
+<a name="2402"></a>    action = ScriptOff
+<a name="2403"></a>    verbPhrase = 'end/ending scripting'
+<a name="2404"></a>;
+<a name="2405"></a>
+<a name="2406"></a>VerbRule(Record)
+<a name="2407"></a>    'record' | 'record' 'on'
+<a name="2408"></a>    : VerbProduction
+<a name="2409"></a>    action = Record
+<a name="2410"></a>    verbPhrase = 'start/starting command recording'
+<a name="2411"></a>;
+<a name="2412"></a>
+<a name="2413"></a>VerbRule(RecordString)
+<a name="2414"></a>    'record' quotedStringPhrase-&gt;fname_
+<a name="2415"></a>    : VerbProduction
+<a name="2416"></a>    action = Record
+<a name="2417"></a>    verbPhrase = 'start/starting command recording'
+<a name="2418"></a>;
+<a name="2419"></a>
+<a name="2420"></a>VerbRule(RecordEvents)
+<a name="2421"></a>    'record' 'events' | 'record' 'events' 'on'
+<a name="2422"></a>    : VerbProduction
+<a name="2423"></a>    action = RecordEvents
+<a name="2424"></a>    verbPhrase = 'start/starting event recording'
+<a name="2425"></a>;
+<a name="2426"></a>
+<a name="2427"></a>VerbRule(RecordEventsString)
+<a name="2428"></a>    'record' 'events' quotedStringPhrase-&gt;fname_
+<a name="2429"></a>    : VerbProduction
+<a name="2430"></a>    action = RecordEvents
+<a name="2431"></a>    verbPhrase = 'start/starting command recording'
+<a name="2432"></a>;
+<a name="2433"></a>
+<a name="2434"></a>VerbRule(RecordOff)
+<a name="2435"></a>    'record' 'off'
+<a name="2436"></a>    : VerbProduction
+<a name="2437"></a>    action = RecordOff
+<a name="2438"></a>    verbPhrase = 'end/ending command recording'
+<a name="2439"></a>;
+<a name="2440"></a>
+<a name="2441"></a>VerbRule(ReplayString)
+<a name="2442"></a>    'replay' ('quiet'-&gt;quiet_ | 'nonstop'-&gt;nonstop_ | )
+<a name="2443"></a>        (quotedStringPhrase-&gt;fname_ | )
+<a name="2444"></a>    : VerbProduction
+<a name="2445"></a>    action = Replay
+<a name="2446"></a>    verbPhrase = 'replay/replaying command recording'
+<a name="2447"></a>
+<a name="2448"></a>    /* set the appropriate option flags */
+<a name="2449"></a>    scriptOptionFlags = ((quiet_ != nil ? ScriptFileQuiet : 0)
+<a name="2450"></a>                         | (nonstop_ != nil ? ScriptFileNonstop : 0))
+<a name="2451"></a>;
+<a name="2452"></a>VerbRule(ReplayQuiet)
+<a name="2453"></a>    'rq' (quotedStringPhrase-&gt;fname_ | )
+<a name="2454"></a>    : VerbProduction
+<a name="2455"></a>    action = Replay
+<a name="2456"></a>
+<a name="2457"></a>    scriptOptionFlags = ScriptFileQuiet
+<a name="2458"></a>;
+<a name="2459"></a>
+<a name="2460"></a>VerbRule(ToggleDiaambigEnum)
+<a name="2461"></a>    ('toggle' |) ('disambig' | 'disambiguation') ('enum' | 'enumeration')
+<a name="2462"></a>    : VerbProduction
+<a name="2463"></a>    action = ToggleDisambigEnumeration
+<a name="2464"></a>    verbPhrase = 'toggle/toggling enumeration of disambiguation options'
+<a name="2465"></a>;
+<a name="2466"></a>
+<a name="2467"></a>
+<a name="2468"></a>VerbRule(GoTo)
+<a name="2469"></a>    ('go' 'to' | 'walk' 'to')
+<a name="2470"></a>    singleDobj
+<a name="2471"></a>    : VerbProduction
+<a name="2472"></a>    action = GoTo
+<a name="2473"></a>    verbPhrase = 'go/going to (what)'
+<a name="2474"></a>    missingQ = 'where do you want to go'
+<a name="2475"></a>    dobjReply = toSingleNoun
+<a name="2476"></a>    priority = 60
+<a name="2477"></a>;
+<a name="2478"></a>
+<a name="2479"></a>VerbRule(Continue)
+<a name="2480"></a>    'continue' | 'c'
+<a name="2481"></a>    : VerbProduction
+<a name="2482"></a>    action = Continue
+<a name="2483"></a>    verbPhrase = 'continue/continuing journey'
+<a name="2484"></a>;
+<a name="2485"></a>
+<a name="2486"></a>VerbRule(VagueTravel) 
+<a name="2487"></a>    'go' | 'walk' | 'run' 
+<a name="2488"></a>    : VerbProduction
+<a name="2489"></a>    action = VagueTravel
+<a name="2490"></a>    verbPhrase = 'go/going'
+<a name="2491"></a>
+<a name="2492"></a>    priority = 25
+<a name="2493"></a>;
+<a name="2494"></a>
+<a name="2495"></a>VerbRule(Travel)
+<a name="2496"></a>    (('go' | 'walk' | 'run')  singleDir) | singleDir
+<a name="2497"></a>    : VerbProduction
+<a name="2498"></a>    action = Travel
+<a name="2499"></a>    verbPhrase = 'go/going {where)'  
+<a name="2500"></a>;
+<a name="2501"></a>
+<a name="2502"></a>/*
+<a name="2503"></a> *   Create a TravelVia subclass merely so we can supply a verbPhrase.
+<a name="2504"></a> *   (The parser looks for subclasses of each specific Action class to find
+<a name="2505"></a> *   its verb phrase, since the language-specific Action definitions are
+<a name="2506"></a> *   always in the language module's 'grammar' subclasses.  We don't need
+<a name="2507"></a> *   an actual grammar rule, since this isn't an input-able verb, so we
+<a name="2508"></a> *   merely need to create a regular subclass in order for the verbPhrase
+<a name="2509"></a> *   to get found.)  
+<a name="2510"></a> */
+<a name="2511"></a>class EnTravelVia: VerbProduction
+<a name="2512"></a>    verbPhrase = 'use/using (what)'
+<a name="2513"></a>    missingQ = 'what do you want to use'
+<a name="2514"></a>;
+<a name="2515"></a>
+<a name="2516"></a>VerbRule(In)
+<a name="2517"></a>    'enter'
+<a name="2518"></a>    : VerbProduction
+<a name="2519"></a>    action = GoIn
+<a name="2520"></a>    verbPhrase = 'enter/entering'
+<a name="2521"></a>;
+<a name="2522"></a>
+<a name="2523"></a>VerbRule(Out)
+<a name="2524"></a>    'exit' | 'leave'
+<a name="2525"></a>    : VerbProduction
+<a name="2526"></a>    action = GoOut
+<a name="2527"></a>    verbPhrase = 'exit/exiting'
+<a name="2528"></a>;
+<a name="2529"></a>
+<a name="2530"></a>VerbRule(GoThrough)
+<a name="2531"></a>    ('walk' | 'go' ) ('through' | 'thru')
+<a name="2532"></a>        singleDobj
+<a name="2533"></a>    : VerbProduction
+<a name="2534"></a>    action = GoThrough
+<a name="2535"></a>    verbPhrase = 'go/going (through what)'
+<a name="2536"></a>    missingQ = 'what do you want to go through'
+<a name="2537"></a>    dobjReply = singleNoun
+<a name="2538"></a>;
+<a name="2539"></a>
+<a name="2540"></a>VerbRule(GoAlong)
+<a name="2541"></a>    ('walk' | 'go' ) ('along')
+<a name="2542"></a>        singleDobj
+<a name="2543"></a>    : VerbProduction
+<a name="2544"></a>    action = GoAlong
+<a name="2545"></a>    verbPhrase = 'go/going (along what)'
+<a name="2546"></a>    missingQ = 'what do you want to go along'
+<a name="2547"></a>    dobjReply = singleNoun
+<a name="2548"></a>;
+<a name="2549"></a>
+<a name="2550"></a>
+<a name="2551"></a>VerbRule(GoBack)
+<a name="2552"></a>    'back' | 'go' 'back' | 'return'
+<a name="2553"></a>    : VerbProduction
+<a name="2554"></a>    action = GoBack
+<a name="2555"></a>    verbPhrase = 'go/going back'
+<a name="2556"></a>;
+<a name="2557"></a>
+<a name="2558"></a>VerbRule(Dig)
+<a name="2559"></a>    ('dig' | 'dig' 'in') singleDobj
+<a name="2560"></a>    : VerbProduction
+<a name="2561"></a>    action = Dig
+<a name="2562"></a>    verbPhrase = 'dig/digging (in what)'
+<a name="2563"></a>    missingQ = 'what do you want to dig in'
+<a name="2564"></a>    dobjReply = inSingleNoun
+<a name="2565"></a>;
+<a name="2566"></a>
+<a name="2567"></a>VerbRule(DigWith)
+<a name="2568"></a>    ('dig' | 'dig' 'in') singleDobj 'with' singleIobj
+<a name="2569"></a>    : VerbProduction
+<a name="2570"></a>    action = DigWith
+<a name="2571"></a>    verbPhrase = 'dig/digging (in what) (with what)'
+<a name="2572"></a>    missingQ = 'what do you want to dig in;what do you want to dig with'
+<a name="2573"></a>    dobjReply = inSingleNoun
+<a name="2574"></a>    iobjReply = withSingleNoun
+<a name="2575"></a>;
+<a name="2576"></a>
+<a name="2577"></a>VerbRule(Jump)
+<a name="2578"></a>    'jump'
+<a name="2579"></a>    : VerbProduction
+<a name="2580"></a>    action = Jump
+<a name="2581"></a>    verbPhrase = 'jump/jumping'
+<a name="2582"></a>;
+<a name="2583"></a>
+<a name="2584"></a>VerbRule(JumpOffIntransitive)
+<a name="2585"></a>    'jump' 'off'
+<a name="2586"></a>    : VerbProduction
+<a name="2587"></a>    action = JumpOffIntransitive
+<a name="2588"></a>    verbPhrase = 'jump/jumping off'
+<a name="2589"></a>;
+<a name="2590"></a>
+<a name="2591"></a>VerbRule(JumpOff)
+<a name="2592"></a>    'jump' 'off' singleDobj
+<a name="2593"></a>    : VerbProduction
+<a name="2594"></a>    action = JumpOff
+<a name="2595"></a>    verbPhrase = 'jump/jumping (off what)'
+<a name="2596"></a>    missingQ = 'what do you want to jump off'
+<a name="2597"></a>    dobjReply = singleNoun
+<a name="2598"></a>;
+<a name="2599"></a>
+<a name="2600"></a>VerbRule(JumpOver)
+<a name="2601"></a>    ('jump' | 'jump' 'over') singleDobj
+<a name="2602"></a>    : VerbProduction
+<a name="2603"></a>    action = JumpOver
+<a name="2604"></a>    verbPhrase = 'jump/jumping (over what)'
+<a name="2605"></a>    missingQ = 'what do you want to jump over'
+<a name="2606"></a>    dobjReply = singleNoun
+<a name="2607"></a>;
+<a name="2608"></a>
+<a name="2609"></a>VerbRule(Push)
+<a name="2610"></a>    ('push' | 'press') multiDobj
+<a name="2611"></a>    : VerbProduction
+<a name="2612"></a>    action = Push
+<a name="2613"></a>    verbPhrase = 'push/pushing (what)'
+<a name="2614"></a>    missingQ = 'what do you want to push'
+<a name="2615"></a>;
+<a name="2616"></a>
+<a name="2617"></a>VerbRule(Pull)
+<a name="2618"></a>    'pull' multiDobj
+<a name="2619"></a>    : VerbProduction
+<a name="2620"></a>    action = Pull
+<a name="2621"></a>    verbPhrase = 'pull/pulling (what)'
+<a name="2622"></a>    missingQ = 'what do you want to pull'
+<a name="2623"></a>;
+<a name="2624"></a>
+<a name="2625"></a>VerbRule(Move)
+<a name="2626"></a>    'move' multiDobj
+<a name="2627"></a>    : VerbProduction
+<a name="2628"></a>    action = Move
+<a name="2629"></a>    verbPhrase = 'move/moving (what)'
+<a name="2630"></a>    missingQ = 'what do you want to move'
+<a name="2631"></a>;
+<a name="2632"></a>
+<a name="2633"></a>VerbRule(MoveTo)
+<a name="2634"></a>    ('push' | 'move') multiDobj ('to' | 'under') singleIobj
+<a name="2635"></a>    : VerbProduction
+<a name="2636"></a>    action = MoveTo
+<a name="2637"></a>    verbPhrase = 'move/moving (what) (to what)'
+<a name="2638"></a>    missingQ = 'what do you want to move;where do you want to move it'
+<a name="2639"></a>    iobjReply = toSingleNoun
+<a name="2640"></a>;
+<a name="2641"></a>
+<a name="2642"></a>VerbRule(MoveWith)
+<a name="2643"></a>    'move' singleDobj 'with' singleIobj
+<a name="2644"></a>    : VerbProduction
+<a name="2645"></a>    action = MoveWith
+<a name="2646"></a>    verbPhrase = 'move/moving (what) (with what)'
+<a name="2647"></a>    missingQ = 'what do you want to move;what do you want to move it with'
+<a name="2648"></a>    dobjReply = singleNoun
+<a name="2649"></a>    iobjReply = withSingleNoun
+<a name="2650"></a>;
+<a name="2651"></a>
+<a name="2652"></a>VerbRule(Turn)
+<a name="2653"></a>    ('turn' | 'twist' | 'rotate') multiDobj
+<a name="2654"></a>    : VerbProduction
+<a name="2655"></a>    action = Turn
+<a name="2656"></a>    verbPhrase = 'turn/turning (what)'
+<a name="2657"></a>    missingQ = 'what do you want to turn'
+<a name="2658"></a>;
+<a name="2659"></a>
+<a name="2660"></a>VerbRule(TurnWith)
+<a name="2661"></a>    ('turn' | 'twist' | 'rotate') singleDobj 'with' singleIobj
+<a name="2662"></a>    : VerbProduction
+<a name="2663"></a>    action = TurnWith
+<a name="2664"></a>    verbPhrase = 'turn/turning (what) (with what)'
+<a name="2665"></a>    missingQ = 'what do you want to turn;what do you want to turn it with'
+<a name="2666"></a>    dobjReply = singleNoun
+<a name="2667"></a>    iobjReply = withSingleNoun
+<a name="2668"></a>;
+<a name="2669"></a>
+<a name="2670"></a>VerbRule(TurnTo)
+<a name="2671"></a>    ('turn' | 'twist' | 'rotate') singleDobj
+<a name="2672"></a>        'to' literalIobj
+<a name="2673"></a>    : VerbProduction
+<a name="2674"></a>    action = TurnTo
+<a name="2675"></a>    verbPhrase = 'turn/turning (what) (to what)'
+<a name="2676"></a>    missingQ = 'what do you want to turn;what do you want to turn it to'
+<a name="2677"></a>    dobjReply = singleNoun
+<a name="2678"></a>;
+<a name="2679"></a>
+<a name="2680"></a>VerbRule(Set)
+<a name="2681"></a>    'set' multiDobj
+<a name="2682"></a>    : VerbProduction
+<a name="2683"></a>    action = Set
+<a name="2684"></a>    verbPhrase = 'set/setting (what)'
+<a name="2685"></a>    missingQ = 'what do you want to set'
+<a name="2686"></a>;
+<a name="2687"></a>
+<a name="2688"></a>VerbRule(SetTo)
+<a name="2689"></a>    'set' singleDobj 'to' literalIobj
+<a name="2690"></a>    : VerbProduction
+<a name="2691"></a>    action = SetTo
+<a name="2692"></a>    verbPhrase = 'set/setting (what) (to what)'
+<a name="2693"></a>    missingQ = 'what do you want to set;what do you want to set it to'
+<a name="2694"></a>    dobjReply = singleNoun
+<a name="2695"></a>;
+<a name="2696"></a>
+<a name="2697"></a>VerbRule(TypeOn)
+<a name="2698"></a>    'type' 'on' singleDobj
+<a name="2699"></a>    : VerbProduction
+<a name="2700"></a>    action = TypeOnVague
+<a name="2701"></a>    verbPhrase = 'type/typing (on what)'
+<a name="2702"></a>    missingQ = 'what do you want to type on'
+<a name="2703"></a>;
+<a name="2704"></a>
+<a name="2705"></a>VerbRule(TypeLiteralOn)
+<a name="2706"></a>    'type' literalDobj 'on' singleIobj
+<a name="2707"></a>    : VerbProduction
+<a name="2708"></a>    action = TypeOn
+<a name="2709"></a>    verbPhrase = 'type/typing (what) (on what)'
+<a name="2710"></a>    missingQ = 'what do you want to type;what do you want to type that on'
+<a name="2711"></a>    dobjReply = singleNoun
+<a name="2712"></a>;
+<a name="2713"></a>
+<a name="2714"></a>VerbRule(TypeLiteralOnWhat)
+<a name="2715"></a>    [badness 500] 'type' literalDobj
+<a name="2716"></a>    : VerbProduction
+<a name="2717"></a>    action = Type
+<a name="2718"></a>    verbPhrase = 'type/typing (what) (on what)'
+<a name="2719"></a>    missingQ = 'what do you want to type;what do you want to type that on'
+<a name="2720"></a>;
+<a name="2721"></a>
+<a name="2722"></a>VerbRule(EnterOn)
+<a name="2723"></a>    'enter' literalDobj
+<a name="2724"></a>        ('on' | 'in' | 'in' 'to' | 'into' | 'with') singleIobj
+<a name="2725"></a>    : VerbProduction
+<a name="2726"></a>    action = EnterOn
+<a name="2727"></a>    verbPhrase = 'enter/entering (what) (on what)'
+<a name="2728"></a>    missingQ = 'what do you want to enter;what do you want to enter that on'
+<a name="2729"></a>    dobjReply = singleNoun
+<a name="2730"></a>;
+<a name="2731"></a>
+<a name="2732"></a>
+<a name="2733"></a>VerbRule(WriteOn)
+<a name="2734"></a>    'write' literalDobj ('on' | 'in') singleIobj
+<a name="2735"></a>    : VerbProduction
+<a name="2736"></a>    action = WriteOn
+<a name="2737"></a>    verbPhrase = 'write/writing (what) (on what)'
+<a name="2738"></a>    missingQ = 'what do you want to write;what do you want to write that on'
+<a name="2739"></a>    dobjReply = singleNoun
+<a name="2740"></a>;
+<a name="2741"></a>
+<a name="2742"></a>VerbRule(Write)
+<a name="2743"></a>    'write' literalDobj
+<a name="2744"></a>    : VerbProduction
+<a name="2745"></a>    action = Write
+<a name="2746"></a>    verbPhrase = 'write/writing (what) (on what)'
+<a name="2747"></a>    missingQ = 'what do you want to write;what do you want to write that on'
+<a name="2748"></a>    priority = 25
+<a name="2749"></a>;
+<a name="2750"></a>
+<a name="2751"></a>
+<a name="2752"></a>VerbRule(ConsultAbout)
+<a name="2753"></a>    'consult' singleDobj ('on' | 'about') topicIobj
+<a name="2754"></a>    | 'search' singleDobj 'for' topicIobj
+<a name="2755"></a>    : VerbProduction
+<a name="2756"></a>    action = ConsultAbout
+<a name="2757"></a>    verbPhrase = 'consult/consulting (what) (about what)'
+<a name="2758"></a>    missingQ = 'what do you want to consult;what do you want to consult it about'
+<a name="2759"></a>    dobjReply = singleNoun
+<a name="2760"></a>;
+<a name="2761"></a>
+<a name="2762"></a>VerbRule(LookUp)
+<a name="2763"></a>    (('look' | 'l') ('up' | 'for') | 'find'  | 'search' 'for' | 'read' 'about')
+<a name="2764"></a>    topicIobj ('in' | 'on') singleDobj
+<a name="2765"></a>    | ('look' | 'l') topicIobj 'up' ('in' | 'on') singleDobj
+<a name="2766"></a>    : VerbProduction
+<a name="2767"></a>    action = ConsultAbout
+<a name="2768"></a>    verbPhrase = 'look/looking up (what) (in what)'
+<a name="2769"></a>    missingQ = 'what do you want to look that up in;what do you want to look up'
+<a name="2770"></a>    dobjReply = singleNoun
+<a name="2771"></a>;
+<a name="2772"></a>
+<a name="2773"></a>VerbRule(ConsultWhatAbout)
+<a name="2774"></a>    (('look' | 'l') ('up' | 'for')
+<a name="2775"></a>     | 'find'
+<a name="2776"></a>     | 'search' 'for'
+<a name="2777"></a>     | 'read' 'about')
+<a name="2778"></a>    topicIobj
+<a name="2779"></a>    | ('look' | 'l') topicIobj 'up'
+<a name="2780"></a>    : VerbProduction
+<a name="2781"></a>    action = ConsultWhatAbout
+<a name="2782"></a>    verbPhrase = 'look/looking up (what) (in what)'
+<a name="2783"></a>    missingQ = 'what do you want to look that up in;what do you want to look up'
+<a name="2784"></a>    priority = 25
+<a name="2785"></a>;
+<a name="2786"></a>
+<a name="2787"></a>VerbRule(Switch)
+<a name="2788"></a>    'switch' multiDobj
+<a name="2789"></a>    : VerbProduction
+<a name="2790"></a>    action = SwitchVague
+<a name="2791"></a>    verbPhrase = 'switch/switching (what)'
+<a name="2792"></a>    missingQ = 'what do you want to switch'
+<a name="2793"></a>;
+<a name="2794"></a>
+<a name="2795"></a>VerbRule(Flip)
+<a name="2796"></a>    'flip' multiDobj
+<a name="2797"></a>    : VerbProduction
+<a name="2798"></a>    action = Flip
+<a name="2799"></a>    verbPhrase = 'flip/flipping (what)'
+<a name="2800"></a>    missingQ = 'what do you want to flip'
+<a name="2801"></a>;
+<a name="2802"></a>
+<a name="2803"></a>VerbRule(SwitchOn)
+<a name="2804"></a>    ('activate' | ('turn' | 'switch') 'on') multiDobj
+<a name="2805"></a>    | ('turn' | 'switch') multiDobj 'on'
+<a name="2806"></a>    : VerbProduction
+<a name="2807"></a>    action = SwitchOn
+<a name="2808"></a>    verbPhrase = 'turn/turning on (what)'
+<a name="2809"></a>    missingQ = 'what do you want to turn on'
+<a name="2810"></a>    priority = 60
+<a name="2811"></a>;
+<a name="2812"></a>
+<a name="2813"></a>VerbRule(SwitchOff)
+<a name="2814"></a>    ('deactivate' | ('turn' | 'switch') 'off') multiDobj
+<a name="2815"></a>    | ('turn' | 'switch') multiDobj 'off'
+<a name="2816"></a>    : VerbProduction
+<a name="2817"></a>    action = SwitchOff
+<a name="2818"></a>    verbPhrase = 'turn/turning off (what)'
+<a name="2819"></a>    missingQ = 'what do you want to turn off'
+<a name="2820"></a>    priority = 60
+<a name="2821"></a>;
+<a name="2822"></a>
+<a name="2823"></a>VerbRule(Light)
+<a name="2824"></a>    'light' multiDobj
+<a name="2825"></a>    : VerbProduction
+<a name="2826"></a>    action = Light
+<a name="2827"></a>    verbPhrase = 'light/lighting (what)'
+<a name="2828"></a>    missingQ = 'what do you want to light'
+<a name="2829"></a>;
+<a name="2830"></a>
+<a name="2831"></a>VerbRule(Strike)
+<a name="2832"></a>    'strike' multiDobj
+<a name="2833"></a>    : VerbProduction
+<a name="2834"></a>    action = Strike
+<a name="2835"></a>    verbPhrase = 'strike/striking (what)'
+<a name="2836"></a>    missingQ = 'what do you want to strike'
+<a name="2837"></a>;
+<a name="2838"></a>
+<a name="2839"></a>VerbRule(Burn)
+<a name="2840"></a>    ('burn' | 'ignite' | 'set' 'fire' 'to') multiDobj
+<a name="2841"></a>    : VerbProduction
+<a name="2842"></a>    action = Burn
+<a name="2843"></a>    verbPhrase = 'burn/burning (what)'
+<a name="2844"></a>    missingQ = 'what do you want to burn'
+<a name="2845"></a>;
+<a name="2846"></a>
+<a name="2847"></a>VerbRule(BurnWith)
+<a name="2848"></a>    ('light' | 'burn' | 'ignite' | 'set' 'fire' 'to') singleDobj
+<a name="2849"></a>        ('with' | 'from') singleIobj
+<a name="2850"></a>    : VerbProduction
+<a name="2851"></a>    action = BurnWith
+<a name="2852"></a>    verbPhrase = 'burn/burning (what) (with what)'
+<a name="2853"></a>    missingQ = 'what do you want to burn;what do you want to burn it with'
+<a name="2854"></a>    dobjReply = singleNoun
+<a name="2855"></a>    iobjReply = withSingleNoun
+<a name="2856"></a>;
+<a name="2857"></a>
+<a name="2858"></a>VerbRule(Extinguish)
+<a name="2859"></a>    ('extinguish' | 'douse' | 'put' 'out' | 'blow' 'out') multiDobj
+<a name="2860"></a>    | ('blow' | 'put') multiDobj 'out'
+<a name="2861"></a>    : VerbProduction
+<a name="2862"></a>    action = Extinguish
+<a name="2863"></a>    verbPhrase = 'extinguish/extinguishing (what)'
+<a name="2864"></a>    missingQ = 'what do you want to extinguish'
+<a name="2865"></a>;
+<a name="2866"></a>
+<a name="2867"></a>VerbRule(Break)
+<a name="2868"></a>    ('break' | 'ruin' | 'destroy' | 'wreck' | 'smash') multiDobj
+<a name="2869"></a>    : VerbProduction
+<a name="2870"></a>    action = Break
+<a name="2871"></a>    verbPhrase = 'break/breaking (what)'
+<a name="2872"></a>    missingQ = 'what do you want to break'
+<a name="2873"></a>;
+<a name="2874"></a>
+<a name="2875"></a>VerbRule(Cut)
+<a name="2876"></a>    [badness 500] 'cut' singleDobj
+<a name="2877"></a>    : VerbProduction
+<a name="2878"></a>    action = Cut
+<a name="2879"></a>    verbPhrase = 'cut/cutting (what) (with what)'
+<a name="2880"></a>    missingQ = 'what do you want to cut'
+<a name="2881"></a>;
+<a name="2882"></a>
+<a name="2883"></a>VerbRule(CutWith)
+<a name="2884"></a>    'cut' singleDobj 'with' singleIobj
+<a name="2885"></a>    : VerbProduction
+<a name="2886"></a>    action = CutWith
+<a name="2887"></a>    verbPhrase = 'cut/cutting (what) (with what)'
+<a name="2888"></a>    missingQ = 'what do you want to cut;what do you want to cut it with'
+<a name="2889"></a>    dobjReply = singleNoun
+<a name="2890"></a>    iobjReply = withSingleNoun
+<a name="2891"></a>;
+<a name="2892"></a>
+<a name="2893"></a>VerbRule(Eat)
+<a name="2894"></a>    ('eat' | 'consume') multiDobj
+<a name="2895"></a>    : VerbProduction
+<a name="2896"></a>    action = Eat
+<a name="2897"></a>    verbPhrase = 'eat/eating (what)'
+<a name="2898"></a>    missingQ = 'what do you want to eat'
+<a name="2899"></a>;
+<a name="2900"></a>
+<a name="2901"></a>VerbRule(Drink)
+<a name="2902"></a>    ('drink' | 'quaff' | 'imbibe') multiDobj
+<a name="2903"></a>    : VerbProduction
+<a name="2904"></a>    action = Drink
+<a name="2905"></a>    verbPhrase = 'drink/drinking (what)'
+<a name="2906"></a>    missingQ = 'what do you want to drink'
+<a name="2907"></a>;
+<a name="2908"></a>
+<a name="2909"></a>VerbRule(Pour)
+<a name="2910"></a>    'pour' multiDobj
+<a name="2911"></a>    : VerbProduction
+<a name="2912"></a>    action = Pour
+<a name="2913"></a>    verbPhrase = 'pour/pouring (what)'
+<a name="2914"></a>    missingQ = 'what do you want to pour'
+<a name="2915"></a>;
+<a name="2916"></a>
+<a name="2917"></a>VerbRule(PourInto)
+<a name="2918"></a>    'pour' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
+<a name="2919"></a>    : VerbProduction
+<a name="2920"></a>    action = PourInto
+<a name="2921"></a>    verbPhrase = 'pour/pouring (what) (into what)'
+<a name="2922"></a>    missingQ = 'what do you want to pour;what do you want to pour it into'
+<a name="2923"></a>    iobjReply = inSingleNoun
+<a name="2924"></a>;
+<a name="2925"></a>
+<a name="2926"></a>VerbRule(PourOnto)
+<a name="2927"></a>    'pour' multiDobj ('on' | 'onto' | 'on' 'to') singleIobj
+<a name="2928"></a>    : VerbProduction
+<a name="2929"></a>    action = PourOnto
+<a name="2930"></a>    verbPhrase = 'pour/pouring (what) (onto what)'
+<a name="2931"></a>    missingQ = 'what do you want to pour;what do you want to pour it onto'
+<a name="2932"></a>    iobjReply = onSingleNoun
+<a name="2933"></a>;
+<a name="2934"></a>
+<a name="2935"></a>VerbRule(Climb)
+<a name="2936"></a>    'climb' singleDobj
+<a name="2937"></a>    : VerbProduction
+<a name="2938"></a>    action = Climb
+<a name="2939"></a>    verbPhrase = 'climb/climbing (what)'
+<a name="2940"></a>    missingQ = 'what do you want to climb'
+<a name="2941"></a>    dobjReply = singleNoun
+<a name="2942"></a>;
+<a name="2943"></a>
+<a name="2944"></a>VerbRule(ClimbUp)
+<a name="2945"></a>    ('climb' | 'go' | 'walk') 'up' singleDobj
+<a name="2946"></a>    : VerbProduction
+<a name="2947"></a>    action = ClimbUp
+<a name="2948"></a>    verbPhrase = 'climb/climbing (up what)'
+<a name="2949"></a>    missingQ = 'what do you want to climb up'
+<a name="2950"></a>    dobjReply = singleNoun
+<a name="2951"></a>;
+<a name="2952"></a>
+<a name="2953"></a>VerbRule(ClimbUpWhat)
+<a name="2954"></a>    'climb' 'up'
+<a name="2955"></a>    : VerbProduction
+<a name="2956"></a>    action = ClimbUpVague
+<a name="2957"></a>    verbPhrase = 'climb/climbing (up what)'
+<a name="2958"></a>    dobjReply = singleNoun
+<a name="2959"></a>;
+<a name="2960"></a>
+<a name="2961"></a>VerbRule(ClimbDown)
+<a name="2962"></a>    ('climb' | 'go' | 'walk') 'down' singleDobj
+<a name="2963"></a>    : VerbProduction
+<a name="2964"></a>    action = ClimbDown
+<a name="2965"></a>    verbPhrase = 'climb/climbing (down what)'
+<a name="2966"></a>    missingQ = 'what do you want to climb down'
+<a name="2967"></a>    dobjReply = singleNoun
+<a name="2968"></a>;
+<a name="2969"></a>
+<a name="2970"></a>VerbRule(ClimbDownWhat)
+<a name="2971"></a>    ('climb' | 'go' | 'walk') 'down'
+<a name="2972"></a>    : VerbProduction
+<a name="2973"></a>    action = ClimbDownVague
+<a name="2974"></a>    verbPhrase = 'climb/climbing (down what)'
+<a name="2975"></a>    dobjReply = singleNoun
+<a name="2976"></a>;
+<a name="2977"></a>
+<a name="2978"></a>VerbRule(Clean)
+<a name="2979"></a>    'clean' multiDobj
+<a name="2980"></a>    : VerbProduction
+<a name="2981"></a>    action = Clean
+<a name="2982"></a>    verbPhrase = 'clean/cleaning (what)'
+<a name="2983"></a>    missingQ = 'what do you want to clean'
+<a name="2984"></a>;
+<a name="2985"></a>
+<a name="2986"></a>VerbRule(CleanWith)
+<a name="2987"></a>    'clean' singleDobj 'with' singleIobj
+<a name="2988"></a>    : VerbProduction
+<a name="2989"></a>    action = CleanWith
+<a name="2990"></a>    verbPhrase = 'clean/cleaning (what) (with what)'
+<a name="2991"></a>    missingQ = 'what do you want to clean (with it);'
+<a name="2992"></a>              + 'what do you want to clean it with'
+<a name="2993"></a>    iobjReply = withSingleNoun
+<a name="2994"></a>;
+<a name="2995"></a>
+<a name="2996"></a>VerbRule(AttachTo)
+<a name="2997"></a>    ('attach' | 'connect') multiDobj 'to' singleIobj
+<a name="2998"></a>    : VerbProduction
+<a name="2999"></a>    action = AttachTo
+<a name="3000"></a>    iobjReply = toSingleNoun
+<a name="3001"></a>    verbPhrase = 'attach/attaching (what) (to what)'
+<a name="3002"></a>    missingQ = 'what do you want to attach (to it);'
+<a name="3003"></a>               + 'what do you want to attach it to'
+<a name="3004"></a>;
+<a name="3005"></a>
+<a name="3006"></a>VerbRule(Attach)
+<a name="3007"></a>    ('attach' | 'connect') multiDobj
+<a name="3008"></a>    : VerbProduction
+<a name="3009"></a>    action = Attach
+<a name="3010"></a>    verbPhrase = 'attach/attaching (what)'
+<a name="3011"></a>    missingQ = 'what do you want to attach'
+<a name="3012"></a>    
+<a name="3013"></a>    priority = 40
+<a name="3014"></a>;
+<a name="3015"></a>
+<a name="3016"></a>VerbRule(DetachFrom)
+<a name="3017"></a>    ('detach' | 'disconnect') multiDobj 'from' singleIobj
+<a name="3018"></a>    : VerbProduction
+<a name="3019"></a>    action = DetachFrom
+<a name="3020"></a>    verbPhrase = 'detach/detaching (what) (from what)'
+<a name="3021"></a>    missingQ = 'what do you want to detach (from it);'
+<a name="3022"></a>              + 'what do you want to detach it from'
+<a name="3023"></a>    iobjReply = fromSingleNoun
+<a name="3024"></a>;
+<a name="3025"></a>
+<a name="3026"></a>VerbRule(Detach)
+<a name="3027"></a>    ('detach' | 'disconnect') multiDobj
+<a name="3028"></a>    : VerbProduction
+<a name="3029"></a>    action = Detach
+<a name="3030"></a>    verbPhrase = 'detach/detaching (what)'
+<a name="3031"></a>    missingQ = 'what do you want to detach'
+<a name="3032"></a>;
+<a name="3033"></a>
+<a name="3034"></a>VerbRule(Open)
+<a name="3035"></a>    'open' multiDobj
+<a name="3036"></a>    : VerbProduction
+<a name="3037"></a>    action = Open
+<a name="3038"></a>    verbPhrase = 'open/opening (what)'
+<a name="3039"></a>    missingQ = 'what do you want to open'
+<a name="3040"></a>;
+<a name="3041"></a>
+<a name="3042"></a>VerbRule(Close)
+<a name="3043"></a>    ('close' | 'shut') multiDobj
+<a name="3044"></a>    : VerbProduction
+<a name="3045"></a>    action = Close
+<a name="3046"></a>    verbPhrase = 'close/closing (what)'
+<a name="3047"></a>    missingQ = 'what do you want to close'
+<a name="3048"></a>;
+<a name="3049"></a>
+<a name="3050"></a>VerbRule(Lock)
+<a name="3051"></a>    'lock' multiDobj
+<a name="3052"></a>    : VerbProduction
+<a name="3053"></a>    action = Lock
+<a name="3054"></a>    verbPhrase = 'lock/locking (what)'
+<a name="3055"></a>    missingQ = 'what do you want to lock'
+<a name="3056"></a>;
+<a name="3057"></a>
+<a name="3058"></a>VerbRule(Unlock)
+<a name="3059"></a>    'unlock' multiDobj
+<a name="3060"></a>    : VerbProduction
+<a name="3061"></a>    action = Unlock
+<a name="3062"></a>    verbPhrase = 'unlock/unlocking (what)'
+<a name="3063"></a>    missingQ = 'what do you want to unlock'
+<a name="3064"></a>;
+<a name="3065"></a>
+<a name="3066"></a>VerbRule(LockWith)
+<a name="3067"></a>    'lock' singleDobj 'with' singleIobj
+<a name="3068"></a>    : VerbProduction
+<a name="3069"></a>    action = LockWith
+<a name="3070"></a>    verbPhrase = 'lock/locking (what) (with what)'
+<a name="3071"></a>    missingQ = 'what do you want to lock;what do you want to lock it with'
+<a name="3072"></a>    dobjReply = singleNoun
+<a name="3073"></a>    iobjReply = withSingleNoun
+<a name="3074"></a>;
+<a name="3075"></a>
+<a name="3076"></a>VerbRule(UnlockWith)
+<a name="3077"></a>    'unlock' singleDobj 'with' singleIobj
+<a name="3078"></a>    : VerbProduction
+<a name="3079"></a>    action = UnlockWith
+<a name="3080"></a>    verbPhrase = 'unlock/unlocking (what) (with what)'
+<a name="3081"></a>    missingQ = 'what do you want to unlock;what do you want to unlock it with'
+<a name="3082"></a>    dobjReply = singleNoun
+<a name="3083"></a>    iobjReply = withSingleNoun
+<a name="3084"></a>;
+<a name="3085"></a>
+<a name="3086"></a>VerbRule(SitOn)
+<a name="3087"></a>    'sit' ('on' | 'down' 'on' )
+<a name="3088"></a>        singleDobj
+<a name="3089"></a>    : VerbProduction
+<a name="3090"></a>    action = SitOn
+<a name="3091"></a>    verbPhrase = 'sit/sitting (on what)'
+<a name="3092"></a>    missingQ = 'what do you want to sit on'
+<a name="3093"></a>    dobjReply = singleNoun
+<a name="3094"></a>;
+<a name="3095"></a>
+<a name="3096"></a>VerbRule(SitIn)
+<a name="3097"></a>    'sit' ('in' | 'down' 'in')
+<a name="3098"></a>        singleDobj
+<a name="3099"></a>    : VerbProduction
+<a name="3100"></a>    action = SitIn
+<a name="3101"></a>    verbPhrase = 'sit/sitting (on what)'
+<a name="3102"></a>    missingQ = 'what do you want to sit on'
+<a name="3103"></a>    dobjReply = singleNoun
+<a name="3104"></a>;
+<a name="3105"></a>
+<a name="3106"></a>VerbRule(Sit)
+<a name="3107"></a>    'sit' ( | 'down') : VerbProduction
+<a name="3108"></a>    action = Sit
+<a name="3109"></a>    verbPhrase = 'sit/sitting down'
+<a name="3110"></a>;
+<a name="3111"></a>
+<a name="3112"></a>VerbRule(LieOn)
+<a name="3113"></a>    'lie' ('on' | 'down' 'on' )
+<a name="3114"></a>        singleDobj
+<a name="3115"></a>    : VerbProduction
+<a name="3116"></a>    action = LieOn
+<a name="3117"></a>    verbPhrase = 'lie/lying (on what)'
+<a name="3118"></a>    missingQ = 'what do you want to lie on'
+<a name="3119"></a>    dobjReply = singleNoun
+<a name="3120"></a>;
+<a name="3121"></a>
+<a name="3122"></a>VerbRule(LieIn)
+<a name="3123"></a>    'lie' ('in' | 'down' 'in')
+<a name="3124"></a>        singleDobj
+<a name="3125"></a>    : VerbProduction
+<a name="3126"></a>    action = LieIn
+<a name="3127"></a>    verbPhrase = 'lie/lying (on what)'
+<a name="3128"></a>    missingQ = 'what do you want to lie on'
+<a name="3129"></a>    dobjReply = singleNoun
+<a name="3130"></a>;
+<a name="3131"></a>
+<a name="3132"></a>
+<a name="3133"></a>VerbRule(Lie)
+<a name="3134"></a>    'lie' 'down' : VerbProduction
+<a name="3135"></a>    action = Lie
+<a name="3136"></a>    verbPhrase = 'lie/lying down'
+<a name="3137"></a>;
+<a name="3138"></a>
+<a name="3139"></a>VerbRule(StandOn)
+<a name="3140"></a>    'stand' ('on' | 'onto' | 'on' 'to' ) singleDobj
+<a name="3141"></a>    : VerbProduction
+<a name="3142"></a>    action = StandOn
+<a name="3143"></a>    verbPhrase = 'stand/standing (on what)'
+<a name="3144"></a>    missingQ = 'what do you want to stand on'
+<a name="3145"></a>    dobjReply = singleNoun
+<a name="3146"></a>;
+<a name="3147"></a>
+<a name="3148"></a>VerbRule(StandIn)
+<a name="3149"></a>    'stand' ('in' | 'into' | 'in' 'to')  singleDobj
+<a name="3150"></a>    : VerbProduction
+<a name="3151"></a>    action = StandIn
+<a name="3152"></a>    verbPhrase = 'stand/standing (on what)'
+<a name="3153"></a>    missingQ = 'what do you want to stand on'
+<a name="3154"></a>    dobjReply = singleNoun
+<a name="3155"></a>;
+<a name="3156"></a>
+<a name="3157"></a>VerbRule(Stand)
+<a name="3158"></a>    'stand' | 'stand' 'up' | 'get' 'up'
+<a name="3159"></a>    : VerbProduction
+<a name="3160"></a>    action = Stand
+<a name="3161"></a>    verbPhrase = 'stand/standing up'
+<a name="3162"></a>;
+<a name="3163"></a>
+<a name="3164"></a>VerbRule(GetOutOf)
+<a name="3165"></a>    ('out' 'of' | 'get' 'out' 'of' | 'climb' 'out' 'of' | 'leave' | 'exit')
+<a name="3166"></a>    singleDobj
+<a name="3167"></a>    : VerbProduction
+<a name="3168"></a>    action = GetOutOf
+<a name="3169"></a>    verbPhrase = 'get/getting (out of what)'
+<a name="3170"></a>    missingQ = 'what do you want to get out of'
+<a name="3171"></a>    dobjReply = singleNoun
+<a name="3172"></a>;
+<a name="3173"></a>
+<a name="3174"></a>VerbRule(GetOff)
+<a name="3175"></a>    'get' ('off' | 'off' 'of' | 'down' 'from') singleDobj
+<a name="3176"></a>    : VerbProduction
+<a name="3177"></a>    action = GetOff
+<a name="3178"></a>    verbPhrase = 'get/getting (off of what)'
+<a name="3179"></a>    missingQ = 'what do you want to get off of'
+<a name="3180"></a>    dobjReply = singleNoun
+<a name="3181"></a>;
+<a name="3182"></a>
+<a name="3183"></a>VerbRule(GetOut)
+<a name="3184"></a>    'get' 'out'
+<a name="3185"></a>    | 'get' 'off'
+<a name="3186"></a>    | 'get' 'down'    
+<a name="3187"></a>    | 'disembark'
+<a name="3188"></a>    | 'climb' 'out'
+<a name="3189"></a>    : VerbProduction
+<a name="3190"></a>    action = GetOut
+<a name="3191"></a>    verbPhrase = 'get/getting out'
+<a name="3192"></a>    priority = 60
+<a name="3193"></a>;
+<a name="3194"></a>
+<a name="3195"></a>VerbRule(Board)
+<a name="3196"></a>    ('board'
+<a name="3197"></a>     | ('get' ('on' | 'onto' | 'on' 'to'))
+<a name="3198"></a>     | ('climb' ('on' | 'onto' | 'on' 'to')))
+<a name="3199"></a>    singleDobj
+<a name="3200"></a>    : VerbProduction
+<a name="3201"></a>    action = Board
+<a name="3202"></a>    verbPhrase = 'get/getting (on what)'
+<a name="3203"></a>    missingQ = 'what do you want to get on'
+<a name="3204"></a>    dobjReply = singleNoun
+<a name="3205"></a>;
+<a name="3206"></a>
+<a name="3207"></a>VerbRule(Enter)
+<a name="3208"></a>    ('enter' | ('walk' | 'go' | 'get' | 'climb')
+<a name="3209"></a>     ( 'in' | 'in' 'to' | 'into' | 'inside'))
+<a name="3210"></a>    singleDobj
+<a name="3211"></a>    : VerbProduction
+<a name="3212"></a>    action = Enter
+<a name="3213"></a>    verbPhrase = 'enter/entering (what)'
+<a name="3214"></a>    missingQ = 'what do you want to enter'
+<a name="3215"></a>    dobjReply = singleNoun
+<a name="3216"></a>;
+<a name="3217"></a>
+<a name="3218"></a>VerbRule(Sleep)
+<a name="3219"></a>    'sleep'
+<a name="3220"></a>    : VerbProduction
+<a name="3221"></a>    action = Sleep
+<a name="3222"></a>    verbPhrase = 'sleep/sleeping'
+<a name="3223"></a>;
+<a name="3224"></a>
+<a name="3225"></a>VerbRule(Fasten)
+<a name="3226"></a>    ('fasten' | 'buckle' | 'buckle' 'up') multiDobj
+<a name="3227"></a>    : VerbProduction
+<a name="3228"></a>    action = Fasten
+<a name="3229"></a>    verbPhrase = 'fasten/fastening (what)'
+<a name="3230"></a>    missingQ = 'what do you want to fasten'
+<a name="3231"></a>;
+<a name="3232"></a>
+<a name="3233"></a>VerbRule(FastenTo)
+<a name="3234"></a>    ('fasten' | 'buckle') multiDobj 'to' singleIobj
+<a name="3235"></a>    : VerbProduction
+<a name="3236"></a>    action = FastenTo
+<a name="3237"></a>    verbPhrase = 'fasten/fastening (what) (to what)'
+<a name="3238"></a>    missingQ = 'what do you want to fasten (to it);'
+<a name="3239"></a>               + 'what do you want to fasten it to'
+<a name="3240"></a>    iobjReply = toSingleNoun
+<a name="3241"></a>;
+<a name="3242"></a>
+<a name="3243"></a>VerbRule(Unfasten)
+<a name="3244"></a>    ('unfasten' | 'unbuckle') multiDobj
+<a name="3245"></a>    : VerbProduction
+<a name="3246"></a>    action = Unfasten
+<a name="3247"></a>    verbPhrase = 'unfasten/unfastening (what)'
+<a name="3248"></a>    missingQ = 'what do you want to unfasten'
+<a name="3249"></a>;
+<a name="3250"></a>
+<a name="3251"></a>VerbRule(UnfastenFrom)
+<a name="3252"></a>    ('unfasten' | 'unbuckle') multiDobj 'from' singleIobj
+<a name="3253"></a>    : VerbProduction
+<a name="3254"></a>    action = UnfastenFrom
+<a name="3255"></a>    verbPhrase = 'unfasten/unfastening (what) (from what)'
+<a name="3256"></a>    missingQ = 'what do you want to unfasten;'
+<a name="3257"></a>               + 'what do you want to unfasten it from'
+<a name="3258"></a>    iobjReply = fromSingleNoun
+<a name="3259"></a>;
+<a name="3260"></a>
+<a name="3261"></a>VerbRule(PlugInto)
+<a name="3262"></a>    'plug' multiDobj ('in' | 'into' | 'in' 'to') singleIobj
+<a name="3263"></a>    : VerbProduction
+<a name="3264"></a>    action = PlugInto
+<a name="3265"></a>    verbPhrase = 'plug/plugging (what) (into what)'
+<a name="3266"></a>    missingQ = 'what do you want to plug (into it);'
+<a name="3267"></a>             + 'what do you want to plug it into'
+<a name="3268"></a>    iobjReply = inSingleNoun
+<a name="3269"></a>;
+<a name="3270"></a>
+<a name="3271"></a>VerbRule(PlugIntoWhat)
+<a name="3272"></a>    [badness 500] 'plug' multiDobj
+<a name="3273"></a>    : VerbProduction
+<a name="3274"></a>    action = PlugInto
+<a name="3275"></a>    verbPhrase = 'plug/plugging (what) (into what)'
+<a name="3276"></a>    missingQ = 'what do you want to plug (into it);'
+<a name="3277"></a>              + 'what do you want to plug it into'
+<a name="3278"></a>
+<a name="3279"></a>    missingRole = IndirectObject
+<a name="3280"></a>    iobjReply = inSingleNoun
+<a name="3281"></a>;
+<a name="3282"></a>
+<a name="3283"></a>VerbRule(PlugIn)
+<a name="3284"></a>    'plug' multiDobj 'in'
+<a name="3285"></a>    | 'plug' 'in' multiDobj
+<a name="3286"></a>    : VerbProduction
+<a name="3287"></a>    action = PlugIn
+<a name="3288"></a>    verbPhrase = 'plug/plugging (what) in'
+<a name="3289"></a>    missingQ = 'what do you want to plug in'
+<a name="3290"></a>;
+<a name="3291"></a>
+<a name="3292"></a>VerbRule(UnplugFrom)
+<a name="3293"></a>    'unplug' multiDobj 'from' singleIobj
+<a name="3294"></a>    : VerbProduction
+<a name="3295"></a>    action = UnplugFrom
+<a name="3296"></a>    verbPhrase = 'unplug/unplugging (what) (from what)'
+<a name="3297"></a>    missingQ = 'what do you want to unplug;what do you want to unplug it from'
+<a name="3298"></a>    iobjReply = fromSingleNoun
+<a name="3299"></a>;
+<a name="3300"></a>
+<a name="3301"></a>VerbRule(Unplug)
+<a name="3302"></a>    'unplug' multiDobj
+<a name="3303"></a>    : VerbProduction
+<a name="3304"></a>    action = Unplug
+<a name="3305"></a>    verbPhrase = 'unplug/unplugging (what)'
+<a name="3306"></a>    missingQ = 'what do you want to unplug'
+<a name="3307"></a>;
+<a name="3308"></a>
+<a name="3309"></a>VerbRule(Screw)
+<a name="3310"></a>    'screw' multiDobj
+<a name="3311"></a>    : VerbProduction
+<a name="3312"></a>    action = Screw
+<a name="3313"></a>    verbPhrase = 'screw/screwing (what)'
+<a name="3314"></a>    missingQ = 'what do you want to screw'
+<a name="3315"></a>;
+<a name="3316"></a>
+<a name="3317"></a>VerbRule(ScrewWith)
+<a name="3318"></a>    'screw' multiDobj 'with' singleIobj
+<a name="3319"></a>    : VerbProduction
+<a name="3320"></a>    action = ScrewWith
+<a name="3321"></a>    verbPhrase = 'screw/screwing (what) (with what)'
+<a name="3322"></a>    missingQ = 'what do you want to screw;'
+<a name="3323"></a>               + 'what do you want to screw it with'
+<a name="3324"></a>    iobjReply = withSingleNoun
+<a name="3325"></a>;
+<a name="3326"></a>
+<a name="3327"></a>VerbRule(Unscrew)
+<a name="3328"></a>    'unscrew' multiDobj
+<a name="3329"></a>    : VerbProduction
+<a name="3330"></a>    action = Unscrew
+<a name="3331"></a>    verbPhrase = 'unscrew/unscrewing (what)'
+<a name="3332"></a>    missingQ = 'what do you want to unscrew'
+<a name="3333"></a>;
+<a name="3334"></a>
+<a name="3335"></a>VerbRule(UnscrewWith)
+<a name="3336"></a>    'unscrew' multiDobj 'with' singleIobj
+<a name="3337"></a>    : VerbProduction
+<a name="3338"></a>    action = UnscrewWith
+<a name="3339"></a>    verbPhrase = 'unscrew/unscrewing (what) (with what)'
+<a name="3340"></a>    missingQ = 'what do you want to unscrew;'
+<a name="3341"></a>               + 'what do you want to unscrew it with'
+<a name="3342"></a>    iobjReply = withSingleNoun
+<a name="3343"></a>;
+<a name="3344"></a>
+<a name="3345"></a>VerbRule(PushTravelDir)
+<a name="3346"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj singleDir
+<a name="3347"></a>    : VerbProduction
+<a name="3348"></a>    action = PushTravelDir
+<a name="3349"></a>;
+<a name="3350"></a>
+<a name="3351"></a>VerbRule(PushTravelThrough)
+<a name="3352"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj
+<a name="3353"></a>    ('through' | 'thru') singleIobj
+<a name="3354"></a>    : VerbProduction
+<a name="3355"></a>    action = PushTravelThrough
+<a name="3356"></a>    verbPhrase = 'push/pushing (what) (through what)'
+<a name="3357"></a>    missingQ = 'what do you want to push;what do you want to push it through'
+<a name="3358"></a>;
+<a name="3359"></a>
+<a name="3360"></a>VerbRule(PushTravelEnter)
+<a name="3361"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj
+<a name="3362"></a>    ('in' | 'into' | 'in' 'to') singleIobj
+<a name="3363"></a>    : VerbProduction
+<a name="3364"></a>    action = PushTravelEnter
+<a name="3365"></a>    verbPhrase = 'push/pushing (what) (into what)'
+<a name="3366"></a>    missingQ = 'what do you want to push;what do you want to push it into'
+<a name="3367"></a>;
+<a name="3368"></a>
+<a name="3369"></a>VerbRule(PushTravelGetOutOf)
+<a name="3370"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj
+<a name="3371"></a>    'out' ('of' | ) singleIobj
+<a name="3372"></a>    : VerbProduction
+<a name="3373"></a>    action = PushTravelGetOutOf
+<a name="3374"></a>    verbPhrase = 'push/pushing (what) (out of what)'
+<a name="3375"></a>    missingQ = 'what do you want to push;what do you want to push it out of'
+<a name="3376"></a>;
+<a name="3377"></a>
+<a name="3378"></a>
+<a name="3379"></a>VerbRule(PushTravelClimbUp)
+<a name="3380"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj
+<a name="3381"></a>    'up' singleIobj
+<a name="3382"></a>    : VerbProduction
+<a name="3383"></a>    action = PushTravelClimbUp
+<a name="3384"></a>    verbPhrase = 'push/pushing (what) (up what)'
+<a name="3385"></a>    missingQ = 'what do you want to push;what do you want to push it up'
+<a name="3386"></a>;
+<a name="3387"></a>
+<a name="3388"></a>VerbRule(PushTravelClimbDown)
+<a name="3389"></a>    ('push' | 'pull' | 'drag' | 'move') singleDobj
+<a name="3390"></a>    'down' singleIobj
+<a name="3391"></a>    : VerbProduction
+<a name="3392"></a>    action = PushTravelClimbDown
+<a name="3393"></a>    verbPhrase = 'push/pushing (what) (down what)'
+<a name="3394"></a>    missingQ = 'what do you want to push;what do you want to push it down'
+<a name="3395"></a>;
+<a name="3396"></a>
+<a name="3397"></a>VerbRule(Exits)
+<a name="3398"></a>    'exits'
+<a name="3399"></a>    : VerbProduction
+<a name="3400"></a>    action = Exits
+<a name="3401"></a>    verbPhrase = 'exits/showing exits'
+<a name="3402"></a>;
+<a name="3403"></a>
+<a name="3404"></a>VerbRule(ExitsMode)
+<a name="3405"></a>    'exits' ('on'-&gt;on_ | 'all'-&gt;on_
+<a name="3406"></a>             | 'off'-&gt;off_ | 'none'-&gt;off_
+<a name="3407"></a>             | ('status' ('line' | ) | 'statusline') 'look'-&gt;on_
+<a name="3408"></a>             | 'look'-&gt;on_ ('status' ('line' | ) | 'statusline')
+<a name="3409"></a>             | 'status'-&gt;stat_ ('line' | ) | 'statusline'-&gt;stat_
+<a name="3410"></a>             | 'look'-&gt;look_)
+<a name="3411"></a>    : VerbProduction
+<a name="3412"></a>    action = ExitsMode
+<a name="3413"></a>    verbPhrase = 'turn/turning off exits display'
+<a name="3414"></a>;
+<a name="3415"></a>
+<a name="3416"></a>VerbRule(ExitsColour)
+<a name="3417"></a>    ('exits'|'exit') ('color'|'colour') ('on' -&gt;on_| 'off' -&gt;on_ | 
+<a name="3418"></a>                                         'blue' -&gt;colour_ | 'red' -&gt; colour_ |
+<a name="3419"></a>                                         'green' -&gt; colour_ | 'yellow' -&gt;
+<a name="3420"></a>                                         colour_)
+<a name="3421"></a>    : VerbProduction
+<a name="3422"></a>    action = ExitsColour
+<a name="3423"></a>    verbPhrase = 'turn/turning off unvisited exits colouring'
+<a name="3424"></a>;
+<a name="3425"></a>
+<a name="3426"></a>
+<a name="3427"></a>VerbRule(HintsOff)
+<a name="3428"></a>    'hints' 'off'
+<a name="3429"></a>    : VerbProduction
+<a name="3430"></a>    action = HintsOff
+<a name="3431"></a>    verbPhrase = 'disable/disabling hints'
+<a name="3432"></a>;
+<a name="3433"></a>
+<a name="3434"></a>VerbRule(Hints)
+<a name="3435"></a>    'hint' | 'hints'
+<a name="3436"></a>    : VerbProduction
+<a name="3437"></a>    action = Hints
+<a name="3438"></a>    verbPhrase = 'show/showing hints'
+<a name="3439"></a>;
+<a name="3440"></a>
+<a name="3441"></a>/* Command for enabling or disabling extra hints */
+<a name="3442"></a>VerbRule(ExtraHints)
+<a name="3443"></a>    ('extra' | 'extras'| 'bonus') ('hint' | 'hints' |'tips' |'tip'| ) 
+<a name="3444"></a>    ('on'-&gt;onOff | 'off'-&gt;onOff | )
+<a name="3445"></a>    : VerbProduction
+<a name="3446"></a>    action = ExtraHints
+<a name="3447"></a>    verbPhrase = ('turn/turning extra hints ' + onOff)
+<a name="3448"></a>;
+<a name="3449"></a>
+<a name="3450"></a>VerbRule(Brief)
+<a name="3451"></a>    'brief' | 'terse'
+<a name="3452"></a>    : VerbProduction
+<a name="3453"></a>    action = Brief
+<a name="3454"></a>    verbPhrase = 'set/setting brief mode'
+<a name="3455"></a>;
+<a name="3456"></a>
+<a name="3457"></a>VerbRule(Verbose)
+<a name="3458"></a>    'verbose' | 'wordy'
+<a name="3459"></a>    : VerbProduction
+<a name="3460"></a>    action = Verbose
+<a name="3461"></a>    verbPhrase = 'set/setting verbose mode'
+<a name="3462"></a>;
+<a name="3463"></a>
+<a name="3464"></a>
+<a name="3465"></a>#ifdef __DEBUG
+<a name="3466"></a>
+<a name="3467"></a>VerbRule(Purloin)
+<a name="3468"></a>    ('purloin' | 'pn') singleDobj
+<a name="3469"></a>    : VerbProduction
+<a name="3470"></a>    action = Purloin
+<a name="3471"></a>    verbPhrase = 'purloin/purloining (what)'
+<a name="3472"></a>    missingQ = 'what do you want to purloin'
+<a name="3473"></a>;
+<a name="3474"></a>
+<a name="3475"></a>VerbRule(GoNear)
+<a name="3476"></a>    ('gonear' |'go' 'near'| 'gn') singleDobj
+<a name="3477"></a>    : VerbProduction
+<a name="3478"></a>    action = GoNear
+<a name="3479"></a>    verbPhrase = 'go near/going near (what)'
+<a name="3480"></a>    missingQ = 'what do you want to go near'
+<a name="3481"></a>;
+<a name="3482"></a>
+<a name="3483"></a>
+<a name="3484"></a>VerbRule(FiatLux)
+<a name="3485"></a>    'fiat' 'lux' | 'let' 'there' 'be' 'light'
+<a name="3486"></a>    : VerbProduction
+<a name="3487"></a>    action = FiatLux
+<a name="3488"></a>    verbPhrase = 'adjust/adjusting light'
+<a name="3489"></a>;
+<a name="3490"></a>
+<a name="3491"></a>VerbRule(Evaluate)
+<a name="3492"></a>    'eval' literalDobj
+<a name="3493"></a>    : VerbProduction
+<a name="3494"></a>    action = Evaluate
+<a name="3495"></a>    verbPhrase = 'evaluate/evaluating (what)'
+<a name="3496"></a>    missingQ = 'what do you want to evaluate'
+<a name="3497"></a>;
+<a name="3498"></a>
+<a name="3499"></a>/* 
+<a name="3500"></a> *   If they're not already present, insert quotes round the argument of an eval
+<a name="3501"></a> *   command.
+<a name="3502"></a> */
+<a name="3503"></a>
+<a name="3504"></a>evalPreParser: StringPreParser
+<a name="3505"></a>    doParsing(str, which)
+<a name="3506"></a>    {
+<a name="3507"></a>        if(str.toLower.startsWith('eval ') &amp;&amp; !str.endsWith('"'))
+<a name="3508"></a>        {
+<a name="3509"></a>            str = str.splice(6, 0, '"') + '"';
+<a name="3510"></a>        }
+<a name="3511"></a>        return str;
+<a name="3512"></a>    }
+<a name="3513"></a>; 
+<a name="3514"></a>
+<a name="3515"></a>#endif
+<a name="3516"></a>
+<a name="3517"></a>
+<a name="3518"></a>/* ------------------------------------------------------------------------ */
+<a name="3519"></a>/*
+<a name="3520"></a> *   Additional English grammar properties.
+<a name="3521"></a> *   
+<a name="3522"></a> *   For each Action, we set up the property grammarTemplates with a list
+<a name="3523"></a> *   of all of the possible command input syntax templates that can be used
+<a name="3524"></a> *   to generate the action from a user command.  These are of the form
+<a name="3525"></a> *   "put (dobj) in (iobj)", which we can easily use to generate messages
+<a name="3526"></a> *   or compare to input phrases.  This is sometimes useful for determining
+<a name="3527"></a> *   the specific phrasing the player used in input, when a given action
+<a name="3528"></a> *   has multiple possible phrasings.
+<a name="3529"></a> *   
+<a name="3530"></a> *   For each VerbProduction (which is generally the same as a VerbRule
+<a name="3531"></a> *   definition), we set the property grammarAlts to a list of the grammar
+<a name="3532"></a> *   rules for the verb.  This is useful for finding the specific rule we
+<a name="3533"></a> *   matched for a given parsed input.
+<a name="3534"></a> *   
+<a name="3535"></a> *   These lists, and the procedure for building them, are inherently
+<a name="3536"></a> *   specific to the English library.  Other languages might not define
+<a name="3537"></a> *   their verb grammars with the same structures, so the assumptions we
+<a name="3538"></a> *   make about the grammar trees might not hold in all languages.  These
+<a name="3539"></a> *   lists are only used within the English part of the library, since the
+<a name="3540"></a> *   generic library can't count on them being available in other
+<a name="3541"></a> *   translations.  
+<a name="3542"></a> */
+<a name="3543"></a>property grammarTemplates, grammarAlts, verbRule;
+<a name="3544"></a>
+<a name="3545"></a>
+<a name="3546"></a>/* ------------------------------------------------------------------------ */
+<a name="3547"></a>/*
+<a name="3548"></a> *   Initialize the DoerParser table.  This populates the given
+<a name="3549"></a> *   DoerParserTable with DoerParser objects that describe the syntax
+<a name="3550"></a> *   available for use in Doer 'cmd' strings.
+<a name="3551"></a> *   
+<a name="3552"></a> *   Each DoerParser object simply provides a regular expression for
+<a name="3553"></a> *   parsing one action phrasing.  The regular expression defines the
+<a name="3554"></a> *   language-specific template for the action phrasing, with the proviso
+<a name="3555"></a> *   that each noun phrase is replaced with an object or class name, or a
+<a name="3556"></a> *   list of object or class names separated with '|' characters.
+<a name="3557"></a> *   
+<a name="3558"></a> *   For example, for a Give To command in English, we might define one
+<a name="3559"></a> *   DoerParser for each of the following regular expressions:
+<a name="3560"></a> *   
+<a name="3561"></a> *.     'give (&lt;alphanum|_|vbar&gt;+) to (&lt;alphanum|_|vbar&gt;+)'
+<a name="3562"></a> *.     'give (&lt;alphanum|_|vbar&gt;+) (&lt;alphanum|_|vbar&gt;+)'
+<a name="3563"></a> *   
+<a name="3564"></a> *   After you create a DoerParser, simply call ptab.addParser() to add the
+<a name="3565"></a> *   new parser to the table.
+<a name="3566"></a> *   
+<a name="3567"></a> *   Note that, regardless of the language, you MUST use a verb syntax that
+<a name="3568"></a> *   starts with a verb word, because of the way the parser lookup table is
+<a name="3569"></a> *   built.  Most languages naturally start an imperative with a verb
+<a name="3570"></a> *   anyway, so this is usually what you'd do even without this
+<a name="3571"></a> *   requirement.  For a language that uses another word order for
+<a name="3572"></a> *   imperatives, though, you'll have to use an unnatural syntax for the
+<a name="3573"></a> *   DoerParser syntax, and thus for the Doer 'cmd' string syntax.  This
+<a name="3574"></a> *   unnatural syntax is purely internal to the library and games, though -
+<a name="3575"></a> *   players won't see it.
+<a name="3576"></a> *   
+<a name="3577"></a> *   It's up to the language module to determine how to come up with the
+<a name="3578"></a> *   list of verb phrases, and how to build the verb regular expression
+<a name="3579"></a> *   patterns.  The English library builds the list directly from the
+<a name="3580"></a> *   player command grammar - specifically, the syntax token lists defined
+<a name="3581"></a> *   for the VerbRule productions.
+<a name="3582"></a> *   
+<a name="3583"></a> *   This English implementation also takes the opportunity to build
+<a name="3584"></a> *   grammar templates for each Action.  This is purely for our own use in
+<a name="3585"></a> *   the English library, so other languages don't have to replicate that
+<a name="3586"></a> *   functionality.  We do this here because we build these from the same
+<a name="3587"></a> *   information that we use to build the DoerParsers.
+<a name="3588"></a> *   
+<a name="3589"></a> *   [Required] 
+<a name="3590"></a> */
+<a name="3591"></a>initDoerParsers(ptab)
+<a name="3592"></a>{
+<a name="3593"></a>    /* set up inherited empty template lists in the base classes */
+<a name="3594"></a>    VerbProduction.grammarAlts = [];
+<a name="3595"></a>    Action.grammarTemplates = [];
+<a name="3596"></a>    Action.verbRule = nil;
+<a name="3597"></a>
+<a name="3598"></a>    /* run through each predicate rule alternative */
+<a name="3599"></a>    foreach (local alt in predicate.getGrammarInfo())
+<a name="3600"></a>    {
+<a name="3601"></a>        /* get the match object and action */
+<a name="3602"></a>        local mo = alt.gramMatchObj;
+<a name="3603"></a>        local action = mo.action;
+<a name="3604"></a>          
+<a name="3605"></a>        
+<a name="3606"></a>        /* save the alternative info with the match object */
+<a name="3607"></a>        mo.grammarAlts += alt;
+<a name="3608"></a>        
+<a name="3609"></a>        /* build it into a string template and a Doer parser */
+<a name="3610"></a>        local t = [], pt = [], ptRoles = [];
+<a name="3611"></a>        foreach (local tok in alt.gramTokens)
+<a name="3612"></a>        {
+<a name="3613"></a>            switch (tok.gramTokenType)
+<a name="3614"></a>            {
+<a name="3615"></a>            case GramTokTypeProd:
+<a name="3616"></a>                /* check the target property */
+<a name="3617"></a>                if (tok.gramTargetProp == &amp;dirMatch)
+<a name="3618"></a>                {
+<a name="3619"></a>                    /* it's a direction */
+<a name="3620"></a>                    t += '(direction)';
+<a name="3621"></a>//                    pt += '&lt;alphanum&gt;+';
+<a name="3622"></a>                   pt += '(&lt;alphanum|_|vbar|dot|star&gt;+)';
+<a name="3623"></a>                }
+<a name="3624"></a>                else
+<a name="3625"></a>                {
+<a name="3626"></a>                    /* 
+<a name="3627"></a>                     *   For anything else, assume we have a noun
+<a name="3628"></a>                     *   phrase.  Look to see if this matches a noun
+<a name="3629"></a>                     *   phrase role. 
+<a name="3630"></a>                     */
+<a name="3631"></a>                    local r = NounRole.all.valWhich(
+<a name="3632"></a>                        { r: r.matchProp == tok.gramTargetProp });
+<a name="3633"></a>                    
+<a name="3634"></a>                    /* if it matches, enter in the template as '(role)' */
+<a name="3635"></a>                    if (r != nil)
+<a name="3636"></a>                    {
+<a name="3637"></a>                        t += '(' + r.name + ')';
+<a name="3638"></a>                        pt += '(&lt;alphanum|_|vbar|dot|star&gt;+)';
+<a name="3639"></a>                        ptRoles += r;
+<a name="3640"></a>                    }
+<a name="3641"></a>                }
+<a name="3642"></a>                break;
+<a name="3643"></a>                
+<a name="3644"></a>            case GramTokTypeLiteral:
+<a name="3645"></a>                /* literal - enter in the template directly as it is */
+<a name="3646"></a>                t += tok.gramTokenInfo;
+<a name="3647"></a>                pt += tok.gramTokenInfo;
+<a name="3648"></a>                break;
+<a name="3649"></a>            }
+<a name="3650"></a>        }
+<a name="3651"></a>
+<a name="3652"></a>        /* 
+<a name="3653"></a>         *   combine the template tokens into a string, and add the
+<a name="3654"></a>         *   string to the action's template list
+<a name="3655"></a>         */
+<a name="3656"></a>        action.grammarTemplates += t.join(' ');
+<a name="3657"></a>        
+<a name="3658"></a>        /* 
+<a name="3659"></a>         *   If the action doesn't already know of an associated verb rule
+<a name="3660"></a>         *   note that this one belongs to it.
+<a name="3661"></a>         */
+<a name="3662"></a>        
+<a name="3663"></a>        if(action.verbRule == nil)
+<a name="3664"></a>        {
+<a name="3665"></a>            action.verbRule = mo;
+<a name="3666"></a>        }
+<a name="3667"></a>        
+<a name="3668"></a>        
+<a name="3669"></a>        /* add a DoerParser for the verb template to the parser table */
+<a name="3670"></a>        ptab.addParser(new DoerParser(action, pt[1], pt.join(' '), ptRoles));
+<a name="3671"></a>    }
+<a name="3672"></a>}
+<a name="3673"></a>
+<a name="3674"></a>/* ------------------------------------------------------------------------ */
+<a name="3675"></a>/*
+<a name="3676"></a> *   English-specific VerbProduction additions 
+<a name="3677"></a> */
+<a name="3678"></a>modify VerbProduction
+<a name="3679"></a>    /*
+<a name="3680"></a>     *   Get the grammar production for the given noun phrase role, for
+<a name="3681"></a>     *   answering missing-noun questions ("What do you want to open?").
+<a name="3682"></a>     *   By default, we'll look in three places:
+<a name="3683"></a>     *   
+<a name="3684"></a>     *   1. If we have the "reply" property that corresponds to the role
+<a name="3685"></a>     *   (dobjReply, iobjReply, etc), we'll return the grammar rule
+<a name="3686"></a>     *   specified there.
+<a name="3687"></a>     *   
+<a name="3688"></a>     *   2. We'll try to find the role's match property in our grammar rule
+<a name="3689"></a>     *   list.  If we find it, we'll return the production for the first
+<a name="3690"></a>     *   one we find.
+<a name="3691"></a>     *   
+<a name="3692"></a>     *   3. Failing all that, we'll return nounList for a direct object, or
+<a name="3693"></a>     *   singleNoun for anything else.
+<a name="3694"></a>     *   
+<a name="3695"></a>     *   [Required] 
+<a name="3696"></a>     */
+<a name="3697"></a>    missingRoleProd(role)
+<a name="3698"></a>    {
+<a name="3699"></a>        /* check for a custom setting for the role */
+<a name="3700"></a>        if (self.(role.missingReplyProp) != nil)
+<a name="3701"></a>            return self.(role.missingReplyProp);
+<a name="3702"></a>
+<a name="3703"></a>        /* look for the role in our grammar syntax templates */
+<a name="3704"></a>        foreach (local alt in grammarAlts)
+<a name="3705"></a>        {
+<a name="3706"></a>            /* look for a match for this role, with a sub-production */
+<a name="3707"></a>            local t = (alt.valWhich(
+<a name="3708"></a>                { t: t.gramTargetProp == role.matchProp
+<a name="3709"></a>                     &amp;&amp; t.gramTokenType == GramTokTypeProd  }));
+<a name="3710"></a>
+<a name="3711"></a>            /* if we found it, return the sub-production object */
+<a name="3712"></a>            if (t != nil)
+<a name="3713"></a>                return t.gramTokenInfo;
+<a name="3714"></a>        }
+<a name="3715"></a>
+<a name="3716"></a>        /* still didn't find it - return a suitable default for the role */
+<a name="3717"></a>        return (role == DirectObject ? nounList : singleNoun);
+<a name="3718"></a>    }
+<a name="3719"></a>;
+<a name="3720"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

@@ -1,0 +1,801 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>multmeth.t</title></head><body>
+<table class=ban><tr><td><h1>multmeth.t</h1><td align=right><a href="../file/multmeth.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/*
+<a name="4"></a> *   Copyright (c) 2008 Michael J. Roberts.  All Rights Reserved.
+<a name="5"></a> *   
+<a name="6"></a> *   This module provides the run-time component of "multi-methods" in TADS
+<a name="7"></a> *   3.  This works with the compiler to implement a multiple-dispatch
+<a name="8"></a> *   system.
+<a name="9"></a> *   
+<a name="10"></a> *   Multi-methods are essentially a combination of regular object methods
+<a name="11"></a> *   and "overloaded functions" in languages like C++.  Like a regular
+<a name="12"></a> *   object method, multi-methods are polymorphic: you can define several
+<a name="13"></a> *   incarnations of the same function name, with different parameter
+<a name="14"></a> *   types, the system picks the right binding for each invocation
+<a name="15"></a> *   dynamically, based on the actual argument values at run-time.  Unlike
+<a name="16"></a> *   regular methods, though, the selection is made on ALL of the argument
+<a name="17"></a> *   types, not just a special "self" argument.  In that respect,
+<a name="18"></a> *   multi-methods are like overloaded functions in C++; but multi-methods
+<a name="19"></a> *   differ from C++ overloading in that the selection of which method to
+<a name="20"></a> *   call is made dynamically at run-time, not at compile time.
+<a name="21"></a> *   
+<a name="22"></a> *   There are two main uses for multi-methods.
+<a name="23"></a> *   
+<a name="24"></a> *   First, most obviously, multi-methods provide what's known as "multiple
+<a name="25"></a> *   dispatch" semantics.  There are some situations (actually, quite a
+<a name="26"></a> *   few) where the ordinary Object Oriented notion of polymorphism -
+<a name="27"></a> *   selecting a method based on a single target object - doesn't quite do
+<a name="28"></a> *   the trick, because what you really want to do is select a particular
+<a name="29"></a> *   method based on the *combination* of objects involved in an operation.
+<a name="30"></a> *   Some canonical examples are calculating intersections of shapes in a
+<a name="31"></a> *   graphics program, where you want to select a specialized "Rectangle +
+<a name="32"></a> *   Circle" routine in one case and a "Line + Polygon" routine in another;
+<a name="33"></a> *   or performing file format conversions, where you want to select, say,
+<a name="34"></a> *   a specialized "JPEG to PNG" routine.  In an IF context, the obvious
+<a name="35"></a> *   use is for carrying out multi-object verbs, where you might want a
+<a name="36"></a> *   special routine for PUT (liquid) IN (vessel), and another for PUT
+<a name="37"></a> *   (object) IN (container).
+<a name="38"></a> *   
+<a name="39"></a> *   Second, multi-methods offer a way of extending a class without having
+<a name="40"></a> *   to change the class's source code.  Since a multi-method is defined
+<a name="41"></a> *   externally to any classes it refers to, you can create a method that's
+<a name="42"></a> *   polymorphic on class type - just like a regular method - but as a
+<a name="43"></a> *   syntactically stand-alone function.  This feature isn't as important
+<a name="44"></a> *   in TADS as in some other languages, since TADS lets you do essentially
+<a name="45"></a> *   the same thing with the "modify" syntax; but for some purposes the
+<a name="46"></a> *   multi-method approach might be preferable aesthetically, since it's
+<a name="47"></a> *   wholly external to the class rather than a sort of lexically separate
+<a name="48"></a> *   continuation of the class's code.  (However, as a practical matter,
+<a name="49"></a> *   it's not all that different; our implementation of multi-methods does
+<a name="50"></a> *   in fact modify the original class object, since we store the binding
+<a name="51"></a> *   information in the class objects.)  
+<a name="52"></a> */
+<a name="53"></a>
+<a name="54"></a>#include &lt;tads.h&gt;
+<a name="55"></a>
+<a name="56"></a>
+<a name="57"></a>/* ------------------------------------------------------------------------ */
+<a name="58"></a>/* 
+<a name="59"></a> *   Invoke a multi-method function.  For an expression of the form
+<a name="60"></a> *   
+<a name="61"></a> *.     f(a, b, ...)
+<a name="62"></a> *   
+<a name="63"></a> *   where 'f' has been declared as a multi-method, the compiler will
+<a name="64"></a> *   actually generate code that invokes this function, like so:
+<a name="65"></a> *   
+<a name="66"></a> *.     _multiMethodCall(baseFunc, params);
+<a name="67"></a> *   
+<a name="68"></a> *   'baseFunc' is a function pointer giving the base function; this is a
+<a name="69"></a> *   pointer to the common stub function that the compiler generates to
+<a name="70"></a> *   identify all of the multi-methods with a given name.  'params' is a
+<a name="71"></a> *   list giving the actual parameter values for invoking the function.
+<a name="72"></a> *   
+<a name="73"></a> *   Our job is to find the actual run-time binding for the function given
+<a name="74"></a> *   the actual parameters, and invoke it.  
+<a name="75"></a> */
+<a name="76"></a>_multiMethodCall(baseFunc, args)
+<a name="77"></a>{
+<a name="78"></a>    /* get the function binding lookup information */
+<a name="79"></a>    local info = _multiMethodRegistry.boundFuncTab_[baseFunc];
+<a name="80"></a>
+<a name="81"></a>    /* it's an error if there's no binding */
+<a name="82"></a>    if (info == nil)
+<a name="83"></a>        throw new UnboundMultiMethod(baseFunc, args);
+<a name="84"></a>
+<a name="85"></a>    /* 
+<a name="86"></a>     *   Look up the function binding based on the arguments.  To ensure
+<a name="87"></a>     *   that we match a function with the correct number of argument, we
+<a name="88"></a>     *   have to explicitly add the last-argument placeholder to the list. 
+<a name="89"></a>     */
+<a name="90"></a>    local func = _multiMethodSelect(info, args + _multiMethodEndOfList);
+<a name="91"></a>
+<a name="92"></a>    /* if we found a binding, invoke it; otherwise throw an error */
+<a name="93"></a>    if (func == nil)
+<a name="94"></a>        throw new UnboundMultiMethod(baseFunc, args);
+<a name="95"></a>    else
+<a name="96"></a>        return (func)(args...);
+<a name="97"></a>}
+<a name="98"></a>
+<a name="99"></a>/*
+<a name="100"></a> *   Invoke the base multi-method inherited from the given multi-method.
+<a name="101"></a> *   'fromFunc' is a pointer to a multi-method, presumably the one
+<a name="102"></a> *   currently running; we look up the next in line in inheritance order
+<a name="103"></a> *   and invoke it with the given argument list.  
+<a name="104"></a> */
+<a name="105"></a>_multiMethodCallInherited(fromFunc, [args])
+<a name="106"></a>{
+<a name="107"></a>#ifdef MULTMETH_STATIC_INHERITED
+<a name="108"></a>
+<a name="109"></a>    /* static mode - get the cached inheritance information */
+<a name="110"></a>    local inh = _multiMethodRegistry.inhTab_[fromFunc];
+<a name="111"></a>
+<a name="112"></a>#else
+<a name="113"></a>
+<a name="114"></a>    /* dynamic mode - get the base function binding */
+<a name="115"></a>    local info = _multiMethodRegistry.boundFuncTab_[
+<a name="116"></a>        _multiMethodRegistry.baseFuncTab_[fromFunc]];
+<a name="117"></a>
+<a name="118"></a>    /* it's an error if it doesn't exist */
+<a name="119"></a>    if (info == nil)
+<a name="120"></a>        throw new UnboundInheritedMultiMethod(fromFunc, args);
+<a name="121"></a>
+<a name="122"></a>    /* look up the inherited function based on the actual parameters */
+<a name="123"></a>    local inh = _multiMethodInherit(
+<a name="124"></a>        fromFunc, info, args + _multiMethodEndOfList);
+<a name="125"></a>
+<a name="126"></a>#endif
+<a name="127"></a>    
+<a name="128"></a>    /* it's an error if there's no inherited binding */
+<a name="129"></a>    if (inh == nil)
+<a name="130"></a>        throw new UnboundInheritedMultiMethod(fromFunc, args);
+<a name="131"></a>
+<a name="132"></a>    /* call it */
+<a name="133"></a>    return (inh)(args...);
+<a name="134"></a>}
+<a name="135"></a>
+<a name="136"></a>
+<a name="137"></a>/* ------------------------------------------------------------------------ */
+<a name="138"></a>/*
+<a name="139"></a> *   Get a pointer to a resolved multi-method function.  This takes a
+<a name="140"></a> *   pointer to the base function for the multi-method and a list of actual
+<a name="141"></a> *   argument values, and returns a function pointer to the specific
+<a name="142"></a> *   version of the multi-method that would be invoked if you called the
+<a name="143"></a> *   multi-method with that argument list.
+<a name="144"></a> *   
+<a name="145"></a> *   For example, if you want to get a pointer to the function that would
+<a name="146"></a> *   be called if you were to call foo(x, y, z), you'd use:
+<a name="147"></a> *   
+<a name="148"></a> *.     local func = getMultiMethodPointer(foo, x, y, z);
+<a name="149"></a> *   
+<a name="150"></a> *   We return a pointer to the individual multi-method function that
+<a name="151"></a> *   matches the argument list, or nil if there's no matching multi-method.
+<a name="152"></a> */
+<a name="153"></a>getMultiMethodPointer(baseFunc, [args])
+<a name="154"></a>{
+<a name="155"></a>    /* get the function binding lookup information */
+<a name="156"></a>    local info = _multiMethodRegistry.boundFuncTab_[baseFunc];
+<a name="157"></a>    
+<a name="158"></a>    /* if there's no binding information, return failure */
+<a name="159"></a>    if (info == nil)
+<a name="160"></a>        return nil;
+<a name="161"></a>
+<a name="162"></a>    /* look up and return the function binding based on the arguments */
+<a name="163"></a>    return _multiMethodSelect(info, args + _multiMethodEndOfList);
+<a name="164"></a>}
+<a name="165"></a>
+<a name="166"></a>
+<a name="167"></a>/* ------------------------------------------------------------------------ */
+<a name="168"></a>/*
+<a name="169"></a> *   Resolve a multi-method binding.  This function takes a binding
+<a name="170"></a> *   property ID (the property we assign during the registration process to
+<a name="171"></a> *   generate the binding tables) and a "remaining" argument list.  This
+<a name="172"></a> *   function invokes itself recursively to traverse the arguments from
+<a name="173"></a> *   left to right, so at each recursive invocation, we lop off the
+<a name="174"></a> *   leftmost argument (the one we're working on currently) and pass in the
+<a name="175"></a> *   remaining arguments in the list.
+<a name="176"></a> *   
+<a name="177"></a> *   We look up the binding property on the first argument in the remaining
+<a name="178"></a> *   argument list.  This can yield one of three things:
+<a name="179"></a> *   
+<a name="180"></a> *   - The trivial result is nil, which means that this binding property
+<a name="181"></a> *   has no definition on the first argument.  This doesn't necessarily
+<a name="182"></a> *   mean that the whole function is undefined on the arguments; it only
+<a name="183"></a> *   means that the current inheritance level we're looking at for the
+<a name="184"></a> *   previous argument(s) has no binding.  If we get this result we simply
+<a name="185"></a> *   return nil to tell the caller that it must look at an inherited
+<a name="186"></a> *   binding for the previous argument.
+<a name="187"></a> *   
+<a name="188"></a> *   - If the result is a function pointer, it's the bound function.  This
+<a name="189"></a> *   is the final result for the recursion, so we simply return it.
+<a name="190"></a> *   
+<a name="191"></a> *   - Otherwise, the result will be a new property ID, giving the property
+<a name="192"></a> *   that resolves the binding for the *next* argument.  In this case, we
+<a name="193"></a> *   use this property to resolve the next argument in the list by a
+<a name="194"></a> *   recursive invocation.  If that recursive call succeeds (i.e., returns
+<a name="195"></a> *   a non-nil value), we're done - we simply return the recursive result
+<a name="196"></a> *   as though it were our own.  If it fails, it means that there's no
+<a name="197"></a> *   binding for the particular subclass we're currently working on for the
+<a name="198"></a> *   first argument - however, there could still be a binding for a parent
+<a name="199"></a> *   class of the first argument.  So, we iterate up to any inherited
+<a name="200"></a> *   binding for the first argument, and if we find one, we try again with
+<a name="201"></a> *   the same recursive call.  We continue up our first argument's class
+<a name="202"></a> *   tree until we either find a binding (in which case we return it) or
+<a name="203"></a> *   exhaust the class tree (in which case we return nil).  
+<a name="204"></a> */
+<a name="205"></a>_multiMethodSelect(prop, args)
+<a name="206"></a>{
+<a name="207"></a>    local obj, binding;
+<a name="208"></a>
+<a name="209"></a>    /* 
+<a name="210"></a>     *   Get the first argument from the remaining arguments.  If it's not
+<a name="211"></a>     *   an object, use the placeholder object for non-object parameter
+<a name="212"></a>     *   bindings.  
+<a name="213"></a>     */
+<a name="214"></a>    local orig = args[1];
+<a name="215"></a>    if (dataType(orig) not in (TypeObject, TypeList, TypeSString))
+<a name="216"></a>        orig = _multiMethodNonObjectBindings;
+<a name="217"></a>
+<a name="218"></a>    /* get the remaining arguments */
+<a name="219"></a>    args = args.sublist(2);
+<a name="220"></a>
+<a name="221"></a>    /* 
+<a name="222"></a>     *   Look up the initial binding - this is simply the value of the
+<a name="223"></a>     *   binding property for the first argument.  In order to process the
+<a name="224"></a>     *   inheritance tree later, we'll need to know where we got this
+<a name="225"></a>     *   definition from, so look up the specific defining object.
+<a name="226"></a>     *   
+<a name="227"></a>     *   If the initial binding property isn't defined, or its value is
+<a name="228"></a>     *   explicitly nil, the function isn't bound (or, in the case of nil,
+<a name="229"></a>     *   is explicitly unbound).  Inheritance won't help in these cases, so
+<a name="230"></a>     *   we can immediately return nil to indicate that we don't have a
+<a name="231"></a>     *   binding.  
+<a name="232"></a>     */
+<a name="233"></a>    if ((obj = orig.propDefined(prop, PropDefGetClass)) == nil
+<a name="234"></a>        || (binding = obj.(prop)) == nil)
+<a name="235"></a>        return nil;
+<a name="236"></a>
+<a name="237"></a>    /* 
+<a name="238"></a>     *   If there are no more arguments, but we didn't just find a final
+<a name="239"></a>     *   function binding, we don't have enough arguments to match the
+<a name="240"></a>     *   current multi-method path.  Return failure.  
+<a name="241"></a>     */
+<a name="242"></a>    if (args.length() == 0 &amp;&amp; dataType(binding) != TypeFuncPtr)
+<a name="243"></a>        return nil;
+<a name="244"></a>
+<a name="245"></a>    /* 
+<a name="246"></a>     *   starting at our current defining object for the first argument,
+<a name="247"></a>     *   scan up its superclass tree until we find a binding 
+<a name="248"></a>     */
+<a name="249"></a>    for (;;)
+<a name="250"></a>    {
+<a name="251"></a>        local ret;
+<a name="252"></a>
+<a name="253"></a>        /* if we have a function pointer, we've found our binding */
+<a name="254"></a>        if (dataType(binding) == TypeFuncPtr)
+<a name="255"></a>            return binding;
+<a name="256"></a>
+<a name="257"></a>        /* 
+<a name="258"></a>         *   Recursively bind the binding for the remaining arguments.  If
+<a name="259"></a>         *   we find a binding, we're done - simply return it. 
+<a name="260"></a>         */
+<a name="261"></a>        if ((ret = _multiMethodSelect(binding, args)) != nil)
+<a name="262"></a>            return ret;
+<a name="263"></a>
+<a name="264"></a>        /* 
+<a name="265"></a>         *   We didn't find a binding for the remaining arguments, so we
+<a name="266"></a>         *   must have chosen too specific a binding for the first
+<a name="267"></a>         *   argument.  Look for an inherited value of the binding property
+<a name="268"></a>         *   in the next superclass of the object where we found the last
+<a name="269"></a>         *   binding value.  
+<a name="270"></a>         */
+<a name="271"></a>        obj = orig.propInherited(prop, orig, obj, PropDefGetClass);
+<a name="272"></a>        if (obj == nil)
+<a name="273"></a>            return nil;
+<a name="274"></a>
+<a name="275"></a>        /* we found an inherited value, so retrieve it from the superclass */
+<a name="276"></a>        binding = obj.(prop);
+<a name="277"></a>    }
+<a name="278"></a>}
+<a name="279"></a>
+<a name="280"></a>/*
+<a name="281"></a> *   Select the INHERITED version of a multi-method.  This takes a
+<a name="282"></a> *   particular version of the multi-method, and finds the next version in
+<a name="283"></a> *   inheritance order.
+<a name="284"></a> *   
+<a name="285"></a> *   This is basically a copy of _multiMethodSelect(), with a small amount
+<a name="286"></a> *   of extra logic.  This code repetition isn't good maintenance-wise, and
+<a name="287"></a> *   the two functions could in principle be merged into one.  However,
+<a name="288"></a> *   doing so would have an efficiency cost to _multiMethodSelect(), which
+<a name="289"></a> *   we want to keep as lean as possible.  
+<a name="290"></a> */
+<a name="291"></a>_multiMethodInherit(fromFunc, prop, args)
+<a name="292"></a>{
+<a name="293"></a>    return _multiMethodInheritMain(
+<a name="294"></a>        new _MultiMethodInheritCtx(), fromFunc, prop, args);
+<a name="295"></a>}
+<a name="296"></a>
+<a name="297"></a>class _MultiMethodInheritCtx: object
+<a name="298"></a>    foundFromFunc = nil
+<a name="299"></a>;
+<a name="300"></a>    
+<a name="301"></a>_multiMethodInheritMain(ctx, fromFunc, prop, args)
+<a name="302"></a>{
+<a name="303"></a>    local obj, binding;
+<a name="304"></a>
+<a name="305"></a>    /* 
+<a name="306"></a>     *   Get the first argument from the remaining arguments.  If it's not
+<a name="307"></a>     *   an object, use the placeholder object for non-object parameter
+<a name="308"></a>     *   bindings.  
+<a name="309"></a>     */
+<a name="310"></a>    local orig = args[1];
+<a name="311"></a>    if (dataType(orig) not in (TypeObject, TypeList, TypeSString))
+<a name="312"></a>        orig = _multiMethodNonObjectBindings;
+<a name="313"></a>
+<a name="314"></a>    /* get the remaining arguments */
+<a name="315"></a>    args = args.sublist(2);
+<a name="316"></a>
+<a name="317"></a>    /* 
+<a name="318"></a>     *   Look up the initial binding - this is simply the value of the
+<a name="319"></a>     *   binding property for the first argument.  In order to process the
+<a name="320"></a>     *   inheritance tree later, we'll need to know where we got this
+<a name="321"></a>     *   definition from, so look up the specific defining object.
+<a name="322"></a>     *   
+<a name="323"></a>     *   If the initial binding property isn't defined, or its value is
+<a name="324"></a>     *   explicitly nil, the function isn't bound (or, in the case of nil,
+<a name="325"></a>     *   is explicitly unbound).  Inheritance won't help in these cases, so
+<a name="326"></a>     *   we can immediately return nil to indicate that we don't have a
+<a name="327"></a>     *   binding.  
+<a name="328"></a>     */
+<a name="329"></a>    if ((obj = orig.propDefined(prop, PropDefGetClass)) == nil
+<a name="330"></a>        || (binding = obj.(prop)) == nil)
+<a name="331"></a>        return nil;
+<a name="332"></a>
+<a name="333"></a>    /* 
+<a name="334"></a>     *   If there are no more arguments, but we didn't just find a final
+<a name="335"></a>     *   function binding, we don't have enough arguments to match the
+<a name="336"></a>     *   current multi-method path.  Return failure.  
+<a name="337"></a>     */
+<a name="338"></a>    if (args.length() == 0 &amp;&amp; dataType(binding) != TypeFuncPtr)
+<a name="339"></a>        return nil;
+<a name="340"></a>
+<a name="341"></a>    /* 
+<a name="342"></a>     *   starting at our current defining object for the first argument,
+<a name="343"></a>     *   scan up its superclass tree until we find a binding 
+<a name="344"></a>     */
+<a name="345"></a>    for (;;)
+<a name="346"></a>    {
+<a name="347"></a>        /* we haven't found a function binding yet */
+<a name="348"></a>        local ret = nil;
+<a name="349"></a>
+<a name="350"></a>        /* 
+<a name="351"></a>         *   we either have a function pointer, in which case it's the
+<a name="352"></a>         *   actual binding, or a property, in which case it's the next
+<a name="353"></a>         *   binding level 
+<a name="354"></a>         */
+<a name="355"></a>        if (dataType(binding) == TypeFuncPtr)
+<a name="356"></a>        {
+<a name="357"></a>            /* this is the binding */
+<a name="358"></a>            ret = binding;
+<a name="359"></a>        }
+<a name="360"></a>        else
+<a name="361"></a>        {
+<a name="362"></a>            /* if there are no more arguments, return failure */
+<a name="363"></a>            if (args.length() == 0)
+<a name="364"></a>                return nil;
+<a name="365"></a>
+<a name="366"></a>            /* 
+<a name="367"></a>             *   Recursively bind the binding for the remaining arguments.
+<a name="368"></a>             *   If we find a binding, we're done - simply return it.  
+<a name="369"></a>             */
+<a name="370"></a>            ret = _multiMethodInheritMain(ctx, fromFunc, binding, args);
+<a name="371"></a>        }
+<a name="372"></a>
+<a name="373"></a>        /* check to see if we found a binding */
+<a name="374"></a>        if (ret != nil)
+<a name="375"></a>        {
+<a name="376"></a>            /* 
+<a name="377"></a>             *   We found a binding.  If we've already found the inheriting
+<a name="378"></a>             *   version, return the first thing we find, since that's the
+<a name="379"></a>             *   next inheriting level.  Otherwise, if this is the
+<a name="380"></a>             *   inheriting version, note that we've found it, but keep
+<a name="381"></a>             *   looking, since we want to find the next one after that.
+<a name="382"></a>             *   Otherwise, just keep looking, since we haven't even
+<a name="383"></a>             *   reached the overriding version yet. 
+<a name="384"></a>             */
+<a name="385"></a>            if (ctx.foundFromFunc)
+<a name="386"></a>                return ret;
+<a name="387"></a>            else if (ret == fromFunc)
+<a name="388"></a>                ctx.foundFromFunc = true;
+<a name="389"></a>        }
+<a name="390"></a>        
+<a name="391"></a>        /* 
+<a name="392"></a>         *   We didn't find a binding for the remaining arguments, so we
+<a name="393"></a>         *   must have chosen too specific a binding for the first
+<a name="394"></a>         *   argument.  Look for an inherited value of the binding property
+<a name="395"></a>         *   in the next superclass of the object where we found the last
+<a name="396"></a>         *   binding value.  
+<a name="397"></a>         */
+<a name="398"></a>        obj = orig.propInherited(prop, orig, obj, PropDefGetClass);
+<a name="399"></a>        if (obj == nil)
+<a name="400"></a>            return nil;
+<a name="401"></a>
+<a name="402"></a>        /* we found an inherited value, so retrieve it from the superclass */
+<a name="403"></a>        binding = obj.(prop);
+<a name="404"></a>    }
+<a name="405"></a>}
+<a name="406"></a>
+<a name="407"></a>/* ------------------------------------------------------------------------ */
+<a name="408"></a>/*
+<a name="409"></a> *   Unbound multi-method exception.  This is thrown when a call to resolve
+<a name="410"></a> *   a multi-method fails to find a binding, meaning that there's no
+<a name="411"></a> *   definition of the method that matches the types of the arguments.  
+<a name="412"></a> */
+<a name="413"></a>class UnboundMultiMethod: Exception
+<a name="414"></a>    construct(func, args)
+<a name="415"></a>    {
+<a name="416"></a>        /* note the function name and argument list */
+<a name="417"></a>        func_ = func;
+<a name="418"></a>        args_ = args;
+<a name="419"></a>
+<a name="420"></a>        /* look up the function's name */
+<a name="421"></a>        name_ = _multiMethodRegistry.funcNameTab_[func];
+<a name="422"></a>    }
+<a name="423"></a>
+<a name="424"></a>    /* display an error message describing the exception */
+<a name="425"></a>    displayException()
+<a name="426"></a>    {
+<a name="427"></a>        "Unbound multi-method \"&lt;&lt;name_&gt;&gt;\" (&lt;&lt;args_.length()&gt;&gt; argument(s))";
+<a name="428"></a>    }
+<a name="429"></a>
+<a name="430"></a>    /* the base function pointer */
+<a name="431"></a>    func_ = nil
+<a name="432"></a>
+<a name="433"></a>    /* the symbol name of the base function */
+<a name="434"></a>    name_ = ''
+<a name="435"></a>
+<a name="436"></a>    /* the number of arguments */
+<a name="437"></a>    args_ = 0
+<a name="438"></a>;
+<a name="439"></a>
+<a name="440"></a>class UnboundInheritedMultiMethod: UnboundMultiMethod
+<a name="441"></a>    displayException()
+<a name="442"></a>    {
+<a name="443"></a>        "No inherited multi-method for \"&lt;&lt;name_&gt;&gt;\" (&lt;&lt;args_.length()&gt;&gt;
+<a name="444"></a>        arguments(s))";
+<a name="445"></a>    }
+<a name="446"></a>;
+<a name="447"></a>
+<a name="448"></a>
+<a name="449"></a>/* ------------------------------------------------------------------------ */
+<a name="450"></a>/*
+<a name="451"></a> *   Base class for our internal placeholder objects for argument list
+<a name="452"></a> *   matching.
+<a name="453"></a> */
+<a name="454"></a>class _MultiMethodPlaceholder: object
+<a name="455"></a>;
+<a name="456"></a>
+<a name="457"></a>/*
+<a name="458"></a> *   A placeholder object for bindings for non-object arguments.  Whenever
+<a name="459"></a> *   we have an actual argument value that's not an object, we'll look here
+<a name="460"></a> *   for bindings for that parameter.  When registering a function, we'll
+<a name="461"></a> *   register a binding here for any parameter that doesn't have a type
+<a name="462"></a> *   specification.  
+<a name="463"></a> */
+<a name="464"></a>_multiMethodNonObjectBindings: _MultiMethodPlaceholder
+<a name="465"></a>;
+<a name="466"></a>
+<a name="467"></a>/*
+<a name="468"></a> *   A placeholder object for end-of-list bindings.  When we're matching an
+<a name="469"></a> *   argument list, we'll use this to represent the end of the list so that
+<a name="470"></a> *   we can match the "..." in any varargs functions in the multi-method
+<a name="471"></a> *   set that we're matching against.  
+<a name="472"></a> */
+<a name="473"></a>_multiMethodEndOfList: _MultiMethodPlaceholder
+<a name="474"></a>;
+<a name="475"></a>
+<a name="476"></a>
+<a name="477"></a>/* ------------------------------------------------------------------------ */
+<a name="478"></a>/*
+<a name="479"></a> *   Register a multi-method.
+<a name="480"></a> *   
+<a name="481"></a> *   The compiler automatically generates a call to this function during
+<a name="482"></a> *   pre-initialization for each defined multi-method.  'baseFunc' is a
+<a name="483"></a> *   pointer to the "base" function - this is a stub function that the
+<a name="484"></a> *   compiler generates to refer to the whole collection of multi-methods
+<a name="485"></a> *   with a given name.  'func' is the pointer to the specific multi-method
+<a name="486"></a> *   we're registering; this is the actual function defined in the code
+<a name="487"></a> *   with a given set of parameter types.  'params' is a list of the
+<a name="488"></a> *   parameter type values; each parameter type in the list is given as a
+<a name="489"></a> *   class object (meaning that the parameter matches that class), nil
+<a name="490"></a> *   (meaning that the parameter matches ANY type of value), or the string
+<a name="491"></a> *   '...' (meaning that this is a "varargs" function, and any number of
+<a name="492"></a> *   additional parameters can be supplied at this point in the parameters;
+<a name="493"></a> *   this is always the last parameter in the list if it's present).  
+<a name="494"></a> */
+<a name="495"></a>_multiMethodRegister(baseFunc, func, params)
+<a name="496"></a>{
+<a name="497"></a>    /* if there's no hash entry for the function yet, add one */
+<a name="498"></a>    local tab = _multiMethodRegistry.funcTab_;
+<a name="499"></a>    if (tab[baseFunc] == nil)
+<a name="500"></a>        tab[baseFunc] = new Vector(10);
+<a name="501"></a>
+<a name="502"></a>    /* add the entry to the list of variants for this function */
+<a name="503"></a>    tab[baseFunc].append([func, params]);
+<a name="504"></a>
+<a name="505"></a>    /* add the mapping from the function to the base function */
+<a name="506"></a>    _multiMethodRegistry.baseFuncTab_[func] = baseFunc;
+<a name="507"></a>
+<a name="508"></a>    /* also add the function to the direct parameter table */
+<a name="509"></a>    _multiMethodRegistry.funcParamTab_[func] = params;
+<a name="510"></a>}
+<a name="511"></a>
+<a name="512"></a>/*
+<a name="513"></a> *   Build the method bindings.  The compiler generates a call to this
+<a name="514"></a> *   after all methods have been registered; we run through the list of
+<a name="515"></a> *   registered methods and generate the binding properties in the
+<a name="516"></a> *   referenced objects.  
+<a name="517"></a> */
+<a name="518"></a>_multiMethodBuildBindings()
+<a name="519"></a>{
+<a name="520"></a>    /* no errors yet */
+<a name="521"></a>    local errs = [];
+<a name="522"></a>    
+<a name="523"></a>    /* 
+<a name="524"></a>     *   build a lookup table that maps function pointers to symbol names,
+<a name="525"></a>     *   so we can look up our function names for diagnostic purposes 
+<a name="526"></a>     */
+<a name="527"></a>    local nameTab = new LookupTable(128, 256);
+<a name="528"></a>    t3GetGlobalSymbols().forEachAssoc(function(key, val)
+<a name="529"></a>    {
+<a name="530"></a>        /* if it's a function, store a value-to-name association */
+<a name="531"></a>        if (dataType(val) == TypeFuncPtr)
+<a name="532"></a>            nameTab[val] = key;
+<a name="533"></a>    });
+<a name="534"></a>
+<a name="535"></a>    /* run through each entry in the method table */
+<a name="536"></a>    _multiMethodRegistry.funcTab_.forEachAssoc(function(baseFunc, val)
+<a name="537"></a>    {
+<a name="538"></a>        /* look up the base function's name */
+<a name="539"></a>        local name = nameTab[baseFunc];
+<a name="540"></a>
+<a name="541"></a>        /* add this to the saved name table */
+<a name="542"></a>        _multiMethodRegistry.funcNameTab_[baseFunc] = name;
+<a name="543"></a>
+<a name="544"></a>        /* note the number of registered instances of this function */
+<a name="545"></a>        local funcCnt = val.length();
+<a name="546"></a>
+<a name="547"></a>        /* 
+<a name="548"></a>         *   Assign the initial binding property for this function.  This
+<a name="549"></a>         *   is the property that gives us the binding for the first
+<a name="550"></a>         *   variant argument.  Each unique multi-method (which is defined
+<a name="551"></a>         *   as a multi-method with a given name and a given number of
+<a name="552"></a>         *   parameters) has a single initial binding property.  
+<a name="553"></a>         */
+<a name="554"></a>        local initProp = t3AllocProp();
+<a name="555"></a>
+<a name="556"></a>        /* 
+<a name="557"></a>         *   store the binding starter information for the function - to
+<a name="558"></a>         *   find the binding on invocation, we'll need the initial binding
+<a name="559"></a>         *   property so that we can trace the argument list 
+<a name="560"></a>         */
+<a name="561"></a>        _multiMethodRegistry.boundFuncTab_[baseFunc] = initProp;
+<a name="562"></a>
+<a name="563"></a>        /* build the argument binding tables */
+<a name="564"></a>        for (local i = 1 ; i &lt;= funcCnt ; i++)
+<a name="565"></a>        {
+<a name="566"></a>            /* get the function binding */
+<a name="567"></a>            local func = val[i][1];
+<a name="568"></a>
+<a name="569"></a>            /* get the formal parameter type list for this function */
+<a name="570"></a>            local params = val[i][2];
+<a name="571"></a>            local paramCnt = params.length();
+<a name="572"></a>
+<a name="573"></a>            /*
+<a name="574"></a>             *   If the last formal isn't a varargs placeholder, then we
+<a name="575"></a>             *   must explicitly find the end of the list in the actual
+<a name="576"></a>             *   parameters in order to match a call.  To match the end of
+<a name="577"></a>             *   the list, add the special End-Of-List placeholder to the
+<a name="578"></a>             *   formals list.
+<a name="579"></a>             *   
+<a name="580"></a>             *   This isn't necessary when there's a varargs placeholder
+<a name="581"></a>             *   because the placeholder can match zero or more - so it
+<a name="582"></a>             *   doesn't matter where the list ends as long as we get to
+<a name="583"></a>             *   the varargs slot.  
+<a name="584"></a>             */
+<a name="585"></a>            if (paramCnt == 0 || params[paramCnt] != '...')
+<a name="586"></a>            {
+<a name="587"></a>                params += _multiMethodEndOfList;
+<a name="588"></a>                ++paramCnt;
+<a name="589"></a>            }
+<a name="590"></a>
+<a name="591"></a>            /* start at the initial binding property */
+<a name="592"></a>            local prop = initProp;
+<a name="593"></a>
+<a name="594"></a>            /* run through the parameters and build the bindings */
+<a name="595"></a>            for (local j = 1 ; j &lt;= paramCnt ; j++)
+<a name="596"></a>            {
+<a name="597"></a>                /* get this parameter type */
+<a name="598"></a>                local origTyp = params[j], typ = origTyp;
+<a name="599"></a>
+<a name="600"></a>                /* 
+<a name="601"></a>                 *   If the type is nil, it means that this parameter slot
+<a name="602"></a>                 *   can accept any type.  So, map the slot to the generic
+<a name="603"></a>                 *   Object type - this will catch everything, since we
+<a name="604"></a>                 *   handle non-objects by mapping them to the
+<a name="605"></a>                 *   _multiMethodNonObjectBindings placeholder object,
+<a name="606"></a>                 *   which like all objects inherits from Object.  This
+<a name="607"></a>                 *   means we'll match argument values that are objects or
+<a name="608"></a>                 *   non-objects, thus fulfilling our requirement to match
+<a name="609"></a>                 *   all values.
+<a name="610"></a>                 *   
+<a name="611"></a>                 *   If the type is the string '...', it means that this is
+<a name="612"></a>                 *   a varargs placeholder argument.  In this case, we need
+<a name="613"></a>                 *   to set up a match for the generic Object, in case we
+<a name="614"></a>                 *   have one or more actual arguments for the varargs
+<a name="615"></a>                 *   portion.  This will also automatically match the case
+<a name="616"></a>                 *   where we have no extra arguments, because in this case
+<a name="617"></a>                 *   the matcher will try to match the End-Of-List
+<a name="618"></a>                 *   placeholder object _multiMethodEndOfList, which (as
+<a name="619"></a>                 *   above) inherits from Object and thus picks up the
+<a name="620"></a>                 *   any-type binding.
+<a name="621"></a>                 *   
+<a name="622"></a>                 *   The one tricky bit is that when we have a parameter
+<a name="623"></a>                 *   explicitly bound to Object, or an explicit End-Of-List
+<a name="624"></a>                 *   flag object, we'll get an undesired side effect of
+<a name="625"></a>                 *   this otherwise convenient arrangement: we'll
+<a name="626"></a>                 *   effectively bind non-object types to the Object by
+<a name="627"></a>                 *   virtue of the inheritance.  To deal with this, we'll
+<a name="628"></a>                 *   explicitly set the placeholders' binding to nil in
+<a name="629"></a>                 *   this situation - this makes non-object types
+<a name="630"></a>                 *   explicitly *not* bound to the function, overriding any
+<a name="631"></a>                 *   binding we'd otherwise inherit from Object.  
+<a name="632"></a>                 */
+<a name="633"></a>                if (typ == nil || typ == '...')
+<a name="634"></a>                    typ = Object;
+<a name="635"></a>
+<a name="636"></a>                /* 
+<a name="637"></a>                 *   Figure the binding.
+<a name="638"></a>                 *   
+<a name="639"></a>                 *   - If this is the last parameter, it's the end of the
+<a name="640"></a>                 *   line, so bind directly to the function pointer.
+<a name="641"></a>                 *   
+<a name="642"></a>                 *   - If this isn't the variant parameter, the binding is
+<a name="643"></a>                 *   the next binding property.  At invocation, we'll
+<a name="644"></a>                 *   continue on to the next argument value, evaluating
+<a name="645"></a>                 *   this next property to get its binding in the context
+<a name="646"></a>                 *   established by the current argument and property.  The
+<a name="647"></a>                 *   next binding property is specific to the current class
+<a name="648"></a>                 *   in the current position, so we might already have
+<a name="649"></a>                 *   assigned a property for it from another version of
+<a name="650"></a>                 *   this function.  Look it up, or create a new one if we
+<a name="651"></a>                 *   haven't assigned it already.  
+<a name="652"></a>                 */
+<a name="653"></a>                local binding;
+<a name="654"></a>                if (j == paramCnt)
+<a name="655"></a>                {
+<a name="656"></a>                    /* end of the line - the binding is the actual function */
+<a name="657"></a>                    binding = func;
+<a name="658"></a>
+<a name="659"></a>                    /* 
+<a name="660"></a>                     *   if this type is already bound to a different
+<a name="661"></a>                     *   definition for this function, we have a
+<a name="662"></a>                     *   conflicting definition 
+<a name="663"></a>                     */
+<a name="664"></a>                    if (typ.propDefined(prop, PropDefDirectly)
+<a name="665"></a>                        &amp;&amp; typ.(prop) != binding)
+<a name="666"></a>                        errs += [baseFunc, func, params, name];
+<a name="667"></a>                }
+<a name="668"></a>                else
+<a name="669"></a>                {
+<a name="670"></a>                    /* check for an existing binding property here */
+<a name="671"></a>                    if (typ.propDefined(prop, PropDefDirectly))
+<a name="672"></a>                    {
+<a name="673"></a>                        /* we already have a forward binding here - use it */
+<a name="674"></a>                        binding = typ.(prop);
+<a name="675"></a>                    }
+<a name="676"></a>                    else
+<a name="677"></a>                    {
+<a name="678"></a>                        /* it's not defined here, so create a new property */
+<a name="679"></a>                        binding = t3AllocProp();
+<a name="680"></a>                    }
+<a name="681"></a>                }
+<a name="682"></a>
+<a name="683"></a>                /* set the binding */
+<a name="684"></a>                typ.(prop) = binding;
+<a name="685"></a>                
+<a name="686"></a>                /*
+<a name="687"></a>                 *   As we mentioned above, if the original type is
+<a name="688"></a>                 *   explicitly Object, we *don't* want to allow non-object
+<a name="689"></a>                 *   types (int, true, nil, property pointers, etc) and
+<a name="690"></a>                 *   End-Of-List placeholders to match - without some kind
+<a name="691"></a>                 *   of explicit intervention here, the placeholders would
+<a name="692"></a>                 *   match by inheritance because the placeholders are just
+<a name="693"></a>                 *   objects themselves.  To handle this properly, set the
+<a name="694"></a>                 *   non-object placeholder bindings explicitly to nil.  
+<a name="695"></a>                 */
+<a name="696"></a>                if (origTyp == Object)
+<a name="697"></a>                    _MultiMethodPlaceholder.(prop) = nil;
+<a name="698"></a>
+<a name="699"></a>                /* 
+<a name="700"></a>                 *   if there's another argument, this binding is the
+<a name="701"></a>                 *   binding property for the next argument 
+<a name="702"></a>                 */
+<a name="703"></a>                prop = binding;
+<a name="704"></a>            }
+<a name="705"></a>        }
+<a name="706"></a>    });
+<a name="707"></a>
+<a name="708"></a>#ifdef MULTMETH_STATIC_INHERITED
+<a name="709"></a>    /*
+<a name="710"></a>     *   If we're operating in static inheritance mode, cache the
+<a name="711"></a>     *   next-override information for inherited() calls.  Since we're
+<a name="712"></a>     *   using static inheritance, we can figure this at startup and just
+<a name="713"></a>     *   look up the cached information whenever we need to perform an
+<a name="714"></a>     *   inherited() call.  
+<a name="715"></a>     */
+<a name="716"></a>    _multiMethodRegistry.funcTab_.forEachAssoc(function(baseFunc, val)
+<a name="717"></a>    {
+<a name="718"></a>        /* get the binding property for the base function */
+<a name="719"></a>        local prop = _multiMethodRegistry.boundFuncTab_[baseFunc];
+<a name="720"></a>
+<a name="721"></a>        /* run through the functions registered under this function name */
+<a name="722"></a>        for (local i = 1 ; i &lt;= val.length() ; i++)
+<a name="723"></a>        {
+<a name="724"></a>            /* get this function binding and the type list */
+<a name="725"></a>            local func = val[i][1];
+<a name="726"></a>            local params = val[i][2];
+<a name="727"></a>            local paramCnt = params.length();
+<a name="728"></a>
+<a name="729"></a>            /* 
+<a name="730"></a>             *   Add the end-of-list marker if applicable.  For a varargs
+<a name="731"></a>             *   function, add one generic Object parameter in place of the
+<a name="732"></a>             *   variable list - but we'll check later to make sure that
+<a name="733"></a>             *   any match we find is really varargs, since a varargs
+<a name="734"></a>             *   function can only inherit from another varargs function.
+<a name="735"></a>             *   (This is because, in order to actually invoke the
+<a name="736"></a>             *   inherited function from an overrider, the callee must be
+<a name="737"></a>             *   varargs to be able to handle varargs from the caller.)  
+<a name="738"></a>             */
+<a name="739"></a>            local varargs = (paramCnt != 0 &amp;&amp; params[paramCnt] == '...');
+<a name="740"></a>            if (varargs)
+<a name="741"></a>                params[paramCnt] = Object;
+<a name="742"></a>            else
+<a name="743"></a>                params += _multiMethodEndOfList;
+<a name="744"></a>
+<a name="745"></a>            /* look up the inherited version of the method */
+<a name="746"></a>            local inh = _multiMethodInherit(func, prop, params);
+<a name="747"></a>
+<a name="748"></a>            /* varargs can only inherit from varargs */
+<a name="749"></a>            if (inh != nil &amp;&amp; varargs)
+<a name="750"></a>            {
+<a name="751"></a>                /* look up the inherited parameters */
+<a name="752"></a>                local inhParams = _multiMethodRegistry.funcParamTab_[inh];
+<a name="753"></a>                local inhParamCnt = inhParams.length();
+<a name="754"></a>
+<a name="755"></a>                /* make sure it's varargs, too */
+<a name="756"></a>                if (inhParamCnt == 0 || inhParams[inhParamCnt] != '...')
+<a name="757"></a>                    inh = nil;
+<a name="758"></a>            }
+<a name="759"></a>
+<a name="760"></a>            /* remember the inherited function */
+<a name="761"></a>            _multiMethodRegistry.inhTab_[func] = inh;
+<a name="762"></a>        }
+<a name="763"></a>    });
+<a name="764"></a>#endif /* MULTMETH_STATIC_INHERITED */
+<a name="765"></a>    
+<a name="766"></a>    /* we're done with the source bindings - discard them to save memory */
+<a name="767"></a>    _multiMethodRegistry.funcTab_ = nil;
+<a name="768"></a>    _multiMethodRegistry.funcParamTab_ = nil;
+<a name="769"></a>}
+<a name="770"></a>
+<a name="771"></a>/*
+<a name="772"></a> *   Multi-method registry.  This is where we keep the registry information
+<a name="773"></a> *   that we build during initialization.  
+<a name="774"></a> */
+<a name="775"></a>_multiMethodRegistry: object
+<a name="776"></a>    /* table of registered functions, indexed by base function */
+<a name="777"></a>    funcTab_ = static new LookupTable(128, 256)
+<a name="778"></a>
+<a name="779"></a>    /* table of function parameter lists, indexed by function */
+<a name="780"></a>    funcParamTab_ = static new LookupTable(128, 256)
+<a name="781"></a>
+<a name="782"></a>    /* function name table */
+<a name="783"></a>    funcNameTab_ = static new LookupTable(64, 128)
+<a name="784"></a>
+<a name="785"></a>    /* base function -&gt; initial binding property */
+<a name="786"></a>    boundFuncTab_ = static new LookupTable(64, 128)
+<a name="787"></a>
+<a name="788"></a>    /* function -&gt; base function */
+<a name="789"></a>    baseFuncTab_ = static new LookupTable(64, 128)
+<a name="790"></a>
+<a name="791"></a>#ifdef MULTMETH_STATIC_INHERITED
+<a name="792"></a>    /* table of cached inherited() information, indexed by function */
+<a name="793"></a>    inhTab_ = static new LookupTable(64, 128)
+<a name="794"></a>#endif
+<a name="795"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

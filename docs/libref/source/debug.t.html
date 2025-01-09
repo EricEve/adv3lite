@@ -1,0 +1,652 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>debug.t</title></head><body>
+<table class=ban><tr><td><h1>debug.t</h1><td align=right><a href="../file/debug.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   ************************************************************************
+<a name="6"></a> *   debug.t This module forms part of the adv3Lite library, and defines a
+<a name="7"></a> *   number of commands that can be used for debugging purposes.
+<a name="8"></a> *
+<a name="9"></a> *   (c) 2012-13 Eric Eve (but based partly on code borrowed from the Mercury
+<a name="10"></a> *   library (c) Michael J. Roberts).
+<a name="11"></a> *
+<a name="12"></a> *
+<a name="13"></a> */
+<a name="14"></a>
+<a name="15"></a>
+<a name="16"></a>/* We only include any of the code in this module in debug builds */
+<a name="17"></a>#ifdef __DEBUG
+<a name="18"></a>
+<a name="19"></a>DebugCtl: object
+<a name="20"></a>    /*
+<a name="21"></a>     *   Debug mode options.  Each debug function has an associated ID key,
+<a name="22"></a>     *   which is just a string identifying it.  This is a lookup table
+<a name="23"></a>     *   that keeps a true/nil value for each key, saying whether the
+<a name="24"></a>     *   function is enabled or disabled.  This lets the developer turn
+<a name="25"></a>     *   debugging displays on and off individually, so that you don't have
+<a name="26"></a>     *   to look at piles of debug output not relevant to the task you're
+<a name="27"></a>     *   currently working on.  
+<a name="28"></a>     */
+<a name="29"></a>    enabled = static (new LookupTable(32, 64))
+<a name="30"></a>
+<a name="31"></a>    /* list of all debugging options */
+<a name="32"></a>    all = ['spelling', 'messages', 'actions', 'doers']
+<a name="33"></a>
+<a name="34"></a>    /* show the current status */
+<a name="35"></a>    status()
+<a name="36"></a>    {
+<a name="37"></a>        "Debugging options:\n";
+<a name="38"></a>        local opts = all.sort(SortAsc);
+<a name="39"></a>        foreach (local opt in opts)
+<a name="40"></a>            "\t&lt;&lt;opt&gt;&gt; = &lt;&lt;enabled[opt] ? 'on' : 'off'&gt;&gt;\n";
+<a name="41"></a>    }
+<a name="42"></a>    
+<a name="43"></a>    /* LookupTable used to avoid duplicate debug message reports */
+<a name="44"></a>    messageIDs = static (new LookupTable(32, 64))    
+<a name="45"></a>;
+<a name="46"></a>
+<a name="47"></a>/*
+<a name="48"></a> *   Debug options.  This is the general verb for performing various
+<a name="49"></a> *   debugging operations while running the game.  The Debug Action parses
+<a name="50"></a> *   the options string to carry out the command.  
+<a name="51"></a> */
+<a name="52"></a>VerbRule(Debug)
+<a name="53"></a>    'debug' literalDobj
+<a name="54"></a>    : VerbProduction
+<a name="55"></a>    action = Debug
+<a name="56"></a>    verbPhrase = 'debug/debugging'
+<a name="57"></a>    missingQ = 'which debug option do you want to set'
+<a name="58"></a>;
+<a name="59"></a>
+<a name="60"></a>/* The Debug Action with various options */
+<a name="61"></a>DefineSystemAction(Debug)
+<a name="62"></a>    execAction(cmd)
+<a name="63"></a>    {
+<a name="64"></a>        gLiteral = cmd.dobj.name.toLower;
+<a name="65"></a>        switch(gLiteral)
+<a name="66"></a>        {       
+<a name="67"></a>        case 'status':
+<a name="68"></a>            DebugCtl.status();
+<a name="69"></a>            break;
+<a name="70"></a>        case 'off':
+<a name="71"></a>        case 'stop':    
+<a name="72"></a>            foreach(local opt in DebugCtl.all)
+<a name="73"></a>                DebugCtl.enabled[opt] = nil;
+<a name="74"></a>            DebugCtl.status();
+<a name="75"></a>            break;
+<a name="76"></a>        default:
+<a name="77"></a>            if(DebugCtl.all.indexOf(gLiteral))
+<a name="78"></a>            {
+<a name="79"></a>                DebugCtl.enabled[gLiteral] = !DebugCtl.enabled[gLiteral];
+<a name="80"></a>                DebugCtl.status();               
+<a name="81"></a>            }
+<a name="82"></a>            else                
+<a name="83"></a>                "That is not a valid option. The valid DEBUG options are DEBUG
+<a name="84"></a>                MESSAGES, DEBUG SPELLING, DEBUG ACTIONS, DEBUG DOERS,
+<a name="85"></a>                DEBUG OFF or DEBUG STOP (to turn off all options) or
+<a name="86"></a>                just DEBUG by itself to break into the debugger. ";
+<a name="87"></a>            break;
+<a name="88"></a>        }
+<a name="89"></a>        
+<a name="90"></a>    }
+<a name="91"></a>;
+<a name="92"></a>
+<a name="93"></a>/* DEBUG without any options simply breaks into the debugger, as in adv3 */
+<a name="94"></a>DefineSystemAction(DebugI)
+<a name="95"></a>    execAction(cmd)
+<a name="96"></a>    {
+<a name="97"></a>        /* if the debugger is present, break into it */
+<a name="98"></a>        if (t3DebugTrace(T3DebugCheck))
+<a name="99"></a>            t3DebugTrace(T3DebugBreak);
+<a name="100"></a>        else
+<a name="101"></a>            DMsg(debugger not present, 'Debugger not present. ');
+<a name="102"></a>    }
+<a name="103"></a>;
+<a name="104"></a>
+<a name="105"></a>VerbRule(DebugI)
+<a name="106"></a>    'debug' 
+<a name="107"></a>    : VerbProduction
+<a name="108"></a>    action = DebugI
+<a name="109"></a>    verbPhrase = 'debug/debugging'
+<a name="110"></a>    missingQ = 'which debug option do you want to set'
+<a name="111"></a>;
+<a name="112"></a>
+<a name="113"></a>/* 
+<a name="114"></a> *   The actionTab object holds a table providing the names (as strings)
+<a name="115"></a> *   corresponding to the various Action objects, for use with the DEBUG ACTIONS
+<a name="116"></a> *   option.
+<a name="117"></a> */
+<a name="118"></a>actionTab: PreinitObject
+<a name="119"></a>    
+<a name="120"></a>    /* 
+<a name="121"></a>     *   To return the string val corresponding to the Action val, simply look
+<a name="122"></a>     *   it up in out ctab table
+<a name="123"></a>     */
+<a name="124"></a>    symbolToVal(val)
+<a name="125"></a>    {
+<a name="126"></a>        return ctab[val];        
+<a name="127"></a>    }
+<a name="128"></a>    
+<a name="129"></a>    /* A LookupTable of Actions and their corresponding string names */
+<a name="130"></a>    ctab = [* -&gt; '???']
+<a name="131"></a>        
+<a name="132"></a>    execute()
+<a name="133"></a>    {
+<a name="134"></a>        /* 
+<a name="135"></a>         *   Populate our ctab table by going through the global symbol table at
+<a name="136"></a>         *   preinit and storing the value and associated name of every Action
+<a name="137"></a>         *   object.
+<a name="138"></a>         */
+<a name="139"></a>        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+<a name="140"></a>        {
+<a name="141"></a>            if(dataType(value) == TypeObject &amp;&amp; value.ofKind(Action))
+<a name="142"></a>                ctab[value] = key;
+<a name="143"></a>        });
+<a name="144"></a>    }
+<a name="145"></a>;
+<a name="146"></a>
+<a name="147"></a>/* 
+<a name="148"></a> *   The Purloin Action allows a game author to take any object in the game
+<a name="149"></a> *   while testing
+<a name="150"></a> */
+<a name="151"></a>DefineTAction(Purloin)    
+<a name="152"></a>    againRepeatsParse = true
+<a name="153"></a>    
+<a name="154"></a>    /* The PURLOIN action requires universal scope */
+<a name="155"></a>    addExtraScopeItems(whichRole?)
+<a name="156"></a>    {
+<a name="157"></a>        makeScopeUniversal();
+<a name="158"></a>    }
+<a name="159"></a>    beforeAction() { }
+<a name="160"></a>    afterAction() { }
+<a name="161"></a>    turnSequence() { }
+<a name="162"></a>    
+<a name="163"></a>    /* The Purloin action should work even on a hidden item  */
+<a name="164"></a>    unhides = true
+<a name="165"></a>;    
+<a name="166"></a>
+<a name="167"></a>/* 
+<a name="168"></a> *   The GONEAR action allows the game author to move the player character to
+<a name="169"></a> *   anywhere on the map, while testing.
+<a name="170"></a> */
+<a name="171"></a>DefineTAction(GoNear)   
+<a name="172"></a>    againRepeatsParse = true
+<a name="173"></a>    
+<a name="174"></a>    /* The GONEAR action requires universal scope */
+<a name="175"></a>    addExtraScopeItems(whichRole?)
+<a name="176"></a>    {
+<a name="177"></a>        makeScopeUniversal();
+<a name="178"></a>    }  
+<a name="179"></a>    beforeAction() { }
+<a name="180"></a>    afterAction() { }
+<a name="181"></a>    turnSequence() { }
+<a name="182"></a>    
+<a name="183"></a>    /* The GoNear action should work even on a hidden item  */
+<a name="184"></a>    unhides = true
+<a name="185"></a>;
+<a name="186"></a>
+<a name="187"></a>/*  
+<a name="188"></a> *   The FIAT LUX Action can be used to light up the player character (thus
+<a name="189"></a> *   bringing light to a dark location). Repeating the FIAT LUX action removes
+<a name="190"></a> *   the light from the player character
+<a name="191"></a> */
+<a name="192"></a>DefineIAction(FiatLux)
+<a name="193"></a>    execAction(cmd)
+<a name="194"></a>    {
+<a name="195"></a>        gPlayerChar.isLit = !gPlayerChar.isLit;
+<a name="196"></a>        DMsg(fiat lux, '{I} suddenly {1} glowing. ', gPlayerChar.isLit ? 'start'
+<a name="197"></a>             :  'stop' );
+<a name="198"></a>    }
+<a name="199"></a>    
+<a name="200"></a>    beforeAction() { }    
+<a name="201"></a>    turnSequence() { }
+<a name="202"></a>;
+<a name="203"></a>
+<a name="204"></a>/* The EVALUATE action allows any expression to be evaluated */
+<a name="205"></a>DefineLiteralAction(Evaluate)
+<a name="206"></a>    
+<a name="207"></a>    /* 
+<a name="208"></a>     *   Do we want to use Compiler.compile rather than Compiler.eval()? By default we do since this
+<a name="209"></a>     *   circumvents a bug on FrobTADS for Limux users.
+<a name="210"></a>     */
+<a name="211"></a>    
+<a name="212"></a>    useCompile = true
+<a name="213"></a>    
+<a name="214"></a>    exec(cmd)
+<a name="215"></a>    {
+<a name="216"></a>        try
+<a name="217"></a>        {
+<a name="218"></a>            /* 
+<a name="219"></a>             *   Try using the Compiler object to evaluate the expression
+<a name="220"></a>             *   contained in the name property of the direct object of this
+<a name="221"></a>             *   command (i.e. the string literal it was executed upon).
+<a name="222"></a>             */
+<a name="223"></a>            local res;
+<a name="224"></a>            local str = stripQuotesFrom(cmd.dobj.name);
+<a name="225"></a>            
+<a name="226"></a>            if(useCompile)
+<a name="227"></a>            {
+<a name="228"></a>                local func = Compiler.compile(str);
+<a name="229"></a>                res = func();
+<a name="230"></a>            }
+<a name="231"></a>            else           
+<a name="232"></a>               res = Compiler.eval(str);
+<a name="233"></a>            
+<a name="234"></a>            if(dataType(res) == TypeEnum)
+<a name="235"></a>            {
+<a name="236"></a>                local str = enumTabObj.enumTab[res];
+<a name="237"></a>                if(str) res = str;
+<a name="238"></a>            }
+<a name="239"></a>            
+<a name="240"></a>            /* Display a string version of the result */
+<a name="241"></a>            say(toString(res));
+<a name="242"></a>        }
+<a name="243"></a>        /* 
+<a name="244"></a>         *   If the attempt to evaluate the expression caused a compiler error,
+<a name="245"></a>         *   display the exception message.
+<a name="246"></a>         */
+<a name="247"></a>        catch (CompilerException cex)
+<a name="248"></a>        {           
+<a name="249"></a>            cex.displayException();
+<a name="250"></a>        }
+<a name="251"></a>        
+<a name="252"></a>        /* 
+<a name="253"></a>         *   If the attempt to evaluate the expression caused any other kind of
+<a name="254"></a>         *   error, display the exception message.
+<a name="255"></a>         */
+<a name="256"></a>        catch (Exception ex)
+<a name="257"></a>        {
+<a name="258"></a>            ex.displayException();
+<a name="259"></a>        }
+<a name="260"></a>        
+<a name="261"></a>    }
+<a name="262"></a>    includeInUndo = true
+<a name="263"></a>    afterAction() {}
+<a name="264"></a>    beforeAction() { }    
+<a name="265"></a>    turnSequence() { }
+<a name="266"></a>;
+<a name="267"></a>
+<a name="268"></a>/* An object to store class and object names */
+<a name="269"></a>symTab: PreinitObject
+<a name="270"></a>    symbolToVal(val)
+<a name="271"></a>    {
+<a name="272"></a>        return ctab[val];        
+<a name="273"></a>    }
+<a name="274"></a>    
+<a name="275"></a>    ctab = [* -&gt; '???']
+<a name="276"></a>    
+<a name="277"></a>    /* 
+<a name="278"></a>     *   Store a string equivalent of the name of every identifier defined in the
+<a name="279"></a>     *   game (and the library)
+<a name="280"></a>     */
+<a name="281"></a>    execute()
+<a name="282"></a>    {
+<a name="283"></a>        t3GetGlobalSymbols().forEachAssoc( new function(key, value)
+<a name="284"></a>        {
+<a name="285"></a>//            if(dataType(value) == TypeObject &amp;&amp; value.isClass)
+<a name="286"></a>//                ctab[value] = key;
+<a name="287"></a>//            
+<a name="288"></a>//            if(dataType(value) == TypeObject &amp;&amp; (value.ofKind(Region)))               
+<a name="289"></a>//                ctab[value] = key;
+<a name="290"></a>//            
+<a name="291"></a>//            if(defined(Actor) &amp;&amp; dataType(value) == TypeObject &amp;&amp;
+<a name="292"></a>//               (value.ofKind(ActorState) || value.ofKind(AgendaItem)))
+<a name="293"></a>//                ctab[value] = key;
+<a name="294"></a>            ctab[value] = key;
+<a name="295"></a>        });
+<a name="296"></a>    }
+<a name="297"></a>;
+<a name="298"></a>
+<a name="299"></a>
+<a name="300"></a>/* Take a string and return the object whose programmatic name it refers to */
+<a name="301"></a>symToVal(val)
+<a name="302"></a>{    
+<a name="303"></a>    return t3GetGlobalSymbols()[val];      
+<a name="304"></a>}
+<a name="305"></a>    
+<a name="306"></a>/* Take a value and return the string representation of its programmatic name */
+<a name="307"></a>valToSym(val)
+<a name="308"></a>{
+<a name="309"></a>    local str;
+<a name="310"></a>    switch(dataType(val))
+<a name="311"></a>    {
+<a name="312"></a>    case TypeSString:        
+<a name="313"></a>        return val;
+<a name="314"></a>    case TypeInt:
+<a name="315"></a>        return toString(val);
+<a name="316"></a>    case TypeObject:
+<a name="317"></a>        str = symTab.ctab[val]; 
+<a name="318"></a>        if(str == '???' &amp;&amp; val.propDefined(&amp;name)) str = val.name;
+<a name="319"></a>        return str;
+<a name="320"></a>        
+<a name="321"></a>    case TypeEnum:
+<a name="322"></a>        local enumStr = enumTabObj.enumTab[val];
+<a name="323"></a>        if(enumStr) return enumStr;    
+<a name="324"></a>        /* Fallthrough deliberate */
+<a name="325"></a>    case TypeProp:  
+<a name="326"></a>        return symTab.ctab[val]; 
+<a name="327"></a>//        return str;   
+<a name="328"></a>    case TypeNil:
+<a name="329"></a>        return 'nil';
+<a name="330"></a>    case TypeTrue:
+<a name="331"></a>        return 'true';
+<a name="332"></a>    case TypeList:
+<a name="333"></a>        str = '[';
+<a name="334"></a>        for(local cur in val, local i=1, local len=val.length;; i++)
+<a name="335"></a>        {
+<a name="336"></a>            str += valToSym(cur);
+<a name="337"></a>            if(i &lt; len)
+<a name="338"></a>                str += ', ';            
+<a name="339"></a>        }
+<a name="340"></a>        str += ']';
+<a name="341"></a>        return str;
+<a name="342"></a>        
+<a name="343"></a>    }
+<a name="344"></a>    
+<a name="345"></a>    return '?';
+<a name="346"></a>}
+<a name="347"></a>
+<a name="348"></a>
+<a name="349"></a>/* 
+<a name="350"></a> *   Provide TadsObject with an objToString() method so that the EVALUATE
+<a name="351"></a> *   command can display some kind of name of the object via the toString()
+<a name="352"></a> *   function
+<a name="353"></a> */
+<a name="354"></a>modify TadsObject
+<a name="355"></a>    objToString()
+<a name="356"></a>    {
+<a name="357"></a>        /* If this object is a class, return the name of the class */
+<a name="358"></a>        if(isClass)
+<a name="359"></a>            return symTab.symbolToVal(self);
+<a name="360"></a>        
+<a name="361"></a>        local str = '';
+<a name="362"></a>        
+<a name="363"></a>        /* 
+<a name="364"></a>         *   If the object has a name property, start the string with this
+<a name="365"></a>         *   object's name
+<a name="366"></a>         */
+<a name="367"></a>        if(name != nil)
+<a name="368"></a>            str = name + ' ';
+<a name="369"></a>        /* 
+<a name="370"></a>         *   Otherwise if we have an identifier for this object stored in our
+<a name="371"></a>         *   symbol table, use that
+<a name="372"></a>         */
+<a name="373"></a>        else if(symTab.symbolToVal(self) != '???')
+<a name="374"></a>            str = symTab.symbolToVal(self) + ' ';
+<a name="375"></a>        
+<a name="376"></a>        /*  Append this object's superclass list in parentheses*/
+<a name="377"></a>        str  += '(' + getSuperclassList + ')';
+<a name="378"></a>        
+<a name="379"></a>        /*  Return the result */
+<a name="380"></a>        return str;
+<a name="381"></a>    }
+<a name="382"></a>    
+<a name="383"></a>;
+<a name="384"></a>
+<a name="385"></a>
+<a name="386"></a>/* 
+<a name="387"></a> *   Adaptation for use with adv3Lite of the tests extension based on work by
+<a name="388"></a> *   Ben Cressy, Eric Eve, and N.R.Turner
+<a name="389"></a> */
+<a name="390"></a>
+<a name="391"></a>/*
+<a name="392"></a> *   To use this facility, define Test objects like so:
+<a name="393"></a> *
+<a name="394"></a> *. foo: Test
+<a name="395"></a> *.    testName = 'foo'
+<a name="396"></a> *.    testList =
+<a name="397"></a> *.    [
+<a name="398"></a> *.        'x me',
+<a name="399"></a> *.        'i'
+<a name="400"></a> *.    ]
+<a name="401"></a> *. ;
+<a name="402"></a> *
+<a name="403"></a> *. bar: Test
+<a name="404"></a> *.     testName = 'bar'
+<a name="405"></a> *.     testList =
+<a name="406"></a> *.     [
+<a name="407"></a> *.         'look',
+<a name="408"></a> *.         'listen'
+<a name="409"></a> *.     ]
+<a name="410"></a> *. ;
+<a name="411"></a> *
+<a name="412"></a> *. allTests: Test
+<a name="413"></a> *.     testName = 'all'
+<a name="414"></a> *.     testList =
+<a name="415"></a> *.     [
+<a name="416"></a> *.         'test foo',
+<a name="417"></a> *.         'test bar'
+<a name="418"></a> *.     ]
+<a name="419"></a> *   ;
+<a name="420"></a> *
+<a name="421"></a> *   Alternatively,  use the template structure to create your test objects more
+<a name="422"></a> *   conveniently:
+<a name="423"></a> *
+<a name="424"></a> *.  someTest: Test 'foo' ['x me', 'i'];
+<a name="425"></a> *
+<a name="426"></a> *   Unless you're planning to refer to the Test object in some other part of
+<a name="427"></a> *   your code, you can save a bit of typing by making it an anonymous object:
+<a name="428"></a> *
+<a name="429"></a> *. Test 'foo' ['x me', 'i'];
+<a name="430"></a> *
+<a name="431"></a> */
+<a name="432"></a>    
+<a name="433"></a>/*
+<a name="434"></a> *   The 'list tests' and 'list tests fully' commands can be used to list your
+<a name="435"></a> *   test scripts from within the running game.
+<a name="436"></a> */   
+<a name="437"></a>DefineSystemAction(ListTests)
+<a name="438"></a>    execAction(cmd)
+<a name="439"></a>    {
+<a name="440"></a>
+<a name="441"></a>        if(allTests.lst.length == 0)
+<a name="442"></a>        {
+<a name="443"></a>            DMsg(no test scripts, 'There are no test scripts defined in this
+<a name="444"></a>                game. ');
+<a name="445"></a>            exit;
+<a name="446"></a>        }
+<a name="447"></a>
+<a name="448"></a>        fully = cmd.verbProd.fully;
+<a name="449"></a>        
+<a name="450"></a>        foreach(local testObj in allTests.lst)
+<a name="451"></a>        {
+<a name="452"></a>            "&lt;&lt;testObj.testName&gt;&gt;";
+<a name="453"></a>            if(gAction.fully)               
+<a name="454"></a>            {
+<a name="455"></a>                ": ";
+<a name="456"></a>                foreach(local txt in testObj.testList)
+<a name="457"></a>                    "&lt;&lt;txt&gt;&gt;/";
+<a name="458"></a>            }
+<a name="459"></a>            "\n";
+<a name="460"></a>        }
+<a name="461"></a>    }
+<a name="462"></a>    fully = nil
+<a name="463"></a>;
+<a name="464"></a>
+<a name="465"></a>VerbRule(ListTests)
+<a name="466"></a>    ('list' | 'l') 'tests' (| 'fully' -&gt; fully)
+<a name="467"></a>    : VerbProduction
+<a name="468"></a>    action = ListTests
+<a name="469"></a>    verbPhrase = 'list/listing test scripts'
+<a name="470"></a>;
+<a name="471"></a>
+<a name="472"></a>/*
+<a name="473"></a> *   The 'test X' command can be used with any Test object defined in the source
+<a name="474"></a> *   code:
+<a name="475"></a> */
+<a name="476"></a>DefineLiteralAction(DoTest)
+<a name="477"></a>    /* 
+<a name="478"></a>     *   We override exec() rather than exeAction() here, since we want to skip
+<a name="479"></a>     *   all the normal turn sequence routines such as before and after
+<a name="480"></a>     *   notifications and advancing the turn count.
+<a name="481"></a>     */
+<a name="482"></a>    exec(cmd)
+<a name="483"></a>    {
+<a name="484"></a>        local target = cmd.dobj.name.toLower();
+<a name="485"></a>        local script = allTests.valWhich({x: x.testName.toLower == target});
+<a name="486"></a>        if (script)
+<a name="487"></a>            script.run();
+<a name="488"></a>        else
+<a name="489"></a>            DMsg(test sequence not found, 'Test sequence not found. ');
+<a name="490"></a>    }
+<a name="491"></a>    
+<a name="492"></a>    /* Do nothing after the main action */
+<a name="493"></a>    afterAction() { }
+<a name="494"></a>      
+<a name="495"></a>    turnSequence() { }
+<a name="496"></a>;
+<a name="497"></a>
+<a name="498"></a>VerbRule(Test)
+<a name="499"></a>    'test' literalDobj
+<a name="500"></a>    : VerbProduction
+<a name="501"></a>    action = DoTest
+<a name="502"></a>    verbPhrase = 'test/testing (what)'
+<a name="503"></a>    missingQ = 'which sequence do you want to test'
+<a name="504"></a>;
+<a name="505"></a>
+<a name="506"></a>/* 
+<a name="507"></a> *   A Test object can be used to create a series of testing commands in your
+<a name="508"></a> *   game, for example:
+<a name="509"></a> *
+<a name="510"></a> *.  Test 'foo' ['x me', 'i', 'wear uniform'] [uniform];
+<a name="511"></a> *
+<a name="512"></a> *   Would cause the uniform to be moved into the player character's inventory
+<a name="513"></a> *   and then the commands X ME and then I and WEAR UNIFORM to be executed in
+<a name="514"></a> *   response to TEST FOO.
+<a name="515"></a> */     
+<a name="516"></a>class Test: object
+<a name="517"></a>    /* The name of this test */
+<a name="518"></a>    testName = 'nil'
+<a name="519"></a>    
+<a name="520"></a>    /* The list commands to be executed when running this test. */
+<a name="521"></a>    testList = [ 'z' ]
+<a name="522"></a>    
+<a name="523"></a>    /* 
+<a name="524"></a>     *   The location to move the player character to before running the test
+<a name="525"></a>     *   script
+<a name="526"></a>     */
+<a name="527"></a>    location = nil
+<a name="528"></a>	
+<a name="529"></a>    /* 
+<a name="530"></a>     *   Flag: Do we want to report any change of location by looking around in
+<a name="531"></a>     *   the new one? By default we will.
+<a name="532"></a>     */
+<a name="533"></a>    reportMove = true
+<a name="534"></a>    
+<a name="535"></a>    /*   
+<a name="536"></a>     *   The objects to move into the player character's inventory before
+<a name="537"></a>     *   running the test script.
+<a name="538"></a>     */
+<a name="539"></a>    testHolding = []
+<a name="540"></a>    
+<a name="541"></a>    /*  
+<a name="542"></a>     *   Flag: do we want to report on what items were added to inventory? By
+<a name="543"></a>     *   default we do.
+<a name="544"></a>     */
+<a name="545"></a>    reportHolding = true
+<a name="546"></a>    
+<a name="547"></a>    
+<a name="548"></a>    /* Move everything in the testHolding list into the actor's inventory */
+<a name="549"></a>    getHolding()
+<a name="550"></a>    {
+<a name="551"></a>        testHolding.forEach({x: x.moveInto(gActor)});
+<a name="552"></a>        
+<a name="553"></a>        /* 
+<a name="554"></a>         *   If we want to report on the effect of moving additional items into
+<a name="555"></a>         *   the player character's inventory, and if we specified any items to
+<a name="556"></a>         *   move, report that the actor is now holding those items.
+<a name="557"></a>         */
+<a name="558"></a>        if(reportHolding &amp;&amp; testHolding.length &gt; 0)
+<a name="559"></a>            DMsg(debug test now holding, '{I} {am} {now} holding {1}.\n',
+<a name="560"></a>                 makeListStr(testHolding, &amp;theName));
+<a name="561"></a>    }
+<a name="562"></a>    
+<a name="563"></a>    /* 
+<a name="564"></a>     *   Run this test by passing the commands in testList through
+<a name="565"></a>     *   Parser.parse().
+<a name="566"></a>     */
+<a name="567"></a>    run()
+<a name="568"></a>    {
+<a name="569"></a>        "Testing sequence: \"&lt;&lt;testName&gt;&gt;\".\n";
+<a name="570"></a>        
+<a name="571"></a>        /* 
+<a name="572"></a>         *   If a location is specified, first move the actor into that
+<a name="573"></a>         *   location.
+<a name="574"></a>         */
+<a name="575"></a>        if (location &amp;&amp; gActor.location != location)
+<a name="576"></a>        {
+<a name="577"></a>            gActor.moveInto(location);	
+<a name="578"></a>            
+<a name="579"></a>            /* If we want to report the move, show the new room description */
+<a name="580"></a>            if(reportMove)
+<a name="581"></a>                gActor.getOutermostRoom.lookAroundWithin();
+<a name="582"></a>        }
+<a name="583"></a>        
+<a name="584"></a>        /*   Move any required objects into the actor's inventory */
+<a name="585"></a>        getHolding();
+<a name="586"></a>        
+<a name="587"></a>        /*   Convert the list to a Vector to prevent possible stack overflow with a long list of commands. */        
+<a name="588"></a>        local testVec = new Vector(testList);
+<a name="589"></a>
+<a name="590"></a>        /*   Preparse and execute each command in the list */
+<a name="591"></a>        testVec.forEach(new function(x)  {
+<a name="592"></a>            /* Display the command to be executed */
+<a name="593"></a>            "&lt;b&gt;&gt;&lt;&lt;x&gt;&gt;&lt;/b&gt;\n";
+<a name="594"></a>            
+<a name="595"></a>            /* Preparse the command */
+<a name="596"></a>            x = StringPreParser.runAll(x, rmcCommand);                          
+<a name="597"></a>            
+<a name="598"></a>            /* 
+<a name="599"></a>             *   Execute the preparsed command if it is not nil after preparsing
+<a name="600"></a>             */
+<a name="601"></a>            if(x)
+<a name="602"></a>              Parser.parse(x);
+<a name="603"></a>        });
+<a name="604"></a>    }
+<a name="605"></a>;
+<a name="606"></a>
+<a name="607"></a>/* 
+<a name="608"></a> *   The allTests object contains a list of Test objects for listing via the
+<a name="609"></a> *   LIST TESTS command, and for finding the test that corresponds to a
+<a name="610"></a> *   particular testName.
+<a name="611"></a> */
+<a name="612"></a>allTests: object
+<a name="613"></a>   lst()
+<a name="614"></a>   {
+<a name="615"></a>      if (lst_ == nil)
+<a name="616"></a>         initLst();
+<a name="617"></a>      return lst_;
+<a name="618"></a>   }
+<a name="619"></a>
+<a name="620"></a>   initLst()
+<a name="621"></a>   {
+<a name="622"></a>      lst_ = new Vector(50);
+<a name="623"></a>      local obj = firstObj();
+<a name="624"></a>      while (obj != nil)
+<a name="625"></a>      {
+<a name="626"></a>         if(obj.ofKind(Test))
+<a name="627"></a>            lst_.append(obj);
+<a name="628"></a>         obj = nextObj(obj);
+<a name="629"></a>      }
+<a name="630"></a>      lst_ = lst_.toList();
+<a name="631"></a>   }
+<a name="632"></a>
+<a name="633"></a>   valWhich(cond)
+<a name="634"></a>   {
+<a name="635"></a>      if (lst_ == nil)
+<a name="636"></a>         initLst();
+<a name="637"></a>      return lst_.valWhich(cond);
+<a name="638"></a>   }
+<a name="639"></a>
+<a name="640"></a>   lst_ = nil
+<a name="641"></a>;
+<a name="642"></a>
+<a name="643"></a>
+<a name="644"></a>#endif // __DEBUG
+<a name="645"></a>
+<a name="646"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

@@ -1,0 +1,390 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>signals.t</title></head><body>
+<table class=ban><tr><td><h1>signals.t</h1><td align=right><a href="../file/signals.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*--------------------------------------------------------*/
+<a name="5"></a>/*
+<a name="6"></a> *   SIGNALS EXTENSION Still at an experimental stage
+<a name="7"></a> *
+<a name="8"></a> *   To use this extension, include the relations extensions before it.
+<a name="9"></a> */
+<a name="10"></a>
+<a name="11"></a>/* 
+<a name="12"></a> *   A Signal is a kind of Relation that can be used to send a signal from a
+<a name="13"></a> *   sender to all the objects related to that sender via this Signal Relation.
+<a name="14"></a> *
+<a name="15"></a> *   For a signal to be sent from a sender to a receiver, a relationship first
+<a name="16"></a> *   needs to be set up between them with a statement like:
+<a name="17"></a> *
+<a name="18"></a> *   connect(sender, signal, receiver);
+<a name="19"></a> *
+<a name="20"></a> *   Where signal is either the programmatic name or the string name of the
+<a name="21"></a> *   signal we want sent.
+<a name="22"></a> *
+<a name="23"></a> *   To break the link subsequently we can use:
+<a name="24"></a> *
+<a name="25"></a> *   unconnect(sender, signal, receiver);
+<a name="26"></a> *
+<a name="27"></a> *   [SIGNALS EXTENSION]
+<a name="28"></a> */
+<a name="29"></a>Signal: Relation
+<a name="30"></a>    /* Signals can potentially relate many things to many other things. */
+<a name="31"></a>    relationType = manyToMany
+<a name="32"></a>    
+<a name="33"></a>    /* 
+<a name="34"></a>     *   Notify every object related to sender by us to handle us as a signal
+<a name="35"></a>     *   from sender.
+<a name="36"></a>     *
+<a name="37"></a>     *   If additional args are supplied, they can take one of two forms. Either
+<a name="38"></a>     *   values, which are then assigned in turn to the properties listed in our
+<a name="39"></a>     *   propList property, or two-element lists of the form [prop, val] where
+<a name="40"></a>     *   prop is a property pointer and val is the value to be assigned to this
+<a name="41"></a>     *   property. Note that these two forms cannot be mixed in the same call to
+<a name="42"></a>     *   this method, unless all the list form arguments come at the end.
+<a name="43"></a>	 *
+<a name="44"></a>	 *   [SIGNALS EXTENSION]
+<a name="45"></a>     */
+<a name="46"></a>    emit(sender, [args])   
+<a name="47"></a>    {
+<a name="48"></a>        local prop, val;
+<a name="49"></a>        
+<a name="50"></a>        /* 
+<a name="51"></a>         *   Clear out any property values left over from a previous call. We
+<a name="52"></a>         *   use null rather than nil as the 'cleared' value, since in some
+<a name="53"></a>         *   cases (e.g. in a moveSignal) nil could be a significant value.
+<a name="54"></a>         */
+<a name="55"></a>        propList.forEach({p: self.(p) = null });
+<a name="56"></a>        
+<a name="57"></a>        /* Assign additional arguments to properties. */
+<a name="58"></a>        for(local arg in args, local i=1;; i++)       
+<a name="59"></a>        {           
+<a name="60"></a>            /* 
+<a name="61"></a>             *   If each arg is a list, then the first item in the list is a
+<a name="62"></a>             *   property pointer, and the second is the value to assign to that
+<a name="63"></a>             *   property.
+<a name="64"></a>             */
+<a name="65"></a>            if(dataType(arg) == TypeList)
+<a name="66"></a>            {
+<a name="67"></a>               prop = arg[1];
+<a name="68"></a>               val = arg[2];
+<a name="69"></a>            }
+<a name="70"></a>            /*  
+<a name="71"></a>             *   Otherwise arg is just a value, which is assigned to the
+<a name="72"></a>             *   property found in the next element of propList.
+<a name="73"></a>             */
+<a name="74"></a>            else
+<a name="75"></a>            {
+<a name="76"></a>                val = arg;
+<a name="77"></a>                prop = propList[i];
+<a name="78"></a>            }
+<a name="79"></a>            self.(prop) = val;
+<a name="80"></a>        }
+<a name="81"></a>        
+<a name="82"></a>        relatedTo(sender).forEach({ obj: obj.dispatchSignal(sender, self) });
+<a name="83"></a>    }
+<a name="84"></a>    
+<a name="85"></a>    /* 
+<a name="86"></a>     *   A list of pointers to the properties to which additional arguments to
+<a name="87"></a>     *   our emit method should be assigned. [SIGNALS EXTENSION]
+<a name="88"></a>     */
+<a name="89"></a>    propList = []
+<a name="90"></a>    
+<a name="91"></a>	/*
+<a name="92"></a>	 *   A LookupTable liniking objects that might emit this signal (potential senders) to potential
+<a name="93"></a>	 *   receivers of this signal, so that notifications can be sent from the former to the latter.
+<a name="94"></a>	 *   Game code should not need to manipulate this table directly; it should instead be updated via
+<a name="95"></a>	 *   the supplied connect() and unconnect() functions.
+<a name="96"></a>	 *   
+<a name="97"></a>	 *   [SIGNALS EXTENSION]
+<a name="98"></a>	 */
+<a name="99"></a>    dispatchTab = nil
+<a name="100"></a>    
+<a name="101"></a>    addHandler(sender, receiver, handler)
+<a name="102"></a>    {
+<a name="103"></a>        if(dispatchTab == nil)
+<a name="104"></a>            dispatchTab = new LookupTable();
+<a name="105"></a>        
+<a name="106"></a>        dispatchTab[[sender, receiver]] = handler;
+<a name="107"></a>    }
+<a name="108"></a>    
+<a name="109"></a>    removeHandler(sender, receiver)
+<a name="110"></a>    {
+<a name="111"></a>        if(dispatchTab != nil)
+<a name="112"></a>        {
+<a name="113"></a>            dispatchTab.removeElement([sender, receiver]);
+<a name="114"></a>        }
+<a name="115"></a>    }
+<a name="116"></a>    
+<a name="117"></a>;
+<a name="118"></a>
+<a name="119"></a>
+<a name="120"></a>
+<a name="121"></a>/* Signals to handle common state changes on Thing  [SIGNALS EXTENSION] */
+<a name="122"></a>DefSignal(lit, lit);
+<a name="123"></a>DefSignal(unlit, unlit);
+<a name="124"></a>DefSignal(discover, discovered);
+<a name="125"></a>DefSignal(undiscover, lost);
+<a name="126"></a>DefSignal(lock, locked);
+<a name="127"></a>DefSignal(unlock, unlocked);
+<a name="128"></a>DefSignal(on, turned on);
+<a name="129"></a>DefSignal(off, turned off);
+<a name="130"></a>DefSignal(worn, worn) wearer = nil propList = [&amp;wearer];
+<a name="131"></a>DefSignal(doff, doffed);
+<a name="132"></a>DefSignal(move, moved) destination = nil propList= [&amp;destination];
+<a name="133"></a>DefSignal(actmove, action moved) destination = nil propList= [&amp;destination];
+<a name="134"></a>DefSignal(seen, seen) location = nil propList = [&amp;location];
+<a name="135"></a>DefSignal(examine, examine) actor = nil propList = [&amp;actor];
+<a name="136"></a>DefSignal(take, take) actor = nil propList = [&amp;actor];
+<a name="137"></a>DefSignal(drop, drop) actor = nil propList = [&amp;actor];
+<a name="138"></a>DefSignal(open, open);
+<a name="139"></a>DefSignal (close, closed);
+<a name="140"></a>DefSignal(push, push);
+<a name="141"></a>DefSignal(pull, pull);
+<a name="142"></a>DefSignal(feel, feel);
+<a name="143"></a>
+<a name="144"></a>
+<a name="145"></a> /*
+<a name="146"></a>  * MODIFICATIONS TO TadsObject for SIGNALS EXTENSION
+<a name="147"></a>  *
+<a name="148"></a>  * Add handling for emiting, handling and dispatching signals. 
+<a name="149"></a>  */
+<a name="150"></a>modify TadsObject
+<a name="151"></a>    /* Emit a signal  [SIGNALS EXTENSION] */
+<a name="152"></a>    emit(signal, [args])
+<a name="153"></a>    {
+<a name="154"></a>        /* Simply call the signal's emit method with ourselves as the sender. */
+<a name="155"></a>        signal.emit(self, args...);
+<a name="156"></a>    }
+<a name="157"></a>    
+<a name="158"></a>    /* 
+<a name="159"></a>     *   Handle a signal from sender; game code will need to override particular
+<a name="160"></a>     *   instances. Note that this is a catch-all handler for signals we don't
+<a name="161"></a>     *   recognize or for which more specific handlers haven't been defined.
+<a name="162"></a>	 *   [SIGNALS EXTENSION]
+<a name="163"></a>     */
+<a name="164"></a>    handle(sender, signal)
+<a name="165"></a>    {
+<a name="166"></a>    }   
+<a name="167"></a>    
+<a name="168"></a>    /*
+<a name="169"></a>	 *   Dispatch a signal to the appropriate handler method on this object.
+<a name="170"></a>     *   We look up the property pointer to use on the signal's dispatchTab
+<a name="171"></a>	 *   LookupTable. If we find one and the property is defined on this object
+<a name="172"></a>	 *   then we use that property to handle the signal. Otherwise, we simply
+<a name="173"></a>	 *   use our catch-all generic handle(sender, signal) method.
+<a name="174"></a>	 *  
+<a name="175"></a>	 *   [SIGNALS EXTENSION] 
+<a name="176"></a>     */    
+<a name="177"></a>    dispatchSignal(sender, signal)
+<a name="178"></a>    {
+<a name="179"></a>        local prop;       
+<a name="180"></a>        
+<a name="181"></a>        if(signal.dispatchTab != nil &amp;&amp; signal.dispatchTab[[sender, self]] != nil)
+<a name="182"></a>            prop = signal.dispatchTab[[sender, self]];
+<a name="183"></a>        
+<a name="184"></a>        else if(signal.propDefined(&amp;handleProp) 
+<a name="185"></a>                &amp;&amp; signal.propType(&amp;handleProp) == TypeProp)
+<a name="186"></a>            prop = signal.handleProp;
+<a name="187"></a>        else
+<a name="188"></a>            prop = &amp;handle;
+<a name="189"></a>        
+<a name="190"></a>        if(propDefined(prop))
+<a name="191"></a>            self.(prop)(sender, signal);
+<a name="192"></a>        else
+<a name="193"></a>            handle(sender, signal);
+<a name="194"></a>    }
+<a name="195"></a>;  
+<a name="196"></a>    
+<a name="197"></a>   
+<a name="198"></a>    
+<a name="199"></a>    
+<a name="200"></a>    
+<a name="201"></a> modify Thing  
+<a name="202"></a>    /*  
+<a name="203"></a>     *   Make various common state changes and actions emit the appropriate
+<a name="204"></a>     *   signals. [SIGNALS EXTENSION]
+<a name="205"></a>     */
+<a name="206"></a>	 
+<a name="207"></a>	/*
+<a name="208"></a>	 *  emit a litSignal or unlitSignal when this object is lit or unlit.
+<a name="209"></a>	 *  [SIGNALS EXTENSION]
+<a name="210"></a>	 */
+<a name="211"></a>    makeLit(stat)
+<a name="212"></a>    {
+<a name="213"></a>        inherited(stat);
+<a name="214"></a>        emit(stat ? litSignal : unlitSignal);
+<a name="215"></a>    }
+<a name="216"></a>    
+<a name="217"></a>	/*
+<a name="218"></a>	 *  emit a discoverSignal or undiscoverSignal when this object is discovered or undiscovered.
+<a name="219"></a>	 *  SIGNALS EXTENSION]
+<a name="220"></a>	 */
+<a name="221"></a>    discover(stat = true)
+<a name="222"></a>    {
+<a name="223"></a>        inherited(stat);
+<a name="224"></a>        emit(stat ? discoverSignal : undiscoverSignal);
+<a name="225"></a>    }
+<a name="226"></a>    
+<a name="227"></a>	/*
+<a name="228"></a>	 *  emit a lockSignal or unlockSignal when this object is locked or unlocked.
+<a name="229"></a>	 *  [SIGNALS EXTENSION]
+<a name="230"></a>	 */
+<a name="231"></a>    makeLocked(stat)
+<a name="232"></a>    {
+<a name="233"></a>        inherited(stat);
+<a name="234"></a>        emit(stat ? lockSignal : unlockSignal);       
+<a name="235"></a>    }
+<a name="236"></a>    
+<a name="237"></a>	/*
+<a name="238"></a>	 *  emit an onSignal or offSignal when this object is turned on or off
+<a name="239"></a>	 *  [SIGNALS EXTENSION]
+<a name="240"></a>	 */
+<a name="241"></a>    makeOn(stat)
+<a name="242"></a>    {
+<a name="243"></a>        inherited(stat);
+<a name="244"></a>        emit(stat ? onSignal: offSignal);
+<a name="245"></a>    }
+<a name="246"></a>    
+<a name="247"></a>	/*
+<a name="248"></a>	 *  emit a wornSignal or doffSignal when this object is worn or doffed (taken off).
+<a name="249"></a>	 *  [SIGNALS EXTENSION]
+<a name="250"></a>	 */
+<a name="251"></a>    makeWorn(stat)
+<a name="252"></a>    {
+<a name="253"></a>        inherited(stat);
+<a name="254"></a>        if(stat)
+<a name="255"></a>            emit(wornSignal, stat);
+<a name="256"></a>        else
+<a name="257"></a>            emit(doffSignal);
+<a name="258"></a>    }
+<a name="259"></a>    
+<a name="260"></a>	/*
+<a name="261"></a>	 *  emit a moveSignal when this object is moved.
+<a name="262"></a>	 *  [SIGNALS EXTENSION]
+<a name="263"></a>	 */
+<a name="264"></a>    moveInto(newCont)
+<a name="265"></a>    {
+<a name="266"></a>        inherited(newCont);
+<a name="267"></a>        
+<a name="268"></a>        emit(moveSignal, newCont);
+<a name="269"></a>    }
+<a name="270"></a>    
+<a name="271"></a>	/*
+<a name="272"></a>	 *  emit a actmoveSignal or unlitSignal when this object moved as part of action handling.
+<a name="273"></a>	 *  [SIGNALS EXTENSION]
+<a name="274"></a>	 */
+<a name="275"></a>    actionMoveInto(newCont)
+<a name="276"></a>    {
+<a name="277"></a>        inherited(newCont);
+<a name="278"></a>        
+<a name="279"></a>        emit(actmoveSignal, newCont);
+<a name="280"></a>    }
+<a name="281"></a>    
+<a name="282"></a>    /*
+<a name="283"></a>	 *  emit a seenSignal or unlitSignal when this object is seen.
+<a name="284"></a>	 *  [SIGNALS EXTENSION]
+<a name="285"></a>	 */
+<a name="286"></a>    noteSeen()
+<a name="287"></a>    {
+<a name="288"></a>        inherited();
+<a name="289"></a>        
+<a name="290"></a>        emit(seenSignal, location);
+<a name="291"></a>    }
+<a name="292"></a>        
+<a name="293"></a>    /*
+<a name="294"></a>	 *  emit an openSignal or closeSignal when this object is open or closed.
+<a name="295"></a>	 *  [SIGNALS EXTENSION]
+<a name="296"></a>	 */
+<a name="297"></a>    makeOpen(stat)
+<a name="298"></a>    {
+<a name="299"></a>        inherited(stat);
+<a name="300"></a>        emit(stat ? openSignal : closeSignal);
+<a name="301"></a>    }
+<a name="302"></a>;
+<a name="303"></a>    
+<a name="304"></a> 
+<a name="305"></a>/*
+<a name="306"></a> *  Function to set up a signalling relation between sender and receiver via the signal Signal. 
+<a name="307"></a> *  This first created a relation between sender and receiver [using the RELATIONS extension)
+<a name="308"></a> *  And then, if the handler parameter is supplied, adds an appropriate entry to the signal's 
+<a name="309"></a> *  dispatchTab table to register that this is the handler to use on the receiver when signal is
+<a name="310"></a> *  sent to receiver from sender.
+<a name="311"></a> *  [SIGNALS EXTENSION]
+<a name="312"></a> */
+<a name="313"></a>connect(sender, signal, receiver, handler?)
+<a name="314"></a>{
+<a name="315"></a>    signal = relationTable.getRelation(signal)[1];
+<a name="316"></a>    
+<a name="317"></a>    relate(sender, signal, receiver);
+<a name="318"></a>    if(handler)
+<a name="319"></a>        signal.addHandler(sender, receiver, handler);
+<a name="320"></a>}
+<a name="321"></a>
+<a name="322"></a>
+<a name="323"></a>/*
+<a name="324"></a> * Function to remove the signalling relationship between sender and receiver via the signal
+<a name="325"></a> * Signal. [SIGNALS EXTENSION]
+<a name="326"></a> */
+<a name="327"></a>unconnect(sender, signal, receiver)
+<a name="328"></a>{
+<a name="329"></a>    signal = relationTable.getRelation(signal)[1];
+<a name="330"></a>    unrelate(sender, signal, receiver);
+<a name="331"></a>    
+<a name="332"></a>    if(receiver.propDefined(&amp;removeSenderHandler))
+<a name="333"></a>       signal.removeHandler(sender, receiver);
+<a name="334"></a>}
+<a name="335"></a>
+<a name="336"></a>modify TAction
+<a name="337"></a>    /*
+<a name="338"></a>	 * The signal (if any) )o be emitted by the direct object of this action.
+<a name="339"></a>	 * [SIGNALS EXTENSION]
+<a name="340"></a>     */	
+<a name="341"></a>    signal = nil
+<a name="342"></a>    
+<a name="343"></a>	/*
+<a name="344"></a>	 * If this action defines an associated signal, then have the direct object emit the signal
+<a name="345"></a>	 * after carrrying out out inherited handling. [SIGNALS EXTENSION]
+<a name="346"></a>	 */
+<a name="347"></a>    doAction()
+<a name="348"></a>    {
+<a name="349"></a>        inherited();
+<a name="350"></a>        if(signal)
+<a name="351"></a>            curDobj.emit(signal);
+<a name="352"></a>    }
+<a name="353"></a>;
+<a name="354"></a>
+<a name="355"></a>modify Take
+<a name="356"></a>   /* [SIGNALS EXTENSION] */  
+<a name="357"></a>    signal = takeSignal
+<a name="358"></a>;
+<a name="359"></a>
+<a name="360"></a>modify Drop
+<a name="361"></a>/* [SIGNALS EXTENSION] */  
+<a name="362"></a>    signal = dropSignal
+<a name="363"></a>;
+<a name="364"></a>
+<a name="365"></a>modify Examine
+<a name="366"></a>/* [SIGNALS EXTENSION] */  
+<a name="367"></a>    signal = examineSignal
+<a name="368"></a>;
+<a name="369"></a>
+<a name="370"></a>modify Push
+<a name="371"></a>/* [SIGNALS EXTENSION] */  
+<a name="372"></a>    signal = pushSignal
+<a name="373"></a>;
+<a name="374"></a>
+<a name="375"></a>modify Pull
+<a name="376"></a>/* [SIGNALS EXTENSION] */  
+<a name="377"></a>    signal = pullSignal
+<a name="378"></a>;
+<a name="379"></a>
+<a name="380"></a>modify Feel
+<a name="381"></a>/* [SIGNALS EXTENSION] */  
+<a name="382"></a>    signal = feelSignal
+<a name="383"></a>;
+<a name="384"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

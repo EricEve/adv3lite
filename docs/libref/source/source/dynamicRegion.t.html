@@ -1,0 +1,195 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>dynamicRegion.t</title></head><body>
+<table class=ban><tr><td><h1>dynamicRegion.t</h1><td align=right><a href="../file/dynamicRegion.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include &lt;tads.h&gt;
+<a name="3"></a>#include "advlite.h"
+<a name="4"></a>
+<a name="5"></a>/*
+<a name="6"></a> *  DYNAMIC REGION EXTENSION
+<a name="7"></a> *
+<a name="8"></a> * A DynamicRegion is a Region that can be expanded or contracted during the
+<a name="9"></a> * course of play, but which comes with certain restrictions; in particular a
+<a name="10"></a> * DynamicRegion cannot be part of any other Region. [DYNAMICREGION EXTENSION]
+<a name="11"></a> */
+<a name="12"></a>class DynamicRegion: Region
+<a name="13"></a>    
+<a name="14"></a>    /*
+<a name="15"></a>     * A DynamicRegion cannot be part of any other Region, so any value given
+<a name="16"></a>     * to this property in game code will be ignored. [DYNAMICREGION EXTENSION]
+<a name="17"></a>     */
+<a name="18"></a>    regions = nil
+<a name="19"></a>    
+<a name="20"></a>    /* A DynamicRegion cannot be in any other region, so we simply return nil [DYNAMICREGION EXTENSION] */   
+<a name="21"></a>    isIn(region)
+<a name="22"></a>    {
+<a name="23"></a>        return nil;
+<a name="24"></a>    }
+<a name="25"></a>    
+<a name="26"></a>    /* The list of regions a DynamicRegion is in is simply an empty list. [DYNAMICREGION EXTENSION] */
+<a name="27"></a>    allRegions = []
+<a name="28"></a>    
+<a name="29"></a>    
+<a name="30"></a>    /*
+<a name="31"></a>     * Add an additional room (passed as the rm parameter) to our list of
+<a name="32"></a>     * rooms. This method is intended for internal library use at PreInit
+<a name="33"></a>     * only. [DYNAMICREGION EXTENSION]
+<a name="34"></a>     */
+<a name="35"></a>    addToRoomList(rm)
+<a name="36"></a>    {
+<a name="37"></a>        /*
+<a name="38"></a>         *   Add rm to our existing roomList, making sure we don't duplicate an
+<a name="39"></a>         *   existing entry, and converting the roomList from nil to a list if
+<a name="40"></a>         *   isn't a list already.
+<a name="41"></a>         */
+<a name="42"></a>        roomList = nilToList(roomList).appendUnique([rm]);
+<a name="43"></a>        
+<a name="44"></a>    }
+<a name="45"></a>    
+<a name="46"></a>     /*
+<a name="47"></a>     * Put extra items in scope when action is carried out in any room in this
+<a name="48"></a>     * region. [DYNAMICREGION EXTENSION]
+<a name="49"></a>     */
+<a name="50"></a>    addExtraScopeItems(action)
+<a name="51"></a>    {
+<a name="52"></a>        /*
+<a name="53"></a>         * Add our list of extraScopeItems to the existing scopeList of the
+<a name="54"></a>         * action, avoiding creating any duplicate entries.
+<a name="55"></a>         */
+<a name="56"></a>        action.scopeList =
+<a name="57"></a>            action.scopeList.appendUnique(valToList(extraScopeItems));
+<a name="58"></a>        
+<a name="59"></a>    }
+<a name="60"></a>    
+<a name="61"></a>     /* Carry out before notifications on the region [DYNAMICREGION EXTENSION] */
+<a name="62"></a>    notifyBefore()
+<a name="63"></a>    {
+<a name="64"></a>        /* Just call our own regionBeforeAction() method [DYNAMICREGION EXTENSION] */
+<a name="65"></a>        regionBeforeAction();
+<a name="66"></a>    }
+<a name="67"></a>    
+<a name="68"></a>     /* Carry out after notifications on the region [DYNAMICREGION EXTENSION] */
+<a name="69"></a>    notifyAfter()
+<a name="70"></a>    {
+<a name="71"></a>        /* Just call our own regionAfterAction() method */
+<a name="72"></a>        regionAfterAction();
+<a name="73"></a>    }
+<a name="74"></a>    
+<a name="75"></a>    /*
+<a name="76"></a>     * Expand this region by adding rm to it. rm may be a single Room or a
+<a name="77"></a>     * list of Rooms or a single Region or a list of Regions or a list of
+<a name="78"></a>     * Rooms and Regions. Note, however, that the effect of specifying Regions
+<a name="79"></a>     * as an argument to this method is only a shorthand way of specifying the
+<a name="80"></a>     * rooms the Regions contain; no permanent relationship is created between
+<a name="81"></a>     * a DynamicRegion and any other Regions added to it.
+<a name="82"></a>	 * [DYNAMICREGION EXTENSION]
+<a name="83"></a>     */
+<a name="84"></a>    expandRegion(rm)
+<a name="85"></a>    {
+<a name="86"></a>        /* Convert rm to a list if it isn't one already */
+<a name="87"></a>        rm = valToList(rm);
+<a name="88"></a>        
+<a name="89"></a>        foreach(local cur in rm)
+<a name="90"></a>        {
+<a name="91"></a>            
+<a name="92"></a>            if(cur.ofKind(Region))
+<a name="93"></a>            {
+<a name="94"></a>                roomList = valToList(roomList).appendUnique(cur.roomList);
+<a name="95"></a>                foreach(local r in cur.roomList)
+<a name="96"></a>                    r.regions = valToList(r.regions).appendUnique([self]);
+<a name="97"></a>            }
+<a name="98"></a>            else
+<a name="99"></a>            {
+<a name="100"></a>                roomList = valToList(roomList).appendUnique([cur]);
+<a name="101"></a>                cur.regions = valToList(cur.regions).appendUnique([self]);
+<a name="102"></a>                cur.allRegions = valToList(cur.allRegions).appendUnique([self]);
+<a name="103"></a>            }
+<a name="104"></a>        }
+<a name="105"></a>        
+<a name="106"></a>        /* Carry out any extra adjustments needed. */
+<a name="107"></a>        extraAdjustments(rm, true);
+<a name="108"></a>    }
+<a name="109"></a>    
+<a name="110"></a>    /*
+<a name="111"></a>     * Remove rm from this Region. The rm parameter has the same meaning as
+<a name="112"></a>     * for expandRegion(rm) [DYNAMICREGION EXTENSION].
+<a name="113"></a>     */
+<a name="114"></a>    contractRegion(rm)
+<a name="115"></a>    {
+<a name="116"></a>         /* Convert rm to a list if it isn't one already */
+<a name="117"></a>        rm = valToList(rm);
+<a name="118"></a>        
+<a name="119"></a>        foreach(local cur in rm)
+<a name="120"></a>        {
+<a name="121"></a>            if(cur.ofKind(Region))
+<a name="122"></a>            {
+<a name="123"></a>                roomList = valToList(roomList) - cur.roomList;
+<a name="124"></a>                foreach(local r in cur.roomList)
+<a name="125"></a>                    r.regions = valToList(r.regions) - self;
+<a name="126"></a>            }
+<a name="127"></a>            else
+<a name="128"></a>            {
+<a name="129"></a>                roomList = valToList(roomList) - cur;
+<a name="130"></a>                cur.regions = valToList(cur.regions) - self;
+<a name="131"></a>                cur.allRegions = valToList(cur.allRegions) - self;
+<a name="132"></a>            }
+<a name="133"></a>        }
+<a name="134"></a>        
+<a name="135"></a>        /* Carry out any extra adjustments needed. */
+<a name="136"></a>        extraAdjustments(rm, nil);
+<a name="137"></a>    }
+<a name="138"></a>    
+<a name="139"></a>    /*
+<a name="140"></a>     * Carry out any additional adjustments that need to be made as
+<a name="141"></a>     * side-effects to adding or removing rooms. By default we do nothing here
+<a name="142"></a>     * but game code can override as necessary. The rm parameter is the list
+<a name="143"></a>     * of rooms/regions that have just been added (if expanding is true) or
+<a name="144"></a>     * subtracted (if expanded is nil) from this region. [DYNAMICREGION EXTENSION]
+<a name="145"></a>     */
+<a name="146"></a>    extraAdjustments(rm, expanded) { }
+<a name="147"></a>;
+<a name="148"></a>
+<a name="149"></a>/* 
+<a name="150"></a> * Modifications to Region to work safely with DynamicRegion 
+<a name="151"></a> * [DYNAMICREGION EXTENSION */
+<a name="152"></a> */
+<a name="153"></a>modify Region
+<a name="154"></a>    /*
+<a name="155"></a>     *    A DynamicRegion cannot contain other regions 
+<a name="156"></a>     *    [DYNAMIC REGION EXTENSION]
+<a name="157"></a>     */
+<a name="158"></a>    isIn(region)
+<a name="159"></a>    {
+<a name="160"></a>        if(region &amp;&amp; region.ofKind(DynamicRegion))
+<a name="161"></a>            return nil;
+<a name="162"></a>        
+<a name="163"></a>        return inherited(region);
+<a name="164"></a>    }
+<a name="165"></a>    
+<a name="166"></a>    
+<a name="167"></a>    /*
+<a name="168"></a>     * A Region is not allowed to be part of a DynamicRegion, so clear out any
+<a name="169"></a>     * DynamicRegions from our list of Regions at PreInit.
+<a name="170"></a>     * [DYNAMIC REGION EXTENSION]
+<a name="171"></a>     */
+<a name="172"></a>    makeRegionLists()
+<a name="173"></a>    {
+<a name="174"></a>        regions = valToList(regions).subset({r: !r.ofKind(DynamicRegion) });
+<a name="175"></a>        
+<a name="176"></a>        inherited();
+<a name="177"></a>    }
+<a name="178"></a>    
+<a name="179"></a>    /*
+<a name="180"></a>     * Tests whether this room is currently contained within region in the
+<a name="181"></a>     * sense that all our rooms are also in region.
+<a name="182"></a>     * [DYNAMIC REGION EXTENSION]
+<a name="183"></a>     */
+<a name="184"></a>    isCurrentlyWithin(region)
+<a name="185"></a>    {
+<a name="186"></a>        return (roomList.intersect(region.roomList).length == roomList.length);
+<a name="187"></a>    }
+<a name="188"></a>;
+<a name="189"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

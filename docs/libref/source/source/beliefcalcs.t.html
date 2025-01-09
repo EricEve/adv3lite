@@ -1,0 +1,297 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>beliefcalcs.t</title></head><body>
+<table class=ban><tr><td><h1>beliefcalcs.t</h1><td align=right><a href="../file/beliefcalcs.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* 
+<a name="5"></a> *   BELIEF CALCULATIONS EXTENSION by Eric Eve
+<a name="6"></a> *
+<a name="7"></a> *   Version 1.0 23rd April 2024
+<a name="8"></a> *
+<a name="9"></a> *   The (curernlty experimental) beliefcalcs.t extension implements various calculations involving
+<a name="10"></a> *   the degree of belief enums likely, dubious, unlikely and untrue, together with true.
+<a name="11"></a> *
+<a name="12"></a> *   To do this it defines a set of corresponding wrapper objects bTrue, bLikely, bDubious,
+<a name="13"></a> *   bUnlikely, and bUntrue, which asssign a probability score to each of these possible values.
+<a name="14"></a> *
+<a name="15"></a> *   To perform calculations with the belief values, it's necessary to wrap them in the
+<a name="16"></a> *   corresponding wrapper object (of the BelVal class). This can be done with the BV() macro; e.g.
+<a name="17"></a> *   BV(dubious) evaluates to bDubious, and BV(x) evaiuaates to bLikely if x is likely.
+<a name="18"></a> *
+<a name="19"></a> *   This then allows us to use the following expressions:
+<a name="20"></a> *
+<a name="21"></a> *.     BV(a) | BV(b)   the belief enum for a or b
+<a name="22"></a> *.     BV(a) + BV(b)   the probability (as a number out of 100) of a or b.
+<a name="23"></a> *.     BV(a) &amp; BV(b)   the belief enum for a and b
+<a name="24"></a> *.     BV(a) + BV(b)   the probability (as a number out of 100) of a and b.
+<a name="25"></a> *.     ~BV(a)          the negation/complement of a, e.g. ~BV(likely) = unlikely
+<a name="26"></a> *
+<a name="27"></a> *   One major limiation of this extension is that it does not repreaent how most people reason
+<a name="28"></a> *   about probabilities in practice. A second, related, limitation is that the probabilities
+<a name="29"></a> *   assigned to each enum (except for true and untrue, at 100 and 0 respectively) are somewhat
+<a name="30"></a> *   arbitrary, e.g. should calling something 'likely' assign it a probability of 55% or 95%?
+<a name="31"></a> *
+<a name="32"></a> *   The extension does allow for further gradations if desired. For example one could define
+<a name="33"></a> *   additional enums such as veryLikely and veryUnlikely and then define correspdonding objects of
+<a name="34"></a> *   the BelVal class:
+<a name="35"></a> *
+<a name="36"></a> *.  bVeryLikely: BelVal status = veryLikely score = 90;
+<a name="37"></a> *.  bVeryUnlikely: BelVal status = veryUnlikely score = 10;
+<a name="38"></a> *
+<a name="39"></a> *   Note that this extension does NOT require the facts.t module to be present (although it is
+<a name="40"></a> *   [perfectly compatinle with it.
+<a name="41"></a> */
+<a name="42"></a> 
+<a name="43"></a>
+<a name="44"></a>/* 
+<a name="45"></a> *   Object that carries out the preinitialization for the BelVal class. */
+<a name="46"></a>beliefManager: PreinitObject   
+<a name="47"></a>    
+<a name="48"></a>//    /* Function to convert arg from a belief type to an integer or vice versa */
+<a name="49"></a>//    convert(arg)
+<a name="50"></a>//    {
+<a name="51"></a>//        switch(dataType(arg))
+<a name="52"></a>//        {
+<a name="53"></a>//        case TypeObject:
+<a name="54"></a>//            if(arg.ofKind(BelVal))
+<a name="55"></a>//                return arg.score;
+<a name="56"></a>//            return nil;
+<a name="57"></a>//        case TypeEnum:
+<a name="58"></a>//        case TypeTrue:
+<a name="59"></a>//            return BV(arg).score;
+<a name="60"></a>//        case TypeInt:
+<a name="61"></a>//            return intToVal(arg);
+<a name="62"></a>//        default:
+<a name="63"></a>//            return nil;
+<a name="64"></a>//        }        
+<a name="65"></a>//    }
+<a name="66"></a>    
+<a name="67"></a>    
+<a name="68"></a>    
+<a name="69"></a>//    /* Function to compute the result of belielf type 1 AND belief type 2 */
+<a name="70"></a>//    and(belief1, belief2)
+<a name="71"></a>//    {
+<a name="72"></a>//        local b1 = convert(belief1);
+<a name="73"></a>//        local b2 = convert(belief2);
+<a name="74"></a>//        
+<a name="75"></a>//        if(b1==nil || b2 == nil)
+<a name="76"></a>//            return nil;
+<a name="77"></a>//        
+<a name="78"></a>//        return intToVal((b1 * b2) /100);
+<a name="79"></a>//    }
+<a name="80"></a>//    
+<a name="81"></a>//    /* Function to compute the result of belielf type 1 OR belief type 2 */
+<a name="82"></a>//    or(belief1, belief2)
+<a name="83"></a>//    {
+<a name="84"></a>//        local b1 = convert(belief1);
+<a name="85"></a>//        local b2 = convert(belief2);
+<a name="86"></a>//        
+<a name="87"></a>//        if(b1==nil || b2 == nil)
+<a name="88"></a>//            return nil;
+<a name="89"></a>//        
+<a name="90"></a>//        return intToVal(max(b1, b2));
+<a name="91"></a>//    }
+<a name="92"></a>    
+<a name="93"></a>//    /* 
+<a name="94"></a>//     *   Function to compare two belief types and return the numerical difference between them. A
+<a name="95"></a>//     *   poaitive result means belief 1 is believed that belief 2, a negative result that it is less
+<a name="96"></a>//     *   believed, and a result of 0 that the belief1 = belief 2
+<a name="97"></a>//     */
+<a name="98"></a>//    comp(belief1, belief2)
+<a name="99"></a>//    {
+<a name="100"></a>//        local b1 = convert(belief1);
+<a name="101"></a>//        local b2 = convert(belief2);
+<a name="102"></a>//        
+<a name="103"></a>//        if(b1==nil || b2 == nil)
+<a name="104"></a>//            return nil;
+<a name="105"></a>//        
+<a name="106"></a>//        return b1 - b2;
+<a name="107"></a>//    }
+<a name="108"></a>    
+<a name="109"></a>    /* Carry out our preinitialization */
+<a name="110"></a>    execute()
+<a name="111"></a>    {
+<a name="112"></a>        /* Set up a new working vector. */
+<a name="113"></a>        local vec = new Vector();
+<a name="114"></a>        
+<a name="115"></a>        /* 
+<a name="116"></a>         *   Obtain the list of value's from BelVal's valTab, which contains the initial boundary
+<a name="117"></a>         *   values for converting numerical probabilities to belief enums.
+<a name="118"></a>         */
+<a name="119"></a>        local vals = BelVal.valTab.valsToList();
+<a name="120"></a>        
+<a name="121"></a>        /* Obtain a list of keys from the same table */
+<a name="122"></a>        local keys = BelVal.valTab.keysToList();
+<a name="123"></a>        
+<a name="124"></a>        /* 
+<a name="125"></a>         *   Store the minumum key value. This should be the probability below which we regard
+<a name="126"></a>         *   something as untrue.
+<a name="127"></a>         */
+<a name="128"></a>        local minVal = keys.minVal(); 
+<a name="129"></a>        
+<a name="130"></a>        /* 
+<a name="131"></a>         *   Iterate through all BelVal objects in the game to constuct a vector containing all
+<a name="132"></a>         *   their scores.
+<a name="133"></a>         */
+<a name="134"></a>        for(local val = firstObj(BelVal); val != nil; val = nextObj(val, BelVal))
+<a name="135"></a>            vec.append(val);
+<a name="136"></a>        
+<a name="137"></a>        /* Sort the vector in descending order of score. */
+<a name="138"></a>        vec.sort(true, {x, y: x.score - y.score} );
+<a name="139"></a>        
+<a name="140"></a>        /* Iterate through the vector. */
+<a name="141"></a>        for(local i in 1..vec.length - 1)
+<a name="142"></a>        {            
+<a name="143"></a>            /* 
+<a name="144"></a>             *   Store the current item; this should have the higher score of the pair
+<a name="145"></a>             *   we're currently interested in.
+<a name="146"></a>             */
+<a name="147"></a>            local top = vec[i];
+<a name="148"></a>            
+<a name="149"></a>            /* 
+<a name="150"></a>             *   Store  the next item; this should have the lower score of the pair
+<a name="151"></a>             *   we're currently interested in.
+<a name="152"></a>             */
+<a name="153"></a>            local bottom = vec[i+1];
+<a name="154"></a>            
+<a name="155"></a>            /*   
+<a name="156"></a>             *   Calculate the mid-point of their two scores, which we'll use as the boundary
+<a name="157"></a>             *   between them.
+<a name="158"></a>             */
+<a name="159"></a>            local score = (top.score - bottom.score) / 2 + bottom.score;
+<a name="160"></a>                       
+<a name="161"></a>            /* 
+<a name="162"></a>             *   If we don't already have an entry for the top item of the pair and the bottom item
+<a name="163"></a>             *   is not the last in our list, store the mid-point score aa a key in our valTab table
+<a name="164"></a>             *   with the correspdonding enum as its key (to establish the minimum score for that
+<a name="165"></a>             *   value).             
+<a name="166"></a>             */
+<a name="167"></a>            if(vals.indexOf(top.status) == nil &amp;&amp; i &lt; vec.length - 1)
+<a name="168"></a>            {
+<a name="169"></a>                BelVal.valTab[score] = top.status;
+<a name="170"></a>            }
+<a name="171"></a>            /* 
+<a name="172"></a>             *   Otherwise, if we're at the penultime item, set the mimimum score for the final item
+<a name="173"></a>             *   (which should be untrue) to zero after setting the lower boundary for the next item
+<a name="174"></a>             *   up (by default unlikely) to what was previously the score for the final item. This
+<a name="175"></a>             *   might be a small number, so that we can regard a probability of less than, say 3%,
+<a name="176"></a>             *   as being effectively untrue.
+<a name="177"></a>             */
+<a name="178"></a>             
+<a name="179"></a>            else if(i == vec.length - 1)
+<a name="180"></a>            {
+<a name="181"></a>                BelVal.valTab[minVal] = top.status;
+<a name="182"></a>                BelVal.valTab[0] = bottom.status;
+<a name="183"></a>            }       
+<a name="184"></a>           
+<a name="185"></a>        }
+<a name="186"></a>        
+<a name="187"></a>        /* 
+<a name="188"></a>         *   Create a sorted list of the boundary values we've just stored in BekVal's valTab table
+<a name="189"></a>         *   and store them in BelVal's boundaries property, for BelVal to use to turn a probability
+<a name="190"></a>         *   into a belief enum.
+<a name="191"></a>         */
+<a name="192"></a>        BelVal.boundaries = BelVal.valTab.keysToList.sort();    
+<a name="193"></a>        
+<a name="194"></a>        /* 
+<a name="195"></a>         *   Iterate over all the BelVal objects in the game to add them into our bvTab table, which
+<a name="196"></a>         *   can be used to find the BelObject corresponding to any given belief enum.
+<a name="197"></a>         */
+<a name="198"></a>        for(local o = firstObj(BelVal); o != nil; o = nextObj(o, BelVal))
+<a name="199"></a>            bvTab[o.status] = o;
+<a name="200"></a>        
+<a name="201"></a>    }
+<a name="202"></a>    
+<a name="203"></a>    /* Our LookupTable for finding the BelVal object corresponding to any belief values. */     
+<a name="204"></a>    bvTab = [
+<a name="205"></a>        true -&gt; bTrue
+<a name="206"></a>    ]    
+<a name="207"></a>
+<a name="208"></a>;
+<a name="209"></a>
+<a name="210"></a>/* 
+<a name="211"></a> *   The BelVal class associates the belief enums with objects beginning with the letter b, e.g.
+<a name="212"></a> *   bTrue is associated with true and bDubious with dubious.
+<a name="213"></a> */
+<a name="214"></a>
+<a name="215"></a>class BelVal: object
+<a name="216"></a>    status = nil    
+<a name="217"></a>    
+<a name="218"></a>    /* 
+<a name="219"></a>     *   Overridden operators to allow 'logical' calulations to be performed on belief enums; to use
+<a name="220"></a>     *   these operators we must either use the associated objects (e.g. bTrue for true) or wrap the
+<a name="221"></a>     *   enum in the BV macro, e.g. BV(true); the latter method will be needed when dealing with
+<a name="222"></a>     *   variables, e.g. BV(val) when val might be any of the enums
+<a name="223"></a>     */    
+<a name="224"></a>    operator &amp;(x) { return intToVal(self * x); }
+<a name="225"></a>    operator |(x) { return intToVal(self + x); }
+<a name="226"></a>    
+<a name="227"></a>    operator -(x) { return self.score - x.score; }
+<a name="228"></a>    operator [] (x) {return bvTab[x]; }
+<a name="229"></a>    operator * (x) { return (self.score * x.score) / 100; }
+<a name="230"></a>    operator ~ () { return intToVal(100 - self.score); }
+<a name="231"></a>    operator + (x) { return 100 - ((100 - score) * (100 - x.score)) /100 ; }
+<a name="232"></a>
+<a name="233"></a>    
+<a name="234"></a>    /* Convert a number (a probability from 0 to 100) into a belief enum. */
+<a name="235"></a>    intToVal(num)
+<a name="236"></a>    {
+<a name="237"></a>        local idx = boundaries.lastValWhich({x: x &lt;= num});    
+<a name="238"></a>        return valTab[idx];                                            
+<a name="239"></a>    }
+<a name="240"></a>    
+<a name="241"></a>    /* The Lookup Table that will be populated with the minimum scores for our belief enums. */
+<a name="242"></a>    valTab = [
+<a name="243"></a>        97 -&gt; true,   
+<a name="244"></a>        3 -&gt; untrue
+<a name="245"></a>    ]
+<a name="246"></a>    
+<a name="247"></a>    /* A list of the boundary scores between different belief enums. */
+<a name="248"></a>    boundaries = nil
+<a name="249"></a>   
+<a name="250"></a>    /* The score (probabiity as a number from 1 to 100) associated with this value. */
+<a name="251"></a>    score = 0
+<a name="252"></a>
+<a name="253"></a>    
+<a name="254"></a>;
+<a name="255"></a>
+<a name="256"></a>
+<a name="257"></a>/* Define the five standard BelVal objects. */
+<a name="258"></a>bTrue: BelVal status = true score = 100;
+<a name="259"></a>bLikely: BelVal status = likely score = 75;
+<a name="260"></a>bDubious: BelVal status = dubious score = 50;
+<a name="261"></a>bUnlikely: BelVal status = unlikely score = 25;
+<a name="262"></a>bUntrue :BelVal status = untrue score = 0;
+<a name="263"></a>
+<a name="264"></a>/* 
+<a name="265"></a> *   Modify setRevealed() on libGlobal to accept a BelVal arg (by converting it to the equivalent
+<a name="266"></a> *   enum)
+<a name="267"></a> */
+<a name="268"></a>modify libGlobal
+<a name="269"></a>    setRevealed(tag, arg?)
+<a name="270"></a>    {        
+<a name="271"></a>        if(arg &amp;&amp; objOfKind(arg, BelVal))
+<a name="272"></a>            arg = arg.status;
+<a name="273"></a>        
+<a name="274"></a>        inherited(tag, arg);
+<a name="275"></a>    }
+<a name="276"></a>;
+<a name="277"></a>
+<a name="278"></a>/* 
+<a name="279"></a> *   Modify setInformed() on Thing to accept a BelVal arg (by converting it to the equivalent
+<a name="280"></a> *   enum)
+<a name="281"></a> */
+<a name="282"></a>modify Thing
+<a name="283"></a>    setInformed(tag, val?)
+<a name="284"></a>    {
+<a name="285"></a>         if(val &amp;&amp; objOfKind(val, BelVal))
+<a name="286"></a>            val= val.status;
+<a name="287"></a>        
+<a name="288"></a>        inherited(tag, val);
+<a name="289"></a>    }   
+<a name="290"></a>;
+<a name="291"></a>    
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

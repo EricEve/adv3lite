@@ -1,0 +1,133 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>lookDir.t</title></head><body>
+<table class=ban><tr><td><h1>lookDir.t</h1><td align=right><a href="../file/lookDir.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include &lt;tads.h&gt;
+<a name="3"></a>#include "advlite.h"
+<a name="4"></a>
+<a name="5"></a>/*
+<a name="6"></a> *   **********************************************************************************
+<a name="7"></a> *
+<a name="8"></a> *   This module provides the LookDir extension for the adv3Lite library (c) 2024 Eric Eve
+<a name="9"></a> *
+<a name="10"></a> *   Version 1.0  09-Dec-2024
+<a name="11"></a> *
+<a name="12"></a> *   The LookDir extension provides handling of a new LookDir action, which handles cdmmands of the
+<a name="13"></a> *   form LOOK &lt;DIR&gt;, e.g., LOOK NORTH.
+<a name="14"></a> *
+<a name="15"></a> *   To use it, define xxxLook properties on each room where you want to provide a view in the xxx
+<a name="16"></a> *   direction, for example:
+<a name="17"></a> *
+<a name="18"></a> *   northLook = "To the north you see a long row of pines marching into the middle distance. "
+<a name="19"></a> */
+<a name="20"></a>
+<a name="21"></a>    
+<a name="22"></a>/* 
+<a name="23"></a> *   The grammar for looking in a particular direction. Non-English games can change this by
+<a name="24"></a> *   supplying modify VerbRule(LookDir).
+<a name="25"></a> */
+<a name="26"></a>VerbRule(LookDir)
+<a name="27"></a>    ('look' | 'l') ('to' |) ('the'|) singleDir    
+<a name="28"></a>    : VerbProduction
+<a name="29"></a>    action = LookDir
+<a name="30"></a>    verbPhrase = 'look/looking (where)' 
+<a name="31"></a>;
+<a name="32"></a>
+<a name="33"></a>
+<a name="34"></a>DefineIAction(LookDir)
+<a name="35"></a>    baseActionClaas = LookDir    
+<a name="36"></a>       
+<a name="37"></a>    execAction(cmd)
+<a name="38"></a>    {   
+<a name="39"></a>        /* Get the direction the player typed in their LOOK &lt;DIR&gt; command. */
+<a name="40"></a>        direction = cmd.verbProd.dirMatch.dir; 
+<a name="41"></a>        
+<a name="42"></a>        /* Let the actor's outermost visible location handle looking in that direction. */
+<a name="43"></a>        gActor.outermostVisibleParent().lookDir(direction);        
+<a name="44"></a>    }
+<a name="45"></a>    
+<a name="46"></a>    direction = nil
+<a name="47"></a>;
+<a name="48"></a>
+<a name="49"></a>/* Modifications to Room for the LookDir extension. */
+<a name="50"></a>modify Room
+<a name="51"></a>    lookDir(dir)
+<a name="52"></a>    {
+<a name="53"></a>        /* We can only carry out this action is there's enough light to see by. */
+<a name="54"></a>        if(isIlluminated)
+<a name="55"></a>        {
+<a name="56"></a>            /* Obtain the zzzLook property corresponding to the direction we want to look in. */
+<a name="57"></a>            local prop = dir.lookProp;
+<a name="58"></a>            
+<a name="59"></a>            /* If out location defines this property and it;s not nil, display it. */
+<a name="60"></a>            if(propDefined(prop) &amp;&amp; propType(prop) != TypeNil)
+<a name="61"></a>                display(prop);
+<a name="62"></a>            /* Otherwise say there's nothing sopecial to see that way. */
+<a name="63"></a>            else                
+<a name="64"></a>                sayNothingSpecialThatWay(dir);
+<a name="65"></a>        }
+<a name="66"></a>        /* If we're in the dark, say there's not enough light to see by. */
+<a name="67"></a>        else
+<a name="68"></a>            DMsg(too dark to look that way, 'There{\'s} not enough light to see that way. ' );
+<a name="69"></a>    }
+<a name="70"></a>    
+<a name="71"></a>    /* By default, translate LOOK DOWN into examining our floor object if we have one. */
+<a name="72"></a>    downLook()
+<a name="73"></a>    {
+<a name="74"></a>        /* If we have a floor objecgt, examine it. */
+<a name="75"></a>        if(floorObj)
+<a name="76"></a>            doInstead(Examine, floorObj);
+<a name="77"></a>        /* Otherwise say there's nothing special to see. */
+<a name="78"></a>        else
+<a name="79"></a>            sayNothingSpecialThatWay(downDir);
+<a name="80"></a>    }
+<a name="81"></a>    
+<a name="82"></a>    /* 
+<a name="83"></a>     *   The command LOOK IN without an object is unlikely to make sense, so we ask the player to
+<a name="84"></a>     *   supply the missing direct object,
+<a name="85"></a>     */
+<a name="86"></a>    inLook()  { askForDobj(LookIn); }
+<a name="87"></a>    
+<a name="88"></a>    /* Display a message saying that there's nothing special to see in the dir direction. */
+<a name="89"></a>    sayNothingSpecialThatWay(dir)
+<a name="90"></a>    {
+<a name="91"></a>        DMsg(nothing special that way, '{I} {see} nothing special {1}.', dir.departureName);
+<a name="92"></a>    }
+<a name="93"></a>;
+<a name="94"></a>
+<a name="95"></a>/* 
+<a name="96"></a> *   We make some simple modifications to the Booth class to handle looking around in an enclosed
+<a name="97"></a> *   Booth.
+<a name="98"></a> */
+<a name="99"></a>modify Booth
+<a name="100"></a>    lookDir(dir)  {  delegated Room(dir); }
+<a name="101"></a>    sayNothingSpecialThatWay(dir) { delegated Room(dir); }    
+<a name="102"></a>    inLook() { delegated Room(); }
+<a name="103"></a>;
+<a name="104"></a>    
+<a name="105"></a>
+<a name="106"></a>/* 
+<a name="107"></a> *   Add a lookProp propeery to each Direction object and populate it with a pointer to the
+<a name="108"></a> *   appropriate xxxLook property.
+<a name="109"></a> */
+<a name="110"></a>modify northDir lookProp = &amp;northLook;
+<a name="111"></a>modify eastDir lookProp = &amp;eastLook;
+<a name="112"></a>modify southDir lookProp = &amp;southLook;
+<a name="113"></a>modify westDir lookProp = &amp;westLook;
+<a name="114"></a>modify northeastDir lookProp = &amp;northeastLook;
+<a name="115"></a>modify southeastDir lookProp = &amp;southeastLook;
+<a name="116"></a>modify southwestDir lookProp = &amp;southwestLook;
+<a name="117"></a>modify northwestDir lookProp = &amp;northwestLook;
+<a name="118"></a>
+<a name="119"></a>modify starboardDir lookProp = &amp;starboardLook;
+<a name="120"></a>modify portDir lookProp = &amp;portLook;
+<a name="121"></a>modify foreDir lookProp = &amp;foreLook;
+<a name="122"></a>modify aftDir lookProp = &amp;aftLook;
+<a name="123"></a>
+<a name="124"></a>modify upDir lookProp = &amp;upLook;
+<a name="125"></a>modify downDir lookProp = &amp;downLook;
+<a name="126"></a>modify inDir lookProp = &amp;inLook;
+<a name="127"></a>modify outDir lookProp = &amp;outLook;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

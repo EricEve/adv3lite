@@ -1,0 +1,484 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>footnote.t</title></head><body>
+<table class=ban><tr><td><h1>footnote.t</h1><td align=right><a href="../file/footnote.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   FOOTNOTE EXTENSION
+<a name="5"></a> *
+<a name="6"></a> *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
+<a name="7"></a> *   
+<a name="8"></a> *   TADS 3 Library - footnotes
+<a name="9"></a> *   
+<a name="10"></a> *   This module defines objects related to footnotes.  
+<a name="11"></a> *
+<a name="12"></a> *   Slightly modified for use with adv3Lite by Eric Eve
+<a name="13"></a> */
+<a name="14"></a>
+<a name="15"></a>/* include the library header */
+<a name="16"></a>#include "advlite.h"
+<a name="17"></a>
+<a name="18"></a>
+<a name="19"></a>/* ------------------------------------------------------------------------ */
+<a name="20"></a>/*
+<a name="21"></a> *   Footnote - this allows footnote references to be generated in
+<a name="22"></a> *   displayed text, and the user to retrieve the contents of the footnote
+<a name="23"></a> *   on demand.
+<a name="24"></a> *   
+<a name="25"></a> *   Create an instance of Footnote for each footnote.  For each footnote
+<a name="26"></a> *   object, define the "desc" property as a double-quoted string (or
+<a name="27"></a> *   method) displaying the footnote's contents.
+<a name="28"></a> *   
+<a name="29"></a> *   To display a footnote reference in a passage of text, call
+<a name="30"></a> *   &lt;&lt;x.noteRef&gt;&gt;, where x is the footnote object in question.  That's all
+<a name="31"></a> *   you have to do - we'll automatically assign the footnote a sequential
+<a name="32"></a> *   number (so that footnote references are always seen by the player in
+<a name="33"></a> *   ascending order, regardless of the order in which the player
+<a name="34"></a> *   encounters the sources of the footnotes), and the NOTE command will
+<a name="35"></a> *   automatically figure out which footnote object is involved for a given
+<a name="36"></a> *   footnote number.
+<a name="37"></a> *   
+<a name="38"></a> *   This class also serves as a daemon notification object to receive
+<a name="39"></a> *   per-command daemon calls.  The first time we show a footnote
+<a name="40"></a> *   reference, we'll show an explanation of how footnotes work.  
+<a name="41"></a> *
+<a name="42"></a> *   [ONLY IN FOOTNOTE EXTENSION]
+<a name="43"></a> */
+<a name="44"></a>class Footnote: object
+<a name="45"></a>    /* 
+<a name="46"></a>     *   Display the contents of the footnote - this will be called when
+<a name="47"></a>     *   the user asks to show the footnote with the "NOTE n" command.
+<a name="48"></a>     *   Each instance must provide suitable text here.  
+<a name="49"></a>     */
+<a name="50"></a>    desc = ""
+<a name="51"></a>
+<a name="52"></a>    /*
+<a name="53"></a>     *   Get a reference to the footnote for use in a passage of text.
+<a name="54"></a>     *   This returns a single-quoted string to display as a reference to
+<a name="55"></a>     *   the footnote.  
+<a name="56"></a>     */
+<a name="57"></a>    noteRef
+<a name="58"></a>    {
+<a name="59"></a>               
+<a name="60"></a>        /* 
+<a name="61"></a>         *   if we haven't already assigned a number to this footnote,
+<a name="62"></a>         *   assign one now 
+<a name="63"></a>         */
+<a name="64"></a>        if (footnoteNum == nil)
+<a name="65"></a>        {
+<a name="66"></a>            /* 
+<a name="67"></a>             *   Allocate a new footnote number and remember it as our
+<a name="68"></a>             *   own.  Note that we want the last footnote number for all
+<a name="69"></a>             *   footnotes, so use the Footnote class property
+<a name="70"></a>             *   lastFootnote. 
+<a name="71"></a>             */
+<a name="72"></a>            footnoteNum = ++(Footnote.lastFootnote);
+<a name="73"></a>
+<a name="74"></a>            /* 
+<a name="75"></a>             *   add myself to the class's list of numbered notes, so we
+<a name="76"></a>             *   can find this footnote easily again given its number 
+<a name="77"></a>             */
+<a name="78"></a>            Footnote.numberedFootnotes.append(self);
+<a name="79"></a>
+<a name="80"></a>            /* note that we've generated a footnote reference */
+<a name="81"></a>            Footnote.everShownFootnote = true;
+<a name="82"></a>        }
+<a name="83"></a>
+<a name="84"></a>        /* 
+<a name="85"></a>         *   If we're allowed to show footnotes, return the library
+<a name="86"></a>         *   message text to display given the note number.  If all
+<a name="87"></a>         *   footnotes are being hidden, or if we're only showing new
+<a name="88"></a>         *   footnotes and we've already read this one, return an empty
+<a name="89"></a>         *   string.  
+<a name="90"></a>         */
+<a name="91"></a>        switch(footnoteSettings.showFootnotes)
+<a name="92"></a>        {
+<a name="93"></a>        case FootnotesFull:
+<a name="94"></a>            /* we're showing all footnotes unconditionally */
+<a name="95"></a>            return footnoteRef(footnoteNum);
+<a name="96"></a>
+<a name="97"></a>        case FootnotesMedium:
+<a name="98"></a>            /* we're only showing unread footnotes */
+<a name="99"></a>            return footnoteRead ? '' : footnoteRef(footnoteNum);
+<a name="100"></a>
+<a name="101"></a>        case FootnotesOff:
+<a name="102"></a>            /* we're hiding all footnotes unconditionally */
+<a name="103"></a>            return '';
+<a name="104"></a>        }
+<a name="105"></a>
+<a name="106"></a>        /* 
+<a name="107"></a>         *   in case the status is invalid and we fall through, return an
+<a name="108"></a>         *   empty string as a last resort
+<a name="109"></a>         */
+<a name="110"></a>        return '';
+<a name="111"></a>    }
+<a name="112"></a>
+<a name="113"></a>    /* get the string to display for a footnote reference */
+<a name="114"></a>    footnoteRef(num)
+<a name="115"></a>    {
+<a name="116"></a>        /* set up a hyperlink for the note that enters the "note n" command */
+<a name="117"></a>        return BMsg(footnote ref, '&lt;sup&gt;[&lt;&lt;aHref('footnote ' + num, 
+<a name="118"></a>                                                 toString(num))&gt;&gt;]&lt;/sup&gt;');
+<a name="119"></a>    }
+<a name="120"></a>    
+<a name="121"></a>    
+<a name="122"></a>    /*
+<a name="123"></a>     *   Display a footnote given its number.  If there is no such
+<a name="124"></a>     *   footnote, we'll display an error message saying so.  (This is a
+<a name="125"></a>     *   class method, so it should be called directly on Footnote, not on
+<a name="126"></a>     *   instances of Footnote.)  
+<a name="127"></a>     */
+<a name="128"></a>    showFootnote(num)
+<a name="129"></a>    {
+<a name="130"></a>        /* 
+<a name="131"></a>         *   if there's a footnote for this number, display it; otherwise,
+<a name="132"></a>         *   display an error explaining that the footnote number is
+<a name="133"></a>         *   invalid 
+<a name="134"></a>         */
+<a name="135"></a>        if (num &gt;= 1 &amp;&amp; num &lt;= lastFootnote)
+<a name="136"></a>        {
+<a name="137"></a>            local fn;
+<a name="138"></a>
+<a name="139"></a>            /* 
+<a name="140"></a>             *   it's a valid footnote number - get the footnote object
+<a name="141"></a>             *   from our vector of footnotes, simply using the footnote
+<a name="142"></a>             *   number as an index into the vector
+<a name="143"></a>             */
+<a name="144"></a>            fn = numberedFootnotes[num];
+<a name="145"></a>
+<a name="146"></a>            /* show its description by calling 'desc' method */
+<a name="147"></a>            fn.desc;
+<a name="148"></a>
+<a name="149"></a>            /* note that this footnote text has been read */
+<a name="150"></a>            fn.footnoteRead = true;
+<a name="151"></a>        }
+<a name="152"></a>        else
+<a name="153"></a>        {
+<a name="154"></a>            /* there is no such footnote */
+<a name="155"></a>             DMsg(no such footnote, '&lt;.parser&gt;The story has never referred to
+<a name="156"></a>                 any such footnote.&lt;./parser&gt; ');
+<a name="157"></a>        }
+<a name="158"></a>    }
+<a name="159"></a>
+<a name="160"></a>    /* SettingsItem tracking our current status */
+<a name="161"></a>    footnoteSettings = footnoteSettingsItem
+<a name="162"></a>
+<a name="163"></a>    /* 
+<a name="164"></a>     *   my footnote number - this is assigned the first time I'm
+<a name="165"></a>     *   referenced; initially we have no number, since we don't want to
+<a name="166"></a>     *   assign a number until the note is first referenced 
+<a name="167"></a>     */
+<a name="168"></a>    footnoteNum = nil
+<a name="169"></a>
+<a name="170"></a>    /* 
+<a name="171"></a>     *   Flag: this footnote's full text has been displayed.  This refers
+<a name="172"></a>     *   to the text of the footnote itself, not the reference, so this is
+<a name="173"></a>     *   only set when the "FOOTNOTE n" command is used to read this
+<a name="174"></a>     *   footnote.  
+<a name="175"></a>     */
+<a name="176"></a>    footnoteRead = nil
+<a name="177"></a>
+<a name="178"></a>    /*
+<a name="179"></a>     *   Static property: the highest footnote number currently in use.
+<a name="180"></a>     *   We start this at zero, because zero is never a valid footnote
+<a name="181"></a>     *   number.  
+<a name="182"></a>     */
+<a name="183"></a>    lastFootnote = 0
+<a name="184"></a>
+<a name="185"></a>    /*
+<a name="186"></a>     *   Static property: a vector of all footnotes which have had numbers
+<a name="187"></a>     *   assigned.  We use this to find a footnote object given its note
+<a name="188"></a>     *   number.  
+<a name="189"></a>     */
+<a name="190"></a>    numberedFootnotes = static new Vector(20)
+<a name="191"></a>
+<a name="192"></a>    /* static property: we've never shown a footnote reference before */
+<a name="193"></a>    everShownFootnote = nil
+<a name="194"></a>
+<a name="195"></a>    /* static property: per-command-prompt daemon entrypoint */
+<a name="196"></a>    checkNotification()
+<a name="197"></a>    {
+<a name="198"></a>        /*
+<a name="199"></a>         *   If we've ever shown a footnote, show the footnote
+<a name="200"></a>         *   notification now.  Note that we know we've never shown a
+<a name="201"></a>         *   notification before simply because we're still running - we
+<a name="202"></a>         *   remove this daemon as soon as it shows its notification.  
+<a name="203"></a>         */
+<a name="204"></a>        if (everShownFootnote)
+<a name="205"></a>        {
+<a name="206"></a>            /* show the first footnote notification */
+<a name="207"></a>            DMsg(first footnote,  'A number in [square brackets] like the one
+<a name="208"></a>                above refers to a footnote, which you can read by typing
+<a name="209"></a>                FOOTNOTE followed by the number: &lt;&lt;aHref('footnote 1',
+<a name="210"></a>                    'FOOTNOTE 1', 'Show footnote [1]')&gt;&gt;, for example.
+<a name="211"></a>                Footnotes usually contain added background information that
+<a name="212"></a>                might be interesting but isn&amp;rsquo;t essential to the story. If
+<a name="213"></a>                you&amp;rsquo;d prefer not to see footnotes at all, you can control
+<a name="214"></a>                their appearance by typing &lt;&lt;aHref('footnotes', 'FOOTNOTES', 
+<a name="215"></a>                                                   'Control footnote
+<a name="216"></a>        appearance')&gt;&gt;.');
+<a name="217"></a>
+<a name="218"></a>            /* 
+<a name="219"></a>             *   We only want to show this notification once in the whole
+<a name="220"></a>             *   game, so we can cancel this daemon now.  Since we're the
+<a name="221"></a>             *   event that's running, we can just tell the event manager
+<a name="222"></a>             *   to remove the current event from receiving further
+<a name="223"></a>             *   notifications.  
+<a name="224"></a>             */
+<a name="225"></a>            eventManager.removeCurrentEvent();
+<a name="226"></a>        }
+<a name="227"></a>    }
+<a name="228"></a>;
+<a name="229"></a>
+<a name="230"></a>/* our FOOTNOTES settings item [FOOTNOTE EXTENSION]*/
+<a name="231"></a>footnoteSettingsItem: object
+<a name="232"></a>    /* our current status - the factory default is "medium" */
+<a name="233"></a>    showFootnotes = FootnotesMedium
+<a name="234"></a>   
+<a name="235"></a>    /* 
+<a name="236"></a>     * get the setting's external file string representation 
+<a name="237"></a>     * [FOOTNOTE EXTENSION]  
+<a name="238"></a>     */
+<a name="239"></a>    settingToText()
+<a name="240"></a>    {
+<a name="241"></a>        switch(showFootnotes)
+<a name="242"></a>        {
+<a name="243"></a>        case FootnotesMedium:
+<a name="244"></a>            return 'medium';
+<a name="245"></a>            
+<a name="246"></a>        case FootnotesFull:
+<a name="247"></a>            return 'full';
+<a name="248"></a>            
+<a name="249"></a>        default:
+<a name="250"></a>            return 'off';
+<a name="251"></a>        }
+<a name="252"></a>    }
+<a name="253"></a>
+<a name="254"></a>    settingFromText(str)
+<a name="255"></a>    {
+<a name="256"></a>        /* convert to lower-case and strip off spaces */
+<a name="257"></a>        if (rexMatch('&lt;space&gt;*(&lt;alpha&gt;+)', str.toLower()) != nil)
+<a name="258"></a>            str = rexGroup(1)[3];
+<a name="259"></a>        
+<a name="260"></a>        /* check the keyword */
+<a name="261"></a>        switch (str)
+<a name="262"></a>        {
+<a name="263"></a>        case 'off':
+<a name="264"></a>            showFootnotes = FootnotesOff;
+<a name="265"></a>            break;
+<a name="266"></a>            
+<a name="267"></a>        case 'medium':
+<a name="268"></a>            showFootnotes = FootnotesMedium;
+<a name="269"></a>            break;
+<a name="270"></a>            
+<a name="271"></a>        case 'full':
+<a name="272"></a>            showFootnotes = FootnotesFull;
+<a name="273"></a>            break;
+<a name="274"></a>        }
+<a name="275"></a>    }
+<a name="276"></a>;
+<a name="277"></a>
+<a name="278"></a>/* 
+<a name="279"></a> * pre-initialization - set up the footnote explanation daemon 
+<a name="280"></a> * [FOOTNOTE EXTENSION]
+<a name="281"></a> */
+<a name="282"></a>footnotePreinit: PreinitObject
+<a name="283"></a>    execute()
+<a name="284"></a>    {
+<a name="285"></a>        /* since we're available, register as the global footnote handler */
+<a name="286"></a>        libGlobal.footnoteClass = Footnote;
+<a name="287"></a>
+<a name="288"></a>        /* initialize the footnote notification daemon */
+<a name="289"></a>        new PromptDaemon(Footnote, &amp;checkNotification);
+<a name="290"></a>    }
+<a name="291"></a>;
+<a name="292"></a>
+<a name="293"></a>/*  
+<a name="294"></a> *  This VerbRule is defined directly in the FOOTNOTE
+<a name="295"></a> *  extension.
+<a name="296"></a> *
+<a name="297"></a> *  Note to translators: the following VerbRules are defined directly in
+<a name="298"></a> *  the FOOTNOTES extension file since it would be awkward to put them
+<a name="299"></a> *  anywhere else. When translating, define an additional language-specific
+<a name="300"></a> *  file (e.g. footnotes_fr.t or footnotes_de.t) and in it include (a)
+<a name="301"></a> *  your language-specific modifications to the following VerbRules
+<a name="302"></a> *  (using modify VerbRule) and (b) a CustomMessages object containing
+<a name="303"></a> *  translations of any DMsg and BMsg text used in this extension. Then
+<a name="304"></a> *  instruct users to include your language-specific file after this one.
+<a name="305"></a> *  [FOOTNOTE EXTENSION]
+<a name="306"></a> */
+<a name="307"></a>VerbRule(Footnote)
+<a name="308"></a>    ('footnote' | 'note') numericDobj
+<a name="309"></a>    : VerbProduction
+<a name="310"></a>    action = FootnoteAction
+<a name="311"></a>    verbPhrase = 'show/showing a footnote'
+<a name="312"></a>;
+<a name="313"></a>
+<a name="314"></a>
+<a name="315"></a>VerbRule(FootnotesFull)
+<a name="316"></a>    'footnotes' 'full'
+<a name="317"></a>    : VerbProduction
+<a name="318"></a>    action = FootnotesFullAction
+<a name="319"></a>    verbPhrase = 'enable/enabling all footnotes'
+<a name="320"></a>;
+<a name="321"></a>
+<a name="322"></a>VerbRule(FootnotesMedium)
+<a name="323"></a>    'footnotes' 'medium'
+<a name="324"></a>    : VerbProduction
+<a name="325"></a>    action = FootnotesMediumAction
+<a name="326"></a>    verbPhrase = 'enable/enabling new footnotes'
+<a name="327"></a>;
+<a name="328"></a>
+<a name="329"></a>VerbRule(FootnotesOff)
+<a name="330"></a>    'footnotes' 'off'
+<a name="331"></a>    : VerbProduction
+<a name="332"></a>    action = FootnotesOffAction
+<a name="333"></a>    verbPhrase = 'hide/hiding footnotes'
+<a name="334"></a>;
+<a name="335"></a>
+<a name="336"></a>VerbRule(FootnotesStatus)
+<a name="337"></a>    'footnotes'
+<a name="338"></a>    : VerbProduction
+<a name="339"></a>    action = FootnotesStatus
+<a name="340"></a>    verbPhrase = 'show/showing footnote status'
+<a name="341"></a>;
+<a name="342"></a>
+<a name="343"></a>
+<a name="344"></a>
+<a name="345"></a>
+<a name="346"></a>/*
+<a name="347"></a> *   Footnote -   [FOOTNOTE EXTENSION]
+<a name="348"></a> */
+<a name="349"></a>DefineSystemAction(FootnoteAction)
+<a name="350"></a>    execAction(c)
+<a name="351"></a>    {
+<a name="352"></a>        /* ask the Footnote class to do the work */
+<a name="353"></a>        if (libGlobal.footnoteClass != nil)
+<a name="354"></a>        {
+<a name="355"></a>            local num = c.dobj.numVal;
+<a name="356"></a>            
+<a name="357"></a>            libGlobal.footnoteClass.showFootnote(num);            
+<a name="358"></a>        }
+<a name="359"></a>        else
+<a name="360"></a>            commandNotPresent();
+<a name="361"></a>    }
+<a name="362"></a>
+<a name="363"></a>    /* there's no point in including this in undo */
+<a name="364"></a>    includeInUndo = nil
+<a name="365"></a>;
+<a name="366"></a>
+<a name="367"></a>
+<a name="368"></a>/* base class for FOOTNOTES xxx commands [FOOTNOTE EXTENSION]*/
+<a name="369"></a>DefineSystemAction(Footnotes)
+<a name="370"></a>    execAction(c)
+<a name="371"></a>    {
+<a name="372"></a>        if (libGlobal.footnoteClass != nil)
+<a name="373"></a>        {
+<a name="374"></a>            /* set my footnote status in the global setting */
+<a name="375"></a>            libGlobal.footnoteClass.footnoteSettings.showFootnotes =
+<a name="376"></a>                showFootnotes;
+<a name="377"></a>
+<a name="378"></a>            /* acknowledge it */
+<a name="379"></a>            acknowledgeFootnoteStatus(showFootnotes);
+<a name="380"></a>        }
+<a name="381"></a>        else
+<a name="382"></a>            commandNotPresent();
+<a name="383"></a>    }
+<a name="384"></a>
+<a name="385"></a>    /* 
+<a name="386"></a>     *   the footnote status I set when this command is activated - this
+<a name="387"></a>     *   must be overridden by each subclass 
+<a name="388"></a>     */
+<a name="389"></a>    showFootnotes = nil
+<a name="390"></a>    
+<a name="391"></a>    acknowledgeFootnoteStatus(stat)
+<a name="392"></a>    {
+<a name="393"></a>        DMsg(acknowledge footnote status, '&lt;.parser&gt;The setting is now {1}.
+<a name="394"></a>            &lt;./parser&gt;', shortFootnoteStatus(stat));
+<a name="395"></a>    }
+<a name="396"></a>
+<a name="397"></a>    /* show the footnote status, in short form */
+<a name="398"></a>    shortFootnoteStatus(stat)
+<a name="399"></a>    {
+<a name="400"></a>        local msg = BMsg(footnotes, 'FOOTNOTES ');
+<a name="401"></a>        
+<a name="402"></a>        msg += (stat == FootnotesOff ? BMsg(footnote off, 'OFF')
+<a name="403"></a>          : stat == FootnotesMedium ? BMsg(footnote medium, 'MEDIUM')
+<a name="404"></a>          : BMsg(footnote full, 'FULL'));
+<a name="405"></a>        
+<a name="406"></a>        return msg;
+<a name="407"></a>    }
+<a name="408"></a>;
+<a name="409"></a>
+<a name="410"></a>DefineAction(FootnotesFullAction, Footnotes)
+<a name="411"></a>    showFootnotes = FootnotesFull
+<a name="412"></a>;
+<a name="413"></a>
+<a name="414"></a>DefineAction(FootnotesMediumAction, Footnotes)
+<a name="415"></a>    showFootnotes = FootnotesMedium
+<a name="416"></a>;
+<a name="417"></a>
+<a name="418"></a>DefineAction(FootnotesOffAction, Footnotes)
+<a name="419"></a>    showFootnotes = FootnotesOff
+<a name="420"></a>;
+<a name="421"></a>
+<a name="422"></a>/* [FOOTNOTE EXTENSION] */
+<a name="423"></a>DefineSystemAction(FootnotesStatus)
+<a name="424"></a>    execAction(c)
+<a name="425"></a>    {
+<a name="426"></a>        /* show the current status */
+<a name="427"></a>        if (libGlobal.footnoteClass != nil)
+<a name="428"></a>            showFootnoteStatus(libGlobal.footnoteClass.
+<a name="429"></a>                                            footnoteSettings.showFootnotes);
+<a name="430"></a>        else
+<a name="431"></a>            commandNotPresent();
+<a name="432"></a>    }
+<a name="433"></a>
+<a name="434"></a>    /* there's no point in including this in undo */
+<a name="435"></a>    includeInUndo = nil
+<a name="436"></a>    
+<a name="437"></a>    showFootnoteStatus(stat)
+<a name="438"></a>    {
+<a name="439"></a>        "The current setting is FOOTNOTES ";
+<a name="440"></a>        switch(stat)
+<a name="441"></a>        {
+<a name="442"></a>        case FootnotesOff:
+<a name="443"></a>            DMsg(show footnotes off,
+<a name="444"></a>            'OFF, which hides all footnote references.
+<a name="445"></a>            Type &lt;&lt;aHref('footnotes medium', 'FOOTNOTES MEDIUM',
+<a name="446"></a>                         'Set footnotes to Medium')&gt;&gt; to
+<a name="447"></a>            show references to footnotes except those you&amp;rsquo;ve
+<a name="448"></a>            already seen, or &lt;&lt;aHref('footnotes full', 'FOOTNOTES FULL',
+<a name="449"></a>                                     'Set footnotes to Full')&gt;&gt;
+<a name="450"></a>            to show all footnote references. ');
+<a name="451"></a>            break;
+<a name="452"></a>
+<a name="453"></a>        case FootnotesMedium:
+<a name="454"></a>            DMsg(show footnotes medium,
+<a name="455"></a>            'MEDIUM, which shows references to unread footnotes, but
+<a name="456"></a>            hides references to those you&amp;rsquo;ve already read.  Type
+<a name="457"></a>            &lt;&lt;aHref('footnotes off', 'FOOTNOTES OFF',
+<a name="458"></a>                    'Turn off footnotes')&gt;&gt; to hide
+<a name="459"></a>            footnote references entirely, or &lt;&lt;aHref(
+<a name="460"></a>                'footnotes full', 'FOOTNOTES FULL',
+<a name="461"></a>                'Set footnotes to Full')&gt;&gt; to show every reference, even to
+<a name="462"></a>            notes you&amp;rsquo;ve already read. ');
+<a name="463"></a>            break;
+<a name="464"></a>
+<a name="465"></a>        case FootnotesFull:
+<a name="466"></a>            DMsg(show footnotes full,
+<a name="467"></a>            'FULL, which shows every footnote reference, even to
+<a name="468"></a>            notes you&amp;rsquo;ve already read.  Type &lt;&lt;aHref('footnotes medium',
+<a name="469"></a>            'FOOTNOTES MEDIUM', 'Set footnotes to Medium')&gt;&gt; to show
+<a name="470"></a>            only references to notes you
+<a name="471"></a>            haven&amp;rsquo;t yet read, or &lt;&lt;
+<a name="472"></a>              aHref('footnotes off', 'FOOTNOTES OFF', 'Turn off footnotes')&gt;&gt;
+<a name="473"></a>            to hide footnote references entirely. ');
+<a name="474"></a>            break;
+<a name="475"></a>        }
+<a name="476"></a>    }
+<a name="477"></a>;
+<a name="478"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>roomparts.t</title></head><body>
+<table class=ban><tr><td><h1>roomparts.t</h1><td align=right><a href="../file/roomparts.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* 
+<a name="5"></a> *   roomparts.t
+<a name="6"></a> *
+<a name="7"></a> *   The ROOMPARTS extension is intended for use with the adv3Lite library. It
+<a name="8"></a> *   adds walls and a ceiling to every Room. It also adds an OutdoorRoom class
+<a name="9"></a> *   that has only ground and sky. It also allows Things to be associated with
+<a name="10"></a> *   particular room parts, such as a picture hanging on a wall.
+<a name="11"></a> *
+<a name="12"></a> *   VERSION 1
+<a name="13"></a> *.  20-Jul-13
+<a name="14"></a> *
+<a name="15"></a> *   Usage: include this extension after the adv3Lite library but before your
+<a name="16"></a> *   own game-specific files. This will add four walls and a ceiling to every
+<a name="17"></a> *   Room in your game. For outdoor rooms that have only sky and ground, use the
+<a name="18"></a> *   OutdoorRoom class defined below.
+<a name="19"></a> */
+<a name="20"></a>roomPartID: ModuleID
+<a name="21"></a>    name = 'Room Parts'
+<a name="22"></a>    byline = 'by Eric Eve'
+<a name="23"></a>    htmlByline = 'by Eric Eve'
+<a name="24"></a>    version = '1'    
+<a name="25"></a>;
+<a name="26"></a>
+<a name="27"></a>
+<a name="28"></a>/* 
+<a name="29"></a> *   The RoomPart class is used to define room parts (walls, ceiling, sky)
+<a name="30"></a> *   common to many locations. [DEFINED IN ROOMPARTS EXTENSION]
+<a name="31"></a> */
+<a name="32"></a>class RoomPart: MultiLoc, Decoration
+<a name="33"></a>    initialLocationClass = Room
+<a name="34"></a>    
+<a name="35"></a>    /* 
+<a name="36"></a>     *   When examining a room part we list all the roomPartDescs of all the
+<a name="37"></a>     *   items in the room associated with this RoomPart.
+<a name="38"></a>     */
+<a name="39"></a>    examineStatus()
+<a name="40"></a>    {
+<a name="41"></a>        /* Carry out the inherited handling */
+<a name="42"></a>        inherited;
+<a name="43"></a>        
+<a name="44"></a>        /* 
+<a name="45"></a>         *   Construct a list of all the items directly in the current room for
+<a name="46"></a>         *   whom we're the associated roomPart.
+<a name="47"></a>         */
+<a name="48"></a>        local lst = gPlayerChar.getOutermostRoom.contents.subset(
+<a name="49"></a>            { o: o.roomPart == self });
+<a name="50"></a>        
+<a name="51"></a>        /* Show the roomPartDesc for every item in our list. */
+<a name="52"></a>        foreach(local cur in lst)
+<a name="53"></a>            cur.roomPartDesc;
+<a name="54"></a>    }
+<a name="55"></a>;
+<a name="56"></a>
+<a name="57"></a>/* 
+<a name="58"></a> * The class used for room parts that represent walls. 
+<a name="59"></a> * [DEFINED IN ROOMPARTS EXTENSION]
+<a name="60"></a> */
+<a name="61"></a>class DefaultWall: RoomPart 'wall'
+<a name="62"></a>    isInitiallyIn(obj) { return obj.wallObjs.indexOf(self) != nil; }
+<a name="63"></a>    
+<a name="64"></a>;
+<a name="65"></a>
+<a name="66"></a>/* 
+<a name="67"></a> *   Modifications to the Room class to allow for room parts. Note that the
+<a name="68"></a> *   standard adv3Lite library already supplies a foor in every room defined via
+<a name="69"></a> *   its floorObj property. [MODIFIED FOR ROOMPARTS EXTENSION]
+<a name="70"></a> */
+<a name="71"></a>modify Room
+<a name="72"></a>    /* 
+<a name="73"></a>     *   The ceilingObj property defines the object to be used for this Room's
+<a name="74"></a>     *   ceiling. By default we use the defaultCeiling object defined below.
+<a name="75"></a>     *   [DEFINED IN ROOMPARTS EXTENSION]
+<a name="76"></a>     */
+<a name="77"></a>    ceilingObj = defaultCeiling
+<a name="78"></a>    
+<a name="79"></a>    /* 
+<a name="80"></a>     *   The wallObjs property defines the list of walls in this Room. By
+<a name="81"></a>     *   default we use the four default walls. Particular rooms that don't
+<a name="82"></a>     *   have four walls (e.g. a length of passage) or which want to use
+<a name="83"></a>     *   custom wall objects can override this.
+<a name="84"></a>     *  [DEFINED IN ROOMPARTS EXTENSION]
+<a name="85"></a>     */
+<a name="86"></a>    wallObjs = [defaultNorthWall, defaultEastWall, defaultSouthWall,
+<a name="87"></a>        defaultWestWall]
+<a name="88"></a>;
+<a name="89"></a>
+<a name="90"></a>/* 
+<a name="91"></a> *  An OutdoorRoom is a room that has no walls and a sky instead of a ceiling 
+<a name="92"></a> *  [DEFINED IN ROOMPARTS EXTENSION]
+<a name="93"></a> */
+<a name="94"></a>class OutdoorRoom: Room
+<a name="95"></a>    ceilingObj = defaultSky
+<a name="96"></a>    wallObjs = []
+<a name="97"></a>;
+<a name="98"></a>
+<a name="99"></a>/* 
+<a name="100"></a> * The four default walls 
+<a name="101"></a> * [DEFINED IN ROOMPARTS EXTENSION]
+<a name="102"></a> */
+<a name="103"></a>defaultNorthWall: DefaultWall 'north +; (n)';
+<a name="104"></a>
+<a name="105"></a>/* [DEFINED IN ROOMPARTS EXTENSION] */
+<a name="106"></a>defaultEastWall: DefaultWall 'east +; (e)';
+<a name="107"></a>
+<a name="108"></a>/* [DEFINED IN ROOMPARTS EXTENSION] */
+<a name="109"></a>defaultSouthWall: DefaultWall 'south +; (s)';
+<a name="110"></a>
+<a name="111"></a>/* [DEFINED IN ROOMPARTS EXTENSION] */
+<a name="112"></a>defaultWestWall: DefaultWall 'west +; (w)';
+<a name="113"></a>
+<a name="114"></a>/* 
+<a name="115"></a> * The class for ceiling/sky objects 
+<a name="116"></a> * [DEFINED IN ROOMPARTS EXTENSION]
+<a name="117"></a> */
+<a name="118"></a>class Ceiling: RoomPart
+<a name="119"></a>    isInitiallyIn(obj) { return obj.ceilingObj == self; }
+<a name="120"></a>;
+<a name="121"></a>
+<a name="122"></a>/* 
+<a name="123"></a> * The default ceiling that appears in every Room 
+<a name="124"></a> * [DEFINED IN ROOMPARTS EXTENSION]
+<a name="125"></a> */
+<a name="126"></a>defaultCeiling: Ceiling 'ceiling';
+<a name="127"></a>
+<a name="128"></a>/* 
+<a name="129"></a> *  The default sky that appears in every OutsideRoom 
+<a name="130"></a> * [DEFINED IN ROOMPARTS EXTENSION]
+<a name="131"></a> */
+<a name="132"></a>defaultSky: Ceiling 'sky'    
+<a name="133"></a>    notImportantMsg = BMsg(sky beyond reach, '{The subj cobj} {is} way beyond
+<a name="134"></a>        {my} reach. ')
+<a name="135"></a>;
+<a name="136"></a>
+<a name="137"></a>/* 
+<a name="138"></a> *   The Floor class is defined in the standard adv3Lite library. Here we modify
+<a name="139"></a> *   it to use the ROOMPART EXTENSIONS's version of examineStatus.
+<a name="140"></a> */
+<a name="141"></a>modify Floor
+<a name="142"></a>    /* [MODIFIED IN ROOMPARTS EXTENSION to use the ROOMPART EXTENSIONS's version of examineStatus] */
+<a name="143"></a>    examineStatus()
+<a name="144"></a>    {
+<a name="145"></a>        delegated RoomPart;
+<a name="146"></a>    }
+<a name="147"></a>;
+<a name="148"></a>
+<a name="149"></a>/*  
+<a name="150"></a> *   Modifications to Thing to allow things to be associated with room parts.
+<a name="151"></a> *   Note that a Thing associated with a room part should be directly located in
+<a name="152"></a> *   the room, not in the room part. [MODIFIED FOR ROOMPARTS EXTENSION]
+<a name="153"></a> */
+<a name="154"></a>modify Thing
+<a name="155"></a>    /* 
+<a name="156"></a>     *   Note, the following two properties only take effect if the Thing is
+<a name="157"></a>     *   directly in its enclosing Room
+<a name="158"></a>     */
+<a name="159"></a>    
+<a name="160"></a>    /* 
+<a name="161"></a>     *   The room part (e.g. defaultNorthWall) with which we're notionally
+<a name="162"></a>     *   associated. [DEFINED IN ROOMPARTS EXTENSION]
+<a name="163"></a>     */
+<a name="164"></a>    roomPart = nil
+<a name="165"></a>    
+<a name="166"></a>    /*  
+<a name="167"></a>     *   The description of ourselves to be displayed when our associated
+<a name="168"></a>     *   roomPart is examined. [DEFINED IN ROOMPARTS EXTENSION]
+<a name="169"></a>     */
+<a name="170"></a>    roomPartDesc = nil
+<a name="171"></a>    
+<a name="172"></a>    /* 
+<a name="173"></a>     *   We modify actionMoveInto here so that an action that results in moving
+<a name="174"></a>     *   an object (e.g. taking a picture that's notionally hanging on a wall)
+<a name="175"></a>     *   removes the association between the object and its room part.
+<a name="176"></a>     *   [MODIFIED FOR ROOMPARTS EXTENSION]
+<a name="177"></a>     */
+<a name="178"></a>    actionMoveInto(dest)
+<a name="179"></a>    {
+<a name="180"></a>        /* carry out the inherited handling. */
+<a name="181"></a>        inherited(dest);
+<a name="182"></a>        
+<a name="183"></a>        /* If I'm moved I'm no longer associated with my original room part */
+<a name="184"></a>        roomPart = nil;
+<a name="185"></a>    }
+<a name="186"></a>;
+<a name="187"></a>
+<a name="188"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

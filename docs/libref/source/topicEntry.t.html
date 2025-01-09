@@ -1,0 +1,567 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>topicEntry.t</title></head><body>
+<table class=ban><tr><td><h1>topicEntry.t</h1><td align=right><a href="../file/topicEntry.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   ****************************************************************************
+<a name="6"></a> *    topicEntry.t 
+<a name="7"></a> *    This module forms part of the adv3Lite library 
+<a name="8"></a> *    (c) 2012-13 Eric Eve
+<a name="9"></a> */
+<a name="10"></a>
+<a name="11"></a>/* 
+<a name="12"></a> *   TopicEntry is the base class for ConsultTopics and various kinds of
+<a name="13"></a> *   Conversation Topics. It can be used to match a particular topic and output
+<a name="14"></a> *   an appropriate response.
+<a name="15"></a> */
+<a name="16"></a>class TopicEntry: object     
+<a name="17"></a>    
+<a name="18"></a>    /* 
+<a name="19"></a>     *   Determine how well this TopicEntry matches top (a Topic or Thing). If
+<a name="20"></a>     *   it doesn't match at all we return nil, otherwise we return a numerical
+<a name="21"></a>     *   score indicating the strength of the match so that a routine that's
+<a name="22"></a>     *   looking for the best match can choose the one with the highest score.
+<a name="23"></a>     */
+<a name="24"></a>    matchTopic(top)
+<a name="25"></a>    {
+<a name="26"></a>        /* 
+<a name="27"></a>         *   Note the topic we're trying to match so that topicResponse() can
+<a name="28"></a>         *   make use if it, if it wants to.
+<a name="29"></a>         */
+<a name="30"></a>        topicMatched = top;
+<a name="31"></a>        
+<a name="32"></a>        /* 
+<a name="33"></a>         *   If top is nil we're programmatically passing a topic that will
+<a name="34"></a>         *   match anything. Otherwise test if top matches the matchObj, where
+<a name="35"></a>         *   match means that top is one of items in the matchObj list or else
+<a name="36"></a>         *   belongs to a class in the list. If we have a match, return the sum
+<a name="37"></a>         *   of our matchScore and our scoreBoost.
+<a name="38"></a>         */        
+<a name="39"></a>        if(top == nil || 
+<a name="40"></a>           valToList(matchObj).indexWhich({x: top.ofKind(x)}) != nil)
+<a name="41"></a>            return matchScore + scoreBooster();
+<a name="42"></a>     
+<a name="43"></a>        /* 
+<a name="44"></a>         *   Next test to see if we should match a regular expression. This will
+<a name="45"></a>         *   be the case if we have a matchPattern to match and our top object
+<a name="46"></a>         *   is a Topic (which the parser will have created to encapsulate the
+<a name="47"></a>         *   text our matchPattern needs to match).
+<a name="48"></a>         */
+<a name="49"></a>        if(matchPattern != nil &amp;&amp; top.ofKind(Topic))
+<a name="50"></a>        {    
+<a name="51"></a>            local txt;
+<a name="52"></a>
+<a name="53"></a>            /* 
+<a name="54"></a>             *   There's no match object; try matching our regular
+<a name="55"></a>             *   expression to the actual topic text.  Get the actual text.
+<a name="56"></a>             */
+<a name="57"></a>            txt = top.getTopicText();
+<a name="58"></a>            
+<a name="59"></a>             /* 
+<a name="60"></a>              *   If they don't want an exact case match, make the regex search non case sensitive,
+<a name="61"></a>              *   otherwise make it case sensitive.
+<a name="62"></a>              */                     
+<a name="63"></a>            local caseHandling = matchExactCase ? '&lt;Case&gt;' : '&lt;NoCase&gt;';
+<a name="64"></a>            
+<a name="65"></a>            /* if the regular expression matches, we match */
+<a name="66"></a>            if (rexMatch('&lt;&lt;caseHandling&gt;&gt;&lt;&lt;matchPattern&gt;&gt;', txt) != nil)
+<a name="67"></a>                return matchScore + scoreBoost;
+<a name="68"></a>        }
+<a name="69"></a>        
+<a name="70"></a>        /* If we haven't found a match, return nil */
+<a name="71"></a>        return nil;
+<a name="72"></a>    }
+<a name="73"></a>    
+<a name="74"></a>    /* Initialize this Topic Entry (actually carried out at pre-init */
+<a name="75"></a>    initializeTopicEntry()
+<a name="76"></a>    {
+<a name="77"></a>        /* if we have a location, add ourselves to its topic database */
+<a name="78"></a>        if (location != nil)
+<a name="79"></a>            location.addTopic(self);
+<a name="80"></a>    }
+<a name="81"></a>    
+<a name="82"></a>    /* 
+<a name="83"></a>     *   Output our response to the topic. This can be typically be overridden
+<a name="84"></a>     *   to a double-quoted string or method to output the required response.
+<a name="85"></a>     */
+<a name="86"></a>    topicResponse()
+<a name="87"></a>    {
+<a name="88"></a>        /* 
+<a name="89"></a>         *   If we're not overridden, then if this TopicEntry is also some kind
+<a name="90"></a>         *   of Script (normally because it also includes an EventList class in
+<a name="91"></a>         *   its superclass list), then call its doScript() method to display
+<a name="92"></a>         *   the next item in the list.
+<a name="93"></a>         */
+<a name="94"></a>        if(ofKind(Script))
+<a name="95"></a>            doScript();
+<a name="96"></a>    }
+<a name="97"></a>    
+<a name="98"></a>    /* 
+<a name="99"></a>     *   Our matchScore is the base score we return if we match the topic
+<a name="100"></a>     *   requested; this is used to determine whether we're the best match under
+<a name="101"></a>     *   the circumstances. By default we use a value of 100.
+<a name="102"></a>     */
+<a name="103"></a>    matchScore = 100    
+<a name="104"></a>    
+<a name="105"></a>    /* 
+<a name="106"></a>     *   The object, topic or list of objects/topics that this TopicEntry
+<a name="107"></a>     *   matches.
+<a name="108"></a>     */
+<a name="109"></a>    matchObj = nil
+<a name="110"></a>    
+<a name="111"></a>    /*   
+<a name="112"></a>     *   The topic that this TopicEntry actually matched (set by matchTopic()).
+<a name="113"></a>     */
+<a name="114"></a>    topicMatched = nil
+<a name="115"></a>    
+<a name="116"></a>    /*  
+<a name="117"></a>     *   A regular expression that this TopicEntry might match, if it doesn't
+<a name="118"></a>     *   match a matchObj. We don't need to define this if we've defined a
+<a name="119"></a>     *   matchObj.
+<a name="120"></a>     */
+<a name="121"></a>    matchPattern = nil
+<a name="122"></a>    
+<a name="123"></a>    /* 
+<a name="124"></a>     *   Do we want to restrict this TopicEntry to an exact case match with its
+<a name="125"></a>     *   matchPattern? By default we don't.
+<a name="126"></a>     */
+<a name="127"></a>    matchExactCase = nil
+<a name="128"></a>    
+<a name="129"></a>    /*
+<a name="130"></a>     *   The set of database lists we're part of.  This is a list of one or more
+<a name="131"></a>     *   property pointers, giving the TopicDatabase properties of the
+<a name="132"></a>     *   lists we participate in. 
+<a name="133"></a>     */
+<a name="134"></a>    includeInList = []
+<a name="135"></a>    
+<a name="136"></a>    
+<a name="137"></a>    /* 
+<a name="138"></a>     *   A method or property that can be used to dynamically alter our score
+<a name="139"></a>     *   according to circumstances if needed.
+<a name="140"></a>     */
+<a name="141"></a>    scoreBoost = 0
+<a name="142"></a>    
+<a name="143"></a>    scoreBooster()
+<a name="144"></a>    {
+<a name="145"></a>        local sb;
+<a name="146"></a>        
+<a name="147"></a>        /* Add any boost from our location */
+<a name="148"></a>        sb = location.propDefined(&amp;scoreBooster) ? location.scoreBooster() : 0;
+<a name="149"></a>        
+<a name="150"></a>        /* Add our own scoreBoost. */
+<a name="151"></a>        return sb + scoreBoost;
+<a name="152"></a>    }
+<a name="153"></a>    
+<a name="154"></a>    /*  
+<a name="155"></a>     *   Is this TopicEntry currently active? Game code can set a condition here
+<a name="156"></a>     *   so that a TopicEntry only becomes active (i.e. available) under
+<a name="157"></a>     *   particular circumstances.
+<a name="158"></a>     */
+<a name="159"></a>    isActive = true    
+<a name="160"></a>    
+<a name="161"></a>    /*  
+<a name="162"></a>     *   The active property is used internally by the library to determine
+<a name="163"></a>     *   whether a TopicEntry is currently available for use. On the base
+<a name="164"></a>     *   TopicEntry class a topic entry is active if its isActive property is
+<a name="165"></a>     *   true, but this is not necessarily the case on the ActorTopicEntry
+<a name="166"></a>     *   subclass defined in actor.t, which needs to distinguish between these
+<a name="167"></a>     *   properties.
+<a name="168"></a>     *
+<a name="169"></a>     *   Game code should not normally need to override the active property.
+<a name="170"></a>     */
+<a name="171"></a>    active = isActive
+<a name="172"></a>    
+<a name="173"></a>    /*  
+<a name="174"></a>     *   If something located in us wants us to add it to our topic database,
+<a name="175"></a>     *   pass the request up to our location (this is used by AltTopic).
+<a name="176"></a>     */
+<a name="177"></a>    addTopic(top) { location.addTopic(top); }
+<a name="178"></a>    
+<a name="179"></a>    /* Our notional actor is our location's actor. */
+<a name="180"></a>    getActor = location.getActor
+<a name="181"></a>;
+<a name="182"></a>
+<a name="183"></a>
+<a name="184"></a>/*  
+<a name="185"></a> *   A TopicDatabase is a container for TopicEntries that provides a method for
+<a name="186"></a> *   determining the TopicEntry that best matches a list of topics
+<a name="187"></a> */
+<a name="188"></a>modify TopicDatabase
+<a name="189"></a>    
+<a name="190"></a>    /* 
+<a name="191"></a>     *   Find the topic entry among those supplied in myList that best matches
+<a name="192"></a>     *   at least one of the topics passed in requestedList.
+<a name="193"></a>     */
+<a name="194"></a>    getBestMatch(myList, requestedList)
+<a name="195"></a>    {        
+<a name="196"></a>        local bestMatch = nil;
+<a name="197"></a>        local bestScore = 0;
+<a name="198"></a>        
+<a name="199"></a>        /* Ensure that our requestedList is actually a list. */
+<a name="200"></a>        requestedList = valToList(requestedList);
+<a name="201"></a>        
+<a name="202"></a>        /* 
+<a name="203"></a>         *   The implementation of the Actor Conversation system requires a
+<a name="204"></a>         *   property pointer to be passed as the first parameter in the
+<a name="205"></a>         *   corresponding method. To prevent accidents, we check whether we
+<a name="206"></a>         *   have a property pointer here and if so convert it to the
+<a name="207"></a>         *   corresponding list.
+<a name="208"></a>         */
+<a name="209"></a>        if(dataType(myList) == TypeProp)
+<a name="210"></a>            myList = self.(myList);
+<a name="211"></a>        
+<a name="212"></a>        /* Remove any inactive topic entries from the list to search */
+<a name="213"></a>        myList = myList.subset({c: c.active});
+<a name="214"></a>        
+<a name="215"></a>        /* 
+<a name="216"></a>         *   if requestedList contains any topics that have not been newlyCreated, eliminate the
+<a name="217"></a>         *   new;y created ones.
+<a name="218"></a>         */
+<a name="219"></a>        local revList = requestedList.subset({x: x.newlyCreated == nil});
+<a name="220"></a>        
+<a name="221"></a>        /* 
+<a name="222"></a>         *   If we've anything left after removing newly created topics, set our requested list to
+<a name="223"></a>         *   the new list
+<a name="224"></a>         */
+<a name="225"></a>        if(revList.length &gt; 0)
+<a name="226"></a>            requestedList = revList;
+<a name="227"></a>        
+<a name="228"></a>        /* 
+<a name="229"></a>         *   If we have more than one entry, try to eliminate any that the player probably didn't
+<a name="230"></a>         *   mean. We do this by excluding any entries with names longer than the shortest. The
+<a name="231"></a>         *   rationale is that if the player types a topic name that's a subset of another topic
+<a name="232"></a>         *   name, the player probably means to refer to the topic with the shorter name. For
+<a name="233"></a>         *   example, THINK ABOUT WEDDING is more likely to be intended to match a topic with name
+<a name="234"></a>         *   'wedding' than one with the name 'when the wedding will be'. We don't do this with
+<a name="235"></a>         *   Query or Say however, since here the player may be abbreviating a much longer command,
+<a name="236"></a>         *   which might then get masked by a shorter topic; e.g. we don't want ASK WHEN THE WEDDING
+<a name="237"></a>         *   WILL BE to be masked by a 'wedding' topic if the player types ASK WHEN WEDDING.
+<a name="238"></a>         */
+<a name="239"></a>        if(requestedList.length &gt; 1 &amp;&amp; gAction not in (Query, SayTo, QueryAbout, SayAction))
+<a name="240"></a>        {
+<a name="241"></a>            /* Sort the list in descending order of name length. */
+<a name="242"></a>            requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
+<a name="243"></a>            
+<a name="244"></a>            /* Note the length of the shortest name. */
+<a name="245"></a>            local minLength = requestedList[1].name.length;
+<a name="246"></a>            
+<a name="247"></a>            /* Reduce our list to items whose name length is that of the shortest name. */
+<a name="248"></a>            requestedList = requestedList.subset({x: x.name.length == minLength });
+<a name="249"></a>        }
+<a name="250"></a>        
+<a name="251"></a>        /* 
+<a name="252"></a>         *   For each topic in our requested list of topics, see if we can find
+<a name="253"></a>         *   a topic entry that's a better match than any we've found so far.
+<a name="254"></a>         */
+<a name="255"></a>        foreach(local req in requestedList)
+<a name="256"></a>        {    
+<a name="257"></a>            /* Go through every topic entry in our list */
+<a name="258"></a>            foreach(local top in myList)
+<a name="259"></a>            {
+<a name="260"></a>                /* 
+<a name="261"></a>                 *   Compute the score that indicates how well the topic entry
+<a name="262"></a>                 *   matches the topic (top) we're currently testing for.
+<a name="263"></a>                 */
+<a name="264"></a>                local score = top.matchTopic(req);
+<a name="265"></a>                
+<a name="266"></a>                /*   
+<a name="267"></a>                 *   If we found a match (the score is non-nil) and the score is
+<a name="268"></a>                 *   greater than the best score we've found so far, note our
+<a name="269"></a>                 *   new best score and best matching topic entry.
+<a name="270"></a>                 */
+<a name="271"></a>                if(score != nil &amp;&amp; score &gt; bestScore)
+<a name="272"></a>                {
+<a name="273"></a>                    bestScore = score;
+<a name="274"></a>                    bestMatch = top;
+<a name="275"></a>                }
+<a name="276"></a>            }
+<a name="277"></a>        
+<a name="278"></a>        }
+<a name="279"></a>        
+<a name="280"></a>        /* Return the best match. */
+<a name="281"></a>        return bestMatch;
+<a name="282"></a>    }
+<a name="283"></a>    
+<a name="284"></a>    /* Add a topic entry to the appropriate list or list on this TopicDatabase. */
+<a name="285"></a>    addTopic(top)
+<a name="286"></a>    {
+<a name="287"></a>        /* 
+<a name="288"></a>         *   Go through each property pointer in the topic entry's includeInList
+<a name="289"></a>         *   and add the topic entry to the corresponding list.
+<a name="290"></a>         */
+<a name="291"></a>        foreach(local prop in valToList(top.includeInList))
+<a name="292"></a>            self.(prop) += top;
+<a name="293"></a>    }
+<a name="294"></a>;
+<a name="295"></a>
+<a name="296"></a>
+<a name="297"></a>/* 
+<a name="298"></a> *   A Consultable is an object like a book, timetable or computer that can be
+<a name="299"></a> *   used to look things up in through commands such as LOOK UP SELVAGEE IN
+<a name="300"></a> *   DICTIONARY or CONSULT BLUE BOOK ABOUT RABBITS
+<a name="301"></a> */
+<a name="302"></a>class Consultable: TopicDatabase, Thing
+<a name="303"></a>   
+<a name="304"></a>    /* The list of ConsultTopics associated with this Consultable */
+<a name="305"></a>    consultTopics = []
+<a name="306"></a>    
+<a name="307"></a>    /* A Consultable is indeed consultable */
+<a name="308"></a>    isConsultable = true
+<a name="309"></a>    
+<a name="310"></a>    /* Our handling of the ConsultAbout action when we're the direct object */
+<a name="311"></a>    dobjFor(ConsultAbout)
+<a name="312"></a>    {       
+<a name="313"></a>        
+<a name="314"></a>        action()
+<a name="315"></a>        {
+<a name="316"></a>            /* 
+<a name="317"></a>             *   We don't want this action to be construed as conversational from the point of view
+<a name="318"></a>             *   of revealing information to bystsanders, so we first store the identity of the
+<a name="319"></a>             *   current interlocutor and then set the current interlocutor to ni.
+<a name="320"></a>             */
+<a name="321"></a>            local interlocutor = gPlayerChar.currentInterlocutor;
+<a name="322"></a>            gPlayerChar.currentInterlocutor = nil;
+<a name="323"></a>            
+<a name="324"></a>            try
+<a name="325"></a>            {
+<a name="326"></a>                /* 
+<a name="327"></a>                 *   Find the topic we're meant to be matching by getting the best match to the list
+<a name="328"></a>                 *   of topics contained in the indirect object
+<a name="329"></a>                 */
+<a name="330"></a>                local matchedTopic = getBestMatch(consultTopics, gIobj.topicList);
+<a name="331"></a>                
+<a name="332"></a>                /* If we don't find a match, display a message explaining that */
+<a name="333"></a>                if(matchedTopic == nil)
+<a name="334"></a>                    say(noMatchedTopicMsg);
+<a name="335"></a>                
+<a name="336"></a>                /* 
+<a name="337"></a>                 *   Otherwise display the topic response of the ConsultTopic we matched.
+<a name="338"></a>                 */
+<a name="339"></a>                else
+<a name="340"></a>                    matchedTopic.topicResponse();
+<a name="341"></a>                
+<a name="342"></a>                /* 
+<a name="343"></a>                 *   Boost our currentConsultableScore in recognition that we were the last item to
+<a name="344"></a>                 *   be consulted.
+<a name="345"></a>                 */
+<a name="346"></a>                currentConsultableScore = 20;
+<a name="347"></a>            }
+<a name="348"></a>            
+<a name="349"></a>            finally
+<a name="350"></a>            {
+<a name="351"></a>                /* Restore the current interlocutor */
+<a name="352"></a>                gPlayerChar.currentInterlocutor = interlocutor;
+<a name="353"></a>            }
+<a name="354"></a>        }
+<a name="355"></a>    }
+<a name="356"></a>    
+<a name="357"></a>    noMatchedTopicMsg = BMsg(no matched topic, '{The subj dobj} {has} nothing to
+<a name="358"></a>        say on that. ')
+<a name="359"></a>    
+<a name="360"></a>    /* 
+<a name="361"></a>     *   Modify our score (from the point of view of the parser matching this
+<a name="362"></a>     *   Consultable) if we've been recently consulted (on the assumption that
+<a name="363"></a>     *   other things being equal, if we've been consulted recently, we're quite
+<a name="364"></a>     *   likely to be the object the player wants to consult again)
+<a name="365"></a>     */
+<a name="366"></a>    scoreObject(cmd, role, lst, m) 
+<a name="367"></a>    {
+<a name="368"></a>        /* Carry out the inherited handlind */
+<a name="369"></a>        inherited(cmd, role, lst, m); 
+<a name="370"></a>        
+<a name="371"></a>        /* 
+<a name="372"></a>         *   If the parser is looking to match a ConsultAbout action, boost our
+<a name="373"></a>         *   score if we've been consulted recently.
+<a name="374"></a>         */
+<a name="375"></a>        if(cmd.action == ConsultAbout &amp;&amp; role == DirectObject)
+<a name="376"></a>            m.score += currentConsultableScore;
+<a name="377"></a>    }
+<a name="378"></a>    
+<a name="379"></a>    /* 
+<a name="380"></a>     *   The additional score we add in our scoreObject() method if we've been
+<a name="381"></a>     *   recently consulted.
+<a name="382"></a>     */
+<a name="383"></a>    currentConsultableScore = 0
+<a name="384"></a>    
+<a name="385"></a>    afterAction()
+<a name="386"></a>    {
+<a name="387"></a>        /* 
+<a name="388"></a>         *   Decrement out currentConsultableScore if we weren't one of the
+<a name="389"></a>         *   objects for the current action, but don't decrement it below zero.
+<a name="390"></a>         */
+<a name="391"></a>        
+<a name="392"></a>        if(gIobj != self &amp;&amp; gDobj != self &amp;&amp; currentConsultableScore &gt; 0)
+<a name="393"></a>            currentConsultableScore-- ;
+<a name="394"></a>    }
+<a name="395"></a>    
+<a name="396"></a>
+<a name="397"></a>    /* 
+<a name="398"></a>     *   A list of the ConsultTopics we want to create, each item in the list should be a
+<a name="399"></a>     *   two-element list in the form of [match, topic-response], where match is what we want the
+<a name="400"></a>     *   ConsultTopic to match and topic-responsse is what we want the ConsultTopic's topicResponse
+<a name="401"></a>     *   to be. match can be an object (Topic or Thing), a list of objects, or a match patter.
+<a name="402"></a>     *   topic-response will normally be a single-quoted string but could be a function pointer or
+<a name="403"></a>     *   floating method. A third entry can be supplied, which will be used as the matchScore, but
+<a name="404"></a>     *   this is probably seldom useful.
+<a name="405"></a>     */
+<a name="406"></a>    topicEntryList = nil
+<a name="407"></a>    
+<a name="408"></a>    /* Modifications to allow the automatic creation of ConsultTopics from our topicList. */
+<a name="409"></a>    preinitThing()
+<a name="410"></a>    {
+<a name="411"></a>        /* Carry out the inherited handling. */
+<a name="412"></a>        inherited();
+<a name="413"></a>        
+<a name="414"></a>        /* 
+<a name="415"></a>         *   Loop through our topicList to create a corresponding ConsultTopic for every item
+<a name="416"></a>         *   therein.
+<a name="417"></a>         */
+<a name="418"></a>        foreach(local item in valToList(topicEntryList))
+<a name="419"></a>            preinitTopic(item);
+<a name="420"></a>        
+<a name="421"></a>    }
+<a name="422"></a>    
+<a name="423"></a>    /* Create a ConsultTopic corrersponding to item */
+<a name="424"></a>    preinitTopic(item)
+<a name="425"></a>    {
+<a name="426"></a>        /* Make sure that item is expressed as a list. */
+<a name="427"></a>        item = valToList(item);
+<a name="428"></a>        
+<a name="429"></a>        /* Set up a local variable to contain our new ConsultTopic */
+<a name="430"></a>        local top;
+<a name="431"></a>        
+<a name="432"></a>        /* 
+<a name="433"></a>         *   Set up a local variable to hold the object, list of objects, or matchPattern our new
+<a name="434"></a>         *   ConscultTopic is to match.
+<a name="435"></a>         */
+<a name="436"></a>        local topkey;
+<a name="437"></a>        
+<a name="438"></a>        /*  If the first entry in out item list in 'default', create a new DefaultTopicEntry. */
+<a name="439"></a>        if(item[1] == 'default')        
+<a name="440"></a>        {
+<a name="441"></a>            top = new DefaultConsultTopic;
+<a name="442"></a>            topkey = nil;
+<a name="443"></a>        }
+<a name="444"></a>        
+<a name="445"></a>        else
+<a name="446"></a>        {
+<a name="447"></a>            /* Otherwise create a new ConsultTopic */
+<a name="448"></a>            top = new ConsultTopic;
+<a name="449"></a>            
+<a name="450"></a>            /* And note what it is to match on */
+<a name="451"></a>            topkey = item[1];
+<a name="452"></a>        }
+<a name="453"></a>        
+<a name="454"></a>        /* Set the new ConsultTopic's entry to ourself. */
+<a name="455"></a>        top.location = self;
+<a name="456"></a>        
+<a name="457"></a>        /* Carry out the initializing of our new TopicEntry */
+<a name="458"></a>        top.initializeTopicEntry();
+<a name="459"></a>            
+<a name="460"></a>        /* 
+<a name="461"></a>         *   Assign our matchObj or match pattern to the appropriate property of our new
+<a name="462"></a>         *   ConsultTopic.
+<a name="463"></a>         */
+<a name="464"></a>        switch(dataType(topkey))
+<a name="465"></a>        {
+<a name="466"></a>            /*If it's an object or list, assign it to the matcchObj property. */
+<a name="467"></a>        case TypeObject:
+<a name="468"></a>        case TypeList:
+<a name="469"></a>            top.matchObj = topkey;
+<a name="470"></a>            break;
+<a name="471"></a>            /* If it's a single-quoted string, assign it to the matchPattern property. */
+<a name="472"></a>        case TypeSString:
+<a name="473"></a>            top.matchPattern = topkey;
+<a name="474"></a>            break;
+<a name="475"></a>            /* If it's nil (as it will be for a DefaultConsultTopic) do nothing */
+<a name="476"></a>        case TypeNil:
+<a name="477"></a>            break;
+<a name="478"></a>            
+<a name="479"></a>        };
+<a name="480"></a>        
+<a name="481"></a>        /* 
+<a name="482"></a>         *   Provided we have a second entry in our item list, assign in to the new ConsultTopic's
+<a name="483"></a>         *   topicResponse property.
+<a name="484"></a>         */
+<a name="485"></a>        if(item.length &gt; 1)      
+<a name="486"></a>        {
+<a name="487"></a>            local txt = item[2];
+<a name="488"></a>            
+<a name="489"></a>            setTopicResponse(top, topkey, txt);
+<a name="490"></a>                        
+<a name="491"></a>                 
+<a name="492"></a>        }
+<a name="493"></a>        
+<a name="494"></a>        /* Should we have a third item, assign it to the new ConsultTopic's matchScore */
+<a name="495"></a>        if(item.length &gt; 2 &amp;&amp; dataType(item[3]) == TypeInt)           
+<a name="496"></a>            top.matchScore = item[3];         
+<a name="497"></a>        
+<a name="498"></a>        
+<a name="499"></a>    }
+<a name="500"></a>    
+<a name="501"></a>    setTopicResponse(top, topkey, txt)
+<a name="502"></a>    {
+<a name="503"></a>        top.setMethod(&amp;topicResponse, txt);   
+<a name="504"></a>    }
+<a name="505"></a>    
+<a name="506"></a>    /* We're our own 'actor' in the sense of being the source of any information we supply. */
+<a name="507"></a>    getActor = self
+<a name="508"></a>;
+<a name="509"></a>
+<a name="510"></a>/* 
+<a name="511"></a> *   A ConsultTopic is a kind of TopicEntry used in conjunction with a
+<a name="512"></a> *   Consultable, and represents something the Consultable can be successfully
+<a name="513"></a> *   consulted about.
+<a name="514"></a> */
+<a name="515"></a>class ConsultTopic: TopicEntry       
+<a name="516"></a>    
+<a name="517"></a>    /* 
+<a name="518"></a>     *   ConsultTopics are listed in the consultTopics property of the
+<a name="519"></a>     *   Consultable that contains them.
+<a name="520"></a>     */
+<a name="521"></a>    includeInList = [&amp;consultTopics]
+<a name="522"></a>;
+<a name="523"></a>
+<a name="524"></a>
+<a name="525"></a>/* 
+<a name="526"></a> *   A DefaultConsultTopic is used to provide a response when a Consultable is
+<a name="527"></a> *   consulted about something not otherwise provided for.
+<a name="528"></a> */
+<a name="529"></a>class DefaultConsultTopic: ConsultTopic
+<a name="530"></a>    
+<a name="531"></a>    /* A DefaultConsultTopic matches anything, so just return our matchScore */
+<a name="532"></a>    matchTopic(top)
+<a name="533"></a>    {
+<a name="534"></a>        /* Note the Topic we matched. */
+<a name="535"></a>        topicMatched = top;
+<a name="536"></a>        
+<a name="537"></a>        /* 
+<a name="538"></a>         *   Since we can match anything, simply return the sum of our
+<a name="539"></a>         *   matchScore and our scoreBoost.
+<a name="540"></a>         */
+<a name="541"></a>        return matchScore + scoreBooster();
+<a name="542"></a>    }
+<a name="543"></a>    
+<a name="544"></a>    /* 
+<a name="545"></a>     *   A DefaultConsultTopic has the lowest possible matchScore so that any
+<a name="546"></a>     *   matching ConsultTopic will always take precedence.
+<a name="547"></a>     */
+<a name="548"></a>    matchScore = 1
+<a name="549"></a>    
+<a name="550"></a>    /* A DefaultConsultTopic is normally active */
+<a name="551"></a>    isActive = true
+<a name="552"></a>;
+<a name="553"></a>
+<a name="554"></a>/* Preinitializer for ConsultTopics */
+<a name="555"></a>consultablePreinit: PreinitObject
+<a name="556"></a>    execute()
+<a name="557"></a>    {
+<a name="558"></a>        /* Initialize every ConsultTopic */
+<a name="559"></a>        forEachInstance(ConsultTopic, {c: c.initializeTopicEntry()} );
+<a name="560"></a>    }
+<a name="561"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

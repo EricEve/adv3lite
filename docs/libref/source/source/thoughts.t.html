@@ -1,0 +1,118 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>thoughts.t</title></head><body>
+<table class=ban><tr><td><h1>thoughts.t</h1><td align=right><a href="../file/thoughts.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>
+<a name="5"></a>/*
+<a name="6"></a> *   *************************************************************************
+<a name="7"></a> *   thoughts.t
+<a name="8"></a> *
+<a name="9"></a> *   This module forms part of the adv3Lite library (c) 2012-13 Eric Eve
+<a name="10"></a> *
+<a name="11"></a> *
+<a name="12"></a> *   This file adds support for a THINK about command
+<a name="13"></a> */
+<a name="14"></a>
+<a name="15"></a>/* 
+<a name="16"></a> *   The base clase for a thought manager object. To use this in a game create a
+<a name="17"></a> *   single object of this class and locate a number of Thought objects in it
+<a name="18"></a> *   (with the + notation) to represent responses to THINK ABOUT
+<a name="19"></a> */
+<a name="20"></a>class ThoughtManager: PreinitObject, TopicDatabase
+<a name="21"></a>    
+<a name="22"></a>    /* Carry out the ThoughtManager's preinitialization */
+<a name="23"></a>    execute()
+<a name="24"></a>    {
+<a name="25"></a>        /* Register this object as the game's intial thoughtManager object. */
+<a name="26"></a>        if(thinker == nil || thinker == gameMain.initialPlayerChar)
+<a name="27"></a>        {
+<a name="28"></a>            libGlobal.thoughtManagerObj = self;
+<a name="29"></a>                        
+<a name="30"></a>            gSafePlayerChar.myThoughtManager = self;
+<a name="31"></a>        }
+<a name="32"></a>        else if(thinker)
+<a name="33"></a>            thinker.myThoughtManager = self;
+<a name="34"></a>          
+<a name="35"></a>        /* 
+<a name="36"></a>         *   Add every Thought object that's located in us to our topic entry
+<a name="37"></a>         *   list
+<a name="38"></a>         */
+<a name="39"></a>        forEachInstance(Thought, new function(t) {
+<a name="40"></a>            if(t.location == self)
+<a name="41"></a>                addTopic(t);
+<a name="42"></a>        });
+<a name="43"></a>    }   
+<a name="44"></a>    
+<a name="45"></a>    /*  Handle a THINK ABOUT command. */
+<a name="46"></a>    handleTopic(top)
+<a name="47"></a>    {
+<a name="48"></a>        /* First get the best match to the topic we want to think about */
+<a name="49"></a>        local match = getBestMatch(thoughtList, top);
+<a name="50"></a>        
+<a name="51"></a>        /* If we didn't find a match, display a message to that effect. */
+<a name="52"></a>        if(match == nil)
+<a name="53"></a>            say(noThoughtMsg);
+<a name="54"></a>        
+<a name="55"></a>        /* Otherwise have our best match display its reponse. */
+<a name="56"></a>        else
+<a name="57"></a>            match.topicResponse();
+<a name="58"></a>    }
+<a name="59"></a>    
+<a name="60"></a>    /* The list of Thoughts associated with this ThoughtManager object */
+<a name="61"></a>    thoughtList = []
+<a name="62"></a>    
+<a name="63"></a>    /* The message to display when we don't find a matching Thought */
+<a name="64"></a>    noThoughtMsg = BMsg(no thoughts, '{I} {have} no thoughts on that particular
+<a name="65"></a>        topic.')
+<a name="66"></a>    
+<a name="67"></a>    /* Our actor is the actor who's doing the thinking. */
+<a name="68"></a>    getActor = (gActor)
+<a name="69"></a>    
+<a name="70"></a>    /* 
+<a name="71"></a>     *   The person whose thoughts are located in this ThoughtManager. If the player character never
+<a name="72"></a>     *   changes in this game and/or you only define one ThoughtManager, this can be left at nil;
+<a name="73"></a>     *   otherwise you should override this property to point to the actor whose thoughta are being
+<a name="74"></a>     *   managed by this object.
+<a name="75"></a>     */
+<a name="76"></a>    thinker = nil    
+<a name="77"></a>;
+<a name="78"></a>
+<a name="79"></a>
+<a name="80"></a>/* 
+<a name="81"></a> *   A kind of TopicEntry that responds to a THINK ABOUT command when located in
+<a name="82"></a> *   a ThoughtManager object. These can be defined just like any other topic
+<a name="83"></a> *   entry objects, and work in just the same way as ConsultTopics.
+<a name="84"></a> */
+<a name="85"></a>class Thought: TopicEntry
+<a name="86"></a>    includeInList = [&amp;thoughtList]
+<a name="87"></a>;
+<a name="88"></a>
+<a name="89"></a>/* 
+<a name="90"></a> *   A DefaultThought is a Thought that matches any THINK ABOUT command with a
+<a name="91"></a> *   very low match score, so that any more specific Thought that's matched will
+<a name="92"></a> *   take precedence. Game code can use this to provide a fall-back response
+<a name="93"></a> *   when no more specific response is available.
+<a name="94"></a> */
+<a name="95"></a>class DefaultThought: Thought
+<a name="96"></a>    
+<a name="97"></a>    matchObj = [Thing, Topic ]
+<a name="98"></a>    
+<a name="99"></a>    matchTopic(top)
+<a name="100"></a>    {
+<a name="101"></a>        /* Note the Topic we matched. */
+<a name="102"></a>        topicMatched = top;
+<a name="103"></a>        
+<a name="104"></a>        /* 
+<a name="105"></a>         *   Since we can match anything, simply return the sum of our
+<a name="106"></a>         *   matchScore and our scoreBoost.
+<a name="107"></a>         */
+<a name="108"></a>        return matchScore + scoreBooster();
+<a name="109"></a>    }
+<a name="110"></a>    
+<a name="111"></a>    matchScore = 1
+<a name="112"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

@@ -1,0 +1,1075 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>newbie.t</title></head><body>
+<table class=ban><tr><td><h1>newbie.t</h1><td align=right><a href="../file/newbie.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   ****************************************************************************
+<a name="6"></a> *    newbie.t 
+<a name="7"></a> *    This module forms part of the adv3Lite library 
+<a name="8"></a> *    (c) 2012-13 Eric Eve
+<a name="9"></a> */
+<a name="10"></a>#include "advlite.h"
+<a name="11"></a>
+<a name="12"></a>/* 
+<a name="13"></a> *   Many of the ideas in this file are based on Emily Short's 
+<a name="14"></a> *   NewbieGrammar.h extension for Inform 6, itself based on observation of 
+<a name="15"></a> *   some of the non-standard things newcomers to IF tend to type. The idea 
+<a name="16"></a> *   is to get the parser to recognize these commands, at least to the 
+<a name="17"></a> *   extent of giving the player who issues them some help towards typing 
+<a name="18"></a> *   more useful commands rather than giving a standard (and probably 
+<a name="19"></a> *   unhelpful) parser error message
+<a name="20"></a> *
+<a name="21"></a> *   We also provide some helpful brief IF playing instructions for newbies, 
+<a name="22"></a> *   a sample transcript they can view to get the general idea, and a 
+<a name="23"></a> *   mechanism to check whether someone is entering an excessive number of 
+<a name="24"></a> *   invalid commands (so that we can then offer more help).
+<a name="25"></a> */
+<a name="26"></a>
+<a name="27"></a>
+<a name="28"></a>helpMessage: object
+<a name="29"></a>    printMsg {
+<a name="30"></a>        "&lt;&lt;if defined(Instructions)&gt;&gt;If you\'re new to interactive fiction, you
+<a name="31"></a>        can type &lt;&lt;aHref('INSTRUCTIONS', 'INSTRUCTIONS', 'Show full
+<a name="32"></a>            instructions')&gt;&gt; at the prompt for a full explanation of how to
+<a name="33"></a>        interact with the software and the story; for&lt;&lt;else&gt;&gt;For&lt;&lt;end&gt;&gt; a brief
+<a name="34"></a>        introduction to playing this type of game type &lt;&lt;aHref('INTRO', 'INTRO',
+<a name="35"></a>            'Show a brief introduction')&gt;&gt;, or &lt;&lt;aHref('SAMPLE', 'SAMPLE', 'Show
+<a name="36"></a>                a short sample transcript')&gt;&gt; to show a short sample transcript.
+<a name="37"></a>        &lt;&lt;if gHintManager != nil&gt;&gt;If you\'re having trouble moving forward and
+<a name="38"></a>        need help solving a puzzle, type &lt;&lt;aHref('HINT', 'HINT', 'Show
+<a name="39"></a>            hints')&gt;&gt;.&lt;&lt;end&gt;&gt; ";
+<a name="40"></a>        
+<a name="41"></a>        if(defined(extraHintManager))
+<a name="42"></a>           extraHintManager.explainExtraHints();
+<a name="43"></a>        
+<a name="44"></a>        if(versionInfo.propDefined(&amp;showAbout, PropDefDirectly))
+<a name="45"></a>           "For more information specific to this game, type &lt;&lt;aHref('ABOUT',
+<a name="46"></a>               'ABOUT', 'Show information about this game')&gt;&gt;. ";
+<a name="47"></a>    }
+<a name="48"></a>    
+<a name="49"></a>    briefIntro()
+<a name="50"></a>    {
+<a name="51"></a>        "You play this kind of game by entering brief commands (try to use as
+<a name="52"></a>        few words as possible). Examples include:\b
+<a name="53"></a>        WEST\n
+<a name="54"></a>        X KEYS\n  
+<a name="55"></a>        TAKE BOOK\n
+<a name="56"></a>        READ BOOK\n
+<a name="57"></a>        DROP BOOK\n
+<a name="58"></a>        PUT BOOK ON TABLE\n
+<a name="59"></a>        OPEN DOOR\b
+<a name="60"></a>        To move around use compass directions: NORTH, EAST, SOUTH etc. These may
+<a name="61"></a>        be abbreviated to N, E, S, W, NE, NW, SE, SW.
+<a name="62"></a>        You can also use IN, OUT, UP and DOWN.\b 
+<a name="63"></a>        EXAMINE (= LOOK AT) can be abbreviated to X; X BOOK, EXAMINE BOOK and
+<a name="64"></a>        LOOK AT BOOK all mean the same thing.\b
+<a name="65"></a>        The command INVENTORY (or simply I) will give you a list of what you're
+<a name="66"></a>        carrying.\n
+<a name="67"></a>        Use LOOK or L to repeat the description of your current location.\n
+<a name="68"></a>        AGAIN or G repeats the previous command.\b
+<a name="69"></a>        For full instructions, use the &lt;&lt;aHref('INSTRUCTIONS', 'INSTRUCTIONS',
+<a name="70"></a>                                              'Show full Instructions')&gt;&gt;
+<a name="71"></a>        command.\n
+<a name="72"></a>        To see a sample transcript, use the &lt;&lt;aHref('SAMPLE', 'SAMPLE', 'See
+<a name="73"></a>            sample transcript')&gt;&gt; command. ";
+<a name="74"></a>    }
+<a name="75"></a>
+<a name="76"></a>    showSample()
+<a name="77"></a>    {
+<a name="78"></a>        "A typical game (not this particular one) might start something like
+<a name="79"></a>        this:\b";
+<a name="80"></a>        inputManager.pauseForMore();
+<a name="81"></a>        "&lt;b&gt;&gt;x me&lt;/b&gt;\n
+<a name="82"></a>        You\'re a handsome enough young lad.\b
+<a name="83"></a>        &lt;b&gt;&gt;i&lt;/b&gt;\n
+<a name="84"></a>        You're carrying a flashlight and a treasure map.\b
+<a name="85"></a>        &lt;b&gt;&gt;x map&lt;/b&gt;\n
+<a name="86"></a>        So far as you can tell, the map indicates that some treasure was hidden
+<a name="87"></a>        underground somewhere on Horatio Bumblespoon\'s property.\b
+<a name="88"></a>        &lt;b&gt;&gt;l&lt;/b&gt;\n
+<a name="89"></a>        &lt;b&gt;Bumblespoon's Back Yard&lt;/b&gt;\n
+<a name="90"></a>        Suffering from years of neglect, this back yard has been thoroughly
+<a name="91"></a>        overgrown with a tangle of weeds and briars. A path leads north round
+<a name="92"></a>        the side of the house, and you can just make out a narrow staircase
+<a name="93"></a>        leading down into the darkness.\b
+<a name="94"></a>        &lt;b&gt;&gt;x weeds&lt;/b&gt;\n
+<a name="95"></a>        The weeds aren\'t important.\b
+<a name="96"></a>        &lt;b&gt;&gt;down&lt;/b&gt;\n
+<a name="97"></a>        &lt;b&gt;In the Dark&lt;/b&gt;\n
+<a name="98"></a>        It is pitch dark in here.\b
+<a name="99"></a>        &lt;b&gt;&gt;switch on flashlight&lt;/b&gt;\n
+<a name="100"></a>        &lt;b&gt;Damp Cellar&lt;/b&gt;\n
+<a name="101"></a>        Green mould covers the walls, and a pile of rusty junk clutters one
+<a name="102"></a>        corner. The only way out appears to be back up the stairs.\b
+<a name="103"></a>        &lt;b&gt;&gt;x junk&lt;/b&gt;\n
+<a name="104"></a>        It\'s mostly bits of broken gardening equipment, together with the
+<a name="105"></a>        remains of a metal bed-frame. But underneath it all you can just make
+<a name="106"></a>        out what looks like a large chest.\b
+<a name="107"></a>        &lt;b&gt;&gt;x chest&lt;/b&gt;\n
+<a name="108"></a>        It\'s a large wooden chest, reinforced with steel bands. It\'s closed.\b
+<a name="109"></a>        &lt;b&gt;&gt;open chest&lt;/b&gt;\n
+<a name="110"></a>        You can\'t really get at it with all that junk in the way.\b
+<a name="111"></a>        &lt;b&gt;&gt;move junk&lt;/b&gt;\n
+<a name="112"></a>        You manage to move quite a bit of the junk, clearing your access to
+<a name="113"></a>        the wooden chest beneath.\b
+<a name="114"></a>        &lt;b&gt;&gt;open chest&lt;/b&gt;\n
+<a name="115"></a>        (first trying to unlock the wooden chest)\n
+<a name="116"></a>        The wooden chest seems to be locked.\b
+<a name="117"></a>        &lt;b&gt;&gt;unlock chest&lt;/b&gt;\n
+<a name="118"></a>        What do you want to unlock it with?\b
+<a name="119"></a>        &lt;b&gt;&gt;key&lt;/b&gt;\n
+<a name="120"></a>        You see no key here.\b
+<a name="121"></a>        At this point the player knows he or she has to go in search of the key,
+<a name="122"></a>        and presumably that\'s how this game would continue.\b";
+<a name="123"></a>        inputManager.pauseForMore();
+<a name="124"></a>        "And now back to the game you\'re actually playing....\b";
+<a name="125"></a>        gPlayerChar.getOutermostRoom.lookAroundWithin();      
+<a name="126"></a>        
+<a name="127"></a>    }
+<a name="128"></a>;
+<a name="129"></a>
+<a name="130"></a>/* Declare these two properties in case the hintsys module isn't present */
+<a name="131"></a>property extraHintsExist;
+<a name="132"></a>property explainExtraHints;
+<a name="133"></a>
+<a name="134"></a> /* 
+<a name="135"></a>  *   The playerHelper is an object that starts a daemon at start of play. 
+<a name="136"></a>  *   This daemon checks whether the player is making any progress at all, 
+<a name="137"></a>  *   and also watches the ratio of commands the parser rejects to the 
+<a name="138"></a>  *   number of turns. If this ratio becomes too high (as defined by the 
+<a name="139"></a>  *   errorThreshold property) we offer the player a HELP command. If it 
+<a name="140"></a>  *   becomes very low (as defined by the ceaseCheckingErrorLevel property) 
+<a name="141"></a>  *   we cease checking (i.e. stop the daemon) on the grounds that the 
+<a name="142"></a>  *   player doesn't appear to need the kind of help we want to offer. We 
+<a name="143"></a>  *   first perform a check after firstCheckAfter turns to see if the player 
+<a name="144"></a>  *   is making any progress, and then after each errorCheckInterval turns 
+<a name="145"></a>  *   to see if the player is having difficulty entering valid commands. 
+<a name="146"></a>  *
+<a name="147"></a>  *   The idea is to keep offering HELP to an inexperienced player who 
+<a name="148"></a>  *   clearly needs it, even if the player declined to read any help text at 
+<a name="149"></a>  *   the start of the game.
+<a name="150"></a>  */
+<a name="151"></a>playerHelper: InitObject
+<a name="152"></a>    
+<a name="153"></a>    /* 
+<a name="154"></a>     *   Set up the firstCheck() Fuse and note the player character's starting
+<a name="155"></a>     *   location.
+<a name="156"></a>     */
+<a name="157"></a>    execute()
+<a name="158"></a>    {
+<a name="159"></a>        new Fuse(self, &amp;firstCheck, firstCheckAfter);       
+<a name="160"></a>        
+<a name="161"></a>        startLocation = gPlayerChar.location;
+<a name="162"></a>    }
+<a name="163"></a>    
+<a name="164"></a>    /* 
+<a name="165"></a>     *   The location the playerCharacter starts out in at the beginning of the
+<a name="166"></a>     *   game. It may be useful to know this in the firstCheckCriterion method.
+<a name="167"></a>     */
+<a name="168"></a>    startLocation = nil
+<a name="169"></a>    
+<a name="170"></a>    /*  
+<a name="171"></a>     *   The number of turns that must elapse before we test the
+<a name="172"></a>     *   firstCheckCriterion to see if the player appears to be stuck.
+<a name="173"></a>     */
+<a name="174"></a>    firstCheckAfter = 10
+<a name="175"></a>    
+<a name="176"></a>    /*   
+<a name="177"></a>     *   The message to display if the player seems to be stuck at the start of
+<a name="178"></a>     *   the game.
+<a name="179"></a>     */
+<a name="180"></a>    firstCheckMsg =  "&lt;.p&gt;You don't seem to be making much progress. If you
+<a name="181"></a>        feel you could use a little help, enter the
+<a name="182"></a>        command &lt;&lt;aHref('HELP', 'HELP', 'Requesting help')&gt;&gt;. "
+<a name="183"></a>    
+<a name="184"></a>    /* 
+<a name="185"></a>     *   The number of turns between each check on whether the player is
+<a name="186"></a>     *   entering too many erroneous commands.
+<a name="187"></a>     */
+<a name="188"></a>    errorCheckInterval = 20
+<a name="189"></a>    
+<a name="190"></a>    /* 
+<a name="191"></a>     *   The proportion of rejected commands to turns (i.e. accepted 
+<a name="192"></a>     *   commands) that will trigger an offer of help. We express this 
+<a name="193"></a>     *   number as a percentage.
+<a name="194"></a>     */
+<a name="195"></a>    errorThreshold = 50
+<a name="196"></a>    
+<a name="197"></a>    /* 
+<a name="198"></a>     *   The proportion of rejected commands to turns, expressed as a
+<a name="199"></a>     *   percentage, below which we stop checking for errors. The default is 5
+<a name="200"></a>     *   (in other words if less than 5 per cent of the player's commands are
+<a name="201"></a>     *   being rejected, the player presumably knows what s/he's doing, so we
+<a name="202"></a>     *   don't need to keep checking)
+<a name="203"></a>     */
+<a name="204"></a>    ceaseCheckingErrorLevel = 5
+<a name="205"></a>    
+<a name="206"></a>    /* 
+<a name="207"></a>     *   The criterion to apply to see whether the player is making any progress
+<a name="208"></a>     *   at the start of the game. This method should return true if the player
+<a name="209"></a>     *   seems to be stuck. By default we simply return nil as there's no way of
+<a name="210"></a>     *   knowing how to measure 'stuckness' for games in general, so specific
+<a name="211"></a>     *   games will need to override this method. A game involved exploration
+<a name="212"></a>     *   might set the condition to gLocation == startLocation (meaning the
+<a name="213"></a>     *   player character hasn't moved) for example.
+<a name="214"></a>     */
+<a name="215"></a>    firstCheckCriterion()
+<a name="216"></a>    {
+<a name="217"></a>        return nil;
+<a name="218"></a>    }
+<a name="219"></a>    
+<a name="220"></a>    /*  
+<a name="221"></a>     *   Check whether the player appears to be making any progress at the start
+<a name="222"></a>     *   of the game. If not, display a message offering help and start the
+<a name="223"></a>     *   error checking daemon.
+<a name="224"></a>     */
+<a name="225"></a>    firstCheck()
+<a name="226"></a>    {
+<a name="227"></a>        /* 
+<a name="228"></a>         *   If the player is still in the starting location (and so hasn't 
+<a name="229"></a>         *   visited the endOfDriveway, which would trigger its doScript 
+<a name="230"></a>         *   method) after 5 turns, s/he may be a novice who's getting stuck, 
+<a name="231"></a>         *   so we'll offer help.
+<a name="232"></a>         */
+<a name="233"></a>        if(firstCheckCriterion())
+<a name="234"></a>        {
+<a name="235"></a>            /* Display a message offering help. */
+<a name="236"></a>            firstCheckMsg;
+<a name="237"></a>            /* 
+<a name="238"></a>             *   We've just offered help, so we'll wait another 
+<a name="239"></a>             *   errorCheckInterval turns before seeing whether to offer it 
+<a name="240"></a>             *   again.
+<a name="241"></a>             */
+<a name="242"></a>            new Fuse(self, &amp;startErrorDaemon, errorCheckInterval);
+<a name="243"></a>        }
+<a name="244"></a>        else
+<a name="245"></a>            startErrorDaemon();
+<a name="246"></a>    }
+<a name="247"></a>    
+<a name="248"></a>    startErrorDaemon() { errorDaemonID = new Daemon(self, &amp;errorCheck, 1); }
+<a name="249"></a>    
+<a name="250"></a>    /* Watch for a high percentage of errors in user input */
+<a name="251"></a>    errorCheck()
+<a name="252"></a>    {
+<a name="253"></a>        local errorPercent = (100 * errorCount)/libGlobal.totalTurns;
+<a name="254"></a>        
+<a name="255"></a>        if(errorPercent &gt; errorThreshold)
+<a name="256"></a>        {
+<a name="257"></a>            "&lt;.p&gt;Please type &lt;&lt;aHref('HELP', 'HELP', 'Requesting help')&gt;&gt; if you
+<a name="258"></a>            need help with this game.&lt;.p&gt;";
+<a name="259"></a>            /* 
+<a name="260"></a>             *   We don't want to keep showing this message every turn, so 
+<a name="261"></a>             *   we'll turn the daemon off for twenty turns.
+<a name="262"></a>             */
+<a name="263"></a>            
+<a name="264"></a>            stopErrorDaemon();
+<a name="265"></a>            new Fuse(self, &amp;startErrorDaemon, errorCheckInterval);
+<a name="266"></a>            
+<a name="267"></a>        }
+<a name="268"></a>        
+<a name="269"></a>        /* 
+<a name="270"></a>         *   If there are very few input errors, we're probably not needed 
+<a name="271"></a>         *   any more
+<a name="272"></a>         */
+<a name="273"></a>        if(errorPercent &lt; ceaseCheckingErrorLevel)
+<a name="274"></a>            stopErrorDaemon();  
+<a name="275"></a>        
+<a name="276"></a>    }
+<a name="277"></a>    
+<a name="278"></a>    /* Stop the error check daemon from running */
+<a name="279"></a>    stopErrorDaemon()
+<a name="280"></a>    {
+<a name="281"></a>        if(errorDaemonID != nil)
+<a name="282"></a>            errorDaemonID.removeEvent();
+<a name="283"></a>        
+<a name="284"></a>        errorDaemonID = nil;
+<a name="285"></a>    }
+<a name="286"></a>       
+<a name="287"></a>    /* 
+<a name="288"></a>     *   The offerHelp() method asks whether the player has played this kind of
+<a name="289"></a>     *   game before and accepts a Y or N answer. if the answer is NO then it
+<a name="290"></a>     *   goes on to display a message suggesting sources of help.
+<a name="291"></a>     *
+<a name="292"></a>     *   This method can usefully be called at the end of the
+<a name="293"></a>     *   gameMain.showIntro() method, but it's up to game authors to incluse it
+<a name="294"></a>     *   there if they want it/
+<a name="295"></a>     */
+<a name="296"></a>    offerHelp()
+<a name="297"></a>    {
+<a name="298"></a>        "Have you played this kind of game before? (&lt;b&gt;y&lt;/b&gt; or &lt;b&gt;n&lt;/b&gt;) &gt;";
+<a name="299"></a>        if(!yesOrNo())
+<a name="300"></a>        {
+<a name="301"></a>            "\b";
+<a name="302"></a>            helpMessage.printMsg();            
+<a name="303"></a>        }
+<a name="304"></a>        "\b";
+<a name="305"></a>    }
+<a name="306"></a>    
+<a name="307"></a>    /* 
+<a name="308"></a>     *   For internal use only: the ID of the currently running error check
+<a name="309"></a>     *   Daemon (if there is one)
+<a name="310"></a>     */
+<a name="311"></a>    errorDaemonID = nil
+<a name="312"></a>    
+<a name="313"></a>    /*   
+<a name="314"></a>     *   For internal use only: the number of badly formed commands the player
+<a name="315"></a>     *   has entered.
+<a name="316"></a>     */
+<a name="317"></a>    errorCount = 0
+<a name="318"></a>;
+<a name="319"></a>
+<a name="320"></a>/* 
+<a name="321"></a> *   This game may be played by novice players. We'll try to keep track of 
+<a name="322"></a> *   how many not-understood commands they enter, in case it helps us decide 
+<a name="323"></a> *   whether they need help. The playerHelper object will use this 
+<a name="324"></a> *   information to decide whether to offer help. 
+<a name="325"></a> */
+<a name="326"></a>
+<a name="327"></a>modify NotUnderstoodError
+<a name="328"></a>    display()
+<a name="329"></a>    {
+<a name="330"></a>        inherited;
+<a name="331"></a>        playerHelper.errorCount++;
+<a name="332"></a>    }
+<a name="333"></a>;
+<a name="334"></a>
+<a name="335"></a>modify UnknownWordError
+<a name="336"></a>    display()
+<a name="337"></a>    {
+<a name="338"></a>        inherited;
+<a name="339"></a>        playerHelper.errorCount++;
+<a name="340"></a>    }
+<a name="341"></a>;
+<a name="342"></a>
+<a name="343"></a>modify EmptyNounError
+<a name="344"></a>    display()
+<a name="345"></a>    {
+<a name="346"></a>        inherited;
+<a name="347"></a>        playerHelper.errorCount++;
+<a name="348"></a>    }
+<a name="349"></a>;
+<a name="350"></a>
+<a name="351"></a>
+<a name="352"></a>//-------------------------------------------------------------------------------
+<a name="353"></a>/* 
+<a name="354"></a> *   More newbie-helpful bits and pieces, based on work by Emily Short for I6
+<a name="355"></a> *
+<a name="356"></a> *   The idea is to trap the kind of invalid input a newcomer to IF might 
+<a name="357"></a> *   type and respond with something a bit more helpful than a standard 
+<a name="358"></a> *   parser error message. In some cases we'll execute the command the 
+<a name="359"></a> *   player probably meant, and in others we'll just explain why the command 
+<a name="360"></a> *   failed.
+<a name="361"></a> */
+<a name="362"></a>
+<a name="363"></a>/*  First, trap attempts to refer to body parts */
+<a name="364"></a>
+<a name="365"></a>bodyParts: MultiLoc, Unthing 'body; (my) (your) (his) (her) (this) (left)
+<a name="366"></a>    (right); head hand ear fist finger thumb arm leg foot eye face nose mouth
+<a name="367"></a>    tooth tongue lip knee elbow; it them' 
+<a name="368"></a>    
+<a name="369"></a>    notHereMsg = 'Generally speaking, there is no need to refer to your
+<a name="370"></a>        body parts individually in interactive fiction.  WEAR SHOES ON FEET will
+<a name="371"></a>        not necessarily be implemented, for instance; WEAR SHOES is enough.  And
+<a name="372"></a>        unless you get some hint to the contrary, you probably cannot OPEN DOOR
+<a name="373"></a>        WITH FOOT or PUT THE SAPPHIRE RING IN MY MOUTH. '
+<a name="374"></a>
+<a name="375"></a>    /* 
+<a name="376"></a>     *   By default we want this bodyParts object to be available everywhere (since the player may
+<a name="377"></a>     *   try to refer to the PC's bodyparts anywhere, but if your game defines its own body parts
+<a name="378"></a>     *   (or items that share vocab with body parts such as the hands of a clock or the legs of a
+<a name="379"></a>     *   chair) you may occasionally get unwanted results from having the bodyParts objects present
+<a name="380"></a>     *   too. In such a case you can banish the bodyParts object by setting its initialLocationClass
+<a name="381"></a>     *   to nil, or otherwise restrict where it turns up.
+<a name="382"></a>     */
+<a name="383"></a>    initialLocationClass = Room
+<a name="384"></a>  
+<a name="385"></a>;
+<a name="386"></a>
+<a name="387"></a>/* Trap the use of vague words like 'someone' or 'something' or 'anyone' */
+<a name="388"></a>somethingPreParser: StringPreParser
+<a name="389"></a>    doParsing(str, which)
+<a name="390"></a>    {
+<a name="391"></a>        local ret = rexSearch(pat, str);
+<a name="392"></a>        if(ret != nil)
+<a name="393"></a>        {
+<a name="394"></a>            /* first check whether the word occurs in the dictionary */
+<a name="395"></a>            local lst = cmdDict.findWord(ret[3]);
+<a name="396"></a>            
+<a name="397"></a>            /* then see if it matches any objects in scope. */
+<a name="398"></a>            lst = lst.intersect(Q.scopeList(gPlayerChar));
+<a name="399"></a>            
+<a name="400"></a>            /* if not, display a helpful message */
+<a name="401"></a>            if(lst.length == 0)
+<a name="402"></a>            {
+<a name="403"></a>                "It's usually better not to use vague words like
+<a name="404"></a>                &lt;q&gt;&lt;&lt;ret[3]&gt;&gt;&lt;/q&gt; in your commands, because the game won't be
+<a name="405"></a>                able to guess what you mean. Be more specific and refer to the
+<a name="406"></a>                objects in your vicinity. ";
+<a name="407"></a>                playerHelper.errorCount++;
+<a name="408"></a>                return nil;
+<a name="409"></a>            }
+<a name="410"></a>        }
+<a name="411"></a>        return str;
+<a name="412"></a>    }
+<a name="413"></a>    pat = static new RexPattern('&lt;NoCase&gt;(someone|something|anyone|anything)')
+<a name="414"></a>
+<a name="415"></a>   isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="416"></a>;
+<a name="417"></a>
+<a name="418"></a>/* 
+<a name="419"></a> *   Trap commands like LOOK HERE or SEARCH THERE. We'll actually carry out 
+<a name="420"></a> *   a LOOK command, but we'll also tell the player just to use LOOK in 
+<a name="421"></a> *   future.
+<a name="422"></a> */
+<a name="423"></a>DefineIAction(LookHere)
+<a name="424"></a>    execAction(cmd)
+<a name="425"></a>    {
+<a name="426"></a>        gActor.getOutermostRoom.lookAroundWithin();
+<a name="427"></a>        playerHelper.errorCount++;
+<a name="428"></a>        "&lt;.p&gt;[For future reference, you don't need to refer to places in the
+<a name="429"></a>        game with words like &lt;q&gt;&lt;&lt;cmd.verbProd.placeName&gt;&gt;&lt;/q&gt;; a simple LOOK
+<a name="430"></a>        command will suffice]&lt;.p&gt;";
+<a name="431"></a>    }
+<a name="432"></a>;
+<a name="433"></a>    
+<a name="434"></a>VerbRule(LookHere)
+<a name="435"></a>    ('l' | 'look' | 'search') ('here'-&gt;placeName|'there'-&gt;placeName)
+<a name="436"></a>    : VerbProduction
+<a name="437"></a>    action = LookHere
+<a name="438"></a>    verbPhrase = 'look/looking'
+<a name="439"></a>;
+<a name="440"></a>
+<a name="441"></a>/* 
+<a name="442"></a> *   Trap the words KINDLY and PLEASE in a player's command, and explain that
+<a name="443"></a> *   they shouldn't be used, giving examples of the kind of commands to use
+<a name="444"></a> *   instead. (But don't do this in conversation, where these words might be
+<a name="445"></a> *   part of valid conversational exchange)
+<a name="446"></a> */
+<a name="447"></a>pleasePreParser: StringPreParser
+<a name="448"></a>    doParsing(str, which)
+<a name="449"></a>    {
+<a name="450"></a>        if(rexMatch(pat, str) &amp;&amp; gPlayerChar.currentInterlocutor == nil)
+<a name="451"></a>        {
+<a name="452"></a>            "That's very polite of you, but there's really no need to use words
+<a name="453"></a>            like &lt;q&gt;please&lt;/q&gt; and &lt;q&gt;kindly&lt;/q&gt;; you'll find the game
+<a name="454"></a>            will understand you far better if you stick to simple imperatives
+<a name="455"></a>            like GO NORTH, or X KEYS or PUT BOX ON TABLE. &lt;.p&gt;";
+<a name="456"></a>            playerHelper.errorCount++;
+<a name="457"></a>            return nil;
+<a name="458"></a>        }
+<a name="459"></a>        return str;
+<a name="460"></a>    }
+<a name="461"></a>    pat = static new RexPattern('&lt;NoCase&gt;%&lt;(please|kindly)%&gt;')
+<a name="462"></a>;
+<a name="463"></a>
+<a name="464"></a>/* 
+<a name="465"></a> *   Trap any command beginning with USE, telling the player to be more specific, unless the game
+<a name="466"></a> *   code defines its own Use action.
+<a name="467"></a> */
+<a name="468"></a>usePreParser: StringPreParser
+<a name="469"></a>    doParsing (str, which)
+<a name="470"></a>    {
+<a name="471"></a>        if(str.toLower.startsWith('use ') &amp;&amp; !(defined(Use) &amp;&amp; Use.ofKind(Action)))        
+<a name="472"></a>        {
+<a name="473"></a>            "&lt;.p&gt;I don't recognize the command USE, because it's a bit too
+<a name="474"></a>            vague; please be more specific about what you want to do.&lt;.p&gt;";
+<a name="475"></a>            playerHelper.errorCount++;
+<a name="476"></a>            return nil;
+<a name="477"></a>        }
+<a name="478"></a>        
+<a name="479"></a>        return str;
+<a name="480"></a>    }
+<a name="481"></a>;
+<a name="482"></a>
+<a name="483"></a>/* 
+<a name="484"></a> *   Trap commands like KEEP GOING NORTH or CONTINUE HEADING WEST. We'll 
+<a name="485"></a> *   carry out the directional movement command obviously intended, but 
+<a name="486"></a> *   advise the player on the standard form of such commands.
+<a name="487"></a>// */
+<a name="488"></a>KeepGoing: TravelAction
+<a name="489"></a>    execAction(cmd)
+<a name="490"></a>    {
+<a name="491"></a>        local action = Go.createInstance();
+<a name="492"></a>        cmd.dobj = cmd.verbProd.dirMatch.dir;
+<a name="493"></a>        
+<a name="494"></a>        action.execAction(cmd);
+<a name="495"></a>        "[In most Interactive Fiction, it is necessary as well as easier to
+<a name="496"></a>        phrase commands like this as simple directions: GO NORTH, NORTH (or
+<a name="497"></a>        just N), etc., rather than KEEP GOING NORTH, HEAD BACK NORTH,
+<a name="498"></a>        etc.]&lt;.p&gt;";
+<a name="499"></a>    }
+<a name="500"></a>;
+<a name="501"></a>
+<a name="502"></a>VerbRule(KeepGoing)
+<a name="503"></a>    ('keep' | 'continue') ('going'|'walking'|'running'|'heading') singleDir
+<a name="504"></a>    | 'head' ('back' | ) singleDir
+<a name="505"></a>    : VerbProduction
+<a name="506"></a>    action = KeepGoing
+<a name="507"></a>    verbPhrase = 'go/going (where)'
+<a name="508"></a>;
+<a name="509"></a>
+<a name="510"></a>/* 
+<a name="511"></a> *   Trap commands that start with a pronoun (e.g. I AM LOST or YOU ARE SILLY)
+<a name="512"></a> *   and advise the player that they are likely to be unproductive, suggesting
+<a name="513"></a> *   the format of commands that are more likely to work.
+<a name="514"></a> *
+<a name="515"></a> *   Note that we have to make exceptions that allow valid commands starting
+<a name="516"></a> *   with I where I is an abbreviation for INVENTORY, such as I itself, I TALL
+<a name="517"></a> *   and I WIDE. We also have to make exceptions when a conversation is in
+<a name="518"></a> *   progress, since the command could be a valid SayTopic.
+<a name="519"></a> */
+<a name="520"></a>pronounUsePreParser: StringPreParser
+<a name="521"></a>    doParsing(str, which)
+<a name="522"></a>    {
+<a name="523"></a>        if(rexMatch(pat3, str) || gPlayerChar.currentInterlocutor != nil)
+<a name="524"></a>            return str;
+<a name="525"></a>        
+<a name="526"></a>        if(rexMatch(pat, str) || rexMatch(pat2, str))
+<a name="527"></a>        {
+<a name="528"></a>            "If the game is not understanding you, try issuing your commands in
+<a name="529"></a>            the imperative: e.g., THROW THE KNIFE, but not I WOULD REALLY LIKE
+<a name="530"></a>            TO THROW THE KNIFE.  Chatty sentences such as YOU ARE A VERY STUPID
+<a name="531"></a>            GAME will only prove themselves true.\b
+<a name="532"></a>            If you really feel that the game is looking for a word that is not
+<a name="533"></a>            a verb (as the solution to a riddle, eg.) try some variations, such
+<a name="534"></a>            as SAY FLOOBLE.\b
+<a name="535"></a>            If you need more help, try the &lt;&lt;aHref('HELP','HELP', 'Ask for
+<a name="536"></a>                help')&gt;&gt; command.&lt;.p&gt;";
+<a name="537"></a>            playerHelper.errorCount++;
+<a name="538"></a>            return nil;
+<a name="539"></a>        }
+<a name="540"></a>        return str;
+<a name="541"></a>    }
+<a name="542"></a>    pat = static new RexPattern('&lt;NoCase&gt;^(you|he|she|it|they|we|its|theyre' 
+<a name="543"></a>                                + '|youre|hes|shes)&lt;Space|squote&gt;')    
+<a name="544"></a>    
+<a name="545"></a>    pat2 = static new RexPattern('&lt;NoCase&gt;^(i|im|i&lt;squote&gt;m)&lt;Space&gt;+%w')
+<a name="546"></a>    
+<a name="547"></a>    pat3 = static new RexPattern('&lt;NoCase&gt;^i&lt;Space&gt;+(wide|tall)')
+<a name="548"></a>;
+<a name="549"></a>
+<a name="550"></a>
+<a name="551"></a>
+<a name="552"></a>/* 
+<a name="553"></a> *   Trap commands like WHERE CAN I GET HELP. Print a suitable Help message, 
+<a name="554"></a> *   and then explain the use of the HELP command.
+<a name="555"></a> */
+<a name="556"></a>DefineSystemAction(WhereHelp)
+<a name="557"></a>    execAction(cmd)
+<a name="558"></a>    {
+<a name="559"></a>        "[A simple HELP would do]&lt;.p&gt;";
+<a name="560"></a>        helpMessage.printMsg();
+<a name="561"></a>    }
+<a name="562"></a>;
+<a name="563"></a>
+<a name="564"></a>VerbRule(WhereHelp)
+<a name="565"></a>    'where' ('can' | 'do' | 'does' | 'should') 
+<a name="566"></a>    ('i' | 'we' | 'one' | 'anyone'| 'someone') 
+<a name="567"></a>    ('get' | 'find' | 'obtain')
+<a name="568"></a>    ('help' | 'assistance' | 'instructions')
+<a name="569"></a>    (literalDobj | )
+<a name="570"></a>    : VerbProduction
+<a name="571"></a>    action = WhereHelp
+<a name="572"></a>    verbPhrase = 'request/requesting help'
+<a name="573"></a>    priority = 80
+<a name="574"></a>    
+<a name="575"></a>    /* 
+<a name="576"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="577"></a>     *   in that case the player may be attempting a valid conversational
+<a name="578"></a>     *   command)
+<a name="579"></a>     */
+<a name="580"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="581"></a>;
+<a name="582"></a>
+<a name="583"></a>DefineSystemAction(Help)
+<a name="584"></a>    execAction(cmd)   {   helpMessage.printMsg();   }
+<a name="585"></a>;
+<a name="586"></a>
+<a name="587"></a>/* Provide grammar to understand a fairly wide variety of requests for help */
+<a name="588"></a>
+<a name="589"></a>VerbRule(Help)
+<a name="590"></a>    ('help' | 'assist' | 'assistance' ) |
+<a name="591"></a>    'how' ('do' | 'can' | 'does' | 'will' | 'shall' | 'could' | 'should' | 'may'
+<a name="592"></a>           | 'must') 
+<a name="593"></a>    ('i' | 'me' | 'he' | 'she' | 'it' | 'we' | 'you' | 'they' | 'person' | 'one'
+<a name="594"></a>     | 'someone' | 'anyone' | 'somebody' | 'anybody') literalDobj
+<a name="595"></a>    
+<a name="596"></a>    : VerbProduction
+<a name="597"></a>    action = Help
+<a name="598"></a>    verbPhrase = 'help/helping with the software'
+<a name="599"></a>    
+<a name="600"></a>    priority = 80
+<a name="601"></a>    
+<a name="602"></a>    /* 
+<a name="603"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="604"></a>     *   in that case the player may be attempting a valid conversational
+<a name="605"></a>     *   command)
+<a name="606"></a>     */
+<a name="607"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="608"></a>;
+<a name="609"></a>
+<a name="610"></a>VerbRule(WhatNext)
+<a name="611"></a>    'what' ('next' | 'now') |
+<a name="612"></a>    'what' ('should' | 'can' | 'do' | 'does' | 'am' | 'is') 
+<a name="613"></a>    ('i' | 'one' |'anyone' | 'someone') 
+<a name="614"></a>    (('meant' 'to')|) ('do' | 'try') ('next' | 'now'|)
+<a name="615"></a>    : VerbProduction
+<a name="616"></a>    action = Help
+<a name="617"></a>    verbPhrase = 'help/helping with the software'
+<a name="618"></a>    
+<a name="619"></a>    priority = 80
+<a name="620"></a>    
+<a name="621"></a>    /* 
+<a name="622"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="623"></a>     *   in that case the player may be attempting a valid conversational
+<a name="624"></a>     *   command)
+<a name="625"></a>     */
+<a name="626"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="627"></a>;
+<a name="628"></a>
+<a name="629"></a>
+<a name="630"></a>/* 
+<a name="631"></a> *   Provide a command to display a brief introduction to playing IF (as an 
+<a name="632"></a> *   alternative to the full INSTRUCTIONS menu provided by the TADS 3 library)
+<a name="633"></a> */
+<a name="634"></a>DefineSystemAction(Intro)
+<a name="635"></a>    execAction(cmd) { helpMessage.briefIntro(); }
+<a name="636"></a>;
+<a name="637"></a>
+<a name="638"></a>VerbRule(Intro)
+<a name="639"></a>    ('show'|'view'|) ('brief'|) ('intro' | 'introduction')
+<a name="640"></a>    : VerbProduction
+<a name="641"></a>    action = Intro
+<a name="642"></a>    verbPhrase = 'show/showing brief introduction'    
+<a name="643"></a>;
+<a name="644"></a>
+<a name="645"></a>/* Provide a command to show the player a sample transcript */
+<a name="646"></a>DefineSystemAction(Sample)
+<a name="647"></a>    execAction(cmd) { helpMessage.showSample(); }
+<a name="648"></a>;
+<a name="649"></a>
+<a name="650"></a>VerbRule(Sample)
+<a name="651"></a>    ('show'|'view'|) 'sample' ('transcript' | )
+<a name="652"></a>    : VerbProduction
+<a name="653"></a>    action = Sample
+<a name="654"></a>    verbPhrase = 'show/showing sample transcript'
+<a name="655"></a>;
+<a name="656"></a>
+<a name="657"></a>
+<a name="658"></a>
+<a name="659"></a>/* 
+<a name="660"></a> *   Make WHAT IS X behave like EXAMINE X, but then explain the standard 
+<a name="661"></a> *   phrasing of an EXAMINE command. 
+<a name="662"></a> */
+<a name="663"></a>
+<a name="664"></a>VerbRule(WhatIsNoun)
+<a name="665"></a>    ('whats' | 'what' ('is'|'are')) multiDobj
+<a name="666"></a>    : VerbProduction
+<a name="667"></a>    action = Examine
+<a name="668"></a>    verbPhrase = 'examine/examining (what)'
+<a name="669"></a>    
+<a name="670"></a>    priority = 80
+<a name="671"></a>    
+<a name="672"></a>    /* 
+<a name="673"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="674"></a>     *   in that case the player may be attempting a valid conversational
+<a name="675"></a>     *   command)
+<a name="676"></a>     */
+<a name="677"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="678"></a>;
+<a name="679"></a>
+<a name="680"></a>modify Examine
+<a name="681"></a>    execAction(cmd)
+<a name="682"></a>    {
+<a name="683"></a>        inherited(cmd);        
+<a name="684"></a>        if(cmd.verbProd.grammarTag == 'WhatIsNoun')
+<a name="685"></a>        {
+<a name="686"></a>            local obj = cmd.dobj;
+<a name="687"></a>            "[You can do this in future by using &lt;&lt;aHref('X '+ obj.name.toUpper,
+<a name="688"></a>                'X ' + obj.name.toUpper, 'Examine ' + obj.theName)&gt;&gt;, which is
+<a name="689"></a>            quicker and more standard.]\b";
+<a name="690"></a>            playerHelper.errorCount++;
+<a name="691"></a>        }            
+<a name="692"></a>    }   
+<a name="693"></a>;
+<a name="694"></a>
+<a name="695"></a>/* 
+<a name="696"></a> *   Trap variants on WHAT AM I CARRYING that should be turned into an INVENTORY
+<a name="697"></a> *   command.
+<a name="698"></a> */
+<a name="699"></a>
+<a name="700"></a>VerbRule(WhatAmICarrying)
+<a name="701"></a>    'what' ('am'|'are') ('i'|'we'|'you') ('carrying' | 'holding')
+<a name="702"></a>    | 'what' 'do' ('i'|'we'|'you') 'have'
+<a name="703"></a>    | 'what' 'have' ('i'|'we'|'you') 'got'
+<a name="704"></a>    : VerbProduction
+<a name="705"></a>    action = Inventory
+<a name="706"></a>    verbPhrase = 'take/taking inventory'
+<a name="707"></a>    priority = 80
+<a name="708"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="709"></a>;
+<a name="710"></a>
+<a name="711"></a>modify Inventory
+<a name="712"></a>    execAction(cmd)
+<a name="713"></a>    {
+<a name="714"></a>        inherited(cmd);        
+<a name="715"></a>        if(cmd.verbProd.grammarTag == 'WhatAmICarrying')
+<a name="716"></a>        {            
+<a name="717"></a>            "[You can do this in future by using &lt;&lt;aHref('INVENTORY',
+<a name="718"></a>                'INVENTORY', 'Take Inventory')&gt;&gt; or just
+<a name="719"></a>            &lt;&lt;aHref('I', 'I', 'Take Inventory')&gt;&gt;, which is
+<a name="720"></a>            quicker and more standard.]\b";
+<a name="721"></a>            playerHelper.errorCount++;
+<a name="722"></a>        }            
+<a name="723"></a>    } 
+<a name="724"></a>;
+<a name="725"></a>
+<a name="726"></a>
+<a name="727"></a>/* 
+<a name="728"></a> *   Trap a variety of commands of the sort WHAT IS GAME ABOUT or WHATS THE 
+<a name="729"></a> *   POINT and respond by showing the game's ABOUT text.
+<a name="730"></a> */
+<a name="731"></a>VerbRule(WhatsThePoint)
+<a name="732"></a>    ('whats' | 'what' 'is') ('the'|) ('point' | 'idea' | 'goal' | 'purpose')
+<a name="733"></a>    (literalDobj | )
+<a name="734"></a>    : VerbProduction
+<a name="735"></a>    action = About
+<a name="736"></a>    verbPhrase = 'ask/asking about the point of the game'
+<a name="737"></a>    
+<a name="738"></a>    priority = 80
+<a name="739"></a>    
+<a name="740"></a>    /* 
+<a name="741"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="742"></a>     *   in that case the player may be attempting a valid conversational
+<a name="743"></a>     *   command)
+<a name="744"></a>     */
+<a name="745"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="746"></a>;
+<a name="747"></a>
+<a name="748"></a>VerbRule(WhatThisGame)
+<a name="749"></a>    ('whats' | 'what' ('is'|'are')) ('the' | 'these' | 'this' |)
+<a name="750"></a>    ('game' | 'story' | 'program' | 'games' | ('interactive' 'fiction')) 
+<a name="751"></a>        ('for' | 'about' | )
+<a name="752"></a>    : VerbProduction
+<a name="753"></a>    action = About
+<a name="754"></a>    verbPhrase = 'ask/asking what the game is about'
+<a name="755"></a>    
+<a name="756"></a>    priority = 80
+<a name="757"></a>    
+<a name="758"></a>    /* 
+<a name="759"></a>     *   Don't match this grammar if the player char is in conversation, since
+<a name="760"></a>     *   in that case the player may be attempting a valid conversational
+<a name="761"></a>     *   command)
+<a name="762"></a>     */
+<a name="763"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="764"></a>;
+<a name="765"></a>
+<a name="766"></a>
+<a name="767"></a>/* 
+<a name="768"></a> *   Trap a variety of vague travel commands like GO SOMEWHERE or WALK 
+<a name="769"></a> *   AROUND or TURN RIGHT and explain how movement commands should be 
+<a name="770"></a> *   phrased. Then display a list of available exits from the current 
+<a name="771"></a> *   location.
+<a name="772"></a> */
+<a name="773"></a>DefineIAction(GoSomewhere)
+<a name="774"></a>    execAction(cmd)
+<a name="775"></a>    {
+<a name="776"></a>        "If you want to go somewhere, use one of the compass directions (NORTH,
+<a name="777"></a>        EAST, SW, W, S etc). ";
+<a name="778"></a>        
+<a name="779"></a>        playerHelper.errorCount++;
+<a name="780"></a>        
+<a name="781"></a>        if(defined(exitLister) &amp;&amp;
+<a name="782"></a>           exitLister.cannotGoShowExits(gActor, gActor.getOutermostRoom));        
+<a name="783"></a>    }
+<a name="784"></a>    actionTime = 0
+<a name="785"></a>;
+<a name="786"></a>
+<a name="787"></a>VerbRule(GoSomewhere)
+<a name="788"></a>    (('go' | 'walk' |  'proceed' | 'run') ( | ('to' 'the') )
+<a name="789"></a>    ('left' | 'right' | 'on' | 'onwards' | 'onward' | 'forward' | 'forwards' |
+<a name="790"></a>     'around' | 'somewhere' | (('straight'| ) 'ahead'))) | ('turn'
+<a name="791"></a>         ('left'|'right'))
+<a name="792"></a>    : VerbProduction
+<a name="793"></a>    action = GoSomewhere
+<a name="794"></a>    verbPhrase = 'go/going somewhere'
+<a name="795"></a>;
+<a name="796"></a>
+<a name="797"></a>modify VagueTravel
+<a name="798"></a>    execAction(cmd)  {  delegated GoSomewhere(cmd);  }
+<a name="799"></a>;
+<a name="800"></a>
+<a name="801"></a>/*  
+<a name="802"></a> *   Trap commands like WHERE AM I or WHERE ARE WE or WHAT IS HERE. Perform 
+<a name="803"></a> *   a LOOK command but explain that LOOK is the phrasing to use.
+<a name="804"></a> */
+<a name="805"></a>DefineIAction(WhereAmI)
+<a name="806"></a>    execAction(cmd)
+<a name="807"></a>    {
+<a name="808"></a>        gActor.getOutermostRoom.lookAroundWithin();
+<a name="809"></a>        "&lt;.p&gt;[In future, just use the &lt;&lt;aHref('LOOK','LOOK', 'Look around')&gt;&gt;
+<a name="810"></a>        command]&lt;.p&gt;";
+<a name="811"></a>    }
+<a name="812"></a>     
+<a name="813"></a>;
+<a name="814"></a>
+<a name="815"></a>VerbRule(WhereAmI)
+<a name="816"></a>    'where' ('are' | 'am' | 'is') ('i' | 'we')
+<a name="817"></a>    : VerbProduction
+<a name="818"></a>    action = WhereAmI
+<a name="819"></a>    verbPhrase = 'look/looking'
+<a name="820"></a>    
+<a name="821"></a>    priority = 80
+<a name="822"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="823"></a>;
+<a name="824"></a>
+<a name="825"></a>VerbRule(WhatsHere)
+<a name="826"></a>    'what' 'is' 'here'
+<a name="827"></a>    | 'whats' 'here'
+<a name="828"></a>    : VerbProduction
+<a name="829"></a>    action = WhereAmI
+<a name="830"></a>    verbPhrase = 'ask/asking what\'s here'
+<a name="831"></a>    
+<a name="832"></a>    priority = 80
+<a name="833"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="834"></a>;  
+<a name="835"></a>
+<a name="836"></a>/* 
+<a name="837"></a> *   Provide a response to WHO AM I. We provide a brief explanation and then 
+<a name="838"></a> *   perform an EXAMINE ME command to add any game-specific player character 
+<a name="839"></a> *   description. 
+<a name="840"></a> */
+<a name="841"></a>DefineIAction(WhoAmI)
+<a name="842"></a>    execAction(cmd)
+<a name="843"></a>    {
+<a name="844"></a>        "[You're the main character of the game.  Of course, the game author
+<a name="845"></a>        may have given you a description.  You can see this description in the
+<a name="846"></a>        future by typing &lt;&lt;aHref('X ME','X ME','Examine me')&gt;&gt;], which is
+<a name="847"></a>        quicker and more standard.]\b";
+<a name="848"></a>        replaceAction(Examine, gPlayerChar);
+<a name="849"></a>        playerHelper.errorCount++;
+<a name="850"></a>    }
+<a name="851"></a>;
+<a name="852"></a>
+<a name="853"></a>VerbRule(WhoAmI)
+<a name="854"></a>    ('who'| 'what') ('am'|'is') ('i'|'me')
+<a name="855"></a>    : VerbProduction
+<a name="856"></a>    action = WhoAmI
+<a name="857"></a>    verbPhrase = 'ask/asking who I am'
+<a name="858"></a>    
+<a name="859"></a>    priority = 80
+<a name="860"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="861"></a>;
+<a name="862"></a>
+<a name="863"></a>
+<a name="864"></a>/* 
+<a name="865"></a> *   Trap commands like WHERE CAN I GO. Perform an EXITS command to list the 
+<a name="866"></a> *   exits, but then tell the player to use the wording EXITS in future.
+<a name="867"></a> */
+<a name="868"></a>DefineIAction(WhereGo)
+<a name="869"></a>    execAction(cmd)
+<a name="870"></a>    {
+<a name="871"></a>        nestedAction(Exits);
+<a name="872"></a>        "&lt;.p&gt;[In future, just use the EXITS command]&lt;.p&gt;";
+<a name="873"></a>    }
+<a name="874"></a>;
+<a name="875"></a>
+<a name="876"></a>VerbRule(WhereGo)
+<a name="877"></a>    'where' ('can' | 'do' | 'does' | 'should') ('i' | 'we' | 'one'| 'anyone') 
+<a name="878"></a>    'go'
+<a name="879"></a>    : VerbProduction
+<a name="880"></a>    action = WhereGo
+<a name="881"></a>    verbPhrase = 'show/showing exits'
+<a name="882"></a>    
+<a name="883"></a>    priority = 80
+<a name="884"></a>    isActive = (gPlayerChar.currentInterlocutor == nil)
+<a name="885"></a>;
+<a name="886"></a>
+<a name="887"></a>
+<a name="888"></a>
+<a name="889"></a>/*  
+<a name="890"></a> *   The StringPreparser and the TopicAction which follows are designed to 
+<a name="891"></a> *   deal with command like LOOK FOR X, FIND Y or SEARCH FOR Z. The 
+<a name="892"></a> *   complication is that in the standard library these are all forms of 
+<a name="893"></a> *   LOOK UP X, which prompt the response "What do you want to look that up 
+<a name="894"></a> *   in?". This is likely to confuse new players.
+<a name="895"></a> *
+<a name="896"></a> *   The StringPreparser checks to see if there's a Consultable in the 
+<a name="897"></a> *   current location. If so, then we use the standard library handling, on 
+<a name="898"></a> *   the assumption that the player is trying to looking something up in it. 
+<a name="899"></a> *   If not we change the command to SEEK X in order to invoke the new 
+<a name="900"></a> *   SeekAction defined below.
+<a name="901"></a> */
+<a name="902"></a>
+<a name="903"></a>seekPreParser: StringPreParser
+<a name="904"></a>    doParsing(str, which) 
+<a name="905"></a>    {        
+<a name="906"></a>        local doReplacement = true;
+<a name="907"></a>        
+<a name="908"></a>        if(defined(Consultable) &amp;&amp; firstObj(Consultable))
+<a name="909"></a>        {
+<a name="910"></a>            doReplacement = nil; 
+<a name="911"></a>        }
+<a name="912"></a>        
+<a name="913"></a>        if(doReplacement &amp;&amp; rexMatch(pat, str))  
+<a name="914"></a>           str = rexReplace(pat, str, 'seek', ReplaceOnce); 
+<a name="915"></a>        
+<a name="916"></a>        return str;
+<a name="917"></a>    }
+<a name="918"></a>    pat = static new RexPattern('^&lt;NoCase&gt;(find|look for|search for|hunt for)')
+<a name="919"></a>;
+<a name="920"></a>
+<a name="921"></a>/*  
+<a name="922"></a> *   SeekAction is designed to handle of commands FIND X, LOOK FOR Y or 
+<a name="923"></a> *   SEARCH FOR Z, when they don't seem to be intended as attempts to look 
+<a name="924"></a> *   something up in a Consultable. We make it a TopicAction so that it will 
+<a name="925"></a> *   match whatever the player types, and so not give away any premature 
+<a name="926"></a> *   spoilery information by the nature of the parser's response.
+<a name="927"></a> *
+<a name="928"></a> *   The appropriate response then depends on the player character's state of
+<a name="929"></a> *   knowledge. In the most general case the player is simply given 
+<a name="930"></a> *   instructions on how to go about looking for things. This hardly seems 
+<a name="931"></a> *   appropriate, however if the object requested is in plain sight, in 
+<a name="932"></a> *   which case we point this out to the player. As a courtesy to the 
+<a name="933"></a> *   player, we also remind him or her of where an object was last seen, if 
+<a name="934"></a> *   it has been seen.
+<a name="935"></a> *
+<a name="936"></a> *   One or two complications need to be dealt with. If the player finds 
+<a name="937"></a> *   something like FIND SMELL or FIND NOISE then we should describe it as 
+<a name="938"></a> *   having been smelt or heard elsewhere, not seen. We also want to make 
+<a name="939"></a> *   sure that the command never matches an Unthing in preference to a 
+<a name="940"></a> *   Thing, and that if an Unthing is matched it is not described as being 
+<a name="941"></a> *   present.
+<a name="942"></a> */    
+<a name="943"></a>
+<a name="944"></a>DefineTopicAction(Seek)
+<a name="945"></a>    execAction(cmd)
+<a name="946"></a>    {
+<a name="947"></a>        local obj = getBestMatch(cmd);
+<a name="948"></a>        gMessageParams(obj);
+<a name="949"></a>        if(obj &amp;&amp; obj.ofKind(Unthing))
+<a name="950"></a>        {
+<a name="951"></a>            say(obj.notImportantMsg);
+<a name="952"></a>            return;
+<a name="953"></a>        }
+<a name="954"></a>           
+<a name="955"></a>        if(obj == gPlayerChar)
+<a name="956"></a>        {
+<a name="957"></a>            "If you've managed to lose your player character, things must be
+<a name="958"></a>            desperate! But don't worry, {I}{\'m} right {here}. ";
+<a name="959"></a>            return;
+<a name="960"></a>        }
+<a name="961"></a>        
+<a name="962"></a>        if(obj &amp;&amp; obj.ofKind(Thing) &amp;&amp; gActor.hasSeen(obj))
+<a name="963"></a>        {
+<a name="964"></a>            local loc = obj.location;
+<a name="965"></a>            if(loc == nil)
+<a name="966"></a>            {
+<a name="967"></a>                if(obj.isIn(gActor.getOutermostRoom))
+<a name="968"></a>                    loc = gActor.getOutermostRoom;
+<a name="969"></a>                else if(obj.ofKind(MultiLoc) &amp;&amp; obj.locationList.length &gt; 0)
+<a name="970"></a>                    loc = obj.locationList[1];
+<a name="971"></a>            }
+<a name="972"></a>            
+<a name="973"></a>            
+<a name="974"></a>            if(obj.isIn(gActor))
+<a name="975"></a>                "{I} {am} carrying {him obj}. ";
+<a name="976"></a>            else if(gActor.canSee(obj) &amp;&amp; loc != nil)
+<a name="977"></a>            {
+<a name="978"></a>                "{The subj obj} {is} ";
+<a name="979"></a>                if(loc == gActor.getOutermostRoom)
+<a name="980"></a>                    "right {here}. ";
+<a name="981"></a>                else 
+<a name="982"></a>                    "&lt;&lt;obj.isIn(gActor.getOutermostRoom) ? '' : 'nearby, '&gt;&gt;
+<a name="983"></a>                    &lt;&lt;locDesc(obj, loc)&gt;&gt;. ";
+<a name="984"></a>            }
+<a name="985"></a>            else
+<a name="986"></a>                "{I} {|had} last &lt;&lt;senseDesc(obj)&gt;&gt; {the obj}
+<a name="987"></a>                &lt;&lt;locDesc(obj, obj.lastSeenAt)&gt;&gt;. ";
+<a name="988"></a>        }
+<a name="989"></a>        else
+<a name="990"></a>            "If you want to find something you can\'t see, you'll have to hunt
+<a name="991"></a>            for it. If you think it may be in your current location, try
+<a name="992"></a>            examining things, searching things, opening things that open, or
+<a name="993"></a>            looking in, under and behind things. If what you\'re looking for
+<a name="994"></a>            could be elsewhere, you may have to go elsewhere to find it. ";
+<a name="995"></a>           
+<a name="996"></a>    }
+<a name="997"></a>    
+<a name="998"></a>    /* 
+<a name="999"></a>     *   gTopic.getBestMatch() may not give the best results for our 
+<a name="1000"></a>     *   purposes. The following code is designed to prefer Things to 
+<a name="1001"></a>     *   Unthings, and then to prioritize what the player char can see over 
+<a name="1002"></a>     *   what s/he has seen, and both over what s/he only knows about. If 
+<a name="1003"></a>     *   none of these find a match, we then revert to gTopic.getBestMatch.
+<a name="1004"></a>     */
+<a name="1005"></a>    
+<a name="1006"></a>    getBestMatch(cmd)
+<a name="1007"></a>    {
+<a name="1008"></a>        local lst = cmd.dobj.topicList;
+<a name="1009"></a>        
+<a name="1010"></a>        /* 
+<a name="1011"></a>         *   First see if our topic list includes anything the actor can see
+<a name="1012"></a>         *   that's not an Unthing.
+<a name="1013"></a>         */
+<a name="1014"></a>        local obj = lst.valWhich({x: x.ofKind(Thing) &amp;&amp; gActor.canSee(x) 
+<a name="1015"></a>                                 &amp;&amp; !x.ofKind(Unthing)});
+<a name="1016"></a>        if(obj != nil)
+<a name="1017"></a>            return obj;
+<a name="1018"></a>        
+<a name="1019"></a>        /* 
+<a name="1020"></a>         *   Next see if there's anything in our topic list that the actor has
+<a name="1021"></a>         *   previously seen.
+<a name="1022"></a>         */
+<a name="1023"></a>        obj = lst.valWhich({x: gActor.hasSeen(x) &amp;&amp; !x.ofKind(Unthing)});
+<a name="1024"></a>        if(obj != nil)
+<a name="1025"></a>            return obj;
+<a name="1026"></a>        
+<a name="1027"></a>        /* 
+<a name="1028"></a>         *   Next see if there's anything in our topic list that the actor
+<a name="1029"></a>         *   knows about.
+<a name="1030"></a>         */
+<a name="1031"></a>        obj = lst.valWhich({x: x.ofKind(Thing) &amp;&amp; gActor.knowsAbout(x)});        
+<a name="1032"></a>        
+<a name="1033"></a>        if(obj != nil)
+<a name="1034"></a>            return obj;
+<a name="1035"></a>        
+<a name="1036"></a>        /* 
+<a name="1037"></a>         *   Finally, if all else fails, just return the ResolvedTopic's idea of
+<a name="1038"></a>         *   a best match.
+<a name="1039"></a>         */   
+<a name="1040"></a>        return cmd.dobj.getBestMatch();
+<a name="1041"></a>        
+<a name="1042"></a>    }
+<a name="1043"></a>    
+<a name="1044"></a>    locDesc(obj, loc)
+<a name="1045"></a>    {
+<a name="1046"></a>        if(obj.ofKind(Noise) || obj.ofKind(Odor))
+<a name="1047"></a>            "coming from &lt;&lt;loc.theName&gt;&gt;";       
+<a name="1048"></a>        else
+<a name="1049"></a>            "&lt;&lt;loc.objInName&gt;&gt;";
+<a name="1050"></a>    }
+<a name="1051"></a>    
+<a name="1052"></a>    senseDesc(obj)
+<a name="1053"></a>    {
+<a name="1054"></a>        if(obj.ofKind(Noise))
+<a name="1055"></a>            return 'heard';
+<a name="1056"></a>        if(obj.ofKind(Odor))
+<a name="1057"></a>            return 'smelt';
+<a name="1058"></a>        return '{saw|seen}';           
+<a name="1059"></a>    }
+<a name="1060"></a> 
+<a name="1061"></a>;
+<a name="1062"></a>
+<a name="1063"></a>VerbRule(Seek)
+<a name="1064"></a>    ('seek' | ('hunt' 'for')) topicDobj
+<a name="1065"></a>    : VerbProduction
+<a name="1066"></a>    action = Seek
+<a name="1067"></a>    verbPhrase = 'seek/seeking (what)'
+<a name="1068"></a>    missingQ = 'what do you want to seek'
+<a name="1069"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

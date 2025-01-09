@@ -1,0 +1,91 @@
+<html>
+<head><link rel=stylesheet type="text/css" href="../libref.css"><title>Parser</title></head><body>
+<table class=ban><tr><td align=left><span class=title>Parser</span><span class=type>class</span><td align=right><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#66">66</a>], <a href="../file/cmdhelp.t.html">cmdhelp.t</a>[<a href="../source/cmdhelp.t.html#17">17</a>]</table><p>
+<table class=nav><tr>
+<td><a href="#_SuperClassTree_">Superclass<br>Tree</a>
+<td><a href="#_SubClassTree_">Subclass<br>Tree</a>
+<td><a href="#_ObjectSummary_">Global<br>Objects</a>
+<td><a href="#_PropSummary_">Property<br>Summary</a>
+<td><a href="#_MethodSummary_">Method<br>Summary</a>
+<td><a href="#_Properties_">Property<br>Details</a>
+<td><a href="#_Methods_">Method<br>Details</a>
+</table><div class=fdesc>
+   Parser is the class that implements the main parsing procedure, namely   taking a line of text from the player, figuring out what it means, and   executing it. <p>   The conventional IF parsing loop simply consists of reading a line of   text from the player, calling Parser.parse() on the string, and   repeating. <p>   In most cases you'll just need a single Parser instance.  The Parser   object keeps track of unfinished commands, such as when we need to ask   for disambiguation help or for a missing object.  If for some reason   you want to keep multiple sets of this kind of state (reading input   from more than one player, for example), you can create as many Parser   instances as needed. 
+<p><i>Modified in <a href="../file/cmdhelp.t.html">cmdhelp.t</a>[<a href="../source/cmdhelp.t.html#17">17</a>]:</i><br>
+Modifications to Parser for CMDHELP EXTENSION
+<p>
+<code>class 
+<b>Parser</b> :  &nbsp; object</code>
+</div>
+<a name="_SuperClassTree_"></a><p><div class=mjhd><span class=hdln>Superclass Tree</span> &nbsp; (in declaration order)</div><p>
+<code><b>Parser</b></code><br>
+<code> &nbsp; &nbsp; &nbsp; &nbsp; object</code><br>
+<a name="_SubClassTree_"></a><p><div class=mjhd><span class=hdln>Subclass Tree</span> &nbsp; </div><p>
+<i>(none)</i>
+<a name="_ObjectSummary_"></a><p><div class=mjhd><span class=hdln>Global Objects</span> &nbsp; </div><p>
+<i>(none)</i>
+<a name="_PropSummary_"></a><p><div class=mjhd><span class=hdln>Summary of Properties</span> &nbsp; </div><p>
+<code>
+<a href="#autoHelp">autoHelp</a>&nbsp; 
+<a href="#autoLook">autoLook</a>&nbsp; 
+<a href="#autoSpell">autoSpell</a>&nbsp; 
+<a href="#DefaultAction">DefaultAction</a>&nbsp; 
+<a href="#defaultActions">defaultActions</a>&nbsp; 
+<a href="#lastTokens">lastTokens</a>&nbsp; 
+<a href="#question">question</a>&nbsp; 
+<a href="#showUnknownWords">showUnknownWords</a>&nbsp; 
+<a href="#spellTimeLimit">spellTimeLimit</a>&nbsp; 
+</code><p>
+<a name="_MethodSummary_"></a><p><div class=mjhd><span class=hdln>Summary of Methods</span> &nbsp; </div><p>
+<code>
+<a href="#emptyCommand">emptyCommand</a>&nbsp; 
+<a href="#parse">parse</a>&nbsp; 
+<a href="#rmcType">rmcType</a>&nbsp; 
+<a href="#updateVocab">updateVocab</a>&nbsp; 
+</code><p>
+<a name="_Properties_"></a><p><div class=mjhd><span class=hdln>Properties</span> &nbsp; </div><p>
+<a name="autoHelp"></a>
+<table class=decl><tr><td><code>autoHelp</code><td align=right><code><a href="../file/cmdhelp.t.html">cmdhelp.t</a>[<a href="../source/cmdhelp.t.html#37">37</a>]</table><div class=desc>   Flag: Do we want to show a menu of command options in response to an   empty command? By default we do since that's the purpose of this   CMDHELP EXTENSION. <p>
+</div>
+<a name="autoLook"></a>
+<table class=decl><tr><td><code>autoLook</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#95">95</a>]</table><div class=desc>   Auto-Look: Should we treat an empty command line (i.e., the user   just presses Return) as a LOOK AROUND command? <p>   The traditional handling since the Infocom era has always been to   treat an empty command line as a parsing error, and display an   error message along the lines of "I beg your pardon?".  Given that   an empty command line has no conflicting meaning, though, we   *could* assign it a meaning. <p>   But what meaning should that be?  A blank line is the simplest   possible command for a player to enter, so it would make sense to   define it as some very commonly used command.  It's also fairly   easy to enter a blank line accidentally (which is partly why the   traditional reply is an error message), so the command should be   benign - it shouldn't be a problem to enter it unintentionally.   It can't be anything with parallel verbs, like NORTH, since then   there'd be no good reason to pick NORTH instead of, say, SOUTH.   Finally, it has to be intransitive, since it obviously won't   involve an object name.  The obvious candidates that fit all of   these criteria are LOOK and INVENTORY.  LOOK is probably the more   useful and the more frequently used of the two, so it's the one we   choose by default. <p>   If this property is set to true, we'll perform a LOOK AROUND   command when the player enters a blank command line.  If nil,   we'll show an error message. <p>
+</div>
+<a name="autoSpell"></a>
+<table class=decl><tr><td><code>autoSpell</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#132">132</a>]</table><div class=desc>   Should we attempt automatic spelling correction?  If this is true, whenever a command   fails, we'll check for a word that we don't recognize; if we find one, we'll try applying   spelling correction to see if we can come up with a working command. <p>   Our spelling correction algorithm is designed to be quite conservative.  In particular, we   generally limit candidates for "correct" words to the vocabulary for objects that are   actually in scope, which avoids revealing the existence of objects that haven't been seen   yet; and we only apply a correction when it yields a command that parses and resolves   correctly.  When we can't correct a command and get something resolvable, we don't even   mention that we tried.  This avoids the bizarre, random guesses at "corrections" that often   show up in other applications, and more importantly avoids giving away information that the   player shouldn't know yet. <p>   We set this to true by default, in an attempt to reduce the player's typing workload by   automatically correcting simple typos when possible.  If for some reason the spelling   corrector is problematic in a particular game, you can disable it by setting this property   to nil. <p>   As an experiment, change the default value to be nil when we're in a conversation and true   otherwise, since over-zealous spelling corrections can be particularly troublesome in a   conversational context. <p>
+</div>
+<a name="DefaultAction"></a>
+<table class=decl><tr><td><code>DefaultAction</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#780">780</a>]</table><div class=desc>   The action to be tried if the parser can't find a verb in the command   line and tries to parse the command line as the single object of a   DefaultAction command instead. <p>
+</div>
+<a name="defaultActions"></a>
+<table class=decl><tr><td><code>defaultActions</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#107">107</a>]</table><div class=desc>   Default Actions: Should we treat a command line that consists entirely   of a single noun phrase to be a "Default Action" on the named object?   The precise meaning of the default action varies by object.  For most   objects, it's EXAMINE.  For locations, it's GO TO. <p>   We make the default value nil since setting it to true can result in   some rather odd parser behaviour. <p>
+</div>
+<a name="lastTokens"></a>
+<table class=decl><tr><td><code>lastTokens</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#737">737</a>]</table><div class=desc>   The token list from the last command, if an error occurred.  This   is the token list that we'll retry if the player enters an OOPS   command. <p>
+</div>
+<a name="question"></a>
+<table class=decl><tr><td><code>question</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#747">747</a>]</table><div class=desc>   The outstanding Question object.  When we ask an interactive   question (such as a disambiguation query, a missing noun phrase   query, or a custom question from the game), this is set to the   Question waiting to be answered.  We parse the next command   against the Question to see if it's a reply, and if so we execute   the reply. <p>
+</div>
+<a name="showUnknownWords"></a>
+<table class=decl><tr><td><code>showUnknownWords</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#199">199</a>]</table><div class=desc>   When the parser doesn't recognize a word, should it say so?  If   this property is set to true, when parsing fails, we'll scan the   command line for a word that's not in the dictionary and show a   message such as "I don't know the word &lt;foo&gt;."  If this property   is nil, the parser will instead simply say that it doesn't   recognize the syntax, or that the object in question isn't   present, without saying specifically which word wasn't recognized,   or indeed even admitting that there was such a thing. <p>   There are two schools of thought on this, both concerned with   optimizing the user experience. <p>   The first school holds that the parser's job is to be as helpful   as possible.  First and foremost, that means we should understand   the user's input as often as possible.  But when we can't, it   means that we should be do our best to explain what we didn't   understand, to help the user formulate a working command next   time.  In the case of a word the parser doesn't recognize, we can   be pretty sure that the unknown word is the reason we can't   understand the input.  The best way to help the user correct the   problem is to let them know exactly which word we didn't know,   rather than make them guess at what we didn't understand.  This is   the way the classic Infocom games worked, and it's the traditional   TADS default as well. <p>   The second school holds that the user's overriding interest is   maintaining suspension of disbelief, and that the parser should do   its best not to interfere with that.  A major aspect of this in IF   the illusion that the game world is as boundless as the real   world.  Missing dictionary words tend to break this illusion: if   the user types EXAMINE ZEBRA, and the parser replies that it   doesn't know the word "zebra", we've suddenly exposed a limit of   the game world.  If we instead play coy and simply say that   there's no zebra currently present, we allow the player to imagine   that a zebra might yet turn up.  This is the way Inform games   typically work. <p>   Each approach has its advantages and disadvantages, adherents and   detractors, and it seems that neither one is objectively "right".   It comes down to taste.  But there seems to be a clear preference   among the majority of players in the modern era for the second   approach.  The key factor is probably that typical IF commands are   so short that it's easy enough to spot a typo without help from   the parser, so the clarity benefits of "unknown word" messages   seem considerably outweighed by the harm they do to the illusion   of boundlessness.  So, our default is the second option, playing   coy. <p>
+</div>
+<a name="spellTimeLimit"></a>
+<table class=decl><tr><td><code>spellTimeLimit</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#148">148</a>]</table><div class=desc>   Maximum spelling correction time, in milliseconds.  The spelling   correction process is iterative, and each iteration involves a new   parsing attempt.  On a fast machine this doesn't tend to be   noticeable, but it's conceivable that a pathological case could   involve a large number of attempts that could be noticeably slow   on an older machine.  To avoid stalling the game while we   overanalyze the spelling possibilities, we set an upper bound to   the actual elapsed time for spelling correction.  Each time we   consider a new correction candidate, we'll check the elapsed time,   and abort the process if it exceeds this limit.  Note that this   limit doesn't limit the parsing time itself - we'll never   interrupt that mid-stream. <p>
+</div>
+<a name="_Methods_"></a><p><div class=mjhd><span class=hdln>Methods</span> &nbsp; </div><p>
+<a name="emptyCommand"></a>
+<table class=decl><tr><td><code>emptyCommand ( )</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#756">756</a>], <a href="../file/cmdhelp.t.html">cmdhelp.t</a>[<a href="../source/cmdhelp.t.html#24">24</a>]</table><div class=desc>   Execute an empty command line.  The parse() routine calls this   when given a blank command line (i.e., the user simply pressed the   Return key).  By default, we execute a Look Around command if   autoLook is enabled, otherwise we show the "I beg your pardon"   error. <p>
+<p><i>Modified in <a href="../file/cmdhelp.t.html">cmdhelp.t</a>[<a href="../source/cmdhelp.t.html#24">24</a>]:</i><br>
+   Overridden for CMDHELP EXTENSION. If our autoHelp property is true then   respond to an empty command by displaying a brief menu of command   options. <p>
+</div>
+<a name="parse"></a>
+<table class=decl><tr><td><code>parse (str)</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#211">211</a>]</table><div class=desc>   Parse and execute a command line.  This is the main parsing   routine.  We take the text of a command line, parse it against the   grammar defined in the language module, resolve the noun phrases   to game-world objects, and execute the action.  If the command   line has more than one verb phrase, we repeat the process for each   one. <p>   'str' is the text of the command line, as entered by the player. <p>
+</div>
+<a name="rmcType"></a>
+<table class=decl><tr><td><code>rmcType ( )</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#783">783</a>]</table><div class=desc>Return an rmcXXXX enum code depending on the state of Parser.question<p>
+</div>
+<a name="updateVocab"></a>
+<table class=decl><tr><td><code>updateVocab ( )</code><td align=right><code><a href="../file/parser.t.html">parser.t</a>[<a href="../source/parser.t.html#813">813</a>]</table><div class=desc>   Update the vocabulary of items in the game for which it might vary; specifically those with   an altVocab defined. <p>
+</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

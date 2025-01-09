@@ -1,0 +1,273 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>viewport.t</title></head><body>
+<table class=ban><tr><td><h1>viewport.t</h1><td align=right><a href="../file/viewport.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include "advlite.h"
+<a name="5"></a>
+<a name="6"></a>/* 
+<a name="7"></a> *   VIEWPORT EXTENSION
+<a name="8"></a> *
+<a name="9"></a> *   Adds the Viewport mix-in class to adv3Lite
+<a name="10"></a> *
+<a name="11"></a> *   A Viewport is an object that allows you to look into one room from another
+<a name="12"></a> *   when you examine it or look through it (say); this can be used to model
+<a name="13"></a> *   windows or CCTV monitors and the like.
+<a name="14"></a> *
+<a name="15"></a> *   VERSION 1
+<a name="16"></a> *.  27-Jul-13
+<a name="17"></a> *
+<a name="18"></a> *   Usage: include this extension after the adv3Lite library but before your
+<a name="19"></a> *   own game-specific files. The senseRegion.t module must also be present.
+<a name="20"></a> */
+<a name="21"></a>
+<a name="22"></a>
+<a name="23"></a>viewportID: ModuleID
+<a name="24"></a>    name = 'Viewport'
+<a name="25"></a>    byline = 'by Eric Eve'
+<a name="26"></a>    htmlByline = 'by Eric Eve'
+<a name="27"></a>    version = '1'    
+<a name="28"></a>;
+<a name="29"></a>
+<a name="30"></a>/*  
+<a name="31"></a> *   Viewport is a mix-in class which can be added to an object representing a
+<a name="32"></a> *   window or TV screen or the like to describe the remote location viewable
+<a name="33"></a> *   via the viewport.
+<a name="34"></a> *   [DEFINED ON VIEWPORT EXTENSION]
+<a name="35"></a> */
+<a name="36"></a>class Viewport: object   
+<a name="37"></a>    
+<a name="38"></a>    /* 
+<a name="39"></a>     *   Method to display a description of the rooms and contents visible by
+<a name="40"></a>     *   means of me. [VIEWPORT EXTENSION]
+<a name="41"></a>     */
+<a name="42"></a>    describeVisibleRooms()
+<a name="43"></a>    {
+<a name="44"></a>       
+<a name="45"></a>        foreach(local rm in valToList(visibleRooms))
+<a name="46"></a>        {
+<a name="47"></a>            rm.describeRemotely();
+<a name="48"></a>            
+<a name="49"></a>            /*  Note that this room has now been viewed. */
+<a name="50"></a>            getOutermostRoom.roomsViewed = 
+<a name="51"></a>                getOutermostRoom.roomsViewed.appendUnique([rm]);
+<a name="52"></a>        }
+<a name="53"></a>        
+<a name="54"></a>    }
+<a name="55"></a>        
+<a name="56"></a>    /* 
+<a name="57"></a>     *   A list of rooms that are made visible by looking through or at this
+<a name="58"></a>     *   viewport. [VIEWPORT EXTENSION]
+<a name="59"></a>     */
+<a name="60"></a>    visibleRooms = []  
+<a name="61"></a>    
+<a name="62"></a>    
+<a name="63"></a>    /*   Set the list of visible rooms to lst [VIEWPORT EXTENSION] */
+<a name="64"></a>    setRooms(lst)
+<a name="65"></a>    {
+<a name="66"></a>        /* Ensure that lst is actually a list. */
+<a name="67"></a>        lst = valToList(lst);
+<a name="68"></a>        
+<a name="69"></a>        local loc = getOutermostRoom();
+<a name="70"></a>        
+<a name="71"></a>        /* 
+<a name="72"></a>         *   Provided we have an outermost room, set its roomsViewed property to
+<a name="73"></a>         *   the list of rooms roomsViewed has in common with list; this ensures
+<a name="74"></a>         *   that only those rooms that this Viewport continues to overlook
+<a name="75"></a>         *   remain in scope.
+<a name="76"></a>         */
+<a name="77"></a>        if(loc)
+<a name="78"></a>            loc.roomsViewed = loc.roomsViewed.intersect(lst);
+<a name="79"></a>        
+<a name="80"></a>        /* Change the list of visible rooms to lst. */
+<a name="81"></a>        visibleRooms = lst;
+<a name="82"></a>    }
+<a name="83"></a>    
+<a name="84"></a>    
+<a name="85"></a>    /*   
+<a name="86"></a>     *   Flag: can I see into the visibleRooms by looking through this object?
+<a name="87"></a>     *   This should normally be true for a window-type object but probably nil
+<a name="88"></a>     *   for a CCTV monitor. {VIEWPORT EXTENSION]
+<a name="89"></a>     */
+<a name="90"></a>    lookThroughToView = true
+<a name="91"></a>    
+<a name="92"></a>    /*   
+<a name="93"></a>     *   Flag: should examining this object display a description of the visible
+<a name="94"></a>     *   rooms and their contents? By default it should. [VIEWPORT EXTENSION]
+<a name="95"></a>     */
+<a name="96"></a>    examineToView = true
+<a name="97"></a>    
+<a name="98"></a>    /*  
+<a name="99"></a>     *   Is the Viewport currently available for viewing through (it may not be
+<a name="100"></a>     *   if windows cover the curtain, or the CCTV screen has been turned off).
+<a name="101"></a>	 *   [VIEWPORT EXTENSION]
+<a name="102"></a>     */
+<a name="103"></a>    isViewing = true
+<a name="104"></a>    
+<a name="105"></a>	/*
+<a name="106"></a>	 *  For the VIEWPORT EXTENSION add desribing rooms visible through this viewport 
+<a name="107"></a>	 *  to the inherited behaviour 
+<a name="108"></a>	 */
+<a name="109"></a>    dobjFor(LookThrough)
+<a name="110"></a>    {
+<a name="111"></a>        action()
+<a name="112"></a>        {
+<a name="113"></a>            if(lookThroughToView &amp;&amp; isViewing)
+<a name="114"></a>                describeVisibleRooms();
+<a name="115"></a>            else
+<a name="116"></a>                inherited;
+<a name="117"></a>        }
+<a name="118"></a>    }
+<a name="119"></a>    
+<a name="120"></a>    /* 
+<a name="121"></a>     *   If examining this Viewport should describe what it shows, add a
+<a name="122"></a>     *   description of the rooms it overlooks. [VIEWPORT EXTENSION]
+<a name="123"></a>     */
+<a name="124"></a>    examineStatus()
+<a name="125"></a>    {
+<a name="126"></a>       if(examineToView &amp;&amp; isViewing)
+<a name="127"></a>            describeVisibleRooms();
+<a name="128"></a>        else
+<a name="129"></a>            inherited;       
+<a name="130"></a>    }        
+<a name="131"></a>;
+<a name="132"></a>
+<a name="133"></a>/*  
+<a name="134"></a> *   A SwitchableViewport is one that only brings its remote rooms into view
+<a name="135"></a> *   when it's switched on. [DEFINED ON VIEWPORT EXTENSION]
+<a name="136"></a> */
+<a name="137"></a>class SwitchableViewport: Viewport
+<a name="138"></a>    isSwitchable = true
+<a name="139"></a>    isViewing = (isOn)
+<a name="140"></a>    
+<a name="141"></a>    makeOn(stat)
+<a name="142"></a>    {
+<a name="143"></a>        /* 
+<a name="144"></a>         *   When we turn a SwitchableViewport off we must remove its list from
+<a name="145"></a>         *   rooms viewed from its locations list of visibleRooms, since they're
+<a name="146"></a>         *   no longer visible.
+<a name="147"></a>         */
+<a name="148"></a>        if(!stat)
+<a name="149"></a>            getOutermostRoom.roomsViewed -= visibleRooms;
+<a name="150"></a>        
+<a name="151"></a>        inherited(stat);
+<a name="152"></a>    }
+<a name="153"></a>    
+<a name="154"></a>    /* 
+<a name="155"></a>     *   Since a SwitchableViewport will typically be used to implement
+<a name="156"></a>     *   something like a CCTV screen, by default it's not something we'd look
+<a name="157"></a>     *   through in order to view the remote locations.
+<a name="158"></a>     */
+<a name="159"></a>    lookThroughToView = nil
+<a name="160"></a>;
+<a name="161"></a>
+<a name="162"></a>
+<a name="163"></a>/*  Modifications to Room class for VIEWPORT EXTENSION */
+<a name="164"></a>modify Room
+<a name="165"></a>    /* 
+<a name="166"></a>     *   The roomRemoteDesc() is the description of the room as seen via a
+<a name="167"></a>     *   Viewport from pov. [DEFINED ON VIEWPORT EXTENSION]
+<a name="168"></a>     */
+<a name="169"></a>    roomRemoteDesc(pov) {  }
+<a name="170"></a>    
+<a name="171"></a>    /*   
+<a name="172"></a>     *   The list of rooms viewed from Viewports from within this room. This
+<a name="173"></a>     *   enables the player to refer to objects in rooms that have been viewed.
+<a name="174"></a>     *   [DEFINED ON VIEWPORT EXTENSION]
+<a name="175"></a>     */
+<a name="176"></a>    roomsViewed = []
+<a name="177"></a>    
+<a name="178"></a>    /*  
+<a name="179"></a>     *   Reset the list of rooms viewed when the player character leaves the
+<a name="180"></a>     *   room. [MODIFIED FOR VIEWPORT EXTENSION]
+<a name="181"></a>     */
+<a name="182"></a>    notifyDeparture(traveler, dest)
+<a name="183"></a>    {
+<a name="184"></a>        inherited(traveler, dest);
+<a name="185"></a>        
+<a name="186"></a>        if(traveler == gPlayerChar)
+<a name="187"></a>            roomsViewed = [];
+<a name="188"></a>    }
+<a name="189"></a>    
+<a name="190"></a>    /*  
+<a name="191"></a>     *   Once the player character has viewed remote rooms and their contents
+<a name="192"></a>     *   via a Viewport, the player may want to refer to them in commands, if
+<a name="193"></a>     *   only to examine them, so we need to add them to scope.
+<a name="194"></a>     *   [MODIFIED FOR VIEWPORT EXTENSION]
+<a name="195"></a>     */
+<a name="196"></a>    addExtraScopeItems(action)
+<a name="197"></a>    {
+<a name="198"></a>        inherited(action);
+<a name="199"></a>        
+<a name="200"></a>        local remotes = new Vector(10);
+<a name="201"></a>        
+<a name="202"></a>        foreach(local rm in valToList(roomsViewed))
+<a name="203"></a>        {
+<a name="204"></a>            remotes.appendAll(rm.allContents.subset(
+<a name="205"></a>                {o: o.isVisibleFrom(gActor) }));
+<a name="206"></a>            
+<a name="207"></a>            remotes.append(rm);
+<a name="208"></a>        }
+<a name="209"></a>        
+<a name="210"></a>        action.scopeList = action.scopeList.appendUnique(remotes);                           
+<a name="211"></a>    }
+<a name="212"></a>    
+<a name="213"></a>    /*  [MODIFIED FOR VIEWPORT EXTENSION] */
+<a name="214"></a>    dobjFor(Examine)
+<a name="215"></a>    {
+<a name="216"></a>        action()
+<a name="217"></a>        {
+<a name="218"></a>            if(gActor.isIn(self))
+<a name="219"></a>                inherited;
+<a name="220"></a>            else
+<a name="221"></a>                describeRemotely();
+<a name="222"></a>        }
+<a name="223"></a>        
+<a name="224"></a>    }
+<a name="225"></a>    
+<a name="226"></a>    /* 
+<a name="227"></a>     *  [DEFINED ON VIEWPORT EXTENSION] Used for describing a Room when seen through
+<a name="228"></a>     *  a Viewport.
+<a name="229"></a>     */
+<a name="230"></a>    describeRemotely()
+<a name="231"></a>    {
+<a name="232"></a>        /* Begin by showing the room's roomRemoteDes() */
+<a name="233"></a>        roomRemoteDesc(gActor);
+<a name="234"></a>        
+<a name="235"></a>        /* 
+<a name="236"></a>         *   Unmention all the room's contents so they will be included in any
+<a name="237"></a>         *   listing of contents.
+<a name="238"></a>         */
+<a name="239"></a>        unmention(allContents);
+<a name="240"></a>        
+<a name="241"></a>        /*   Display a list of the room's contents. */
+<a name="242"></a>        showFirstRemoteSpecials(gActor);
+<a name="243"></a>        showRemoteMiscContents(gActor);
+<a name="244"></a>        showSecondRemoteSpecials(gActor);
+<a name="245"></a>    }
+<a name="246"></a>;
+<a name="247"></a>
+<a name="248"></a>/* 
+<a name="249"></a> *   This Special allows the player character to see objects in remote rooms
+<a name="250"></a> *   once they have been viewed via a Viewport. [DEFINED ON VIEWPORT EXTENSION]
+<a name="251"></a> */
+<a name="252"></a>QViewport: Special
+<a name="253"></a>   /*
+<a name="254"></a>    * When the VIEWPORT EXTENSION is in use, make objects in remote rooms visisble
+<a name="255"></a>	* once they have been viewed via a Viewport. 
+<a name="256"></a> 	*/
+<a name="257"></a>    canSee(a, b)
+<a name="258"></a>    {
+<a name="259"></a>        local ar = a.getOutermostRoom, br = b.getOutermostRoom;
+<a name="260"></a>        if(ar &amp;&amp; ar.roomsViewed.indexOf(br) &amp;&amp; b.isVisibleFrom(a))
+<a name="261"></a>            return true;
+<a name="262"></a>        
+<a name="263"></a>        return next();
+<a name="264"></a>    }
+<a name="265"></a>    priority = 4
+<a name="266"></a>    active = true
+<a name="267"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

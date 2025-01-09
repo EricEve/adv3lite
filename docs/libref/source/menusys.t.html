@@ -1,0 +1,500 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>menusys.t</title></head><body>
+<table class=ban><tr><td><h1>menusys.t</h1><td align=right><a href="../file/menusys.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/*
+<a name="4"></a> *   TADS 3 Library - Menu System
+<a name="5"></a> *   
+<a name="6"></a> *   Copyright 2003 by Stephen Granade
+<a name="7"></a> *.  Modifications copyright 2003, 2010 Michael J. Roberts
+<a name="8"></a> *   
+<a name="9"></a> *   This module is designed to make it easy to add on-screen menu trees to
+<a name="10"></a> *   a game.  Note that we're not using the term "menu" in its modern GUI
+<a name="11"></a> *   sense of a compact, mouse-driven pop-up list.  The style of menu we
+<a name="12"></a> *   implement is more like the kind you'd find in old character-mode
+<a name="13"></a> *   terminal programs, where a list of text items takes over the main
+<a name="14"></a> *   window contents.
+<a name="15"></a> *   
+<a name="16"></a> *   Note that in plain-text mode (for interpreters without banner
+<a name="17"></a> *   capabilities), a menu won't be fully usable if it exceeds nine
+<a name="18"></a> *   subitems: each item in a menu is numbered, and the user selects an
+<a name="19"></a> *   item by entering its number; but we only accept a single digit as
+<a name="20"></a> *   input, so only items 1 through 9 can be selected on any given menu.
+<a name="21"></a> *   In practice you probably wouldn't want to create larger menus anyway,
+<a name="22"></a> *   for usability reasons, but this is something to keep in mind.  If you
+<a name="23"></a> *   need more items, you can group some of them into a submenu.
+<a name="24"></a> *   
+<a name="25"></a> *   The user interface for the menu system is implemented in menucon.t for
+<a name="26"></a> *   traditional console interpreter, and in menuweb.t for the Web UI.
+<a name="27"></a> *   
+<a name="28"></a> *   Stephen Granade adapted this module from his TADS 2 menu system, and
+<a name="29"></a> *   Mike Roberts made some minor cosmetic changes to integrate it with the
+<a name="30"></a> *   main TADS 3 library.  
+<a name="31"></a> */
+<a name="32"></a>
+<a name="33"></a>#include "advlite.h"
+<a name="34"></a>
+<a name="35"></a>
+<a name="36"></a>/* 
+<a name="37"></a> *   General instructions:
+<a name="38"></a> *   
+<a name="39"></a> *   Menus consist of MenuItems, MenuTopicItems, and MenuLongTopicItems.
+<a name="40"></a> *   
+<a name="41"></a> *   - MenuItems are the menu (and sub-menu) items that the player will
+<a name="42"></a> *   select.  Their "title" attribute is what will be shown in the menu,
+<a name="43"></a> *   and the "heading" attribute is shown as the heading while the menu
+<a name="44"></a> *   itself is active; by default, the heading simply uses the title.
+<a name="45"></a> *   
+<a name="46"></a> *   - MenuTopicItems are for lists of topic strings that the player will
+<a name="47"></a> *   be shown, like hints. "title" is what will be shown in the menu;
+<a name="48"></a> *   "menuContents" is a list of either strings to be displayed, one at a
+<a name="49"></a> *   time, or objects which each must return a string via a "menuContents"
+<a name="50"></a> *   method.
+<a name="51"></a> *   
+<a name="52"></a> *   - MenuLongTopicItems are for longer discourses. "title" is what will
+<a name="53"></a> *   be shown in the menu; "menuContents" is either a string to be printed
+<a name="54"></a> *   or a routine to be called.
+<a name="55"></a> *   
+<a name="56"></a> *   adv3.h contains templates for MenuItems, for your convenience.
+<a name="57"></a> *   
+<a name="58"></a> *   A simple example menu:
+<a name="59"></a> *   
+<a name="60"></a> *   FirstMenu: MenuItem 'Test menu';
+<a name="61"></a> *.  + MenuItem 'Pets';
+<a name="62"></a> *.  ++ MenuItem 'Chinchillas';
+<a name="63"></a> *.  +++ MenuTopicItem 'About them'
+<a name="64"></a> *.    menuContents = ['Furry', 'South American', 'Curious',
+<a name="65"></a> *   'Note: Not a coat'];
+<a name="66"></a> *.  +++ MenuTopicItem 'Benefits'
+<a name="67"></a> *.    menuContents = ['Non-allergenic', 'Cute', 'Require little space'];
+<a name="68"></a> *.  +++ MenuTopicItem 'Downsides'
+<a name="69"></a> *.     menuContents = ['Require dust baths', 'Startle easily'];
+<a name="70"></a> *.  ++ MenuItem 'Cats';
+<a name="71"></a> *.  +++ MenuLongTopicItem 'Pure evil'
+<a name="72"></a> *.     menuContents = 'Cats are, quite simply, pure evil. I would provide
+<a name="73"></a> *.                     ample evidence were there room for it in this
+<a name="74"></a> *.                     simple example.';
+<a name="75"></a> *.  +++ MenuTopicItem 'Benefits'
+<a name="76"></a> *.    menuContents = ['They, uh, well...', 'Okay, I can\'t think of any.'];
+<a name="77"></a> */
+<a name="78"></a>
+<a name="79"></a>/* ------------------------------------------------------------------------ */
+<a name="80"></a>/*
+<a name="81"></a> *   Menu output stream.  We run topic contents through this output stream
+<a name="82"></a> *   to allow topics to use the special paragraph and style tag markups.  
+<a name="83"></a> */
+<a name="84"></a>transient menuOutputStream: OutputStream
+<a name="85"></a>    /* 
+<a name="86"></a>     *   Process a function call through the stream.  If the function
+<a name="87"></a>     *   generates any output, we capture it.  If the function simply
+<a name="88"></a>     *   returns text, we run it through the filters. 
+<a name="89"></a>     */
+<a name="90"></a>    captureOutput(val)
+<a name="91"></a>    {
+<a name="92"></a>        /* reset our buffer */
+<a name="93"></a>        buf_.deleteChars(1);
+<a name="94"></a>
+<a name="95"></a>        /* call the function while capturing its output */
+<a name="96"></a>        outputManager.withOutputStream(menuOutputStream, function()
+<a name="97"></a>        {
+<a name="98"></a>            /* if it's a function, invoke it */
+<a name="99"></a>            if (dataType(val) != TypeSString)
+<a name="100"></a>                val = val();
+<a name="101"></a>
+<a name="102"></a>            /* if we have a string, run it through my filters */
+<a name="103"></a>            if (dataType(val) == TypeSString)
+<a name="104"></a>                writeToStream(val);
+<a name="105"></a>        });
+<a name="106"></a>
+<a name="107"></a>        /* return my captured output */
+<a name="108"></a>        return toString(buf_);
+<a name="109"></a>    }
+<a name="110"></a>
+<a name="111"></a>    /* we capture our output to a string buffer */
+<a name="112"></a>    writeFromStream(txt) { buf_.append(txt); }
+<a name="113"></a>
+<a name="114"></a>    /* initialize */
+<a name="115"></a>    execute()
+<a name="116"></a>    {
+<a name="117"></a>        inherited();
+<a name="118"></a>        buf_ = new StringBuffer();
+<a name="119"></a>        addOutputFilter(typographicalOutputFilter);
+<a name="120"></a>        addOutputFilter(menuParagraphManager);
+<a name="121"></a>        addOutputFilter(styleTagFilter);
+<a name="122"></a>    }
+<a name="123"></a>
+<a name="124"></a>    /* our capture buffer (a StringBuffer object) */
+<a name="125"></a>    buf_ = nil
+<a name="126"></a>;
+<a name="127"></a>
+<a name="128"></a>/*
+<a name="129"></a> *   Paragraph manager for the menu output stream. 
+<a name="130"></a> */
+<a name="131"></a>transient menuParagraphManager: ParagraphManager
+<a name="132"></a>;
+<a name="133"></a>
+<a name="134"></a>/* ------------------------------------------------------------------------ */
+<a name="135"></a>/*
+<a name="136"></a> *   A basic menu object.  This is an abstract base class that
+<a name="137"></a> *   encapsulates some behavior common to different menu classes, and
+<a name="138"></a> *   allows the use of the + syntax (like "+ MenuItem") to define
+<a name="139"></a> *   containment.
+<a name="140"></a> */
+<a name="141"></a>class MenuObject: object
+<a name="142"></a>    /* our contents list */
+<a name="143"></a>    contents = []
+<a name="144"></a>
+<a name="145"></a>    /* 
+<a name="146"></a>     *   Since we're inheriting from object, but need to use the "+"
+<a name="147"></a>     *   syntax, we need to set up the contents appropriately
+<a name="148"></a>     */
+<a name="149"></a>    initializeLocation()
+<a name="150"></a>    {
+<a name="151"></a>        if (location != nil)
+<a name="152"></a>            location.addToContents(self);
+<a name="153"></a>    }
+<a name="154"></a>
+<a name="155"></a>    /* add a menu item */
+<a name="156"></a>    addToContents(obj)
+<a name="157"></a>    {
+<a name="158"></a>        /* 
+<a name="159"></a>         *   If the menu has a nil menuOrder, and it inherits menuOrder
+<a name="160"></a>         *   from us, then it must be a dynamically-created object that
+<a name="161"></a>         *   doesn't provide a custom menuOrder.  Provide a suitable
+<a name="162"></a>         *   default of a value one higher than the highest menuOrder
+<a name="163"></a>         *   currently in our list, to ensure that the item always sorts
+<a name="164"></a>         *   after any items currently in the list. 
+<a name="165"></a>         */
+<a name="166"></a>        if (obj.menuOrder == nil &amp;&amp; !overrides(obj, MenuObject, &amp;menuOrder))
+<a name="167"></a>        {
+<a name="168"></a>            local maxVal;
+<a name="169"></a>            
+<a name="170"></a>            /* find the maximum current menuOrder value */
+<a name="171"></a>            maxVal = nil;
+<a name="172"></a>            foreach (local cur in contents)
+<a name="173"></a>            {
+<a name="174"></a>                /* 
+<a name="175"></a>                 *   if this one has a value, and it's the highest so far
+<a name="176"></a>                 *   (or the only one with a value we've found so far),
+<a name="177"></a>                 *   take it as the maximum so far 
+<a name="178"></a>                 */
+<a name="179"></a>                if (cur.menuOrder != nil
+<a name="180"></a>                    &amp;&amp; (maxVal == nil || cur.menuOrder &gt; maxVal))
+<a name="181"></a>                    maxVal = cur.menuOrder;
+<a name="182"></a>            }
+<a name="183"></a>
+<a name="184"></a>            /* if we didn't find any values, use 0 as the arbitrary default */
+<a name="185"></a>            if (maxVal == nil)
+<a name="186"></a>                maxVal = 0;
+<a name="187"></a>
+<a name="188"></a>            /* go one higher than the maximum of the existing items */
+<a name="189"></a>            obj.menuOrder = maxVal;
+<a name="190"></a>        }
+<a name="191"></a>
+<a name="192"></a>        /* add the item to our contents list */
+<a name="193"></a>        contents += obj;
+<a name="194"></a>    }
+<a name="195"></a>
+<a name="196"></a>    /*
+<a name="197"></a>     *   The menu order.  When we're about to show a list of menu items,
+<a name="198"></a>     *   we'll sort the list in ascending order of this property, then in
+<a name="199"></a>     *   ascending order of title.  By default, we set this order value to
+<a name="200"></a>     *   be equal to the menu item's sourceTextOrder. This makes the menu
+<a name="201"></a>     *   order default to the order of objects as defined in the source. If
+<a name="202"></a>     *   some other basis is desired, override topicOrder.  
+<a name="203"></a>     */
+<a name="204"></a>    menuOrder = (sourceTextOrder)
+<a name="205"></a>
+<a name="206"></a>    /*
+<a name="207"></a>     *   Compare this menu object to another, for the purposes of sorting a
+<a name="208"></a>     *   list of menu items. Returns a positive number if this menu item
+<a name="209"></a>     *   sorts after the other one, a negative number if this menu item
+<a name="210"></a>     *   sorts before the other one, 0 if the relative order is arbitrary.
+<a name="211"></a>     *   
+<a name="212"></a>     *   By default, we'll sort by menuOrder if the menuOrder values are
+<a name="213"></a>     *   different, otherwise arbitrarily.  
+<a name="214"></a>     */
+<a name="215"></a>    compareForMenuSort(other)
+<a name="216"></a>    {
+<a name="217"></a>        /* 
+<a name="218"></a>         *   if one menuOrder value is nil, sort it earlier than the other;
+<a name="219"></a>         *   if they're both nil, they sort as equivalent 
+<a name="220"></a>         */
+<a name="221"></a>        if (menuOrder == nil &amp;&amp; other.menuOrder == nil)
+<a name="222"></a>            return 0;
+<a name="223"></a>        else if (menuOrder == nil)
+<a name="224"></a>            return -1;
+<a name="225"></a>        else if (other.menuOrder == nil)
+<a name="226"></a>            return 1;
+<a name="227"></a>
+<a name="228"></a>        /* return the difference of the sort order values */
+<a name="229"></a>        return menuOrder - other.menuOrder;
+<a name="230"></a>    }
+<a name="231"></a>
+<a name="232"></a>    /* 
+<a name="233"></a>     *   Finish initializing our contents list.  This will be called on
+<a name="234"></a>     *   each MenuObject *after* we've called initializeLocation() on every
+<a name="235"></a>     *   object.  In other words, every menu will already have been added
+<a name="236"></a>     *   to its parent's contents; this can do anything else that's needed
+<a name="237"></a>     *   to initialize the contents list.  For example, some subclasses
+<a name="238"></a>     *   might want to sort their contents here, so that they list their
+<a name="239"></a>     *   menus in a defined order.  By default, we sort the menu items by
+<a name="240"></a>     *   menuOrder; subclasses can override this as needed.  
+<a name="241"></a>     */
+<a name="242"></a>    initializeContents()
+<a name="243"></a>    {
+<a name="244"></a>        /* sort our contents list in the object-defined sorting order */
+<a name="245"></a>        contents = contents.sort(
+<a name="246"></a>            SortAsc, {a, b: a.compareForMenuSort(b)});
+<a name="247"></a>    }
+<a name="248"></a>;
+<a name="249"></a>
+<a name="250"></a>/* 
+<a name="251"></a> *   This preinit object makes sure the MenuObjects all have their
+<a name="252"></a> *   contents initialized properly.
+<a name="253"></a> */
+<a name="254"></a>PreinitObject
+<a name="255"></a>    execute()
+<a name="256"></a>    {
+<a name="257"></a>        /* initialize each menu's location */
+<a name="258"></a>        forEachInstance(MenuObject, { menu: menu.initializeLocation() });
+<a name="259"></a>
+<a name="260"></a>        /* do any extra work to initialize each menu's contents list */
+<a name="261"></a>        forEachInstance(MenuObject, { menu: menu.initializeContents() });
+<a name="262"></a>    }
+<a name="263"></a>;
+<a name="264"></a>
+<a name="265"></a>/* ------------------------------------------------------------------------ */
+<a name="266"></a>/* 
+<a name="267"></a> *   A MenuItem is a given item in the menu tree.  In general all you need
+<a name="268"></a> *   to do to use menus is create a tree of MenuItems with titles.
+<a name="269"></a> *   
+<a name="270"></a> *   To display a menu tree, call displayMenu() on the top menu in the
+<a name="271"></a> *   tree.  That routine displays the menu and processes user input until
+<a name="272"></a> *   the user dismisses the menu, automatically displaying submenus as
+<a name="273"></a> *   necessary.  
+<a name="274"></a> */
+<a name="275"></a>class MenuItem: MenuObject
+<a name="276"></a>    /* the name of the menu; this is listed in the parent menu */
+<a name="277"></a>    title = ''
+<a name="278"></a>
+<a name="279"></a>    /* 
+<a name="280"></a>     *   the heading - this is shown when this menu is active; by default,
+<a name="281"></a>     *   we simply use the title 
+<a name="282"></a>     */
+<a name="283"></a>    heading = (title)
+<a name="284"></a>
+<a name="285"></a>    /*
+<a name="286"></a>     *   Display properties.  These properties control the way the menu
+<a name="287"></a>     *   appears on the screen.  By default, a menu looks to its parent
+<a name="288"></a>     *   menu for display properties; this makes it easy to customize an
+<a name="289"></a>     *   entire menu tree, since changes in the top-level menu will cascade
+<a name="290"></a>     *   to all children that don't override these settings.  However, each
+<a name="291"></a>     *   menu can customize its own appearance by overriding these
+<a name="292"></a>     *   properties itself.
+<a name="293"></a>     *   
+<a name="294"></a>     *   'fgcolor' and 'bgcolor' are the foreground (text) and background
+<a name="295"></a>     *   colors, expressed as HTML color names (so '#nnnnnn' values can be
+<a name="296"></a>     *   used to specify RGB colors).
+<a name="297"></a>     *   
+<a name="298"></a>     *   'indent' is the number of pixels to indent the menu's contents
+<a name="299"></a>     *   from the left margin.  This is used only in HTML mode.
+<a name="300"></a>     *   
+<a name="301"></a>     *   'fullScreenMode' indicates whether the menu should take over the
+<a name="302"></a>     *   entire screen, or limit itself to the space it actually requires.
+<a name="303"></a>     *   Full screen mode makes the menu block out any game window text.
+<a name="304"></a>     *   Limited mode leaves the game window partially uncovered, but can
+<a name="305"></a>     *   be a bit jumpy, since the window changes size as the user
+<a name="306"></a>     *   navigates through different menus.  
+<a name="307"></a>     */
+<a name="308"></a>
+<a name="309"></a>    /* foreground (text) and background colors, as HTML color names */
+<a name="310"></a>    fgcolor = (location != nil ? location.fgcolor : 'text')
+<a name="311"></a>    bgcolor = (location != nil ? location.bgcolor : 'bgcolor')
+<a name="312"></a>
+<a name="313"></a>    /* 
+<a name="314"></a>     *   Foreground and background colors for the top instructions bar.
+<a name="315"></a>     *   By default, we use the color scheme of the parent menu, or the
+<a name="316"></a>     *   inverse of our main menu color scheme if we're the top menu. 
+<a name="317"></a>     */
+<a name="318"></a>    topbarfg = (location != nil ? location.topbarfg : 'statustext')
+<a name="319"></a>    topbarbg = (location != nil ? location.topbarbg : 'statusbg')
+<a name="320"></a>
+<a name="321"></a>    /* number of spaces to indent the menu's contents */
+<a name="322"></a>    indent = (location != nil ? location.indent : '10')
+<a name="323"></a>    
+<a name="324"></a>    /* 
+<a name="325"></a>     *   full-screen mode: make our menu take up the whole screen (apart
+<a name="326"></a>     *   from the instructions bar, of course) 
+<a name="327"></a>     */
+<a name="328"></a>    fullScreenMode = (location != nil ? location.fullScreenMode : true)
+<a name="329"></a>    
+<a name="330"></a>    /* 
+<a name="331"></a>     *   The keys used to navigate the menus, in order:
+<a name="332"></a>     *   
+<a name="333"></a>     *   [quit, previous, up, down, select]
+<a name="334"></a>     *   
+<a name="335"></a>     *   Since multiple keys can be used for the same navigation, the list
+<a name="336"></a>     *   is implemented as a List of Lists.  Keys must be given as
+<a name="337"></a>     *   lower-case in order to match input, since we convert all input
+<a name="338"></a>     *   keys to lower-case before matching them.
+<a name="339"></a>     *   
+<a name="340"></a>     *   In the sublist for each key, we use the first element as the key
+<a name="341"></a>     *   name we show in the instruction bar at the top of the screen.
+<a name="342"></a>     *   
+<a name="343"></a>     *   By default, we use our parent menu's key list, if we have a
+<a name="344"></a>     *   parent; if we have no parent, we use the standard keys from the
+<a name="345"></a>     *   library messages.
+<a name="346"></a>     */
+<a name="347"></a>    keyList = (location != nil ? location.keyList : gLibMessages.menuKeyList)
+<a name="348"></a>
+<a name="349"></a>    /* 
+<a name="350"></a>     *   the current key list - we'll set this on entry to the start of
+<a name="351"></a>     *   each showMenuXxx method, so that we keep track of the actual key
+<a name="352"></a>     *   list in use, as inherited from the top-level menu 
+<a name="353"></a>     */
+<a name="354"></a>    curKeyList = nil
+<a name="355"></a>
+<a name="356"></a>    /*
+<a name="357"></a>     *   Title for the link to the previous menu, if any.  If the menu has
+<a name="358"></a>     *   a parent menu, we'll display this link next to the menu title in
+<a name="359"></a>     *   the top instructions/title bar.  If this is nil, we won't display
+<a name="360"></a>     *   a link at all.  Note that this can contain an HTML fragment; for
+<a name="361"></a>     *   example, you could use an &lt;IMG&gt; tag to display an icon here.  
+<a name="362"></a>     */
+<a name="363"></a>    prevMenuLink = (location != nil ? gLibMessages.prevMenuLink : nil)
+<a name="364"></a>
+<a name="365"></a>    /* 
+<a name="366"></a>     *   Update our contents.  By default, we'll do nothing; subclasses
+<a name="367"></a>     *   can override this to manage dynamic menus if desired.  This is
+<a name="368"></a>     *   called just before the menu is displayed, each time it's
+<a name="369"></a>     *   displayed. 
+<a name="370"></a>     */
+<a name="371"></a>    updateContents() { }
+<a name="372"></a>
+<a name="373"></a>
+<a name="374"></a>    /*
+<a name="375"></a>     *   Get the next menu in our list following the given menu.  Returns
+<a name="376"></a>     *   nil if we don't find the given menu, or the given menu is the last
+<a name="377"></a>     *   menu. 
+<a name="378"></a>     */
+<a name="379"></a>    getNextMenu(menu)
+<a name="380"></a>    {
+<a name="381"></a>        /* find the menu in our contents list */
+<a name="382"></a>        local idx = contents.indexOf(menu);
+<a name="383"></a>
+<a name="384"></a>        /* 
+<a name="385"></a>         *   if we found it, and it's not the last, return the menu at the
+<a name="386"></a>         *   next index; otherwise return nil 
+<a name="387"></a>         */
+<a name="388"></a>        return (idx != nil &amp;&amp; idx &lt; contents.length()
+<a name="389"></a>                ? contents[idx + 1] : nil);
+<a name="390"></a>    }
+<a name="391"></a>
+<a name="392"></a>    /*
+<a name="393"></a>     *   Get the menu previous tot he given menu.  Returns nil if we don't
+<a name="394"></a>     *   find the given menu or the given menu is the first one. 
+<a name="395"></a>     */
+<a name="396"></a>    getPrevMenu(menu)
+<a name="397"></a>    {
+<a name="398"></a>        /* find the menu in our contents list */
+<a name="399"></a>        local idx = contents.indexOf(menu);
+<a name="400"></a>
+<a name="401"></a>        /* 
+<a name="402"></a>         *   if we found it, and it's not the first, return the menu at the
+<a name="403"></a>         *   prior index; otherwise return nil 
+<a name="404"></a>         */
+<a name="405"></a>        return (idx != nil &amp;&amp; idx &gt; 1 ? contents[idx - 1] : nil);
+<a name="406"></a>    }
+<a name="407"></a>
+<a name="408"></a>    /* get the index in the parent of the given child menu */
+<a name="409"></a>    getChildIndex(child)
+<a name="410"></a>    {
+<a name="411"></a>        return contents.indexOf(child);
+<a name="412"></a>    }
+<a name="413"></a>;
+<a name="414"></a>
+<a name="415"></a>/* ------------------------------------------------------------------------ */
+<a name="416"></a>/*
+<a name="417"></a> *   MenuTopicItem displays a series of entries successively.  This is
+<a name="418"></a> *   intended to be used for displaying something like a list of hints for
+<a name="419"></a> *   a topic.  Set menuContents to be a list of strings to be displayed.  
+<a name="420"></a> */
+<a name="421"></a>class MenuTopicItem: MenuItem
+<a name="422"></a>    /* the name of this topic, as it appears in our parent menu */
+<a name="423"></a>    title = ''
+<a name="424"></a>
+<a name="425"></a>    /* heading, displayed while we're showing this topic list */
+<a name="426"></a>    heading = (title)
+<a name="427"></a>
+<a name="428"></a>    /* hyperlink text for showing the next menu */
+<a name="429"></a>    nextMenuTopicLink = (gLibMessages.nextMenuTopicLink)
+<a name="430"></a>
+<a name="431"></a>    /* 
+<a name="432"></a>     *   A list of strings and/or MenuTopicSubItem items.  Each one of
+<a name="433"></a>     *   these is meant to be something like a single hint on our topic.
+<a name="434"></a>     *   We display these items one at a time when our menu item is
+<a name="435"></a>     *   selected.  
+<a name="436"></a>     */
+<a name="437"></a>    menuContents = []
+<a name="438"></a>
+<a name="439"></a>    /* the index of the last item we displayed from our menuContents list */
+<a name="440"></a>    lastDisplayed = 1
+<a name="441"></a>
+<a name="442"></a>    /* 
+<a name="443"></a>     *   The maximum number of our sub-items that we'll display at once.
+<a name="444"></a>     *   This is only used on interpreters with banner capabilities, and is
+<a name="445"></a>     *   ignored in full-screen mode.  
+<a name="446"></a>     */
+<a name="447"></a>    chunkSize = 6
+<a name="448"></a>
+<a name="449"></a>    /* we'll display this after we've shown all of our items */
+<a name="450"></a>    menuTopicListEnd = (gLibMessages.menuTopicListEnd)
+<a name="451"></a>;
+<a name="452"></a>
+<a name="453"></a>/* ------------------------------------------------------------------------ */
+<a name="454"></a>/*
+<a name="455"></a> *   A menu topic sub-item can be used to represent an item in a
+<a name="456"></a> *   MenuTopicItem's list of display items.  This can be useful when
+<a name="457"></a> *   displaying a topic must trigger a side-effect.  
+<a name="458"></a> */
+<a name="459"></a>class MenuTopicSubItem: object
+<a name="460"></a>    /*
+<a name="461"></a>     *   Get the item's text.  By default, we just return an empty string.
+<a name="462"></a>     *   This should be overridden to return the appropriate text, and can
+<a name="463"></a>     *   also trigger any desired side-effects.  
+<a name="464"></a>     */
+<a name="465"></a>    getItemText() { return ''; }
+<a name="466"></a>;
+<a name="467"></a>
+<a name="468"></a>/* ------------------------------------------------------------------------ */
+<a name="469"></a>/* 
+<a name="470"></a> *   Long Topic Items are used to print out big long gobs of text on a
+<a name="471"></a> *   subject.  Use it for printing long treatises on your design
+<a name="472"></a> *   philosophy and the like.  
+<a name="473"></a> */
+<a name="474"></a>class MenuLongTopicItem: MenuItem
+<a name="475"></a>    /* the title of the menu, shown in parent menus */
+<a name="476"></a>    title = ''
+<a name="477"></a>
+<a name="478"></a>    /* the heading, shown while we're displaying our contents */
+<a name="479"></a>    heading = (title)
+<a name="480"></a>
+<a name="481"></a>    /* either a string to be displayed, or a method returning a string */
+<a name="482"></a>    menuContents = ''
+<a name="483"></a>
+<a name="484"></a>    /* 
+<a name="485"></a>     *   Flag - this is a "chapter" in a list of chapters.  If this is set
+<a name="486"></a>     *   to true, then we'll offer the options to proceed directly to the
+<a name="487"></a>     *   next and previous chapters.  If this is nil, we'll simply wait for
+<a name="488"></a>     *   acknowledgment and return to the parent menu. 
+<a name="489"></a>     */
+<a name="490"></a>    isChapterMenu = nil
+<a name="491"></a>
+<a name="492"></a>    /* the message we display at the end of our text */
+<a name="493"></a>    menuLongTopicEnd = (gLibMessages.menuLongTopicEnd)
+<a name="494"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

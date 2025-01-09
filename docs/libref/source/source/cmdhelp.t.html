@@ -1,0 +1,903 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>cmdhelp.t</title></head><body>
+<table class=ban><tr><td><h1>cmdhelp.t</h1><td align=right><a href="../file/cmdhelp.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>
+<a name="4"></a>/* include the library header */
+<a name="5"></a>#include "advlite.h"
+<a name="6"></a>
+<a name="7"></a>/*---------------------------------------------------------------------------*/
+<a name="8"></a>/*
+<a name="9"></a> *   cmdHelp Extension
+<a name="10"></a> *.  by Eric Eve
+<a name="11"></a> *
+<a name="12"></a> *   Experimental extension to give help to players who enter a empty command.
+<a name="13"></a> */
+<a name="14"></a>
+<a name="15"></a>
+<a name="16"></a>/* Modifications to Parser for CMDHELP EXTENSION */
+<a name="17"></a>modify Parser
+<a name="18"></a>    
+<a name="19"></a>    /* 
+<a name="20"></a>     *   Overridden for CMDHELP EXTENSION. If our autoHelp property is true then
+<a name="21"></a>     *   respond to an empty command by displaying a brief menu of command
+<a name="22"></a>     *   options.
+<a name="23"></a>     */
+<a name="24"></a>    emptyCommand()
+<a name="25"></a>    {
+<a name="26"></a>        if(autoHelp)
+<a name="27"></a>            CmdMenu.showOptions();
+<a name="28"></a>        else
+<a name="29"></a>            inherited();
+<a name="30"></a>    }
+<a name="31"></a>    
+<a name="32"></a>    /* 
+<a name="33"></a>     *   Flag: Do we want to show a menu of command options in response to an
+<a name="34"></a>     *   empty command? By default we do since that's the purpose of this
+<a name="35"></a>     *   CMDHELP EXTENSION.
+<a name="36"></a>     */
+<a name="37"></a>    autoHelp = true    
+<a name="38"></a>;
+<a name="39"></a>
+<a name="40"></a>/ *[CMDHELP EXTENSION] */
+<a name="41"></a>DefineSystemAction(CmdMenu)
+<a name="42"></a>    showOptions()
+<a name="43"></a>    {
+<a name="44"></a>        DMsg(cmdhelp show options,
+<a name="45"></a>        'What would you like to do?\b
+<a name="46"></a>        &lt;&lt;aHref('1','1')&gt;&gt;. Go to another location\n
+<a name="47"></a>        &lt;&lt;aHref('2','2')&gt;&gt;. Investigate your surroundings\n
+<a name="48"></a>        &lt;&lt;aHref('3','3')&gt;&gt;. Relocate something\n
+<a name="49"></a>        &lt;&lt;aHref('4','4')&gt;&gt;. Manipulate something\n');
+<a name="50"></a>        
+<a name="51"></a>        if(defined(Actor))
+<a name="52"></a>        {
+<a name="53"></a>            for(local a = firstObj(Actor); a != nil ; a = nextObj(a, Actor))
+<a name="54"></a>            {
+<a name="55"></a>                if(a != gPlayerChar &amp;&amp; Q.canTalkTo(gPlayerChar, a))
+<a name="56"></a>                {
+<a name="57"></a>                    DMsg(cmdhelp talk to someone, '&lt;&lt;aHref('5','5')&gt;&gt;. 
+<a name="58"></a>                        Talk to someone\n');
+<a name="59"></a>                    break;
+<a name="60"></a>                }
+<a name="61"></a>            }
+<a name="62"></a>        }
+<a name="63"></a>        // "6. Something else\b";        
+<a name="64"></a>        "&lt;.p&gt;";
+<a name="65"></a>    }
+<a name="66"></a>    
+<a name="67"></a>    /* 
+<a name="68"></a>     *   Show a list of possible actions, where cmd_str is the name of the
+<a name="69"></a>     *   action and lst a list of objects on which it might be tried.
+<a name="70"></a>	 *	[CMDHELP EXTENSION]
+<a name="71"></a>     */
+<a name="72"></a>    showList(lst, cmd_str)
+<a name="73"></a>    {       
+<a name="74"></a>        local cmdstr;
+<a name="75"></a>        
+<a name="76"></a>        /* 
+<a name="77"></a>         *   Replace any commonly abbreviated commands with their common
+<a name="78"></a>         *   abbreviations in the command we send to the command line, so that
+<a name="79"></a>         *   players get used to the common abbreviations.
+<a name="80"></a>         */
+<a name="81"></a>        switch(cmd_str)
+<a name="82"></a>        {
+<a name="83"></a>        case 'examine ':
+<a name="84"></a>            cmdstr = 'x ';
+<a name="85"></a>            break;
+<a name="86"></a>        default:
+<a name="87"></a>            cmdstr = cmd_str;
+<a name="88"></a>            break;
+<a name="89"></a>        }
+<a name="90"></a>        
+<a name="91"></a>        /*  
+<a name="92"></a>         *   Output a hyperlinked list of commands for each object in the list,
+<a name="93"></a>         *   but stop after at most maxObj objects, so we don't overwhelm the
+<a name="94"></a>         *   player with choices.
+<a name="95"></a>         */
+<a name="96"></a>        for(local cur in lst, local i = 1; i &lt;= maxObjs; i++)
+<a name="97"></a>        {
+<a name="98"></a>            local str = cmd_str + cur.name;
+<a name="99"></a>            local str1 = cmdstr + cur.name;
+<a name="100"></a>            "&lt;&lt;aHref(str1, str)&gt;&gt;\ \ \ ";
+<a name="101"></a>        }
+<a name="102"></a>    }
+<a name="103"></a>    
+<a name="104"></a>    /* 
+<a name="105"></a>     *   Carry out this action. This is the response to the player entering a
+<a name="106"></a>     *   number at the command prompt. 
+<a name="107"></a>	 *   [CMDHELP EXTENSION]
+<a name="108"></a>     */
+<a name="109"></a>    execAction(cmd)
+<a name="110"></a>    {
+<a name="111"></a>        /* Get the number the player typed .*/        
+<a name="112"></a>        local num = cmd.dobj.numVal;
+<a name="113"></a>        
+<a name="114"></a>        /* Note the player character's current location. */
+<a name="115"></a>        local loc = gPlayerChar.getOutermostRoom();
+<a name="116"></a>        
+<a name="117"></a>        /* 
+<a name="118"></a>         *   If the player typed a number out of range, re-display the options
+<a name="119"></a>         *   and end there.
+<a name="120"></a>         */
+<a name="121"></a>        if(num &lt; 1 || num &gt; 6)
+<a name="122"></a>        {
+<a name="123"></a>            showOptions();
+<a name="124"></a>            return;
+<a name="125"></a>        }
+<a name="126"></a>        
+<a name="127"></a>        /* Option 1: The Player wants to go to another location. */
+<a name="128"></a>        if(num == 1)
+<a name="129"></a>        {
+<a name="130"></a>            /* Ask the player where s/he wants to go. */
+<a name="131"></a>            DMsg(cmdhelp where go, 'Where would you like to go?\n
+<a name="132"></a>            The possible exits are: ');
+<a name="133"></a>            
+<a name="134"></a>            /* 
+<a name="135"></a>             *   If we have an exit lister, use it to display the list of exits.
+<a name="136"></a>             */
+<a name="137"></a>            if(gExitLister)
+<a name="138"></a>                gExitLister.showExits(gPlayerChar);
+<a name="139"></a>            /*  Otherwise create our own list of exits. */
+<a name="140"></a>            else
+<a name="141"></a>            {
+<a name="142"></a>                /* Set up a flag to record if we actually found any exits. */
+<a name="143"></a>                local dirFound = nil;
+<a name="144"></a>                foreach(local dir in Direction.allDirections)
+<a name="145"></a>                {
+<a name="146"></a>                    /* 
+<a name="147"></a>                     *   Assume an exit exists if the corresponding direction
+<a name="148"></a>                     *   property points to a method or an object.
+<a name="149"></a>                     */
+<a name="150"></a>                    if(loc.propType(dir.dirProp) is in (TypeCode, TypeObject))
+<a name="151"></a>                    {
+<a name="152"></a>                        "&lt;&lt;aHref(dir.name, dir.name)&gt;&gt;\ \ ";
+<a name="153"></a>                        dirFound = true;
+<a name="154"></a>                    }
+<a name="155"></a>                }
+<a name="156"></a>                /* If we didn't find any exits, say so. */
+<a name="157"></a>                if(dirFound == nil)
+<a name="158"></a>                    DMsg(cmdhelp no exit, 'None ');
+<a name="159"></a>            }
+<a name="160"></a>            "&lt;.p&gt;";
+<a name="161"></a>            
+<a name="162"></a>            /* 
+<a name="163"></a>             *   If the routeFinder is present we can also offer the player of
+<a name="164"></a>             *   travelling to another location via the GO TO command.
+<a name="165"></a>             */
+<a name="166"></a>            if(defined(pcRouteFinder))
+<a name="167"></a>            {
+<a name="168"></a>                /* Get a list of rooms the player knows about. */
+<a name="169"></a>                local rmList = Q.knownScopeList.subset({o: o.ofKind(Room)});
+<a name="170"></a>                
+<a name="171"></a>                /* Remove the player's current location from the list. */
+<a name="172"></a>                rmList -= loc;
+<a name="173"></a>                
+<a name="174"></a>                /* Sort the list in alphabetical order. */
+<a name="175"></a>                rmList = rmList.sort(SortAsc, {a, b:
+<a name="176"></a>                                     a.name.compareIgnoreCase(b.name) });
+<a name="177"></a>                
+<a name="178"></a>                /* 
+<a name="179"></a>                 *   Don't offer the option unless there are any rooms to offer.
+<a name="180"></a>                 */
+<a name="181"></a>                if(rmList.length &gt; 0)
+<a name="182"></a>                {
+<a name="183"></a>                    /* Introduce the list. */
+<a name="184"></a>                    DMsg(cmdhelp go to, 'Or you could: ');
+<a name="185"></a>                    
+<a name="186"></a>                    /* 
+<a name="187"></a>                     *   Display a hyperlinked GO TO ROOM command for every room
+<a name="188"></a>                     *   in the list.
+<a name="189"></a>                     */
+<a name="190"></a>                    foreach(local rm in rmList)
+<a name="191"></a>                    {
+<a name="192"></a>                        local str = 'go to ' + rm.name;
+<a name="193"></a>                        "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="194"></a>                    }
+<a name="195"></a>                }
+<a name="196"></a>                
+<a name="197"></a>            }         
+<a name="198"></a>            
+<a name="199"></a>            /* We're done. */
+<a name="200"></a>            return;
+<a name="201"></a>            
+<a name="202"></a>        }
+<a name="203"></a>        
+<a name="204"></a>        /* 
+<a name="205"></a>         *   If we reach this point the player may want to deal with specific
+<a name="206"></a>         *   objects, so we need to get a list of those in scope.
+<a name="207"></a>         */
+<a name="208"></a>        local scope_lst = World.scope.toList().subset({o:
+<a name="209"></a>            Q.canSee(gPlayerChar, o)});
+<a name="210"></a>        
+<a name="211"></a>        /*  Remove Unthings and Rooms from the list. */
+<a name="212"></a>        scope_lst = scope_lst.subset({o: !o.ofKind(Unthing) 
+<a name="213"></a>                                     &amp;&amp; !o.ofKind(Room) });
+<a name="214"></a>        
+<a name="215"></a>        /* Option 2: the Player wants to investigate their environment. */
+<a name="216"></a>        if(num == 2)
+<a name="217"></a>        {
+<a name="218"></a>            /* First offer the basic set of intransitive commands. */
+<a name="219"></a>            DMsg(cmdhelp investigate, 'Here are some suggestions (other
+<a name="220"></a>                actions may also be possible):\n');
+<a name="221"></a>            "&lt;&lt;aHref('look', 'look', 'Look around the room')&gt;&gt;\ \ 
+<a name="222"></a>            &lt;&lt;aHref('listen', 'listen')&gt;&gt;\ \
+<a name="223"></a>            &lt;&lt;aHref('smell', 'smell')&gt;&gt;\ \ 
+<a name="224"></a>            &lt;&lt;aHref('I', 'inventory', 'See what you\'re carrying')&gt;&gt;\b"; 
+<a name="225"></a>            
+<a name="226"></a>           
+<a name="227"></a>            /* 
+<a name="228"></a>             *   Get a list of things that could be examined. In the first
+<a name="229"></a>             *   instance, sort them alphabetically.
+<a name="230"></a>             */
+<a name="231"></a>            local exa_lst = scope_lst.sort(SortAsc, 
+<a name="232"></a>                                           {a, b: a.name.compareIgnoreCase(b.name)});
+<a name="233"></a>            
+<a name="234"></a>            /* 
+<a name="235"></a>             *   If the list of things we could examine has too many items, sort
+<a name="236"></a>             *   the list in the order of the turn number on which the items
+<a name="237"></a>             *   were last examined, so that those that were examined longest
+<a name="238"></a>             *   ago come to the front of the list.
+<a name="239"></a>             */            
+<a name="240"></a>            if(exa_lst.length() &gt; maxObjs)
+<a name="241"></a>                exa_lst = exa_lst.sort(SortAsc,{a, b: a.turnLastExamined -
+<a name="242"></a>                                       b.turnLastExamined});
+<a name="243"></a>            
+<a name="244"></a>            /* Show the list of EXAMINE suggestions. */                       
+<a name="245"></a>            showList(exa_lst, 'examine ');
+<a name="246"></a>                        
+<a name="247"></a>            "&lt;.p&gt;";
+<a name="248"></a>            
+<a name="249"></a>            /* 
+<a name="250"></a>             *   Get a list of READ suggestions by taking the subset of examine
+<a name="251"></a>             *   suggestions for items that have a non-nil readDesc.
+<a name="252"></a>             */
+<a name="253"></a>            local read_lst = exa_lst.subset({o: o.propType(&amp;readDesc) !=
+<a name="254"></a>                                            TypeNil });
+<a name="255"></a>            
+<a name="256"></a>            /*  Show the list of READ suggestions. */
+<a name="257"></a>            showList(read_lst, 'read ');
+<a name="258"></a>            "&lt;.p&gt;";
+<a name="259"></a>            
+<a name="260"></a>            /* Get a list of thing we could look inside. */
+<a name="261"></a>            local li_lst = exa_lst.subset(
+<a name="262"></a>                {o: (o.contType == In &amp;&amp; !o.isLocked)
+<a name="263"></a>                || (o.remapIn != nil &amp;&amp; !o.remapIn.isLocked)});
+<a name="264"></a>            
+<a name="265"></a>            /*  
+<a name="266"></a>             *   Show a list of LOOK IN suggestions. Note we don't do the same
+<a name="267"></a>             *   for LOOK UNDER or LOOK BEHIND since these are much rarer, and
+<a name="268"></a>             *   handling them would either flood the player with useless
+<a name="269"></a>             *   suggestions (if we took a maximalist view of what to include)
+<a name="270"></a>             *   or create potential spoilers (if we took a minimalist view)
+<a name="271"></a>             */
+<a name="272"></a>            showList(li_lst,'look in ');
+<a name="273"></a>            
+<a name="274"></a>            "&lt;.p&gt;";
+<a name="275"></a>            
+<a name="276"></a>            /* 
+<a name="277"></a>             *   Get a list of things we could listen to; these are objects with
+<a name="278"></a>             *   a non-nil listenDesc.
+<a name="279"></a>             */
+<a name="280"></a>            local listen_lst = scope_lst.subset({o: o.propType(&amp;listenDesc) !=
+<a name="281"></a>                                               TypeNil});
+<a name="282"></a>            
+<a name="283"></a>            /* Display the list of LISTEN TO suggestions. */
+<a name="284"></a>            showList(listen_lst, 'listen to ');
+<a name="285"></a>            
+<a name="286"></a>            
+<a name="287"></a>            /* 
+<a name="288"></a>             *   Get a list of things we could smell; these are objects with a
+<a name="289"></a>             *   non-nil smellDesc.
+<a name="290"></a>             */
+<a name="291"></a>            local smell_lst = scope_lst.subset({o: o.propType(&amp;smellDesc) !=
+<a name="292"></a>                                               TypeNil});
+<a name="293"></a>            
+<a name="294"></a>            /*  Display the list of SMELL suggestions. */
+<a name="295"></a>            showList(smell_lst, 'smell ');
+<a name="296"></a>            
+<a name="297"></a>            /* We're done. */
+<a name="298"></a>            return;
+<a name="299"></a>        }
+<a name="300"></a>        
+<a name="301"></a>        /* 
+<a name="302"></a>         *   From this point on we're suggesting commands to manipulate objects
+<a name="303"></a>         *   in various ways, so we'll reduce the scope list to things the
+<a name="304"></a>         *   player character can actually touch.
+<a name="305"></a>         */
+<a name="306"></a>        
+<a name="307"></a>        scope_lst = scope_lst.subset({o:  Q.canReach(gPlayerChar, o)});
+<a name="308"></a>        
+<a name="309"></a>        /* Things can be moved if they're not fixed in place. */
+<a name="310"></a>        local move_lst = scope_lst.subset({o: !o.isFixed });
+<a name="311"></a>        
+<a name="312"></a>        /* Option 3: The player wants to move things around. */
+<a name="313"></a>        if(num == 3)
+<a name="314"></a>        {
+<a name="315"></a>            /* Display an introductory message. */         
+<a name="316"></a>            DMsg(cmdhelp relocate, 'Here are some suggestions (there may well
+<a name="317"></a>                be several other possibilities):\n');
+<a name="318"></a>            
+<a name="319"></a>            /* 
+<a name="320"></a>             *   First deal with things the player can TAKE. We need to set
+<a name="321"></a>             *   gAction since verify() routines will assume it has been set
+<a name="322"></a>             *   correctly.
+<a name="323"></a>             */                 
+<a name="324"></a>            gAction = Take;
+<a name="325"></a>            
+<a name="326"></a>            /*   
+<a name="327"></a>             *   Get a list of things than can be taken. This will be the subset
+<a name="328"></a>             *   of potentially moveable objects that pass verifyDobjTake().
+<a name="329"></a>             */
+<a name="330"></a>            local take_lst = move_lst.subset({o: Take.verify(o,
+<a name="331"></a>                DirectObject).allowAction});            
+<a name="332"></a>            
+<a name="333"></a>            /*   
+<a name="334"></a>             *   Also exlude any objects that would fail the TAKE action at the
+<a name="335"></a>             *   check() stage, if the excludeCheckFailures option is set.
+<a name="336"></a>             */
+<a name="337"></a>            if(excludeCheckFailures)
+<a name="338"></a>                take_lst = take_lst.subset({o: passCheck(Take, o) });
+<a name="339"></a>            
+<a name="340"></a>                       
+<a name="341"></a>            /*  
+<a name="342"></a>             *   If we have too many objects, sort them in the order in which they
+<a name="343"></a>             *   were last moved.
+<a name="344"></a>             */
+<a name="345"></a>            if(take_lst.length &gt; maxObjs)
+<a name="346"></a>                take_lst = take_lst.sort(SortAsc, {a, b: a.turnLastMoved -
+<a name="347"></a>                                         b.turnLastMoved});
+<a name="348"></a>            
+<a name="349"></a>            /*  Display a list of TAKE suggestions */
+<a name="350"></a>            showList(take_lst, 'take ');            
+<a name="351"></a>            
+<a name="352"></a>            /*  
+<a name="353"></a>             *   If there's more than one thing that can be taken, also offer
+<a name="354"></a>             *   the TAKE ALL command.
+<a name="355"></a>             */
+<a name="356"></a>            if(take_lst.length &gt; 1)
+<a name="357"></a>                "&lt;&lt;aHref('take all', 'take all')&gt;&gt;";
+<a name="358"></a>                        
+<a name="359"></a>            "&lt;.p&gt;";
+<a name="360"></a>            
+<a name="361"></a>            /*  
+<a name="362"></a>             *   Now suggest things that can be DROPped. Again we must set
+<a name="363"></a>             *   gAction for the sake of the verify method.
+<a name="364"></a>             */
+<a name="365"></a>            gAction = Drop;
+<a name="366"></a>            
+<a name="367"></a>            /*   
+<a name="368"></a>             *   Get a list of moveable objects directly located in the player
+<a name="369"></a>             *   character.
+<a name="370"></a>             */
+<a name="371"></a>            local drop_lst = move_lst.subset({o: o.isDirectlyIn(gPlayerChar)});
+<a name="372"></a>            
+<a name="373"></a>            /*  
+<a name="374"></a>             *   If we have too many objects, sort them in ascending order of
+<a name="375"></a>             *   the turn on which they were last moved.
+<a name="376"></a>             */
+<a name="377"></a>            if(drop_lst.length &gt; maxObjs)
+<a name="378"></a>                 drop_lst = drop_lst.sort(SortAsc, {a, b: a.turnLastMoved -
+<a name="379"></a>                                         b.turnLastMoved});
+<a name="380"></a>            
+<a name="381"></a>            /* Display a list of DROP suggestions. */
+<a name="382"></a>            showList(drop_lst, 'drop ');            
+<a name="383"></a>            
+<a name="384"></a>            /* 
+<a name="385"></a>             *   If more than one object could be dropped, offer the DROP ALL
+<a name="386"></a>             *   option.
+<a name="387"></a>             */
+<a name="388"></a>            if(drop_lst.length &gt; 1)
+<a name="389"></a>                "&lt;&lt;aHref('drop all', 'drop all')&gt;&gt;";
+<a name="390"></a>            
+<a name="391"></a>            "&lt;.p&gt;";
+<a name="392"></a>            
+<a name="393"></a>            /*   
+<a name="394"></a>             *   Now suggest PUT IN, PUT ON, PUT UNDER, PUT BEHIND. First set
+<a name="395"></a>             *   the list of objects that can be put anywhere to the list of
+<a name="396"></a>             *   moveable objects.
+<a name="397"></a>             */
+<a name="398"></a>            local put_lst = move_lst;
+<a name="399"></a>                        
+<a name="400"></a>            /*   
+<a name="401"></a>             *   If there are too many objects, sort them in ascending order of
+<a name="402"></a>             *   the turn on which they were last moved.
+<a name="403"></a>             */
+<a name="404"></a>            if(put_lst.length &gt; maxObjs)
+<a name="405"></a>                 put_lst = drop_lst.sort(SortAsc, {a, b: a.turnLastMoved -
+<a name="406"></a>                                         b.turnLastMoved});
+<a name="407"></a>            
+<a name="408"></a>            
+<a name="409"></a>            /*  
+<a name="410"></a>             *   Set up PUT IN suggestions. First set gAction to PutIn so that
+<a name="411"></a>             *   any routines we call that depend on the value of gAction will
+<a name="412"></a>             *   work as expected.
+<a name="413"></a>             */
+<a name="414"></a>            gAction = PutIn;
+<a name="415"></a>            
+<a name="416"></a>            /*  
+<a name="417"></a>             *   Get the list of items into which things can be out. This is the
+<a name="418"></a>             *   list of unlocked objects with a contType of In plus the list of
+<a name="419"></a>             *   objects with an unlocked remapIn object.
+<a name="420"></a>             */
+<a name="421"></a>            local put_in_lst = scope_lst.subset({o: (o.contType == In &amp;&amp;
+<a name="422"></a>                !o.isLocked) || (o.remapIn != nil &amp;&amp; !o.isLocked)});
+<a name="423"></a>            
+<a name="424"></a>            /*   
+<a name="425"></a>             *   Sort the resulting list into ascending order of the turn on
+<a name="426"></a>             *   which items last had anything inserted into them.
+<a name="427"></a>             */
+<a name="428"></a>            put_in_lst = put_in_lst.sort(SortAsc, {a, b: a.turnLastMovedInto -
+<a name="429"></a>                                         b.turnLastMovedInto });
+<a name="430"></a>            
+<a name="431"></a>            /*   
+<a name="432"></a>             *   Set up a counter to keep track of how many suggestions we've
+<a name="433"></a>             *   made.
+<a name="434"></a>             */
+<a name="435"></a>            local i = 1;
+<a name="436"></a>            
+<a name="437"></a>        in_loop:
+<a name="438"></a>            /* 
+<a name="439"></a>             *   Go through every item in our put_lst (potential direct objects
+<a name="440"></a>             *   of a PUT IN COMMAND).
+<a name="441"></a>             */
+<a name="442"></a>            for(local cur in put_lst)
+<a name="443"></a>            {
+<a name="444"></a>                /* 
+<a name="445"></a>                 *   For each potential direct object of a PUT IN command, go
+<a name="446"></a>                 *   through all the potential indirect objects of a PUT IN
+<a name="447"></a>                 *   command.
+<a name="448"></a>                 */
+<a name="449"></a>                foreach(local dest in put_in_lst)
+<a name="450"></a>                {
+<a name="451"></a>                    /* 
+<a name="452"></a>                     *   If the potential direct object is neither in the
+<a name="453"></a>                     *   potential indirect object nor identical to the
+<a name="454"></a>                     *   potential direct object, and if inserting the direct
+<a name="455"></a>                     *   object into the indirect object would pass the
+<a name="456"></a>                     *   checkInsert() test, then suggest putting this direct
+<a name="457"></a>                     *   object into this indirect object.
+<a name="458"></a>                     */
+<a name="459"></a>                    if(!cur.isOrIsIn(dest) 
+<a name="460"></a>                       &amp;&amp; (!excludeCheckFailures || checkInsert(cur, dest,
+<a name="461"></a>                           PutIn)))
+<a name="462"></a>                    {
+<a name="463"></a>                        /* 
+<a name="464"></a>                         *   Create the relevant string version of the command
+<a name="465"></a>                         *   and output a hyperlinked version of it.
+<a name="466"></a>                         */
+<a name="467"></a>                        local str = 'put ' + cur.name + ' in ' + dest.name;
+<a name="468"></a>                        "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="469"></a>                        
+<a name="470"></a>                        /* 
+<a name="471"></a>                         *   Increment our number-of-suggestions counter. If it
+<a name="472"></a>                         *   exceeds maxObjs, break out of both loops.
+<a name="473"></a>                         */
+<a name="474"></a>                        if(++i &gt; maxObjs)
+<a name="475"></a>                            break in_loop;
+<a name="476"></a>                    }
+<a name="477"></a>                }
+<a name="478"></a>            }
+<a name="479"></a>            "&lt;.p&gt;";
+<a name="480"></a>            
+<a name="481"></a>            /* 
+<a name="482"></a>             *   Now handle the PUT ON suggestions. The logic is the same as for
+<a name="483"></a>             *   PUT IN.
+<a name="484"></a>             */
+<a name="485"></a>            gAction = PutOn;
+<a name="486"></a>            put_in_lst =  scope_lst.subset({o: o.contType == On || 
+<a name="487"></a>                o.remapOn != nil});
+<a name="488"></a>            
+<a name="489"></a>            put_in_lst = put_in_lst.sort(SortAsc, {a, b: a.turnLastMovedInto -
+<a name="490"></a>                                         b.turnLastMovedInto });
+<a name="491"></a>            
+<a name="492"></a>            
+<a name="493"></a>            i = i;
+<a name="494"></a>        on_loop:
+<a name="495"></a>            for(local cur in put_lst)
+<a name="496"></a>            {
+<a name="497"></a>                foreach(local dest in put_in_lst)
+<a name="498"></a>                {
+<a name="499"></a>                    if(!cur.isOrIsIn(dest) 
+<a name="500"></a>                       &amp;&amp; (!excludeCheckFailures || checkInsert(cur, dest,
+<a name="501"></a>                           PutOn)))
+<a name="502"></a>                    {
+<a name="503"></a>                        local str = 'put ' + cur.name + ' on ' + dest.name;
+<a name="504"></a>                        "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="505"></a>                        
+<a name="506"></a>                        if(++i &gt; maxObjs)
+<a name="507"></a>                            break on_loop;
+<a name="508"></a>                    }
+<a name="509"></a>                }
+<a name="510"></a>            }                                    
+<a name="511"></a>            "&lt;.p&gt;"; 
+<a name="512"></a>            
+<a name="513"></a>            /* 
+<a name="514"></a>             *   Now handle the PUT UNDER suggestions. The logic is the same as
+<a name="515"></a>             *   for PUT IN.
+<a name="516"></a>             */
+<a name="517"></a>            gAction = PutUnder;
+<a name="518"></a>            put_in_lst =  scope_lst.subset({o: o.contType.canPutUnderMe || 
+<a name="519"></a>                (o.remapUnder != nil &amp;&amp; o.remapUnder.canPutUnderMe) });
+<a name="520"></a>            
+<a name="521"></a>            put_in_lst = put_in_lst.sort(SortAsc, {a, b: a.turnLastMovedInto -
+<a name="522"></a>                                         b.turnLastMovedInto });
+<a name="523"></a>            
+<a name="524"></a>            
+<a name="525"></a>            i = 1;
+<a name="526"></a>        under_loop:
+<a name="527"></a>            foreach(local cur in put_lst)
+<a name="528"></a>            {
+<a name="529"></a>                foreach(local dest in put_in_lst)
+<a name="530"></a>                {
+<a name="531"></a>                    if(!cur.isOrIsIn(dest) 
+<a name="532"></a>                       &amp;&amp; (!excludeCheckFailures || checkInsert(cur, dest,
+<a name="533"></a>                           PutUnder)))
+<a name="534"></a>                    {
+<a name="535"></a>                        local str = 'put ' + cur.name + ' under ' + dest.name;
+<a name="536"></a>                        "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="537"></a>                        
+<a name="538"></a>                        if(++i &gt; maxObjs)
+<a name="539"></a>                            break under_loop;
+<a name="540"></a>                    }
+<a name="541"></a>                }
+<a name="542"></a>            } 
+<a name="543"></a>            "&lt;.p&gt;";                               
+<a name="544"></a>            
+<a name="545"></a>            /* 
+<a name="546"></a>             *   Now handle the PUT BEHIND suggestions. The logic is the same as
+<a name="547"></a>             *   for PUT IN.
+<a name="548"></a>             */
+<a name="549"></a>            gAction = PutBehind;
+<a name="550"></a>            put_in_lst =  scope_lst.subset({o: o.contType.canPutBehindMe || 
+<a name="551"></a>                (o.remapBehind != nil &amp;&amp; o.remapBehind.canPutBehindMe) });
+<a name="552"></a>            
+<a name="553"></a>            put_in_lst = put_in_lst.sort(SortAsc, {a, b: a.turnLastMovedInto -
+<a name="554"></a>                                         b.turnLastMovedInto });
+<a name="555"></a>            
+<a name="556"></a>            i = 1;
+<a name="557"></a>            
+<a name="558"></a>        behind_loop:
+<a name="559"></a>            foreach(local cur in put_lst)
+<a name="560"></a>            {
+<a name="561"></a>                foreach(local dest in put_in_lst)
+<a name="562"></a>                {
+<a name="563"></a>                    if(!cur.isOrIsIn(dest) 
+<a name="564"></a>                       &amp;&amp; (!excludeCheckFailures || checkInsert(cur, dest,
+<a name="565"></a>                           PutBehind)))
+<a name="566"></a>                    {
+<a name="567"></a>                        local str = 'put ' + cur.name + ' behind ' + dest.name;
+<a name="568"></a>                        "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="569"></a>                        
+<a name="570"></a>                         if(++i &gt; maxObjs)
+<a name="571"></a>                            break behind_loop;
+<a name="572"></a>                    }
+<a name="573"></a>                }
+<a name="574"></a>            } 
+<a name="575"></a>            "&lt;.p&gt;";
+<a name="576"></a>        }
+<a name="577"></a>        
+<a name="578"></a>        /* 
+<a name="579"></a>         *   OPTION 4: The player wants to manipulate objects in their
+<a name="580"></a>         *   surroundings, which is a catch-all term for actions not covered
+<a name="581"></a>         *   above.
+<a name="582"></a>         */
+<a name="583"></a>        if(num == 4)
+<a name="584"></a>        {
+<a name="585"></a>            /* Display an introductory message. */
+<a name="586"></a>            DMsg(cmdhelp manipulate, 'Some things you could try include (there
+<a name="587"></a>                may be many other possibilities):\b');
+<a name="588"></a>            
+<a name="589"></a>            /* Go through every action in out manipulationActions list */
+<a name="590"></a>            foreach(local act in manipulationActions)
+<a name="591"></a>            {               
+<a name="592"></a>                /* 
+<a name="593"></a>                 *   Set gAction to the current action, so that routines such as
+<a name="594"></a>                 *   verify that depend on its value will work properly.
+<a name="595"></a>                 */
+<a name="596"></a>                gAction = act;
+<a name="597"></a>                
+<a name="598"></a>                /*   Set gActor to the player character for the same reason. */
+<a name="599"></a>                gActor = gPlayerChar;
+<a name="600"></a>                
+<a name="601"></a>                /*   
+<a name="602"></a>                 *   Get the list of objects in scope that would pass the verify
+<a name="603"></a>                 *   stage for this action.
+<a name="604"></a>                 */
+<a name="605"></a>                local lst = scope_lst.subset({o: act.verify(o,
+<a name="606"></a>                    DirectObject).allowAction});
+<a name="607"></a>                
+<a name="608"></a>                /*  
+<a name="609"></a>                 *   If we want to exclude objects that would fail at the check
+<a name="610"></a>                 *   stage, reduce our list to those objects that would pass
+<a name="611"></a>                 *   this action at the check stage.
+<a name="612"></a>                 */
+<a name="613"></a>                if(excludeCheckFailures)
+<a name="614"></a>                    lst = lst.subset({o: passCheck(act, o) });
+<a name="615"></a>                
+<a name="616"></a>                /*  
+<a name="617"></a>                 *   Get the name of the action from the grammarTemplates
+<a name="618"></a>                 *   property of the current action. This will be a string in
+<a name="619"></a>                 *   the form 'clean (dobj)', so we want to remove '(dobj)' from
+<a name="620"></a>                 *   the string to just leave the command name.
+<a name="621"></a>                 */
+<a name="622"></a>                local str = act.grammarTemplates[1].findReplace('(dobj)', '');
+<a name="623"></a>                
+<a name="624"></a>                /*  Display a list of commands for this action. */
+<a name="625"></a>                showList(lst, str);            
+<a name="626"></a>            }    
+<a name="627"></a>            
+<a name="628"></a>            /* 
+<a name="629"></a>             *   If the gadgets module is present the player could also try
+<a name="630"></a>             *   pushing and pulling buttons and levers. PUSH and PULL aren't
+<a name="631"></a>             *   included in manipulationActions as they would result in the
+<a name="632"></a>             *   suggestion of too many pointless commands.
+<a name="633"></a>             */
+<a name="634"></a>            if(defined(Button))
+<a name="635"></a>            {
+<a name="636"></a>                "&lt;.p&gt;";
+<a name="637"></a>                /* Get a list of all the buttons and levers in scope. */
+<a name="638"></a>                local lst = scope_lst.subset({o: o.ofKind(Button) ||
+<a name="639"></a>                                             o.ofKind(Lever)});
+<a name="640"></a>                
+<a name="641"></a>                /* Set gAction and gActor for the PUSH action. */
+<a name="642"></a>                gAction = Push;
+<a name="643"></a>                gActor = gPlayerChar;
+<a name="644"></a>                
+<a name="645"></a>                /* 
+<a name="646"></a>                 *   Restrict our list to actions that would pass the verify
+<a name="647"></a>                 *   stage of a PUSH action.
+<a name="648"></a>                 */
+<a name="649"></a>                lst = lst.subset({o: Push.verify(o, DirectObject).allowAction});
+<a name="650"></a>                
+<a name="651"></a>                /*   Display a list of suggested actions. */
+<a name="652"></a>                showList(lst, 'push ');
+<a name="653"></a>                
+<a name="654"></a>                /* Get a list of levers in scope. */
+<a name="655"></a>                lst = scope_lst.subset({o: o.ofKind(Lever) });
+<a name="656"></a>                
+<a name="657"></a>                /* Set gAction and gActor for the PULL action. */
+<a name="658"></a>                gAction = Pull;
+<a name="659"></a>                gActor = gPlayerChar;
+<a name="660"></a>                
+<a name="661"></a>                /* 
+<a name="662"></a>                 *   Get a subset of levers that would pass the verify stage for
+<a name="663"></a>                 *   PULL.
+<a name="664"></a>                 */
+<a name="665"></a>                lst = lst.subset({o: Pull.verify(o, DirectObject).allowAction});
+<a name="666"></a>                
+<a name="667"></a>                /*  Show a list of suggested PULL commands. */
+<a name="668"></a>                showList(lst, 'pull ');
+<a name="669"></a>                
+<a name="670"></a>            }
+<a name="671"></a>            
+<a name="672"></a>            /* LockWith and UnlockWith actions on lockableWithKey items */
+<a name="673"></a>            
+<a name="674"></a>            /* 
+<a name="675"></a>             *   Get a list of objects that can be locked or unlocked with a
+<a name="676"></a>             *   key, remembering to include those with lockable remapIn
+<a name="677"></a>             *   objects.
+<a name="678"></a>             */
+<a name="679"></a>            local lockLst = scope_lst.subset({o: o.lockability == lockableWithKey
+<a name="680"></a>                                            || (o.remapIn &amp;&amp;
+<a name="681"></a>                                                o.remapIn.lockability ==
+<a name="682"></a>                                                lockableWithKey)});
+<a name="683"></a>            
+<a name="684"></a>            /* Go through every object in our list. */
+<a name="685"></a>            foreach(local lock in lockLst)
+<a name="686"></a>            {
+<a name="687"></a>                /* 
+<a name="688"></a>                 *   Get a list of keys that might lock/unlock the current
+<a name="689"></a>                 *   object. These will be Keys in scope for which the current
+<a name="690"></a>                 *   object appears in the plausibleLockList.
+<a name="691"></a>                 */
+<a name="692"></a>                local key_lst = scope_lst.subset(
+<a name="693"></a>                    {o: o.ofKind(Key) &amp;&amp;
+<a name="694"></a>                    o.plausibleLockList.indexOf(lock) });
+<a name="695"></a>                
+<a name="696"></a>                /*  
+<a name="697"></a>                 *   Set the description of the suggested action to 'unlock' or
+<a name="698"></a>                 *   'lock' depending on whether the current object is locked or
+<a name="699"></a>                 *   unlocked.
+<a name="700"></a>                 */
+<a name="701"></a>                local actstr = lock.isLocked ? 'unlock ' : 'lock ';
+<a name="702"></a>                
+<a name="703"></a>                /* Go through every possibly usable key we found */
+<a name="704"></a>                foreach(local key in key_lst)
+<a name="705"></a>                {
+<a name="706"></a>                    /* 
+<a name="707"></a>                     *   Suggest locking or unlocking the current object with
+<a name="708"></a>                     *   that key.
+<a name="709"></a>                     */
+<a name="710"></a>                    local str = actstr + lock.name + ' with ' + key.name;
+<a name="711"></a>                    "&lt;&lt;aHref(str, str)&gt;&gt;\ \ ";
+<a name="712"></a>                }
+<a name="713"></a>                    
+<a name="714"></a>            }
+<a name="715"></a>            
+<a name="716"></a>            
+<a name="717"></a>        }
+<a name="718"></a>        
+<a name="719"></a>        /* OPTION 5: The player wants to talk with an NPC. */
+<a name="720"></a>        if(num == 5)
+<a name="721"></a>        {
+<a name="722"></a>            /* Set up a list of available actors. */
+<a name="723"></a>            local actor_lst = [];
+<a name="724"></a>            
+<a name="725"></a>            /* 
+<a name="726"></a>             *   We can only populate the list if the actor.t module is present.
+<a name="727"></a>             */
+<a name="728"></a>            if(defined(Actor))
+<a name="729"></a>            {
+<a name="730"></a>                /* 
+<a name="731"></a>                 *   Get a list of all the actors in scope who aren't the player
+<a name="732"></a>                 *   character.
+<a name="733"></a>                 */
+<a name="734"></a>                actor_lst = scope_lst.subset({o: o.ofKind(Actor) &amp;&amp; o !=
+<a name="735"></a>                                             gPlayerChar});
+<a name="736"></a>            }
+<a name="737"></a>            
+<a name="738"></a>            /* If we didn't find any, say so. */
+<a name="739"></a>            if(actor_lst.length == 0)                  
+<a name="740"></a>                DMsg(cmdhelp no one to talk to, 'Sorry, but there\'s no one here 
+<a name="741"></a>                    to talk to right now.\b');
+<a name="742"></a>            /* 
+<a name="743"></a>             *   Otherwise, if we only found one and the player character is
+<a name="744"></a>             *   already talking to him or her, suggest the use of the TOPICS
+<a name="745"></a>             *   command.
+<a name="746"></a>             */
+<a name="747"></a>            else if(actor_lst.length == 1 &amp;&amp; actor_lst[1] ==
+<a name="748"></a>                    gPlayerChar.currentInterlocutor)
+<a name="749"></a>                "&lt;&lt;aHref('topics', 'topics')&gt;&gt; ";
+<a name="750"></a>            /*  Otherwise display a list of actors to talk to. */
+<a name="751"></a>            else    
+<a name="752"></a>                showList(actor_lst, 'talk to ');
+<a name="753"></a>            
+<a name="754"></a>        }
+<a name="755"></a>        
+<a name="756"></a>        /* At the moment OPTION 6 isn't included in the suggestions menu */
+<a name="757"></a>        if(num == 6)
+<a name="758"></a>        {
+<a name="759"></a>            "Some other actions you could try include:\b
+<a name="760"></a>            &lt;&lt;aHref('JUMP', 'JUMP')&gt;&gt;\ \ &lt;&lt;aHref('THINK', 'THINK')&gt;&gt;
+<a name="761"></a>            \ \ &lt;&lt;aHref('WAIT', 'WAIT')&gt;&gt;, &lt;&lt;aHref('YELL', 'YELL')&gt;&gt;
+<a name="762"></a>            \ \ &lt;&lt;aHref('SLEEP', 'SLEEP')&gt;&gt;\b";
+<a name="763"></a>        }
+<a name="764"></a>        
+<a name="765"></a>        gAction = self;
+<a name="766"></a>    }
+<a name="767"></a>    
+<a name="768"></a>   
+<a name="769"></a>    
+<a name="770"></a>    
+<a name="771"></a>    /* 
+<a name="772"></a>     *   A list of the actions we'll potentially suggest for option 4,
+<a name="773"></a>     *   "Manipulate thing". Note that these must all be TActions.
+<a name="774"></a>     */
+<a name="775"></a>    manipulationActions = [Open, Close, Lock, Unlock, Break, Cut,
+<a name="776"></a>        SwitchOn, SwitchOff, Burn, Wear, Doff, Climb, ClimbUp, ClimbDown,
+<a name="777"></a>        Board, Enter, GetOff, GetOutOf, Light, Extinguish, Eat, Drink,
+<a name="778"></a>        Clean, Dig, Attach, Detach, Fasten, Unfasten, Unplug, JumpOff,
+<a name="779"></a>        JumpOver, Pour, Screw, Unscrew, GoThrough] 
+<a name="780"></a> 
+<a name="781"></a>    /* 
+<a name="782"></a>     *   We in any case rule out combinations of actions and objects that would
+<a name="783"></a>     *   fail at the verify stage; flag - should we also rule out combinations
+<a name="784"></a>     *   that fail at the check stage? By default we do.
+<a name="785"></a>     */
+<a name="786"></a>    excludeCheckFailures = true
+<a name="787"></a>    
+<a name="788"></a>    /*  Determine whether obj would pass the check stage of the act action. */
+<a name="789"></a>    passCheck(act, obj)
+<a name="790"></a>    {
+<a name="791"></a>        /* Set obj to the current direct object of act/ */
+<a name="792"></a>        act.curDobj = obj;
+<a name="793"></a>        
+<a name="794"></a>        /* See if running the check routine would output any text. */
+<a name="795"></a>        local str = gOutStream.captureOutput(
+<a name="796"></a>            {: act.check(obj, act.checkDobjProp)});
+<a name="797"></a>        
+<a name="798"></a>        /* 
+<a name="799"></a>         *   If any text would have been output, we failed the check stage;
+<a name="800"></a>         *   otherwise we passed.
+<a name="801"></a>         */
+<a name="802"></a>        return  str == '';
+<a name="803"></a>    }
+<a name="804"></a>    
+<a name="805"></a>    
+<a name="806"></a>    /* 
+<a name="807"></a>     *   Check whether obj can be inserted in cont with the action act (which
+<a name="808"></a>     *   will be one of PutIn, PutOn, PutUnder or PutBehind). 
+<a name="809"></a>     */
+<a name="810"></a>    checkInsert(obj, cont, act)
+<a name="811"></a>    {
+<a name="812"></a>        /* If the container has a remapIn object, use that instead */
+<a name="813"></a>        if(cont.remapIn != nil)
+<a name="814"></a>            cont = cont.remapIn;
+<a name="815"></a>         
+<a name="816"></a>        /* Set gAction to the appropriate action */
+<a name="817"></a>        gAction = act;
+<a name="818"></a>        gDobj = obj;
+<a name="819"></a>        
+<a name="820"></a>        /* 
+<a name="821"></a>         *   Get the property for running the check() method on the indirect
+<a name="822"></a>         *   object of prop,
+<a name="823"></a>         */
+<a name="824"></a>        local prop = act.checkIobjProp;
+<a name="825"></a>        
+<a name="826"></a>        /*   Capture the output from running this method. */
+<a name="827"></a>        local str = gOutStream.captureOutput( {: cont.(prop) });
+<a name="828"></a>        
+<a name="829"></a>        /* 
+<a name="830"></a>         *   If there was any output, we failed the check stage; otherwise we
+<a name="831"></a>         *   passed.
+<a name="832"></a>         */
+<a name="833"></a>        return str == '';
+<a name="834"></a>    }
+<a name="835"></a>    
+<a name="836"></a>    /* 
+<a name="837"></a>     *   The maximum number of objects in a list before we try to reduce that
+<a name="838"></a>     *   list.
+<a name="839"></a>     */
+<a name="840"></a>    maxObjs = 10   
+<a name="841"></a>;
+<a name="842"></a>
+<a name="843"></a>
+<a name="844"></a>/* [CMDHELP EXTENSION] */
+<a name="845"></a>VerbRule(CmdMenu)
+<a name="846"></a>    numericDobj
+<a name="847"></a>    : VerbProduction
+<a name="848"></a>    action = CmdMenu
+<a name="849"></a>    
+<a name="850"></a>    isActive = Parser.autoHelp
+<a name="851"></a>;
+<a name="852"></a>    
+<a name="853"></a>
+<a name="854"></a>/* Modifications to Thing for the CMDHELP EXTENSION */
+<a name="855"></a>modify Thing
+<a name="856"></a>    turnLastMoved = 0
+<a name="857"></a>    turnLastMovedInto = 0
+<a name="858"></a>    
+<a name="859"></a>    /* 
+<a name="860"></a>     *   Modified for CMDHELP EXTENSION. Note the last turns on which this
+<a name="861"></a>     *   object was moved and on which something was moved into this object.
+<a name="862"></a>     */
+<a name="863"></a>    actionMoveInto(dest)
+<a name="864"></a>    {
+<a name="865"></a>        inherited(dest);
+<a name="866"></a>        turnLastMoved = gTurns;
+<a name="867"></a>        dest.turnLastMovedInto = gTurns;
+<a name="868"></a>        if(dest.ofKind(SubComponent) &amp;&amp; dest.lexicalParent)
+<a name="869"></a>            dest.lexicalParent.turnLastMovedInto = gTurns;
+<a name="870"></a>    
+<a name="871"></a>    }
+<a name="872"></a>    
+<a name="873"></a>    turnLastExamined = 0
+<a name="874"></a>    
+<a name="875"></a>    /* 
+<a name="876"></a>     *   Modified for CMDHELP EXTENSION. Note the last turn on which this
+<a name="877"></a>     *   object was examined.
+<a name="878"></a>     */
+<a name="879"></a>    dobjFor(Examine)
+<a name="880"></a>    {
+<a name="881"></a>        action()
+<a name="882"></a>        {
+<a name="883"></a>            inherited();
+<a name="884"></a>            turnLastExamined = gTurns;
+<a name="885"></a>        }
+<a name="886"></a>    }
+<a name="887"></a>;
+<a name="888"></a>
+<a name="889"></a>/* Modify suggestedTopicLister to hyperlink suggestions for the CMDHELP EXTENSION */
+<a name="890"></a>modify suggestedTopicLister
+<a name="891"></a>    
+<a name="892"></a>    /* 
+<a name="893"></a>     *   Turn on the topic suggestion hyperlinking if the Parser autoHelp is
+<a name="894"></a>     *   enabled.
+<a name="895"></a>     */
+<a name="896"></a>    hyperlinkSuggestions = Parser.autoHelp    
+<a name="897"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

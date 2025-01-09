@@ -1,0 +1,818 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>browser.t</title></head><body>
+<table class=ban><tr><td><h1>browser.t</h1><td align=right><a href="../file/browser.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
+<a name="5"></a> *   
+<a name="6"></a> *   TADS 3 Library - browser (Web UI) input/output manager
+<a name="7"></a> *   
+<a name="8"></a> *   This module defines the low-level functions for handling input and
+<a name="9"></a> *   output via the Web UI.
+<a name="10"></a> *   
+<a name="11"></a> *   The functions in this module are designed primarily for internal use
+<a name="12"></a> *   within the library itself.  Games should use the higher level objects
+<a name="13"></a> *   and functions defined in input.t and output.t instead of directly
+<a name="14"></a> *   calling the functions defined here.  The reason for separating these
+<a name="15"></a> *   functions is to make the UI selection pluggable, so that the same game
+<a name="16"></a> *   can be compiled for either the traditional UI or the Web UI simply by
+<a name="17"></a> *   plugging in the correct i/o module.  
+<a name="18"></a> */
+<a name="19"></a>
+<a name="20"></a>/* include the library header */
+<a name="21"></a>#include "advlite.h"
+<a name="22"></a>
+<a name="23"></a>
+<a name="24"></a>/* ------------------------------------------------------------------------ */
+<a name="25"></a>/*
+<a name="26"></a> *   Browser globals 
+<a name="27"></a> */
+<a name="28"></a>transient browserGlobals: object
+<a name="29"></a>    /* the HTTPServer object for the browser UI session */
+<a name="30"></a>    httpServer = nil
+<a name="31"></a>
+<a name="32"></a>    /* 
+<a name="33"></a>     *   Log file handle.  For a LogTypeTranscript file, this is a
+<a name="34"></a>     *   LogConsole object; for other types, it's a regular file handle.  
+<a name="35"></a>     */
+<a name="36"></a>    logFile = nil
+<a name="37"></a>    
+<a name="38"></a>    /* logging type (LogTypeXxx from tadsio.h, or nil if not logging) */
+<a name="39"></a>    logFileType = nil
+<a name="40"></a>;
+<a name="41"></a>
+<a name="42"></a>/* ------------------------------------------------------------------------ */
+<a name="43"></a>/*
+<a name="44"></a> *   Initialize the user interface.  The library calls this once at the
+<a name="45"></a> *   start of the interpreter session to set up the UI.  For the Web UI, we
+<a name="46"></a> *   create the HTTP server and send connection instructions to the client.
+<a name="47"></a> */
+<a name="48"></a>initUI()
+<a name="49"></a>{
+<a name="50"></a>    /* 
+<a name="51"></a>     *   Set up the HTTP server.  Listen on the launch address, which is
+<a name="52"></a>     *   the address that the client used to reach the external Web server
+<a name="53"></a>     *   that launched the interpreter.  For local stand-alone launches,
+<a name="54"></a>     *   the launch address is nil, so the HTTP server will listen on
+<a name="55"></a>     *   localhost, which is just what we need in order to connect to the
+<a name="56"></a>     *   local UI.  
+<a name="57"></a>     */
+<a name="58"></a>    local srv = browserGlobals.httpServer = new HTTPServer(
+<a name="59"></a>        getLaunchHostAddr(), nil, 1024*1024);
+<a name="60"></a>    
+<a name="61"></a>    /* send connection instructions to the client */
+<a name="62"></a>    webSession.connectUI(srv);
+<a name="63"></a>}
+<a name="64"></a>
+<a name="65"></a>/*
+<a name="66"></a> *   Initialize the display.  We call this when we first enter the
+<a name="67"></a> *   interpreter, and again at each RESTART, to set up the main game
+<a name="68"></a> *   window's initial layout.  We set up the conventional IF screen layout,
+<a name="69"></a> *   with the status line across the top and the transcript/command window
+<a name="70"></a> *   filling the rest of the display.  
+<a name="71"></a> */
+<a name="72"></a>initDisplay()
+<a name="73"></a>{
+<a name="74"></a>    /* set up the command window and status line */
+<a name="75"></a>    webMainWin.createFrame(commandWin, 'command',
+<a name="76"></a>                           '0, statusline.bottom, 100%, 100%');
+<a name="77"></a>    webMainWin.createFrame(statuslineBanner, 'statusline',
+<a name="78"></a>                           '0, 0, 100%, content.height');
+<a name="79"></a>
+<a name="80"></a>    /* capture the title string */
+<a name="81"></a>    local title = mainOutputStream.captureOutput(
+<a name="82"></a>        {: gameMain.setGameTitle() });
+<a name="83"></a>
+<a name="84"></a>    /* parse out the contents of the &lt;title&gt; tag */
+<a name="85"></a>    if (rexSearch('&lt;nocase&gt;[&lt;]title[&gt;](.*)[&lt;]/title[&gt;]', title))
+<a name="86"></a>        title = rexGroup(1)[3];
+<a name="87"></a>
+<a name="88"></a>    /* initialize the statusline window object */
+<a name="89"></a>    statuslineBanner.init();
+<a name="90"></a>    statusLine.statusDispMode = StatusModeBrowser;
+<a name="91"></a>
+<a name="92"></a>    /* set the title */
+<a name="93"></a>    webMainWin.setTitle(title);
+<a name="94"></a>
+<a name="95"></a>    /* get the session parameters from the arguments */
+<a name="96"></a>    local arg = libGlobal.getCommandSwitch('-gameid=');
+<a name="97"></a>    if (arg != nil &amp;&amp; arg != '')
+<a name="98"></a>        webSession.launcherGameID = arg;
+<a name="99"></a>
+<a name="100"></a>    arg = libGlobal.getCommandSwitch('-storagesid=');
+<a name="101"></a>    if (arg != nil &amp;&amp; arg != '')
+<a name="102"></a>        webSession.storageSID = arg;
+<a name="103"></a>
+<a name="104"></a>    arg = libGlobal.getCommandSwitch('-username=');
+<a name="105"></a>    if (arg != nil &amp;&amp; arg != '')
+<a name="106"></a>        webSession.launcherUsername = arg;
+<a name="107"></a>}
+<a name="108"></a>
+<a name="109"></a>/*
+<a name="110"></a> *   Shut down the user interface.  The library calls this when the game is
+<a name="111"></a> *   about to terminate. 
+<a name="112"></a> */
+<a name="113"></a>terminateUI()
+<a name="114"></a>{
+<a name="115"></a>    /* if we have an HTTP server, shut it down */
+<a name="116"></a>    if (browserGlobals.httpServer != nil)
+<a name="117"></a>    {
+<a name="118"></a>        /* flush our windows */
+<a name="119"></a>        webMainWin.flushWin();
+<a name="120"></a>        commandWin.sendWinEvent('&lt;scrollToBottom/&gt;');
+<a name="121"></a>
+<a name="122"></a>        /* end any scripting */
+<a name="123"></a>        aioSetLogFile(nil, LogTypeTranscript);
+<a name="124"></a>        aioSetLogFile(nil, LogTypeCommand);
+<a name="125"></a>
+<a name="126"></a>        /* 
+<a name="127"></a>         *   keep running for a few more minutes, to give clients a chance
+<a name="128"></a>         *   to perform final tasks like downloading log files 
+<a name="129"></a>         */
+<a name="130"></a>        ClientSession.shutdownWait(5*60*1000);
+<a name="131"></a>
+<a name="132"></a>        /* send the shutdown message */
+<a name="133"></a>        eventPage.sendEvent('&lt;shutdown/&gt;');
+<a name="134"></a>
+<a name="135"></a>        /* wait a short time for clients to process the shutdown event */
+<a name="136"></a>        ClientSession.shutdownWait(5*1000);
+<a name="137"></a>
+<a name="138"></a>        /* shut down the http server */
+<a name="139"></a>        browserGlobals.httpServer.shutdown(true);
+<a name="140"></a>    }
+<a name="141"></a>}
+<a name="142"></a>
+<a name="143"></a>/* ------------------------------------------------------------------------ */
+<a name="144"></a>/*
+<a name="145"></a> *   Check to see if we're in HTML mode 
+<a name="146"></a> */
+<a name="147"></a>checkHtmlMode()
+<a name="148"></a>{
+<a name="149"></a>    /* 
+<a name="150"></a>     *   The web UI is always in HTML mode.  This is regardless of the
+<a name="151"></a>     *   interpreter class, because that only tells us about the
+<a name="152"></a>     *   interpreter's own native UI.  The actual user interface in Web UI
+<a name="153"></a>     *   mode runs in a separate Web browser app, which is inherently HTML
+<a name="154"></a>     *   capable. 
+<a name="155"></a>     */
+<a name="156"></a>    return true;
+<a name="157"></a>}
+<a name="158"></a>
+<a name="159"></a>/* ------------------------------------------------------------------------ */
+<a name="160"></a>/*
+<a name="161"></a> *   Write text to the main game window
+<a name="162"></a> */
+<a name="163"></a>aioSay(txt)
+<a name="164"></a>{
+<a name="165"></a>    /* write the text to the main command window */
+<a name="166"></a>    commandWin.write(txt);
+<a name="167"></a>
+<a name="168"></a>    /* if we're logging a full transcript, write the text */
+<a name="169"></a>    if (browserGlobals.logFileType == LogTypeTranscript)
+<a name="170"></a>        browserGlobals.logFile.writeToStream(txt);
+<a name="171"></a>}
+<a name="172"></a>
+<a name="173"></a>/* ------------------------------------------------------------------------ */
+<a name="174"></a>/*
+<a name="175"></a> *   Is a script file active? 
+<a name="176"></a> */
+<a name="177"></a>readingScript()
+<a name="178"></a>{
+<a name="179"></a>    return setScriptFile(ScriptReqGetStatus) != nil;
+<a name="180"></a>}
+<a name="181"></a>
+<a name="182"></a>/*
+<a name="183"></a> *   Is an event script active? 
+<a name="184"></a> */
+<a name="185"></a>readingEventScript()
+<a name="186"></a>{
+<a name="187"></a>    local s = setScriptFile(ScriptReqGetStatus);
+<a name="188"></a>    return (s != nil &amp;&amp; (s &amp; ScriptFileEvent) != 0);
+<a name="189"></a>}
+<a name="190"></a>
+<a name="191"></a>/* ------------------------------------------------------------------------ */
+<a name="192"></a>/*
+<a name="193"></a> *   Get a line of input from the keyboard, with timeout 
+<a name="194"></a> */
+<a name="195"></a>aioInputLineTimeout(timeout)
+<a name="196"></a>{
+<a name="197"></a>    /* check for script input */
+<a name="198"></a>    local scriptMode = setScriptFile(ScriptReqGetStatus);
+<a name="199"></a>    if (scriptMode != nil)
+<a name="200"></a>    {
+<a name="201"></a>        /* we're in a script, so use the regular input line reader */
+<a name="202"></a>        local e = inputLineTimeout(timeout);
+<a name="203"></a>
+<a name="204"></a>        /* 
+<a name="205"></a>         *   If it's not an end-of-file indication, return the event.  An
+<a name="206"></a>         *   EOF means that there are no more events in the script, so
+<a name="207"></a>         *   return to reading from the live client UI.  
+<a name="208"></a>         */
+<a name="209"></a>        if (e[1] != InEvtEof)
+<a name="210"></a>        {
+<a name="211"></a>            /* echo the input if we're not in quiet mode */
+<a name="212"></a>            if (e[1] == InEvtLine &amp;&amp; !(scriptMode &amp; ScriptFileQuiet))
+<a name="213"></a>                aioSay(e[2].htmlify() + '\n');
+<a name="214"></a>
+<a name="215"></a>            /* log and return the event */
+<a name="216"></a>            return aioLogInputEvent(e);
+<a name="217"></a>        }
+<a name="218"></a>    }
+<a name="219"></a>
+<a name="220"></a>    /* 
+<a name="221"></a>     *   read an input line event from the main command window, log it, and
+<a name="222"></a>     *   return it 
+<a name="223"></a>     */
+<a name="224"></a>    return aioLogInputEvent(commandWin.getInputLine(timeout));
+<a name="225"></a>}
+<a name="226"></a>
+<a name="227"></a>/*
+<a name="228"></a> *   Cancel a suspended input line 
+<a name="229"></a> */
+<a name="230"></a>aioInputLineCancel(reset)
+<a name="231"></a>{
+<a name="232"></a>    /* cancel the input line in the command window */
+<a name="233"></a>    commandWin.cancelInputLine(reset);
+<a name="234"></a>}
+<a name="235"></a>
+<a name="236"></a>
+<a name="237"></a>/* ------------------------------------------------------------------------ */
+<a name="238"></a>/*
+<a name="239"></a> *   Read an input event 
+<a name="240"></a> */
+<a name="241"></a>aioInputEvent(timeout)
+<a name="242"></a>{
+<a name="243"></a>    /* check for script input */
+<a name="244"></a>    if (readingEventScript())
+<a name="245"></a>    {
+<a name="246"></a>        /* we're in a script, so use the regular input line reader */
+<a name="247"></a>        local e = inputEvent(timeout);
+<a name="248"></a>
+<a name="249"></a>        /* 
+<a name="250"></a>         *   If it's not an end-of-file indication, return the event.  An
+<a name="251"></a>         *   EOF means that there are no more events in the script, so
+<a name="252"></a>         *   return to reading from the live client UI.  
+<a name="253"></a>         */
+<a name="254"></a>        if (e[1] != InEvtEof)
+<a name="255"></a>            return aioLogInputEvent(e);
+<a name="256"></a>    }
+<a name="257"></a>
+<a name="258"></a>    /* read an event from the main command window, log it, and return it */
+<a name="259"></a>    return aioLogInputEvent(webMainWin.getInputEvent(timeout));
+<a name="260"></a>}
+<a name="261"></a>
+<a name="262"></a>
+<a name="263"></a>/* ------------------------------------------------------------------------ */
+<a name="264"></a>/*
+<a name="265"></a> *   Show a "More" prompt 
+<a name="266"></a> */
+<a name="267"></a>aioMorePrompt()
+<a name="268"></a>{
+<a name="269"></a>    /* show a More prompt in the main command window */
+<a name="270"></a>    commandWin.showMorePrompt();
+<a name="271"></a>}
+<a name="272"></a>
+<a name="273"></a>/* ------------------------------------------------------------------------ */
+<a name="274"></a>/*
+<a name="275"></a> *   Clear the screen 
+<a name="276"></a> */
+<a name="277"></a>aioClearScreen()
+<a name="278"></a>{
+<a name="279"></a>    /* clear the main transcript window */
+<a name="280"></a>    commandWin.clearWindow();
+<a name="281"></a>}
+<a name="282"></a>
+<a name="283"></a>
+<a name="284"></a>/* ------------------------------------------------------------------------ */
+<a name="285"></a>/*
+<a name="286"></a> *   Show a file selector dialog 
+<a name="287"></a> */
+<a name="288"></a>aioInputFile(prompt, dialogType, fileType, flags)
+<a name="289"></a>{
+<a name="290"></a>    /* 
+<a name="291"></a>     *   First, try reading from the local console.  Even though we're
+<a name="292"></a>     *   using the Web UI, there are two special cases where the input will
+<a name="293"></a>     *   come from the local (server-side) console instead of from the
+<a name="294"></a>     *   browser UI:
+<a name="295"></a>     *   
+<a name="296"></a>     *   1. We're reading from an event script.  In this case, regardless
+<a name="297"></a>     *   of the UI mode, the interpreter reads from a server-side file and
+<a name="298"></a>     *   parses the results into an inputFile() result, bypassing any UI
+<a name="299"></a>     *   interaction.
+<a name="300"></a>     *   
+<a name="301"></a>     *   2. We're running in the Web UI's local stand-alone configuration,
+<a name="302"></a>     *   where the browser is actually an integrated window within the
+<a name="303"></a>     *   interpreter.  This configuration simulates the traditional UI by
+<a name="304"></a>     *   running everything locally - the client and server are running on
+<a name="305"></a>     *   the same machine, so there's really no distinction between
+<a name="306"></a>     *   client-side and server-side.  Because everything's local, files
+<a name="307"></a>     *   are local, so we want to display traditional local file selector
+<a name="308"></a>     *   dialogs.  The stand-alone interpreter does this for us via the
+<a name="309"></a>     *   standard inputFile() function when it detects this configuration.
+<a name="310"></a>     *   
+<a name="311"></a>     *   If neither of these special cases apply, inputFile() will return
+<a name="312"></a>     *   an error to let us know that it can't show a file dialog in the
+<a name="313"></a>     *   current configuration, so we'll continue on to showing the dialog
+<a name="314"></a>     *   on the client side via the Web UI.  
+<a name="315"></a>     */
+<a name="316"></a>    local f = inputFile(prompt, dialogType, fileType, flags);
+<a name="317"></a>
+<a name="318"></a>    /* if that failed, forget the result */
+<a name="319"></a>    if (f[1] == InFileFailure)
+<a name="320"></a>        f = nil;
+<a name="321"></a>
+<a name="322"></a>    /* if we got a file, check for warnings */
+<a name="323"></a>    if (f != nil &amp;&amp; f.length() &gt;= 4 &amp;&amp; f[4] != nil)
+<a name="324"></a>    {
+<a name="325"></a>        /* keep going until we get a definitive answer */
+<a name="326"></a>        for (local done = nil ; !done ; )
+<a name="327"></a>        {
+<a name="328"></a>            /* show the warning dialog */
+<a name="329"></a>            local d = webMainWin.getInputDialog(
+<a name="330"></a>                InDlgIconWarning,
+<a name="331"></a>                libMessages.inputFileScriptWarning(f[4], f[2]),
+<a name="332"></a>                libMessages.inputFileScriptWarningButtons, 1, 3);
+<a name="333"></a>            
+<a name="334"></a>            /* check the result */
+<a name="335"></a>            switch (d)
+<a name="336"></a>            {
+<a name="337"></a>            case 0:
+<a name="338"></a>            case 3:
+<a name="339"></a>                /* dialog error or Cancel Script - stop the script */
+<a name="340"></a>                setScriptFile(nil);
+<a name="341"></a>                
+<a name="342"></a>                /* return a Cancel result */
+<a name="343"></a>                return [InFileCancel];
+<a name="344"></a>                
+<a name="345"></a>            case 1:
+<a name="346"></a>                /* "Yes" - proceed */
+<a name="347"></a>                done = true;
+<a name="348"></a>                break;
+<a name="349"></a>                
+<a name="350"></a>            case 2:
+<a name="351"></a>                /* Choose New File button - show a file dialog */
+<a name="352"></a>                local fNew = webMainWin.getInputFile(
+<a name="353"></a>                    prompt, dialogType, fileType, flags);
+<a name="354"></a>                
+<a name="355"></a>                switch (fNew[1])
+<a name="356"></a>                {
+<a name="357"></a>                case InFileSuccess:
+<a name="358"></a>                    /* success - use the new file, and we're done */
+<a name="359"></a>                    f = fNew;
+<a name="360"></a>                    done = true;
+<a name="361"></a>                    break;
+<a name="362"></a>                    
+<a name="363"></a>                case InFileCancel:
+<a name="364"></a>                    /* cancel - repeat the prompt */
+<a name="365"></a>                    break;
+<a name="366"></a>                    
+<a name="367"></a>                case InFileFailure:
+<a name="368"></a>                    /* dialog error - cancel the script */
+<a name="369"></a>                    setScriptFile(nil);
+<a name="370"></a>                    return [InFileCancel];
+<a name="371"></a>                }
+<a name="372"></a>            }
+<a name="373"></a>        }
+<a name="374"></a>    }
+<a name="375"></a>
+<a name="376"></a>    /* 
+<a name="377"></a>     *   if we didn't get a result from a script or from the local console,
+<a name="378"></a>     *   tell the client UI to display its file dialog 
+<a name="379"></a>     */
+<a name="380"></a>    if (f == nil)
+<a name="381"></a>        f = webMainWin.getInputFile(prompt, dialogType, fileType, flags);
+<a name="382"></a>
+<a name="383"></a>    /* log a synthetic &lt;file&gt; event, if applicable */
+<a name="384"></a>    aioLogInputEvent(
+<a name="385"></a>        ['&lt;file&gt;',
+<a name="386"></a>         f[1] != InFileSuccess ? '' :
+<a name="387"></a>         dataType(f[2]) == TypeObject &amp;&amp; !f[2].ofKind(FileName) ? 't' :
+<a name="388"></a>         f[2]]);
+<a name="389"></a>    
+<a name="390"></a>    /* return the file information */
+<a name="391"></a>    return f;
+<a name="392"></a>}
+<a name="393"></a>
+<a name="394"></a>/* ------------------------------------------------------------------------ */
+<a name="395"></a>/*
+<a name="396"></a> *   Show an input dialog 
+<a name="397"></a> */
+<a name="398"></a>aioInputDialog(icon, prompt, buttons, defaultButton, cancelButton)
+<a name="399"></a>{
+<a name="400"></a>    /* check for script input */
+<a name="401"></a>    local d = nil;
+<a name="402"></a>    if (readingEventScript())
+<a name="403"></a>    {
+<a name="404"></a>        /* we're in a script, so use the regular dialog event reader */
+<a name="405"></a>        d = inputDialog(icon, prompt, buttons, defaultButton, cancelButton);
+<a name="406"></a>
+<a name="407"></a>        /* if it failed, forget the result */
+<a name="408"></a>        if (d == 0)
+<a name="409"></a>            d = nil;
+<a name="410"></a>    }
+<a name="411"></a>
+<a name="412"></a>    /* if we didn't get script input, show the dialog via the client UI */
+<a name="413"></a>    if (d == nil)
+<a name="414"></a>        d = webMainWin.getInputDialog(icon, prompt, buttons,
+<a name="415"></a>                                      defaultButton, cancelButton);
+<a name="416"></a>
+<a name="417"></a>    /* log a synthetic &lt;dialog&gt; event, if applicable */
+<a name="418"></a>    aioLogInputEvent(['&lt;dialog&gt;', d]);
+<a name="419"></a>
+<a name="420"></a>    /* return the result */
+<a name="421"></a>    return d;
+<a name="422"></a>}
+<a name="423"></a>
+<a name="424"></a>
+<a name="425"></a>/* ------------------------------------------------------------------------ */
+<a name="426"></a>/*
+<a name="427"></a> *   Set/remove the output logging file
+<a name="428"></a> */
+<a name="429"></a>aioSetLogFile(fname, typ = LogTypeTranscript)
+<a name="430"></a>{
+<a name="431"></a>    /* if there's currently a log file open, close it */
+<a name="432"></a>    local log = browserGlobals.logFile;
+<a name="433"></a>    if (log != nil)
+<a name="434"></a>    {
+<a name="435"></a>        switch (browserGlobals.logFileType)
+<a name="436"></a>        {
+<a name="437"></a>        case LogTypeTranscript:
+<a name="438"></a>            /* for a transcript, we have a log console as the handle */
+<a name="439"></a>            log.closeConsole();
+<a name="440"></a>            break;
+<a name="441"></a>
+<a name="442"></a>        default:
+<a name="443"></a>            /* for other types, we have a regular file handle */
+<a name="444"></a>            try
+<a name="445"></a>            {
+<a name="446"></a>                log.closeFile();
+<a name="447"></a>            }
+<a name="448"></a>            catch (Exception exc)
+<a name="449"></a>            {
+<a name="450"></a>                /* ignore errors, as we have no way to return them */
+<a name="451"></a>            }
+<a name="452"></a>            break;
+<a name="453"></a>        }
+<a name="454"></a>
+<a name="455"></a>        /* we've closed the handle, so forget it */
+<a name="456"></a>        log = nil;
+<a name="457"></a>    }
+<a name="458"></a>
+<a name="459"></a>    /* presume success */
+<a name="460"></a>    local ok = true;
+<a name="461"></a>
+<a name="462"></a>    /* if there's a filename, create a new console for this file */
+<a name="463"></a>    if (fname != nil)
+<a name="464"></a>    {
+<a name="465"></a>        /* create the output handle according to the type */
+<a name="466"></a>        switch (typ)
+<a name="467"></a>        {
+<a name="468"></a>        case LogTypeTranscript:
+<a name="469"></a>            /* 
+<a name="470"></a>             *   full transcript - create a log console, which will do the
+<a name="471"></a>             *   standard output formatting for us 
+<a name="472"></a>             */
+<a name="473"></a>            log = new LogConsole(fname, nil, 80);
+<a name="474"></a>            break;
+<a name="475"></a>
+<a name="476"></a>        case LogTypeCommand:
+<a name="477"></a>        case LogTypeScript:
+<a name="478"></a>            /* for other types, create an ordinary text file */
+<a name="479"></a>            try
+<a name="480"></a>            {
+<a name="481"></a>                /* open the log file */
+<a name="482"></a>                log = File.openTextFile(fname, FileAccessWrite, nil);
+<a name="483"></a>
+<a name="484"></a>                /* for an event script, write the &lt;eventscript&gt; opener */
+<a name="485"></a>                if (typ == LogTypeScript)
+<a name="486"></a>                    log.writeFile('&lt;eventscript&gt;\n');
+<a name="487"></a>            }
+<a name="488"></a>            catch (Exception exc)
+<a name="489"></a>            {
+<a name="490"></a>                /* if anything went wrong, we have no log file */
+<a name="491"></a>                log = nil;
+<a name="492"></a>            }
+<a name="493"></a>            break;
+<a name="494"></a>
+<a name="495"></a>        default:
+<a name="496"></a>            throw RuntimeError.newRuntimeError(2306, 'bad log file type');
+<a name="497"></a>        }
+<a name="498"></a>
+<a name="499"></a>        /* we failed if the log handle is nil */
+<a name="500"></a>        if (log == nil)
+<a name="501"></a>        {
+<a name="502"></a>            ok = nil;
+<a name="503"></a>            typ = nil;
+<a name="504"></a>        }
+<a name="505"></a>    }
+<a name="506"></a>    else
+<a name="507"></a>    {
+<a name="508"></a>        /* no longer logging */
+<a name="509"></a>        typ = nil;
+<a name="510"></a>    }
+<a name="511"></a>
+<a name="512"></a>    /* remember the new handle and log type */
+<a name="513"></a>    browserGlobals.logFile = log;
+<a name="514"></a>    browserGlobals.logFileType = typ;
+<a name="515"></a>
+<a name="516"></a>    /* return the success/failure indicator */
+<a name="517"></a>    return ok;
+<a name="518"></a>}
+<a name="519"></a>
+<a name="520"></a>/*
+<a name="521"></a> *   Log an input event.  We call this internally from each of the event
+<a name="522"></a> *   input routines to add the event to any event or command log we're
+<a name="523"></a> *   creating. 
+<a name="524"></a> */
+<a name="525"></a>aioLogInputEvent(evt)
+<a name="526"></a>{
+<a name="527"></a>    /* if the system is maintaining its own input log, write it there */
+<a name="528"></a>    logInputEvent(evt);
+<a name="529"></a>
+<a name="530"></a>    /* get the script globals */
+<a name="531"></a>    local ltyp = browserGlobals.logFileType;
+<a name="532"></a>    local log = browserGlobals.logFile;
+<a name="533"></a>
+<a name="534"></a>    /* get the basic event parameters */
+<a name="535"></a>    local evtType = evt[1];
+<a name="536"></a>    local param = (evt.length() &gt; 1 ? evt[2] : nil);
+<a name="537"></a>
+<a name="538"></a>    /* format the event based on the event type */
+<a name="539"></a>    switch (ltyp)
+<a name="540"></a>    {
+<a name="541"></a>    case LogTypeTranscript:
+<a name="542"></a>        /* transcript - echo command line input */
+<a name="543"></a>        if (evt[1] == InEvtLine)
+<a name="544"></a>            log.writeToStream(evt[2].htmlify() + '\n');
+<a name="545"></a>        break;
+<a name="546"></a>
+<a name="547"></a>    case LogTypeCommand:
+<a name="548"></a>        /* command script - write command inputs only */
+<a name="549"></a>        if (evt[1] == InEvtLine)
+<a name="550"></a>            log.writeFile('&gt;' + evt[2] + '\n');
+<a name="551"></a>        break;
+<a name="552"></a>
+<a name="553"></a>    case LogTypeScript:
+<a name="554"></a>        /* event script - write all event types */
+<a name="555"></a>        switch (evtType)
+<a name="556"></a>        {
+<a name="557"></a>        case InEvtKey:
+<a name="558"></a>            log.writeFile('&lt;key&gt;' + evtCharForScript(param));
+<a name="559"></a>            break;
+<a name="560"></a>            
+<a name="561"></a>        case InEvtTimeout:
+<a name="562"></a>            log.writeFile('&lt;timeout&gt;' + param);
+<a name="563"></a>            break;
+<a name="564"></a>            
+<a name="565"></a>        case InEvtHref:
+<a name="566"></a>            log.writeFile('&lt;href&gt;' + param);
+<a name="567"></a>            break;
+<a name="568"></a>            
+<a name="569"></a>        case InEvtNoTimeout:
+<a name="570"></a>            log.writeFile('&lt;notimeout&gt;');
+<a name="571"></a>            break;
+<a name="572"></a>            
+<a name="573"></a>        case InEvtEof:
+<a name="574"></a>            log.writeFile('&lt;eof&gt;');
+<a name="575"></a>            break;
+<a name="576"></a>            
+<a name="577"></a>        case InEvtLine:
+<a name="578"></a>            log.writeFile('&lt;line&gt;' + param);
+<a name="579"></a>            break;
+<a name="580"></a>            
+<a name="581"></a>        case InEvtSysCommand:
+<a name="582"></a>            log.writeFile('&lt;command&gt;' + param);
+<a name="583"></a>            break;
+<a name="584"></a>            
+<a name="585"></a>        case InEvtEndQuietScript:
+<a name="586"></a>            log.writeFile('&lt;endqs&gt;');
+<a name="587"></a>            break;
+<a name="588"></a>
+<a name="589"></a>        default:
+<a name="590"></a>            /* if it's a string value, it's the literal event tag */
+<a name="591"></a>            if (dataType(evtType) == TypeSString)
+<a name="592"></a>                log.writeFile(evtType + param);
+<a name="593"></a>            break;
+<a name="594"></a>        }
+<a name="595"></a>
+<a name="596"></a>        /* add a newline at the end of the event line */
+<a name="597"></a>        log.writeFile('\n');
+<a name="598"></a>        break;
+<a name="599"></a>    }
+<a name="600"></a>
+<a name="601"></a>    /* 
+<a name="602"></a>     *   return the event, so that the caller can conveniently return it
+<a name="603"></a>     *   after logging it 
+<a name="604"></a>     */
+<a name="605"></a>    return evt;
+<a name="606"></a>}
+<a name="607"></a>
+<a name="608"></a>/* 
+<a name="609"></a> *   Get an InEvtKey event parameter in suitable format for script file
+<a name="610"></a> *   output.  This returns the key as it appears in the event, except that
+<a name="611"></a> *   ASCII control characters are translated to '[ctrl-X]'.  
+<a name="612"></a> */
+<a name="613"></a>evtCharForScript(c)
+<a name="614"></a>{
+<a name="615"></a>    if (c.toUnicode(1) &lt; 32)
+<a name="616"></a>    {
+<a name="617"></a>        /* it's a control character - return the [ctrl-X] sequence */
+<a name="618"></a>        return '[ctrl-&lt;&lt;makeString(c.toUnicode(1) + 64)&gt;&gt;]';
+<a name="619"></a>    }
+<a name="620"></a>    else
+<a name="621"></a>    {
+<a name="622"></a>        /* return everything else as it appears in the event descriptor */
+<a name="623"></a>        return c;
+<a name="624"></a>    }
+<a name="625"></a>}
+<a name="626"></a>
+<a name="627"></a>
+<a name="628"></a>/* ------------------------------------------------------------------------ */
+<a name="629"></a>/* 
+<a name="630"></a> *   Generate a string to show hyperlinked text.  The browser UI is always
+<a name="631"></a> *   in HTML mode, so we unconditionally generate the hyperlink.
+<a name="632"></a> *   
+<a name="633"></a> *   If the display text is included, we'll generate the entire link,
+<a name="634"></a> *   including the &lt;A HREF&gt; tag, the hyperlinked text contents, and the
+<a name="635"></a> *   &lt;/A&gt; end tag.  If the text is omitted, we'll simply generate the &lt;A
+<a name="636"></a> *   HREF&gt; tag itself, leaving it to the caller to display the text and the
+<a name="637"></a> *   &lt;/A&gt;.
+<a name="638"></a> *   
+<a name="639"></a> *   The optional 'flags' is a combination of AHREF_xxx flags indicating
+<a name="640"></a> *   any special properties of the hyperlink.  
+<a name="641"></a> */
+<a name="642"></a>aHref(href, txt?, title?, flags = 0)
+<a name="643"></a>{
+<a name="644"></a>    /* figure extra properties, based on the flags */
+<a name="645"></a>    local props = '';
+<a name="646"></a>    if (flags &amp; AHREF_Plain)
+<a name="647"></a>        props += 'class="plain" ';
+<a name="648"></a>
+<a name="649"></a>    /* generate the &lt;A HREF&gt;, text, and &lt;/A&gt;, as applicable */
+<a name="650"></a>    return '&lt;a &lt;&lt;props&gt;&gt; href="&lt;&lt;href.findReplace('"', '%22')&gt;&gt;"&lt;&lt;
+<a name="651"></a>           (title != nil
+<a name="652"></a>            ? ' title="' + title.findReplace('"', '&amp;#34;') + '"'
+<a name="653"></a>            : '')
+<a name="654"></a>           &gt;&gt; onclick="javascript:return gamehref(event,\'&lt;&lt;
+<a name="655"></a>           href.findReplace(['\'', '"'],
+<a name="656"></a>                            ['\\\'', '\'+String.fromCharCode(34)+\'']) 
+<a name="657"></a>           &gt;&gt;\', \'main.command\', this);"&gt;&lt;.a&gt;&lt;&lt;
+<a name="658"></a>           (txt != nil ? txt + '&lt;./a&gt;&lt;/a&gt;' : '')&gt;&gt;';
+<a name="659"></a>}
+<a name="660"></a>
+<a name="661"></a>/* ------------------------------------------------------------------------ */
+<a name="662"></a>/* 
+<a name="663"></a> *   Generate a string to show hyperlinked text, with alternate text if
+<a name="664"></a> *   we're not in HTML mode.  The browser UI is always in HTML mode, so we
+<a name="665"></a> *   unconditionally generate the hyperlink.  
+<a name="666"></a> */
+<a name="667"></a>aHrefAlt(href, linkedText, altText, title?)
+<a name="668"></a>{
+<a name="669"></a>    return aHref(href, linkedText, title);
+<a name="670"></a>}
+<a name="671"></a>
+<a name="672"></a>/* ------------------------------------------------------------------------ */
+<a name="673"></a>/*
+<a name="674"></a> *   The standard main command window. 
+<a name="675"></a> */
+<a name="676"></a>transient commandWin: WebCommandWin
+<a name="677"></a>;
+<a name="678"></a>    
+<a name="679"></a>
+<a name="680"></a>/* ------------------------------------------------------------------------ */
+<a name="681"></a>/*
+<a name="682"></a> *   Generate HTML to wrap the left/right portions of the status line.  The
+<a name="683"></a> *   basic status line has three stages: stage 0 precedes the left portion,
+<a name="684"></a> *   stage 1 comes between the left and right portions, and stage 2 follows
+<a name="685"></a> *   the right portion.  If we're listing exits, we get two more stages:
+<a name="686"></a> *   stage 3 precedes the exit listing, stage 4 follows it.  
+<a name="687"></a> */
+<a name="688"></a>statusHTML(stage)
+<a name="689"></a>{
+<a name="690"></a>    switch(stage)
+<a name="691"></a>    {
+<a name="692"></a>    case 0:
+<a name="693"></a>        /* start the left-aligned portion */
+<a name="694"></a>        return '&lt;div class="statusleft"&gt;';
+<a name="695"></a>
+<a name="696"></a>    case 1:
+<a name="697"></a>        /* close the left portion, and start the right-aligned portion */
+<a name="698"></a>        return '&lt;/div&gt;&lt;div class="statusright"&gt;';
+<a name="699"></a>
+<a name="700"></a>    case 2:
+<a name="701"></a>        /* 
+<a name="702"></a>         *   Close the right portion, and break clear of the floating
+<a name="703"></a>         *   sections.  The break is necessary to make sure that the
+<a name="704"></a>         *   contents of the two sections count in the window height; some
+<a name="705"></a>         *   browsers don't include floating boxes in the content height,
+<a name="706"></a>         *   so we need to manually extend the main vertical box's height
+<a name="707"></a>         *   past the floating sections. 
+<a name="708"></a>         */
+<a name="709"></a>        return '&lt;/div&gt;&lt;div class="statusStrut"&gt;&lt;/div&gt;';
+<a name="710"></a>
+<a name="711"></a>    case 3:
+<a name="712"></a>    case 4:
+<a name="713"></a>        /* before/after exit listing - we have nothing to add here */
+<a name="714"></a>        return '';
+<a name="715"></a>
+<a name="716"></a>    default:
+<a name="717"></a>        return '';
+<a name="718"></a>    }
+<a name="719"></a>}
+<a name="720"></a>
+<a name="721"></a>/* ------------------------------------------------------------------------ */
+<a name="722"></a>/*
+<a name="723"></a> *   Web Banner Window.  This is designed as a *partial* drop-in
+<a name="724"></a> *   replacement for the BannerWindow class, using Web UI windows as
+<a name="725"></a> *   implemented in the core TADS javascript client.
+<a name="726"></a> *   
+<a name="727"></a> *   This class is designed to be mixed with a WebWindow subclass.
+<a name="728"></a> *   
+<a name="729"></a> *   This isn't a complete replacement for BannerWindow, because the layout
+<a name="730"></a> *   model for the Web UI is different from the banner window model (the
+<a name="731"></a> *   Web UI model is better and more flexible).  This class implements the
+<a name="732"></a> *   parts of the BannerWindow API related to the stream-oriented output to
+<a name="733"></a> *   the window, so you shouldn't have to change anything that writes HTML
+<a name="734"></a> *   text to the window.  However, you will have to rework code that sets
+<a name="735"></a> *   up the window's layout to use the Web UI model.  
+<a name="736"></a> */
+<a name="737"></a>class WebBannerWin: OutputStreamWindow
+<a name="738"></a>    /* 
+<a name="739"></a>     *   Initialize.  Call this when first displaying the window in the UI.
+<a name="740"></a>     */
+<a name="741"></a>    init()
+<a name="742"></a>    {
+<a name="743"></a>        /* set up our output stream */
+<a name="744"></a>        createOutputStream();
+<a name="745"></a>    }
+<a name="746"></a>
+<a name="747"></a>    /* create our output stream subclass */
+<a name="748"></a>    createOutputStreamObj()
+<a name="749"></a>    {
+<a name="750"></a>        return new transient WebWinOutputStream(self);
+<a name="751"></a>    }
+<a name="752"></a>
+<a name="753"></a>    /* flush output */
+<a name="754"></a>    flushBanner()
+<a name="755"></a>    {
+<a name="756"></a>        flushWin();
+<a name="757"></a>    }
+<a name="758"></a>
+<a name="759"></a>    /* write text */
+<a name="760"></a>    writeToBanner(txt)
+<a name="761"></a>    {
+<a name="762"></a>        outputStream_.writeToStream(txt);
+<a name="763"></a>    }
+<a name="764"></a>
+<a name="765"></a>    /*
+<a name="766"></a>     *   Banner window size settings.  We simply ignore these; callers must
+<a name="767"></a>     *   rework their layout logic for the Web UI, since the javascript
+<a name="768"></a>     *   layout system is so different.  
+<a name="769"></a>     */
+<a name="770"></a>    setSize(siz, units, advisory) { }
+<a name="771"></a>    sizeToContents() { }
+<a name="772"></a>;
+<a name="773"></a>
+<a name="774"></a>/*
+<a name="775"></a> *   Output stream for web banner windows
+<a name="776"></a> */
+<a name="777"></a>class WebWinOutputStream: OutputStream
+<a name="778"></a>    /* construct */
+<a name="779"></a>    construct(win)
+<a name="780"></a>    {
+<a name="781"></a>        /* do the base class construction */
+<a name="782"></a>        inherited();
+<a name="783"></a>        
+<a name="784"></a>        /* save our window */
+<a name="785"></a>        win_ = win;
+<a name="786"></a>    }
+<a name="787"></a>
+<a name="788"></a>    /* ignore preinit - we're always created dynamically */
+<a name="789"></a>    execute() { }
+<a name="790"></a>
+<a name="791"></a>    /* write to the underlying window */
+<a name="792"></a>    writeFromStream(txt)
+<a name="793"></a>    {
+<a name="794"></a>        /* add the text to the window */
+<a name="795"></a>        win_.write(txt);
+<a name="796"></a>    }
+<a name="797"></a>
+<a name="798"></a>    /* our status line window */
+<a name="799"></a>    win_ = nil
+<a name="800"></a>;
+<a name="801"></a>
+<a name="802"></a>/* ------------------------------------------------------------------------ */
+<a name="803"></a>/*
+<a name="804"></a> *   The basic status line window.  The "banner" in the name is historical,
+<a name="805"></a> *   because the traditional console UI implements the status line as a
+<a name="806"></a> *   banner window.  We don't actually have banner windows in the Web UI;
+<a name="807"></a> *   we use iframes instead.  But we keep the name to make it easier to
+<a name="808"></a> *   port games written for the traditional UI to the Web UI.  
+<a name="809"></a> */
+<a name="810"></a>transient statuslineBanner: WebStatusWin, WebBannerWin
+<a name="811"></a>;
+<a name="812"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

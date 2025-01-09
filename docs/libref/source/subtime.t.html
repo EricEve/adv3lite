@@ -1,0 +1,675 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>subtime.t</title></head><body>
+<table class=ban><tr><td><h1>subtime.t</h1><td align=right><a href="../file/subtime.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>/*
+<a name="4"></a> *   SUBTIME EXTENSION
+<a name="5"></a> *
+<a name="6"></a> *   Copyright 2003, 2006 Michael J. Roberts
+<a name="7"></a> *
+<a name="8"></a> *   Adapted for use with adv3Lite by Eric Eve; the changes include using the
+<a name="9"></a> *   Date class rather than the custom format for storing dates and times used
+<a name="10"></a> *   in MJR's original version.
+<a name="11"></a> *
+<a name="12"></a> *   "Subjective Time" module.  This implements a form of in-game time-keeping
+<a name="13"></a> *   that attempts to mimic the player's subjective experience of time passing
+<a name="14"></a> *   in the scenario while still allowing for occasional, reasonably precise
+<a name="15"></a> *   time readings, such as from a wristwatch in the game world.
+<a name="16"></a> *
+<a name="17"></a> *
+<a name="18"></a> */
+<a name="19"></a>
+<a name="20"></a>property gameStartTime;
+<a name="21"></a>
+<a name="22"></a>
+<a name="23"></a>/* 
+<a name="24"></a> *   The clockManager object is used to keep track of subjective time. In this
+<a name="25"></a> *   version we store dates and times internally as Date objects, although we
+<a name="26"></a> *   recognize date/times in the form [d, h, m] defined on ClockEvents.
+<a name="27"></a> *   [DEFINED IN SUBTIME EXTENSION]
+<a name="28"></a> */
+<a name="29"></a>clockManager: PreinitObject
+<a name="30"></a>    /*
+<a name="31"></a>     *   Get the current game-clock time.  This returns date/time as a Date
+<a name="32"></a>     *   object.
+<a name="33"></a>     *
+<a name="34"></a>     *   Remember that our time-keeping scheme is a sort of "Schrodinger's
+<a name="35"></a>     *   clock" [see footnote 1].  Between time checks, the game time clock is
+<a name="36"></a>     *   in a vague, fuzzy state, drifting along at an indeterminate pace from
+<a name="37"></a>     *   the most recent check.  When this method is called, though, the clock
+<a name="38"></a>     *   manager is forced to commit to a particular time, because we have to
+<a name="39"></a>     *   give a specific answer to the question we're being asked ("what time is
+<a name="40"></a>     *   it?").  As in quantum mechanics, then, the act of observation affects
+<a name="41"></a>     *   the quantity being observed.  Therefore, you should avoid calling this
+<a name="42"></a>     *   routine unnecessarily; call it only when you actually have to tell the
+<a name="43"></a>     *   player what time it is - and don't tell the player what time it is
+<a name="44"></a>     *   unless they ask, or there's some other good reason.
+<a name="45"></a>     *
+<a name="46"></a>     *   If you want a string-formatted version of the time (as in '9:05pm'),
+<a name="47"></a>     *   you can call checkTimeFmt().
+<a name="48"></a>     */
+<a name="49"></a>    checkTime()
+<a name="50"></a>    {
+<a name="51"></a>        local turns;
+<a name="52"></a>        local mm;
+<a name="53"></a>        local sdmm;
+<a name="54"></a>        
+<a name="55"></a>        /* 
+<a name="56"></a>         *   Determine how many turns it's been since we last committed to
+<a name="57"></a>         *   a specific wall-clock time.  This will give us the
+<a name="58"></a>         *   psychological "scale" of the amount of elapsed wall-clock the
+<a name="59"></a>         *   user might expect.  
+<a name="60"></a>         */
+<a name="61"></a>        turns = libGlobal.totalTurns - turnLastCommitted;
+<a name="62"></a>
+<a name="63"></a>        /* 
+<a name="64"></a>         *   start with the base scaling factor - this is the number of
+<a name="65"></a>         *   minutes of game time we impute to a hundred turns, in the
+<a name="66"></a>         *   absence of the constraint of running up against the next event
+<a name="67"></a>         */
+<a name="68"></a>        mm = (turns * baseScaleFactor) / 100;
+<a name="69"></a>        
+<a name="70"></a>                
+<a name="71"></a>        /*
+<a name="72"></a>         *   If the base scaled time would take us within sdmm of the next event
+<a name="73"></a>         *   time, slow the clock down from our base scaling factor so that we
+<a name="74"></a>         *   always leave ourselves room to advance the clock further on the
+<a name="75"></a>         *   next check.  Reduce the passage of time in proportion to our
+<a name="76"></a>         *   reduced window - so if we have only 60 minutes left, advance time
+<a name="77"></a>         *   at half the normal pace.
+<a name="78"></a>         */
+<a name="79"></a>        if (nextTime != nil)
+<a name="80"></a>        {
+<a name="81"></a>            /*   
+<a name="82"></a>             *   In Mike Roberts's version of subtime, the clock is slowed down
+<a name="83"></a>             *   if the base scaled time would take us within two hours of the
+<a name="84"></a>             *   next event time, but this may be inappropriate if the game is
+<a name="85"></a>             *   working to a much shorter or longer timescale. So we instead
+<a name="86"></a>             *   compute the time at which slowing down should occur in a
+<a name="87"></a>             *   separate method to make it easy for game code to override it.
+<a name="88"></a>             *   By default, the slow-down time will be half-way between the
+<a name="89"></a>             *   previous event and the next one.
+<a name="90"></a>             */
+<a name="91"></a>            sdmm = slowDownTime();
+<a name="92"></a>            
+<a name="93"></a>            /* get the minutes between now and the next scheduled event */
+<a name="94"></a>            local delta = (nextTime - curTime) * 1440;
+<a name="95"></a>
+<a name="96"></a>            /* check to see if the raw increment would leave under sdmm minutes */
+<a name="97"></a>            if (delta - mm &lt; sdmm)
+<a name="98"></a>            {
+<a name="99"></a>                /*
+<a name="100"></a>                 *   The raw time increment would leave us under sdmm minutes
+<a name="101"></a>                 *   away.  If we have under sdmm to go before the
+<a name="102"></a>                 *   next event, scale down the rate of time in proportion
+<a name="103"></a>                 *   to our share under sdmm.  (Note that we might
+<a name="104"></a>                 *   have more than sdmm to go and still be here,
+<a name="105"></a>                 *   because the raw adjusted time leaves under sdmm minutes.)  
+<a name="106"></a>                 */
+<a name="107"></a>                if (delta &lt; sdmm)
+<a name="108"></a>                    mm = (mm * delta) / sdmm;
+<a name="109"></a>
+<a name="110"></a>                /* 
+<a name="111"></a>                 *   In any case, cap it at half the remaining time, to
+<a name="112"></a>                 *   ensure that we won't ever make it to the next event
+<a name="113"></a>                 *   time until the next event occurs.
+<a name="114"></a>                 */
+<a name="115"></a>                if (mm &gt; delta / 2)
+<a name="116"></a>                    mm = delta / 2;
+<a name="117"></a>            }
+<a name="118"></a>        }
+<a name="119"></a>        
+<a name="120"></a>        /* 
+<a name="121"></a>         *   Otherwise, if we have no further events, take the time from the
+<a name="122"></a>         *   timeManager, if it exists.
+<a name="123"></a>         */
+<a name="124"></a>        else if(defined(timeManager))
+<a name="125"></a>        {
+<a name="126"></a>            curTime = timeManager.currentTime;
+<a name="127"></a>            
+<a name="128"></a>            return curTime;
+<a name="129"></a>        }
+<a name="130"></a>
+<a name="131"></a>        /* 
+<a name="132"></a>         *   If our calculation has left us with no passage of time, simply
+<a name="133"></a>         *   return the current time unchanged, and do not treat this as a
+<a name="134"></a>         *   commit point.  We don't consider this a commit point because
+<a name="135"></a>         *   we treat it as not even checking again - it's effectively just
+<a name="136"></a>         *   a repeat of the last check, since it's still the same time.
+<a name="137"></a>         *   This ensures that we won't freeze the clock for good due to
+<a name="138"></a>         *   rounding - enough additional turns will eventually accumulate
+<a name="139"></a>         *   to nudge the clock forward.  
+<a name="140"></a>         */
+<a name="141"></a>        if (mm == 0)
+<a name="142"></a>            return curTime;
+<a name="143"></a>
+<a name="144"></a>        /* add the minutes to the current time */
+<a name="145"></a>        curTime = curTime.addInterval([0, 0, 0, 0, mm]);
+<a name="146"></a>
+<a name="147"></a>        /* the current turn is now the last commit point */
+<a name="148"></a>        turnLastCommitted = gTurns;
+<a name="149"></a>        
+<a name="150"></a>        /* 
+<a name="151"></a>         *   If the timeManager exists and its time is earlier than the time we
+<a name="152"></a>         *   just calculated, use the timeManager's time.
+<a name="153"></a>         */        
+<a name="154"></a>        if(defined(timeManager) &amp;&amp; timeManager.currentTime &lt; curTime)
+<a name="155"></a>            curTime = timeManager.currentTime;
+<a name="156"></a>        
+<a name="157"></a>         /*   If the timeManager exists, synchronize its time with ours. */
+<a name="158"></a>        syncTime(curTime);
+<a name="159"></a>        
+<a name="160"></a>        /* return the new time */
+<a name="161"></a>        return curTime;
+<a name="162"></a>    }
+<a name="163"></a>
+<a name="164"></a>    /* 
+<a name="165"></a>     *   Compute the time remaining until the next event at which we start to
+<a name="166"></a>     *   slow down the clock. By default we make this half the time from the
+<a name="167"></a>     *   previous event to the next. Game code can override if some other value
+<a name="168"></a>     *   is preferred. [SUBTIME EXTENSION]
+<a name="169"></a>     */
+<a name="170"></a>    slowDownTime()
+<a name="171"></a>    {
+<a name="172"></a>        /*  
+<a name="173"></a>         *   If we have a lastEvent, get its eventTime; otherwise assume the
+<a name="174"></a>         *   last event was at our baseDate.
+<a name="175"></a>         */
+<a name="176"></a>        local lastEventTime = lastEvent == nil ? baseDate : lastEvent.eventDate;
+<a name="177"></a>        
+<a name="178"></a>        /*   
+<a name="179"></a>         *   Return half the difference between the next event time and the last
+<a name="180"></a>         *   event time.
+<a name="181"></a>         */
+<a name="182"></a>        return (nextTime - lastEventTime) * 720;
+<a name="183"></a>    }
+<a name="184"></a>    
+<a name="185"></a>    
+<a name="186"></a>    /*
+<a name="187"></a>     *   The base scaling factor: this is the number of minutes per hundred
+<a name="188"></a>     *   turns when we have unlimited time until the next event.  This number is
+<a name="189"></a>     *   pretty arbitrary, since we're depending so much on the player's
+<a name="190"></a>     *   uncertainty about just how long things take, and also because we'll
+<a name="191"></a>     *   adjust it anyway when we're running out of time before the next event.
+<a name="192"></a>     *   Even so, you might want to adjust this value up or down according to
+<a name="193"></a>     *   your sense of the pacing of your game.
+<a name="194"></a>     *
+<a name="195"></a>     *   In Mike Roberts's implementation, the baseScaleFactor was defined as a
+<a name="196"></a>     *   constant value of 60. This is still the default value, but if there is
+<a name="197"></a>     *   a next event we take the scale factor from that event's scaleFactor so
+<a name="198"></a>     *   that we can vary the pace of time according to the spacing of events if
+<a name="199"></a>     *   we wish. [SUBTIME EXTENSION]
+<a name="200"></a>     */
+<a name="201"></a>    baseScaleFactor = (nextEvent == nil ? scaleFactor : nextEvent.scaleFactor)
+<a name="202"></a>    
+<a name="203"></a>    /* 
+<a name="204"></a>     *   The scaling factor to use once we have passed the last ClockEvent; this
+<a name="205"></a>     *   is the number of minutes per hundred turns once there are no more
+<a name="206"></a>     *   ClockEvents. [SUBTIME EXTENSION]
+<a name="207"></a>     */
+<a name="208"></a>    scaleFactor = 60    
+<a name="209"></a>
+<a name="210"></a>    /*
+<a name="211"></a>     *   Get the current game-clock time, formatted into a string with the
+<a name="212"></a>     *   given format mask - see formatTime() for details on how to write a
+<a name="213"></a>     *   mask string.
+<a name="214"></a>     *   
+<a name="215"></a>     *   Note that the same cautions for checkTime() apply here - calling
+<a name="216"></a>     *   this routine commits us to a particular time, so you should call
+<a name="217"></a>     *   this routine only when you're actually ready to display a time to
+<a name="218"></a>     *   the player.  [SUBTIME EXTENSION]
+<a name="219"></a>     */
+<a name="220"></a>    checkTimeFmt(fmt) { return formatTime(checkTime(), fmt); }
+<a name="221"></a>    
+<a name="222"></a>    /* 
+<a name="223"></a>     *   Get a formatted version of the given wall-clock time.  The time (t)
+<a name="224"></a>     *   parameter can be expressed as a list, in the same format as
+<a name="225"></a>     *   ClockEvent.eventTime: [day,hour,minute], where 'day' is 1 for the first
+<a name="226"></a>     *   day of the game, 2 for the second, and so on. Alternatively it can be
+<a name="227"></a>     *   supplied as a Date object.
+<a name="228"></a>     *
+<a name="229"></a>     *   The format string (fmt) is specified in the same way as for the
+<a name="230"></a>     *   formatDate() method of the Date class (for which see the TADS 3 System
+<a name="231"></a>     *   Manual). [SUBTIME EXTENSION]
+<a name="232"></a>     */
+<a name="233"></a>    formatTime(t, fmt)    
+<a name="234"></a>    {
+<a name="235"></a>        /* 
+<a name="236"></a>         *   If t has been supplied as a list in the [d, h ,m] format we first
+<a name="237"></a>         *   need to convert it into a Date object
+<a name="238"></a>         */
+<a name="239"></a>        if(dataType(t) == TypeList)           
+<a name="240"></a>            t = eventDate(t);       
+<a name="241"></a>            
+<a name="242"></a>        return t.formatDate(fmt);
+<a name="243"></a>    }
+<a name="244"></a>
+<a name="245"></a>
+<a name="246"></a>    /* pre-initialize the clockManager [SUBTIME EXTENSION]*/
+<a name="247"></a>    execute()
+<a name="248"></a>    {
+<a name="249"></a>        local vec;
+<a name="250"></a>        
+<a name="251"></a>        /*  
+<a name="252"></a>         *   If the gameMain object defines a gameStartTime, use it to set our
+<a name="253"></a>         *   baseDate.
+<a name="254"></a>         */
+<a name="255"></a>        if(gameMain.propDefined(&amp;gameStartTime))
+<a name="256"></a>        {
+<a name="257"></a>            local gst = gameMain.gameStartTime;
+<a name="258"></a>            
+<a name="259"></a>            if(dataType(gst) == TypeList)
+<a name="260"></a>                baseDate = new Date(gst[1], gst[2], gst[3]);
+<a name="261"></a>            
+<a name="262"></a>            if(dataType(gst) == TypeObject &amp;&amp; gst.ofKind(Date))
+<a name="263"></a>                baseDate = gst;
+<a name="264"></a>        }
+<a name="265"></a>        
+<a name="266"></a>        /* build a list of all of the ClockEvent objects in the game */
+<a name="267"></a>        vec = new Vector(10);
+<a name="268"></a>        forEachInstance(ClockEvent, function(x) {
+<a name="269"></a>            vec.append(x);
+<a name="270"></a>            
+<a name="271"></a>            /* 
+<a name="272"></a>             *   Fill in the ClockEvent's eventDate property with a Date object
+<a name="273"></a>             *   derived from its eventTime, unless the eventDate has already
+<a name="274"></a>             *   been supplied.
+<a name="275"></a>             */
+<a name="276"></a>            if(x.eventDate == nil)
+<a name="277"></a>                x.eventDate = eventDate(x.eventTime);
+<a name="278"></a>            
+<a name="279"></a>            /*  
+<a name="280"></a>             *   Otherwise, if a Date has been specified, use it to fill in the
+<a name="281"></a>             *   eventTime property.
+<a name="282"></a>             */
+<a name="283"></a>            else 
+<a name="284"></a>                x.eventTime = getClockTime(x.eventDate);
+<a name="285"></a>        
+<a name="286"></a>        });
+<a name="287"></a>
+<a name="288"></a>        /* sort the list by time */
+<a name="289"></a>        vec.sort(SortAsc, {a, b: a.eventDate.compareTo(b.eventDate)});
+<a name="290"></a>
+<a name="291"></a>        /* store it */
+<a name="292"></a>        eventList = vec.toList();
+<a name="293"></a>
+<a name="294"></a>        /* 
+<a name="295"></a>         *   The earliest event is always the marker for the beginning of
+<a name="296"></a>         *   the game.  Since it's now the start of the game, mark the
+<a name="297"></a>         *   first event in our list as reached.  (The first event is
+<a name="298"></a>         *   always the earliest we find, by virtue of the sort we just
+<a name="299"></a>         *   did.)  
+<a name="300"></a>         */
+<a name="301"></a>        vec[1].eventReached();
+<a name="302"></a>        
+<a name="303"></a>        /*  
+<a name="304"></a>         *   If the events module is present, set up a PromptDaemon to check
+<a name="305"></a>         *   each turn whether a new ClockEvent has been reached.
+<a name="306"></a>         */
+<a name="307"></a>        if(defined(eventManager))
+<a name="308"></a>            new PromptDaemon(self, &amp;reachCheck);
+<a name="309"></a>        
+<a name="310"></a>       
+<a name="311"></a>        
+<a name="312"></a>        /* 
+<a name="313"></a>         *   If the timeManager exists, synchronize its current start time with
+<a name="314"></a>         *   ours, if we have one.
+<a name="315"></a>         */
+<a name="316"></a>        if(defined(timeManager) &amp;&amp; lastEvent)
+<a name="317"></a>            timeManager.currentTime = lastEventDate();
+<a name="318"></a>    }
+<a name="319"></a>
+<a name="320"></a>    /* 
+<a name="321"></a>     *   Receive notification from a clock event that an event has just
+<a name="322"></a>     *   occurred.  (This isn't normally called directly from game code;
+<a name="323"></a>     *   instead, game code should usually call the ClockEvent object's
+<a name="324"></a>     *   eventReached() method.)  [SUBTIME EXTENSION]
+<a name="325"></a>     */
+<a name="326"></a>    eventReached(evt)
+<a name="327"></a>    {
+<a name="328"></a>        local idx;
+<a name="329"></a>        
+<a name="330"></a>        /* find the event in our list */
+<a name="331"></a>        idx = eventList.indexOf(evt);
+<a name="332"></a>
+<a name="333"></a>        /* 
+<a name="334"></a>         *   Never go backwards - if events fire out of order, keep only
+<a name="335"></a>         *   the later event.  (Games should generally be constructed in
+<a name="336"></a>         *   such a way that events can only fire in order to start with,
+<a name="337"></a>         *   but in case a weird case slips through, we make this extra
+<a name="338"></a>         *   test to ensure that the player doesn't see any strange
+<a name="339"></a>         *   retrograde motion on the clock.) 
+<a name="340"></a>         */
+<a name="341"></a>        if (lastEvent != nil &amp;&amp; lastEvent.eventDate &gt; evt.eventDate)
+<a name="342"></a>            return;
+<a name="343"></a>        
+<a name="344"></a>        /* note the current time */
+<a name="345"></a>        curTime = evt.eventDate;
+<a name="346"></a>        
+<a name="347"></a>        /* note the event that's just been reached */
+<a name="348"></a>        lastEvent = evt;
+<a name="349"></a>
+<a name="350"></a>        /* 
+<a name="351"></a>         *   if there's another event following, note the next time and the next
+<a name="352"></a>         *   event, and get the next event to calculate its scale factor.
+<a name="353"></a>         */
+<a name="354"></a>        if (idx &lt; eventList.length())
+<a name="355"></a>        {
+<a name="356"></a>            nextEvent = eventList[idx + 1];
+<a name="357"></a>            nextTime = nextEvent.eventDate;
+<a name="358"></a>            nextEvent.calcScaleFactor();
+<a name="359"></a>        }
+<a name="360"></a>        else
+<a name="361"></a>        {
+<a name="362"></a>            nextEvent = nil;
+<a name="363"></a>            nextTime = nil;
+<a name="364"></a>        }
+<a name="365"></a>
+<a name="366"></a>        /* 
+<a name="367"></a>         *   we're committing to an exact wall-clock time, so remember the
+<a name="368"></a>         *   current turn counter as the last commit point 
+<a name="369"></a>         */
+<a name="370"></a>        turnLastCommitted = gTurns;
+<a name="371"></a>        
+<a name="372"></a>        /*   Note that the event has been reached */
+<a name="373"></a>        evt.hasBeenReached = true;
+<a name="374"></a>        
+<a name="375"></a>        /*   If the timeManager exists, synchronize its time with ours. */
+<a name="376"></a>        syncTime(curTime);
+<a name="377"></a>    }
+<a name="378"></a>
+<a name="379"></a>
+<a name="380"></a>    /* 
+<a name="381"></a>     *   Check each turn whether another ClockEvent has been reached. Note that
+<a name="382"></a>     *   this requires the events.t module to be present to work. [SUBTIME EXTENSION]
+<a name="383"></a>     */
+<a name="384"></a>    reachCheck()
+<a name="385"></a>    {
+<a name="386"></a>        /* Go through every ClockEvent in our eventList */
+<a name="387"></a>        foreach(local cur in eventList)
+<a name="388"></a>        {
+<a name="389"></a>            /* 
+<a name="390"></a>             *   If we find one that hasn't been reached before, but whose
+<a name="391"></a>             *   reachedWhen condition is now true, note that it has now been
+<a name="392"></a>             *   reached.
+<a name="393"></a>             */
+<a name="394"></a>            if(!cur.hasBeenReached &amp;&amp; cur.reachedWhen)
+<a name="395"></a>            {
+<a name="396"></a>                eventReached(cur);
+<a name="397"></a>                
+<a name="398"></a>                /* 
+<a name="399"></a>                 *   Don't continue searching for ClockEvents on this turn; we
+<a name="400"></a>                 *   don't want more than one ClockEvent to be reached at a
+<a name="401"></a>                 *   time.
+<a name="402"></a>                 */
+<a name="403"></a>                break;
+<a name="404"></a>            }
+<a name="405"></a>        }
+<a name="406"></a>    }
+<a name="407"></a>    
+<a name="408"></a>        
+<a name="409"></a>    /* 
+<a name="410"></a>     *   our list of clock events (we build this automatically during
+<a name="411"></a>     *   pre-initialization)  [SUBTIME EXTENSION]
+<a name="412"></a>     */
+<a name="413"></a>    eventList = nil
+<a name="414"></a>
+<a name="415"></a>    /* the current game clock time [SUBTIME EXTENSION] */
+<a name="416"></a>    curTime = nil
+<a name="417"></a>
+<a name="418"></a>    /* the most recent event that we reached  [SUBTIME EXTENSION] */
+<a name="419"></a>    lastEvent = nil
+<a name="420"></a>
+<a name="421"></a>    /* the next event's game clock time  [SUBTIME EXTENSION] */
+<a name="422"></a>    nextTime = nil
+<a name="423"></a>
+<a name="424"></a>    /* the next event we're due to reach [SUBTIME EXTENSION] */
+<a name="425"></a>    nextEvent = nil
+<a name="426"></a>    
+<a name="427"></a>    
+<a name="428"></a>    /* 
+<a name="429"></a>     *   The turn counter (Schedulable.gameClockTime) on the last turn
+<a name="430"></a>     *   where committed to a specific time.  Each time we check the time,
+<a name="431"></a>     *   we look here to see how many turns have elapsed since the last
+<a name="432"></a>     *   time check, and we use this to choose a plausible scale for the
+<a name="433"></a>     *   wall-clock time change.   [SUBTIME EXTENSION]
+<a name="434"></a>     */
+<a name="435"></a>    turnLastCommitted = 0
+<a name="436"></a>    
+<a name="437"></a>    /*   
+<a name="438"></a>     *   The base date (year, month, day) our game is meant to start on,
+<a name="439"></a>     *   expressed as a Date object. Often this doesn't matter if we're only
+<a name="440"></a>     *   interested in the time of day. By default we make it Jan 1, 2000. If
+<a name="441"></a>     *   gameMain.gameStartDate is defines it will instead be taken from there.
+<a name="442"></a>	 *   [SUBTIME EXTENSION]
+<a name="443"></a>     */    
+<a name="444"></a>    baseDate = static new Date(2000, 1, 1)
+<a name="445"></a>    
+<a name="446"></a>    /*  Return the date of t as a Date object. [SUBTIME EXTENSION] */
+<a name="447"></a>    eventDate(t)
+<a name="448"></a>    {
+<a name="449"></a>        /* If t is nil, return nil */
+<a name="450"></a>        if(t == nil)
+<a name="451"></a>            return nil;
+<a name="452"></a>               
+<a name="453"></a>        /* Get the date only part of the base date */
+<a name="454"></a>        local bd = baseDate.getDate();
+<a name="455"></a>        
+<a name="456"></a>        /* Create a Date object representing midnight on our base date */
+<a name="457"></a>        local curDate = new Date(bd[1], bd[2], bd[3]);
+<a name="458"></a>        
+<a name="459"></a>        /* 
+<a name="460"></a>         *   Advance this date by the number of days the lastEventTime is from
+<a name="461"></a>         *   the starting time, which is usually day 1
+<a name="462"></a>         */
+<a name="463"></a>        curDate = curDate.addInterval([0, 0, t[1] - 1]);
+<a name="464"></a>        
+<a name="465"></a>        /* Extract the date part again */
+<a name="466"></a>        curDate = curDate.getDate();     
+<a name="467"></a>        
+<a name="468"></a>        /* Return the date and time as a Date object */
+<a name="469"></a>        return new Date(curDate[1], curDate[2], curDate[3], t[2], t[3], 0, 0);
+<a name="470"></a>    }
+<a name="471"></a>
+<a name="472"></a>    /* Retutn the date and time of the last event as a Date object. [SUBTIME EXTENSION] */
+<a name="473"></a>    lastEventDate()
+<a name="474"></a>    {
+<a name="475"></a>        return lastEvent ? eventDate(lastEvent.eventTime) : nil;
+<a name="476"></a>    }
+<a name="477"></a>
+<a name="478"></a>    /* Get the time in our [d, h, m, s] format from a Date object. [SUBTIME EXTENSION] */
+<a name="479"></a>    getClockTime(dat)
+<a name="480"></a>    {
+<a name="481"></a>        /* Get the time element of the Date object */
+<a name="482"></a>        local t = dat.getHMS();
+<a name="483"></a>        
+<a name="484"></a>        /* Get the number of days between the Date object and our baseDate */
+<a name="485"></a>        local days = toInteger(dat - baseDate);
+<a name="486"></a>        
+<a name="487"></a>        /* 
+<a name="488"></a>         *   return the resultant time in [d, h, m] format        
+<a name="489"></a>         */
+<a name="490"></a>        
+<a name="491"></a>        return [days + 1, t[1], t[2]];
+<a name="492"></a>        
+<a name="493"></a>    }
+<a name="494"></a>    
+<a name="495"></a>    
+<a name="496"></a>    /* Synchronize the timeManager's time with our time, if it exists. [SUBTIME EXTENSION] */
+<a name="497"></a>    syncTime(t)
+<a name="498"></a>    {
+<a name="499"></a>        if(defined(timeManager))
+<a name="500"></a>        {
+<a name="501"></a>            /* Set the timeManager's time to our time. */
+<a name="502"></a>            timeManager.currentTime = t;
+<a name="503"></a>            
+<a name="504"></a>            /* 
+<a name="505"></a>             *   Try to prevent the current turn from advancing the
+<a name="506"></a>             *   timeManager's time beyond our time.
+<a name="507"></a>             */
+<a name="508"></a>            takeTime(0);
+<a name="509"></a>        }
+<a name="510"></a>    }
+<a name="511"></a>;
+<a name="512"></a>
+<a name="513"></a>
+<a name="514"></a>/*
+<a name="515"></a> *   Clock-setting plot event.  This object represents a plot point that
+<a name="516"></a> *   occurs at a particular time in the story world.  Create one of these
+<a name="517"></a> *   for each of your plot events.  The Clock Manager automatically builds
+<a name="518"></a> *   a list of all of these objects during pre-initialization, so you don't
+<a name="519"></a> *   have to explicitly tell the clock manager about these.
+<a name="520"></a> *   
+<a name="521"></a> *   Whenever the story reaches one of these events, you should call the
+<a name="522"></a> *   eventReached() method of the event object.  This will set the clock
+<a name="523"></a> *   time to the event's current time, and take note of how long we have
+<a name="524"></a> *   until the next plot event.  
+<a name="525"></a> *   [DEFINED IN SUBTIME EXTENSION]
+<a name="526"></a> */
+<a name="527"></a>class ClockEvent: object
+<a name="528"></a>    /*
+<a name="529"></a>     *   The time at which this event occurs.  This is expressed as a list
+<a name="530"></a>     *   with three elements: the day number, the hour (on a 24-hour
+<a name="531"></a>     *   clock), and the minute.  The day number is relative to the start
+<a name="532"></a>     *   of the game - day 1 is the first day of the game.  So, for
+<a name="533"></a>     *   example, to express 2:40pm on the second day of the game, you'd
+<a name="534"></a>     *   write [2,14,40].  Note that 12 AM is written as 0 (zero) on a
+<a name="535"></a>     *   24-hour clock, so 12:05am on day 1 would be [1,0,5].  
+<a name="536"></a>     */
+<a name="537"></a>    eventTime = [1,0,0]
+<a name="538"></a>    
+<a name="539"></a>    /* This is the eventTime expressed as a Date object */
+<a name="540"></a>    eventDate = nil
+<a name="541"></a>
+<a name="542"></a>    /* get a formatted version of the event time */
+<a name="543"></a>    formatTime(fmt) { return clockManager.formatTime(eventTime, fmt); }
+<a name="544"></a>
+<a name="545"></a>    
+<a name="546"></a>    /*
+<a name="547"></a>     *   Notify the clock manager that this event has just occurred.  This
+<a name="548"></a>     *   sets the game clock to the event's time.  The game code must call
+<a name="549"></a>     *   this method when our point in the plot is reached.  
+<a name="550"></a>     */
+<a name="551"></a>    eventReached()
+<a name="552"></a>    {
+<a name="553"></a>        /* notify the clock manager */
+<a name="554"></a>        clockManager.eventReached(self);
+<a name="555"></a>    }
+<a name="556"></a>    
+<a name="557"></a>    /*   
+<a name="558"></a>     *   This is the number of minutes per hundred turns when we have unlimited
+<a name="559"></a>     *   time until this next event.  This number is pretty arbitrary, since
+<a name="560"></a>     *   we're depending so much on the player's uncertainty about just how long
+<a name="561"></a>     *   things take, and also because we'll adjust it anyway when we're running
+<a name="562"></a>     *   out of time before the next event.  Even so, you might want to adjust
+<a name="563"></a>     *   this value up or down according to your sense of the pacing of your
+<a name="564"></a>     *   game.
+<a name="565"></a>     *
+<a name="566"></a>     *   Alternatively you can define the turnsToEvent property (see below) and
+<a name="567"></a>     *   the game will calculate an appropriate scaleFactor for you.
+<a name="568"></a>	 *   [SUBTIME EXTENSION]
+<a name="569"></a>     */
+<a name="570"></a>    scaleFactor = 60
+<a name="571"></a>    
+<a name="572"></a>    /*   
+<a name="573"></a>     *   Optional: if specified this should contain an estimate of the number of
+<a name="574"></a>     *   turns a player is typically likely to take to get to this event from
+<a name="575"></a>     *   the previous one; the game will then calculate an appropriate
+<a name="576"></a>     *   scaleFactor. Alternatively this can be left at nil and the scaleFactor
+<a name="577"></a>     *   specified directly. [SUBTIME EXTENSION]
+<a name="578"></a>     */       
+<a name="579"></a>    turnsToEvent = nil
+<a name="580"></a>    
+<a name="581"></a>    /* 
+<a name="582"></a>     *   If the turnsToEvent property is not nil and the clockManager has
+<a name="583"></a>     *   recorded a previous event, calculate the scaleFactor for this event.
+<a name="584"></a>	 *   [SUBTIME EXTENSION]
+<a name="585"></a>     */
+<a name="586"></a>    calcScaleFactor()
+<a name="587"></a>    {        
+<a name="588"></a>        if(turnsToEvent &amp;&amp; clockManager.lastEvent)
+<a name="589"></a>        {
+<a name="590"></a>            /* 
+<a name="591"></a>             *   Calculate the number of minutes between this event and the
+<a name="592"></a>             *   previous event.
+<a name="593"></a>             */
+<a name="594"></a>            local delta = (eventDate - clockManager.lastEvent.eventDate) * 1440;
+<a name="595"></a>                          
+<a name="596"></a>            /*  
+<a name="597"></a>             *   Calculate the scaleFactor such that 100 turns will take
+<a name="598"></a>             *   scaleFactor minutes.
+<a name="599"></a>             */
+<a name="600"></a>            scaleFactor = (delta * 100)/turnsToEvent;
+<a name="601"></a>            
+<a name="602"></a>        }
+<a name="603"></a>    }
+<a name="604"></a>    
+<a name="605"></a>    /* 
+<a name="606"></a>     *   A condition (or a method that returns true or nil) that causes this
+<a name="607"></a>     *   event to be reached when it becomes true. This provides an alternative
+<a name="608"></a>     *   way of reaching events (instead of calling the eventReached method).
+<a name="609"></a>	 *   [SUBTIME EXTENSION]
+<a name="610"></a>     */
+<a name="611"></a>    reachedWhen = nil
+<a name="612"></a>    
+<a name="613"></a>    /*   
+<a name="614"></a>     *   Flag: has this event been reached? This is used internally by the
+<a name="615"></a>     *   library and shouldn't normally be changed in game code.
+<a name="616"></a>	 *   [SUBTIME EXTENSION]
+<a name="617"></a>     */
+<a name="618"></a>    hasBeenReached = nil
+<a name="619"></a>;
+<a name="620"></a>
+<a name="621"></a>/* ------------------------------------------------------------------------ */
+<a name="622"></a>/*
+<a name="623"></a> *   [Footnote 1]
+<a name="624"></a> *   
+<a name="625"></a> *   "Schrodinger's cat" is a famous thought experiment in quantum
+<a name="626"></a> *   physics, concerning how a quantum mechanical system exists in
+<a name="627"></a> *   multiple, mutually exclusive quantum states simultaneously until an
+<a name="628"></a> *   observer forces the system to assume only one of the states by the
+<a name="629"></a> *   act of observation.  The thought experiment has been popularized as
+<a name="630"></a> *   an illustration of how weird and wacky QM is, but it's interesting to
+<a name="631"></a> *   note that Schrodinger actually devised it to expose what he saw as an
+<a name="632"></a> *   unacceptable paradox in quantum theory.
+<a name="633"></a> *   
+<a name="634"></a> *   The thought experiment goes like this: a cat is locked inside a
+<a name="635"></a> *   special box that's impervious to light, X-rays, etc., so that no one
+<a name="636"></a> *   on the outside can see what's going on inside.  The box contains,
+<a name="637"></a> *   apart from the cat, a little radiation source and a radiation
+<a name="638"></a> *   counter.  When the counter detects a certain radioactive emission, it
+<a name="639"></a> *   releases some poison gas, killing the cat.  The radioactive emission
+<a name="640"></a> *   is an inherently quantum mechanical, unpredictable process, and as
+<a name="641"></a> *   such can (and must) be in a superposition of "emitted" and "not
+<a name="642"></a> *   emitted" states until observed.  Because the whole system is
+<a name="643"></a> *   unobservable from the outside, the supposition is that everything
+<a name="644"></a> *   inside is "entangled" with the quantum state of the radioactive
+<a name="645"></a> *   emission, hence the cat is simultaneously living and dead until
+<a name="646"></a> *   someone opens the box and checks.  It's not just that no one knows;
+<a name="647"></a> *   rather, the cat is actually and literally alive and dead at the same
+<a name="648"></a> *   time.
+<a name="649"></a> *   
+<a name="650"></a> *   Schrodinger's point was that this superposition of the cat's states
+<a name="651"></a> *   is a necessary consequence of the way QM was interpreted at the time
+<a name="652"></a> *   he devised the experiment, but that it's manifestly untrue, since we
+<a name="653"></a> *   know that cats are macroscopic objects that behave according to
+<a name="654"></a> *   classical, deterministic physics.  Hence a paradox, hence the
+<a name="655"></a> *   interpretation of the theory must be wrong.  The predominant
+<a name="656"></a> *   interpretation of QM has since shifted a bit so that the cat would
+<a name="657"></a> *   now count as an observer - not because it's alive or conscious or
+<a name="658"></a> *   anything metaphysical, but simply because it's macroscopic - so the
+<a name="659"></a> *   cat's fate is never actually entangled with the radioactive source's
+<a name="660"></a> *   quantum state.  Popular science writers have continued to talk about
+<a name="661"></a> *   Schrodinger's cat as though it's for real, maybe to make QM seem more
+<a name="662"></a> *   exotic to laypersons, but most physicists today wouldn't consider the
+<a name="663"></a> *   experiment to be possible as literally stated.  Physicists today
+<a name="664"></a> *   might think of it as a valid metaphor to decribe systems where all of
+<a name="665"></a> *   the components are on an atomic or subatomic scale, but no one today
+<a name="666"></a> *   seriously thinks you can create an actual cat that's simultaneously
+<a name="667"></a> *   alive and dead.  
+<a name="668"></a> */
+<a name="669"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

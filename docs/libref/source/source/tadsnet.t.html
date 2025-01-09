@@ -1,0 +1,416 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>tadsnet.t</title></head><body>
+<table class=ban><tr><td><h1>tadsnet.t</h1><td align=right><a href="../file/tadsnet.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include &lt;tadsnet.h&gt;
+<a name="5"></a>
+<a name="6"></a>/* 
+<a name="7"></a> *   Copyright (c) 1999, 2006 Michael J. Roberts
+<a name="8"></a> *   
+<a name="9"></a> *   This file is part of TADS 3
+<a name="10"></a> *   
+<a name="11"></a> *   This file defines classes and properties used with the tads-net
+<a name="12"></a> *   intrinsic function set.  If you're using this function set, you should
+<a name="13"></a> *   include this source file in your build by adding it to your project
+<a name="14"></a> *   makefile.
+<a name="15"></a> */
+<a name="16"></a>
+<a name="17"></a>/* include the tads-net intrinsic function set interface definition */
+<a name="18"></a>#include &lt;tadsnet.h&gt;
+<a name="19"></a>
+<a name="20"></a>/* ------------------------------------------------------------------------ */
+<a name="21"></a>/*
+<a name="22"></a> *   A NetEvent instance describes an event read via the getNetEvent()
+<a name="23"></a> *   function.
+<a name="24"></a> *   
+<a name="25"></a> *   In most cases, this base class will not be instantiated directly.
+<a name="26"></a> *   getNetEvent() will always construct the appropriate subclass for the
+<a name="27"></a> *   specific type of event being generated, if that subclass is defined in
+<a name="28"></a> *   the game program.  However, it's possible that the game won't define
+<a name="29"></a> *   all necessary subclasses.  For example, a game written for version 1
+<a name="30"></a> *   of the networking package wouldn't include new subclasses added in
+<a name="31"></a> *   version 2, because those subclasses weren't defined at the time the
+<a name="32"></a> *   game was written.  When getNetEvent() needs to instantiate a subclass
+<a name="33"></a> *   that isn't defined in the game program, it will instead create a base
+<a name="34"></a> *   NetEvent object, which will simply store the subclass-specific
+<a name="35"></a> *   arguments as a list.  This could be useful for debugging purposes,
+<a name="36"></a> *   because it will at least let the programmer inspect the event details
+<a name="37"></a> *   with the interactive debugger.  
+<a name="38"></a> */
+<a name="39"></a>class NetEvent: object
+<a name="40"></a>    /*
+<a name="41"></a>     *   The event type.  This is a NetEvXxx value (see tadsnet.h)
+<a name="42"></a>     *   indicating which type of event this is.    
+<a name="43"></a>     */
+<a name="44"></a>    evType = nil
+<a name="45"></a>
+<a name="46"></a>    /* 
+<a name="47"></a>     *   Construction.  getNetEvent() only constructs this object directly
+<a name="48"></a>     *   when the subclass it's looking for isn't defined in the game
+<a name="49"></a>     *   program.  
+<a name="50"></a>     */
+<a name="51"></a>    construct(t, [args])
+<a name="52"></a>    {
+<a name="53"></a>        evType = t;
+<a name="54"></a>        evArgs = args;
+<a name="55"></a>    }
+<a name="56"></a>
+<a name="57"></a>    /*
+<a name="58"></a>     *   Extra event-specific arguments.  This is primarily for debugging
+<a name="59"></a>     *   purposes, since it's only used when getNetEvent() needs to
+<a name="60"></a>     *   construct a NetEvent subclass that isn't defined in the game.  In
+<a name="61"></a>     *   this case, the absence of a subclass definition in the game
+<a name="62"></a>     *   presumably means that the game isn't written to handle the type of
+<a name="63"></a>     *   event generated (for example, because it was written for an older
+<a name="64"></a>     *   interpreter version that didn't have the event type).  
+<a name="65"></a>     */
+<a name="66"></a>    evArgs = nil
+<a name="67"></a>;
+<a name="68"></a>
+<a name="69"></a>/*
+<a name="70"></a> *   Network Request Event.  This type of event occurs when a server (such
+<a name="71"></a> *   as an HTTPServer object) receives a request from a network client.
+<a name="72"></a> *   
+<a name="73"></a> *   The evRequest member contains a request object describing the network
+<a name="74"></a> *   request.  The class of this object depends on the type of server that
+<a name="75"></a> *   received the request.  For example, for an HTTP server, this will be
+<a name="76"></a> *   an HTTPRequest object.  To reply to the request, use the appropriate
+<a name="77"></a> *   method(s) in the request object - for details, see the specific
+<a name="78"></a> *   request classes for the server types you create in your program.
+<a name="79"></a> */
+<a name="80"></a>class NetRequestEvent: NetEvent
+<a name="81"></a>    /* construction */
+<a name="82"></a>    construct(t, req)
+<a name="83"></a>    {
+<a name="84"></a>        inherited(t, req);
+<a name="85"></a>        evRequest = req;
+<a name="86"></a>    }
+<a name="87"></a>
+<a name="88"></a>    evType = NetEvRequest
+<a name="89"></a>
+<a name="90"></a>    /*
+<a name="91"></a>     *   The request object.  When the event type is NetEvRequest, this
+<a name="92"></a>     *   contains a request object describing the request.  The class of
+<a name="93"></a>     *   the request object varies according to the server type; you can
+<a name="94"></a>     *   use ofKind() to check which type of request it is.  For example,
+<a name="95"></a>     *   for an HTTP request, this will be an object of class HTTPRequest.
+<a name="96"></a>     */
+<a name="97"></a>    evRequest = nil
+<a name="98"></a>;
+<a name="99"></a>
+<a name="100"></a>/*
+<a name="101"></a> *   Network Timeout Event.  getNetEvent() returns this type of event when
+<a name="102"></a> *   the timeout interval expires before any actual event occurs.  
+<a name="103"></a> */
+<a name="104"></a>class NetTimeoutEvent: NetEvent
+<a name="105"></a>    evType = NetEvTimeout
+<a name="106"></a>;
+<a name="107"></a>
+<a name="108"></a>/*
+<a name="109"></a> *   Network Reply event.  This type of event occurs when we receive a
+<a name="110"></a> *   reply to a network request made with sendNetRequest().
+<a name="111"></a> */
+<a name="112"></a>class NetReplyEvent: NetEvent
+<a name="113"></a>    /* construction */
+<a name="114"></a>    construct(t, id, status, body, headers, loc)
+<a name="115"></a>    {
+<a name="116"></a>        inherited(t, id, body, headers, loc);
+<a name="117"></a>        statusCode = status;
+<a name="118"></a>        requestID = id;
+<a name="119"></a>        replyBody = body;
+<a name="120"></a>        replyHeadersRaw = headers;
+<a name="121"></a>        redirectLoc = loc;
+<a name="122"></a>
+<a name="123"></a>        /* parse the headers into a lookup table keyed by header name */
+<a name="124"></a>        if (headers != nil)
+<a name="125"></a>        {
+<a name="126"></a>            /* create the lookup table */
+<a name="127"></a>            local ht = replyHeaders = new LookupTable();
+<a name="128"></a>
+<a name="129"></a>            /* split the headers at the CR-LF separators */
+<a name="130"></a>            headers = headers.split('\r\n');
+<a name="131"></a>
+<a name="132"></a>            /* the first line of the headers is actually the HTTP status */
+<a name="133"></a>            if (headers.length() &gt; 1)
+<a name="134"></a>            {
+<a name="135"></a>                /* save the status line */
+<a name="136"></a>                httpStatusLine = headers[1];
+<a name="137"></a>                headers = headers.sublist(2);
+<a name="138"></a>            }
+<a name="139"></a>            
+<a name="140"></a>            /* process the rest of the headers */
+<a name="141"></a>            for (local h in headers)
+<a name="142"></a>            {
+<a name="143"></a>                /* split the header at the ":", and trim spaces */
+<a name="144"></a>                h = h.split(':', 2).mapAll(
+<a name="145"></a>                    { s: rexReplace('^&lt;space&gt;+|&lt;space&gt;+$', s, '') });
+<a name="146"></a>                
+<a name="147"></a>                /* 
+<a name="148"></a>                 *   If it looks like a header, add it to the table.  If
+<a name="149"></a>                 *   the header is repeated, append it to the previous
+<a name="150"></a>                 *   value with a comma delimiter. 
+<a name="151"></a>                 */
+<a name="152"></a>                if (h.length() == 2)
+<a name="153"></a>                {
+<a name="154"></a>                    local name = h[1].toLower(), val = h[2];
+<a name="155"></a>                    if (ht.isKeyPresent(name))
+<a name="156"></a>                        val = '&lt;&lt;ht[name]&gt;&gt;, &lt;&lt;val&gt;&gt;';
+<a name="157"></a>                    ht[name] = val;
+<a name="158"></a>                }
+<a name="159"></a>            }
+<a name="160"></a>        }
+<a name="161"></a>    }
+<a name="162"></a>
+<a name="163"></a>    /* our default event type is NetEvReply */
+<a name="164"></a>    evType = NetEvReply
+<a name="165"></a>
+<a name="166"></a>    /*
+<a name="167"></a>     *   The request identifier.  This is the ID value provided by the
+<a name="168"></a>     *   caller in the call to sendNetRequest(), so that the caller can
+<a name="169"></a>     *   relate the reply back to the corresponding request.
+<a name="170"></a>     */
+<a name="171"></a>    requestID = nil
+<a name="172"></a>
+<a name="173"></a>    /*
+<a name="174"></a>     *   The network status code.  This is an integer value indicating
+<a name="175"></a>     *   whether the request was successful or failed with an error.  A
+<a name="176"></a>     *   negative value is a low-level TADS error indicating that the
+<a name="177"></a>     *   request couldn't be sent to the server, or that a network error
+<a name="178"></a>     *   occurred receiving the reply:
+<a name="179"></a>     *   
+<a name="180"></a>     *.    -1    - out of memory
+<a name="181"></a>     *.    -2    - couldn't connect to host
+<a name="182"></a>     *.    -3    - other network/socket error
+<a name="183"></a>     *.    -4    - invalid parameters
+<a name="184"></a>     *.    -5    - error reading the content data to send to the server
+<a name="185"></a>     *.    -6    - error saving the reply data received from the server
+<a name="186"></a>     *.    -7    - error retrieving reply headers
+<a name="187"></a>     *.    -8    - error starting background thread
+<a name="188"></a>     *.    -100  - other TADS/network error
+<a name="189"></a>     *   
+<a name="190"></a>     *   A positive value means that the network transaction itself was
+<a name="191"></a>     *   successful, and reflects the status information returned by the
+<a name="192"></a>     *   network server that handled the request.  This must be interpreted
+<a name="193"></a>     *   according to the protocol used to send the request:
+<a name="194"></a>     *   
+<a name="195"></a>     *   - For HTTP requests, the value is an HTTP status code.  A code in
+<a name="196"></a>     *   the 200 range generally indicates success, while other ranges
+<a name="197"></a>     *   generally indicate errors.
+<a name="198"></a>     */
+<a name="199"></a>    statusCode = nil
+<a name="200"></a>
+<a name="201"></a>    /* the content body from the reply */
+<a name="202"></a>    replyBody = nil
+<a name="203"></a>
+<a name="204"></a>    /* 
+<a name="205"></a>     *   the HTTP headers from the reply, as a lookup table indexed by
+<a name="206"></a>     *   header name 
+<a name="207"></a>     */
+<a name="208"></a>    replyHeaders = nil
+<a name="209"></a>
+<a name="210"></a>    /* the HTTP status string (the first line of the headers) */
+<a name="211"></a>    httpStatusLine = nil
+<a name="212"></a>
+<a name="213"></a>    /* 
+<a name="214"></a>     *   the HTTP headers from the reply, in the raw text format - this is
+<a name="215"></a>     *   simply a string of all the headers, separated by CR-LF (\r\n)
+<a name="216"></a>     *   sequences 
+<a name="217"></a>     */
+<a name="218"></a>    replyHeadersRaw = nil
+<a name="219"></a>
+<a name="220"></a>    /* 
+<a name="221"></a>     *   Redirect location, if applicable.  By default, this will be nil
+<a name="222"></a>     *   whether or not a redirection took place, because sendNetRequest()
+<a name="223"></a>     *   normally follows redirection links transparently, returning only
+<a name="224"></a>     *   the final result from the final server we're redirected to.
+<a name="225"></a>     *   However, you can override automatic redirection with an option
+<a name="226"></a>     *   flag (NetReqNoRedirect) when calling sendNetRequest().  When that
+<a name="227"></a>     *   option is selected, the function won't follow redirection links at
+<a name="228"></a>     *   all, but will instead simply return the redirect information as
+<a name="229"></a>     *   the result from the request.  When that happens, this property is
+<a name="230"></a>     *   set to a string giving the target of the redirect.  You can then
+<a name="231"></a>     *   follow the redirect manually, if desired, by sending a new request
+<a name="232"></a>     *   to the target given here.
+<a name="233"></a>     */
+<a name="234"></a>    redirectLoc = nil
+<a name="235"></a>;
+<a name="236"></a>
+<a name="237"></a>/*
+<a name="238"></a> *   Network Reply Done event.  This type of event occurs when an
+<a name="239"></a> *   asynchronous network reply (such as HTTPRequest.sendReplyAsync())
+<a name="240"></a> *   completes.
+<a name="241"></a> */
+<a name="242"></a>class NetReplyDoneEvent: NetEvent
+<a name="243"></a>    /* construction */
+<a name="244"></a>    construct(t, req, err, msg)
+<a name="245"></a>    {
+<a name="246"></a>        inherited(t, req, err, msg);
+<a name="247"></a>        requestObj = req;
+<a name="248"></a>        socketErr = err;
+<a name="249"></a>        errMsg = msg;
+<a name="250"></a>    }
+<a name="251"></a>
+<a name="252"></a>    /* our default event type is NetEvReplyDone */
+<a name="253"></a>    evType = NetEvReplyDone
+<a name="254"></a>
+<a name="255"></a>    /* 
+<a name="256"></a>     *   The object representing the request we replied to.  For HTTP
+<a name="257"></a>     *   requests, this is an HTTPRequest object.
+<a name="258"></a>     */
+<a name="259"></a>    requestObj = nil
+<a name="260"></a>
+<a name="261"></a>    /* was the reply successfully sent? */
+<a name="262"></a>    isSuccessful() { return errMsg == nil; }
+<a name="263"></a>
+<a name="264"></a>    /*
+<a name="265"></a>     *   The socket error, if any.  If the reply failed due to a network
+<a name="266"></a>     *   error, this contains the error number.  If no network error
+<a name="267"></a>     *   occurred, this is zero.
+<a name="268"></a>     */
+<a name="269"></a>    socketErr = 0
+<a name="270"></a>
+<a name="271"></a>    /*
+<a name="272"></a>     *   Error message, if any.  If the reply failed, this contains a
+<a name="273"></a>     *   string with a description of the error that occurred.  If the
+<a name="274"></a>     *   reply was sent successfully, this is nil.
+<a name="275"></a>     */
+<a name="276"></a>    errMsg = nil
+<a name="277"></a>;
+<a name="278"></a>
+<a name="279"></a>/* ------------------------------------------------------------------------ */
+<a name="280"></a>/*
+<a name="281"></a> *   A FileUpload represents a file uploaded by a network client via a
+<a name="282"></a> *   protocol server, such as an HTTPServer.
+<a name="283"></a> *   
+<a name="284"></a> *   When your program is acting as a network server, a FileUpload object
+<a name="285"></a> *   represents a file received from the client.  For example,
+<a name="286"></a> *   HTTPRequest.getFormFields() returns a FileUpload object to represent
+<a name="287"></a> *   each &lt;INPUT TYPE=FILE&gt; field in the posted form.
+<a name="288"></a> *   
+<a name="289"></a> *   When your program acts as a network client (via sendNetRequest), you
+<a name="290"></a> *   can create use FileUpload to post file attachments to posted forms.
+<a name="291"></a> */
+<a name="292"></a>class FileUpload: object
+<a name="293"></a>    construct(file, contentType, filename)
+<a name="294"></a>    {
+<a name="295"></a>        self.file = file;
+<a name="296"></a>        self.contentType = contentType;
+<a name="297"></a>        self.filename = filename;
+<a name="298"></a>    }
+<a name="299"></a>
+<a name="300"></a>    /*
+<a name="301"></a>     *   The file data.
+<a name="302"></a>     *   
+<a name="303"></a>     *   When you create the FileUpload object for use with
+<a name="304"></a>     *   sendNetRequest() to post form data, you must use a string or
+<a name="305"></a>     *   ByteArray value for this property.
+<a name="306"></a>     *   
+<a name="307"></a>     *   When the FileUpload is created by HTTPRequest.getFormFields(),
+<a name="308"></a>     *   this property contains a File object with the uploaded content.
+<a name="309"></a>     *   This is open for read-only access.  If the contentType parameter
+<a name="310"></a>     *   is a text type ("text/html", "text/plain", etc), and the
+<a name="311"></a>     *   interpreter recognizes the character set parameter in the
+<a name="312"></a>     *   contentType, the file is in Text mode (FileModeText) with the
+<a name="313"></a>     *   appropriate character mapper in effect.  Otherwise, the file is in
+<a name="314"></a>     *   raw binary mode (FileModeRaw).  If you need the file to be opened
+<a name="315"></a>     *   in a different mode, you can use setFileMode() on the file to
+<a name="316"></a>     *   change the mode.  
+<a name="317"></a>     */
+<a name="318"></a>    file = nil
+<a name="319"></a>
+<a name="320"></a>    /*
+<a name="321"></a>     *   The content type.  This a string giving the MIME type specified by
+<a name="322"></a>     *   the client with the upload.  This is the full content-type string,
+<a name="323"></a>     *   including any attributes, such "charset" for a text type.  This
+<a name="324"></a>     *   can be nil if the client doesn't specify a content-type at all.
+<a name="325"></a>     *   
+<a name="326"></a>     *   It's important to recognize that this information is supplied by
+<a name="327"></a>     *   the client, and is NOT validated by the protocol server.  At best
+<a name="328"></a>     *   you should consider it a suggestion, and at worst a malicious lie.
+<a name="329"></a>     *   The client could be innocently mistaken about the type, or could
+<a name="330"></a>     *   even be intentionally misrepresenting it.  You should always
+<a name="331"></a>     *   validate the actual contents, rather than relying on the client's
+<a name="332"></a>     *   description of the format; in particular, be careful not to assume
+<a name="333"></a>     *   that expected data fields are present, in the valid range, etc.
+<a name="334"></a>     */
+<a name="335"></a>    contentType = nil
+<a name="336"></a>
+<a name="337"></a>    /*
+<a name="338"></a>     *   The client-side filename, if specified.  This is a string giving
+<a name="339"></a>     *   the name of the file on the client machine.  This generally has no
+<a name="340"></a>     *   particular meaning to the server, since we can't infer anything
+<a name="341"></a>     *   about the directory structure or naming conventions on an
+<a name="342"></a>     *   arbitrary client.  However, this might be useful for reference,
+<a name="343"></a>     *   such as showing information about the upload in a user interface.
+<a name="344"></a>     *   It's sometimes also marginally useful to know the suffix
+<a name="345"></a>     *   (extension) for making further guesses about the content type -
+<a name="346"></a>     *   although as with the content-type, you can't rely upon this, but
+<a name="347"></a>     *   can only use it as a suggestion from the client.
+<a name="348"></a>     *   
+<a name="349"></a>     *   The client won't necessarily specify a filename at all, in which
+<a name="350"></a>     *   case this will be nil.  
+<a name="351"></a>     */
+<a name="352"></a>    filename = nil
+<a name="353"></a>;
+<a name="354"></a>    
+<a name="355"></a>
+<a name="356"></a>/* ------------------------------------------------------------------------ */
+<a name="357"></a>/*
+<a name="358"></a> *   A NetException is the base class for network errors. 
+<a name="359"></a> */
+<a name="360"></a>class NetException: Exception
+<a name="361"></a>    construct(msg?, errno?)
+<a name="362"></a>    {
+<a name="363"></a>        if (errMsg != nil)
+<a name="364"></a>            errMsg = 'Network error: &lt;&lt;msg&gt;&gt;';
+<a name="365"></a>        if (errno != nil)
+<a name="366"></a>            errMsg += ' (system error code &lt;&lt;errno&gt;&gt;)';
+<a name="367"></a>    }
+<a name="368"></a>    displayException() { "&lt;&lt;errMsg&gt;&gt;"; }
+<a name="369"></a>
+<a name="370"></a>    /* a descriptive error message provided by the system */
+<a name="371"></a>    errMsg = 'Network error'
+<a name="372"></a>;
+<a name="373"></a>
+<a name="374"></a>/*
+<a name="375"></a> *   A NetSafetyException is thrown when the program attempts to perform a
+<a name="376"></a> *   network operation that isn't allowed by the current network safety
+<a name="377"></a> *   level settings.  The user controls the safety level; the program can't
+<a name="378"></a> *   override this.  
+<a name="379"></a> */
+<a name="380"></a>class NetSafetyException: NetException
+<a name="381"></a>    errMsg = 'Network operation prohibited by user-specified '
+<a name="382"></a>             + 'network safety level'
+<a name="383"></a>;
+<a name="384"></a>
+<a name="385"></a>/*
+<a name="386"></a> *   A SocketDisconnectException is thrown when attempting to read or write
+<a name="387"></a> *   a network socket that's been closed, either by us or by the peer (the
+<a name="388"></a> *   computer on the other end of the network connection).  If we didn't
+<a name="389"></a> *   close the socket on this side, this error usually means simply that
+<a name="390"></a> *   the peer program has terminated or otherwise disconnected, so we
+<a name="391"></a> *   should consider the conversation terminated.  
+<a name="392"></a> */
+<a name="393"></a>class SocketDisconnectException: NetException
+<a name="394"></a>    errMsg = 'Network socket disconnected by peer or closed'
+<a name="395"></a>;
+<a name="396"></a>
+<a name="397"></a>/* export the objects and properties used in the tads-net function set */
+<a name="398"></a>export NetEvent 'TadsNet.NetEvent';
+<a name="399"></a>export NetRequestEvent 'TadsNet.NetRequestEvent';
+<a name="400"></a>export NetTimeoutEvent 'TadsNet.NetTimeoutEvent';
+<a name="401"></a>export NetReplyEvent 'TadsNet.NetReplyEvent';
+<a name="402"></a>export NetReplyDoneEvent 'TadsNet.NetReplyDoneEvent';
+<a name="403"></a>export NetException 'TadsNet.NetException';
+<a name="404"></a>export SocketDisconnectException 'TadsNet.SocketDisconnectException';
+<a name="405"></a>export NetSafetyException 'TadsNet.NetSafetyException';
+<a name="406"></a>export FileUpload 'TadsNet.FileUpload';
+<a name="407"></a>export file 'TadsNet.FileUpload.file';
+<a name="408"></a>export contentType 'TadsNet.FileUpload.contentType';
+<a name="409"></a>export filename 'TadsNet.FileUpload.filename';
+<a name="410"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

@@ -1,0 +1,801 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>factrel.t</title></head><body>
+<table class=ban><tr><td><h1>factrel.t</h1><td align=right><a href="../file/factrel.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* 
+<a name="5"></a> *   FACT RELATIONS EXTENSION by Eric Eve
+<a name="6"></a> *
+<a name="7"></a> *   Version 1.1 22nd April 2024
+<a name="8"></a> *
+<a name="9"></a> *   The factrel.t extension defines and uses relations involviing Facts. It must be included after
+<a name="10"></a> *   tha main library and the relations.t extension.
+<a name="11"></a> */
+<a name="12"></a>
+<a name="13"></a>/* 
+<a name="14"></a> *   The concerning relation tracks relations between Facta and the topics they reference (via their
+<a name="15"></a> *   topics property).
+<a name="16"></a> */
+<a name="17"></a>concerning: DerivedRelation 'concerns' 'referenced by' @manyToMany
+<a name="18"></a>     /* A Fact concerns all the topics listed in its topics property. */
+<a name="19"></a>    relatedTo(a)
+<a name="20"></a>    {
+<a name="21"></a>        if(gFact(a) == nil)
+<a name="22"></a>            return [];
+<a name="23"></a>        
+<a name="24"></a>        return gFact(a).topics;        
+<a name="25"></a>    }
+<a name="26"></a>    
+<a name="27"></a>    /* 
+<a name="28"></a>     *   List all the possible values of everything that can enter into the left-hand side of the
+<a name="29"></a>     *   relation "a concerns b", which is the list of all the Facts define in the game. Since we
+<a name="30"></a>     *   don't expect this to change during the course of the game we can calculate this once and
+<a name="31"></a>     *   then replace this method with the resulting list of
+<a name="32"></a>     Facts.*/
+<a name="33"></a>    listKeys()
+<a name="34"></a>    {
+<a name="35"></a>        /* Set up a new Vector for working storage. */
+<a name="36"></a>        local vec = new Vector();
+<a name="37"></a>        
+<a name="38"></a>        /* Iterate through every fact in the game. */
+<a name="39"></a>        for(local fact = firstObj(Fact); fact != nil; fact = nextObj(fact, Fact))
+<a name="40"></a>        {
+<a name="41"></a>            /* Add each fact to our vector. */
+<a name="42"></a>            vec.append(fact.name);
+<a name="43"></a>        }
+<a name="44"></a>        
+<a name="45"></a>        /* Convert the vector to a list. */
+<a name="46"></a>        local lst = vec.toList();
+<a name="47"></a>        
+<a name="48"></a>        /* Store the resulting list in this listKeys() property. */
+<a name="49"></a>        listKeys = lst;
+<a name="50"></a>        
+<a name="51"></a>        /* Then return the list. */
+<a name="52"></a>        return lst;
+<a name="53"></a>    }
+<a name="54"></a>    
+<a name="55"></a>    /* A topic a is inversely related to a fact b if it occurs in b's topics property. */
+<a name="56"></a>    isInverselyRelated(a, b)
+<a name="57"></a>    {
+<a name="58"></a>        if(gFact(b) == nil)
+<a name="59"></a>            return nil;
+<a name="60"></a>        
+<a name="61"></a>        return gFact(b).topics.find(a);
+<a name="62"></a>    }    
+<a name="63"></a>;
+<a name="64"></a>
+<a name="65"></a>/* A Fact abuts another Fact if the two Facts share (concern) at least one topic in common. */
+<a name="66"></a>abutting: DerivedRelation 'abuts' @manyToMany 
+<a name="67"></a>    reciprocal = true
+<a name="68"></a>
+<a name="69"></a>    /* Fact a abuts Fact b if their topics lists have any topics in common. */
+<a name="70"></a>    isRelated(a, b)
+<a name="71"></a>    {
+<a name="72"></a>        if(!gFact(a) || !gFact(b) )
+<a name="73"></a>            return nil;
+<a name="74"></a>        return gFact(a).topics.overlapsWith(gFact(b).topics);  
+<a name="75"></a>    }
+<a name="76"></a>    
+<a name="77"></a>    /* 
+<a name="78"></a>     *   The possible values that can appear on either side of this reciprocal relation a abuts b
+<a name="79"></a>     *   are all the Facts defined in the game.
+<a name="80"></a>     */
+<a name="81"></a>    listKeys()
+<a name="82"></a>    {
+<a name="83"></a>         /* Set up a new Vector for working storage. */
+<a name="84"></a>        local vec = new Vector();
+<a name="85"></a>        
+<a name="86"></a>        /* Iterate through every fact in the game. */
+<a name="87"></a>        for(local fact = firstObj(Fact); fact != nil; fact = nextObj(fact, Fact))
+<a name="88"></a>        {
+<a name="89"></a>            /* Add each fact to our vector. */
+<a name="90"></a>            vec.append(fact.name);
+<a name="91"></a>        }
+<a name="92"></a>        
+<a name="93"></a>        /* Convert the vector to a list. */
+<a name="94"></a>        local lst = vec.toList();
+<a name="95"></a>        
+<a name="96"></a>        /* Store the resulting list in this listKeys() property, since it shouldn't change. */
+<a name="97"></a>        listKeys = lst;
+<a name="98"></a>        
+<a name="99"></a>        /* Then return the list. */
+<a name="100"></a>        return lst;
+<a name="101"></a>    }   
+<a name="102"></a>;
+<a name="103"></a>   
+<a name="104"></a>
+<a name="105"></a>/* 
+<a name="106"></a> *   contradicting is a reciprocal relationship between Facts that are defined to contratdict each
+<a name="107"></a> *   other. The library cannot determine which these are, so only provides the bare framework here.
+<a name="108"></a> *   Game code then needs to define which facts oontradict by listing them on the contradicting
+<a name="109"></a> *   relation's relTab property, e.g.
+<a name="110"></a> *.
+<a name="111"></a> *.  relTab = [
+<a name="112"></a> *.       'lisbon-capital' -&gt; ['madrid-capital'],
+<a name="113"></a> *.       'jumping-silly' -&gt; ['jumping-healthy']
+<a name="114"></a> *.   ]
+<a name="115"></a> */
+<a name="116"></a>contradicting: Relation 'contradicts'  @manyToMany +true       
+<a name="117"></a>;
+<a name="118"></a>
+<a name="119"></a>
+<a name="120"></a>/* 
+<a name="121"></a> *   BeliefRelation is the base class for a group of six relations that test whether Actors (and/or
+<a name="122"></a> *   Consultables) assess the facts they know about in particular ways.
+<a name="123"></a> */
+<a name="124"></a>BeliefRelation: DerivedRelation
+<a name="125"></a>    /* 
+<a name="126"></a>     *   Actor a is related to fact b if b is present as a key in a's informedNameTab with a value
+<a name="127"></a>     *   of status (true, likely, dubious, unlikely, or untruy). The a parameter is the Thing (Actor
+<a name="128"></a>     *   or Consultable) that potentially knows of the fact in question and b is the fact string-tag
+<a name="129"></a>     *   representing the fact.
+<a name="130"></a>     */
+<a name="131"></a>    isRelated(a, b)
+<a name="132"></a>    {
+<a name="133"></a>        return a.informedNameTab &amp;&amp; a.informedNameTab[b] == status;
+<a name="134"></a>    }
+<a name="135"></a>    
+<a name="136"></a>    /* a is inversely  related to b if b is related to a. */
+<a name="137"></a>    isInverselyRelated(a, b)
+<a name="138"></a>    {
+<a name="139"></a>        return isRelated(b, a);
+<a name="140"></a>    }
+<a name="141"></a>    
+<a name="142"></a>    /* 
+<a name="143"></a>     *   We can make this relation hold between obj{1] and obj{2] if we set obj{2} to status on
+<a name="144"></a>     *   obj{1].
+<a name="145"></a>     */
+<a name="146"></a>    addRelation(objs)
+<a name="147"></a>    {
+<a name="148"></a>        objs[1].setInformed(objs[2], status);
+<a name="149"></a>    }
+<a name="150"></a>    
+<a name="151"></a>    /* 
+<a name="152"></a>     *   Obtain the list of fact tags related  to a, which is the subset of keys in a's
+<a name="153"></a>     *   informedNameTab for which a is related to be.
+<a name="154"></a>     */
+<a name="155"></a>    relatedTo(a) 
+<a name="156"></a>    {         
+<a name="157"></a>        return a.informedNameTab.keysToList().subset({b: isRelated(a, b)});
+<a name="158"></a>    }
+<a name="159"></a>    
+<a name="160"></a>    /* Obtain the list of Things that are inversely related to fact tag a */
+<a name="161"></a>    inverselyRelatedTo(a)
+<a name="162"></a>    {
+<a name="163"></a>        /* Set up a new vector for working storage of the list we're building. */
+<a name="164"></a>        local vec = new Vector();
+<a name="165"></a>        
+<a name="166"></a>        /* Interate through every Thing in the game. */
+<a name="167"></a>        for(obj = firstObj(Thing); obj != nil; obj = nextObj(obj, Thing))
+<a name="168"></a>        {
+<a name="169"></a>            /* If obj (the current Thing) is related to a, add it to our Vector. */
+<a name="170"></a>            if(isRelated(obj, a))
+<a name="171"></a>                vec.append(obj);
+<a name="172"></a>        }
+<a name="173"></a>        
+<a name="174"></a>        /* Convert our vector to a list and return the result. */
+<a name="175"></a>        return vec.toList();
+<a name="176"></a>    }
+<a name="177"></a>    
+<a name="178"></a>    /* 
+<a name="179"></a>     *   The belief status (true, likely, dubious, unlikely, or untrue) that we want this relation
+<a name="180"></a>     *   to test for.
+<a name="181"></a>     */
+<a name="182"></a>    status = nil
+<a name="183"></a>;
+<a name="184"></a>
+<a name="185"></a>
+<a name="186"></a>/* Tests relation between Actors/Consultables and the facts they believe to be true. */
+<a name="187"></a>believing:BeliefRelation 'believes' 'believed by' @manyToMany
+<a name="188"></a>   status = true   
+<a name="189"></a>;
+<a name="190"></a>
+<a name="191"></a>/* Tests relation between Actors/Consultables and the facts they believe to be untrue. */
+<a name="192"></a>disbelieving:BeliefRelation 'disbelieves' 'disbelieved by' @manyToMany
+<a name="193"></a>    status = untrue    
+<a name="194"></a>;
+<a name="195"></a>
+<a name="196"></a>/* Tests relation between Actors/Consultables and the facts they believe to be likely. */
+<a name="197"></a>consideringLikely: BeliefRelation 'considers likely' 'considered likely by' @manyToMany
+<a name="198"></a>    status = likely
+<a name="199"></a>;
+<a name="200"></a>
+<a name="201"></a>/* Tests relation between Actors/Consultables and the facts they believe to be dubious. */
+<a name="202"></a>doubting: BeliefRelation  'doubts' 'doubted by' @manyToMany
+<a name="203"></a>    status = dubious
+<a name="204"></a>;
+<a name="205"></a>
+<a name="206"></a>/* Tests relation between Actors/Consultables and the facts they believe to be unlikely. */
+<a name="207"></a>consideringUnlikely: BeliefRelation 'considers unlikely' 'considered unlikely by' @manyToMany
+<a name="208"></a>    status =  unlikely
+<a name="209"></a>;
+<a name="210"></a>
+<a name="211"></a>/* 
+<a name="212"></a> *   Tests relation between Actors/Consultables and the facts they believe to be uncertain, i.e.,
+<a name="213"></a> *   likely, dubious or unlikely.
+<a name="214"></a> */ 
+<a name="215"></a>wondering: BeliefRelation 'wonders if' 'wondered about' @manyToMany
+<a name="216"></a>    /* 
+<a name="217"></a>     *   Actor or Consultable is related to fact b through this relation if the value corresponding
+<a name="218"></a>     *   to key b on a's informedNameTab is either likely, dubious, or unlikely.
+<a name="219"></a>     */
+<a name="220"></a>    isRelated(a, b)
+<a name="221"></a>    {
+<a name="222"></a>        return a.informedNameTab &amp;&amp; a.informedNameTab[b] is in (likely, dubious, unlikely);
+<a name="223"></a>    }
+<a name="224"></a>    
+<a name="225"></a>    addRelation(objs)
+<a name="226"></a>    {
+<a name="227"></a>        inherited DerivedRelation(objs);
+<a name="228"></a>    }  
+<a name="229"></a>;
+<a name="230"></a>
+<a name="231"></a>
+<a name="232"></a>
+<a name="233"></a>
+<a name="234"></a>/* 
+<a name="235"></a> *   A FactAgendaItem is a specialization of a ConvAgendaItem that seeks a path from the current
+<a name="236"></a> *   state of an ongoing conversation towards a target Fact or topic the associated actor wishes to
+<a name="237"></a> *   reach and then attempts to follow that conversational path whenever the NPC gets the chance to
+<a name="238"></a> *   take the conversational initiative.
+<a name="239"></a> */
+<a name="240"></a>class FactAgendaItem: ConvAgendaItem
+<a name="241"></a>    /* The topic or fact our actor wishes to reach */
+<a name="242"></a>    target = nil
+<a name="243"></a>    
+<a name="244"></a>    /* Get the fact we want out path calculation to start from. */
+<a name="245"></a>    getStart()
+<a name="246"></a>    {
+<a name="247"></a>        local startFact = gLastFact;
+<a name="248"></a>        
+<a name="249"></a>        /* If we can't find a last mentioned fact, try starting from the last mentioned topic .*/
+<a name="250"></a>        if(startFact == nil)
+<a name="251"></a>        {
+<a name="252"></a>            /* 
+<a name="253"></a>             *   If there's no last mentioned topic, there's nothing more we can try, so return nil.
+<a name="254"></a>             */
+<a name="255"></a>            if(gLastTopic == nil)
+<a name="256"></a>                return nil;
+<a name="257"></a>            
+<a name="258"></a>            /* Obtained a list of facts that reference this topic. */
+<a name="259"></a>            local fList = related(gLastTopic, 'referenced by');
+<a name="260"></a>            
+<a name="261"></a>            /* If we succeed in obtaining such a list, return its first element. */
+<a name="262"></a>            if(fList &amp;&amp; fList.length() &gt; 0)
+<a name="263"></a>                startFact = fList[1];           
+<a name="264"></a>        }
+<a name="265"></a>        
+<a name="266"></a>        /* Return whatever start fact we found */           
+<a name="267"></a>        return startFact;
+<a name="268"></a>    }
+<a name="269"></a>    
+<a name="270"></a>    
+<a name="271"></a>    /* Get a path from the last fact mentioned to our target, if we can. Return nil if we can't. */
+<a name="272"></a>    getPath() 
+<a name="273"></a>    {
+<a name="274"></a>        /* Set up a local variable to cache our path. */
+<a name="275"></a>        local path = nil;
+<a name="276"></a>        
+<a name="277"></a>        /* Make our starting fact (the beginning of our path) the last fact mentioned. */
+<a name="278"></a>        local startFact = getStart();                 
+<a name="279"></a>        
+<a name="280"></a>       
+<a name="281"></a>        /* 
+<a name="282"></a>         *   We can only go ahead with calculating a path if we have a starting fact to calculate it
+<a name="283"></a>         *   from.
+<a name="284"></a>         */
+<a name="285"></a>        if(startFact)
+<a name="286"></a>        {
+<a name="287"></a>            /* 
+<a name="288"></a>             *   If our target is an object (Topic or Thing used as a topic) we need to find the
+<a name="289"></a>             *   appropriate fact to start from.
+<a name="290"></a>             */
+<a name="291"></a>            if(dataType(target) == TypeObject)                
+<a name="292"></a>                path = getPathToTopic(startFact);            
+<a name="293"></a>            
+<a name="294"></a>            /* 
+<a name="295"></a>             *   Otherwise, our target is a fact, and we simply set path to the optimum path from
+<a name="296"></a>             *   our starting fact to our target fact.
+<a name="297"></a>             */
+<a name="298"></a>            else                 
+<a name="299"></a>                path = relationPath(startFact, relations, target);
+<a name="300"></a>        }     
+<a name="301"></a>        
+<a name="302"></a>        /* 
+<a name="303"></a>         *   Save a copy of our path, including any relations it ran through if we defined the
+<a name="304"></a>         *   relation property as a list.
+<a name="305"></a>         */
+<a name="306"></a>        fullPath = path;
+<a name="307"></a>        /* If our path contains a list of lists, transform it into a simple list of facts. */
+<a name="308"></a>        if(path &amp;&amp; dataType(path[1]) == TypeList)
+<a name="309"></a>            path = path.mapAll({x: x[2]});
+<a name="310"></a>        
+<a name="311"></a>        /* Either way, return the path we've just found. */
+<a name="312"></a>        return path;        
+<a name="313"></a>    }
+<a name="314"></a>    
+<a name="315"></a>    
+<a name="316"></a>    /* Get the path from a topic to our target */
+<a name="317"></a>    getPathToTopic(startFact)
+<a name="318"></a>    {
+<a name="319"></a>        /* First obtain a list of all the facts that reference this topic. */
+<a name="320"></a>        local facts = related(target, 'referenced by');
+<a name="321"></a>        
+<a name="322"></a>        /* 
+<a name="323"></a>         *   We want to select the fact that gives us the shortest path, so we start with a very
+<a name="324"></a>         *   long maximum path length to be sure that any path we find will be shorter than this.
+<a name="325"></a>         */
+<a name="326"></a>        local maxLen = 100000;
+<a name="327"></a>        
+<a name="328"></a>        /* Set uo a local variable for the path we're looking for. */
+<a name="329"></a>        local path = nil;
+<a name="330"></a>        
+<a name="331"></a>        /* 
+<a name="332"></a>         *   Iterate through all the related facts we found to identify the one that gives us the
+<a name="333"></a>         *   shortest path to our target
+<a name="334"></a>         .*/
+<a name="335"></a>        foreach(local fact in facts)
+<a name="336"></a>        {                        
+<a name="337"></a>            /* 
+<a name="338"></a>             *   Find the optimum path from the last fact mentioned to this potential target fact
+<a name="339"></a>             *.
+<a name="340"></a>             */
+<a name="341"></a>            local newPath = relationPath(startFact, relations, fact);
+<a name="342"></a>            
+<a name="343"></a>            /*  
+<a name="344"></a>             *   If we've found a path and it's shorter than any previous path, make it our
+<a name="345"></a>             *   provisionally chosen path and reduce the maximum path length to its path length.
+<a name="346"></a>             */
+<a name="347"></a>            if(newPath &amp;&amp; newPath.length &lt; maxLen)
+<a name="348"></a>            {
+<a name="349"></a>                maxLen = newPath.length;
+<a name="350"></a>                
+<a name="351"></a>                path = newPath;
+<a name="352"></a>            }                      
+<a name="353"></a>        }
+<a name="354"></a>        
+<a name="355"></a>        /* Return whatever path we found. */
+<a name="356"></a>        return path;
+<a name="357"></a>    }
+<a name="358"></a>    
+<a name="359"></a>    /* The current conversational path we're pursuing. */
+<a name="360"></a>    curPath = nil
+<a name="361"></a>    
+<a name="362"></a>    /* The full path, including the relationships used. */
+<a name="363"></a>    fullPath = nil
+<a name="364"></a>    
+<a name="365"></a>    /* 
+<a name="366"></a>     *   The relation or a list of relations we want to use for proximity of facts when calculating
+<a name="367"></a>     *   our path.
+<a name="368"></a>     */
+<a name="369"></a>    relations = abutting
+<a name="370"></a>   
+<a name="371"></a>    /* 
+<a name="372"></a>     *   The next step along our current path. If we have a path of at least two elemeents, the next
+<a name="373"></a>     *   step is the second element, otherwise we don't have a next step.
+<a name="374"></a>     */
+<a name="375"></a>//    nextStep = ((curPath &amp;&amp; curPath.length &gt; 1) ? curPath[2] : nil)
+<a name="376"></a>    
+<a name="377"></a>    /* 
+<a name="378"></a>     *   If we have been called by a DefaultAgendaTopic, it will be neater if what we display is
+<a name="379"></a>     *   related to the topic the DefaultAgendaTopic just matched, so we attempt to find a nextStep
+<a name="380"></a>     *   that meets this condition.
+<a name="381"></a>     */
+<a name="382"></a>    nextStep()
+<a name="383"></a>    {
+<a name="384"></a>        /* We need only try to do this if we've just been called by a DefaultAgendaTopic */
+<a name="385"></a>        if(calledBy &amp;&amp; calledBy.ofKind(DefaultAgendaTopic))
+<a name="386"></a>        {
+<a name="387"></a>            /* 
+<a name="388"></a>             *   Try to find the latest step (fact name) in our current path that relates to the
+<a name="389"></a>             *   topic just matched by our caller.
+<a name="390"></a>             */
+<a name="391"></a>            local step = curPath.lastValWhich({x: gFact(x).topics.indexOf(calledBy.topicMatched)});
+<a name="392"></a>            
+<a name="393"></a>            /*  If we found one, return it. */
+<a name="394"></a>            if(step)
+<a name="395"></a>                return step;
+<a name="396"></a>        }
+<a name="397"></a>        
+<a name="398"></a>        /* Otherwise, return the next step along our path. */
+<a name="399"></a>        return ((curPath &amp;&amp; curPath.length &gt; 1) ? curPath[2] : nil);
+<a name="400"></a>    }
+<a name="401"></a>    
+<a name="402"></a>    /* 
+<a name="403"></a>     *   Are we ready to execute? By default we are if our inherited conditions are matched and
+<a name="404"></a>     *   there's a next step we can take, unless we don't have a target defined, in which case just
+<a name="405"></a>     *   use the inherited handling.
+<a name="406"></a>     */
+<a name="407"></a>    isReady()
+<a name="408"></a>    {
+<a name="409"></a>        /* 
+<a name="410"></a>         *   If we have a target defined, store it in our curPath property (so we won't need to
+<a name="411"></a>         *   calculate it again this turn.
+<a name="412"></a>         */
+<a name="413"></a>        if(target)
+<a name="414"></a>            curPath = getPath();
+<a name="415"></a>        
+<a name="416"></a>        /* otherwise return our inherited value. */
+<a name="417"></a>        else 
+<a name="418"></a>            return inherited();
+<a name="419"></a>        
+<a name="420"></a>        /* We're ready is we meet the inherited conditions and we have an available next step. */
+<a name="421"></a>        return inherited() &amp;&amp; nextStep != nil;
+<a name="422"></a>       
+<a name="423"></a>    }
+<a name="424"></a>    
+<a name="425"></a>    /* The object that called us */
+<a name="426"></a>    calledBy = nil
+<a name="427"></a>    
+<a name="428"></a>    invokeItemBase(caller)
+<a name="429"></a>    {
+<a name="430"></a>        /* Store a reference to our called */
+<a name="431"></a>        calledBy = caller;
+<a name="432"></a>        
+<a name="433"></a>        /* Carry out the inherited handling. */
+<a name="434"></a>        inherited(caller);
+<a name="435"></a>    }
+<a name="436"></a>    
+<a name="437"></a>    /* 
+<a name="438"></a>     *   We provide a default topicResponse() that triggers an appropriate InitiateTopic for the
+<a name="439"></a>     *   next step along our fact path, and marks this FactAgendaItem as done once we've reached the
+<a name="440"></a>     *   final step. Game code is free to override if you want to handle this actor's goal-seeking
+<a name="441"></a>     *   conversational agenda in some other way.
+<a name="442"></a>     */
+<a name="443"></a>    
+<a name="444"></a>    /* 
+<a name="445"></a>     *   By defaut we trigger the InitiateTopic corresponding to our next step, but game code can
+<a name="446"></a>     *   ovverride to do somethng different here is required.
+<a name="447"></a>     */
+<a name="448"></a>    invokeItem()
+<a name="449"></a>    {
+<a name="450"></a>        getActor.initiateTopic(nextStep);
+<a name="451"></a>    }
+<a name="452"></a>    
+<a name="453"></a>    
+<a name="454"></a>    /* 
+<a name="455"></a>     *   Our endCondition is the state we must reach for us to have reached our goal, so that we can
+<a name="456"></a>     *   set our isDone to true. By default this is when we've reached the end of our path, which is
+<a name="457"></a>     *   when our next step would be the one at the end of our path. Game could override this, say,
+<a name="458"></a>     *   to either gRevaled(target) or gInformed(target) or some similar condition.
+<a name="459"></a>     */
+<a name="460"></a>    endCondition = (curPath &amp;&amp; curPath[curPath.length] == nextStep)
+<a name="461"></a> 
+<a name="462"></a>    /* 
+<a name="463"></a>     *   Reset this FactAgendaItem so that it can be used again. If the optional target_ parameter
+<a name="464"></a>     *   is supplied, we'll set the our target to the new target_.
+<a name="465"></a>     */
+<a name="466"></a>    reset(target_?)
+<a name="467"></a>    {
+<a name="468"></a>        /* 
+<a name="469"></a>         *   Provided that isDone is simply true (rather than a method or expression that might
+<a name="470"></a>         *   evaluate to true) reset it to nil.
+<a name="471"></a>         */
+<a name="472"></a>        if(propType(&amp;isDone) == TypeTrue)
+<a name="473"></a>            isDone = nil;
+<a name="474"></a>        
+<a name="475"></a>        /* If the target_ parament has been supplied, set our target property to target_ .*/
+<a name="476"></a>        if(target_)
+<a name="477"></a>            target = target_;
+<a name="478"></a>    }
+<a name="479"></a>;
+<a name="480"></a>
+<a name="481"></a>/* 
+<a name="482"></a> *   Modification in the FACT RELATIONS Extension to allow contradictions between listed Facts to be
+<a name="483"></a> *   noted. We may no attempt to say precisely where any contradictions occur, since that seems best
+<a name="484"></a> *   left to the player to spot.
+<a name="485"></a> */
+<a name="486"></a>modify FactHelper
+<a name="487"></a>    /* 
+<a name="488"></a>     *   Add a message noting contradictions (as defined by the contradicting Relation) between any
+<a name="489"></a>     *   two facts just listed in our response.
+<a name="490"></a>     */
+<a name="491"></a>    topicResponse()
+<a name="492"></a>    {
+<a name="493"></a>        /* Carry out the inherited handling. */
+<a name="494"></a>        inherited();
+<a name="495"></a>        
+<a name="496"></a>        /* 
+<a name="497"></a>         *   If the contradicting relation has no conflicting facts defined or we don't want to note
+<a name="498"></a>         *   (report on) contradictions there's nothing for us to do.
+<a name="499"></a>         */
+<a name="500"></a>        if(contradicting.relTab == nil || noteContradictions == nil)
+<a name="501"></a>            return;
+<a name="502"></a>        
+<a name="503"></a>        /* Set up a local variable to keep track of the number of contraditions. */
+<a name="504"></a>        local contradictionCount = 0;
+<a name="505"></a>        
+<a name="506"></a>        /* 
+<a name="507"></a>         *   Iterate through every fact in our tagList, which will be every Fact we've just
+<a name="508"></a>         *   displayed.
+<a name="509"></a>         */
+<a name="510"></a>        foreach(local fact in tagList)
+<a name="511"></a>        {
+<a name="512"></a>            /* 
+<a name="513"></a>             *   If any facts contradicting the current fact occur in our tagList, incremenent our
+<a name="514"></a>             *   contradiction count.
+<a name="515"></a>             */
+<a name="516"></a>            if(valToList(related(fact, contradicting)).overlapsWith(tagList))
+<a name="517"></a>                contradictionCount ++;
+<a name="518"></a>            
+<a name="519"></a>            /*  
+<a name="520"></a>             *   If we've found more than one contradiction we can stop looking (it's possible that
+<a name="521"></a>             *   we might want to know whether there was one or several).
+<a name="522"></a>             */
+<a name="523"></a>            if(contradictionCount &gt; 1)
+<a name="524"></a>                break;
+<a name="525"></a>        }
+<a name="526"></a>        
+<a name="527"></a>        /* If we found any contradications, display a message to that effect. */
+<a name="528"></a>        if(contradictionCount &gt; 0)
+<a name="529"></a>            DMsg(contradiction, '&lt;.p&gt;There would seem to be some contradiction {here}.&lt;.p&gt;');
+<a name="530"></a>        
+<a name="531"></a>        
+<a name="532"></a>    }
+<a name="533"></a>    
+<a name="534"></a>    /* 
+<a name="535"></a>     *   Do we actually want to note (i.e. report on) the presence of contradictions here? By
+<a name="536"></a>     *   default we do but game code can override.
+<a name="537"></a>     */
+<a name="538"></a>    noteContradictions = true
+<a name="539"></a>;
+<a name="540"></a>
+<a name="541"></a>modify ActorTopicEntry
+<a name="542"></a>    
+<a name="543"></a>    /* 
+<a name="544"></a>     *   If we like, we can specify a particuler FactAgendaItem to use in conjunction with this
+<a name="545"></a>     *   ActorTopicEntry. But note that if autoUseAgenda is true the AgendaItem we specify here will
+<a name="546"></a>     *   be ignored unless useAgenda() can't find a suitable AgendaItem.
+<a name="547"></a>     */
+<a name="548"></a>    agenda = nil
+<a name="549"></a>    
+<a name="550"></a>    /* 
+<a name="551"></a>     *   Do we want the ActorTopicEntry to find an appropriate FactAgendaItem for us? By default we
+<a name="552"></a>     *   don't. This should only be set to true on ActorTopicEntries that are going to make use of
+<a name="553"></a>     *   FactAgendaItem path information.
+<a name="554"></a>     */
+<a name="555"></a>    autoUseAgenda = nil
+<a name="556"></a>    
+<a name="557"></a>    useAgenda()
+<a name="558"></a>    {
+<a name="559"></a>        /* Don't do anything here if we don't want to reference an associated FactAgendaItem */
+<a name="560"></a>        if(agenda == nil &amp;&amp; autoUseAgenda == nil)
+<a name="561"></a>            return nil;
+<a name="562"></a>        
+<a name="563"></a>        /* Setup the starting position for our agenda's path calculation. */
+<a name="564"></a>        if(objOfKind(topicMatched, Topic) || objOfKind(topicMatched, Thing))
+<a name="565"></a>            libGlobal.lastTopicMentioned = topicMatched;
+<a name="566"></a>        
+<a name="567"></a>        local formerFact = libGlobal.lastFactMentioned;
+<a name="568"></a>        
+<a name="569"></a>        try 
+<a name="570"></a>        {
+<a name="571"></a>            /* 
+<a name="572"></a>             *   Ensure it uses the latest topic rather than any legacy fact matched, unless the
+<a name="573"></a>             *   last fact matched is referenced by the topic we just matched, in which case we may
+<a name="574"></a>             *   as well retain it.
+<a name="575"></a>             */             
+<a name="576"></a>            if(related(gLastFact, 'referenced by').indexOf(topicMatched) == nil)
+<a name="577"></a>                libGlobal.lastFactMentioned = nil;
+<a name="578"></a>            
+<a name="579"></a>            /* 
+<a name="580"></a>             *   If we don't want to find a suitable AgendaItem automatically, use the one defined
+<a name="581"></a>             *   on our agenda property.
+<a name="582"></a>             */
+<a name="583"></a>            if(!autoUseAgenda)
+<a name="584"></a>                return agenda;
+<a name="585"></a>            
+<a name="586"></a>            /* 
+<a name="587"></a>             *   Obtain a ready FactAgendaItem from our actor's agendaList (in all likelihood there
+<a name="588"></a>             *   won't be more than one at any one time).
+<a name="589"></a>             */
+<a name="590"></a>            local ag = getActor().agendaList.valWhich({x: x.ofKind(FactAgendaItem) &amp;&amp; x.isReady});
+<a name="591"></a>            
+<a name="592"></a>            /* 
+<a name="593"></a>             *   If we found a suitable FactAgendaItem, return it, otherwise return the AgendaItems
+<a name="594"></a>             *   specified on our agenda property.
+<a name="595"></a>             */                
+<a name="596"></a>            return ag ?? agenda;
+<a name="597"></a>        }
+<a name="598"></a>        finally
+<a name="599"></a>        {
+<a name="600"></a>            libGlobal.lastFactMentioned = formerFact;
+<a name="601"></a>        }
+<a name="602"></a>            
+<a name="603"></a>    }
+<a name="604"></a>    
+<a name="605"></a>    baseHandleTopic()
+<a name="606"></a>    {
+<a name="607"></a>        local agenda_ = agenda;
+<a name="608"></a>        try
+<a name="609"></a>        {
+<a name="610"></a>            if(agenda || autoUseAgenda)
+<a name="611"></a>            {
+<a name="612"></a>                /* Obtain the AgendaItem we wish to use with this ActorTopicEntry */
+<a name="613"></a>                local ag = useAgenda();
+<a name="614"></a>                
+<a name="615"></a>                /* Check that ag is a FactAgendaItem before trying to work with it. */
+<a name="616"></a>                if(objOfKind(ag, FactAgendaItem))
+<a name="617"></a>                {                
+<a name="618"></a>                    /* 
+<a name="619"></a>                     *   If ag can provide a path from our topic to its target, set our own next
+<a name="620"></a>                     *   step and agendaPath to those of ag.
+<a name="621"></a>                     */
+<a name="622"></a>                    agendaPath = ag.getPath();
+<a name="623"></a>                    
+<a name="624"></a>                    nextStep = ag.nextStep;   
+<a name="625"></a>                    
+<a name="626"></a>                    agenda = ag;
+<a name="627"></a>                }
+<a name="628"></a>                else
+<a name="629"></a>                {
+<a name="630"></a>                    /* Otherwise reset our nextStep and agendaPath to nil */
+<a name="631"></a>                    nextStep = nil;
+<a name="632"></a>                    
+<a name="633"></a>                    agendaPath = nil;                
+<a name="634"></a>                }
+<a name="635"></a>            }
+<a name="636"></a>            
+<a name="637"></a>            inherited();
+<a name="638"></a>        }
+<a name="639"></a>        finally
+<a name="640"></a>        {
+<a name="641"></a>            agenda = agenda_;
+<a name="642"></a>        }
+<a name="643"></a>    }
+<a name="644"></a>    
+<a name="645"></a>    /* 
+<a name="646"></a>     *   The next step (next fact) our associated FactAgendaItem would like us to use. We can use
+<a name="647"></a>     *   this to tailor our topicResponse as we see fit, which could include responding with our
+<a name="648"></a>     *   nextStep's description, or could be something more subtle.
+<a name="649"></a>     */
+<a name="650"></a>    nextStep = nil
+<a name="651"></a>    
+<a name="652"></a>    /* 
+<a name="653"></a>     *   The path out associated FactAgendaItem wants to take. This will be a list of fact name
+<a name="654"></a>     *   tags.
+<a name="655"></a>     */
+<a name="656"></a>    agendaPath = nil
+<a name="657"></a>    
+<a name="658"></a>    tryNextStep()
+<a name="659"></a>    {
+<a name="660"></a>        if(nextStep)
+<a name="661"></a>        {
+<a name="662"></a>            if(getActor.initiateTopic(nextStep))
+<a name="663"></a>                return true;            
+<a name="664"></a>        }
+<a name="665"></a>        return nil;
+<a name="666"></a>    }
+<a name="667"></a>    
+<a name="668"></a>    tryAgenda()
+<a name="669"></a>    {
+<a name="670"></a>        return getActor.executeAgenda();
+<a name="671"></a>    }
+<a name="672"></a>    
+<a name="673"></a>    
+<a name="674"></a>;
+<a name="675"></a>
+<a name="676"></a>/* Modifications to AltTopic to work with FACT RELATIONS modifications to ActorTopicEntry */
+<a name="677"></a>modify AltTopic
+<a name="678"></a>    agenda = location.agenda
+<a name="679"></a>    autoUseAgenda = location.autoUseAgenda
+<a name="680"></a>;
+<a name="681"></a>
+<a name="682"></a>/* Modification to Actor to work better with Fact Relations extension */
+<a name="683"></a>modify Actor
+<a name="684"></a>    /* 
+<a name="685"></a>     *   We need to update gLastTopic so that any FactAgendaItem can reference it when checking its
+<a name="686"></a>     *   isReady property before any TopicEntry has handled the topic.
+<a name="687"></a>     */
+<a name="688"></a>    handleTopic(prop, topic, defaultProp = &amp;noResponseMsg)
+<a name="689"></a>    {
+<a name="690"></a>        /* Store a referece to topic, which will be a list at this stage */
+<a name="691"></a>        local top = topic;
+<a name="692"></a>        
+<a name="693"></a>        /* topic has probably been passed as a list. */
+<a name="694"></a>        if(dataType(topic) == TypeList)
+<a name="695"></a>        {
+<a name="696"></a>            /* If so prefer an element of the list that hasn't just been created by the parser. */
+<a name="697"></a>            top = topic.valWhich({t:!t.newlyCreated});
+<a name="698"></a>            
+<a name="699"></a>            /* If we found one, choose it, otherwwise select the first element in the list. */
+<a name="700"></a>            top = top ?? topic[1];
+<a name="701"></a>        }
+<a name="702"></a>         
+<a name="703"></a>        /* Updte gLastTopic */
+<a name="704"></a>        gLastTopic = top;
+<a name="705"></a>        
+<a name="706"></a>        /* Then carry out the inherited handling and return the result. */ 
+<a name="707"></a>        return inherited(prop, topic, defaultProp);
+<a name="708"></a>    }
+<a name="709"></a>;
+<a name="710"></a>
+<a name="711"></a>modify Thing
+<a name="712"></a>    setInformed(tag, val?)
+<a name="713"></a>    {
+<a name="714"></a>        /* Carry out the inherited handling */
+<a name="715"></a>        inherited(tag, val);       
+<a name="716"></a>        
+<a name="717"></a>        /* 
+<a name="718"></a>         *   Then check for contradictions betwen the new piece of information (tag) and information
+<a name="719"></a>         *   we already know about.
+<a name="720"></a>         */
+<a name="721"></a>        checkForContradictions(tag, val);
+<a name="722"></a>    }
+<a name="723"></a>    
+<a name="724"></a>    /* 
+<a name="725"></a>     *   Check for contradictions betwen the new piece of information (tag) and information we
+<a name="726"></a>     *   already know about.
+<a name="727"></a>     */
+<a name="728"></a>    checkForContradictions(tag, val)
+<a name="729"></a>    {
+<a name="730"></a>        /* Get the fact corresponding to tag. */
+<a name="731"></a>        local fact = gFact(tag);
+<a name="732"></a>        
+<a name="733"></a>        /* If we don't find a fact or our informedTab is empty, there's nothing left to do. */
+<a name="734"></a>        if(fact == nil || informedNameTab == nil)
+<a name="735"></a>            return;
+<a name="736"></a>        
+<a name="737"></a>        /* Obtain a list of all the facts we've been informed of. */
+<a name="738"></a>        local factList = informedNameTab.keysToList().subset({x: informedNameTab[x] != nil});
+<a name="739"></a>        
+<a name="740"></a>        /* 
+<a name="741"></a>         *   Reduce this to the list of facts that contradict tag (the new fact name we've just been
+<a name="742"></a>         *   informed of.
+<a name="743"></a>         */
+<a name="744"></a>        factList = factList.subset({x: related(tag, contradicting, x) });
+<a name="745"></a>        
+<a name="746"></a>        /* If we found any, mark tag as dubious and call our notifyContrediction method. */
+<a name="747"></a>        if(factList.length &gt; 0 &amp;&amp; val == nil)
+<a name="748"></a>        {
+<a name="749"></a>            /* Mark this item of information as dubious */
+<a name="750"></a>//            informedNameTab[tag] = dubious;   
+<a name="751"></a>            
+<a name="752"></a>            markContradiction(tag, factList);
+<a name="753"></a>            
+<a name="754"></a>            /* Call our notifyContradiction method. */
+<a name="755"></a>            notifyContradiction(tag, factList);
+<a name="756"></a>        }
+<a name="757"></a>    }
+<a name="758"></a>    /* 
+<a name="759"></a>     *   Mark the incoming 'fact' denoted by tag as either untrue, unlikely, or dubious, depending
+<a name="760"></a>     *   on what it contradicts .
+<a name="761"></a>     */
+<a name="762"></a>    markContradiction(tag, factList)
+<a name="763"></a>    {
+<a name="764"></a>        /* 
+<a name="765"></a>         *   If tag contradicts a fact we believe to be true, we presumably believe tag to be untrue
+<a name="766"></a>         */
+<a name="767"></a>        if(factList.indexWhich({x: informedNameTab[x] == true}))
+<a name="768"></a>            informedNameTab[tag] = untrue;
+<a name="769"></a>        else
+<a name="770"></a>        {
+<a name="771"></a>            /* 
+<a name="772"></a>             *   Otherwise if tag contradicts a fact we believe to be likely, we presumably believe
+<a name="773"></a>             *   tag to be unlikely.
+<a name="774"></a>             */
+<a name="775"></a>            if(factList.indexWhich({x: informedNameTab[x] == likely}))
+<a name="776"></a>                informedNameTab[tag] = unlikely;
+<a name="777"></a>            else
+<a name="778"></a>                /* 
+<a name="779"></a>                 *   Otherwise we consiser tag to be dubious (that tag contradcts a fact we regard
+<a name="780"></a>                 *   as either dubious, unlikely or untrue says little about how we regard tag - two
+<a name="781"></a>                 *   muutally contradictory facts could easily both be untrue, unlikely, or dubious.
+<a name="782"></a>                 */
+<a name="783"></a>                informedNameTab[tag] = dubious;
+<a name="784"></a>        }
+<a name="785"></a>    }
+<a name="786"></a>    
+<a name="787"></a>    /* 
+<a name="788"></a>     *   Receive a notification that we've just been informed of a Fact that contradicts another
+<a name="789"></a>     *   fact we already know or have been informed of. We don't do anything here by default; it's
+<a name="790"></a>     *   up to game code to impelement any response required.
+<a name="791"></a>     */
+<a name="792"></a>    notifyContradiction(fact, factList)
+<a name="793"></a>    {
+<a name="794"></a>    }
+<a name="795"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

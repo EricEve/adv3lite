@@ -1,0 +1,310 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>pathfind.t</title></head><body>
+<table class=ban><tr><td><h1>pathfind.t</h1><td align=right><a href="../file/pathfind.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/* Abstract pathfinder */
+<a name="5"></a>class Pathfinder: object
+<a name="6"></a>    
+<a name="7"></a>    /* 
+<a name="8"></a>     *   When populated the pathsFound will contain a Vector of path Vectors,
+<a name="9"></a>     *   each path Vector comprising a series of two element lists, the first
+<a name="10"></a>     *   element describing the route taken and the second the destination
+<a name="11"></a>     *   arrived at (e.g. [northDir, hall] meaning go north to reach the hall).
+<a name="12"></a>     */
+<a name="13"></a>    
+<a name="14"></a>    pathsFound = nil
+<a name="15"></a>    
+<a name="16"></a>    /* 
+<a name="17"></a>     *   The number of steps we have tried so far. We start with 1, being the
+<a name="18"></a>     *   null step to our starting point.
+<a name="19"></a>     */
+<a name="20"></a>    steps = 1
+<a name="21"></a>    
+<a name="22"></a>    /* 
+<a name="23"></a>     *   A Vector containing all the nodes we have visited so far in our attempt
+<a name="24"></a>     *   to find a route. This enables us to cull paths that lead somewhere
+<a name="25"></a>     *   we've already been.
+<a name="26"></a>     */
+<a name="27"></a>    
+<a name="28"></a>    nodesVisited = nil
+<a name="29"></a>    
+<a name="30"></a>    
+<a name="31"></a>    findPath(start, target)
+<a name="32"></a>    {
+<a name="33"></a>        /* 
+<a name="34"></a>         *   Initiate the search by setting up the Vectors we need and
+<a name="35"></a>         *   populating them with the null route to our starting point.
+<a name="36"></a>         */
+<a name="37"></a>            
+<a name="38"></a>        cachedRoute = nil;
+<a name="39"></a>        currentDestination = target;
+<a name="40"></a>        
+<a name="41"></a>        pathsFound = new Vector(20);
+<a name="42"></a>        nodesVisited = new Vector(20);
+<a name="43"></a>        local newPath = new Vector(2);
+<a name="44"></a>        newPath.append([nil, start]);
+<a name="45"></a>        pathsFound.append(newPath);
+<a name="46"></a>        nodesVisited.append(start);
+<a name="47"></a>        steps = 1;
+<a name="48"></a>        if(start == target)
+<a name="49"></a>            return newPath;
+<a name="50"></a>        
+<a name="51"></a>        
+<a name="52"></a>        /* 
+<a name="53"></a>         *   To find the path we take a step out from our starting point through
+<a name="54"></a>         *   all available routes. We note the route we took and where we
+<a name="55"></a>         *   arrived at as a set of new paths building on our existing paths. We
+<a name="56"></a>         *   then discard all paths that are shorter than the number of steps we
+<a name="57"></a>         *   have now taken and look for one among the remainder that arrives at
+<a name="58"></a>         *   our target destination. If we find one, we return it. If not, we
+<a name="59"></a>         *   remove all paths that lead to destinations we have visited before,
+<a name="60"></a>         *   and then try taking another step, noting the destinations to which
+<a name="61"></a>         *   it leads. Repeat until we either find a path to our target or we
+<a name="62"></a>         *   run out of new paths to try.
+<a name="63"></a>         */
+<a name="64"></a>        
+<a name="65"></a>        while(pathsFound.length &gt; 0)
+<a name="66"></a>        {
+<a name="67"></a>            takeOneStep();
+<a name="68"></a>            
+<a name="69"></a>            /* cull all paths that are shorter than steps long */
+<a name="70"></a>            
+<a name="71"></a>            pathsFound = pathsFound.subset({x: x.length == steps});
+<a name="72"></a>            
+<a name="73"></a>            /* see if any of the paths we've found lead to our target */
+<a name="74"></a>            local pathFound = pathsFound.valWhich({x: x[steps][2] == target} );
+<a name="75"></a>            if(pathFound != nil)
+<a name="76"></a>            {
+<a name="77"></a>                cachedRoute = pathFound;
+<a name="78"></a>                return pathFound;
+<a name="79"></a>            }
+<a name="80"></a>            
+<a name="81"></a>            /* remove all paths that end in nodes we've already visited */
+<a name="82"></a>            pathsFound = pathsFound.subset({x: nodesVisited.indexOf(x[steps][2])
+<a name="83"></a>                                           == nil});
+<a name="84"></a>                
+<a name="85"></a>                /* note which nodes have now been visited */
+<a name="86"></a>                
+<a name="87"></a>            foreach(local cur in pathsFound)
+<a name="88"></a>                nodesVisited.append(cur[steps][2]);
+<a name="89"></a>            
+<a name="90"></a>            
+<a name="91"></a>         }
+<a name="92"></a>        
+<a name="93"></a>        return nil;
+<a name="94"></a>    }
+<a name="95"></a>    
+<a name="96"></a>    takeOneStep()
+<a name="97"></a>    {
+<a name="98"></a>        /* Note that we've taken another step out from our starting point */
+<a name="99"></a>        steps ++;
+<a name="100"></a>        
+<a name="101"></a>        /* 
+<a name="102"></a>         *   Copy the existing paths into a temporary Vector, since we're about
+<a name="103"></a>         *   to add to them and we only want to iterate over the existing list.
+<a name="104"></a>         */
+<a name="105"></a>        local temp = new Vector(pathsFound);
+<a name="106"></a>        
+<a name="107"></a>        /* 
+<a name="108"></a>         *   For each existing route, see what happens if we advance one more
+<a name="109"></a>         *   step in every available direction and add the new routes to our
+<a name="110"></a>         *   list of paths.
+<a name="111"></a>         */
+<a name="112"></a>        foreach(local cur in temp)
+<a name="113"></a>            findDestinations(cur);
+<a name="114"></a>    }
+<a name="115"></a>    
+<a name="116"></a>    /* Find all the destinations one step away from cur */
+<a name="117"></a>    findDestinations(cur)
+<a name="118"></a>    {
+<a name="119"></a>        /* Specific instances must define how this is done */
+<a name="120"></a>    }
+<a name="121"></a>    
+<a name="122"></a>    /* The most recently calculated route */
+<a name="123"></a>    cachedRoute = nil
+<a name="124"></a>    
+<a name="125"></a>    /* The destination of the most recently calculated route. */
+<a name="126"></a>    currentDestination = nil
+<a name="127"></a>    
+<a name="128"></a>;
+<a name="129"></a>
+<a name="130"></a>/* 
+<a name="131"></a> *   A Pathfinder specialized for finding a route through the game map. Note
+<a name="132"></a> *   that this can only find a route through TravelConnector objects (which
+<a name="133"></a> *   includes direction properties attached to Rooms, Doors and other
+<a name="134"></a> *   TravelConnectors).
+<a name="135"></a> */
+<a name="136"></a>routeFinder: Pathfinder    
+<a name="137"></a>    
+<a name="138"></a>    findDestinations(cur)
+<a name="139"></a>    {
+<a name="140"></a>        /* Note the location our current path leads to */
+<a name="141"></a>        local loc = cur[steps - 1][2];
+<a name="142"></a>                
+<a name="143"></a>        
+<a name="144"></a>        /* See what leads in every available direction from this location */
+<a name="145"></a>        for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,
+<a name="146"></a>            Direction))
+<a name="147"></a>        {
+<a name="148"></a>            local newPath = new Vector(cur);
+<a name="149"></a>            
+<a name="150"></a>            /* 
+<a name="151"></a>             *   If the direction property points to an object, see if it points
+<a name="152"></a>             *   to a valid path.
+<a name="153"></a>             */
+<a name="154"></a>            if(loc.propType(dir.dirProp) == TypeObject)
+<a name="155"></a>            {
+<a name="156"></a>                local obj = loc.(dir.dirProp);
+<a name="157"></a>                
+<a name="158"></a>                /* 
+<a name="159"></a>                 *   if the object is a locked door and we want to exclude
+<a name="160"></a>                 *   locked doors, or if there's some other reason the actor
+<a name="161"></a>                 *   cannot pass this way, we can't use this path.
+<a name="162"></a>                 */
+<a name="163"></a>                
+<a name="164"></a>                if(excludeLockedDoors &amp;&amp;
+<a name="165"></a>                    (obj.isLocked 
+<a name="166"></a>                      || obj.canTravelerPass(gActor) == nil
+<a name="167"></a>                      || valToList(obj.travelBarriers).indexWhich(
+<a name="168"></a>                          { b: !b.canTravelerPass(gActor, obj)}) != nil))
+<a name="169"></a>                    return;
+<a name="170"></a>                
+<a name="171"></a>                
+<a name="172"></a>                /* 
+<a name="173"></a>                 *   If it leads to a non-nil destination note the path to this
+<a name="174"></a>                 *   object. This will be the path that got us to this location
+<a name="175"></a>                 *   plus the one additional step.
+<a name="176"></a>                 */    
+<a name="177"></a>                local dest = loc.(dir.dirProp).getDestination(loc);
+<a name="178"></a>                if(dest != nil)
+<a name="179"></a>                {
+<a name="180"></a>                    newPath.append([dir, dest]);
+<a name="181"></a>                    pathsFound.append(newPath);
+<a name="182"></a>                }
+<a name="183"></a>            }
+<a name="184"></a>            
+<a name="185"></a>            /*  
+<a name="186"></a>             *   if the direction property points to code, see if it provides a
+<a name="187"></a>             *   valid path.
+<a name="188"></a>             */
+<a name="189"></a>            
+<a name="190"></a>            if(loc.propType(dir.dirProp) == TypeCode)
+<a name="191"></a>            {
+<a name="192"></a>                /* first look up the destination this code takes the actor to */
+<a name="193"></a>                local dest = libGlobal.extraDestInfo[[loc, dir]];
+<a name="194"></a>                
+<a name="195"></a>                /* 
+<a name="196"></a>                 *   the destination is only of interest if it's not nowhere,
+<a name="197"></a>                 *   the default unknown destination, or the location we're
+<a name="198"></a>                 *   trying to leave.
+<a name="199"></a>                 *
+<a name="200"></a>                 *
+<a name="201"></a>                 *   if it's none of these, add it to the list of possible paths
+<a name="202"></a>                 *
+<a name="203"></a>                 */
+<a name="204"></a>                if(dest not in (nil, loc, unknownDest_, varDest_))                   
+<a name="205"></a>                {
+<a name="206"></a>                    newPath.append([dir, dest]);
+<a name="207"></a>                    pathsFound.append(newPath);
+<a name="208"></a>                }
+<a name="209"></a>                
+<a name="210"></a>            }
+<a name="211"></a>            
+<a name="212"></a>        }
+<a name="213"></a>    }   
+<a name="214"></a>    
+<a name="215"></a>    excludeLockedDoors = true
+<a name="216"></a>;
+<a name="217"></a>
+<a name="218"></a>/* 
+<a name="219"></a> *   The pcRouteFinder works exactly the same as the more general routeFinder
+<a name="220"></a> *   except that it finds routes only through TravelConnectors whose
+<a name="221"></a> *   destinations are known.
+<a name="222"></a> */
+<a name="223"></a>pcRouteFinder: Pathfinder
+<a name="224"></a>    findDestinations(cur)
+<a name="225"></a>    {
+<a name="226"></a>        /* Note the location our current path leads to */
+<a name="227"></a>        local loc = cur[steps - 1][2];
+<a name="228"></a>               
+<a name="229"></a>        /* See what leads in every available direction from this location */
+<a name="230"></a>        for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,
+<a name="231"></a>            Direction))
+<a name="232"></a>        {
+<a name="233"></a>            local newPath = new Vector(cur);
+<a name="234"></a>            
+<a name="235"></a>            /* 
+<a name="236"></a>             *   If the direction property points to an object, see if it points
+<a name="237"></a>             *   to a valid path.
+<a name="238"></a>             */
+<a name="239"></a>            if(loc.propType(dir.dirProp) == TypeObject)                
+<a name="240"></a>            {
+<a name="241"></a>                local conn = loc.(dir.dirProp);
+<a name="242"></a>                
+<a name="243"></a>                /* 
+<a name="244"></a>                 *   If it leads to a non-nil destination that the pc knowns,
+<a name="245"></a>                 *   note the path to this object. This will be the path that
+<a name="246"></a>                 *   got us to this location plus the one additional step.
+<a name="247"></a>                 */    
+<a name="248"></a>                local dest = conn.getDestination(loc);
+<a name="249"></a>                
+<a name="250"></a>                /* 
+<a name="251"></a>                 *   if both the location (loc) and the destination (dest) lie
+<a name="252"></a>                 *   in the same familiar region, then assume the pc knows
+<a name="253"></a>                 *   his/her way between the two rooms and so set
+<a name="254"></a>                 *   isDestinationKnown to true
+<a name="255"></a>                 */
+<a name="256"></a>                
+<a name="257"></a>                if(!conn.isDestinationKnown &amp;&amp; 
+<a name="258"></a>                   loc.regionsInCommonWith(dest).indexWhich(
+<a name="259"></a>                       {x: x.isFamiliar(gPlayerChar.knownProp)}) != nil)//                       
+<a name="260"></a>                    conn.isDestinationKnown = true;
+<a name="261"></a>                
+<a name="262"></a>                /* 
+<a name="263"></a>                 *   if the connector leads to a known destination then add the
+<a name="264"></a>                 *   direction and its destination to a new path
+<a name="265"></a>                 */
+<a name="266"></a>                
+<a name="267"></a>                if(dest != nil &amp;&amp; conn.isDestinationKnown)
+<a name="268"></a>                {
+<a name="269"></a>                    newPath.append([dir, dest]);
+<a name="270"></a>                    pathsFound.append(newPath);
+<a name="271"></a>                }
+<a name="272"></a>            }
+<a name="273"></a>            /*  
+<a name="274"></a>             *   if the direction property points to code, see if it provides a
+<a name="275"></a>             *   valid path.
+<a name="276"></a>             */
+<a name="277"></a>            
+<a name="278"></a>            if(loc.propType(dir.dirProp) == TypeCode)
+<a name="279"></a>            {
+<a name="280"></a>                /* first look up the destination this code takes the actor to */
+<a name="281"></a>                local dest = libGlobal.extraDestInfo[[loc, dir]];
+<a name="282"></a>                
+<a name="283"></a>                /* 
+<a name="284"></a>                 *   the destination is only of interest if it's not nowhere,
+<a name="285"></a>                 *   the default unknown destination, or the location we're
+<a name="286"></a>                 *   trying to leave.
+<a name="287"></a>                 *
+<a name="288"></a>                 *
+<a name="289"></a>                 *   if it's none of these, add it to the list of possible paths
+<a name="290"></a>                 *   (The fact that it's none of these implies that the
+<a name="291"></a>                 *   destination is known so we don't need to apply any further
+<a name="292"></a>                 *   tests to check that).
+<a name="293"></a>                 *
+<a name="294"></a>                 */
+<a name="295"></a>                if(dest not in (nil, loc, unknownDest_, varDest_))                                      
+<a name="296"></a>                {
+<a name="297"></a>                    newPath.append([dir, dest]);
+<a name="298"></a>                    pathsFound.append(newPath);
+<a name="299"></a>                }                
+<a name="300"></a>            }
+<a name="301"></a>        }  
+<a name="302"></a>        
+<a name="303"></a>    }
+<a name="304"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

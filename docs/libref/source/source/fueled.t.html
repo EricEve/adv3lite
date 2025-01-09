@@ -1,0 +1,183 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>fueled.t</title></head><body>
+<table class=ban><tr><td><h1>fueled.t</h1><td align=right><a href="../file/fueled.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include "advlite.h"
+<a name="5"></a>
+<a name="6"></a>/*
+<a name="7"></a> *   fueled.t
+<a name="8"></a> *
+<a name="9"></a> *   The FUELED LIGHT SOURCE extension is intended for use with the adv3Lite
+<a name="10"></a> *   library. It provides the FueledLightSource mix-in class which can be used
+<a name="11"></a> *   to implement a light source with limited life.
+<a name="12"></a> *
+<a name="13"></a> *   VERSION 1
+<a name="14"></a> *.  21-Jul-13
+<a name="15"></a> *
+<a name="16"></a> *   Usage: include this extension after the adv3Lite library but before your
+<a name="17"></a> *   own game-specific files. Make sure that events.t is also included in your
+<a name="18"></a> *   build.
+<a name="19"></a> */
+<a name="20"></a>
+<a name="21"></a>
+<a name="22"></a>fueledID: ModuleID
+<a name="23"></a>    name = 'Fueled Light Source'
+<a name="24"></a>    byline = 'by Eric Eve'
+<a name="25"></a>    htmlByline = 'by Eric Eve'
+<a name="26"></a>    version = '1'    
+<a name="27"></a>;
+<a name="28"></a>
+<a name="29"></a>/* 
+<a name="30"></a> *  A FueledLightSource is a light source that stars out with a set amount
+<a name="31"></a> *  of fuel, which is then consumed at one unit per turn. Once the fuel
+<a name="32"></a> *  is exhausted the FueledLightSource goes out and can't be re-lit until
+<a name="33"></a> *  it has been refueled. [PART OF FUELED EXTENSION] 
+<a name="34"></a> */
+<a name="35"></a>class FueledLightSource: object
+<a name="36"></a>    /* 
+<a name="37"></a>     *   The source of our fuel. By default this is self, but it could be an
+<a name="38"></a>     *   external source such as a battery
+<a name="39"></a>     */
+<a name="40"></a>    fuelSource = self
+<a name="41"></a>    
+<a name="42"></a>    /*   
+<a name="43"></a>     *   Our remaining fuel level. The default is a modest level but this can be
+<a name="44"></a>     *   overridden on particular instances.
+<a name="45"></a>     */
+<a name="46"></a>    fuelLevel = 20
+<a name="47"></a>    
+<a name="48"></a>    /*   A note of our fuelDaemon's ID, if one is running. */
+<a name="49"></a>    fuelDaemonID = nil
+<a name="50"></a>    
+<a name="51"></a>    /*  
+<a name="52"></a>     *   Start our fuelDaemon running in a SenseDaemon (so no messages are
+<a name="53"></a>     *   displayed if the player character can't see us).
+<a name="54"></a>     */
+<a name="55"></a>    startFuelDaemon()
+<a name="56"></a>    {
+<a name="57"></a>        if(fuelDaemonID == nil)
+<a name="58"></a>            fuelDaemonID = new SenseDaemon(self, &amp;fuelDaemon, 1);
+<a name="59"></a>    }
+<a name="60"></a>    
+<a name="61"></a>    /*  
+<a name="62"></a>     *   Stop the fuelDaemon; first check that we actually have one and then
+<a name="63"></a>     *   disable it.
+<a name="64"></a>     */
+<a name="65"></a>    stopFuelDaemon()
+<a name="66"></a>    {
+<a name="67"></a>        if(fuelDaemonID != nil)
+<a name="68"></a>        {
+<a name="69"></a>            fuelDaemonID.removeEvent();
+<a name="70"></a>            fuelDaemonID = nil;
+<a name="71"></a>        }
+<a name="72"></a>    }
+<a name="73"></a>    
+<a name="74"></a>    /*  The fuelDaemon is executed every turn this object is lit */
+<a name="75"></a>    fuelDaemon()
+<a name="76"></a>    {
+<a name="77"></a>        /* Reduce the fuel level of our fuel source */
+<a name="78"></a>        fuelSource.fuelLevel--;
+<a name="79"></a>        
+<a name="80"></a>        /* Optionally show a warning message if the fuel is running low. */
+<a name="81"></a>        showWarning();
+<a name="82"></a>        
+<a name="83"></a>        /* 
+<a name="84"></a>         *   If we're out of fuel, stop the fuelDaemon, make us no longer it,
+<a name="85"></a>         *   and display a message explaining that we've just gone out.
+<a name="86"></a>         */
+<a name="87"></a>        if(fuelSource.fuelLevel &lt; 1)
+<a name="88"></a>        {
+<a name="89"></a>            stopFuelDaemon();
+<a name="90"></a>            isLit = nil;
+<a name="91"></a>            sayBurnedOut(true);
+<a name="92"></a>        }
+<a name="93"></a>    }
+<a name="94"></a>    
+<a name="95"></a>    /* 
+<a name="96"></a>     *   The showWarning() message can be used to display a message warning when
+<a name="97"></a>     *   this light source is about to go out. One way to do this would be via a
+<a name="98"></a>     *   switch statement that looks at the value of fuelSource.fuelLevel and
+<a name="99"></a>     *   displays warning messages when that reaches low values. There's no need
+<a name="100"></a>     *   for this message to display anything when the fuelLevel is zero,
+<a name="101"></a>     *   however, since that is handled by sayBurnedOut().
+<a name="102"></a>     */
+<a name="103"></a>    showWarning() { }
+<a name="104"></a>    
+<a name="105"></a>    /*  The message to display when we run out of fuel */
+<a name="106"></a>    sayBurnedOut(fromDaemon?)
+<a name="107"></a>    {
+<a name="108"></a>        /* Create a convenient message parameter substitution */
+<a name="109"></a>        local obj = self;        
+<a name="110"></a>        gMessageParams(obj);
+<a name="111"></a>        
+<a name="112"></a>        /* Say that we've gone out. */
+<a name="113"></a>        say(burnedOutMsg);
+<a name="114"></a>        
+<a name="115"></a>        /* 
+<a name="116"></a>         *   If our going out has left the player character in darkness, say so.
+<a name="117"></a>         */
+<a name="118"></a>        if(!gPlayerChar.location.litWithin &amp;&amp; fromDaemon)
+<a name="119"></a>            say(plungedIntoDarknessMsg);
+<a name="120"></a>        ". ";
+<a name="121"></a>    }
+<a name="122"></a>    
+<a name="123"></a>    burnedOutMsg = BMsg(say burned out, '{The subj obj} {goes} out')
+<a name="124"></a>    plungedIntoDarknessMsg = BMsg(plunged into darkness, ', plunging {1} into
+<a name="125"></a>        darkness', gPlayerChar.theName)
+<a name="126"></a>    
+<a name="127"></a>    /* Modifications to the makeLit() method for FueledLightSource [FUELED EXTENSION] */
+<a name="128"></a>    makeLit(stat)
+<a name="129"></a>    {
+<a name="130"></a>        /* 
+<a name="131"></a>         *   If someone's trying to make us lit and we don't have a fuel source
+<a name="132"></a>         *   or our fuel source is out of fuel, say that we won't light and stop
+<a name="133"></a>         *   there.
+<a name="134"></a>         */
+<a name="135"></a>        if(stat &amp;&amp; (fuelSource == nil || fuelSource.fuelLevel &lt; 1))
+<a name="136"></a>        {
+<a name="137"></a>            say(wontLightMsg);
+<a name="138"></a>            return;
+<a name="139"></a>        }
+<a name="140"></a>        
+<a name="141"></a>        /*  
+<a name="142"></a>         *   If we're being lit, start our fuelDaemon, otherwise, stop our
+<a name="143"></a>         *   fuelDaemon.
+<a name="144"></a>         */
+<a name="145"></a>        if(stat)
+<a name="146"></a>            startFuelDaemon();
+<a name="147"></a>        else
+<a name="148"></a>            stopFuelDaemon();
+<a name="149"></a>        
+<a name="150"></a>        /*  Carry out the inherited handling. */
+<a name="151"></a>        inherited(stat);        
+<a name="152"></a>    }
+<a name="153"></a>    
+<a name="154"></a>    /*  
+<a name="155"></a>     *   The message to display when we can't be lit because we have no fuel.
+<a name="156"></a>     *   Most instances will probably want to override this to something more
+<a name="157"></a>     *   specific.
+<a name="158"></a>     */
+<a name="159"></a>    wontLightMsg = BMsg(wont light, '\^{1} {dummy} {won\'t} light. ', theName)
+<a name="160"></a>    
+<a name="161"></a>    /* 
+<a name="162"></a>     *   If we have an external fuel source then removing or disabling it will
+<a name="163"></a>     *   have certain consequences, so code that, for example, you can call this
+<a name="164"></a>     *   method if a battery is removed from a flashlight.
+<a name="165"></a>     */
+<a name="166"></a>    removeFuelSource()
+<a name="167"></a>    {
+<a name="168"></a>        if(isLit)
+<a name="169"></a>        {
+<a name="170"></a>            isLit = nil;
+<a name="171"></a>            stopFuelDaemon();
+<a name="172"></a>            sayBurnedOut();           
+<a name="173"></a>        }
+<a name="174"></a>        fuelSource = nil;
+<a name="175"></a>    }
+<a name="176"></a>        
+<a name="177"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

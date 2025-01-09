@@ -1,0 +1,631 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>postures.t</title></head><body>
+<table class=ban><tr><td><h1>postures.t</h1><td align=right><a href="../file/postures.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include "advlite.h"
+<a name="5"></a>
+<a name="6"></a>
+<a name="7"></a>/*
+<a name="8"></a> *   postures.t
+<a name="9"></a> *
+<a name="10"></a> *   The POSTURES extension is intended for use with the adv3Lite library. It
+<a name="11"></a> *   adds handling to keep track of actor posture (standing, sitting or lying)
+<a name="12"></a> *   and for the enforcement of postures in relation to various kinsds of nested
+<a name="13"></a> *   room.
+<a name="14"></a> *
+<a name="15"></a> *   VERSION 1
+<a name="16"></a> *.  20-Jul-13
+<a name="17"></a> *
+<a name="18"></a> *   Usage: include this extension after the adv3Lite library but before your
+<a name="19"></a> *   own game-specific files. This makes it possible to sit, stand and lie in
+<a name="20"></a> *   and on various things, with the posture being tracked.
+<a name="21"></a> */
+<a name="22"></a>
+<a name="23"></a>posturesID: ModuleID
+<a name="24"></a>    name = 'Postures'
+<a name="25"></a>    byline = 'by Eric Eve'
+<a name="26"></a>    htmlByline = 'by Eric Eve'
+<a name="27"></a>    version = '1'    
+<a name="28"></a>;
+<a name="29"></a>
+<a name="30"></a>/* 
+<a name="31"></a> *   The Posture class is used to define the various postures used in the
+<a name="32"></a> *   POSTURES EXTENSION.
+<a name="33"></a> */
+<a name="34"></a>class Posture: object
+<a name="35"></a>    /* The participle (e.g. 'standing') relating to the posture. [POSTURES EXTENSION] */
+<a name="36"></a>    participle = nil
+<a name="37"></a>    
+<a name="38"></a>    /* 
+<a name="39"></a>     *   The property of a potential container that must be true if the actor is
+<a name="40"></a>     *   to be allowed to adopt this posture in that container (e.g.
+<a name="41"></a>     *   &amp;canStandInMe). [POSTURES EXTENSION] 
+<a name="42"></a>     */
+<a name="43"></a>    allowedInProp = nil
+<a name="44"></a>    
+<a name="45"></a>    /* 
+<a name="46"></a>     *   The property of a potential container that must be true if the actor is
+<a name="47"></a>     *   to be allowed to adopt this posture on that container (e.g.
+<a name="48"></a>     *   &amp;canStandOnMe). [POSTURES EXTENSION] 
+<a name="49"></a>     */
+<a name="50"></a>    allowedOnProp = nil
+<a name="51"></a>    
+<a name="52"></a>    /*  
+<a name="53"></a>     *   The property of a potential container that contains the message to
+<a name="54"></a>     *   display if we can't adopt this posture in it. [POSTURES EXTENSION] 
+<a name="55"></a>     */
+<a name="56"></a>    cannotInMsgProp = nil
+<a name="57"></a>    
+<a name="58"></a>    /*  
+<a name="59"></a>     *   The property of a potential container that contains the message to
+<a name="60"></a>     *   display if we can't adopt this posture on it. [POSTURES EXTENSION] 
+<a name="61"></a>     */    
+<a name="62"></a>    cannotOnMsgProp = nil
+<a name="63"></a>       
+<a name="64"></a>    /*   
+<a name="65"></a>     *   A method that returns true or nil according to whether an actor can
+<a name="66"></a>     *   adopt this posture in/on obj, which depends on the contType of obj.
+<a name="67"></a>	 * [POSTURES EXTENSION] 
+<a name="68"></a>     */
+<a name="69"></a>    canAdoptIn(obj)
+<a name="70"></a>    {
+<a name="71"></a>        local prop = obj.contType == In ? allowedInProp : allowedOnProp;
+<a name="72"></a>        return obj.(prop);
+<a name="73"></a>    }
+<a name="74"></a>    
+<a name="75"></a>    /* 
+<a name="76"></a>     *   The verb phrase (subject and verb) corresponding an action that
+<a name="77"></a>     *   involves taking this posture. [POSTURES EXTENSION] 
+<a name="78"></a>     */
+<a name="79"></a>    verbPhrase = nil
+<a name="80"></a>;
+<a name="81"></a>
+<a name="82"></a>/* The standing posture. [POSTURES EXTENSION] */
+<a name="83"></a>standing: Posture
+<a name="84"></a>    participle = BMsg(standing, 'standing')
+<a name="85"></a>    allowedOnProp = &amp;canStandOnMe
+<a name="86"></a>    allowedInProp = &amp;canStandInMe
+<a name="87"></a>    cannotInMsgProp = &amp;cannotStandInMsg
+<a name="88"></a>    cannotOnMsgProp = &amp;cannotStandOnMsg    
+<a name="89"></a>    verbPhrase = BMsg(i stand, '{I} {stand}')
+<a name="90"></a>;
+<a name="91"></a>
+<a name="92"></a>/* The sitting posture [POSTURES EXTENSION] */
+<a name="93"></a>sitting: Posture
+<a name="94"></a>    participle = BMsg(sitting, 'sitting')
+<a name="95"></a>    allowedOnProp = &amp;canSitOnMe
+<a name="96"></a>    allowedInProp = &amp;canSitInMe
+<a name="97"></a>    cannotInMsgProp = &amp;cannotSitInMsg
+<a name="98"></a>    cannotOnMsgProp = &amp;cannotSitOnMsg   
+<a name="99"></a>    verbPhrase = BMsg(i sit, '{I} {sit}')
+<a name="100"></a>;
+<a name="101"></a>
+<a name="102"></a>/* The lying posture {POSTURES EXTENSION] */
+<a name="103"></a>lying: Posture
+<a name="104"></a>    participle = BMsg(lying, 'lying')
+<a name="105"></a>    allowedOnProp = &amp;canLieOnMe
+<a name="106"></a>    allowedInProp = &amp;canLieInMe
+<a name="107"></a>    cannotInMsgProp = &amp;cannotLieInMsg
+<a name="108"></a>    cannotOnMsgProp = &amp;cannotLieOnMsg    
+<a name="109"></a>    verbPhrase = BMsg(i lie, '{I} {lie}')
+<a name="110"></a>;
+<a name="111"></a>
+<a name="112"></a>
+<a name="113"></a>/* Modifications to Thing needed for the POSTURES EXTENSION. */
+<a name="114"></a>modify Thing
+<a name="115"></a>    /* 
+<a name="116"></a>     *   The posture currently adopted by this Thing. We define this on Thing
+<a name="117"></a>     *   rather than Actor mainly because the player character can be a Thing,
+<a name="118"></a>     *   but it could also use to describe the metaphorical posture of inanimate
+<a name="119"></a>     *   objects (A rug lies on the floor, the jug sits on the rug, the tall
+<a name="120"></a>     *   grandfather clock stands by the door).
+<a name="121"></a>     *   [DEFINED IN POSTURES EXTENSION]
+<a name="122"></a>     */
+<a name="123"></a>    posture = standing
+<a name="124"></a>    
+<a name="125"></a>    /*   
+<a name="126"></a>     *   The posture that's adopted by default by an actor entering or boarding
+<a name="127"></a>     *   this this. [DEFINED IN POSTURES EXTENSION]
+<a name="128"></a>     */
+<a name="129"></a>    defaultPosture = standing 
+<a name="130"></a>    
+<a name="131"></a>    /*   By default we can't stand, sit or lie in anything. [POSTURES EXTENSION] */
+<a name="132"></a>    canStandInMe = nil	
+<a name="133"></a>    canSitInMe = nil
+<a name="134"></a>    canLieInMe = nil
+<a name="135"></a>   
+<a name="136"></a>    /*  
+<a name="137"></a>     *   Attempt to make this Thing adopt the posture pos (without changing
+<a name="138"></a>     *   location). [DEFINED IN POSTURES EXTENSION]
+<a name="139"></a>     */
+<a name="140"></a>    tryMakingPosture(pos)
+<a name="141"></a>    {
+<a name="142"></a>        /* 
+<a name="143"></a>         *   If my posture is already pos then there's nothing to do, except
+<a name="144"></a>         *   display a message explaining the fact.
+<a name="145"></a>         */
+<a name="146"></a>        if(posture == pos)
+<a name="147"></a>            DMsg(posture already adopted, '{I} {am} already {1}. ',
+<a name="148"></a>                 pos.participle);
+<a name="149"></a>        
+<a name="150"></a>        /*  
+<a name="151"></a>         *   Otherwise, if I can adopt the posture pos in my location, do so and
+<a name="152"></a>         *   report than I've done so.
+<a name="153"></a>         */
+<a name="154"></a>        else if(pos.canAdoptIn(location))
+<a name="155"></a>        {
+<a name="156"></a>            posture = pos;
+<a name="157"></a>            DMsg(okay adopt posture, 'Okay, {i} {am} {now} {1}. ', 
+<a name="158"></a>                 pos.participle); 
+<a name="159"></a>        }
+<a name="160"></a>        /*  
+<a name="161"></a>         *   Otherwise display a message saying I can't adopt the posture pos in
+<a name="162"></a>         *   my current location.
+<a name="163"></a>         */
+<a name="164"></a>        else
+<a name="165"></a>        {
+<a name="166"></a>            local dobj = location;
+<a name="167"></a>            gMessageParams(dobj);
+<a name="168"></a>            local prop = contType == In ? &amp;cannotInMsgProp : &amp;cannotOnMsgProp;
+<a name="169"></a>            prop = pos.(prop);
+<a name="170"></a>            say(self.(prop));
+<a name="171"></a>        }
+<a name="172"></a>    }
+<a name="173"></a>    
+<a name="174"></a>    /*  The postures module changes the handling for a number of verbs */
+<a name="175"></a>    
+<a name="176"></a>    /*  
+<a name="177"></a>	 * 	Modification for StandOn handling [DEFINED IN POSTURES EXTENSION]
+<a name="178"></a>	 *  If the actor is already on the dobj, we just try to change the actor's posture
+<a name="179"></a>	 *  to standing. Otherwise we first move the actor to the dobj and then change the
+<a name="180"></a>	 *  actor's posture to standing.
+<a name="181"></a>	 */
+<a name="182"></a>    dobjFor(StandOn)
+<a name="183"></a>    {
+<a name="184"></a>        remap = remapOn
+<a name="185"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="186"></a>        
+<a name="187"></a>        action()
+<a name="188"></a>        {
+<a name="189"></a>            /* 
+<a name="190"></a>             *   If the actor is already on the dobj, just try to change the
+<a name="191"></a>             *   actor's posture to standing.
+<a name="192"></a>             */
+<a name="193"></a>            if(gActor.location == self)
+<a name="194"></a>                gActor.tryMakingPosture(standing);
+<a name="195"></a>            else
+<a name="196"></a>            {
+<a name="197"></a>                /* Otherwise, move the actor into the dobj */
+<a name="198"></a>                gActor.actionMoveInto(self);
+<a name="199"></a>                
+<a name="200"></a>                /* Then change the actor's posture to standing. */
+<a name="201"></a>                gActor.posture = standing;                
+<a name="202"></a>            }
+<a name="203"></a>        }
+<a name="204"></a>        
+<a name="205"></a>        report()
+<a name="206"></a>        {
+<a name="207"></a>            say(okayStandOnMsg);
+<a name="208"></a>        }
+<a name="209"></a>    }
+<a name="210"></a>    
+<a name="211"></a>    /* [DEFINED IN POSTURES EXTENSION] */
+<a name="212"></a>    okayStandOnMsg = BMsg(okay stand on, '{I} {stand} on {1}. ', gActionListStr)
+<a name="213"></a>    
+<a name="214"></a>    /*  
+<a name="215"></a>     *   Modification for SitOn handling [DEFINED IN POSTURES EXTENSION] If the actor is already on
+<a name="216"></a>     *   the dobj, we just try to change the actor's posture to sitting. Otherwise we first move the
+<a name="217"></a>     *   actor to the dobj and then change the actor's posture to sitting.
+<a name="218"></a>     */
+<a name="219"></a>    dobjFor(SitOn)
+<a name="220"></a>    {
+<a name="221"></a>        remap = remapOn
+<a name="222"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="223"></a>        
+<a name="224"></a>        action()
+<a name="225"></a>        {
+<a name="226"></a>            if(gActor.location == self)
+<a name="227"></a>                gActor.tryMakingPosture(sitting);
+<a name="228"></a>            else
+<a name="229"></a>            {
+<a name="230"></a>                gActor.actionMoveInto(self);
+<a name="231"></a>                gActor.posture = sitting;               
+<a name="232"></a>            }
+<a name="233"></a>        }
+<a name="234"></a>        
+<a name="235"></a>        report()
+<a name="236"></a>        {
+<a name="237"></a>            say(okaySitOnMsg);
+<a name="238"></a>        }
+<a name="239"></a>    }
+<a name="240"></a>    
+<a name="241"></a>    /* [DEFINED IN POSTURES EXTENSION] */
+<a name="242"></a>    okaySitOnMsg = BMsg(okay sit on, '{I} {sit} on {1}. ', gActionListStr)
+<a name="243"></a>    
+<a name="244"></a>    /*  
+<a name="245"></a>	 * 	Modification for LieOn handling [DEFINED IN POSTURES EXTENSION]
+<a name="246"></a>	 *  If the actor is already on the dobj, we just try to change the actor's posture
+<a name="247"></a>	 *  to lying. Otherwise we first move the actor to the dobj and then change the
+<a name="248"></a>	 *  actor's posture to lying.
+<a name="249"></a>	 */
+<a name="250"></a>    dobjFor(LieOn)
+<a name="251"></a>    {
+<a name="252"></a>        remap = remapOn
+<a name="253"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="254"></a>        
+<a name="255"></a>        action()
+<a name="256"></a>        {
+<a name="257"></a>            if(gActor.location == self)
+<a name="258"></a>                gActor.tryMakingPosture(lying);
+<a name="259"></a>            else
+<a name="260"></a>            {
+<a name="261"></a>                gActor.actionMoveInto(self);
+<a name="262"></a>                gActor.posture = lying;                
+<a name="263"></a>            }
+<a name="264"></a>        }
+<a name="265"></a>        
+<a name="266"></a>        report()
+<a name="267"></a>        {
+<a name="268"></a>            say(okayLieOnMsg);
+<a name="269"></a>        }
+<a name="270"></a>    
+<a name="271"></a>    }
+<a name="272"></a>    
+<a name="273"></a>    /* [DEFINED IN POSTURES EXTENSION] */
+<a name="274"></a>    okayLieOnMsg = BMsg(okay lie on, '{I} {lie} on {1}. ', gActionListStr)
+<a name="275"></a>            
+<a name="276"></a>    /* 
+<a name="277"></a>     *   If an actor Boards something, we need to know what posture the actor
+<a name="278"></a>     *   ends up in; we use the new location's default posture.
+<a name="279"></a>     *   [MODIFIED FOR POSTURES EXTENSION]
+<a name="280"></a>     */
+<a name="281"></a>    dobjFor(Board)
+<a name="282"></a>    {
+<a name="283"></a>        action()
+<a name="284"></a>        {
+<a name="285"></a>            /* Carry out the inherited action */
+<a name="286"></a>            inherited;
+<a name="287"></a>            
+<a name="288"></a>            /* 
+<a name="289"></a>             *   Change the actor's posture to the default posture for the
+<a name="290"></a>             *   actor's new location.
+<a name="291"></a>             */
+<a name="292"></a>            gActor.posture = gActor.location.defaultPosture;
+<a name="293"></a>        }
+<a name="294"></a>        
+<a name="295"></a>        report()
+<a name="296"></a>        {
+<a name="297"></a>            DMsg(okay get on posture, '{1} on {2}. ', gActor.posture.verbPhrase,
+<a name="298"></a>                 gActionListStr);
+<a name="299"></a>        }
+<a name="300"></a>    }
+<a name="301"></a>    
+<a name="302"></a>    
+<a name="303"></a>    
+<a name="304"></a>    /* 
+<a name="305"></a>     *   If an actor gets off something, we need to know what posture the actor
+<a name="306"></a>     *   ends up in. We use the new location's defaultPosture. [MODIFIED FOR POSTURES EXTENSION]
+<a name="307"></a>     */
+<a name="308"></a>    dobjFor(GetOff)
+<a name="309"></a>    {
+<a name="310"></a>        action()
+<a name="311"></a>        {
+<a name="312"></a>            /* Carry out the inherited action. */
+<a name="313"></a>            inherited;            
+<a name="314"></a>            
+<a name="315"></a>            /* 
+<a name="316"></a>             *   Change the actor's posture to the default posture for the
+<a name="317"></a>             *   actor's new location.
+<a name="318"></a>             */
+<a name="319"></a>            gActor.posture = gActor.location.defaultPosture;
+<a name="320"></a>        }
+<a name="321"></a>    }
+<a name="322"></a>    
+<a name="323"></a>    /* 
+<a name="324"></a>     *   Common verify routine for standing, sitting or lying IN something,
+<a name="325"></a>     *   where pos is the posture to be adopted.
+<a name="326"></a>     *   [DEFINED IN POSTURES EXTENSION]
+<a name="327"></a>     */
+<a name="328"></a>    verifyEnterPosture(pos)
+<a name="329"></a>    {
+<a name="330"></a>        /* First verify that the actor can enter me */
+<a name="331"></a>        verifyDobjEnter();
+<a name="332"></a>        
+<a name="333"></a>        /* 
+<a name="334"></a>         *   Get the property (e.g. &amp;canStandInMe) that determines whether the
+<a name="335"></a>         *   actor can adopt the posture pos in me
+<a name="336"></a>         */
+<a name="337"></a>        local postureProp = pos.allowedInProp;
+<a name="338"></a>        
+<a name="339"></a>        /* 
+<a name="340"></a>         *   Get the property (e.g. &amp;cannotStandInMsg) containing the message to
+<a name="341"></a>         *   display is the actor can't adopt the posture pos in me.
+<a name="342"></a>         */
+<a name="343"></a>        local failureProp = pos.cannotInMsgProp;
+<a name="344"></a>        
+<a name="345"></a>        /*  
+<a name="346"></a>         *   If the actor can't adopt the posture pos in me then rule out the
+<a name="347"></a>         *   action as illogical.
+<a name="348"></a>         */
+<a name="349"></a>        if(!self.(postureProp))
+<a name="350"></a>            illogical(self.(failureProp));
+<a name="351"></a>    }
+<a name="352"></a>    
+<a name="353"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="354"></a>    dobjFor(StandIn)
+<a name="355"></a>    {
+<a name="356"></a>        /* If I have a remapIn object, then remap this action to it. */
+<a name="357"></a>        remap = remapIn
+<a name="358"></a>        
+<a name="359"></a>        /* 
+<a name="360"></a>         *   Before standing in something, the actor must be able to touch it,
+<a name="361"></a>         *   and the actor must be in the appropriate staging location.
+<a name="362"></a>         */
+<a name="363"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="364"></a>        
+<a name="365"></a>        verify()
+<a name="366"></a>        {
+<a name="367"></a>            /* Verify that the actor can enter me and stand in me */
+<a name="368"></a>            verifyEnterPosture(standing);
+<a name="369"></a>        }
+<a name="370"></a>        
+<a name="371"></a>        action()
+<a name="372"></a>        {
+<a name="373"></a>            /* If the actor is already in me, try making the actor stand. */
+<a name="374"></a>            if(gActor.location == self)
+<a name="375"></a>                gActor.tryMakingPosture(standing);
+<a name="376"></a>            /* Otherwise change location and posture */
+<a name="377"></a>            else
+<a name="378"></a>            {
+<a name="379"></a>                /* Move the actor into me */
+<a name="380"></a>                gActor.actionMoveInto(self);
+<a name="381"></a>                
+<a name="382"></a>                /* Change the actor's posture to standing. */
+<a name="383"></a>                gActor.posture = standing;                
+<a name="384"></a>            }
+<a name="385"></a>        }
+<a name="386"></a>        
+<a name="387"></a>        report()
+<a name="388"></a>        {
+<a name="389"></a>            say(okayStandInMsg);
+<a name="390"></a>        }
+<a name="391"></a>    }
+<a name="392"></a>    
+<a name="393"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="394"></a>    cannotStandInMsg = BMsg(cannot stand in, '{I} {can\'t} stand in {the dobj}.
+<a name="395"></a>        ')
+<a name="396"></a>        
+<a name="397"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */    
+<a name="398"></a>    okayStandInMsg = BMsg(okay stand in, '{I} {stand} in {1}. ', gActionListStr)
+<a name="399"></a>    
+<a name="400"></a>    /* 
+<a name="401"></a>     *  SitIn is handled much like StandIn 
+<a name="402"></a>     *  [MODIFIED FOR POSTURES EXTENSION]
+<a name="403"></a>     */
+<a name="404"></a>    dobjFor(SitIn)
+<a name="405"></a>    {
+<a name="406"></a>        remap = remapIn
+<a name="407"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="408"></a>        
+<a name="409"></a>        action()
+<a name="410"></a>        {
+<a name="411"></a>            if(gActor.location == self)
+<a name="412"></a>                gActor.tryMakingPosture(sitting);
+<a name="413"></a>            else
+<a name="414"></a>            {
+<a name="415"></a>                gActor.actionMoveInto(self);
+<a name="416"></a>                gActor.posture = sitting;                
+<a name="417"></a>            }
+<a name="418"></a>        }
+<a name="419"></a>        
+<a name="420"></a>        report()
+<a name="421"></a>        {
+<a name="422"></a>            say(okaySitInMsg);
+<a name="423"></a>        }
+<a name="424"></a>    }
+<a name="425"></a>    
+<a name="426"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="427"></a>    okaySitInMsg = BMsg(okay sit in, '{I} {sit} in {1}. ', gActionListStr)
+<a name="428"></a>    
+<a name="429"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="430"></a>    cannotSitInMsg = BMsg(cannot sit in, '{I} {can\'t} sit in {the dobj}. ')
+<a name="431"></a>    
+<a name="432"></a>    /*
+<a name="433"></a>     *  LieIn is handled much like StandIn 
+<a name="434"></a>     *  [MODIFIED FOR POSTURES EXTENSION]
+<a name="435"></a>     */
+<a name="436"></a>    dobjFor(LieIn)
+<a name="437"></a>    {
+<a name="438"></a>        remap = remapOn
+<a name="439"></a>        preCond = [touchObj, actorInStagingLocation]
+<a name="440"></a>        
+<a name="441"></a>        action()
+<a name="442"></a>        {
+<a name="443"></a>            if(gActor.location == self)
+<a name="444"></a>                gActor.tryMakingPosture(lying);
+<a name="445"></a>            else
+<a name="446"></a>            {
+<a name="447"></a>                gActor.actionMoveInto(self);
+<a name="448"></a>                gActor.posture = lying;                   
+<a name="449"></a>            }
+<a name="450"></a>        }
+<a name="451"></a>        
+<a name="452"></a>        report()
+<a name="453"></a>        {
+<a name="454"></a>            say(okayLieInMsg);
+<a name="455"></a>        }
+<a name="456"></a>    }
+<a name="457"></a>    
+<a name="458"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="459"></a>    okayLieInMsg = BMsg(okay lie in, '{I} {lie} in {1}. ', gActionListStr)
+<a name="460"></a>    
+<a name="461"></a>    /* [MODIFIED FOR POSTURES EXTENSION] */
+<a name="462"></a>    cannotLieInMsg = BMsg(cannot lie in, '{I} {can\'t} lie in {the dobj}. ')
+<a name="463"></a>    
+<a name="464"></a>    /* 
+<a name="465"></a>     *   When an actor enters something we need to determine what posture the
+<a name="466"></a>     *   actor ends up in.
+<a name="467"></a>     *   [MODIFIED FOR POSTURES EXTENSION]
+<a name="468"></a>     */
+<a name="469"></a>    dobjFor(Enter)
+<a name="470"></a>    {
+<a name="471"></a>        action()
+<a name="472"></a>        {
+<a name="473"></a>            /* Carry out the inherited handling */
+<a name="474"></a>            inherited;
+<a name="475"></a>            
+<a name="476"></a>            /* 
+<a name="477"></a>             *   Change the actor's posture to the default posture for the
+<a name="478"></a>             *   actor's new location.
+<a name="479"></a>             */
+<a name="480"></a>            gActor.posture = gActor.location.defaultPosture;
+<a name="481"></a>        }
+<a name="482"></a>    }
+<a name="483"></a>    
+<a name="484"></a>    /* 
+<a name="485"></a>     *   When an actor gets out of something we need to determine what posture
+<a name="486"></a>     *   the actor ends up in. We use the new location's default posture.
+<a name="487"></a>     *  [MODIFIED FOR POSTURES EXTENSION]
+<a name="488"></a>     */
+<a name="489"></a>    dobjFor(GetOutOf)
+<a name="490"></a>    {
+<a name="491"></a>        action()
+<a name="492"></a>        {
+<a name="493"></a>            /* Carry out the inherited handling */
+<a name="494"></a>            inherited;
+<a name="495"></a>            
+<a name="496"></a>            /* 
+<a name="497"></a>             *   Change the actor's posture to the default posture for the
+<a name="498"></a>             *   actor's new location.
+<a name="499"></a>             */
+<a name="500"></a>            gActor.posture = gActor.location.defaultPosture;
+<a name="501"></a>        }
+<a name="502"></a>    }
+<a name="503"></a>    
+<a name="504"></a>    /* 
+<a name="505"></a>     *   Include the actor's posture in the subheading (e.g. '(sitting on the
+<a name="506"></a>     *   chair)')
+<a name="507"></a>     *   [MODIFIED FOR POSTURES EXTENSION]
+<a name="508"></a>     */
+<a name="509"></a>    roomSubhead(pov)
+<a name="510"></a>    {
+<a name="511"></a>        say(nestedLoc(pov));
+<a name="512"></a>    }
+<a name="513"></a>    
+<a name="514"></a>    /* MODIFIED FOR POSTURES EXTENSION to include the actor's posture */
+<a name="515"></a>    nestedLoc(actor)
+<a name="516"></a>    {
+<a name="517"></a>        return BMsg(actor nested location posture name,  
+<a name="518"></a>                             ' (&lt;&lt;actor.posture.participle&gt;&gt;
+<a name="519"></a>                             &lt;&lt;actor.location.objInPrep&gt;&gt; 
+<a name="520"></a>                             &lt;&lt;actor.location.theName&gt;&gt;)');
+<a name="521"></a>    }
+<a name="522"></a>;
+<a name="523"></a>
+<a name="524"></a>/* 
+<a name="525"></a> *  Modifications to Room class for use with POSTURES EXTENSION.
+<a name="526"></a> */ 
+<a name="527"></a>modify Room
+<a name="528"></a>    /* 
+<a name="529"></a>     *  By default we assume that an actor can sit, stand or lie in a room 
+<a name="530"></a>     *  [DEFINED IN POSTURES EXTENSION]
+<a name="531"></a>     */
+<a name="532"></a>    canStandInMe = true
+<a name="533"></a>    canSitInMe = true
+<a name="534"></a>    canLieInMe = true
+<a name="535"></a>    
+<a name="536"></a>    /*  
+<a name="537"></a>     * The name of the room as it appears in the status line. 
+<a name="538"></a>     * [MODIFIED FOR POSTURES EXTENSION to include the actor's posture]
+<a name="539"></a>     */
+<a name="540"></a>    statusName(actor)
+<a name="541"></a>    {
+<a name="542"></a>        local nestedLocDesc = '';
+<a name="543"></a>        
+<a name="544"></a>        /*  
+<a name="545"></a>         *   If the actor is not directly in the room we add the actor's
+<a name="546"></a>         *   immediate container in parentheses after the room name.
+<a name="547"></a>         */
+<a name="548"></a>        if(!actor.location.ofKind(Room))
+<a name="549"></a>            nestedLocDesc = nestedLoc(actor);
+<a name="550"></a>        
+<a name="551"></a>        /*  
+<a name="552"></a>         *   If the Room is illuminated, display its ordinary room title,
+<a name="553"></a>         *   followed by the actor's immediate location if it's not the Room. If
+<a name="554"></a>         *   the Room is in darkness, use the darkName instead of the roomTitle.
+<a name="555"></a>         */
+<a name="556"></a>        if(isIlluminated)
+<a name="557"></a>            "&lt;&lt;roomTitle&gt;&gt;&lt;&lt;nestedLocDesc&gt;&gt;";
+<a name="558"></a>        else
+<a name="559"></a>            "&lt;&lt;darkName&gt;&gt;&lt;&lt;nestedLocDesc&gt;&gt;";
+<a name="560"></a>    }
+<a name="561"></a>    
+<a name="562"></a>    
+<a name="563"></a>;
+<a name="564"></a>
+<a name="565"></a>/* 
+<a name="566"></a> *   A Bed is something an actor can sit, stand or lie on, but is most likely to
+<a name="567"></a> *   lie on and least likely to stand on. [DEFINED IN POSTURES EXTENSION]
+<a name="568"></a> */
+<a name="569"></a>class Bed: Platform
+<a name="570"></a>    lieOnScore = 120
+<a name="571"></a>    standOnScore = 80
+<a name="572"></a>    defaultPosture = lying
+<a name="573"></a>;
+<a name="574"></a>
+<a name="575"></a>/*   
+<a name="576"></a> *   Chair is something an actor would normally sit on, but could also stand on,
+<a name="577"></a> *   but not lie on. [DEFINED IN POSTURES EXTENSION]
+<a name="578"></a> */
+<a name="579"></a>class Chair: Platform
+<a name="580"></a>    canLieOnMe = nil
+<a name="581"></a>    sitOnScore = 120
+<a name="582"></a>    standOnScore = 80
+<a name="583"></a>    defaultPosture = sitting
+<a name="584"></a>;
+<a name="585"></a>
+<a name="586"></a>/*  
+<a name="587"></a> *   By default we assume that an actor can stand, sit or lie in a Booth. This
+<a name="588"></a> *   can, of course, be overridden in particular instances.
+<a name="589"></a> *   [DEFINED IN POSTURES EXTENSION]
+<a name="590"></a> */
+<a name="591"></a>modify Booth
+<a name="592"></a>    canStandInMe = true
+<a name="593"></a>    canSitInMe = true
+<a name="594"></a>    canLieInMe = true
+<a name="595"></a>;
+<a name="596"></a>
+<a name="597"></a>
+<a name="598"></a>/*  
+<a name="599"></a> *   We modify the Stand, Sit and Lie actions so that they now result in the
+<a name="600"></a> *   actor changing posture without changing location.
+<a name="601"></a> *   [MODIFIED IN POSTURES EXTENSION]
+<a name="602"></a> */
+<a name="603"></a>modify Stand
+<a name="604"></a>    execAction(c)
+<a name="605"></a>    {
+<a name="606"></a>        gActor.tryMakingPosture(standing);
+<a name="607"></a>    }
+<a name="608"></a>;
+<a name="609"></a>
+<a name="610"></a>/* [MODIFIED IN POSTURES EXTENSION] */
+<a name="611"></a>modify Sit
+<a name="612"></a>    execAction(c)
+<a name="613"></a>    {
+<a name="614"></a>        gActor.tryMakingPosture(sitting);
+<a name="615"></a>    }
+<a name="616"></a>;
+<a name="617"></a>
+<a name="618"></a>/* [MODIFIED IN POSTURES EXTENSION] */
+<a name="619"></a>modify Lie
+<a name="620"></a>    execAction(c)
+<a name="621"></a>    {
+<a name="622"></a>        gActor.tryMakingPosture(lying);
+<a name="623"></a>    }
+<a name="624"></a>;
+<a name="625"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

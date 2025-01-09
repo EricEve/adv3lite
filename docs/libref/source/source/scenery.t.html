@@ -1,0 +1,411 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>scenery.t</title></head><body>
+<table class=ban><tr><td><h1>scenery.t</h1><td align=right><a href="../file/scenery.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>#include "advlite.h"
+<a name="3"></a>
+<a name="4"></a>/*
+<a name="5"></a> *   This file forms part of the adv3Lie library (c) Eric Eve 2024
+<a name="6"></a> *.
+<a name="7"></a> *   This module was inspired by the Inform 6 Scenic.h extension created by Richard Barnett and
+<a name="8"></a> *   subsquently extended by Joe Mason, Roger Firth and Stefano Gaburri, although the adv3Lite
+<a name="9"></a> *   implementation is quite different.
+<a name="10"></a> */
+<a name="11"></a>
+<a name="12"></a>
+<a name="13"></a>/* 
+<a name="14"></a> *   The Scenery Class allows a number of Decoration objects to be created on one master Scenery
+<a name="15"></a> *   object, potentially saving having to create several or many Decoration objects manually. It is
+<a name="16"></a> *   intended principally for Decorations for which we just want a description.
+<a name="17"></a> *
+<a name="18"></a> *   Note that we shouldn't define any vocab or description on the Scenery object itself, but we
+<a name="19"></a> *   should put it in the location where we want the Decoration objects it creates to be lccated.
+<a name="20"></a> */ 
+<a name="21"></a>class Scenery: PreinitObject
+<a name="22"></a>    /* 
+<a name="23"></a>     *   The list of vocab, descriptions and optionally notImportantMsgs for each of our Decoratio
+<a name="24"></a>     *   objects. Each item in the list should be a list of two or three items of the form
+<a name="25"></a>     *.
+<a name="26"></a>     *   [vocab, desc]
+<a name="27"></a>     *.       or
+<a name="28"></a>     *   [vocab, desc, notImportantMsg]
+<a name="29"></a>     *.
+<a name="30"></a>     *   vocab and notImportantMsg must be supplied as single-quoted strings. desc can be either at
+<a name="31"></a>     *   single-quoted string or an anonymous method or function. The vocab string should be defined
+<a name="32"></a>     *   as for the vocab string of a normal Thing.
+<a name="33"></a>     *.
+<a name="34"></a>     *   The scenList property can be defined through the Scenery template.
+<a name="35"></a>     */
+<a name="36"></a>    scenList = []
+<a name="37"></a>    
+<a name="38"></a>    /* A list of the Decoration objects created by this Scenery object at preInit. */
+<a name="39"></a>    myObjs = []
+<a name="40"></a>    
+<a name="41"></a>    /* 
+<a name="42"></a>     *   PreInitialization of a Scenery object creates the Decoration objects defined in our
+<a name="43"></a>     *   ScenList property.
+<a name="44"></a>     */
+<a name="45"></a>    execute()
+<a name="46"></a>    {
+<a name="47"></a>        /* Iterate through every item in our scenList to create a Decoration object based on it. */
+<a name="48"></a>        foreach(local item in scenList)
+<a name="49"></a>        {
+<a name="50"></a>            /* Store a reference to the vocab we want to give the current object. */
+<a name="51"></a>            local voc = item[1];
+<a name="52"></a>            
+<a name="53"></a>            /* 
+<a name="54"></a>             *   Store a reference to the description we want to give the current object. This can
+<a name="55"></a>             *   be either a single-quoted string or an anonymous method or function.
+<a name="56"></a>             */
+<a name="57"></a>            local des = item[2];
+<a name="58"></a>            
+<a name="59"></a>            /*  
+<a name="60"></a>             *   Create a mew ScenItem Decoration object and store a reference to it. We delegate
+<a name="61"></a>             *   this to a separate method so subclasses can override.
+<a name="62"></a>             */
+<a name="63"></a>            local obj = newObj();
+<a name="64"></a>            
+<a name="65"></a>            
+<a name="66"></a>            /* 
+<a name="67"></a>             *   What we so with des depends on whether it's a single-quoted string or an anonymous
+<a name="68"></a>             *   method or function or an object.
+<a name="69"></a>             */
+<a name="70"></a>            switch(dataTypeXlat(des))
+<a name="71"></a>            {
+<a name="72"></a>                /* If it's a single-quoted string, copy it to our new object's descStr property. */
+<a name="73"></a>            case TypeSString:
+<a name="74"></a>                obj.descStr = des;
+<a name="75"></a>                break;
+<a name="76"></a>                
+<a name="77"></a>                /* 
+<a name="78"></a>                 *   If it's an anonymous method or function, assign it to our new objects desc
+<a name="79"></a>                 *   method.
+<a name="80"></a>                 */
+<a name="81"></a>            case TypeFuncPtr:
+<a name="82"></a>                obj.setMethod(&amp;desc, des);
+<a name="83"></a>                break;
+<a name="84"></a>                
+<a name="85"></a>                /*If it's an object, copy its descStr to our new object's descStr */
+<a name="86"></a>            case TypeObject:
+<a name="87"></a>                local m = des.getMethod(&amp;descStr);
+<a name="88"></a>                if(m)
+<a name="89"></a>                    obj.setMethod(&amp;descStr, m);
+<a name="90"></a>                else
+<a name="91"></a>                    obj.descStr = des.descStr;
+<a name="92"></a>                break;
+<a name="93"></a>                
+<a name="94"></a>                
+<a name="95"></a>            }
+<a name="96"></a>            
+<a name="97"></a>            /* Copy our vocab to our new object's vocab property. */
+<a name="98"></a>            obj.vocab = voc;
+<a name="99"></a>            
+<a name="100"></a>            /* 
+<a name="101"></a>             *   Initialize our new object's vocab (and other propertites such as its name) from its
+<a name="102"></a>             *   vocab string.
+<a name="103"></a>             */
+<a name="104"></a>            obj.initVocab();
+<a name="105"></a>            
+<a name="106"></a>            /*  Store a reference to the new object in our myObjs list. */
+<a name="107"></a>            myObjs += obj;
+<a name="108"></a>            
+<a name="109"></a>            /*  Store a reference to ourself in our new object's masterObj property. */
+<a name="110"></a>            obj.masterObj = self;
+<a name="111"></a>            
+<a name="112"></a>            /* 
+<a name="113"></a>             *   Initialize the location of our new object, provided we're defined as being
+<a name="114"></a>             *   initially present. We delegate this to a separate method so sublcasses can
+<a name="115"></a>             *   override.
+<a name="116"></a>             */
+<a name="117"></a>            if(initiallyPresent)
+<a name="118"></a>                initLocation(obj);
+<a name="119"></a>            
+<a name="120"></a>            /*  Assign a notImportantMsg to our new item, if we have defined one. */
+<a name="121"></a>            if(item.length &gt; 2)   
+<a name="122"></a>            {
+<a name="123"></a>                local notImp = item[3];
+<a name="124"></a>                
+<a name="125"></a>                switch(dataTypeXlat(notImp))
+<a name="126"></a>                {
+<a name="127"></a>                case TypeSString:
+<a name="128"></a>                    /* If the notImportantMsg is a single-quoted string, copy it across to obj. */
+<a name="129"></a>                    obj.notImportantMsg = notImp;
+<a name="130"></a>                    break;
+<a name="131"></a>                    
+<a name="132"></a>                case TypeObject:
+<a name="133"></a>                    /* 
+<a name="134"></a>                     *   Retrieve notImp's notImportantMsg as a floating method. We do it this way
+<a name="135"></a>                     *   to prevent premature evailuation of any message substition paraeeters.
+<a name="136"></a>                     */
+<a name="137"></a>                    local m = notImp.getMethod(&amp;notImportantMsg);
+<a name="138"></a>                    
+<a name="139"></a>                    /*   Then copy the method to obj's notImportantMsg */
+<a name="140"></a>                    if(m)
+<a name="141"></a>                        obj.setMethod(&amp;notImportantMsg, m);
+<a name="142"></a>                    else 
+<a name="143"></a>                        obj.notImportantMsg = notImp.notImportantMsg;
+<a name="144"></a>                    break;
+<a name="145"></a>                    
+<a name="146"></a>                case TypeInt:
+<a name="147"></a>                    if(propType(&amp;notImportantMsgLst) == TypeList 
+<a name="148"></a>                       &amp;&amp; notImportantMsgLst.length &gt;= notImp)                    
+<a name="149"></a>                        obj.notImportantMsg  = notImportantMsgLst[notImp];
+<a name="150"></a>                   
+<a name="151"></a>                    break;
+<a name="152"></a>                    
+<a name="153"></a>                    /* 
+<a name="154"></a>                     *   If notImp is a property pointer, copy that property to our object's
+<a name="155"></a>                     *   notImportantMsg.
+<a name="156"></a>                     */
+<a name="157"></a>                case TypeProp:
+<a name="158"></a>                    m = self.getMethod(notImp);
+<a name="159"></a>                    if(m)
+<a name="160"></a>                        obj.setMethod(&amp;notImportantMsg, m);
+<a name="161"></a>                    else
+<a name="162"></a>                        obj.notImportantMsg = self.(notImp);
+<a name="163"></a>                    break;
+<a name="164"></a>                }
+<a name="165"></a>            }
+<a name="166"></a>            /* 
+<a name="167"></a>             *   Otherwise, take our notImportantMsg from des (the second item in the current list)
+<a name="168"></a>             *   provided its notImportantMsg is non-nil
+<a name="169"></a>             */
+<a name="170"></a>            else if(dataType(des) == TypeObject &amp;&amp; des.propType(&amp;notImportantMsg) != TypeNil)
+<a name="171"></a>            {
+<a name="172"></a>                local m = des.getMethod(&amp;notImportantMsg);
+<a name="173"></a>                
+<a name="174"></a>                /*   Then copy the method to obj's notImportantMsg */
+<a name="175"></a>                if(m)
+<a name="176"></a>                    obj.setMethod(&amp;notImportantMsg, m);             
+<a name="177"></a>                else
+<a name="178"></a>                    obj.notImportantMsg = des.notImportantMsg;
+<a name="179"></a>            }
+<a name="180"></a>            
+<a name="181"></a>            
+<a name="182"></a>            /* 
+<a name="183"></a>             *   Otherwise, if there is a notImportantMsg defined on us, copy it to our new object.
+<a name="184"></a>             */
+<a name="185"></a>            else if(notImportantMsg)
+<a name="186"></a>            {
+<a name="187"></a>                local m = getMethod(&amp;notImportantMsg);
+<a name="188"></a>                
+<a name="189"></a>                /*   Then copy the method to obj's notImportantMsg */
+<a name="190"></a>                if(m)
+<a name="191"></a>                    obj.setMethod(&amp;notImportantMsg, m);
+<a name="192"></a>                else 
+<a name="193"></a>                    obj.notImportantMsg = notImportantMsg;
+<a name="194"></a>                
+<a name="195"></a>            }
+<a name="196"></a>            
+<a name="197"></a>            /* Set our object's visibleInDark property to our own visibleInDark. */
+<a name="198"></a>            obj.visibleInDark = visibleInDark;
+<a name="199"></a>        }
+<a name="200"></a>        
+<a name="201"></a>        
+<a name="202"></a>    }
+<a name="203"></a>    
+<a name="204"></a>    /* 
+<a name="205"></a>     *   Flag: are our decoration items initially present in our location? By default they are, but
+<a name="206"></a>     *   there may be circumstances (e.g. changhe from night time to daytime) when we want them to
+<a name="207"></a>     *   start out off stage.
+<a name="208"></a>     */
+<a name="209"></a>    initiallyPresent = true
+<a name="210"></a>    
+<a name="211"></a>    /* 
+<a name="212"></a>     *   For the base Scenery claas, create a new object of the ScenItem class and returnb a
+<a name="213"></a>     *   reference to it.
+<a name="214"></a>     */
+<a name="215"></a>    newObj() { return new ScenItem; }
+<a name="216"></a>    
+<a name="217"></a>    /*   For the base Scenery class, move our new object into our own location. */
+<a name="218"></a>    initLocation(obj) {obj.moveInto(location); }
+<a name="219"></a>    
+<a name="220"></a>    notImportantMsg = nil
+<a name="221"></a>    
+<a name="222"></a>     /* 
+<a name="223"></a>      *   We can call moveInto() on us to call it on each of the decorations we have created. Tbis
+<a name="224"></a>      *   might most usefully be used with loc = nil to move all our decoration objects off-stage.
+<a name="225"></a>      */
+<a name="226"></a>    moveInto(loc)
+<a name="227"></a>    {
+<a name="228"></a>        foreach(local obj in myObjs)
+<a name="229"></a>            obj.moveInto(loc);
+<a name="230"></a>    }
+<a name="231"></a>    
+<a name="232"></a>    /* 
+<a name="233"></a>     *   If our decoration start offstage or have been moved elsewhere we can restore/move them to
+<a name="234"></a>     *   our location by calling makePresent() or makePresent(true). To remove them all call
+<a name="235"></a>     *   makePresent(nil).
+<a name="236"></a>     */
+<a name="237"></a>    makePresent(stat = true)
+<a name="238"></a>    {
+<a name="239"></a>        if(stat)
+<a name="240"></a>        {
+<a name="241"></a>            foreach(local obj in myObjs)
+<a name="242"></a>                initLocation(obj);
+<a name="243"></a>        }
+<a name="244"></a>        else
+<a name="245"></a>            moveInto(nil);
+<a name="246"></a>    }
+<a name="247"></a>    
+<a name="248"></a>    /* 
+<a name="249"></a>     *   Flag; should the decorations we create be visible in the dark. By default they're not, but
+<a name="250"></a>     *   if, for example, we're creating a series of sky objects for use at night time, such as sky,
+<a name="251"></a>     *   moon, and clouds, we might want them to be.
+<a name="252"></a>     */         
+<a name="253"></a>    visibleInDark = nil
+<a name="254"></a>;
+<a name="255"></a>
+<a name="256"></a>/* 
+<a name="257"></a> *   A Scenery object we want to act like a MultiLoc, that is one that creates a series of MultiLoc
+<a name="258"></a> *   Scenery object. Note that a MultiLccScenery object is *not* itself a MultiLoc, so cannot be
+<a name="259"></a> *   defined as MultiLoc, Scenery. Rather it is an object that creates a set of MultiLoc Scenery
+<a name="260"></a> *   objects (of the MultiScenItem class), which will take there locations from our location
+<a name="261"></a> *   properties.
+<a name="262"></a> *
+<a name="263"></a> */
+<a name="264"></a>class MultiLocScenery: Scenery
+<a name="265"></a>    newObj() { return new MultiScenItem; }
+<a name="266"></a>    
+<a name="267"></a>    /* 
+<a name="268"></a>     *   Initialze the location or set of locations each of the decorationa we are to create is to
+<a name="269"></a>     *   appear in.
+<a name="270"></a>     */
+<a name="271"></a>    initLocation(obj)
+<a name="272"></a>    { 
+<a name="273"></a>        /* Copy our locationList to our new object's */  
+<a name="274"></a>        obj.locationList = locationList;
+<a name="275"></a>        
+<a name="276"></a>        /* Copy our initialLocationList to our new object's */
+<a name="277"></a>        obj.initialLocationList = initialLocationList;
+<a name="278"></a>        
+<a name="279"></a>        /* Copy our locationClass to our new object's */
+<a name="280"></a>        obj.initialLocationClass = initialLocationClass;
+<a name="281"></a>        
+<a name="282"></a>        /* Copy our exceptions to our new object's */
+<a name="283"></a>        obj.exceptions = exceptions;
+<a name="284"></a>        
+<a name="285"></a>        /* 
+<a name="286"></a>         *   Call our new object's addToLocation method to add to the contents of each of its
+<a name="287"></a>         *   locations, as defined by the previous properties.
+<a name="288"></a>         */
+<a name="289"></a>        obj.addToLocations();  
+<a name="290"></a>        
+<a name="291"></a>    }
+<a name="292"></a>    
+<a name="293"></a>    /* 
+<a name="294"></a>     *   Our locationList, initialLocationList, initialLocationClass, and exceptions properties have
+<a name="295"></a>     *   the same meaning as they do on a MultiLoc but will be applied to the MultiScenItem objects
+<a name="296"></a>     *   we create, not directly to ourself.
+<a name="297"></a>     */
+<a name="298"></a>    locationList = nil
+<a name="299"></a>    initialLocationList = nil
+<a name="300"></a>    initialLocationClass = nil
+<a name="301"></a>    exceptions = []
+<a name="302"></a>    
+<a name="303"></a>    /*
+<a name="304"></a>     *   Test an object for inclusion in our initial location list.  By default, we'll simply return
+<a name="305"></a>     *   true to include every object.  We return true by default so that an instance can merely
+<a name="306"></a>     *   specify a value for initialLocationClass in order to place this object in every instance of
+<a name="307"></a>     *   the given class. The MultiLoc objects we create will use our version of this method.
+<a name="308"></a>     */
+<a name="309"></a>    isInitiallyIn(obj) { return true; }
+<a name="310"></a>    
+<a name="311"></a>    
+<a name="312"></a>    /* 
+<a name="313"></a>     *   We can call moveIntoAdd() on us to call it on each of the MultiLoc decorations we have
+<a name="314"></a>     *   created.
+<a name="315"></a>     */
+<a name="316"></a>    moveIntoAdd(loc)
+<a name="317"></a>    {
+<a name="318"></a>        foreach(local obj in myObjs)
+<a name="319"></a>            obj.moveIntoAdd(loc);
+<a name="320"></a>    }
+<a name="321"></a>    
+<a name="322"></a>     /* 
+<a name="323"></a>     *   We can call moveIOutOf() on us to call it on each of the MultiLoc decorations we have
+<a name="324"></a>     *   created.
+<a name="325"></a>     */
+<a name="326"></a>    moveOutOf(loc)
+<a name="327"></a>    {
+<a name="328"></a>        /* 
+<a name="329"></a>         *   Let the new location handle it, so it will work whether the new
+<a name="330"></a>         *   location is a Thing, a Room or a Region.         
+<a name="331"></a>         */
+<a name="332"></a>        foreach(local obj in myObjs)
+<a name="333"></a>            loc.moveMLOutOf(obj);        
+<a name="334"></a>    }
+<a name="335"></a>    
+<a name="336"></a>    
+<a name="337"></a>;
+<a name="338"></a>
+<a name="339"></a>/* 
+<a name="340"></a> *   A ScenItem is a special kind of Decoration created by the Scenery class. Note that there is
+<a name="341"></a> *   probably no good reason to define a ScenItem object directly in game code.
+<a name="342"></a> */
+<a name="343"></a>class ScenItem: Thing
+<a name="344"></a>    /* 
+<a name="345"></a>     *   Our description. We just display out descStr. This can be overridden if our masterObj's
+<a name="346"></a>     *   scenList created us with an anonymous method or function for our description, in which case
+<a name="347"></a>     *   that method or function will be assigned to our desc() property.
+<a name="348"></a>     */
+<a name="349"></a>    desc() { say(descStr); }
+<a name="350"></a>    
+<a name="351"></a>    /* 
+<a name="352"></a>     *   A single-quoted string that gives our description. This is assigned by the Scenery object
+<a name="353"></a>     *   that created us.
+<a name="354"></a>     */
+<a name="355"></a>    descStr = ''
+<a name="356"></a>    
+<a name="357"></a>     /* The Scenery item that created us. */
+<a name="358"></a>    masterObj = nil
+<a name="359"></a>    
+<a name="360"></a>    /* We're a decoration item so we're fixed in place */
+<a name="361"></a>    isFixed = true
+<a name="362"></a>    
+<a name="363"></a>    /* We're a decoration item */
+<a name="364"></a>    isDecoration = true
+<a name="365"></a>    
+<a name="366"></a>    /* 
+<a name="367"></a>     *   We don't really want GO TO to work with these objects, especially if they're meant to be
+<a name="368"></a>     *   distant.
+<a name="369"></a>     */
+<a name="370"></a>    decorationActions = [Examine]
+<a name="371"></a>;
+<a name="372"></a>
+<a name="373"></a>
+<a name="374"></a>/* 
+<a name="375"></a> *   A MultiScenItem is a MultiLoc Decoration created by a MultiLocScenery object. Note that there
+<a name="376"></a> *   is probably no good reason for defining one of these objects directly in game code.
+<a name="377"></a> */
+<a name="378"></a>class MultiScenItem: MultiLoc, ScenItem    
+<a name="379"></a>   
+<a name="380"></a>    
+<a name="381"></a>    /*
+<a name="382"></a>     *   Test an object for inclusion in our initial location list.  We return the value of our
+<a name="383"></a>     *   masterObj's isInitiallyIn() method.
+<a name="384"></a>     */
+<a name="385"></a>    isInitiallyIn(obj) { return masterObj.isInitiallyIn(obj); }
+<a name="386"></a>;
+<a name="387"></a>
+<a name="388"></a>/* 
+<a name="389"></a> *   A dummy object for use in defining the description and notImportantMsg of Decoration objects to
+<a name="390"></a> *   be generated by a Scenery object. If nullObj is placed as the second element of a
+<a name="391"></a> *   decoration-defining list, , e.g. ['twigs',  nullObj], then while the exitience of the object
+<a name="392"></a> *   won't be denied, any attempt to refer to it will be met with "That's not something you need to
+<a name="393"></a> *   refer to. "
+<a name="394"></a> */
+<a name="395"></a>nullObj: object
+<a name="396"></a>    /* Our description. Game code is free to override this if some other method is preferred. */
+<a name="397"></a>    descStr = BMsg(no need to refer, 'That\'s not something you need to refer to. ')
+<a name="398"></a>    
+<a name="399"></a>    /* 
+<a name="400"></a>     *   Our notImportantMsg is the same as our description. Game code is free to override this to
+<a name="401"></a>     *   something different if desired, but that might defeat the object, which is to make it clear
+<a name="402"></a>     *   to players that this object isn't anything they need to bother with.
+<a name="403"></a>     */
+<a name="404"></a>    notImportantMsg = descStr
+<a name="405"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>

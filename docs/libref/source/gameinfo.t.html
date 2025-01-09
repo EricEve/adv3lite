@@ -1,0 +1,124 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>gameinfo.t</title></head><body>
+<table class=ban><tr><td><h1>gameinfo.t</h1><td align=right><a href="../file/gameinfo.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2001, 2006 Michael J. Roberts.
+<a name="5"></a> *   
+<a name="6"></a> *   Permission is granted to anyone to use this file, including modified
+<a name="7"></a> *   and derived versions, without charge, provided this original copyright
+<a name="8"></a> *   notice is retained.  
+<a name="9"></a> *   
+<a name="10"></a> *   This is an add-in utility for tads 3 games to make it simpler to add
+<a name="11"></a> *   game information to a compiled game.  
+<a name="12"></a> *   
+<a name="13"></a> *   The game information mechanism lets you bind certain documentary
+<a name="14"></a> *   information about the game directly into the compiled (.t3) file.  The
+<a name="15"></a> *   information can then be extracted by automated tools; for example,
+<a name="16"></a> *   archive maintainers can extract the game information and use it to
+<a name="17"></a> *   describe the archive entry.  
+<a name="18"></a> */
+<a name="19"></a>
+<a name="20"></a>/*   
+<a name="21"></a> *   To use this module, a game must simply call our function
+<a name="22"></a> *   writeGameInfo(), passing in a lookup table and a destination filename.
+<a name="23"></a> *   
+<a name="24"></a> *   The lookup table consists of one entry per game information item.  For
+<a name="25"></a> *   each entry, the key is the name of the item, and the associated value
+<a name="26"></a> *   is a string giving the text of the item.
+<a name="27"></a> *   
+<a name="28"></a> *   The destination filename should usually be "GameInfo.txt", since
+<a name="29"></a> *   that's the name of the game information resource that must be bound
+<a name="30"></a> *   into the .t3 file.  However, the name isn't actually important until
+<a name="31"></a> *   the resource compiler (t3res) is invoked, at which point an arbitrary
+<a name="32"></a> *   filename can be mapped to the required resource name if desired.  Note
+<a name="33"></a> *   that we'll overwrite any existing file with the given name.
+<a name="34"></a> *   
+<a name="35"></a> *   writeGameInfo() will throw a FileException if an error occurs writing
+<a name="36"></a> *   the data to the file.
+<a name="37"></a> *   
+<a name="38"></a> *   writeGameInfo() should be called during pre-initialization so that the
+<a name="39"></a> *   game information is generated immediately after compilation is
+<a name="40"></a> *   finished.  Here's an example of how you might do this:
+<a name="41"></a> *   
+<a name="42"></a> *   PreinitObject
+<a name="43"></a> *.    execute()
+<a name="44"></a> *.    {
+<a name="45"></a> *.      local tab = new LookupTable();
+<a name="46"></a> *.  
+<a name="47"></a> *.      tab['Name'] = 'My Test Game';
+<a name="48"></a> *.      tab['Author'] = 'Bob I. Fiction';
+<a name="49"></a> *.      tab['Desc'] = 'My simple test game, just to demonstrate how
+<a name="50"></a> *.                    to write game information.';
+<a name="51"></a> *.  
+<a name="52"></a> *.      writeGameInfo(tab, 'GameInfo.txt');
+<a name="53"></a> *.    }
+<a name="54"></a> *.  ;
+<a name="55"></a> *   
+<a name="56"></a> *   After pre-initialization finishes, you must finish the job by running
+<a name="57"></a> *   the resource compiler, with a command line something like this:
+<a name="58"></a> *   
+<a name="59"></a> *      t3res mygame.t3 -add GameInfo.txt
+<a name="60"></a> *   
+<a name="61"></a> *   If you didn't call the output file GameInfo.txt, you can map the
+<a name="62"></a> *   filename to the proper resource name with a command like this:
+<a name="63"></a> *   
+<a name="64"></a> *     t3res mygame.t3 -add outfile.xyz=GameInfo.txt 
+<a name="65"></a> */
+<a name="66"></a>
+<a name="67"></a>#include &lt;tads.h&gt;
+<a name="68"></a>#include &lt;file.h&gt;
+<a name="69"></a>
+<a name="70"></a>/* TADS GameInfo writer */
+<a name="71"></a>gameInfoWriter: object
+<a name="72"></a>    /* 
+<a name="73"></a>     *   Write the game information from the given LookupTable to the given
+<a name="74"></a>     *   file.  Each key/value pair in the LookupTable gives the GameInfo
+<a name="75"></a>     *   key and the corresponding value string for that key.  
+<a name="76"></a>     */
+<a name="77"></a>    writeGameInfo(tab, fname)
+<a name="78"></a>    {
+<a name="79"></a>        local f;
+<a name="80"></a>        
+<a name="81"></a>        /* 
+<a name="82"></a>         *   open the file - note that the GameInfo.txt resource is
+<a name="83"></a>         *   required to be encoded in UTF-8, so open the file with the
+<a name="84"></a>         *   UTF-8 character set 
+<a name="85"></a>         */
+<a name="86"></a>        f = File.openTextFile(fname, FileAccessWrite, 'utf-8');
+<a name="87"></a>
+<a name="88"></a>        /* write each entry in the table */
+<a name="89"></a>        tab.forEachAssoc({key, val: f.writeFile(key + ': ' + val + '\n')});
+<a name="90"></a>        
+<a name="91"></a>        /* done with the file - close it */
+<a name="92"></a>        f.closeFile();
+<a name="93"></a>    }
+<a name="94"></a>
+<a name="95"></a>    /*
+<a name="96"></a>     *   Get today's date as a string in the format YYYY-MM-DD.  This can
+<a name="97"></a>     *   be used as a simple way of keeping the release date in the game
+<a name="98"></a>     *   information up to date with the latest compilation.  
+<a name="99"></a>     */
+<a name="100"></a>    getGameInfoToday()
+<a name="101"></a>    {
+<a name="102"></a>        local dt;
+<a name="103"></a>        local mm, dd;
+<a name="104"></a>        
+<a name="105"></a>        /* get the current date */
+<a name="106"></a>        dt = getTime(GetTimeDateAndTime);
+<a name="107"></a>        
+<a name="108"></a>        /* get the month, and add a leading zero if it's only one digit */
+<a name="109"></a>        mm = (dt[2] &lt; 10 ? '0' : '') + dt[2];
+<a name="110"></a>        
+<a name="111"></a>        /* get the day, and add a leading zero if it's only one digit */
+<a name="112"></a>        dd = (dt[3] &lt; 10 ? '0' : '') + dt[3];
+<a name="113"></a>        
+<a name="114"></a>        /* build and return the full YYYY-MM-DD date string */
+<a name="115"></a>        return toString(dt[1]) + '-' + mm + '-' + dd;
+<a name="116"></a>    }
+<a name="117"></a>;
+<a name="118"></a>
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+</body>
+</html>

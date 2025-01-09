@@ -1,0 +1,1231 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>banner.t</title></head><body>
+<table class=ban><tr><td><h1>banner.t</h1><td align=right><a href="../file/banner.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>/* 
+<a name="4"></a> *   Copyright (c) 2000, 2006 Michael J. Roberts.  All Rights Reserved. 
+<a name="5"></a> *   
+<a name="6"></a> *   TADS 3 Library: banner manager
+<a name="7"></a> *   
+<a name="8"></a> *   This module defines the banner manager, which provides high-level
+<a name="9"></a> *   services to create and manipulate banner windows.
+<a name="10"></a> *   
+<a name="11"></a> *   A "banner" is an independent window shown within the interpreter's
+<a name="12"></a> *   main application display frame (which might be the entire screen on a
+<a name="13"></a> *   character-mode terminal, or could be a window in a GUI system).  The
+<a name="14"></a> *   game can control the creation and destruction of banner windows, and
+<a name="15"></a> *   can control their placement and size.
+<a name="16"></a> *   
+<a name="17"></a> *   This implementation is based in part on Steve Breslin's banner
+<a name="18"></a> *   manager, used by permission.  
+<a name="19"></a> */
+<a name="20"></a>
+<a name="21"></a>#include "advlite.h"
+<a name="22"></a>
+<a name="23"></a>/* ------------------------------------------------------------------------ */
+<a name="24"></a>/*
+<a name="25"></a> *   A BannerWindow corresponds to an on-screen banner.  For each banner
+<a name="26"></a> *   window a game wants to display, the game must create an object of this
+<a name="27"></a> *   class.
+<a name="28"></a> *   
+<a name="29"></a> *   Note that merely creating a BannerWindow object doesn't actually
+<a name="30"></a> *   display a banner window.  Once a BannerWindow is created, the game
+<a name="31"></a> *   must call the object's showBanner() method to create the on-screen
+<a name="32"></a> *   window for the banner.
+<a name="33"></a> *   
+<a name="34"></a> *   BannerWindow instances are intended to be persistent (not transient).
+<a name="35"></a> *   The banner manager keeps track of each banner window that's actually
+<a name="36"></a> *   being displayed separately via an internal transient object; the game
+<a name="37"></a> *   doesn't need to worry about these tracking objects, since the banner
+<a name="38"></a> *   manager automatically handles them.  
+<a name="39"></a> */
+<a name="40"></a>class BannerWindow: OutputStreamWindow
+<a name="41"></a>    /*
+<a name="42"></a>     *   Construct the object.
+<a name="43"></a>     *   
+<a name="44"></a>     *   'id' is a globally unique identifying string for the banner.  When
+<a name="45"></a>     *   we dynamically create a banner object, we have to provide a unique
+<a name="46"></a>     *   identifying string, so that we can correlate transient on-screen
+<a name="47"></a>     *   banners with the banners in a saved state when restoring the saved
+<a name="48"></a>     *   state.
+<a name="49"></a>     *   
+<a name="50"></a>     *   Note that no ID string is needed for BannerWindow objects defined
+<a name="51"></a>     *   statically at compile-time, because the object itself ('self') is
+<a name="52"></a>     *   a suitably unique and stable identifier.  
+<a name="53"></a>     */
+<a name="54"></a>    construct(id)
+<a name="55"></a>    {
+<a name="56"></a>        /* remember my unique identifier */
+<a name="57"></a>        id_ = id;
+<a name="58"></a>    }
+<a name="59"></a>
+<a name="60"></a>    /*
+<a name="61"></a>     *   Show the banner.  The game should call this method when it first
+<a name="62"></a>     *   wants to display the banner.
+<a name="63"></a>     *   
+<a name="64"></a>     *   'parent' is the parent banner; this is an existing BannerWindow
+<a name="65"></a>     *   object.  If 'parent' is nil, then the parent is the main game
+<a name="66"></a>     *   text window.  The new window's display space is obtained by
+<a name="67"></a>     *   carving space out of the parent's area, according to the
+<a name="68"></a>     *   alignment and size values specified.
+<a name="69"></a>     *   
+<a name="70"></a>     *   'where' and 'other' give the position of the banner among the
+<a name="71"></a>     *   children of the given parent.  'where' is one of the constants
+<a name="72"></a>     *   BannerFirst, BannerLast, BannerBefore, or BannerAfter.  If
+<a name="73"></a>     *   'where' is BannerBefore or BannerAfter, 'other' gives the
+<a name="74"></a>     *   BannerWindow object to be used as the reference point in the
+<a name="75"></a>     *   parent's child list; 'other' is ignored in other cases.  Note
+<a name="76"></a>     *   that 'other' must always be another child of the same parent; if
+<a name="77"></a>     *   it's not, then we act as though 'where' were given as BannerLast.
+<a name="78"></a>     *   
+<a name="79"></a>     *   'windowType' is a BannerTypeXxx constant giving the new window's
+<a name="80"></a>     *   type.
+<a name="81"></a>     *   
+<a name="82"></a>     *   'align' is a BannerAlignXxx constant giving the alignment of the
+<a name="83"></a>     *   new window.  'size' is an integer giving the size of the banner,
+<a name="84"></a>     *   in units specified by 'sizeUnits', which is a BannerSizeXxx
+<a name="85"></a>     *   constant.  If 'size' is nil, it indicates that the caller doesn't
+<a name="86"></a>     *   care about the size, usually because the caller will be resizing
+<a name="87"></a>     *   the banner soon anyway; the banner will initially have zero size
+<a name="88"></a>     *   in this case if we create a new window, or will retain the
+<a name="89"></a>     *   existing size if there's already a system window.
+<a name="90"></a>     *   
+<a name="91"></a>     *   'styleFlags' is a combination of BannerStyleXxx constants
+<a name="92"></a>     *   (combined with the bitwise OR operator, '|'), giving the requested
+<a name="93"></a>     *   display style of the new banner window.
+<a name="94"></a>     *   
+<a name="95"></a>     *   Note that if we already have a system banner window, and the
+<a name="96"></a>     *   existing banner window has the same characteristics as the new
+<a name="97"></a>     *   creation parameters, we'll simply re-use the existing window
+<a name="98"></a>     *   rather than closing and re-creating it; this reduces unnecessary
+<a name="99"></a>     *   redrawing in cases where the window isn't changing.  If the caller
+<a name="100"></a>     *   explicitly wants to create a new window even if we already have a
+<a name="101"></a>     *   window, the caller should simply call removeBanner() before
+<a name="102"></a>     *   calling this routine.  
+<a name="103"></a>     */
+<a name="104"></a>    showBanner(parent, where, other, windowType,
+<a name="105"></a>               align, size, sizeUnits, styleFlags)
+<a name="106"></a>    {
+<a name="107"></a>        local parentID;
+<a name="108"></a>        local otherID;
+<a name="109"></a>
+<a name="110"></a>        /* note the ID's of the parent window and the insertion point */
+<a name="111"></a>        parentID = (parent != nil ? parent.getBannerID() : nil);
+<a name="112"></a>        otherID = (other != nil ? other.getBannerID() : nil);
+<a name="113"></a>
+<a name="114"></a>        /* 
+<a name="115"></a>         *   if we have an 'other' specified, its parent must match our
+<a name="116"></a>         *   proposed parent; otherwise, ignore 'other' and insert at the
+<a name="117"></a>         *   end of the parent list 
+<a name="118"></a>         */
+<a name="119"></a>        if (other != nil &amp;&amp; other.parentID_ != parentID)
+<a name="120"></a>        {
+<a name="121"></a>            other = nil;
+<a name="122"></a>            where = BannerLast;
+<a name="123"></a>        }
+<a name="124"></a>
+<a name="125"></a>        /* if we already have an existing banner window, check for a match */
+<a name="126"></a>        if (handle_ != nil)
+<a name="127"></a>        {
+<a name="128"></a>            local t;
+<a name="129"></a>            local match;
+<a name="130"></a>
+<a name="131"></a>            /* presume we won't find an exact match */
+<a name="132"></a>            match = nil;
+<a name="133"></a>
+<a name="134"></a>            /* we already have a window - get the UI tracker object */
+<a name="135"></a>            if ((t = bannerUITracker.getTracker(self)) != nil)
+<a name="136"></a>            {
+<a name="137"></a>                /* check the placement, window type, alignment, and style */
+<a name="138"></a>                match = (t.windowType_ == windowType
+<a name="139"></a>                         &amp;&amp; t.parentID_ == parentID
+<a name="140"></a>                         &amp;&amp; t.align_ == align
+<a name="141"></a>                         &amp;&amp; t.styleFlags_ == styleFlags
+<a name="142"></a>                         &amp;&amp; bannerUITracker.orderMatches(t, where, otherID));
+<a name="143"></a>            }
+<a name="144"></a>
+<a name="145"></a>            /* 
+<a name="146"></a>             *   if it doesn't match the existing window, close it, so that
+<a name="147"></a>             *   we will open a brand new window with the new
+<a name="148"></a>             *   characteristics 
+<a name="149"></a>             */
+<a name="150"></a>            if (!match)
+<a name="151"></a>                removeBanner();
+<a name="152"></a>        }
+<a name="153"></a>
+<a name="154"></a>        /* if the system-level banner doesn't already exist, create it */
+<a name="155"></a>        if (handle_ == nil)
+<a name="156"></a>        {
+<a name="157"></a>            /* create my system-level banner window */
+<a name="158"></a>            if (!createSystemBanner(parent, where, other, windowType, align,
+<a name="159"></a>                                    size, sizeUnits, styleFlags))
+<a name="160"></a>            {
+<a name="161"></a>                /* we couldn't create the system banner - give up */
+<a name="162"></a>                return nil;
+<a name="163"></a>            }
+<a name="164"></a>
+<a name="165"></a>            /* create our output stream */
+<a name="166"></a>            createOutputStream();
+<a name="167"></a>
+<a name="168"></a>            /* add myself to the UI tracker's active banner list */
+<a name="169"></a>            bannerUITracker.addBanner(handle_, outputStream_, getBannerID(),
+<a name="170"></a>                                      parentID, where, other, windowType,
+<a name="171"></a>                                      align, styleFlags);
+<a name="172"></a>        }
+<a name="173"></a>        else
+<a name="174"></a>        {
+<a name="175"></a>            /* 
+<a name="176"></a>             *   Our system-level window already exists, so we don't need
+<a name="177"></a>             *   to create a new one.  However, our size could be
+<a name="178"></a>             *   different, so explicitly set the requested size if it
+<a name="179"></a>             *   doesn't match our recorded size.  If the size is given as
+<a name="180"></a>             *   nil, leave the size as it is; a nil size indicates that
+<a name="181"></a>             *   the caller doesn't care about the size (probably because
+<a name="182"></a>             *   the caller is going to change the size shortly anyway),
+<a name="183"></a>             *   so we can avoid unnecessary redrawing by leaving the size
+<a name="184"></a>             *   as it is for now.  
+<a name="185"></a>             */
+<a name="186"></a>            if (size != nil &amp;&amp; (size != size_ || sizeUnits != sizeUnits_))
+<a name="187"></a>                bannerSetSize(handle_, size, sizeUnits, nil);
+<a name="188"></a>        }
+<a name="189"></a>
+<a name="190"></a>        /* 
+<a name="191"></a>         *   remember the creation parameters, so that we can re-create the
+<a name="192"></a>         *   banner with the same characteristics in the future if we
+<a name="193"></a>         *   should need to restore the banner from a saved position 
+<a name="194"></a>         */
+<a name="195"></a>        parentID_ = parentID;
+<a name="196"></a>        windowType_ = windowType;
+<a name="197"></a>        align_ = align;
+<a name="198"></a>        size_ = size;
+<a name="199"></a>        sizeUnits_ = sizeUnits;
+<a name="200"></a>        styleFlags_ = styleFlags;
+<a name="201"></a>
+<a name="202"></a>        /* 
+<a name="203"></a>         *   Add myself to the persistent banner tracker's active list.  Do
+<a name="204"></a>         *   this even if we already had a system handle, since we might be
+<a name="205"></a>         *   initializing the window as part of a persistent restore
+<a name="206"></a>         *   operation, in which case the persistent tracking object might
+<a name="207"></a>         *   not yet exist.  (This seems backwards: if we're restoring a
+<a name="208"></a>         *   persistent state, surely the persistent tracker would already
+<a name="209"></a>         *   exist.  In fact, the case we're really handling is where the
+<a name="210"></a>         *   window is open in the transient UI, because it was already
+<a name="211"></a>         *   open in the ongoing session; but the persistent state we're
+<a name="212"></a>         *   restoring doesn't include the window.  This is most likely to
+<a name="213"></a>         *   occur after a RESTART, since we could have a window that is
+<a name="214"></a>         *   always opened immediately at start-up and thus will be in the
+<a name="215"></a>         *   transient state up to and through the RESTART, but is only
+<a name="216"></a>         *   created as part of the initialization process.)  
+<a name="217"></a>         */
+<a name="218"></a>        bannerTracker.addBanner(self, parent, where, other);
+<a name="219"></a>
+<a name="220"></a>        /* indicate success */
+<a name="221"></a>        return true;
+<a name="222"></a>    }
+<a name="223"></a>
+<a name="224"></a>    /*
+<a name="225"></a>     *   Remove the banner.  This removes the banner's on-screen window.
+<a name="226"></a>     *   The BannerWindow object itself remains valid, but after this
+<a name="227"></a>     *   method returns, the BannerWindow no longer has an associated
+<a name="228"></a>     *   display window.
+<a name="229"></a>     *   
+<a name="230"></a>     *   Note that any child banners of ours will become undisplayable
+<a name="231"></a>     *   after we're gone.  A child banner depends upon its parent to
+<a name="232"></a>     *   obtain display space, so once the parent is gone, its children no
+<a name="233"></a>     *   longer have any way to obtain any display space.  Our children
+<a name="234"></a>     *   remain valid objects even after we're closed, but they won't be
+<a name="235"></a>     *   visible on the display.    
+<a name="236"></a>     */
+<a name="237"></a>    removeBanner()
+<a name="238"></a>    {
+<a name="239"></a>        /* if I don't have a system-level handle, there's nothing to do */
+<a name="240"></a>        if (handle_ == nil)
+<a name="241"></a>            return;
+<a name="242"></a>
+<a name="243"></a>        /* remove my system-level banner window */
+<a name="244"></a>        bannerDelete(handle_);
+<a name="245"></a>
+<a name="246"></a>        /* our system-level window is gone, so forget its handle */
+<a name="247"></a>        handle_ = nil;
+<a name="248"></a>
+<a name="249"></a>        /* we only need an output stream when we're active */
+<a name="250"></a>        outputStream_ = nil;
+<a name="251"></a>
+<a name="252"></a>        /* remove myself from the UI trackers's active list */
+<a name="253"></a>        bannerUITracker.removeBanner(getBannerID());
+<a name="254"></a>
+<a name="255"></a>        /* remove myself from the persistent banner tracker's active list */
+<a name="256"></a>        bannerTracker.removeBanner(self);
+<a name="257"></a>    }
+<a name="258"></a>
+<a name="259"></a>    /* write the given text to the banner */
+<a name="260"></a>    writeToBanner(txt)
+<a name="261"></a>    {
+<a name="262"></a>        /* write the text to our underlying output stream */
+<a name="263"></a>        outputStream_.writeToStream(txt);
+<a name="264"></a>    }
+<a name="265"></a>
+<a name="266"></a>    /* flush any pending output to the banner */
+<a name="267"></a>    flushBanner() { bannerFlush(handle_); }
+<a name="268"></a>
+<a name="269"></a>    /*
+<a name="270"></a>     *   Set the banner window to a specific size.  'size' is the new
+<a name="271"></a>     *   size, in units given by 'sizeUnits', which is a BannerSizeXxx
+<a name="272"></a>     *   constant.
+<a name="273"></a>     *   
+<a name="274"></a>     *   'isAdvisory' is true or nil; if true, it indicates that the size
+<a name="275"></a>     *   setting is purely advisory, and that a sizeToContents() call will
+<a name="276"></a>     *   eventually follow to set the actual size.  When 'isAdvisory is
+<a name="277"></a>     *   true, the interpreter is free to ignore the request if
+<a name="278"></a>     *   sizeToContents() 
+<a name="279"></a>     */
+<a name="280"></a>    setSize(size, sizeUnits, isAdvisory)
+<a name="281"></a>    {
+<a name="282"></a>        /* set the underlying system window size */
+<a name="283"></a>        bannerSetSize(handle_, size, sizeUnits, isAdvisory);
+<a name="284"></a>
+<a name="285"></a>        /* 
+<a name="286"></a>         *   remember my new size in case we have to re-create the banner
+<a name="287"></a>         *   from a saved state 
+<a name="288"></a>         */
+<a name="289"></a>        size_ = size;
+<a name="290"></a>        sizeUnits_ = sizeUnits;
+<a name="291"></a>    }
+<a name="292"></a>
+<a name="293"></a>    /*
+<a name="294"></a>     *   Size the banner to its current contents.  Note that some systems
+<a name="295"></a>     *   do not support this operation, so callers should always make an
+<a name="296"></a>     *   advisory call to setSize() first to set a size based on the
+<a name="297"></a>     *   expected content size.  
+<a name="298"></a>     */
+<a name="299"></a>    sizeToContents()
+<a name="300"></a>    {
+<a name="301"></a>        /* size our system-level window to our contents */
+<a name="302"></a>        bannerSizeToContents(handle_);
+<a name="303"></a>    }
+<a name="304"></a>
+<a name="305"></a>    /*
+<a name="306"></a>     *   Clear my banner window.  This clears out all of the contents of
+<a name="307"></a>     *   our on-screen display area.  
+<a name="308"></a>     */
+<a name="309"></a>    clearWindow()
+<a name="310"></a>    {
+<a name="311"></a>        /* clear our system-level window */
+<a name="312"></a>        bannerClear(handle_);
+<a name="313"></a>    }
+<a name="314"></a>
+<a name="315"></a>    /* set the text color in the banner */
+<a name="316"></a>    setTextColor(fg, bg) { bannerSetTextColor(handle_, fg, bg); }
+<a name="317"></a>
+<a name="318"></a>    /* set the screen color in the banner window */
+<a name="319"></a>    setScreenColor(color) { bannerSetScreenColor(handle_, color); }
+<a name="320"></a>
+<a name="321"></a>    /* 
+<a name="322"></a>     *   Move the cursor to the given row/column position.  This can only
+<a name="323"></a>     *   be used with text-grid banners; for ordinary text banners, this
+<a name="324"></a>     *   has no effect. 
+<a name="325"></a>     */
+<a name="326"></a>    cursorTo(row, col) { bannerGoTo(handle_, row, col); }
+<a name="327"></a>
+<a name="328"></a>    /*
+<a name="329"></a>     *   Get the banner identifier.  If our 'id_' property is set to nil,
+<a name="330"></a>     *   we'll assume that we're a statically-defined object, in which case
+<a name="331"></a>     *   'self' is a suitable identifier.  Otherwise, we'll return the
+<a name="332"></a>     *   identifier string. 
+<a name="333"></a>     */
+<a name="334"></a>    getBannerID() { return id_ != nil ? id_ : self; }
+<a name="335"></a>
+<a name="336"></a>    /*
+<a name="337"></a>     *   Restore this banner.  This is called after a RESTORE or UNDO
+<a name="338"></a>     *   operation that finds that this banner was being displayed at the
+<a name="339"></a>     *   time the state was saved but is not currently displayed in the
+<a name="340"></a>     *   active UI.  We'll show the banner using the characteristics saved
+<a name="341"></a>     *   persistently.
+<a name="342"></a>     */
+<a name="343"></a>    showForRestore(parent, where, other)
+<a name="344"></a>    {
+<a name="345"></a>        /* show myself, using my saved characteristics */
+<a name="346"></a>        showBanner(parent, where, other, windowType_, align_,
+<a name="347"></a>                   size_, sizeUnits_, styleFlags_);
+<a name="348"></a>
+<a name="349"></a>        /* update my contents */
+<a name="350"></a>        updateForRestore();
+<a name="351"></a>    }
+<a name="352"></a>
+<a name="353"></a>    /*
+<a name="354"></a>     *   Create the system-level banner window.  This can be customized as
+<a name="355"></a>     *   needed, although this default implementation should be suitable
+<a name="356"></a>     *   for most instances.
+<a name="357"></a>     *   
+<a name="358"></a>     *   Returns true if we are successful in creating the system window,
+<a name="359"></a>     *   nil if we fail.  
+<a name="360"></a>     */
+<a name="361"></a>    createSystemBanner(parent, where, other, windowType, align,
+<a name="362"></a>                       size, sizeUnits, styleFlags)
+<a name="363"></a>    {
+<a name="364"></a>        /* create the system-level window */
+<a name="365"></a>        handle_ = bannerCreate(parent != nil ? parent.handle_ : nil,
+<a name="366"></a>                               where, other != nil ? other.handle_ : nil,
+<a name="367"></a>                               windowType, align, size, sizeUnits,
+<a name="368"></a>                               styleFlags);
+<a name="369"></a>
+<a name="370"></a>        /* if we got a valid handle, we succeeded */
+<a name="371"></a>        return (handle_ != nil);
+<a name="372"></a>    }
+<a name="373"></a>
+<a name="374"></a>    /* create our banner output stream */
+<a name="375"></a>    createOutputStreamObj()
+<a name="376"></a>    {
+<a name="377"></a>        return new transient BannerOutputStream(handle_);
+<a name="378"></a>    }
+<a name="379"></a>
+<a name="380"></a>    /*
+<a name="381"></a>     *   Update my contents after being restored.  By default, this does
+<a name="382"></a>     *   nothing; instances might want to override this to refresh the
+<a name="383"></a>     *   contents of the banner if the banner is normally updated only in
+<a name="384"></a>     *   response to specific events.  Note that it's not necessary to do
+<a name="385"></a>     *   anything here if the banner will soon be updated automatically as
+<a name="386"></a>     *   part of normal processing; for example, the status line banner is
+<a name="387"></a>     *   updated at each new command line via a prompt-daemon, so there's
+<a name="388"></a>     *   no need for the status line banner to do anything here.  
+<a name="389"></a>     */
+<a name="390"></a>    updateForRestore()
+<a name="391"></a>    {
+<a name="392"></a>        /* do nothing by default; subclasses can override as needed */
+<a name="393"></a>    }
+<a name="394"></a>
+<a name="395"></a>    /*
+<a name="396"></a>     *   Initialize the banner window.  This is called during
+<a name="397"></a>     *   initialization (when first starting the game, or when resetting
+<a name="398"></a>     *   with RESTART).  If the banner is to be displayed from the start of
+<a name="399"></a>     *   the game, this can set up the on-screen display.
+<a name="400"></a>     *   
+<a name="401"></a>     *   Note that we might already have an on-screen handle when this is
+<a name="402"></a>     *   called.  This indicates that we're restarting an ongoing session,
+<a name="403"></a>     *   and that this banner already existed in the session before the
+<a name="404"></a>     *   RESTART operation.  If desired, we can attach ourselves to the
+<a name="405"></a>     *   existing on-screen banner, avoiding the redrawing that would occur
+<a name="406"></a>     *   if we created a new window.
+<a name="407"></a>     *   
+<a name="408"></a>     *   If this window depends upon another window for its layout order
+<a name="409"></a>     *   placement (i.e., we'll call showBanner() with another BannerWindow
+<a name="410"></a>     *   given as the 'other' parameter), then this routine should call the
+<a name="411"></a>     *   other window's initBannerWindow() method before creating its own
+<a name="412"></a>     *   window, to ensure that the other window has a system window and
+<a name="413"></a>     *   thus will be meaningful to establish the layout order.
+<a name="414"></a>     *   
+<a name="415"></a>     *   Overriding implementations should check the 'inited_' property.
+<a name="416"></a>     *   If this property is true, then it can be assumed that we've
+<a name="417"></a>     *   already been initialized and don't require further initialization.
+<a name="418"></a>     *   This routine can be called multiple times because dependent
+<a name="419"></a>     *   windows might call us directly, before we're called for our
+<a name="420"></a>     *   regular initialization.  
+<a name="421"></a>     */
+<a name="422"></a>    initBannerWindow()
+<a name="423"></a>    {
+<a name="424"></a>        /* by default, simply note that we've been initialized */
+<a name="425"></a>        inited_ = true;
+<a name="426"></a>    }
+<a name="427"></a>
+<a name="428"></a>    /* flag: this banner has been initialized with initBannerWindow() */
+<a name="429"></a>    inited_ = nil
+<a name="430"></a>
+<a name="431"></a>    /* 
+<a name="432"></a>     *   The creator-assigned ID string to identify the banner
+<a name="433"></a>     *   persistently.  This is only needed for banners created
+<a name="434"></a>     *   dynamically; for BannerWindow objects defined statically at
+<a name="435"></a>     *   compile time, simply leave this value as nil, and we'll use the
+<a name="436"></a>     *   object itself as the identifier.  
+<a name="437"></a>     */
+<a name="438"></a>    id_ = nil
+<a name="439"></a>
+<a name="440"></a>    /* the handle to my system-level banner window */
+<a name="441"></a>    handle_ = nil
+<a name="442"></a>
+<a name="443"></a>    /* 
+<a name="444"></a>     *   Creation parameters.  We store these when we create the banner,
+<a name="445"></a>     *   and update them as needed when the banner's display attributes
+<a name="446"></a>     *   are changed.  
+<a name="447"></a>     */
+<a name="448"></a>    parentID_ = nil
+<a name="449"></a>    windowType_ = nil
+<a name="450"></a>    align_ = nil
+<a name="451"></a>    size_ = nil
+<a name="452"></a>    sizeUnits_ = nil
+<a name="453"></a>    styleFlags_ = nil
+<a name="454"></a>;
+<a name="455"></a>
+<a name="456"></a>/* ------------------------------------------------------------------------ */
+<a name="457"></a>/*
+<a name="458"></a> *   Banner Output Stream.  This is a specialization of OutputStream that
+<a name="459"></a> *   writes to a banner window.  
+<a name="460"></a> */
+<a name="461"></a>class BannerOutputStream: OutputStream
+<a name="462"></a>    /* construct */
+<a name="463"></a>    construct(handle)
+<a name="464"></a>    {
+<a name="465"></a>        /* inherit base class constructor */
+<a name="466"></a>        inherited();
+<a name="467"></a>        
+<a name="468"></a>        /* remember my banner window handle */
+<a name="469"></a>        handle_ = handle;
+<a name="470"></a>    }
+<a name="471"></a>
+<a name="472"></a>    /* execute preinitialization */
+<a name="473"></a>    execute()
+<a name="474"></a>    {
+<a name="475"></a>        /*
+<a name="476"></a>         *   We shouldn't need to do anything during pre-initialization,
+<a name="477"></a>         *   since we should always be constructed dynamically by a
+<a name="478"></a>         *   BannerWindow.  Don't even inherit the base class
+<a name="479"></a>         *   initialization, since it could clear out state that we want to
+<a name="480"></a>         *   keep through a restart, restore, etc.  
+<a name="481"></a>         */
+<a name="482"></a>    }
+<a name="483"></a>
+<a name="484"></a>    /* write text from the stream to the interpreter I/O system */
+<a name="485"></a>    writeFromStream(txt)
+<a name="486"></a>    {
+<a name="487"></a>        /* write the text to the underlying system banner window */
+<a name="488"></a>        bannerSay(handle_, txt);
+<a name="489"></a>    }
+<a name="490"></a>
+<a name="491"></a>    /* our system-level banner window handle */
+<a name="492"></a>    handle_ = nil
+<a name="493"></a>;
+<a name="494"></a>
+<a name="495"></a>
+<a name="496"></a>/* ------------------------------------------------------------------------ */
+<a name="497"></a>/*
+<a name="498"></a> *   The banner UI tracker.  This object keeps track of the current user
+<a name="499"></a> *   interface display state; this object is transient because the
+<a name="500"></a> *   interpreter's user interface is not part of the persistence
+<a name="501"></a> *   mechanism.  
+<a name="502"></a> */
+<a name="503"></a>transient bannerUITracker: object
+<a name="504"></a>    /* add a banner to the active display list */
+<a name="505"></a>    addBanner(handle, ostr, id, parentID, where, other,
+<a name="506"></a>              windowType, align, styleFlags)
+<a name="507"></a>    {
+<a name="508"></a>        local uiWin;
+<a name="509"></a>        local parIdx;
+<a name="510"></a>        local idx;
+<a name="511"></a>
+<a name="512"></a>        /* create a transient BannerUIWindow object to track the banner */
+<a name="513"></a>        uiWin = new transient BannerUIWindow(handle, ostr, id, parentID,
+<a name="514"></a>                                             windowType, align, styleFlags);
+<a name="515"></a>
+<a name="516"></a>        /* 
+<a name="517"></a>         *   Find the parent in the list.  If there's no parent, the
+<a name="518"></a>         *   parent is the main window; consider it to be at imaginary
+<a name="519"></a>         *   index zero in the list. 
+<a name="520"></a>         */
+<a name="521"></a>        parIdx = (parentID == nil
+<a name="522"></a>                  ? 0 : activeBanners_.indexWhich({x: x.id_ == parentID}));
+<a name="523"></a>
+<a name="524"></a>        /* insert the banner at the proper point in our list */
+<a name="525"></a>        switch(where)
+<a name="526"></a>        {
+<a name="527"></a>        case BannerFirst:
+<a name="528"></a>            /* 
+<a name="529"></a>             *   insert as the first child of the parent - put it
+<a name="530"></a>             *   immediately after the parent in the list 
+<a name="531"></a>             */
+<a name="532"></a>            activeBanners_.insertAt(parIdx + 1, uiWin);
+<a name="533"></a>            break;
+<a name="534"></a>
+<a name="535"></a>        case BannerLast:
+<a name="536"></a>        ins_last:
+<a name="537"></a>            /* 
+<a name="538"></a>             *   Insert as the last child of the parent: insert
+<a name="539"></a>             *   immediately after the last window that descends from the
+<a name="540"></a>             *   parent.  
+<a name="541"></a>             */
+<a name="542"></a>            activeBanners_.insertAt(skipDescendants(parIdx), uiWin);
+<a name="543"></a>            break;
+<a name="544"></a>
+<a name="545"></a>        case BannerBefore:
+<a name="546"></a>        case BannerAfter:
+<a name="547"></a>            /* find the reference point ID in our list */
+<a name="548"></a>            idx = activeBanners_.indexWhich(
+<a name="549"></a>                {x: x.id_ == other.getBannerID()});
+<a name="550"></a>
+<a name="551"></a>            /* 
+<a name="552"></a>             *   if we didn't find the reference point, or the reference
+<a name="553"></a>             *   point item doesn't have the same parent as the new item,
+<a name="554"></a>             *   then ignore the reference point and instead insert at the
+<a name="555"></a>             *   end of the parent's child list 
+<a name="556"></a>             */
+<a name="557"></a>            if (idx == nil || activeBanners_[idx].parentID_ != parentID)
+<a name="558"></a>                goto ins_last;
+<a name="559"></a>
+<a name="560"></a>            /* 
+<a name="561"></a>             *   if inserting after, skip the reference item and all
+<a name="562"></a>             *   of its descendants 
+<a name="563"></a>             */
+<a name="564"></a>            if (where == BannerAfter)
+<a name="565"></a>                idx = skipDescendants(idx);
+<a name="566"></a>
+<a name="567"></a>            /* insert at the position we found */
+<a name="568"></a>            activeBanners_.insertAt(idx, uiWin);
+<a name="569"></a>            break;
+<a name="570"></a>        }
+<a name="571"></a>    }
+<a name="572"></a>
+<a name="573"></a>    /*
+<a name="574"></a>     *   Given an index in our list of active windows, skip the given item
+<a name="575"></a>     *   and all items whose windows are descended from this window.
+<a name="576"></a>     *   We'll leave the index positioned on the next entry in the list
+<a name="577"></a>     *   that isn't a descendant of the window at the given index.  Note
+<a name="578"></a>     *   that this skips not only children but grandchildren (and so on)
+<a name="579"></a>     *   as well.  
+<a name="580"></a>     */
+<a name="581"></a>    skipDescendants(idx)
+<a name="582"></a>    {
+<a name="583"></a>        local parentID;
+<a name="584"></a>
+<a name="585"></a>        /* 
+<a name="586"></a>         *   if the index is zero, it's the main window; all windows are
+<a name="587"></a>         *   children of the root window, so return the next index after
+<a name="588"></a>         *   the last item 
+<a name="589"></a>         */
+<a name="590"></a>        if (idx == 0)
+<a name="591"></a>            return activeBanners_.length() + 1;
+<a name="592"></a>
+<a name="593"></a>        /* note ID of the parent item */
+<a name="594"></a>        parentID = activeBanners_[idx].id_;
+<a name="595"></a>        
+<a name="596"></a>        /* skip the parent item */
+<a name="597"></a>        ++idx;
+<a name="598"></a>
+<a name="599"></a>        /* keep going as long as we see children of the parent */
+<a name="600"></a>        while (idx &lt;= activeBanners_.length()
+<a name="601"></a>               &amp;&amp; activeBanners_[idx].parentID_ == parentID)
+<a name="602"></a>        {
+<a name="603"></a>            /* 
+<a name="604"></a>             *   This is a child of the given parent, so we must skip it;
+<a name="605"></a>             *   we must also skip its descendants, since they're all
+<a name="606"></a>             *   indirectly descendants of the original parent.  So,
+<a name="607"></a>             *   simply skip this item and its descendants with a
+<a name="608"></a>             *   recursive call to this routine.
+<a name="609"></a>             */
+<a name="610"></a>            idx = skipDescendants(idx);
+<a name="611"></a>        }
+<a name="612"></a>
+<a name="613"></a>        /* return the new index */
+<a name="614"></a>        return idx;
+<a name="615"></a>    }
+<a name="616"></a>
+<a name="617"></a>    /* remove a banner from the active display list */
+<a name="618"></a>    removeBanner(id)
+<a name="619"></a>    {
+<a name="620"></a>        local idx;
+<a name="621"></a>
+<a name="622"></a>        /* find the entry with the given ID, and remove it */
+<a name="623"></a>        if ((idx = activeBanners_.indexWhich({x: x.id_ == id})) != nil)
+<a name="624"></a>        {
+<a name="625"></a>            local lastIdx;
+<a name="626"></a>            
+<a name="627"></a>            /* 
+<a name="628"></a>             *   After removing an item, its children are no longer
+<a name="629"></a>             *   displayable, because a child obtains display space from
+<a name="630"></a>             *   its parent.  So, we must remove any children of this item
+<a name="631"></a>             *   at the same time we remove the item itself.  Find the
+<a name="632"></a>             *   index of the next item after all of our descendants, so
+<a name="633"></a>             *   that we can remove the item and its children all at once.
+<a name="634"></a>             *   An item and its descendants are always contiguous in our
+<a name="635"></a>             *   list, since we store children immediately after their
+<a name="636"></a>             *   parents, so we can simply remove the range of items from
+<a name="637"></a>             *   the specified item to its last descendant.
+<a name="638"></a>             *   
+<a name="639"></a>             *   Note that skipDescendants() returns the index of the
+<a name="640"></a>             *   first item that is NOT a descendant; so, decrement the
+<a name="641"></a>             *   result so that we end up with the index of the last
+<a name="642"></a>             *   descendant.  
+<a name="643"></a>             */
+<a name="644"></a>            lastIdx = skipDescendants(idx) - 1;
+<a name="645"></a>
+<a name="646"></a>            /* remove the item and all of its children */
+<a name="647"></a>            activeBanners_.removeRange(idx, lastIdx);
+<a name="648"></a>        }
+<a name="649"></a>    }
+<a name="650"></a>
+<a name="651"></a>    /* get the BannerUIWindow tracker object for a given BannerWindow */
+<a name="652"></a>    getTracker(win)
+<a name="653"></a>    {
+<a name="654"></a>        local id;
+<a name="655"></a>
+<a name="656"></a>        /* get the window's ID */
+<a name="657"></a>        id = win.getBannerID();
+<a name="658"></a>        
+<a name="659"></a>        /* return the tracker with the same ID as the given BannerWindow */
+<a name="660"></a>        return activeBanners_.valWhich({x: x.id_ == id});
+<a name="661"></a>    }
+<a name="662"></a>
+<a name="663"></a>    /* check a BannerUIWindow to see if it matches the given layout order */
+<a name="664"></a>    orderMatches(uiWin, where, otherID)
+<a name="665"></a>    {
+<a name="666"></a>        local idx;
+<a name="667"></a>        local otherIdx;
+<a name="668"></a>        local parentID;
+<a name="669"></a>        local parIdx;
+<a name="670"></a>
+<a name="671"></a>        /* get the list index of the given window */
+<a name="672"></a>        idx = activeBanners_.indexOf(uiWin);
+<a name="673"></a>
+<a name="674"></a>        /* get the list index of the reference point window */
+<a name="675"></a>        otherIdx = (otherID != nil
+<a name="676"></a>                    ? activeBanners_.indexWhich({x: x.id_ == otherID}) : nil);
+<a name="677"></a>
+<a name="678"></a>        /* 
+<a name="679"></a>         *   find the parent item (using imaginary index zero for the
+<a name="680"></a>         *   root, which we can think of as being just before the first
+<a name="681"></a>         *   item in the list)
+<a name="682"></a>         */
+<a name="683"></a>        parentID = uiWin.parentID_;
+<a name="684"></a>        parIdx = (parentID == nil
+<a name="685"></a>                  ? 0 : activeBanners_.indexWhich({x: x.id_ == parentID}));
+<a name="686"></a>
+<a name="687"></a>        /* 
+<a name="688"></a>         *   if 'other' is specified, it has to have our same parent; if
+<a name="689"></a>         *   it has a different parent, it's not a match 
+<a name="690"></a>         */
+<a name="691"></a>        if (otherID != nil &amp;&amp; parentID != activeBanners_[otherIdx].parentID_)
+<a name="692"></a>            return nil;
+<a name="693"></a>
+<a name="694"></a>        /* 
+<a name="695"></a>         *   if there's no such window in the list, it can't match the
+<a name="696"></a>         *   given placement no matter what the given placement is, as it
+<a name="697"></a>         *   has no placement 
+<a name="698"></a>         */
+<a name="699"></a>        if (idx == nil)
+<a name="700"></a>            return nil;
+<a name="701"></a>        
+<a name="702"></a>        /* check the requested layout order */
+<a name="703"></a>        switch (where)
+<a name="704"></a>        {
+<a name="705"></a>        case BannerFirst:
+<a name="706"></a>            /* make sure it's immediately after the parent */
+<a name="707"></a>            return idx == parIdx + 1;
+<a name="708"></a>
+<a name="709"></a>        case BannerLast:
+<a name="710"></a>            /* 
+<a name="711"></a>             *   Make sure it's the last child of the parent.  To do this,
+<a name="712"></a>             *   make sure that the next item after this item's last
+<a name="713"></a>             *   descendant is the same as the next item after the
+<a name="714"></a>             *   parent's last descendant. 
+<a name="715"></a>             */
+<a name="716"></a>            return skipDescendants(idx) == skipDescendants(parIdx);
+<a name="717"></a>
+<a name="718"></a>        case BannerBefore:
+<a name="719"></a>            /* 
+<a name="720"></a>             *   we want this item to come before 'other', so make sure
+<a name="721"></a>             *   the next item after all of this item's descendants is
+<a name="722"></a>             *   'other' 
+<a name="723"></a>             */
+<a name="724"></a>            return skipDescendants(idx) == otherIdx;
+<a name="725"></a>
+<a name="726"></a>        case BannerAfter:
+<a name="727"></a>            /* 
+<a name="728"></a>             *   we want this item to come just after 'other', so make
+<a name="729"></a>             *   sure that the next item after all of the descendants of
+<a name="730"></a>             *   'other' is this item 
+<a name="731"></a>             */
+<a name="732"></a>            return skipDescendants(otherIdx) == idx;
+<a name="733"></a>
+<a name="734"></a>        default:
+<a name="735"></a>            /* other layout orders are invalid */
+<a name="736"></a>            return nil;
+<a name="737"></a>        }
+<a name="738"></a>    }
+<a name="739"></a>
+<a name="740"></a>    /*
+<a name="741"></a>     *   The vector of banners currently on the screen.  This is a list of
+<a name="742"></a>     *   transient BannerUIWindow objects, stored in the same order as the
+<a name="743"></a>     *   banner layout list.  
+<a name="744"></a>     */
+<a name="745"></a>    activeBanners_ = static new transient Vector(32)
+<a name="746"></a>;
+<a name="747"></a>
+<a name="748"></a>/*
+<a name="749"></a> *   A BannerUIWindow object.  This keeps track of the transient UI state
+<a name="750"></a> *   of a banner window while it appears on the screen.  We create only
+<a name="751"></a> *   transient instances of this class, since it tracks what's actually
+<a name="752"></a> *   displayed at any given time.  
+<a name="753"></a> */
+<a name="754"></a>class BannerUIWindow: object
+<a name="755"></a>    /* construct */
+<a name="756"></a>    construct(handle, ostr, id, parentID, windowType, align, styleFlags)
+<a name="757"></a>    {
+<a name="758"></a>        /* remember the banner's data */
+<a name="759"></a>        handle_ = handle;
+<a name="760"></a>        outputStream_ = ostr;
+<a name="761"></a>        id_ = id;
+<a name="762"></a>        parentID_ = parentID;
+<a name="763"></a>        windowType_ = windowType;
+<a name="764"></a>        align_ = align;
+<a name="765"></a>        styleFlags_ = styleFlags;
+<a name="766"></a>    }
+<a name="767"></a>
+<a name="768"></a>    /* the system-level banner handle */
+<a name="769"></a>    handle_ = nil
+<a name="770"></a>
+<a name="771"></a>    /* the banner's ID */
+<a name="772"></a>    id_ = nil
+<a name="773"></a>
+<a name="774"></a>    /* the parent banner's ID (nil if this is a top-level banner) */
+<a name="775"></a>    parentID_ = nil
+<a name="776"></a>
+<a name="777"></a>    /* 
+<a name="778"></a>     *   The banner's output stream.  Output streams are always transient,
+<a name="779"></a>     *   so hang on to each active banner's stream so that we can plug it
+<a name="780"></a>     *   back in on restore. 
+<a name="781"></a>     */
+<a name="782"></a>    outputStream_ = nil
+<a name="783"></a>
+<a name="784"></a>    /* creation parameters of the banner */
+<a name="785"></a>    windowType_ = nil
+<a name="786"></a>    align_ = nil
+<a name="787"></a>    styleFlags_ = nil
+<a name="788"></a>
+<a name="789"></a>    /* 
+<a name="790"></a>     *   Scratch-pad for our association to our BannerWindow object.  We
+<a name="791"></a>     *   only use this during the RESTORE process, to tie the transient
+<a name="792"></a>     *   object back to the proper persistent object. 
+<a name="793"></a>     */
+<a name="794"></a>    win_ = nil
+<a name="795"></a>;
+<a name="796"></a>
+<a name="797"></a>/*
+<a name="798"></a> *   The persistent banner tracker.  This keeps track of the active banner
+<a name="799"></a> *   windows persistently.  Whenever we save or restore the game's state,
+<a name="800"></a> *   this object will be saved or restored along with the state.  When we
+<a name="801"></a> *   restore a previously saved state, we can look at this object to
+<a name="802"></a> *   determine which banners were active at the time the state was saved,
+<a name="803"></a> *   and use this information to restore the same active banners in the
+<a name="804"></a> *   user interface.
+<a name="805"></a> *   
+<a name="806"></a> *   This is a post-restore and post-undo object, so we're notified via our
+<a name="807"></a> *   execute() method whenever we restore a saved state using RESTORE or
+<a name="808"></a> *   UNDO.  When we restore a saved state, we'll restore the banner display
+<a name="809"></a> *   conditions as they existed in the saved state.  
+<a name="810"></a> */
+<a name="811"></a>bannerTracker: PostRestoreObject, PostUndoObject
+<a name="812"></a>    /* add a banner to the active display list */
+<a name="813"></a>    addBanner(win, parent, where, other)
+<a name="814"></a>    {
+<a name="815"></a>        local parIdx;
+<a name="816"></a>        local otherIdx;
+<a name="817"></a>        
+<a name="818"></a>        /* 
+<a name="819"></a>         *   Don't add it if it's already in the list.  If we're restoring
+<a name="820"></a>         *   the banner from persistent state, it'll already be in the
+<a name="821"></a>         *   active list, since the active list is the set of windows
+<a name="822"></a>         *   we're restoring in the first place. 
+<a name="823"></a>         */
+<a name="824"></a>        if (activeBanners_.indexOf(win) != nil)
+<a name="825"></a>            return;
+<a name="826"></a>
+<a name="827"></a>        /* find the parent among the existing windows */
+<a name="828"></a>        parIdx = (parent == nil ? 0 : activeBanners_.indexOf(parent));
+<a name="829"></a>
+<a name="830"></a>        /* note the index of 'other' */
+<a name="831"></a>        otherIdx = (other == nil ? nil : activeBanners_.indexOf(other));
+<a name="832"></a>
+<a name="833"></a>        /* insert the banner at the proper point in our list */
+<a name="834"></a>        switch(where)
+<a name="835"></a>        {
+<a name="836"></a>        case BannerFirst:
+<a name="837"></a>            /* insert immediately after the parent */
+<a name="838"></a>            activeBanners_.insertAt(parIdx + 1, win);
+<a name="839"></a>            break;
+<a name="840"></a>
+<a name="841"></a>        case BannerLast:
+<a name="842"></a>        ins_last:
+<a name="843"></a>            /* insert after the parent's last descendant */
+<a name="844"></a>            activeBanners_.insertAt(skipDescendants(parIdx), win);
+<a name="845"></a>            break;
+<a name="846"></a>
+<a name="847"></a>        case BannerBefore:
+<a name="848"></a>        case BannerAfter:
+<a name="849"></a>            /* 
+<a name="850"></a>             *   if we didn't find the reference point, insert at the end
+<a name="851"></a>             *   of the parent's child list 
+<a name="852"></a>             */
+<a name="853"></a>            if (otherIdx == nil)
+<a name="854"></a>                goto ins_last;
+<a name="855"></a>
+<a name="856"></a>            /* 
+<a name="857"></a>             *   if inserting after, skip the reference item and all of
+<a name="858"></a>             *   its descendants 
+<a name="859"></a>             */
+<a name="860"></a>            if (where == BannerAfter)
+<a name="861"></a>                otherIdx = skipDescendants(otherIdx);
+<a name="862"></a>
+<a name="863"></a>            /* insert at the position we found */
+<a name="864"></a>            activeBanners_.insertAt(otherIdx, win);
+<a name="865"></a>            break;
+<a name="866"></a>        }
+<a name="867"></a>    }
+<a name="868"></a>
+<a name="869"></a>    /*
+<a name="870"></a>     *   Skip all descendants of the window at the given index. 
+<a name="871"></a>     */
+<a name="872"></a>    skipDescendants(idx)
+<a name="873"></a>    {
+<a name="874"></a>        local parentID;
+<a name="875"></a>
+<a name="876"></a>        /* index zero is the root item, so skip the entire list */
+<a name="877"></a>        if (idx == 0)
+<a name="878"></a>            return activeBanners_.length() + 1;
+<a name="879"></a>        
+<a name="880"></a>        /* note the parent item */
+<a name="881"></a>        parentID = activeBanners_[idx].getBannerID();
+<a name="882"></a>
+<a name="883"></a>        /* skip the parent item */
+<a name="884"></a>        ++idx;
+<a name="885"></a>
+<a name="886"></a>        /* keep going as long as we see children of the parent */
+<a name="887"></a>        while (idx &lt; activeBanners_.length()
+<a name="888"></a>               &amp;&amp; activeBanners_[idx].parentID_ == parentID)
+<a name="889"></a>        {
+<a name="890"></a>            /* this is a child, so skip it and all of its descendants */
+<a name="891"></a>            idx = skipDescendants(idx);
+<a name="892"></a>        }
+<a name="893"></a>
+<a name="894"></a>        /* return the new index */
+<a name="895"></a>        return idx;
+<a name="896"></a>    }
+<a name="897"></a>
+<a name="898"></a>    /* remove a banner from the active list */
+<a name="899"></a>    removeBanner(win)
+<a name="900"></a>    {
+<a name="901"></a>        local idx;
+<a name="902"></a>        local lastIdx;
+<a name="903"></a>
+<a name="904"></a>        /* get the index of the item to remove */
+<a name="905"></a>        idx = activeBanners_.indexOf(win);
+<a name="906"></a>
+<a name="907"></a>        /* if we didn't find it, ignore the request */
+<a name="908"></a>        if (idx == nil)
+<a name="909"></a>            return;
+<a name="910"></a>
+<a name="911"></a>        /* find the index of its last descendant */
+<a name="912"></a>        lastIdx = skipDescendants(idx) - 1;
+<a name="913"></a>
+<a name="914"></a>        /* 
+<a name="915"></a>         *   remove the item and all of its descendants - child items
+<a name="916"></a>         *   cannot be displayed once their parents are gone, so we can
+<a name="917"></a>         *   remove all of this item's children, all of their children,
+<a name="918"></a>         *   and so on, as they are becoming undisplayable 
+<a name="919"></a>         */
+<a name="920"></a>        activeBanners_.removeRange(idx, lastIdx);
+<a name="921"></a>    }
+<a name="922"></a>
+<a name="923"></a>    /*
+<a name="924"></a>     *   The list of active banners.  This is a list of BannerWindow
+<a name="925"></a>     *   objects, stored in banner layout list order. 
+<a name="926"></a>     */
+<a name="927"></a>    activeBanners_ = static new Vector(32)
+<a name="928"></a>
+<a name="929"></a>    /* receive RESTORE/UNDO notification */
+<a name="930"></a>    execute()
+<a name="931"></a>    {
+<a name="932"></a>        /* restore the display state for a non-initial state */
+<a name="933"></a>        restoreDisplayState(nil);
+<a name="934"></a>    }
+<a name="935"></a>
+<a name="936"></a>    /*
+<a name="937"></a>     *   Restore the saved banner display state, so that the banner layout
+<a name="938"></a>     *   looks the same as it did when we saved the persistent state.  This
+<a name="939"></a>     *   should be called after restoring a saved state, undoing to a
+<a name="940"></a>     *   savepoint, or initializing (when first starting the game or when
+<a name="941"></a>     *   restarting).
+<a name="942"></a>     */
+<a name="943"></a>    restoreDisplayState(initing)
+<a name="944"></a>    {
+<a name="945"></a>        local uiVec;
+<a name="946"></a>        local uiIdx;
+<a name="947"></a>        local origActive;
+<a name="948"></a>
+<a name="949"></a>        /* get the list of banners active in the UI */
+<a name="950"></a>        uiVec = bannerUITracker.activeBanners_;
+<a name="951"></a>
+<a name="952"></a>        /*
+<a name="953"></a>         *   First, go through all of the persistent BannerWindow objects.
+<a name="954"></a>         *   For each one whose ID shows up in the active UI display list,
+<a name="955"></a>         *   tell the BannerWindow object its current UI handle.  
+<a name="956"></a>         */
+<a name="957"></a>        forEachInstance(BannerWindow, function(cur)
+<a name="958"></a>        {
+<a name="959"></a>            local uiCur;
+<a name="960"></a>            
+<a name="961"></a>            /* find this banner in the active UI list */
+<a name="962"></a>            uiCur = uiVec.valWhich({x: x.id_ == cur.getBannerID()});
+<a name="963"></a>
+<a name="964"></a>            /* 
+<a name="965"></a>             *   if the window exists in the active UI list, note the
+<a name="966"></a>             *   current system handle for the window; otherwise, we have
+<a name="967"></a>             *   no system window, so set the handle to nil 
+<a name="968"></a>             */
+<a name="969"></a>            if (uiCur != nil)
+<a name="970"></a>            {
+<a name="971"></a>                /* note the current system banner handle */
+<a name="972"></a>                cur.handle_ = uiCur.handle_;
+<a name="973"></a>
+<a name="974"></a>                /* re-establish the banner's active output stream */
+<a name="975"></a>                cur.outputStream_ = uiCur.outputStream_;
+<a name="976"></a>
+<a name="977"></a>                /* tie the transient record to the current 'cur' */
+<a name="978"></a>                uiCur.win_ = cur;
+<a name="979"></a>            }
+<a name="980"></a>            else
+<a name="981"></a>            {
+<a name="982"></a>                /* it's not shown, so it has no system banner handle */
+<a name="983"></a>                cur.handle_ = nil;
+<a name="984"></a>
+<a name="985"></a>                /* it has no output stream */
+<a name="986"></a>                cur.outputStream_ = nil;
+<a name="987"></a>            }
+<a name="988"></a>        });
+<a name="989"></a>
+<a name="990"></a>        /* 
+<a name="991"></a>         *   
+<a name="992"></a>         *   'initing' indicates whether we're initializing (startup or
+<a name="993"></a>         *   RESTART) or doing something else (RESTORE, UNDO).  When
+<a name="994"></a>         *   initializing, if there are any banners on-screen, we'll give
+<a name="995"></a>         *   their associated BannerWindow objects (if any) a chance to set
+<a name="996"></a>         *   up their initial conditions; this allows us to avoid
+<a name="997"></a>         *   unnecessary redrawing if we have banners that we'd immediately
+<a name="998"></a>         *   set up to the same conditions anyway, since we can just keep
+<a name="999"></a>         *   the existing banners rather than removing and re-creating
+<a name="1000"></a>         *   them.
+<a name="1001"></a>         *   
+<a name="1002"></a>         *   So, if we're initializing, tell each banner that it's time to
+<a name="1003"></a>         *   set up its initial display.  
+<a name="1004"></a>         */
+<a name="1005"></a>        if (initing)
+<a name="1006"></a>            forEachInstance(BannerWindow, {cur: cur.initBannerWindow()});
+<a name="1007"></a>
+<a name="1008"></a>        /* 
+<a name="1009"></a>         *   scan the active UI list, and close each window that isn't
+<a name="1010"></a>         *   still open in the saved state 
+<a name="1011"></a>         */
+<a name="1012"></a>        foreach (local uiCur in uiVec)
+<a name="1013"></a>        {
+<a name="1014"></a>            /* if this window isn't in the active list, close it */
+<a name="1015"></a>            if (activeBanners_.indexWhich(
+<a name="1016"></a>                {x: x.getBannerID() == uiCur.id_}) == nil)
+<a name="1017"></a>            {
+<a name="1018"></a>                /*
+<a name="1019"></a>                 *   There's no banner in the persistent list with this
+<a name="1020"></a>                 *   ID, so this window is not part of the state we're
+<a name="1021"></a>                 *   restoring.  Close the window.  If we have an
+<a name="1022"></a>                 *   associated BannerWindow object, close through the
+<a name="1023"></a>                 *   window object; otherwise, close the system handle
+<a name="1024"></a>                 *   directly.  
+<a name="1025"></a>                 */
+<a name="1026"></a>                if (uiCur.win_ != nil)
+<a name="1027"></a>                {
+<a name="1028"></a>                    /* we have a BannerWindow - close it */
+<a name="1029"></a>                    uiCur.win_.removeBanner();
+<a name="1030"></a>                }
+<a name="1031"></a>                else
+<a name="1032"></a>                {
+<a name="1033"></a>                    /* there's no BannerWindow - close the system window */
+<a name="1034"></a>                    bannerDelete(uiCur.handle_);
+<a name="1035"></a>
+<a name="1036"></a>                    /* remove the UI tracker object */
+<a name="1037"></a>                    uiVec.removeElement(uiCur);
+<a name="1038"></a>                }
+<a name="1039"></a>            }
+<a name="1040"></a>        }
+<a name="1041"></a>
+<a name="1042"></a>        /* start at the first banner actually displayed right now */
+<a name="1043"></a>        uiIdx = 1;
+<a name="1044"></a>
+<a name="1045"></a>        /* 
+<a name="1046"></a>         *   make a copy of the original active list - we might modify the
+<a name="1047"></a>         *   actual active list in the course of restoring things, so make
+<a name="1048"></a>         *   a copy that we can refer to as we reconstruct the original
+<a name="1049"></a>         *   list 
+<a name="1050"></a>         */
+<a name="1051"></a>        origActive = activeBanners_.toList();
+<a name="1052"></a>
+<a name="1053"></a>        /* 
+<a name="1054"></a>         *   Scan the saved list of banners, and restore each one.  Note
+<a name="1055"></a>         *   that by restoring windows in the order in which they appear
+<a name="1056"></a>         *   in the list, we ensure that we always restore a parent before
+<a name="1057"></a>         *   restoring any of its children, since a child always follows
+<a name="1058"></a>         *   its parent in the list.  
+<a name="1059"></a>         */
+<a name="1060"></a>        for (local curIdx = 1, local aLen = origActive.length() ;
+<a name="1061"></a>             curIdx &lt;= aLen ; ++curIdx)
+<a name="1062"></a>        {
+<a name="1063"></a>            local redisp;
+<a name="1064"></a>            local cur;
+<a name="1065"></a>
+<a name="1066"></a>            /* get the current item */
+<a name="1067"></a>            cur = origActive[curIdx];
+<a name="1068"></a>                
+<a name="1069"></a>            /* presume we will have to redisplay this banner */
+<a name="1070"></a>            redisp = true;
+<a name="1071"></a>            
+<a name="1072"></a>            /*
+<a name="1073"></a>             *   If this banner matches the current banner in the active
+<a name="1074"></a>             *   UI display list, and the characteristics match, we need
+<a name="1075"></a>             *   do nothing, as we're already displaying this banner
+<a name="1076"></a>             *   properly.  If the current active UI banner doesn't match,
+<a name="1077"></a>             *   then we need to insert this saved banner at the current
+<a name="1078"></a>             *   active UI position. 
+<a name="1079"></a>             */
+<a name="1080"></a>            if (uiVec.length() &gt;= uiIdx)
+<a name="1081"></a>            {
+<a name="1082"></a>                local uiCur;
+<a name="1083"></a>
+<a name="1084"></a>                /* get this current UI display item (a BannerUIWindow) */
+<a name="1085"></a>                uiCur = uiVec[uiIdx];
+<a name="1086"></a>
+<a name="1087"></a>                /* check for a match to 'cur' */
+<a name="1088"></a>                if (uiCur.id_ == cur.getBannerID()
+<a name="1089"></a>                    &amp;&amp; uiCur.parentID_ == cur.parentID_
+<a name="1090"></a>                    &amp;&amp; uiCur.windowType_ == cur.windowType_
+<a name="1091"></a>                    &amp;&amp; uiCur.align_ == cur.align_
+<a name="1092"></a>                    &amp;&amp; uiCur.styleFlags_ == cur.styleFlags_)
+<a name="1093"></a>                {
+<a name="1094"></a>                    /*
+<a name="1095"></a>                     *   This saved banner ('cur') exactly matches the
+<a name="1096"></a>                     *   active UI banner ('uiCur') at the same position
+<a name="1097"></a>                     *   in the layout list.  Therefore, we do not need to
+<a name="1098"></a>                     *   redisplay 'cur'.
+<a name="1099"></a>                     */
+<a name="1100"></a>                    redisp = nil;
+<a name="1101"></a>                }
+<a name="1102"></a>            }
+<a name="1103"></a>
+<a name="1104"></a>            /* if we need to redisplay 'cur', do so */
+<a name="1105"></a>            if (redisp)
+<a name="1106"></a>            {
+<a name="1107"></a>                local prvIdx;
+<a name="1108"></a>                local where;
+<a name="1109"></a>                local other;
+<a name="1110"></a>                local parent;
+<a name="1111"></a>
+<a name="1112"></a>                /*   
+<a name="1113"></a>                 *   If 'cur' is already being displayed, we must remove
+<a name="1114"></a>                 *   it before showing it anew.  This is the only way to
+<a name="1115"></a>                 *   ensure that we display it with the proper
+<a name="1116"></a>                 *   characteristics, since the characteristics of the
+<a name="1117"></a>                 *   current instance of its window don't match up to what
+<a name="1118"></a>                 *   we want to restore.  
+<a name="1119"></a>                 */
+<a name="1120"></a>                if (cur.handle_ != nil)
+<a name="1121"></a>                    cur.removeBanner();
+<a name="1122"></a>
+<a name="1123"></a>                /*
+<a name="1124"></a>                 *   Figure out how to specify this window's display list
+<a name="1125"></a>                 *   position.  A display list position is always
+<a name="1126"></a>                 *   specified relative to the parent's child list, so
+<a name="1127"></a>                 *   figure out where we go in our parent's list.  Scan
+<a name="1128"></a>                 *   backwards in the active list for the nearest previous
+<a name="1129"></a>                 *   window with the same parent.  If we find one, insert
+<a name="1130"></a>                 *   the new window after that prior sibling; otherwise,
+<a name="1131"></a>                 *   insert as the first child of our parent.  Presume
+<a name="1132"></a>                 *   that we'll fail to find a prior sibling, then search
+<a name="1133"></a>                 *   for it and search for our parent.  
+<a name="1134"></a>                 */
+<a name="1135"></a>                where = BannerFirst;
+<a name="1136"></a>                other = nil;
+<a name="1137"></a>                for (prvIdx = curIdx - 1 ; prvIdx &gt; 0 ; --prvIdx)
+<a name="1138"></a>                {
+<a name="1139"></a>                    local prv;
+<a name="1140"></a>
+<a name="1141"></a>                    /* note this item */
+<a name="1142"></a>                    prv = origActive[prvIdx];
+<a name="1143"></a>                    
+<a name="1144"></a>                    /* 
+<a name="1145"></a>                     *   If this item has our same parent, and we haven't
+<a name="1146"></a>                     *   already found a prior sibling, this is our most
+<a name="1147"></a>                     *   recent prior sibling, so note it.  
+<a name="1148"></a>                     */
+<a name="1149"></a>                    if (where == BannerFirst
+<a name="1150"></a>                        &amp;&amp; prv.parentID_ == cur.parentID_)
+<a name="1151"></a>                    {
+<a name="1152"></a>                        /* insert after this prior sibling */
+<a name="1153"></a>                        where = BannerAfter;
+<a name="1154"></a>                        other = prv;
+<a name="1155"></a>                    }
+<a name="1156"></a>
+<a name="1157"></a>                    /* if this is our parent, note it */
+<a name="1158"></a>                    if (prv.getBannerID() == cur.parentID_)
+<a name="1159"></a>                    {
+<a name="1160"></a>                        /* 
+<a name="1161"></a>                         *   note the parent BannerWindow object - we'll
+<a name="1162"></a>                         *   need it to specify our window display
+<a name="1163"></a>                         *   position 
+<a name="1164"></a>                         */
+<a name="1165"></a>                        parent = prv;
+<a name="1166"></a>
+<a name="1167"></a>                        /* 
+<a name="1168"></a>                         *   Children of a given parent always come after
+<a name="1169"></a>                         *   the parent in the display list, so there's no
+<a name="1170"></a>                         *   possibility of finding another sibling.
+<a name="1171"></a>                         *   There's also obviously no possibility of
+<a name="1172"></a>                         *   finding another parent.  So, our work here is
+<a name="1173"></a>                         *   done; we can stop scanning.
+<a name="1174"></a>                         */
+<a name="1175"></a>                        break;
+<a name="1176"></a>                    }
+<a name="1177"></a>                }
+<a name="1178"></a>                    
+<a name="1179"></a>                /* show the window */
+<a name="1180"></a>                cur.showForRestore(parent, where, other);
+<a name="1181"></a>            }
+<a name="1182"></a>            else
+<a name="1183"></a>            {
+<a name="1184"></a>                /* 
+<a name="1185"></a>                 *   the banner is already showing, so we don't need to
+<a name="1186"></a>                 *   redisplay it; simply notify it that a Restore
+<a name="1187"></a>                 *   operation has taken place so that it can do any
+<a name="1188"></a>                 *   necessary updates 
+<a name="1189"></a>                 */
+<a name="1190"></a>                cur.updateForRestore();
+<a name="1191"></a>            }
+<a name="1192"></a>
+<a name="1193"></a>            /*
+<a name="1194"></a>             *   'cur' should now be displayed, but we might have failed
+<a name="1195"></a>             *   to re-create it.  If we did show the window, we can
+<a name="1196"></a>             *   advance to the next slot in the UI list, since this
+<a name="1197"></a>             *   window will necessarily be at the current spot in the UI
+<a name="1198"></a>             *   list.  
+<a name="1199"></a>             */
+<a name="1200"></a>            if (cur.handle_ != nil)
+<a name="1201"></a>            {
+<a name="1202"></a>                /* 
+<a name="1203"></a>                 *   We know that this window is now the entry in the
+<a name="1204"></a>                 *   active UI list at the current index we're looking at.
+<a name="1205"></a>                 *   Move on to the next position in the active list for
+<a name="1206"></a>                 *   the next saved window.  
+<a name="1207"></a>                 */
+<a name="1208"></a>                ++uiIdx;
+<a name="1209"></a>            }
+<a name="1210"></a>        }
+<a name="1211"></a>    }
+<a name="1212"></a>;
+<a name="1213"></a>
+<a name="1214"></a>/*
+<a name="1215"></a> *   Initialization object - this will be called when we start the game the
+<a name="1216"></a> *   first time or RESTART within a session.  We'll restore the display
+<a name="1217"></a> *   state to the initial conditions. 
+<a name="1218"></a> */
+<a name="1219"></a>bannerInit: InitObject
+<a name="1220"></a>    execute()
+<a name="1221"></a>    {
+<a name="1222"></a>        /* restore banner displays to their initial conditions */
+<a name="1223"></a>        bannerTracker.restoreDisplayState(true);
+<a name="1224"></a>    }
+<a name="1225"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/04/2024 from adv3Lite version 2.0</div>
+</body>
+</html>
