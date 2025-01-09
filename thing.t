@@ -1812,7 +1812,14 @@ class Thing:  ReplaceRedirector, Mentionable
         }         
     }
     
-    
+    /*   
+     *   The name given to this object when it's the container for another object viewed remotely,
+     *   e.g. 'in the distant bucket' as opposed to just 'in the bucket'. By default we just use the
+     *   objInName. Tbis can also be used for situations when the pov and the object being viewed
+     *   are in the same Room but one of them is in a Nested Room.
+     */
+     
+    remoteObjInName(pov) { return objInName; }
     
     /* 
      *   Do we want paragraph breaks between the listings of subcontents (i.e.
@@ -8643,7 +8650,7 @@ class Thing:  ReplaceRedirector, Mentionable
     canPourIntoMe = (contType == In || remapIn != nil)
     
     
-    /*   
+    /*        
      *   While it's possible to pour stuff into any container, we probably don't
      *   want to allow it on most of them
      */

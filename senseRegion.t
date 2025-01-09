@@ -873,12 +873,7 @@ modify Thing
      */
      // remoteSmellDesc(pov) { smellDesc; }
     
-    /*   
-     *   The name given to this object when it's the container for another
-     *   object viewed remotely, e.g. 'in the distant bucket' as opposed to just
-     *   'in the bucket'. By default we just use the objInName.
-     */
-    remoteObjInName(pov) { return objInName; }
+    
     
     
     /* 

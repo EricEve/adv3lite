@@ -416,6 +416,8 @@ class LMentionable: object
     objOutOfName = (objOutOfPrep + ' ' + theName)
     
     
+    
+    
     /*
      *   initVocab() - Parse the 'vocab' string.  This is called during preinit
      *   and on dynamically constructing a new Mentionable, to initialize up the
@@ -3337,7 +3339,7 @@ modify descContentsLister
 modify lookContentsLister
     showListPrefix(lst, pl, parent)
     {
-        "\^<<parent.objInName>> {i} {see} ";
+        "\^<<parent.remoteObjInName(gActor)>> {i} {see} ";
     }
 
     showListSuffix(lst, pl, paraCnt)
