@@ -1169,7 +1169,7 @@ class IAction: Action
              *   Add an output filter to display any pending implicit action
              *   reports before any other text
              */    
-            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            gOutStream.addOutputFilter(ImplicitActionFilter);
             
             /* Carry out the inherited handling. */
             inherited(cmd);
@@ -1181,7 +1181,7 @@ class IAction: Action
              *   Remove the filter that displays pending implicit action
              *   reports.
              */            
-            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }        
     }
     
@@ -1905,7 +1905,7 @@ class TAction: Action
          */            
         try
         {
-            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            gOutStream.addOutputFilter(ImplicitActionFilter);
             
             msg = gOutStream.watchForOutput({: doAction() });
         }
@@ -1913,7 +1913,7 @@ class TAction: Action
         {
             /* Remove any implicit action announcement from the output stream */
 
-            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         
@@ -2362,7 +2362,7 @@ class TIAction: TAction
              *   pending implicit action reports.
              */
             
-            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            gOutStream.addOutputFilter(ImplicitActionFilter);
             
             /* 
              *   Run the action routine on the current direct object and capture
@@ -2401,7 +2401,7 @@ class TIAction: TAction
         {
             /* Remove any implicit action announcement from the output stream */
                        
-            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
        
         /* 

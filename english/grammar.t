@@ -3520,6 +3520,15 @@ VerbRule(SpecialAction)
     missingQ = 'what do you want to do that to'    
 ;
 
+VerbRule(SpecialActionMulti)
+    'sp#acts' multiDobj
+    :VerbProduction
+    action = SpecialAction
+    verbPhrase = 'do/doing that to (what)'
+    missingQ = 'what do you want to do that to'    
+;
+
+
 specialActionPreparser: StringPreParser
     doParsing(str, which)
     {
