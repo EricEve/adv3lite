@@ -287,6 +287,50 @@ study: Room 'Study' 'study'
 <p>Note that in this case we supply '\^' as the prefix string to make sure that the sentence listing the room contents starts with a capital letter.</p>
 <br>
 
+<a name='simpler'>
+<h2>Simpler Customization of Miscellaneous Item Listing</h2>
+<p>There is one customization we can make without needing to use a <code>CustomRoomLister</code>, namely what appears at the end of a list of miscellaneous items in a room description (the miscellaneous items being portable items that are directly in the room and so notionally lying on the ground). By default this is just 'here', but we can change that by overriding the Room's <b>miscListSuffix</b> property, either on individual rooms or on the Room class. For example, if we wanted all such items to be explicitly listed as lying on the ground in every Room we could make the override:</p>
+
+<p><div class="code"><pre>
+modify Room
+    miscListSuffix = 'lying on the ground'
+;
+</pre></div>
+
+<p>And then we'd see listings like "You see A,B and C lying on the ground" instead of "You see A, B and C here."</p>
+
+<p>We can also do this with nested rooms (Booths and Platforms). Suppose one of the rooms in our game is a garden that contains a transparent greenhouse we've implement as a Booth. If the player character drops an item, a floppy hat, say, in the garden and then enters the greenhouse and looks around from there, the room description will include the miscellaneous item listing:</p
+
+<p><div class="cmdline"><pre>
+   You see a floppy hat here.
+</pre></div>
+
+<p>But this is potentially misleading, since it suggests that the floppy hat is in the greenhouse, when it is in fact outside the greenhouse and in the enclosing garden. It would be better if it were listed as:</p>
+
+<p><div class="cmdline"><pre>
+   You see a floppy hat out in the garden.
+</pre></div>
+
+<p>We can achieve that by defining the greenhouse's <code>miscListSuffix</code> property as 'out in the garden', which means that when we look around from within the greenhouse anything outside the greenhouse and directly in the garden will be listed appropriately as being "out in the garden." Just to emphasize the point, we use <code>miscListSuffix</code> on an object not to customize how items listed <i>inside</i> the object (in this example, the greenhouse) are listed, but to customize how items located directly in the enclosing Room are listed from the perspective of someone inside the object (here, the greenhouse).</p>
+
+<p>Now suppose that in addition to the greenhouse we had a garden shed and a coal bunker also defined as Booths in the garden, and we wanted any miscellaneous items directly in the garden to be listed as being "out in the garden" from the perspective of all three Booths. We could repeat the definition of <code>miscListSuffix</code> on all three Booths, but an alternative would be to use the <b>getMiscListSuffix(pov)</b> method of the enclosing room.</p>
+
+<p><div class="code"><pre>
+garden Room 'Garden'
+   "Amongst other things in this garden you see a greenouse, a small garden shed, and a coal bunker. "
+ 
+    getMiscListSuffix(pov)
+    {
+        if(pov.isIn(greenhouse) || pov.isIn(shed) || pov.isIn(coalBunker))
+            return 'out in the garden';		
+        return 'lying on the ground';
+    }    
+;
+</pre></div>
+
+<p>The <code>getMiscListSuffix(pov)</code> method is defined on the Thing class, so we <i>could</i> use it on any Booths and Platforms in our Room, but it is probably best used (if at all) on the outermost Room. You <i>can</i> mix and match both approaches, but you then need to take care that they don't interfere with each other. What <code>getMiscListSuffix(pov)</code> does is to call <code>getMiscListSuffix(pov)</code> on its location  until it either reaches the outermost Room or an object with a non-nil <code>miscListSuffix</code> property , in which case it uses that <code>miscListSuffix</code> property.</p>
+<br>
+
 <h2><a name="further">Further Listing Options</a></h2>
 
 <p>Consider the original version of the study room definition which resulted in a listing like:</p>
@@ -375,6 +419,9 @@ On the desk you see a blue book and a glass case (in which is a red box). In the
 
 <p>For further information on listing options, see the chapter on <a href="lister.htm">Lists and Listers</a>.</p>
 
+
+
+<b>
 <h2><a name="whatlisted">Determining What's Listed</a></h2>
 
 <p>Various (true or nil) properties are available to customize which items are actually included in the listing of an item's contents, whether in a room listing, or in response to an EXAMINE, INVENTORY or SEARCH command.</p>

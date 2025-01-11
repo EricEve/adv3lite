@@ -2271,6 +2271,31 @@ modify Thing
         return theName;
     }
     
+    /* 
+     *   Get the list suffix for miscellaneous items within our Room when the actor (usually the
+     *   player character) is inside this Thing. If the misxListSuffix is defined (non-nil) on this
+     *   Thing, or if our location is nil (presumaby because we're a Room rather than some kind of
+     *   nested room). then return our miscListSuffix.
+     *
+     *   We do it this way to allow game code to either customize our misc list suffix (which, by
+     *   default, is just 'here' on the actor's location (if it's a nested room) or on the actor's
+     *   Room, in which caas the pov parameter can be used to vary the suffix according to the
+     *   actor's lcoation (which may save work if, for example, the room contains several booths and
+     *   we want the same prefix for eacn one).
+     */
+    getMiscListSuffix(pov)
+    {
+        return miscListSuffix || location == nil ? miscListSuffix :
+        location.getMiscListSuffix(pov);  
+        
+    }
+    
+    /* 
+     *   The suffix to display at the end of a list of the miscellaneous items directly in our room
+     *   , e.g. 'lying on the floor' would customize llst to "You see X, Y, and Z lying on the
+     *   floor" instead of the defauult "!You see X, Y, and Z here."
+     */
+    miscListSuffix = nil
 ;
 
 
@@ -2302,6 +2327,13 @@ modify Room
      *   By default we do.
      */
     autoName = true
+    
+    /* 
+     *   By default the list suffix for items directly in a Room is simply 'here'. This can be
+     *   changed for individual Rooms or overrideen on the Room class. or by overriding the Room's
+     *   getMiscListSuffix(pove) method, or by using a CustomMessages object.
+     */
+    miscListSuffix = BMsg(misc list suffix, '{here}');
 ;
 
 
@@ -3158,9 +3190,14 @@ modify lookLister
         "{I} {can} see ";
     }
     
-    showListSuffix(lst, pl, paraCnt)
-    {
-        " {here}.";
+    /* 
+     *   We obtain the list suffix from the suffix the actor's (usually the player character's)
+     *   location wants us to use to allow customization to something that might be appropriate than
+     *   the default 'here'.
+     */
+    showListSuffix(lst, pl, paraCnt)    {
+        
+        " <<gActor.location.getMiscListSuffix(gActor)>>.";
     }
     
     showSubListing = (gameMain.useParentheticalListing)
