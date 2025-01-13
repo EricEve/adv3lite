@@ -3624,6 +3624,30 @@ class Thing:  ReplaceRedirector, Mentionable
      */        
     autoGetOutToReach = true
     
+    
+    /* 
+     *   Check whether the actor can reach in to this object to touch obj, if
+     *   obj is not in this object.
+     */ 
+    allowReachIn(obj) { return true; }
+    
+     /*  
+     *   If an actor outside cannot reach an object inside me, should the actor
+     *   automatically try to get into me?
+     */        
+    autoGetInToReach = true
+    
+    /* 
+     *   Message to display if we cannot reach in to obj. By default we use the same message as for
+     *   not being able to reach out to obj.
+     */
+    cannotReachInMsg(targObj, blockObj)
+    {        
+        return BMsg(cannot reach inside from, '{I} {cannot} reach {1} from outside {2}. ', 
+                    targObj.theName, blockObj.theName);
+    }
+
+       
     /* 
      *   Return a message explaining why an object outside me can't reach one
      *   inside (or vice versa); this will normally be triggered by an attempt

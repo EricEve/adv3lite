@@ -773,6 +773,7 @@ modify Actor
      */
     subTopicKeys = []
     
+        
     /*  Notification that an action is about to be carried out in our presence */
     beforeAction()
     {
@@ -3617,7 +3618,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         if(valToList(keyTopics).length > 0)
         {
             /* Show a list of our keyTopics */
-            showKeyTopics();
+            showKeyTopics(self);
             
             /* 
              *   Throw an abort signal so that showing a list of topics doesn't
@@ -3769,7 +3770,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
     activateKeyTopics = nil
     
     /* Show our suggested keyTopics, if keyTopics is defined. */
-    showKeyTopics()
+    showKeyTopics(parent)
     {
         /* 
          *   First construct a list of TopicEntries that match the keys in our
@@ -3789,8 +3790,14 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   discuss on this topic.
          */
         else
-            DMsg(nothing to discuss on that topic, '{I} {have} nothing to
-                discuss on that topic just {then}. '); 
+        {
+            if(parent.mayAddSubtopics)                
+                DMsg(nothing to discuss on that topic, '{I} {have} nothing to
+                    discuss on that topic just {then}. '); 
+            else
+                DMsg(nothing more to discuss on that topic, '{I} {have} nothing more to
+                    discuss on that topic. ');
+        }
     }
     
     /* Obtain a list of the TopicEntries that match our keyTopics property. */
@@ -3866,6 +3873,13 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         /* Return the list. */
         return lst;
     }
+    
+    /*  
+     *   Flag: may this actor add further suggestible subtopics beyond those initially defined? By
+     *   defatult we'll assume not. This only affects the message displayed when there are no
+     *   subtopics related to a particular parent topic left to display.
+     */
+    mayAddSubtopics = nil
        
     
     /* 

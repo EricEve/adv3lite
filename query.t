@@ -436,6 +436,62 @@ QDefaults: Special
             issues += new ReachProblemReachOut(b);
         
         
+        /* 
+         *   Next check whether the actor is  not in a nested room that contains
+         *   the object the actor is attempting to reach, and if said nested room does not
+         *   allow reaching in.
+         */        
+        if(b.location.isIn(a.location))
+        {
+            /* 
+             *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
+             *   the target object, starting at the outermost and progressing inwards.
+             */
+            local locList = [];
+            
+            /* Note the location of the target object we're trying to reach. */
+            loc = b.location;
+            
+            /* 
+             *   Loop outwards from the target object's location to the actor's location to
+             *   construct the list of locations the actor needs to pass through to reach the
+             *   target.
+             */
+            while(loc != a.location)
+            {
+               /* 
+                *   prepend this location to our list so that our list will end up working from
+                *   outermost to innermost.
+                */
+                locList = locList.prepend(loc);
+                
+                /* 
+                 *   Then set loc to the next location working outwards towards the actor's
+                 *   location.
+                 */
+                loc = loc.location;                
+            }
+            
+            /* 
+             *   Loop through the locations in the list we've just constructed working inwards trom
+             *   the actor's location.
+             */
+            foreach(loc in locList)
+            {
+                /* 
+                 *   If loc is not the actor's location and it doesn't allow reaching in and it's a
+                 *   nested room (enterable or boardable) then create a new ReachProblemReachIn
+                 *   object corresponding to loc to add to our list of issues.
+                 */                
+                if(loc != a.location && !loc.allowReachIn(b) 
+                   && (loc.isEnterable || loc.isBoardable))
+                    issues += new ReachProblemReachIn(loc, b);
+                   
+            }
+        }
+        
+        
+        
        
         try
         {
@@ -1292,6 +1348,95 @@ class ReachProblemReachOut: ReachProblem
          *   condition, so return true.
          */
         return true;
+    }    
+;
+
+
+/* 
+ *   A ReachProblem object that represents the need for the actor to be inside the blocking nested
+ *   room (Platform or Booth) to reach the target object.
+ */
+class ReachProblemReachIn: ReachProblem 
+    construct(block, targ)
+    {
+        /* Note the blocking nested room the actor needs to be able to get into on on. */
+        blocker = block;
+        
+        /* Note the target object the actor is trying to reach. */
+        target = targ;
     }
     
-;
+    /* The blocking nested room the actor needs to be able to get into on on. */
+    target = nil
+    
+    /* The target object the actor is trying to reach. */
+    blocker = nil 
+    
+    /* Attempt to move the actor into the blocking nested room. */
+    check(allowImplicit)
+    {
+        /* Note the actor's immediate location. */
+        local loc = gActor.location;
+       
+        /* 
+         *   The action needed by the actor to enter the location we're trying to reach (Board or
+         *   Enter, depending whether target is a Platform or a Booth).
+         */
+        local getInAction;
+        
+        /*   
+         *   Keep trying to move the actor into the target lcation until we reach it or
+         *   fail to move the actor.
+         */
+        while(gActor.location != blocker) 
+        {           
+            /* 
+             *   The action we need to move the actor out of its immediate
+             *   location will be GetOff or GetOutOf depending on the contType
+             *   of the actor's location.
+             */
+            getInAction = blocker.contType == On ? Board : Enter;
+            
+            /* 
+             *   If we're allowed to attempt an implicit action, and the actor's
+             *   target is happy to allow the actor to enter it via an
+             *   implicit action for the purpose of reaching, then try an
+             *   implicit action to take the actor out of its location.
+             */
+            if(allowImplicit && blocker.autoGetInToReach 
+               && tryImplicitAction(getInAction, blocker))
+            {
+                /* 
+                 *   If the actor is still in its original location, then we
+                 *   were unable to move it in, so return nil to signal that
+                 *   the reachability condition can't be met.
+                 */
+                if(gActor.location == loc)
+                    return nil;
+            }
+            /* 
+             *   Otherwise, if we can't perform an implicit action to remove the
+             *   actor from its immediate location, display a message explaining
+             *   the problem and return nil to signal that the reachability
+             *   condition can't be met.
+             */
+            else
+            {
+                say(loc.cannotReachInMsg(target, blocker));               
+                return nil;
+            }
+                       
+            /* 
+             *   If we've reached this point we haven't failed either check in this loop, so note
+             *   that the actor's new location and then continue round the loop.
+             */            
+            loc = gActor.location;           
+        }
+        
+        /* 
+         *   If we've reached this point, we must have met the reachability
+         *   condition, so return true.
+         */
+        return true;
+    }   
+; 
