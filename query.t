@@ -1227,8 +1227,46 @@ class ReachProblemDistance: ReachProblem
 class ReachProblemBlocker: ReachProblem
     verify()
     {
-        inaccessible(reachBlockedMsg);
+        /* 
+         *   If the obstructor is closed but openable, there's a possibility that we could remove
+         *   the obstruction by opening it, so we'll allow the action to go ahead but give it a
+         *   sligjtly lower logical rank to nudge the parser towards choosing a more accessible
+         *   object if one is available.
+         */
+        if(!obstructor_.isOpen && obstructor_.isOpenable)               
+            logicalRank(90);      
+        
+        /* 
+         *   Otherwise just rule out that the action for attempting to reach an inaccessible object.
+         */
+        else
+            inaccessible(reachBlockedMsg);
     }
+    
+    /* 
+     *   If we've passed the verify stage the obstructor must be closed and openable, so all we need
+     *   to do here is to attampt to open the obstructor and see if that's resolved the problem with
+     *   reaching.
+     */
+    check(allowImplicit)    
+    {
+        /* 
+         *   If the obstructor is closed and we're allowing an implicit action then try opening the
+         *   obstructor and return true or nil according to whether we can now reach in through the
+         *   obstructor.
+         */
+            
+        if(!obstructor_.isOpen && allowImplicit && tryImplicitAction(Open, obstructor_))            
+            return obstructor_.canReachIn;       
+        
+        /* 
+         *   Otherwise disspay a message to say we can't reach in and then return nil to fail the
+         *   action.
+         */
+        say(reachBlockedMsg);
+        return nil;
+    }
+       
     
     /* 
      *   Delegate defining the message explaining that blocking is reached to
