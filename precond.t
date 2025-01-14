@@ -943,6 +943,64 @@ actorOutOfNested: PreCondition
     
 ;
 
+/* 
+ *   A precondition to ensure that an actor is out of any enclosed nested rooms before getting
+ *   off/out of the enclosing nested room.
+ */
+actorOutOfSubNested: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        /* First stache the actor's current location. */
+        local loc = gActor.location;
+        
+        /* 
+         *   If we're allowed to perform an implicit action, then try moving the actor out of any
+         *   nested rooms that are nested within the nested room we're trying to leave.
+         */
+        if(allowImplicit)
+        {
+            while(loc != obj)
+            {
+                /* The action we need to exit the nested room we're in depends on its contType. */
+                local getOutAction = (loc.contType == On ? GetOff : GetOutOf);
+                
+                /* 
+                 *   Try performing the action we need to exit our immediate container. If we fail,
+                 *   return nil to tell our caller the main action can't proceed.
+                 */
+                if(!tryImplicitAction(getOutAction, loc))
+                    return nil;
+                
+                /* If the actor hasn't moved, break out of the loop. */
+                if(gActor.location == loc)
+                    break;
+                
+                /* Note the actor's new location. */
+                loc = gActor.location;                
+            }          
+        }
+        
+        /* 
+         *   If the actor's location is the object the actor is trying to exit, then we're good to
+         *   go, so return true to tell our caller the main action can proceed.
+         */
+        if(loc == obj)
+            return true;  
+        
+        /* 
+         *   Otherwise display our failure message and return nil to tell our caller the main action
+         *   cannot go ahead.
+         */
+        DMsg(not out of subnested, '{I} need{s/ed} to be {1} before {i} {can} get {2}. ',
+            loc.objOutOfName, obj.objOutOfName);
+        
+        return nil;
+    }
+;
+        
+
+
+
 
 /*  
  *   PreCondition that calls before travel notifications (such as beforeTravel() on every object in

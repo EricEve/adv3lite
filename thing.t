@@ -6872,7 +6872,8 @@ class Thing:  ReplaceRedirector, Mentionable
     stagingLocation = (exitLocation)
     
     dobjFor(GetOff)
-    {
+    {        
+        preCond = [actorOutOfSubNested]
         
         remap = remapOn
         
@@ -6893,7 +6894,7 @@ class Thing:  ReplaceRedirector, Mentionable
             
     dobjFor(GetOutOf) 
     {
-        preCond = [containerOpen]
+        preCond = [containerOpen, actorOutOfSubNested]
         
         remap = remapIn
         

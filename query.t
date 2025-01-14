@@ -443,11 +443,11 @@ QDefaults: Special
          */        
         if(b.location.isIn(a.location))
         {
-            /* 
+            /*  
              *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
              *   the target object, starting at the outermost and progressing inwards.
              */
-            local locList = [];
+            local locList = [];            
             
             /* Note the location of the target object we're trying to reach. */
             loc = b.location;
@@ -472,6 +472,7 @@ QDefaults: Special
                 loc = loc.location;                
             }
             
+            
             /* 
              *   Loop through the locations in the list we've just constructed working inwards trom
              *   the actor's location.
@@ -490,7 +491,34 @@ QDefaults: Special
             }
         }
         
+        //============== TRY ADDING THIS =======================
         
+//        local lst = Q.reachBlocker(a, b);
+//        
+//        local bList = lst.subset({x: !(x.isEnterable || x.isBoardable));
+////        
+//         /* 
+//          *   If there's a blocking object but the blocking object is the one
+//          *   we're trying to reach, then presumably we can reach it after all
+//          *   (e.g. an actor inside a closed box. Otherwise if there's a
+//          *   blocking object then reach is impossible.
+//          */
+//        
+//        if(lst.length > 0 && lst[1] != b)
+//        {           
+//            
+//            /* 
+//             *   If the blocking object is a room, then the problem is that the
+//             *   other object is too far away.
+//             */
+//            if(lst[1].ofKind(Room))
+//                issues += new ReachProblemDistance(a, b);        
+//            /* Otherwise some enclosing object is in the way */
+//            else          
+//                issues += new ReachProblemBlocker(b, lst[1]);  
+//        }
+        
+        //======================================================
         
        
         try
@@ -1366,7 +1394,7 @@ class ReachProblemReachIn: ReachProblem
         target = targ;
     }
     
-    /* The blocking nested room the actor needs to be able to get into on on. */
+    /* The blocking nested room the actor needs to be able to get into or on. */
     target = nil
     
     /* The target object the actor is trying to reach. */
