@@ -786,6 +786,29 @@ class Rule: object
     // present = []
 ;
 
+
+/* 
+ *   A class game code can use to define a RuleBook containing rules which respond to a THINK
+ *   command. Game code can also just use a RuleBook for this purpose, but a ThoughtRules object
+ *   will automatically register itself with the Think action as the object to use for this purpose,
+ *   provided game code has not already overridden Think.ruleBook. For that reason, game code should
+ *   not define more than one object of the ThoughtRules class.
+ */
+     
+class ThinkRules: PreinitObject, RuleBook
+    execute()
+    {
+        /* 
+         *   Register this rulebook with the Think action as the rulebook to use for THINK commands,
+         *   provvided the Think action doesn't already define another rulebook for the purpose.
+         */
+        if(Think.ruleBook == nil)
+            Think.ruleBook = self;
+    }
+    
+    defaultValue = true
+;
+
 #ifdef __DEBUG
 /* [RULES EXTENSION] include 'rules' in the list of debugging options. */
 modify DebugCtl
