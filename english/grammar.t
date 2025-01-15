@@ -2508,7 +2508,7 @@ VerbRule(Travel)
 ;
 
 /*
- *   Create a TravelVia subclass merely so we can supply a verbPhrase.
+ *   Create a TravelVia VerbRule merely so we can supply a verbPhrase.
  *   (The parser looks for subclasses of each specific Action class to find
  *   its verb phrase, since the language-specific Action definitions are
  *   always in the language module's 'grammar' subclasses.  We don't need
@@ -2516,9 +2516,12 @@ VerbRule(Travel)
  *   merely need to create a regular subclass in order for the verbPhrase
  *   to get found.)  
  */
-class EnTravelVia: VerbProduction
+VerbRule(TravelVia)
+    'tv#' singleDobj
+    : VerbProduction
+    action = TravelVia
     verbPhrase = 'use/using (what)'
-    missingQ = 'what do you want to use'
+    missingQ = 'which do you want to use'
 ;
 
 VerbRule(In)

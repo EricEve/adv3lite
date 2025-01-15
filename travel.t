@@ -1453,6 +1453,19 @@ class TravelConnector: object
     /*  Execute the travel for this actor via this connector */
     execTravel(actor, traveler, conn)
     {
+        /* 
+         *   If we have an options property, list the options it contains (e.g., 'that wat lies the
+         *   red door and the blue door') and ask the player to specify which one to go through.
+         */
+        
+        if(propDefined(&options))
+        {
+            DMsg(multi destination, 'That way {plural}{lie} {1}. ',  makeListStr(options, &theName));
+                askForDobjX(travelAction);            
+            return;
+        }
+        
+        
         local loc = traveler.getOutermostRoom();
         local dest = getDestination(loc);
         
@@ -1480,6 +1493,21 @@ class TravelConnector: object
                 sayNoDestination();
         }
     }
+    
+    /*  
+     *   If defined, the options property should contain a list of Doors and/or Passages and/or
+     *   Enterables that lie in the direction wishes to travel (e.g. [redDoor, blueDoor], so that
+     *   the player can be asked to choose which to use.
+     */
+    // options = []
+    
+    /* 
+     *   The travel action to be used if the options property is defined. This defaults to
+     *   TravelVia, which is suitable for just about anything, but could be overriden to
+     *   GoThrough or Enter if they seen a better choice in any given case.
+     */
+    travelAction = TravelVia
+    
     
     /* 
      *   Display a message saying that this travel connector doesn't actually

@@ -495,6 +495,11 @@ enum rmcDisambig;
 #define askForAobj(action)  askMissingObject(action, AccessoryObject)
 #define askForAcc(action)   askMissingObject(action, AccessoryObject) 
 
+#define askForDobjX(action)  askMissingObject(action, DirectObject, nil)
+#define askForIobjX(action)  askMissingObject(action, IndirectObject, nil)
+#define askForAobjX(action)  askMissingObject(action, AccessoryObject, nil)
+#define askForAccX(action)   askMissingObject(action, AccessoryObject, nil) 
+
 /*  Convenience macros for synthesizing travel in a given compass direction */
 
 #define goInstead(dirn) doInstead(Go, dirn##Dir)

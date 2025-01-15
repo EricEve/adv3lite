@@ -2993,11 +2993,11 @@ execNestedAction(isReplacement, actor, action, [objs])
 }
 
 /* 
- *   Ask for a missing object to fulfil role in action. First see if there's a
- *   uniquely best match to fill the role, and if so execute the action with
- *   that object. Otherwise ask the player to supply an object.
+ *   Ask for a missing object to fulfil role in action. If findBest is true (the default), first see
+ *   if there's a uniquely best match to fill the role, and if so execute the action with that
+ *   object. Otherwise ask the player to supply an object.
  */
-askMissingObject(action, role)
+askMissingObject(action, role, findBest = true)
 {
      
         
@@ -3032,84 +3032,90 @@ askMissingObject(action, role)
      */
     gCommand.verbProd = action.verbRule;    
     
-    /* See if we can find an obvious best object to select. */
-    
-    /* First get the scope list for the new action. */
-    action.buildScopeList(role);
     
     /* 
-     *   Then wrap the scopeList in a list of NP objects so we can use it as a
-     *   parameter for scoreObjects().
+     *   If we want to find the object that's the best match to the missing object, now do so.
+     *   usually this wiil be the case but occasionally we may want to force the player to make a
+     *   choice.
      */
-    local matchList = action.wrapObjectsNP(action.scopeList);
-    
-    /*   Make a note of the highest scoring object we find */
-    local bestObj = nil;
-   
-    /*  
-     *   If we found any objects we could match, determine which of them is the
-     *   best match.
-     */
-    if(matchList.length > 0)
+    if(findBest)
     {
-        /* Score all the objects in scope */
-        action.scoreObjects(gCommand, role, matchList);
         
-        /* Sort the list of objects in descending order of score */
-        matchList = matchList.sort(SortDesc, {a, b: a.score - b.score});
-    
-        /* If there's only one object with the top score, select it */
-        if(matchList.countWhich({o: o.score == matchList[1].score}) == 1)
-            bestObj = matchList[1].obj;
-    }
+        /* See if we can find an obvious best object to select. */
         
-    /* 
-     *   If we have a best object, check that the command can actually use it
-     *   before finally selecting it.
-     */    
-    if(bestObj != nil)
-    {
-        /* 
-         *   Obtain the verify result for the best object for this action in
-         *   this role.
-         */
-        local verResult = action.verify(bestObj, role);
+        /* First get the scope list for the new action. */
+        action.buildScopeList(role);
         
         /* 
-         *   Only execute the action with the best object if the action would
-         *   pass the verify stage and the verify stage would allow the action
-         *   to be performed implicitly. That way we won't choose an object with
-         *   a dangerous or nonObvious verify result, and we won't pointlessly
-         *   attempt an impossible action.
+         *   Then wrap the scopeList in a list of NP objects so we can use it as a parameter for
+         *   scoreObjects().
          */
-        if(verResult.allowAction && verResult.allowImplicit)
+        local matchList = action.wrapObjectsNP(action.scopeList);
+        
+        /*   Make a note of the highest scoring object we find */
+        local bestObj = nil;
+        
+        /*  
+         *   If we found any objects we could match, determine which of them is the best match.
+         */
+        if(matchList.length > 0)
+        {
+            /* Score all the objects in scope */
+            action.scoreObjects(gCommand, role, matchList);
+            
+            /* Sort the list of objects in descending order of score */
+            matchList = matchList.sort(SortDesc, {a, b: a.score - b.score});
+            
+            /* If there's only one object with the top score, select it */
+            if(matchList.countWhich({o: o.score == matchList[1].score}) == 1)
+                bestObj = matchList[1].obj;
+        }
+        
+        /* 
+         *   If we have a best object, check that the command can actually use it before finally
+         *   selecting it.
+         */    
+        if(bestObj != nil)
         {
             /* 
-             *   Announce which object we've chosen; language-specific modules
-             *   will need to implement this.
+             *   Obtain the verify result for the best object for this action in this role.
              */
-            announceBestChoice(action, bestObj, role);
+            local verResult = action.verify(bestObj, role);
             
             /* 
-             *   Slot our best choice of object into the appropriate object
-             *   property of the current command object.
+             *   Only execute the action with the best object if the action would pass the verify
+             *   stage and the verify stage would allow the action to be performed implicitly. That
+             *   way we won't choose an object with a dangerous or nonObvious verify result, and we
+             *   won't pointlessly attempt an impossible action.
              */
-            gCommand.(role.objProp) = bestObj;
-                        
-            
-            /* Execute the new action with the new set of objects. */
-
-            
-            gCommand.execDoer([action, gCommand.dobj, gCommand.iobj]);            
-
-            
-            /* 
-             *   If we were able to execute the new action with the new set of
-             *   objects, we're done; and we don't want to continue with the
-             *   original action.
-             */
-            exit;
-        }        
+            if(verResult.allowAction && verResult.allowImplicit)
+            {
+                /* 
+                 *   Announce which object we've chosen; language-specific modules will need to
+                 *   implement this.
+                 */
+                announceBestChoice(action, bestObj, role);
+                
+                /* 
+                 *   Slot our best choice of object into the appropriate object property of the
+                 *   current command object.
+                 */
+                gCommand.(role.objProp) = bestObj;
+                
+                
+                /* Execute the new action with the new set of objects. */
+                
+                
+                gCommand.execDoer([action, gCommand.dobj, gCommand.iobj]);            
+                
+                
+                /* 
+                 *   If we were able to execute the new action with the new set of objects, we're
+                 *   done; and we don't want to continue with the original action.
+                 */
+                exit;
+            }        
+        }
     }
     
     
