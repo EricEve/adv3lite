@@ -422,104 +422,21 @@ QDefaults: Special
          */
         local issues = [];
         
+        /* 
+         *   Set up a local variable to hold the check message that may result from running the
+         *   appropriatte checkReach() method.
+         */
         local checkMsg = nil;
         
-        /* 
-         *   Next check whether the actor is in a nested room that does not
-         *   contain the object being reached, and if said nested room does not
-         *   allow reaching out.
-         */
+        /* Store a list of the objects (if any) that are blocking a from reaching b. */
+        local lst = Q.reachBlocker(a, b);
         
-        local loc = a.location;
-        if(loc != a.getOutermostRoom && !b.isOrIsIn(loc) && 
-           !loc.allowReachOut(b))
-            issues += new ReachProblemReachOut(b);
+        /* Set up a local variable that will be used to hold various locations. */
+        local loc;
         
-        
-        /* 
-         *   Next check whether the actor is  not in a nested room that contains
-         *   the object the actor is attempting to reach, and if said nested room does not
-         *   allow reaching in.
-         */        
-        if(b.location.isIn(a.location))
-        {
-            /*  
-             *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
-             *   the target object, starting at the outermost and progressing inwards.
-             */
-            local locList = [];            
-            
-            /* Note the location of the target object we're trying to reach. */
-            loc = b.location;
-            
-            /* 
-             *   Loop outwards from the target object's location to the actor's location to
-             *   construct the list of locations the actor needs to pass through to reach the
-             *   target.
-             */
-            while(loc != a.location)
-            {
-               /* 
-                *   prepend this location to our list so that our list will end up working from
-                *   outermost to innermost.
-                */
-                locList = locList.prepend(loc);
+        /* Note a's starting location. */
+        local startLoc = a.location;
                 
-                /* 
-                 *   Then set loc to the next location working outwards towards the actor's
-                 *   location.
-                 */
-                loc = loc.location;                
-            }
-            
-            
-            /* 
-             *   Loop through the locations in the list we've just constructed working inwards trom
-             *   the actor's location.
-             */
-            foreach(loc in locList)
-            {
-                /* 
-                 *   If loc is not the actor's location and it doesn't allow reaching in and it's a
-                 *   nested room (enterable or boardable) then create a new ReachProblemReachIn
-                 *   object corresponding to loc to add to our list of issues.
-                 */                
-                if(loc != a.location && !loc.allowReachIn(b) 
-                   && (loc.isEnterable || loc.isBoardable))
-                    issues += new ReachProblemReachIn(loc, b);
-                   
-            }
-        }
-        
-        //============== TRY ADDING THIS =======================
-        
-//        local lst = Q.reachBlocker(a, b);
-//        
-//        local bList = lst.subset({x: !(x.isEnterable || x.isBoardable));
-////        
-//         /* 
-//          *   If there's a blocking object but the blocking object is the one
-//          *   we're trying to reach, then presumably we can reach it after all
-//          *   (e.g. an actor inside a closed box. Otherwise if there's a
-//          *   blocking object then reach is impossible.
-//          */
-//        
-//        if(lst.length > 0 && lst[1] != b)
-//        {           
-//            
-//            /* 
-//             *   If the blocking object is a room, then the problem is that the
-//             *   other object is too far away.
-//             */
-//            if(lst[1].ofKind(Room))
-//                issues += new ReachProblemDistance(a, b);        
-//            /* Otherwise some enclosing object is in the way */
-//            else          
-//                issues += new ReachProblemBlocker(b, lst[1]);  
-//        }
-        
-        //======================================================
-        
        
         try
         {
@@ -557,7 +474,6 @@ QDefaults: Special
                 
             }
         }
-        
         /* 
          *   Game authors aren't meant to use the exit macro in check methods,
          *   but in case they do we handle it here.
@@ -575,9 +491,116 @@ QDefaults: Special
             issues += new ReachProblemCheckReach(b, checkMsg);
         }
         
+    
+        /* 
+         *   If running checkReach() methods has resulted in any issues, stop here and return a list
+         *   of the issues.
+         */
+        if(issues.length > 0)
+            return issues;
+        
+           
+        
+        /* 
+         *   Next check whether the actor is in a nested room that does not
+         *   contain the object being reached, and if said nested room does not
+         *   allow reaching out.
+         */
+        
+        loc = a.location;
+        if(loc != a.getOutermostRoom && !b.isOrIsIn(loc)) 
+        {
+            /* 
+             *   If we don't allow reaching out of a's location to touch b, then add a new
+             *   ReachProblemReachOut to our list of problems, so that when its check method is run
+             *   we can attempt to take the actor (a) out their location.
+             */
+            if(!loc.allowReachOut(b))
+                issues += new ReachProblemReachOut(b);
+            
+            
+            /* 
+             *   If the common containing parent of a and b is the location of b, then having left
+             *   the location of a we'll have got where we need to go, so we can just return the
+             *   list of issuess we've accumulated so far.
+             */
+            loc = a.commonContainingParent(b);
+            if(b.location == loc)
+                return issues;
+            
+            /* 
+             *   If we reach here, a should be moved to the common containaing parent, which should
+             *   then be the starting location for moving inwards to the location of b.
+             */
+            startLoc = loc;            
+           
+        }
+                
+        
+        /* 
+         *   Next check whether the actor is  not in a nested room that contains
+         *   the object the actor is attempting to reach, and if said nested room does not
+         *   allow reaching in.
+         */        
+        if(b.location.isIn(startLoc)) // change a.location to startLoc
+        {
+            /*  
+             *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
+             *   the target object, starting at the outermost and progressing inwards.
+             */
+            local locList = [];            
+            
+            /* Note the location of the target object we're trying to reach. */
+            loc = b.location;
+            
+            /* 
+             *   Loop outwards from the target object's location to the actor's location to
+             *   construct the list of locations the actor needs to pass through to reach the
+             *   target.
+             */
+            while(loc != startLoc && loc != a.getOutermostRoom)
+            {
+               /* 
+                *   prepend this location to our list so that our list will end up working from
+                *   outermost to innermost.
+                */
+                locList = locList.prepend(loc);
+                
+                /* 
+                 *   Then set loc to the next location working outwards towards the actor's
+                 *   location.
+                 */
+                loc = loc.location;                
+            }
+            
+            
+            /* 
+             *   Loop through the locations in the list we've just constructed working inwards trom
+             *   the actor's location.
+             */
+            foreach(loc in locList)
+            {
+                /* 
+                 *   If loc is not the actor's location and it doesn't allow reaching in and it's a
+                 *   nested room (enterable or boardable) then create a new ReachProblemReachIn
+                 *   object corresponding to loc to add to our list of issues.
+                 */                
+                if(loc != startLoc && (loc.isEnterable || loc.isBoardable))   
+                {
+                    if(!loc.allowReachIn(b))                         
+                        issues += new ReachProblemReachIn(loc, b);
+                    
+                }
+                else if(b.isIn(loc) && lst.indexOf(loc))
+                    issues += new ReachProblemBlocker(b, loc); 
+            }
+        }
+        
         /* Return our list of issues */
         return issues;
+        
     }
+    
     
     /*
      *   Determine if A can reach B, and if not, what stands in the way. Returns
@@ -1438,12 +1461,39 @@ class ReachProblemReachIn: ReachProblem
     /* The target object the actor is trying to reach. */
     blocker = nil 
     
-    /* Attempt to move the actor into the blocking nested room. */
     check(allowImplicit)
     {
+        /* 
+         *   first check that the target and/or blocker is directly or indiractly in the actor's 
+         *   location so that there is a possible path inwards.
+         */
+        if(!target.isIn(gActor.location))
+        {
+            say(reachBlockedMsg); //or say(loc.cannotReachInMsg(target, blocker));
+            return nil;
+        }
+        
+        /* 
+         *   If the blocking object is neither enterable nor boardable, the actor can't get in/on
+         *   it, but if it's closed and openable  we can try opening it. We then return whether or
+         *   not the actor can reach into the blocking object to see if that's resolved the issue.
+         *   Otherwise we display a message saying access isn't possible and return nil to our
+         *   caller to signal that we can't touch the target.
+         */
+        if(!blocker.isEnterable && !blocker.isBoardable)
+        {
+            if(!blocker.isOpen && blocker.isOpenable && allowImplicit 
+               && tryImplicitAction(Open, blocker))            
+                return blocker.canReachIn;       
+            
+            say(reachBlockedMsg);
+            return nil;
+            
+        }
+        
         /* Note the actor's immediate location. */
         local loc = gActor.location;
-       
+        
         /* 
          *   The action needed by the actor to enter the location we're trying to reach (Board or
          *   Enter, depending whether target is a Platform or a Booth).
@@ -1451,7 +1501,7 @@ class ReachProblemReachIn: ReachProblem
         local getInAction;
         
         /*   
-         *   Keep trying to move the actor into the target lcation until we reach it or
+         *   Keep trying to move the actor into the target location until we reach it or
          *   fail to move the actor.
          */
         while(gActor.location != blocker) 
@@ -1504,5 +1554,5 @@ class ReachProblemReachIn: ReachProblem
          *   condition, so return true.
          */
         return true;
-    }   
+    }     
 ; 

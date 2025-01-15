@@ -3211,8 +3211,8 @@ VerbRule(GetOff)
     'get' ('off' | 'off' 'of' | 'down' 'from') singleDobj
     : VerbProduction
     action = GetOff
-    verbPhrase = 'get/getting (off of what)'
-    missingQ = 'what do you want to get off of'
+    verbPhrase = 'get/getting (off what)'
+    missingQ = 'what do you want to get off'
     dobjReply = singleNoun
 ;
 
