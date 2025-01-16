@@ -2472,6 +2472,14 @@ VerbRule(ToggleDiaambigEnum)
     verbPhrase = 'toggle/toggling enumeration of disambiguation options'
 ;
 
+VerbRule(GoToMode)
+    ('goto' | 'go' 'to') (|'mode') ('brief' -> brief_| 'fast' -> fast_|
+        'verbose'->normal_|'normal'-> normal_| 'slow'-> normal_ | 'continue' -> normal_)
+    : VerbProduction
+    action = GoToMode
+    verbPhrase = 'switch/switching goto mode'    
+;
+
 
 VerbRule(GoTo)
     ('go' 'to' | 'walk' 'to')
@@ -2490,6 +2498,7 @@ VerbRule(Continue)
     action = Continue
     verbPhrase = 'continue/continuing journey'
 ;
+
 
 VerbRule(VagueTravel) 
     'go' | 'walk' | 'run' 

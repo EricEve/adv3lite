@@ -868,6 +868,31 @@ DefineIAction(GoBack)
     }
 ;
 
+DefineSystemAction(GoToMode)
+    execAction(c)
+    {
+        local vp = c.verbProd;
+        if(vp.brief_ != nil)
+        {
+            gameMain.briefGoTo = true;
+            DMsg(brief goto, 'Goto mode is now brief (no room descriptions or stopping to CONTINUE)');
+        }
+        if(vp.fast_ != nil)
+        {
+            gameMain.briefGoTo = nil;
+            gameMain.fastGoTo = true;
+            DMsg(brief goto, 'Goto mode is now fast (no stopping to CONTINUE)');
+        }
+        if(vp.normal_ != nil)
+        {
+            gameMain.briefGoTo = nil;
+            gameMain.fastGoTo = nil;
+            DMsg(brief goto, 'Goto mode is now normal (explicit CONTINUE needed for each step)');
+        }       
+        
+    }
+;
+
 DefineTAction(GoTo)
     
     /* Add all known items to scope */
@@ -930,7 +955,14 @@ DefineIAction(Continue)
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
         
         if(!gActor.isIn(dest) && !fastGo)           
+        {
             htmlSay(contMsg);
+            if(!optionsExplained)
+            {
+                explainOptions();
+                optionsExplained = true;
+            }
+        }
         
     }
     
@@ -938,7 +970,16 @@ DefineIAction(Continue)
                 use the command
                 <<aHref('Continue','CONTINUE','Continue')>> or C. ')
     
+ 
+    optionsExcplained = nil
     
+    explainOptions()
+    {
+        DMsg(explain goto options, '<.p><.parser>To enable swift GO TO without CONTINUE, use GOTO
+            MODE FAST or GOTO MODE BRIEF (the latter suppresses the room descriptions of the rooms
+            along the way). To resume the use of CONTINUE use GOTO MODE CONTINUE. Any change of mode
+            will take effect on the next GO TO command.<./parser> ');
+    }
 ;
 
 DefineSystemAction(Topics)

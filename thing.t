@@ -1274,6 +1274,11 @@ class Thing:  ReplaceRedirector, Mentionable
         /* Begin by displaying our name */
         "<.roomname><<roomHeadline(gPlayerChar)>><./roomname>\n";
         
+        if(gActionIn(GoTo, Continue) && !gameMain.verbose)
+            return;
+
+    
+        
         /* The object whose interiorDesc we want to use. Normally this will be ourselves. */
         local descObj = self;
         
@@ -7817,42 +7822,40 @@ class Thing:  ReplaceRedirector, Mentionable
          *   the shortest route to the destination. The action routine
          *   calculates the route and takes the first step.
          */
+        
         action()
         {
             /* Get our destination. */
             local dest = lastSeenAt ? lastSeenAt.getOutermostRoom : nil;
             
             /* 
-             *   Calculate the route from the actor's current room to the
-             *   location where the target object was last seen, using the
-             *   pcRouteFinder to carry out the calculations if it is present.
+             *   Calculate the route from the actor's current room to the location where the target
+             *   object was last seen, using the pcRouteFinder to carry out the calculations if it
+             *   is present.
              */
             local route = defined(pcRouteFinder) && lastSeenAt != nil 
                 ? pcRouteFinder.findPath(
-                gActor.getOutermostRoom, dest) : nil;
+                    gActor.getOutermostRoom, dest) : nil;
             
             /*  
-             *   If we don't find a route, just display a message saying we
-             *   don't know how to get to our destination.
+             *   If we don't find a route, just display a message saying we don't know how to get to
+             *   our destination.
              */
             if(route == nil)
                 sayDontKnowHowToGetThere();
             
             /*  
-             *   If the route we find has only one element in its list, that
-             *   means that we're where we last saw the target but it's no
-             *   longer there, so we don't know where it's gone. In which case
-             *   we display a message saying we don't know how to reach our
-             *   target.
+             *   If the route we find has only one element in its list, that means that we're where
+             *   we last saw the target but it's no longer there, so we don't know where it's gone.
+             *   In which case we display a message saying we don't know how to reach our target.
              */
             else if(route.length == 1)
                 sayDontKnowHowToReach();
             
             /*  
-             *   If the route we found has at least two elements, then use the
-             *   first element of the second element as the direction in which
-             *   we need to travel, and use the Continue action to take a step
-             *   in that direction.
+             *   If the route we found has at least two elements, then use the first element of the
+             *   second element as the direction in which we need to travel, and use the Continue
+             *   action to take a step in that direction.
              */
             else
             {
@@ -7866,23 +7869,42 @@ class Thing:  ReplaceRedirector, Mentionable
                 local regionFastGoTo = 
                     commonRegions.indexWhich({r: r.fastGoTo }) != nil;
                 
-                local fastGo = regionFastGoTo || gameMain.fastGoTo;
+                local fastGo = regionFastGoTo || gameMain.fastGoTo || gameMain.briefGoTo;
+                local wasVerbose = gameMain.verbose;
                 
-                Continue.takeStep(dir, getOutermostRoom, fastGo);                
-                
-                
-                /* 
-                 *   If the fastGoTo option is active, continue moving towards
-                 *   the destination until either we reach it our we're
-                 *   prevented from going any further.
-                 */
-                while((fastGo)
-                      && oldLoc != gPlayerChar.getOutermostRoom 
-                      && idx < route.length)
+                try
+                {                   
+                    
+                    if(gameMain.briefGoTo)
+                        gameMain.verbose = nil;
+                    
+                    Continue.takeStep(dir, getOutermostRoom, fastGo);                
+                    
+                    
+                    /* 
+                     *   If the fastGoTo option is active, continue moving towards the destination
+                     *   until either we reach it our we're prevented from going any further.
+                     */
+                    while((fastGo)
+                          && oldLoc != gPlayerChar.getOutermostRoom 
+                          && idx < route.length)
+                    {
+                        local dir = route[++idx][1];
+                        if(idx == route.length())
+                            gameMain.verbose = wasVerbose;
+                        
+                        Continue.takeStep(dir, getOutermostRoom, true);
+                    }    
+                    
+                    
+                }
+                finally
                 {
-                    local dir = route[++idx][1];
-                    Continue.takeStep(dir, getOutermostRoom, true);
-                }               
+                    gameMain.verbose = wasVerbose;
+                    
+                    if(gameMain.briefGoTo && wasVerbose && !gActor.isIn(dest))
+                        gActor.getOutermostRoom.lookAroundWithin();
+                }
             }
         }
     }
