@@ -12,6 +12,7 @@
 property lastTravelInfo;
 property cannotGoShowExits;
 property pcArrivalTurn;
+property options;
 
 /* 
  *   A Room is a top location in which the player character, other actors and
@@ -2477,6 +2478,16 @@ class Region: object
      *   then the fastGoTo setting is always in effect.
      */
     fastGoTo = nil
+    
+    /*   
+     *   Should the briefGoTo option be used in this region (i.e. traveling from one room in the
+     *   region to another is all done in one turn without the need for CONTINUE and without
+     *   intervening rooms descriptions, even if several steps are involved)? Note that the value of
+     *   this setting has no effect if gameMain.briefGoTo is true, since then the briedGoTo setting
+     *   is always in effect.
+     */
+    
+    briefGoTo = nil
     
     /* 
      *   Move a MultiLoc (ml) into this region, by moving it into every room in

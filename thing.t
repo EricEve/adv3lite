@@ -7869,13 +7869,17 @@ class Thing:  ReplaceRedirector, Mentionable
                 local regionFastGoTo = 
                     commonRegions.indexWhich({r: r.fastGoTo }) != nil;
                 
-                local fastGo = regionFastGoTo || gameMain.fastGoTo || gameMain.briefGoTo;
+                local regionBriefGoTo = 
+                    commonRegions.indexWhich({r: r.briefGoTo }) != nil;
+                
+                local fastGo = regionFastGoTo || regionBriefGoTo 
+                    || gameMain.fastGoTo || gameMain.briefGoTo;
                 local wasVerbose = gameMain.verbose;
                 
                 try
                 {                   
                     
-                    if(gameMain.briefGoTo)
+                    if(gameMain.briefGoTo || regionBriefGoTo)
                         gameMain.verbose = nil;
                     
                     Continue.takeStep(dir, getOutermostRoom, fastGo);                
@@ -7902,7 +7906,7 @@ class Thing:  ReplaceRedirector, Mentionable
                 {
                     gameMain.verbose = wasVerbose;
                     
-                    if(gameMain.briefGoTo && wasVerbose && !gActor.isIn(dest))
+                    if((gameMain.briefGoTo || regionBriefGoTo) && wasVerbose && !gActor.isIn(dest))
                         gActor.getOutermostRoom.lookAroundWithin();
                 }
             }
