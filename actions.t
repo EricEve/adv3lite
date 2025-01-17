@@ -948,8 +948,23 @@ DefineIAction(Continue)
         
     }
     
-    takeStep(dir, dest, fastGo?)
+    takeStep(dir, dest, fastGo?)    
     {
+        
+        local path = defined(pcRouteFinder) ? pcRouteFinder.cachedRoute : nil;
+        
+        local idx = path.indexWhich({x: x[2] == gActor.getOutermostRoom});
+        /* 
+         *   If we are in fastGo mode and we want each step of the journey to take a turn, then
+         *   carry out the before action processing, provided it's not the first step when the
+         *   GO TO command would have triggered its own action processing.
+         */
+        if(fastGo && turnPerStep && idx && idx > 1)
+        {
+            beforeAction();            
+        }
+        
+        
         DMsg(going dir, '(going {1})\n', dir.name);
         
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
@@ -964,7 +979,24 @@ DefineIAction(Continue)
             }
         }
         
+        /* 
+         *   If we are in fastGo mode and we want each step of the journey to take a turn, then
+         *   carry out the end of turn processing, unless we are taking the final step, in which
+         *   case we should get the end of turn processing from the originating GO TO commsnd.
+         */
+        if(fastGo && turnPerStep && idx && idx < path.length - 1)
+        {
+            afterAction();
+            turnSequence();
+        }
+        
     }
+    
+    /* 
+     *   Flag - do we want each step of the way to count as one turn when we're in fastGo mode? In
+     *   default we won't but game code can override this by setting turnPerStep to true.
+     */
+    turnPerStep = true
     
     contMsg =  BMsg(explain continue, 'To continue the journey
                 use the command
