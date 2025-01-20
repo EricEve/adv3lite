@@ -424,58 +424,58 @@
 <a name="422"></a>         */
 <a name="423"></a>        local issues = [];
 <a name="424"></a>        
-<a name="425"></a>        local checkMsg = nil;
-<a name="426"></a>        
-<a name="427"></a>        /* 
-<a name="428"></a>         *   Next check whether the actor is in a nested room that does not
-<a name="429"></a>         *   contain the object being reached, and if said nested room does not
-<a name="430"></a>         *   allow reaching out.
-<a name="431"></a>         */
-<a name="432"></a>        
-<a name="433"></a>        local loc = a.location;
-<a name="434"></a>        if(loc != a.getOutermostRoom &amp;&amp; !b.isOrIsIn(loc) &amp;&amp; 
-<a name="435"></a>           !loc.allowReachOut(b))
-<a name="436"></a>            issues += new ReachProblemReachOut(b);
-<a name="437"></a>        
-<a name="438"></a>        
-<a name="439"></a>       
-<a name="440"></a>        try
-<a name="441"></a>        {
-<a name="442"></a>            /*  
-<a name="443"></a>             *   Determine whether there's any problem with b reached from a
-<a name="444"></a>             *   defined in b's checkReach (from a) method.
-<a name="445"></a>             */            
-<a name="446"></a>            checkMsg = gOutStream.captureOutputIgnoreExit({: b.checkReach(a)});
-<a name="447"></a>                        
-<a name="448"></a>            
-<a name="449"></a>            /*   
-<a name="450"></a>             *   If the checkReach method generates a non-empty string, add a
-<a name="451"></a>             *   new ReachProblemCheckReach object that encapsulates it
-<a name="452"></a>             */
-<a name="453"></a>            if(checkMsg not in (nil, ''))
-<a name="454"></a>                issues += new ReachProblemCheckReach(b, checkMsg);
-<a name="455"></a>            
+<a name="425"></a>        /* 
+<a name="426"></a>         *   Set up a local variable to hold the check message that may result from running the
+<a name="427"></a>         *   appropriatte checkReach() method.
+<a name="428"></a>         */
+<a name="429"></a>        local checkMsg = nil;
+<a name="430"></a>        
+<a name="431"></a>        /* Store a list of the objects (if any) that are blocking a from reaching b. */
+<a name="432"></a>        local lst = Q.reachBlocker(a, b);
+<a name="433"></a>        
+<a name="434"></a>        /* Set up a local variable that will be used to hold various locations. */
+<a name="435"></a>        local loc;
+<a name="436"></a>        
+<a name="437"></a>        /* Note a's starting location. */
+<a name="438"></a>        local startLoc = a.location;
+<a name="439"></a>                
+<a name="440"></a>       
+<a name="441"></a>        try
+<a name="442"></a>        {
+<a name="443"></a>            /*  
+<a name="444"></a>             *   Determine whether there's any problem with b reached from a
+<a name="445"></a>             *   defined in b's checkReach (from a) method.
+<a name="446"></a>             */            
+<a name="447"></a>            checkMsg = gOutStream.captureOutputIgnoreExit({: b.checkReach(a)});
+<a name="448"></a>                        
+<a name="449"></a>            
+<a name="450"></a>            /*   
+<a name="451"></a>             *   If the checkReach method generates a non-empty string, add a
+<a name="452"></a>             *   new ReachProblemCheckReach object that encapsulates it
+<a name="453"></a>             */
+<a name="454"></a>            if(checkMsg not in (nil, ''))
+<a name="455"></a>                issues += new ReachProblemCheckReach(b, checkMsg);
 <a name="456"></a>            
-<a name="457"></a>            /* 
-<a name="458"></a>             *   Next check whether there's any problem reaching inside B from A
-<a name="459"></a>             *   defined in B's checkReachIn method or the checkReach in method
-<a name="460"></a>             *   of anything that contains B.
-<a name="461"></a>             */
-<a name="462"></a>            local cpar = b.commonContainingParent(a);
-<a name="463"></a>            
-<a name="464"></a>            if(cpar != nil)
-<a name="465"></a>            {
-<a name="466"></a>                for(loc = b.location; loc != cpar; loc = loc.location)
-<a name="467"></a>                {
-<a name="468"></a>                    checkMsg = gOutStream.captureOutputIgnoreExit(
-<a name="469"></a>                        {: loc.checkReachIn(a, b)});
-<a name="470"></a>                    if(checkMsg not in (nil, ''))
-<a name="471"></a>                        issues += new ReachProblemCheckReach(b, checkMsg);
-<a name="472"></a>                }
-<a name="473"></a>                
-<a name="474"></a>            }
-<a name="475"></a>        }
-<a name="476"></a>        
+<a name="457"></a>            
+<a name="458"></a>            /* 
+<a name="459"></a>             *   Next check whether there's any problem reaching inside B from A
+<a name="460"></a>             *   defined in B's checkReachIn method or the checkReach in method
+<a name="461"></a>             *   of anything that contains B.
+<a name="462"></a>             */
+<a name="463"></a>            local cpar = b.commonContainingParent(a);
+<a name="464"></a>            
+<a name="465"></a>            if(cpar != nil)
+<a name="466"></a>            {
+<a name="467"></a>                for(loc = b.location; loc != cpar; loc = loc.location)
+<a name="468"></a>                {
+<a name="469"></a>                    checkMsg = gOutStream.captureOutputIgnoreExit(
+<a name="470"></a>                        {: loc.checkReachIn(a, b)});
+<a name="471"></a>                    if(checkMsg not in (nil, ''))
+<a name="472"></a>                        issues += new ReachProblemCheckReach(b, checkMsg);
+<a name="473"></a>                }
+<a name="474"></a>                
+<a name="475"></a>            }
+<a name="476"></a>        }
 <a name="477"></a>        /* 
 <a name="478"></a>         *   Game authors aren't meant to use the exit macro in check methods,
 <a name="479"></a>         *   but in case they do we handle it here.
@@ -493,811 +493,1072 @@
 <a name="491"></a>            issues += new ReachProblemCheckReach(b, checkMsg);
 <a name="492"></a>        }
 <a name="493"></a>        
-<a name="494"></a>        /* Return our list of issues */
-<a name="495"></a>        return issues;
-<a name="496"></a>    }
-<a name="497"></a>    
-<a name="498"></a>    /*
-<a name="499"></a>     *   Determine if A can reach B, and if not, what stands in the way. Returns
-<a name="500"></a>     *   a list of containers along the path between A and B that obstruct the
-<a name="501"></a>     *   reach.  If the two objects are in separate rooms, the top-level room
-<a name="502"></a>     *   containing A is in the list to represent the room separation.  If
-<a name="503"></a>     *   there's no obstruction, we return an empty list.
-<a name="504"></a>     */
-<a name="505"></a>    reachBlocker(a, b)
-<a name="506"></a>    {
-<a name="507"></a>        return a.containerPathBlock(b, &amp;canReachOut, &amp;canReachIn);
-<a name="508"></a>    }
-<a name="509"></a>    
-<a name="510"></a>    /*
-<a name="511"></a>     *   Can A hear B?  We return true if there's a clear sound path from A to
-<a name="512"></a>     *   B.
-<a name="513"></a>     */
-<a name="514"></a>    canHear(a, b)
-<a name="515"></a>    {
-<a name="516"></a>        if(a.isIn(nil) || b.isIn(nil))
-<a name="517"></a>            return nil;
-<a name="518"></a>        
-<a name="519"></a>        return soundBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
-<a name="520"></a>    }
-<a name="521"></a>
-<a name="522"></a>    /*
-<a name="523"></a>     *   Determine if A can hear B, and if not, what stands in the way.  We
-<a name="524"></a>     *   return a list of the obstructions to sound between A and B.  If
-<a name="525"></a>     *   the two objects are in separate rooms, the top level room
-<a name="526"></a>     *   containing A represents the room separation.  If there are no
-<a name="527"></a>     *   sound obstructions, returns an empty list.  
-<a name="528"></a>     */
-<a name="529"></a>    soundBlocker(a, b)
-<a name="530"></a>    {
-<a name="531"></a>        return a.containerPathBlock(b, &amp;canHearOut, &amp;canHearIn);
-<a name="532"></a>    }
-<a name="533"></a>
-<a name="534"></a>    /*
-<a name="535"></a>     *   Can A smell B?  We return true if there's a clear scent path from
-<a name="536"></a>     *   A to B.  
-<a name="537"></a>     */
-<a name="538"></a>    canSmell(a, b)
-<a name="539"></a>    {
-<a name="540"></a>        if(a.isIn(nil) || b.isIn(nil))
-<a name="541"></a>            return nil;
-<a name="542"></a>        
-<a name="543"></a>        return scentBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
-<a name="544"></a>    }
-<a name="545"></a>
-<a name="546"></a>    /*
-<a name="547"></a>     *   Determine if A can smell B, and if not, what stands in the way.
-<a name="548"></a>     *   Returns a list of obstructions to scent between A and B.  If the
-<a name="549"></a>     *   two objects are in separate rooms, the outermost room containing A
-<a name="550"></a>     *   represents the room separation.  If there are no obstructions,
-<a name="551"></a>     *   returns an empty list.  
-<a name="552"></a>     */
-<a name="553"></a>    scentBlocker(a, b)
-<a name="554"></a>    {
-<a name="555"></a>        return a.containerPathBlock(b, &amp;canSmellOut, &amp;canSmellIn);
-<a name="556"></a>    }
-<a name="557"></a>
-<a name="558"></a>    
-<a name="559"></a>    /*  
-<a name="560"></a>     *   Determine if A can talk to B. In the base situation A can talk to B if
-<a name="561"></a>     *   A can hear B.
-<a name="562"></a>     */    
-<a name="563"></a>    canTalkTo(a, b)
-<a name="564"></a>    {
-<a name="565"></a>        return Q.canHear(a, b);
-<a name="566"></a>    }
-<a name="567"></a>    
-<a name="568"></a>    /*  
-<a name="569"></a>     *   Determine if A can throw something to B. In the base situation A can
-<a name="570"></a>     *   throw to B if A can reach B.
-<a name="571"></a>     *
-<a name="572"></a>     */    
-<a name="573"></a>    canThrowTo(a, b)
-<a name="574"></a>    {
-<a name="575"></a>        return canReach(a, b);
-<a name="576"></a>    }
-<a name="577"></a>;
-<a name="578"></a>
-<a name="579"></a>/* ------------------------------------------------------------------------ */
-<a name="580"></a>/*
-<a name="581"></a> *   A Special defines a set of custom overrides to standard Query
-<a name="582"></a> *   questions that apply under specific conditions.
-<a name="583"></a> *   
-<a name="584"></a> *   At any given time, a Special is either active or inactive.  This is
-<a name="585"></a> *   determined by the active() method.  
-<a name="586"></a> */
-<a name="587"></a>class Special: object
-<a name="588"></a>    /*
-<a name="589"></a>     *   Am I active?  Each instance should override this to define the
-<a name="590"></a>     *   conditions that activate the Special.  
-<a name="591"></a>     */
-<a name="592"></a>    active = nil
-<a name="593"></a>    
-<a name="594"></a>      
-<a name="595"></a>
-<a name="596"></a>    /*
-<a name="597"></a>     *   My priority.  This is an integer value that determines which
-<a name="598"></a>     *   Special takes precedence when two or more Specials are active at
-<a name="599"></a>     *   the same time, and they both/all define a given query method.  In
-<a name="600"></a>     *   such a situation, Q calls the active Specials in ascending
-<a name="601"></a>     *   priority order (lowest first, highest last), and takes the last
-<a name="602"></a>     *   one's answer as the true answer to the question.  This means that
-<a name="603"></a>     *   the Special with the highest priority takes precedence, and can
-<a name="604"></a>     *   override any lower-ranking Special that's active at the same time.
-<a name="605"></a>     *   
-<a name="606"></a>     *   The library uses the following special priority values:
-<a name="607"></a>     *   
-<a name="608"></a>     *   0 = the basic library defaults.  The defaults must have the lowest
-<a name="609"></a>     *   priority, meaning that all Special objects defined by a game or
-<a name="610"></a>     *   extension must use priorities higher than 0.
-<a name="611"></a>     *   
-<a name="612"></a>     *   Other than the special priorities listed above, the priority is
-<a name="613"></a>     *   simply a relative ordering, so games and extensions can use
-<a name="614"></a>     *   whatever range of values they like.
-<a name="615"></a>     *   
-<a name="616"></a>     *   Note that priorities can't change while running.  This is a
-<a name="617"></a>     *   permanent feature of the object.  We take advantage of this to
-<a name="618"></a>     *   avoid re-sorting the active list every time we build it.  We sort
-<a name="619"></a>     *   the master list at initialization and assume it stays sorted, so
-<a name="620"></a>     *   that any subset is inherently sorted.  If it's important to the
-<a name="621"></a>     *   game to dynamically change priorities, you just need to re-sort
-<a name="622"></a>     *   the allActive_ list at appropriate times.  If priorities can only
-<a name="623"></a>     *   change when the game-world state changes, you can simply sort the
-<a name="624"></a>     *   list in allActive() each time it's rebuilt.  If priorities can
-<a name="625"></a>     *   change at other times (which doesn't seem like it'd be useful, but
-<a name="626"></a>     *   just in case), you'd need to re-sort the list on every call to
-<a name="627"></a>     *   allActive(), even when the list isn't rebuilt.  
-<a name="628"></a>     */
-<a name="629"></a>    priority = 1
-<a name="630"></a>
-<a name="631"></a>    /*
-<a name="632"></a>     *   Call the same method in the next lower priority Special.  This can
-<a name="633"></a>     *   be used in any Special query method to invoke the "default"
-<a name="634"></a>     *   version that would have been used if the current Special had not
-<a name="635"></a>     *   been active.
-<a name="636"></a>     *   
-<a name="637"></a>     *   This is analogous to using 'inherited' to inherit the superclass
-<a name="638"></a>     *   version of a method from an overriding version in a subclass.  As
-<a name="639"></a>     *   with 'inherited', you can only call this directly from the method
-<a name="640"></a>     *   that you want to pass to the default handling, because this
-<a name="641"></a>     *   routine determines what to call based on the caller.  
-<a name="642"></a>     */
-<a name="643"></a>    next()
-<a name="644"></a>    {
-<a name="645"></a>        /* get the caller's stack trace information */
-<a name="646"></a>        local stk = t3GetStackTrace(2);
-<a name="647"></a>        local prop = stk.prop_;
-<a name="648"></a>        
-<a name="649"></a>        /* find the 'self' object in the currently active Specials list */
-<a name="650"></a>        local slst = Special.allActive();
-<a name="651"></a>        local idx = slst.indexOf(stk.self_);
+<a name="494"></a>    
+<a name="495"></a>        /* 
+<a name="496"></a>         *   If running checkReach() methods has resulted in any issues, stop here and return a list
+<a name="497"></a>         *   of the issues.
+<a name="498"></a>         */
+<a name="499"></a>        if(issues.length &gt; 0)
+<a name="500"></a>            return issues;
+<a name="501"></a>        
+<a name="502"></a>           
+<a name="503"></a>        
+<a name="504"></a>        /* 
+<a name="505"></a>         *   Next check whether the actor is in a nested room that does not
+<a name="506"></a>         *   contain the object being reached, and if said nested room does not
+<a name="507"></a>         *   allow reaching out.
+<a name="508"></a>         */
+<a name="509"></a>        
+<a name="510"></a>        loc = a.location;
+<a name="511"></a>        if(loc != a.getOutermostRoom &amp;&amp; !b.isOrIsIn(loc)) 
+<a name="512"></a>        {
+<a name="513"></a>            /* 
+<a name="514"></a>             *   If we don't allow reaching out of a's location to touch b, then add a new
+<a name="515"></a>             *   ReachProblemReachOut to our list of problems, so that when its check method is run
+<a name="516"></a>             *   we can attempt to take the actor (a) out their location.
+<a name="517"></a>             */
+<a name="518"></a>            if(!loc.allowReachOut(b))
+<a name="519"></a>                issues += new ReachProblemReachOut(b);
+<a name="520"></a>            
+<a name="521"></a>            
+<a name="522"></a>            /* 
+<a name="523"></a>             *   If the common containing parent of a and b is the location of b, then having left
+<a name="524"></a>             *   the location of a we'll have got where we need to go, so we can just return the
+<a name="525"></a>             *   list of issuess we've accumulated so far.
+<a name="526"></a>             */
+<a name="527"></a>            loc = a.commonContainingParent(b);
+<a name="528"></a>            if(b.location == loc)
+<a name="529"></a>                return issues;
+<a name="530"></a>            
+<a name="531"></a>            /* 
+<a name="532"></a>             *   If we reach here, a should be moved to the common containaing parent, which should
+<a name="533"></a>             *   then be the starting location for moving inwards to the location of b.
+<a name="534"></a>             */
+<a name="535"></a>            startLoc = loc;            
+<a name="536"></a>           
+<a name="537"></a>        }
+<a name="538"></a>                
+<a name="539"></a>        
+<a name="540"></a>        /* 
+<a name="541"></a>         *   Next check whether the actor is  not in a nested room that contains
+<a name="542"></a>         *   the object the actor is attempting to reach, and if said nested room does not
+<a name="543"></a>         *   allow reaching in.
+<a name="544"></a>         */        
+<a name="545"></a>        if(b.location.isIn(startLoc)) // change a.location to startLoc
+<a name="546"></a>        {
+<a name="547"></a>            /*  
+<a name="548"></a>             *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
+<a name="549"></a>             *   the target object, starting at the outermost and progressing inwards.
+<a name="550"></a>             */
+<a name="551"></a>            local locList = [];            
+<a name="552"></a>            
+<a name="553"></a>            /* Note the location of the target object we're trying to reach. */
+<a name="554"></a>            loc = b.location;
+<a name="555"></a>            
+<a name="556"></a>            /* 
+<a name="557"></a>             *   Loop outwards from the target object's location to the actor's location to
+<a name="558"></a>             *   construct the list of locations the actor needs to pass through to reach the
+<a name="559"></a>             *   target.
+<a name="560"></a>             */
+<a name="561"></a>            while(loc != startLoc &amp;&amp; loc != a.getOutermostRoom)
+<a name="562"></a>            {
+<a name="563"></a>               /* 
+<a name="564"></a>                *   prepend this location to our list so that our list will end up working from
+<a name="565"></a>                *   outermost to innermost.
+<a name="566"></a>                */
+<a name="567"></a>                locList = locList.prepend(loc);
+<a name="568"></a>                
+<a name="569"></a>                /* 
+<a name="570"></a>                 *   Then set loc to the next location working outwards towards the actor's
+<a name="571"></a>                 *   location.
+<a name="572"></a>                 */
+<a name="573"></a>                loc = loc.location;                
+<a name="574"></a>            }
+<a name="575"></a>            
+<a name="576"></a>            
+<a name="577"></a>            /* 
+<a name="578"></a>             *   Loop through the locations in the list we've just constructed working inwards trom
+<a name="579"></a>             *   the actor's location.
+<a name="580"></a>             */
+<a name="581"></a>            foreach(loc in locList)
+<a name="582"></a>            {
+<a name="583"></a>                /* 
+<a name="584"></a>                 *   If loc is not the actor's location and it doesn't allow reaching in and it's a
+<a name="585"></a>                 *   nested room (enterable or boardable) then create a new ReachProblemReachIn
+<a name="586"></a>                 *   object corresponding to loc to add to our list of issues.
+<a name="587"></a>                 */                
+<a name="588"></a>                if(loc != startLoc &amp;&amp; (loc.isEnterable || loc.isBoardable))   
+<a name="589"></a>                {
+<a name="590"></a>                    if(!loc.allowReachIn(b))                         
+<a name="591"></a>                        issues += new ReachProblemReachIn(loc, b);
+<a name="592"></a>                    
+<a name="593"></a>                }
+<a name="594"></a>                else if(b.isIn(loc) &amp;&amp; lst.indexOf(loc))
+<a name="595"></a>                    issues += new ReachProblemBlocker(b, loc); 
+<a name="596"></a>            }
+<a name="597"></a>        }
+<a name="598"></a>        
+<a name="599"></a>        /* Return our list of issues */
+<a name="600"></a>        return issues;
+<a name="601"></a>        
+<a name="602"></a>    }
+<a name="603"></a>    
+<a name="604"></a>    
+<a name="605"></a>    /*
+<a name="606"></a>     *   Determine if A can reach B, and if not, what stands in the way. Returns
+<a name="607"></a>     *   a list of containers along the path between A and B that obstruct the
+<a name="608"></a>     *   reach.  If the two objects are in separate rooms, the top-level room
+<a name="609"></a>     *   containing A is in the list to represent the room separation.  If
+<a name="610"></a>     *   there's no obstruction, we return an empty list.
+<a name="611"></a>     */
+<a name="612"></a>    reachBlocker(a, b)
+<a name="613"></a>    {
+<a name="614"></a>        return a.containerPathBlock(b, &amp;canReachOut, &amp;canReachIn);
+<a name="615"></a>    }
+<a name="616"></a>    
+<a name="617"></a>    /*
+<a name="618"></a>     *   Can A hear B?  We return true if there's a clear sound path from A to
+<a name="619"></a>     *   B.
+<a name="620"></a>     */
+<a name="621"></a>    canHear(a, b)
+<a name="622"></a>    {
+<a name="623"></a>        if(a.isIn(nil) || b.isIn(nil))
+<a name="624"></a>            return nil;
+<a name="625"></a>        
+<a name="626"></a>        return soundBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
+<a name="627"></a>    }
+<a name="628"></a>
+<a name="629"></a>    /*
+<a name="630"></a>     *   Determine if A can hear B, and if not, what stands in the way.  We
+<a name="631"></a>     *   return a list of the obstructions to sound between A and B.  If
+<a name="632"></a>     *   the two objects are in separate rooms, the top level room
+<a name="633"></a>     *   containing A represents the room separation.  If there are no
+<a name="634"></a>     *   sound obstructions, returns an empty list.  
+<a name="635"></a>     */
+<a name="636"></a>    soundBlocker(a, b)
+<a name="637"></a>    {
+<a name="638"></a>        return a.containerPathBlock(b, &amp;canHearOut, &amp;canHearIn);
+<a name="639"></a>    }
+<a name="640"></a>
+<a name="641"></a>    /*
+<a name="642"></a>     *   Can A smell B?  We return true if there's a clear scent path from
+<a name="643"></a>     *   A to B.  
+<a name="644"></a>     */
+<a name="645"></a>    canSmell(a, b)
+<a name="646"></a>    {
+<a name="647"></a>        if(a.isIn(nil) || b.isIn(nil))
+<a name="648"></a>            return nil;
+<a name="649"></a>        
+<a name="650"></a>        return scentBlocker(a, b).indexWhich({x: x not in (a, b)}) ==  nil;
+<a name="651"></a>    }
 <a name="652"></a>
-<a name="653"></a>        /* get the next Special that defines the method */
-<a name="654"></a>        while (!slst[++idx].propDefined(prop)) ;
-<a name="655"></a>        
-<a name="656"></a>        /* call the query method in the next Special, returning the result */
-<a name="657"></a>        return slst[idx].(prop)(stk.argList_...);
-<a name="658"></a>    }
-<a name="659"></a>
-<a name="660"></a>    /*
-<a name="661"></a>     *   Get the first active Special (the one with the highest priority)
-<a name="662"></a>     *   that defines the given method.  This is used by the Q query
-<a name="663"></a>     *   methods to invoke the correct current Special version of the
-<a name="664"></a>     *   method.  
-<a name="665"></a>     */
-<a name="666"></a>    first(prop)
-<a name="667"></a>    {
-<a name="668"></a>        /* 
-<a name="669"></a>         *   If the active conditions on one or more Specials may change during
-<a name="670"></a>         *   the course of the game, invalidate the list of active Specials to
-<a name="671"></a>         *   force it to be rebuilt.
-<a name="672"></a>         */
-<a name="673"></a>        if(Q.dynamicSpecials)
-<a name="674"></a>            Special.allActive_ = nil;
-<a name="675"></a>        
-<a name="676"></a>        /* get the active Specials */
-<a name="677"></a>        local slst = Special.allActive();
-<a name="678"></a>
-<a name="679"></a>        /* find the first definer of the method */
-<a name="680"></a>        local idx = 0;
-<a name="681"></a>        while (!slst[++idx].propDefined(prop)) ;
-<a name="682"></a>
-<a name="683"></a>        /* return the one we found */
-<a name="684"></a>        return slst[idx];
-<a name="685"></a>    }
-<a name="686"></a>
-<a name="687"></a>    /* Class method: get the list of active Specials. */
-<a name="688"></a>    allActive()
-<a name="689"></a>    {
-<a name="690"></a>        local a;
-<a name="691"></a>        
-<a name="692"></a>        /* if the cache is empty, rebuild it */
-<a name="693"></a>        if ((a = allActive_) == nil)
-<a name="694"></a>            a = allActive_ = all.subset({ s: s.active() });
-<a name="695"></a>
-<a name="696"></a>        /* return the list */
-<a name="697"></a>        return a;
-<a name="698"></a>    }
-<a name="699"></a>
-<a name="700"></a>    /*
-<a name="701"></a>     *   Class property: cache of all currently active Specials.  This is
-<a name="702"></a>     *   set whenever someone asks for the list and it's not available, and
-<a name="703"></a>     *   is cleared whenever an Effect modifies the game state.  (Callers
-<a name="704"></a>     *   shouldn't access this directly - this is an internal cache.  Use
-<a name="705"></a>     *   the allActive() method instead.)  
-<a name="706"></a>     */
-<a name="707"></a>    allActive_ = nil
-<a name="708"></a>
-<a name="709"></a>    /* during initialization, build the list of all Specials */
-<a name="710"></a>    classInit()
-<a name="711"></a>    {
-<a name="712"></a>        /* build the list of all Specials */
-<a name="713"></a>        local v = new Vector(128);
-<a name="714"></a>        forEachInstance(Special, { s: v.append(s) });
-<a name="715"></a>
-<a name="716"></a>        /* 
-<a name="717"></a>         *   Sort it in ascending priority order.  Since we assume that
-<a name="718"></a>         *   priorities are fixed, this eliminates the need to sort when
-<a name="719"></a>         *   creating active subsets - the subsets will automatically come
-<a name="720"></a>         *   up in priority order because they're taken from a list that
-<a name="721"></a>         *   starts in priority order. 
-<a name="722"></a>         */
-<a name="723"></a>        v.sort(SortDesc, { a, b: a.priority - b.priority });
-<a name="724"></a>
-<a name="725"></a>        /* save it as a list */
-<a name="726"></a>        all = v.toList();
-<a name="727"></a>    }
-<a name="728"></a>
-<a name="729"></a>    /*
-<a name="730"></a>     *   Class property: the list of all Special objects throughout the
-<a name="731"></a>     *   game.  This is set up during preinit.
-<a name="732"></a>     */
-<a name="733"></a>    all = []
-<a name="734"></a>;
-<a name="735"></a>
-<a name="736"></a>/*------------------------------------------------------------------------- */
-<a name="737"></a>/*
-<a name="738"></a> *   A commLink is a Special that establishes a communications link between the
-<a name="739"></a> *   player character and one or more actors in remote locations.
-<a name="740"></a> *
-<a name="741"></a> *   To activate the commLink with another actor, call
-<a name="742"></a> *   commLink.connectTo(other). To make it a video link as well as an audio
-<a name="743"></a> *   link, call commLink.connectTo(other, true).
-<a name="744"></a> *
-<a name="745"></a> *   To disconnect the call with a specific actor,  call
-<a name="746"></a> *   commLink.disconnectFrom(other); to terminate the commLink with all actors,
-<a name="747"></a> *   call commLink.disconnect()
-<a name="748"></a> *
-<a name="749"></a> */
-<a name="750"></a>commLink: Special
-<a name="751"></a>   
-<a name="752"></a>    /* 
-<a name="753"></a>     *   Our scope list must include all the actors we're currently connected
-<a name="754"></a>     *   to.
-<a name="755"></a>     */
-<a name="756"></a>    scopeList(actor)
-<a name="757"></a>    {
-<a name="758"></a>        local s = next();
-<a name="759"></a>        
-<a name="760"></a>        s.vec_ += connectionList.mapAll({x: x[1]});
-<a name="761"></a>        
-<a name="762"></a>        s.vec_ = s.vec_.getUnique();
-<a name="763"></a>        
-<a name="764"></a>        return s;
+<a name="653"></a>    /*
+<a name="654"></a>     *   Determine if A can smell B, and if not, what stands in the way.
+<a name="655"></a>     *   Returns a list of obstructions to scent between A and B.  If the
+<a name="656"></a>     *   two objects are in separate rooms, the outermost room containing A
+<a name="657"></a>     *   represents the room separation.  If there are no obstructions,
+<a name="658"></a>     *   returns an empty list.  
+<a name="659"></a>     */
+<a name="660"></a>    scentBlocker(a, b)
+<a name="661"></a>    {
+<a name="662"></a>        return a.containerPathBlock(b, &amp;canSmellOut, &amp;canSmellIn);
+<a name="663"></a>    }
+<a name="664"></a>
+<a name="665"></a>    
+<a name="666"></a>    /*  
+<a name="667"></a>     *   Determine if A can talk to B. In the base situation A can talk to B if
+<a name="668"></a>     *   A can hear B.
+<a name="669"></a>     */    
+<a name="670"></a>    canTalkTo(a, b)
+<a name="671"></a>    {
+<a name="672"></a>        return Q.canHear(a, b);
+<a name="673"></a>    }
+<a name="674"></a>    
+<a name="675"></a>    /*  
+<a name="676"></a>     *   Determine if A can throw something to B. In the base situation A can
+<a name="677"></a>     *   throw to B if A can reach B.
+<a name="678"></a>     *
+<a name="679"></a>     */    
+<a name="680"></a>    canThrowTo(a, b)
+<a name="681"></a>    {
+<a name="682"></a>        return canReach(a, b);
+<a name="683"></a>    }
+<a name="684"></a>;
+<a name="685"></a>
+<a name="686"></a>/* ------------------------------------------------------------------------ */
+<a name="687"></a>/*
+<a name="688"></a> *   A Special defines a set of custom overrides to standard Query
+<a name="689"></a> *   questions that apply under specific conditions.
+<a name="690"></a> *   
+<a name="691"></a> *   At any given time, a Special is either active or inactive.  This is
+<a name="692"></a> *   determined by the active() method.  
+<a name="693"></a> */
+<a name="694"></a>class Special: object
+<a name="695"></a>    /*
+<a name="696"></a>     *   Am I active?  Each instance should override this to define the
+<a name="697"></a>     *   conditions that activate the Special.  
+<a name="698"></a>     */
+<a name="699"></a>    active = nil
+<a name="700"></a>    
+<a name="701"></a>      
+<a name="702"></a>
+<a name="703"></a>    /*
+<a name="704"></a>     *   My priority.  This is an integer value that determines which
+<a name="705"></a>     *   Special takes precedence when two or more Specials are active at
+<a name="706"></a>     *   the same time, and they both/all define a given query method.  In
+<a name="707"></a>     *   such a situation, Q calls the active Specials in ascending
+<a name="708"></a>     *   priority order (lowest first, highest last), and takes the last
+<a name="709"></a>     *   one's answer as the true answer to the question.  This means that
+<a name="710"></a>     *   the Special with the highest priority takes precedence, and can
+<a name="711"></a>     *   override any lower-ranking Special that's active at the same time.
+<a name="712"></a>     *   
+<a name="713"></a>     *   The library uses the following special priority values:
+<a name="714"></a>     *   
+<a name="715"></a>     *   0 = the basic library defaults.  The defaults must have the lowest
+<a name="716"></a>     *   priority, meaning that all Special objects defined by a game or
+<a name="717"></a>     *   extension must use priorities higher than 0.
+<a name="718"></a>     *   
+<a name="719"></a>     *   Other than the special priorities listed above, the priority is
+<a name="720"></a>     *   simply a relative ordering, so games and extensions can use
+<a name="721"></a>     *   whatever range of values they like.
+<a name="722"></a>     *   
+<a name="723"></a>     *   Note that priorities can't change while running.  This is a
+<a name="724"></a>     *   permanent feature of the object.  We take advantage of this to
+<a name="725"></a>     *   avoid re-sorting the active list every time we build it.  We sort
+<a name="726"></a>     *   the master list at initialization and assume it stays sorted, so
+<a name="727"></a>     *   that any subset is inherently sorted.  If it's important to the
+<a name="728"></a>     *   game to dynamically change priorities, you just need to re-sort
+<a name="729"></a>     *   the allActive_ list at appropriate times.  If priorities can only
+<a name="730"></a>     *   change when the game-world state changes, you can simply sort the
+<a name="731"></a>     *   list in allActive() each time it's rebuilt.  If priorities can
+<a name="732"></a>     *   change at other times (which doesn't seem like it'd be useful, but
+<a name="733"></a>     *   just in case), you'd need to re-sort the list on every call to
+<a name="734"></a>     *   allActive(), even when the list isn't rebuilt.  
+<a name="735"></a>     */
+<a name="736"></a>    priority = 1
+<a name="737"></a>
+<a name="738"></a>    /*
+<a name="739"></a>     *   Call the same method in the next lower priority Special.  This can
+<a name="740"></a>     *   be used in any Special query method to invoke the "default"
+<a name="741"></a>     *   version that would have been used if the current Special had not
+<a name="742"></a>     *   been active.
+<a name="743"></a>     *   
+<a name="744"></a>     *   This is analogous to using 'inherited' to inherit the superclass
+<a name="745"></a>     *   version of a method from an overriding version in a subclass.  As
+<a name="746"></a>     *   with 'inherited', you can only call this directly from the method
+<a name="747"></a>     *   that you want to pass to the default handling, because this
+<a name="748"></a>     *   routine determines what to call based on the caller.  
+<a name="749"></a>     */
+<a name="750"></a>    next()
+<a name="751"></a>    {
+<a name="752"></a>        /* get the caller's stack trace information */
+<a name="753"></a>        local stk = t3GetStackTrace(2);
+<a name="754"></a>        local prop = stk.prop_;
+<a name="755"></a>        
+<a name="756"></a>        /* find the 'self' object in the currently active Specials list */
+<a name="757"></a>        local slst = Special.allActive();
+<a name="758"></a>        local idx = slst.indexOf(stk.self_);
+<a name="759"></a>
+<a name="760"></a>        /* get the next Special that defines the method */
+<a name="761"></a>        while (!slst[++idx].propDefined(prop)) ;
+<a name="762"></a>        
+<a name="763"></a>        /* call the query method in the next Special, returning the result */
+<a name="764"></a>        return slst[idx].(prop)(stk.argList_...);
 <a name="765"></a>    }
-<a name="766"></a>    
-<a name="767"></a>    /* We can hear an actor if s/he's in our connection list */
-<a name="768"></a>    canHear(a, b)
-<a name="769"></a>    {
-<a name="770"></a>        /* 
-<a name="771"></a>         *   We assume that if a can hear b, b can hear a, but the link is only
-<a name="772"></a>         *   between the player character an another actor. If b is the player
-<a name="773"></a>         *   character swap a and b so that the tests that follow will still
-<a name="774"></a>         *   apply.
-<a name="775"></a>         */
-<a name="776"></a>        if(b == gPlayerChar)
-<a name="777"></a>        {
-<a name="778"></a>            b = a;
-<a name="779"></a>            a = gPlayerChar;
-<a name="780"></a>        }
-<a name="781"></a>        
-<a name="782"></a>        /* 
-<a name="783"></a>         *   If one of the actors is the player character and the other is in
-<a name="784"></a>         *   our connection list, then they can hear each other.
-<a name="785"></a>         */
-<a name="786"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b))
-<a name="787"></a>            return true;
-<a name="788"></a>        
-<a name="789"></a>        /* Otherwise use the next special. */
-<a name="790"></a>        return next();
-<a name="791"></a>    }
-<a name="792"></a>    
-<a name="793"></a>    canSee(a, b)
-<a name="794"></a>    {
-<a name="795"></a>        /* 
-<a name="796"></a>         *   We assume that if a can see b, b can see a, but the link is only
-<a name="797"></a>         *   between the player character and another actor. If b is the player
-<a name="798"></a>         *   character swap a and b so that the tests that follow will still
-<a name="799"></a>         *   apply.
-<a name="800"></a>         */
-<a name="801"></a>        if(b == gPlayerChar)
-<a name="802"></a>        {
-<a name="803"></a>            b = a;
-<a name="804"></a>            a = gPlayerChar;
-<a name="805"></a>        }
-<a name="806"></a>        
-<a name="807"></a>        /* 
-<a name="808"></a>         *   If one of the actors is the player character and the other is in
-<a name="809"></a>         *   our connection list with a video value of true, then they can see
-<a name="810"></a>         *   each other.
-<a name="811"></a>         */
-<a name="812"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b) == VideoLink)
-<a name="813"></a>            return true;
-<a name="814"></a>        
-<a name="815"></a>        /* Otherwise use the next special. */
-<a name="816"></a>        return next();
-<a name="817"></a>    }
-<a name="818"></a>    
-<a name="819"></a>    canTalkTo(a, b)   
-<a name="820"></a>    {
-<a name="821"></a>        /* 
-<a name="822"></a>         *   We assume that if a can talk to b, b can talk to a, but the link is
-<a name="823"></a>         *   only between the player character and another actor. If b is the
-<a name="824"></a>         *   player character swap a and b so that the tests that follow will
-<a name="825"></a>         *   still apply.
-<a name="826"></a>         */
-<a name="827"></a>        if(b == gPlayerChar)
-<a name="828"></a>        {
-<a name="829"></a>            b = a;
-<a name="830"></a>            a = gPlayerChar;
-<a name="831"></a>        }
-<a name="832"></a>        
-<a name="833"></a>        /* 
-<a name="834"></a>         *   If one of the actors is the player character and the other is in
-<a name="835"></a>         *   our connection list, then they can talk to each other.
-<a name="836"></a>         */
-<a name="837"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b))
-<a name="838"></a>            return true;
-<a name="839"></a>        
-<a name="840"></a>        /* Otherwise use the next special. */
-<a name="841"></a>        return next();
-<a name="842"></a>    }
-<a name="843"></a>    
-<a name="844"></a>    /* 
-<a name="845"></a>     *   The list of actors we're currently connected to. This is a list of two
-<a name="846"></a>     *   element lists in the form [actor, video], where actor is the actor
-<a name="847"></a>     *   we're connected to and video is true or nil according to whether the
-<a name="848"></a>     *   link to that actor is a video link as well as an audio link.
-<a name="849"></a>     */
-<a name="850"></a>    connectionList = []
-<a name="851"></a>    
-<a name="852"></a>    /* This Special is active is there's anything in its connectionList. */
-<a name="853"></a>    active = connectionList.length &gt; 0
-<a name="854"></a>    
-<a name="855"></a>    /* 
-<a name="856"></a>     *   Connect this comms link to other; if video is specified and is true,
-<a name="857"></a>     *   the comms links is also a video link.
-<a name="858"></a>     */
-<a name="859"></a>    connectTo(other, video = nil)
-<a name="860"></a>    {
-<a name="861"></a>        /* 
-<a name="862"></a>         *   In case the video parameter is supplied as AudioLink or VideoLink
-<a name="863"></a>         *   (some game authors may try this even though it's not documented),
-<a name="864"></a>         *   we should first translate the video parameter into true or nil as
-<a name="865"></a>         *   appropriate.
-<a name="866"></a>         */
-<a name="867"></a>        if(video == AudioLink)
-<a name="868"></a>            video = nil;
-<a name="869"></a>        
-<a name="870"></a>        if(video == VideoLink)
-<a name="871"></a>            video = true;
-<a name="872"></a>        
-<a name="873"></a>        /* Add other to our connection list. */
-<a name="874"></a>        connectionList = connectionList.append([other, video]);
-<a name="875"></a>        
-<a name="876"></a>        /* Force the Special class to rebuild its list of active Specials. */
-<a name="877"></a>        Special.allActive_ = nil;
-<a name="878"></a>    }
-<a name="879"></a>    
-<a name="880"></a>    /* Disconnect this commLink from everyone */
-<a name="881"></a>    disconnect()
-<a name="882"></a>    {
-<a name="883"></a>        /* Empty our out connectionList */
-<a name="884"></a>        connectionList = [];
-<a name="885"></a>        
-<a name="886"></a>        /* Force the Special class to rebuild its list of active Specials. */
-<a name="887"></a>        Special.allActive_ = nil;
-<a name="888"></a>    }
-<a name="889"></a>    
-<a name="890"></a>    /* 
-<a name="891"></a>     *   Disconnect this commLink from lst, where lst may be a single actor or a
-<a name="892"></a>     *   list of actors.
-<a name="893"></a>     */
-<a name="894"></a>    disconnectFrom(lst)
-<a name="895"></a>    {
-<a name="896"></a>        /* Convert the lst parameter to a list if it isn't one already */
-<a name="897"></a>        lst = valToList(lst);
-<a name="898"></a>        
-<a name="899"></a>        /* 
-<a name="900"></a>         *   Reduce our connectionList to a subset of members that aren't in
-<a name="901"></a>         *   lst.
-<a name="902"></a>         */
-<a name="903"></a>        connectionList = connectionList.subset({x: lst.indexOf(x[1]) == nil});
-<a name="904"></a>        
-<a name="905"></a>        /* Force the Special class to rebuild its list of active Specials. */
-<a name="906"></a>        Special.allActive_ = nil;
-<a name="907"></a>    }
-<a name="908"></a> 
-<a name="909"></a>    /* 
-<a name="910"></a>     *   Is there a communications link with obj? Return nil if there is none,
-<a name="911"></a>     *   AudioLink if there's an audio connection only and VideoLink if there's
-<a name="912"></a>     *   a video connection as well.
-<a name="913"></a>     */
-<a name="914"></a>    isConnectedTo(obj)
-<a name="915"></a>    {
-<a name="916"></a>        local conn = connectionList.valWhich({x: x[1] == obj});
-<a name="917"></a>        if(conn == nil)
-<a name="918"></a>            return nil;
-<a name="919"></a>        
-<a name="920"></a>        return conn[2] ? VideoLink : AudioLink;
-<a name="921"></a>    }
-<a name="922"></a>    
-<a name="923"></a>    
-<a name="924"></a>    /* 
-<a name="925"></a>     *   Give this Special a higher priority that the QSenseRegion Special so
-<a name="926"></a>     *   that it takes precedence when its active.
-<a name="927"></a>     */
-<a name="928"></a>    priority = 5
-<a name="929"></a>;
-<a name="930"></a>
-<a name="931"></a>
-<a name="932"></a>/* ------------------------------------------------------------------------ */
-<a name="933"></a>/*
-<a name="934"></a> *   A ScopeList is a helper object used to build the list of objects in
-<a name="935"></a> *   scope.  This object provides methods for the common ways of adding
-<a name="936"></a> *   objects to scope.
-<a name="937"></a> *   
-<a name="938"></a> *   The ScopeList isn't a true Collection object, but it mimics one by
-<a name="939"></a> *   providing most of the standard methods.  You can use length() and the
-<a name="940"></a> *   [] operator to scan the list, perform a foreach or for..in loop with a
-<a name="941"></a> *   ScopeList to iterate over the items in scope, you can use find() to
-<a name="942"></a> *   check if a given object is in scope, and you can use subset() to get a
-<a name="943"></a> *   list of in-scope objects satisfying some condition.
-<a name="944"></a> */
-<a name="945"></a>class ScopeList: object
-<a name="946"></a>    /*
-<a name="947"></a>     *   Add an object and its contents to the scope. 
-<a name="948"></a>     */
-<a name="949"></a>    add(obj)
-<a name="950"></a>    {
-<a name="951"></a>        /* 
-<a name="952"></a>         *   if we've already visited this object in full-contents mode,
-<a name="953"></a>         *   there's no need to repeat all that
-<a name="954"></a>         */
-<a name="955"></a>        local tstat = status_[obj];
-<a name="956"></a>        if (tstat == 2)
-<a name="957"></a>            return;
-<a name="958"></a>
-<a name="959"></a>        /* if the object isn't already in the list at all, add it */
-<a name="960"></a>        if (tstat == nil)
-<a name="961"></a>            vec_.append(obj);
-<a name="962"></a>
-<a name="963"></a>        /* promote it to status 2: added with contents */
-<a name="964"></a>        status_[obj] = 2;
-<a name="965"></a>
-<a name="966"></a>        /* 
-<a name="967"></a>         *   if we can see in, add all of the contents, interior and
-<a name="968"></a>         *   exterior; otherwise add just the exterior contents 
-<a name="969"></a>         */
-<a name="970"></a>        if (obj.canSeeIn)
-<a name="971"></a>            addAll(obj.contents);
-<a name="972"></a>        else
-<a name="973"></a>            addAll(obj.extContents);
-<a name="974"></a>    }
-<a name="975"></a>
-<a name="976"></a>    /*
-<a name="977"></a>     *   Add all of the objects in the given list 
-<a name="978"></a>     */
-<a name="979"></a>    addAll(lst)
-<a name="980"></a>    {
-<a name="981"></a>        for (local i = 1, local len = lst.length() ; i &lt;= len ; ++i)
-<a name="982"></a>            add(lst[i]);
-<a name="983"></a>    }
-<a name="984"></a>
-<a name="985"></a>    /*
-<a name="986"></a>     *   Add the interior contents of an object to the scope.  This adds
-<a name="987"></a>     *   only the contents, not the object itself.  
-<a name="988"></a>     */
-<a name="989"></a>    addWithin(obj)
-<a name="990"></a>    {
-<a name="991"></a>        /* add each object in the interior contents */
-<a name="992"></a>        addAll(obj.intContents);
-<a name="993"></a>    }
-<a name="994"></a>
-<a name="995"></a>    
-<a name="996"></a>    /* add each self-illuminating object in the interior contents */
-<a name="997"></a>    addSelfIlluminatingWithin(obj)
-<a name="998"></a>    {
-<a name="999"></a>        addAll(obj.intContents.subset({x: x.visibleInDark}));
-<a name="1000"></a>    }
-<a name="1001"></a>    
-<a name="1002"></a>    /*
-<a name="1003"></a>     *   Add a single object to the scope.  This doesn't add anything
-<a name="1004"></a>     *   related to the object (such as its contents) - just the object
-<a name="1005"></a>     *   itself.  
-<a name="1006"></a>     */
-<a name="1007"></a>    addOnly(obj)
-<a name="1008"></a>    {
-<a name="1009"></a>        /* 
-<a name="1010"></a>         *   If this object is already in the status table with any status,
-<a name="1011"></a>         *   there's no need to add it again.  We also don't want to change
-<a name="1012"></a>         *   its existing status, because if we've already added it with
-<a name="1013"></a>         *   its contents, adding it redundantly by itself doesn't change
-<a name="1014"></a>         *   the fact that we've added its contents.
-<a name="1015"></a>         */
-<a name="1016"></a>        if (status_[obj] != nil)
-<a name="1017"></a>            return;
-<a name="1018"></a>
-<a name="1019"></a>        /* add it to the vector */
-<a name="1020"></a>        vec_.append(obj);
-<a name="1021"></a>
-<a name="1022"></a>        /* set the status to 1: we've added only this object */
-<a name="1023"></a>        status_[obj] = 1;
-<a name="1024"></a>    }
-<a name="1025"></a>
-<a name="1026"></a>    /* "close" the scope list - this converts the vector to a list */
-<a name="1027"></a>    close()
-<a name="1028"></a>    {
-<a name="1029"></a>        vec_ = vec_.toList();
-<a name="1030"></a>        status_ = nil;
-<a name="1031"></a>    }
-<a name="1032"></a>
-<a name="1033"></a>    /* get the number of items in scope */
-<a name="1034"></a>    length() { return vec_.length(); }
-<a name="1035"></a>
-<a name="1036"></a>    /* get an item from the list */
-<a name="1037"></a>    operator[](idx) { return vec_[idx]; }
+<a name="766"></a>
+<a name="767"></a>    /*
+<a name="768"></a>     *   Get the first active Special (the one with the highest priority)
+<a name="769"></a>     *   that defines the given method.  This is used by the Q query
+<a name="770"></a>     *   methods to invoke the correct current Special version of the
+<a name="771"></a>     *   method.  
+<a name="772"></a>     */
+<a name="773"></a>    first(prop)
+<a name="774"></a>    {
+<a name="775"></a>        /* 
+<a name="776"></a>         *   If the active conditions on one or more Specials may change during
+<a name="777"></a>         *   the course of the game, invalidate the list of active Specials to
+<a name="778"></a>         *   force it to be rebuilt.
+<a name="779"></a>         */
+<a name="780"></a>        if(Q.dynamicSpecials)
+<a name="781"></a>            Special.allActive_ = nil;
+<a name="782"></a>        
+<a name="783"></a>        /* get the active Specials */
+<a name="784"></a>        local slst = Special.allActive();
+<a name="785"></a>
+<a name="786"></a>        /* find the first definer of the method */
+<a name="787"></a>        local idx = 0;
+<a name="788"></a>        while (!slst[++idx].propDefined(prop)) ;
+<a name="789"></a>
+<a name="790"></a>        /* return the one we found */
+<a name="791"></a>        return slst[idx];
+<a name="792"></a>    }
+<a name="793"></a>
+<a name="794"></a>    /* Class method: get the list of active Specials. */
+<a name="795"></a>    allActive()
+<a name="796"></a>    {
+<a name="797"></a>        local a;
+<a name="798"></a>        
+<a name="799"></a>        /* if the cache is empty, rebuild it */
+<a name="800"></a>        if ((a = allActive_) == nil)
+<a name="801"></a>            a = allActive_ = all.subset({ s: s.active() });
+<a name="802"></a>
+<a name="803"></a>        /* return the list */
+<a name="804"></a>        return a;
+<a name="805"></a>    }
+<a name="806"></a>
+<a name="807"></a>    /*
+<a name="808"></a>     *   Class property: cache of all currently active Specials.  This is
+<a name="809"></a>     *   set whenever someone asks for the list and it's not available, and
+<a name="810"></a>     *   is cleared whenever an Effect modifies the game state.  (Callers
+<a name="811"></a>     *   shouldn't access this directly - this is an internal cache.  Use
+<a name="812"></a>     *   the allActive() method instead.)  
+<a name="813"></a>     */
+<a name="814"></a>    allActive_ = nil
+<a name="815"></a>
+<a name="816"></a>    /* during initialization, build the list of all Specials */
+<a name="817"></a>    classInit()
+<a name="818"></a>    {
+<a name="819"></a>        /* build the list of all Specials */
+<a name="820"></a>        local v = new Vector(128);
+<a name="821"></a>        forEachInstance(Special, { s: v.append(s) });
+<a name="822"></a>
+<a name="823"></a>        /* 
+<a name="824"></a>         *   Sort it in ascending priority order.  Since we assume that
+<a name="825"></a>         *   priorities are fixed, this eliminates the need to sort when
+<a name="826"></a>         *   creating active subsets - the subsets will automatically come
+<a name="827"></a>         *   up in priority order because they're taken from a list that
+<a name="828"></a>         *   starts in priority order. 
+<a name="829"></a>         */
+<a name="830"></a>        v.sort(SortDesc, { a, b: a.priority - b.priority });
+<a name="831"></a>
+<a name="832"></a>        /* save it as a list */
+<a name="833"></a>        all = v.toList();
+<a name="834"></a>    }
+<a name="835"></a>
+<a name="836"></a>    /*
+<a name="837"></a>     *   Class property: the list of all Special objects throughout the
+<a name="838"></a>     *   game.  This is set up during preinit.
+<a name="839"></a>     */
+<a name="840"></a>    all = []
+<a name="841"></a>;
+<a name="842"></a>
+<a name="843"></a>/*------------------------------------------------------------------------- */
+<a name="844"></a>/*
+<a name="845"></a> *   A commLink is a Special that establishes a communications link between the
+<a name="846"></a> *   player character and one or more actors in remote locations.
+<a name="847"></a> *
+<a name="848"></a> *   To activate the commLink with another actor, call
+<a name="849"></a> *   commLink.connectTo(other). To make it a video link as well as an audio
+<a name="850"></a> *   link, call commLink.connectTo(other, true).
+<a name="851"></a> *
+<a name="852"></a> *   To disconnect the call with a specific actor,  call
+<a name="853"></a> *   commLink.disconnectFrom(other); to terminate the commLink with all actors,
+<a name="854"></a> *   call commLink.disconnect()
+<a name="855"></a> *
+<a name="856"></a> */
+<a name="857"></a>commLink: Special
+<a name="858"></a>   
+<a name="859"></a>    /* 
+<a name="860"></a>     *   Our scope list must include all the actors we're currently connected
+<a name="861"></a>     *   to.
+<a name="862"></a>     */
+<a name="863"></a>    scopeList(actor)
+<a name="864"></a>    {
+<a name="865"></a>        local s = next();
+<a name="866"></a>        
+<a name="867"></a>        s.vec_ += connectionList.mapAll({x: x[1]});
+<a name="868"></a>        
+<a name="869"></a>        s.vec_ = s.vec_.getUnique();
+<a name="870"></a>        
+<a name="871"></a>        return s;
+<a name="872"></a>    }
+<a name="873"></a>    
+<a name="874"></a>    /* We can hear an actor if s/he's in our connection list */
+<a name="875"></a>    canHear(a, b)
+<a name="876"></a>    {
+<a name="877"></a>        /* 
+<a name="878"></a>         *   We assume that if a can hear b, b can hear a, but the link is only
+<a name="879"></a>         *   between the player character an another actor. If b is the player
+<a name="880"></a>         *   character swap a and b so that the tests that follow will still
+<a name="881"></a>         *   apply.
+<a name="882"></a>         */
+<a name="883"></a>        if(b == gPlayerChar)
+<a name="884"></a>        {
+<a name="885"></a>            b = a;
+<a name="886"></a>            a = gPlayerChar;
+<a name="887"></a>        }
+<a name="888"></a>        
+<a name="889"></a>        /* 
+<a name="890"></a>         *   If one of the actors is the player character and the other is in
+<a name="891"></a>         *   our connection list, then they can hear each other.
+<a name="892"></a>         */
+<a name="893"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b))
+<a name="894"></a>            return true;
+<a name="895"></a>        
+<a name="896"></a>        /* Otherwise use the next special. */
+<a name="897"></a>        return next();
+<a name="898"></a>    }
+<a name="899"></a>    
+<a name="900"></a>    canSee(a, b)
+<a name="901"></a>    {
+<a name="902"></a>        /* 
+<a name="903"></a>         *   We assume that if a can see b, b can see a, but the link is only
+<a name="904"></a>         *   between the player character and another actor. If b is the player
+<a name="905"></a>         *   character swap a and b so that the tests that follow will still
+<a name="906"></a>         *   apply.
+<a name="907"></a>         */
+<a name="908"></a>        if(b == gPlayerChar)
+<a name="909"></a>        {
+<a name="910"></a>            b = a;
+<a name="911"></a>            a = gPlayerChar;
+<a name="912"></a>        }
+<a name="913"></a>        
+<a name="914"></a>        /* 
+<a name="915"></a>         *   If one of the actors is the player character and the other is in
+<a name="916"></a>         *   our connection list with a video value of true, then they can see
+<a name="917"></a>         *   each other.
+<a name="918"></a>         */
+<a name="919"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b) == VideoLink)
+<a name="920"></a>            return true;
+<a name="921"></a>        
+<a name="922"></a>        /* Otherwise use the next special. */
+<a name="923"></a>        return next();
+<a name="924"></a>    }
+<a name="925"></a>    
+<a name="926"></a>    canTalkTo(a, b)   
+<a name="927"></a>    {
+<a name="928"></a>        /* 
+<a name="929"></a>         *   We assume that if a can talk to b, b can talk to a, but the link is
+<a name="930"></a>         *   only between the player character and another actor. If b is the
+<a name="931"></a>         *   player character swap a and b so that the tests that follow will
+<a name="932"></a>         *   still apply.
+<a name="933"></a>         */
+<a name="934"></a>        if(b == gPlayerChar)
+<a name="935"></a>        {
+<a name="936"></a>            b = a;
+<a name="937"></a>            a = gPlayerChar;
+<a name="938"></a>        }
+<a name="939"></a>        
+<a name="940"></a>        /* 
+<a name="941"></a>         *   If one of the actors is the player character and the other is in
+<a name="942"></a>         *   our connection list, then they can talk to each other.
+<a name="943"></a>         */
+<a name="944"></a>        if(a == gPlayerChar &amp;&amp; isConnectedTo(b))
+<a name="945"></a>            return true;
+<a name="946"></a>        
+<a name="947"></a>        /* Otherwise use the next special. */
+<a name="948"></a>        return next();
+<a name="949"></a>    }
+<a name="950"></a>    
+<a name="951"></a>    /* 
+<a name="952"></a>     *   The list of actors we're currently connected to. This is a list of two
+<a name="953"></a>     *   element lists in the form [actor, video], where actor is the actor
+<a name="954"></a>     *   we're connected to and video is true or nil according to whether the
+<a name="955"></a>     *   link to that actor is a video link as well as an audio link.
+<a name="956"></a>     */
+<a name="957"></a>    connectionList = []
+<a name="958"></a>    
+<a name="959"></a>    /* This Special is active is there's anything in its connectionList. */
+<a name="960"></a>    active = connectionList.length &gt; 0
+<a name="961"></a>    
+<a name="962"></a>    /* 
+<a name="963"></a>     *   Connect this comms link to other; if video is specified and is true,
+<a name="964"></a>     *   the comms links is also a video link.
+<a name="965"></a>     */
+<a name="966"></a>    connectTo(other, video = nil)
+<a name="967"></a>    {
+<a name="968"></a>        /* 
+<a name="969"></a>         *   In case the video parameter is supplied as AudioLink or VideoLink
+<a name="970"></a>         *   (some game authors may try this even though it's not documented),
+<a name="971"></a>         *   we should first translate the video parameter into true or nil as
+<a name="972"></a>         *   appropriate.
+<a name="973"></a>         */
+<a name="974"></a>        if(video == AudioLink)
+<a name="975"></a>            video = nil;
+<a name="976"></a>        
+<a name="977"></a>        if(video == VideoLink)
+<a name="978"></a>            video = true;
+<a name="979"></a>        
+<a name="980"></a>        /* Add other to our connection list. */
+<a name="981"></a>        connectionList = connectionList.append([other, video]);
+<a name="982"></a>        
+<a name="983"></a>        /* Force the Special class to rebuild its list of active Specials. */
+<a name="984"></a>        Special.allActive_ = nil;
+<a name="985"></a>    }
+<a name="986"></a>    
+<a name="987"></a>    /* Disconnect this commLink from everyone */
+<a name="988"></a>    disconnect()
+<a name="989"></a>    {
+<a name="990"></a>        /* Empty our out connectionList */
+<a name="991"></a>        connectionList = [];
+<a name="992"></a>        
+<a name="993"></a>        /* Force the Special class to rebuild its list of active Specials. */
+<a name="994"></a>        Special.allActive_ = nil;
+<a name="995"></a>    }
+<a name="996"></a>    
+<a name="997"></a>    /* 
+<a name="998"></a>     *   Disconnect this commLink from lst, where lst may be a single actor or a
+<a name="999"></a>     *   list of actors.
+<a name="1000"></a>     */
+<a name="1001"></a>    disconnectFrom(lst)
+<a name="1002"></a>    {
+<a name="1003"></a>        /* Convert the lst parameter to a list if it isn't one already */
+<a name="1004"></a>        lst = valToList(lst);
+<a name="1005"></a>        
+<a name="1006"></a>        /* 
+<a name="1007"></a>         *   Reduce our connectionList to a subset of members that aren't in
+<a name="1008"></a>         *   lst.
+<a name="1009"></a>         */
+<a name="1010"></a>        connectionList = connectionList.subset({x: lst.indexOf(x[1]) == nil});
+<a name="1011"></a>        
+<a name="1012"></a>        /* Force the Special class to rebuild its list of active Specials. */
+<a name="1013"></a>        Special.allActive_ = nil;
+<a name="1014"></a>    }
+<a name="1015"></a> 
+<a name="1016"></a>    /* 
+<a name="1017"></a>     *   Is there a communications link with obj? Return nil if there is none,
+<a name="1018"></a>     *   AudioLink if there's an audio connection only and VideoLink if there's
+<a name="1019"></a>     *   a video connection as well.
+<a name="1020"></a>     */
+<a name="1021"></a>    isConnectedTo(obj)
+<a name="1022"></a>    {
+<a name="1023"></a>        local conn = connectionList.valWhich({x: x[1] == obj});
+<a name="1024"></a>        if(conn == nil)
+<a name="1025"></a>            return nil;
+<a name="1026"></a>        
+<a name="1027"></a>        return conn[2] ? VideoLink : AudioLink;
+<a name="1028"></a>    }
+<a name="1029"></a>    
+<a name="1030"></a>    
+<a name="1031"></a>    /* 
+<a name="1032"></a>     *   Give this Special a higher priority that the QSenseRegion Special so
+<a name="1033"></a>     *   that it takes precedence when its active.
+<a name="1034"></a>     */
+<a name="1035"></a>    priority = 5
+<a name="1036"></a>;
+<a name="1037"></a>
 <a name="1038"></a>
-<a name="1039"></a>    /* is the given object in scope? */
-<a name="1040"></a>    find(obj)         
-<a name="1041"></a>    { 
-<a name="1042"></a>        if(status_ == nil)
-<a name="1043"></a>            status_ = new LookupTable(64, 128);
-<a name="1044"></a>        
-<a name="1045"></a>        return status_[obj] != nil; 
-<a name="1046"></a>    }
-<a name="1047"></a>
-<a name="1048"></a>    /* get the subset of the objects in scope matching the given condition */
-<a name="1049"></a>    subset(func) { return vec_.subset(func); }
-<a name="1050"></a>
-<a name="1051"></a>    /* return the scope as a simple list of objects */
-<a name="1052"></a>    toList() { return vec_; }
-<a name="1053"></a>
-<a name="1054"></a>    /* create an iterator, for foreach() */
-<a name="1055"></a>    createIterator() { return vec_.createIterator(); }
-<a name="1056"></a>
-<a name="1057"></a>    /* create a live iterator */
-<a name="1058"></a>    createLiveIterator() { return vec_.createLiveIterator(); }
-<a name="1059"></a>
-<a name="1060"></a>    /* a vector with the objects in scope */
-<a name="1061"></a>    vec_ = perInstance(new Vector(50))
-<a name="1062"></a>
-<a name="1063"></a>    /* 
-<a name="1064"></a>     *   A LookupTable with the objects already added to the list.  We use
-<a name="1065"></a>     *   this to avoid redundantly scanning containment trees for objects
-<a name="1066"></a>     *   that we've already added.  For each object, we set status_[obj] to
-<a name="1067"></a>     *   a status indicator:
-<a name="1068"></a>     *   
-<a name="1069"></a>     *.    nil (unset) - the object has never been visited
-<a name="1070"></a>     *.    1 - we've added the object only, not its contents
-<a name="1071"></a>     *.    2 - we've added the object and its contents
-<a name="1072"></a>     */
-<a name="1073"></a>    status_ = perInstance(new LookupTable(64, 128))
-<a name="1074"></a>;
-<a name="1075"></a>
-<a name="1076"></a>/*  
-<a name="1077"></a> *   An object describing a reach problem; such objects are used by the Query
-<a name="1078"></a> *   object to communicate problems with one object touching another to the
-<a name="1079"></a> *   touchObj PreCondition (see also precond.t). ReachProblem objects are
-<a name="1080"></a> *   normally created dynamicallty as required, although it is usually one of
-<a name="1081"></a> *   the subclasses of ReachProblem that it used.
-<a name="1082"></a> */
-<a name="1083"></a>class ReachProblem: object
-<a name="1084"></a>    /* 
-<a name="1085"></a>     *   Problems which reaching an object that occur at the verify stage and
-<a name="1086"></a>     *   which might affect the choice of object. If the verify() method of a
-<a name="1087"></a>     *   ReachProblem object wishes to rule out an action it should do so using
-<a name="1088"></a>     *   illogical(), inaccessible() or other such verification macros.
-<a name="1089"></a>     */    
-<a name="1090"></a>    verify() { }   
-<a name="1091"></a>    
-<a name="1092"></a>    /*   
-<a name="1093"></a>     *   The check() method of a ReachProblem should check whether the target
-<a name="1094"></a>     *   object can be reached by the source object. If allowImplicit is true
-<a name="1095"></a>     *   the check method may attempt an implicit action to bring the target
-<a name="1096"></a>     *   object within reach.
-<a name="1097"></a>     *
-<a name="1098"></a>     *   Return true if the target object is within reach, and nil otherwise.
-<a name="1099"></a>     *
-<a name="1100"></a>     *   Note that the check() method of a ReachProblem will normally be called
-<a name="1101"></a>     *   from the checkPreCondition() method of touchObj.
-<a name="1102"></a>     */
-<a name="1103"></a>    check(allowImplicit) { return true; }    
-<a name="1104"></a>    
-<a name="1105"></a>    construct(target)
-<a name="1106"></a>    {
-<a name="1107"></a>        target_ = target;
-<a name="1108"></a>    }
-<a name="1109"></a>    
-<a name="1110"></a>    /* The object we're trying to reach */
-<a name="1111"></a>    target_ = nil
-<a name="1112"></a>;
-<a name="1113"></a>
-<a name="1114"></a>/* 
-<a name="1115"></a> *   A ReachProblem object for when the target object is too far away (because
-<a name="1116"></a> *   it's in another room).
-<a name="1117"></a> */
-<a name="1118"></a>class ReachProblemDistance: ReachProblem
-<a name="1119"></a>    verify()
-<a name="1120"></a>    {
-<a name="1121"></a>        inaccessible(tooFarAwayMsg);
-<a name="1122"></a>    }
-<a name="1123"></a>    
-<a name="1124"></a>    tooFarAwayMsg()
-<a name="1125"></a>    {
-<a name="1126"></a>        return source_.getOutermostRoom.cannotReachTargetMsg(target_);              
-<a name="1127"></a>    }
-<a name="1128"></a>    
-<a name="1129"></a>    construct(source, target)
-<a name="1130"></a>    {
-<a name="1131"></a>        source_ = source;
-<a name="1132"></a>        inherited(target);
-<a name="1133"></a>    }
-<a name="1134"></a>    
-<a name="1135"></a>    /* The object that's trying to reach the target */
-<a name="1136"></a>    source_ = nil;
-<a name="1137"></a>;
-<a name="1138"></a>    
-<a name="1139"></a>/*  
-<a name="1140"></a> *   A ReachProblem object for when access to the target is blocked by a closed
-<a name="1141"></a> *   container along the path from the source to the target.
-<a name="1142"></a> */
-<a name="1143"></a>class ReachProblemBlocker: ReachProblem
-<a name="1144"></a>    verify()
-<a name="1145"></a>    {
-<a name="1146"></a>        inaccessible(reachBlockedMsg);
-<a name="1147"></a>    }
-<a name="1148"></a>    
-<a name="1149"></a>    /* 
-<a name="1150"></a>     *   Delegate defining the message explaining that blocking is reached to
-<a name="1151"></a>     *   the blocking object.
-<a name="1152"></a>     */
-<a name="1153"></a>    reachBlockedMsg()
-<a name="1154"></a>    {        
-<a name="1155"></a>        return obstructor_.reachBlockedMsg(target_);
-<a name="1156"></a>    }
-<a name="1157"></a>    
-<a name="1158"></a>    /* 
-<a name="1159"></a>     *   The closed container that is preventing access to the target object the
-<a name="1160"></a>     *   actor is trying to reach.
-<a name="1161"></a>     */
-<a name="1162"></a>    obstructor_ = nil
-<a name="1163"></a>    
-<a name="1164"></a>    construct(target, obstructor)
-<a name="1165"></a>    {
-<a name="1166"></a>        inherited(target);
-<a name="1167"></a>        obstructor_ = obstructor;
-<a name="1168"></a>    }
-<a name="1169"></a>;
-<a name="1170"></a>
-<a name="1171"></a>/*   
-<a name="1172"></a> *   A ReachProblem resulting from the verifyReach() method of the target
-<a name="1173"></a> *   object.
-<a name="1174"></a> */
-<a name="1175"></a>class ReachProblemVerifyReach: ReachProblem   
-<a name="1176"></a>    verify()
-<a name="1177"></a>    {
-<a name="1178"></a>        source_.verifyReach(target_);
-<a name="1179"></a>    }
-<a name="1180"></a>    
-<a name="1181"></a>    construct(source, target)
-<a name="1182"></a>    {
-<a name="1183"></a>        inherited(target);
-<a name="1184"></a>        source_ = source;
-<a name="1185"></a>    }
-<a name="1186"></a>    
-<a name="1187"></a>    source_ = nil
-<a name="1188"></a>;
-<a name="1189"></a>
-<a name="1190"></a>/*  
-<a name="1191"></a> *   A ReachProblem resulting from reach being prohibited by the checkReach()
-<a name="1192"></a> *   method or checkReachIn() method of the target object or an object along the
-<a name="1193"></a> *   reach path.
-<a name="1194"></a> */
-<a name="1195"></a>class ReachProblemCheckReach: ReachProblem
-<a name="1196"></a>    errMsg_ = nil
-<a name="1197"></a>    
-<a name="1198"></a>    construct(target, errMsg)
-<a name="1199"></a>    {
-<a name="1200"></a>        inherited(target);
-<a name="1201"></a>        errMsg_ = errMsg;
-<a name="1202"></a>    }
-<a name="1203"></a>    
-<a name="1204"></a>    check(allowImplicit)
-<a name="1205"></a>    {
-<a name="1206"></a>        say(errMsg_);
-<a name="1207"></a>        return nil;
-<a name="1208"></a>    }
-<a name="1209"></a>    
-<a name="1210"></a>;
-<a name="1211"></a>
-<a name="1212"></a>/*   
-<a name="1213"></a> *   A ReachProblem object for when the actor can't reach the target from the
-<a name="1214"></a> *   actor's (non top-level room) container.
-<a name="1215"></a> */
-<a name="1216"></a>class ReachProblemReachOut: ReachProblem  
-<a name="1217"></a>    /* 
-<a name="1218"></a>     *   If allowImplicit is true we can try moving the actor out of its
-<a name="1219"></a>     *   immediate container to see if this solves the problem. If it does,
-<a name="1220"></a>     *   return true; otherwise return nil.
-<a name="1221"></a>     */
-<a name="1222"></a>    check(allowImplicit)
-<a name="1223"></a>    {
-<a name="1224"></a>        /* Note the actor's immediate location. */
-<a name="1225"></a>        local loc = gActor.location;
-<a name="1226"></a>        
-<a name="1227"></a>        /* Note the target we're trying to reach. */
-<a name="1228"></a>        local obj = target_;
-<a name="1229"></a>        
-<a name="1230"></a>        /* 
-<a name="1231"></a>         *   The action needed by the actor to leave the actor's immediate
-<a name="1232"></a>         *   location (GetOff or GetOutOf, depending whether the actor is on a
-<a name="1233"></a>         *   Platform or in a Booth).
-<a name="1234"></a>         */
-<a name="1235"></a>        local getOutAction;
-<a name="1236"></a>        
-<a name="1237"></a>        /*   
-<a name="1238"></a>         *   Keep trying to move the actor out of its immediate location until
-<a name="1239"></a>         *   the actor is in its outermost room, or until we can't move the
-<a name="1240"></a>         *   actor, or until the actor can reach the target object.
-<a name="1241"></a>         */
-<a name="1242"></a>        while(loc != gActor.getOutermostRoom &amp;&amp; !obj.isOrIsIn(loc) &amp;&amp;
-<a name="1243"></a>              !loc.allowReachOut(obj))
-<a name="1244"></a>        {           
-<a name="1245"></a>            /* 
-<a name="1246"></a>             *   The action we need to move the actor out of its immediate
-<a name="1247"></a>             *   location will be GetOff or GetOutOf depending on the contType
-<a name="1248"></a>             *   of the actor's location.
-<a name="1249"></a>             */
-<a name="1250"></a>            getOutAction = loc.contType == On ? GetOff : GetOutOf;
-<a name="1251"></a>            
-<a name="1252"></a>            /* 
-<a name="1253"></a>             *   If we're allowed to attempt an implicit action, and the actor's
-<a name="1254"></a>             *   location is happy to allow the actor to leave it via an
-<a name="1255"></a>             *   implicit action for the purpose of reaching, then try an
-<a name="1256"></a>             *   implicit action to take the actor out of its location.
-<a name="1257"></a>             */
-<a name="1258"></a>            if(allowImplicit &amp;&amp; loc.autoGetOutToReach 
-<a name="1259"></a>               &amp;&amp; tryImplicitAction(getOutAction, loc))
-<a name="1260"></a>            {
-<a name="1261"></a>                /* 
-<a name="1262"></a>                 *   If the actor is still in its original location, then we
-<a name="1263"></a>                 *   were unable to move it out, so return nil to signal that
-<a name="1264"></a>                 *   the reachability condition can't be met.
-<a name="1265"></a>                 */
-<a name="1266"></a>                if(gActor.isIn(loc))
-<a name="1267"></a>                    return nil;
-<a name="1268"></a>            }
-<a name="1269"></a>            /* 
-<a name="1270"></a>             *   Otherwise, if we can't perform an implicit action to remove the
-<a name="1271"></a>             *   actor from its immediate location, display a message explaining
-<a name="1272"></a>             *   the problem and return nil to signal that the reachability
-<a name="1273"></a>             *   condition can't be met.
-<a name="1274"></a>             */
-<a name="1275"></a>            else
-<a name="1276"></a>            {
-<a name="1277"></a>                say(loc.cannotReachOutMsg(obj));               
-<a name="1278"></a>                return nil;
-<a name="1279"></a>            }
-<a name="1280"></a>                       
-<a name="1281"></a>            /* 
-<a name="1282"></a>             *   If we've reached this point we haven't failed either check in
-<a name="1283"></a>             *   this loop, so note that the actor's location is now the
-<a name="1284"></a>             *   location of its former location and then continue round the
-<a name="1285"></a>             *   loop.
-<a name="1286"></a>             */            
-<a name="1287"></a>            loc = loc.location;           
-<a name="1288"></a>        }
-<a name="1289"></a>        
-<a name="1290"></a>        /* 
-<a name="1291"></a>         *   If we've reached this point, we must have met the reachability
-<a name="1292"></a>         *   condition, so return true.
-<a name="1293"></a>         */
-<a name="1294"></a>        return true;
-<a name="1295"></a>    }
-<a name="1296"></a>    
-<a name="1297"></a>;
+<a name="1039"></a>/* ------------------------------------------------------------------------ */
+<a name="1040"></a>/*
+<a name="1041"></a> *   A ScopeList is a helper object used to build the list of objects in
+<a name="1042"></a> *   scope.  This object provides methods for the common ways of adding
+<a name="1043"></a> *   objects to scope.
+<a name="1044"></a> *   
+<a name="1045"></a> *   The ScopeList isn't a true Collection object, but it mimics one by
+<a name="1046"></a> *   providing most of the standard methods.  You can use length() and the
+<a name="1047"></a> *   [] operator to scan the list, perform a foreach or for..in loop with a
+<a name="1048"></a> *   ScopeList to iterate over the items in scope, you can use find() to
+<a name="1049"></a> *   check if a given object is in scope, and you can use subset() to get a
+<a name="1050"></a> *   list of in-scope objects satisfying some condition.
+<a name="1051"></a> */
+<a name="1052"></a>class ScopeList: object
+<a name="1053"></a>    /*
+<a name="1054"></a>     *   Add an object and its contents to the scope. 
+<a name="1055"></a>     */
+<a name="1056"></a>    add(obj)
+<a name="1057"></a>    {
+<a name="1058"></a>        /* 
+<a name="1059"></a>         *   if we've already visited this object in full-contents mode,
+<a name="1060"></a>         *   there's no need to repeat all that
+<a name="1061"></a>         */
+<a name="1062"></a>        local tstat = status_[obj];
+<a name="1063"></a>        if (tstat == 2)
+<a name="1064"></a>            return;
+<a name="1065"></a>
+<a name="1066"></a>        /* if the object isn't already in the list at all, add it */
+<a name="1067"></a>        if (tstat == nil)
+<a name="1068"></a>            vec_.append(obj);
+<a name="1069"></a>
+<a name="1070"></a>        /* promote it to status 2: added with contents */
+<a name="1071"></a>        status_[obj] = 2;
+<a name="1072"></a>
+<a name="1073"></a>        /* 
+<a name="1074"></a>         *   if we can see in, add all of the contents, interior and
+<a name="1075"></a>         *   exterior; otherwise add just the exterior contents 
+<a name="1076"></a>         */
+<a name="1077"></a>        if (obj.canSeeIn)
+<a name="1078"></a>            addAll(obj.contents);
+<a name="1079"></a>        else
+<a name="1080"></a>            addAll(obj.extContents);
+<a name="1081"></a>    }
+<a name="1082"></a>
+<a name="1083"></a>    /*
+<a name="1084"></a>     *   Add all of the objects in the given list 
+<a name="1085"></a>     */
+<a name="1086"></a>    addAll(lst)
+<a name="1087"></a>    {
+<a name="1088"></a>        for (local i = 1, local len = lst.length() ; i &lt;= len ; ++i)
+<a name="1089"></a>            add(lst[i]);
+<a name="1090"></a>    }
+<a name="1091"></a>
+<a name="1092"></a>    /*
+<a name="1093"></a>     *   Add the interior contents of an object to the scope.  This adds
+<a name="1094"></a>     *   only the contents, not the object itself.  
+<a name="1095"></a>     */
+<a name="1096"></a>    addWithin(obj)
+<a name="1097"></a>    {
+<a name="1098"></a>        /* add each object in the interior contents */
+<a name="1099"></a>        addAll(obj.intContents);
+<a name="1100"></a>    }
+<a name="1101"></a>
+<a name="1102"></a>    
+<a name="1103"></a>    /* add each self-illuminating object in the interior contents */
+<a name="1104"></a>    addSelfIlluminatingWithin(obj)
+<a name="1105"></a>    {
+<a name="1106"></a>        addAll(obj.intContents.subset({x: x.visibleInDark}));
+<a name="1107"></a>    }
+<a name="1108"></a>    
+<a name="1109"></a>    /*
+<a name="1110"></a>     *   Add a single object to the scope.  This doesn't add anything
+<a name="1111"></a>     *   related to the object (such as its contents) - just the object
+<a name="1112"></a>     *   itself.  
+<a name="1113"></a>     */
+<a name="1114"></a>    addOnly(obj)
+<a name="1115"></a>    {
+<a name="1116"></a>        /* 
+<a name="1117"></a>         *   If this object is already in the status table with any status,
+<a name="1118"></a>         *   there's no need to add it again.  We also don't want to change
+<a name="1119"></a>         *   its existing status, because if we've already added it with
+<a name="1120"></a>         *   its contents, adding it redundantly by itself doesn't change
+<a name="1121"></a>         *   the fact that we've added its contents.
+<a name="1122"></a>         */
+<a name="1123"></a>        if (status_[obj] != nil)
+<a name="1124"></a>            return;
+<a name="1125"></a>
+<a name="1126"></a>        /* add it to the vector */
+<a name="1127"></a>        vec_.append(obj);
+<a name="1128"></a>
+<a name="1129"></a>        /* set the status to 1: we've added only this object */
+<a name="1130"></a>        status_[obj] = 1;
+<a name="1131"></a>    }
+<a name="1132"></a>
+<a name="1133"></a>    /* "close" the scope list - this converts the vector to a list */
+<a name="1134"></a>    close()
+<a name="1135"></a>    {
+<a name="1136"></a>        vec_ = vec_.toList();
+<a name="1137"></a>        status_ = nil;
+<a name="1138"></a>    }
+<a name="1139"></a>
+<a name="1140"></a>    /* get the number of items in scope */
+<a name="1141"></a>    length() { return vec_.length(); }
+<a name="1142"></a>
+<a name="1143"></a>    /* get an item from the list */
+<a name="1144"></a>    operator[](idx) { return vec_[idx]; }
+<a name="1145"></a>
+<a name="1146"></a>    /* is the given object in scope? */
+<a name="1147"></a>    find(obj)         
+<a name="1148"></a>    { 
+<a name="1149"></a>        if(status_ == nil)
+<a name="1150"></a>            status_ = new LookupTable(64, 128);
+<a name="1151"></a>        
+<a name="1152"></a>        return status_[obj] != nil; 
+<a name="1153"></a>    }
+<a name="1154"></a>
+<a name="1155"></a>    /* get the subset of the objects in scope matching the given condition */
+<a name="1156"></a>    subset(func) { return vec_.subset(func); }
+<a name="1157"></a>
+<a name="1158"></a>    /* return the scope as a simple list of objects */
+<a name="1159"></a>    toList() { return vec_; }
+<a name="1160"></a>
+<a name="1161"></a>    /* create an iterator, for foreach() */
+<a name="1162"></a>    createIterator() { return vec_.createIterator(); }
+<a name="1163"></a>
+<a name="1164"></a>    /* create a live iterator */
+<a name="1165"></a>    createLiveIterator() { return vec_.createLiveIterator(); }
+<a name="1166"></a>
+<a name="1167"></a>    /* a vector with the objects in scope */
+<a name="1168"></a>    vec_ = perInstance(new Vector(50))
+<a name="1169"></a>
+<a name="1170"></a>    /* 
+<a name="1171"></a>     *   A LookupTable with the objects already added to the list.  We use
+<a name="1172"></a>     *   this to avoid redundantly scanning containment trees for objects
+<a name="1173"></a>     *   that we've already added.  For each object, we set status_[obj] to
+<a name="1174"></a>     *   a status indicator:
+<a name="1175"></a>     *   
+<a name="1176"></a>     *.    nil (unset) - the object has never been visited
+<a name="1177"></a>     *.    1 - we've added the object only, not its contents
+<a name="1178"></a>     *.    2 - we've added the object and its contents
+<a name="1179"></a>     */
+<a name="1180"></a>    status_ = perInstance(new LookupTable(64, 128))
+<a name="1181"></a>;
+<a name="1182"></a>
+<a name="1183"></a>/*  
+<a name="1184"></a> *   An object describing a reach problem; such objects are used by the Query
+<a name="1185"></a> *   object to communicate problems with one object touching another to the
+<a name="1186"></a> *   touchObj PreCondition (see also precond.t). ReachProblem objects are
+<a name="1187"></a> *   normally created dynamicallty as required, although it is usually one of
+<a name="1188"></a> *   the subclasses of ReachProblem that it used.
+<a name="1189"></a> */
+<a name="1190"></a>class ReachProblem: object
+<a name="1191"></a>    /* 
+<a name="1192"></a>     *   Problems which reaching an object that occur at the verify stage and
+<a name="1193"></a>     *   which might affect the choice of object. If the verify() method of a
+<a name="1194"></a>     *   ReachProblem object wishes to rule out an action it should do so using
+<a name="1195"></a>     *   illogical(), inaccessible() or other such verification macros.
+<a name="1196"></a>     */    
+<a name="1197"></a>    verify() { }   
+<a name="1198"></a>    
+<a name="1199"></a>    /*   
+<a name="1200"></a>     *   The check() method of a ReachProblem should check whether the target
+<a name="1201"></a>     *   object can be reached by the source object. If allowImplicit is true
+<a name="1202"></a>     *   the check method may attempt an implicit action to bring the target
+<a name="1203"></a>     *   object within reach.
+<a name="1204"></a>     *
+<a name="1205"></a>     *   Return true if the target object is within reach, and nil otherwise.
+<a name="1206"></a>     *
+<a name="1207"></a>     *   Note that the check() method of a ReachProblem will normally be called
+<a name="1208"></a>     *   from the checkPreCondition() method of touchObj.
+<a name="1209"></a>     */
+<a name="1210"></a>    check(allowImplicit) { return true; }    
+<a name="1211"></a>    
+<a name="1212"></a>    construct(target)
+<a name="1213"></a>    {
+<a name="1214"></a>        target_ = target;
+<a name="1215"></a>    }
+<a name="1216"></a>    
+<a name="1217"></a>    /* The object we're trying to reach */
+<a name="1218"></a>    target_ = nil
+<a name="1219"></a>;
+<a name="1220"></a>
+<a name="1221"></a>/* 
+<a name="1222"></a> *   A ReachProblem object for when the target object is too far away (because
+<a name="1223"></a> *   it's in another room).
+<a name="1224"></a> */
+<a name="1225"></a>class ReachProblemDistance: ReachProblem
+<a name="1226"></a>    verify()
+<a name="1227"></a>    {
+<a name="1228"></a>        inaccessible(tooFarAwayMsg);
+<a name="1229"></a>    }
+<a name="1230"></a>    
+<a name="1231"></a>    tooFarAwayMsg()
+<a name="1232"></a>    {
+<a name="1233"></a>        return source_.getOutermostRoom.cannotReachTargetMsg(target_);              
+<a name="1234"></a>    }
+<a name="1235"></a>    
+<a name="1236"></a>    construct(source, target)
+<a name="1237"></a>    {
+<a name="1238"></a>        source_ = source;
+<a name="1239"></a>        inherited(target);
+<a name="1240"></a>    }
+<a name="1241"></a>    
+<a name="1242"></a>    /* The object that's trying to reach the target */
+<a name="1243"></a>    source_ = nil;
+<a name="1244"></a>;
+<a name="1245"></a>    
+<a name="1246"></a>/*  
+<a name="1247"></a> *   A ReachProblem object for when access to the target is blocked by a closed
+<a name="1248"></a> *   container along the path from the source to the target.
+<a name="1249"></a> */
+<a name="1250"></a>class ReachProblemBlocker: ReachProblem
+<a name="1251"></a>    verify()
+<a name="1252"></a>    {
+<a name="1253"></a>        /* 
+<a name="1254"></a>         *   If the obstructor is closed but openable, there's a possibility that we could remove
+<a name="1255"></a>         *   the obstruction by opening it, so we'll allow the action to go ahead but give it a
+<a name="1256"></a>         *   sligjtly lower logical rank to nudge the parser towards choosing a more accessible
+<a name="1257"></a>         *   object if one is available.
+<a name="1258"></a>         */
+<a name="1259"></a>        if(!obstructor_.isOpen &amp;&amp; obstructor_.isOpenable)               
+<a name="1260"></a>            logicalRank(90);      
+<a name="1261"></a>        
+<a name="1262"></a>        /* 
+<a name="1263"></a>         *   Otherwise just rule out that the action for attempting to reach an inaccessible object.
+<a name="1264"></a>         */
+<a name="1265"></a>        else
+<a name="1266"></a>            inaccessible(reachBlockedMsg);
+<a name="1267"></a>    }
+<a name="1268"></a>    
+<a name="1269"></a>    /* 
+<a name="1270"></a>     *   If we've passed the verify stage the obstructor must be closed and openable, so all we need
+<a name="1271"></a>     *   to do here is to attampt to open the obstructor and see if that's resolved the problem with
+<a name="1272"></a>     *   reaching.
+<a name="1273"></a>     */
+<a name="1274"></a>    check(allowImplicit)    
+<a name="1275"></a>    {
+<a name="1276"></a>        /* 
+<a name="1277"></a>         *   If the obstructor is closed and we're allowing an implicit action then try opening the
+<a name="1278"></a>         *   obstructor and return true or nil according to whether we can now reach in through the
+<a name="1279"></a>         *   obstructor.
+<a name="1280"></a>         */
+<a name="1281"></a>            
+<a name="1282"></a>        if(!obstructor_.isOpen &amp;&amp; allowImplicit &amp;&amp; tryImplicitAction(Open, obstructor_))            
+<a name="1283"></a>            return obstructor_.canReachIn;       
+<a name="1284"></a>        
+<a name="1285"></a>        /* 
+<a name="1286"></a>         *   Otherwise disspay a message to say we can't reach in and then return nil to fail the
+<a name="1287"></a>         *   action.
+<a name="1288"></a>         */
+<a name="1289"></a>        say(reachBlockedMsg);
+<a name="1290"></a>        return nil;
+<a name="1291"></a>    }
+<a name="1292"></a>       
+<a name="1293"></a>    
+<a name="1294"></a>    /* 
+<a name="1295"></a>     *   Delegate defining the message explaining that blocking is reached to
+<a name="1296"></a>     *   the blocking object.
+<a name="1297"></a>     */
+<a name="1298"></a>    reachBlockedMsg()
+<a name="1299"></a>    {        
+<a name="1300"></a>        return obstructor_.reachBlockedMsg(target_);
+<a name="1301"></a>    }
+<a name="1302"></a>    
+<a name="1303"></a>    /* 
+<a name="1304"></a>     *   The closed container that is preventing access to the target object the
+<a name="1305"></a>     *   actor is trying to reach.
+<a name="1306"></a>     */
+<a name="1307"></a>    obstructor_ = nil
+<a name="1308"></a>    
+<a name="1309"></a>    construct(target, obstructor)
+<a name="1310"></a>    {
+<a name="1311"></a>        inherited(target);
+<a name="1312"></a>        obstructor_ = obstructor;
+<a name="1313"></a>    }
+<a name="1314"></a>;
+<a name="1315"></a>
+<a name="1316"></a>/*   
+<a name="1317"></a> *   A ReachProblem resulting from the verifyReach() method of the target
+<a name="1318"></a> *   object.
+<a name="1319"></a> */
+<a name="1320"></a>class ReachProblemVerifyReach: ReachProblem   
+<a name="1321"></a>    verify()
+<a name="1322"></a>    {
+<a name="1323"></a>        source_.verifyReach(target_);
+<a name="1324"></a>    }
+<a name="1325"></a>    
+<a name="1326"></a>    construct(source, target)
+<a name="1327"></a>    {
+<a name="1328"></a>        inherited(target);
+<a name="1329"></a>        source_ = source;
+<a name="1330"></a>    }
+<a name="1331"></a>    
+<a name="1332"></a>    source_ = nil
+<a name="1333"></a>;
+<a name="1334"></a>
+<a name="1335"></a>/*  
+<a name="1336"></a> *   A ReachProblem resulting from reach being prohibited by the checkReach()
+<a name="1337"></a> *   method or checkReachIn() method of the target object or an object along the
+<a name="1338"></a> *   reach path.
+<a name="1339"></a> */
+<a name="1340"></a>class ReachProblemCheckReach: ReachProblem
+<a name="1341"></a>    errMsg_ = nil
+<a name="1342"></a>    
+<a name="1343"></a>    construct(target, errMsg)
+<a name="1344"></a>    {
+<a name="1345"></a>        inherited(target);
+<a name="1346"></a>        errMsg_ = errMsg;
+<a name="1347"></a>    }
+<a name="1348"></a>    
+<a name="1349"></a>    check(allowImplicit)
+<a name="1350"></a>    {
+<a name="1351"></a>        say(errMsg_);
+<a name="1352"></a>        return nil;
+<a name="1353"></a>    }
+<a name="1354"></a>    
+<a name="1355"></a>;
+<a name="1356"></a>
+<a name="1357"></a>/*   
+<a name="1358"></a> *   A ReachProblem object for when the actor can't reach the target from the
+<a name="1359"></a> *   actor's (non top-level room) container.
+<a name="1360"></a> */
+<a name="1361"></a>class ReachProblemReachOut: ReachProblem  
+<a name="1362"></a>    /* 
+<a name="1363"></a>     *   If allowImplicit is true we can try moving the actor out of its
+<a name="1364"></a>     *   immediate container to see if this solves the problem. If it does,
+<a name="1365"></a>     *   return true; otherwise return nil.
+<a name="1366"></a>     */
+<a name="1367"></a>    check(allowImplicit)
+<a name="1368"></a>    {
+<a name="1369"></a>        /* Note the actor's immediate location. */
+<a name="1370"></a>        local loc = gActor.location;
+<a name="1371"></a>        
+<a name="1372"></a>        /* Note the target we're trying to reach. */
+<a name="1373"></a>        local obj = target_;
+<a name="1374"></a>        
+<a name="1375"></a>        /* 
+<a name="1376"></a>         *   The action needed by the actor to leave the actor's immediate
+<a name="1377"></a>         *   location (GetOff or GetOutOf, depending whether the actor is on a
+<a name="1378"></a>         *   Platform or in a Booth).
+<a name="1379"></a>         */
+<a name="1380"></a>        local getOutAction;
+<a name="1381"></a>        
+<a name="1382"></a>        /*   
+<a name="1383"></a>         *   Keep trying to move the actor out of its immediate location until
+<a name="1384"></a>         *   the actor is in its outermost room, or until we can't move the
+<a name="1385"></a>         *   actor, or until the actor can reach the target object.
+<a name="1386"></a>         */
+<a name="1387"></a>        while(loc != gActor.getOutermostRoom &amp;&amp; !obj.isOrIsIn(loc) &amp;&amp;
+<a name="1388"></a>              !loc.allowReachOut(obj))
+<a name="1389"></a>        {           
+<a name="1390"></a>            /* 
+<a name="1391"></a>             *   The action we need to move the actor out of its immediate
+<a name="1392"></a>             *   location will be GetOff or GetOutOf depending on the contType
+<a name="1393"></a>             *   of the actor's location.
+<a name="1394"></a>             */
+<a name="1395"></a>            getOutAction = loc.contType == On ? GetOff : GetOutOf;
+<a name="1396"></a>            
+<a name="1397"></a>            /* 
+<a name="1398"></a>             *   If we're allowed to attempt an implicit action, and the actor's
+<a name="1399"></a>             *   location is happy to allow the actor to leave it via an
+<a name="1400"></a>             *   implicit action for the purpose of reaching, then try an
+<a name="1401"></a>             *   implicit action to take the actor out of its location.
+<a name="1402"></a>             */
+<a name="1403"></a>            if(allowImplicit &amp;&amp; loc.autoGetOutToReach 
+<a name="1404"></a>               &amp;&amp; tryImplicitAction(getOutAction, loc))
+<a name="1405"></a>            {
+<a name="1406"></a>                /* 
+<a name="1407"></a>                 *   If the actor is still in its original location, then we
+<a name="1408"></a>                 *   were unable to move it out, so return nil to signal that
+<a name="1409"></a>                 *   the reachability condition can't be met.
+<a name="1410"></a>                 */
+<a name="1411"></a>                if(gActor.isIn(loc))
+<a name="1412"></a>                    return nil;
+<a name="1413"></a>            }
+<a name="1414"></a>            /* 
+<a name="1415"></a>             *   Otherwise, if we can't perform an implicit action to remove the
+<a name="1416"></a>             *   actor from its immediate location, display a message explaining
+<a name="1417"></a>             *   the problem and return nil to signal that the reachability
+<a name="1418"></a>             *   condition can't be met.
+<a name="1419"></a>             */
+<a name="1420"></a>            else
+<a name="1421"></a>            {
+<a name="1422"></a>                say(loc.cannotReachOutMsg(obj));               
+<a name="1423"></a>                return nil;
+<a name="1424"></a>            }
+<a name="1425"></a>                       
+<a name="1426"></a>            /* 
+<a name="1427"></a>             *   If we've reached this point we haven't failed either check in
+<a name="1428"></a>             *   this loop, so note that the actor's location is now the
+<a name="1429"></a>             *   location of its former location and then continue round the
+<a name="1430"></a>             *   loop.
+<a name="1431"></a>             */            
+<a name="1432"></a>            loc = loc.location;           
+<a name="1433"></a>        }
+<a name="1434"></a>        
+<a name="1435"></a>        /* 
+<a name="1436"></a>         *   If we've reached this point, we must have met the reachability
+<a name="1437"></a>         *   condition, so return true.
+<a name="1438"></a>         */
+<a name="1439"></a>        return true;
+<a name="1440"></a>    }    
+<a name="1441"></a>;
+<a name="1442"></a>
+<a name="1443"></a>
+<a name="1444"></a>/* 
+<a name="1445"></a> *   A ReachProblem object that represents the need for the actor to be inside the blocking nested
+<a name="1446"></a> *   room (Platform or Booth) to reach the target object.
+<a name="1447"></a> */
+<a name="1448"></a>class ReachProblemReachIn: ReachProblem 
+<a name="1449"></a>    construct(block, targ)
+<a name="1450"></a>    {
+<a name="1451"></a>        /* Note the blocking nested room the actor needs to be able to get into on on. */
+<a name="1452"></a>        blocker = block;
+<a name="1453"></a>        
+<a name="1454"></a>        /* Note the target object the actor is trying to reach. */
+<a name="1455"></a>        target = targ;
+<a name="1456"></a>    }
+<a name="1457"></a>    
+<a name="1458"></a>    /* The blocking nested room the actor needs to be able to get into or on. */
+<a name="1459"></a>    target = nil
+<a name="1460"></a>    
+<a name="1461"></a>    /* The target object the actor is trying to reach. */
+<a name="1462"></a>    blocker = nil 
+<a name="1463"></a>    
+<a name="1464"></a>    check(allowImplicit)
+<a name="1465"></a>    {
+<a name="1466"></a>        /* 
+<a name="1467"></a>         *   first check that the target and/or blocker is directly or indiractly in the actor's 
+<a name="1468"></a>         *   location so that there is a possible path inwards.
+<a name="1469"></a>         */
+<a name="1470"></a>        if(!target.isIn(gActor.location))
+<a name="1471"></a>        {
+<a name="1472"></a>            say(reachBlockedMsg); //or say(loc.cannotReachInMsg(target, blocker));
+<a name="1473"></a>            return nil;
+<a name="1474"></a>        }
+<a name="1475"></a>        
+<a name="1476"></a>        /* 
+<a name="1477"></a>         *   If the blocking object is neither enterable nor boardable, the actor can't get in/on
+<a name="1478"></a>         *   it, but if it's closed and openable  we can try opening it. We then return whether or
+<a name="1479"></a>         *   not the actor can reach into the blocking object to see if that's resolved the issue.
+<a name="1480"></a>         *   Otherwise we display a message saying access isn't possible and return nil to our
+<a name="1481"></a>         *   caller to signal that we can't touch the target.
+<a name="1482"></a>         */
+<a name="1483"></a>        if(!blocker.isEnterable &amp;&amp; !blocker.isBoardable)
+<a name="1484"></a>        {
+<a name="1485"></a>            if(!blocker.isOpen &amp;&amp; blocker.isOpenable &amp;&amp; allowImplicit 
+<a name="1486"></a>               &amp;&amp; tryImplicitAction(Open, blocker))            
+<a name="1487"></a>                return blocker.canReachIn;       
+<a name="1488"></a>            
+<a name="1489"></a>            say(reachBlockedMsg);
+<a name="1490"></a>            return nil;
+<a name="1491"></a>            
+<a name="1492"></a>        }
+<a name="1493"></a>        
+<a name="1494"></a>        /* Note the actor's immediate location. */
+<a name="1495"></a>        local loc = gActor.location;
+<a name="1496"></a>        
+<a name="1497"></a>        /* 
+<a name="1498"></a>         *   The action needed by the actor to enter the location we're trying to reach (Board or
+<a name="1499"></a>         *   Enter, depending whether target is a Platform or a Booth).
+<a name="1500"></a>         */
+<a name="1501"></a>        local getInAction;
+<a name="1502"></a>        
+<a name="1503"></a>        /*   
+<a name="1504"></a>         *   Keep trying to move the actor into the target location until we reach it or
+<a name="1505"></a>         *   fail to move the actor.
+<a name="1506"></a>         */
+<a name="1507"></a>        while(gActor.location != blocker) 
+<a name="1508"></a>        {           
+<a name="1509"></a>            /* 
+<a name="1510"></a>             *   The action we need to move the actor out of its immediate
+<a name="1511"></a>             *   location will be GetOff or GetOutOf depending on the contType
+<a name="1512"></a>             *   of the actor's location.
+<a name="1513"></a>             */
+<a name="1514"></a>            getInAction = blocker.contType == On ? Board : Enter;
+<a name="1515"></a>            
+<a name="1516"></a>            /* 
+<a name="1517"></a>             *   If we're allowed to attempt an implicit action, and the actor's
+<a name="1518"></a>             *   target is happy to allow the actor to enter it via an
+<a name="1519"></a>             *   implicit action for the purpose of reaching, then try an
+<a name="1520"></a>             *   implicit action to take the actor out of its location.
+<a name="1521"></a>             */
+<a name="1522"></a>            if(allowImplicit &amp;&amp; blocker.autoGetInToReach 
+<a name="1523"></a>               &amp;&amp; tryImplicitAction(getInAction, blocker))
+<a name="1524"></a>            {
+<a name="1525"></a>                /* 
+<a name="1526"></a>                 *   If the actor is still in its original location, then we
+<a name="1527"></a>                 *   were unable to move it in, so return nil to signal that
+<a name="1528"></a>                 *   the reachability condition can't be met.
+<a name="1529"></a>                 */
+<a name="1530"></a>                if(gActor.location == loc)
+<a name="1531"></a>                    return nil;
+<a name="1532"></a>            }
+<a name="1533"></a>            /* 
+<a name="1534"></a>             *   Otherwise, if we can't perform an implicit action to remove the
+<a name="1535"></a>             *   actor from its immediate location, display a message explaining
+<a name="1536"></a>             *   the problem and return nil to signal that the reachability
+<a name="1537"></a>             *   condition can't be met.
+<a name="1538"></a>             */
+<a name="1539"></a>            else
+<a name="1540"></a>            {
+<a name="1541"></a>                say(loc.cannotReachInMsg(target, blocker));               
+<a name="1542"></a>                return nil;
+<a name="1543"></a>            }
+<a name="1544"></a>                       
+<a name="1545"></a>            /* 
+<a name="1546"></a>             *   If we've reached this point we haven't failed either check in this loop, so note
+<a name="1547"></a>             *   that the actor's new location and then continue round the loop.
+<a name="1548"></a>             */            
+<a name="1549"></a>            loc = gActor.location;           
+<a name="1550"></a>        }
+<a name="1551"></a>        
+<a name="1552"></a>        /* 
+<a name="1553"></a>         *   If we've reached this point, we must have met the reachability
+<a name="1554"></a>         *   condition, so return true.
+<a name="1555"></a>         */
+<a name="1556"></a>        return true;
+<a name="1557"></a>    }     
+<a name="1558"></a>; 
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/01/2025 from adv3Lite version 2.1.1.11</div>
 </body>
 </html>

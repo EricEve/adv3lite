@@ -964,10 +964,24 @@ DefineIAction(Continue)
             beforeAction();            
         }
         
-        
+        /* Report which way we're going in our next step. */
         DMsg(going dir, '(going {1})\n', dir.name);
         
+        /* 
+         *   Note where the actor is before we attempt to move the actor so we can check whether the
+         *   next step succeeded.
+         */
+        local oldLoc = gActor.getOutermostRoom;
+        
+        /* Attempt to move the actor in the direction dictated by our next step. */
         gActor.getOutermostRoom.(dir.dirProp).travelVia(gActor);
+        
+        /* 
+         *   If the actor hasn't changed room then there's a barrier to travel so we'd better stop
+         *   there.
+         */
+        if(gActor.getOutermostRoom == oldLoc)
+            exit;
         
         if(!gActor.isIn(dest) && !fastGo)           
         {

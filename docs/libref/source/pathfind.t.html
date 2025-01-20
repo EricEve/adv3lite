@@ -304,7 +304,322 @@
 <a name="302"></a>        
 <a name="303"></a>    }
 <a name="304"></a>;
+<a name="305"></a>
+<a name="306"></a>
+<a name="307"></a>/* 
+<a name="308"></a> *   An AskConnector is a specialized TravelConnector that leads to more than one possible
+<a name="309"></a> *   destination (e.g., two doors that lie to the east) which player needs to choose between when
+<a name="310"></a> *   trying to travel in the relevant direction. If routefinding finds a route through an
+<a name="311"></a> *   AskConnector, the choice will be made on the player's behalf when executing a GO TO or CONTINUE
+<a name="312"></a> *   commsnd.
+<a name="313"></a> */
+<a name="314"></a>class AskConnector: TravelConnector
+<a name="315"></a>    
+<a name="316"></a>    /* 
+<a name="317"></a>     *   The list of conectore (doors, passages, stairways or whatever) that lie in the direction
+<a name="318"></a>     *   this AskConnector leads. There should be at least two items in this list.
+<a name="319"></a>     */
+<a name="320"></a>    options = []
+<a name="321"></a>    
+<a name="322"></a>    /* 
+<a name="323"></a>     *   Our notional destination (which code may fall back on if all else fails). By default we use
+<a name="324"></a>     *   the first item in our options list.
+<a name="325"></a>     */
+<a name="326"></a>    destination = options[1]
+<a name="327"></a>    
+<a name="328"></a>    /*   Our effective location is the room we lead from. */    
+<a name="329"></a>    effectiveLocation = lexicalParent ?? location
+<a name="330"></a>    
+<a name="331"></a>    /* 
+<a name="332"></a>     *   The travel action to be used if when we ask the player to choose one of our options. This
+<a name="333"></a>     *   defaults to TravelVia, which is suitable for just about anything, but could be overriden to
+<a name="334"></a>     *   GoThrough or Enter if they seen a better choice in any given case.
+<a name="335"></a>     */
+<a name="336"></a>    travelAction = TravelVia
+<a name="337"></a>    
+<a name="338"></a>    
+<a name="339"></a>    /*   
+<a name="340"></a>     *   Our destination normally depends on which of our options the player chooses, but if a route
+<a name="341"></a>     *   finder is trying to find a route for us, our destination needs to be whichever of our
+<a name="342"></a>     *   options leads to the player's desired destinations. Note that the value returned by this
+<a name="343"></a>     *   mathod is relevant only to the poRouteFinder when it's trying to find a path or to the exit
+<a name="344"></a>     *   lister when deciding how to colour exits.
+<a name="345"></a>     */     
+<a name="346"></a>    getDestination(origin)       
+<a name="347"></a>    {
+<a name="348"></a>         /* Cache a list of the rooms our options lead to. */
+<a name="349"></a>        local dests = getDestinations(origin);  
+<a name="350"></a>        
+<a name="351"></a>        /* 
+<a name="352"></a>         *   If the last command wasn't GO TO we're not trying to find a path. The exit lister may
+<a name="353"></a>         *   be trying to use us to see if the room we lead to has been visited, so return any
+<a name="354"></a>         *   unvisited room if we have one (so the exit lister will show there are still rooms to
+<a name="355"></a>         *   visit through us) or else just return the value of our destination property.
+<a name="356"></a>         */
+<a name="357"></a>        if(gAction != GoTo)
+<a name="358"></a>        {
+<a name="359"></a>            local dest = dests.valWhich({x:!x.visited});
+<a name="360"></a>            
+<a name="361"></a>            return dest ?? destination;
+<a name="362"></a>        }
+<a name="363"></a>       
+<a name="364"></a>        
+<a name="365"></a>        /* 
+<a name="366"></a>         *   If we haven't already got a destination table, create it, and populate with the rooms
+<a name="367"></a>         *   our options immediately lead to.
+<a name="368"></a>         */
+<a name="369"></a>        if(destTab == nil)
+<a name="370"></a>        {
+<a name="371"></a>            destTab = new LookupTable();
+<a name="372"></a>            
+<a name="373"></a>            foreach(local dest in dests)            
+<a name="374"></a>                destTab[dest] = dest;                        
+<a name="375"></a>        }
+<a name="376"></a>        
+<a name="377"></a>        /* 
+<a name="378"></a>         *   Note out target destionation, the room the player is trying to reach via the GO TO
+<a name="379"></a>         *   commasnd just issued.
+<a name="380"></a>         */
+<a name="381"></a>        local target = gDobj.getOutermostRoom;
+<a name="382"></a>                
+<a name="383"></a>        /* 
+<a name="384"></a>         *   If there's already a destination (for this AskConnector) in our destination table for
+<a name="385"></a>         *   this target, simply return it.
+<a name="386"></a>         */
+<a name="387"></a>        local dest = destTab[target];
+<a name="388"></a>        
+<a name="389"></a>        if(dest)
+<a name="390"></a>            return dest;       
+<a name="391"></a>                     
+<a name="392"></a>        
+<a name="393"></a>        /* 
+<a name="394"></a>         *   Otherwise recursively run through all the destinations we immediately lead to in order
+<a name="395"></a>         *   to establich whether any of them lies on a path to our target. If we find one, return
+<a name="396"></a>         *   it.
+<a name="397"></a>         */
+<a name="398"></a>        foreach(dest in dests)
+<a name="399"></a>        {
+<a name="400"></a>            local res = findDestFor(dest, target, dest);
+<a name="401"></a>            if(res)
+<a name="402"></a>                return res;
+<a name="403"></a>        }
+<a name="404"></a>        
+<a name="405"></a>        /* 
+<a name="406"></a>         *   If we reach here, none of our destinations is on a path to our target, so simply return
+<a name="407"></a>         *   the value of our destination property (which should be irrelevant to the pathfinder's
+<a name="408"></a>         *   calculation.
+<a name="409"></a>         */
+<a name="410"></a>        return destination;
+<a name="411"></a>    }
+<a name="412"></a>        
+<a name="413"></a>        
+<a name="414"></a>               
+<a name="415"></a>
+<a name="416"></a>    /* 
+<a name="417"></a>     *   Find which of the destinations led to by our options list would be on the route to target
+<a name="418"></a>     *   from loc and add any we find to our destTab tablle.
+<a name="419"></a>     */
+<a name="420"></a>    findDestFor(loc, target, origin)
+<a name="421"></a>    {
+<a name="422"></a>        for(local dir = firstObj(Direction); dir != nil ; dir = nextObj(dir,
+<a name="423"></a>            Direction))
+<a name="424"></a>        {
+<a name="425"></a>            local dests = new Vector();
+<a name="426"></a>            
+<a name="427"></a>            /* 
+<a name="428"></a>             *   If the direction property points to an object, see if it points
+<a name="429"></a>             *   to a valid path.
+<a name="430"></a>             */
+<a name="431"></a>            if(loc.propType(dir.dirProp) == TypeObject)                
+<a name="432"></a>            {
+<a name="433"></a>                local conn = loc.(dir.dirProp);
+<a name="434"></a>                
+<a name="435"></a>                /* 
+<a name="436"></a>                 *   If it leads to a non-nil destination that the pc knows, note what that
+<a name="437"></a>                 *   destination is.
+<a name="438"></a>                 *
+<a name="439"></a>                 */    
+<a name="440"></a>                local dest = conn.getDestination(loc);
+<a name="441"></a>                
+<a name="442"></a>                /* 
+<a name="443"></a>                 *   if both the location (loc) and the destination (dest) lie
+<a name="444"></a>                 *   in the same familiar region, then assume the pc knows
+<a name="445"></a>                 *   his/her way between the two rooms and so set
+<a name="446"></a>                 *   isDestinationKnown to true
+<a name="447"></a>                 */
+<a name="448"></a>                
+<a name="449"></a>                if(!conn.isDestinationKnown &amp;&amp; 
+<a name="450"></a>                   loc.regionsInCommonWith(dest).indexWhich(
+<a name="451"></a>                       {x: x.isFamiliar(gPlayerChar.knownProp)}) != nil)//                       
+<a name="452"></a>                    conn.isDestinationKnown = true;
+<a name="453"></a>                
+<a name="454"></a>                /* 
+<a name="455"></a>                 *   if the connector leads to a known destination that we haven't yet stored in our
+<a name="456"></a>                 *   destTab table, then add it to the destTab table (which notes that this dest can
+<a name="457"></a>                 *   be reached from origin, which should be one of the destinations led to by the
+<a name="458"></a>                 *   connectors in our options list) and append it to the list of destinations that
+<a name="459"></a>                 *   could be reached from loc.
+<a name="460"></a>                 */
+<a name="461"></a>                
+<a name="462"></a>                if(dest != nil &amp;&amp; destTab[dest] == nil &amp;&amp; conn.isDestinationKnown)
+<a name="463"></a>                {
+<a name="464"></a>                    destTab[dest] = origin;
+<a name="465"></a>                    dests.append(dest);
+<a name="466"></a>                    
+<a name="467"></a>                    /* 
+<a name="468"></a>                     *   If this destination is the target we're trying to reach, then return the
+<a name="469"></a>                     *   origin room we started out from.
+<a name="470"></a>                     */
+<a name="471"></a>                    if(dest == target)
+<a name="472"></a>                        return origin;
+<a name="473"></a>                    
+<a name="474"></a>                }
+<a name="475"></a>            }
+<a name="476"></a>            /*  
+<a name="477"></a>             *   if the direction property points to code, see if it provides a
+<a name="478"></a>             *   valid path.
+<a name="479"></a>             */
+<a name="480"></a>            
+<a name="481"></a>            if(loc.propType(dir.dirProp) == TypeCode)
+<a name="482"></a>            {
+<a name="483"></a>                /* first look up the destination this code takes the actor to */
+<a name="484"></a>                local dest = libGlobal.extraDestInfo[[loc, dir]];
+<a name="485"></a>                
+<a name="486"></a>                /* 
+<a name="487"></a>                 *   the destination is only of interest if it's not nowhere, the default unknown
+<a name="488"></a>                 *   destination, the location we're working out from, the origin we started from or
+<a name="489"></a>                 *   the room this AskConnector leads from.
+<a name="490"></a>                 *
+<a name="491"></a>                 *
+<a name="492"></a>                 *   If it's none of these, add it to the list of possible paths (The fact that it's
+<a name="493"></a>                 *   none of these implies that the destination is known so we don't need to apply
+<a name="494"></a>                 *   any further tests to check that).
+<a name="495"></a>                 *
+<a name="496"></a>                 */
+<a name="497"></a>                if(dest not in (nil, loc, unknownDest_, varDest_, origin, effectiveLocation))                                      
+<a name="498"></a>                {           
+<a name="499"></a>                    /* 
+<a name="500"></a>                     *   If this destination has not yet been noted in out destTab, then add it to
+<a name="501"></a>                     *   the destTab and append it to the list of destinations directly accessible
+<a name="502"></a>                     *   from this location.
+<a name="503"></a>                     */
+<a name="504"></a>                    if(destTab[dest] == nil)
+<a name="505"></a>                    {
+<a name="506"></a>                        destTab[dest] = origin;
+<a name="507"></a>                        dests.append(dest);
+<a name="508"></a>                    }
+<a name="509"></a>                    
+<a name="510"></a>                    /* 
+<a name="511"></a>                     *   If this is our target destination, then return the origin room we started
+<a name="512"></a>                     *   out from (which will be one of the rooms the travel connectors in our
+<a name="513"></a>                     *   options list lead to.
+<a name="514"></a>                     */
+<a name="515"></a>                    if(dest == target)
+<a name="516"></a>                        return origin;
+<a name="517"></a>                }                
+<a name="518"></a>            }
+<a name="519"></a>            
+<a name="520"></a>            /* 
+<a name="521"></a>             *   If the list of (hopefully unvisited) destinations immediatlel leading off from this
+<a name="522"></a>             *   location is greater than zero, then iterate through them calling this method
+<a name="523"></a>             *   recursively.
+<a name="524"></a>             */
+<a name="525"></a>            if(dests.length &gt; 0)                
+<a name="526"></a>            {
+<a name="527"></a>                foreach(local dest in dests)                    
+<a name="528"></a>                {                    
+<a name="529"></a>                    /* 
+<a name="530"></a>                     *   We're not interested in iterating back out to the room this AskConnector
+<a name="531"></a>                     *   leads from, so we exclude that, but otherwise we see if we can reach our
+<a name="532"></a>                     *   target destination from any of the rooms in the dests list; if we return
+<a name="533"></a>                     *   the original room (one of those led to by one of the connectors in our
+<a name="534"></a>                     *   options list) to our caller.
+<a name="535"></a>                     */
+<a name="536"></a>                    if(dest != effectiveLocation)
+<a name="537"></a>                    {
+<a name="538"></a>                        local res =  findDestFor(dest, target, origin);
+<a name="539"></a>                        if(res)
+<a name="540"></a>                            return res;
+<a name="541"></a>                    }
+<a name="542"></a>                }
+<a name="543"></a>            }                 
+<a name="544"></a>            
+<a name="545"></a>        }  
+<a name="546"></a>        
+<a name="547"></a>        /* 
+<a name="548"></a>         *   If we reach here we haven't found a path from out origin room to our destination room,
+<a name="549"></a>         *   so we return nil to our caller to signal our failure.
+<a name="550"></a>         */
+<a name="551"></a>        return nil;
+<a name="552"></a>    }
+<a name="553"></a>    
+<a name="554"></a>    /* Return a list of the rooms the connections listed in our options property lead to, */
+<a name="555"></a>    getDestinations(origin)
+<a name="556"></a>    {
+<a name="557"></a>        return options.mapAll({x: x.getDestination(origin)});
+<a name="558"></a>    }
+<a name="559"></a>               
+<a name="560"></a>    /* 
+<a name="561"></a>     *   To execute our travel we first see if the player character is making the next move in
+<a name="562"></a>     *   response to a GOTO or CONTINUE command. If so then we select whichever of our options leads
+<a name="563"></a>     *   to a room on the way to our destination and choose that, executing its travelVia() method
+<a name="564"></a>     *   without any further intervention if we find a suitable choice. Otherwise we display a
+<a name="565"></a>     *   message listing our options and ask the player to choose which one to use.
+<a name="566"></a>     */
+<a name="567"></a>    execTravel(actor, traveler, conn)
+<a name="568"></a>    {
+<a name="569"></a>        /* 
+<a name="570"></a>         *   If we have an options property, list the options it contains (e.g., 'that wat lies the
+<a name="571"></a>         *   red door and the blue door') and ask the player to specify which one to go through.
+<a name="572"></a>         */        
+<a name="573"></a>        if(gActionIn(GoTo, Continue))
+<a name="574"></a>        {
+<a name="575"></a>            /* Get a list of rooms along our route. */
+<a name="576"></a>            local rooms = pcRouteFinder.cachedRoute.mapAll({x: x[2]});
+<a name="577"></a>            
+<a name="578"></a>            
+<a name="579"></a>            /* Restrict this to the list that starts from the actor's room */     
+<a name="580"></a>            local ri = rooms.indexOf(gActor.getOutermostRoom);
+<a name="581"></a>            if(ri)
+<a name="582"></a>                rooms = rooms.toList().sublist(ri);
+<a name="583"></a>            
+<a name="584"></a>            /* 
+<a name="585"></a>             *   The connector we want to use is the one among our options whose destination is one
+<a name="586"></a>             *   of the rooms along our route.
+<a name="587"></a>             */
+<a name="588"></a>            
+<a name="589"></a>            local connToUse 
+<a name="590"></a>                = options.valWhich({x: rooms.indexOf(x.getDestination(effectiveLocation))});
+<a name="591"></a>            
+<a name="592"></a>            /* 
+<a name="593"></a>             *   If we find one, then use its travelVia() method to move the actor, then return,
+<a name="594"></a>             *   because we'll be done.
+<a name="595"></a>             */
+<a name="596"></a>            if(connToUse)
+<a name="597"></a>            {
+<a name="598"></a>                connToUse.travelVia(actor);
+<a name="599"></a>                return;                                         
+<a name="600"></a>            }
+<a name="601"></a>        }
+<a name="602"></a>        
+<a name="603"></a>        /* Otherwise ask the player which connector to use. */            
+<a name="604"></a>        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  makeListStr(options, &amp;theName));
+<a name="605"></a>        askForDobjX(travelAction);            
+<a name="606"></a>        return;        
+<a name="607"></a>    }
+<a name="608"></a>    
+<a name="609"></a>    /* 
+<a name="610"></a>     *   A LookUp table to cache which of our options' immediate destinations this AskConnector
+<a name="611"></a>     *   notionally leads to when we're on a path to any given to anu given target destination.
+<a name="612"></a>     */
+<a name="613"></a>    destTab = nil
+<a name="614"></a>    
+<a name="615"></a>    
+<a name="616"></a>    
+<a name="617"></a>;
+<a name="618"></a>
+<a name="619"></a>
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 07/01/2025 from adv3Lite version 2.1.1.8</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/01/2025 from adv3Lite version 2.1.1.11</div>
 </body>
 </html>

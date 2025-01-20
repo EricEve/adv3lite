@@ -2482,7 +2482,7 @@ VerbRule(GoToMode)
 
 
 VerbRule(GoTo)
-    ('go' 'to' | 'walk' 'to')
+    ('go' 'to' | 'walk' 'to' | 'goto')
     singleDobj
     : VerbProduction
     action = GoTo
