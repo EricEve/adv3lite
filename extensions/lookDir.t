@@ -19,31 +19,34 @@
  */
 
     
-/* 
- *   The grammar for looking in a particular direction. Non-English games can change this by
- *   supplying modify VerbRule(LookDir).
- */
-VerbRule(LookDir)
-    ('look' | 'l') ('to' |) ('the'|) singleDir    
-    : VerbProduction
-    action = LookDir
-    verbPhrase = 'look/looking (where)' 
-;
 
-
-DefineIAction(LookDir)
-    baseActionClaas = LookDir    
+modify LookDir
+//    baseActionClaas = LookDir    
        
-    execAction(cmd)
-    {   
-        /* Get the direction the player typed in their LOOK <DIR> command. */
-        direction = cmd.verbProd.dirMatch.dir; 
+//    execAction(cmd)
+//    {   
+//        /* Get the direction the player typed in their LOOK <DIR> command. */
+//        direction = cmd.verbProd.dirMatch.dir;        
+//        
+//        /* Let the actor's outermost visible location handle looking in that direction. */
+//        gActor.outermostVisibleParent().lookDir(direction);        
+//    }
+    
+    /* Override the handleLook() method in the main library to use our special handling. */
+    handleLook()
+    {
+        if(!inherited))
+            /* 
+             *   If our inherited handling doesn't handle it, let the actor's outermost visible
+             *   location handle looking in that direction.
+             */
+            gActor.outermostVisibleParent().lookDir(direction); 
         
-        /* Let the actor's outermost visible location handle looking in that direction. */
-        gActor.outermostVisibleParent().lookDir(direction);        
     }
     
     direction = nil
+    
+    
 ;
 
 /* Modifications to Room for the LookDir extension. */
@@ -68,28 +71,22 @@ modify Room
             DMsg(too dark to look that way, 'There{\'s} not enough light to see that way. ' );
     }
     
-    /* By default, translate LOOK DOWN into examining our floor object if we have one. */
-    downLook()
-    {
-        /* If we have a floor objecgt, examine it. */
-        if(floorObj)
-            doInstead(Examine, floorObj);
-        /* Otherwise say there's nothing special to see. */
-        else
-            sayNothingSpecialThatWay(downDir);
-    }
+//    /* By default, translate LOOK DOWN into examining our floor object if we have one. */
+//    downLook()
+//    {
+//        /* If we have a floor objecgt, examine it. */
+//        if(floorObj)
+//            doInstead(Examine, floorObj);
+//        /* Otherwise say there's nothing special to see. */
+//        else
+//            sayNothingSpecialThatWay(downDir);
+//    }
     
     /* 
      *   The command LOOK IN without an object is unlikely to make sense, so we ask the player to
      *   supply the missing direct object,
      */
-    inLook()  { askForDobj(LookIn); }
-    
-    /* Display a message saying that there's nothing special to see in the dir direction. */
-    sayNothingSpecialThatWay(dir)
-    {
-        DMsg(nothing special that way, '{I} {see} nothing special {1}.', dir.departureName);
-    }
+    inLook()  { askForDobj(LookIn); }    
 ;
 
 /* 

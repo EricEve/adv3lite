@@ -1005,7 +1005,7 @@ DefineTopicAction(Seek)
     
     getBestMatch(cmd)
     {
-        local lst = cmd.dobj.topicList;
+        local lst = valToList(cmd.dobj.topicList);
         
         /* 
          *   First see if our topic list includes anything the actor can see
@@ -1066,4 +1066,5 @@ VerbRule(Seek)
     action = Seek
     verbPhrase = 'seek/seeking (what)'
     missingQ = 'what do you want to seek'
+    dobjReply = topicPhrase
 ;

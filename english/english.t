@@ -3915,7 +3915,7 @@ modify restoreOptionRestoreAnother
 /* English-language addition to defaultGround to give it appropriate vocab */
 
 modify defaultGround
-    vocab = 'ground;;floor'
+    vocab = 'ground;;floor d down'
 ;
 
 

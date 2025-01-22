@@ -288,6 +288,18 @@ grammar outOfSingleNoun(main):
    singleNoun->np_ | 'out' 'of' singleNoun->np_ : Production
 ;
 
+grammar overSingleNoun(main):
+    singleNoun->np_ | 'over' singleNoun->np_ : Production
+;
+
+grammar underSingleNoun(main):
+    singleNoun->np_ | 'under' singleNoun->np_ : Production
+;
+
+grammar behindSingleNoun(main):
+    singleNoun->np_ | 'behind' singleNoun->np_ : Production
+;
+
 grammar aboutTopicPhrase(main):
    'about' topicPhrase->np_ | topicPhrase->np_ 
    : TopicNounProduction
@@ -1517,6 +1529,7 @@ VerbRule(TakeFrom)
     action = TakeFrom
     verbPhrase = 'take/taking (what) (from what)'
     missingQ = 'what do you want to take;what do you want to take it from'
+    iobjReply = fromSingleNoun
 ;
 
 VerbRule(Remove)
@@ -1536,8 +1549,18 @@ VerbRule(Drop)
     missingQ = 'what do you want to drop'
 ;
 
+VerbRule(SetDownWhat)
+    'set' 'down'
+    : VerbProduction
+    action = Drop
+    verbPhrase = 'drop/dropping (what)'
+    missingQ = 'what do you want to drop'
+    missingRole = DirectObject    
+;
+    
+
 VerbRule(Examine)
-    ('examine' | 'inspect' | 'x' | 'look' 'at' | 'l' 'at') multiDobj
+    ('examine' | 'inspect' | 'x' |'look' 'at' | 'l' 'at') multiDobj
     : VerbProduction
     action = Examine
     verbPhrase = 'examine/examining (what)'
@@ -1558,6 +1581,14 @@ VerbRule(LookX)
     priority = 40
 ;
 
+VerbRule(LookAtWhat)
+    ('look' | 'l') 'at'
+    : VerbProduction
+    action = Examine
+    verbPhrase = 'look/looking (at what)'
+    missingQ = 'what do you want to look at'
+    missingRole = DirectObject
+;
 
 VerbRule(Read)
     'read' multiDobj
@@ -1576,6 +1607,16 @@ VerbRule(LookIn)
     priority = 60
 ;
 
+VerbRule(LookInWhat)
+    ('look' | 'l') ('in' | 'inside') 
+    : VerbProduction
+    action = LookIn
+    verbPhrase = 'look/looking (in what)'
+    missingQ = 'what do you want to look in'   
+    priority = 60
+    missingRole = DirectObject
+;
+
 VerbRule(Search)
     'search' multiDobj
     : VerbProduction
@@ -1585,11 +1626,20 @@ VerbRule(Search)
 ;
 
 VerbRule(LookThrough)
-    ('look' | 'l' | 'peer') ('through' | 'thru' | 'out') multiDobj
+    ('look' | 'l' | 'peer') ('through' | 'thru') multiDobj
     : VerbProduction
     action = LookThrough
     verbPhrase = 'look/looking (through what)'
     missingQ = 'what do you want to look through'
+;
+
+VerbRule(LookThroughWhat)
+    ('look' | 'l' | 'peer') ('through' | 'thru') 
+    : VerbProduction
+    action = LookThrough
+    verbPhrase = 'look/looking (through what)'
+    missingQ = 'what do you want to look through'
+    missingRole = DirectObject
 ;
 
 VerbRule(LookUnder)
@@ -1597,8 +1647,18 @@ VerbRule(LookUnder)
     : VerbProduction
     action = LookUnder
     verbPhrase = 'look/looking (under what)'
-    missingQ = 'what do you want to look under'
+    missingQ = 'what do you want to look under'   
 ;
+
+VerbRule(LookUnderWhat)
+    ('search' | 'look' | 'l') 'under' 
+    : VerbProduction
+    action = LookUnder
+    verbPhrase = 'look/looking (under what)'
+    missingQ = 'what do you want to look under'   
+    missingRole = DirectObject
+;
+
 
 VerbRule(LookBehind)
     ('search' | 'look' | 'l') 'behind' multiDobj
@@ -1607,6 +1667,28 @@ VerbRule(LookBehind)
     verbPhrase = 'look/looking (behind what)'
     missingQ = 'what do you want to look behind'
 ;
+
+VerbRule(LookBehindWhat)
+    ('search' | 'look' | 'l') 'behind'
+    : VerbProduction
+    action = LookBehind
+    verbPhrase = 'look/looking (behind what)'
+    missingQ = 'what do you want to look behind'
+    missingRole = DirectObject
+;
+
+/* 
+ *   The grammar for looking in a particular direction. Non-English games can change this by
+ *   supplying modify VerbRule(LookDir).
+ */
+VerbRule(LookDir)
+    ('look' | 'l') ('to' |) ('the'|) singleDir    
+    : VerbProduction
+    action = LookDir
+    verbPhrase = 'look/looking (where)' 
+    priority = 40
+;
+
 
 VerbRule(Feel)
     ('feel' | 'touch') multiDobj
@@ -1755,12 +1837,21 @@ VerbRule(Doff)
     missingQ = 'what do you want to take off'
 ;
 
+VerbRule(TakeOff)
+    'take' 'off'
+    : VerbProduction
+    action = TakeOff
+    verbPhrase = 'take/taking off'
+    priority = 40
+;
+
 VerbRule(Kiss)
     'kiss' singleDobj
     : VerbProduction
     action = Kiss
     verbPhrase = 'kiss/kissing (whom)'
     missingQ = 'whom do you want to kiss'
+    dobjReply = singleNoun
 ;
 
 VerbRule(Query)
@@ -1772,6 +1863,7 @@ VerbRule(Query)
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
+    dobjReply = topicPhrase
 ;
 
 VerbRule(Query2)
@@ -1782,6 +1874,7 @@ VerbRule(Query2)
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
+    dobjReply = topicPhrase
 ;
 
 VerbRule(QueryAbout)
@@ -1794,6 +1887,8 @@ VerbRule(QueryAbout)
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
     priority = 60
+    dobjReply = singleNoun
+    iobjReply = topicPhrase
 ;
 
 VerbRule(QueryVague)
@@ -1804,6 +1899,7 @@ VerbRule(QueryVague)
     action = QueryVague
     verbPhrase = 'ask/asking (what)'
     missingQ = 'what do you want to ask'
+    dobjReply = topicPhrase
     priority = 60
 ;
 
@@ -1813,6 +1909,7 @@ VerbRule(AuxQuery)
     :VerbProduction
     action = Query
     missingQ = 'what do you want to ask'
+    dobjReply = topicPhrase
     priority = 60
     qtype = 'if'
 ;
@@ -1860,7 +1957,7 @@ VerbRule(AskWhomFor)
     action = AskFor
     verbPhrase = 'ask/asking (whom) (for what)'
     missingQ = 'whom do you want to ask;what do you want to ask it for'
-
+    iobjReply = topicPhrase
     priority = 25
 ;
 
@@ -1892,7 +1989,7 @@ VerbRule(AskAboutImplicit)
     action = AskAboutImplicit
     verbPhrase = 'ask/asking (whom) (about what)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
-    iobjReply = topicPhrase
+    iobjReply = aboutTopicPhrase
     priority = 45
 ;
 
@@ -1926,7 +2023,7 @@ VerbRule(TellAboutImplicit)
     action = TellAboutImplicit
     verbPhrase = 'tell/telling (whom) (about what)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
-    iobjReply = topicPhrase
+    iobjReply = aboutTopicPhrase
 ;
 
 VerbRule(TellAboutWhat)
@@ -1968,7 +2065,7 @@ VerbRule(TalkAboutImplicit)
     action = TalkAboutImplicit
     verbPhrase = 'talk/talking (about what)'
     missingQ = 'what do you want to talk about'
-    iobjReply = topicPhrase
+    iobjReply = aboutTopicPhrase
 ;
 
 VerbRule(AskVague)
@@ -1977,6 +2074,8 @@ VerbRule(AskVague)
     action = AskAbout
     verbPhrase = 'ask/asking (whom)'
     missingQ = 'whom do you want to ask;what do you want to ask it about'
+    dobjReply = singleNoun
+    iobjReply = topicPhrase
 ;
 
 VerbRule(TellVague)
@@ -1986,6 +2085,8 @@ VerbRule(TellVague)
     verbPhrase = 'tell/telling (whom)'
     missingQ = 'whom do you want to tell;what do you want to tell it about'
     priority = 40
+    dobjReply = singleNoun
+    iobjReply = topicPhrase    
 ;
 
 VerbRule(TalkTo)
@@ -2114,6 +2215,7 @@ VerbRule(Say)
     action = SayAction
     verbPhrase = 'say/saying (what)'
     missingQ = 'what do you want to say'
+    dobjReply = topicPhrase
 ;
 
 VerbRule(SayTo)
@@ -2122,6 +2224,8 @@ VerbRule(SayTo)
     action = SayTo
     verbPhrase = 'say/saying (what) (to whom)'
     missingQ = 'what do you want to say it to; what do you want to say'
+    dobjReply = topicPhrase
+    iobjReply = toSingleNoun
 ;
 
 VerbRule(TellThat)
@@ -2130,6 +2234,8 @@ VerbRule(TellThat)
     action = SayTo
     verbPhrase = 'say/saying (what) (to whom)'
     missingQ = 'what do you want to say it to; what do you want to say'
+    dobjReply = singleNoun
+    iobjReply = topicPhrase
 ;
     
 VerbRule(Think)
@@ -2145,16 +2251,27 @@ VerbRule(ThinkAbout)
     action = ThinkAbout
     verbPhrase = 'think/thinking (about what)'
     missingQ = 'what do you want to think about'
+    dobjReply = aboutTopicPhrase
 ;
     
 
 VerbRule(Throw)
-    ('throw' | 'toss') multiDobj
+    [badness 500] ('throw' | 'toss') multiDobj
     : VerbProduction
     action = Throw
     verbPhrase = 'throw/throwing (what)'
     missingQ = 'what do you want to throw'
 ;
+
+VerbRule(ThrownDown)
+    ('throw' | 'toss') 'down'
+    : VerbProduction
+    action = Drop
+    verbPhrase = 'throw/throwing down (what)'
+    missingQ = 'what do you want to throw down'
+    missingRole = DirectObject
+;
+
 
 VerbRule(ThrowAt)
     ('throw' | 'toss') multiDobj 'at' singleIobj
@@ -2193,15 +2310,19 @@ VerbRule(ThrowDir)
 
     verbPhrase = 'throw/throwing (what)'
     missingQ = 'what do you want to throw'
+    dobjReply = directionName
 ;
 
 /* a special rule for THROW DOWN <dobj> */
 VerbRule(ThrowDirDown)
-    'throw' ('down' | 'd') multiDobj
+    ('throw' | 'toss') ('down' | 'd') multiDobj |
+    ('throw' | 'toss') multiDobj ('down' | 'd')
     : VerbProduction
-    action = ThrowDir
+    action = Drop
     verbPhrase = ('throw/throwing (what) down')
     missingQ = 'what do you want to throw down'
+    
+    priority = 100
 ;
 
 VerbRule(Follow)
@@ -2531,6 +2652,7 @@ VerbRule(TravelVia)
     action = TravelVia
     verbPhrase = 'use/using (what)'
     missingQ = 'which do you want to use'
+    dobjReply = singleNoun
 ;
 
 VerbRule(In)
@@ -2554,7 +2676,7 @@ VerbRule(GoThrough)
     action = GoThrough
     verbPhrase = 'go/going (through what)'
     missingQ = 'what do you want to go through'
-    dobjReply = singleNoun
+    dobjReply = throughSingleNoun
 ;
 
 VerbRule(GoAlong)
@@ -2576,7 +2698,7 @@ VerbRule(GoBack)
 ;
 
 VerbRule(Dig)
-    ('dig' | 'dig' 'in') singleDobj
+    ([badness 500] 'dig' | 'dig' 'in') singleDobj
     : VerbProduction
     action = Dig
     verbPhrase = 'dig/digging (in what)'
@@ -2618,12 +2740,12 @@ VerbRule(JumpOff)
 ;
 
 VerbRule(JumpOver)
-    ('jump' | 'jump' 'over') singleDobj
+    ([badness 500]'jump' | 'jump' 'over') singleDobj
     : VerbProduction
     action = JumpOver
     verbPhrase = 'jump/jumping (over what)'
     missingQ = 'what do you want to jump over'
-    dobjReply = singleNoun
+    dobjReply = overSingleNoun
 ;
 
 VerbRule(Push)
@@ -2665,7 +2787,7 @@ VerbRule(MoveAwayFrom)
     action = MoveAwayFrom
     verbPhrase = 'move/moving (what) (to what)'
     missingQ = 'what do you want to move;where do you want to move it'
-    iobjReply = toSingleNoun
+    iobjReply = fromSingleNoun
 ;
 
 
@@ -2708,7 +2830,7 @@ VerbRule(TurnTo)
 ;
 
 VerbRule(Set)
-    'set' multiDobj
+    [badness 500] 'set' multiDobj
     : VerbProduction
     action = Set
     verbPhrase = 'set/setting (what)'
@@ -2722,6 +2844,7 @@ VerbRule(SetTo)
     verbPhrase = 'set/setting (what) (to what)'
     missingQ = 'what do you want to set;what do you want to set it to'
     dobjReply = singleNoun
+    
 ;
 
 VerbRule(TypeOn)
@@ -2730,6 +2853,7 @@ VerbRule(TypeOn)
     action = TypeOnVague
     verbPhrase = 'type/typing (on what)'
     missingQ = 'what do you want to type on'
+    dobjReply = onSingleNoun
 ;
 
 VerbRule(TypeLiteralOn)
@@ -2738,7 +2862,7 @@ VerbRule(TypeLiteralOn)
     action = TypeOn
     verbPhrase = 'type/typing (what) (on what)'
     missingQ = 'what do you want to type;what do you want to type that on'
-    dobjReply = singleNoun
+    iobjReply = onSingleNoun
 ;
 
 VerbRule(TypeLiteralOnWhat)
@@ -2775,7 +2899,7 @@ VerbRule(WriteOn)
     action = WriteOn
     verbPhrase = 'write/writing (what) (on what)'
     missingQ = 'what do you want to write;what do you want to write that on'
-    dobjReply = singleNoun
+    dobjReply = onSingleNoun
 ;
 
 VerbRule(Write)
@@ -2805,6 +2929,7 @@ VerbRule(ConsultAbout)
     verbPhrase = 'consult/consulting (what) (about what)'
     missingQ = 'what do you want to consult;what do you want to consult it about'
     dobjReply = singleNoun
+    iobjReply = aboutTopicPhrase
 ;
 
 VerbRule(LookUp)
@@ -2816,6 +2941,7 @@ VerbRule(LookUp)
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
     dobjReply = singleNoun
+    iobjReply = topicPhrase
 ;
 
 VerbRule(ConsultWhatAbout)
@@ -2830,10 +2956,19 @@ VerbRule(ConsultWhatAbout)
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
     priority = 25
+    iobjReply = topicPhrase
+    dobjReply = singleNoun
+;
+
+VerbRule(ConsultAboutVague)
+    ('oonsult' | 'read') 'about'
+    : VerbProduction
+    action = ConsultAboutVague
+    verbPhrase = 'consult/consulting about'    
 ;
 
 VerbRule(Switch)
-    'switch' multiDobj
+    [badness 500] 'switch' multiDobj
     : VerbProduction
     action = SwitchVague
     verbPhrase = 'switch/switching (what)'
@@ -2841,7 +2976,7 @@ VerbRule(Switch)
 ;
 
 VerbRule(Flip)
-    'flip' multiDobj
+    [badness 500] 'flip' multiDobj
     : VerbProduction
     action = Flip
     verbPhrase = 'flip/flipping (what)'
@@ -2849,8 +2984,8 @@ VerbRule(Flip)
 ;
 
 VerbRule(SwitchOn)
-    ('activate' | ('turn' | 'switch') 'on') multiDobj
-    | ('turn' | 'switch') multiDobj 'on'
+    ('activate' | ('turn' | 'switch' | 'flip') 'on') multiDobj
+    | ('turn' | 'switch' | 'flip') multiDobj 'on'
     : VerbProduction
     action = SwitchOn
     verbPhrase = 'turn/turning on (what)'
@@ -2859,8 +2994,8 @@ VerbRule(SwitchOn)
 ;
 
 VerbRule(SwitchOff)
-    ('deactivate' | ('turn' | 'switch') 'off') multiDobj
-    | ('turn' | 'switch') multiDobj 'off'
+    ('deactivate' | ('turn' | 'switch' | 'flip') 'off') multiDobj
+    | ('turn' | 'switch' | 'flip') multiDobj 'off'
     : VerbProduction
     action = SwitchOff
     verbPhrase = 'turn/turning off (what)'
@@ -2890,6 +3025,15 @@ VerbRule(Burn)
     action = Burn
     verbPhrase = 'burn/burning (what)'
     missingQ = 'what do you want to burn'
+;
+
+VerbRule(SetFireToWhat)
+    'set' 'fire' 'to'
+    : VerbProduction
+    action = Burn
+    verbPhrase = 'burn/burning (what)'
+    missingQ = 'what do you want to set fire to'
+    missingRole = DirectObject
 ;
 
 VerbRule(BurnWith)
@@ -2926,6 +3070,7 @@ VerbRule(Cut)
     action = Cut
     verbPhrase = 'cut/cutting (what) (with what)'
     missingQ = 'what do you want to cut'
+    dobjReply = singleNoun
 ;
 
 VerbRule(CutWith)
@@ -3001,9 +3146,11 @@ VerbRule(ClimbUp)
 VerbRule(ClimbUpWhat)
     'climb' 'up'
     : VerbProduction
-    action = ClimbUpVague
+    action = ClimbUp
     verbPhrase = 'climb/climbing (up what)'
+    missingQ = 'what do you want to climb up'
     dobjReply = singleNoun
+    missingRole = DirectObject
 ;
 
 VerbRule(ClimbDown)
@@ -3018,9 +3165,11 @@ VerbRule(ClimbDown)
 VerbRule(ClimbDownWhat)
     ('climb' | 'go' | 'walk') 'down'
     : VerbProduction
-    action = ClimbDownVague
+    action = ClimbDown
     verbPhrase = 'climb/climbing (down what)'
+    missingQ = 'what do you want to climb down'
     dobjReply = singleNoun
+    missingRole = DirectObject
 ;
 
 VerbRule(Clean)
@@ -3138,7 +3287,7 @@ VerbRule(SitOn)
     action = SitOn
     verbPhrase = 'sit/sitting (on what)'
     missingQ = 'what do you want to sit on'
-    dobjReply = singleNoun
+    dobjReply = onSingleNoun
 ;
 
 VerbRule(SitIn)
@@ -3148,7 +3297,7 @@ VerbRule(SitIn)
     action = SitIn
     verbPhrase = 'sit/sitting (on what)'
     missingQ = 'what do you want to sit on'
-    dobjReply = singleNoun
+    dobjReply = inSingleNoun
 ;
 
 VerbRule(Sit)
@@ -3164,7 +3313,7 @@ VerbRule(LieOn)
     action = LieOn
     verbPhrase = 'lie/lying (on what)'
     missingQ = 'what do you want to lie on'
-    dobjReply = singleNoun
+    dobjReply = onSingleNoun
 ;
 
 VerbRule(LieIn)
@@ -3174,7 +3323,7 @@ VerbRule(LieIn)
     action = LieIn
     verbPhrase = 'lie/lying (on what)'
     missingQ = 'what do you want to lie on'
-    dobjReply = singleNoun
+    dobjReply = inSingleNoun
 ;
 
 
@@ -3190,7 +3339,7 @@ VerbRule(StandOn)
     action = StandOn
     verbPhrase = 'stand/standing (on what)'
     missingQ = 'what do you want to stand on'
-    dobjReply = singleNoun
+    dobjReply = onSingleNoun
 ;
 
 VerbRule(StandIn)
@@ -3199,7 +3348,7 @@ VerbRule(StandIn)
     action = StandIn
     verbPhrase = 'stand/standing (on what)'
     missingQ = 'what do you want to stand on'
-    dobjReply = singleNoun
+    dobjReply = inSingleNoun
 ;
 
 VerbRule(Stand)
@@ -3216,8 +3365,19 @@ VerbRule(GetOutOf)
     action = GetOutOf
     verbPhrase = 'get/getting (out of what)'
     missingQ = 'what do you want to get out of'
-    dobjReply = singleNoun
+    dobjReply = outOfSingleNoun
 ;
+
+VerbRule(GetOutOfWhat)
+    ('get' | 'climb') 'out' 'of'     
+    : VerbProduction
+    action = GetOutOf
+    verbPhrase = 'get/getting (out of what)'
+    missingQ = 'what do you want to get out of'
+    dobjReply = outOfSingleNoun
+    missingRole = DirectObject
+;
+
 
 VerbRule(GetOff)
     'get' ('off' | 'off' 'of' | 'down' 'from') singleDobj
@@ -3231,7 +3391,7 @@ VerbRule(GetOff)
 VerbRule(GetOut)
     'get' 'out'
     | 'get' 'off'
-    | 'get' 'down'    
+    | 'get' 'down' ('from' |)   
     | 'disembark'
     | 'climb' 'out'
     : VerbProduction
@@ -3249,18 +3409,39 @@ VerbRule(Board)
     action = Board
     verbPhrase = 'get/getting (on what)'
     missingQ = 'what do you want to get on'
-    dobjReply = singleNoun
+    dobjReply = onSingleNoun
 ;
 
+VerbRule(BoardWhat)
+    ('get' | 'climb') ('on' | 'onto' | 'on' 'to')
+    : VerbProduction
+    action = Board
+    verbPhrase = 'get/getting (on what)'
+    missingQ = 'what do you want to get on'    
+    dobjReply = onSingleNoun
+    missingRole = DirectObject
+;
+
+
 VerbRule(Enter)
-    ('enter' | ('walk' | 'go' | 'get' | 'climb')
-     ( 'in' | 'in' 'to' | 'into' | 'inside'))
+    ('enter' | 'walk' | 'go' | 'get' | 'climb')
+     ( 'in' | 'in' 'to' | 'into' | 'inside')
     singleDobj
     : VerbProduction
     action = Enter
     verbPhrase = 'enter/entering (what)'
     missingQ = 'what do you want to enter'
     dobjReply = singleNoun
+;
+
+VerbRule(GetInWhat)
+    ('enter' | 'get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside')
+    : VerbProduction
+    action = Enter
+    verbPhrase = 'enter/entering (what)'
+    missingQ = 'what do you want to enter'
+    dobjReply = singleNoun
+    missingRole = DirectObject
 ;
 
 VerbRule(Sleep)
@@ -3271,7 +3452,7 @@ VerbRule(Sleep)
 ;
 
 VerbRule(Fasten)
-    ('fasten' | 'buckle' | 'buckle' 'up') multiDobj
+    ('fasten' | [badness 500] 'buckle' | 'buckle' 'up') multiDobj
     : VerbProduction
     action = Fasten
     verbPhrase = 'fasten/fastening (what)'
@@ -3394,6 +3575,8 @@ VerbRule(PushTravelDir)
     ('push' | 'pull' | 'drag' | 'move') singleDobj singleDir
     : VerbProduction
     action = PushTravelDir
+    dobjReply = singleNoun
+    iobjReply = directionName
 ;
 
 VerbRule(PushTravelThrough)
@@ -3403,6 +3586,8 @@ VerbRule(PushTravelThrough)
     action = PushTravelThrough
     verbPhrase = 'push/pushing (what) (through what)'
     missingQ = 'what do you want to push;what do you want to push it through'
+    dobjReply = singleNoun
+    iobjReply = throughSingleNoun
 ;
 
 VerbRule(PushTravelEnter)
@@ -3412,6 +3597,8 @@ VerbRule(PushTravelEnter)
     action = PushTravelEnter
     verbPhrase = 'push/pushing (what) (into what)'
     missingQ = 'what do you want to push;what do you want to push it into'
+    dobjReply = singleNoun
+    iobjReply = inSingleNoun
 ;
 
 VerbRule(PushTravelGetOutOf)
@@ -3421,6 +3608,8 @@ VerbRule(PushTravelGetOutOf)
     action = PushTravelGetOutOf
     verbPhrase = 'push/pushing (what) (out of what)'
     missingQ = 'what do you want to push;what do you want to push it out of'
+    dobjReply = singleNoun
+    iobjReply = outOfSingleNoun
 ;
 
 
@@ -3431,6 +3620,7 @@ VerbRule(PushTravelClimbUp)
     action = PushTravelClimbUp
     verbPhrase = 'push/pushing (what) (up what)'
     missingQ = 'what do you want to push;what do you want to push it up'
+    dobjReply = singleNoun
 ;
 
 VerbRule(PushTravelClimbDown)
@@ -3440,6 +3630,7 @@ VerbRule(PushTravelClimbDown)
     action = PushTravelClimbDown
     verbPhrase = 'push/pushing (what) (down what)'
     missingQ = 'what do you want to push;what do you want to push it down'
+    dobjReply = singleNoun
 ;
 
 VerbRule(Exits)
@@ -3530,6 +3721,7 @@ VerbRule(SpecialAction)
     action = SpecialAction
     verbPhrase = 'do/doing that to (what)'
     missingQ = 'what do you want to do that to'    
+    dobjReply = singleNoun
 ;
 
 VerbRule(SpecialActionMulti)
@@ -3562,6 +3754,7 @@ VerbRule(Purloin)
     action = Purloin
     verbPhrase = 'purloin/purloining (what)'
     missingQ = 'what do you want to purloin'
+    dobjReply = singleNoun
 ;
 
 VerbRule(GoNear)
@@ -3570,6 +3763,7 @@ VerbRule(GoNear)
     action = GoNear
     verbPhrase = 'go near/going near (what)'
     missingQ = 'what do you want to go near'
+    dobjReply = singleNoun
 ;
 
 

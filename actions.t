@@ -1220,6 +1220,46 @@ DefineTAction(LookThrough)
     againRepeatsParse = nil
 ;
 
+DefineIAction(LookDir)
+    baseActionClaas = LookDir    
+       
+    execAction(cmd)
+    {   
+        /* Get the direction the player typed in their LOOK <DIR> command. */
+        direction = cmd.verbProd.dirMatch.dir; 
+        
+        /* If out handleLook() method handles looking in direction, return to stop here. */
+        if(handleLook)
+            return;        
+        
+        /* Otherwise display a message to say we see nothing special in that direction. */
+        gActor.getOutermostRoom.sayNothingSpecialThatWay(direction);
+    }
+    
+    handleLook()
+    {
+        if(direction == inDir)            
+            askForDobj(LookIn);
+        
+        return nil;
+    }
+    
+    
+    direction = nil
+;
+
+
+//DefineIAction(LookDown)
+//    execAction(c)
+//    {
+//        local groundObj = gActor.getOutermostRoom.floorObj;
+//        if(groundObj)
+//            doInstead(Examine, groundObj);
+//        else
+//            DMsg(look down, '{I} {see} little below (my) feet. ');
+//    }
+//;
+
 DefineTAction(Unlock)    
 ;
 
@@ -1243,6 +1283,19 @@ DefineTAction(Doff)
     allowAll = true    
 ;
 
+DefineIAction(TakeOff)
+    execAction(c)
+    {
+        DMsg(not a bird, '{I} {\'m} not a bird or a plane. ');
+        
+        /* 
+         *   Some game authors may prefer to comment out the line above and use the one below
+         *   instead.
+         */
+//        askForDobj(Doff);
+    }   
+;
+
 DefineTAction(Break)
     againRepeatsParse = nil
 ;
@@ -1254,14 +1307,6 @@ DefineTAction(ClimbUp)
 ;
 
 DefineTAction(ClimbDown)        
-;
-
-DefineIAction(ClimbUpVague)
-    execAction(cmd)  { askForDobj(ClimbUp); }
-;    
-
-DefineIAction(ClimbDownVague)
-    execAction(cmd)  { askForDobj(ClimbDown); }
 ;
 
 DefineTAction(Board)        
@@ -1602,7 +1647,6 @@ DefineTAction(JumpOver)
     againRepeatsParse = nil
 ;
 
-
 DefineLiteralTAction(TurnTo)    
 ;
 
@@ -1671,6 +1715,14 @@ DefineTopicAction(ConsultWhatAbout)
     execAction(cmd)
     {
         askForDobj(ConsultAbout);
+    }
+;
+
+DefineIAction(ConsultAboutVague)
+    execAction(c)
+    {
+        DMsg(consult about vague, 'Please be more specific, e.g, CONSULT BLACK BOOK ABOUT MAGIC or
+            READ ABOUT MAGIC IN BLACK BOOK. ' );
     }
 ;
 

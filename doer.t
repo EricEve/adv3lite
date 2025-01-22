@@ -161,17 +161,18 @@ class Redirector: object
         /* Read a new command from the keyboard. */        
         local txt = readCommandLine();       
         
-        if(role == IndirectObject && action.ofKind(LiteralTAction))
+        if(role == IndirectObject 
+           && action.ofKind(LiteralTAction) || action.ofKind(TopicTAction))
         {           
             doInstead(action, obj, txt);           
         }
         
         if(role == DirectObject)
         {
-            if(action.ofKind(LiteralAction))
+            if(action.ofKind(LiteralAction) || action.ofKind(TopicAction))
                 doInstead(action, txt);
             
-            if(action.ofKind(LiteralTAction))
+            if(action.ofKind(LiteralTAction) || action.ofKind(TopicTAction))
                 doInstead(action, txt, obj);
         }
     }

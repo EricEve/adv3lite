@@ -6703,6 +6703,9 @@ class Thing:  ReplaceRedirector, Mentionable
             
             if(isIn(gActor))
                 illogicalNow(cannotGetOnCarriedMsg);
+            
+            if(gActor == self)
+                illogicalSelf(cannotBoardSelfMsg);
         }
         
         check() { checkInsert(gActor); }
@@ -6720,6 +6723,9 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotBoardMsg = BMsg(cannot board, '{The subj dobj} {is} not something {i}
         {can} get on. ')
+    
+    cannotBoardSelfMsg = BMsg(cannot board self, '{I} {can} hardly get on {myself}. ')         
+    
     actorAlreadyOnMsg = BMsg(already on, '{I}{\'m} already {in dobj}. ')
      
     cannotGetOnCarriedMsg = BMsg(cannot board carried, '{I} {can\'t} get on {the
@@ -8380,11 +8386,15 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canJumpOverMe)
                illogical(cannotJumpOverMsg); 
+            if(gDobj == self)
+                illogicalSelf(cannotJumpOverSelfMsg);
         }
     }
     
     cannotJumpOverMsg = BMsg(pointless to jump over, 'It {dummy}{is}
         pointless to try to jump over {the dobj}. ')
+    
+    cannotJumpOverSelfMsg = BMsg(cannot jump over self, '{I} {can} hardly jump over {myself}. '  )
     
     
     /* Most things aren't settable. */

@@ -40,7 +40,7 @@ VerbRule(Grab)
     : VerbProduction
     action = Take
     verbPhrase = 'grab/grabbing (what)'
-    missingQ = 'what do you want to grab'
+    missingQ = 'what do you want to grab'	
 ;
 </pre></div>
 
@@ -124,7 +124,9 @@ VerbRule(Grab)
     : VerbProduction
     action = PutOn
     verbPhrase = 'hang/hanging (what) (on what)'
-    missingQ = 'what do you want to hang; what do you want to hang it on'    
+    missingQ = 'what do you want to hang; what do you want to hang it on'   
+    dobjReply = singleNoun
+    iobjReply = onSingleNoun 	
  ;
  </pre></div>
 
@@ -215,10 +217,13 @@ VerbRule(Repair)
    action = Repair
    verbPhrase = 'repair/ repairing (what)'
    missingQ = 'what do you want to repair'
+   dobjReply = singleNoun
 ;
 </pre></div>
 
 <p>Note how we use the bar (|) symbol to define alternative phrasings and the brackets to group them. We want the command to match REPAIR FOO, MEND FOO or FIX FOO; without the brackets it would match: REPAIR or MEND, or FIX FOO.</p>
+
+<p>Note that VerbRules can sometimes lead to problem cases when a player enters an incomplete command. For example, until it was fixed in version 2.2, the command JUMP OVER produced the response "You see no over here. " So if you're defining new VerbRules it's as well to test for such problem cases. The ways of fixing them are discussed <a href='#badness'>below</a>.
 
 <p>The second step is usually very simple indeed; we just define the new action using the <strong>DefineTAction(<em>action-name</em>)</strong> macro, for example: </p>
 
@@ -372,6 +377,7 @@ VerbRule(RubWith)
     action = RubWith
     verbPhrase = 'rub/rubbing (what) (with what)'
     missingQ = 'what do you want to rub; what do you want to rub it with'
+	iobjReply = withMissingNoun
 ;
 
 
@@ -381,6 +387,8 @@ VerbRule(RepairWith)
    action = RepairWith
    verbPhrase = 'repair/ repairing (what) (with what)'
    missingQ = 'what do you want to repair; what do you want to repair it with'
+   dobjReply = singleNoun
+   iobjReply = withSingleNoun
 ;
 </pre></div>
 
@@ -489,6 +497,7 @@ class Tool: Thing
     verbPhrase = 'hang/hanging (what) (on what)'
     missingQ = 'what do you want to hang; what do you want to hang it on'   
     missingRole = IndirectObject
+	dobjReply = singleNoun
     iobjReply = onSingleNoun    
  ;
  </pre></div>
@@ -508,6 +517,40 @@ grammar underSingleNoun(main):
 </pre></div>
 
 <p>This would then match either a plain noun phrase (e.g. just BED) or a noun phrase preceded by 'under' (e.g. UNDER THE BED).</p>
+
+<p>Note that, depending on the complexity of the grammar involved, some difficulties can be solved simply by adding a [badness 500] to a grammar rule, while others may require defining other VerbRules or even additional actions to handle incomplete actions gracefully, and it may require some experimentation to achieve the desired result. For example, to avoid JUMP OVER generating the reponse "You see no over here" the library simply defines the relevant VerbRule thus:</p>
+
+ <p><div class="code"><pre>
+VerbRule(JumpOver)
+    ([badness 500]'jump' | 'jump' 'over') singleDobj
+    : VerbProduction
+    action = JumpOver
+    verbPhrase = 'jump/jumping (over what)'
+    missingQ = 'what do you want to jump over'
+    dobjReply = overSingleNoun
+;
+</pre></div>
+
+<p>While on the other hand, because the verb 'set' can appear in several different contexts with different meanings, the library handles SET FIRE TO thus:</p>
+
+<p><div class="code"><pre>
+VerbRule(Burn)
+    ('burn' | 'ignite' | 'set' 'fire' 'to') multiDobj
+    : VerbProduction
+    action = Burn
+    verbPhrase = 'burn/burning (what)'
+    missingQ = 'what do you want to burn'
+;
+
+VerbRule(SetFireToWhat)
+    'set' 'fire' 'to'
+    : VerbProduction
+    action = Burn
+    verbPhrase = 'burn/burning (what)'
+    missingQ = 'what do you want to set fire to'
+    missingRole = DirectObject
+;
+</pre></div>
 
 <p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two chapters will discuss how to deal with such commands, but first we'll take a quick look at actions that take more than two objects.</p>
 
@@ -554,6 +597,9 @@ VerbRule(WriteOnWith)
     verbPhrase = 'write/writing (on what) (with what) (what)'
     missingQ = 'what do you want to write on; what do you want to write with;
         what do you want to write'
+    iobjReply = singleNoun
+    aobjReply = withSingleNoun
+    	
 ;
  
  </pre></div>

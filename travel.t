@@ -635,6 +635,13 @@ class Room: TravelConnector, Thing
         return nil;
     }
     
+    /* Display a message saying that there's nothing special to see in the dir direction. */
+    sayNothingSpecialThatWay(dir)
+    {
+        DMsg(nothing special that way, '{I} {see} nothing special when looking {1}.', 
+             dir.departureName);
+    }
+    
     /* Rooms are generally large emough to allow them to be smelt or listened to. */    
     smellSize = large
     soundSize = large

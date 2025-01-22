@@ -2565,7 +2565,7 @@ class TopicTAction: TAction
         if(curIobj == nil)
             return;
         
-        for(local cur in curIobj.topicList, local i = 1;; ++i)
+        for(local cur in valToList(curIobj.topicList), local i = 1;; ++i)
         {
             if(cur == Him && curDobj.isHim)
                 curIobj.topicList[i] = curDobj;
