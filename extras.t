@@ -1116,6 +1116,10 @@ class Enterable: ProxyDest, Fixture
         }
     }
     
+    /* Looking in or searching an Enterable surely requires that we enter it. */
+    dobjFor(LookIn) asDobjFor(Enter)
+    dobjFor(Search) asDobjFor(Enter)
+    
     /*   
      *   Our connector is the TravelConnector via which an actor travels on
      *   entering this object. This may be a Room, or some other TravelConnector

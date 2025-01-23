@@ -2070,16 +2070,50 @@ OpenClosed: State
  */
 DirState: State
     stateProp = &attachedDir
-    adjectives = [[&north, ['north', 'n']], [&south, ['south', 's']],
-        [&east, ['east', 'e']], [&west, ['west', 'w']],
-        [&southeast, ['southeast', 'se']], [&northeast, ['northeast', 'ne']],
-        [&southwest, ['southwest', 'sw']], [&northwest, ['northwest', 'nw']],
-        [&port, ['port', 'p']], [&starboard, ['starboard', 'sb']],
-        [&fore, ['fore', 'f', 'forward']], [&aft, ['aft']],
-        [&up, ['up', 'upward']], [&down, ['down', 'downward'] ],
-        [&in, ['in', 'inner', 'inward']], [&out, ['out', 'outer', 'outward']]
+
+    /* 
+     *   We make all these vocab words weak tokens because we don't want to match on the direction
+     *   name alone, e.g., X NORTH.
+     */
+    vocabWords = [
+        [&north, 'north', MatchWeak],
+        [&north, 'n', MatchWeak],
+        [&south, 'south', MatchWeak],
+        [&south, 's', MatchWeak],
+        [&east, 'east', MatchWeak],
+        [&east, 'e', MatchWeak],
+        [&west, 'west', MatchWeak],
+        [&west, 'w', MatchWeak],
+        [&southeast, 'southeast', MatchWeak],
+        [&southeast, 'se', MatchWeak],
+        [&southwest, 'southwest', MatchWeak],
+        [&southwest, 'sw', MatchWeak],
+        [&northwest, 'northwest', MatchWeak],
+        [&northwest, 'nw', MatchWeak],
+        [&southwest, 'southwest', MatchWeak],
+        [&southwest, 'sw', MatchWeak],
+        [&port, 'port', MatchWeak],
+        [&port, 'p', MatchWeak],
+        [&starboard, 'starboard', MatchWeak],
+        [&starboard, 'sb', MatchWeak],
+        [&fore, 'fore', MatchWeak],
+        [&fore, 'forward', MatchWeak],
+        [&fore, 'f', MatchWeak],
+        [&aft, 'aft', MatchWeak],
+        [&up, 'up', MatchWeak],
+        [&up, 'upward', MatchWeak],
+        [&down, 'down', MatchWeak],
+        [&down, 'd', MatchWeak],
+        [&down, 'downward', MatchWeak],
+        [&in, 'in', MatchWeak],
+        [&in, 'inner', MatchWeak],
+        [&in, 'inward', MatchWeak],
+        [&out, 'out', MatchWeak],
+        [&out, 'outer', MatchWeak],
+        [&out, 'outward', MatchWeak]        
     ]
     
+        
     appliesTo(obj)
     {
         /* 
@@ -3915,7 +3949,7 @@ modify restoreOptionRestoreAnother
 /* English-language addition to defaultGround to give it appropriate vocab */
 
 modify defaultGround
-    vocab = 'ground;;floor d down'
+    vocab = 'ground;;floor'
 ;
 
 

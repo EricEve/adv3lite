@@ -20,23 +20,42 @@ LookDir
 <h1>LookDir</h1>
 <h2>Overview</h2>
 
-<p>The purpose of the <a href="../lookDir.t">LookDir</a> extension is to implement handling of a LookDir action that responds to commands of the form LOOK &lt;DIR&gt;, e.g., LOOK NORTH. The responses to looking in a particular direction in a particular room by defining that room's xxxLook properties, e.g. <span class='code'>northLook = "You see a long row of trees marching off to the middle distance. "</span> would define the response to LOOK NORTH in that location.</p>
+<p>The standard library provides only rudimentary support for directional looking commands (commands of the form LOOK NORTH). All it does is:</p>
 
-<p>To use the LookDir extension you just need to include it in your build, after the adv3Lite library files. Note that a simpler way for some games to handle LOOK &lt;DIR&gt; commands might be to add &lt;DIR&gt; to certain game objects. For example, adding 'd' and 'down' to the vocab of floor objects will cause LOOK DOWN to result in the floor being examined, without any need for this extension. For more complicated cases, however, the LookDir extension may be the better option.<p>
+<ol>
+<li>If there's an object in scope whose vocab matches the direction name speficied, such as a 'north wall' or a sky object with 'up' in its vocab, that object will be described (just as if the player had typed X NORTH or X UP).</i>
+<li>Otherwise, if the player typed LOOK IN they'll be asked what they want to look in.</li>
+<li>Otherwise a message will be displayed saying there's no need to look in any direction in this game.</li>
+</ol>
+
+<p>For many games this may be perfectly adequate, but some games may benefit from a more elaborate implementation, which is what the LookDir extension aims to provide. With <a href="../lookDir.t">LookDir</a> included in your game, the sequence of events in response to a directional looking command becomes:</p>
+
+<ol>
+<li>If there's an object in scope whose vocab matches the direction name speficied, such as a 'north wall' or a sky object with 'up' in its vocab, that object will be described (just as if the player had typed X NORTH or X UP).</i>
+<li>Otherwise, if the player typed LOOK IN they'll be asked what they want to look in.</li>
+<li>If a <i>dir</i>Look property (e.g. northLook or portLook) is defined on the actor's location, it will be displayed to describe what can be seen in the direction requested (e.g., NORTH or PORT), provided there's light to see by (if not, the player will be told it's too dark). For example, you might define <code>northLook = "You see a long row of trees marching off to the middle distance. "</code> </li>
+<li>Otherwise, if the direction was DOWN and the location provides a floor object, that floor object will be described.</li>
+<li>Otherwise, the extension will attempt to generate a response based on what the corresponding direction property of the actor's location points to. For example, if the player issued the command LOOK SOUTH and the actor's location defines <code>south = frontDoor</code>, then we'll respond with "To the south you see the front door."</li>
+<li>If all else fails, a message will be displayed saying you see nothing unexpected in that direction.</li>
+</ol>
+
+<p>The automated response generated at step 5 may not always be ideal, but it may often be good enough for game authors to save themselves some work by only having to customize those responses it doesn't produce to their liking.</p>
+
+<p>To use the LookDir extension you just need to include it in your build, after the adv3Lite library files.</p> 
 <br>
 <h2>Details</h2>
-<p>With the LookDir extension added to your game, you can add xxxLook properties to Rooms to provide the responses to LOOK XXX. For example, northLook would provide the response to LOOK NORTH, southeastLook to LOOK SOUTHEAST or LOOK SE, and upLook to LOOK UP. An xxxLook property may be defined as a single-quoted or double-quoted string or a method to display some text.</p>
+<h3>The xxxLook Properties</h3>
+<p>With the LookDir extension added to your game, you can add xxxLook properties to Rooms (or nested rooms) to provide the responses to LOOK XXX. For example, <code>northLook </code>would provide the response to LOOK NORTH, <code>southeastLook</code> to LOOK SOUTHEAST or LOOK SE, and <code>upLook</code> to LOOK UP. An xxxLook property may be defined as a single-quoted or double-quoted string or a method to display some text.</p>
 
-<p>The extension defines the <b>downLook</b> and <b>inLook</b> properties on the Room class. downlook is defined to change the action to examining the Room's floor object (<span class='code'>floorObj</span>) if there is one. inLook is defined to ask the player to provide the missing direct object to a LOOK IN command. Both these properties may, of course, be overridden in game code.</p>
+<p>This is handled by the <li><b>lookDir(dir)</b> method, which first checks that there's enough light to see and complains that it's too dark otherwise. If there is enough light to see the method then checks whether the Room defines a non-nil <i>dir</i>Look property corresponding to <i>dir</i>. If it does, it invokes that property, otherwise it calls <code>describeView(dir)</code> to attempt to generate an automated response (more on which <a href='#auto'>below</a>
+).</p>
+<li>
 
-<p>The other two methods this extension defines on Room are:</p>
-<ul>
-<li><b>lookDir(dir)</b>: This method first checks that there's enough light to see and complains that it's too dark otherwise. If there is enough light to see the method then checks whether the Room defines a non-nil <i>dir</i>Look property corresponding to <i>dir</i>. If it does, it invokes that property, otherwise it calls <span class='code'>sayNothingSpecialThatWay(dir)</span>.</li>
-<li><b>sayNothingSpecialThatWay(dir)</b>: This method displays a meessage saying that there's nothing special to see in direction <i>dir</i>.</li>
-</ul>
+<p>The extension also defines the <b>downLook</b> method on Thing  to change the action to examining the Room's floor object (<span class='code'>floorObj</span>) if there is one. This method may, of course, be overridden in game code if some other way of handling LOOK DOWN is wanted.</p>
+
 <p>There's currently only limited support for looking in a specified direction from a nested room (i.e. when the player character's location isn't their outermost room). The extension calls <span class='code'>lookDir(dir)</span> on the actor's outermost room unless the actor is in a closed opaque Booth, in which case it will be called on the Booth instead.</p>
 <br>
-<h2>Custom Directions</h2>
+<h4>Custom Directions</h4>
 <p>Adv3Lite allows game authors to define <a href='../../docs/manual/room.htm#directions'>custom Directions</a>. If you want LOOK XXX to work with your custom direction, e.g. LOOK NNE, you need also to define a <b>lookProp</b> property on your custom Direction to hold a property pointer for the lookXXX property you want your custom Direction to work with, for example:</p>
 
 <p><div class=code><pre>
@@ -54,6 +73,23 @@ grammar directionName(nornoreast): 'nornoreast' | 'nne' : Production
 </pre></div>
 
 <p>In this case you may prefer to use a briefer property name, e.g., <span class='code'>lookProp = &amp;nneLook</span>.
+
+<a name='auto'></a>
+<h3>The Automated Response - describeView(dir)</h3>
+<p> The <code>describeView(dir)</code> method is called on the actor's location if there is no xxxLook property corresponding to the direction specified in the player's command (e.g., no <code>westLool</code> property when the player typed LOOK WEST). It attempts to generate a passable response from what's defined on the corresponding direction property (e.g. <code>west</code> by following these steps:</p>
+
+<ol>
+<li>If the relevant property value is a single-quoted string, it displays that string.</li>
+<li>If the property contains an UnlistedProxyConmnector (from use of <code>asExit</code> it uses the exit it's a proxy for. E.g. if we have defined <code>out asExit(southeast)</code> then we'll work with whatever's defined on the <code>southeast</code> property.</li>
+<li>If the property holds a Travel connector for which isHidden is true or isConnectorApparent is nil, we treat it as being not present by calling <code>sayNothingUnexpectedThatWay(dir)</code></li>
+<li>If the property hold a TravelConnector that defines a <b>lookDirDesc</b> property (or method) then that property will be used to construct the response; whatever text <code>lookDirDesc</code> defines will be preceeded by an introduction like "To the east you see ".</li>
+<li>Otherwise, if the property holds a physical travel connector such as a Door, Passage or Stairway, we display a message stating that in that direction lies the physical connector in quesstion (e.g., "To the north you see a red door"), unless the physical connector forms the way into an Emterable, in which case the Enterable will be mentioned first (e.g., "To the north you see a small white cottage which is enterable via a red door. ")</li>
+<li>Otherwise, if the property holds a Room that has been visited or is already familiar, we say that that Room lies in that direction.</li>
+<li>Otherwise, if the property holds a TravelConnector not otherwise catered for or a double-quoted string or a method, call <code>sayCouldGoThatWay(dir)</code> to say we could go that way (since there's nothing more this routine can deduce about it.</li>
+<li>Otherwise, if all else fails, call <code>sayNothingUnexpectedThatWay(dir)</code> to say we see nothing unexpected that way.</li>   
+
+</ol>
+
 
 
 

@@ -1225,40 +1225,41 @@ DefineIAction(LookDir)
        
     execAction(cmd)
     {   
-        /* Get the direction the player typed in their LOOK <DIR> command. */
-        direction = cmd.verbProd.dirMatch.dir; 
-        
-        /* If out handleLook() method handles looking in direction, return to stop here. */
-        if(handleLook)
-            return;        
-        
-        /* Otherwise display a message to say we see nothing special in that direction. */
-        gActor.getOutermostRoom.sayNothingSpecialThatWay(direction);
+        if(!handleLookIn())
+            sayNoNeedToLookDir();
     }
-    
-    handleLook()
+    /* 
+     *   If the command was LOOK IN then ask the player what they want to look in, otherwise simply
+     *   return nil. 
+     */
+    handleLookIn()
     {
         if(direction == inDir)            
-            askForDobj(LookIn);
-        
-        return nil;
+        {
+            inLook();        
+            return true;
+        }
+        return nil;            
     }
     
+    /* 
+     *   The command LOOK IN without an object is unlikely to make sense, so we ask the player to
+     *   supply the missing direct object,
+     */
+    inLook()  { askForDobj(LookIn); }   
+    
+    sayNoNeedToLookDir()
+    {
+        DMsg(no need to lookdir, '<.parser>There\'s no need to look in particular directions in this
+            game. ');
+        abort;
+    }
     
     direction = nil
 ;
 
 
-//DefineIAction(LookDown)
-//    execAction(c)
-//    {
-//        local groundObj = gActor.getOutermostRoom.floorObj;
-//        if(groundObj)
-//            doInstead(Examine, groundObj);
-//        else
-//            DMsg(look down, '{I} {see} little below (my) feet. ');
-//    }
-//;
+
 
 DefineTAction(Unlock)    
 ;

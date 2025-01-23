@@ -5,6 +5,7 @@ property subLocation;
 property lookAroundShowExits;
 property stanceToward;
 property setStanceToward;
+property destinationName;
 
 /*
  *   Mentionable is the base class for objects that the player can refer to
@@ -4153,6 +4154,8 @@ class Thing:  ReplaceRedirector, Mentionable
      *   this is only relevant if thoughts.t is present and this Thing becomea a player character.
      */
     myThoughtManager = nil
+    
+    
     
     /*
      *   ******************************************************************
