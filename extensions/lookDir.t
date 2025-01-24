@@ -7,7 +7,7 @@
  *
  *   This module provides the LookDir extension for the adv3Lite library (c) 2024 Eric Eve
  *
- *   Version 2.0  23-Jan-25
+ *   Version 2.1  24-Jan-25
  *
  *   The LookDir extension provides better handling the LookDir action, which handles cdmmands of
  *   the form LOOK <DIR>, e.g., LOOK NORTH.
@@ -48,11 +48,12 @@ modify LookDir
         
         /* 
          *   loop outwards from the actor's immediate container to their outermost visible parent to
-         *   find the object from which to attempt to look in the specified direction.
+         *   find the object from which to attempt to look in the specified direction, which will
+         be the first object we encounter that wants to handle directional looking.
          */
         while(actorContainer != outerLoc)
         {
-            if(actorContainer.isEnterable && actorContainer.contType == In)
+            if(actorContainer.handleLookDir)
                 break;
             
             actorContainer = actorContainer.location;
@@ -263,6 +264,9 @@ modify Room
         DMsg(could go that way, 'It {dummy} look{s/ed} like {i} might be able to go that
             way. ');
     }
+    
+    /* A Room is always a candidate for handling lookDir. */
+    handleLookDir = true
 ;
 
 /* Modifications to Thing for the LookDir extension. */
@@ -347,7 +351,7 @@ modify Thing
             if(dir == downDir)
                 downLook();
             else
-                getOutermostRoom.describeView(dir);
+                describeView(dir);
         }      
     }
     
@@ -362,11 +366,44 @@ modify Thing
             describeView(downDir);
     }
     
-    /* We provide this method on Thing in case it's called on a nesed room. */
-    describeView(dir)    
+    /* 
+     *   We provide this method on Thing in case it's called on a nested room. By default, if we can
+     *   see out we call use the describeView on the next suitable containing object working
+     *   outwards from us or else if we can't see out we just display our nothing unexpected
+     *   message.
+     */
+           
+    describeView(dir)        
     {
-        
+        if(canSeeOut)
+        {
+            getLookDirHandler(self).describeView(dir);
+        }
+        else
+            sayNothingUnexpectedThatWay(dir);
     }
+    
+    /* 
+     *   Service method to find the next containing object that should handle a lookDir, working out
+     *   from loc. We carry on looping outwards until we find a Room or a container for which
+     *   handleLockDir is true of which we can't see out of.
+     */
+    getLookDirHandler(loc)
+    {        
+        do
+        {
+            loc = loc.location;
+        } while(!loc.ofKind(Room) && !loc.handleLookDir && loc.canSeeOut) ;
+        
+        return loc;
+    }
+    
+    /* 
+     *   Are we a candidate object for calling lookDir() on? By default we are we can't see out from
+     *   us. Game code can overried on nested rooms whose lookDir() method we always want to use,
+     *   such as a partially enclosed Booth.
+     */     
+    handleLookDir = !canSeeOut
 ;
     
 

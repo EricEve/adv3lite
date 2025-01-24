@@ -138,11 +138,60 @@ meadow: Room 'Meadow'
 <p>Note that we don't need to handle any <code>case east</code> here, since <code>describeView(dir)</code> will already have provided a message relating to the <code>meadowPath</code> object.</p>
 
 
+<h2>Directional Looking from Nested Rooms</h2>
+<p>If the actor is sitting on a chair or standing on a stool, their view in any particular direction is probably little different from what they'd see if they were simply located in the outermost Room. On the other hand, if the Room is a theatre containing a Platform representing the stage at its northern end, the views north and south from the stage might be rather different from those from the rest of the Room (representing the auditorium). Again, if the actor is in a Booth it may well be that the sides of the Booth restrict what the actor can see in at least some directions, even if the Booth is open. There are a couple of things we can do to model such situations.</p>
 
+<p>The first is to define <i>dir</i>Look properties on the nested room (such as the stage or the booth) which will then be used in preference to the corresponding <i>dir</i>Look properties on the enclosing Room when the actor is in the nested room. For example, on the theatre Room we might define:</p>
 
+<p><div class=code><pre>
+    northLook = "To the north you see the stage, on which an incompetent troupe of actors are 
+       making a total hash of playing Hamlet. "
+    southLook = "To the south you see the rows of seats behind you and the exit signs over the doors. "
+;
+</pre></div>
 
+<p>While on the stage you could define:</p>
+   
+<p><div class=code><pre>
+    northLook = "To the north you see the backdrop depicting the battlements of Elsinore Castle. "
+    southLook = "To the south you see the auditorium full of the most unappreciative audience
+       you have ever played to. "
+;
+</pre></div>
+   
+<p>The situation with a Booth may be more complicated. Suppose we have a Booth representing a garden shed. Notionally, its door faces south across the garden to a greenhouse, while its (west-facing) window overlooks another part of the garden and the house. If the actor is inside the shed, they shouldn't be able to see what lies to the north or west of the garden, as they would be able to from outside the shed.</p>
 
+<p>In this case we can define the shed's <b>handleLookDir</b> to be true, meaning that when the player character is inside the shed, we want to use the shed's version of <code>lookDir()</code> rather than the garden's. We could then define the shed's  <code>lookDir()</code> method along the following lines:</p>
 
+<p><div class=code><pre>
+        handleLookDir = true
+        
+        lookDir(dir)
+        {
+            switch(dir)
+            {
+            case westDir:
+                &quot;\^&lt;&lt;windowView&gt;&gt;. &quot;;
+                break;
+            case southDir:
+                &quot;&lt;&lt;if isOpen&gt;&gt;&lt;&lt;doorView&gt;&gt;&lt;&lt;else&gt;&gt;You see the inside of the shed door&lt;&lt;end&gt;&gt;. &quot;;
+                break;
+            case outDir:
+                &quot;&lt;&lt;if isOpen&gt;&gt;&lt;&lt;doorView&gt;&gt;, while &lt;&lt;else&gt;&gt;\^&lt;&lt;end&gt;&gt;&lt;&lt;windowView&gt;&gt;&lt;&lt;end&gt;&gt;. &quot;;
+                break;
+            default:
+                &quot;That way all you can see is the inside of the shed wall. &quot;;
+                break;
+            }
+        }
+        
+        windowView = 'through the window you see the section of the garden leading up to the house'
+        doorView = 'Through the open door you see part of the garden and the greenhouse opposite'
+</pre></div>
+
+<p>By default, <code>handleLookDir</code> is true on Room and on any Thing we can't see out of, but game code can always override the latter to be unconditionally true in instances like our garden shed where we always want to use the nested room's version of <code>lookDir(dir)</code>.
+
+<p>The default behaviour of Thing's (as opposed to Room's) version of <code>lookDir(dir)</code> is to call <code>lookDir(dir)</code> on the next suitable container, if we can see out to one, or to display our own "see nothing expected" message (i.e. to call our own <code>sayNothingUnexpectedThatWay(dir)</code> method) if we can't see out. In this context 'next suitable container' means the innermost of the objects we're inside that's a Room, or from which we can't see out, or for which <code>handleLookDir</code> is true. For a Booth we'll almost certainly want to override <code>lookDir(dir)</code> if we want more realistic results, unless the Booth is meant to be see-through in every direction.</p>
 
 </div>
 <hr class="navb"><div class="navb">

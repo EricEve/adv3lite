@@ -3424,8 +3424,8 @@ VerbRule(BoardWhat)
 
 
 VerbRule(Enter)
-    ('enter' | 'walk' | 'go' | 'get' | 'climb')
-     ( 'in' | 'in' 'to' | 'into' | 'inside')
+    'enter' singleDobj  |
+    ('walk' | 'go' | 'get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside')
     singleDobj
     : VerbProduction
     action = Enter
@@ -3435,7 +3435,7 @@ VerbRule(Enter)
 ;
 
 VerbRule(GetInWhat)
-    ('enter' | 'get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside')
+    'enter' |  (('get' | 'climb') ( 'in' | 'in' 'to' | 'into' | 'inside'))
     : VerbProduction
     action = Enter
     verbPhrase = 'enter/entering (what)'
