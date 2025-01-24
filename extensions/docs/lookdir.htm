@@ -80,15 +80,62 @@ grammar directionName(nornoreast): 'nornoreast' | 'nne' : Production
 
 <ol>
 <li>If the relevant property value is a single-quoted string, it displays that string.</li>
+<li>Otherwise, if it's a double-quoted string or a method, we first check if the destination is nevertheless known via libGlobal.extraDestInfo, say that that destination lies that way. Otherwise we just say it looks like you could go that way.</li>
 <li>If the property contains an UnlistedProxyConmnector (from use of <code>asExit</code> it uses the exit it's a proxy for. E.g. if we have defined <code>out asExit(southeast)</code> then we'll work with whatever's defined on the <code>southeast</code> property.</li>
 <li>If the property holds a Travel connector for which isHidden is true or isConnectorApparent is nil, we treat it as being not present by calling <code>sayNothingUnexpectedThatWay(dir)</code></li>
 <li>If the property hold a TravelConnector that defines a <b>lookDirDesc</b> property (or method) then that property will be used to construct the response; whatever text <code>lookDirDesc</code> defines will be preceeded by an introduction like "To the east you see ".</li>
 <li>Otherwise, if the property holds a physical travel connector such as a Door, Passage or Stairway, we display a message stating that in that direction lies the physical connector in quesstion (e.g., "To the north you see a red door"), unless the physical connector forms the way into an Emterable, in which case the Enterable will be mentioned first (e.g., "To the north you see a small white cottage which is enterable via a red door. ")</li>
-<li>Otherwise, if the property holds a Room that has been visited or is already familiar, we say that that Room lies in that direction.</li>
+<li>Otherwise, if the property holds an AskConnector, we list the physical connectors (doors and such) in its options list  (e.g., "To the west you see the yellow door, the long passage and the broad flight of stairs").</li>
+<li>Otherwise, if the property holds a Room that has been visited or is already familiar or is visible to the player (through being in the same SenseRegion), or an abstract travel connector leading to such a Room, we say that that Room lies in that direction.</li>
 <li>Otherwise, if the property holds a TravelConnector not otherwise catered for or a double-quoted string or a method, call <code>sayCouldGoThatWay(dir)</code> to say we could go that way (since there's nothing more this routine can deduce about it.</li>
 <li>Otherwise, if all else fails, call <code>sayNothingUnexpectedThatWay(dir)</code> to say we see nothing unexpected that way.</li>   
-
 </ol>
+
+<p>These responses may not always be ideal, but there are various ways in which can customise them:</p>
+<ul>
+<li>We can define the <b>lookDirDesc</b> property on any kind of TravelConnector to stipulate how we want it described when looking in the direction in leads; <code>lookDirDesc</code> can be a single-quoted or double-quoted string or a method that displays something (which we can vary according to circumstances).</li>
+<li>If we see clumsy prose like "To the south you can see edge of forest" it's probably because we haven't defined the relevant room's <a href='../../docs/manual/room.htm#roomdef'>vocab property </a> to give it a more suitable name (such as 'edge of the forest'. Where a room's <code>roomTitle</code> doesn't make a good name, this is probably worth doing anyway.</li>
+<li>If we see clumsy response to LOOK <i>dir</i> generated via a single-quoted string on the relevant <i>dir</i> property (e.g. LOOK WEST giving us "You can't walk on water") we could consider rephrasing it (e.g., to "That way lies the river, which you can hardly walk over"). The alternative would be to define the relevant <i>dir</i>Look property.</li>
+<li>We can override the Thing method <b>sayNothingUnexpectedThatWay(dir)</b> to say something different from the library default. This is probably most worth doing on on Thing, Room, or subclass of Thing such as Booth.</li>
+<li>We can override the Room method <b>sayCouldGoThatWay(dir)</b> to say something different. This could well be worth doing on the Room class, or on a subclasses of Room (if we create any for our game), but may be less worth doing on individual rooms unless we want to handle an unusual special case.</li>
+</ul>
+
+<p>Note that it may often be easier to define the relevant <i>dir</i>Look property than to fiddle with the above methods to correct an individual case. On the other hand, there may be cases where overriding one of the methods outlined above could be less work, for example if we want the same response to apply to one different groups of directions, .e.g,:</p>
+
+<p><div class=code><pre>
+meadow: Room 'Meadow'
+   "This meadow is bordered by a wide river to the south, a dense forest to the west, and a high fence to the north, 
+     leaving the path to the east as the only route out. "
+
+    sayNothingUnexpectedThatWay(dir)
+    {
+       switch(dir)
+       {
+         case northDir:
+         caae northWestDir:
+         case northEastDir:
+           "A high fence runs along the northern border of the meadow, blocking both egress and the
+              view in that direction. ";
+             break;
+        case south:
+        case southEast:
+        case southWest:
+           "A broad river runs along the southern boder of the meadow. ";
+           break;
+        case west;
+           "A dense forest abuts the western edge of the meadow. ";
+            break;
+        default:
+           inherited(dir);
+        break;			
+      }
+    }
+	
+	east = meadowPath <span class='comment'>// assume this is elsewhere defined as a PathPassage </span>
+;
+</pre></div>
+
+<p>Note that we don't need to handle any <code>case east</code> here, since <code>describeView(dir)</code> will already have provided a message relating to the <code>meadowPath</code> object.</p>
 
 
 
