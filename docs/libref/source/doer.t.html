@@ -163,1020 +163,1021 @@
 <a name="161"></a>        /* Read a new command from the keyboard. */        
 <a name="162"></a>        local txt = readCommandLine();       
 <a name="163"></a>        
-<a name="164"></a>        if(role == IndirectObject &amp;&amp; action.ofKind(LiteralTAction))
-<a name="165"></a>        {           
-<a name="166"></a>            doInstead(action, obj, txt);           
-<a name="167"></a>        }
-<a name="168"></a>        
-<a name="169"></a>        if(role == DirectObject)
-<a name="170"></a>        {
-<a name="171"></a>            if(action.ofKind(LiteralAction))
-<a name="172"></a>                doInstead(action, txt);
-<a name="173"></a>            
-<a name="174"></a>            if(action.ofKind(LiteralTAction))
-<a name="175"></a>                doInstead(action, txt, obj);
-<a name="176"></a>        }
-<a name="177"></a>    }
-<a name="178"></a>    
-<a name="179"></a>;
-<a name="180"></a>
+<a name="164"></a>        if(role == IndirectObject 
+<a name="165"></a>           &amp;&amp; action.ofKind(LiteralTAction) || action.ofKind(TopicTAction))
+<a name="166"></a>        {           
+<a name="167"></a>            doInstead(action, obj, txt);           
+<a name="168"></a>        }
+<a name="169"></a>        
+<a name="170"></a>        if(role == DirectObject)
+<a name="171"></a>        {
+<a name="172"></a>            if(action.ofKind(LiteralAction) || action.ofKind(TopicAction))
+<a name="173"></a>                doInstead(action, txt);
+<a name="174"></a>            
+<a name="175"></a>            if(action.ofKind(LiteralTAction) || action.ofKind(TopicTAction))
+<a name="176"></a>                doInstead(action, txt, obj);
+<a name="177"></a>        }
+<a name="178"></a>    }
+<a name="179"></a>    
+<a name="180"></a>;
 <a name="181"></a>
-<a name="182"></a>/* ------------------------------------------------------------------------ */
-<a name="183"></a>/*
-<a name="184"></a> *   A Doer is a command handler for a specific action acting on particular
-<a name="185"></a> *   objects under a given set of conditions.  We use these for all of the
-<a name="186"></a> *   levels of customization in command handling.
-<a name="187"></a> *   
-<a name="188"></a> *   Doer objects are inherently static.  All Doer objects should be
-<a name="189"></a> *   defined at compile time; they're not designed to be created
-<a name="190"></a> *   dynamically during execution.  Rather than creating and removing Doer
-<a name="191"></a> *   objects as conditions in the game change, use the Doer conditions to
-<a name="192"></a> *   define when a given Doer is active and when it's dormant.  
-<a name="193"></a> */
-<a name="194"></a>class Doer: Redirector
-<a name="195"></a>    /*
-<a name="196"></a>     *   The command that the object handles.  This is a string describing
-<a name="197"></a>     *   the action and object combination that this handler recognizes.
-<a name="198"></a>     *   
-<a name="199"></a>     *   The command string specifies a verb and its objects, generally
-<a name="200"></a>     *   using the same verb phrase syntax that a player would use to enter
-<a name="201"></a>     *   a command to the game.  The exact verb syntax is up to the
-<a name="202"></a>     *   language library to define; for English, we replicate the same
-<a name="203"></a>     *   verb phrases used to parse command input.
-<a name="204"></a>     *   
-<a name="205"></a>     *   The verb phrase syntax is generally the same as for regular player
-<a name="206"></a>     *   commands, but the noun syntax is different.  Each noun is written
-<a name="207"></a>     *   as the SOURCE CODE name of a game object or class.  That is, not a
-<a name="208"></a>     *   noun-and-adjective phrase as the player would type it, but the
-<a name="209"></a>     *   program symbol name as it appears in the source code.  If you use
-<a name="210"></a>     *   a class name, the command matches any object of the class.  For
-<a name="211"></a>     *   example, to handle putting any treasure in any container:
-<a name="212"></a>     *   
-<a name="213"></a>     *.    cmd = 'put Treasure in Container'
-<a name="214"></a>     *   
-<a name="215"></a>     *   You can match multiple objects or classes in a single noun slot
-<a name="216"></a>     *   (and you can freely mix objects and classes).  For example, to
-<a name="217"></a>     *   handle putting any treasure or magic item in a container:
-<a name="218"></a>     *   
-<a name="219"></a>     *.    cmd = 'put Treasure|Magical in Container'
-<a name="220"></a>     *   
-<a name="221"></a>     *   You can't use the '|' syntax with verbs, because the verb syntax
-<a name="222"></a>     *   covers the entire phrase.  You can match multiple verbs by writing
-<a name="223"></a>     *   out the entire phrasing for each verb, separating each phrase with
-<a name="224"></a>     *   a semicolon:
-<a name="225"></a>     *   
-<a name="226"></a>     *.    cmd = 'take skull; put skull in Thing'
-<a name="227"></a>     *   
-<a name="228"></a>     *   You can also write a command that matches ANY verb, by using "*"
-<a name="229"></a>     *   as the verb.  You can follow the "*" with any number of objects;
-<a name="230"></a>     *   the first is the direct object, the second is the indirect, and
-<a name="231"></a>     *   the third is the accessory.  This phrasing will match any verb
-<a name="232"></a>     *   that matches the given objects AND the given number of objects.
-<a name="233"></a>     *   For example, '* Thing' will match any verb with a direct object
-<a name="234"></a>     *   that's of class Thing, but it won't match verbs without any
-<a name="235"></a>     *   objects or verbs with an indirect object.  Using "*" as a noun
-<a name="236"></a>     *   will match any object as well as no object at all.  So to write a
-<a name="237"></a>     *   handler for every possible command, you'd write:
-<a name="238"></a>     *   
-<a name="239"></a>     *.    cmd = '* * * *'
-<a name="240"></a>     *   
-<a name="241"></a>     *   That is, match any verb, with or without any direct object,
-<a name="242"></a>     *   indirect object, and accessory object.  
-<a name="243"></a>     */
-<a name="244"></a>    cmd = ''
-<a name="245"></a>
-<a name="246"></a>    /*
-<a name="247"></a>     *   The priority of this handler.  You can use this when it's
-<a name="248"></a>     *   necessary to override the default precedence order, which is
-<a name="249"></a>     *   figured according to the specialization rules described below.
-<a name="250"></a>     *   
-<a name="251"></a>     *   Most of the time, you shouldn't need to set a priority manually.
-<a name="252"></a>     *   If you don't, the library determines the precedence automatically
-<a name="253"></a>     *   according to the degree of specialization.  However, the way the
-<a name="254"></a>     *   library figures specialization is a heuristic, so it's not always
-<a name="255"></a>     *   right.  In cases where the heuristic produces the wrong results,
-<a name="256"></a>     *   you can bypass the rules by setting a priority manually.  A manual
-<a name="257"></a>     *   priority takes precedence over all of the standard rules.
-<a name="258"></a>     *   
-<a name="259"></a>     *   Our basic approach is to process Doers in order from most specific
-<a name="260"></a>     *   to most general.  This creates a natural hierarchy of handlers
-<a name="261"></a>     *   where more specific rules override the generic, default handlers.
-<a name="262"></a>     *   Here are the degrees of specialization, in order of importance:
-<a name="263"></a>     *   
-<a name="264"></a>     *   1. A Doer with a higher 'priority' value takes precedence over one
-<a name="265"></a>     *   with a lower value. 
-<a name="266"></a>     *   
-<a name="267"></a>     *   2. A Doer with a 'when' condition is more specific than a Doer
-<a name="268"></a>     *   without one.  A 'when' condition means that the Doer is designed
-<a name="269"></a>     *   to operate only at specific times, so it's inherently more
-<a name="270"></a>     *   specialized than one that always operates.
-<a name="271"></a>     *   
-<a name="272"></a>     *   3. A Doer with a 'where' condition is more specific than a Doer
-<a name="273"></a>     *   without one.  A 'where' condition means that the Doer only applies
-<a name="274"></a>     *   to a limited geographical area.
-<a name="275"></a>     *   
-<a name="276"></a>     *   4. A Doer that matches a particular Action is more specific than
-<a name="277"></a>     *   one that matches any Action.
-<a name="278"></a>     *   
-<a name="279"></a>     *   5. If two Doer commands are for the same Action, the Doer that
-<a name="280"></a>     *   matches a more specialized subclass (or just a single object
-<a name="281"></a>     *   instance) for a noun phrase is more specific than one that matches
-<a name="282"></a>     *   a base class for the same noun phrase.  For example, 'take
-<a name="283"></a>     *   Container' is more specific than 'take Thing', because Container
-<a name="284"></a>     *   is a subclass of Thing, and 'take backpack' (where the 'backpack'
-<a name="285"></a>     *   is a Container) is more specific than either.  This type of
-<a name="286"></a>     *   specialization applies in the canonical object role order: direct
-<a name="287"></a>     *   object, indirect object, accessory.  For example, we consider 'put
-<a name="288"></a>     *   Container in Thing' to be more specific than 'put Thing in
-<a name="289"></a>     *   Container', because we look at the direct object by itself before
-<a name="290"></a>     *   we even consider the indirect object.  This rule only applies when
-<a name="291"></a>     *   the Action is the same: 'put Thing in Container' and 'open Door'
-<a name="292"></a>     *   are equal for the purposes of this rule.
-<a name="293"></a>     *   
-<a name="294"></a>     *   It's important to understand that each degree of specialization is
-<a name="295"></a>     *   considered independently of the others, in the order above.  For
-<a name="296"></a>     *   example, if you have a Doer with just a 'when' condition, and
-<a name="297"></a>     *   another with only a 'where' condition, the one with the 'when'
-<a name="298"></a>     *   condition has higher priority.  This is because we look at the
-<a name="299"></a>     *   presence of a 'when' condition first, before even considering
-<a name="300"></a>     *   whether there's a 'where' condition.
-<a name="301"></a>     *   
-<a name="302"></a>     *   The library has no way to gauge the specificity of a 'when' or
-<a name="303"></a>     *   'where' condition, so there's no finer-grained priority to the
-<a name="304"></a>     *   conditions than simply their presence or absence.
-<a name="305"></a>     *   
-<a name="306"></a>     *   If two Doers have the same priority based on the rules above, the
-<a name="307"></a>     *   one that's defined LATER in the source code has priority.  This
-<a name="308"></a>     *   means that Doers defined in the game take priority over library
-<a name="309"></a>     *   definitions.  
-<a name="310"></a>     */
-<a name="311"></a>    priority = 100
-<a name="312"></a>
-<a name="313"></a>    /*
-<a name="314"></a>     *   Execute the command. 
-<a name="315"></a>     */
-<a name="316"></a>    
-<a name="317"></a>    /* 
-<a name="318"></a>     *   ECSE ADDED a curCmd parameter (the command being added) to give the Doer
-<a name="319"></a>     *   access to what it's meant to be acting on, together with a default
-<a name="320"></a>     *   handling (execute the action associated with the current command).
-<a name="321"></a>     */
-<a name="322"></a>    exec(curCmd)
-<a name="323"></a>    {        
-<a name="324"></a>        /*
-<a name="325"></a>         *   If the command specifies a direction, check that the direction is
-<a name="326"></a>         *   valid for the actor's location. This will rule out meaningless
-<a name="327"></a>         *   commands like THROW BALL PORT, GO AFT or PUSH TROLLEY STARBOARD
-<a name="328"></a>         *   when we're not aboard a vessel.
-<a name="329"></a>         */
-<a name="330"></a>        if(curCmd.verbProd &amp;&amp; curCmd.verbProd.dirMatch != nil)
-<a name="331"></a>            checkDirection(curCmd);
-<a name="332"></a>	
-<a name="333"></a>        /*   
-<a name="334"></a>         *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
-<a name="335"></a>         *   so that they're available to be passed as parameters
-<a name="336"></a>         */        
-<a name="337"></a>        gAction.curDobj = curCmd.dobj;
-<a name="338"></a>        gAction.curIobj = curCmd.iobj;
-<a name="339"></a>        gAction.curAobj = curCmd.acc;
-<a name="340"></a>        
-<a name="341"></a>        /* 
-<a name="342"></a>         *   If the command is an action to be carried out by the player
-<a name="343"></a>         *   character, execute the action in the normal manner.
-<a name="344"></a>         */
-<a name="345"></a>        if(curCmd.actor == gPlayerChar)
-<a name="346"></a>        {
-<a name="347"></a>            /* 
-<a name="348"></a>             *   If our execAction() method is going to handle the action in
-<a name="349"></a>             *   some non-standard way, instead of simply stopping it or
-<a name="350"></a>             *   replacing it with another one, we need to perform some
-<a name="351"></a>             *   housekeeping to ensure everything works properly.
-<a name="352"></a>             */
-<a name="353"></a>            if(handleAction)
-<a name="354"></a>            {
-<a name="355"></a>                /* 
-<a name="356"></a>                 *   If we specified an object on the handleAction property,
-<a name="357"></a>                 *   it's the action we're going to simulate. We don't need to
-<a name="358"></a>                 *   specify a different action if we're notionally handling the
-<a name="359"></a>                 *   one we've just matched.
-<a name="360"></a>                 */
-<a name="361"></a>                if(propType(&amp;handleAction) == TypeObject)
-<a name="362"></a>                {
-<a name="363"></a>                    /* 
-<a name="364"></a>                     *   Change the current action to the one we're notionally
-<a name="365"></a>                     *   handling.
-<a name="366"></a>                     */
-<a name="367"></a>                    gAction = handleAction;
-<a name="368"></a>                    
-<a name="369"></a>                    /*  
-<a name="370"></a>                     *   Set the objects of the new gAction in case we need them
-<a name="371"></a>                     */
-<a name="372"></a>                    gAction.curDobj = curCmd.dobj;
-<a name="373"></a>                    gAction.curIobj = curCmd.iobj;
-<a name="374"></a>                    gAction.curAobj = curCmd.acc;
-<a name="375"></a>                }
-<a name="376"></a>                   
-<a name="377"></a>                /* Send the beforeAction notifications. */                
-<a name="378"></a>                gAction.beforeAction();                
-<a name="379"></a>                
-<a name="380"></a>            }
-<a name="381"></a>            
-<a name="382"></a>            execAction(curCmd); 
-<a name="383"></a>        }
-<a name="384"></a>        
-<a name="385"></a>        /* 
-<a name="386"></a>         *   If the command is directed to another actor (or object) let the
-<a name="387"></a>         *   actor or object in question handle it.
-<a name="388"></a>         */
-<a name="389"></a>        else
-<a name="390"></a>            curCmd.actor.handleCommand(curCmd.action);
-<a name="391"></a>    }
-<a name="392"></a>    
-<a name="393"></a>    /* 
-<a name="394"></a>     *   If this Doer is handling a complete action (instead of stopping one or
-<a name="395"></a>     *   replacing it with another) this should either be true (if it's the same
-<a name="396"></a>     *   action that we've matched) or some other action (if that's the one
-<a name="397"></a>     *   we're simulating and it's not the one we matched).
-<a name="398"></a>     */
-<a name="399"></a>    handleAction = nil
-<a name="400"></a>    
-<a name="401"></a>    /* 
-<a name="402"></a>     *   We separate out execAction() as a separate method from exec() so that
-<a name="403"></a>     *   custom Doers can readily override this for the player character while
-<a name="404"></a>     *   leaving commands directed to other actors (or objects) to be handle by
-<a name="405"></a>     *   their handleCommand() method.     */
-<a name="406"></a>    
-<a name="407"></a>    execAction(curCmd)
-<a name="408"></a>    {
-<a name="409"></a>        /* 
-<a name="410"></a>         *   Our default behaviour is to let the current action handle the
-<a name="411"></a>         *   command.
-<a name="412"></a>         */
-<a name="413"></a>        curCmd.action.exec(curCmd);
-<a name="414"></a>    }
-<a name="415"></a>    
-<a name="416"></a>    /* 
-<a name="417"></a>     *   Check whether the direction associatated with this command is valid for
-<a name="418"></a>     *   the actor's current location.
-<a name="419"></a>     */
-<a name="420"></a>    checkDirection(curCmd)
-<a name="421"></a>    {
-<a name="422"></a>        local dirn = curCmd.verbProd.dirMatch.dir;
-<a name="423"></a>        local loc = curCmd.actor.getOutermostRoom();
-<a name="424"></a>        
-<a name="425"></a>        /* 
-<a name="426"></a>         *   Rule out a command involving a shipboard direction where shipboard
-<a name="427"></a>         *   directions aren't allowed.
-<a name="428"></a>         */
-<a name="429"></a>        if(dirn.ofKind(ShipboardDirection) &amp;&amp; !loc.allowShipboardDirections())
-<a name="430"></a>        {
-<a name="431"></a>            DMsg(no shipboard directions, 'Shipboard directions {plural} {have}
-<a name="432"></a>                no meaning {here}. ');
-<a name="433"></a>            abort;
-<a name="434"></a>        }
-<a name="435"></a>        
+<a name="182"></a>
+<a name="183"></a>/* ------------------------------------------------------------------------ */
+<a name="184"></a>/*
+<a name="185"></a> *   A Doer is a command handler for a specific action acting on particular
+<a name="186"></a> *   objects under a given set of conditions.  We use these for all of the
+<a name="187"></a> *   levels of customization in command handling.
+<a name="188"></a> *   
+<a name="189"></a> *   Doer objects are inherently static.  All Doer objects should be
+<a name="190"></a> *   defined at compile time; they're not designed to be created
+<a name="191"></a> *   dynamically during execution.  Rather than creating and removing Doer
+<a name="192"></a> *   objects as conditions in the game change, use the Doer conditions to
+<a name="193"></a> *   define when a given Doer is active and when it's dormant.  
+<a name="194"></a> */
+<a name="195"></a>class Doer: Redirector
+<a name="196"></a>    /*
+<a name="197"></a>     *   The command that the object handles.  This is a string describing
+<a name="198"></a>     *   the action and object combination that this handler recognizes.
+<a name="199"></a>     *   
+<a name="200"></a>     *   The command string specifies a verb and its objects, generally
+<a name="201"></a>     *   using the same verb phrase syntax that a player would use to enter
+<a name="202"></a>     *   a command to the game.  The exact verb syntax is up to the
+<a name="203"></a>     *   language library to define; for English, we replicate the same
+<a name="204"></a>     *   verb phrases used to parse command input.
+<a name="205"></a>     *   
+<a name="206"></a>     *   The verb phrase syntax is generally the same as for regular player
+<a name="207"></a>     *   commands, but the noun syntax is different.  Each noun is written
+<a name="208"></a>     *   as the SOURCE CODE name of a game object or class.  That is, not a
+<a name="209"></a>     *   noun-and-adjective phrase as the player would type it, but the
+<a name="210"></a>     *   program symbol name as it appears in the source code.  If you use
+<a name="211"></a>     *   a class name, the command matches any object of the class.  For
+<a name="212"></a>     *   example, to handle putting any treasure in any container:
+<a name="213"></a>     *   
+<a name="214"></a>     *.    cmd = 'put Treasure in Container'
+<a name="215"></a>     *   
+<a name="216"></a>     *   You can match multiple objects or classes in a single noun slot
+<a name="217"></a>     *   (and you can freely mix objects and classes).  For example, to
+<a name="218"></a>     *   handle putting any treasure or magic item in a container:
+<a name="219"></a>     *   
+<a name="220"></a>     *.    cmd = 'put Treasure|Magical in Container'
+<a name="221"></a>     *   
+<a name="222"></a>     *   You can't use the '|' syntax with verbs, because the verb syntax
+<a name="223"></a>     *   covers the entire phrase.  You can match multiple verbs by writing
+<a name="224"></a>     *   out the entire phrasing for each verb, separating each phrase with
+<a name="225"></a>     *   a semicolon:
+<a name="226"></a>     *   
+<a name="227"></a>     *.    cmd = 'take skull; put skull in Thing'
+<a name="228"></a>     *   
+<a name="229"></a>     *   You can also write a command that matches ANY verb, by using "*"
+<a name="230"></a>     *   as the verb.  You can follow the "*" with any number of objects;
+<a name="231"></a>     *   the first is the direct object, the second is the indirect, and
+<a name="232"></a>     *   the third is the accessory.  This phrasing will match any verb
+<a name="233"></a>     *   that matches the given objects AND the given number of objects.
+<a name="234"></a>     *   For example, '* Thing' will match any verb with a direct object
+<a name="235"></a>     *   that's of class Thing, but it won't match verbs without any
+<a name="236"></a>     *   objects or verbs with an indirect object.  Using "*" as a noun
+<a name="237"></a>     *   will match any object as well as no object at all.  So to write a
+<a name="238"></a>     *   handler for every possible command, you'd write:
+<a name="239"></a>     *   
+<a name="240"></a>     *.    cmd = '* * * *'
+<a name="241"></a>     *   
+<a name="242"></a>     *   That is, match any verb, with or without any direct object,
+<a name="243"></a>     *   indirect object, and accessory object.  
+<a name="244"></a>     */
+<a name="245"></a>    cmd = ''
+<a name="246"></a>
+<a name="247"></a>    /*
+<a name="248"></a>     *   The priority of this handler.  You can use this when it's
+<a name="249"></a>     *   necessary to override the default precedence order, which is
+<a name="250"></a>     *   figured according to the specialization rules described below.
+<a name="251"></a>     *   
+<a name="252"></a>     *   Most of the time, you shouldn't need to set a priority manually.
+<a name="253"></a>     *   If you don't, the library determines the precedence automatically
+<a name="254"></a>     *   according to the degree of specialization.  However, the way the
+<a name="255"></a>     *   library figures specialization is a heuristic, so it's not always
+<a name="256"></a>     *   right.  In cases where the heuristic produces the wrong results,
+<a name="257"></a>     *   you can bypass the rules by setting a priority manually.  A manual
+<a name="258"></a>     *   priority takes precedence over all of the standard rules.
+<a name="259"></a>     *   
+<a name="260"></a>     *   Our basic approach is to process Doers in order from most specific
+<a name="261"></a>     *   to most general.  This creates a natural hierarchy of handlers
+<a name="262"></a>     *   where more specific rules override the generic, default handlers.
+<a name="263"></a>     *   Here are the degrees of specialization, in order of importance:
+<a name="264"></a>     *   
+<a name="265"></a>     *   1. A Doer with a higher 'priority' value takes precedence over one
+<a name="266"></a>     *   with a lower value. 
+<a name="267"></a>     *   
+<a name="268"></a>     *   2. A Doer with a 'when' condition is more specific than a Doer
+<a name="269"></a>     *   without one.  A 'when' condition means that the Doer is designed
+<a name="270"></a>     *   to operate only at specific times, so it's inherently more
+<a name="271"></a>     *   specialized than one that always operates.
+<a name="272"></a>     *   
+<a name="273"></a>     *   3. A Doer with a 'where' condition is more specific than a Doer
+<a name="274"></a>     *   without one.  A 'where' condition means that the Doer only applies
+<a name="275"></a>     *   to a limited geographical area.
+<a name="276"></a>     *   
+<a name="277"></a>     *   4. A Doer that matches a particular Action is more specific than
+<a name="278"></a>     *   one that matches any Action.
+<a name="279"></a>     *   
+<a name="280"></a>     *   5. If two Doer commands are for the same Action, the Doer that
+<a name="281"></a>     *   matches a more specialized subclass (or just a single object
+<a name="282"></a>     *   instance) for a noun phrase is more specific than one that matches
+<a name="283"></a>     *   a base class for the same noun phrase.  For example, 'take
+<a name="284"></a>     *   Container' is more specific than 'take Thing', because Container
+<a name="285"></a>     *   is a subclass of Thing, and 'take backpack' (where the 'backpack'
+<a name="286"></a>     *   is a Container) is more specific than either.  This type of
+<a name="287"></a>     *   specialization applies in the canonical object role order: direct
+<a name="288"></a>     *   object, indirect object, accessory.  For example, we consider 'put
+<a name="289"></a>     *   Container in Thing' to be more specific than 'put Thing in
+<a name="290"></a>     *   Container', because we look at the direct object by itself before
+<a name="291"></a>     *   we even consider the indirect object.  This rule only applies when
+<a name="292"></a>     *   the Action is the same: 'put Thing in Container' and 'open Door'
+<a name="293"></a>     *   are equal for the purposes of this rule.
+<a name="294"></a>     *   
+<a name="295"></a>     *   It's important to understand that each degree of specialization is
+<a name="296"></a>     *   considered independently of the others, in the order above.  For
+<a name="297"></a>     *   example, if you have a Doer with just a 'when' condition, and
+<a name="298"></a>     *   another with only a 'where' condition, the one with the 'when'
+<a name="299"></a>     *   condition has higher priority.  This is because we look at the
+<a name="300"></a>     *   presence of a 'when' condition first, before even considering
+<a name="301"></a>     *   whether there's a 'where' condition.
+<a name="302"></a>     *   
+<a name="303"></a>     *   The library has no way to gauge the specificity of a 'when' or
+<a name="304"></a>     *   'where' condition, so there's no finer-grained priority to the
+<a name="305"></a>     *   conditions than simply their presence or absence.
+<a name="306"></a>     *   
+<a name="307"></a>     *   If two Doers have the same priority based on the rules above, the
+<a name="308"></a>     *   one that's defined LATER in the source code has priority.  This
+<a name="309"></a>     *   means that Doers defined in the game take priority over library
+<a name="310"></a>     *   definitions.  
+<a name="311"></a>     */
+<a name="312"></a>    priority = 100
+<a name="313"></a>
+<a name="314"></a>    /*
+<a name="315"></a>     *   Execute the command. 
+<a name="316"></a>     */
+<a name="317"></a>    
+<a name="318"></a>    /* 
+<a name="319"></a>     *   ECSE ADDED a curCmd parameter (the command being added) to give the Doer
+<a name="320"></a>     *   access to what it's meant to be acting on, together with a default
+<a name="321"></a>     *   handling (execute the action associated with the current command).
+<a name="322"></a>     */
+<a name="323"></a>    exec(curCmd)
+<a name="324"></a>    {        
+<a name="325"></a>        /*
+<a name="326"></a>         *   If the command specifies a direction, check that the direction is
+<a name="327"></a>         *   valid for the actor's location. This will rule out meaningless
+<a name="328"></a>         *   commands like THROW BALL PORT, GO AFT or PUSH TROLLEY STARBOARD
+<a name="329"></a>         *   when we're not aboard a vessel.
+<a name="330"></a>         */
+<a name="331"></a>        if(curCmd.verbProd &amp;&amp; curCmd.verbProd.dirMatch != nil)
+<a name="332"></a>            checkDirection(curCmd);
+<a name="333"></a>	
+<a name="334"></a>        /*   
+<a name="335"></a>         *   Temporarily set gDobj and gIobj to the dobj and iobj of the curCmd
+<a name="336"></a>         *   so that they're available to be passed as parameters
+<a name="337"></a>         */        
+<a name="338"></a>        gAction.curDobj = curCmd.dobj;
+<a name="339"></a>        gAction.curIobj = curCmd.iobj;
+<a name="340"></a>        gAction.curAobj = curCmd.acc;
+<a name="341"></a>        
+<a name="342"></a>        /* 
+<a name="343"></a>         *   If the command is an action to be carried out by the player
+<a name="344"></a>         *   character, execute the action in the normal manner.
+<a name="345"></a>         */
+<a name="346"></a>        if(curCmd.actor == gPlayerChar)
+<a name="347"></a>        {
+<a name="348"></a>            /* 
+<a name="349"></a>             *   If our execAction() method is going to handle the action in
+<a name="350"></a>             *   some non-standard way, instead of simply stopping it or
+<a name="351"></a>             *   replacing it with another one, we need to perform some
+<a name="352"></a>             *   housekeeping to ensure everything works properly.
+<a name="353"></a>             */
+<a name="354"></a>            if(handleAction)
+<a name="355"></a>            {
+<a name="356"></a>                /* 
+<a name="357"></a>                 *   If we specified an object on the handleAction property,
+<a name="358"></a>                 *   it's the action we're going to simulate. We don't need to
+<a name="359"></a>                 *   specify a different action if we're notionally handling the
+<a name="360"></a>                 *   one we've just matched.
+<a name="361"></a>                 */
+<a name="362"></a>                if(propType(&amp;handleAction) == TypeObject)
+<a name="363"></a>                {
+<a name="364"></a>                    /* 
+<a name="365"></a>                     *   Change the current action to the one we're notionally
+<a name="366"></a>                     *   handling.
+<a name="367"></a>                     */
+<a name="368"></a>                    gAction = handleAction;
+<a name="369"></a>                    
+<a name="370"></a>                    /*  
+<a name="371"></a>                     *   Set the objects of the new gAction in case we need them
+<a name="372"></a>                     */
+<a name="373"></a>                    gAction.curDobj = curCmd.dobj;
+<a name="374"></a>                    gAction.curIobj = curCmd.iobj;
+<a name="375"></a>                    gAction.curAobj = curCmd.acc;
+<a name="376"></a>                }
+<a name="377"></a>                   
+<a name="378"></a>                /* Send the beforeAction notifications. */                
+<a name="379"></a>                gAction.beforeAction();                
+<a name="380"></a>                
+<a name="381"></a>            }
+<a name="382"></a>            
+<a name="383"></a>            execAction(curCmd); 
+<a name="384"></a>        }
+<a name="385"></a>        
+<a name="386"></a>        /* 
+<a name="387"></a>         *   If the command is directed to another actor (or object) let the
+<a name="388"></a>         *   actor or object in question handle it.
+<a name="389"></a>         */
+<a name="390"></a>        else
+<a name="391"></a>            curCmd.actor.handleCommand(curCmd.action);
+<a name="392"></a>    }
+<a name="393"></a>    
+<a name="394"></a>    /* 
+<a name="395"></a>     *   If this Doer is handling a complete action (instead of stopping one or
+<a name="396"></a>     *   replacing it with another) this should either be true (if it's the same
+<a name="397"></a>     *   action that we've matched) or some other action (if that's the one
+<a name="398"></a>     *   we're simulating and it's not the one we matched).
+<a name="399"></a>     */
+<a name="400"></a>    handleAction = nil
+<a name="401"></a>    
+<a name="402"></a>    /* 
+<a name="403"></a>     *   We separate out execAction() as a separate method from exec() so that
+<a name="404"></a>     *   custom Doers can readily override this for the player character while
+<a name="405"></a>     *   leaving commands directed to other actors (or objects) to be handle by
+<a name="406"></a>     *   their handleCommand() method.     */
+<a name="407"></a>    
+<a name="408"></a>    execAction(curCmd)
+<a name="409"></a>    {
+<a name="410"></a>        /* 
+<a name="411"></a>         *   Our default behaviour is to let the current action handle the
+<a name="412"></a>         *   command.
+<a name="413"></a>         */
+<a name="414"></a>        curCmd.action.exec(curCmd);
+<a name="415"></a>    }
+<a name="416"></a>    
+<a name="417"></a>    /* 
+<a name="418"></a>     *   Check whether the direction associatated with this command is valid for
+<a name="419"></a>     *   the actor's current location.
+<a name="420"></a>     */
+<a name="421"></a>    checkDirection(curCmd)
+<a name="422"></a>    {
+<a name="423"></a>        local dirn = curCmd.verbProd.dirMatch.dir;
+<a name="424"></a>        local loc = curCmd.actor.getOutermostRoom();
+<a name="425"></a>        
+<a name="426"></a>        /* 
+<a name="427"></a>         *   Rule out a command involving a shipboard direction where shipboard
+<a name="428"></a>         *   directions aren't allowed.
+<a name="429"></a>         */
+<a name="430"></a>        if(dirn.ofKind(ShipboardDirection) &amp;&amp; !loc.allowShipboardDirections())
+<a name="431"></a>        {
+<a name="432"></a>            DMsg(no shipboard directions, 'Shipboard directions {plural} {have}
+<a name="433"></a>                no meaning {here}. ');
+<a name="434"></a>            abort;
+<a name="435"></a>        }
 <a name="436"></a>        
-<a name="437"></a>        /*
-<a name="438"></a>         *   Rule out a command involving a compass direction where compass
-<a name="439"></a>         *   directions aren't allowed.
-<a name="440"></a>         */
-<a name="441"></a>        if(dirn.ofKind(CompassDirection) &amp;&amp; !loc.allowCompassDirections)
-<a name="442"></a>        {
-<a name="443"></a>            DMsg(no compass directions, 'Compass directions {plural} {have}
-<a name="444"></a>                no meaning {here}, ');
-<a name="445"></a>            abort;
-<a name="446"></a>        }
-<a name="447"></a>        
-<a name="448"></a>        /* 
-<a name="449"></a>         *   Set the direction property of the current Command's association
-<a name="450"></a>         *   Action object to the direction determined by its
-<a name="451"></a>         *   verbProd.dirMatch.dir property in case the game author tries to use
-<a name="452"></a>         *   action.direction to get at the direction entered.
-<a name="453"></a>         */
-<a name="454"></a>        curCmd.action.direction = dirn;
-<a name="455"></a>        
-<a name="456"></a>    }
-<a name="457"></a>    
-<a name="458"></a>    /* 
-<a name="459"></a>     *   Utility method that can be called from execAction() to redirect the
-<a name="460"></a>     *   command to a new action with the same (or new) objects. This will
-<a name="461"></a>     *   normally be called via the doInstead()/doNested() interface defined on
-<a name="462"></a>     *   our Redirector superclass.
-<a name="463"></a>     */    
-<a name="464"></a>    redirect(curCmd, altAction, dobj: = 0, iobj: = 0, aobj: = 0,
-<a name="465"></a>             isReplacement: = true)
-<a name="466"></a>    {
-<a name="467"></a>        
-<a name="468"></a>        /* 
-<a name="469"></a>         *   We use a default value of 0 for the dobj and iobj parameters to
-<a name="470"></a>         *   mean 'keep the current value' so that we can explicitly pass nil
-<a name="471"></a>         *   values if we want to.
-<a name="472"></a>         */             
-<a name="473"></a>        dobj = dobj == 0 ? curCmd.dobj : dobj;
-<a name="474"></a>        iobj = iobj == 0 ? curCmd.iobj : iobj;
-<a name="475"></a>        aobj = iobj == 0 ? curCmd.acc : aobj;
-<a name="476"></a>        
-<a name="477"></a>        /* 
-<a name="478"></a>         *   Get the current command to change its current action to altAction
-<a name="479"></a>         *   performed on dobj and iobj. Note that this will change gAction to
-<a name="480"></a>         *   altAction.
-<a name="481"></a>         */
-<a name="482"></a>        curCmd.changeAction(altAction, dobj, iobj, aobj);
-<a name="483"></a>        
-<a name="484"></a>        /* Execute the command on our new action. */
-<a name="485"></a>        gAction.exec(curCmd);
-<a name="486"></a>    }
-<a name="487"></a>    
-<a name="488"></a>    /* 
-<a name="489"></a>     *   Set this property to true for this Doer to match only if the wording
-<a name="490"></a>     *   corresponds (and not just the action). At the moment the check is
-<a name="491"></a>     *   only on the first word of the command, but this may usually be enough
-<a name="492"></a>     */
-<a name="493"></a>    
-<a name="494"></a>    strict = nil
-<a name="495"></a>    
-<a name="496"></a>    /*  
-<a name="497"></a>     *   Flag, do we want to ignore (i.e. not report) an error in the
-<a name="498"></a>     *   construction of this Doer. We may want to do this when the error is
-<a name="499"></a>     *   simply due to the exclusion of a module like extras.t
-<a name="500"></a>     */
-<a name="501"></a>    ignoreError = nil
-<a name="502"></a>;
-<a name="503"></a>
-<a name="504"></a>/* Define isHappening as a property in case the scenes module is not included */
-<a name="505"></a>property isHappening;
-<a name="506"></a>
-<a name="507"></a>/* ------------------------------------------------------------------------ */
-<a name="508"></a>/*
-<a name="509"></a> *   A DoerCmd is a helper object that stores a single command match
-<a name="510"></a> *   template for a Doer object.  A given Doer can match multiple commands;
-<a name="511"></a> *   each match is represented by one of these objects.  
-<a name="512"></a> */
-<a name="513"></a>class DoerCmd: object
-<a name="514"></a>    /* construction */
-<a name="515"></a>    construct(d, c)
-<a name="516"></a>    {
-<a name="517"></a>        doer = d;
-<a name="518"></a>        cmd = c;
-<a name="519"></a>    }
-<a name="520"></a>
-<a name="521"></a>    /* the Doer I'm associated with */
-<a name="522"></a>    doer = nil
-<a name="523"></a>
-<a name="524"></a>    /* 
-<a name="525"></a>     *   The parsed command template.  This is a list consisting of the
-<a name="526"></a>     *   Action we match plus the objects or classes we match for the noun
-<a name="527"></a>     *   phrases, in the canonical order (direct object, indirect object,
-<a name="528"></a>     *   accessory).  The action can also be the Action class itself, to
-<a name="529"></a>     *   indicate that we match all actions.  We only match a command with
-<a name="530"></a>     *   the same number of noun phrases as in the template.  
-<a name="531"></a>     */
-<a name="532"></a>    cmd = []
-<a name="533"></a>
-<a name="534"></a>    /*
-<a name="535"></a>     *   My global sequence number.  During initialization, we set this to
-<a name="536"></a>     *   reflect our position in the global list of DoerCmd objects after
-<a name="537"></a>     *   the list is sorted into priority order.  This makes it easy to
-<a name="538"></a>     *   sort a new list of DoerCmd objects into the original priority
-<a name="539"></a>     *   order.  
-<a name="540"></a>     */
-<a name="541"></a>    seqno = 0
-<a name="542"></a>
-<a name="543"></a>    /*
-<a name="544"></a>     *   Class member: the master table of DoerCmd objects.  The library
-<a name="545"></a>     *   builds this automatically during preinitialization.  This is a
-<a name="546"></a>     *   lookup table indexed by Action.  Each Action entry has a list of
-<a name="547"></a>     *   DoerCmd objects associated with that Action.  Note that the
-<a name="548"></a>     *   generic all-verb handlers are listed under Action.  
-<a name="549"></a>     */
-<a name="550"></a>    doerTab = nil
-<a name="551"></a>
-<a name="552"></a>    /*
-<a name="553"></a>     *   Class method: Get a list of Doer objects matching the given
-<a name="554"></a>     *   command.  'cmdLst' is the command's action and object list in
-<a name="555"></a>     *   canonical format: [action, dobj, iobj, accessory].  
-<a name="556"></a>     */
-<a name="557"></a>    findDoers(cmdLst)
-<a name="558"></a>    {
-<a name="559"></a>        /* 
-<a name="560"></a>         *   Start with a list of the DoerCmd objects that could *possibly*
-<a name="561"></a>         *   match this command.  This includes all of the DoerCmds listed
-<a name="562"></a>         *   in the master table under the command's action, plus all of
-<a name="563"></a>         *   the wildcard "any action" DoerCmds, which are listed in the
-<a name="564"></a>         *   table under Action.  
-<a name="565"></a>         */
-<a name="566"></a>        local lst = nilToList(doerTab[cmdLst[1]])
-<a name="567"></a>            + nilToList(doerTab[Action]);
-<a name="568"></a>
-<a name="569"></a>        /* keep only the elements that match the command's objects */
-<a name="570"></a>        lst = lst.subset({ d: d.matchCmd(cmdLst) });
-<a name="571"></a>        
-<a name="572"></a>        /* 
-<a name="573"></a>         *   keep only the elements whose where and when conditions don't
-<a name="574"></a>         *   exclude them.
-<a name="575"></a>         */
-<a name="576"></a>        
-<a name="577"></a>        lst = lst.subset({ d: d.matchConditions() } );
-<a name="578"></a>
-<a name="579"></a>        /* sort the combined list into the original priority order */
-<a name="580"></a>        lst = lst.sort(SortAsc, { a, b: a.seqno - b.seqno });
-<a name="581"></a>
-<a name="582"></a>        /* pull out the list of Doers that the DoerCmds map to */
-<a name="583"></a>        lst = lst.mapAll({ d: d.doer });
-<a name="584"></a>
-<a name="585"></a>        /* 
-<a name="586"></a>         *   It's conceivable that a given Doer is listed more than once,
-<a name="587"></a>         *   since the same Doer could have more than one matching command
-<a name="588"></a>         *   template.  In such cases we'd still only want to process each
-<a name="589"></a>         *   Doer once, so eliminate any duplicates. 
-<a name="590"></a>         */
-<a name="591"></a>        lst = lst.getUnique();
-<a name="592"></a>
-<a name="593"></a>        /* return the result */
-<a name="594"></a>        return lst;
-<a name="595"></a>    }
-<a name="596"></a>
-<a name="597"></a>    /*
-<a name="598"></a>     *   Check for a match to a command list.  'cmdLst' is the command
-<a name="599"></a>     *   object list in canonical format: [action, dobj, iobj, ...].  This
-<a name="600"></a>     *   routine determines if our Doer is a handler for the given command.
-<a name="601"></a>     */
-<a name="602"></a>    matchCmd(cmdLst)
-<a name="603"></a>    {
-<a name="604"></a>        /*
-<a name="605"></a>         *   The first element of the template is the action.  For the
-<a name="606"></a>         *   template to match, the Command's action must either exactly
-<a name="607"></a>         *   match the template action, or it must be an instance of the
-<a name="608"></a>         *   template action class.  
-<a name="609"></a>         */
-<a name="610"></a>        if (cmdLst[1] != cmd[1] &amp;&amp; !cmdLst[1].ofKind(cmd[1]))
-<a name="611"></a>            return nil;
-<a name="612"></a>
-<a name="613"></a>        /*   
-<a name="614"></a>         *   If the strict property is set we want the doer to match not only
-<a name="615"></a>         *   the command but the wording of the command, or rather, at least the
-<a name="616"></a>         *   first word, so that, for example, 'go through junk' would not be
-<a name="617"></a>         *   treated as matching 'walk through junk' (in English idiom the first
-<a name="618"></a>         *   but not the second might be treated as meaning 'search junk').
-<a name="619"></a>         */
-<a name="620"></a>           
-<a name="621"></a>        
-<a name="622"></a>        if (gCommand != nil &amp;&amp; doer.strict &amp;&amp; gCommand.verbProd.tokenList !=
-<a name="623"></a>            nil)
-<a name="624"></a>        {
-<a name="625"></a>            local cmdToks = gCommand.verbProd.tokenList.mapAll( {x:
-<a name="626"></a>                getTokVal(x) });
-<a name="627"></a>            local doerToks = doer.cmd.split(' ');
-<a name="628"></a>            
-<a name="629"></a>            if(cmdToks[1] != doerToks[1])
-<a name="630"></a>                return nil;        
-<a name="631"></a>        }
-<a name="632"></a>        
-<a name="633"></a>        /* 
-<a name="634"></a>         *   The rest of the template is the list of noun roles, in
-<a name="635"></a>         *   canonical order (direct object, indirect object, accessory).
-<a name="636"></a>         *   The Command must have the same number of objects, and each
-<a name="637"></a>         *   object in the Command must match the corresponding template
-<a name="638"></a>         *   object or be an instance of the template object class.
-<a name="639"></a>         *   (There's one special case: if the template object is nil, we
-<a name="640"></a>         *   match anything.)
-<a name="641"></a>         *   
-<a name="642"></a>         *   First, check that we have the same number of objects.  
-<a name="643"></a>         */
-<a name="644"></a>        if (cmdLst.length() != cmd.length())
-<a name="645"></a>            return nil;
-<a name="646"></a>
-<a name="647"></a>        /* now check each object */
-<a name="648"></a>        for (local i = 2, local len = cmd.length() ; i &lt;= len ; ++i)
-<a name="649"></a>        {
-<a name="650"></a>            /* get the object from the Command and template */
-<a name="651"></a>            local cobj = cmdLst[i];
-<a name="652"></a>            local tobj = cmd[i];
-<a name="653"></a>
-<a name="654"></a>            /* 
-<a name="655"></a>             *   if the template object is non-nil, we have to match the
-<a name="656"></a>             *   object or class 
-<a name="657"></a>             */
-<a name="658"></a>            if (tobj != nil &amp;&amp; cobj != tobj &amp;&amp; !cobj.ofKind(tobj) 
-<a name="659"></a>                &amp;&amp; cobj.lexicalParent != tobj)
-<a name="660"></a>                return nil;
-<a name="661"></a>        }
-<a name="662"></a>
-<a name="663"></a>        /* everything matches, so this Command matches this template */
-<a name="664"></a>        return true;
-<a name="665"></a>    }
-<a name="666"></a>
-<a name="667"></a>    /*
-<a name="668"></a>     *   Get the processing priority sorting order relative to another
-<a name="669"></a>     *   DoerCmd.  (See Doer.priority for a discussion of the priority
-<a name="670"></a>     *   rules.)
-<a name="671"></a>     */
-<a name="672"></a>    compareTo(other)
-<a name="673"></a>    {
-<a name="674"></a>        local p, a, b;
-<a name="675"></a>        
-<a name="676"></a>        /* the explicitly priority takes precedence over all other rules */
-<a name="677"></a>        if (doer.priority != other.doer.priority)
-<a name="678"></a>            return doer.priority - other.doer.priority;
-<a name="679"></a>
-<a name="680"></a>        /* a 'when' has priority over no 'when' */
-<a name="681"></a>        p = doer.propDefined(&amp;when);
-<a name="682"></a>        if (p != other.doer.propDefined(&amp;when))
-<a name="683"></a>            return p ? 1 : -1;
-<a name="684"></a>
-<a name="685"></a>        /* a 'where' has priority over no 'where' */
-<a name="686"></a>        p = doer.propDefined(&amp;where);
-<a name="687"></a>        if (p != other.doer.propDefined(&amp;where))
-<a name="688"></a>            return p ? 1 : -1;
-<a name="689"></a>
-<a name="690"></a>         /* a 'who' has priority over no 'where' */
-<a name="691"></a>        p = doer.propDefined(&amp;who);
-<a name="692"></a>        if (p != other.doer.propDefined(&amp;who))
-<a name="693"></a>            return p ? 1 : -1;
-<a name="694"></a>        
-<a name="695"></a>        /* a 'during' has priority over no 'during' */
-<a name="696"></a>        p = doer.propDefined(&amp;during);
-<a name="697"></a>            if (p != other.doer.propDefined(&amp;during))
-<a name="698"></a>            return p ? 1 : -1;
-<a name="699"></a>        
-<a name="700"></a>        /* get each command's Action */
-<a name="701"></a>        a = cmd[1];
-<a name="702"></a>        b = other.cmd[1];
-<a name="703"></a>        
-<a name="704"></a>        /* 
-<a name="705"></a>         *   a 'direction' has priority over no 'direction' for a Travel
-<a name="706"></a>         *   command.
-<a name="707"></a>         */        
-<a name="708"></a>        if(a == Travel)
-<a name="709"></a>        {
-<a name="710"></a>            p = doer.propDefined(&amp;direction);
-<a name="711"></a>            if (p != other.doer.propDefined(&amp;direction))
-<a name="712"></a>                return p ? 1 : -1;
-<a name="713"></a>        }
-<a name="714"></a>
-<a name="715"></a>        /* 
-<a name="716"></a>         *   if one is a specific Action and the other is the generic
-<a name="717"></a>         *   'Action' class (a wildcard that matches all actions), the
-<a name="718"></a>         *   specific action takes precedence 
-<a name="719"></a>         */
-<a name="720"></a>        if (a != Action &amp;&amp; b == Action)
-<a name="721"></a>            return 1;
-<a name="722"></a>        if (a == Action &amp;&amp; b != Action)
-<a name="723"></a>            return -1;
-<a name="724"></a>
-<a name="725"></a>        /* if the actions are the same, compare the objects */
-<a name="726"></a>        if (a == b &amp;&amp; cmd.length() == other.cmd.length())
-<a name="727"></a>        {
-<a name="728"></a>            /* 
-<a name="729"></a>             *   Check each object role in turn, in canonical order.  The
-<a name="730"></a>             *   first one where the precedence differs determines the
-<a name="731"></a>             *   overall precedence. 
-<a name="732"></a>             */
-<a name="733"></a>            for (local i = 2 ; i &lt; cmd.length() ; ++i)
-<a name="734"></a>            {
-<a name="735"></a>                /* get the two objects */
-<a name="736"></a>                a = cmd[i];
-<a name="737"></a>                b = other.cmd[i];
-<a name="738"></a>
-<a name="739"></a>                /* 
-<a name="740"></a>                 *   if one is a subclass of the other, the subclass takes
-<a name="741"></a>                 *   precedence because it's more specialized
-<a name="742"></a>                 */
-<a name="743"></a>                if (a == nil || b == nil)
-<a name="744"></a>                {
-<a name="745"></a>                    if (a != nil)
-<a name="746"></a>                        return 1;
-<a name="747"></a>                    if (b != nil)
-<a name="748"></a>                        return -1;
-<a name="749"></a>                }
-<a name="750"></a>                else
-<a name="751"></a>                {
-<a name="752"></a>                    if (a.ofKind(b))
-<a name="753"></a>                        return 1;
-<a name="754"></a>                    if (b.ofKind(a))
-<a name="755"></a>                        return -1;
-<a name="756"></a>                }
-<a name="757"></a>            }
-<a name="758"></a>        }
-<a name="759"></a>
-<a name="760"></a>        /* 
-<a name="761"></a>         *   Failing all else, go by the relative location of the source
-<a name="762"></a>         *   code definitions: the definition that appears later in the
-<a name="763"></a>         *   source code takes precedence.  If the two are defined in
-<a name="764"></a>         *   different modules, the one in the later module takes
-<a name="765"></a>         *   precedence.  
-<a name="766"></a>         */
-<a name="767"></a>        if (doer.sourceTextGroup != other.doer.sourceTextGroup)
-<a name="768"></a>            return doer.sourceTextGroup.sourceTextGroupOrder
-<a name="769"></a>            - other.doer.sourceTextGroup.sourceTextGroupOrder;
-<a name="770"></a>
-<a name="771"></a>        /* they're in the same module, so the later one takes precedence */
-<a name="772"></a>        return doer.sourceTextOrder - other.doer.sourceTextOrder;
-<a name="773"></a>    }
-<a name="774"></a>    
-<a name="775"></a>    /* Check whether a Doer matches its where, when, who and during conditions. */    
-<a name="776"></a>    matchConditions()    
-<a name="777"></a>    {
-<a name="778"></a>        /* first check the where condition, if there is one. */
-<a name="779"></a>        if(doer.propDefined(&amp;where))
-<a name="780"></a>        {
-<a name="781"></a>            local whereLst = valToList(doer.where);
-<a name="782"></a>                                    
-<a name="783"></a>            /* 
-<a name="784"></a>             *   if we can't match any item in the where list to the player
-<a name="785"></a>             *   char's current location, we don't meet the where condition, so
-<a name="786"></a>             *   return nil
-<a name="787"></a>             */
-<a name="788"></a>            if(whereLst.indexWhich( {loc: gPlayerChar.isIn(loc)}) == nil)
-<a name="789"></a>                return nil;
-<a name="790"></a>        }
-<a name="791"></a>        
-<a name="792"></a>        /* 
-<a name="793"></a>         *   Interpret 'when' as simply a routine that returns true or nil
-<a name="794"></a>         *   aocording to some condition defined by the author; so we simply
-<a name="795"></a>         *   test whether doer.when returns nil if the property is defined.
-<a name="796"></a>         */        
-<a name="797"></a>        if(doer.propDefined(&amp;when) &amp;&amp; doer.when() == nil)
-<a name="798"></a>            return nil;       
-<a name="799"></a>        
-<a name="800"></a>         /* check the who condition, if there is one. */
-<a name="801"></a>        if(doer.propDefined(&amp;who))
-<a name="802"></a>        {
-<a name="803"></a>            local whoLst = valToList(doer.who);
-<a name="804"></a>                        
-<a name="805"></a>            
-<a name="806"></a>            /* 
-<a name="807"></a>             *   If we can't match any item in the who list to the current
-<a name="808"></a>             *   actor, we don't meet the who condition, so return nil
-<a name="809"></a>             */
-<a name="810"></a>            if(whoLst.indexOf(gCommand.actor) == nil)
-<a name="811"></a>                return nil;
-<a name="812"></a>        }
-<a name="813"></a>        
+<a name="437"></a>        
+<a name="438"></a>        /*
+<a name="439"></a>         *   Rule out a command involving a compass direction where compass
+<a name="440"></a>         *   directions aren't allowed.
+<a name="441"></a>         */
+<a name="442"></a>        if(dirn.ofKind(CompassDirection) &amp;&amp; !loc.allowCompassDirections)
+<a name="443"></a>        {
+<a name="444"></a>            DMsg(no compass directions, 'Compass directions {plural} {have}
+<a name="445"></a>                no meaning {here}, ');
+<a name="446"></a>            abort;
+<a name="447"></a>        }
+<a name="448"></a>        
+<a name="449"></a>        /* 
+<a name="450"></a>         *   Set the direction property of the current Command's association
+<a name="451"></a>         *   Action object to the direction determined by its
+<a name="452"></a>         *   verbProd.dirMatch.dir property in case the game author tries to use
+<a name="453"></a>         *   action.direction to get at the direction entered.
+<a name="454"></a>         */
+<a name="455"></a>        curCmd.action.direction = dirn;
+<a name="456"></a>        
+<a name="457"></a>    }
+<a name="458"></a>    
+<a name="459"></a>    /* 
+<a name="460"></a>     *   Utility method that can be called from execAction() to redirect the
+<a name="461"></a>     *   command to a new action with the same (or new) objects. This will
+<a name="462"></a>     *   normally be called via the doInstead()/doNested() interface defined on
+<a name="463"></a>     *   our Redirector superclass.
+<a name="464"></a>     */    
+<a name="465"></a>    redirect(curCmd, altAction, dobj: = 0, iobj: = 0, aobj: = 0,
+<a name="466"></a>             isReplacement: = true)
+<a name="467"></a>    {
+<a name="468"></a>        
+<a name="469"></a>        /* 
+<a name="470"></a>         *   We use a default value of 0 for the dobj and iobj parameters to
+<a name="471"></a>         *   mean 'keep the current value' so that we can explicitly pass nil
+<a name="472"></a>         *   values if we want to.
+<a name="473"></a>         */             
+<a name="474"></a>        dobj = dobj == 0 ? curCmd.dobj : dobj;
+<a name="475"></a>        iobj = iobj == 0 ? curCmd.iobj : iobj;
+<a name="476"></a>        aobj = iobj == 0 ? curCmd.acc : aobj;
+<a name="477"></a>        
+<a name="478"></a>        /* 
+<a name="479"></a>         *   Get the current command to change its current action to altAction
+<a name="480"></a>         *   performed on dobj and iobj. Note that this will change gAction to
+<a name="481"></a>         *   altAction.
+<a name="482"></a>         */
+<a name="483"></a>        curCmd.changeAction(altAction, dobj, iobj, aobj);
+<a name="484"></a>        
+<a name="485"></a>        /* Execute the command on our new action. */
+<a name="486"></a>        gAction.exec(curCmd);
+<a name="487"></a>    }
+<a name="488"></a>    
+<a name="489"></a>    /* 
+<a name="490"></a>     *   Set this property to true for this Doer to match only if the wording
+<a name="491"></a>     *   corresponds (and not just the action). At the moment the check is
+<a name="492"></a>     *   only on the first word of the command, but this may usually be enough
+<a name="493"></a>     */
+<a name="494"></a>    
+<a name="495"></a>    strict = nil
+<a name="496"></a>    
+<a name="497"></a>    /*  
+<a name="498"></a>     *   Flag, do we want to ignore (i.e. not report) an error in the
+<a name="499"></a>     *   construction of this Doer. We may want to do this when the error is
+<a name="500"></a>     *   simply due to the exclusion of a module like extras.t
+<a name="501"></a>     */
+<a name="502"></a>    ignoreError = nil
+<a name="503"></a>;
+<a name="504"></a>
+<a name="505"></a>/* Define isHappening as a property in case the scenes module is not included */
+<a name="506"></a>property isHappening;
+<a name="507"></a>
+<a name="508"></a>/* ------------------------------------------------------------------------ */
+<a name="509"></a>/*
+<a name="510"></a> *   A DoerCmd is a helper object that stores a single command match
+<a name="511"></a> *   template for a Doer object.  A given Doer can match multiple commands;
+<a name="512"></a> *   each match is represented by one of these objects.  
+<a name="513"></a> */
+<a name="514"></a>class DoerCmd: object
+<a name="515"></a>    /* construction */
+<a name="516"></a>    construct(d, c)
+<a name="517"></a>    {
+<a name="518"></a>        doer = d;
+<a name="519"></a>        cmd = c;
+<a name="520"></a>    }
+<a name="521"></a>
+<a name="522"></a>    /* the Doer I'm associated with */
+<a name="523"></a>    doer = nil
+<a name="524"></a>
+<a name="525"></a>    /* 
+<a name="526"></a>     *   The parsed command template.  This is a list consisting of the
+<a name="527"></a>     *   Action we match plus the objects or classes we match for the noun
+<a name="528"></a>     *   phrases, in the canonical order (direct object, indirect object,
+<a name="529"></a>     *   accessory).  The action can also be the Action class itself, to
+<a name="530"></a>     *   indicate that we match all actions.  We only match a command with
+<a name="531"></a>     *   the same number of noun phrases as in the template.  
+<a name="532"></a>     */
+<a name="533"></a>    cmd = []
+<a name="534"></a>
+<a name="535"></a>    /*
+<a name="536"></a>     *   My global sequence number.  During initialization, we set this to
+<a name="537"></a>     *   reflect our position in the global list of DoerCmd objects after
+<a name="538"></a>     *   the list is sorted into priority order.  This makes it easy to
+<a name="539"></a>     *   sort a new list of DoerCmd objects into the original priority
+<a name="540"></a>     *   order.  
+<a name="541"></a>     */
+<a name="542"></a>    seqno = 0
+<a name="543"></a>
+<a name="544"></a>    /*
+<a name="545"></a>     *   Class member: the master table of DoerCmd objects.  The library
+<a name="546"></a>     *   builds this automatically during preinitialization.  This is a
+<a name="547"></a>     *   lookup table indexed by Action.  Each Action entry has a list of
+<a name="548"></a>     *   DoerCmd objects associated with that Action.  Note that the
+<a name="549"></a>     *   generic all-verb handlers are listed under Action.  
+<a name="550"></a>     */
+<a name="551"></a>    doerTab = nil
+<a name="552"></a>
+<a name="553"></a>    /*
+<a name="554"></a>     *   Class method: Get a list of Doer objects matching the given
+<a name="555"></a>     *   command.  'cmdLst' is the command's action and object list in
+<a name="556"></a>     *   canonical format: [action, dobj, iobj, accessory].  
+<a name="557"></a>     */
+<a name="558"></a>    findDoers(cmdLst)
+<a name="559"></a>    {
+<a name="560"></a>        /* 
+<a name="561"></a>         *   Start with a list of the DoerCmd objects that could *possibly*
+<a name="562"></a>         *   match this command.  This includes all of the DoerCmds listed
+<a name="563"></a>         *   in the master table under the command's action, plus all of
+<a name="564"></a>         *   the wildcard "any action" DoerCmds, which are listed in the
+<a name="565"></a>         *   table under Action.  
+<a name="566"></a>         */
+<a name="567"></a>        local lst = nilToList(doerTab[cmdLst[1]])
+<a name="568"></a>            + nilToList(doerTab[Action]);
+<a name="569"></a>
+<a name="570"></a>        /* keep only the elements that match the command's objects */
+<a name="571"></a>        lst = lst.subset({ d: d.matchCmd(cmdLst) });
+<a name="572"></a>        
+<a name="573"></a>        /* 
+<a name="574"></a>         *   keep only the elements whose where and when conditions don't
+<a name="575"></a>         *   exclude them.
+<a name="576"></a>         */
+<a name="577"></a>        
+<a name="578"></a>        lst = lst.subset({ d: d.matchConditions() } );
+<a name="579"></a>
+<a name="580"></a>        /* sort the combined list into the original priority order */
+<a name="581"></a>        lst = lst.sort(SortAsc, { a, b: a.seqno - b.seqno });
+<a name="582"></a>
+<a name="583"></a>        /* pull out the list of Doers that the DoerCmds map to */
+<a name="584"></a>        lst = lst.mapAll({ d: d.doer });
+<a name="585"></a>
+<a name="586"></a>        /* 
+<a name="587"></a>         *   It's conceivable that a given Doer is listed more than once,
+<a name="588"></a>         *   since the same Doer could have more than one matching command
+<a name="589"></a>         *   template.  In such cases we'd still only want to process each
+<a name="590"></a>         *   Doer once, so eliminate any duplicates. 
+<a name="591"></a>         */
+<a name="592"></a>        lst = lst.getUnique();
+<a name="593"></a>
+<a name="594"></a>        /* return the result */
+<a name="595"></a>        return lst;
+<a name="596"></a>    }
+<a name="597"></a>
+<a name="598"></a>    /*
+<a name="599"></a>     *   Check for a match to a command list.  'cmdLst' is the command
+<a name="600"></a>     *   object list in canonical format: [action, dobj, iobj, ...].  This
+<a name="601"></a>     *   routine determines if our Doer is a handler for the given command.
+<a name="602"></a>     */
+<a name="603"></a>    matchCmd(cmdLst)
+<a name="604"></a>    {
+<a name="605"></a>        /*
+<a name="606"></a>         *   The first element of the template is the action.  For the
+<a name="607"></a>         *   template to match, the Command's action must either exactly
+<a name="608"></a>         *   match the template action, or it must be an instance of the
+<a name="609"></a>         *   template action class.  
+<a name="610"></a>         */
+<a name="611"></a>        if (cmdLst[1] != cmd[1] &amp;&amp; !cmdLst[1].ofKind(cmd[1]))
+<a name="612"></a>            return nil;
+<a name="613"></a>
+<a name="614"></a>        /*   
+<a name="615"></a>         *   If the strict property is set we want the doer to match not only
+<a name="616"></a>         *   the command but the wording of the command, or rather, at least the
+<a name="617"></a>         *   first word, so that, for example, 'go through junk' would not be
+<a name="618"></a>         *   treated as matching 'walk through junk' (in English idiom the first
+<a name="619"></a>         *   but not the second might be treated as meaning 'search junk').
+<a name="620"></a>         */
+<a name="621"></a>           
+<a name="622"></a>        
+<a name="623"></a>        if (gCommand != nil &amp;&amp; doer.strict &amp;&amp; gCommand.verbProd.tokenList !=
+<a name="624"></a>            nil)
+<a name="625"></a>        {
+<a name="626"></a>            local cmdToks = gCommand.verbProd.tokenList.mapAll( {x:
+<a name="627"></a>                getTokVal(x) });
+<a name="628"></a>            local doerToks = doer.cmd.split(' ');
+<a name="629"></a>            
+<a name="630"></a>            if(cmdToks[1] != doerToks[1])
+<a name="631"></a>                return nil;        
+<a name="632"></a>        }
+<a name="633"></a>        
+<a name="634"></a>        /* 
+<a name="635"></a>         *   The rest of the template is the list of noun roles, in
+<a name="636"></a>         *   canonical order (direct object, indirect object, accessory).
+<a name="637"></a>         *   The Command must have the same number of objects, and each
+<a name="638"></a>         *   object in the Command must match the corresponding template
+<a name="639"></a>         *   object or be an instance of the template object class.
+<a name="640"></a>         *   (There's one special case: if the template object is nil, we
+<a name="641"></a>         *   match anything.)
+<a name="642"></a>         *   
+<a name="643"></a>         *   First, check that we have the same number of objects.  
+<a name="644"></a>         */
+<a name="645"></a>        if (cmdLst.length() != cmd.length())
+<a name="646"></a>            return nil;
+<a name="647"></a>
+<a name="648"></a>        /* now check each object */
+<a name="649"></a>        for (local i = 2, local len = cmd.length() ; i &lt;= len ; ++i)
+<a name="650"></a>        {
+<a name="651"></a>            /* get the object from the Command and template */
+<a name="652"></a>            local cobj = cmdLst[i];
+<a name="653"></a>            local tobj = cmd[i];
+<a name="654"></a>
+<a name="655"></a>            /* 
+<a name="656"></a>             *   if the template object is non-nil, we have to match the
+<a name="657"></a>             *   object or class 
+<a name="658"></a>             */
+<a name="659"></a>            if (tobj != nil &amp;&amp; cobj != tobj &amp;&amp; !cobj.ofKind(tobj) 
+<a name="660"></a>                &amp;&amp; cobj.lexicalParent != tobj)
+<a name="661"></a>                return nil;
+<a name="662"></a>        }
+<a name="663"></a>
+<a name="664"></a>        /* everything matches, so this Command matches this template */
+<a name="665"></a>        return true;
+<a name="666"></a>    }
+<a name="667"></a>
+<a name="668"></a>    /*
+<a name="669"></a>     *   Get the processing priority sorting order relative to another
+<a name="670"></a>     *   DoerCmd.  (See Doer.priority for a discussion of the priority
+<a name="671"></a>     *   rules.)
+<a name="672"></a>     */
+<a name="673"></a>    compareTo(other)
+<a name="674"></a>    {
+<a name="675"></a>        local p, a, b;
+<a name="676"></a>        
+<a name="677"></a>        /* the explicitly priority takes precedence over all other rules */
+<a name="678"></a>        if (doer.priority != other.doer.priority)
+<a name="679"></a>            return doer.priority - other.doer.priority;
+<a name="680"></a>
+<a name="681"></a>        /* a 'when' has priority over no 'when' */
+<a name="682"></a>        p = doer.propDefined(&amp;when);
+<a name="683"></a>        if (p != other.doer.propDefined(&amp;when))
+<a name="684"></a>            return p ? 1 : -1;
+<a name="685"></a>
+<a name="686"></a>        /* a 'where' has priority over no 'where' */
+<a name="687"></a>        p = doer.propDefined(&amp;where);
+<a name="688"></a>        if (p != other.doer.propDefined(&amp;where))
+<a name="689"></a>            return p ? 1 : -1;
+<a name="690"></a>
+<a name="691"></a>         /* a 'who' has priority over no 'where' */
+<a name="692"></a>        p = doer.propDefined(&amp;who);
+<a name="693"></a>        if (p != other.doer.propDefined(&amp;who))
+<a name="694"></a>            return p ? 1 : -1;
+<a name="695"></a>        
+<a name="696"></a>        /* a 'during' has priority over no 'during' */
+<a name="697"></a>        p = doer.propDefined(&amp;during);
+<a name="698"></a>            if (p != other.doer.propDefined(&amp;during))
+<a name="699"></a>            return p ? 1 : -1;
+<a name="700"></a>        
+<a name="701"></a>        /* get each command's Action */
+<a name="702"></a>        a = cmd[1];
+<a name="703"></a>        b = other.cmd[1];
+<a name="704"></a>        
+<a name="705"></a>        /* 
+<a name="706"></a>         *   a 'direction' has priority over no 'direction' for a Travel
+<a name="707"></a>         *   command.
+<a name="708"></a>         */        
+<a name="709"></a>        if(a == Travel)
+<a name="710"></a>        {
+<a name="711"></a>            p = doer.propDefined(&amp;direction);
+<a name="712"></a>            if (p != other.doer.propDefined(&amp;direction))
+<a name="713"></a>                return p ? 1 : -1;
+<a name="714"></a>        }
+<a name="715"></a>
+<a name="716"></a>        /* 
+<a name="717"></a>         *   if one is a specific Action and the other is the generic
+<a name="718"></a>         *   'Action' class (a wildcard that matches all actions), the
+<a name="719"></a>         *   specific action takes precedence 
+<a name="720"></a>         */
+<a name="721"></a>        if (a != Action &amp;&amp; b == Action)
+<a name="722"></a>            return 1;
+<a name="723"></a>        if (a == Action &amp;&amp; b != Action)
+<a name="724"></a>            return -1;
+<a name="725"></a>
+<a name="726"></a>        /* if the actions are the same, compare the objects */
+<a name="727"></a>        if (a == b &amp;&amp; cmd.length() == other.cmd.length())
+<a name="728"></a>        {
+<a name="729"></a>            /* 
+<a name="730"></a>             *   Check each object role in turn, in canonical order.  The
+<a name="731"></a>             *   first one where the precedence differs determines the
+<a name="732"></a>             *   overall precedence. 
+<a name="733"></a>             */
+<a name="734"></a>            for (local i = 2 ; i &lt; cmd.length() ; ++i)
+<a name="735"></a>            {
+<a name="736"></a>                /* get the two objects */
+<a name="737"></a>                a = cmd[i];
+<a name="738"></a>                b = other.cmd[i];
+<a name="739"></a>
+<a name="740"></a>                /* 
+<a name="741"></a>                 *   if one is a subclass of the other, the subclass takes
+<a name="742"></a>                 *   precedence because it's more specialized
+<a name="743"></a>                 */
+<a name="744"></a>                if (a == nil || b == nil)
+<a name="745"></a>                {
+<a name="746"></a>                    if (a != nil)
+<a name="747"></a>                        return 1;
+<a name="748"></a>                    if (b != nil)
+<a name="749"></a>                        return -1;
+<a name="750"></a>                }
+<a name="751"></a>                else
+<a name="752"></a>                {
+<a name="753"></a>                    if (a.ofKind(b))
+<a name="754"></a>                        return 1;
+<a name="755"></a>                    if (b.ofKind(a))
+<a name="756"></a>                        return -1;
+<a name="757"></a>                }
+<a name="758"></a>            }
+<a name="759"></a>        }
+<a name="760"></a>
+<a name="761"></a>        /* 
+<a name="762"></a>         *   Failing all else, go by the relative location of the source
+<a name="763"></a>         *   code definitions: the definition that appears later in the
+<a name="764"></a>         *   source code takes precedence.  If the two are defined in
+<a name="765"></a>         *   different modules, the one in the later module takes
+<a name="766"></a>         *   precedence.  
+<a name="767"></a>         */
+<a name="768"></a>        if (doer.sourceTextGroup != other.doer.sourceTextGroup)
+<a name="769"></a>            return doer.sourceTextGroup.sourceTextGroupOrder
+<a name="770"></a>            - other.doer.sourceTextGroup.sourceTextGroupOrder;
+<a name="771"></a>
+<a name="772"></a>        /* they're in the same module, so the later one takes precedence */
+<a name="773"></a>        return doer.sourceTextOrder - other.doer.sourceTextOrder;
+<a name="774"></a>    }
+<a name="775"></a>    
+<a name="776"></a>    /* Check whether a Doer matches its where, when, who and during conditions. */    
+<a name="777"></a>    matchConditions()    
+<a name="778"></a>    {
+<a name="779"></a>        /* first check the where condition, if there is one. */
+<a name="780"></a>        if(doer.propDefined(&amp;where))
+<a name="781"></a>        {
+<a name="782"></a>            local whereLst = valToList(doer.where);
+<a name="783"></a>                                    
+<a name="784"></a>            /* 
+<a name="785"></a>             *   if we can't match any item in the where list to the player
+<a name="786"></a>             *   char's current location, we don't meet the where condition, so
+<a name="787"></a>             *   return nil
+<a name="788"></a>             */
+<a name="789"></a>            if(whereLst.indexWhich( {loc: gPlayerChar.isIn(loc)}) == nil)
+<a name="790"></a>                return nil;
+<a name="791"></a>        }
+<a name="792"></a>        
+<a name="793"></a>        /* 
+<a name="794"></a>         *   Interpret 'when' as simply a routine that returns true or nil
+<a name="795"></a>         *   aocording to some condition defined by the author; so we simply
+<a name="796"></a>         *   test whether doer.when returns nil if the property is defined.
+<a name="797"></a>         */        
+<a name="798"></a>        if(doer.propDefined(&amp;when) &amp;&amp; doer.when() == nil)
+<a name="799"></a>            return nil;       
+<a name="800"></a>        
+<a name="801"></a>         /* check the who condition, if there is one. */
+<a name="802"></a>        if(doer.propDefined(&amp;who))
+<a name="803"></a>        {
+<a name="804"></a>            local whoLst = valToList(doer.who);
+<a name="805"></a>                        
+<a name="806"></a>            
+<a name="807"></a>            /* 
+<a name="808"></a>             *   If we can't match any item in the who list to the current
+<a name="809"></a>             *   actor, we don't meet the who condition, so return nil
+<a name="810"></a>             */
+<a name="811"></a>            if(whoLst.indexOf(gCommand.actor) == nil)
+<a name="812"></a>                return nil;
+<a name="813"></a>        }
 <a name="814"></a>        
-<a name="815"></a>        /* 
-<a name="816"></a>         *   if we're using the scene manager and a during condition is
-<a name="817"></a>         *   specified, test whether the scene is currently happening.
-<a name="818"></a>         */        
-<a name="819"></a>        if(defined(sceneManager) &amp;&amp; doer.propDefined(&amp;during))
-<a name="820"></a>        {
-<a name="821"></a>            local duringList = valToList(doer.during);
-<a name="822"></a>            
-<a name="823"></a>            if(duringList.indexWhich({s: s.isHappening}) == nil)
-<a name="824"></a>                return nil;
-<a name="825"></a>        }
-<a name="826"></a>        
-<a name="827"></a>        /* 
-<a name="828"></a>         *   If the command is a travel action and a direction has been
-<a name="829"></a>         *   specified, check that we match the direction.
-<a name="830"></a>         */
-<a name="831"></a>        if(doer.propDefined(&amp;direction) &amp;&amp; cmd[1] is in (Travel,
-<a name="832"></a>            PushTravelDir, ThrowDir))
-<a name="833"></a>            return valToList(doer.direction).indexOf(
-<a name="834"></a>                gCommand.verbProd.dirMatch.dir) != nil;
-<a name="835"></a>        
-<a name="836"></a>        /* 
-<a name="837"></a>         *   If we haven't failed any of the conditions, we're okay to match, so
-<a name="838"></a>         *   return true.
-<a name="839"></a>         */
-<a name="840"></a>        return true;
-<a name="841"></a>    }
-<a name="842"></a>;
-<a name="843"></a>
+<a name="815"></a>        
+<a name="816"></a>        /* 
+<a name="817"></a>         *   if we're using the scene manager and a during condition is
+<a name="818"></a>         *   specified, test whether the scene is currently happening.
+<a name="819"></a>         */        
+<a name="820"></a>        if(defined(sceneManager) &amp;&amp; doer.propDefined(&amp;during))
+<a name="821"></a>        {
+<a name="822"></a>            local duringList = valToList(doer.during);
+<a name="823"></a>            
+<a name="824"></a>            if(duringList.indexWhich({s: s.isHappening}) == nil)
+<a name="825"></a>                return nil;
+<a name="826"></a>        }
+<a name="827"></a>        
+<a name="828"></a>        /* 
+<a name="829"></a>         *   If the command is a travel action and a direction has been
+<a name="830"></a>         *   specified, check that we match the direction.
+<a name="831"></a>         */
+<a name="832"></a>        if(doer.propDefined(&amp;direction) &amp;&amp; cmd[1] is in (Travel,
+<a name="833"></a>            PushTravelDir, ThrowDir))
+<a name="834"></a>            return valToList(doer.direction).indexOf(
+<a name="835"></a>                gCommand.verbProd.dirMatch.dir) != nil;
+<a name="836"></a>        
+<a name="837"></a>        /* 
+<a name="838"></a>         *   If we haven't failed any of the conditions, we're okay to match, so
+<a name="839"></a>         *   return true.
+<a name="840"></a>         */
+<a name="841"></a>        return true;
+<a name="842"></a>    }
+<a name="843"></a>;
 <a name="844"></a>
 <a name="845"></a>
-<a name="846"></a>/* ------------------------------------------------------------------------ */
-<a name="847"></a>/*
-<a name="848"></a> *   A DoerParser is a helper object we use during initialization for
-<a name="849"></a> *   parsing Doer 'cmd' strings and turning them into action description
-<a name="850"></a> *   lists.  The language-specific library creates these for us based on
-<a name="851"></a> *   the language grammar.
-<a name="852"></a> *   
-<a name="853"></a> *   These objects are only used during initialization, since they're only
-<a name="854"></a> *   needed to set up the internal representation of a Doer command
-<a name="855"></a> *   template string.  During normal play we only need that internal
-<a name="856"></a> *   representation.  
-<a name="857"></a> */
-<a name="858"></a>class DoerParser: object
-<a name="859"></a>    /*
-<a name="860"></a>     *   Construction.  The language library should create one of these
-<a name="861"></a>     *   objects for each verb phrasing it wants to define for use in
-<a name="862"></a>     *   writing Doer 'cmd' strings.  
-<a name="863"></a>     */
-<a name="864"></a>    construct(action, v, pat, roles)
-<a name="865"></a>    {
-<a name="866"></a>        action_ = action;
-<a name="867"></a>        verb_ = v;
-<a name="868"></a>        pat_ = new RexPattern('&lt;space&gt;*' + pat + '&lt;space&gt;*$');
-<a name="869"></a>        roles_ = roles;
-<a name="870"></a>    }
-<a name="871"></a>
-<a name="872"></a>    /* The Action object for the verb. */
-<a name="873"></a>    action_ = nil
-<a name="874"></a>
-<a name="875"></a>    /* 
-<a name="876"></a>     *   The main verb word.  This is simply the first word of the verb's
-<a name="877"></a>     *   token list.  This is essentially a hash, to reduce the number of
-<a name="878"></a>     *   regular expressions we have to test individually.  This saves us a
-<a name="879"></a>     *   lot of compute time, since it's very quick to pull out the first
-<a name="880"></a>     *   word and get a list of the small set of rules with the same first
-<a name="881"></a>     *   word.  We then test each of those potential matches by doing the
-<a name="882"></a>     *   full regular expression comparison.  
-<a name="883"></a>     */
-<a name="884"></a>    verb_ = nil
-<a name="885"></a>
-<a name="886"></a>    /* 
-<a name="887"></a>     *   The regular expression for the verb rule.  The verb initializer
-<a name="888"></a>     *   sets this up to contain the literal text of the verb rule's
-<a name="889"></a>     *   literal tokens, and to substitute a parenthesized group wildcard
-<a name="890"></a>     *   pattern for each noun slot.  For example, for English, a Give To
-<a name="891"></a>     *   rule might look like 'give (.+) to (.+)'.  
-<a name="892"></a>     */
-<a name="893"></a>    pat_ = nil
-<a name="894"></a>
-<a name="895"></a>    /* 
-<a name="896"></a>     *   The list of object roles.  This is a list of NounRole objects.
-<a name="897"></a>     *   The list entries correspond positionally to the parenthesized
-<a name="898"></a>     *   groups in the regular expression string, so roles_[1] is the noun
-<a name="899"></a>     *   role for the first parenthesized group, roles_[2] is the noun role
-<a name="900"></a>     *   for the second group, and so on.  
-<a name="901"></a>     */
-<a name="902"></a>    roles_ = []
-<a name="903"></a>;
-<a name="904"></a>
+<a name="846"></a>
+<a name="847"></a>/* ------------------------------------------------------------------------ */
+<a name="848"></a>/*
+<a name="849"></a> *   A DoerParser is a helper object we use during initialization for
+<a name="850"></a> *   parsing Doer 'cmd' strings and turning them into action description
+<a name="851"></a> *   lists.  The language-specific library creates these for us based on
+<a name="852"></a> *   the language grammar.
+<a name="853"></a> *   
+<a name="854"></a> *   These objects are only used during initialization, since they're only
+<a name="855"></a> *   needed to set up the internal representation of a Doer command
+<a name="856"></a> *   template string.  During normal play we only need that internal
+<a name="857"></a> *   representation.  
+<a name="858"></a> */
+<a name="859"></a>class DoerParser: object
+<a name="860"></a>    /*
+<a name="861"></a>     *   Construction.  The language library should create one of these
+<a name="862"></a>     *   objects for each verb phrasing it wants to define for use in
+<a name="863"></a>     *   writing Doer 'cmd' strings.  
+<a name="864"></a>     */
+<a name="865"></a>    construct(action, v, pat, roles)
+<a name="866"></a>    {
+<a name="867"></a>        action_ = action;
+<a name="868"></a>        verb_ = v;
+<a name="869"></a>        pat_ = new RexPattern('&lt;space&gt;*' + pat + '&lt;space&gt;*$');
+<a name="870"></a>        roles_ = roles;
+<a name="871"></a>    }
+<a name="872"></a>
+<a name="873"></a>    /* The Action object for the verb. */
+<a name="874"></a>    action_ = nil
+<a name="875"></a>
+<a name="876"></a>    /* 
+<a name="877"></a>     *   The main verb word.  This is simply the first word of the verb's
+<a name="878"></a>     *   token list.  This is essentially a hash, to reduce the number of
+<a name="879"></a>     *   regular expressions we have to test individually.  This saves us a
+<a name="880"></a>     *   lot of compute time, since it's very quick to pull out the first
+<a name="881"></a>     *   word and get a list of the small set of rules with the same first
+<a name="882"></a>     *   word.  We then test each of those potential matches by doing the
+<a name="883"></a>     *   full regular expression comparison.  
+<a name="884"></a>     */
+<a name="885"></a>    verb_ = nil
+<a name="886"></a>
+<a name="887"></a>    /* 
+<a name="888"></a>     *   The regular expression for the verb rule.  The verb initializer
+<a name="889"></a>     *   sets this up to contain the literal text of the verb rule's
+<a name="890"></a>     *   literal tokens, and to substitute a parenthesized group wildcard
+<a name="891"></a>     *   pattern for each noun slot.  For example, for English, a Give To
+<a name="892"></a>     *   rule might look like 'give (.+) to (.+)'.  
+<a name="893"></a>     */
+<a name="894"></a>    pat_ = nil
+<a name="895"></a>
+<a name="896"></a>    /* 
+<a name="897"></a>     *   The list of object roles.  This is a list of NounRole objects.
+<a name="898"></a>     *   The list entries correspond positionally to the parenthesized
+<a name="899"></a>     *   groups in the regular expression string, so roles_[1] is the noun
+<a name="900"></a>     *   role for the first parenthesized group, roles_[2] is the noun role
+<a name="901"></a>     *   for the second group, and so on.  
+<a name="902"></a>     */
+<a name="903"></a>    roles_ = []
+<a name="904"></a>;
 <a name="905"></a>
-<a name="906"></a>/* ------------------------------------------------------------------------ */
-<a name="907"></a>/*
-<a name="908"></a> *   DoerParser Table.  This stores a lookup table of DoerParser objects,
-<a name="909"></a> *   indexed by the first word (the verb) of the command template.  
-<a name="910"></a> */
-<a name="911"></a>class DoerParserTable: object
-<a name="912"></a>    /* add a parser to the table */
-<a name="913"></a>    addParser(p)
-<a name="914"></a>    {
-<a name="915"></a>        /* get the verb from the parser */
-<a name="916"></a>        local v = p.verb_;
-<a name="917"></a>
-<a name="918"></a>        /* make sure there's a list at the verb entry */
-<a name="919"></a>        if (ptab[v] == nil)
-<a name="920"></a>            ptab[v] = [];
-<a name="921"></a>
-<a name="922"></a>        /* add this parser to the list for its verb */
-<a name="923"></a>        ptab[v] += p;
-<a name="924"></a>    }
-<a name="925"></a>
-<a name="926"></a>    /* get the list of parsers for a given verb word */
-<a name="927"></a>    getParsers(v)
-<a name="928"></a>    {
-<a name="929"></a>        /* look up the list */
-<a name="930"></a>        local lst = ptab[v];
-<a name="931"></a>
-<a name="932"></a>        /* return the list, or an empty list if the verb is unknown */
-<a name="933"></a>        return (lst != nil ? lst : []);
-<a name="934"></a>    }
-<a name="935"></a>
-<a name="936"></a>    /* the lookup table */
-<a name="937"></a>    ptab = perInstance(new LookupTable(64, 128))
-<a name="938"></a>;
-<a name="939"></a>
-<a name="940"></a>/*
-<a name="941"></a> *   Initialize the Doer objects.  This parses each Doer's command string
-<a name="942"></a> *   to generate a list of command templates.  
-<a name="943"></a> */
-<a name="944"></a>doerPreinit: PreinitObject
-<a name="945"></a>    execute()
-<a name="946"></a>    {              
-<a name="947"></a>               
-<a name="948"></a>        /* initialize the DoerParser objects */
-<a name="949"></a>        local ptab = new DoerParserTable();
-<a name="950"></a>        initDoerParsers(ptab);
-<a name="951"></a>
-<a name="952"></a>        /* get the global symbols */
-<a name="953"></a>        local gtab = t3GetGlobalSymbols();
-<a name="954"></a>
-<a name="955"></a>        /* get the predicate noun phrase list */
-<a name="956"></a>        local roles = NounRole.allPredicate;
-<a name="957"></a>
-<a name="958"></a>        /* 
-<a name="959"></a>         *   Add the special "any verb" wildcard verbs.  Add one for each
-<a name="960"></a>         *   subset of the roles list.  (The role subsets are always
-<a name="961"></a>         *   cumulative, because we don't ever have a later role without
-<a name="962"></a>         *   also including all of the earlier roles.  E.g., if a verb
-<a name="963"></a>         *   takes an indirect object, it must take a direct object as
-<a name="964"></a>         *   well.)  
-<a name="965"></a>         */
-<a name="966"></a>        local pat = '&lt;star&gt;';
-<a name="967"></a>        local npat = ' (&lt;alphanum|_|vbar|star&gt;+)';
-<a name="968"></a>        for (local i = 0 ; i &lt;= roles.length() ; ++i, pat += npat)
-<a name="969"></a>        {
-<a name="970"></a>            ptab.addParser(new DoerParser(
-<a name="971"></a>                Action, '*', pat, roles.sublist(1, i)));
-<a name="972"></a>        }
-<a name="973"></a>        
-<a name="974"></a>        /* set up an empty list of command template (DoerCmd) objects */
-<a name="975"></a>        local tlst = new Vector(100);
-<a name="976"></a>
-<a name="977"></a>        /* call the language-specific parser for each Doer's command string */
-<a name="978"></a>        forEachInstance(Doer, new function(d)
-<a name="979"></a>        {
-<a name="980"></a>            /* get the string to parse */
-<a name="981"></a>            local c = d.cmd;
-<a name="982"></a>
-<a name="983"></a>            /* 
-<a name="984"></a>             *   split it into commands - a given Doer might match multiple
-<a name="985"></a>             *   commands 
-<a name="986"></a>             */
-<a name="987"></a>            local clst = c.split(';');
-<a name="988"></a>  
-<a name="989"></a>                        
-<a name="990"></a>            /* process each command */
-<a name="991"></a>            foreach (c in clst)
-<a name="992"></a>            {
-<a name="993"></a>                /* check for direction names in the command */
-<a name="994"></a>                local tokList = c.split(R'&lt;space|vbar&gt;');
-<a name="995"></a>                
-<a name="996"></a>                foreach(local tok in tokList)
-<a name="997"></a>                {
-<a name="998"></a>                    local dir = Direction.nameTab[tok];
-<a name="999"></a>                    if(dir != nil)
-<a name="1000"></a>                    {                        
-<a name="1001"></a>                        d.direction = valToList(d.direction) + dir;
-<a name="1002"></a>                    }
-<a name="1003"></a>                }
-<a name="1004"></a>                
-<a name="1005"></a>                /* pull out the first word of the command */
-<a name="1006"></a>                rexMatch(R'&lt;space&gt;*(&lt;alphanum|star&gt;+)', c);
-<a name="1007"></a>
-<a name="1008"></a>                /* match it against each template with the same first word */
-<a name="1009"></a>                local found = nil;
-<a name="1010"></a>                foreach (local p in ptab.getParsers(rexGroup(1)[3]))
-<a name="1011"></a>                {
-<a name="1012"></a>                    /* if we match this item's template, this is the one */
-<a name="1013"></a>                    if (rexMatch(p.pat_, c))
-<a name="1014"></a>                    {
-<a name="1015"></a>                        /* 
-<a name="1016"></a>                         *   It matches.  Set up the initial action template
-<a name="1017"></a>                         *   with just the action. 
-<a name="1018"></a>                         */
-<a name="1019"></a>                        local tpl = [p.action_];
-<a name="1020"></a>                        
-<a name="1021"></a>                        /* 
-<a name="1022"></a>                         *   Add each noun slot.  Note that we need to add
-<a name="1023"></a>                         *   the nouns in the canonical order: dobj, iobj,
-<a name="1024"></a>                         *   accessory.  This might differ from the order
-<a name="1025"></a>                         *   of the noun phrases in the verb; for example,
-<a name="1026"></a>                         *   Give To in English can be phrased as "give
-<a name="1027"></a>                         *   dobj to iobj" or as "give iobj dobj" - the
-<a name="1028"></a>                         *   second form uses the reverse of the canonical
-<a name="1029"></a>                         *   order.  We must always use the canonical
-<a name="1030"></a>                         *   ordering for the template, regardless of how
-<a name="1031"></a>                         *   the verb is phrased.  
-<a name="1032"></a>                         */
-<a name="1033"></a>                        foreach (local r in roles)
-<a name="1034"></a>                        {
-<a name="1035"></a>                            /* 
-<a name="1036"></a>                             *   find this role in the template list order
-<a name="1037"></a>                             *   - this tells us which parenthesized group
-<a name="1038"></a>                             *   it matches in the regular expression for
-<a name="1039"></a>                             *   the verb template 
-<a name="1040"></a>                             */
-<a name="1041"></a>                            local idx = p.roles_.indexOf(r);
-<a name="1042"></a>                            
-<a name="1043"></a>                            /* 
-<a name="1044"></a>                             *   If the role isn't in the verb, we're done.
-<a name="1045"></a>                             *   A verb with an indirect object always has
-<a name="1046"></a>                             *   a direct object, and a verb with an
-<a name="1047"></a>                             *   accessory always has direct and indirect
-<a name="1048"></a>                             *   objects, so if this role isn't in the
-<a name="1049"></a>                             *   verb's list, we know there are no more
-<a name="1050"></a>                             *   roles to find.  
-<a name="1051"></a>                             */
-<a name="1052"></a>                            if (idx == nil)
-<a name="1053"></a>                                break;
-<a name="1054"></a>                            
-<a name="1055"></a>                            /* get the regular expression match */
-<a name="1056"></a>                            local n = rexGroup(idx)[3];
-<a name="1057"></a>
-<a name="1058"></a>                            /* add it to the template list */
-<a name="1059"></a>                            tpl += n;
-<a name="1060"></a>                        }
-<a name="1061"></a>
-<a name="1062"></a>                        /* expand "noun|noun" constructions */
-<a name="1063"></a>                        expandNounLists(gtab, d, tlst, tpl, 2);
-<a name="1064"></a>
-<a name="1065"></a>                        /* we found a match, so we can stop looking */
-<a name="1066"></a>                        found = true;
-<a name="1067"></a>                        break;
-<a name="1068"></a>                    }
-<a name="1069"></a>                }
-<a name="1070"></a>
-<a name="1071"></a>                /* if we didn't a match, note the error */
-<a name="1072"></a>                if (!found &amp;&amp; d.ignoreError == nil)
-<a name="1073"></a>                {
-<a name="1074"></a>                    "Error in Doer command phrase \"&lt;&lt;d.cmd&gt;&gt;\": this
-<a name="1075"></a>                    command syntax doesn't match any known verb grammar.";
-<a name="1076"></a>                }
-<a name="1077"></a>            }
-<a name="1078"></a>        });
-<a name="1079"></a>
-<a name="1080"></a>        /* sort the DoerCmd list by descending precedence */
-<a name="1081"></a>        tlst.sort(SortDesc, { a, b: a.compareTo(b) });
-<a name="1082"></a>
-<a name="1083"></a>        /* build the master table of DoerCmd objects */
-<a name="1084"></a>        local dtab = DoerCmd.doerTab = new LookupTable(64, 128);
-<a name="1085"></a>        local seqno = 1;
-<a name="1086"></a>        foreach (local d in tlst)
-<a name="1087"></a>        {
-<a name="1088"></a>            /* 
-<a name="1089"></a>             *   Set this item's global sequence number.  This lets us
-<a name="1090"></a>             *   quickly sort into the original priority order when we
-<a name="1091"></a>             *   combine two lists. 
-<a name="1092"></a>             */
-<a name="1093"></a>            d.seqno = seqno++;
-<a name="1094"></a>
-<a name="1095"></a>            /* get this item's Action - it's the first template item */
-<a name="1096"></a>            local action = d.cmd[1];
-<a name="1097"></a>
-<a name="1098"></a>            /* make sure this entry has a list */
-<a name="1099"></a>            if (dtab[action] == nil)
-<a name="1100"></a>                dtab[action] = [];
-<a name="1101"></a>
-<a name="1102"></a>            /* add this item to this action entry's list */
-<a name="1103"></a>            dtab[action] += d;
-<a name="1104"></a>        }
-<a name="1105"></a>    }
-<a name="1106"></a>
-<a name="1107"></a>    /*
-<a name="1108"></a>     *   Expand an initial template list.  This takes a list of the form
-<a name="1109"></a>     *   [action, 'a|b|c', 'd|e|f'], and converts it into multiple lists
-<a name="1110"></a>     *   with an individual noun in each slot.  
-<a name="1111"></a>     */
-<a name="1112"></a>    expandNounLists(gtab, d, tlst, tpl, idx)
-<a name="1113"></a>    {
-<a name="1114"></a>        /* 
-<a name="1115"></a>         *   if we've run out of slots, we have a fully expanded template,
-<a name="1116"></a>         *   so simply add the current template to the results and return 
-<a name="1117"></a>         */
-<a name="1118"></a>        if (idx &gt; tpl.length())
-<a name="1119"></a>        {
-<a name="1120"></a>            tlst.append(new DoerCmd(d, tpl));
-<a name="1121"></a>            return;
-<a name="1122"></a>        }
-<a name="1123"></a>
-<a name="1124"></a>        /* process the list of elements for the current item */
-<a name="1125"></a>        foreach (local item in tpl[idx].split('|'))
-<a name="1126"></a>        {
-<a name="1127"></a>            /* look up the object name in the symbol table */
-<a name="1128"></a>            local obj = gtab[item];
-<a name="1129"></a>
-<a name="1130"></a>            /* if we didn't find it, note the error */
-<a name="1131"></a>            if (obj == nil &amp;&amp; item != '*')
-<a name="1132"></a>            {
-<a name="1133"></a>                /* explain the problem */
-<a name="1134"></a>                if(!d.ignoreError)
-<a name="1135"></a>                    "Error in Doer command phrase \"&lt;&lt;d.cmd&gt;&gt;\": the word \"&lt;&lt;
-<a name="1136"></a>                      item&gt;&gt;\" is not a known object or class name.
-<a name="1137"></a>                    Each noun must be the source code name of an object
-<a name="1138"></a>                    or class.\n";
-<a name="1139"></a>
-<a name="1140"></a>                /* abort processing this template */
-<a name="1141"></a>                return;
-<a name="1142"></a>            }
-<a name="1143"></a>
-<a name="1144"></a>            /* build the simplified list with the current single item */
-<a name="1145"></a>            local stpl = tpl;
-<a name="1146"></a>            stpl[idx] = obj;
-<a name="1147"></a>
-<a name="1148"></a>            /* recursively process the rest of the list */
-<a name="1149"></a>            expandNounLists(gtab, d, tlst, stpl, idx + 1);
-<a name="1150"></a>        }
-<a name="1151"></a>    }
-<a name="1152"></a>    
+<a name="906"></a>
+<a name="907"></a>/* ------------------------------------------------------------------------ */
+<a name="908"></a>/*
+<a name="909"></a> *   DoerParser Table.  This stores a lookup table of DoerParser objects,
+<a name="910"></a> *   indexed by the first word (the verb) of the command template.  
+<a name="911"></a> */
+<a name="912"></a>class DoerParserTable: object
+<a name="913"></a>    /* add a parser to the table */
+<a name="914"></a>    addParser(p)
+<a name="915"></a>    {
+<a name="916"></a>        /* get the verb from the parser */
+<a name="917"></a>        local v = p.verb_;
+<a name="918"></a>
+<a name="919"></a>        /* make sure there's a list at the verb entry */
+<a name="920"></a>        if (ptab[v] == nil)
+<a name="921"></a>            ptab[v] = [];
+<a name="922"></a>
+<a name="923"></a>        /* add this parser to the list for its verb */
+<a name="924"></a>        ptab[v] += p;
+<a name="925"></a>    }
+<a name="926"></a>
+<a name="927"></a>    /* get the list of parsers for a given verb word */
+<a name="928"></a>    getParsers(v)
+<a name="929"></a>    {
+<a name="930"></a>        /* look up the list */
+<a name="931"></a>        local lst = ptab[v];
+<a name="932"></a>
+<a name="933"></a>        /* return the list, or an empty list if the verb is unknown */
+<a name="934"></a>        return (lst != nil ? lst : []);
+<a name="935"></a>    }
+<a name="936"></a>
+<a name="937"></a>    /* the lookup table */
+<a name="938"></a>    ptab = perInstance(new LookupTable(64, 128))
+<a name="939"></a>;
+<a name="940"></a>
+<a name="941"></a>/*
+<a name="942"></a> *   Initialize the Doer objects.  This parses each Doer's command string
+<a name="943"></a> *   to generate a list of command templates.  
+<a name="944"></a> */
+<a name="945"></a>doerPreinit: PreinitObject
+<a name="946"></a>    execute()
+<a name="947"></a>    {              
+<a name="948"></a>               
+<a name="949"></a>        /* initialize the DoerParser objects */
+<a name="950"></a>        local ptab = new DoerParserTable();
+<a name="951"></a>        initDoerParsers(ptab);
+<a name="952"></a>
+<a name="953"></a>        /* get the global symbols */
+<a name="954"></a>        local gtab = t3GetGlobalSymbols();
+<a name="955"></a>
+<a name="956"></a>        /* get the predicate noun phrase list */
+<a name="957"></a>        local roles = NounRole.allPredicate;
+<a name="958"></a>
+<a name="959"></a>        /* 
+<a name="960"></a>         *   Add the special "any verb" wildcard verbs.  Add one for each
+<a name="961"></a>         *   subset of the roles list.  (The role subsets are always
+<a name="962"></a>         *   cumulative, because we don't ever have a later role without
+<a name="963"></a>         *   also including all of the earlier roles.  E.g., if a verb
+<a name="964"></a>         *   takes an indirect object, it must take a direct object as
+<a name="965"></a>         *   well.)  
+<a name="966"></a>         */
+<a name="967"></a>        local pat = '&lt;star&gt;';
+<a name="968"></a>        local npat = ' (&lt;alphanum|_|vbar|star&gt;+)';
+<a name="969"></a>        for (local i = 0 ; i &lt;= roles.length() ; ++i, pat += npat)
+<a name="970"></a>        {
+<a name="971"></a>            ptab.addParser(new DoerParser(
+<a name="972"></a>                Action, '*', pat, roles.sublist(1, i)));
+<a name="973"></a>        }
+<a name="974"></a>        
+<a name="975"></a>        /* set up an empty list of command template (DoerCmd) objects */
+<a name="976"></a>        local tlst = new Vector(100);
+<a name="977"></a>
+<a name="978"></a>        /* call the language-specific parser for each Doer's command string */
+<a name="979"></a>        forEachInstance(Doer, new function(d)
+<a name="980"></a>        {
+<a name="981"></a>            /* get the string to parse */
+<a name="982"></a>            local c = d.cmd;
+<a name="983"></a>
+<a name="984"></a>            /* 
+<a name="985"></a>             *   split it into commands - a given Doer might match multiple
+<a name="986"></a>             *   commands 
+<a name="987"></a>             */
+<a name="988"></a>            local clst = c.split(';');
+<a name="989"></a>  
+<a name="990"></a>                        
+<a name="991"></a>            /* process each command */
+<a name="992"></a>            foreach (c in clst)
+<a name="993"></a>            {
+<a name="994"></a>                /* check for direction names in the command */
+<a name="995"></a>                local tokList = c.split(R'&lt;space|vbar&gt;');
+<a name="996"></a>                
+<a name="997"></a>                foreach(local tok in tokList)
+<a name="998"></a>                {
+<a name="999"></a>                    local dir = Direction.nameTab[tok];
+<a name="1000"></a>                    if(dir != nil)
+<a name="1001"></a>                    {                        
+<a name="1002"></a>                        d.direction = valToList(d.direction) + dir;
+<a name="1003"></a>                    }
+<a name="1004"></a>                }
+<a name="1005"></a>                
+<a name="1006"></a>                /* pull out the first word of the command */
+<a name="1007"></a>                rexMatch(R'&lt;space&gt;*(&lt;alphanum|star&gt;+)', c);
+<a name="1008"></a>
+<a name="1009"></a>                /* match it against each template with the same first word */
+<a name="1010"></a>                local found = nil;
+<a name="1011"></a>                foreach (local p in ptab.getParsers(rexGroup(1)[3]))
+<a name="1012"></a>                {
+<a name="1013"></a>                    /* if we match this item's template, this is the one */
+<a name="1014"></a>                    if (rexMatch(p.pat_, c))
+<a name="1015"></a>                    {
+<a name="1016"></a>                        /* 
+<a name="1017"></a>                         *   It matches.  Set up the initial action template
+<a name="1018"></a>                         *   with just the action. 
+<a name="1019"></a>                         */
+<a name="1020"></a>                        local tpl = [p.action_];
+<a name="1021"></a>                        
+<a name="1022"></a>                        /* 
+<a name="1023"></a>                         *   Add each noun slot.  Note that we need to add
+<a name="1024"></a>                         *   the nouns in the canonical order: dobj, iobj,
+<a name="1025"></a>                         *   accessory.  This might differ from the order
+<a name="1026"></a>                         *   of the noun phrases in the verb; for example,
+<a name="1027"></a>                         *   Give To in English can be phrased as "give
+<a name="1028"></a>                         *   dobj to iobj" or as "give iobj dobj" - the
+<a name="1029"></a>                         *   second form uses the reverse of the canonical
+<a name="1030"></a>                         *   order.  We must always use the canonical
+<a name="1031"></a>                         *   ordering for the template, regardless of how
+<a name="1032"></a>                         *   the verb is phrased.  
+<a name="1033"></a>                         */
+<a name="1034"></a>                        foreach (local r in roles)
+<a name="1035"></a>                        {
+<a name="1036"></a>                            /* 
+<a name="1037"></a>                             *   find this role in the template list order
+<a name="1038"></a>                             *   - this tells us which parenthesized group
+<a name="1039"></a>                             *   it matches in the regular expression for
+<a name="1040"></a>                             *   the verb template 
+<a name="1041"></a>                             */
+<a name="1042"></a>                            local idx = p.roles_.indexOf(r);
+<a name="1043"></a>                            
+<a name="1044"></a>                            /* 
+<a name="1045"></a>                             *   If the role isn't in the verb, we're done.
+<a name="1046"></a>                             *   A verb with an indirect object always has
+<a name="1047"></a>                             *   a direct object, and a verb with an
+<a name="1048"></a>                             *   accessory always has direct and indirect
+<a name="1049"></a>                             *   objects, so if this role isn't in the
+<a name="1050"></a>                             *   verb's list, we know there are no more
+<a name="1051"></a>                             *   roles to find.  
+<a name="1052"></a>                             */
+<a name="1053"></a>                            if (idx == nil)
+<a name="1054"></a>                                break;
+<a name="1055"></a>                            
+<a name="1056"></a>                            /* get the regular expression match */
+<a name="1057"></a>                            local n = rexGroup(idx)[3];
+<a name="1058"></a>
+<a name="1059"></a>                            /* add it to the template list */
+<a name="1060"></a>                            tpl += n;
+<a name="1061"></a>                        }
+<a name="1062"></a>
+<a name="1063"></a>                        /* expand "noun|noun" constructions */
+<a name="1064"></a>                        expandNounLists(gtab, d, tlst, tpl, 2);
+<a name="1065"></a>
+<a name="1066"></a>                        /* we found a match, so we can stop looking */
+<a name="1067"></a>                        found = true;
+<a name="1068"></a>                        break;
+<a name="1069"></a>                    }
+<a name="1070"></a>                }
+<a name="1071"></a>
+<a name="1072"></a>                /* if we didn't a match, note the error */
+<a name="1073"></a>                if (!found &amp;&amp; d.ignoreError == nil)
+<a name="1074"></a>                {
+<a name="1075"></a>                    "Error in Doer command phrase \"&lt;&lt;d.cmd&gt;&gt;\": this
+<a name="1076"></a>                    command syntax doesn't match any known verb grammar.";
+<a name="1077"></a>                }
+<a name="1078"></a>            }
+<a name="1079"></a>        });
+<a name="1080"></a>
+<a name="1081"></a>        /* sort the DoerCmd list by descending precedence */
+<a name="1082"></a>        tlst.sort(SortDesc, { a, b: a.compareTo(b) });
+<a name="1083"></a>
+<a name="1084"></a>        /* build the master table of DoerCmd objects */
+<a name="1085"></a>        local dtab = DoerCmd.doerTab = new LookupTable(64, 128);
+<a name="1086"></a>        local seqno = 1;
+<a name="1087"></a>        foreach (local d in tlst)
+<a name="1088"></a>        {
+<a name="1089"></a>            /* 
+<a name="1090"></a>             *   Set this item's global sequence number.  This lets us
+<a name="1091"></a>             *   quickly sort into the original priority order when we
+<a name="1092"></a>             *   combine two lists. 
+<a name="1093"></a>             */
+<a name="1094"></a>            d.seqno = seqno++;
+<a name="1095"></a>
+<a name="1096"></a>            /* get this item's Action - it's the first template item */
+<a name="1097"></a>            local action = d.cmd[1];
+<a name="1098"></a>
+<a name="1099"></a>            /* make sure this entry has a list */
+<a name="1100"></a>            if (dtab[action] == nil)
+<a name="1101"></a>                dtab[action] = [];
+<a name="1102"></a>
+<a name="1103"></a>            /* add this item to this action entry's list */
+<a name="1104"></a>            dtab[action] += d;
+<a name="1105"></a>        }
+<a name="1106"></a>    }
+<a name="1107"></a>
+<a name="1108"></a>    /*
+<a name="1109"></a>     *   Expand an initial template list.  This takes a list of the form
+<a name="1110"></a>     *   [action, 'a|b|c', 'd|e|f'], and converts it into multiple lists
+<a name="1111"></a>     *   with an individual noun in each slot.  
+<a name="1112"></a>     */
+<a name="1113"></a>    expandNounLists(gtab, d, tlst, tpl, idx)
+<a name="1114"></a>    {
+<a name="1115"></a>        /* 
+<a name="1116"></a>         *   if we've run out of slots, we have a fully expanded template,
+<a name="1117"></a>         *   so simply add the current template to the results and return 
+<a name="1118"></a>         */
+<a name="1119"></a>        if (idx &gt; tpl.length())
+<a name="1120"></a>        {
+<a name="1121"></a>            tlst.append(new DoerCmd(d, tpl));
+<a name="1122"></a>            return;
+<a name="1123"></a>        }
+<a name="1124"></a>
+<a name="1125"></a>        /* process the list of elements for the current item */
+<a name="1126"></a>        foreach (local item in tpl[idx].split('|'))
+<a name="1127"></a>        {
+<a name="1128"></a>            /* look up the object name in the symbol table */
+<a name="1129"></a>            local obj = gtab[item];
+<a name="1130"></a>
+<a name="1131"></a>            /* if we didn't find it, note the error */
+<a name="1132"></a>            if (obj == nil &amp;&amp; item != '*')
+<a name="1133"></a>            {
+<a name="1134"></a>                /* explain the problem */
+<a name="1135"></a>                if(!d.ignoreError)
+<a name="1136"></a>                    "Error in Doer command phrase \"&lt;&lt;d.cmd&gt;&gt;\": the word \"&lt;&lt;
+<a name="1137"></a>                      item&gt;&gt;\" is not a known object or class name.
+<a name="1138"></a>                    Each noun must be the source code name of an object
+<a name="1139"></a>                    or class.\n";
+<a name="1140"></a>
+<a name="1141"></a>                /* abort processing this template */
+<a name="1142"></a>                return;
+<a name="1143"></a>            }
+<a name="1144"></a>
+<a name="1145"></a>            /* build the simplified list with the current single item */
+<a name="1146"></a>            local stpl = tpl;
+<a name="1147"></a>            stpl[idx] = obj;
+<a name="1148"></a>
+<a name="1149"></a>            /* recursively process the rest of the list */
+<a name="1150"></a>            expandNounLists(gtab, d, tlst, stpl, idx + 1);
+<a name="1151"></a>        }
+<a name="1152"></a>    }
 <a name="1153"></a>    
-<a name="1154"></a>;
-<a name="1155"></a>
-<a name="1156"></a>/* 
-<a name="1157"></a> *   Define four DefaultDoers that between them will match any command unless a
-<a name="1158"></a> *   more specialized Doer intervenes. This allows most commands to be executed
-<a name="1159"></a> *   by the appropriate action.
-<a name="1160"></a> */
-<a name="1161"></a>
-<a name="1162"></a>default4Doer: Doer
-<a name="1163"></a>    cmd = '* * * *'
-<a name="1164"></a>;
-<a name="1165"></a>
-<a name="1166"></a>default3Doer: Doer
-<a name="1167"></a>    cmd = '* * *'
-<a name="1168"></a>;
-<a name="1169"></a>
-<a name="1170"></a>default2Doer: Doer
-<a name="1171"></a>    cmd = '* *'
-<a name="1172"></a>;
-<a name="1173"></a>
-<a name="1174"></a>default1Doer: Doer
-<a name="1175"></a>    cmd = '*'
-<a name="1176"></a>;
+<a name="1154"></a>    
+<a name="1155"></a>;
+<a name="1156"></a>
+<a name="1157"></a>/* 
+<a name="1158"></a> *   Define four DefaultDoers that between them will match any command unless a
+<a name="1159"></a> *   more specialized Doer intervenes. This allows most commands to be executed
+<a name="1160"></a> *   by the appropriate action.
+<a name="1161"></a> */
+<a name="1162"></a>
+<a name="1163"></a>default4Doer: Doer
+<a name="1164"></a>    cmd = '* * * *'
+<a name="1165"></a>;
+<a name="1166"></a>
+<a name="1167"></a>default3Doer: Doer
+<a name="1168"></a>    cmd = '* * *'
+<a name="1169"></a>;
+<a name="1170"></a>
+<a name="1171"></a>default2Doer: Doer
+<a name="1172"></a>    cmd = '* *'
+<a name="1173"></a>;
+<a name="1174"></a>
+<a name="1175"></a>default1Doer: Doer
+<a name="1176"></a>    cmd = '*'
+<a name="1177"></a>;
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/01/2025 from adv3Lite version 2.1.1.11</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/01/2025 from adv3Lite version 2.1.1.14</div>
 </body>
 </html>

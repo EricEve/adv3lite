@@ -1908,969 +1908,974 @@
 <a name="1906"></a>    }
 <a name="1907"></a> ;
 <a name="1908"></a>
-<a name="1909"></a>
-<a name="1910"></a>
-<a name="1911"></a>
-<a name="1912"></a>
-<a name="1913"></a>/*
-<a name="1914"></a> *   A SingletonIterator is an implementation of the Iterator interface for
-<a name="1915"></a> *   singleton values.  This allows 'foreach' to be used with arbitrary
-<a name="1916"></a> *   objects, or even primitive values.  The effect of iterating over a
-<a name="1917"></a> *   singleton value with 'foreach' using this iterator is simply to invoke
-<a name="1918"></a> *   the loop once with the loop variable set to the singleton value.  
-<a name="1919"></a> */
-<a name="1920"></a>class SingletonIterator: object
-<a name="1921"></a>    /* construction: save the singleton value that we're "iterating" over */
-<a name="1922"></a>    construct(val) { val_ = val; }
-<a name="1923"></a>
-<a name="1924"></a>    /* get the next value */
-<a name="1925"></a>    getNext()
-<a name="1926"></a>    {
-<a name="1927"></a>        /* note that we've consumed the value */
-<a name="1928"></a>        more_ = nil;
-<a name="1929"></a>
-<a name="1930"></a>        /* return the value */
-<a name="1931"></a>        return val_;
-<a name="1932"></a>    }
-<a name="1933"></a>
-<a name="1934"></a>    /* is another item available? */
-<a name="1935"></a>    isNextAvailable() { return more_; }
-<a name="1936"></a>
-<a name="1937"></a>    /* reset: restore the flag that says the value is available */
-<a name="1938"></a>    resetIterator() { more_ = true; }
-<a name="1939"></a>
-<a name="1940"></a>    /* get the current key; we have no keys, so use a fake key of nil */
-<a name="1941"></a>    getKey() { return nil; }
-<a name="1942"></a>
-<a name="1943"></a>    /* get the current value */
-<a name="1944"></a>    getCurVal() { return val_; }
-<a name="1945"></a>    
-<a name="1946"></a>    /* the singleton value we're "iterating" over */
-<a name="1947"></a>    val_ = nil
-<a name="1948"></a>    
-<a name="1949"></a>    /* do we have any more values to fetch? */
-<a name="1950"></a>    more_ = true
-<a name="1951"></a>;
-<a name="1952"></a>
-<a name="1953"></a>/*
-<a name="1954"></a> *   Add some convenience methods to String. 
-<a name="1955"></a> */
-<a name="1956"></a>modify String
-<a name="1957"></a>    /*
-<a name="1958"></a>     *   Trim spaces.  Removes leading and trailing spaces from the string.
-<a name="1959"></a>     */
-<a name="1960"></a>    trim()
-<a name="1961"></a>    {
-<a name="1962"></a>        return findReplace(trimPat, '');
-<a name="1963"></a>    }
-<a name="1964"></a>
-<a name="1965"></a>    /* regular expression for trimming leading and trailing spaces */
-<a name="1966"></a>    trimPat = R'^&lt;space&gt;+|&lt;space&gt;+$'
-<a name="1967"></a>
-<a name="1968"></a>    /* get the first character */
-<a name="1969"></a>    firstChar() { return substr(1, 1); }
-<a name="1970"></a>
-<a name="1971"></a>    /* get the last character */
-<a name="1972"></a>    lastChar() { return substr(length()); }
-<a name="1973"></a>
-<a name="1974"></a>    /* remove the first character */
-<a name="1975"></a>    delFirst() { return substr(2); }
-<a name="1976"></a>
-<a name="1977"></a>    /* remove the last character */
-<a name="1978"></a>    delLast() { return substr(1, length() - 1); }
-<a name="1979"></a>
-<a name="1980"></a>    /* leftmost n characters; if n is negative, leftmost (length-n) */
-<a name="1981"></a>    left(n) { return n &gt;= 0 ? substr(1, n) : substr(1, length() + n); }
-<a name="1982"></a>
-<a name="1983"></a>    /* rightmost n characters; if n is negative, rightmost (length-n) */
-<a name="1984"></a>    right(n) { return n &gt;= 0 ? substr(-n) : substr(n + length()); }    
-<a name="1985"></a>    ;
-<a name="1986"></a>
-<a name="1987"></a>/* A string is empty if it's nil or if when trimmed it's '' */
-<a name="1988"></a>isEmptyStr(str) {  return (str == nil || str.trim() == ''); }
-<a name="1989"></a>
-<a name="1990"></a>
-<a name="1991"></a>/*
-<a name="1992"></a> *   Add a couple of handy utility functions to Vector 
-<a name="1993"></a> */
-<a name="1994"></a>modify Vector
-<a name="1995"></a>    /* is the vector empty? */
-<a name="1996"></a>    isEmpty() { return length() == 0; }
-<a name="1997"></a>
-<a name="1998"></a>    /* clear the vector */
-<a name="1999"></a>    clear() 
-<a name="2000"></a>    {
-<a name="2001"></a>        if (length() &gt; 0)
-<a name="2002"></a>            removeRange(1, length()); 
-<a name="2003"></a>    }
-<a name="2004"></a>
-<a name="2005"></a>    /* get the "top" item, treating the vector as a stack */
-<a name="2006"></a>    getTop() { return self[length()]; }
-<a name="2007"></a>
-<a name="2008"></a>    /* push a value (append it to the end of the vector) */
-<a name="2009"></a>    push(val) { append(val); }
-<a name="2010"></a>
-<a name="2011"></a>    /* pop a value (remove and return the value at the end of the vector) */
-<a name="2012"></a>    pop()
-<a name="2013"></a>    {
-<a name="2014"></a>        local l = length();
-<a name="2015"></a>        if (l &gt; 0)
-<a name="2016"></a>        {
-<a name="2017"></a>            /* get the last value */
-<a name="2018"></a>            local ret = self[l];
-<a name="2019"></a>
-<a name="2020"></a>            /* remove the element */
-<a name="2021"></a>            removeElementAt(l);
-<a name="2022"></a>
-<a name="2023"></a>            /* return it */
-<a name="2024"></a>            return ret;
-<a name="2025"></a>        }
-<a name="2026"></a>        else
-<a name="2027"></a>        {
-<a name="2028"></a>            /* intentionally cause an out-of-bounds error */
-<a name="2029"></a>            return self[1];
+<a name="1909"></a>/* 
+<a name="1910"></a> *   The BaseObject class exists purely to allow code to delegate to/inherit method defined on the
+<a name="1911"></a> *   Object and TadsObject classes, which the compiler won't otherwise allow.
+<a name="1912"></a> */
+<a name="1913"></a>class BaseObject: object
+<a name="1914"></a>;
+<a name="1915"></a>
+<a name="1916"></a>
+<a name="1917"></a>
+<a name="1918"></a>/*
+<a name="1919"></a> *   A SingletonIterator is an implementation of the Iterator interface for
+<a name="1920"></a> *   singleton values.  This allows 'foreach' to be used with arbitrary
+<a name="1921"></a> *   objects, or even primitive values.  The effect of iterating over a
+<a name="1922"></a> *   singleton value with 'foreach' using this iterator is simply to invoke
+<a name="1923"></a> *   the loop once with the loop variable set to the singleton value.  
+<a name="1924"></a> */
+<a name="1925"></a>class SingletonIterator: object
+<a name="1926"></a>    /* construction: save the singleton value that we're "iterating" over */
+<a name="1927"></a>    construct(val) { val_ = val; }
+<a name="1928"></a>
+<a name="1929"></a>    /* get the next value */
+<a name="1930"></a>    getNext()
+<a name="1931"></a>    {
+<a name="1932"></a>        /* note that we've consumed the value */
+<a name="1933"></a>        more_ = nil;
+<a name="1934"></a>
+<a name="1935"></a>        /* return the value */
+<a name="1936"></a>        return val_;
+<a name="1937"></a>    }
+<a name="1938"></a>
+<a name="1939"></a>    /* is another item available? */
+<a name="1940"></a>    isNextAvailable() { return more_; }
+<a name="1941"></a>
+<a name="1942"></a>    /* reset: restore the flag that says the value is available */
+<a name="1943"></a>    resetIterator() { more_ = true; }
+<a name="1944"></a>
+<a name="1945"></a>    /* get the current key; we have no keys, so use a fake key of nil */
+<a name="1946"></a>    getKey() { return nil; }
+<a name="1947"></a>
+<a name="1948"></a>    /* get the current value */
+<a name="1949"></a>    getCurVal() { return val_; }
+<a name="1950"></a>    
+<a name="1951"></a>    /* the singleton value we're "iterating" over */
+<a name="1952"></a>    val_ = nil
+<a name="1953"></a>    
+<a name="1954"></a>    /* do we have any more values to fetch? */
+<a name="1955"></a>    more_ = true
+<a name="1956"></a>;
+<a name="1957"></a>
+<a name="1958"></a>/*
+<a name="1959"></a> *   Add some convenience methods to String. 
+<a name="1960"></a> */
+<a name="1961"></a>modify String
+<a name="1962"></a>    /*
+<a name="1963"></a>     *   Trim spaces.  Removes leading and trailing spaces from the string.
+<a name="1964"></a>     */
+<a name="1965"></a>    trim()
+<a name="1966"></a>    {
+<a name="1967"></a>        return findReplace(trimPat, '');
+<a name="1968"></a>    }
+<a name="1969"></a>
+<a name="1970"></a>    /* regular expression for trimming leading and trailing spaces */
+<a name="1971"></a>    trimPat = R'^&lt;space&gt;+|&lt;space&gt;+$'
+<a name="1972"></a>
+<a name="1973"></a>    /* get the first character */
+<a name="1974"></a>    firstChar() { return substr(1, 1); }
+<a name="1975"></a>
+<a name="1976"></a>    /* get the last character */
+<a name="1977"></a>    lastChar() { return substr(length()); }
+<a name="1978"></a>
+<a name="1979"></a>    /* remove the first character */
+<a name="1980"></a>    delFirst() { return substr(2); }
+<a name="1981"></a>
+<a name="1982"></a>    /* remove the last character */
+<a name="1983"></a>    delLast() { return substr(1, length() - 1); }
+<a name="1984"></a>
+<a name="1985"></a>    /* leftmost n characters; if n is negative, leftmost (length-n) */
+<a name="1986"></a>    left(n) { return n &gt;= 0 ? substr(1, n) : substr(1, length() + n); }
+<a name="1987"></a>
+<a name="1988"></a>    /* rightmost n characters; if n is negative, rightmost (length-n) */
+<a name="1989"></a>    right(n) { return n &gt;= 0 ? substr(-n) : substr(n + length()); }    
+<a name="1990"></a>    ;
+<a name="1991"></a>
+<a name="1992"></a>/* A string is empty if it's nil or if when trimmed it's '' */
+<a name="1993"></a>isEmptyStr(str) {  return (str == nil || str.trim() == ''); }
+<a name="1994"></a>
+<a name="1995"></a>
+<a name="1996"></a>/*
+<a name="1997"></a> *   Add a couple of handy utility functions to Vector 
+<a name="1998"></a> */
+<a name="1999"></a>modify Vector
+<a name="2000"></a>    /* is the vector empty? */
+<a name="2001"></a>    isEmpty() { return length() == 0; }
+<a name="2002"></a>
+<a name="2003"></a>    /* clear the vector */
+<a name="2004"></a>    clear() 
+<a name="2005"></a>    {
+<a name="2006"></a>        if (length() &gt; 0)
+<a name="2007"></a>            removeRange(1, length()); 
+<a name="2008"></a>    }
+<a name="2009"></a>
+<a name="2010"></a>    /* get the "top" item, treating the vector as a stack */
+<a name="2011"></a>    getTop() { return self[length()]; }
+<a name="2012"></a>
+<a name="2013"></a>    /* push a value (append it to the end of the vector) */
+<a name="2014"></a>    push(val) { append(val); }
+<a name="2015"></a>
+<a name="2016"></a>    /* pop a value (remove and return the value at the end of the vector) */
+<a name="2017"></a>    pop()
+<a name="2018"></a>    {
+<a name="2019"></a>        local l = length();
+<a name="2020"></a>        if (l &gt; 0)
+<a name="2021"></a>        {
+<a name="2022"></a>            /* get the last value */
+<a name="2023"></a>            local ret = self[l];
+<a name="2024"></a>
+<a name="2025"></a>            /* remove the element */
+<a name="2026"></a>            removeElementAt(l);
+<a name="2027"></a>
+<a name="2028"></a>            /* return it */
+<a name="2029"></a>            return ret;
 <a name="2030"></a>        }
-<a name="2031"></a>    }
-<a name="2032"></a>
-<a name="2033"></a>    /* unshift a value (insert it at the start of the Vector) */
-<a name="2034"></a>    unshift(val) { prepend(val); }
-<a name="2035"></a>
-<a name="2036"></a>    /* shift a value (remove and return the first value) */
-<a name="2037"></a>    shift()
-<a name="2038"></a>    {
-<a name="2039"></a>        local l = length();
-<a name="2040"></a>        if (l &gt; 0)
-<a name="2041"></a>        {
-<a name="2042"></a>            /* get the first value */
-<a name="2043"></a>            local ret = self[1];
-<a name="2044"></a>
-<a name="2045"></a>            /* remove the element */
-<a name="2046"></a>            removeElementAt(1);
-<a name="2047"></a>
-<a name="2048"></a>            /* return it */
-<a name="2049"></a>            return ret;
-<a name="2050"></a>        }
-<a name="2051"></a>        else
-<a name="2052"></a>        {
-<a name="2053"></a>            /* intentionally cause an out-of-bounds error */
-<a name="2054"></a>            return self[1];
+<a name="2031"></a>        else
+<a name="2032"></a>        {
+<a name="2033"></a>            /* intentionally cause an out-of-bounds error */
+<a name="2034"></a>            return self[1];
+<a name="2035"></a>        }
+<a name="2036"></a>    }
+<a name="2037"></a>
+<a name="2038"></a>    /* unshift a value (insert it at the start of the Vector) */
+<a name="2039"></a>    unshift(val) { prepend(val); }
+<a name="2040"></a>
+<a name="2041"></a>    /* shift a value (remove and return the first value) */
+<a name="2042"></a>    shift()
+<a name="2043"></a>    {
+<a name="2044"></a>        local l = length();
+<a name="2045"></a>        if (l &gt; 0)
+<a name="2046"></a>        {
+<a name="2047"></a>            /* get the first value */
+<a name="2048"></a>            local ret = self[1];
+<a name="2049"></a>
+<a name="2050"></a>            /* remove the element */
+<a name="2051"></a>            removeElementAt(1);
+<a name="2052"></a>
+<a name="2053"></a>            /* return it */
+<a name="2054"></a>            return ret;
 <a name="2055"></a>        }
-<a name="2056"></a>    }
-<a name="2057"></a>
-<a name="2058"></a>    /*
-<a name="2059"></a>     *   Perform a "group sort" on the vector.  This sorts the items into
-<a name="2060"></a>     *   groups, then sorts by an ordering value within each group.
-<a name="2061"></a>     *   
-<a name="2062"></a>     *   The groups are determined by group keys, which are arbitrary
-<a name="2063"></a>     *   values.  Each group is simply the set of objects with a like value
-<a name="2064"></a>     *   for the key.  Within the group, we sort by an integer ordering
-<a name="2065"></a>     *   key.
+<a name="2056"></a>        else
+<a name="2057"></a>        {
+<a name="2058"></a>            /* intentionally cause an out-of-bounds error */
+<a name="2059"></a>            return self[1];
+<a name="2060"></a>        }
+<a name="2061"></a>    }
+<a name="2062"></a>
+<a name="2063"></a>    /*
+<a name="2064"></a>     *   Perform a "group sort" on the vector.  This sorts the items into
+<a name="2065"></a>     *   groups, then sorts by an ordering value within each group.
 <a name="2066"></a>     *   
-<a name="2067"></a>     *   'func' is a function that takes two parameters: func(entry, idx),
-<a name="2068"></a>     *   where 'entry' is a list element and 'idx' is an index in the list.
-<a name="2069"></a>     *   This returns a list, [group, order], giving the group key and
-<a name="2070"></a>     *   ordering key for the entry.  
-<a name="2071"></a>     */
-<a name="2072"></a>    groupSort(func)
-<a name="2073"></a>    {
-<a name="2074"></a>        /* note our length */
-<a name="2075"></a>        local len = length();
-<a name="2076"></a>
-<a name="2077"></a>        /* 
-<a name="2078"></a>         *   set up a lookup table for the group keys - we want to assign
-<a name="2079"></a>         *   each one an arbitrary integer value so that we can sort by it 
-<a name="2080"></a>         */
-<a name="2081"></a>        local groups = new LookupTable(16, 32);
-<a name="2082"></a>        local gnxt = 1;
-<a name="2083"></a>        
-<a name="2084"></a>        /* decorate each entry with its group index and ordering key */
-<a name="2085"></a>        for (local i = 1 ; i &lt;= len ; ++i)
-<a name="2086"></a>        {
-<a name="2087"></a>            /* get this element */
-<a name="2088"></a>            local ele = self[i];
-<a name="2089"></a>
-<a name="2090"></a>            /* get the group info via the callback */
-<a name="2091"></a>            local info = func(ele, i);
-<a name="2092"></a>
-<a name="2093"></a>            /* look up or assign this group key's number */
-<a name="2094"></a>            local gnum = groups[info[1]];
-<a name="2095"></a>            if (gnum == nil)
-<a name="2096"></a>                groups[info[1]] = gnum = gnxt++;
+<a name="2067"></a>     *   The groups are determined by group keys, which are arbitrary
+<a name="2068"></a>     *   values.  Each group is simply the set of objects with a like value
+<a name="2069"></a>     *   for the key.  Within the group, we sort by an integer ordering
+<a name="2070"></a>     *   key.
+<a name="2071"></a>     *   
+<a name="2072"></a>     *   'func' is a function that takes two parameters: func(entry, idx),
+<a name="2073"></a>     *   where 'entry' is a list element and 'idx' is an index in the list.
+<a name="2074"></a>     *   This returns a list, [group, order], giving the group key and
+<a name="2075"></a>     *   ordering key for the entry.  
+<a name="2076"></a>     */
+<a name="2077"></a>    groupSort(func)
+<a name="2078"></a>    {
+<a name="2079"></a>        /* note our length */
+<a name="2080"></a>        local len = length();
+<a name="2081"></a>
+<a name="2082"></a>        /* 
+<a name="2083"></a>         *   set up a lookup table for the group keys - we want to assign
+<a name="2084"></a>         *   each one an arbitrary integer value so that we can sort by it 
+<a name="2085"></a>         */
+<a name="2086"></a>        local groups = new LookupTable(16, 32);
+<a name="2087"></a>        local gnxt = 1;
+<a name="2088"></a>        
+<a name="2089"></a>        /* decorate each entry with its group index and ordering key */
+<a name="2090"></a>        for (local i = 1 ; i &lt;= len ; ++i)
+<a name="2091"></a>        {
+<a name="2092"></a>            /* get this element */
+<a name="2093"></a>            local ele = self[i];
+<a name="2094"></a>
+<a name="2095"></a>            /* get the group info via the callback */
+<a name="2096"></a>            local info = func(ele, i);
 <a name="2097"></a>
-<a name="2098"></a>            /* store the group number and sorting order in the list */
-<a name="2099"></a>            self[i] = [gnum, info[2], ele];
-<a name="2100"></a>        }
-<a name="2101"></a>
-<a name="2102"></a>        /* do the sort */
-<a name="2103"></a>        sort(SortAsc, new function(a, b) {
-<a name="2104"></a>            /* 
-<a name="2105"></a>             *   if the groups are the same, sort by the order within the
-<a name="2106"></a>             *   group; otherwise sort by the group number 
-<a name="2107"></a>             */
-<a name="2108"></a>            if (a[1] == b[1])
-<a name="2109"></a>                return a[2] - b[2];
-<a name="2110"></a>            else
-<a name="2111"></a>                return a[1] - b[1];
-<a name="2112"></a>        });
-<a name="2113"></a>
-<a name="2114"></a>        /* remove the extra information from the list */
-<a name="2115"></a>        for (local i = 1 ; i &lt;= len ; ++i)
-<a name="2116"></a>            self[i] = self[i][3];
-<a name="2117"></a>    }
+<a name="2098"></a>            /* look up or assign this group key's number */
+<a name="2099"></a>            local gnum = groups[info[1]];
+<a name="2100"></a>            if (gnum == nil)
+<a name="2101"></a>                groups[info[1]] = gnum = gnxt++;
+<a name="2102"></a>
+<a name="2103"></a>            /* store the group number and sorting order in the list */
+<a name="2104"></a>            self[i] = [gnum, info[2], ele];
+<a name="2105"></a>        }
+<a name="2106"></a>
+<a name="2107"></a>        /* do the sort */
+<a name="2108"></a>        sort(SortAsc, new function(a, b) {
+<a name="2109"></a>            /* 
+<a name="2110"></a>             *   if the groups are the same, sort by the order within the
+<a name="2111"></a>             *   group; otherwise sort by the group number 
+<a name="2112"></a>             */
+<a name="2113"></a>            if (a[1] == b[1])
+<a name="2114"></a>                return a[2] - b[2];
+<a name="2115"></a>            else
+<a name="2116"></a>                return a[1] - b[1];
+<a name="2117"></a>        });
 <a name="2118"></a>
-<a name="2119"></a>    /* find a list element - synonym for indexOf */
-<a name="2120"></a>    find(ele) { return indexOf(ele); }
-<a name="2121"></a>
-<a name="2122"></a>    /* shuffle the elements of the vector into a random order */
-<a name="2123"></a>    shuffle()
-<a name="2124"></a>    {
-<a name="2125"></a>        /*
-<a name="2126"></a>         *   The basic algorithm for shuffling is that we put all of the
-<a name="2127"></a>         *   elements into a bag, and one by one we withdraw an element at
-<a name="2128"></a>         *   random and add it to the result list.  To withdraw a random
-<a name="2129"></a>         *   element, we simply pick a random number from 1 to the number
-<a name="2130"></a>         *   of items left in the bag.
-<a name="2131"></a>         *   
-<a name="2132"></a>         *   With a vector, we can do this without allocating any more
-<a name="2133"></a>         *   memory.  We partition the vector into two parts: the "result"
-<a name="2134"></a>         *   part and the "bag" part.  Initially, the whole vector is the
-<a name="2135"></a>         *   bag, and the result part is empty.  We next pick a random
-<a name="2136"></a>         *   element from the bag, and swap it with element #N.  This
-<a name="2137"></a>         *   effectively deletes the chosen element from the bag and fills
-<a name="2138"></a>         *   in the hole with the bag element that was formerly at slot #N.
-<a name="2139"></a>         *   (If we chose the element at slot #N, that's fine - it just
-<a name="2140"></a>         *   stays put.)  Slot #N is now part of the result set, and the
-<a name="2141"></a>         *   bag is now slots #1 to #N-1.  We next pick a random element
-<a name="2142"></a>         *   from the bag - 1..N-1 - and swap it with slot #N-1.  Now slot
-<a name="2143"></a>         *   #N-1 is in the result set, and the bag is from #1 to #N-2.
-<a name="2144"></a>         *   Repeat until we've chosen slot 2.  (We don't have to
-<a name="2145"></a>         *   explicitly pick anything for slot 1, since at that point we're
-<a name="2146"></a>         *   down to a single element in the bag, and it's already at the
-<a name="2147"></a>         *   proper position to just redefine it as a result.)  
-<a name="2148"></a>         */
-<a name="2149"></a>        for (local len = length(), local n = len ; n &gt; 1 ; --n)
-<a name="2150"></a>        {
-<a name="2151"></a>            /* the bag is slots 1..n - pick a random element in that range */
-<a name="2152"></a>            local r = rand(n) + 1;
-<a name="2153"></a>
-<a name="2154"></a>            /* swap the random element with element #n */
-<a name="2155"></a>            local val = self[r];
-<a name="2156"></a>            self[r] = self[n];
-<a name="2157"></a>            self[n] = val;
-<a name="2158"></a>        }
-<a name="2159"></a>
-<a name="2160"></a>        /* in case the caller wants the shuffled object, return self */
-<a name="2161"></a>        return self;
-<a name="2162"></a>    }
-<a name="2163"></a>;
+<a name="2119"></a>        /* remove the extra information from the list */
+<a name="2120"></a>        for (local i = 1 ; i &lt;= len ; ++i)
+<a name="2121"></a>            self[i] = self[i][3];
+<a name="2122"></a>    }
+<a name="2123"></a>
+<a name="2124"></a>    /* find a list element - synonym for indexOf */
+<a name="2125"></a>    find(ele) { return indexOf(ele); }
+<a name="2126"></a>
+<a name="2127"></a>    /* shuffle the elements of the vector into a random order */
+<a name="2128"></a>    shuffle()
+<a name="2129"></a>    {
+<a name="2130"></a>        /*
+<a name="2131"></a>         *   The basic algorithm for shuffling is that we put all of the
+<a name="2132"></a>         *   elements into a bag, and one by one we withdraw an element at
+<a name="2133"></a>         *   random and add it to the result list.  To withdraw a random
+<a name="2134"></a>         *   element, we simply pick a random number from 1 to the number
+<a name="2135"></a>         *   of items left in the bag.
+<a name="2136"></a>         *   
+<a name="2137"></a>         *   With a vector, we can do this without allocating any more
+<a name="2138"></a>         *   memory.  We partition the vector into two parts: the "result"
+<a name="2139"></a>         *   part and the "bag" part.  Initially, the whole vector is the
+<a name="2140"></a>         *   bag, and the result part is empty.  We next pick a random
+<a name="2141"></a>         *   element from the bag, and swap it with element #N.  This
+<a name="2142"></a>         *   effectively deletes the chosen element from the bag and fills
+<a name="2143"></a>         *   in the hole with the bag element that was formerly at slot #N.
+<a name="2144"></a>         *   (If we chose the element at slot #N, that's fine - it just
+<a name="2145"></a>         *   stays put.)  Slot #N is now part of the result set, and the
+<a name="2146"></a>         *   bag is now slots #1 to #N-1.  We next pick a random element
+<a name="2147"></a>         *   from the bag - 1..N-1 - and swap it with slot #N-1.  Now slot
+<a name="2148"></a>         *   #N-1 is in the result set, and the bag is from #1 to #N-2.
+<a name="2149"></a>         *   Repeat until we've chosen slot 2.  (We don't have to
+<a name="2150"></a>         *   explicitly pick anything for slot 1, since at that point we're
+<a name="2151"></a>         *   down to a single element in the bag, and it's already at the
+<a name="2152"></a>         *   proper position to just redefine it as a result.)  
+<a name="2153"></a>         */
+<a name="2154"></a>        for (local len = length(), local n = len ; n &gt; 1 ; --n)
+<a name="2155"></a>        {
+<a name="2156"></a>            /* the bag is slots 1..n - pick a random element in that range */
+<a name="2157"></a>            local r = rand(n) + 1;
+<a name="2158"></a>
+<a name="2159"></a>            /* swap the random element with element #n */
+<a name="2160"></a>            local val = self[r];
+<a name="2161"></a>            self[r] = self[n];
+<a name="2162"></a>            self[n] = val;
+<a name="2163"></a>        }
 <a name="2164"></a>
-<a name="2165"></a>
-<a name="2166"></a>/* ------------------------------------------------------------------------ */
-<a name="2167"></a>/*
-<a name="2168"></a> *   Add some utility methods to List. 
-<a name="2169"></a> */
-<a name="2170"></a>modify List
-<a name="2171"></a>    /*
-<a name="2172"></a>     *   Check the list against a prototype (a list of data types).  This
-<a name="2173"></a>     *   is useful for checking a varargs list to see if it matches a given
-<a name="2174"></a>     *   prototype.  Each prototype element can be a TypeXxx type code, to
-<a name="2175"></a>     *   match a value of the given native type; an object class, to match
-<a name="2176"></a>     *   an instance of that class; 'any', to match a value of any type; or
-<a name="2177"></a>     *   the special value '...', to match zero or more additional
-<a name="2178"></a>     *   arguments.  If '...' is present, it must be the last prototype
-<a name="2179"></a>     *   element.  
-<a name="2180"></a>     */
-<a name="2181"></a>    matchProto(proto)
-<a name="2182"></a>    {
-<a name="2183"></a>        /* compare each value against the prototype */
-<a name="2184"></a>        local plen = proto.length(), vlen = length();
-<a name="2185"></a>        for (local i = 1 ; i &lt;= plen ; ++i)
-<a name="2186"></a>        {
-<a name="2187"></a>            /* get this prototype element (i.e., a type code) */
-<a name="2188"></a>            local t = proto[i];
-<a name="2189"></a>
-<a name="2190"></a>            /* if this is a varargs indicator, we have a match */
-<a name="2191"></a>            if (t == '...')
-<a name="2192"></a>                return true;
-<a name="2193"></a>
-<a name="2194"></a>            /* if we're past the end of the values, it's no match */
-<a name="2195"></a>            if (i &gt; vlen)
-<a name="2196"></a>                return nil;
-<a name="2197"></a>
-<a name="2198"></a>            /* get the value */
-<a name="2199"></a>            local v = self[i];
-<a name="2200"></a>
-<a name="2201"></a>            /* check the type */
-<a name="2202"></a>            if (t == 'any')
-<a name="2203"></a>            {
-<a name="2204"></a>                /* 'any' matches any value, so this one is a match */
-<a name="2205"></a>            }
-<a name="2206"></a>            else if (dataType(t) == TypeInt)
-<a name="2207"></a>            {
-<a name="2208"></a>                /* check that we match the given native type */
-<a name="2209"></a>                if (dataTypeXlat(v) != t)
-<a name="2210"></a>                    return nil;
-<a name="2211"></a>            }
-<a name="2212"></a>            else
-<a name="2213"></a>            {
-<a name="2214"></a>                /* otherwise, we have to match the object class */
-<a name="2215"></a>                if (dataType(v) not in (TypeObject, TypeList, TypeSString)
-<a name="2216"></a>                    || !v.ofKind(t))
-<a name="2217"></a>                    return nil;
-<a name="2218"></a>            }
-<a name="2219"></a>        }
-<a name="2220"></a>
-<a name="2221"></a>        /* 
-<a name="2222"></a>         *   We reached the end of the prototype without finding a
-<a name="2223"></a>         *   mismatch.  The only remaining check is that we don't have any
-<a name="2224"></a>         *   extra arguments in the value list.  As long as the lengths
-<a name="2225"></a>         *   match, we have a match. 
-<a name="2226"></a>         */
-<a name="2227"></a>        return plen == vlen;
-<a name="2228"></a>    }
-<a name="2229"></a>
-<a name="2230"></a>    /* toList() on a list simply returns the same list */
-<a name="2231"></a>    toList() { return self; }
-<a name="2232"></a>
-<a name="2233"></a>    /* find a list element - synonym for indexOf */
-<a name="2234"></a>    find(ele) { return indexOf(ele); }
-<a name="2235"></a>
-<a name="2236"></a>    /* 
-<a name="2237"></a>     *   shuffle the list: return a new list with the elements of this list
-<a name="2238"></a>     *   rearranged into a random order 
-<a name="2239"></a>     */
-<a name="2240"></a>    shuffle()
-<a name="2241"></a>    {
-<a name="2242"></a>        /* 
-<a name="2243"></a>         *   Since a list is immutable, we can't shuffle the elements in
-<a name="2244"></a>         *   place, which means we have to construct a new list.  One way
-<a name="2245"></a>         *   would be to use the Vector.shuffle algorithm, appending each
-<a name="2246"></a>         *   element chosen from the bag to a new result list under
-<a name="2247"></a>         *   construction.  That would construct length()-1 intermediate
-<a name="2248"></a>         *   lists, though, so it's pretty inefficient memory-wise.  The
-<a name="2249"></a>         *   easier and more efficient way is to create a Vector with the
-<a name="2250"></a>         *   same elements as the list, shuffle the Vector, and then
-<a name="2251"></a>         *   convert the result back to a list.  This creates only the one
-<a name="2252"></a>         *   intermediate value (the Vector), and it's very simple to code,
-<a name="2253"></a>         *   so we'll take that approach.  
-<a name="2254"></a>         */
-<a name="2255"></a>        return new Vector(length(), self).shuffle().toList();
-<a name="2256"></a>    }
-<a name="2257"></a>    
-<a name="2258"></a>    /* Determine whether this list has any elements in common with lst */    
-<a name="2259"></a>    overlapsWith(lst)
-<a name="2260"></a>    {
-<a name="2261"></a>        return intersect(valToList(lst)).length &gt; 0;
-<a name="2262"></a>    }
-<a name="2263"></a>        
-<a name="2264"></a>    /*  Returns the ith member of the list if there is one, or nil otherwise */
-<a name="2265"></a>    element(i)
-<a name="2266"></a>    {
-<a name="2267"></a>        return length &gt;= i ? self[i] : nil;
-<a name="2268"></a>    }
-<a name="2269"></a>    
-<a name="2270"></a>    /*  
-<a name="2271"></a>     *   Compare two lists of strings using the cmp StringComparator; return
-<a name="2272"></a>     *   true if all the corresponding strings in the two lists are the same
-<a name="2273"></a>     *   (according to cmp) and nil otherwise.
-<a name="2274"></a>     */
-<a name="2275"></a>    strComp(lst, cmp)
-<a name="2276"></a>    {
-<a name="2277"></a>        if(lst.length != length)
-<a name="2278"></a>            return nil;
-<a name="2279"></a>        
-<a name="2280"></a>        for(local i in 1 .. lst.length)
-<a name="2281"></a>        {
-<a name="2282"></a>            if(cmp.matchValues(self[i], lst[i]) == 0)
-<a name="2283"></a>                return nil;
-<a name="2284"></a>        }
-<a name="2285"></a>        return true;
-<a name="2286"></a>    }
-<a name="2287"></a>;
-<a name="2288"></a>
-<a name="2289"></a>/* Add a method to Date as a workaround for a library bug */
-<a name="2290"></a>modify Date
-<a name="2291"></a>    /* 
-<a name="2292"></a>     *   Get the Hours, Minutes, Seconds and Milliseconds of the current time as
-<a name="2293"></a>     *   a four-element list; Date.getClockTime() is meant to do this, but
-<a name="2294"></a>     *   doesn't work properly.
-<a name="2295"></a>     */
-<a name="2296"></a>    getHMS()
-<a name="2297"></a>    {
-<a name="2298"></a>        local hh = toInteger(formatDate('%H'));
-<a name="2299"></a>        local mm = toInteger(formatDate('%M'));
-<a name="2300"></a>        local ss = toInteger(formatDate('%S'));
-<a name="2301"></a>        local ms = toInteger(formatDate('%N'));
-<a name="2302"></a>        
-<a name="2303"></a>        return [hh, mm, ss, ms];
-<a name="2304"></a>    }
-<a name="2305"></a>    
-<a name="2306"></a>;
-<a name="2307"></a>
-<a name="2308"></a>/* ------------------------------------------------------------------------ */
-<a name="2309"></a>/*
-<a name="2310"></a> *   Library error.  This is a base class for internal errors within the
-<a name="2311"></a> *   library.  
-<a name="2312"></a> */
-<a name="2313"></a>class LibraryError: Exception
-<a name="2314"></a>    construct()
-<a name="2315"></a>    {
-<a name="2316"></a>        /* do the inherited work */
-<a name="2317"></a>        inherited();
-<a name="2318"></a>
-<a name="2319"></a>        /* 
-<a name="2320"></a>         *   As a debugging aid, break into the debugger, if it's running.
-<a name="2321"></a>         *   This makes it easier during development to track down where
-<a name="2322"></a>         *   errors are occurring.  This has no effect during normal
-<a name="2323"></a>         *   execution in the interpreter, since the interpreter ignores
-<a name="2324"></a>         *   this call when the debugger isn't present. 
-<a name="2325"></a>         */
-<a name="2326"></a>        t3DebugTrace(T3DebugBreak);
-<a name="2327"></a>    }
-<a name="2328"></a>    display = "Library Error"
-<a name="2329"></a>;
-<a name="2330"></a>
-<a name="2331"></a>/*
-<a name="2332"></a> *   A generic "argument mistmatch" error.  The library uses this for
-<a name="2333"></a> *   functions that use matchProto() to handle multiple argument list
-<a name="2334"></a> *   variations: when none of the allowed argument lists are found, the
-<a name="2335"></a> *   function throws this error. 
-<a name="2336"></a> */
-<a name="2337"></a>class ArgumentMismatchError: LibraryError
-<a name="2338"></a>    display = "Wrong arguments in function or method call"
-<a name="2339"></a>;
-<a name="2340"></a>
-<a name="2341"></a>
-<a name="2342"></a>
-<a name="2343"></a>/* ------------------------------------------------------------------------ */
-<a name="2344"></a>/*
-<a name="2345"></a> *   LCS - class that computes the Longest Common Subsequence for two lists
-<a name="2346"></a> *   or vectors.
-<a name="2347"></a> *   
-<a name="2348"></a> *   The LCS is most frequently used as a differencing tool, to compute a
-<a name="2349"></a> *   description of how two data sets differ.  This is at the core of tools
-<a name="2350"></a> *   like "diff", which shows the differences between two versions of a
-<a name="2351"></a> *   file.  The LCS is the part of the two sets that's the same, so
-<a name="2352"></a> *   everything in one of the sets that's not in the LCS is unique to that
-<a name="2353"></a> *   set.  The standard diff algorithm computes the LCS, then generates a
-<a name="2354"></a> *   list of edits by specifying a "delete" operation on each item in the
-<a name="2355"></a> *   "new" set that's not in the LCS, and an "insert" operation on each
-<a name="2356"></a> *   item in the "old" set that's not in the LCS.  Merge and sort the two
-<a name="2357"></a> *   edit lists and you have basically the standard Unix "diff" output.
-<a name="2358"></a> *   (Some diff utilities make the report more readable by combining
-<a name="2359"></a> *   overlapping edit and insert operations into "update" operations.  But
-<a name="2360"></a> *   it's really the same thing, of course.)
-<a name="2361"></a> *   
-<a name="2362"></a> *   The constructor does all the work: use 'new' to create an instance of
-<a name="2363"></a> *   this class, providing the two lists to be compared as arguments.  The
-<a name="2364"></a> *   resulting object contains the LCS information.
-<a name="2365"></a> *   
-<a name="2366"></a> *   Note that you can use this class to generate a character-by-character
-<a name="2367"></a> *   LCS for two strings, simply by using toUnicode() to convert each
-<a name="2368"></a> *   string to a list of character values.  
-<a name="2369"></a> */
-<a name="2370"></a>class LCS: object
-<a name="2371"></a>    construct(a, b)
-<a name="2372"></a>    {
-<a name="2373"></a>        local i, j, ka, kb;
-<a name="2374"></a>
-<a name="2375"></a>        /* get the input list lengths */
-<a name="2376"></a>        local alen = a.length(), blen = b.length();
-<a name="2377"></a>
-<a name="2378"></a>        /* set up the length array, alen x blen, initialized with 0s */
-<a name="2379"></a>        local c = new Vector(alen+1).fillValue(nil, 1, alen+1);
-<a name="2380"></a>        c.applyAll({ ele: new Vector(blen+1).fillValue(0, 1, blen+1) });
-<a name="2381"></a>
-<a name="2382"></a>        /* set up the arrow array, alen x blen */
-<a name="2383"></a>        local arr = new Vector(alen+1).fillValue(nil, 1, alen+1);
-<a name="2384"></a>        arr.applyAll({ ele: new Vector(blen+1).fillValue(nil, 1, blen+1) });
-<a name="2385"></a>
-<a name="2386"></a>        /* apply the standard LCS algorithm */
-<a name="2387"></a>        for (i = 1 ; i &lt;= alen ; ++i)
-<a name="2388"></a>        {
-<a name="2389"></a>            for (j = 1 ; j &lt;= blen ; ++j)
-<a name="2390"></a>            {
-<a name="2391"></a>                if (a[i] == b[j])
-<a name="2392"></a>                {
-<a name="2393"></a>                    /* up-left */
-<a name="2394"></a>                    c[i+1][j+1] = c[i][j] + 1;
-<a name="2395"></a>                    arr[i+1][j+1] = 3;
-<a name="2396"></a>                }
-<a name="2397"></a>                else if (c[i][j+1] &gt;= c[i+1][j])
-<a name="2398"></a>                {
-<a name="2399"></a>                    /* up */
-<a name="2400"></a>                    c[i+1][j+1] = c[i][j+1];
-<a name="2401"></a>                    arr[i+1][j+1] = 2;
-<a name="2402"></a>                }
-<a name="2403"></a>                else
-<a name="2404"></a>                {
-<a name="2405"></a>                    /* left */
-<a name="2406"></a>                    c[i+1][j+1] = c[i+1][j];
-<a name="2407"></a>                    arr[i+1][j+1] = 1;
-<a name="2408"></a>                }
-<a name="2409"></a>            }
-<a name="2410"></a>        }
-<a name="2411"></a>
-<a name="2412"></a>        /* build the LCS list */
-<a name="2413"></a>        local la = new Vector(alen), lb = new Vector(blen);
-<a name="2414"></a>        for (i = alen+1, j = blen+1, ka = alen, kb = blen ; i &gt; 0 &amp;&amp; j &gt; 0 ; )
-<a name="2415"></a>        {
-<a name="2416"></a>            if (arr[i][j] == 3)
-<a name="2417"></a>            {
-<a name="2418"></a>                la[ka--] = i-1;
-<a name="2419"></a>                lb[kb--] = j-1;
-<a name="2420"></a>                --i;
-<a name="2421"></a>                --j;
-<a name="2422"></a>            }
-<a name="2423"></a>            else if (arr[i][j] == 2)
-<a name="2424"></a>                --i;
-<a name="2425"></a>            else
+<a name="2165"></a>        /* in case the caller wants the shuffled object, return self */
+<a name="2166"></a>        return self;
+<a name="2167"></a>    }
+<a name="2168"></a>;
+<a name="2169"></a>
+<a name="2170"></a>
+<a name="2171"></a>/* ------------------------------------------------------------------------ */
+<a name="2172"></a>/*
+<a name="2173"></a> *   Add some utility methods to List. 
+<a name="2174"></a> */
+<a name="2175"></a>modify List
+<a name="2176"></a>    /*
+<a name="2177"></a>     *   Check the list against a prototype (a list of data types).  This
+<a name="2178"></a>     *   is useful for checking a varargs list to see if it matches a given
+<a name="2179"></a>     *   prototype.  Each prototype element can be a TypeXxx type code, to
+<a name="2180"></a>     *   match a value of the given native type; an object class, to match
+<a name="2181"></a>     *   an instance of that class; 'any', to match a value of any type; or
+<a name="2182"></a>     *   the special value '...', to match zero or more additional
+<a name="2183"></a>     *   arguments.  If '...' is present, it must be the last prototype
+<a name="2184"></a>     *   element.  
+<a name="2185"></a>     */
+<a name="2186"></a>    matchProto(proto)
+<a name="2187"></a>    {
+<a name="2188"></a>        /* compare each value against the prototype */
+<a name="2189"></a>        local plen = proto.length(), vlen = length();
+<a name="2190"></a>        for (local i = 1 ; i &lt;= plen ; ++i)
+<a name="2191"></a>        {
+<a name="2192"></a>            /* get this prototype element (i.e., a type code) */
+<a name="2193"></a>            local t = proto[i];
+<a name="2194"></a>
+<a name="2195"></a>            /* if this is a varargs indicator, we have a match */
+<a name="2196"></a>            if (t == '...')
+<a name="2197"></a>                return true;
+<a name="2198"></a>
+<a name="2199"></a>            /* if we're past the end of the values, it's no match */
+<a name="2200"></a>            if (i &gt; vlen)
+<a name="2201"></a>                return nil;
+<a name="2202"></a>
+<a name="2203"></a>            /* get the value */
+<a name="2204"></a>            local v = self[i];
+<a name="2205"></a>
+<a name="2206"></a>            /* check the type */
+<a name="2207"></a>            if (t == 'any')
+<a name="2208"></a>            {
+<a name="2209"></a>                /* 'any' matches any value, so this one is a match */
+<a name="2210"></a>            }
+<a name="2211"></a>            else if (dataType(t) == TypeInt)
+<a name="2212"></a>            {
+<a name="2213"></a>                /* check that we match the given native type */
+<a name="2214"></a>                if (dataTypeXlat(v) != t)
+<a name="2215"></a>                    return nil;
+<a name="2216"></a>            }
+<a name="2217"></a>            else
+<a name="2218"></a>            {
+<a name="2219"></a>                /* otherwise, we have to match the object class */
+<a name="2220"></a>                if (dataType(v) not in (TypeObject, TypeList, TypeSString)
+<a name="2221"></a>                    || !v.ofKind(t))
+<a name="2222"></a>                    return nil;
+<a name="2223"></a>            }
+<a name="2224"></a>        }
+<a name="2225"></a>
+<a name="2226"></a>        /* 
+<a name="2227"></a>         *   We reached the end of the prototype without finding a
+<a name="2228"></a>         *   mismatch.  The only remaining check is that we don't have any
+<a name="2229"></a>         *   extra arguments in the value list.  As long as the lengths
+<a name="2230"></a>         *   match, we have a match. 
+<a name="2231"></a>         */
+<a name="2232"></a>        return plen == vlen;
+<a name="2233"></a>    }
+<a name="2234"></a>
+<a name="2235"></a>    /* toList() on a list simply returns the same list */
+<a name="2236"></a>    toList() { return self; }
+<a name="2237"></a>
+<a name="2238"></a>    /* find a list element - synonym for indexOf */
+<a name="2239"></a>    find(ele) { return indexOf(ele); }
+<a name="2240"></a>
+<a name="2241"></a>    /* 
+<a name="2242"></a>     *   shuffle the list: return a new list with the elements of this list
+<a name="2243"></a>     *   rearranged into a random order 
+<a name="2244"></a>     */
+<a name="2245"></a>    shuffle()
+<a name="2246"></a>    {
+<a name="2247"></a>        /* 
+<a name="2248"></a>         *   Since a list is immutable, we can't shuffle the elements in
+<a name="2249"></a>         *   place, which means we have to construct a new list.  One way
+<a name="2250"></a>         *   would be to use the Vector.shuffle algorithm, appending each
+<a name="2251"></a>         *   element chosen from the bag to a new result list under
+<a name="2252"></a>         *   construction.  That would construct length()-1 intermediate
+<a name="2253"></a>         *   lists, though, so it's pretty inefficient memory-wise.  The
+<a name="2254"></a>         *   easier and more efficient way is to create a Vector with the
+<a name="2255"></a>         *   same elements as the list, shuffle the Vector, and then
+<a name="2256"></a>         *   convert the result back to a list.  This creates only the one
+<a name="2257"></a>         *   intermediate value (the Vector), and it's very simple to code,
+<a name="2258"></a>         *   so we'll take that approach.  
+<a name="2259"></a>         */
+<a name="2260"></a>        return new Vector(length(), self).shuffle().toList();
+<a name="2261"></a>    }
+<a name="2262"></a>    
+<a name="2263"></a>    /* Determine whether this list has any elements in common with lst */    
+<a name="2264"></a>    overlapsWith(lst)
+<a name="2265"></a>    {
+<a name="2266"></a>        return intersect(valToList(lst)).length &gt; 0;
+<a name="2267"></a>    }
+<a name="2268"></a>        
+<a name="2269"></a>    /*  Returns the ith member of the list if there is one, or nil otherwise */
+<a name="2270"></a>    element(i)
+<a name="2271"></a>    {
+<a name="2272"></a>        return length &gt;= i ? self[i] : nil;
+<a name="2273"></a>    }
+<a name="2274"></a>    
+<a name="2275"></a>    /*  
+<a name="2276"></a>     *   Compare two lists of strings using the cmp StringComparator; return
+<a name="2277"></a>     *   true if all the corresponding strings in the two lists are the same
+<a name="2278"></a>     *   (according to cmp) and nil otherwise.
+<a name="2279"></a>     */
+<a name="2280"></a>    strComp(lst, cmp)
+<a name="2281"></a>    {
+<a name="2282"></a>        if(lst.length != length)
+<a name="2283"></a>            return nil;
+<a name="2284"></a>        
+<a name="2285"></a>        for(local i in 1 .. lst.length)
+<a name="2286"></a>        {
+<a name="2287"></a>            if(cmp.matchValues(self[i], lst[i]) == 0)
+<a name="2288"></a>                return nil;
+<a name="2289"></a>        }
+<a name="2290"></a>        return true;
+<a name="2291"></a>    }
+<a name="2292"></a>;
+<a name="2293"></a>
+<a name="2294"></a>/* Add a method to Date as a workaround for a library bug */
+<a name="2295"></a>modify Date
+<a name="2296"></a>    /* 
+<a name="2297"></a>     *   Get the Hours, Minutes, Seconds and Milliseconds of the current time as
+<a name="2298"></a>     *   a four-element list; Date.getClockTime() is meant to do this, but
+<a name="2299"></a>     *   doesn't work properly.
+<a name="2300"></a>     */
+<a name="2301"></a>    getHMS()
+<a name="2302"></a>    {
+<a name="2303"></a>        local hh = toInteger(formatDate('%H'));
+<a name="2304"></a>        local mm = toInteger(formatDate('%M'));
+<a name="2305"></a>        local ss = toInteger(formatDate('%S'));
+<a name="2306"></a>        local ms = toInteger(formatDate('%N'));
+<a name="2307"></a>        
+<a name="2308"></a>        return [hh, mm, ss, ms];
+<a name="2309"></a>    }
+<a name="2310"></a>    
+<a name="2311"></a>;
+<a name="2312"></a>
+<a name="2313"></a>/* ------------------------------------------------------------------------ */
+<a name="2314"></a>/*
+<a name="2315"></a> *   Library error.  This is a base class for internal errors within the
+<a name="2316"></a> *   library.  
+<a name="2317"></a> */
+<a name="2318"></a>class LibraryError: Exception
+<a name="2319"></a>    construct()
+<a name="2320"></a>    {
+<a name="2321"></a>        /* do the inherited work */
+<a name="2322"></a>        inherited();
+<a name="2323"></a>
+<a name="2324"></a>        /* 
+<a name="2325"></a>         *   As a debugging aid, break into the debugger, if it's running.
+<a name="2326"></a>         *   This makes it easier during development to track down where
+<a name="2327"></a>         *   errors are occurring.  This has no effect during normal
+<a name="2328"></a>         *   execution in the interpreter, since the interpreter ignores
+<a name="2329"></a>         *   this call when the debugger isn't present. 
+<a name="2330"></a>         */
+<a name="2331"></a>        t3DebugTrace(T3DebugBreak);
+<a name="2332"></a>    }
+<a name="2333"></a>    display = "Library Error"
+<a name="2334"></a>;
+<a name="2335"></a>
+<a name="2336"></a>/*
+<a name="2337"></a> *   A generic "argument mistmatch" error.  The library uses this for
+<a name="2338"></a> *   functions that use matchProto() to handle multiple argument list
+<a name="2339"></a> *   variations: when none of the allowed argument lists are found, the
+<a name="2340"></a> *   function throws this error. 
+<a name="2341"></a> */
+<a name="2342"></a>class ArgumentMismatchError: LibraryError
+<a name="2343"></a>    display = "Wrong arguments in function or method call"
+<a name="2344"></a>;
+<a name="2345"></a>
+<a name="2346"></a>
+<a name="2347"></a>
+<a name="2348"></a>/* ------------------------------------------------------------------------ */
+<a name="2349"></a>/*
+<a name="2350"></a> *   LCS - class that computes the Longest Common Subsequence for two lists
+<a name="2351"></a> *   or vectors.
+<a name="2352"></a> *   
+<a name="2353"></a> *   The LCS is most frequently used as a differencing tool, to compute a
+<a name="2354"></a> *   description of how two data sets differ.  This is at the core of tools
+<a name="2355"></a> *   like "diff", which shows the differences between two versions of a
+<a name="2356"></a> *   file.  The LCS is the part of the two sets that's the same, so
+<a name="2357"></a> *   everything in one of the sets that's not in the LCS is unique to that
+<a name="2358"></a> *   set.  The standard diff algorithm computes the LCS, then generates a
+<a name="2359"></a> *   list of edits by specifying a "delete" operation on each item in the
+<a name="2360"></a> *   "new" set that's not in the LCS, and an "insert" operation on each
+<a name="2361"></a> *   item in the "old" set that's not in the LCS.  Merge and sort the two
+<a name="2362"></a> *   edit lists and you have basically the standard Unix "diff" output.
+<a name="2363"></a> *   (Some diff utilities make the report more readable by combining
+<a name="2364"></a> *   overlapping edit and insert operations into "update" operations.  But
+<a name="2365"></a> *   it's really the same thing, of course.)
+<a name="2366"></a> *   
+<a name="2367"></a> *   The constructor does all the work: use 'new' to create an instance of
+<a name="2368"></a> *   this class, providing the two lists to be compared as arguments.  The
+<a name="2369"></a> *   resulting object contains the LCS information.
+<a name="2370"></a> *   
+<a name="2371"></a> *   Note that you can use this class to generate a character-by-character
+<a name="2372"></a> *   LCS for two strings, simply by using toUnicode() to convert each
+<a name="2373"></a> *   string to a list of character values.  
+<a name="2374"></a> */
+<a name="2375"></a>class LCS: object
+<a name="2376"></a>    construct(a, b)
+<a name="2377"></a>    {
+<a name="2378"></a>        local i, j, ka, kb;
+<a name="2379"></a>
+<a name="2380"></a>        /* get the input list lengths */
+<a name="2381"></a>        local alen = a.length(), blen = b.length();
+<a name="2382"></a>
+<a name="2383"></a>        /* set up the length array, alen x blen, initialized with 0s */
+<a name="2384"></a>        local c = new Vector(alen+1).fillValue(nil, 1, alen+1);
+<a name="2385"></a>        c.applyAll({ ele: new Vector(blen+1).fillValue(0, 1, blen+1) });
+<a name="2386"></a>
+<a name="2387"></a>        /* set up the arrow array, alen x blen */
+<a name="2388"></a>        local arr = new Vector(alen+1).fillValue(nil, 1, alen+1);
+<a name="2389"></a>        arr.applyAll({ ele: new Vector(blen+1).fillValue(nil, 1, blen+1) });
+<a name="2390"></a>
+<a name="2391"></a>        /* apply the standard LCS algorithm */
+<a name="2392"></a>        for (i = 1 ; i &lt;= alen ; ++i)
+<a name="2393"></a>        {
+<a name="2394"></a>            for (j = 1 ; j &lt;= blen ; ++j)
+<a name="2395"></a>            {
+<a name="2396"></a>                if (a[i] == b[j])
+<a name="2397"></a>                {
+<a name="2398"></a>                    /* up-left */
+<a name="2399"></a>                    c[i+1][j+1] = c[i][j] + 1;
+<a name="2400"></a>                    arr[i+1][j+1] = 3;
+<a name="2401"></a>                }
+<a name="2402"></a>                else if (c[i][j+1] &gt;= c[i+1][j])
+<a name="2403"></a>                {
+<a name="2404"></a>                    /* up */
+<a name="2405"></a>                    c[i+1][j+1] = c[i][j+1];
+<a name="2406"></a>                    arr[i+1][j+1] = 2;
+<a name="2407"></a>                }
+<a name="2408"></a>                else
+<a name="2409"></a>                {
+<a name="2410"></a>                    /* left */
+<a name="2411"></a>                    c[i+1][j+1] = c[i+1][j];
+<a name="2412"></a>                    arr[i+1][j+1] = 1;
+<a name="2413"></a>                }
+<a name="2414"></a>            }
+<a name="2415"></a>        }
+<a name="2416"></a>
+<a name="2417"></a>        /* build the LCS list */
+<a name="2418"></a>        local la = new Vector(alen), lb = new Vector(blen);
+<a name="2419"></a>        for (i = alen+1, j = blen+1, ka = alen, kb = blen ; i &gt; 0 &amp;&amp; j &gt; 0 ; )
+<a name="2420"></a>        {
+<a name="2421"></a>            if (arr[i][j] == 3)
+<a name="2422"></a>            {
+<a name="2423"></a>                la[ka--] = i-1;
+<a name="2424"></a>                lb[kb--] = j-1;
+<a name="2425"></a>                --i;
 <a name="2426"></a>                --j;
-<a name="2427"></a>        }
-<a name="2428"></a>
-<a name="2429"></a>        /* save the LCSs, truncating the used portions */
-<a name="2430"></a>        lcsA = la.toList().sublist(ka+1);
-<a name="2431"></a>        lcsB = lb.toList().sublist(kb+1);
-<a name="2432"></a>    }
+<a name="2427"></a>            }
+<a name="2428"></a>            else if (arr[i][j] == 2)
+<a name="2429"></a>                --i;
+<a name="2430"></a>            else
+<a name="2431"></a>                --j;
+<a name="2432"></a>        }
 <a name="2433"></a>
-<a name="2434"></a>    /* the LCS, as lists of character indices into the respective strings */
-<a name="2435"></a>    lcsA = nil
-<a name="2436"></a>    lcsB = nil
-<a name="2437"></a>;
+<a name="2434"></a>        /* save the LCSs, truncating the used portions */
+<a name="2435"></a>        lcsA = la.toList().sublist(ka+1);
+<a name="2436"></a>        lcsB = lb.toList().sublist(kb+1);
+<a name="2437"></a>    }
 <a name="2438"></a>
-<a name="2439"></a>
-<a name="2440"></a>/* ------------------------------------------------------------------------ */
-<a name="2441"></a>/*
-<a name="2442"></a> *   Change the case (upper/lower) of a given new string to match the case
-<a name="2443"></a> *   pattern of the given original string.
-<a name="2444"></a> *   
-<a name="2445"></a> *   We recognize four patterns:
-<a name="2446"></a> *   
-<a name="2447"></a> *   - If the original string has at least one capital letter and no
-<a name="2448"></a> *   minuscules, we convert the new string to all caps.  For example,
-<a name="2449"></a> *   matchCase('ALPHA-1', 'omicron-7') yields 'OMICRON-7'.
-<a name="2450"></a> *   
-<a name="2451"></a> *   - If the original string has at least one lower-case letter and no
-<a name="2452"></a> *   capitals, we convert the new string to all lower case.  E.g.,
-<a name="2453"></a> *   matchCase('alpha-1', 'OMICRON-7') yields 'omicron-7'.
-<a name="2454"></a> *   
-<a name="2455"></a> *   - If the original string starts with a capital letter, and has at
-<a name="2456"></a> *   least one lower-case letter and no other capitals, we capitalize the
-<a name="2457"></a> *   first letter of the new string and lower-case everything else. E.g.,
-<a name="2458"></a> *   matchCase('Alpha-1', 'OMICRON-7') yields 'Omicron-7'.
+<a name="2439"></a>    /* the LCS, as lists of character indices into the respective strings */
+<a name="2440"></a>    lcsA = nil
+<a name="2441"></a>    lcsB = nil
+<a name="2442"></a>;
+<a name="2443"></a>
+<a name="2444"></a>
+<a name="2445"></a>/* ------------------------------------------------------------------------ */
+<a name="2446"></a>/*
+<a name="2447"></a> *   Change the case (upper/lower) of a given new string to match the case
+<a name="2448"></a> *   pattern of the given original string.
+<a name="2449"></a> *   
+<a name="2450"></a> *   We recognize four patterns:
+<a name="2451"></a> *   
+<a name="2452"></a> *   - If the original string has at least one capital letter and no
+<a name="2453"></a> *   minuscules, we convert the new string to all caps.  For example,
+<a name="2454"></a> *   matchCase('ALPHA-1', 'omicron-7') yields 'OMICRON-7'.
+<a name="2455"></a> *   
+<a name="2456"></a> *   - If the original string has at least one lower-case letter and no
+<a name="2457"></a> *   capitals, we convert the new string to all lower case.  E.g.,
+<a name="2458"></a> *   matchCase('alpha-1', 'OMICRON-7') yields 'omicron-7'.
 <a name="2459"></a> *   
-<a name="2460"></a> *   - Otherwise, we match the case pattern of the input string letter for
-<a name="2461"></a> *   letter: for each upper-case letter in the original, we capitalize the
-<a name="2462"></a> *   letter at the corresponding character index in the new string, and
-<a name="2463"></a> *   likewise with lower-case letters in the original.  We leave other
-<a name="2464"></a> *   characters unchanged.  E.g., matchCase('AlPhA-1', 'omicron-7') yields
-<a name="2465"></a> *   'OmIcRon-7'.  
-<a name="2466"></a> */
-<a name="2467"></a>matchCase(newTok, oldTok)
-<a name="2468"></a>{
-<a name="2469"></a>    /* 
-<a name="2470"></a>     *   If the old token is all lower-case or all upper-case, it's easy.
-<a name="2471"></a>     *   Only assume all upper-case if the original token has at least two
-<a name="2472"></a>     *   capitals - for something like "I" we can't assume we want an
-<a name="2473"></a>     *   all-caps word. 
-<a name="2474"></a>     */
-<a name="2475"></a>    if (rexMatch(R'&lt;^upper&gt;*&lt;lower&gt;+&lt;^upper&gt;*', oldTok) != nil)
-<a name="2476"></a>        return newTok.toLower();
-<a name="2477"></a>    if (rexMatch(R'&lt;^lower&gt;*&lt;upper&gt;+&lt;^lower&gt;*&lt;upper&gt;+&lt;^lower&gt;*', oldTok) != nil)
-<a name="2478"></a>        return newTok.toUpper();
-<a name="2479"></a>    
-<a name="2480"></a>    /* another common and easy pattern is title case (initial cap) */
-<a name="2481"></a>    if (rexMatch(R'&lt;upper&gt;&lt;^upper&gt;*&lt;lower&gt;+&lt;^upper&gt;*', oldTok) != nil)
-<a name="2482"></a>        return newTok.firstChar().toUpper() + newTok.delFirst().toLower();
-<a name="2483"></a>    
-<a name="2484"></a>    /* do everything else letter by letter */
-<a name="2485"></a>    local ret = '';
-<a name="2486"></a>    for (local i = 1, local len = newTok.length() ; i &lt;= len ; ++i)
-<a name="2487"></a>    {
-<a name="2488"></a>        local cn = newTok.substr(i, 1);
-<a name="2489"></a>        local co = oldTok.substr(i, 1);
-<a name="2490"></a>        
-<a name="2491"></a>        if (rexMatch(R'&lt;upper&gt;', co) != nil)
-<a name="2492"></a>            ret += cn.toUpper();
-<a name="2493"></a>        else if (rexMatch(R'&lt;lower&gt;', co) != nil)
-<a name="2494"></a>            ret += cn.toUpper();
-<a name="2495"></a>        else
-<a name="2496"></a>            ret += cn;
-<a name="2497"></a>    }
-<a name="2498"></a>    
-<a name="2499"></a>    /* return the result */
-<a name="2500"></a>    return ret;
-<a name="2501"></a>}
-<a name="2502"></a>
-<a name="2503"></a>
-<a name="2504"></a>/* ------------------------------------------------------------------------ */
-<a name="2505"></a>/*
-<a name="2506"></a> *   Static object and class initializer.
-<a name="2507"></a> *   
-<a name="2508"></a> *   During startup, we'll automatically call the classInit() method for
-<a name="2509"></a> *   each class object, and we'll call the default constructor for each
-<a name="2510"></a> *   static object instance.  ("Static" objects are those defined directly
-<a name="2511"></a> *   in the source code, as opposed to objects created dynamically with
-<a name="2512"></a> *   'new'.)  This makes it easier to write initialization code by making
-<a name="2513"></a> *   the process more uniform across static and dynamic objects.
-<a name="2514"></a> *   
-<a name="2515"></a> *   The first step is to call classInit() on each class.  We call this
-<a name="2516"></a> *   method only each class that *directly* defines the method (i.e., we
-<a name="2517"></a> *   don't call it on classes that only inherit the method from another
-<a name="2518"></a> *   class).  We cycle through the objects in arbitrary order.  However,
-<a name="2519"></a> *   you can control the relative order when there's a dependency by
-<a name="2520"></a> *   setting the 'classInitFirst' property to a list of one or more classes
-<a name="2521"></a> *   to initialize first.  When we encounter a class with this property,
-<a name="2522"></a> *   we'll call the listed classes' classInit() methods before calling the
-<a name="2523"></a> *   given class's classInit().
-<a name="2524"></a> *   
-<a name="2525"></a> *   The second step is to call constructStatic() or construct() on each
-<a name="2526"></a> *   regular (non-class) object.  We only call this on *static* objects:
-<a name="2527"></a> *   objects defined directly in the source code, as opposed to created
-<a name="2528"></a> *   dynamically with 'new'.  As with classInit(), we visit the objects in
-<a name="2529"></a> *   arbitrary order.  You can control dependencies using the
-<a name="2530"></a> *   'constructFirst' method: set this to a list of objects to be
-<a name="2531"></a> *   initialized before self.
-<a name="2532"></a> *   
-<a name="2533"></a> *   If an object defines or inherits a constructStatic() method, we'll
-<a name="2534"></a> *   call it instead of construct().  Otherwise, if it defines or inherits
-<a name="2535"></a> *   a construct() method with no arguments, we'll call it.  Otherwise
-<a name="2536"></a> *   we'll do nothing.
+<a name="2460"></a> *   - If the original string starts with a capital letter, and has at
+<a name="2461"></a> *   least one lower-case letter and no other capitals, we capitalize the
+<a name="2462"></a> *   first letter of the new string and lower-case everything else. E.g.,
+<a name="2463"></a> *   matchCase('Alpha-1', 'OMICRON-7') yields 'Omicron-7'.
+<a name="2464"></a> *   
+<a name="2465"></a> *   - Otherwise, we match the case pattern of the input string letter for
+<a name="2466"></a> *   letter: for each upper-case letter in the original, we capitalize the
+<a name="2467"></a> *   letter at the corresponding character index in the new string, and
+<a name="2468"></a> *   likewise with lower-case letters in the original.  We leave other
+<a name="2469"></a> *   characters unchanged.  E.g., matchCase('AlPhA-1', 'omicron-7') yields
+<a name="2470"></a> *   'OmIcRon-7'.  
+<a name="2471"></a> */
+<a name="2472"></a>matchCase(newTok, oldTok)
+<a name="2473"></a>{
+<a name="2474"></a>    /* 
+<a name="2475"></a>     *   If the old token is all lower-case or all upper-case, it's easy.
+<a name="2476"></a>     *   Only assume all upper-case if the original token has at least two
+<a name="2477"></a>     *   capitals - for something like "I" we can't assume we want an
+<a name="2478"></a>     *   all-caps word. 
+<a name="2479"></a>     */
+<a name="2480"></a>    if (rexMatch(R'&lt;^upper&gt;*&lt;lower&gt;+&lt;^upper&gt;*', oldTok) != nil)
+<a name="2481"></a>        return newTok.toLower();
+<a name="2482"></a>    if (rexMatch(R'&lt;^lower&gt;*&lt;upper&gt;+&lt;^lower&gt;*&lt;upper&gt;+&lt;^lower&gt;*', oldTok) != nil)
+<a name="2483"></a>        return newTok.toUpper();
+<a name="2484"></a>    
+<a name="2485"></a>    /* another common and easy pattern is title case (initial cap) */
+<a name="2486"></a>    if (rexMatch(R'&lt;upper&gt;&lt;^upper&gt;*&lt;lower&gt;+&lt;^upper&gt;*', oldTok) != nil)
+<a name="2487"></a>        return newTok.firstChar().toUpper() + newTok.delFirst().toLower();
+<a name="2488"></a>    
+<a name="2489"></a>    /* do everything else letter by letter */
+<a name="2490"></a>    local ret = '';
+<a name="2491"></a>    for (local i = 1, local len = newTok.length() ; i &lt;= len ; ++i)
+<a name="2492"></a>    {
+<a name="2493"></a>        local cn = newTok.substr(i, 1);
+<a name="2494"></a>        local co = oldTok.substr(i, 1);
+<a name="2495"></a>        
+<a name="2496"></a>        if (rexMatch(R'&lt;upper&gt;', co) != nil)
+<a name="2497"></a>            ret += cn.toUpper();
+<a name="2498"></a>        else if (rexMatch(R'&lt;lower&gt;', co) != nil)
+<a name="2499"></a>            ret += cn.toUpper();
+<a name="2500"></a>        else
+<a name="2501"></a>            ret += cn;
+<a name="2502"></a>    }
+<a name="2503"></a>    
+<a name="2504"></a>    /* return the result */
+<a name="2505"></a>    return ret;
+<a name="2506"></a>}
+<a name="2507"></a>
+<a name="2508"></a>
+<a name="2509"></a>/* ------------------------------------------------------------------------ */
+<a name="2510"></a>/*
+<a name="2511"></a> *   Static object and class initializer.
+<a name="2512"></a> *   
+<a name="2513"></a> *   During startup, we'll automatically call the classInit() method for
+<a name="2514"></a> *   each class object, and we'll call the default constructor for each
+<a name="2515"></a> *   static object instance.  ("Static" objects are those defined directly
+<a name="2516"></a> *   in the source code, as opposed to objects created dynamically with
+<a name="2517"></a> *   'new'.)  This makes it easier to write initialization code by making
+<a name="2518"></a> *   the process more uniform across static and dynamic objects.
+<a name="2519"></a> *   
+<a name="2520"></a> *   The first step is to call classInit() on each class.  We call this
+<a name="2521"></a> *   method only each class that *directly* defines the method (i.e., we
+<a name="2522"></a> *   don't call it on classes that only inherit the method from another
+<a name="2523"></a> *   class).  We cycle through the objects in arbitrary order.  However,
+<a name="2524"></a> *   you can control the relative order when there's a dependency by
+<a name="2525"></a> *   setting the 'classInitFirst' property to a list of one or more classes
+<a name="2526"></a> *   to initialize first.  When we encounter a class with this property,
+<a name="2527"></a> *   we'll call the listed classes' classInit() methods before calling the
+<a name="2528"></a> *   given class's classInit().
+<a name="2529"></a> *   
+<a name="2530"></a> *   The second step is to call constructStatic() or construct() on each
+<a name="2531"></a> *   regular (non-class) object.  We only call this on *static* objects:
+<a name="2532"></a> *   objects defined directly in the source code, as opposed to created
+<a name="2533"></a> *   dynamically with 'new'.  As with classInit(), we visit the objects in
+<a name="2534"></a> *   arbitrary order.  You can control dependencies using the
+<a name="2535"></a> *   'constructFirst' method: set this to a list of objects to be
+<a name="2536"></a> *   initialized before self.
 <a name="2537"></a> *   
-<a name="2538"></a> *   Note that it's possible for a base class to have a compatible
-<a name="2539"></a> *   zero-argument constructor, but for a subclass to override this with a
-<a name="2540"></a> *   constructor that takes arguments.  In this case, we'll search the
-<a name="2541"></a> *   class tree for an inherited zero-argument constructor.  If we find
-<a name="2542"></a> *   one, we'll call the inherited constructor.
-<a name="2543"></a> *   
-<a name="2544"></a> *   We can only call zero-argument construct() methods because we have no
-<a name="2545"></a> *   basis for providing other arguments.  
-<a name="2546"></a> */
-<a name="2547"></a>libObjectInitializer: PreinitObject
-<a name="2548"></a>    execBeforeMe = []
-<a name="2549"></a>    execute()
-<a name="2550"></a>    {
-<a name="2551"></a>        /* build the reverse symbol table (indexed by object value) */
-<a name="2552"></a>        local gtab = t3GetGlobalSymbols();
-<a name="2553"></a>        local otab = new LookupTable(128, 256);
-<a name="2554"></a>        gtab.forEachAssoc({ key, val: otab[val] = key });
-<a name="2555"></a>
-<a name="2556"></a>        /* save it in the PreinitObject class */
-<a name="2557"></a>        PreinitObject.reverseGlobalSymbols = otab;
-<a name="2558"></a>
-<a name="2559"></a>        /* create a lookup table tracking which objects we've initialized */
-<a name="2560"></a>        _initedTab = new LookupTable(256, 1024);
-<a name="2561"></a>
-<a name="2562"></a>        /* call classInit() on all classes */
-<a name="2563"></a>        for (local o = firstObj(TadsObject, ObjClasses) ; o != nil ;
-<a name="2564"></a>             o = nextObj(o, TadsObject, ObjClasses))
-<a name="2565"></a>        {
-<a name="2566"></a>            /* if this class directly defines a classInit() method, call it */
-<a name="2567"></a>            if (o.propDefined(&amp;classInit, PropDefGetClass) == o)
-<a name="2568"></a>                callConstructor(o, &amp;classInit, &amp;classInitFirst);
-<a name="2569"></a>        }
-<a name="2570"></a>
-<a name="2571"></a>        /* call construct() or constructStatic() on all object instances */
-<a name="2572"></a>        for (local o = firstObj(TadsObject, ObjInstances) ; o != nil ;
-<a name="2573"></a>             o = nextObj(o, TadsObject, ObjInstances))
-<a name="2574"></a>        {
-<a name="2575"></a>            /* 
-<a name="2576"></a>             *   Only call static objects - these will all have
-<a name="2577"></a>             *   sourceTextOrder properties assigned by the compiler.
-<a name="2578"></a>             *   
-<a name="2579"></a>             *   Note that modified objects will inherit sourceTextOrder
-<a name="2580"></a>             *   from a class - they're the only objects that do this,
-<a name="2581"></a>             *   since the compiler only assigns sourceTextOrder initially
-<a name="2582"></a>             *   to ordinary objects, but then class-ifies the base object
-<a name="2583"></a>             *   when modifying it.  The only way that an object can
-<a name="2584"></a>             *   inherit sourceTextOrder from a class is that the class is
-<a name="2585"></a>             *   the original modified object, and the instance is the
-<a name="2586"></a>             *   modifier.  
-<a name="2587"></a>             */
-<a name="2588"></a>            local cl = o.propDefined(&amp;sourceTextOrder, PropDefGetClass);
-<a name="2589"></a>            if (cl == o || cl != nil &amp;&amp; cl.isClass())
-<a name="2590"></a>            {
-<a name="2591"></a>                /* 
-<a name="2592"></a>                 *   It's a static object.  If it has a constructStatic()
-<a name="2593"></a>                 *   method, call that.  Otherwise, if it has a construct()
-<a name="2594"></a>                 *   method, call that.
-<a name="2595"></a>                 */
-<a name="2596"></a>                if (o.propDefined(&amp;constructStatic))
-<a name="2597"></a>                {
-<a name="2598"></a>                    /* it has constructStatic() */
-<a name="2599"></a>                    callConstructor(o, &amp;constructStatic, &amp;constructFirst);
-<a name="2600"></a>                }
-<a name="2601"></a>                else if (o.propDefined(&amp;construct))
+<a name="2538"></a> *   If an object defines or inherits a constructStatic() method, we'll
+<a name="2539"></a> *   call it instead of construct().  Otherwise, if it defines or inherits
+<a name="2540"></a> *   a construct() method with no arguments, we'll call it.  Otherwise
+<a name="2541"></a> *   we'll do nothing.
+<a name="2542"></a> *   
+<a name="2543"></a> *   Note that it's possible for a base class to have a compatible
+<a name="2544"></a> *   zero-argument constructor, but for a subclass to override this with a
+<a name="2545"></a> *   constructor that takes arguments.  In this case, we'll search the
+<a name="2546"></a> *   class tree for an inherited zero-argument constructor.  If we find
+<a name="2547"></a> *   one, we'll call the inherited constructor.
+<a name="2548"></a> *   
+<a name="2549"></a> *   We can only call zero-argument construct() methods because we have no
+<a name="2550"></a> *   basis for providing other arguments.  
+<a name="2551"></a> */
+<a name="2552"></a>libObjectInitializer: PreinitObject
+<a name="2553"></a>    execBeforeMe = []
+<a name="2554"></a>    execute()
+<a name="2555"></a>    {
+<a name="2556"></a>        /* build the reverse symbol table (indexed by object value) */
+<a name="2557"></a>        local gtab = t3GetGlobalSymbols();
+<a name="2558"></a>        local otab = new LookupTable(128, 256);
+<a name="2559"></a>        gtab.forEachAssoc({ key, val: otab[val] = key });
+<a name="2560"></a>
+<a name="2561"></a>        /* save it in the PreinitObject class */
+<a name="2562"></a>        PreinitObject.reverseGlobalSymbols = otab;
+<a name="2563"></a>
+<a name="2564"></a>        /* create a lookup table tracking which objects we've initialized */
+<a name="2565"></a>        _initedTab = new LookupTable(256, 1024);
+<a name="2566"></a>
+<a name="2567"></a>        /* call classInit() on all classes */
+<a name="2568"></a>        for (local o = firstObj(TadsObject, ObjClasses) ; o != nil ;
+<a name="2569"></a>             o = nextObj(o, TadsObject, ObjClasses))
+<a name="2570"></a>        {
+<a name="2571"></a>            /* if this class directly defines a classInit() method, call it */
+<a name="2572"></a>            if (o.propDefined(&amp;classInit, PropDefGetClass) == o)
+<a name="2573"></a>                callConstructor(o, &amp;classInit, &amp;classInitFirst);
+<a name="2574"></a>        }
+<a name="2575"></a>
+<a name="2576"></a>        /* call construct() or constructStatic() on all object instances */
+<a name="2577"></a>        for (local o = firstObj(TadsObject, ObjInstances) ; o != nil ;
+<a name="2578"></a>             o = nextObj(o, TadsObject, ObjInstances))
+<a name="2579"></a>        {
+<a name="2580"></a>            /* 
+<a name="2581"></a>             *   Only call static objects - these will all have
+<a name="2582"></a>             *   sourceTextOrder properties assigned by the compiler.
+<a name="2583"></a>             *   
+<a name="2584"></a>             *   Note that modified objects will inherit sourceTextOrder
+<a name="2585"></a>             *   from a class - they're the only objects that do this,
+<a name="2586"></a>             *   since the compiler only assigns sourceTextOrder initially
+<a name="2587"></a>             *   to ordinary objects, but then class-ifies the base object
+<a name="2588"></a>             *   when modifying it.  The only way that an object can
+<a name="2589"></a>             *   inherit sourceTextOrder from a class is that the class is
+<a name="2590"></a>             *   the original modified object, and the instance is the
+<a name="2591"></a>             *   modifier.  
+<a name="2592"></a>             */
+<a name="2593"></a>            local cl = o.propDefined(&amp;sourceTextOrder, PropDefGetClass);
+<a name="2594"></a>            if (cl == o || cl != nil &amp;&amp; cl.isClass())
+<a name="2595"></a>            {
+<a name="2596"></a>                /* 
+<a name="2597"></a>                 *   It's a static object.  If it has a constructStatic()
+<a name="2598"></a>                 *   method, call that.  Otherwise, if it has a construct()
+<a name="2599"></a>                 *   method, call that.
+<a name="2600"></a>                 */
+<a name="2601"></a>                if (o.propDefined(&amp;constructStatic))
 <a name="2602"></a>                {
-<a name="2603"></a>                    /* call construct() */
-<a name="2604"></a>                    callConstructor(o, &amp;construct, &amp;constructFirst);
+<a name="2603"></a>                    /* it has constructStatic() */
+<a name="2604"></a>                    callConstructor(o, &amp;constructStatic, &amp;constructFirst);
 <a name="2605"></a>                }
-<a name="2606"></a>            }
-<a name="2607"></a>        }
-<a name="2608"></a>
-<a name="2609"></a>        /* 
-<a name="2610"></a>         *   done with the lookup table - explicitly remove it so that it
-<a name="2611"></a>         *   doesn't take up space in the final compiled image 
-<a name="2612"></a>         */
-<a name="2613"></a>        _initedTab = nil;
-<a name="2614"></a>
-<a name="2615"></a>        /* likewise the reverse global symbol table */
-<a name="2616"></a>        reverseGlobalSymbols = otab;
-<a name="2617"></a>    }
-<a name="2618"></a>
-<a name="2619"></a>    /* call the given object's constructor */
-<a name="2620"></a>    callConstructor(obj, conProp, preProp)
-<a name="2621"></a>    {
-<a name="2622"></a>        /* if obj has already been initialized, skip it */
-<a name="2623"></a>        if (_initedTab[obj])
-<a name="2624"></a>            return;
-<a name="2625"></a>
-<a name="2626"></a>        /* 
-<a name="2627"></a>         *   mark this object as visited (do this first, before handling
-<a name="2628"></a>         *   prerequisites, to break circular dependencies: if a
-<a name="2629"></a>         *   prerequisite of ours lists us as a prerequisite, we'll see
-<a name="2630"></a>         *   that we've already been initialized and stop the loop) 
-<a name="2631"></a>         */
-<a name="2632"></a>        _initedTab[obj] = true;
-<a name="2633"></a>
-<a name="2634"></a>        /* call constructors on any prerequisites */
-<a name="2635"></a>        if (obj.propDefined(preProp))
-<a name="2636"></a>        {
-<a name="2637"></a>            foreach (local p in obj.(preProp))
-<a name="2638"></a>                callConstructor(p, conProp, preProp);
-<a name="2639"></a>        }
-<a name="2640"></a>
-<a name="2641"></a>        /* 
-<a name="2642"></a>         *   if the given constructor is zero-argument constructor, call it
-<a name="2643"></a>         *   directly; otherwise, look for an inherited constructor 
-<a name="2644"></a>         */
-<a name="2645"></a>        if (obj.getPropParams(conProp) == [0, 0, nil])
-<a name="2646"></a>        {
-<a name="2647"></a>            /* call the constructor */
-<a name="2648"></a>            obj.(conProp)();
-<a name="2649"></a>        }
-<a name="2650"></a>        else
+<a name="2606"></a>                else if (o.propDefined(&amp;construct))
+<a name="2607"></a>                {
+<a name="2608"></a>                    /* call construct() */
+<a name="2609"></a>                    callConstructor(o, &amp;construct, &amp;constructFirst);
+<a name="2610"></a>                }
+<a name="2611"></a>            }
+<a name="2612"></a>        }
+<a name="2613"></a>
+<a name="2614"></a>        /* 
+<a name="2615"></a>         *   done with the lookup table - explicitly remove it so that it
+<a name="2616"></a>         *   doesn't take up space in the final compiled image 
+<a name="2617"></a>         */
+<a name="2618"></a>        _initedTab = nil;
+<a name="2619"></a>
+<a name="2620"></a>        /* likewise the reverse global symbol table */
+<a name="2621"></a>        reverseGlobalSymbols = otab;
+<a name="2622"></a>    }
+<a name="2623"></a>
+<a name="2624"></a>    /* call the given object's constructor */
+<a name="2625"></a>    callConstructor(obj, conProp, preProp)
+<a name="2626"></a>    {
+<a name="2627"></a>        /* if obj has already been initialized, skip it */
+<a name="2628"></a>        if (_initedTab[obj])
+<a name="2629"></a>            return;
+<a name="2630"></a>
+<a name="2631"></a>        /* 
+<a name="2632"></a>         *   mark this object as visited (do this first, before handling
+<a name="2633"></a>         *   prerequisites, to break circular dependencies: if a
+<a name="2634"></a>         *   prerequisite of ours lists us as a prerequisite, we'll see
+<a name="2635"></a>         *   that we've already been initialized and stop the loop) 
+<a name="2636"></a>         */
+<a name="2637"></a>        _initedTab[obj] = true;
+<a name="2638"></a>
+<a name="2639"></a>        /* call constructors on any prerequisites */
+<a name="2640"></a>        if (obj.propDefined(preProp))
+<a name="2641"></a>        {
+<a name="2642"></a>            foreach (local p in obj.(preProp))
+<a name="2643"></a>                callConstructor(p, conProp, preProp);
+<a name="2644"></a>        }
+<a name="2645"></a>
+<a name="2646"></a>        /* 
+<a name="2647"></a>         *   if the given constructor is zero-argument constructor, call it
+<a name="2648"></a>         *   directly; otherwise, look for an inherited constructor 
+<a name="2649"></a>         */
+<a name="2650"></a>        if (obj.getPropParams(conProp) == [0, 0, nil])
 <a name="2651"></a>        {
-<a name="2652"></a>            /* 
-<a name="2653"></a>             *   Search the class tree for an inherited version of the
-<a name="2654"></a>             *   constructor that takes zero arguments.  
-<a name="2655"></a>             */
-<a name="2656"></a>            for (local cl = obj.propDefined(conProp, PropDefGetClass) ;
-<a name="2657"></a>                 cl != nil ;
-<a name="2658"></a>                 cl = obj.propInherited(conProp, obj, cl, PropDefGetClass))
-<a name="2659"></a>            {
-<a name="2660"></a>                /* if this is a zero-argument version, call it */
-<a name="2661"></a>                if (cl.getPropParams(conProp) == [0, 0, nil])
-<a name="2662"></a>                {
-<a name="2663"></a>                    /* invoke it */
-<a name="2664"></a>                    obj.callInherited(cl, conProp);
-<a name="2665"></a>
-<a name="2666"></a>                    /* we're done looking */
-<a name="2667"></a>                    break;
-<a name="2668"></a>                }
-<a name="2669"></a>            }
-<a name="2670"></a>        }
-<a name="2671"></a>    }
-<a name="2672"></a>
-<a name="2673"></a>    /* table of objects we've already initialized */
-<a name="2674"></a>    _initedTab = nil
-<a name="2675"></a>;
-<a name="2676"></a>
-<a name="2677"></a>/*
-<a name="2678"></a> *   Our static object and class initializer should generally run before
-<a name="2679"></a> *   any other initializers.  
-<a name="2680"></a> */
-<a name="2681"></a>modify PreinitObject
-<a name="2682"></a>    /* execute the basic library initializer before any other initializers */
-<a name="2683"></a>    execBeforeMe = [libObjectInitializer]
-<a name="2684"></a>
-<a name="2685"></a>    /* 
-<a name="2686"></a>     *   class property: reverse lookup symbol table (a version of the
-<a name="2687"></a>     *   global symbol table keyed by value, yielding the name of each
-<a name="2688"></a>     *   global object, function, etc) 
-<a name="2689"></a>     */
-<a name="2690"></a>    reverseGlobalSymbols = nil
-<a name="2691"></a>;
-<a name="2692"></a>
-<a name="2693"></a>emumTabInitializer: PreinitObject
-<a name="2694"></a>    execute()
-<a name="2695"></a>    {
-<a name="2696"></a>        local gTab = t3GetGlobalSymbols();
-<a name="2697"></a>            
-<a name="2698"></a>        local lst=gTab.keysToList();
-<a name="2699"></a>        
-<a name="2700"></a>        foreach(local key in lst)
-<a name="2701"></a>        {
-<a name="2702"></a>            local value = gTab[key];
-<a name="2703"></a>            if(dataType(value) == TypeEnum &amp;&amp; enumTabObj.enumTab[value] == nil)
-<a name="2704"></a>                enumTabObj.enumTab[value] = key;
-<a name="2705"></a>        }
-<a name="2706"></a>    }   
-<a name="2707"></a>;
-<a name="2708"></a>
-<a name="2709"></a>/* 
-<a name="2710"></a> *   Service function primarily intended for use with the symcomm extension to facilitate the use of
-<a name="2711"></a> *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
-<a name="2712"></a> *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
-<a name="2713"></a> *   something different).
-<a name="2714"></a> *
-<a name="2715"></a> *   We need the function because a string template can't directly be defined in relation to a
-<a name="2716"></a> *   method, so the byRoomFunc() function calls the byRoom() method on the object that invokes it.
-<a name="2717"></a> */
-<a name="2718"></a> byRoomFunc(arg)
-<a name="2719"></a>{
-<a name="2720"></a>    /* 
-<a name="2721"></a>     *   We meed to get at the effective self object by using the stack frame. First obtain the
-<a name="2722"></a>     *   stack frame one level back from us.
-<a name="2723"></a>     */
-<a name="2724"></a>    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
-<a name="2725"></a>    
-<a name="2726"></a>    /* Then get the self object in that stack frame. */
-<a name="2727"></a>    local obj = frame.getSelf();
-<a name="2728"></a>    
-<a name="2729"></a>    /* Then call and return the byRoom() method on that object. */
-<a name="2730"></a>    return obj.byRoom(arg);
-<a name="2731"></a>}
-<a name="2732"></a>
-<a name="2733"></a>
-<a name="2734"></a>/* Service function to determine whether obj is ofKind cls when obj might not be an object. */
-<a name="2735"></a>objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject &amp;&amp; obj.ofKind(cls); }
-<a name="2736"></a>
+<a name="2652"></a>            /* call the constructor */
+<a name="2653"></a>            obj.(conProp)();
+<a name="2654"></a>        }
+<a name="2655"></a>        else
+<a name="2656"></a>        {
+<a name="2657"></a>            /* 
+<a name="2658"></a>             *   Search the class tree for an inherited version of the
+<a name="2659"></a>             *   constructor that takes zero arguments.  
+<a name="2660"></a>             */
+<a name="2661"></a>            for (local cl = obj.propDefined(conProp, PropDefGetClass) ;
+<a name="2662"></a>                 cl != nil ;
+<a name="2663"></a>                 cl = obj.propInherited(conProp, obj, cl, PropDefGetClass))
+<a name="2664"></a>            {
+<a name="2665"></a>                /* if this is a zero-argument version, call it */
+<a name="2666"></a>                if (cl.getPropParams(conProp) == [0, 0, nil])
+<a name="2667"></a>                {
+<a name="2668"></a>                    /* invoke it */
+<a name="2669"></a>                    obj.callInherited(cl, conProp);
+<a name="2670"></a>
+<a name="2671"></a>                    /* we're done looking */
+<a name="2672"></a>                    break;
+<a name="2673"></a>                }
+<a name="2674"></a>            }
+<a name="2675"></a>        }
+<a name="2676"></a>    }
+<a name="2677"></a>
+<a name="2678"></a>    /* table of objects we've already initialized */
+<a name="2679"></a>    _initedTab = nil
+<a name="2680"></a>;
+<a name="2681"></a>
+<a name="2682"></a>/*
+<a name="2683"></a> *   Our static object and class initializer should generally run before
+<a name="2684"></a> *   any other initializers.  
+<a name="2685"></a> */
+<a name="2686"></a>modify PreinitObject
+<a name="2687"></a>    /* execute the basic library initializer before any other initializers */
+<a name="2688"></a>    execBeforeMe = [libObjectInitializer]
+<a name="2689"></a>
+<a name="2690"></a>    /* 
+<a name="2691"></a>     *   class property: reverse lookup symbol table (a version of the
+<a name="2692"></a>     *   global symbol table keyed by value, yielding the name of each
+<a name="2693"></a>     *   global object, function, etc) 
+<a name="2694"></a>     */
+<a name="2695"></a>    reverseGlobalSymbols = nil
+<a name="2696"></a>;
+<a name="2697"></a>
+<a name="2698"></a>emumTabInitializer: PreinitObject
+<a name="2699"></a>    execute()
+<a name="2700"></a>    {
+<a name="2701"></a>        local gTab = t3GetGlobalSymbols();
+<a name="2702"></a>            
+<a name="2703"></a>        local lst=gTab.keysToList();
+<a name="2704"></a>        
+<a name="2705"></a>        foreach(local key in lst)
+<a name="2706"></a>        {
+<a name="2707"></a>            local value = gTab[key];
+<a name="2708"></a>            if(dataType(value) == TypeEnum &amp;&amp; enumTabObj.enumTab[value] == nil)
+<a name="2709"></a>                enumTabObj.enumTab[value] = key;
+<a name="2710"></a>        }
+<a name="2711"></a>    }   
+<a name="2712"></a>;
+<a name="2713"></a>
+<a name="2714"></a>/* 
+<a name="2715"></a> *   Service function primarily intended for use with the symcomm extension to facilitate the use of
+<a name="2716"></a> *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
+<a name="2717"></a> *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
+<a name="2718"></a> *   something different).
+<a name="2719"></a> *
+<a name="2720"></a> *   We need the function because a string template can't directly be defined in relation to a
+<a name="2721"></a> *   method, so the byRoomFunc() function calls the byRoom() method on the object that invokes it.
+<a name="2722"></a> */
+<a name="2723"></a> byRoomFunc(arg)
+<a name="2724"></a>{
+<a name="2725"></a>    /* 
+<a name="2726"></a>     *   We meed to get at the effective self object by using the stack frame. First obtain the
+<a name="2727"></a>     *   stack frame one level back from us.
+<a name="2728"></a>     */
+<a name="2729"></a>    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
+<a name="2730"></a>    
+<a name="2731"></a>    /* Then get the self object in that stack frame. */
+<a name="2732"></a>    local obj = frame.getSelf();
+<a name="2733"></a>    
+<a name="2734"></a>    /* Then call and return the byRoom() method on that object. */
+<a name="2735"></a>    return obj.byRoom(arg);
+<a name="2736"></a>}
 <a name="2737"></a>
-<a name="2738"></a>/* Failsafe Function to get the player character object */
-<a name="2739"></a>getPlayerChar()
-<a name="2740"></a>{
-<a name="2741"></a>    /* 
-<a name="2742"></a>     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
-<a name="2743"></a>     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
-<a name="2744"></a>     *   and return whatever that comes up with.
-<a name="2745"></a>     */    
-<a name="2746"></a>    return (gameMain.initialPlayerChar) ?? findPlayerChar();
-<a name="2747"></a>}
-<a name="2748"></a>
-<a name="2749"></a>/* 
-<a name="2750"></a> *   The findPlayerChar() function is intended for internal library use only, to be called by
-<a name="2751"></a> *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
-<a name="2752"></a> *   function first iterates through every Thing defined in the game until it finds one that defines
-<a name="2753"></a> *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
-<a name="2754"></a> *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
-<a name="2755"></a> *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
-<a name="2756"></a> *   player char object has been explicitly defined in game code, and returns the new Player object.
-<a name="2757"></a> *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
-<a name="2758"></a> *   non-nil object.
-<a name="2759"></a> */     
-<a name="2760"></a>findPlayerChar()    
-<a name="2761"></a>{   
-<a name="2762"></a>    /* Start by looking at objects of the Player class, and if that fails, look through Things. */
-<a name="2763"></a>    for(local cls in [Player, Actor, Thing])
-<a name="2764"></a>    {
-<a name="2765"></a>        /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
-<a name="2766"></a>        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
-<a name="2767"></a>        {
-<a name="2768"></a>            /* If we've found the initial player character */
-<a name="2769"></a>            if(obj.isInitialPlayerChar)
-<a name="2770"></a>            {
-<a name="2771"></a>                /* Store the PC's identity in gameMain */
-<a name="2772"></a>                gameMain.initialPlayerChar = obj;
-<a name="2773"></a>                
-<a name="2774"></a>                /* Set the player char to the objec we've found. */
-<a name="2775"></a>//                gPlayerChar = obj;
-<a name="2776"></a>                
-<a name="2777"></a>                /* Return our player char object. */
-<a name="2778"></a>                return obj;
-<a name="2779"></a>            }
-<a name="2780"></a>        }
-<a name="2781"></a>    }
-<a name="2782"></a>    
-<a name="2783"></a>    /* If all else fails, create a new player character object */    
-<a name="2784"></a>    local pc = new Player;
-<a name="2785"></a>    
-<a name="2786"></a>    /* Find a room */
-<a name="2787"></a>    local loc = firstObj(Room);
-<a name="2788"></a>    
-<a name="2789"></a>    /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
-<a name="2790"></a>    while(loc is in (unknownDest_, varDest_))
-<a name="2791"></a>        loc = nextObj(loc, Room);
-<a name="2792"></a>    
-<a name="2793"></a>    /* Move our new player character into that room */
-<a name="2794"></a>    pc.moveInto(loc);
-<a name="2795"></a>    
-<a name="2796"></a>    /* Set gPlayerChar to our new player character. */
-<a name="2797"></a>//    gPlayerChar = pc;
-<a name="2798"></a>    
-<a name="2799"></a>#ifdef __DEBUG 
-<a name="2800"></a>    say('&lt;.p&gt;&lt;FONT COLOR=RED&gt;&lt;b&gt;WARNING!&lt;/b&gt;&lt;/FONT&gt; No Player Character Defined.&lt;.p&gt;
-<a name="2801"></a>        The library has defined a Player Character object and placed it in &lt;&lt;loc.roomTitle&gt;&gt;.&lt;.p&gt;');
-<a name="2802"></a>#endif  
+<a name="2738"></a>
+<a name="2739"></a>/* Service function to determine whether obj is ofKind cls when obj might not be an object. */
+<a name="2740"></a>objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject &amp;&amp; obj.ofKind(cls); }
+<a name="2741"></a>
+<a name="2742"></a>
+<a name="2743"></a>/* Failsafe Function to get the player character object */
+<a name="2744"></a>getPlayerChar()
+<a name="2745"></a>{
+<a name="2746"></a>    /* 
+<a name="2747"></a>     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
+<a name="2748"></a>     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
+<a name="2749"></a>     *   and return whatever that comes up with.
+<a name="2750"></a>     */    
+<a name="2751"></a>    return (gameMain.initialPlayerChar) ?? findPlayerChar();
+<a name="2752"></a>}
+<a name="2753"></a>
+<a name="2754"></a>/* 
+<a name="2755"></a> *   The findPlayerChar() function is intended for internal library use only, to be called by
+<a name="2756"></a> *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
+<a name="2757"></a> *   function first iterates through every Thing defined in the game until it finds one that defines
+<a name="2758"></a> *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
+<a name="2759"></a> *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
+<a name="2760"></a> *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
+<a name="2761"></a> *   player char object has been explicitly defined in game code, and returns the new Player object.
+<a name="2762"></a> *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
+<a name="2763"></a> *   non-nil object.
+<a name="2764"></a> */     
+<a name="2765"></a>findPlayerChar()    
+<a name="2766"></a>{   
+<a name="2767"></a>    /* Start by looking at objects of the Player class, and if that fails, look through Things. */
+<a name="2768"></a>    for(local cls in [Player, Actor, Thing])
+<a name="2769"></a>    {
+<a name="2770"></a>        /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
+<a name="2771"></a>        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
+<a name="2772"></a>        {
+<a name="2773"></a>            /* If we've found the initial player character */
+<a name="2774"></a>            if(obj.isInitialPlayerChar)
+<a name="2775"></a>            {
+<a name="2776"></a>                /* Store the PC's identity in gameMain */
+<a name="2777"></a>                gameMain.initialPlayerChar = obj;
+<a name="2778"></a>                
+<a name="2779"></a>                /* Set the player char to the objec we've found. */
+<a name="2780"></a>//                gPlayerChar = obj;
+<a name="2781"></a>                
+<a name="2782"></a>                /* Return our player char object. */
+<a name="2783"></a>                return obj;
+<a name="2784"></a>            }
+<a name="2785"></a>        }
+<a name="2786"></a>    }
+<a name="2787"></a>    
+<a name="2788"></a>    /* If all else fails, create a new player character object */    
+<a name="2789"></a>    local pc = new Player;
+<a name="2790"></a>    
+<a name="2791"></a>    /* Find a room */
+<a name="2792"></a>    local loc = firstObj(Room);
+<a name="2793"></a>    
+<a name="2794"></a>    /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
+<a name="2795"></a>    while(loc is in (unknownDest_, varDest_))
+<a name="2796"></a>        loc = nextObj(loc, Room);
+<a name="2797"></a>    
+<a name="2798"></a>    /* Move our new player character into that room */
+<a name="2799"></a>    pc.moveInto(loc);
+<a name="2800"></a>    
+<a name="2801"></a>    /* Set gPlayerChar to our new player character. */
+<a name="2802"></a>//    gPlayerChar = pc;
 <a name="2803"></a>    
-<a name="2804"></a>    
-<a name="2805"></a>    /* Return our new player character */
-<a name="2806"></a>    return pc;
-<a name="2807"></a>}
-<a name="2808"></a>
-<a name="2809"></a>/* Determine whether str is a valid identifier */
-<a name="2810"></a>isValidIdentifierName(str)
-<a name="2811"></a>{
-<a name="2812"></a>    /* 
-<a name="2813"></a>     *   First, strip out any underscores, since these can appear anywhere in valid identifier name.
-<a name="2814"></a>     */
-<a name="2815"></a>    str = str.findReplace('_', '');
-<a name="2816"></a>    
+<a name="2804"></a>#ifdef __DEBUG 
+<a name="2805"></a>    say('&lt;.p&gt;&lt;FONT COLOR=RED&gt;&lt;b&gt;WARNING!&lt;/b&gt;&lt;/FONT&gt; No Player Character Defined.&lt;.p&gt;
+<a name="2806"></a>        The library has defined a Player Character object and placed it in &lt;&lt;loc.roomTitle&gt;&gt;.&lt;.p&gt;');
+<a name="2807"></a>#endif  
+<a name="2808"></a>    
+<a name="2809"></a>    
+<a name="2810"></a>    /* Return our new player character */
+<a name="2811"></a>    return pc;
+<a name="2812"></a>}
+<a name="2813"></a>
+<a name="2814"></a>/* Determine whether str is a valid identifier */
+<a name="2815"></a>isValidIdentifierName(str)
+<a name="2816"></a>{
 <a name="2817"></a>    /* 
-<a name="2818"></a>     *   If there are any non-alphanumeric characters in what's left, str is not a valid identifier
-<a name="2819"></a>     *   name.
-<a name="2820"></a>     */
-<a name="2821"></a>    if(str.find(R'&lt;^AlphaNum&gt;'))
-<a name="2822"></a>        return nil;
-<a name="2823"></a>    
-<a name="2824"></a>    /* If str starts with a digit, it's not a valid identifier name */
-<a name="2825"></a>    if('1234567890'.find(str.substr(1,1)))
-<a name="2826"></a>       return nil;
-<a name="2827"></a>    
-<a name="2828"></a>    /* If we reach this far, str has passed all the tests for being a valid identifier name. */
-<a name="2829"></a>    return true;
-<a name="2830"></a>}
-<a name="2831"></a>
-<a name="2832"></a>
-<a name="2833"></a>/* 
-<a name="2834"></a> *   Function to return a string to display an integer (val) as a decimal number to decimalPlaces
-<a name="2835"></a> *   decimal places, e.g. decimalStr(123, 2) -&gt; '1.23'. This provides a way of presenting integer
-<a name="2836"></a> *   values, such as currency, as ones including decimal fractions. For example, we could use an
-<a name="2837"></a> *   integer property (balance, say) in cents or pence but display it in dollars or pounds via
-<a name="2838"></a> *   "$&lt;&lt;decimalStr(balance, 2)&gt;&gt;" or "�&lt;&lt;decimalStr(balance)&gt;&gt; (since decimalPlaced deftults to 2).
-<a name="2839"></a> */
-<a name="2840"></a>decimalStr(val, decimalPlaces = 2)
-<a name="2841"></a>{
-<a name="2842"></a>    /* First convert val to a string. */
-<a name="2843"></a>    local dv = toString(val);
-<a name="2844"></a>    
-<a name="2845"></a>    /* check whether val is negative (so that dv starts with a minus sign) */
-<a name="2846"></a>    local negative = val &lt; 0;
-<a name="2847"></a>    
-<a name="2848"></a>    /* 
-<a name="2849"></a>     *   If dv is negative, remove the leading minus sign to simplify the manipulations that follow.
-<a name="2850"></a>     */
-<a name="2851"></a>    if(negative)
-<a name="2852"></a>        dv = dv.substr(2);
-<a name="2853"></a>    
-<a name="2854"></a>    
-<a name="2855"></a>    /* 
-<a name="2856"></a>     *   If the dv string is shorter than the number of decimal places we want to display, allowing
-<a name="2857"></a>     *   for the presence of a leading mminue sign if val is negative, then prepend a leading
-<a name="2858"></a>     *   pre-decimal point zero plus as many zeros as we need after the decimal point.
-<a name="2859"></a>     */
-<a name="2860"></a>    if(dv.length &lt;= decimalPlaces)        
-<a name="2861"></a>        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
-<a name="2862"></a>    
-<a name="2863"></a>    /* Otherwise insert a decimal point before the final decimalPlaces characters. */
-<a name="2864"></a>    else
-<a name="2865"></a>        dv = dv.substr(1, dv.length - decimalPlaces) + '.' + dv.substr(dv.length -
-<a name="2866"></a>            decimalPlaces + 1);
+<a name="2818"></a>     *   First, strip out any underscores, since these can appear anywhere in valid identifier name.
+<a name="2819"></a>     */
+<a name="2820"></a>    str = str.findReplace('_', '');
+<a name="2821"></a>    
+<a name="2822"></a>    /* 
+<a name="2823"></a>     *   If there are any non-alphanumeric characters in what's left, str is not a valid identifier
+<a name="2824"></a>     *   name.
+<a name="2825"></a>     */
+<a name="2826"></a>    if(str.find(R'&lt;^AlphaNum&gt;'))
+<a name="2827"></a>        return nil;
+<a name="2828"></a>    
+<a name="2829"></a>    /* If str starts with a digit, it's not a valid identifier name */
+<a name="2830"></a>    if('1234567890'.find(str.substr(1,1)))
+<a name="2831"></a>       return nil;
+<a name="2832"></a>    
+<a name="2833"></a>    /* If we reach this far, str has passed all the tests for being a valid identifier name. */
+<a name="2834"></a>    return true;
+<a name="2835"></a>}
+<a name="2836"></a>
+<a name="2837"></a>
+<a name="2838"></a>/* 
+<a name="2839"></a> *   Function to return a string to display an integer (val) as a decimal number to decimalPlaces
+<a name="2840"></a> *   decimal places, e.g. decimalStr(123, 2) -&gt; '1.23'. This provides a way of presenting integer
+<a name="2841"></a> *   values, such as currency, as ones including decimal fractions. For example, we could use an
+<a name="2842"></a> *   integer property (balance, say) in cents or pence but display it in dollars or pounds via
+<a name="2843"></a> *   "$&lt;&lt;decimalStr(balance, 2)&gt;&gt;" or "�&lt;&lt;decimalStr(balance)&gt;&gt; (since decimalPlaced deftults to 2).
+<a name="2844"></a> */
+<a name="2845"></a>decimalStr(val, decimalPlaces = 2)
+<a name="2846"></a>{
+<a name="2847"></a>    /* First convert val to a string. */
+<a name="2848"></a>    local dv = toString(val);
+<a name="2849"></a>    
+<a name="2850"></a>    /* check whether val is negative (so that dv starts with a minus sign) */
+<a name="2851"></a>    local negative = val &lt; 0;
+<a name="2852"></a>    
+<a name="2853"></a>    /* 
+<a name="2854"></a>     *   If dv is negative, remove the leading minus sign to simplify the manipulations that follow.
+<a name="2855"></a>     */
+<a name="2856"></a>    if(negative)
+<a name="2857"></a>        dv = dv.substr(2);
+<a name="2858"></a>    
+<a name="2859"></a>    
+<a name="2860"></a>    /* 
+<a name="2861"></a>     *   If the dv string is shorter than the number of decimal places we want to display, allowing
+<a name="2862"></a>     *   for the presence of a leading mminue sign if val is negative, then prepend a leading
+<a name="2863"></a>     *   pre-decimal point zero plus as many zeros as we need after the decimal point.
+<a name="2864"></a>     */
+<a name="2865"></a>    if(dv.length &lt;= decimalPlaces)        
+<a name="2866"></a>        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
 <a name="2867"></a>    
-<a name="2868"></a>    /* Return the resulting string, prependsing a minus sign if dv was negative. */
-<a name="2869"></a>    return (negative ? '-' : '') + dv;       
-<a name="2870"></a>}
+<a name="2868"></a>    /* Otherwise insert a decimal point before the final decimalPlaces characters. */
+<a name="2869"></a>    else
+<a name="2870"></a>        dv = dv.substr(1, dv.length - decimalPlaces) + '.' + dv.substr(dv.length -
+<a name="2871"></a>            decimalPlaces + 1);
+<a name="2872"></a>    
+<a name="2873"></a>    /* Return the resulting string, prependsing a minus sign if dv was negative. */
+<a name="2874"></a>    return (negative ? '-' : '') + dv;       
+<a name="2875"></a>}
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/01/2025 from adv3Lite version 2.1.1.11</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/01/2025 from adv3Lite version 2.1.1.14</div>
 </body>
 </html>
