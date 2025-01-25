@@ -1906,7 +1906,12 @@ modify Object
     }
  ;
 
-
+/* 
+ *   The BaseObject class exists purely to allow code to delegate to/inherit method defined on the
+ *   Object and TadsObject classes, which the compiler won't otherwise allow.
+ */
+class BaseObject: object
+;
 
 
 

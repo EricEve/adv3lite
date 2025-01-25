@@ -43,13 +43,26 @@ longTopicBanner: BannerWindow
  */
 modify MenuItem
     /* 
-     *   Call menu.display when you're ready to show the menu.  This
-     *   should be called on the top-level menu; we run the entire menu
-     *   display process, and return when the user exits from the menu
-     *   tree.  
+     *   Call menu.display when you're ready to show the menu.  This should be called on the
+     *   top-level menu; we run the entire menu display process, and return when the user exits from
+     *   the menu tree. The MenuItem version of prop shouldn't be called with an argument, but it's
+     *   possible that a caller intended the Object version of display, so we provide an optional
+     *   parameter slot to alllow for this.
+     *
      */
-    display()
+    display(prop?)
     {
+        /* 
+         *   If display is called with a parameter, assume it's intended to be a call to Object's
+         *   version of prop.
+         */
+        if(prop)
+        {
+            inherited BaseObject(prop);               
+            return;
+        }
+        
+        
         local oldStr;
         local flags;
 

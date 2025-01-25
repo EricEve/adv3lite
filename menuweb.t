@@ -1,10 +1,10 @@
 #charset "us-ascii"
 
 /*
- *   TADS 3 Library - Menu System, console edition
+ *   TADS 3 Library - Menu System, web interface edition
  *   
- *   This implements the menusys user interface for the traditional
- *   console-mode interpreters.  
+ *   This implements the menusys user interface for the web 
+ *   interface.  
  */
 #include "advlite.h"
 
@@ -20,8 +20,19 @@ modify MenuItem
      *   display process, and return when the user exits from the menu
      *   tree.  
      */
-    display()
+    display(prop?)
     {
+        
+        /* 
+         *   If display is called with a parameter, assume it's intended to be a call to Object's
+         *   version of prop.
+         */
+        if(prop)
+        {
+            inherited BaseObject(prop);               
+            return;
+        }
+        
         /* save the top-level key list */
         MenuItem.curKeyList = keyList;
 

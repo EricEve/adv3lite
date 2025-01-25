@@ -138,7 +138,7 @@ transient menuParagraphManager: ParagraphManager
  *   allows the use of the + syntax (like "+ MenuItem") to define
  *   containment.
  */
-class MenuObject: object
+class MenuObject: BaseObject
     /* our contents list */
     contents = []
 
