@@ -1906,6 +1906,54 @@ modify Object
     }
  ;
 
+modify TadsObject
+    /* 
+     *   Copy a method or property from the self object to obj. obj is the object to copy from. prop
+     *   is a pointer to the property or method to copy. newProp is a pointer to the property or
+     *   method on obj to copy to; if this parameter is not supplied it defaults to obj. If prop is
+     *   a method or double-quoted string we copy the code across, otherwise we copy the value of
+     *   what self.prop contains. If obj does not define prop we don't do anything at all.
+     */
+    copyMethod(obj, prop, newProp = prop)
+    {
+        if(propDefined(prop))            
+        {            
+            if(propType(prop) is in (TypeDString, TypeCode))
+            {
+                local meth = getMethod(prop);
+                obj.setMethod(newProp, meth);
+            }
+            else
+            {
+                obj.(newProp) = self.(prop);
+            }            
+        }
+    }
+               
+    /* 
+     *   Move a method or property from self to obj. This does exactly the same as copyMethod()
+     *   except that after the method or property has been copied to obj, it is effectively deleted
+     *   from self by being set to nil. The idea is that if this method is called at preinit and the
+     *   method or property is no longer needed on self once it has been copied to obj, some
+     *   unneeded code or data may be excluded from the final build (althouth I'm not sure whether
+     *   that will happen).
+     */
+    moveMethod(obj, prop, newProp = prop)
+    {
+        if(propDefined(prop))
+        {
+            copyMethod(obj, prop, newProp);
+            
+            self.(prop) = nil;
+        }
+    }
+;
+
+
+
+
+
+
 /* 
  *   The BaseObject class exists purely to allow code to delegate to/inherit method defined on the
  *   Object and TadsObject classes, which the compiler won't otherwise allow.
