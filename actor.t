@@ -3321,15 +3321,90 @@ class TopicGroup: object
 class ConvNode: TopicGroup
     isActive = nodeActive
     
-    /* Register this ConvNode with its associated actor. */
+    /* 
+     *   Register this ConvNode with its associated actor and set up any implictly defined
+     *   NodeEndCheck and NodeContinuationTopic objects.
+     *.
+     */
     register()
     {
         /* Get our asociated actor. */
         local actor = getActor;
         
         /* Add to our actor's list of ConvNodes. */
-        actor.allNodes = actor.allNodes.append([convKeys, self]);
+        actor.allNodes = actor.allNodes.append([convKeys, self]);    
+        
+        /* 
+         *   If this Convnode defines one or more of the sayBlockXXX methods, create a NodeEndCheck
+         *   object for this ConvNode and moved all the sayBlockXXX methods over to our newly
+         *   created NodeEndCheck.
+         */
+        if(propDefined(&sayBlockLeave) || propDefined(&sayBlockBye) || propDefined(&sayBlockBoredom))
+        {
+            /* Create our NodeEndCheck object. */
+            local nec = new NodeEndCheck;
+            
+            /* Set its location to ourself. */
+            nec.location = self;
+            
+            /* Move our sayBlockXXX methods over to our new NodeEndCheck object. */
+            moveMethod(nec, &sayBlockLeave);
+            moveMethod(nec, &sayBlockBye);
+            moveMethod(nec, &sayBlockBoredom);    
+            
+            /* 
+             *   Initialize our new NodeEndCheck object with our convKeys and add it to our
+             *   enclosing database.
+             */
+            
+            addTopic(nec);
+        }        
+        
+        /* 
+         *   If this Convnode defines a nodeContinuationMsg, create a NodeContinuationTopic object
+         *   for this ConvNode and move our nodeContinuationMsg methods ove to our newly created
+         *   NodeContinuationTopic.
+         */
+        if(propDefined(&nodeContinuationMsg))
+        {
+            /* Create our NodeContinuationTopic object. */
+            local nct = new NodeContinuationTopic;
+            
+            /* Set its location to ourself. */
+            nct.location = self;                 
+            
+            /* Move our nodeContinuationMsg method over to our new NodeEndCheck object. */
+            moveMethod(nct, &nodeContinuationMsg, &topicResponse);
+            
+            /* 
+             *   Initialize our new NodeContinuation object with our convKeys and add it to our
+             *   enclosing database.
+             */
+            addTopic(nct);
+        }
     }
+    
+    /* 
+     *   We can define any of these three sayBlockXXX properties on a ConvNode and the library will
+     *   create a NodeEndCheck to which they'll be moved. This means we shouldn't define these
+     *   properties on a ConvNode and also create a NodeEndCheck object for the same ConvNode.
+     *
+     *   Any of these methods/properties can be defined as a double-quoted string, single-quoted
+     *   string, or a method to display text, just as on a NodeEndCheck object, but if we want
+     *   something more complex, such as employing an EventList to vary the text displayed we'll
+     *   need to create our NodeEndCheck object manually and define the EventList there.
+     */
+    // sayBlockLeave
+    // sayBlockBye
+    // sayBlockBoredom
+    
+    /*
+     *   We can define a nodeContinuationMsg on a ConvNode and it will become the topicResponse of a
+     *   NodeContinuationTopic, but again if we want to employ an EventList to vary what's displayed
+     *   we should create a NodeContinuationTopic manually and define the EventList there.
+     */
+    // nodeContinuationMsg
+    
 ;
 
 convNodePreinit: PreinitObject

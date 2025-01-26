@@ -198,7 +198,7 @@ Conversation Nodes
 <li>The value <b>true</b> in which case the conversation will be allowed to end without further ado.</li>
 <li>An enum (<b>null</b> would be a convenient one to use) in which case ending the conversation will be ruled out (with no explanation).</li>
 </ul>
-
+<p>As we shall shortly see <a href='#impdefs'>below</a>, in many cases we can also define the various sayBlockXXX properties on a <code>ConvNode</code> object, thereby avoiding the need to explicitly define a <code>NodeEndCheck</code> at all. In that case, the sayBlockXXX message would need to be defined as a single-quoted string, a double-quoted string, a method, true or null. They can also be defined directly as EventLists, but some care is needed here - this won't work with <code>nodeContinuationMsg</code> (to be discussed below).</p>
 
 
 
@@ -233,10 +233,10 @@ Conversation Nodes
     &lt;q&gt;Well, there you are then!&lt;/q&gt; he declares triumphantly. &quot;        
 ;
 
-++ DefaultConvstayTopic
+++ DefaultAnyTopic
     &quot;&lt;q&gt;Don't try to change the subject; I want to know whether you'd like
     someone asking about your age,&lt;/q&gt; he insists. &lt;q&gt;Well, would you?&lt;/q&gt;
-    &lt;.topics&gt; &quot;  
+    &lt;.topics&gt; &lt;.convstay&gt;&quot;  
 ;
 
 ++ NodeContinuationTopic
@@ -248,17 +248,59 @@ Conversation Nodes
             you like someone to ask you about your age or wouldn't you?&lt;/q&gt; &quot;    
 ;
 </pre></div>
+
+<a name='impdefs'>
+<p>In many cases, such as the one above, we could abbreviate our code even further, by defining our <b>sayBlockXXX</b> properties on our ConvNode, along with a <b>nodeContinuationMsg</b> for the text of a <code>NodeEndCheck</code>. The previous example would then become:</p>
+
+<p><div class="code"><pre>
++ QueryTopic 'how' 'old he is; are you'
+    &quot;&lt;q&gt;How old are you?&lt;/q&gt; you ask.\b
+    &lt;q&gt;None of your damned business,&lt;/q&gt; he replies. &lt;q&gt;Would you like someone
+    asking you about your age?&lt;/q&gt; &lt;.convnode age-node&gt;&quot;
+      
+    askMatchObj = tAge       
+;
+
++ ConvNode 'age-node'
+   nodeContinuationMsg =  "&lt;q&gt;I thought I asked you a question,&lt;/q&gt; Bob reminds you. " 
+   
+   sayblockBye = &quot;&lt;q&gt;&lt;q&gt;Goodbye,&lt;/q&gt; isn't an answer,&lt;/q&gt; Bob complains. &lt;q&gt;Would
+            you like someone to ask you about your age or wouldn't you?&lt;/q&gt; &quot;
+;
+
+++ YesTopic
+    &quot;&lt;q&gt;Yes, sure, I wouldn't mind,&lt;/q&gt; you reply.\b
+    &lt;q&gt;Well, I do,&lt;/q&gt; he grunts. &quot;         
+;
+
+++ NoTopic
+    &quot;&lt;q&gt;No, I suppose not,&lt;/q&gt; you concede.\b
+    &lt;q&gt;Well, there you are then!&lt;/q&gt; he declares triumphantly. &quot;        
+;
+
+++ DefaultConvstayTopic
+    &quot;&lt;q&gt;Don't try to change the subject; I want to know whether you'd like
+    someone asking about your age,&lt;/q&gt; he insists. &lt;q&gt;Well, would you?&lt;/q&gt;
+    &lt;.topics&gt; &quot;  
+;
+</pre></div>
+
+<p>As mentioned above, we can define <code>sayBlockXXX</code> properties on a ConvNode in exactly the same way as we can on a <code>NodeEndCheck</code> object. A <code>nodeContinuationMsg</code>, on the other hand, should always be either a double-quoted string or a method that displays so.e text (since it will end up as the <code>topicResponse</code> method of the implicitly created <code>NodeContinuationTopic</code>). In particular this means that while you can define a <code>sayBlockXXX</code> method on a ConvNode to be an EventList, just as you can on a <code>NodeEndCheck</code> object, and it should work fine, it won't work if you try to define <code>nodeContinuationMsg</code> as an EventList. While you might be able to devise a workaround for this, for now it's simpler and easier to explicitly define your NodeContinuationTopic mixed in with whatever kind of EventList you want, just as you would for any another TopicEntry. You may also find it cleaner to define explicit <code>NodeEndCheck</code> objects when you want EventLists on <code>sayBlockXXX</code> properties.</p>
+
+
 <a name='defcontop'></a>
-<p>Note that we have replaced our previous DefaultAnyTopic with a <b>DefaultConvstayTopic</b>. A DefaultConvstayTopic automatically adds a &lt;.convstay&gt; tag to what it outputs, which removes the need to type it for ourselves (which could become quite a significant saving if we have a lot of DefaultTopics in ConvNodes in our game, or if our DefaultConvstayTopic is mixed in with an EventList). In this example we've also defined &lt;.topics&gt; tag to force a list of suggested topics. If we wanted all our DefaultConvstayTopics to do this, we could override the <b>convstayTag</b> property on the DefaultConvstayTopic to '&lt;.convstayt&gt;'. We could also do this on individual DefaultConvstayTopics, but that wouldn't save much typing unless the DefaultConvstayTopic was mixed in with an EventList. In any case, overriding on the class will provide greater consistency in your game.</p>
+<p>Note also that we have replaced our previous DefaultAnyTopic with a <b>DefaultConvstayTopic</b>. A DefaultConvstayTopic automatically adds a &lt;.convstay&gt; tag to what it outputs, which removes the need to type it for ourselves (which could become quite a significant saving if we have a lot of DefaultTopics in ConvNodes in our game, or if our DefaultConvstayTopic is mixed in with an EventList). In this example we've also defined &lt;.topics&gt; tag to force a list of suggested topics. If we wanted all our DefaultConvstayTopics to do this, we could override the <b>convstayTag</b> property on the DefaultConvstayTopic to '&lt;.convstayt&gt;'. We could also do this on individual DefaultConvstayTopics, but that wouldn't save much typing unless the DefaultConvstayTopic was mixed in with an EventList. In any case, overriding on the class will provide greater consistency in your game.</p>
 
 <p>Using DefaultConvstayTopic instead of DefaultAnyTopic in a ConvNode brings an additional benefit: it prevents KISS, TOUCH/FEEL and ATTACK/HIT commands from accidentally breaking out of a conversation node you want the player to stay in (since DefaultAnyTopics don't match these commands). Instead a DefaultConvstayTopic will respond to these commands with its <b>nonConvResponse</b>. The library defines this as "Best keep your mind on the conversation", but you can override this to anything you like, either as a double-quoted string or a method to display text. Such a method could check the value of topicMatched to see whether it's kissTopicObj, hitTopicObj,or touchTopicObj and vary the response accordingly. If, however, you want to use a DefaultConstayTopic to add &lt;.convstay&gt; tags without also matching KISS, HIT and FEEL, you can override its <b>matchNonConv</b> property to nil (though this may not be a good idea, for the reasons just explained).</p>
 
 <p>Since <span class='code'>DefaultConvstayTopic</span> is quite a lot to type you can abbreviate it to <b>DCT</b> (a macro). You can similarly abbreviate NodeContinuationTopic to <b>NCT</b> and NodeEndCheck to <b>NEC</b>.
 
 
+
+
 <a name="curnode"></a>
 <p>If you use the ConvNode class to set up your Conversation Nodes, you can use various methods on the Actor object to test whether a ConvNode is currently active for that actor and if so which one it is. If you simply want to test whether there is an active ConvNode, test whether <strong>curNodeIdx()</strong> returns a number (meaning there is one) or nil (meaning there isn't). The <strong>curNodeKey()</strong> method returns the convKeys value associated with the current ConvNode (if there is one) or nil otherwise, while the <strong>curNodeObj()</strong> method returns the current ConvNode object, if there is one.</p>
-<a name=''>
+
 
 
 <hr class="navb"><div class="navb">

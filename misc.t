@@ -1910,7 +1910,7 @@ modify TadsObject
     /* 
      *   Copy a method or property from the self object to obj. obj is the object to copy from. prop
      *   is a pointer to the property or method to copy. newProp is a pointer to the property or
-     *   method on obj to copy to; if this parameter is not supplied it defaults to obj. If prop is
+     *   method on obj to copy to; if this parameter is not supplied it defaults to prop. If prop is
      *   a method or double-quoted string we copy the code across, otherwise we copy the value of
      *   what self.prop contains. If obj does not define prop we don't do anything at all.
      */
