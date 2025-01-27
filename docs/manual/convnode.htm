@@ -173,7 +173,7 @@ Conversation Nodes
 <ul>
 <li><b>sayBlockTravel</b>: the response to an attempt to end a conversation during this ConvNode by moving to another location.</li>
 <li><b>sayBlockBye</b>: the response to an attempt to end a conversation during this ConvNode by saying BYE.</li>
-<li><b>sayBlockBoredrom</b>: the response to an attempt to end a converstion during this ConvNode by exhausting the NPC's patience through carrying out a number of non-conversational actions.</li>
+<li><b>sayBlockBoredom</b>: the response to an attempt to end a converstion during this ConvNode by exhausting the NPC's patience through carrying out a number of non-conversational actions.</li>
 <li><b>defaultVal</b>: this is the return value (usually true or nil) we want canEndConversation() to return if none of our sayBlockXXX properties intervenes. This defaults to treu to allow the conversation to be ended, but we could override this to nil on NodeEndChecks that we want to default to blocking ending the conversation.</li>
 </ul>
 <p>By this means, the <span class='code'>NodeEndCheck</span> object in our previous example could be defined rather more concisely as:</p>
@@ -198,7 +198,7 @@ Conversation Nodes
 <li>The value <b>true</b> in which case the conversation will be allowed to end without further ado.</li>
 <li>An enum (<b>null</b> would be a convenient one to use) in which case ending the conversation will be ruled out (with no explanation).</li>
 </ul>
-<p>As we shall shortly see <a href='#impdefs'>below</a>, in many cases we can also define the various sayBlockXXX properties on a <code>ConvNode</code> object, thereby avoiding the need to explicitly define a <code>NodeEndCheck</code> at all. In that case, the sayBlockXXX message would need to be defined as a single-quoted string, a double-quoted string, a method, true or null. They can also be defined directly as EventLists, but some care is needed here - this won't work with <code>nodeContinuationMsg</code> (to be discussed below).</p>
+<p>As we shall shortly see <a href='#impdefs'>below</a>, in most cases we can also define the various sayBlockXXX properties on a <code>ConvNode</code> object, thereby avoiding the need to explicitly define a <code>NodeEndCheck</code> at all.</p>
 
 
 
@@ -285,7 +285,16 @@ Conversation Nodes
 ;
 </pre></div>
 
-<p>As mentioned above, we can define <code>sayBlockXXX</code> properties on a ConvNode in exactly the same way as we can on a <code>NodeEndCheck</code> object. A <code>nodeContinuationMsg</code>, on the other hand, should always be either a double-quoted string or a method that displays so.e text (since it will end up as the <code>topicResponse</code> method of the implicitly created <code>NodeContinuationTopic</code>). In particular this means that while you can define a <code>sayBlockXXX</code> method on a ConvNode to be an EventList, just as you can on a <code>NodeEndCheck</code> object, and it should work fine, it won't work if you try to define <code>nodeContinuationMsg</code> as an EventList. While you might be able to devise a workaround for this, for now it's simpler and easier to explicitly define your NodeContinuationTopic mixed in with whatever kind of EventList you want, just as you would for any another TopicEntry. You may also find it cleaner to define explicit <code>NodeEndCheck</code> objects when you want EventLists on <code>sayBlockXXX</code> properties.</p>
+<p>As mentioned above, we can define <code>sayBlockXXX</code> properties on a ConvNode in exactly the same way as we can on a <code>NodeEndCheck</code> or <code>nodeContinuationMsg</code> object. Note, however, that you must do one or the other on any given ConvNode. In other words, you shouldn't try to both define one or more <code>sayBlockXXXM</code> properties on a ConvNode and explicitly define a <code>NodeEndCheck</code> object for the same ConvNode, and you shouldn't define both a <code>nodeContinuationMsg</code> on a ConvNode and an explicit <code>NodeContinuationTopic</code> object on the same ConvNode. Under the hood, defining these properties on the ConvNode is just a shortcut way of defining the corresponding <code>NodeEndCheck</code> or <code>nodeContinuationMsg</code> objects. When the library finds one or more <code>sayBlockXXX</code> and/or <code>nodeContinuationMsg</code> properties defined on a ConvNode, it creates the corresponding <code>NodeEndCheck</code> and/or <code>NodeContinuationTopic</code> object and moves the property definitions across from the ConvNode to the newly-created object(s).<p>
+
+<p>It may be asked why one might nevertheless wish to create <code>NodeEndCheck</code> and/or <code>NodeContinuationTopic</code> object  explicitly, given the option of defining the corresponding properties on a ConvNode with a bit less work. Possible reasons include:</p>
+
+<ul>
+<li>You may encounter a complex situation that requires you to define a custom <code>canEndConversation(reason)</code> method on an explicitly created <code>NodeEndCheck</code>, when you can't achieve the precise effect you're aiming for by just using the <code>sayBlockXXX</code> properties. While such situations seem likely to be rare, they need to be catered for.</li>
+<li>You may prefer to define a substantial method or property (such as a substantial EventList) on a separate object rather than cluttering up your ConvNode object.</li>
+<li>The ability to create explicit  <code>NodeEndCheck</code> and/or <code>NodeContinuationTopic</code> objects ensures backward compatibility with existing code (from prior adv3Lite version 2.2). Also, it may be helpful to game authors to understand how  <code>NodeEndCheck</code> and<code>NodeContinuationTopic</code> objects work, not least when it comes to debugging game code that may be relying on implicitly created ones.</li> 
+    
+</ul>
 
 
 <a name='defcontop'></a>

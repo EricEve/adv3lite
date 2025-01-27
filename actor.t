@@ -3712,7 +3712,19 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
              */
             wasConversational = isConversational;
             
-            /* Show our topic resposnse. */
+            
+            /* 
+             *   If our topicResponse has been defined as an EventList, call its doScript method.
+             *   This has been implemented more for internal use in connection with ConvNode and
+             *   NodeContinuationTopic than for user code. Game code should normally continue to mix
+             *   any EventList class it may want to use with the TopicEntry class being employed and
+             *   define the contemts of the EventList on the eventList property, typically via the
+             *   TopicEntry template.
+             */
+            if(propType(&topicResponse) == TypeObject && topicResponse.ofKind(Script))
+                 topicResponse.doScript();
+            else            
+            /* Otherwise just show our topic response. */
             topicResponse();
         }
         
