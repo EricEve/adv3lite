@@ -1804,16 +1804,16 @@ modify Object
     
     /* 
      *   Call a function by calling this method. This allows us to write code in embedded
-     *   expressions it mught otherwise be tricky to write, e.g. "<<>({: myProp = nil })>>>>".
+     *   expressions it mught otherwise be tricky to write, e.g. "<<(cf{: myProp = nil })>>".
      */
     cf(func) 
     {  
-        func();
+        return func();
     }
     
     
     /* 
-     *   Attempt to display prop appropriately according to it data type
+     *   Attempt to display prop appropriately according to its data type
      *   (single-quoted string, double-quoted string, integer or code). The prop
      *   parameter must be provided as a property pointer.
      */
@@ -1897,12 +1897,12 @@ modify Object
     }
     
     /* 
-     *   Check if displaying prop could possibly produce any output. The only tests we apply here is
-     *   that prop is not defined as nil.
+     *   Check whether displaying prop could possibly produce any output. The only tests we apply
+     *   here are that prop has been defined and is not defined as nil.
      */
     checkDisplay(prop)    
     {          
-        return propType(prop) != TypeNil;
+        return propDefined(prop) && propType(prop) != TypeNil;
     }
  ;
 
@@ -2034,7 +2034,7 @@ modify String
     left(n) { return n >= 0 ? substr(1, n) : substr(1, length() + n); }
 
     /* rightmost n characters; if n is negative, rightmost (length-n) */
-    right(n) { return n >= 0 ? substr(-n) : substr(n + length()); }    
+    right(n) { return n >= 0 ? substr(-n) : substr(n - 1 + length()); }    
     ;
 
 /* A string is empty if it's nil or if when trimmed it's '' */
@@ -2169,7 +2169,7 @@ modify Vector
             self[i] = self[i][3];
     }
 
-    /* find a list element - synonym for indexOf */
+    /* find a vector element - synonym for indexOf */
     find(ele) { return indexOf(ele); }
 
     /* shuffle the elements of the vector into a random order */
