@@ -38,6 +38,10 @@ class Scenery: PreinitObject
     /* A list of the Decoration objects created by this Scenery object at preInit. */
     myObjs = []
     
+    /* Get the scenery object we've created whose name is nam */
+    getObj(nam)  {  return myObjs.valWhich({x: x.name == nam}); }
+    
+    
     /* 
      *   PreInitialization of a Scenery object creates the Decoration objects defined in our
      *   ScenList property.
@@ -132,7 +136,7 @@ class Scenery: PreinitObject
                 case TypeObject:
                     /* 
                      *   Retrieve notImp's notImportantMsg as a floating method. We do it this way
-                     *   to prevent premature evailuation of any message substition paraeeters.
+                     *   to prevent premature evaluation of any message substition paraeeters.
                      */
                     local m = notImp.getMethod(&notImportantMsg);
                     
@@ -198,7 +202,12 @@ class Scenery: PreinitObject
             obj.visibleInDark = visibleInDark;
         }
         
-        
+        /* 
+         *   Once we've created all our ScenItem objects from our scenList, we don't need our
+         *   scenList any more, so we can set it to nil to avoid redundant data being included in
+         *   our build.
+         */
+        scenList = nil;
     }
     
     /* 
