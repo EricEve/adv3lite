@@ -5695,7 +5695,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
      */
      // sayBlockTravel() {}
      // sayBlockBye () {}
-     // sayBlockBoredMsg() {}
+     // sayBlockBoredom() {}
     
     /* 
      *   The method that handles prop (a proprty pointer) according to its property type. For the
