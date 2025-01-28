@@ -3362,7 +3362,7 @@ class ConvNode: TopicGroup
         
         /* 
          *   If this Convnode defines a nodeContinuationMsg, create a NodeContinuationTopic object
-         *   for this ConvNode and move our nodeContinuationMsg methods ove to our newly created
+         *   for this ConvNode and move our nodeContinuationMsg over to our newly created
          *   NodeContinuationTopic.
          */
         if(propDefined(&nodeContinuationMsg))
@@ -3382,6 +3382,31 @@ class ConvNode: TopicGroup
              */
             addTopic(nct);
         }
+        
+        /* 
+         *   If this Convnode defines a convstayMsg, create a DefaultConvstayTopic object
+         *   for this ConvNode and move our convsratMsg over to our newly created
+         *   DefaultConvstayTopic.
+         */
+        
+        if(propDefined(&convstayMsg))
+        {
+            /* Create our DefaultConvstayTopic object. */
+            local dct = new DefaultConvstayTopic;
+            
+            /* Set its location to ourself. */
+            dct.location = self;                 
+            
+            /* Move our nodeContinuationMsg method over to our new NodeEndCheck object. */
+            moveMethod(dct, &convstayMsg, &topicResponse);
+            
+            /* 
+             *   Initialize our new NodeContinuation object with our convKeys and add it to our
+             *   enclosing database.
+             */
+            addTopic(dct);
+        }
+        
     }
     
     /* 
@@ -3400,10 +3425,16 @@ class ConvNode: TopicGroup
     
     /*
      *   We can define a nodeContinuationMsg on a ConvNode and it will become the topicResponse of a
-     *   NodeContinuationTopic, but again if we want to employ an EventList to vary what's displayed
-     *   we should create a NodeContinuationTopic manually and define the EventList there.
+     *   NodeContinuationTopic.
      */
     // nodeContinuationMsg
+    
+    
+    /*
+     *   We can define a convstayMsg on a ConvNode and it will become the topicResponse of a
+     *   DefaultConvstayTopic.
+     */
+    // convstayMsg
     
 ;
 
@@ -5694,7 +5725,7 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
                 return blockEndConv;
             }
             
-            /* This is proviced to handle cases not handled by any other mechanism. */
+            /* This is provided to handle cases not handled by any other mechanism. */
             if(obj.propDefined(&block))
                 return obj.block();
             
