@@ -1,0 +1,568 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Understanding Separate Compilation</title>
+
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="fund.htm">Fundamentals</a> &gt; 
+Understanding Separate Compilation
+<br><span class="navnp"><a class="nav" href="t3build_config.htm"><i>Prev:</i> Using Build Configurations</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3iautohot.htm"><i>Next:</i> Using AutoHotKey with the Workbench Editor (Windows)</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Understanding Separate Compilation</h1>
+
+<p>The TADS 3 compiler has a feature called "separate compilation"
+that can dramatically speed up the edit/compile/test cycle during game
+development.  Separate compilation is easy to use once you understand
+how it works.  This article describes how the feature works and how to
+take advantage of it.
+
+<h2>The TADS 2 approach: #include</h2>
+
+<p>In TADS 2, the compilation process is fairly easy to understand:
+you create your source file, and run your source file through the
+compiler to create the ".gam" file.  The TADS 2 compiler reads
+through your entire source file from start to finish to create the
+executable version of your game.
+
+<p>In practice, it's not usually quite that simple, because it's
+usually inconvenient to put your entire game's source code into a
+single file.  At the very least, you certainly don't want to copy the
+contents of the adv.t and std.t library files into your source file;
+you want instead to include the contents of those files into your
+game without actually copying the contents into your source files.
+In addition, though, you often want to separate your own source code
+into several files, because smaller files are easier to work with
+and allow for better organization of your code.
+
+<p>TADS 2 handled multi-file games using the "#include" directive.
+The way #include works is very simple: when the compiler sees a
+#include in your source code, it acts as though the entire contents
+of the referenced file had appeared in place of the #include.  In
+other words, the compiler simply inserts each included file where its
+#include occurs.  (The compiler doesn't modify your original source
+file to do this; the insertion is "virtual.")
+
+<p>The important thing to understand about the #include mechanism
+is that it operates purely at the source file level.  This means
+that if you change something in an included file, you have to
+recompile the entire game, because the compiler has to re-read the
+entire source code to pick up a change in any part of the game.
+
+<h2>The TADS 3 approach: separate compilation</h2>
+
+<p>The TADS 3 compilation process isn't quite as simple as the
+TADS 2 approach.  The TADS 2 compiler just reads your source
+file and produces the executable game file; the TADS 3 compiler
+adds an intermediate step.
+
+<p>Instead of turning a source file directly into an executable game
+file, the TADS 3 compiler turns the source file into something called
+an "object file."  The terminology can be a little confusing, because
+it doesn't have anything to do with objects in the object-oriented
+programming sense; the term is the traditional name for the output
+file that a compiler generates, and usually applies (as it does here)
+to a compiler output file that still needs to go through some
+additional steps before it becomes an executable program.
+
+<p>Once the compiler has turned the source file into an object file,
+there's one extra step, called "linking."  The linking process reads
+the object file and turns it into an executable game file.
+
+<p>Why go through all this extra trouble?  Why not just turn the
+source code directly into an executable file, the way TADS 2 does?
+To a certain extent, this is the wrong question, because the TADS 2
+compiler actually has to perform pretty much the same series of steps
+internally; the only difference is that TADS 2 takes care of the
+intermediate step invisibly, but TADS 3 makes it more obvious by
+writing out the object file and then reading it back in during the
+linking step.  A better question is: why would we want to make the
+intermediate step visible, rather than hiding it the way TADS 2 does?
+The answer is that it makes separate compilation possible.
+
+<p>One important thing to know is that the linking step is capable of
+doing something you might guess from its name: it can combine
+multiple object files, linking them together into a single executable
+program file.  ("Link" isn't used here in the sense of establishing a
+relationship among the files, as in linking your ATM card to your
+checking account; the executable game file doesn't depend on the
+object files once linking is completed, because the linker copies all
+of the necessary information from the object files to the final
+executable game file.)
+
+<p>Another important thing to know about the two steps - compiling
+and linking - is that compiling step is by far the more
+time-consuming part of the job.  The linking step, where we turn the
+object file into an executable game file, is a much smaller portion
+of the work.
+
+<p>So now we can see what separate compilation is good for, apart
+from generating more intermediate files.  Since the linking step lets
+us take a bunch of separate object files and combine them into a
+single executable game, we don't have to recompile the entire game
+every time we change a source file - we only have to recompile the
+object files affected by the source change.  We don't have to compile
+the unaffected object files; we can just re-use the same ones from
+the previous build.  Because the compile step is usually so much more
+time-consuming than the link step, this can save a lot of time in the
+development process.
+
+<p>For the typical author's working style, this is a huge advantage.
+Most authors write games incrementally: you implement a new bit of
+geography, then compile and run it to make sure it's working
+properly, fix a few things and compile and test again, flesh out some
+objects, compile and test some more, and so on.  Even after the game
+is more or less fully implemented, and you're mostly fixing bugs, you
+usually use the same kind of edit/compile/test cycle to fix
+individual bugs and test that the fix did what you expected.  When
+you're working like this, most of the edits you make during one of
+these edit/compile/test cycles will be isolated to one or two parts
+of the game.  If you've organized your code into multiple sources
+files roughly along the lines of the game's geography, you'll usually
+only be changing one or two source files on each cycle of your
+edit/compile/test process.  TADS 3's separate compilation capability
+will only recompile the files you actually change on each cycle;
+the compiler won't have to recompile the rest of your source files,
+and it won't have to recompile any of the TADS library.
+
+<h2>When to keep using #include</h2>
+
+<p>Even with separate compilation, you <i>do</i> still need to
+use #include in some cases.  In particular, if you're using the
+standard library, <i>each and every</i> source file in your game
+should have these #include's near the top:
+
+<p><pre>
+   #include &lt;adv3.h&gt;
+   #include &lt;en_us.h&gt;
+</pre>
+
+<p>You might be wondering why you need to do this.  For that matter,
+you might wonder why TADS 3 allows #include at all, if separate
+compilation is so much better.  The answer isn't just compatibility
+with TADS 2; if it were, none of the system or library files would
+need to use #include, which they do use.
+
+<p>The reason #include is used in TADS 3 is that it serves a purpose
+that's complementary to separate compilation.  Even with the separate
+compilation feature, #include still comes in handy for some uses.  To
+understand why, you have to understand that the link step (where
+multiple separately-compiled object files are combined into a single
+executable game) operates purely on the object files.
+
+<p>You can think of an object file as containing a bunch of little
+blobs of data, each blob representing an object (or a class or a
+function) from the source file, and each one tagged with the name you
+specified in the source code.  The compiler's function is to parse
+the source code syntax and boil it down to those named blobs of data.
+The linker's function is to put all those blobs together.  Now, since
+an object in one source file can refer to an object in separate
+source file, and since the compiler looks at each source file in
+isolation, it's up to the linker to piece together all of those
+references from one file to another; that's why the names of the data
+blobs are stored in the object files.
+
+<p>So, the linker makes it possible for you to divide up your game
+among several source files.  The compiler allows a source file to
+refer to objects, classes, and functions that are never defined in
+that source file, because it knows the linker will sort out those
+mysterious references later.  (The real name for those mytery
+references is "external references," because they refer to things
+defined outside of the source file.)
+
+<p>However, that's all the linker does.  There are a number of
+things it <i>can't</i> do:
+
+<ul>
+<li>The linker can't make macros definitions from
+one source file visible to another.  A macro definition is simply
+a "#define" directive.
+<li>The linker can't allow one source file to see templates
+defined in another file.  A template defines custom object
+creation syntax - for example, from en_us.h:
+<p>
+<pre>
+   Room template 'name' "desc";
+</pre>
+
+<li>The linker can't make "intrinsic class" statements visible across
+source files.  (An "intrinsic class" statement defines the interface
+to a built-in class, such as List or Vector.  You'll probably never
+write one of these definitions yourself, because you'll virtually
+always want to use the ones in the system headers provided with the
+compiler.)
+
+</ul>
+
+<p>All of these things are outside of the control of the linker,
+because they all apply strictly to the source code.  Only the
+compiler can process these constructs.  But sometimes - frequently,
+in fact - it's useful to create a macro or a template once and
+then use it in multiple source files.  <b>This</b> is where #include
+comes in.
+
+<p>Whenever you write a "#define" directive or "template" statement, you
+should consider whether you're likely to need it only in a single
+source file or in several source files.  If you might need the same
+definition in several source files, then you should put it in a
+"header" file.  A header file is simply a bit of source code that you
+want to make common to several source files.  (They're called "header"
+files because they're usually #include'd near the top, or head, of the
+source files that use them.)
+
+<p>By convention, TADS header files are given names that end in
+the ".h" suffix.  This is the same convention that C and C++
+programmers use.  This naming convention makes it easier to see
+at a glance whether a file contains ordinary source code or
+common header code that's meant to be included in multiple
+source files.
+
+<p>Be careful about what you put in headers.  Macro definitions and
+template definitions are always suitable for header files.  Most other
+code is not.  In particular, unless you're doing something really
+clever and know exactly what you're doing, you should never put an
+object, class, or function definition in a header file.  Think about
+what would happen if you did define an object in a header file: if you
+included that same header file from multiple source files, then that
+same exact object definition would appear in each source file, because
+the contents of the header file are essentially inserted into each
+including source file.  The compiler would happily compile each source
+file, so each corresponding object module would have the same object
+definition.  When the linker tries to put those object files together
+into a game, it would find that the same object was defined in several
+object files, which isn't allowed - the linker would have no way of
+knowing which was the "real" object with the given name, so it would
+fail with an error.
+
+<p>So, to summarize, if you're defining a macro, object template, or
+intrinsic class interface, put it in a ".h" file; if you're defining
+anything else (an object, class, function, etc.), put it in a ".t"
+file.  In #include directives, never include anything but ".h" files.
+
+<p>Put these in <b>header</b> (.h) files:
+<ul>
+<li>#define directives
+<li>"template" statements
+</ul>
+
+<p>Put these in <b>source</b> (.t) files:
+<ul>
+<li>objects
+<li>classes
+<li>functions
+<li>grammar rules (VerbRule, "grammar", etc.)
+</ul>
+
+<p>Here's a sample of what a .h file might look like.  As described
+above, .h files should include your macro and "template" definitions.
+
+<p>
+<pre>
+   // myHeader.h
+
+   #define addthree(a, b, c) ((a) + (b) + (c))
+   #define ONE   1
+   #define TWO   2
+   #define THREE 3
+
+   Room template 'name' "desc";
+   Thing template 'vocabWords_' 'name' "desc";
+</pre>
+
+<p>And here's a sample of what a .t file might look like.  As described
+earlier, .t files should include all of your object, class, and function
+definitions.
+
+<p>
+<pre>
+   // mySource.t
+
+   // Make sure my header definitions are included.
+   // Note that we use "quotes" rather than &lt;angle-brackets&gt; to name
+   //   the file, because this is our header.  Angle brackets are for
+   //   *system* header files.
+   #include "myHeader.h"
+
+   class MagicScroll
+     spellName = nil
+     performSpell() { /* nothing by default */ }
+   ;
+
+   blertzScroll: MagicScroll
+     spellName = 'blertz'
+     performSpell() { /* do my work here */ }
+   ;
+
+</pre>
+
+<p>Going back to the very start of this section, we mentioned that you
+should usually #include &lt;adv3.h&gt; and &lt;en_us.h&gt; at the
+start of each source file in your program.  Now you can see why: those
+header files contain the macro and template definitions for the
+standard library, so you have to #include the headers to make those
+macro and template definitions visible to your source files.
+
+<h2>How to take advantage of separate compilation</h2>
+
+<p>Here are some tips to help you take full advantage of TADS 3's
+separate compilation capability.
+
+<ul>
+
+<li>Organize your source code into several files according to your
+working style.  The goal is to minimize the number of source files
+you change on each edit/compile/test cycle.  Exactly how you do this
+depends on how you like to work, but for most people, the game's
+geography is a good way to break things up: identify the major
+sections of your game's map, and give each major section its own file
+where you define the section's rooms and objects.  A few especially
+complicated objects, such as major NPC's (non-player characters),
+might warrant their own separate files.
+
+<li>Keep each source file relatively small.  You want to minimize the
+amount of source code that the compiler needs to look at on each
+edit/compile/test cycle, to speed up each compilation.  If a source
+file starts getting too large, consider if there's a logical basis
+for subdividing the file.  But don't go overboard; each compile cycle
+will take a certain minimum amount of time because of the link step,
+so there's a point of diminishing returns in the quest for smaller
+source files.  You'll be best served if you simply organize your code
+in a way that makes sense to you and that's convenient for you to
+work with.  If you do this, you'll almost certainly have a good
+arrangement for separate compilation.
+
+<li>Do <b>not</b> use #include directives to combine your source
+files.  Instead, use the linker by listing your files in your
+project's makefile (the ".t3m" file that you use to control the
+compiler).  If you're accustomed to the TADS 2 way of doing things,
+making the transition is usually very simple.  In TADS 2, your
+game's main ".t" file - the one you specify on the compiler command
+line - might look like this:
+
+<p>
+<table align=center width=80%>
+<tr valign=middle>
+<td>
+<i><b>mygame.t</b>:</i><br>
+<pre>
+#include "adv.t"
+#include "std.t"
+#include "desert.t"
+#include "island.t"
+#include "boat.t"
+#include "caves.t"
+#include "castle.t"
+
+/* the rest of my main source code... */
+</pre>
+<td width=20%>
+<font color=red><i>The TADS&nbsp;2 way&mdash;<br>
+not ideal for TADS&nbsp;3</i>
+</font>
+</table>
+
+The TADS 3 equivalent is to create a .t3m file for your project,
+and list the .t files there, rather using #include to combine them:
+
+<p>
+<table align=center width=80%>
+<tr valign=middle>
+<td>
+<i><b>mygame.t3m</b>:</i><br>
+<pre>
+# (my other compile options go here)
+-lib system
+-lib adv3/adv3
+-source mygame
+-source desert
+-source boat
+-source caves
+-source castle
+</pre>
+<td width=20%>
+<font color=green>
+<i>The better way<br>for TADS&nbsp;3</i>
+</font>
+</table>
+
+Note that if you're using TADS Workbench on Windows, you won't
+have to edit the .t3m file file directly, since Workbench manages the
+file for you through the Workbench graphical interface.  The equivalent
+with Workbench is to add each of your source files to your project's
+"Source Files" list in the project window.
+
+</ul>
+
+<h2>Some questions and answers</h2>
+
+<p><b>If I'm not using #include, how does the compiler know which
+files to include in my build?</b>
+
+<p>As we saw above, you should list your source files in your project's
+.t3m file, which we call the makefile.  When you compile, use a command
+line like this:
+
+<p>
+<pre>
+   t3make -f mygame.t3m
+</pre>
+
+<p>This tells the compiler to read the compilation instructions from
+the makefile.  Since you've listed all of your source files in the
+makefile, the compiler knows which files you want to include.
+
+<p><b>I want to include a source file in my project conditionally - only
+when I build for debugging, say.  How can I do this?</b>
+
+<p>The project makefile format doesn't have any conditional features
+of its own, so there's not a direct way to do this.  Fortunately,
+there's a simple trick you can use to include a source file only in
+certain builds.  Refer to the <a href='t3build_config.htm'>Build
+Configurations article</a> for a description of the technique.
+
+<p><b>Makefiles are too complicated!  What if I just want to use
+the command-line compiler?</b>
+
+<p>Actually, you are, even if you use a makefile.  The makefile is
+simply a file containing command-line options.  If you really wanted
+to, you could type the entire contents of your .t3m file on the
+command line with the "t3make" command, and the compiler would
+interpret the instructions the same way.  It's a heck of a lot easier
+to use the makefile, though, because you don't have to type all of
+those options over and over, every time you compile.
+
+<p><b>Are these "makefiles" the same thing as the Unix "make"
+tool uses?</b>
+
+<p>No; they're related only in name and slightly in purpose.  The Unix
+"make" tool is a <b>very</b> general system for declarative,
+dependency-based scripting; roughly speaking, it is to the Unix
+command shell as Prolog is to C, if that makes any sense.  The Unix
+"make" tool can be difficult to learn and use, because it combines a
+somewhat inside-out conceptual model with a syntax based almost
+entirely on puncutation marks (and what's more, not only is whitespace
+significant, but different <i>kinds</i> of whitespace - specifically
+spaces and tabs - have different meanings).
+
+<p>The TADS 3 "makefile" is really nothing more than a file
+containing the compiler options.  However, the name isn't entirely
+unjustified, because the TADS 3 compiler does do dependency-based
+builds (see the next question), although the dependency rules are all
+built in to the compiler.
+
+<p><b>How does the compiler know which source files need to
+be recompiled?</b>
+
+<p>The TADS 3 compiler figures out which files need to be recompiled
+by looking at the modification dates on the object files, and comparing
+them to the dates on the source files.  If a source file has been
+modified more recently than its corresponding object file, the compiler
+recompiles the source file; otherwise, the compiler just uses the
+existing object file, because it sees that the object file was
+compiled after the last time the corresponding source file was changed.
+
+<p>The compiler also keeps track of all of the header files that a
+source file references with #include.  If any header file that a
+source file includes has changed more recently than the object file,
+the compiler is forced to recompile that entire source file, because
+the change to the header could affect the object file.
+
+<p>The compiler keeps track of a few other factors that can affect
+the outcome of a compilation as well.  Any changes to -D or -U
+options (defining or undefining a macro symbol) require everything to
+be recompiled, because these can change the code selected by
+conditional compilation constructs (#if and the like), or can change
+the way that code that uses the macros is expanded by the
+preprocessor.  Changes to the set of directories that the compiler
+searches for included files (-I options) require full recompilation,
+because these could change which copy of a header file is actually
+included in the compilation.  Installing a new version of the
+compiler itself will force a full rebuild, because internal elements
+of the object file format sometimes change between compiler releases.
+
+<p><b>What if the compiler fails to recompile a file that
+I know needs to be recompiled?</b>
+
+<p>For the most part, the compiler's dependency tracking mechanism
+is overly conservative: that is, the compiler will usually recompile
+more files than it really needs to.  Changes in headers, for example,
+don't necessarily require every includer to be recompiled; but
+the compiler has no way to detect which includers are affected and
+which aren't, so it simply recompiles them all.
+
+<p>Even so, there are a few kinds of changes that you can make to one
+source file that will necessitate recompiling other source files.
+The compiler can't detect these kinds of dependencies; it assumes
+that each source file is completely independent of the others, which
+is mostly true, but not always.  The kinds of situations where
+cross-source dependencies occur are often subtle, but sometimes
+involve re-purposing a symbol (changing a property name to a function
+name, for example).  It's not usually obvious when one of these
+situations occurs, and they can sometimes cause compiler or linker
+errors that seem wrong (in other words, you're pretty sure the code
+is right even though the compiler is complaining).
+
+<p>If you think the compiler has missed something, and needs to
+recompile a file that it doesn't seem to think it needs to recompile,
+the easiest thing to do is to use the "build all" option, -a.  This
+option tells the compiler to ignore dependencies and just recompile
+the entire program from scratch.  To rebuild everything, simply add
+the -a option to the command line:
+
+<p>
+<pre>
+t3make -a -f mygame.t3m
+</pre>
+
+<p>If you're using Workbench on Windows, use the "Full Recompile
+for Debugging" command in the "Build" menu; it does the same thing.
+
+<p><b>What about TADS 2's "precompiled header" feature?  Isn't
+that the same thing as separate compilation?</b>
+
+<p>Yes and no.  It is essentially the same idea: it lets you group
+some code and compile it ahead of time, and then re-use the compiled
+representation on each subsequent build, avoiding the time needed to
+re-parse that same source code.
+
+<p>But precompiled headers aren't nearly as useful as the true
+separate compilation in TADS 3.  The main problem with the TADS 2
+scheme is it lets you use only a single precompiled header in a
+compilation, so you have to decide ahead of time what files you want
+to include in the precompiled section.  In practice, authors move
+from section to section while working on a game, so the part of the
+game you want pre-compiled keeps changing.  You can work around this
+limitation by setting up a master header for the pre-compiled part,
+and editing the master header as you shift your focus around the
+game, but this requires several manual steps every time you move to a
+new section - it's so much overhead, and so error-prone, that it's
+not worth the trouble for most authors.  
+
+<p>TADS 3, in contrast, lets you have as many separate compilation
+units as you want.  There's no need to decide in advance what to
+"precompile," since every module is essentially precompiled.  There's
+no need to fuss with extra compiler options, since separate
+compilation is a natural part of the process.  And there's absolutely
+no manual overhead as you shift your focus around the game, since the
+compiler automatically figures out what you've been changing and
+recompiles just those parts.
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="fund.htm">Fundamentals</a> &gt; 
+Understanding Separate Compilation
+<br><span class="navnp"><a class="nav" href="t3build_config.htm"><i>Prev:</i> Using Build Configurations</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3iautohot.htm"><i>Next:</i> Using AutoHotKey with the Workbench Editor (Windows)</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

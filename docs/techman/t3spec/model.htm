@@ -1,0 +1,2746 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>T3 Machine Model</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Machine Model
+<br><span class="navnp"><a class="nav" href="notation.htm"><i>Prev:</i> Notation and Conventions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="metacl.htm"><i>Next:</i> The Metaclasses</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+
+<br><br>
+
+
+<h2>T3 Machine Model</h2>
+
+This section discusses the "machine model," which is how a programmer
+writing T3 byte code views the execution environment.  The machine
+model defines the datatypes that a program can use, the way a program
+manages memory, and the mechanisms for controlling program execution.
+
+
+<h2>Table of Contents</h2>
+
+<a href='#storage'>Storage Conventions</a><br>
+<a href='#text'>Text and Unicode</a><br>
+<a href='#datatypes'>Datatypes</a><br>
+<a href='#memory'>Memory Model</a><br>
+<a href='#objects'>Object Model</a><br>
+<a href='#transient'>Transient Objects</a><br>
+<a href='#metaclass_id'>Metaclass ID's</a><br>
+<a href='#comparisons'>Value Comparisons</a><br>
+<a href='#conversions'>Data Conversions</a><br>
+<a href='#registers'>Machine Registers</a><br>
+<a href='#stack'>Stack Organization</a><br>
+<a href='#methods'>Method Headers and Function Organization</a><br>
+<a href='#predefined'>Pre-defined Objects and Properties</a><br>
+<a href='#intrinsics'>Intrinsic Functions</a><br>
+<a href='#externals'>External Native Functions</a><br>
+<a href='#exceptions'>Exceptions</a><br>
+<a href='#input'>Input/Output and the Display</a><br>
+<a href='#gc'>Garbage Collection</a><br>
+<a href='#finalizers'>Finalizers</a><br>
+<a href='#swapping'>Virtual Memory and Swapping</a><br>
+<a href='#undo'>Undo</a><br>
+<a href='#imageloading'>Image Loading</a><br>
+<a href='#restarting'>Restarting</a><br>
+<a href='#saving'>Saving and Restoring</a><br>
+
+<br><br><br>
+<p><hr>
+<a name='storage'></a>
+<h2>Storage Conventions</h2>
+
+Among the goals of the T3 virtual machine are binary
+portability of program files and saved state files, fast initial program
+loading, and fast saving and restoring of machine state.
+
+<p>
+In order to achieve binary portability, program files and saved state
+files must use a canonical format that is invariant by machine.  The
+only thing that we can without reservation rely upon is the bit; this
+is unfortunately too unwieldy for our purposes, so we will presume
+that all platforms that can run the T3 VM are capable of working with
+bytes (octets of bits).  In other words, we will presume that we can
+manipulate data in memory and from files in units of 8-bit bytes, and
+that a byte written to a file on one computer will have exactly the
+same bit pattern when read from a copy of the file on a different
+type of computer.  Practically every type of computer in widespread
+use today can work efficiently with 8-bit bytes.
+
+<p>
+We cannot make any assumptions about common data formats
+beyond 8-bit bytes; modern computers have a variety
+of word sizes and byte orderings, so no datatype larger than a byte
+has a single representation that it used by all computers.
+Hence, we must define our own standard format, built out of 8-bit
+bytes, for each datatype.  We will then interpret data stored in
+these standard formats such that a particular value in a particular
+standard format will always be interpreted the same way by the
+T3 VM on all platforms.
+
+<p>
+The basic T3 datatypes and their storage representations are:
+
+<ul>
+<li>16-bit signed integer.  Stored as a two-byte array.  The least
+significant 8 bits are stored in the first byte, and the most significant
+8 bits are stored in the second byte.  The value obtained by concatenating
+the two bytes into a single 16-bit value uses 2's complement notation.
+
+<li>16-bit unsigned integer.  Stored as a two-byte array, with the
+least significant 8 bits first byte, and the most significant 8 bits
+in the second byte.
+
+<li>32-bit signed integer.  Stored as a four-byte array.  The least
+significant 8 bits are in the first byte, the next more significant
+8 bits are in the second byte, the next more significant 8 bits
+are in the third byte, and the most significant 8 bits are in the
+fourth byte.  The value obtained by concatenating the four bytes
+into a single 32-bit value uses 2's complement notation.
+
+<li>32-bit unsigned integer.  Stored as a four-byte array.  The least
+significant 8 bits are in the first byte, the next more significant
+8 bits are in the second byte, the next more significant 8 bits
+are in the third byte, and the most significant 8 bits are in the
+fourth byte.
+
+<li>Text.  All text is stored as 16-bit Unicode characters.
+Strings are stored in UTF-8 format, which
+encodes 16-bit Unicode characters in one, two, or three bytes;
+each character in the subset of Unicode from code points 0x0000 to
+0x007F, which maps the 7-bit ASCII character set, is encoded with
+a single character, so text that contains mostly ASCII characters
+can be encoded with one byte per character, and text that contains
+mostly characters from European languages can be encoded with one
+or two bytes per character.
+
+</ul>
+
+<p>
+The byte arrays used to store these values do not observe any alignment;
+they may appear at any byte offset within a file, and any byte offset
+within a memory structure.
+
+<p>
+In order to facilitate fast loading, saving, and restoring, the T3
+VM uses the same representation for certain structures in memory as
+it uses in a file.  All data loadable from a program file, and all
+data that can be stored to a saved state file, are stored in portable
+format in memory.  This allows load, save, and restore operations to
+be performed as bulk transfers between memory and disk; no computation
+is needed to transform between the file storage format and the in-memory
+format, because the formats are identical.  The trade-off is that the
+cost of transforming data between the portable format and the native
+representation is incurred each time the VM manipulates data.
+
+<p>
+In-memory structures that use the portable file format include
+the following:
+
+<ul>
+<li>Byte-code instructions
+<li>List constants and objects
+<li>String constants and objects
+<li>Vector objects
+<li>TADS objects
+</ul>
+
+<p>
+Structures that are kept only in memory and are not loaded from a
+program file nor stored in a saved state file are kept in native
+format.  These include stack elements, local variables, and machine
+registers.
+
+<p><hr>
+<a name='text'></a>
+<h2>Text and Unicode</h2>
+
+<h3>UTF-8 Encoding Details</h3>
+
+All text is stored internally as 16-bit Unicode characters.  Text strings
+are encoded in UTF-8 format, which encodes each 16-bit Unicode character
+as follows:
+
+<p>
+<table width=75%>
+<tr><th align=left width>From<th align=left>To<th align=left>Binary Encoding
+<tr><td>0x0000<td>0x007f<td>0bbbbbbb
+<tr><td>0x0080<td>0x07ff<td>110bbbbb 10bbbbbb
+<tr><td>0x0800<td>0xffff<td>1110bbbb 10bbbbbb 10bbbbbb
+</table>
+
+<p>
+The bits of the 16-bit value are encoded into the <b>b</b>'s in the
+table above with the most significant group of bits in the first
+byte.  So: 0x571 has the 16-bit Unicode binary pattern 0000011001110001,
+and is encoded in UTF-8 as 11011001 10110001.
+
+<p>
+UTF-8 has the desirable property that a 7-bit ASCII character can be
+represented in one byte (because the 7-bit ASCII character set is
+assigned to code points 0x0000 through 0x007f in 16-bit Unicode), and
+characters from most European languages can be encoded in two bytes
+(because most European language characters that are not in 7-bit
+ASCII are assigned to code points 0x0080 through 0x07ff in 16-bit
+Unicode).
+
+<p>
+The UTF-8 encoding has the undesirable property that it uses a varying
+number of bytes per character, which makes certain operations on strings
+more difficult (finding the number of characters in the string, for example,
+requires examination of all of the bytes of the string, even if the byte
+length is known, and finding the next character in a string requires
+incrementing a byte index into the string by one, two, or three
+positions, depending on the type of character encoded there).
+
+<p>
+However, the savings in space for 7-bit ASCII text seem to justify
+the added complexity of manipulating this format, and
+compared to other varying-length encodings, UTF-8 is unusually
+convenient:
+
+<ul>
+<li>Given a
+byte index into a string, it's always possible to determine if the byte
+is on a charater boundary: if ((byte & 0xC0) == 0x80), the byte is in
+the middle of a multi-byte character sequence, otherwise it is the
+first byte of a character.
+
+<li>Given a byte index into a string, it's simple to increment or
+decrement the index to find the next or previous character: simply
+increment or decrement the index until it points to the first byte
+of a character.
+
+<li>Given a byte index to the first byte of a character, it's easy to
+determine how many bytes are in the character: if (byte & 0xE0) == 0,
+the character is one byte long; if (byte & 0xE0) == 0xC0, the character
+is two bytes long; and if (byte & 0xE0) == 0xE0, the character is three
+bytes long.
+
+</ul>
+
+<h3>Control Sequences</h3>
+
+<p>
+The T3 VM treats all character strings as opaque; the VM itself does
+not attempt to interpret the contents of character strings.
+All rendering and other interpretation is up to the host application
+environment.
+
+<p>
+For an example of special character interpretation, refer to 
+<a href='tadsspch.htm'>TADS Special Characters</a>.
+
+
+<h3>Character Set Translation</h3>
+
+<p>
+UTF-8 is the internal character set that the T3 VM uses to store text
+strings in program image files and saved state files, and is also the
+format that the VM uses to represent strings in memory.  However, it
+is likely that few (if any) operating systems on which the VM runs
+will use this same encoding for file, display, or keyboard input/output
+operations.  Therefore, it is necessary to translate between UTF-8
+and the native character set used by each operating system when
+performing I/O.
+
+<p>
+Note that file I/O operations relating to program image files and
+saved state files do <i>not</i> require any character set translation,
+because in-memory data structures represent text in UTF-8 just as
+these files do.  The only file I/O operations that require translation
+are those involving text files.
+
+<p>
+The VM, as part of its I/O interfaces, automatically translates the
+text character set.  Each I/O interface that sends data to the display
+or a file, or receives data from the keyboard or a file, is defined to
+use text in the native character set.  The VM will translate to and
+from the native character set when invoking these interfaces.
+
+<p>
+In order to perform translations, the VM uses a character set translator.
+Four character set translator classes are defined in the basic set:
+
+<ul>
+<li>Single-byte character set translator.  This translates between
+UTF-8 and a single-byte character encoding.  Most computer
+character sets for European languages use single-byte encodings.
+
+<li>Multi-byte character set translator.  This translates between
+UTF-8 and a varying-length multi-byte character encoding.
+Most computer character sets for Asian languages use multi-byte
+encodings.
+
+<li>Double-byte character set translator.  This translates between
+UTF-8 and a two-byte character set encoding.  Some computer
+character sets for Asian languages use a double-byte encoding.
+
+<li>Unicode character set translator.  This translates between
+UTF-8 and 16-bit Unicode.  A number of computer systems
+use the 16-bit Unicode character set as their native encoding, and
+more are likely to do so in the future.  This translator is really
+a special case of the double-byte translator, but can be somewhat
+more efficient because it can translate through a simple formula
+and does not require a translation table.
+</ul>
+
+<p>
+The Unicode Consortium provides tables that specify mappings
+between 16-bit Unicode and numerous widely-used character sets.
+These mapping tables can be mechanically converted to a form that
+the character set translators can use directly.  The Vm will be
+provided with a set of these converted mappings, so the operating
+system code for a given port will in most cases merely need to
+identify the correct current mapping to the VM, and will not
+otherwise need to be aware of any character set issues.
+
+<p><hr>
+<a name='datatypes'></a>
+<h2>Datatypes</h2>
+
+The following primitive datatypes are supported:
+
+<ul>
+<li>Integer.  A 32-bit signed integer value expressed in two's complement
+notation.
+
+<li>Object ID.  A reference to an object.  See the <a href='#objects'>
+Object Model</a>
+section for details of how an object is stored and how an object ID
+is resolved to an object in memory.  We use a 32-bit value to represent
+an object ID.  Note that dynamic strings, dynamic lists, and arrays
+are represented as objects of the string, list, and array metclasses.
+Constant strings and lists are <i>not</i> objects but are represented
+as separate primitive types.
+
+<li>Enumerator.  Stored as a 32-bit unsigned integer, but with the
+special datatype "enumerator."  An enumerator is simply a named
+constant integer value, but cannot be used in arithmetic or other
+calculations.  An enumerator can merely be stored and compared for
+equality with other values.
+
+<li>Property ID.  A unique code specifying a particular property.
+This is represented as a 16-bit value.
+
+<li>String constant.  This is an offset into the static string
+pool.  <i>Note: we also refer to string constants as "single-quoted
+strings," because these values are expressed in TADS language source
+code by enclosing the string's text between single-quote marks
+(Unicode 0x0027).</i>
+
+<li>Self-printing string constant.  This is an offset into the static
+string pool.  A self-printing string differs from a normal string in
+that it is automatically displayed upon being evaluated.  The value
+yielded by evaluation of a self-printing string constant is nil.
+<i>Note: we also refer to self-printing string constants as "double-quoted
+strings," because these values are expressed in TADS language source code
+by enclosing the string's text between double-quote marks
+(Unicode 0x0022).</i>
+
+<li>List constant.  This is an offset into the static list pool.
+
+<li>Code offset.  This is an offset into the code pool.  Generally,
+a code offset value is used when the underlying code should be executed
+whenever the value is evaluated.
+
+<li>Function pointer.  This is an offset into the code pool.  This
+differs from the code offset primitive type in that the code
+underlying a function pointer is <i>not</i> invoked implicitly on
+evaluation of the function pointer value, but must be invoked explicitly.
+So, if an object property contains a code offset, merely evaluating the
+property invokes the code and yields the return value of the code;
+evaluating a property that contains a function pointer, in contrast,
+merely yields the function pointer value itself.
+
+<li>Built-in function pointer.  This encodes a pointer to a built-in
+function as a 32-bit unsigned integer: the dependency table index of
+the function set is encoded in the high-order 16 bits, and the index
+of the function within its set is in the low-order 16 bits.
+
+</ul>
+
+<p>
+Note that the representation of constant string and list values differs
+from dynamically-constructed values of these types.
+
+<p>
+A string constant
+is a value with primitive type <b>string</b>, and a 32-bit offset into
+the constant pool.  In the constant pool, the string's data bytes consist
+of a two-byte length prefix giving the number of bytes in the string,
+not counting the prefix bytes themselves, followed immediately by the
+bytes of the string.
+
+<p>
+A list constant is a value with primitive type <b>list</b>, and a 32-bit
+offset into the constant pool.  In the constant pool, the list's data
+bytes consist of a two-byte length prefix giving the number of bytes
+in the list, not counting the prefix bytes themselves, followed
+immediately by the list's contents.  The list consists of a series of
+elements concatenated together.  Each element consists of a one-byte
+type prefix, followed immediately by the value.  When a constant list
+element is a constant string or constant list, the value is an offset
+into the constant pool.
+
+<p>
+<b>Rationale:</b>  why have distinct constant and object representations
+of lists and strings?  In other words, why not always use the dynamic
+(object) representation?
+
+<p>
+Using a single representation would indeed simplify the VM design in
+many areas and would be entirely practical.  However, because the
+target application of the T3 VM is text-based games, and because
+this application makes heavy use of constant strings and lists, it
+seems desirable to minimize the overhead involved in using these
+types.
+
+<p>
+Dynamic objects require slightly more memory than constant
+string and list values; considering that large numbers of these
+constants are likely be present in a program, the more compact
+constant format should provide substantial memory savings in most
+cases.  In addition, the total number of root-set objects affects
+garbage collector performance; using constants rather than dynamic
+objects for lists and strings known at compile-time should improve
+overall run-time performance of most programs by greatly reducing
+the number of root-set objects that the garbage collector must
+analyze on each garbage collection pass.
+
+<p><hr>
+<a name='memory'></a>
+<h2>Memory Model</h2>
+
+<p>
+The T3 VM does not expose a simple byte-array memory map to programs,
+the way most physical computers do.  Instead, the VM organizes memory
+into specific collections of values, which are accessible through
+typed references.  Since all references are typed, the VM can prevent
+programs from performing invalid conversions or address arithmetic;
+all memory access can be validated, hence the VM can prevent many
+common programming errors that occur with more free-form addressing
+schemes.
+
+<p>
+Memory is divided into the following sections, each of which is managed
+separately:
+
+<ul>
+<li>Stack.  This is conceptually an array of stack locations.
+Each stack location is large enough to store the largest primitive
+type, plus a type ID code specifying the datatype of the value stored
+there.  Items are added to and removed from the stack via two
+operations: push, which adds an item at top of the stack, and pop,
+which removes the item at the top of the stack.  A "stack pointer"
+register holds the position of the top of the stack at any given
+time.  In addition, a "frame pointer" register holds the position
+in the stack of the active frame, which is a contiguous block of
+stack locations that hold arguments and local variables for the
+currently executing function.  Values can be read from and stored
+into stack positions relative to the frame pointer.
+
+<li>Constant pool.  This is a pool of static strings and lists.
+Constants within the constant pool are addressed by a 32-bit
+offset within the pool.  The pool is divided into segments of
+a fixed size, and the segments are accessed via a segment table
+which contains an array of pointers to the segments.  Hence,
+to find the memory location containing a given address, divide
+the address's offset by the segment size to get the segment
+table index, retaining the remainder of the division as the
+segment offset; the memory location is obtained by adding the
+segment offset to the value of the pointer at the segment table
+index.  Each single string and list within the constant pool
+must be contained entirely within a single segment.
+
+<li>Code pool.  This is a pool of static byte code blocks.  A code
+block is addressed by a 32-bit offset with in the pool.  As with
+the constant pool, the code pool is divided into segments of a
+fixed size, and the segments are accessed through a segment table.
+The algorithm for obtaining the memory address for a given code
+offset is the same as for the constant pool.  <b>Note:</b> A given method
+must always be stored in a single code page; a method cannot span
+pages.
+
+<li>Objects.  An object is a variable-size memory block that
+provides a standard function interface; the function interface
+itself is simply a table of method pointers, so each object
+may be implemented differently.
+An object is identified by a 32-bit object ID, and
+is stored in two parts: a fixed-size part, called
+the "header," and a variable-size part, called the "extension."
+The header contains a pointer to the object's virtual function
+table ("vtable") and a pointer to the object extension.  The
+object extension contains additional data for the object; the
+interpretation of the extension varies by object type, and
+is up to the implementation of the standard function interface.
+Object headers, being of fixed size, are stored in
+an array, each entry of which contains an object header and
+additional memory management information; the array is divided
+into pages of a fixed size, which are in turn accessed through
+a page table.  An object ID is simply an index into the array,
+so to find an array entry, divide the object ID by the number
+of entries per page to get the page table index, keeping the
+remainder as the index of the object entry within the page.
+<i>Note: this arrangement of an object's memory into a fixed and
+variable part, and the way that object headers are stored in
+an array, are details of the reference implementation; other
+implementations need only be able to resolve an object ID to
+the corresponding memory and vtable for the object.</i>
+
+<li>Variable-size object heap.  Each object has a variable-size
+block, called the object extension, which contains the instance
+data for the object.  These variable-size blocks are managed
+by a heap manager.  The interface to this heap manager is
+specified by the VM, but the details of the implementation are
+intentionally unspecified.  Most of the memory that the VM uses
+is in object extensions for most VM programs, hence the heap
+manager is responsible for the bulk of the memory management
+of the entire VM.  Since the heap manager has such a large role
+in the system, it is likely that different VM implementations
+will use different heap management strategies, hence we allow
+each implementation to provide its own custom heap manager.
+The default heap manager uses the system "malloc" memory manager,
+which is suitable for many systems but may be inefficient
+on some systems.  <i>Note: the existence and design of the
+variable-size object heap are details of the reference
+implementation.  Other implementations may use a different
+design for resolving object ID's to memory.</i>
+
+</ul>
+
+<p><hr>
+<a name='objects'></a>
+<h2>Object Model</h2>
+
+<h3>Generic Objects</h3>
+
+<p>
+The VM provides a "generic object," which can contain any type of
+data that conforms to the generic object interface.  Generic objects
+are used for all types that are allocated dynamically at run-time;
+this allows a single memory manager to handle all allocation and
+garbage collection.
+
+<p>
+A specific implementation of the generic object interface is called
+a "metaclass."  Each generic object has a metaclass.
+Metaclasses are written in native code that is linked into the 
+application executable containing the VM.
+
+<p>
+Because the generic object interface doesn't contain information
+about any specific metaclasses, new metaclasses can be added through
+the interface.  This VM specification
+includes a set of <a href='metacl.htm'>pre-defined metaclasses</a>, but
+individual VM implementations can extend this set through the generic
+interface.  For example, a VM could provide a high-level object type
+for a language other than TADS, such as for C++ or Java.
+
+<p>
+The generic object interface contains the following methods, which
+reflect the operations that the byte-code interpreter performs.
+
+<ul>
+<li>Notify of deletion.  This notifies the object that it's being
+deleted by the garbage collector; the object must release any resources,
+such as its extension memory.
+
+<li>Load from image file.  This method initializes the object with data
+stored in the image file.  The format of the data is specific to the
+metaclass.
+
+<li>Get metaclass.  This returns a value indicating the built-in metaclass
+of the object (TADS object, string, list, array).
+
+<li>Determine if this object is an instance of another object.  Some
+objects (TADS objects in particular) can be related to other objects
+as subclasses and superclasses.  This method determines whether this
+object is derived from the given object.
+
+<li>Get a property value.  This takes a property ID as the argument,
+and returns the value of the given property and whether the property
+exists in the object or not.
+
+<li>Set a property value.  This takes a property ID and a value (giving
+the primitive type and data value), and sets the given property of the
+object to the given value.
+
+<li>Inherit a property value.  This is similar to get-property, but
+ignores any setting in the object itself, and considers only the
+value it inherits from a superclass.  This method can be ignored by
+any objects that can't be subclasses of other objects (strings and
+lists, for example, are never subclasses).  This method should search
+for an inherited version of the property using the same algorithm as
+the "get property value" method, but should act as though the current
+object's definition of the property, and any definitions inherited by
+"self" that override the current object's definition, did not exist.
+
+<li>Apply undo.  This takes an undo record, previously saved by the
+object, and restors the state saved in the undo record.
+
+<li>Notify of new savepoint.  Some objects may keep records that apply
+to the current savepoint, so that they can quickly determine if they
+must create undo information for particular changes.  For example, the
+TADS Object metaclass keeps a flag for each property that indicates
+whether or not the property has been saved for undo since the latest
+savepoint; since each property needs to be saved only once for a given
+savepoint, the metaclass can avoid creating redundant undo when a
+property's value is repeatedly updated during the same savepoint.
+This method allows objects that keep this type of per-savepoint
+information that they should initialize for a new savepoint.
+
+<li>Mark referenced objects.  This function is used during garbage
+collection to mark all of the reachable objects: it marks each object
+that this object references, so that the garbage collector will know
+not to delete those objects, and can optionally tell those objects
+to mark objects they reference.
+
+<li>Remove deleted weak references.  This function is used during
+garbage collection to forget any weak references we have to objects
+that have been deleted.  After the garbage collector finishes marking
+all reachable objects, it calls this method in each remaining object;
+this function examines each of the objects that this object references,
+and forgets any that are no longer reachable (usually by replacing the
+object reference in this object with nil, or by deleting the reference
+in this object altogether).
+
+<li>Write object to a file.  This takes a file object as an argument,
+and writes the object's state to the file in such a way that the object's
+state can be restored from the file at a later time.
+
+<li>Read the object from a file.  This takes a file object as an argument,
+and restores the object's state according to the data previously stored
+in the file by the "write object to file" method.
+
+<li>Revert the object to its initial state.  This removes any changes
+that have been made to the object since it was initially created.
+
+<li>Equals.  This method takes another value as an argument, and
+determines if the other value is equal to this value.  A string returns
+true for this method if the other value is also a string (constant or
+object), and the text of the other string is identical to this string.
+A list returns true for this method if the other value is also a list
+(constant or object), the other list has the same number of elements
+as this list, and each of the elements in the other list is equal to
+the corresponding element in this list.  Metaclasses that implement
+numeric types can use this method to make an arithmetic comparison.
+
+<li>Compare.  This method takes another value as an argument, and
+compares this value to the other value to determine if this value is
+greater than, equal to, or less than the other value.  If two values
+are not comparable, this method can throw an error (INVALID_COMPARISON).
+A string implements this method to perform a lexical comparison to another
+string.  Lists do not allow comparison, so simply throw INVALID_COMPARISON.
+Metaclasses that implement numeric types can use this method to make
+an arithmetic comparison.
+
+<li>Add.  This method takes another value as an argument, and computes
+the result of "adding" the second value to this object, returning a
+new value (which will generally be a new object).  Strings and lists
+implement this method to support concatenation operations.  Metaclasses
+that implement numeric types can use this method to perform arithmetic.
+
+<li>Subtract.  This method takes another value as an argument, and
+computes the result of "subtracting" the second value from this object,
+returning a new value (which will generally be a new object).  Lists
+implement this method to support sublist removal operations.  Metaclasses
+that implement numeric types can use this method to perform arithmetic.
+
+<li>Multiply.  This method takes another value as an argument, and
+computes the result of "multiplying" this value by the argument value,
+returning a new value (which will generally be a new object).  Strings
+and lists simply throw an error for this method.    Metaclasses
+that implement numeric types can use this method to perform arithmetic.
+
+<li>Divide.  This method takes another value as an argument, and
+computes the result of "dividing" this value by the argument value,
+returning a new value (which will generally be a new object).  Strings
+and lists simply throw an error for this method.    Metaclasses
+that implement numeric types can use this method to perform arithmetic.
+
+<li>Negate.  This method takes no arguments; it returns the result of
+arithmetically negating the value, usually returning a new object as
+the result.  Strings and lists simply throw an error for this method.
+Metaclasses that implement numeric types can use this method to
+perform arithmetic.
+
+<li>Index.  This takes an integer index value, and returns the value
+of the element at the given index.  This is used by strings to return
+a character at a given offset, and lists and arrays to retrieve an element
+at a given index.
+
+<li>Assign to index.  This takes an integer index value and a value to
+store, and returns the result of setting the element at the index.
+Strings and lists will return a new object which contains the replaced
+element; arrays will simply change the array in-place and return the
+original array reference.
+
+<li>Cast to string.  This returns a string object giving the string
+representation, if any, of the object.  Most object types are not
+convertible to string, so will simply throw an exception when this
+method is invoked.
+
+<li>Get as string.  This returns the string underlying the object, if
+the object has an associated string.  Most objects do not have underlying
+strings, so they will simply return null from this method.  Note that this
+differs from "cast to string" in that this method does <i>not</i> attempt
+to perform any conversions, but simply returns null if the object is not
+already represented as a string value.
+
+<li>Get as list.  This returns the list underlying the object, if the
+object has an associated list.  Most object types do not have underlying
+lists, so they will simply return null from this method.
+
+</ul>
+
+<p>
+<h3>Object References</h3>
+
+<p>
+An object is referenced by its ID, which is a 32-bit value.
+
+<p>
+The object ID is an index into the object header table.  The object table
+is conceptually an array of object descriptors.  The object table
+is structured as multiple subarrays ("pages") in order to enable efficient
+dynamic growth of the table; each page contains a fixed number of
+object descriptors, and a master page table contains an array of
+pointers to the pages.  Thus, given an object ID, the object descriptor's
+address can be found by this formula:
+
+<p>
+<pre>
+    page_number = (object_ID / DESCRIPTORS_PER_PAGE);
+    page_offset = (object_ID % DESCRIPTORS_PER_PAGE);
+    object_descriptor = &amp;page_table[page_number][page_offset];
+</pre>
+
+<p>
+An object descriptor is a fixed-size data structure that describes
+an object.  It contains a combination free list entry and object header,
+described below, plus some additional information for memory management:
+a forward link pointer to the next object in the garbage collector queue,
+a bit indicating whether the object is allocated or free, a bit
+indicating whether the object is part of the root set or not, and
+one bit giving the garbage collection state of the object.  The purpose
+of this bit is described in detail in the garbage collection section.
+
+<p>
+The combination free list entry and object header is expressed in
+C code as a union of these two values.  If the "free" bit in the
+object descriptor is set to true, then the free list entry is valid;
+otherwise, the object header is valid.  The free list entry is
+simply the object ID of the next object in the free list.
+
+<p>
+An object header describes an active object.
+The header contains the vtable for the object's metaclass, which
+holds function pointers to the native C code that implements the system
+object interface, and a pointer to the variable-size data block
+associated with the object.
+
+<p>
+The variable-size data block is stored in a separate memory
+area.  The purpose of separating the fixed-size portion and the
+variable-size portion is to simplify memory management.  Since the
+variable part may grow and shrink dynamically, we may need to relocate
+the variable part to a new memory location from time to time.  When we
+relocate the variable part, we need only update the single pointer
+to the variable part in the fixed part; since this is the only
+direct pointer to the variable part, we do not need to update any
+other references to the object.  Similarly, this design allows us
+to compact the memory storing the variable parts, closing holes
+created by moving or deleting objects, with only a single pointer
+update when we move each variable block.
+
+<p>
+The use and interpretation of the variable-size data block is up to
+the object metaclass.
+
+<p>
+<h3>Metaclass Construction</h3>
+
+<p>
+In addition to the virtual methods in the generic object
+interface, each metaclass must provide certain
+static construction methods.  These methods are static rather than virtual,
+because they construct new objects (a virtual method by its nature can only
+be called for an existing object; constructors are inherently static since
+they must obviously be callable before an object instance exists).
+These static methods must conform to a common interface; using a registration
+mechanism, the VM maintains a table that associates a metaclass's
+<a href='#metaclass_id'>identification string</a> with its
+construction methods.  When the VM needs to construct an object given
+the metaclass's identifier string, it looks up the appropriate constructor
+in the registration table and invokes the method, which creates a new
+instance of the metaclass.
+
+<p>
+There are several standard ways to construct any metaclass; individual
+metaclasses may provide additional construction techniques that they
+use privately or that the VM may use for specific purposes, but each
+metaclass must minimally provide the standard construction methods:
+
+<ul>
+<li>Construct from image file data.  This construction method uses
+data stored in an image file to construct the object.  Each metaclass
+has an associated image file storage format; this method reads the
+image file data and initializes an object accordingly.  Compilers use
+the metaclass image file format to create static instances in image
+files.
+
+<li>Construct from saved state data.  This method uses data stored
+in a saved state file to construct the object.  Each metaclass has
+its own method for saving its state; this method reads the information
+generated by the state saving routine and restores the object to the
+saved state.
+
+<li>Construct programmatically.  This method uses data in the VM
+run-time stack to create the object.  The VM provides the metaclass
+constructor with the number of arguments that the program specified,
+and the metaclass constructor reads the arguments from the VM stack.
+Arguments on the VM stack are pushed in last-to-first order (as is
+the convention with all function and method calls), hence the first
+value popped off the stack is the first argument, the second value
+popped is the second argument, and so on.  The constructor must
+remove all of its arguments from the stack before returning.
+The number and meaning of the arguments is specific to each
+metaclass.
+</ul>
+
+<p><hr>
+<a name='transient'></a>
+<h2>Transient Objects</h2>
+
+<p>By default, all objects are "persisent," which means that they
+automatically participate in the built-in <a href='#saving'>Save,
+Restore</a>, <a href='#restarting'>Restart</a>, and <a
+href='#undo'>Undo</a> mechanisms.  However, objects can be specifically
+marked as "transient," which means that they do not participate in
+these mechanisms.
+
+<p>Transient objects are marked in the image file with a special flag
+in the object block data.  In addition, a dynamically-created object
+can be marked as transient via a special form of the NEW instructions.
+
+<p>The VM must keep a flag for each object record indicating whether
+the object is transient or persistent.
+
+
+<p><hr>
+<a name='metaclass_id'></a>
+<h2>Metaclass Identifiers</h2>
+
+<p>Programs written for the T3 VM must have some way to refer to the system
+metaclasses so that they can specify the metaclass used by each static
+object and can create new objects dynamically.  To provide a means for
+T3 VM programs to make these specifications, we specify a fixed set of
+metaclass identifier values.
+
+<p>
+A metaclass identifier is a string.  The set of metaclasses
+identifiers is defined centrally; a given metaclass identifier string
+value always refers to the same metaclass for all implementations of
+the T3 VM.  Metaclass identifier strings are "universally unique":
+two different metaclasses will never share the same name, and a given
+metaclass always uses the same name, for all implementations of the
+T3 VM.
+
+<p>
+A given VM implementation may not provide all of the defined metaclasses,
+for two reasons.  First, new metaclasses may be defined as the VM evolves,
+so a VM implementing an earlier version of the specification will not
+provide metaclasses added in a newer specification.  Second, some
+metaclasses may be specific to a particular application domain; a VM
+built for one application domain may not implement metaclasses specific
+to a different domain.  The image file format contains information on the
+metaclasses that a program requires, so the VM can detect when loading
+a program image if the program requires metaclasses that are not provided
+by the implementation.
+
+<p>
+For code size reduction, the image file contains each metaclass string
+that it uses only once, in its metaclass dependency table.  This table
+establishes a correspondence between a metaclass string and a small
+integer; each entry in the table is numbered, starting at zero and
+incrementing by one for each additional entry.  The image file refers
+to metaclasses everywhere else using this table index.  For example,
+if the table lists (in order) "tads-object", "string", and "list" as
+the three metaclasses it uses, these are assigned index values 0, 1,
+and 2, respectively; to create a new TADS Object metaclass instance
+dynamically in byte code, the NEW1 instruction would be coded with
+operand 0, since the TADS Object metaclass was listed first in the
+metaclass dependency table.
+
+<p>
+The compiler is responsible for constructing the metaclass dependency
+table and for generating the appropriate metaclass index values in the
+image file.
+
+<p>
+Refer to the <a href='metalist.htm'>Metaclass Identifier List Appendix</a>
+for a list of the defined metaclasses.
+
+<h3>Metaclass Versioning</h3>
+
+<p>
+Some metaclasses may evolve over time.  In particular, metaclasses
+that provide access to functionality via get/set property calls must
+be able to extend the set of calls they provide over time by adding
+new properties they recognize.  To allow this, metaclasses can be
+versioned.
+
+<p>
+When a metaclass is versioned, it is required that each new version
+is a complete superset of the functionality of the previous version.
+This means that all of the methods provided by the previous version
+must be identically provided in the new version, with the same method
+table layout.  Since each new version is a complete superset of
+previous versions, an image file that requires an older version of
+a metaclass will be able to use an implementation of that version
+or any later version with complete transparency.
+
+<p>
+A metaclass's version information is encoded in the metaclass name
+string (the universally unique identifier stored in the image file
+that specifies the metaclass implementation).  A metaclass identifier
+string is structured into two parts: the metaclass name, which is the
+registered, universally unique identifier; and the metaclass version
+string.  The two parts are separated by a virgule (a forward slash, "/",
+ASCII and Unicode 0x002F).
+
+<p>
+A metaclass version is a string of six digits encoded as ASCII
+characters.  The digits are given in descending order of significance
+(the first digit is the most significant, the last digit is the least
+significant).  For example, consider these two identifier strings:
+
+<p><pre>
+    dictionary/030005
+    dictionary/030102
+</pre>
+
+<p>
+The second string's version ("030102") is greater than the first
+string's version ("030005"): the strings are identical in the first
+three digits, but the fourth digit is higher in the second string
+than in the first ("1" vs. "0").
+
+<p>
+When loading the metaclass dependency table, the system should follow
+this algorithm for each metaclass string in the image file:
+
+<ul>
+<li>Search the metaclass table for a match to the string only up to
+the forward slash in each string.  If neither string contains a slash,
+compre the entire strings.  If one string contains a slash and the
+other doesn't, compare the part up to the slash in the one string
+with the entire other string (for example, "test/010000" matches
+"test", but does not match "test2").
+
+<li>Once a match is found, compare the version strings.  If either
+string lacks a version, use "000000" by default.  Compare the strings
+character by character to determine which is greater.
+   <ul>
+   <li>If the image file string's version is lower or equal, consider
+       it a match.  In this case, the VM provides at least as recent
+       a version as the image file requires; since newer versions
+       are complete supersets of older versions, the version that the
+       VM provides will satisfy the image file's requirements even if
+       it's not an exact version match.
+   <li>If the image file string's version is greater, it is not a match.
+       In this case, the image file requires a version of the metaclass
+       that is newer (and hence can be assumed to have greater
+       functionality) than the version provided by the VM, so the
+       image file cannot be loaded.
+   </ul>
+</ul>
+
+<p>
+Note that compilers should take care to include each metaclass only
+once in the dependency table.  Compilers should follow the same
+matching procedure as the loader when adding a new metaclass to the
+dependency table, and should always keep the highest version number
+they see for a given metaclass.
+
+<p><hr>
+<a name='comparisons'></a>
+<h2>Value Comparisons</h2>
+
+The VM defines two types of value comparisons: test for equality,
+and compare magnitude.  These two types of comparisons behave
+differently, primarily in that tests for equality always yield
+meaningful results, whereas magnitude comparisons are meaningful
+only for certain combinations of types.
+
+<p>
+<h3>Testing for Equality</h3>
+
+In general, two values are not equal unless they have the same type.
+However, because certain types have both constant and object
+representations, there are cases when an object type can match a
+static type.
+
+<p>
+To compare two values, we inspect the type of the first value,
+and compare the value accordingly:
+
+<p>
+<ul>
+<li>nil: equal to nil.
+<li>true: equal to true.
+<li>object: compare via the object's "equals" method.
+<li>property ID: equal to another property ID with the same ID value.
+<li>integer: equal to another integer with the same integer value.
+<li>enumerator: equal to another enumerator with the same ID value.
+<li>string: if the second value is a string constant, it is equal if the
+second string's text matches the first string's text exactly.  If the
+second value is an object, compare via that object's "equals" method.  If
+the second value has any other type, it is not equal.
+<li>list: if the second value is a list constant, it is equal if the
+second list's number of elements is the same as this list's number of
+elements, and each element in the list is equal, applying the equality
+test to each element in the first list and the corresponding element
+in the second list.  If the second value is an object, compare via
+that object's "equals" method.  If the second value has any other type,
+it is not equal.
+<li>code offset: equal to another code offset with the same offset value.
+<li>function pointer: equal to another function pointer with the same
+offset value.
+<li>empty: always unequal.
+<li>self-printing string: always unequal.
+<li>any other type: always unequal.
+</ul>
+
+<h3>Magnitude Comparisons</h3>
+
+To compare the magnitude of two values, we inspect the type of the
+first value, and compare the value accordingly:
+
+<p>
+<ul>
+<li>nil: magnitude comparisons are not meaningful.
+<li>true: magnitude comparisons are not meaningful.
+<li>object: compare via the object's "compare magnitude" method.
+<li>property ID: magnitude comparisons are not meaningful.
+<li>integer: if the second value is also an integer, compare the
+<li>enumerator: magnitude comparisons are not meaningful.
+magnitude of the integer values.
+<li>string: if the second value is a string constant, we compare
+the lexical ordering of the two string values.  If the second value
+is an object, we compare via its "compare magnitude" method.
+Otherwise, the comparison is not meaningful.
+<li>list: magnitude comparisons are not meaningful.
+<li>code offset: magnitude comparisons are not meaningful.
+<li>function pointer: magnitude comparisons are not meaningful.
+<li>empty: magnitude comparisons are not meaningful.
+<li>self-printing string: magnitude comparisons are not meaningful.
+<li>any other type: magnitude comparisons are not meaningful.
+</ul>
+
+In general, when a magnitude comparison is attempted, and the types
+involved make the comparison unmeaningful, the VM throws an exception
+(INVALID_COMPARISON).
+
+<h3>Object Subclass Implementations</h3>
+
+By default, an object returns true for an equality test only when the
+second value has the same object ID as the first object (in other words,
+two object references are equal only if they refer to the same instance),
+and magnitude comparisons are not meaningful.
+
+<p>
+The String and List object subclasses override the equality test so
+that they behave the same way as would a string or list constant with
+the same underlying value.
+
+<p>
+The String subclass overrides the magnitude comparison so that it
+behaves the same way as would a string constant the same underlying
+value.
+
+<p><hr>
+<a name='conversions'></a>
+<h2>Data Conversions</h2>
+
+The VM performs implicit data conversions in the course of certain
+operations.  For example, if a value is used as the second operand
+of an ADD operation, and the first operand is a string, the VM
+automatically converts the second operand to a string.
+
+<p>
+The defined conversions are listed below.
+
+<p>
+<h4>Conversion to String</h4>
+
+Several operations implicitly convert values to strings.  Several of
+the built-in datatypes can be converted to strings:
+
+<ul>
+<li>nil: converted to the literal string "nil".
+<li>true: converted to the literal string "true".
+<li>integer: converted to a string giving the decimal representation
+of the number.  If the value is negative, the string is prefixed with
+a dash (to indicate a minus sign).  The string has no leading zeros
+(except that a value of zero is represented as "0").
+<li>String constant: no conversion is necessary.
+<li>String object: no conversion is necessary.
+</ul>
+
+Other types cannot be converted to string; a run-time exception results
+from an attempt to convert any other type to string.
+
+
+<p><hr>
+<a name='registers'></a>
+<h2>Machine Registers</h2>
+
+The T3 VM has several "registers" which control the state of the
+machine.
+
+<p>
+<b>Data Register 0 (R0):</b> this register is used for temporary
+storage of data values.  This register can contain any value that can
+be stored in a stack location.  The Return Value
+(<a href='opcode.htm#opc_retval'>RETVAL</a>) instruction, for example,
+stores the return value of a function in this register.
+
+<p>
+<b>Instruction pointer (IP):</b> this register points to the next byte of
+byte-code to be interpreted by the VM execution engine.
+
+<p>
+<b>Entry pointer (EP):</b> this register points to the entrypoint of the
+current function.  This allows us to calculate the offset of any given
+instruction within the function from the start of the function, which
+allows us to find any given instruction within certain tables that
+describe the function; in particular, exception tables and debugging
+tables specify information on ranges of instructions, stored relative
+to the start of the function.
+
+<p>
+<b>Stack pointer (SP):</b> this register points at any given time to the 
+next free element of the machine stack.  A "push" operation stores a value
+at the stack location to which this register points, and then increments
+the register.  A "pop" operation decrements this register, then retrieves
+the value at the stack location to which it points.
+
+<p>
+<b>Frame pointer (FP):</b> this register points to the current stack frame.
+See the section on stack organization for details on how the frame
+pointer is used.
+
+<p>
+<b>Current Savepoint:</b> this register is used for undo operations.
+
+<p>
+<b>Savepoint Count:</b> this register is used for undo operations.
+
+<p><hr>
+<a name='stack'></a>
+<h2>Stack Organization</h2>
+
+<p>
+The T3 VM is a stack-based machine: most operations are performed
+through the stack, rather than through a set of machine registers.
+For example, to add two values, a program pushes the pair of values
+to added onto the stack, then executes an ADD instruction, which
+computes the sum, discards the two values from the stack, and pushes
+the result back onto the stack.
+
+<p>
+The stack is organized as an array of value holders.  Each value
+holder contains a type code and a value.
+
+<p>
+A stack pointer register (SP) points to the next available element of
+the stack at any given time.
+
+<p>
+A separate frame pointer register (FP) points to the current stack frame.
+The stack frame specifies the reference point for local variables and
+parameters.  Local variables are at locations above the frame pointer,
+and actual parameters are at locations below the frame pointer (because
+they are pushed onto the stack by the caller, before the current
+function's frame was activated).  The frame pointer always points to
+a stack location that contains the frame pointer of the enclosing
+frame; immediately below the enclosing frame pointer in the stack is
+the enclosing frame's entry code offset; below this is
+the return address (i.e., a pointer to the next instruction to execute
+when the current function returns), and immediately below the return
+address are the actual parameters, if any, to the current function.
+
+<p>
+<b>Pushing a value:</b>  a "push" operation stores a value
+at the stack location to which SP points, and then increments SP.
+
+<p>
+<b>Popping a value:</b> a "pop" operation decrements SP, then retrieves
+the value at the stack location to which SP points.
+
+<p><b>Calling a function or method:</b> the compiler will generate
+byte-code that pushes the arguments onto the stack, then invokes the
+function or method.  In a method call, the object whose method is to
+be called may be encoded in the instruction as immediate data, or may
+be at the top of the stack (as the result of an intermediate
+evaluation); likewise, the target property to be invoked can be
+encoded as immediate data or as a stack value.
+
+<p>Method invocation is the same as property evaluation, so the
+byte-code instruction to call a method is a GETPROP instruction.
+This instruction performs the following operations:
+
+<ul>
+<li>Retrieve the <i>argument count</i> operand of the GETPROP
+instruction, which indicates the number of actual parameters that
+were pushed onto the stack for invoking the function.  Increment
+the IP register, leaving IP pointing to the first byte
+of the next instruction.
+
+<li>Push the property ID of the property being invoked.
+
+<li>Push a reference to the object whose method is to be invoked;
+this is the "target object" value.  This differs from the "self"
+value in that it reflects the original target; a DELEGATE operation
+targets a new object but leaves "self" unchanged, so we must distinguish
+between "self" and "target object."
+
+<li>Push a reference to the object which defines the property
+containing the method to be invoked.  This is not necessarily the
+same as "self," because we might not find the method defined in
+the target object and must instead find it in a superclass of the
+target.
+
+<li>Push a reference to the object whose method is to be invoked;
+the "self" object is thus always the implicit first parameter to any
+method.  When invoking a stand-alone function, push nil in place
+of the "self" object.
+
+<li>Push a reference to the "invokee".  In the case of a call to
+a static function or through a variable containing a function
+pointer, this is the function pointer value.  For a call to an
+object method, this is the function pointer value for the method.
+For a call to an anonymous function, this is the AnonFunc object.
+For a call to a dynamic function, this is the DynamicFunc object.
+The invokee is important because it contains information on the
+function's enclosing local variable context.
+
+<li>Push nil.  This slot is reserved for use for StackFrameRef
+objects; initially, a frame has no frame reference, since these
+are only created when the code specifically asks for them (via
+the t3GetStackTrace() intrinsic function).
+
+<li>Look up the property ID in the object.  If the property is not
+defined or is a primitive value other than Code Offset, discard the
+item at the top of the stack (the "self" object)
+and the arguments (the argument count tells us how many items to
+discard).  If the property is not defined, push nil, and we're done.
+If the property is of primitive type Self-Printing String, display the
+string, push nil, and we're done.
+If the property is of any other primitive type other than code, push the
+value, and we're done.  If the property is of primitive type Code,
+note the code offset and proceed to the next step.
+If the property is of primitive type other than code, and the number
+of arguments is non-zero, throw an exception (WRONG_NUM_OF_ARGS).
+
+<li>Push the current program counter onto the stack.  The
+representation of the value stored is up to the implementation;
+in an implementation where code pool and object contents are
+fixed at physical memory addresses, this can simply be a byte
+pointer.  (The original MJR-T3 implementation instead stored this
+as an integer value giving the offset from the current entry pointer's
+resolved address, to allow for software memory swapping of VM pages
+by the VM.  Starting with 3.1, MJR-T3 officially rules out
+swapping, so it simply stores a native byte pointer now.)
+
+<li>Push the current entry pointer (EP) register.
+
+<li>Push the actual parameter count onto the stack.
+
+<li>Push the frame pointer (FP) register.  This is pushed directly as
+a physical pointer.
+
+<li>Store the current stack pointer (SP) register value in the frame
+pointer (FP) register.  This establishes the new function activation
+frame.
+
+<li>Compute the physical address of the code by translating the code
+offset to a physical memory pointer.
+
+<li>Load the EP register with the entrypoint pointer (the offset, not
+the physical pointer).
+
+<li>Compare the argument count that we obtained from the GETPROP instruction
+with the argument count in the method header at the EP register.  If the
+value in the method header has its high bit set, it indicates that the
+function is a "varargs" function (i.e., it can take a varying number of
+arguments), so the actual parameter count must be greater than or equal
+to the header value (masked with 0x7f to remove the high bit).  Otherwise,
+the actual parameter count must exactly equal the header value.  Throw a
+run-time exception if the argument count is incorrect.
+
+<li>Read the number of local variables from the method header at the
+EP register.  Push nil for each local variable.
+
+<li>Load the IP register with the value of the translated value of
+the EP register plus the
+size of the method header.  IP now points to the first instruction
+in the method, so we're finished.
+</ul>
+
+<p>Note that invoking a function differs from invoking a method only
+in that a function has no "self" or target property.  However, the
+stack frame arrangement is identical for methods and functions, so in
+a function call, the VM pushes nil values for "self" and for the
+target property pointer.
+
+<p><b>Returning from a function or method</b>: this effectively reverses the
+sequence of events from calling a function or method.
+
+<ul>
+<li>If we're returning a value, pop the item at the top of the
+stack and store it in data register 0 (R0).
+
+<li>Inspect the StackFrameRef slot in the stack frame.  If this slot
+is not nil, notify the StackFrameRef object that the frame is exiting.
+(The StackFrameRef will use this notification to detach itself from
+the frame.  This involves making a separate copy of the local
+variables in the frame, to allow continued access to the values after
+the frame has been destroyed.  It's thus important to notify the
+object <i>before</i> discarding the local variable slots in the
+frame.)
+
+<li>Load SP with the value in FP.  This effectively disards all
+local variables and any intermediate calculation results still
+on the stack.
+
+<li>Get the argument count from the element immediately below the
+top of stack.  Store this while we're working.
+
+<li>Pop the item at the top of the stack and store it in FP.  This
+should be the enclosing frame pointer, thus we restore the caller's
+activation stack.
+
+<li>Pop the item at the top of the stack; this is the enclosing frame's
+entrypoint code offset.  Load EP with this value.
+
+<li>Pop the item at the top of the stack; this is the return address's
+code offset. Add this offset to the result of translating the EP register
+to a physical address; this gives us the physical address of the next
+byte of code to execute in the calling function.  Load this value into
+the IP register.
+
+<li>Discard the four items at the top of the stack: the "self" object,
+the defining object, the target object, and the target property.
+
+<li>Discard the number of items at the top of the stack given by the
+actual parameter count that we noted earlier.  This discards the arguments
+to the function.
+
+<li>We're now finished; the IP register points to the next
+instruction to be executed after the caller's invocation of the function
+we just exited, the FP register points to the caller's
+frame, the EP register points to the caller's entrypoint, the arguments
+have been discarded, and the return value (if any) is in R0.
+
+</ul>
+
+<p><hr>
+<a name='methods'></a>
+<h2>Method Headers and Function Organization</h2>
+
+<p>A "function" is a block of data containing byte code and associated
+metadata.  Each method is associated with a function; functions are
+stored in the code pool.
+
+<p>A given function must be stored <b>entirely</b> within a single
+code page.  A function cannot span pages.  Note that this means that
+an instruction can never span pages (that is, all of the bytes of
+a given instruction, including all operand bytes, are guaranteed to
+be on the same page), because an instruction must always be contained
+within a function.
+
+<p>Each function starts with a method header, which is block of data
+that describes the function.  The size of this block must be the same
+for every method in a given image file.
+
+<p>To facilitate forward and backward compatibility, the size of the
+header is stored in the image file itself, as part of the ENTP record.
+The VM must use the stored size rather than assuming that the image
+file uses the size from any given version of this spec, since the
+image file might have been created by a compiler targeting a different
+spec version.  Any changes in the size from version to version will
+always be additions at the end of the header, so the VM can check to
+see if newer fields are present simply by checking the size from the
+ENTP record, and applying a default value if the size is smaller than
+required to hold the newer field.
+
+<p>The method header (in its current version incarnation) contains:
+
+<ul>
+<li>The number of parameters the function expects to receive.  This
+is a single byte.  If the high-order bit of the byte is set, it indicates
+that the function takes a variable number of parameters, and will accept
+any number of parameters greater than or equal to this value masked
+with 0x7f (to remove the high bit); if the high-order bit is not set,
+the number specifies the exact number of arguments that the function
+expects.  For example, a value of 4 indicates
+that the function must receive exactly four arguments; a value of
+0x82 indicates that the function will accept two or more arguments.
+
+<li>The number of optional additional parameters the function can
+receive.  0 means that there are no optional arguments, so the
+argument count must match the fixed argument count; 1 means that the
+arguments are allowed to include one additional item beyond the fixed
+count, but aren't required to; 2 means that two additional arguments
+are allowed; and so on.  Note that if the function takes varying
+arguments (as indicated by the high bit of the fixed argument count),
+the optional argument count can simply be ignored, since there's no
+upper limit anyway on account of the varying flag; but the compiler
+can still set this field for documentation purposes.  (Note that this
+is new as of the December 2009 T3 VM spec update, file format v2.  In
+previous versions this field was reserved and required to be set to
+zero, which is backwards compatible in that older versions didn't
+allow any optional arguments and so effectively had zero optional
+arguments for every method header.)
+
+<li>The number of local variables that the function uses as a portable
+UINT2 value.  This does not count the implicit argument counter local
+variable.
+
+<li>The total stack space required by the function, measured in stack
+slots.  This value includes all local variables, as well as space needed
+for intermediate results of calculations and actual parameters to functions
+that this code calls.  This does <i>not</i> include the parameters passed
+<i>to</i> this function, since those are effectively allocated in the
+caller's frame.  This is a UINT2 value.
+
+<li>The byte offset from the start of the method header of the
+function's exception table.  This value is zero if the function has
+no exception table.  This is a UINT2 value.
+
+<li>The byte offset from the start of the method header of the
+function's debugger records.  This value is zero if the function has
+no debugging records.  This is a UINT2 value.
+
+</ul>
+
+<p>
+Here's a more compact picture of the header:
+
+<p>
+<table border>
+<tr><td>UBYTE parameter count (high bit set indicates variable arguments,
+in which case the value bitwise-AND 0x7f is the minium number of parameters)
+<tr><td>UBYTE additional optional parameter count
+<tr><td>UINT2 local variable count
+<tr><td>UINT2 maximum number of stack slots required by the function
+<tr><td>UINT2 offset from start of method header of exception table;
+0x0000 if there is no exception table
+<tr><td>UINT2 offset from start of method header of debugging records;
+0x0000 if there are no debugging records
+</table>
+
+<p>
+The first byte-code instruction for the method immediately follows
+the method header.
+
+<p>
+Following the last byte of executable code is the exception table.
+The exception table consists of a count, which indicates how many
+elements are in the table, followed by an array of elements.  Each
+element specifies:
+
+<ul>
+<li>The starting position (as a byte offset from the start of the
+function's method header) of the byte code range of the
+code protected by this exception handler.  This is stored as a UINT2.
+
+<li>The ending position (as a byte offset from the start of the
+function's method header) of the code range for this exception handler.
+The code range is inclusive of this offset.  This is a UINT2 value.
+
+<li>The exception class (as an object ID) caught by this handler.
+This value is the invalid object ID if the handler catches all
+exceptions.  This is stored as a UINT4 value.
+
+<li>The byte code position (as a byte offset from the start of
+the function's method header) of the handler code.  This is stored
+as a UINT2 value.
+</ul>
+
+<p>Following the exception table are the <a href='debug.htm'>debugger
+records</a>.  The debug records contain information for source-level
+symbolic debugging: the names and scopes of the local variables, and
+the byte code position of the first instruction of each line of
+executable code.  Debug records are optional; if debug records are
+not present, the debug table offset in the method header is set to
+zero.  Debug records are not required to execute a program; they're
+needed only to provide information to an interactive debugging
+utility so that it can show source-level information on the program
+as it executes.
+
+<p><hr>
+<a name='predefined'></a>
+<h2>Pre-defined Objects and Properties</h2>
+
+The VM must at certain times make reference to certain objects and
+properties to which the loaded program must also be able to refer.
+In general, the VM uses these objects and properties to call code
+in the user program in response to VM events.
+
+<ul>
+<li>The "RuntimeError" exception class.  When a run-time error occurs
+in the VM (for example, if the program attempts to evaluate a property
+of a nil object reference, or divides a number by zero), the VM must
+be able to create an instance of the RuntimeError class to represent
+the exception.
+
+<li>The "exceptionMessage" property.  When the VM creates a RuntimeError
+object, it sets this property to a string containing an error message
+describing the run-time error.  In addition, when the VM terminates
+program execution due to an unhandled exception, it will display the
+string contained in this property (if any) of the unhandled exception
+object.
+
+<li>The "Constructor" property.  Whenever the VM creates a new object,
+it must invoke the object's constructor by evaluating its "construct"
+property.
+
+<li>The "Destructor" property.  Whenever the VM is about to destroy
+an object that is no longer reachable, it will invoke this property,
+if defined, to notify the object of its pending collection.
+
+<li>The "LastProp" property.  This is the last property ID that the
+compiler has assigned.  The VM is free to use any property ID with
+a value higher than this property for its own internal purposes.
+
+<li>The "propNotDefined" property.  This is the property ID that the
+GETPROP instruction and related instructions invoke when a property
+is evaluated on an object and found not to be defined or inherited by
+the object.
+
+</ul>
+
+
+The VM and the user program must agree on the ID's given to these
+pre-defined objects and properties, because the meanings of these
+ID's must be the same for the VM and for the user program code if
+the VM's operations with these ID's are to invoke the correct user
+code.
+
+<p>
+Hypothetically,
+one way to ensure that the VM and the user program agree on the ID's
+of the pre-defined objects and properties would be to define these ID's
+in this spec.  For example, we could assert that object #1 is always
+the RuntimeError class object; the compiler would be obligated to
+generate the appropriate object under this ID value.  This approach
+would work, but has a substantial problem: it is inflexible with
+respect to future additions to the specification.  Any object ID's
+not assigned in the spec would be available to the compiler to use
+for other objects; as a result, if a new object were added to the
+spec, it might conflict with an ID that the compiler assigns to a
+different object, hence the program produced would not be compatible
+with future versions of the VM.
+
+<p>
+To ensure forward and backward compatibility, the VM assigns each
+pre-defined object and property a symbolic name.  The compiler is
+free to choose any ID for each of the pre-defined objects; once
+the compiler chooses these values, it stores in the load image
+file a symbol table, which provides the correspondence between
+the symbolic names and the compiler-assigned ID's.  The compiler
+is only obligated to store in the symbol table those objects and
+properties that are pre-defined in the version of the VM specification
+for which the compiler is designed.
+
+<p>
+During loading, the VM scans the symbol table for each of the
+pre-defined symbols, notes each one, and caches the information
+in global variables (or in a structure associated with the load
+image, if the VM is capable of loading multiple image files
+simultaneously).  It's important to cache these values, because
+the VM may need to refer to some of them quite frequently.  During
+program execution, the VM uses the cached values to refer to the
+pre-defined objects and properties.
+
+<p>
+The symbol table mechanism is reasonably flexible for future
+changes.  When loading a program compiled with an older compiler
+into a newer VM, some symbols may be missing; the VM can simply
+allocate new values (unused by the load image), since the absence
+of the symbols means that the user code will not be aware of the
+new objects or properties.  When loading a newer program with an
+older VM, the VM will simply ignore any symbols that it does not
+recognize.
+
+<p>
+The compiler is free to provide its own names for the pre-defined
+objects and properties, or not to name them at all.  The compiler
+is also free to use any means to determine the contents of the
+pre-defined objects; for example, some compilers may use hard-coded
+definitions that are built into the compilers themselves, while
+others may obtain the definitions from source code provided by the
+user or in standard header or library files.
+
+<p>
+Note that each object referenced by a pre-defined symbol must always
+be part of the root set loaded from the image file.  (This is probably
+obvious, since the compiler would otherwise have no way to assign these
+ID's statically in the load image in the first place.)
+
+<p>
+The current set of assigned symbols is shown below.
+
+<p>
+<table border>
+<tr><th>Symbol<th>Description
+
+<tr><td>RuntimeError<td>The object ID of the
+exception class to use for run-time errors.
+When a run-time error occurs, the VM will construct an instance of this
+class and invoke its constructor with the VM error number (an integer
+value), and optionally additional arguments describing the error.
+The VM then throws the new object in the same manner that the program
+code would throw an exception.
+
+<tr><td>exceptionMessage<td>The property ID that exception objects use
+to store the text of a message describing the exception.  The VM
+uses this property for two purposes.  First, whenever the VM creates
+a RuntimeError instance in response to a run-time exception condition,
+the VM will store a default message for the error in the new instance's
+exceptionMessage property.  Second, if program execution terminates due
+to an unhandled exception, the VM will look in this property of the
+unhandled exception object for a message to display.
+
+<tr><td>Constructor<td>The property ID to use for notifying new TADS
+objects of their own creation.  Whenever a new object is created
+programmatically (for example, via the NEW instruction), the VM evaluates
+this property of the new object.
+
+<tr><td>Destructor<td>The property ID to use for notifying TADS
+objects of their imminent destruction.  Whenever the garbage collector
+determines that a TADS object is unreachable, the VM invokes this
+method on the object prior to actually destroying the object.
+
+<tr><td>LastProp<td>The last property ID value that the load image
+itself uses.  The VM is free to use any property ID value greater than
+this number for its own internal purposes.  In particular, the VM may
+use this value in future versions to assign values to pre-defined
+properties that are not provided by the load image file, to ensure
+that the values assigned do not conflict with any used in the loaded
+program.
+
+<tr><td>ObjectCallProp<td>The property ID that the PTRCALL instruction
+invokes if an object is used as the function operand to this instruction.
+
+<tr><td>propNotDefined<td>The property ID that the GETPROP
+instruction and related instructions invoke when a property of an
+object is evaluated and the object does not define the property.
+
+</table>
+<p>
+
+<p><hr>
+<a name='intrinsics'></a>
+<h2>Intrinsic Functions</h2>
+
+The T3 VM is designed to be independent of the source language used
+to prepare user code, and is also meant to be independent of the
+host application and operating environment.  In order to accomplish
+this independence, the VM does not specify a fixed set of built-in
+functions, but instead allows multiple sets of built-in functions.
+
+<p>
+An intrinsic function is simply a native-code routine that can be
+called from byte code, and which is part of the VM in the sense that
+it can access internal VM methods and data structures.  Intrinsic
+functions can perform computational operations, such as extracting
+a substring from a string, and can also provide access to the host
+application and operating environment, such as displaying output.
+
+<p>
+Intrinsic functions are provided in "function sets."  Each function
+set has one or more unique identifiers (i.e., names), and consists
+of a vector of native code function pointers.  A function set is essentially
+equivalent to an interface, as the term is used in CORBA or COM: it
+provides a fixed set of entrypoints with specific invocation protocols,
+all packaged together and assigned a universally unique identifier.
+Given a particular identifier, a program can rely on obtaining a specific
+set of services with a particular invocation protocol.
+
+<p>
+A single function set may
+have more than one identifier, because each <i>version</i> of a
+function set gets a new identifier.  Each new version can, if it
+is desired, incorporate previous versions as subsets, simply by
+placing the same functions in the old versions at the same locations
+in the vector.  Since each old version is a subset of the new version,
+the function set can be used equally well as an old version or as
+the new version.  This scheme allows safe evolution of a function set
+over time; older programs will continue to run unchanged on newer
+VM's, since their older function sets will still be available as
+subsets of new function sets, but new programs will correctly detect
+when the newer function sets they rely upon are not available in an
+older VM.
+
+<p>
+Each program image file contains a function set selector.  When the
+VM loads the program image, it reads the function set selector,
+which consists of one or more function set names (i.e., a universally
+unique identifier for each selected function set).  The VM creates
+a function set selector vector, with one entry for each function
+set listed in the program image file.  For each entry in the file,
+the VM attempts to find a function set with the same identifier;
+if found, the VM puts a pointer to the function set into the function
+set selector vector at index specified in the file.
+
+<p>
+The function set mechanism allows the VM to be independent of the
+underlying intrinsics.  In fact, in a dynamically linked configuration,
+where the intrinsics are in separate dynamic link libraries, new
+function sets could be installed without making any changes to the
+VM executable binary.  Furthermore, compilers can likewise be designed
+to be independent of the built-in functions by allowing programs to
+specify function sets as input (via declarative syntax in the source
+code, for example), thus allowing access to new versions of the
+run-time function set without making any modifications to the compiler.
+
+<p>
+To call an intrinsic function, the program uses the BUILTIN
+byte code instruction.  This instruction specifies the function
+set number, which is the index into the function set selector
+vector, and the function number, which is the index into the 
+function set vector itself.  The VM retrieves the function set
+vector from the selector vector based on the function set number,
+and retrieves the function pointer from the function set vector
+based on the function number.
+
+<p>
+A special form of the instruction, BUILTIN0,
+calls an intrinsic in the first (zeroeth)
+function set in the selector vector.  This is simply an optimization;
+most programs will rely mainly on a single intrinsic function set,
+so their byte code size can be reduced slightly by using this form of
+the instruction for this most frequently-invoked function set, 
+since this instruction omits the implicit function set number.
+
+<p>
+Note that configurations of the VM may have different function sets
+available.  The function set selection process will ensure that a program
+prepared to expect a particular function set will only load into a VM
+that has been configured with that function set.  However, one function
+set is required in <i>all</i> T3 implementations: <a href='fnset_t3.htm'>
+the "t3vm" function set</a>.
+
+
+<p><hr>
+<a name='externals'></a>
+<h2>External Native Functions</h2>
+
+<p><b>Deprecated:</b> As of TADS 3.1, this feature is officially
+removed.  It's never been implemented, but we made an allowance for it
+in the VM design because TADS 2 has an equivalent feature.  But it's
+almost never been used in TADS 2, and there's been no hint of any
+demand for it in TADS 3, so we don't see any reason to keep referring
+to it as a future feature.  The following is for historical reference
+only.
+
+<p>The VM is designed in such a way that it can be extended in the
+future to provide a mechanism for invoking functions implemented in
+native code but not linked directly into the VM.  This feature, if
+and when implemented, would allow users to write VM programs that
+access external hardware or operating system features that are not
+available through the intrinsic functions.
+
+<p>This feature will depend upon the dynamic linking or loading
+capabilities of each operating system, and the specific
+implementation will necessarily vary by operating system.  The VM
+will specify an interface that must be provided by the host
+application environment for loading and invoking external functions.
+
+<p>The VM will provide a set of interfaces to external functions
+that allow an external function to call back into the VM to perform
+certain operations.  For example, these functions will allow an
+external function to retrieve its actual parameters, return values,
+and manipulate objects in the VM.
+
+<p>To facilitate addition of this feature in future versions, this
+specification reserves the opcode CALLEXT (0xB7).
+
+<p>At the current time, there is no specific plan for implementing
+the external native code invocation feature.  This feature will be
+given further consideration in the future if sufficient demand arises
+among the system's users.
+
+<p><hr>
+<a name='exceptions'></a>
+<h2>Exceptions</h2>
+
+Exception handling is a structured method of performing non-local
+jumps within user code.  The T3 VM supports exceptions as a native
+feature.
+
+<p>
+Exception handling has two parts: throwing exceptions and catching
+exceptions.
+
+<p> Throwing an exception is simple.  User code creates an exception
+object, initializes it with any data that describes the exception,
+and then throws the exception.  A VM instruction, THROW, performs
+this operation.  (Note that the exception object does not actually
+have to be newly created, since a pre-existing exception object would
+serve just as well.  In practice, most programs will create a new
+exception object to describe each exception condition that arises,
+but an exception object is often re-thrown several times by separate
+nested exception handlers.)
+
+<p>
+To catch an exception, VM code must specify a block of "protected"
+code, and one or more exception handlers which catch exceptions
+for the block.  An exception handler can handle a specific type of
+exception (including subclasses of the exception type), or can
+be a "finally" block, which is executed unconditionally for a given
+block of code and hence implicitly catches all exceptions that occur
+within the corresponding protected block.
+
+<p>
+An exception is specified by an exception object, which is simply
+any TADS object instance.  The TADS object inheritance mechanism
+is used to determine whether a particular exception instance is
+a subclass of a given exception type.
+
+<p>
+The compiler must build an exception table for a particular function;
+the compiler stores the location of the exception table (as an offset
+from the start of the function) in the method header for the function.
+When an exception is thrown, the VM locates the exception table by reading
+its location from the method header at the EP register.
+
+<p> The exception table consists of an array of handlers.  Each
+handler specifies the range of code that it protects (expressed as
+the offset from the start of the function's method header of the
+beginning of the protected range, and the offset from the start of
+the function's method header of the last byte of the protected
+range), the exception class that it catches (given as an object ID),
+and the offset within the function of the first byte of the handler.
+A "finally" clause, which catches any exception, is simply
+represented as a handler for an invalid object ID; this causes the
+handler to be invoked for any exception.
+
+<p>
+When protected code is nested within other protected code, the compiler
+is responsible for generating the exception table with the <i>innermost</i>
+exception handler appearing first in the table; the VM simply scans the
+table for the first handler for the exception, so nesting is handled
+simply by ensuring that the innermost handler for a range appears earlier
+in the table than any enclosing handlers for the same range.
+
+<p>
+When an exception is thrown, the VM starts out by scanning the exception
+table for the current frame; the VM locates the table by getting its
+location from the method header table at the EP register.  If the
+exception is not found in the exception table, the VM restores the
+enclosing frame (using the same procedure that it would to return
+from the current function, although a few steps can be omitted due
+to the lack of a return value) and tries again with the exception
+table of the enclosing frame.  This continues until a suitable exception
+handler is located, or the outermost frame is reached.  If the outermost
+frame is reached and no handler is found, the VM terminates and returns
+to the host environment.  (The host environment may at this point
+restart the VM at a particular entrypoint, or may display the exception
+and abort the application, or take whatever other action is appropriate.)
+
+<p>
+If the VM finds a suitable handler, it pushes the exception object
+onto the stack, then transfers control to the handler.  An exception
+handler's first instruction thus normally removes the item at the
+top of the stack and stores it in a local variable (via a GETLCLn
+instruction).
+
+<p> The exception table is stored <i>after</i> all of the executable
+instructions in the function.  The compiler is expected to construct
+the exception table in the course of generating byte code for the
+function; when the compiler has finished geneating byte code for the
+function, it sets the method header's exception table offset field to
+the offset of the next available byte, then writes out the exception
+table.  (Because the exception table's offset is stored in the method
+header, it doesn't actually matter whether the table immediately
+follows the last byte-code instruction or follows other intermediate
+tables, so the compiler is free to put other information, such as
+debugging records, between the last byte-code instruction and the
+exception table.  However, the exception table is considered part of
+the method, in the sense that it is required to be located in the
+same code pool page as the method; this ensures that the exception
+table is always loaded in memory when the method's code is loaded in
+memory, and that its location can be calculated as a simple offset
+from the physical location of the method header in memory.)
+
+<p><hr>
+<a name='input'></a>
+<h2>Input/Output and the Display</h2>
+
+The T3 VM does not specify a display model or an input event processing
+model.  All display and input event processing are handled by user code
+in cooperation with the host application environment, via the
+intrinsic function set.
+
+<p>
+The T3 VM has one set of primitive operations related to displaying text,
+however.  The VM must handle the "self-printing string" datatype by
+displaying the text of such strings whenever they're evaluated in most
+contexts.  In order to accomplish this, the VM needs a default display
+function that it can call whenever a self-printing string must be
+displayed.
+
+<p> The VM actually defines <i>two</i> default string display
+mechanisms.  The first is the default display <i>method</i>.  This is
+simply defined as a property pointer.  Any time a string is to be
+displayed, and a valid "self" object is active, and a default string
+display method is defined, and the "self" object defines or inherits
+this method, this method is invoked with the string to be displayed
+as the method's single argument.  The second mechanism is the default
+display <i>function</i>, which is simply a function pointer.  Any
+time a string is to be displayed, and the conditions aren't right to
+invoke the default display method, the default display function is
+called instead, passing the string as the function's argument.
+
+<p> In order to avoid any dependencies on a particular display model,
+the VM requires the program image file itself to define the default
+display method and function.  The user program must specify these by
+calling an intrinsic function in the "t3vm" function set (this
+function set must be supported by all T3 VM implementations).
+
+<p>
+Because the user program itself handles all self-printing strings
+through its defined default display function, self-printing strings
+are nothing more than a short-hand for displaying strings through
+other, more general means.  Given that the target application of the VM is
+interactive fiction games, however, it is highly desirable to make
+this operation as compact to represent in an image file as possible,
+hence this special short-hand mechanism.
+
+<p><hr>
+<a name='gc'></a>
+<h2>Garbage Collection</h2>
+
+<p>This discussion is meant as an aid to implementation.  The details
+of implementing the garbage collector are up to each implementation,
+so the details here are not meant to require a particular design.
+
+<h3>Algorithm</h3>
+
+<p>
+The garbage collector uses a simple "mark-and-sweep" algorithm, which
+runs synchronously; in other words, all other VM operations must be
+suspended to perform garbage collection.  
+
+<p>
+The garbage collector operates by starting with the "root set" of
+objects, and marking each of these objects as reachable.  Then,
+it goes through all of those objects, and marks all of the objects
+to which they refer as reachable; this continues until every object
+that is reachable from the root set, directly or indirectly, has
+been marked.  Finally, the garbage collector scans through all of
+the allocated objects and deletes each one that has not been marked
+as reachable.
+
+<p>
+The "root set" is the set of objects that are directly referenced
+from a global pointer of some kind.  First, the entire active machine
+stack is always reachable, because machine stack locations correspond
+to local variables, parameters, and intermediate results that the
+program can reference.  Second, all of the objects that have a symbol
+name in the program are always reachable, because code, constant
+lists, and image-loaded TADS objects can always refer to these objects
+directly.  All of the objects that are directly loaded from an image
+file are considered part of the root set; we mark all of these objects
+as part of the root set by setting the appropriate bit in the object
+header when we load them.  Third, machine registers that contain
+values (data register R0) are also always reachable.
+
+<p>
+The garbage collector requires some per-object state information:
+
+<ul>
+<li>The "reachability" state.  This can assume one of three values:
+Reachable, Finalizer-Reachable, or Unreachable.  An object is Reachable
+if it is part of the root set, or if it can be reached directly or
+indirectly through references from the root set.  An object is 
+Finalizer-Reachable if it is not Reachable (i.e., it cannot be reached
+directly or indirectly from the root set), but it is in the Finalizable
+state, or can be reached directly or indirectly from an object in the
+Finalizable state.  An object is Unreachable if it is not Reachable
+or Finalizer-Reachable.
+
+<li>The "finalizable" state.  This can have one of three values:
+Unfinalizable, Finalizable, or Finalized.  All objects are initially
+Unfinalizable; this indicates that the garbage collector cannot
+invoke the object's "finalize" method.  An object becomes Finalizable
+when the object is Unfinalizable, and the garbage collector
+determines that the object is not Reachable.  In the Finalizable
+state, the VM can invoke the object's "finalize" method at any time.
+An object becomes Finalized when the VM is about to invoke the object's
+"finalize" method.
+
+<li>The link pointer.  This points to another object header; the
+garbage collector uses these link pointers to construct a queue
+of objects yet to be processed for various purposes.  An object
+may be in zero or one queue at any given time.
+
+</ul>
+
+<p>
+The mark-and-sweep algorithm assumes the following initial conditions.
+These conditions must be in effect at all times when the garbage
+collector is not running.
+
+<ul>
+<li>All objects in the load image root set (i.e., each object whose
+"root set" bit is set to true) are in the garbage collector pending
+work queue, and these are the only objects initially in the queue.
+These objects all are in the Reachable and Unfinalized states.
+
+<li>All objects in the Finalizable state are in the finalizer queue
+and are marked as Finalizer-Reachable.
+
+<li>All objects not in the work queue or the finalizer queue are
+marked as Unreachable.
+
+</ul>
+
+The loader ensures that the above conditions are true initially, and
+the garbage collector ensures that the conditions hold after each
+garbage collection pass.  So, the garbage collector can assume these
+conditions hold at the beginning of each pass.  The garbage collection
+algorithm proceeds with these steps:
+
+<p>
+<ul>
+<li>For each element of the active stack, if the stack element refers
+to an object, call reference_object(Reachable) for that object.
+
+<li>If data register R0 refers to an object, call
+reference_object(Reachable) for that object.
+
+<li>For each undo record, call the object associated with the undo
+record to have it mark as referenced any object reference by the
+saved value in the undo record.  The undo records call
+reference_object(Reachable) on each of the objects they reference.
+
+<li>Go through the GC pending work queue.  For each object in the queue,
+remove the object from the work queue and call mark_all_references()
+on the object, passing the object's current reachability state
+as the reachability state to assign to the referenced objects.
+Continue until the work queue is empty.
+<i>Note: this step can be performed incrementally, so that it processes
+only a set number of queue entries and then returns, and then continues
+for another set number of entries on a subsequent call.  This can be used
+to interleave garbage collection with long-running I/O operations that
+do not invoke any other VM operations; for example, this can be used to
+perform garbage collection while awaiting user input.</i>
+
+<li>For each object in the finalizer queue, remove the object from the
+queue, and add it to the main work queue with the object's current
+reachability state.
+
+<li>Process the pending work queue once again until it's empty, following
+the same procedure as above.
+
+<li>Go through all of the active objects.  For each object:
+
+<ul>
+
+<li>If the object is not Reachable, and the object is Unfinalizable,
+change the object's state to Finalizable.  If the object has no finalizer
+method, skip the Finalizable state and mark the object Finalized instead.
+
+<li>If the object is Unreachable and Finalized, delete the object by
+marking the object as free, releasing the memory in the variable-size
+object extension, and adding the object to the free list.
+
+<li>Mark the object as Unreachable in preparation for the next
+garbage collection pass.
+
+<li>If the object's "root set" bit is set, add
+the object to the garbage collector pending work queue and mark it as
+Reachable, in preparation for the next garbage collection pass.
+
+<li>If the object's state is Finalizable, mark the object as 
+Finalizer-Reachable and add the object to the pending finalize queue.
+
+</ul>
+
+<li>
+Go through all of the objects again.  For each object that is still
+active, call delete_weak_references() on the object, to remove any references
+that the object has to objects that have been deleted during this
+garbage collection pass.
+
+<li>Go through the undo records.  For each undo record, call the
+object associated with the undo record to have it delete obsolete
+weak references from the undo record.  A reference is obsolete if
+the object to which it refers was deleted during this garbage collection
+pass.
+
+</ul>
+
+<p>
+The reference_object(<i>object, state</i>) routine consists of these steps:
+
+<ul>
+<li>If <i>object</i> is marked as Unreachable, add it to the
+pending work queue.
+
+<li>If <i>state</i> is "stronger" than the object's current reachability
+state, set the object's reachability state to <i>state</i>.  Otherwise,
+leave the object's reachability state unchanged.  Finalizer-Reachable
+is stronger than Unreachable, and Reachable is stronger than
+Finalizer-Reachable.
+
+</ul>
+
+<p>
+The mark_all_references(<i>state</i>) routine consists of the
+following procedure:
+
+<ul>
+<li>For each object <i>X</i> to which this object directly refers,
+call reference_object(<i>X, state</i>).
+</ul>
+
+<h3>Performance Discussion</h3>
+
+<p>
+The algorithm described above scales linearly in the total number
+of objects allocated (reachable plus unreachable).
+
+<p>
+Several garbage collection algorithms of considerably greater
+sophistication have been
+developed for other virtual machines.  Most notably, several GC
+algorithms can run concurrently with other VM operations, allowing
+GC to be performed continuously in a background thread.
+
+<p>
+The T3 VM specifies a synchronous GC algorithm for two reasons: first,
+it's very simple; second, the T3 VM's targeted application provides
+an ideal environment for a synchronous GC.  The added complexity (both
+in terms of the GC algorithm and of the overall VM architecture) of
+concurrent garbage collection does not seem warranted for this
+application.
+
+<p>
+The T3 VM is designed for an interactive environment with frequent
+and slow user input.  We expect to spend the vast majority of wall-clock
+time waiting for a human user to enter input, and we do not expect to
+perform very much computation at a stretch between input events.
+These user input pauses provide a perfect opportunity to perform
+garbage collection.
+
+<p>
+Three configurations are possible for the garbage collection algorithm
+described above during user input.  The first configuration is trivial,
+but the other two configurations can be used to take maximum advantage
+of the delay waiting for user input, by allowing the user to work on
+input while the garbage collector is running.
+
+<ul>
+<li>Run the GC before or after each user input.  This is the trivial
+configuration; the GC simply runs to completion at each input event.
+This has the undesirable characteristic that it may cause slight
+delays that are perceptible to the user, but given the scaling
+characteristics of the GC algorithm, the delays should never be
+substantial.
+
+<li>The GC can run in a background thread, running asynchronously
+relative to the main VM thread.  Even though this thread runs
+asynchronously, the GC is still effectively running synchronously,
+because we require that the GC fully complete its operations before
+any other GC operations can be performed.  This can be coordinated
+through a global exclusive VM semaphore: the main VM thread starts
+off owning the semaphore; before each user input event begins, the
+main VM thread releases the semaphore, since it does not need to
+perform any VM operations during input processing; then, as soon as
+user input is completed and before performing any VM operations,
+the main thread reacquires the semaphore.  The GC thread runs in
+a loop: it acquires the semaphore, runs one GC pass, releases
+the semaphore, then starts over.  Since the GC and main VM thread
+can never access VM resources at the same time, no other concurrency
+protection is required.  This approach is extremely simple, and allows
+us to take full advantage of the input delay while waiting for the user;
+since we can continue processing user input while the GC is running,
+the user will never notice any delay for garbage collection.  This
+approach is ideal for any platform that supports threading.
+
+<li>The GC can run in an incremental mode.  In this mode, the step
+in which the pending work queue is processed does not run until the
+queue is empty, but instead processes a set number of elements and
+then returns; the code handling the user input must repeatedly invoke
+this step throughout user input processing until the queue is empty,
+at which point the final steps of the garbage collection process
+can run.  To take advantage
+of this configuration, the user input processor must be event-based.
+Just before user input, the user input processor calls the GC to
+begin a new GC pass.  Then, throughout user input, the input processor
+calls the GC to perform an incremental GC pass whenever the user
+input event queue is idle, or until the GC indicates that it is
+finished.  Finally, when user input is finished, the user input
+processor calls the GC to complete garbage collection.  Each
+incremental pass is designed to run quickly, so that there is
+no user-perceptible delay between the arrival of an event and the
+processing of the event.  This configuration is relatively simple,
+and takes reasonably good advantage of the user input delay; this
+is a good choice for event-based systems that do not provide
+threading.
+
+</ul>
+
+
+<p><hr>
+<a name='finalizers'></a>
+<h2>Finalizers</h2>
+
+<p>
+The T3 memory management system provides a mechanism that notifies
+an object of its pending deletion.  T3 notifies an object via its
+"finalizer" method; this is a special method that the VM invokes
+directly.
+
+<p>
+The VM invokes an object's finalizer method at some point between
+the time that the garbage collector determines that the object is
+"finalizable" and the time that the garbage collector makes the
+object's memory available for re-use. 
+
+<p>
+An object becomes finalizable when the object is not directly reachable
+from the executing program, and that the object's finalizer method
+has never been called before.  See the <a href='#gc'>garbage
+collection</a> discussion above for details on the finalization state
+and reachability.
+
+<p>
+The VM invokes the finalizer method with no arguments.  If a finalizer
+method throws an exception that it doesn't catch within its own code
+(or invokes a method that throws an exception that the finalizer doesn't
+catch), execution of the finalizer terminates, but the exception has
+no further effect; the VM internally catches and ignores the exception.
+
+<p>
+Finalizers can be invoked at any time after the garbage collector
+determines that an object has become Finalizable.  The garbage collector
+can never free or re-use an object's memory until after the object's
+finalizer method returns.
+
+<p>
+The effect of the finalizer method varies by metaclass.  The String and
+List metaclasses ignore the finalizer method.  The TADS Object metaclass
+invokes the property designated by the symbolic name "Destructor"
+in the <a href='#predefined'>predefined properties</a> in the image file,
+if any.
+
+
+<p><hr>
+<a name='swapping'></a>
+<h2>Virtual Memory and Swapping</h2>
+
+<p>In version 1 of this spec, there was a discussion about software
+memory swapping within the VM for the constant pools.  As this has
+become essentially irrelevant for modern computers, we've removed this
+discussion.  Implementations can, of course, still create memory
+swapping systems of their own, but the MJR-T3 reference implementation
+simply relies on the operating system to manage memory to create a
+large virtual memory space.
+
+
+<p><hr>
+<a name='undo'></a>
+<h2>Undo</h2>
+
+<h3>Overview</h3>
+
+<p>
+The T3 VM has an integrated "undo" system that allows changes to be
+reversed.  Undo applies to all state stored in objects.  Other state
+(such as the machine registers and the stack) are <i>not</i> part of
+the undo system.  Since the undo feature is part of the VM, programs
+written for the VM automatically take advantage of the undo capability,
+without any need to pay attention to this feature in the design of the
+user code.
+
+<p>
+The undo mechanism records changes relative to "savepoints."  A
+savepoint is effectively a snapshot of the system at a given time.
+Once a savepoint is created, all changes made are recorded with
+the savepoint, so that all changes since the savepoint can be
+undone as a group.
+
+<p>Transient objects are <i>not</i> affected by undo.  There is no need
+to save undo information for changes made to transient objects.
+
+<p>
+The undo mechanism allows only a limited number of savepoints.  If
+a new savepoint is created, and the number of existing savepoints
+equals the maximum number allowed, the undo mechanism automatically
+discards state associated with the oldest savepoint.
+
+<h3>Programmatic Access</h3>
+
+<p>
+The undo system is controlled through a set of intrinsic functions
+accessible to a byte-code program through the "t3vm" system interface
+function set (which must be supported by all T3 VM implementations):
+
+<ul>
+<li><b>Set savepoint</b>.  This function establishes a savepoint.
+
+<li><b>Undo to savepoint</b>.  This function applies undo to the
+most recent savepoint.  All objects are restored to the state they
+had at the time the last savepoint was created, and the savepoint
+is then forgotten.  Repeating this operation without creating an
+intervening savepoint will undo to the previous savepoint, and so
+on until no more savepoints exist.
+</ul>
+
+<h3>Implementation</h3>
+
+<h4>Savepoints and Machine Registers</h4>
+
+<p>
+Savepoints are identified by a number from 1 to 255.  Each time a
+savepoint is created, the number is incremented; if the result is
+256, the number wraps to 1.  Note that this imposes an architectural
+limit on the number of savepoints; in practice, however, the actual
+number of savepoints to be kept will probably be much smaller, because
+the practicality of more than twenty or thirty savepoints is small
+and does not justify the amount of memory needed to store that much
+undo information.
+
+<p>
+The VM defines two global register values associated with undo.
+The Last Savepoint register contains the savepoint number of the
+most recent savepoint that was created.  The Savepoint Count
+register contains the number of active savepoints.  If Savepoint
+Count is zero, it means that there are no active savepoints.
+
+<h4>Undo Records</h4>
+
+The undo mechanism uses a double-ended queue of undo records.
+The queue is double-ended because we must add records to one end
+(when saving a record, it's added at the "newest" end), but remove
+records from both ends (when applying undo, records are removed
+from the "newest" end; when discarding an obsolete savepoint, records
+are removed from the "oldest" end).
+
+<p>
+Note that an efficient implementation of the double-ended queue
+uses an array, which is used as a circular buffer of undo records.
+Two indices must be kept into the array: the index of the next available
+record, and the index of the oldest record in use.  To allocate a
+record, we simply advance the next available record index; if the
+next available record index meets the oldest record index, the queue
+is full and we must discard one or more savepoints.
+
+<p>
+Each undo record contains the object associated with the undo;
+an identifying key, used by the associated object to identify
+the change; and a data holder, used to store the original value
+of the data changed by the operation for which undo is being kept.
+
+<p>
+The identifying key is meaningful only to the object that created the
+undo record.  The key may be a property ID or an integer.  TADS Objects,
+for example, store undo for property changes, so they use property ID's
+as undo keys; arrays use integer keys to store undo for element changes.
+
+
+<h4>Creating a Savepoint</h4>
+
+<p>
+To create a savepoint, we increment the Last Savepoint register,
+wrapping back to 1 if the value was already 255.  We then increment
+the Savepoint Count register.  If Savepoint Count is greater than
+or equal to
+the maximum number of savepoints allowed (this value is determined
+through the host application environment, and may be set using,
+for example, configuration options such as preference settings or
+command line switches in the host application; in any case, this
+value is never more than 255), we must discard an old savepoint.
+
+<p>
+To discard an old savepoint, we subtract the savepoint count from
+the Last Savepoint value, adding 255 to the result if the result
+is less than 1.  This tells us the savepoint number of the oldest
+active savepoint, which is the savepoint we will discard.  We
+then remove from the "oldest" end of the undo record queue all of
+the records associated with the oldest savepoint.
+
+<h4>Applying Undo</h4>
+
+<p>
+When asked to apply undo, we first check to make sure undo is
+available.  If the Savepoint Count register is zero, no undo information
+is available, so the operation fails.  Otherwise, we proceed with
+the undo.
+
+<p>
+Starting with the undo record at the "newest" end of the undo record
+queue, we remove from the queue each record associated with the savepoint
+and apply that record.  This allows us to apply records in reverse order
+of creation, which ensures that we restore state correctly by essentially
+running the clock backwards.
+
+<p>
+To apply an undo record, we find the object associated with the undo
+record, and call its method to apply the record.  The object is
+responsible for interpreting the identifier in the record and restoring
+its state accordingly.
+
+<p>
+After applying all undo records for the savepoint, we decrement the
+Last Savepoint register, wrapping to 255 if the result is below 1,
+and we decrement the Savepoint Count register.
+
+
+<h4>Undo Handling by Metaclass</h4>
+
+<p>
+<b>Lists and Strings</b>:  these metaclasses do not need to store
+any undo information at all, since their state cannot change.
+
+<p>
+<b>Vectors</b>:  the vector metaclass must store undo information on
+each element changed in the vector.  In order to avoid storing
+redundant information, the vector keeps one bit per element
+indicating whether undo has been stored for the element in the
+current savepoint; when this bit is set for an element, thevector does
+not create another undo record when changing for the element, since
+the record would be redundant with the record already saved for the
+element in the same savepoint.  If when setting an element's value
+we find that the element does not already have undo saved in the current
+savepoint, we create a new undo record, set the record's integer key
+to the element's index, and save the element's original value in the
+undo record.
+
+<p>
+<b>LookupTables</b>: these work similarly to vectors, storing
+undo information for each change in a value/key relation.
+
+<p>
+<b>TADS Objects</b>:  the TADS object metaclass must store information
+on each property changed in the object.  This metaclass maintains a
+bit array, with one bit per property table slot; each bit indicates
+whether undo has been saved for the property slot for the current
+savepoint.
+Whenever we set a property value, check the undo bit array element
+for the property slot: if the bit is set, we do nothing,
+since the original value for this savepoint has already been saved;
+otherwise, we add an undo record, setting the key to the property ID
+being changed, and storing the old value of the property.  If the property
+did not previously exist, we must store the value "empty" in the undo
+record, that undoing the change will delete the property.
+
+
+<h4>Interaction with Garbage Collection</h4>
+
+A subtle question about saving and applying undo information is:
+how do we undo a change that made an object unreachable, and thus
+eligible to be deleted during garbage collection?  In other words,
+what happens if we restore a reference to an object, and the object
+has already been deleted by the garbage collector?
+
+<p>
+The simple answer is that we never delete any objects referenced by
+undo information in the first place.  The way we accomplish this is
+equally simple: when the garbage collector asks an object to mark
+all of the objects it refers to as reachable, we mark not only the
+objects to which we directly refer, but we <i>also</i> mark the objects
+to which any active undo records refer.
+
+<p>
+For example, suppose object A has a property P that contains a reference
+to object B (A.P := B).  During garbage collection, assuming A is
+reachable, then A will mark B as reachable because one of A's properties
+refers to B.  Now suppose that we set a savepoint, and then execute
+code that changes A.P to nil.  Now, A no longer <i>directly</i> refers
+to B.  However, A does have an undo record saving the fact that A.P
+formerly contained a reference to B.  So, during garbage collection,
+A will <i>still</i> mark B as reachable, because it can reach B through
+an undo record, even though it can't reach B directly.  If we then
+apply the undo record, restoring A.P to a reference to B, we don't
+have to worry about whether B still exists, because the presence of
+the undo record prevents B from being deleted.
+
+<p>
+But, isn't this terribly inefficient, since we can't collect objects
+that are effectively unreachable except through undo?  Yes, it does
+take up memory, but only to the extent that undo takes up memory
+anyway.  Consider the alternative: if we allow the garbage collector
+to delete B when A.P is nil but A still has an undo record that refers
+to B, then applying undo will set A.P to B again, and hence we need
+some way to un-delete B.  The only way to un-delete B is to store a
+copy of B somewhere when we deleted it in the first place, and then
+create a new object from this saved copy.  We clearly need to keep the
+saved copy of B for as long as we have any undo records that refer to
+the original B.  So, in this alternative scheme, we need
+to keep a copy of B around for exactly as long as the first scheme
+keeps the original B around -- in other words, it uses exactly the
+same amount of memory, but with considerably greater complexity!
+Keeping around the original is simple, because it fits into the
+main garbage collection scheme naturally.
+
+<h4>Undo and Save/Restore</h4>
+
+We do not save undo information in saved state files.  Saving has
+no effect on the current undo state, so it is still possible
+after saving to undo to a savepoint prior to the save operation.
+
+<p>
+When restoring a saved state file, we simply discard all accumulated
+undo information.  Undo information currently in memory obviously
+has no meaning after we've restored a saved state file, and the saved
+state file itself has no undo information stored, so we simply cannot
+perform undo after restoring.
+
+<p><hr>
+<a name='imageloading'></a>
+<h2>Image Loading</h2>
+
+The image file format is the subject of a separate document.  However,
+we'll discuss here the details of how the VM loads image files into
+memory.
+
+<p>
+Image files have three main sections: constants, code, and objects.
+
+<p>
+Constants and code are arranged into "pool" structures.  A pool is
+an array of fixed-size pages.  Data within a pool is referenced by
+a 32-bit offset value; the specific page containing a given offset
+can be obtained by dividing the offset by the page size 
+to get the page index (the first page is at index 0), and the offset
+within that page obtained from the remainder of this division.
+The image file contains a header for each pool that describes the
+structure of the pool (specifically, the number of pages and size
+of each page); the VM uses this information to load the pages into
+memory, either at start-up or on demand, depending on the memory
+management configuration of the VM implementation.
+
+<p>
+Objects are arranged into variable-size blocks.  The VM always
+loads all object data at start-up, since all objects must be resident
+in memory throughout VM execution.  The image file contains header
+information giving the number of object data blocks and the size of
+each block; within each block, the image file contains information
+describing each object within the block.  Each object must be entirely
+contained within a single object block; an object may not span multiple
+blocks.
+
+<p>
+The arrangement of objects into blocks is purely a convenience for
+certain smaller environments where the size of a single memory allocation
+block is limited (for example, on MS-DOS, blocks cannot exceed 64k,
+even when more than 64k of total memory is available to be allocated).
+Hence, we place an upper limit of 64k on the size of a single object
+data block.  The compiler should use as large a size as possible less
+than this limit, since each block has some space overhead (both
+in the image file and in memory at run-time).  The recommended algorithm
+for the compiler is to fill up each block as much as possible (up to the
+64k limit), creating a new block whenever adding another object to an
+existing block would exceed the limit.
+
+<p>
+Each block has an associated object metaclass.  Hence, every object in
+a particular block is of the same metaclass.  (This saves space in the
+image file, by saving us the need to specify a metaclass with each
+object.)
+
+<p>
+To load objects, the VM loader performs the following steps at
+start-up:
+
+<ul>
+
+<li>For each object data block, read the header information to
+determine the size of the block.
+
+<li>Allocate memory to hold the object data block, and load the
+bytes from the object data block in the image file into the
+allocated memory.
+
+<li>Scan the data block.  For each object in the block, perform these
+steps:
+<ul>
+<li>Create a new VM object of the appropriate metaclass (based on the
+metaclass type for the block).
+<li>Invoke the new object's load_from_image method, passing in the
+address and size of the object's data in the block.  (Each object's
+data are stored as a contiguous array of bytes in the block.)
+</ul>
+
+</ul>
+
+<p>
+Note that all objects in an image file are implicitly part of the
+root set.
+
+<p>
+One important feature of the loading model is that it allows a
+memory-mapped file to be used directly, without duplicating any
+of the data in the file separately in memory.  This is especially
+important for diskless
+platforms (such as handheld computers), since all files are inherently
+memory-mapped on such devices.  With a memory-mapped file, the memory
+that holds the image file is directly used without duplication as the
+memory containing the executing program.
+
+<p><hr>
+<a name='restarting'></a>
+<h2>Restarting</h2>
+
+<p>
+Restarting the machine involves simply restoring the machine state
+to its initial state.  Given that the VM is designed to make initial
+program load very fast, restarting can be accomplished simply by
+reloading all objects.
+
+<p>Note that transient objects (i.e., objects specifically marked
+with "transient" status) are <i>not</i> affected by a Restart operation.
+These objects should simply be ignored during Restart processing.
+
+<p>
+When restarting, all undo state must be dropped, since it can no longer
+be meaningfully applied after objects have reverted to their initial
+state.
+
+<p>
+Note that only objects in the root set will be reverted to their
+initial state by a reload.  We can simply leave all other objects in
+their current state; we can't simply delete all non-root set objects,
+since stack elements may still refer to non-root set objects.
+(Transient objects in particular could continue referring to non-root set
+objects.)
+
+<p><hr>
+<a name='saving'></a>
+<h2>Saving and Restoring</h2>
+
+<p>The T3 VM has the ability to save the machine state to a file, and later
+restore the machine state from a previously saved file.  This capability
+allows programs to be written for the VM to take advantage of this
+save/restore mechanism, without the need to pay any attention to this
+feature in the design of the user code.
+
+<h3>Saving</h3>
+
+<p> Saving the machine state involves writing the state of all
+non-transient objects to a file.  Only object state is saved; the
+state of the stack and machine registers is not saved.  In addition,
+it is unnecessary to save constant data and code, since these do not
+change in the course of execution and can simply be reloaded from the
+program image.
+
+<p>
+Because objects are maintained in memory in a format suitable for
+portable file representation, we can save objects simply by writing
+out their internal state directly to the file, as a direct binary
+transfer.
+
+<p> All non-transient objects, both root set objects and non-root set
+objects, are written to the saved state file.  The state of the
+objects effectively captures the state of the machine.
+
+<p>
+Note that we do not save or restore the state of the stack or machine
+registers.  This allows us on restore to continue processing code
+without jumping into a new context suddenly, so that user code that
+restores a saved state can continue with post-restore processing
+directly.  If we restored the stack and machine registers, the code
+immediately after the original save would suddenly be executing after
+a restore (giving the same effect as a setjmp/longjmp in C).
+
+<p>There is one complication, which is that a non-transient object can
+contain a reference to a transient object.  The non-transient object
+will be saved, but the transient object will not be.  We address this
+by saving, for each transient object, a record that the object is
+transient; we don't save the transient object itself, but merely
+a placeholder indicating that a transient object was there.  When
+we restore, we can use these placeholders to set to "nil" each
+reference to a transient object.
+
+<h3>Restoring</h3>
+
+<p>Restoring a saved state essentially reverses the serialization
+process of saving the objects.  However, there is an added dimension:
+we must "fix up" references among objects in the saved state with
+the new ID's we assign to the newly-loaded instances of the saved
+objects.
+
+<p>
+In order to restore saved state, we must first delete all non-root set
+objects.  This is necessary because the objects in the saved state
+file must be restored using the same object ID that they had when
+they were saved, since the file may contain references to objects
+by ID.  In addition, we must set to "nil" any references from a
+saved object to an object that was transient at the time of saving.
+
+<p>The typical Restore implementation is to start by loading the
+"table of contents" from the saved state, to find the ID's in the
+saved file's numbering scheme of all saved objects.  We then assign a
+new ID for each object, remembering the association between the file's
+numbering scheme and the new ID numbering scheme.  Then we load each
+object, deserializing the data saved for the object.  We must fix up
+the deserialized data by translating each object reference in the data
+from the file's numbering scheme to the new numbering scheme, by
+looking up the old object number in our table of contents and
+substituting the new ID number.
+
+
+<h3>Interaction with Undo</h3>
+
+<p>
+Saving has no effect on undo.  However, undo information is not saved
+to the state file.
+
+<p>
+When restoring, all undo information must be discarded, since the
+undo information is not meaningful in the context of the restored
+state.
+
+
+<div class=t3spec_version>
+Copyright &copy; 2001, 2006 by Michael J. Roberts.<br>
+Revision: September, 2006
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Machine Model
+<br><span class="navnp"><a class="nav" href="notation.htm"><i>Prev:</i> Notation and Conventions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="metacl.htm"><i>Next:</i> The Metaclasses</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

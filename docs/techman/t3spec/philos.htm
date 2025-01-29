@@ -1,0 +1,238 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>T3 VM Design Philosophy</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Design Philosophy
+<br><span class="navnp"><a class="nav" href="intro.htm"><i>Prev:</i> Introduction</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="goals.htm"><i>Next:</i> Design Goals</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+<br>
+<br>
+
+<h2>T3 VM Design Philosophy</h2>
+
+<p>
+The T3 Virtual Machine is largely based on the TADS 2 Virtual Machine.
+The TADS 2 VM evolved gradually over time, and its internal design
+was never documented beyond the descriptive information contained in
+the implementation source code, but a set of underlying principles
+controlled the VM's design.
+
+<p>
+For the new machine, we have attempted to formulate and state a set
+of principles to guide the design.  These principles help make choices
+in the design where trade-offs are involved, where a set of
+alternatives offers no single option that is superior in all
+ways to the others, but offers instead a mix of advantages and
+disadvantages.
+
+
+<h3>Modular and Open Design</h3>
+
+<p>
+The T3 VM is designed specifically as a program execution subsystem
+that operates within an enclosing application environment.  The VM
+should not contain any assumptions about the host environment.  For
+example, the VM does not contain any specification of the user
+input/output system: the VM should operate equally well on a GUI
+system, on a mainframe connected to a character-mode terminal, and
+on a network server with no user input/output at all.  As far as the
+VM is concerned, there is no such thing as input/output; this is
+entirely a matter for the host application environment.
+
+<p>
+Even though the VM is not itself tied to an application environment,
+a program written with the T3 VM may be designed to work with a
+particular host application environment; in fact, most programs
+will work this way, because most complete application programs need to
+use the types of services that a host environment provides.
+However, the VM itself does not have these dependencies; this means
+that a single implementation of the VM can be incorporated into any
+number of host applications.
+
+<p>
+This modularity is achieved in the design through a set of interfaces
+between the VM and the host environment.  These interfaces are meant
+to be general, open, and extensible, so that the host environment can
+provide any number of services to programs running under the VM in
+such a way that the programs can find and use the host services, but
+that the VM is involved only to the extent that it mediates the
+requests.  These interfaces should make no assumptions about the
+services, not even about what kinds of services are provided.  For
+example, there is no specific input/output interface; input/output,
+if present at all, is provided by the host environment using the
+same generic interfaces that could be used by another host
+environment to provide graphics services, timekeeping, robotic arm
+manipulation, network I/O, or anything else the host environment
+can do.
+
+<p>
+Note that this may sound complex for the programmer writing a VM
+program, but the mechanics will be quite simple.  The compiler
+will handle the details of specifying the host application interfaces
+that a program requires; when the VM loads the program, it uses
+information stored in the program by the compiler to find the
+required interfaces.  The programmer writing a VM program should
+be able to use host application services as though they were
+built in to the language and the VM.
+
+
+
+<h3>High-level Operations</h3>
+
+<p>
+When we talk about "high-level" and "low-level" operations, we
+are talking about the level of abstraction in the operations.
+For example, consider adding two integers.  This is a relatively
+simple operation, but in fact it can be decomposed into a series of
+still simpler operations involving the individual bits of the
+binary representations of the numbers.  A computer that provides
+an instruction to compute the arithmetic sum of two integers is
+thus providing a higher-level abstraction relative to the actual
+computation that the machine is performing, which involves the
+bit-level operations.  Integer arithmetic, however, is a very
+low-level operation in comparison to some of the abstractions in
+a modern programming language: calling a method in a polymorphic
+object; throwing an exception; creating a new instance of a class;
+retrieving a member variable from an object.
+
+<p>
+Because of the difficulty and cost of creating hardware
+processors, most real computers operate at a very low level, and
+implement higher-level abstractions through software.  The highest-level
+abstractions on most of today's computers are integer and floating-point
+arithmetic; everything more abstract must be built from the
+primitive operations that the processor provides.
+
+<p>
+A machine design that is not intended to be implemented in hardware
+does not have the same obstacles, and can therefore use a much
+higher-level design.  The T3 VM does not attempt to model a hardware
+computer, but instead seeks to provide high-level operations that
+model the abstractions used by a modern programming language.
+
+<p>
+A high-level design has many advantages.  A program written in
+a high-level programming language is much easier to translate to
+a higher-level machine, assuming the abstractions in the language
+map reasonably well to the machine design.  A program can be more
+compact and execute faster, because abstractions in the program
+design can be expressed directly with the high-level primitives of
+the machine, rather than using multiple simpler operations.
+
+<h3>Memory Model</h3>
+
+<p>
+In keeping with its overall high-level design, the T3 VM does not
+expose the machine's memory to the programming model as an array of
+bytes, as most physical computers do.  Instead, the T3 VM exposes
+its memory to programs as collections of values and objects.
+Programs can address registers, the stack, and "objects," which
+are typed units of storage.
+
+<p>
+The T3 machine does not have "pointers" or "addresses" in the untyped
+sense that most physical computers use; it is therefore not possible
+to convert an arbitrary integer, for example, into an address for
+dereferencing.  Instead, the machine provides typed references.
+This is advantageous in that it enforces good program behavior and
+eliminates a large class of programming errors that arise from
+invalid conversions between reference types.  The VM design seeks to
+provide enforceably type-safe operations to replace the unsafe address
+arithmetic, conversion, and dereference operations that program would
+normally be forced to perform on today's real computers, so there
+should be no loss of functionality, only increased program integrity.
+
+
+<h3>Performance and Complexity</h3>
+
+<p>
+In any complex software system, efficiency and complexity are at odds
+with one another.  High-level abstractions allow a program to be
+expressed in terms that match the problem domain rather than the
+physical details of the computer; the more closely the abstract
+model matches the problem to be solved, the simpler the program.
+But the farther an abstraction is from its underlying implementation,
+the less efficiently will it use the computer's resources, because
+the computer must do more work to translate the abstrations into its
+native operations than it would for a lower-level program.
+
+<p>
+Furthermore, because any computer has finite
+resources, different kinds of efficiency are in tension, most
+obviously memory usage and execution speed.  For example, any data
+can be sorted in "linear" time (an amount of time proportional to
+the number of items to be sorted); a linear sort algorithm requires
+so much memory (proportional to the set of all <i>possible</i> items
+that could appear in the set to be sorted), though, that it's
+impractical in all but limited special cases, so virtually
+all sorting in practice uses algorithms that run somewhat
+more slowly (typically in "n log n" time, proportional to the number
+of items to be sorted times the logarithm of that number) but that
+use vastly less memory.
+
+<p>
+In the T3 VM design, we have tried to strike a balance between
+efficiency and complexity, but we have favored simplicity where
+a choice must be made.
+
+<p>
+<b>Memory usage:</b> The T3 VM attempts to use memory efficiently,
+but is not miserly where extra efficiency would substantially complicate
+the design.  For example, the machine uses an entire byte
+per data value to represent the value's type, even though the
+necessary information could be stored in only four bits; it would
+be possible to encode data values such that the type information was
+packed more tightly (for example, two data values could be packed
+into 9 bytes rather than 10, if the four extra bits in the type field
+were not wasted), but this would obviously complicate the implementation
+of many parts of the VM.  Another example: the boolean types could be
+compressed to much smaller representations, but doing so would sacrifice
+the regularity of the type system.
+
+<p>
+Given the application domain of the VM, we feel that greater efficiency
+with memory usage is not warranted.  Even if the VM's memory usage for
+a particular program were cut in half, it would not in practice mean
+that very many new computers could run the program.
+
+<p>
+<b>Execution speed:</b>  We are willing to accept some amount of
+complexity in the design for better execution speed, but within
+limits.
+
+
+
+<!-------------------------------------------------------------------->
+<div class=t3spec_version>
+Copyright &copy; 2001, 2006 by Michael J. Roberts.<br>
+Revision: September, 2006
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Design Philosophy
+<br><span class="navnp"><a class="nav" href="intro.htm"><i>Prev:</i> Introduction</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="goals.htm"><i>Next:</i> Design Goals</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

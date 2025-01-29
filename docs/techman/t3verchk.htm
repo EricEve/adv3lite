@@ -1,0 +1,414 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+
+<title>Verify, Check, and When to Use Which</title>
+
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Verify, Check, and When to Use Which
+<br><span class="navnp"><a class="nav" href="t3res.htm"><i>Prev:</i> Action Results</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3verb.htm"><i>Next:</i> How to Create Verbs</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Verify, Check, and When to Use Which</h1>
+
+<p><i>by Steve Breslin
+<br>compiled from discussions on
+<a href='news:rec.arts.int-fiction'>rec.arts.int-fiction</a>
+</i>
+
+<p>The TADS 3 command execution model gets the command's objects
+involved in the execution process, via the dobjFor(verb) and
+iobjFor(verb) groups of methods.  Part of this process is to decide
+whether or not to allow the command to proceed in the first place.
+The execution model offers not just one but <i>two</i> distinct places
+for each object to make those go/no-go decisions.  One is the "verify"
+routine, and one is the "check" routine.
+
+<p>Broadly speaking, both <span class="code">verify()</span> and <span class="code">check()</span> have the the
+same mandate, namely to determine whether or not allow the command to
+proceed.  But they're not interchangeable; there are definite
+differences in their effects.  The distinction between the two is a
+bit subtle, and at times it can be confusing.  This article aims to
+clarify exactly what each one is for, and to help you develop a sense
+of when to use which one.
+
+<h2>Strictly speaking</h2>
+
+<p>The <span class="code">verify()</span> stage of action processing is designed to interrupt
+the action processing only when there's a "logical" problem with the
+command.  Pouring a desk or eating a topic - such actions would be
+illogical.
+
+<p>In contrast, the <span class="code">check()</span> stage is for commands that <i>seem</i>
+logical enough, but nonetheless won't work.  In these cases, the
+action still needs to be quashed, but not until after the parser has
+decided which objects could logically be involved.  For example, the
+player tries to wear some jeans, but the jeans are too small. Maybe
+the player tries to melt something with the match, but the match isn't
+producing enough heat. In such cases, <span class="code">check()</span> can interrupt the
+action, and explain the failure.
+
+<h2>So why the two phases?</h2>
+
+<p>The benefit of having a <span class="code">check()</span> stage separate from the
+verify() step is not in making the verification stage purely
+logic-oriented, nor in removing some of the conditional statements
+from the action stage.  Such cosmetic adjustments would hardly justify
+the added complication of the check() stage.
+
+
+<p>The point of separating <span class="code">verify()</span> and <span class="code">check()</span> is that it
+lets the parser ask the game if a command makes logical sense,
+<i>separately</i> from determining if the command can actually
+be executed.  It might seem difficult to separate these two ideas,
+but the distinction isn't just philosophical or cosmetic - there's
+a practical need for it.  The practical need is "disambiguation."
+
+<p>When the player types a command, the parser tries to figure out
+what the command means by looking up the associations between words
+and objects.  Sometimes, a word or phrase might refer to multiple
+objects.  When this happens, the command is <i>ambiguous</i>.
+
+<p>For example, suppose a room contains two cardboard boxes, one white
+and one black, and the player types OPEN BOX.  Does the player want to
+open the white box or the black box?  One way of answering the
+question is to ask the player to be more specific: "Which box did you
+mean?"  But the player will be annoyed if we ask this sort of question
+too often, especially if a human listener wouldn't need to ask.  For
+example, if the white box is already open but the black box is closed,
+a human listener would assume the player means OPEN BLACK BOX, since
+that's the only way the command is useful.
+
+<p>The parser uses <span class="code">verify()</span> to get this sort of information about
+what ought to be obvious to the player.  When there's enough
+information to make the same kind of decision a human listener
+would, the parser can successfully resolve the ambiguity without
+asking the player for help - that is, the parser can
+<i>disambiguate</i> the command by itself.
+
+<p><span class="code">check()</span>, in contrast, is for enforcing conditions that
+<i>aren't</i> obvious to the player, and thus can <i>not</i> be used
+to resolve ambiguous references.  For example, suppose we have our two
+boxes again, but this time they're both closed.  Furthermore, suppose
+that the white box is an ordinary box, but the black box has been
+glued shut, so that it can't be opened without some kind of tool.
+
+<p>Now, if the player types OPEN BOX, what does the player mean?  The
+<i>game</i> knows that OPEN BLACK BOX won't work - but <i>the player
+doesn't know this until she tries it</i>.  So from the player's
+perspective, OPEN BLACK BOX is a perfectly logical command: the box is
+closed, and to all appearances it's something that can normally be
+opened, so OPEN BLACK BOX makes perfect sense.  OPEN WHITE BOX
+likewise makes perfect sense.  So it's equally logical for the player
+to mean either one: the parser has to ask the player which box she
+meant in this case.  The parser can't assume that the player meant
+OPEN WHITE BOX just because the game knows that OPEN BLACK BOX won't
+work.  If the parser did this, it could take the player by surprise -
+the player might really have meant OPEN WHITE BOX, and would be
+surprised if the parser interpreted the command to mean something
+else.
+
+<p>The point of separating <span class="code">verify()</span> and <span class="code">check()</span>, then, is to
+let the parser ask whether an action is logical, and then separately
+determine whether the action is actually possible.
+
+<p>Now, this discussion raises another question.  We can see why we
+need to separate <span class="code">verify()</span> and <span class="code">check()</span>, but why do we need to
+separate <span class="code">check()</span> and <span class="code">action()</span>?  In other words, why not just
+check the "possibleness" conditions - the box being glued shut, for
+example - during the <span class="code">action()</span> phase?
+
+<p>The main reason to separate <span class="code">check()</span> from <span class="code">action()</span> comes
+into play with two-object commands, such as PUT X IN Y.  In these
+cases, we might have <span class="code">action()</span> handlers for both the direct and
+indirect objects.  The order of execution for the action handlers
+depends on the verb - for PUT X IN Y, we run the indirect object
+handler first, but for some verbs it's the other way around.  Now, if
+we did all of our checking in one or the other action handler, we
+might run into a slight problem: what if the action handler that runs
+second needs to block the command?
+
+<p>The separate <span class="code">check()</span> phase solves this problem.  We run the
+<span class="code">check()</span> handlers for both objects <i>before</i> we run
+<i>either</i> <span class="code">action()</span> handler.  This ensures that either
+object can cancel the command before any part of the command has
+been carried out.
+
+<p>This means that it's important to remember that <span class="code">check()</span>, like
+<span class="code">verify()</span>, shouldn't actually carry out any part of the command.
+In particular, these routines shouldn't make any changes to "game
+state" - they shouldn't move any objects around, change properties,
+etc.  All game state changes should be put off until the <span class="code">action()</span>
+phase, when we know that we've passed all of our tests and that the
+action is allowed to proceed.
+
+
+<h2>Thinking about this from disambiguation: an extended example</h2>
+
+<p>Without recourse to a potentially confusing philosophical
+distinction between logical and illogical, we can understand the use
+of the <span class="code">check()</span> stage as one which enables us to make extra adjustments
+to interactive disambiguation questions. (Interactive disambiguation
+questions are the questions which the game generates when the player
+makes an ambiguous command: "Which fan do you mean? The....")
+
+<p><i>An object which fails in the <span class="code">check()</span> phase is favored over
+an object which fails in the <span class="code">verify()</span> phase, as far as
+disambiguation is concerned.</i> In fact, during disambiguation, the
+parser doesn't even call the <span class="code">check()</span> method.  The parser calls the
+<span class="code">verify()</span> method to narrow down the field, and then might have to
+ask the player to choose from the remaining objects, but the parser
+doesn't call <span class="code">check()</span> at all until after the objects have been
+chosen.
+
+<p>For example, we have three fans, one which is a fixed ceiling fan,
+which can be turned on and off, one which is a takeable oscillating
+fan, but which can only be taken when it is off, and one which is a
+hand-fan, a stylized pingpong paddle if you will. First we'll discuss
+<span class="code">verify()</span> by itself, and then we'll discuss <span class="code">verify()</span> in
+combination with <span class="code">check()</span>.
+
+<h3>Good use of verify()</h3>
+
+<p>Say the player types:
+
+<p><div class="cmdline"><pre>
+&gt;turn fan on
+</pre></div>
+
+<p>We definitely want to exclude the hand-fan, since it's obvious that
+the hand-fan can't be turned on or off, so this exclusion goes in the
+verify. So we might get the following disambiguation question:
+
+<p><div class="cmdline"><pre>
+&gt;turn fan on
+Which fan do you mean, the oscillating fan, or the ceiling fan?
+</pre></div>
+
+<p>Now let's say that one of these fans is already on -- we would want
+to eliminate this option also, or else we're effectively asking:
+"Which fan do you mean, the fan that's already on, or the fan that is
+off?"  The <span class="code">verify()</span> stage is designed to eliminate the obviously
+silly interpretation of the command when there are other good options.
+
+<p>So if the ceiling fan is on, and the oscillating fan is off, we want
+something like this:
+
+<p><div class="cmdline"><pre>
+&gt;turn fan on
+(the oscillating fan)
+Done.
+</pre></div>
+
+<p>Now let's think about the case in which all three fans fail the
+<span class="code">verify()</span> stage: the hand-fan obviously cannot be turned on, the
+other two are already on, so they can't be turned on either. If the
+player types:
+
+<p><div class="cmdline"><pre>
+&gt;turn fan on
+</pre></div>
+
+<p>-- we need to ask which fan is intended, so that we can print the
+appropriate failure message. So when all three fail the <span class="code">verify()</span>
+stage, a disambiguation question like this is asked:
+
+<p><div class="cmdline"><pre>
+&gt;turn fan on
+Which fan do you mean, the hand-held fan, the oscillating fan,
+or the ceiling fan?
+</pre></div>
+
+<p>All of these will fail, of course, but they'll fail for different
+reasons, so we need to ask which the player meant before we explain
+why what the player is trying to do isn't going to work.
+
+<h3>Combining verify() and check()</h3>
+
+<p>So far we have an example of how <span class="code">verify()</span> is used. Let's continue
+with this example to explore how <span class="code">check()</span> is used in combination
+with <span class="code">verify()</span> to make the intended disambiguation messages. We'll
+change the verb from "turn on" to "take".
+
+<p>The ceiling fan cannot be taken ever, since it's attached to the
+ceiling. The oscillating fan can be taken when it's off. The hand-held
+fan can be taken at any time. Let's say the oscillating fan is off:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+</pre></div>
+
+<p>It's pretty clear what we want here:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+Which fan do you mean, the oscillating fan, or the hand-held fan?
+</pre></div>
+
+<p>Note that the ceiling fan isn't an option, since it can't be taken:
+it has failed the <span class="code">verify()</span> stage. The two good options are offered
+in interactive disambiguation.
+
+<p>Now what if the oscillating fan is on:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+</pre></div>
+
+<p>What do we want here? The answer to this question determines
+whether or not we want the oscillating fan's takeable-condition to be
+in <span class="code">check()</span> or <span class="code">verify()</span>. Is it obvious to the player that the
+oscillating fan cannot be taken when it is on? If not, we want this:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+Which fan do you mean, the oscillating fan, or the hand-held fan?
+</pre></div>
+
+<p>The above is produced when the fan.isOn condition goes in <span class="code">check()</span>.
+If we instead put this condition in <span class="code">verify()</span>, we will get this:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+(the hand-held fan)
+Taken.
+</pre></div>
+
+<p>If we want to eliminate the oscillating fan during object
+resolution, then we put the condition in <span class="code">verify()</span>, so that the
+game will know that it's supposed to assume the player is referring to
+the hand-held fan when the oscillating fan is on. We should only do
+this if it should be obvious to the player that the oscillating fan
+cannot be taken when it's on. (Making too many assumptions about what
+the player means can spoil puzzles sometimes, and is somewhat
+intrusive generally speaking. In this sense, "logical" means "what's
+logical or obvious <i>to the player</i>." The <span class="code">verify()</span> stage being
+a logic test should be understood in this spirit.)
+
+<p>We can make one other consideration: let's say that the hand-held
+fan is directly contained by the player character. The oscillating fan
+is on, and standing on the desk, and the ceiling fan is circling
+overhead. How do we want to handle this:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+</pre></div>
+
+<p>Deciding this will also help us determine whether or not we want
+the <span class="code">fan.isOn</span> condition to be in <span class="code">check()</span> or <span class="code">verify()</span>. If
+it's not obvious that the oscillating fan cannot be taken, we want the
+following:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+(the oscillating fan)
+You try to take it, but it's too awkward to grab while it's oscillating.
+Maybe you should turn it off first.
+</pre></div>
+
+<p>But if we want the following:
+
+<p><div class="cmdline"><pre>
+&gt;take fan
+Which fan do you mean, the ceiling fan [which cannot be taken], the
+hand-held fan [which you already have], or the oscillating fan [which
+cannot be taken because it's on]?
+</pre></div>
+
+<p>-- then we should put the oscillating fan's <span class="code">isOn</span> condition in
+<span class="code">verify()</span>. Whether you want to assume that the player means the
+oscillating fan in this case is up to you; the "logic" will be different
+between games, based on the context, how obvious the situation is to the
+player, and based on the game author's sense of taste in deciding what
+player knowledge should or should not be assumed.
+
+<p> <i>The point is that you should choose where the condition goes
+based on what you want to see in the disambiguation phase.</i>
+
+<p>Of course, you don't need three fans to make up your mind about where
+the code should go, but you can imagine other objects in your game
+that could be competing with your object, to help you determine where
+the code should go from a stylistic point of view.
+
+<p>From a goal-oriented perspective, it all comes down to the practical
+implications of putting a condition in one place or another, and often
+there are no practical consequences, in fact, to the distinction
+between <span class="code">check()</span> and <span class="code">verify()</span>; but you can imagine disambiguation
+conflicts to insure you're using the right style in principle.
+
+
+<h2><span class="code">check()</span> and <span class="code">beforeAction()</span></h2>
+
+<p>Traditionally, the library ran the "before" notifiers -
+beforeAction and roomBeforeAction - <i>before</i>
+the <span class="code">check()</span> phase.  Starting with version 3.0.15.1 of the
+library, however, you can optionally enable a new, alternative
+ordering that runs the <span class="code">check()</span> phase first.
+
+<p>To enable the alternative ordering, set
+gameMain.beforeRunsBeforeCheck to nil.  By default, this property is
+set to true, which tells the library to use the traditional ordering -
+"before" first - this ensures that existing code will work as it
+always has.
+
+<p>The reason you might want to use the alternative ordering is that
+it lets you consider a command to be more or less "committed" by the
+time the "before" handlers are reached.  In other words, the "before"
+handlers can assume that the command will run to completion.  The
+reason they can make this assumption is that they know that they're
+running after the <span class="code">check()</span> phase.  If the action makes it as far as
+the "before" handlers at all, the <span class="code">check()</span> phase will have already
+judged the command to be acceptable as far as the <span class="code">check()</span> tests
+are concerned.
+
+<p>So, when we get past the <span class="code">check()</span> stage, we know that a viable
+action is under way. Any objects which want to interfere with that
+action can then do so with <span class="code">beforeAction()</span>. This means that
+<span class="code">check()</span> can interrupt an action before other objects, say NPC's,
+have a chance to react to it.  So a good use of <span class="code">check()</span> can avoid
+sequences like this:
+
+<p><div class="cmdline"><pre>
+&gt;ask stu about chair
+As you are about to speak, Mary kicks you under the table. Glaring at
+her, you redirect your question to Dave.
+The large chair isn't something you need to be asking about.
+</pre></div>
+
+<p>In the above example, Mary's response was a <span class="code">beforeAction()</span>, and
+the line about the large chair being an unimportant topic was
+mistakenly placed in the action phase rather than the <span class="code">check()</span>
+phase. By failing the command before the action phase, we could have
+avoided printing Mary's <span class="code">beforeAction()</span> message. So if we want to tell
+the player that the chair is an unimportant topic before Mary becomes
+involved, we need to use the <span class="code">check()</span> phase.
+
+<p>It is important to remember, therefore, that <span class="code">check()</span> really is
+another verification phase, and not a preliminary action phase. Only
+if a command passes <span class="code">check()</span> should a change in game state be made. In
+other words, some initial conditional statements should be part of the
+action stage. The <span class="code">check()</span> stage should not perform preliminary checks
+which determine which action methods are called.
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Verify, Check, and When to Use Which
+<br><span class="navnp"><a class="nav" href="t3res.htm"><i>Prev:</i> Action Results</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3verb.htm"><i>Next:</i> How to Create Verbs</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+
+</html>

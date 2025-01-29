@@ -1,0 +1,572 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>T3 Metaclasses</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+The Metaclasses
+<br><span class="navnp"><a class="nav" href="model.htm"><i>Prev:</i> Machine Model</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="opcode.htm"><i>Next:</i> Byte-Code Instruction Set</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+
+<br><br>
+
+
+
+<h2>T3 VM Metaclasses</h2>
+
+The T3 VM design specifies several metaclasses that will be present
+in most implementations of the VM.  The metaclass system is modular,
+so these metaclasses are not special in any way, except that they're
+specifically described in this VM specification.  A particular
+implementation may choose not to include any of these metaclasses, or
+may include only a subset.  However, because of their general utility,
+we expect that most VM implementations will include most or all of
+these metaclasses.
+
+<br>
+<br><a href='#tadsobj'>TADS Object</a>
+<br><a href='#string'>String</a>
+<br><a href='#list'>List</a>
+<br><a href='#vector'>Vector</a>
+<br><a href='#lookup'>LookupTable</a>
+
+
+
+<p><hr><br><a name='tadsobj'></a>
+<h3>The "TADS Object" Metaclass</h3>
+
+<p>
+The "TADS object" metaclass implements what the TADS language
+programmer thinks of as an object.  This type of object stores a list
+of base classes, and a list of property/value pairs.  The property
+list is mutable throughout the object's lifetime; the values of
+existing properties can be altered, and new properties can be added.
+Properties cannot be deleted, however.
+
+<p>
+We have several goals in implementing the TADS object metaclass.
+First, property access should be fast, since getting the value of
+a property is a very common operation.  Second, setting the value
+of a property should be fast.  Third, because an object can have
+many properties, it would be desirable to be able to save an object's
+state at run-time by saving only the changes made to the load image;
+objects can have quite large load images, so we could save substantial
+space in saved state files by storing only the changes between the
+dynamic state and the initial load image.
+
+<p>
+The object extension of a TADS object contains a header, the superclass
+list, the load image property list, and the changed property list.
+The header contains the number of superclasses, the number of properties
+in the load image list, the number of properties in the changed list,
+and the number of allocated property slots.
+The superclass list, load image property list, and altered property
+list are kept in memory in portable byte format, to allow very rapid
+reading and writing of the information.
+
+<p>
+The load image property list contains the <i>original</i> property
+list from the load image, if any.  This list is never altered throughout
+the object's lifetime.  We keep the load image property list sorted in
+ascending order of property ID.  We require the compiler to sort the
+property list when creating the load image; we simply assume the list
+is in sorted order when loaded.  Since this list never changes, we do
+not incur any overhead keeping the list in sorted order.
+
+<p>
+The modifiable property list is an array of properties that
+have been changed since the object was loaded.  This list is not kept
+in sorted order; although sorting the list would allow faster access,
+it would create substantial overhead when setting property values,
+because it would be necessary to reorder the list to accomodate
+each insertion.
+
+<p>
+To find a property, we first scan the modifiable property list.  If
+the property is found in this list, this value is returned; otherwise,
+we look in the load image list.  The load image list is sorted, so we
+can perform a binary search of this list.
+
+<p>
+<b>Saving and restoring state:</b> To save state, we save only the
+changed property list.  The load image property list never changes,
+so we do not need to save this in a saved state file.  To restore state,
+we discard the entire current changed property list, and load the
+changed property list from the saved state file.
+
+<p>
+<b>Dynamic construction from stack arguments:</b> The stack contains one
+or more arguments.  The first argument is the superclass object; if
+this value is nil, the object has no superclass.  The object is initialized
+with the given superclass and no property values.  Then, the object's
+"construct" method is invoked, passing all additional arguments as
+parameters to the "construct" method.
+
+<p>
+<b>Garbage collection:</b> Note that we never have to mark as referenced
+any objects referenced from the load image property list.  This list is
+always identical to the list in the load image, so must by its nature
+refer only to objects in the root set, which are always reachable and
+thus never need to be explicitly marked as such during garbage collection.
+Hence, we only need to mark the objects in the changed property list.
+
+<p>
+<b>Inheritance:</b> TADS Objects can inherit from other TADS objects.
+A TADS object that inherits from another TADS object is said to be
+a subclass of the second object, or to be derived from the second
+object.  If a TADS object inherits from another TADS object, it
+implicitly defines all of the properties defined by the second
+object, and has the same value for each property in the second object
+that doesn't also appear in the first object.  Any properties defined
+in the subclass object override the same properties in the subclass.
+
+<p>
+For example, suppose we have two objects, A and B, with B
+defined as inheriting from A.  Suppose also that A defines the
+properties P and Q (i.e., A's property table contains entries for
+the property ID's of properties P and Q), and that B defines the
+properties Q and R.
+
+<p>
+Inheritance is implemented as a search up the superclass tree.  When
+we want to get a property of an object, we start with the object's
+property table; if the property is defined in the object's property
+table, the value from that definition is used.  Otherwise, we start
+with the first superclass in the list of superclasses (the order in
+the table is significant, in that it defines the search order).  For
+each superclass, we recursively try to get the property from the
+superclass; if it's found, we note the value and the actual object
+that supplied the value (because the superclass may in turn inherit
+the value from one of its superclasses, the value may not come
+directly from the superclass).  In general, if the same property
+is found in two superclasses, the one that came earlier in the
+list takes precedence over the one that came later.  However, there
+is a complex situation where this is not the case: if the two
+superclasses share a common base class, and the first superclass
+inherits the property from the common base class, and the second
+superclass overrides the property inherited from the common base
+class, then we use the value from the <i>second</i> superclass,
+because the value from the second superclass is more specific than
+one from the first.
+
+<p>
+To illustrate, consider the following class tree:
+
+<p>
+&nbsp;&nbsp;&nbsp;&nbsp;Base defines properties P, Q, R<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A inherits from Base, defines Q<br>
+&nbsp;&nbsp;&nbsp;&nbsp;B inherits from Base, defines R<br>
+&nbsp;&nbsp;&nbsp;&nbsp;C inherits from A, B, defines P<br>
+
+<p>
+<ul>
+<li>If we get property P from C, then we retrieve the value C.P, because
+the property is defined directly in C.
+
+<li>If we get property Q from C, we find that C does not have this
+property in its table, so we must look at superclasses.  We start with
+A, and find that Q is defined in this property table.  We continue to
+superclass B; we do not find Q here, but we <i>do</i> find it in B's
+superclass Base.  However, since Base does not derive from A, where
+we originally found the property, we ignore this, and return A.Q.
+
+<li>If we get property R from C, we again find that C does not have
+the property in its table, so we look at superclasses.  We start with
+A; we find that R is not in its table, so we look at its superclass
+Base, where we find the property.  So, we note Base.R and continue
+looking.  We look next at superclass B, where we find R defined.
+Now, since B derives from Base, where we originally found R, this
+value overrides the original value we found, so we use this value.
+Since we have no further superclasses to look at, we return B.R.
+</ul>
+
+<p>Inheritance comes into play in two separate cases.  In the first
+case, we are searching for a given method of a given object; the
+search order is as described above.  In the second case, we are
+explicitly inheriting from a currently executing method; in this case,
+the search occurs exactly as in the first case, except that we pretend
+that the currently executing method did not exist, so we continue the
+same inheritance search to determine what would come next in the search
+order if the executing method were not defined.  To support this second
+case, each executing method maintains in its activation frame all of
+the information needed to continue a previous search: the original
+target object (so that we can go back to the exact same starting
+point in the inheritance search that we used to find the executing
+method in the firs tplace), and the current defining object (which
+is the point we must reach, and then pass, to find the next object
+in the search order).
+
+<h4>Image File Data</h4>
+
+The image file data for an object of metaclass TADS-Object is arranged
+as follows:
+
+<p>
+<table border>
+<tr><td>Generic Metaclass Header
+<tr><td>UINT2 superclass count
+<tr><td>UINT2 load image property count
+<tr><td>UINT2 object flags
+<tr><td>UINT4 superclass 1 object ID
+<br>...
+<br>UINT 4 superclass <i>N</i> object ID
+<tr><td>Property value 1
+<br>...
+<br>Property value <i>N</i>
+</table>
+
+<p>
+Each property value is arranged as follows:
+
+<P><table border>
+<tr><td>UINT2 property ID
+<tr><td>DATAHOLDER property value
+</table>
+
+<p>
+The property table is arranged in order of ascending property ID,
+with the property ID values ordered as unsigned 16-bit integers.
+The sorted order is required so that VM implementations can use
+a binary search or other algorithm that depends upon the table
+being pre-sorted.
+
+<p>
+The superclass table is arranged in order of definition of the
+superclasses, so the first superclass of an object is first in
+the table; this ordering determines the search order for inherited
+properties, in that we search the first superclass in the list first.
+
+<p>
+The "object flags" value is a set of bit-field flags stored as
+a portable UINT2 value.  The valid flag values are shown below.
+All other bits in the value should be set to zero, to ensure
+compatibility with any future versions that define additional
+flag values.
+
+<p>
+<Table border>
+<tr><td><tt>0x0001</tt><td>
+The object represents a class, not an instance.
+
+</table>
+<p>
+
+<p><hr><br><a name='string'></a>
+<h3>The "String" Metaclass</h3>
+
+Dynamically-constructed strings are represented as objects of
+metaclass <b>String</b>.  Because the same operations that are
+possible on dynamic strings are also possible on constant strings,
+and because a constant string has no associated object, the methods
+implemented in the String metaclass are all accessible to the
+byte-code interpreter through static methods that take a constant
+string's byte array pointer as an argument.  The metaclass member
+functions can all be implemented as calls to the corresponding
+static methods with the instance's string byte array as an argument.
+
+<p>
+The variable-size object extension for a String object contains a
+two-byte length prefix, followed by the bytes of the string.  The
+length prefix gives the length of the string in bytes, not counting
+the length prefix bytes themselves.
+
+<p>
+A String object always has a constant text string associated with it,
+even though the String object itself was dynamically constructed.
+In other words, an operation such as concatenation applied to a String
+object does <i>not</i> affect the String object itself, but instead
+creates a new String object containing the result of the operation.
+This is important, because it means that a given String object never
+changes, so an operation on a String object will not affect any other
+references to the same String object.  Consider the following TADS
+code:
+
+<p>
+<pre>
+    s1 = 'hello there'.substr(1, 5);
+    s2 = s1;
+    s1 += '!!!';
+</pre>
+
+<p>
+The first line creates a dynamic string containing the text
+<tt>'hello'</tt> and assigns a reference to the dynamic string to the
+local variable <tt>s1</tt>.  The second line assigns a reference to
+the same string to the local variable <tt>s2</tt>.  The third line
+changes <tt>s1</tt> by appending the text <tt>'!!!'</tt>.
+This does <i>not</i> change the underlying String object
+to which <tt>s1</tt> and <tt>s2</tt> refer just before this statement,
+but instead creates a new String object that contains the result of
+the concatenation, and assigns a reference to the new object to
+<tt>s1</tt>.  After the concatenation, <tt>s2</tt> still refers to
+the original String object, which still constains <tt>'hello'</tt>.
+
+<p>
+The String metaclass performs the following operations for the generic
+object interface:
+
+<ul>
+
+<li>Get property value.  The String metaclass implements several methods
+through the get-property mechanism, to provide access to these operations
+to user code or built-in function implementations.  Methods include
+"substring", to extract a substring of the string; "upper case" and
+"lower case", to convert the case of the string; "search", to find a
+substring within the string.
+
+<li>Add.  The argument (the right operand of the "+" operator) must be
+a string constant or an object or metaclass String.  Retrieves the byte
+string from the argument, appends it to the byte string of this object,
+and create and returns a new object of metaclass String containing the
+concatenation.
+
+<li>Index.  Retrieves the character at the given character position,
+returning a primitive Integer value giving the character code.
+
+<li>Assign to index.  This takes an integer index value and an integer
+value or a string constant or String object value.  This sets the
+character at the given character position to the given new value (in
+the case of an integer value, the integer is interpreted as a character
+value; in the case of a string constant or object, the first character of
+the string is used), creating and returning a new object reflecting the
+substituted character.  Note that this does <i>not</i> change the text
+of the string stored in this object, since a String object's text value
+is immutable.
+
+</ul>
+
+<p>
+<b>Dynamic construction from stack arguments:</b> Strings cannot currently
+be constructed dynamically using the NEW instruction.  (There'd be little
+point in constructing a new string from an existing string, since it would
+just be an unnecessary copy of the same string.  It may be desirable to
+add some form of this in the future, though, perhaps for certain types
+of type conversions.)
+
+<p><hr><br><a name='list'></a>
+<h3>The "List" Metaclass</h3>
+
+Dynamically-constructed lists are represented as objects of metaclass
+<b>List</b>.  Because the same operations that can be performed on
+List objects can also be performed on constant lists, and because a
+constant list has no associated object, the methods implemented in
+the List metaclass are all accessible to the byte-code interpreter
+through static methods that take a constant list's byte array pointer
+as an argument.  The metaclass member functions can all be implemented
+as calls to the corresponding statis methods with the instance's
+byte array as an argument.
+
+<p>
+A List object's variable-size extension contains a two-byte element
+count, followed by the elements of the list.  The elements are stored
+as a packed array of value holders.
+
+<p>
+As with String objects, a List object's value is immutable, even
+though the object itself was dynamically constructed.  So, an operation
+on a list that yields a different value for the list also yields a new
+List object, rather than changing the original List object's data.
+This means that a given List object never changes, so an operation
+on a List object will not affect any other references to the same
+List object.  Consider the following TADS code:
+
+<p>
+<pre>
+    s1 = ['x' 'y'] + 'z';
+    s2 = s1;
+    s1[1] = 'w';
+</pre>
+
+<p>
+The first line creates a dynamic list containing the list
+<tt>['x' 'y' 'z']</tt>, and assigns a reference to the object
+to the local variable <tt>s1</tt>.  The second line assigns a reference
+to the same object to the local variable<tt>s2</tt>.  The third line
+changes <tt>s1</tt> by assigning the string <tt>'w'</tt> to the first
+element of its list.  This does <i>not</i> change the underlying List
+object to which <tt>s1</tt> and <tt>s2</tt> refer just before this
+statement, but instead creates a new List object that contains the
+result of the index assignment, and assigns a reference to the new
+object to the original List object, which still contains the original
+list <tt>['x' 'y' 'z']</tt>.
+
+<p>
+The List metaclass performs the following operations for the generic
+object interface:
+
+<ul>
+<li>Enumerate references.  Calls the enumerator callback function for
+each element of the list that is an object.  Note that this method does
+<i>not</i> need to be implemented for constant lists, because a constant
+list can only refer to objects that are part of the root set and are thus
+inherently reachable at all times.
+
+<li>Add.  Appends the value of the argument (the right operand of
+the "+" operator) to the end of the list.  If the argument is
+of primitive type Integer, Float, Object ID for an object of any
+metaclass other than List, Property ID, or String
+constant, this simply adds the value of the argument as a new element.
+If the argument.  If the argument is a List object or list constant,
+this adds the elements of the list to the end of this list; in other
+words, concatenating two lists creates a new list whose number of elements
+is the sum of the numbers of elements of the two original lists.  This
+behavior is different than for other types, in that the argument list
+is <i>not</i> added to the original list as a sublist at the last element,
+but rather the argument list's elements are each added one by one to the
+original list.
+
+<li>Index.  Retrieves the list element at the given index value.
+
+<li>Assign to index.  Creates a new list that contains the original list
+with the element at the given index replaced by the given new value.
+This does <i>not</i> change the original list, but rather creates a new
+list with the value replaced.
+</ul>
+
+<p>
+<b>Dynamic construction from stack arguments:</b>  Constructing a list
+from stack arguments results in a list that contains each of the
+arguments, in the same order in which they appear on the stack (the
+first item popped becomes the first element of the list, and so on,
+so the list elements should be pushed in the reverse of the order
+that they should have in the resulting list).  Constructing a list with
+zero arguments creates an empty list.
+
+
+<p><hr><br><a name='vector'></a>
+<h3>The "Vector" Metaclass</h3>
+
+In addition to the List metaclass, the VM provides a Vector metaclass.
+This metaclass behaves very similarly to the List metaclass, with a few
+important distinctions:
+
+<ul>
+
+<li>A vector's contents are mutable.  Assigning a new value to an element
+of a vector does <i>not</i> create a new Vector object, but rather changes
+the contents of original Vector object.
+
+<li>There is no such thing as a constant vector.  The only way that a
+vector can be constructed is by using the <tt>new Vector</tt>
+operator.  However, a vector can be constructed based on a list
+(either a list constant or a List object) by passing the list as the
+argument to the <tt>new Vector</tt> operator.  Alternatively, a vector
+can be constructed simply by specifying the initial allocation size of
+the Vector as the argument to the <tt>new Vector</tt> operator.
+
+</ul>
+
+The first point is important because it means that, if there are
+several references to a vector, changing a vector's contents through
+one reference will also change the vector visible to the other
+references.  This is not true of lists.  Consider this TADS code:
+
+<p>
+<pre>
+    s1 = new Vector(10);
+    for (i = 1 ; i < 10 ; ++i)
+        s1.append(i);
+    s2 = s1;
+    s1[5] = 100;
+</pre>
+
+<p>
+This code first creates a vector with ten elements and assigns it to
+the local variable <tt>s1</tt>.  Next, the code initializes the vector
+by storing a number in each element equal to the element's index.
+Next, the code assigns a reference to the same vector to <tt>s2</tt>.
+Finally, the code assigns the number 100 to element 5 of the vector
+in <tt>s1</tt>.  After this final line, the value of <tt>s1[5]</tt>
+is 100; in addition, the value of <tt>s2[5]</tt> is also 100.  Since
+both variables refer to the same vector object, and the underlying object
+is changed by the assignment, both variables see the change.
+
+The Vector metaclass performs the following operations for the
+methods in the generic object interface:
+
+<ul>
+<li>Enumerate references.  Calls the enumerator callback function for
+each element of the vector that is an object.
+
+<li>Index.  Retrieves the list element at the given index value.
+
+<li>Assign to index.  Creates a new list that contains the original list
+with the element at the given index replaced by the given new value.
+This does <i>not</i> change the original list, but rather creates a new
+list with the value replaced.
+</ul>
+
+<p><hr><br><a name='lookup'></a>
+<h3>The "LookupTable" Metaclass</h3>
+
+<p> The T3 VM provides a "lookup table" metaclass that provides an
+efficient mechanism for looking up objects by key value.  While the
+same functionality could be implemented from simpler objects in user
+code, this native-code metaclass is provided for better performance.
+
+<p>
+LookupTable objects can be created explicitly by user code via the
+<tt>new LookupTable</tt> operator.  Once created, a lookup table can
+be populated using a set of method calls.
+
+<p> A lookup table contains a set of associations; each assocation
+relates a key and an object.  The table can be efficiently searched
+given a key to yield a list of the objects associated with the key.
+
+<p>
+A key is simply a string value.  The associated value can be any
+object.
+
+<p>
+The lookup table object extension stores a hash table.  The hash
+table starts with a count, giving the number of elements in the table,
+then an array with the given number of elements.  Each element of the
+array consists of a value holder, which contains the key value for
+the entry, or nil if there is no entry at that element.  Separately,
+the table stores a value holder for each value associated with each
+key.
+
+<p> Undo interaction: the lookup table metaclass must store undo
+information for any changes it makes to the table structure.  Each
+time a table entry is changed, we must store an undo record
+reflecting the index of the change, the original key value, and the
+original value.  Because an undo record can only contain a single
+value, we must record a change to the key value and a change to the
+list value separately.
+
+<p>The WeakRefLookupTable metaclass is a subclass of LookupTable
+that works the same way, except that it only stores weak references
+to the values in the table.
+
+
+<div class=t3spec_version>
+Copyright &copy; 2001, 2006 by Michael J. Roberts.<br>
+Revision: September, 2006
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+The Metaclasses
+<br><span class="navnp"><a class="nav" href="model.htm"><i>Prev:</i> Machine Model</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="opcode.htm"><i>Next:</i> Byte-Code Instruction Set</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

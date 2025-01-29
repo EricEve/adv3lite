@@ -1,0 +1,4692 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>T3 VM Byte-code Instructions</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Byte-Code Instruction Set
+<br><span class="navnp"><a class="nav" href="metacl.htm"><i>Prev:</i> The Metaclasses</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="format.htm"><i>Next:</i> Image File Format</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+
+<br>
+<br>
+
+<h2>T3 VM Byte-code Instruction Set</h2>
+
+This document describes the instruction set of the T3 Virtual Machine.
+The executable code in a T3 program is constructed from sequences
+of instructions, with each instruction directing the machine to execute
+a particular action.  This document provides the details of how each
+instruction is encoded and how the VM implementation carries out the
+action specific by each instruction.
+
+<p><b>Indices:</b>
+<ul>
+<li><a href='#index_by_name'>Alphabetically by Mnemonic</a>
+<li><a href='#index_by_cat'>By Category</a>
+<li><a href='#index_by_opcode'>By Numeric Opcode</a>
+</ul>
+
+<p><hr>
+<h3>Instruction Set Design Philosophy</h3>
+
+<h4>Stack-based machine</h4>
+
+The T3 VM is a stack-based machine, which means that most operations
+are performed through the machine stack.  This is an extremely natural
+model for translation of high-level language programs, which makes it
+easier to design efficient compilers that target the T3 VM.
+
+<p>
+Most instructions that perform computations, perform comparisons,
+or otherwise operate on data values use the stack.  In nearly all
+cases, these instructions simply operate on the top one or two (or
+occasionally more) elements of the stack; these instructions are
+hence very simple and are often completely unparameterized, in
+that they always operate on the top of the stack.
+
+<p>
+Instructions that operate on non-stack data generally have the effect
+of moving data to or from the stack.  Thus, performing a computation
+on a non-stack item such as an object property is a matter of pushing
+the property value onto the stack, performing the computation (implicitly
+on the item on the top of the stack), then popping the value at the
+top of the stack and setting the property to that value.
+
+
+<h4>Field Encoding</h4>
+
+Many real computers (i.e., those implemented directly in hardware,
+as opposed to entirely software constructs such as the T3 VM) use
+an instruction encoding that divides each instruction into a set
+of fields, each field specifying a particular aspect of the
+operation to be performed.  These fields are generally orthogonal,
+so that, for example, an instruction's addressing mode can be
+determined entirely by inspecting the addressing mode field,
+without knowing anything else about the instruction.
+
+<p>
+Field-based instructions work well for real computers
+precisely because they're implemented in hardware.  In particular,
+hardware computers can use circuitry dedicated to decoding each
+field of an instruction separately, so the various decoding tasks
+can proceed in parallel to an extent.
+
+<p>
+The T3 VM uses a much simpler instruction encoding.  T3 instructions
+do not encode orthogonal fields of information; instead, each
+instruction encodes a separate operation, and implies all of the
+operation's characteristics.
+
+<p>
+This may seem less efficient than a field-based instruction
+set.  For example, many different
+instructions may use the same addressing mode (accessing a local
+variable, for example), so one could imagine some advantage deriving
+from an addressing mode field so that common code could be executed
+for all instructions involving that address mode.
+
+<p>
+This is a somewhat illusory advantage, for a number of reasons, but
+mostly because nearly all T3 VM instructions simply operate on the
+stack.  Because of this regularity, encoding such additional information
+as addressing modes would actually decrease execution efficiency,
+because the VM would have to decode the addressing mode for every
+instruction, even though nearly all instructions would use the same
+mode and hence could skip this step.
+
+<h4>High-level instructions</h4>
+
+<p>
+The T3 VM instruction set is high-level: it operates on datatypes
+that are constructed out of more primitive pieces.  The instruction
+set does not even include instructions to operate on a lower level
+of abstraction than that provided through the system datatypes;
+this vastly simplifies the machine model and makes programming the
+machine much safer (in that it is difficult or impossible to write
+a program that actually corrupts the internal state of the VM
+itself; even the most ill-formed or malicious programs should at
+worst cause run-time exceptions which the VM can detect and
+handle gracefully), but it means that it is not practical to
+implement an efficient T3 VM using the T3 VM.
+
+<h4>Internal Redundancy</h4>
+
+The instruction set includes a certain amount of redundancy, in that
+the effect of certain instructions can be constructed entirely from
+other, simpler instructions.  For example, the OBJGETPROP instruction
+is not strictly necessary, because the same effect could be obtained
+from a combination of the PUSHOBJ and CALLPROP instructions.  Similarly,
+the ADDILCL4 instruction could be replaced with a combination of
+the PUSHINT, GETLCL2, ADD, and SETLCL2 instructions.
+
+<p>
+These redundant instructions are included as an optimization.
+Certain sequences of operations occur very frequently in typical programs;
+by combining some of the most frequently repeated sequences into single
+instructions, we allow compilers to generate smaller code that we can
+execute more efficiently.  Compilers are, of course, free to ignore these
+composite instructions and generate only the more orthogonal instructions,
+but compilers that are capable of taking advantage of the optimizations
+will generally produce smaller, faster code.
+
+
+<p><hr>
+<h3>Instruction Set Overview</h3>
+
+<p>
+The T3 program format is defined independently of any
+particular computer hardware.  The byte-code format is portable to
+all types of computers, with no changes to the binary coding.
+
+<p>
+T3 executable code is composed of streams of byte-code instructions.
+Each instruction consists of a one-byte "opcode," followed immediately
+(with no padding bytes) by operand data.  Immediately following the
+operand data is the next instruction.
+
+<p>
+The size and interpretation of the operand data varies by instruction.
+Most instructions have a fixed operand size, so the number of bytes of
+operand data can be deduced directly from the instruction's opcode;
+a few instructions, however, use varying-length operand data, in which
+case the size is encoded in the operand data.  Some instructions have
+no operands; the opcode byte is the entirety of such instructions.
+
+<p>
+Operands are encoded in a portable binary format.  Refer to the
+<a href=bincode.htm>TADS portable binary encoding documentation</a> for
+details of the portable representations used; this format specifies
+for each of a set of datatypes a coding that uses the same
+size and byte layout on all types of computers.
+
+<p>
+The opcode descriptions below give a name for each opcode.  This name
+is provided only for documentary purposes, and never occurs in actual
+byte-code instructions, which are stored
+as 8-bit numeric codes.  Each opcode description lists the numeric
+code for the instruction as a hexadecimal number in parentheses after
+the opcode name.
+
+<p>
+In the opcode descriptions below, the operands are listed after the
+opcode name.  Instructions that take no operands are marked as such.
+Each operand is described with its portable binary encoding type name,
+and is also given an operand name; the operand name is for documentary
+purposes only, to allow the desriptive text to refer to the operands
+more easily.  Note that we sometimes refer to these operands as
+"immediate data," since they're encoded directly into the instruction
+stream.
+
+<p>
+<h4>Local Variables and Parameters</h4>
+
+<p>
+Each local variable and each parameter occupies one stack location.
+
+<p> To call a function or method, the caller pushes the actual
+parameters onto the stack in reverse order.  For example, if the
+caller wants to call a function with three numeric arguments, the
+first set to 1, the second to 2, and the third to 3, the caller
+pushes the value 3, then 2, then 1.  The caller then calls the
+function or method.  The VM sets up the callee's stack frame, which
+involves allocating space for local variables and storing certain
+values (return address, target property, "self" instance reference,
+method header pointer) in the stack, then transfers control to the
+start of the callee's code.
+
+<p>
+Locals and parameters are accessed through explicit instructions that
+refer to these special stack locations.
+
+<p>
+Locals are numbered from 0 through the number of locals minus one.
+So, if a function's header indicates that the function has three
+local variables, the variables are numbered 0, 1, and 2.
+
+<p>
+Parameters are numbered from 0 through the number of parameters minus 1.
+So, if a function has four parameters, they're numbered 0, 1, 2, and 3.
+Parameter 0 is the first argument, which is the last value pushed by
+the caller.
+
+<p>
+<h4>"Integer" vs. "Number"</h4>
+
+This specification intentionally makes a distinction between "integers"
+and "numbers" (or "numeric values") as T3 primitive datatypes. 
+The term "integer" is meant
+specifically as the T3 machine's 32-bit signed integer type.  The
+terms "number" and "numeric value" are meant to include <i>any</i> T3
+numeric primitive type.
+
+<p>
+At present, the only primitive numeric datatype that the T3 machine
+defines is integer, so "integer" and "number" are effectively
+equivalent at the moment.
+We've nonetheless drawn the distinction in order to keep open
+the possibility that other numeric datatypes, such as a floating-point
+type, can be added in the future with minimal reworking of this document.
+Introducing a new numeric datatype will certainly require some additions
+in any case, in that issues such as promotion and rounding will arise,
+but we have tried to be precise about where integers specifically are
+required as opposed to where numeric types that may be added in the
+future could be used.  For example, the bitwise operations (BAND, BOR,
+SHL, etc.) are only meaningful with integer values, so non-integer
+numeric types would not be usable with these operations and they therefore
+refer to integer operands; the arithmetic operations (MUL, DIV, SUB),
+on the other hand, would be meaningful with any numeric types, hence
+they refer to numeric operands.
+
+<p>
+<h4>Branching Instructions</h4>
+
+Certain instructions (JMP; JT, JF, and so on; SWITCH) cause execution
+to branch to another location within the same function or method.
+These instructions encode the branch location as a <i>relative offset</i>.
+In all cases, the branch offset is given as a 16-bit signed integer
+in portable INT2 format, and is to be interpreted as a number of bytes
+to add to a pointer to the first byte of the INT2 branch offset value
+itself.  Hence, if <i>p</i> is a character pointer containing the address
+of the first byte of the INT2 operand of a JMP instruction, and
+the INT2 contains the signed 16-bit value <i>branch_offset</i>, the
+address of the next instruction to execute is given by
+<i>p</i> + <i>branch_offset</i>.
+
+<p>
+Branch instructions must always refer to addresses within the same method
+or function.  Since any single method or function must be entirely
+contained within a single code pool segment, a branch will always refer
+to code in the same code pool segment, hence there is never a possibility
+that a branch will involve a separate segment.  Branching therefore can
+always be processed without any pool swapping effects, regardless of
+the swapping configuration.
+
+<p>
+<h4>Stack Illustrations</h4>
+
+The T3 VM is a stack-based machine, so most instructions modify the
+stack in some way.  For quick reference, the description of each
+instruction below features a concise schematic illustrating the
+instruction's effect on the stack.
+
+<p>
+Each stack illustration depicts the state of the stack before and
+after the instruction.  Each schematic starts with the initial
+state of the stack, showing the condition of the stack just before
+the instruction; this is followed by a right arrow ("&rarr;");
+the schematic ends with the final state of the stack, showing
+the condition just after the instruction.
+
+<p>The values depicted in the stack are either variables or constants;
+variables are shown in <i>italics</i>.  In many cases, the diagrams
+use explicit "type casts" to indicate the type of the value; these
+are used in particular with "immediate" values (encoded directly
+in instructions), because the type of an immediate value is usually
+implicit in the instruction containing it.  For example, the GETPROP
+instruction has a UINT2 immediate value giving a property ID, so
+the stack diagram for the instruction uses this notation to indicate
+explicitly that a property ID value should be constructed from the
+UINT2 immediate value:
+
+<p>
+&nbsp;&nbsp;&nbsp;&nbsp;propid(<i>prop_id</i>)
+
+<p>In this notation, propid() is a "type cast" that states explicitly
+that the value contained within the parentheses is to be converted to
+a property ID value.  We use these casts:
+
+<p>
+<table border align=center>
+<tr><td>object()<td>Convert a UINT4 to an object reference, treating the
+UINT4 as the ID of an object
+<tr><td>propid()<td>Convert a UINT2 to a property pointer, treating the
+UINT2 as the ID of a property
+<tr><td>string()<td>Convert a UINT4 to a constant string (SSTRING) value,
+treating the UINT4 as a constant pool offset
+<tr><td>list()<td>Convert a UINT4 to a constant list value, treating
+the UINT4 as a constant pool offset
+<tr><td>int()<td>Convert a value (SBYTE, INT2, INT4, etc) to an integer
+<tr><td>function_pointer()<td>Convert a UINT4 value to a function pointer,
+treating the UINT4 as a constant pool offset
+</table>
+
+<p>
+Only the top few elements of the stack are depicted in each schematic;
+everything below these elements is shown as "..." in the illustration.
+The stack grows to the right in each schematic, and the top element
+of the stack is the rightmost element.  So, if the top element
+of the stack is the integer 1, the next element is the integer 2,
+and the next element is the integer 3, the schematic would look
+like this:
+
+<p>
+... int(3) int(2) int(1)
+
+<p>
+The elements depicted after the "..." symbol are the elements affected
+by the instruction.  The instruction never affects anything below the
+first explicitly listed element.
+
+<p>
+Note that, in some cases, an ellipsis occurs <i>within</i> the explicitly
+listed items on the stack, as well as at the left.  An ellipsis within the
+listed items indicates a varying number of items; for example, if several
+arguments to a function were on the stack, we'd use this notation:
+
+<p>
+... argumentN ... argument1
+
+<p>
+Some instructions only add elements to the stack; in these cases, the
+initial state is shown simply as "...", since nothing previously on
+the stack is affected by the instruction.  Similarly, some instructions
+only remove items from the stack; we show this with only "..." in the
+final state.
+
+<p>
+Here's an example of an instruction that simply pushes a new value,
+nil, onto the stack:
+
+<p>
+... &rarr; ... nil
+
+<p>
+Here's an example that simply removes an item from the stack:
+
+<p>
+... <i>val</i> &rarr; ...
+
+<p>
+The next illustration shows an instruction that removes two elements
+from the stack, computes the sum of the two elements, and pushes the
+result:
+
+<p>
+... <i>val1</i> <i>val2</i> &rarr; ... (<i>val1</i> + <i>val2</i>)
+
+<p>
+The stack illustrations are meant to make it easy to tell at a glance
+how an instruction affects the stack, but they rarely tell the whole
+story.  Note, in particular, that effects on local variables are
+not depicted in the diagrams, even though local variables are stored
+in the stack, because local variable operations don't affect the stack
+pointer (i.e., they don't change the number of items on the stack).
+
+<h4><a name="opov">Operator Overloading</a></h4>
+
+<p>Starting with the December 2010 revision (3.1 of the MJR-T3 reference
+implementation), some operators in the language can be overloaded for
+objects.  Not all operators are overloadable; only specific ones.  The
+overloadable operators, and the affected byte-code instructions, are
+shown in the table below.
+
+<p>
+<style type="text/css">
+<!--
+table#opov th {
+    padding: .5ex 1em .5ex 1em;
+    text-align: left;
+}
+table#opov td {
+    padding: .5ex 1em .5ex 1em;
+    text-align: left;
+}
+//-->
+</style>
+<table id=opov>
+   <tr>
+      <th>Description<th>Type<th>Affected Instructions<th>Import Symbol
+   <tr>
+      <td>addition<td>binary<td>
+         <a href="#opc_ADD">ADD</a>,
+         <a href="#opc_INC">INC</a>,
+         <a href="#opc_INCLCL">INCLCL</a>,
+         <a href="#opc_ADDILCL1">ADDILCL1</a>,
+         <a href="#opc_ADDILCL4">ADDILCL4</a>,
+         <a href="#opc_ADDTOLCL">ADDTOLCL</a>
+         <td>'operator +'
+   </tr>
+   <tr>
+      <td>subtraction<td>binary<td>
+         <a href="#opc_SUB">SUB</a>,
+         <a href="#opc_DEC">DEC</a>,
+         <a href="#opc_DECLCL">DECLCL</a>,
+         <a href="#opc_SUBFROMLCL">SUBFROMLCL</a>
+         <td>'operator -'
+   </tr>
+   <tr>
+      <td>multiplication<td>binary<td>
+         <a href="#opc_MUL">MUL</a>
+         <td>'operator *'
+   </tr>
+   <tr>
+      <td>division<td>binary<td>
+         <a href="#opc_DIV">DIV</a>
+         <td>'operator /'
+   </tr>
+   <tr>
+      <td>modulo<td>binary<td>
+         <a href="#opc_MOD">MOD</a>
+         <td>'operator %'
+   </tr>
+   <tr>
+      <td>XOR<td>binary<td>
+         <a href="#opc_XOR">XOR</a>
+         <td>'operator ^'
+   </tr>
+   <tr>
+      <td>left-shift<td>binary<td>
+         <a href="#opc_SHL">SHL</a>
+         <td>'operator &lt;&lt;'
+   </tr>
+   <tr>
+      <td>arithmetic right-shift<td>binary<td>
+         <a href="#opc_ASHR">ASHR</a>
+         <td>'operator &gt;&gt;'
+   </tr>
+   <tr>
+      <td>logical right-shift<td>binary<td>
+         <a href="#opc_LSHR">LSHR</a>
+         <td>'operator &gt;&gt;&gt;'
+   </tr>
+   <tr>
+      <td>bitwise NOT<td>unary<td>
+         <a href="#opc_BNOT">BNOT</a>
+         <td>'operator ~'
+   </tr>
+   <tr>
+      <td>bitwise OR<td>binary<td>
+         <a href="#opc_BOR">BOR</a>
+         <td>'operator |'
+   </tr>
+   <tr>
+      <td>bitwise AND<td>binary<td>
+         <a href="#opc_BAND">BAND</a>
+         <td>'operator &amp;'
+   </tr>
+   <tr>
+      <td>arithmetic negation<td>unary<td>
+         <a href="#opc_NEG">NEG</a>
+         <td>'operator negate'
+   </tr>
+   <tr>
+      <td>indexing<td>binary<td>
+         <a href="#opc_INDEX">INDEX</a>,
+         <a href="#opc_IDXLCL1INT8">IDXLCL1INT8</a>,
+         <a href="#opc_IDXINT8">IDXINT8</a>
+         <a href="#opc_<td>'operator []'"><td>'operator []'</a>
+   </tr>
+   <tr>
+      <td>index-and-assign<td>ternary<td>
+         <a href="#opc_SETIND">SETIND</a>,
+         <a href="#opc_SETINDLCL1I8">SETINDLCL1I8</a>
+         <td>'operator []='
+   </tr>
+</table>
+
+<p>Operator overloading is defined on the single operand of a unary
+operator, or the left operand of a binary or ternary operator, as
+written in algebraic notation.  (The only overloadable ternary
+operator is the index-and-assign operator.  The algebraic notation for
+this operator is <i>container</i>[<i>index</i>]=<i>value</i>, so the
+left operand for overloading purposes is the <i>container</i> value.)
+
+<p>The handling of operator overloading is specifically designed to
+have zero performance impact in cases where native types are involved.
+In particular, native operator handling is always applied first;
+overloading is invoked only if no valid native handling is available
+for an operation, in which case a type mismatch error would result if
+no overloading were defined.  For programs that don't use overloading,
+then, the presence of the feature makes no difference at all.
+(Assuming a correct program, anyway.  A program with type mismatch
+errors would in fact see slightly slower error handling, because the
+VM has to check for an override before finally throwing the error.  It
+seems unlikely that any program would intentionally use type mismatch
+errors as a control flow mechanism, especially in a
+performance-sensitive section of the code, so this conceivable element
+of performance impact seems negligible.)
+
+<p>For the affected byte-code instructions, the instruction spec will
+say "try operator overloading" as the execution step <i>after</i> all
+native-type combinations are exhausted, and <i>before</i> throwing a
+type mismatch error.  "Try operator overloading" means specifically:
+
+<ul class=doublespace>
+   <li>Identify the controlling operand.  For a unary operator, this
+   is the single operand.  For a binary operator, it's the left operand
+   as written in algebraic notation.  For the index-and-assign operator,
+   it's the container operator.
+
+   <li>If the controlling operand is not of type object, operator
+   overloading fails.
+   
+   <li>Look up the "operator <i>x</i>" import symbol associated with
+   the operator.  This is a property pointer value if defined.  If this
+   import isn't defined by the loaded image file, operator overloading
+   fails.
+
+   <li>Check to see if the <i>operator x</i> property of the controlling
+   operand object is defined.  If not, operator overloading fails.
+
+   <li>Call the <i>operator x</i> property of the controlling operand,
+   passing as arguments the additional operands, in left-to-right
+   order per the algebraic form.  (For index-and-assign, the argument
+   list is (<i>index</i>, <i>value to assign</i>).)  For example,
+   for "a*b", we'd call <i>a</i>.operator*(<i>b</i>).
+
+   <li>The return value of the method call is the result of the operator.
+   Handle it according to the normal semantics for the instruction (e.g.,
+   push it on the stack, assign it to a local variable, etc).
+
+   <li>Operator overloading is successful, so the opcode is now done.
+</ul>
+
+<p>Implementation notes: the easiest way for a VM implementation to
+achieve the "call the operator property" step is with a recursive call
+into the VM.  The reference MJR-T3 implementation handles this a
+little differently, for performance reasons.  MJR-T3 handles
+overloading like a GETPROP instruction, via a non-recursive transfer
+to the property's byte code.  However, because the regular method call
+interface returns its value in R0, and operator instructions all
+require some other handling for the return value (such as pushing on
+the stack or assigning to a local), it's necessary to set up some kind
+of intermediate subroutine on return to apply the instruction's return
+value handling.  The MJR-T3 code does this by saving the true return
+address on the stack (along with any additional required information,
+such as the local variable index to be assigned on return); it then
+patches in a "fake" return address for the method call.  On return,
+the VM's return handler recognizes the fake address and carries out
+the appropriate "subroutine" operations, and finally returns to the
+saved address.  This approach is slightly faster than making a
+recursive VM call, and the extra handling on return doesn't affect
+overall performance because the VM already had other special handling
+at the same place, to handle returns from recursive invocations.  The
+addition of new fake return addresses doesn't cost anything because we
+already had to check for a fake return anyway.
+
+
+<h4><a name="listlike">List-like Objects</a></h4>
+
+<p>Operator overloading makes it possible to define custom byte-code
+objects (of metaclass tads-object) that behave like lists.  For the
+most part this is in the province of the metaclasses to respect,
+but there's one instruction that cares about it: MAKELSTPAR.  This
+instruction must treat a list-like object the same way it treats
+a list.
+
+<p>A list-like object is defined as an object with the following
+characteristics:
+
+<ul class=doublespace>
+   <li>It defines (or inherits) the property given by the import
+   symbol 'operator []'
+   <li>It defines (or inherits) the property given by the import
+   symbol 'length'
+   <li>Its 'length' property requires zero arguments, and when
+   evaluated returns a non-negative integer value
+</ul>
+
+<p>If an object meets these tests, it must be treated as list-like
+by MAKELSTPAR.
+
+
+<!-------------------------------------------------------------------->
+<a name='index_by_opcode'></a>
+<p><hr>
+<h2>Instruction Set Listing</h2>
+
+All of the T3 byte code instructions are listed below.  The
+instructions are ordered by the numeric opcode value.  For
+other orderings, refer to the indices:
+
+<ul>
+<li><a href='#index_by_name'>Alphabetically by Mnemonic</a>
+<li><a href='#index_by_cat'>By Category</a>
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_push_0'></a>
+<p><hr><b>
+PUSH_0 (0x01)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... int(0)
+<p>
+Push the constant integer value 0 (zero) onto the stack.
+
+<p> This instruction is redundant with PUSHINT, but is defined as a
+code size optimization for this frequently-used operation; this
+instruction requires only one byte, whereas the PUSHINT equivalent
+would require five bytes.
+
+<!-------------------------------------------------------------------->
+<a name='opc_push_1'></a>
+<p><hr><b>
+PUSH_1 (0x02)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... int(1)
+<p>
+Push the constant integer value 1 (one) onto the stack.
+
+<p> This instruction is redundant with PUSHINT, but is defined as a
+code size optimization for this frequently-used operation; this
+instruction requires only one byte, whereas the PUSHINT equivalent
+would require five bytes.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushint8'></a>
+<p><hr><b>
+PUSHINT8 (0x03)
+</b><br>
+SBYTE <i>val</i>
+<p>
+Stack: ... &rarr; ... int(<i>val</i>)
+<p>
+Push the integer value <i>val</i> onto the stack.  <i>val</i> is
+interpreted as a signed 8-bit integer in the range -128 and 127 inclusive.
+
+<p>
+This instruction is redundant with PUSHINT, but is defined as a code
+size optimization; this instruction requires only two bytes,
+whereas the PUSHINT equivalent would require five bytes.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushint'></a>
+<p><hr><b>
+PUSHINT (0x04)
+</b><br>
+INT4 <i>val</i>
+<p>
+Stack: ... &rarr; ... int(<i>val</i>)
+<p>
+Push the integer value <i>val</i> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushstr'></a>
+<p><hr><b>
+PUSHSTR (0x05)
+</b><br>
+UINT4 <i>offset</i>
+<p>
+Stack: ... &rarr; ... string(<i>offset</i>)
+<p>
+Push the constant string at <i>offset</i> in the constant pool onto
+the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushlst'></a>
+<p><hr><b>
+PUSHLST (0x06)
+</b><br>
+UINT4 <i>offset</i>
+<p>
+Stack: ... &rarr; ... list(<i>val</i>)
+<p>
+Push the constant list at <i>offset</i> in the constant pool onto
+the stack.
+
+<p>
+<b>Implementation note:</b> interactive debuggers should generally
+not attempt to push constant lists, but instead construct lists
+dynamically.  There is no equivalent of the
+<a href='#opc_pushstri'>PUSHSTRI</a> instruction for constant
+lists, specifically because lists can easily be constructed dynamically
+with the <a href='#opc_new1'>NEW1</a> and related instructions.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushobj'></a>
+<p><hr><b>
+PUSHOBJ (0x07)
+</b><br>
+UINT4 <i>objid</i>
+<p>
+Stack: ... &rarr; ... object(<i>objid</i>)
+<p>
+Push a reference the object with ID <i>objid</i> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushnil'></a>
+<p><hr><b>
+PUSHNIL (0x08)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... nil
+<p>
+Push the value <tt>nil</tt> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushtrue'></a>
+<p><hr><b>
+PUSHTRUE (0x09)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... true
+<p>
+Push the value <tt>true</tt> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushpropid'></a>
+<p><hr><b>
+PUSHPROPID (0x0A)
+</b><br>
+UINT2 <i>propid</i>
+<p>
+Stack: ... &rarr; ... propid(<i>propid</i>)
+<p>
+Push the property ID value <i>propid</i> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushfnptr'></a>
+<p><hr><b>
+PUSHFNPTR (0x0B)
+</b><br>
+UINT4 <i>code_offset</i>
+<p>
+Stack: ... &rarr; ... function_pointer(<i>code_offset</i>)
+<p>
+Push the function pointer value <i>code_offset</i> onto the stack.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushstri'></a>
+<p><hr><b>
+PUSHSTRI (0x0C)
+</b><br>
+UINT2 <i>string_length</i><br>
+<i>string_bytes</i>
+<p>
+Stack: ... &rarr; ... object(<i>string_object_id</i>)
+<p>
+Push an "in-line" string.
+Create a new string object using the bytes following the instruction
+(string_length gives the number of bytes in string_bytes; the string
+bytes specify characters encoded in UTF-8 format).  Push the object ID
+of the new string object onto the stack.
+
+<p><b>Implementation note:</b> this instruction is provided for use
+by debugging utilities for evaluating expressions, such as those
+entered interactively by the user.  By encoding the string bytes in-line
+with the byte code, rather than referring to the constant pool, the
+debugger can keep the code fragment from a compiled expression entirely
+self-contained within the byte code.  In addition, because this instruction
+creates a new string object when executed, the code fragment can be
+deleted as soon as execution is completed, since the VM will not need
+to retain a reference to any constant data.  In contrast, the
+<a href='#opc_pushstr'>PUSHSTR</a> instruction pushes a reference
+to constant pool data, so the constant pool data cannot be deleted
+as long as the reference remains accessible (which in practice means
+that the constant pool data can never be deleted, since the garbage
+collector doesn't keep track of references to the constant pool,
+specifically because constant pool data are defined as permanent).
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushparlst'></a>
+<p><hr><b>
+PUSHPARLST (0x0D)
+</b><br>
+UBYTE <i>fixed_arg_count</i><br>
+<p>
+Stack: ... &rarr; ... list(<i>variable_parameters</i>)
+<p>
+Construct a new list consisting of the arguments after the given
+fixed argument count, in the same order as they appear in the actual
+parameters, and push the resulting new list.
+
+<p>For example, if the function has two named (fixed) formal
+parameters, and the function was called with five actual parameters,
+the list consists of the third, fourth, and fifth actual parameter
+values, in that order.  The purpose of this instruction is to set up
+for entry to a varargs function that wishes to receive its variable
+arguments in the form of a list.
+
+<p>Because the compiler will be unable to determine how much stack
+space this opcode consumes, this opcode must explicitly check to make
+sure enough stack space is available.
+
+<!-------------------------------------------------------------------->
+<a name='opc_makelstpar'></a>
+<p><hr><b>
+MAKELSTPAR (0x0E)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>argc</i> <i>val</i> &rarr; ... 
+   <i>argumentN</i> ... <i>argument2</i> <i>argument1</i> <i>argc</i>
+<p>
+Pop the top element of the stack and call it <i>val</i>.  Pop the
+next element of the stack and call it <i>argc</i>; if this value
+is not an integer, throw an error (INT_VAL_REQD).  Check the type
+of <i>val</i>:
+
+<p>
+<ul class=doublespace>
+
+<li>If <i>val</i> is a list <i>or</i> it's a <a
+href="#listlike">list-like object</a>, convert it to an argument list
+as follows.  Starting with the last element of the list in <i>val</i>,
+push each element of the list onto the stack, and increment the value
+in <i>argc</i> once for each element pushed.  Finally, push
+<i>argc</i>.
+
+<li>If <i>val</i> is <b>not</b> a list or list-like value, push
+<i>val</i>, then increment <i>argc</i> and push <i>argc</i>.
+
+</ul>
+
+<p> The purpose of this instruction is to prepare to call a varargs
+function using the contents of a list as the parameters to the
+function.
+
+<p>Because the compiler will be unable to determine how much stack
+space this opcode consumes, this opcode must explicitly check to make
+sure enough stack space is available to push the entire list.  Since
+other values might be pushed later, the interpreter should be conservative
+and check that the stack space immediately required for the list parameters,
+plus the full size of the stack required for the function less the 
+current usage, is available.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushenum'></a>
+<p><hr><b>
+PUSHENUM (0x0F)
+</b><br>
+INT4 <i>val</i>
+<p>
+Stack: ... &rarr; ... enum(<i>val</i>)
+<p>
+Push the enumerator value <i>val</i> onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushbifptr'></a>
+<p><hr><b>
+PUSHBIFPTR (0x10)
+</b><br>
+UINT2 <i>function_index</i><br>
+UINT2 <i>set_index</i>
+<p>
+Stack: ... &rarr; ... <i>bifptr(set_index, function_index)</i>
+
+<p>
+Push a pointer to the specified built-in function onto the stack.  The
+function is identified by its function set index and index within the
+function set.  The set index is an index in the function set
+dependency table in the image file.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_neg'></a>
+<p><hr><b>
+NEG (0x20)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>x</i> &rarr; ... (-<i>x</i>)
+<p>
+Remove the top element from the stack.
+
+<p>
+If the value is numeric, compute the arithmetic
+negative (i.e., the 2's complement value) of the numeric value,
+and push the result onto the stack.
+
+<p> If the value is an object, call the object's "negate" virtual
+(metaclass) method and push the result value onto the stack.  If there's
+no "negate" method defined for the metaclass,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator negate".
+
+<p>
+For any other type, throw an error (NUM_VAL_REQD).
+
+<!-------------------------------------------------------------------->
+<a name='opc_bnot'></a>
+<p><hr><b>
+BNOT (0x21)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>x</i> &rarr; ... (Bitwise-NOT <i>x</i>)
+
+<p> Remove the top element from the stack.  If it's an integer,
+compute the bitwise NOT (i.e., the 1's complement value), and push the
+result onto the stack.
+
+<p>If the value is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator ~".
+
+<p>Throws run-time error (BAD_TYPE_BNOT) for any other type.
+
+<!-------------------------------------------------------------------->
+<a name='opc_add'></a>
+<p><hr><b>
+ADD (0x22)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ... (<i>val1</i> + <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compute the value <i>val1</i> + <i>val2</i> and push the result onto
+the stack.
+
+<p>
+The type of the result
+and the meaning of the "+" operator depend upon the type of <i>val1</i>:
+
+<ul class=doublespace>
+
+<li>Integer: <i>val2</i> must also be a number, or NUM_VAL_REQD is
+thrown.  The result is the arithmetic sum of the two integer values.
+
+<li>String: <i>val2</i> is implicitly converted to a string (see
+<a href='model.htm#conversions'>data conversions</a>).  The result
+is the string concatenation of <i>val1</i> and <i>val2</i>.  The
+result is always a new object; the string contained in <i>val1</i>
+is not altered, but instead a new string object is created.
+
+<li>List: if <i>val2</i> is also a list, the elements of <i>val2</i>
+are appended to the elements of <i>val1</i> to form a new list whose
+number of elements is the sum of the number of elements of <i>val1</i>
+and the number of elements of <i>val2</i>.  Otherwise, <i>val2</i>
+is appended as a new element to <i>val1</i>, giving a list whose number
+of elements is one greater than the number of elements of <i>val1</i>.
+The result is always a new object; the list contained in <i>val1</i>
+is not altered, but instead a new list object is created.
+
+<li>Object: invoke <i>val1</i>'s virtual (metaclass) "add" method,
+passing <i>val2</i> as the parameter.  Push the resulting value onto
+the stack.  If the "add" method is not defined for the metaclass,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator +".
+
+<li>All other types: the run-time exception BAD_TYPE_ADD is thrown.
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_sub'></a>
+<p><hr><b>
+SUB (0x23)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ... (<i>val1</i> - <i>val2</i>)
+
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compute the value <i>val1</i> - <i>val2</i> and push the result onto
+the stack.
+
+<p>
+The type of the result and the meaning of the "-" operator depend
+upon the type of <i>val1</i>:
+
+<ul class=doublespace>
+<li>Integer: <i>val2</i> must also be a number, or NUM_VAL_REQD is
+thrown.  The result is the arithmetic difference obtained by
+subtracting <i>val2</i> from <i>val1</i>.
+
+<li>List: <i>val2</i> is also a list, we remove each element of
+<i>val1</i> that is also in <i>val2</i>, and the result is a list
+containing only the remaining elements of <i>val1</i>.  If <i>val2</i>
+is not a list, we search for <i>val2</i> in <i>val1</i> and remove
+each matching element; the result is a list with each matching element
+removed, or the original <i>val1</i> list if no such element is found.
+In all cases, the result is a new object; the original contents of
+<i>val1</i> are not modified.
+
+<li>Object: invoke <i>val1</i>'s virtual (metaclass) "subtract"
+method, passing <i>val2</i> as the parameter.  Push the resulting
+value onto the stack.  If the subtract method isn't defined in
+the metaclass,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator -".
+
+<li>All other types: the run-time exception BAD_TYPE_SUB is thrown.
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_mul'></a>
+<p><hr><b>
+MUL (0x24)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ... (<i>val1</i> * <i>val2</i>)
+<p>
+Remove the top two elements from the stack; call the first value
+removed <i>val2</i> and the second value removed <i>val1</i>. 
+
+<p>
+If the type of <i>val1</i> is object reference, call <i>val1</i>'s
+virtual "multiply" method, passing <i>val2</i> as the parameter, and
+push the result value.
+
+<p> If <i>val1</i> is numeric, then <i>val2</i> must be numeric as
+well; if it isn't, throw an error (BAD_TYPE_MUL).  Compute the
+arithmetic product of the two numbers and push the result onto the
+stack.  If an integer overflow occurs, the resulting value is
+implementation-defined, but no error occurs.  For most
+implementations, the result of a multiplication overflow will simply
+be the low-order 32 bits of the algebraic product, because this is
+what most computer hardware platforms yield for an integer multiplication
+overflow.
+
+<p> If <i>val1</i> is an object, 
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator *".
+
+<p> If <i>val1</i> is of any other type, throw an error (BAD_TYPE_MUL).
+
+<!-------------------------------------------------------------------->
+<a name='opc_band'></a>
+<p><hr><b>
+BAND (0x25)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> Bitwise-AND <i>val2</i>)
+
+<p>Remove the top two elements from the stack.
+
+<p>If both are integers,
+compute the bitwise AND of the two values and push the result onto
+the stack.
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator &amp;".
+
+<p>Otherwise, throw an error (BAD_TYPE_BAND).
+
+<!-------------------------------------------------------------------->
+<a name='opc_bor'></a>
+<p><hr><b>
+BOR (0x26)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> Bitwise-OR <i>val2</i>)
+<p>
+Remove the top two elements from the stack.
+
+<p>If both values are integers,
+compute the bitwise OR of the two values and push the result onto
+the stack.
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator |".
+
+<p>For any other types, throw an error (BAD_TYPE_BOR).
+
+<!-------------------------------------------------------------------->
+<a name='opc_shl'></a>
+<p><hr><b>
+SHL (0x27)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> &lt;&lt; <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+
+<p>If both values are integers, shift <i>val1</i> left by <i>val2</i>
+bits, effectively multiplying <i>val1</i> by 2 raised to the power
+<i>val2</i>; in C language terms, the value is <i>val1</i> &lt&lt;
+<i>val2</i>.  Push the result onto the stack.
+
+<p>With integer operands, this instruction specifically performs the
+<b>logical</b> left shift: vacated low bits of <i>val1</i> are set to
+zero, and the high <i>val2</i> bits of <i>val1</i> are simply be
+discarded.  For C/C++ implementations, there's no difference between
+arithmetic and logical shift left.  Other languages, however, might
+make the distinction that an arithmetic left shift can trigger an
+arithmetic overflow exception, whereas a logical shift can't.
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator &lt;&lt;".
+
+<p>For any other type, throw an error (BAD_TYPE_SHL).
+
+<!-------------------------------------------------------------------->
+<a name='opc_ashr'></a>
+<p><hr><b>
+ASHR (0x28)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> >> <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+
+<p>If both values are integers, perform an arithmetic shift right
+on <i>val1</i> by <i>val2</i> bits.  Push the result onto the stack.
+
+<p>With integer operands, this instruction specifically performs an
+<b>arithmetic shift</b>, which is defined as preserving the sign of
+the source value.  The high bits vacated by the shift are filled with
+the same value as the original high bit of <i>val1</i>.  It's
+particularly important to pay attention to this detail in C/C++
+implementations, because the behavior of the native C &gt;&gt;
+operator with respect to vacated high bits varies by platform.
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator &gt;&gt;".
+
+<p>For any other types, throw an error (BAD_TYPE_ASHR).
+
+<!-------------------------------------------------------------------->
+<a name='opc_xor'></a>
+<p><hr><b>
+XOR (0x29)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> XOR <i>val2</i>)
+<p>
+Remove the top two elements from the stack.
+If both values are logical (true or nil), compute the logical XOR
+of the two values and push the result.  If both values are integers,
+compute the bitwise XOR of the two integers and push the resulting
+integer.  If one value is numeric and the other value is logical,
+convert the numeric value to a logical value by treating 0 as nil
+and all other values as true, then compute the logical XOR of the
+two logical values and push the result.
+
+<p>If <i>val1</i> is an object, 
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator ^".
+
+<p>Throw the run-time exception BAD_TYPE_XOR if any other combination
+of types is present.
+
+<!-------------------------------------------------------------------->
+<a name='opc_lshr'></a>
+<p><hr><b>
+LSHR (0x30)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> >> <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+
+<p>If both values are integers, perform a logical right shift of
+<i>val1</i> by <i>val2</i> bits.  Push the result onto the stack.
+
+<p>With integer operands, this instruction specifically performs a
+<b>logical shift</b>, which is defined as zeroing the vacated high
+bits, regardless of the original high bit's value.  It's particularly
+important to pay attention to this detail in C/C++ implementations,
+because the behavior of the native C &gt;&gt; operator with respect to
+vacated high bits varies by platform.
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator &gt;&gt;&gt;".
+
+<p>For any other types, throw an error (BAD_TYPE_LSHR).
+
+<!-------------------------------------------------------------------->
+<a name='opc_div'></a>
+<p><hr><b>
+DIV (0x2A)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> / <i>val2</i>)
+
+<p>
+Remove the top two elements from the stack; call the first value
+removed <i>val2</i> and the second value removed <i>val1</i>. 
+
+<p>
+If the type of <i>val1</i> is object reference, call <i>val1</i>'s
+virtual "divide" method, passing <i>val2</i> as the parameter, and
+push the result value.
+
+<p>If <i>val1</i> is numeric, then <i>val2</i> must be numeric as
+well; if it isn't, throw an error (BAD_TYPE_DIV).  If <i>val2</i> is
+zero, throw an error (DIVIDE_BY_ZERO).  Compute the integer quotient
+<i>val1</i>/<i>val2</i> and push the result.  If the result of the
+algebraic division of the two numbers is not exactly representable as
+an integer, the fractional part is discarded.  (Note that this is the
+same behavior specified by ANSI C.)
+
+<p>If <i>val1</i> is an object, 
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator /".
+
+<p>If <i>val1</i> is of any other type, throw an error (BAD_TYPE_DIV).
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_mod'></a>
+<p><hr><b>
+MOD (0x2B)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> MOD <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compute the remainder of the integer division of <i>val1</i> by
+<i>val2</i>, and push the result onto the stack.  If <i>val2</i> is
+zero, throw the run-time exception
+DIVIDE_BY_ZERO.  If either value is not a number, throw NUM_VAL_REQD.
+
+<p>
+The result of this operation produces a value such that, for
+any integers a and b, (a/b)*b + a%b equals a.  (Note that this is the
+same behavior specified by ANSI C.)
+
+<p>If <i>val1</i> is an object,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator %".
+
+<p>For any other types, throw an error (BAD_TYPE_MOD).
+
+<!-------------------------------------------------------------------->
+<a name='opc_not'></a>
+<p><hr><b>
+NOT (0x2C)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val</i> &rarr;
+  ... (NOT <i>val</i>)
+<p>
+Remove the top element from the stack, compute the logical negation
+of the value, and push the result onto the stack.
+
+<p>If the value is a number, the result is true if the number is
+zero, and nil if the number is nonzero.  If the value is true, the
+result is nil; if the value is nil, the result is true.  If the value
+is a (non-nil) object reference, a property ID, a function pointer, a
+(single-quoted) string, a list, or an enum value, the result is nil.
+If the result is of any other type, throw error NO_LOG_CONV (cannot
+convert to logical).
+
+<!-------------------------------------------------------------------->
+<a name='opc_boolize'></a>
+<p><hr><b>
+BOOLIZE (0x2D)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val</i> &rarr;
+  ... (boolean of <i>val</i>)
+<p>
+Remove the top element from the stack, compute its boolean value,
+and push the result onto the stack.
+
+<p>If the value is
+a number, the result is nil if the number is zero, and true if the
+number is nonzero.  If the value is true, the result is true; if the
+value is nil, the result is nil.  If the result is of any other type,
+throw error NO_LOG_CONV (cannot convert to logical).
+
+<p>This operation is effectively the same as applying the NOT
+instruction to a value twice in a row.  This can be used to ensure
+that the results of certain types of expressions (such as logical AND
+and OR expressions) is always a true/nil value.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_inc'></a>
+<p><hr><b>
+INC (0x2E)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val</i> &rarr;
+  ... (<i>val</i> + 1)
+<p>
+Increment the value at the top of the stack by adding the numeric
+value 1.  The behavior is equivalent to that of the ADD
+operator with the second value set to the integer value 1.  All
+of the same type conversion behavior of ADD should apply.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_dec'></a>
+<p><hr><b>
+DEC (0x2F)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val</i> &rarr;
+  ... (<i>val</i> - 1)
+<p>
+Decrement the value at the top of the stack by subtracting the numeric
+value 1.  The behavior is equivalent to that of the SUB
+operator with the second value set to the integer value 1.  All
+of the same type conversion behavior of SUB should apply.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_eq'></a>
+<p><hr><b>
+EQ (0x40)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> == <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Test the two values for equality; push true if the two values are equal,
+nil if not.
+
+<p>The equality comparison is based on the type of the first value:
+
+<ul class=doublespace>
+<li>Nil, true: the values are equal if the second value has the same type.
+
+<li>Numeric: the values are equal if the second value is also a numeric
+value and both have the same numeric value.
+
+<li>Property pointer: the values are equal if the second value is also
+a property pointer, and both have the same property value.
+
+<li>Enumerator: the values are equal if the second value is also an
+enumerator and has the same internal enumerator ID value.
+
+<li>String (single-quoted): the values are equal if the second value is
+also a string and has the same value.
+
+<li>List: the values are equal if the second value is also a list, the
+two lists are of the same length, and all of the elements in the list
+are equal (under these same rules).
+
+<li>Code Offset: the values are equal if the second value is also a
+code offset value and refers to the same code pool address.
+
+<li>Empty, self-printing (double-quoted) string: these types never match
+any other values, even of the same type.
+
+<li>Object:  call the object's "equals" virtual method, passing the
+other value as the argument.  If the method returns true, the values
+are equal, otherwise they are not equal.
+
+</ul>
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ne'></a>
+<p><hr><b>
+NE (0x41)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> != <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Test the two values for equality; push nil if the two values are equal,
+true if not.  The same equality comparison rules that the
+<a href='#opc_eq'>EQ instruction</a> uses apply to this instruction.
+
+<!-------------------------------------------------------------------->
+<a name='opc_lt'></a>
+<p><hr><b>
+LT (0x42)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> &lt; <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compare the magnitudes of the values, and push true if <i>val1</i> is
+less than <i>val2</i>, nil if not.
+
+<p>The result of the comparison depends on the type of the first value:
+
+<ul class=doublespace>
+
+<li>Numeric.  If the second value is numeric, the value with the
+greater arithmetic value is the greater value.  If the second value
+is not numeric, throw an error (INVALID_COMPARISON).
+
+<li>String (single-quoted): if the second value is a string,
+perform a lexical comparison of the two strings, character by
+character, comparing the Unicode code point values of the characters.
+If the strings are of different lengths and are identical up to the
+shorter of the two lengths, the longer string is greater than the
+shorter string.  If the strings are identical in the first <i>N</i>
+characters, where <i>N</i> is less than the length of the shorter
+string, but differ in the character at position <i>N+1</i>, the
+string whose first character at position <i>N+1</i> has a higher
+Unicode code point value (when expressed as an unsigned 16-bit
+integer) is the greater string.  If the second value is not a string,
+throw an error (INVALID_COMPARISON).
+
+<li>Object: call the object's "compare" virtual method, passing the
+second value as the argument, and use the result to determine which
+value is greater.
+
+<li>For any other type, throw an error (INVALID_COMPARISON).
+
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_le'></a>
+<p><hr><b>
+LE (0x43)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> &lt;= <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compare the magnitudes of the values, and push true if <i>val1</i> is
+less than or equal to <i>val2</i>, nil if not.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_gt'></a>
+<p><hr><b>
+GT (0x44)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> &gt; <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compare the magnitudes of the values, and push true if <i>val1</i> is
+greater than <i>val2</i>, nil if not.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_ge'></a>
+<p><hr><b>
+GE (0x45)
+</b><br>
+<i>No operands.</i>
+<P>
+Stack: ... <i>val1</i> <i>val2</i> &rarr;
+  ... (<i>val1</i> &ge; <i>val2</i>)
+<p>
+Remove the top element from the stack, calling this value <i>val2</i>,
+then remove the next element from the stack, calling this value <i>val1</i>.
+Compare the magnitudes of the values, and push true if <i>val1</i> is
+greater than or equal to <i>val2</i>, nil if not.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_retval'></a>
+<p><hr><b>
+RETVAL (0x50)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> <i>self</i>
+       <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+       <i>argc</i> <i>enclosing_FP</i>
+   ... <i>retval</i> &rarr; ...
+<p>
+Return from the current function.
+
+<p>The value at top of stack is the value to be returned; pop this
+value from the stack, and store it in data register 0 (R0).
+
+<p>Next, restore the enclosing frame (including the instruction
+pointer register, the entry pointer register, and the frame pointer
+register), and discard the caller's arguments from the stack.
+
+<p> To restore the enclosing frame, set the stack pointer to the frame
+pointer, pop the frame pointer, pop the argument count, pop the entry
+pointer, pop the code offset.  Then, discard the arguments by
+discarding (argument count + 4) stack elements (this is four greater
+than the argument count because of the implicit "self", defining
+object, target object, and target property parameters).  Finally,
+compute the new program counter by adding the code offset to the entry
+pointer and translating the result to a physical address.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_retnil'></a>
+<p><hr><b>
+RETNIL (0x51)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>same as for </i><a href='#opc_ret'>RET</a><i> with retval = </i>nil
+<p>
+Return nil from the current function.  Restore the enclosing frame
+in the same manner as the RET instruction, but store nil in data
+register 0 (R0).
+
+<!-------------------------------------------------------------------->
+<a name='opc_rettrue'></a>
+<p><hr><b>
+RETTRUE (0x52)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>same as for </i><a href='#opc_ret'>RET</a><i> with retval = </i>true
+<p>
+Return true from the current function.  Restore the enclosing frame
+in the same manner as the RET instruction, but store true in data
+register 0 (R0).
+
+<!-------------------------------------------------------------------->
+<a name='opc_ret'></a>
+<p><hr><b>
+RET (0x54)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i>
+       <li>target_prop</i> <i>orig_target_obj</i> <i>defining_obj</i>
+       <i>self</i>
+       <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+       <i>argc</i> <i>enclosing_FP</i>
+       <i>arbitrary_temporary_values</i>  &rarr; ...
+<p>
+Return from the current function with no return value.  This operates
+the same as the RETVAL instruction, but does not change the contents
+of register R0.
+
+<p>
+Note that this instruction does not change the contents of R0, so
+compilers can use this instruction for functions that return no
+value, and also to return a value obtained from calling another
+function or method.  The called function will leave its return
+value in R0, so a RET instruction will pass this value back to
+its own caller unchanged.  Hence, a peephole optimizer can convert
+the pair of instructions GETR0, RETVAL to a single RET instruction.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_namedargptr'></a>
+<p><hr><b>
+NAMEDARGPTR (0x56)
+</b><br>
+UBYTE <i>named_arg_count</i><br>
+UINT2 <i>table_offset</i><br>
+
+<p>Stack: ... <i>named_arg_N ... named_arg_1 ... named_arg_0</i>
+  &rarr; ...
+
+<p>To execute this instruction: discard <i>arg_count</i> elements
+from the stack.
+
+<p><i>named_arg_count</i> is the number of named arguments in
+the associated table; this should always match the number in the
+associated NAMEDARGTAB instruction.  It's redundant to store the
+value in both places, but this is for faster execution, to avoid
+the need to find the table in order to get the argument count.
+
+<p><i>table_offset</i> is the offset from the <i>table_offset</i>
+element to the associated NAMEDARGTAB instruction.  The offset is
+given to the first byte of the instruction, containing the
+NAMEDARGTAB opcode.
+
+<p>This instruction can be placed after a call instruction (CALL,
+PTRCALL, GETPROP, etc) that passes named arguments to its callee, in
+lieu of a <a href="opc_namedargtab">NAMEDARGTAB</a> instruction and
+table.  Instead of storing the table in-line directly after the call
+instruction, the code generator can store a NAMEDARGPTR that points to
+the table, and then store the table in an unreachable section of the
+function's byte stream, after the final "return" instruction.  The
+reason to separate the table from the call via NAMEDARGPTR is
+that NAMEDARGPTR is slightly faster to execute than NAMEDARGTAB,
+since NAMEDARGPTR has a fixed length.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_namedargtab'></a>
+<p><hr><b>
+NAMEDARGTAB (0x57)
+</b><br>
+UINT2 <i>table_bytes</i><br>
+UINT2 <i>arg_count</i><br>
+UINT2 <i>arg 0 offset</i><br>
+UINT2 <i>arg 1 offset</i><br>
+...<br>
+UINT2 <i>arg N offset</i><br>
+<i>arg 0 name bytes</i><br>
+<i>arg 1 name bytes</i><br>
+...<br>
+<i>arg N-1 bytes</i><br>
+
+<p>Stack: ... <i>named_arg_N ... named_arg_1 named_arg_0</i>
+  &rarr; ...
+
+<p>To execute this instruction: discard <i>arg_count</i> elements
+from the stack, then skip the table by adding <i>table_bytes</i>+2
+to the instruction pointer.
+
+<p>This instruction prefixes a named argument caller table, which
+contains the names of the named arguments for a given function call
+that passes named actuals.  This table can be stored directly after a
+call instruction (CALL, PTRCALL, GETPROP, etc), but more typically
+it's stored at the end of a function (after the final "return"), and a
+<a href="#opc_namedargptr">NAMEDARGPTR</a> opcode is placed directly
+after the call instruction with a pointer to the table.  Executing
+NAMEDARGPTR is slightly faster than executing NAMEDARGTABLE because
+the former has a fixed length.
+
+<p>Note that if this instruction is separated from its call opcode
+(i.e., a NAMEDARGPTR is used after the call instead), this opcode must
+be located in an unreachable part of the function body, because its
+effect on the stack is only correct when the instruction is executed
+immediately after its call returns.  The typical code generation
+technique when separating the table is to place all of these tables
+after the final "return" for the function.
+
+<p><i>table_bytes</i> is the size in bytes of the table, not including
+the <i>table_bytes</i> element itself.  <i>arg_count</i> is the number
+of arguments.  The <i>arg n offset</i> form an index to the strings:
+each entry gives the offset from the start of the index (i.e., from
+the <i>arg 0 offset</i> element) to the start of the byte string for
+the entry's name.
+
+<p>Note that the string index contains <i>arg_count</i>+1 elements.
+The last element is the offset of the next byte after the last string.
+This lets you calculate the length of any string in the table by
+subtracting <i>arg i offset</i> from <i>arg i+1 offset</i>.
+
+<p>The strings are stored in UTF-8 format as usual.  Note that there
+are no separators or delimiters (no null bytes, for example) between
+the name strings, since the length of each string can be determined
+from the index.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_call'></a>
+<p><hr><b>
+CALL (0x58)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT4 <i>func_offset</i>
+
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i>
+    nil nil nil nil <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+Call the function at offset <i>func_offset</i> in the code pool, passing
+as parameters the <i>arg_count</i> items at the top of the stack.
+
+<p> To set up the new frame, push nil four times (since a stand-alone
+function has no target property, no target object, no defining object,
+and no "self" object); compute the byte offset from the current method
+header of the next instruction to execute, and push the result; push
+the current entry pointer register; push the argument count; push the
+frame pointer; and load the frame pointer with the location in the
+stack where we just pushed the frame pointer.  Then, load the entry
+pointer register with <i>func_offset</i>; check <i>arg_count</i> to
+ensure that it matches the conditions required in the new method
+header; get the count of local variables from the new method header,
+and push nil for each local.  Finally, load the program counter with
+the first byte of the new function's executable code, which starts
+immediately after the function's header.
+
+<p>
+If the actual parameter count does not match the expected number of
+parameters, throw an error (WRONG_NUM_OF_ARGS).  Note that the formal
+parameter count is stored in the method header as follows:
+
+<ul class=doublespace>
+<li>If (<i>formal_count</i> AND 0x80) == 0x80, then (<i>formal_count</i>
+AND 0x7f) gives the <i>minimum</i> number of parameters, so <i>arg_count</i>
+is greater than or equal to this value.  If <i>arg_count</i> is less than
+this value, throw an error.
+
+<li>Otherwise, <i>formal_count</i> gives the <i>exact</i> number of
+parameters.  Throw an error if <i>arg_count</i> is not equal to this
+value.
+</ul>
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrcall'></a>
+<p><hr><b>
+PTRCALL (0x59)
+</b><br>
+UBYTE <i>arg_count</i><br>
+
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> function_pointer(<i>func</i>)
+    &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i>
+    nil nil nil nil <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p> Pop the top value from the stack, calling the value <i>val</i>;
+if the value is of any type other than function pointer, property
+ID, or object reference, throw an error (FUNCPTR_VAL_REQD).
+
+<p>If <i>val</i> is of type function pointer, proceed as with
+<a href='#opc_call'>CALL</a>,
+but use <i>val</i> as the <i>func_offset</i> value rather than
+obtaining the value from immediate data.
+
+<p> If the <i>val</i> is of type property ID, proceed as with the <a
+href='#opc_ptrcallpropself'>PTRCALLPROPSELF</a> instruction.
+However, if there is no valid "self" object (i.e., the code executing
+is inside a function rather than a method), throw an error
+(FUNCPTR_VAL_REQD).
+
+<p> If the <i>val</i> is of type object, check the "ObjectCallProp"
+<a href='model.htm#predefined'>predefined property ID</a>.  If the
+predefined symbol "ObjectCallProp" is defined in the image, and the
+object referenced by <i>val</i> defines or inherits this property,
+retrieve the value of this property, which must be of type
+function pointer; if it's not throw an error (FUNCPTR_VAL_REQD).
+Invoke the code at the offset given in this function pointer, using the
+same stack preparation that the <a href='#opc_call'>CALL</a> instruction
+uses, and using the original <i>val</i> object as the "self" object.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getprop'></a>
+<p><hr><b>
+GETPROP (0x60)
+</b><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack for non-code property values:
+ ... <i>target_val</i> &rarr; ...
+<p>Stack for code property values:
+    ... <i>target_val</i> &rarr;
+    ... propid(<i>prop_id</i>) <i>target_val</i> <i>defining_object</i>
+    <i>target_val</i>
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i>=0 <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p> Get a property of the object, constant list, or constant string
+at top of stack.  Pop the value at top of stack, calling it
+<i>target_val</i>.  Evaluate the property of <i>target_val</i>
+identified by <i>prop_id</i>, as follows:
+
+<p><b>Case 1:</b> If the <i>target_val</i> defines or inherits the
+property identified by <i>prop_id</i>, the action depends on the type
+of the property's value:
+
+<ul class=doublespace>
+<li>If the type of the property
+is nil, true, object ID, property ID, integer, single-quoted string constant,
+function pointer, or list constant, store the value in R0.
+
+<li>If the type of the property
+is double-quoted string constant, invoke the default string
+output function or method to display the string, in the same manner as the 
+<a href='#opc_say'>SAY instruction</a>.  Note that this involves
+a function call to a function or method defined in the image.
+
+<li>If the type of the property is code offset, invoke the code,
+using the same stack frame preparation that the <a
+href='#opc_call'>CALL</a> operation uses.  The object whose property
+is being evaluated is the "self" value, and the number of actual
+parameters is implicitly zero.  Note that the object where the property was
+actually found (which might be a superclass of the target object)
+is pushed as <i>defining_object</i>.
+
+</ul>
+
+<p><b>Case 2:</b> If the object <i>target_val</i> does <b>not</b>
+define or inherit the property <i>prop_id</i>, check to see if
+<i>target_val</i> defines or inherits the imported property with the
+<a href='model.htm#predefined'>predefined property identifier</a>
+"propNotDefined".  If this property is defined, push <i>prop_id</i>
+as an additional (first) argument, and then proceed with <b>case
+1</b> above as though the "propNotDefined" property had been invoked
+in the first place.  If the "propNotDefined" property is not defined
+or inherited, simply store nil in R0.
+
+<p>
+This operation is redundant with CALLPROP, since CALLPROP has the same
+effect when its <i>arg_count</i> immediate parameter is zero.  However,
+evaluating a property with no arguments is an extremely common operation,
+hence substantial code size savings can be achieved for many programs
+by using this shorter code sequence.
+
+<p>
+The method of property evaluation depends on the type of
+<i>target_val</i>:
+
+<p>
+<ul class=doublespace>
+
+<li>If <i>target_val</i> is an object value, call the object's virtual
+"get property" method.
+
+<li>If <i>target_val</i> is a constant string, use the string metaclass's
+constant string property evaluator.
+
+<li>If <i>target_val</i> is a constant list, use the list metaclass's
+constant list property evaluator.
+
+<li>For any other type, throw an error (OBJ_VAL_REQD).
+
+</ul>
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_callprop'></a>
+<p><hr><b>
+CALLPROP (0x61)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> <i>target_val</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i> 
+    propid(<i>prop_id</i>) <i>target_val</i> <i>defining_object</i>
+    <i>target_val</i>
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+
+<p> Call a method of the object, string constant, or list constant at
+top of stack.  Pop the value at top of stack and call this
+<i>target_val</i>.  Look up the property identified by
+<i>prop_id</i>, in the same manner as <a
+href='#opc_getprop'>GETPROP</a>.  If <i>target_val</i> is an object,
+apply inheritance if the object does not directly define the
+property.
+
+<p><b>Case 1:</b> If <i>target_val</i> defines or inherits <i>prop_id</i>,
+proceed according to the type of the value stored in the property:
+
+<ul class=doublespace>
+<li>If the type of the property is code offset, invoke the code, using
+the same stack frame preparation that the CALL operation uses.  The
+object whose property is being evaluated is the "self" value, and the
+number of actual parameters is given by <i>arg_count</i>.
+
+<li>If the property has any other type, and the argument count is
+non-zero, throw an error (WRONG_NUM_OF_ARGS).  If the argument count
+is zero, proceed in the same manner as <a href='#opc_getprop'>GETPROP</a>.
+</ul>
+
+<p><b>Case 2:</b> If the object <i>target_val</i> does <b>not</b>
+define or inherit the property <i>prop_id</i>, check to see if
+<i>target_val</i> defines or inherits the imported property with the
+<a href='model.htm#predefined'>predefined property identifier</a>
+"propNotDefined".  If this property is defined, push <i>prop_id</i>
+as an additional (first) argument, and then proceed with <b>case
+1</b> above as though the "propNotDefined" property had been invoked
+in the first place.  If the "propNotDefined" property is not defined
+or inherited, discard the <i>arg_count</i> items at the top of
+the stack, and store nil in R0.
+
+
+
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrcallprop'></a>
+<p><hr><b>
+PTRCALLPROP (0x62)
+</b><br>
+UBYTE <i>arg_count</i><br>
+
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i>  <i>target_val</i>
+    <i>prop</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i> 
+    <i>prop</i> <i>target_val</i> <i>defining_object</i> <i>target_val</i>
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p> Pop the property ID value from the top of stack, and call this
+value <i>prop</i>.  Pop a value from the top of the stack, and call
+this value <i>target_val</i>.  Proceed in the same manner as <a
+href='#opc_callprop'>CALLPROP</a>, but use <i>prop</i> as the
+property to evaluate rather than immediate data.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getpropself'></a>
+<p><hr><b>
+GETPROPSELF (0x63)
+</b><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack for non-code property values: <i>No change.</i>
+
+<p>
+Stack for code property values:
+    ... &rarr; propid(<i>prop_id</i>) self <i>defining_object</i> self
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i>=0 <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+Evaluate a property of self: proceed as with GETPROP, but rather than
+popping the target value whose property is to be evaluated from the stack,
+evaluate the property of the active "self" object.  Leaves the value
+in register R0.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_callpropself'></a>
+<p><hr><b>
+CALLPROPSELF (0x64)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i> propid(<i>prop_id</i>)
+    self <i>defining_object</i> self
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+Call a method of self: proceed as with CALLPROP, but rather than
+popping the target value whose method is to be invoked from the stack,
+call the method of the active "self" object.
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrcallpropself'></a>
+<p><hr><b>
+PTRCALLPROPSELF (0x65)
+</b><br>
+UBYTE <i>arg_count</i><br>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> <i>prop</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i> <i>prop</i>
+    self <i>defining_object</i> self
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+Call a method of self through a property pointer: proceed as with
+PTRCALLPROP, but rather than popping the target value whose method
+to be invoked from the stack, call the method of the
+active "self" object.
+
+<!-------------------------------------------------------------------->
+<a name='opc_objgetprop'></a>
+<p><hr><b>
+OBJGETPROP (0x66)
+</b><br>
+UINT4 <i>obj_id</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack for non-code property values: <i>No change.</i>
+
+<p>
+Stack for code property values:
+    ... &rarr;
+    ... propid(<i>prop_id</i>)
+    object(<i>obj_id</i>) <i>defining_object</i> object(<i>obj_id</i>)
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i>=0 <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+
+Evaluate a property of a specific object: proceed in the same manner
+as <a href='#opc_getprop'>GETPROP</a>, but rather than popping the
+target value whose property is to be evaluated from the stack, use
+<i>obj_id</i>.
+
+<p>
+This operation is not strictly necessary, since the same effect could
+be obtained with a combination of PUSHOBJ and GETPROP; however, since
+evaluating a property of a specific object is a common operation, many
+programs will derive code size and execution time reductions from the
+use of this single instruction.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_objcallprop'></a>
+<p><hr><b>
+OBJCALLPROP (0x67)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT4 <i>obj_id</i><br>
+UINT2 <i>prop_id</i><br>
+
+<p>
+
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr;
+    ... <i>argumentN</i> ... <i>argument1</i> 
+    propid(<i>prop_id</i>)
+    object(<i>obj_id</i>) <i>defining_object</i> object(<i>obj_id</i>)
+    <i>enclosing_code_offset</i> <i>enclosing_EP</i>
+    <i>argc</i> <i>enclosing_FP</i> <i>local1</i>=nil
+    ... <i>localN</i>=nil
+
+<p>
+
+Call a method of a specific object: proceed in the same manner as <a
+href='#opc_callprop'>CALLPROP</a>, but rather than popping the object
+whose method is to be called from the stack, use <i>obj_id</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getpropdata'></a>
+<p><hr><b>
+GETPROPDATA (0x68)
+</b><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_getprop'>GETPROP</a>
+
+<p> This operation is the same as <a href='#opc_getprop'>GETPROP</a>,
+except that GETPROPDATA does not allow any side effects.  In
+particular, if the property value has type code offset or
+double-quoted string, throw an error (BAD_SPEC_EVAL).  So, to execute
+this operation, first check the property's datatype, throwing an
+error if the datatype is not allowed, then proceed as though
+performing a GETPROP operation.
+
+<p>
+If the target value <i>target_val</i> (see <a href='#opc_getprop'>
+GETPROP</a>) is not an object value, throw BAD_SPEC_EVAL, because
+evaluating a property of a native type requires execution of native
+code, which is not allowed during speculative evaluation.
+
+<p>
+This operation is used in place of GETPROP when the compiler generates
+code in "speculative evaluation" mode, which the debugger uses to
+evaluate certain expressions automatically (without the user specifically
+asking).  For example, a GUI debugger implementation may attempt to parse
+text near the mouse cursor when the user holds the mouse cursor in one
+place for a few moments, then speculatively evaluate the expression
+represented by the text; since the debugger is attempting this evaluation
+as a convenience for the user, rather than in response to a direct
+request from the user, it would be highly undesirable for the evaluation to
+cause any side effects.  So, the debugger uses this opcode instead of
+the normal GETPROP when compiling such an expression, ensuring that the
+evaluation will abort (with a BAD_SPEC_EVAL error) rather than cause
+an unwanted side effect.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrgetpropdata'></a>
+<p><hr><b>
+PTRGETPROPDATA (0x69)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>same as </i><a href='#opc_ptrgetprop'>PTRGETPROP</a>
+
+<p> Pop the property ID value from the stack, calling this value
+<i>prop</i>.  Pop the target value from the stack, calling this value
+<i>target_val</i>.  Proceed in the same manner as <a
+href='#opc_getpropdata'>GETPROPDATA</a>, using <i>prop</i> as the
+property to evaluate rather than immediate data.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getproplcl1'></a>
+<p><hr><b>
+GETPROPLCL1 (0x6A)
+</b><br>
+UBYTE <i>local_number</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+<p>
+Stack: <i>same as </i><a href='#opc_getpropself'>GETPROPSELF</a>
+
+<p>Evaluates the given property, taking the value of the local variable
+<i>local_number</i> as the target object.  This instruction behaves like
+<a href='#opc_getprop'>GETPROP</a>, except that rather than popping the
+target object from the top of the stack, we take the value of the given
+local variable as the target object.  Leaves the value in register R0.
+
+<!-------------------------------------------------------------------->
+<a name='opc_callproplcl1'></a>
+<p><hr><b>
+CALLPROPLCL1 (0x6B)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UBYTE <i>local_number</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+<p>
+Stack: <i>same as </i><a href='#opc_callpropself'>CALLPROPSELF</a>
+
+<p>Calls the given property, taking the value of the local variable
+<i>local_number</i> as the target object.  This instruction behaves like
+<a href='#opc_callprop'>CALLPROP</a>, except that rather than popping the
+target object from the top of the stack, we take the value of the given
+local variable as the target object.  Leaves the value in register R0.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getpropr0'></a>
+<p><hr><b>
+GETPROPR0 (0x6C)
+</b><br>
+UINT2 <i>prop_id</i><br>
+<p>
+<p>
+Stack: <i>same as </i><a href='#opc_getpropself'>GETPROPSELF</a>
+
+<p>Evaluates the given property, taking the value in register R0
+as the target object.  This instruction behaves like
+<a href='#opc_getprop'>GETPROP</a>, except that rather than popping the
+target object from the top of the stack, we take the value in
+register R0 as the target object.  Leaves the value in register R0.
+
+<!-------------------------------------------------------------------->
+<a name='opc_callpropr0'></a>
+<p><hr><b>
+CALLPROPR0 (0x6D)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+<p>
+Stack: <i>same as </i><a href='#opc_callpropself'>CALLPROPSELF</a>
+
+<p>Calls the given property, taking the value of register R0 as the
+target object.  This instruction behaves like <a
+href='#opc_callprop'>CALLPROP</a>, except that rather than popping the
+target object from the top of the stack, we take the value of register
+R0 as the target object.  Leaves the value in register R0.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_inherit'></a>
+<p><hr><b>
+INHERIT (0x72)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_callprop'>CALLPROP</a>
+
+<p> Inherit the given property from the appropriate superclass of the
+object that defines the currently executing code.  Obtain the defining
+object from the activation frame; find the inherited property using
+the "inherit property" method of the defining object.  Proceed in the
+same manner as <a href='#opc_callprop'>CALLPROP</a>, using the
+inherited property's value, and retaining the current "self" object as
+the new "self" object if calling code.
+
+<p>
+Inheriting a property works by using the same algorithm as we would
+use to find the property for the GETPROP instruction, but acting as
+though the definition from the current defining object (and all
+overriding definitions) were never defined.
+
+<p>Note that the <i>target_object</i> element of the stack frame is
+<i>not</i> affected by this operation.  This operation differs from
+regular GETPROP-type instructions and from DELEGATE-type instructions
+in that it leaves both <i>self</i> and <i>target_object</i> unchanged.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrinherit'></a>
+<p><hr><b>
+PTRINHERIT (0x73)
+</b><br>
+UBYTE <i>arg_count</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_ptrcallprop'>PTRCALLPROP</a>
+<p>
+Pop the property pointer value from the top of the stack, calling this
+value <i>prop_id</i>.  Proceed in the same manner as 
+<a href='#opc_inherit'>INHERIT</a>, using
+the <i>prop_id</i> value obtained from the stack rather than reading
+the property ID from immediate data.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_expinherit'></a>
+<p><hr><b>
+EXPINHERIT (0x74)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+UINT4 <i>obj_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_objcallprop'>OBJCALLPROP</a>
+
+<p> Inherit the given property from the object given by
+<i>obj_id</i>.  Process this essentially the same as <a
+href='#opc_callprop'>CALLPROP</a>, but rather than using the target
+object (in this case, <i>obj_id</i>) as the "self" object in any code
+executed as a result of this evaluation, retain the <i>current</i>
+"self" object.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrexpinherit'></a>
+<p><hr><b>
+PTREXPINHERIT (0x75)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT4 <i>obj_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_expinherit'>EXPINHERIT</a><i>,
+  but with the added <i>prop_id</i> initial parameter</i>
+<p>
+Pop the property pointer value from the top of the stack, calling
+this value <i>prop_id</i>.  Proceed in the same manner as
+<a href='#opc_expinherit'>EXPINHERIT</a>,
+using the <i>prop_id</i> value obtained from the stack rather than
+reading the property ID from immediate data.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_varargc'></a>
+<p><hr><b>
+VARARGC (0x76)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>Not applicable.</i>
+<p>
+
+This is not an instruction, but rather an <i>instruction modifier</i>.
+This opcode must immediately precede one of the following instructions:
+
+<p>
+<ul>
+<li><a href='#opc_builtin_a'>BUILTIN_A</a>
+<li><a href='#opc_builtin_b'>BUILTIN_B</a>
+<li><a href='#opc_builtin_c'>BUILTIN_C</a>
+<li><a href='#opc_builtin_d'>BUILTIN_D</a>
+<li><a href='#opc_builtin1'>BUILTIN1</a>
+<li><a href='#opc_builtin2'>BUILTIN2</a>
+<li><a href='#opc_call'>CALL</a>
+<li><a href='#opc_callprop'>CALLPROP</a>
+<li><a href='#opc_callpropself'>CALLPROPSELF</a>
+<li><a href='#opc_delegate'>DELEGATE</a>
+<li><a href='#opc_expinherit'>EXPINHERIT</a>
+<li><a href='#opc_inherit'>INHERIT</a>
+<li><a href='#opc_new1'>NEW1</a>
+<li><a href='#opc_new2'>NEW2</a>
+<li><a href='#opc_objcallprop'>OBJCALLPROP</a>
+<li><a href='#opc_ptrcall'>PTRCALL</a>
+<li><a href='#opc_ptrcallprop'>PTRCALLPROP</a>
+<li><a href='#opc_ptrcallpropself'>PTRCALLPROPSELF</a>
+<li><a href='#opc_ptrdelegate'>PTRDELEGATE</a>
+<li><a href='#opc_ptrexpinherit'>PTREXPINHERIT</a>
+<li><a href='#opc_ptrinherit'>PTRINHERIT</a>
+<li><a href='#opc_trnew1'>TRNEW1</a>
+<li><a href='#opc_trnew2'>TRNEW2</a>
+</ul>
+
+<p>This opcode modifies the following opcode so that the actual parameter
+count for the following instruction is taken from the stack rather than
+from immediate data encoded into the instruction.  To execute this
+opcode, remove the top value from the stack; if it is not a number,
+throw a run-time error (NUM_VAL_REQD).  Check the following instruction
+to ensure it is one of the instructions listed above; if it is not,
+throw an error (INVALID_OPCODE_MOD).  Skip the byte containing the
+instruction opcode, and also skip the byte containing the immediate
+data argument counter (all of the above instructions encode the argument
+count as one byte immediately following the opcode byte).  Finally,
+execute the instruction exactly as normal, but using the integer value
+from the stack as the argument counter.
+
+<p><b>Note to debugger implementors:</b>  Because this is a modifier,
+a debugger should consider this opcode and the following opcode as
+a single instruction for the purposes of single-stepping and setting
+breakpoints.  It is not legal to set a breakpoint at the modified
+instruction, since that is effectively the middle of this instruction.
+Any breakpoint must be set at the modifier byte itself.
+
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_delegate'></a>
+<p><hr><b>
+DELEGATE (0x77)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UINT2 <i>prop_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_callprop'>CALLPROP</a>
+
+<p>Delegate the given property call to the object at top of stack
+(<i>target_val</i> in the CALLPROP stack parameter listing).  Proceed
+in the same manner as <a href='#opc_callprop'>CALLPROP</a>,
+<i>except</i> that the current "self" object is retained as the
+callee's "self" object.
+
+<p>Note that the <i>target_object</i> element of the activation frame
+in the invoked method should be the target of the DELEGATE.  This
+instruction differs from GETPROP-type instructions in that it leaves
+<i>self</i> unchanged; it differs from INHERIT-type instructions in
+that it does change <i>target_object</i>.
+
+<p><i>Remarks:</i> This method allows the program to call a method in
+a related or unrelated object as though it were a method of 'self'.
+This can be used for explicit delegation of a method call to another
+object, and can also be used by compilers to implement a custom
+inheritance model.  Suppose that the source language treated all
+methods as static, and required the 'self' object to be passed explicitly
+as the first parameter of each method call; in such a language, a
+normal method call would look like this:
+
+<p><pre>
+   result = targetObject::method(targetObject, arg1, arg2);
+</pre>
+
+<p>In such a language, the DELEGATE instruction would allow the
+implementation of a call like this:
+
+<p><pre>
+   result = targetObject::method(self, arg1, arg2);
+</pre>
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrdelegate'></a>
+<p><hr><b>
+PTRDELEGATE (0x78)
+</b><br>
+UBYTE <i>arg_count</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_ptrcallprop'>PTRCALLPROP</a>
+
+<p> Pop the property pointer value from the top of the stack, calling
+this value <i>prop_id</i>.  Proceed in the same manner as <a
+href='#opc_delegate'>DELEGATE</a>, using the <i>prop_id</i> value
+obtained from the stack rather than reading the property ID from
+immediate data.
+
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_swap2'></a>
+<p><hr><b>
+SWAP2 (0x7A)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val4</i> <i>val3</i> <i>val2</i> <i>val1</i> &rarr; ...
+   <i>val2</i> <i>val1</i> <i>val4</i> <i>val3</i>
+<p>
+Remove the top four elements from the stack, calling them in order
+of removal <i>val1</i>, <i>val2</i>, <i>val3</i>, and <i>val4</i>.
+Push, in order, <i>val2</i>, <i>val1</i>, <i>val4</i>, <i>val3</i>.
+This has the effect of swapping the top <i>pair</i> of elements
+with the next pair of elements on the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_swapn'></a>
+<p><hr><b>
+SWAPN (0x7A)
+</b><br>
+UBYTE <i>idx1</i><br>
+UBYTE <i>idx2</i><br>
+<p>
+Stack: <i>see notes</i>
+
+<p> Swap the stack elements at indices <i>idx1</i> and <i>idx2</i>.
+These are offsets from the current top of stack; index 0 is the top
+element, 1 is the second element from the top, and so on.  If the
+indices are 0 and 1, this has the same effect as the <a
+href="#opc_swap">SWAP</a> instruction.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getargn0'></a>
+<a name='opc_getargn1'></a>
+<a name='opc_getargn2'></a>
+<a name='opc_getargn3'></a>
+<p><hr><b>
+GETARGN0 (0x7C)<br>
+GETARGN1 (0x7D)<br>
+GETARGN2 (0x7E)<br>
+GETARGN3 (0x7F)<br>
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... <i>value_of_argument</i>
+
+<p>
+Push the contents of the actual parameter at the parameter index
+implicit in the opcode (parameter 0 for GETARGN0, etc).  Index 0 is
+the first parameter in the frame, 1 is the second, and so on; since
+parameters are pushed in right-to-left (i.e., last-to-first) order,
+the first explicit parameter is immediately after the "self" implicit
+parameter in the stack.
+
+<p>These instructions are for optimization; they're otherwise
+redundant with <a href="#opc_getarg1">GETARG1</a>.  A zero-opcode
+instruction such as these can usually be implemented to be slightly
+faster than a one-operand instruction such as GETARG1.  Although the
+speed advantage is slight per instruction, it can add up to
+significant improvement in throughput: GETARG-type opcodes are among
+the most frequently executed in a typical program, and most of these
+refer to the first few parameters.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getlcl1'></a>
+<p><hr><b>
+GETLCL1 (0x80)
+</b><br>
+UBYTE <i>local_number</i>
+
+<p>
+Stack: ... &rarr; ... <i>value_of_local</i>
+
+<p>
+Push the contents of the local variable at index <i>local_number</i>.
+Index 0 is the first local variable, 1 is the second, and so on.
+Since <i>local_number</i> is an unsigned 8-bit quantity, this instruction
+can only be used to retrieve the first 256 local variables (index
+values 0 through 255).
+
+<!-------------------------------------------------------------------->
+<a name='opc_getlcl2'></a>
+<p><hr><b>
+GETLCL2 (0x81)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: ... &rarr; ... <i>value_of_local</i>
+
+<p>
+
+Push the contents of the local variable at index <i>local_number</i>.
+Index 0 is the first local variable, 1 is the second, and so on.
+Since <i>local_number</i> is an unsigned 16-bit quantity, this instruction
+can be used to retrieve any local variable up to index value 65535.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getarg1'></a>
+<p><hr><b>
+GETARG1 (0x82)
+</b><br>
+UBYTE <i>param_number</i>
+<p>
+Stack: ... &rarr; ... <i>value_of_argument</i>
+
+<p>
+
+Push the contents of the actual parameter at index <i>param_number</i>.
+Index 0 is the first parameter, 1 is the second, and so on; since
+parameters are pushed in right-to-left (i.e., last-to-first) order,
+the first explicit parameter is immediately after the "self" implicit
+parameter in the stack.  This instruction's operand is an 8-bit 
+unsigned value and hence is limited to retrieving the first 256 
+parameters (index values 0 through 255).
+
+<!-------------------------------------------------------------------->
+<a name='opc_getarg2'></a>
+<p><hr><b>
+GETARG2 (0x83)
+</b><br>
+UINT2 <i>param_number</i>
+<p>
+Stack: ... &rarr; ... <i>value_of_argument</i>
+
+<p>
+Push the contents of the actual parameter at index <i>param_number</i>.
+The <i>param_number</i> operand is given as an unsigned 16-bit value,
+hence it can retrieve any parameter up to index value 65535.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushself'></a>
+<p><hr><b>
+PUSHSELF (0x84)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... self
+
+<p>Push the current "self" object.  This is the object invoked (in
+combination with the target property) to reach the current code; the
+value is found in the activation frame.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getdblcl'></a>
+<p><hr><b>
+GETDBLCL (0x85)
+</b><br>
+UINT2 <i>local_number</i><br>
+UINT2 <i>stack_level</i><br>
+<p>
+Stack: ... &rarr; ... <i>value_of_local</i>
+<p>
+
+Get a debugger local: push the value of the given local variable at
+the given stack level onto the stack.  This instruction is similar to
+<a href='#opc_getlcl2'>GETLCL2</a>, but rather than retrieving a
+value from the active stack frame, this instruction retrieves a
+value from the <i>given</i> stack frame.  A stack_level value of 0
+indicates the last active non-debug stack frame, 1 is the first enclosing
+frame (i.e., the frame that called the last active non-debug stack frame),
+2 is the next enclosing frame (the frame that called level 1), and so
+on.
+
+<p>The "last active non-debug" frame is simply the first enclosing
+frame of the active frame.  The current active stack frame, which is
+executing the GETDBLCL instruction, is a "debug" frame because it is
+created by the debugger (it is not otherwise special - we draw this
+distinction only to clarify how this instruction works).  Debug
+frames cannot be nested (hence the debugger can never be invoked
+recursively).  So, the first frame enclosing the active (debug) frame
+is always the last active non-debug frame.  So, a stack_level of 0 is
+the first frame enclosing the active (debug) frame.
+
+<p>If the given frame doesn't exist (i.e., stack_level is too large),
+throw an error (BAD_FRAME).
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getdbarg'></a>
+<p><hr><b>
+GETDBARG (0x86)
+</b><br>
+UINT2 <i>param_number</i><br>
+UINT2 <i>stack_level</i><br>
+<p>
+Stack: ... &rarr; ... <i>value_of_param</i>
+<p>
+Get a debugger argument.  This instruction works the same way as
+<a href='#opc_getdblcl'>GETDBLCL</a>, but retrieves a parameter
+variable in the given stack frame rather than a local variable.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getargc'></a>
+<p><hr><b>
+GETARGC (0x87)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... argc
+
+<p>
+Get the current function's actual parameter count.  Retrieve the
+argument counter from the current stack frame, and push the value
+as an integer.  Note that the argument counter does not include the
+implicit "self" argument to an object method.
+
+<!-------------------------------------------------------------------->
+<a name='opc_dup'></a>
+<p><hr><b>
+DUP (0x88)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>val</i> &rarr; ... <i>val</i> <i>val</i>
+
+<p>
+Get the value on top of the stack (without removing it), and push
+another copy of the same value.  This instruction simply duplicates
+the top element on the stack, which is often convenient for compilers
+when generating code involving an intermediate result that is needed more
+than once in the course of an evaluation.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_disc'></a>
+<p><hr><b>
+DISC (0x89)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Remove the top element of the stack and discard the value.  This
+operation is useful for the compiler in cases where the result of
+an intermediate calculation is not needed but is left on the stack
+anyway (for example, when evaluating an expression merely to trigger
+the side effects of the evaluation).
+
+<!-------------------------------------------------------------------->
+<a name='opc_disc1'></a>
+<p><hr><b>
+DISC1 (0x8A)
+</b><br>
+UBYTE <i>count</i><br>
+
+<p>
+Stack: ... <i>val1</i> <i>val2</i> ... <i>val[count]</i> &rarr; ...
+
+<p>
+Remove the top <i>count</i> elements of the stack and discard the values.
+This operation is useful for the compiler in cases where the result of
+an intermediate calculation is not needed but is left on the stack
+anyway (for example, when evaluating an expression merely to trigger
+the side effects of the evaluation).
+
+<!-------------------------------------------------------------------->
+<a name='opc_getr0'></a>
+<p><hr><b>
+GETR0 (0x8B)
+</b><br>
+<i>No Operands</i>
+
+<p>
+Stack: ... &rarr; ... <i>r0-value</i>
+
+<p>
+Push the contents of data register 0 (R0) onto the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_getdbargc'></a>
+<p><hr><b>
+GETDBARGC (0x8C)
+</b><br>
+UINT2 <i>stack_level</i>
+<p>
+Stack: ... &rarr; ... argc
+
+<p>
+Get the actual parameter count from the given stack level.  Retrieve the
+argument counter from the selected stack frame, and push the value
+as an integer.  Note that the argument counter does not include the
+implicit "self" argument to an object method.
+
+<p>The stack_level value selects the enclosing stack frame from which
+to retrieve the argument count in the same manner as it does for the
+<a href='#opc_getdblcl'>GETDBLCL</a> instruction.
+
+<!-------------------------------------------------------------------->
+<a name='opc_swap'></a>
+<p><hr><b>
+SWAP (0x8D)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>val2</i> <i>val1</i> &rarr; ... <i>val1</i> <i>val2</i>
+<p>
+Remove the top element from the stack, calling the value <i>val1</i>.
+Remove the next element from the stack, calling the value <i>val2</i>.
+Push <i>val1</i>, then push <i>val2</i>.  This instruction simply exchanges
+the order of the top two elements of the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_pushctxele'></a>
+<p><hr><b>
+PUSHCTXELE (0x8E)
+</b><br>
+UBYTE <i>element</i>
+<p>
+Stack: ... &rarr; ... <i>value</i>
+
+<p>
+This instruction pushes one element of the current method context onto
+the stack.  The element to be pushed is indicated by the <i>element</i>
+code:
+
+<ul class=doublespace>
+<li>1: Target property.  This is the property that was invoked to call
+the current method; this is stored in the activation frame.
+
+<li>2: Original target object.  This is the object that was originally
+targeted by the instruction that called the current method.  This is
+not necessarily the "self" object, because "self" is left unchanged
+by the various DELEGATE instructions, which set the original target
+object to their object operand.  This is not necessarily the "defining
+object," because the original target object might have inherited the
+method from one of its superclasses.  This is stored in the activation
+frame.
+
+<li>3: Defining object.  This is the object that was actually found
+to contain the current method when the method was invoked.  This is
+not necessarily the same as "self" or the original target object, because
+the defining object reflects the binding of the method currently
+being executed.  This is stored in the activation frame.
+
+<li>4: Invokee.  This is the object that was invoked to reach the
+current function.  This is one of the following:
+
+   <ul>
+
+      <li>For a call to a static function or a variable containing
+      a function pointer, this is the function pointer.
+
+      <li>For a call to an object method containing a code offset
+      value (i.e., an execute-on-evaluate function pointer), this is a
+      function pointer to the same code offset.
+
+      <li>For a call to an anonymous function, this is the AnonFunc
+      object.
+
+      <li>For a call to a dynamic function, this is the DynamicFunc
+      object.
+
+   </ul>
+
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_dup2'></a>
+<p><hr><b>
+DUP2 (0x8F)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>val2</i> <i>val1</i> &rarr; 
+   ... <i>val2</i> <i>val2</i> <i>val2</i> <i>val2</i>
+
+<p> Get the two values at the top of the stack (without removing
+them), and push another copy of each value, in the same order as they
+already appear on the stack.  This instruction simply duplicates the
+top two elements of the stack.  This is sometimes necessary for
+performing compound assignment operations (e.g., "a += b"), since it
+allows the compiler to evaluate elements of the lvalue only once.
+Evaluating the lvalue twice (once to retrieve its old value and once
+to assign its new value) must be avoided in some cases where side
+effects could occur in the repeated evaluation (consider, for
+example, "a[i++] += b").
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_switch'></a>
+<p><hr><b>
+SWITCH (0x90)
+</b><br>
+UINT2 <i>case_count</i><br>
+<i>case_1</i><br>
+<i>case_2</i><br>
+...<br>
+<i>case_N</i><br>
+INT2 <i>default_branch_offset</i>
+
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Each <i>case_x</i> operand consists of a DATA_HOLDER value <i>case_val_x</i>,
+followed by an INT2 branch offset value <i>case_branch_x</i>. 
+The operand <i>case_count</i> gives the number of <i>case_x</i> operands
+in the table.
+
+<p>
+Pop the value at top of stack, calling this value <i>val</i>.
+Initialize a counter to zero, and initialize
+a pointer <i>p</i> to the address of <i>case_1</i>.  Iterate through
+the following steps; after each iteration, increase the counter by 1,
+and increase the pointer by the size of a data holder.  Terminate the
+loop when the counter equals <i>case_count</i>.  On each iteration,
+compare <i>val</i> to the data holder to which <i>p</i> points; if
+the values are equal, branch to the offset in the INT2 value immediately
+following the data holder value at <i>p</i> and resume execution.
+
+<p>
+If the entire array of <i>case_x</i> entries is exhausted without
+finding a match for <i>val</i>, branch to the offset in
+<i>default_branch_offset</i>.
+
+<p>
+Each offset value (including the <i>case_branch_x</i> values and
+the <i>default_branch_offset</i> value) is given as a signed 16-bit
+integer which, when added to the physical memory address of the
+first byte of the INT2 giving the offset, yields
+the physical address of the first instruction to execute at the
+branch location.  So, if <i>p</i> points to a <i>case_x</i> value,
+the physical address of the instruction to which to branch if
+the <i>case_val_x</i> value matches <i>val</i> is given by
+(<i>p</i> + 5 + <i>case_branch_x</i>), because the <i>case_branch_x</i>
+value is at offset 5 within the <i>case_x</i> entry (since it
+immediately follows the 5-byte data holder).  Similarly, if
+<i>p</i> points to the <i>default_branch_offset</i> operand, the
+physical address of the next instruction for the default case
+is given by (<i>p</i> + <i>default_branch_offset</i>).
+
+<!-------------------------------------------------------------------->
+<a name='opc_jmp'></a>
+<p><hr><b>
+JMP (0x91)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: <i>unchanged</i>
+
+<p>
+Unconditionally branch to the given offset from the current code
+pointer.  The offset is relative to the address of <i>branch_offset</i>
+itself, so, if the physical address pointer <i>p</i> points to
+the <i>branch_offset</i> operand, the physical address of the next
+instruction to execute is given by (<i>p</i> + <i>branch_offset</i>).
+
+<!-------------------------------------------------------------------->
+<a name='opc_jt'></a>
+<p><hr><b>
+JT (0x92)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Remove the top element from the stack.  If the value is true, or a
+number with a non-zero value, jump to the given branch offset.  If
+the value is nil or a number with the value zero, do nothing. 
+If the value has any other type, jump to the given branch offset
+(in other words, any type of value other than nil/true or an integer
+is considered true).
+
+<!-------------------------------------------------------------------->
+<a name='opc_jf'></a>
+<p><hr><b>
+JF (0x93)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Remove the top element from the stack.  If the value is nil or a number
+with the value zero, jump to the given branch offset.  Otherwise, do
+nothing.
+
+<p>
+Note that we consider any other value to be a legal "non-false" value
+and do not branch.  Do not throw an error regardless of the type of
+the value.
+
+<!-------------------------------------------------------------------->
+<a name='opc_je'></a>
+<p><hr><b>
+JE (0x94)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> is equal to <i>val2</i>, jump to the given branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>EQ instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jne'></a>
+<p><hr><b>
+JNE (0x95)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> is not equal to <i>val2</i>, jump to the given branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>EQ instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jgt'></a>
+<p><hr><b>
+JGT (0x96)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> compares greater than <i>val2</i>, jump to the given
+branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jge'></a>
+<p><hr><b>
+JGE (0x97)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> compares greater than or equal to <i>val2</i>, jump
+to the given branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jlt'></a>
+<p><hr><b>
+JLT (0x98)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> compares less than <i>val2</i>, jump to the given
+branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jle'></a>
+<p><hr><b>
+JLE (0x99)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val1</i> <i>val2</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val2</i>;
+remove the next element from the stack, calling the value <i>val1</i>.
+If <i>val1</i> compares less than or equal to <i>val2</i>, jump to the
+given branch offset.
+
+<p>Perform the comparison using the same rules as the
+<a href='#opc_lt'>LT instruction</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jst'></a>
+<p><hr><b>
+JST (0x9A)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack if <i>val</i> is true: ... <i>val</i> &rarr; <i>val</i>
+<p>
+Stack if <i>val</i> is not true: ... <i>val</i> &rarr; ...
+
+<p>Inspect the top value on the stack.  If the value is nil, or has
+the numeric value zero, simply discard the top element of the stack.
+If the value is anything other than nil or zero, jump to the branch
+offset.
+
+<p><b>Compiler note:</b> This instruction's mnemonic means "jump and
+save if true."  This instruction is useful for implementing a
+"short-circuit" logical OR operator (in other words, a binary OR
+operator that evalutes only its left operand if the left operand is
+true).  To generate code for a short-circuit OR operator, generate
+code to evaluate the left operand, then generate a JST instruction that
+jumps to the end of the expression evaluation code, and finally generate
+the code to evaluate the right operand.  This will bypass the code
+evaluating the right operand if the first operand is true, and will
+leave the value true on the stack; otherwise, it will discard the result
+of evaluating the first operand and leave the result of evaluating the
+second operand on the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jsf'></a>
+<p><hr><b>
+JSF (0x9B)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack if <i>val</i> is nil or zero: ... <i>val</i> &rarr; <i>val</i>
+<p>
+Stack if <i>val</i> is anything else: ... <i>val</i> &rarr; ...
+
+<p>
+Inspect the top value on the stack.  If the value is nil or the numeric
+value zero, jump to the
+branch offset.  If the value is true, discard the top element of the
+stack.  In any other case, simply discard the top element of the stack.
+
+<p>
+Note that we consider any value other than nil or zero to be a valid
+"non-false" value.  Do not throw an error regardless of the type of
+the value.
+
+<p><b>Compiler note:</b> This instruction's mnemonic means "jump and
+save if false."  This instruction is useful for implementing a
+"short-circuit" logical AND operator (in other words, a binary AND
+operator that evalutes only its left operand if the left operand is
+false).  To generate code for a short-circuit AND operator, generate
+code to evaluate the left operand, then generate a JSF instruction that
+jumps to the end of the expression evaluation code, and finally generate
+the code to evaluate the right operand.  This will bypass the code
+evaluating the right operand if the first operand is nil, and will
+leave the value nil on the stack; otherwise, it will discard the result
+of evaluating the first operand and leave the result of evaluating the
+second operand on the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_ljsr'></a>
+<p><hr><b>
+LJSR (0x9C)
+</b><br>
+INT2 <i>branch_offset</i><br>
+
+<p>
+Stack: ... &rarr; ... int(<i>return_address</i>)
+
+<p>Push the address of the start of the next instruction (i.e.,
+the byte immediately following the <i>branch_offset</i> operand)
+onto the stack.  Branch unconditionally to <i>branch_offset</i>
+by adding that value to the current program counter.
+
+<p>This instruction's mnemonic stands for Local Jump to Sub-Routine.
+This purpose of the instruction is to perform a lightweight
+subroutine call that transfers to code within the same method, with
+the ability to return to the caller at a later time, via the
+<a href="#opc_lret">LRET</a> instruction.
+
+<p><b>Compiler note:</b> This instruction is particularly useful for
+generating code for the <tt>finally</tt> clause of a <tt>try</tt>
+block.  A <tt>finally</tt> block must typically be executed in
+several separate code paths: catching an otherwise unhandled
+exception, explicitly jumping out of the <tt>try</tt> block through a
+<tt>break</tt>, <tt>continue</tt>, or <tt>goto</tt> statement,
+exiting the method with <tt>return</tt> within the <tt>try</tt>
+block, or simply falling off the end of the block.  A compiler can
+use the LJSR to temporarily jump to the <tt>finally</tt> block at
+each of these transfer points.
+
+<p><b>Implementation note:</b> the <i>return_adress</i> value pushed
+on the stack can be in any representation.  The original MJR-T3
+reference implementation used an integer representing the byte offset
+from the current entry pointer; later versions (3.1+) use a native
+byte pointer instead.  The value can only be used by the LRET
+instruction, so the representation can be anything that LJSR and LRET
+agree on.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_lret'></a>
+<p><hr><b>
+LRET (0x9D)
+</b><br>
+INT2 <i>local_variable_number</i><br>
+
+<p>
+Stack: <i>No change.</i>
+
+<p> Retrieve the value of the local variable specified by
+<i>local_variable_number</i>.  This value must be in the correct
+format defined by the implementation for the <i>return_address</i>
+value pushed by an <a href="#opc_ljsr">LJSR</a> instruction; throw an
+error if not.  Transfer control unconditionally to the address.
+
+<p>
+This instruction's mnemonic stands for Local Return.  This instruction
+is the complement of the LJSR instruction, and is used to return from
+a local subroutine invoked with that instruction.
+
+<p>
+<b>Compiler Note:</b>
+LJSR pushes a value on the stack, but LRET retrieves a value
+from a local variable.  The target of an LJSR instruction should normally
+store the value at the top of the stack into a local (using a SETLCL1 or
+SETLCL2 instruction) for later retrieval with LRET.  The LJSR pushes
+a value onto the stack so that the caller can call the target without
+knowledge of the target's local variable usage; the LRET retrieves its
+value from a local to avoid complicating stack management by requiring
+that the local subroutine maintain the return address as a temporary
+stack value throughout its execution.
+
+<p>
+This instruction is particularly useful for compiling a <tt>try</tt>
+block with a <tt>finally</tt> clause, since simplifies generating
+the code necessary to invoke the <tt>finally</tt> block from each of
+the several code paths that normally must invoke the <tt>finally</tt>
+block.
+
+<p><b>Implementation note:</b> the datatype of the return address
+value is up to the implementation to define in LJSR.  This instruction
+must simply complement LJSR by consuming the value produced there.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_jnil'></a>
+<p><hr><b>
+JNIL (0x9E)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val</i>.
+If <i>val</i> is nil, jump to the given branch offset.
+
+<p>Note that this instruction branches <i>only</i> on nil.  Unlike
+JF, this instruction does <i>not</i> branch on a zero integer value.
+
+<!-------------------------------------------------------------------->
+<a name='opc_jnotnil'></a>
+<p><hr><b>
+JNOTNIL (0x9F)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Remove the top element from the stack, calling the value <i>val</i>.
+If <i>val</i> is <b>not</b> nil, jump to the given branch offset.
+
+<p>Note that this instruction branches for <i>any</i> non-nil value.
+Unlike JT, this instruction branches even on a zero integer value.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_jr0t'></a>
+<p><hr><b>
+JR0T (0xA0)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: <i>No change.</i>
+
+<p>If the value in register R0 is <b>anything other</b> than nil or
+the integer value zero, jump to the given branch offset; otherwise, do
+nothing.  This instruction has the same branch condition as <a
+href='#opc_jt'>JT</a>, but branches on the value in register R0 rather
+than the top-of-stack value.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_jr0f'></a>
+<p><hr><b>
+JR0F (0xA1)
+</b><br>
+INT2 <i>branch_offset</i>
+<p>
+Stack: <i>No change.</i>
+
+<p>If the value in register R0 is nil or the integer value zero, jump
+to the given branch offset; otherwise, do nothing.  This instruction
+has the same branch condition as <a href='#opc_jf'>JF</a>, but branches
+on the value in register R0 rather than the top-of-stack value.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getspn'></a>
+<p><hr><b>
+GETSPN (0xA6)
+</b><br>
+UBYTE <i>index</i>
+
+<p>
+Stack: ...  &rarr; ... <i>stack[index]</i>
+
+<p>Retrieve the stack value at index <i>index</i> and push it onto
+the stack.  The existing element at <i>index</i> isn't affected;
+its value is merely copied into a newly pushed stack element.
+The top of stack is at index 0; the second from top is at index 1;
+and so on.  If <i>index</i> is zero, this instruction has the
+same effect as <a href="#opc_dup">DUP</a>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_getlcln0'></a>
+<a name='opc_getlcln1'></a>
+<a name='opc_getlcln2'></a>
+<a name='opc_getlcln3'></a>
+<a name='opc_getlcln4'></a>
+<a name='opc_getlcln5'></a>
+<p><hr><b>
+GETLCLN0 (0x8AA)<br>
+GETLCLN1 (0x8AB)<br>
+GETLCLN2 (0x8AC)<br>
+GETLCLN3 (0x8AD)<br>
+GETLCLN4 (0x8AE)<br>
+GETLCLN5 (0x8AF)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... <i>value_of_local</i>
+
+<p> Push the contents of the local variable at the index implicit in
+the opcode (e.g., local number 0 for GETLCLN0).  Index 0 is the first
+local variable in the current frame, 1 is the second, and so on.
+
+<p>These instructions are for optimization; they're otherwise
+redundant with <a href="#opc_getlcl1">GETLCL1</a>.  A zero-opcode
+instruction such as these can usually be implemented to be slightly
+faster than a one-operand instruction such as GETLCL1.  Although the
+speed advantage is slight per instruction, it can add up to
+significant improvement in throughput: GETLCL-type opcodes are among
+the most frequently executed in a typical program, and most of these
+refer to the first few local variables.
+
+
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_say'></a>
+<p><hr><b>
+SAY (0xB0)
+</b><br>
+UINT4 <i>offset</i>
+<p>
+Stack: <i>same as </i><a href='#opc_call'>CALL</a><i> with one argument</i>
+
+<p> Push a string value with the given constant pool offset, then
+invoke the default string display function in the same manner as for
+a <a href='#opc_call'>CALL</a> instruction with one argument.  If a
+default string display function is not defined, throw an error
+(SAY_IS_NOT_DEFINED).
+
+<p> If there is an active "self" object (i.e., the currently executing
+code is a method, not a stand-alone function), and a default string
+display method is defined, and the active "self" object defines or
+inherits the default string display method, call the default string
+display method, in the same manner as a <a href='#opc_callpropself'>
+CALLPROPSELF</a> instruction, rather than the default string display
+function.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_builtin_a'></a>
+<a name='opc_builtin_b'></a>
+<a name='opc_builtin_c'></a>
+<a name='opc_builtin_d'></a>
+<p><hr><b>
+BUILTIN_A (0xB1)
+BUILTIN_B (0xB2)
+BUILTIN_C (0xB3)
+BUILTIN_D (0xB4)
+</b><br>
+UBYTE <i>argc</i><br>
+UBYTE <i>func_index</i><br>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr; ...
+
+<p>
+Invoke the built-in function at index <i>func_index</i> in one of the
+first four function sets in the function set dependency table:
+function set 0 (BUILTIN_A), 1 (BUILTIN_B), 2 (BUILTIN_C), or 3
+(BUILTIN_D).  The index of the first function in the function set is
+0.  These instructions each use a one-byte function index within the
+function set, so these instructions may only be used for the first
+256 functions in each function set.
+
+<p>
+These instructions are redundant with <a
+href='#opc_builtin1'>BUILTIN1</a>, but are included in the
+instruction set to allow for smaller code for the typically frequent
+operation of calling an intrinsic function.  Four separate
+instructions are provided so that calls to functions from up to four
+instruction sets can be efficiently coded; it is anticipated that
+most programs will rely on a small number of intrinsic function sets
+for their most common operations, so four such instructions will 
+probably allow efficient instruction encoding for most programs.
+
+<p>
+Note that the built-in function will store its return value, if any,
+in data register 0 (R0), just as a byte-code function would.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_builtin1'></a>
+<p><hr><b>
+BUILTIN1 (0xB5)
+</b><br>
+UBYTE <i>argc</i><br>
+UBYTE <i>func_index</i><br>
+UBYTE <i>set_index</i><br>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr; ...
+
+<p>
+Invoke the built-in function at index <i>func_index</i> in the function
+set at index <i>set_index</i>.  The index of the first function
+in the function set is 0; the index of the first function set is 0.
+
+<p>
+Note that the built-in function will store its return value, if any,
+in data register 0 (R0), just as a byte-code function would.
+
+<!-------------------------------------------------------------------->
+<a name='opc_builtin2'></a>
+<p><hr><b>
+BUILTIN2 (0xB6)
+</b><br>
+UBYTE <i>argc</i><br>
+UINT2 <i>func_index</i><br>
+UBYTE <i>set_index</i><br>
+<p>
+Stack: ... <i>argumentN</i> ... <i>argument1</i> &rarr; ...
+
+<p>
+Invoke the built-in function at index <i>func_index</i> in the function
+set at index <i>set_index</i>.  The index of the first function
+in the function set is 0; the index of the first function set is 0.
+
+<p>
+Note that the built-in function will store its return value, if any,
+in data register 0 (R0), just as a byte-code function would.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_callext'></a>
+<p><hr><b>
+CALLEXT (0xB7)
+</b><br>
+
+<p><b>Deprecated.</b> This opcode was reserved for future use for a
+potential VM feature that would invoke external (dynamically linked)
+user-defined native code.  As of TADS 3.1 that feature is explicitly
+not in the plan.
+
+<!-------------------------------------------------------------------->
+<a name='opc_throw'></a>
+<p><hr><b>
+THROW (0xB8)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... object(<i>exception_obj</i>) &rarr; 
+   ... object(<i>exception_obj</i>)
+
+<p><i>Note: this instruction will unwind the stack to the nearest
+enclosing frame that contains a handler for the exception, so the stack
+after the instruction is completed may look as though several RET
+instructions had been executed.</i>
+
+<p>
+Pop the top element of the stack, calling this <i>exception_obj</i>.
+If this value is not of type object, throw an error (OBJ_VAL_REQD).
+Otherwise, handle the exception as described in the VM specification
+section on <a href='model.htm#exceptions'>exceptions</a>.
+
+<p>To summarize,
+the VM searches the exception table of the current stack frame for
+a suitable handler; if a suitable handler is not found, the VM
+unwinds the stack to the previous frame, as though returning from
+the current function, then searches that frame, repeating this process
+until a handler is found.  Once a handler is found, the VM pushes
+the exception object back onto the stack (it must be popped at the
+start of the search and re-pushed at the end of the search because
+of the possibility of unwinding the stack during the search), then
+control is transferred to the code offset defined by the exception
+handler.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_sayval'></a>
+<p><hr><b>
+SAYVAL (0xB9)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>same as </i><a href='#opc_call'>CALL</a><i> with one argument</i>
+
+<p>Invoke the default string display function in the same manner as
+for a <a href='#opc_call'>CALL</a> instruction with one argument.  If
+a default string display function is not defined, throw an error
+(SAY_IS_NOT_DEFINED).
+
+<p> If there is an active "self" object (i.e., the currently executing
+code is a method, not a stand-alone function), and a default string
+display method is defined, and the active "self" object defines or
+inherits the default string display method, call the default string
+display method, in the same manner as a <a href='#opc_callpropself'>
+CALLPROPSELF</a> instruction, rather than the default string display
+function.
+
+<p>This instruction is similar to <a href='#opc_say'>SAY</a>, but
+invokes the default string display function with the value already
+on top of the stack.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_index'></a>
+<p><hr><b>
+INDEX (0xBA)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>val</i> <i>index_val</i> &rarr;
+   ... (<i>val</i>[<i>index_val</i>])
+
+<p>
+Pop the value at the top of the stack, and call this value <i>index_val</i>.
+Pop the next value on the stack, and call this value <i>val</i>.
+Check the type of <i>val</i>:
+
+<ul class=doublespace>
+<li>If <i>val</i> is of type list constant, check the type of
+<i>index_val</i>; if the value is not numeric, throw an error (NUM_VAL_REQD).
+Otherwise, convert the value to an integer.  Check the value to ensure that
+it's in the range 1 to the number of elements in the constant list,
+inclusive; throw an error (INDEX_OUT_OF_RANGE) if not.  Get the item at
+the given index in the list (1 refers to the first element, 2 to the
+second element, and so on), and push this value onto the stack.
+
+<li>If <i>val</i> is of type object, call the object's virtual (metaclass)
+"index value" method, and push the resulting value onto the stack.
+If the metaclass doesn't define the operator,
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator []".
+
+<li>If <i>val</i> is of any other type, throw an error (CANNOT_INDEX_TYPE).
+</ul>
+
+<!-------------------------------------------------------------------->
+<a name='opc_idxlcl1int8'></a>
+<p><hr><b>
+IDXLCL1INT8 (0xBB)
+</b><br>
+UBYTE <i>local_number</i><br>
+UBYTE <i>index_val</i><br>
+
+<p>
+Stack: ... &rarr; ... <i>local_variable</i>[<i>index_val</i>]
+
+<p>
+Check the type of the local variable given by <i>local_number</i>:
+
+<ul class=doublespace>
+<li>If the local variable's value is of type list constant, check
+<i>index_val</i> to ensure that it's in the range 1 to the number of
+elements in the constant list, inclusive; throw an error (INDEX_OUT_OF_RANGE)
+if not.  Get the item at the given index in the list (1 refers to the
+first element, 2 to the second element, and so on), and push this
+value onto the stack.
+
+<li>If the local's value is of type object, call the object's virtual
+(metaclass) "index value" method, and push the resulting value onto
+the stack.  If the metaclass doesn't define the method, 
+try <a href="#opov">operator overloading</a> with the imported
+property symbol "operator []".
+
+<li>If the local is of any other type, throw an error (CANNOT_INDEX_TYPE).
+</ul>
+
+<p><i>Note:</i> This instruction is similar to <a
+href='#opc_index'>INDEX</a>, but specifically indexes a local variable
+with a given constant integer value.  This instruction results in a more
+compact encoding than would be possible with the more general INDEX
+instruction, and is likely to result in faster execution because of
+the reduced number of instructions to achieve the same effect.
+
+<!-------------------------------------------------------------------->
+<a name='opc_idxint8'></a>
+<p><hr><b>
+IDXINT8 (0xBC)
+</b><br>
+UBYTE <i>index_val</i><br>
+
+<p>
+Stack: ... <i>val</i> &rarr; ... <i>val</i>[<i>index_val</i>]
+
+<p>Perform the same work as the <a href='#opc_index'>INDEX</a>
+instruction, except that rather than obtaining the index value
+from the stack, take it as the integer value given by <i>index_val</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_new1'></a>
+<p><hr><b>
+NEW1 (0xC0)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UBYTE <i>metaclass_id</i><br>
+
+<p>
+Stack without byte-code constructor:
+   ... <i>argumentN</i> ... <i>argument1</i> &rarr; ...
+
+<p>
+Stack with byte-code constructor: <i>same as </i><a href='#opc_callprop'>
+CALLPROP</a><i>, possibly
+with a subset of the arguments passed to the byte-code constructor, and
+the new object as self.</i>
+
+<p> Create a new object of the metaclass identified by the
+<i>metaclass_id</i>, passing to the metaclass constructor the
+argument count.  The metaclass constructor will read and remove
+arguments from the stack and initialize the object appropriately.
+Store a reference to the resulting object in data register 0 (R0).
+
+<p>Some types of metaclass will invoke a byte-code constructor for
+the new object.  If the object invokes a byte-code constructor, this
+instruction sets up a stack frame for the constructor in the same
+manner as for any other function call; the exact protocol is defined
+by the metaclass.  For example, the TADS Object metaclass uses the
+first argument to identify the new object's superclass, and invokes
+the new object's "construct" method, passing the remaining arguments
+as parameters to the method.
+
+<p>
+New objects need not initially be explicitly marked as referenced, even if
+a byte-code constructor is called.  In the event that garbage collection
+takes place during execution of the byte-code constructor, the object
+will be reachable through the stack (since the new object will be the
+"self" object for the purposes of the constructor) and hence will not
+be deleted during garbage collection.  In any other case, the new object
+will be stored in register R0 by the metaclass constructor
+and will thus be reachable.
+
+<p>
+The VM will store a reference to the new object in data register 0 (R0)
+after this instruction.  This means that, if no byte-code constructor
+is invoked, this instruction will look to the caller as though it had
+a return value equal to a reference to the new object.
+
+<p> The <i>metaclass_id</i> value does not directly identify the
+metaclass, but is simply an index into the metaclass dependency
+table.  The image file contains the metaclass dependency table, which
+establishes the correspondence between the <i>metaclass_id</i> index
+value and the actual metaclass, which the table identifies by a
+universally unique metaclass name.  Refer to the <a
+href='model.htm#metaclass_id'>metaclass ID list</a> for more
+information on the metaclass dependency table.
+
+<p>
+<b>Compiler note:</b> A byte-code constructor <i>must</i> return the
+"self" object.  Compilers must take care to generate byte-code
+for constructors accordingly.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_new2'></a>
+<p><hr><b>
+NEW2 (0xC1)
+</b><br>
+UINT2 <i>arg_count</i><br>
+UINT2 <i>metaclass_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_new1'>NEW1</a>
+
+<p> This instruction performs the same operation as <a
+href='#opc_new1'>NEW1</a>, but provides 16-bit values for the
+<i>metaclass_id</i> and <i>arg_count</i> values.  This form of the
+instruction can be used when one or both of these operands exceeds
+the 8-bit capacity of NEW1.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_trnew1'></a>
+<p><hr><b>
+TRNEW1 (0xC2)
+</b><br>
+UBYTE <i>arg_count</i><br>
+UBYTE <i>metaclass_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_new1'>NEW1</a>
+
+<p>This instruction performs the same operation as
+<a href='#opc_new1'>NEW1</a>, but the object created is
+<a href='model.htm#transient'>transient</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_trnew2'></a>
+<p><hr><b>
+TRNEW2 (0xC3)
+</b><br>
+UINT2 <i>arg_count</i><br>
+UINT2 <i>metaclass_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_new1'>NEW1</a>
+
+<p>This instruction performs the same operation as
+<a href='#opc_new1'>NEW2</a>, but the object created is
+<a href='model.htm#transient'>transient</a>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_inclcl'></a>
+<p><hr><b>
+INCLCL (0xD0)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Adds the integer 1 to the local variable at index <i>local_number</i>,
+using the same semantics as the <a href='#opc_add'>ADD</a> instruction.
+This instruction is intended as an optimization, especially for the
+case where the local contains an integer value; implementations are
+encouraged to check for this case and apply the increment in-place
+if doing so would be faster.
+
+<!-------------------------------------------------------------------->
+<a name='opc_new2'></a>
+<p><hr><b>
+NEW2 (0xC1)
+</b><br>
+UINT2 <i>arg_count</i><br>
+UINT2 <i>metaclass_id</i><br>
+<p>
+Stack: <i>same as </i><a href='#opc_new1'>NEW1</a>
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_declcl'></a>
+<p><hr><b>
+DECLCL (0xD1)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Subtracts the integer 1 from the local variable at index <i>local_number</i>,
+using the same semantics as the <a href='#opc_sub'>SUB</a> instruction.
+This instruction is intended as an optimization, especially for the
+case where the local contains an integer value; implementations are
+encouraged to check for this case and apply the decrement in-place
+if doing so would be faster.
+
+<!-------------------------------------------------------------------->
+<a name='opc_addilcl1'></a>
+<p><hr><b>
+ADDILCL1 (0xD2)
+</b><br>
+UBYTE <i>local_number</i><br>
+SBYTE <i>val</i>
+<p>
+Stack: <i>No change.</i>
+
+<p> Compute the result of adding <i>val</i>, a signed integer, to the
+value in the local variable at index <i>local_number</i>, using the
+same algorithm that the <a href='#opc_add'>ADD</a> instruction uses.
+Assign the result to the local variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_addilcl4'></a>
+<p><hr><b>
+ADDILCL4 (0xD3)
+</b><br>
+UINT2 <i>local_number</i><br>
+INT4 <i>val</i>
+<p>
+Stack: <i>No change.</i>
+
+<p> Compute the result of adding <i>val</i>, a signed integer, to the
+value in the local variable at index <i>local_number</i>, using the
+same algorithm that the <a href='#opc_add'>ADD</a> instruction uses.
+Assign the result to the local variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_addtolcl'></a>
+<p><hr><b>
+ADDTOLCL (0xD4)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>Pop the top element of the stack, calling the value <i>val</i>.
+Compute the result of adding <i>val</i> to the value in the local
+variable at index <i>local_number</i>, using the same algorithm that
+the <a href='#opc_add'>ADD</a> instruction uses.  Assign the result
+to the local variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_subfromlcl'></a>
+<p><hr><b>
+SUBFROMLCL (0xD5)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p> Pop the top element of the stack, calling the value <i>val</i>.
+Compute the result of subtracting <i>val</i> from the value in the
+local variable at index <i>local_number</i>, using the same algorithm
+that the <a href='#opc_sub'>SUB</a> instruction uses.  Assign the
+result to the local variable at index <i>local_number</i>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_zerolcl1'></a>
+<p><hr><b>
+ZEROLCL1 (0xD6)
+</b><br>
+UBYTE <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to zero.
+
+<!-------------------------------------------------------------------->
+<a name='opc_zerolcl2'></a>
+<p><hr><b>
+ZEROLCL2 (0xD7)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to zero.
+
+<!-------------------------------------------------------------------->
+<a name='opc_nillcl1'></a>
+<p><hr><b>
+NILLCL1 (0xD8)
+</b><br>
+UBYTE <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to nil.
+
+<!-------------------------------------------------------------------->
+<a name='opc_nillcl2'></a>
+<p><hr><b>
+NILLCL2 (0xD9)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to nil.
+
+<!-------------------------------------------------------------------->
+<a name='opc_onelcl1'></a>
+<p><hr><b>
+ONELCL1 (0xDA)
+</b><br>
+UBYTE <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to the numeric value 1.
+
+<!-------------------------------------------------------------------->
+<a name='opc_onelcl2'></a>
+<p><hr><b>
+ONELCL2 (0xDB)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+Sets the given local to the numeric value 1.
+
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setlcl1'></a>
+<p><hr><b>
+SETLCL1 (0xE0)
+</b><br>
+UBYTE <i>local_number</i>
+
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling the value <i>val</i>.
+Store the value in the local variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setlcl2'></a>
+<p><hr><b>
+SETLCL2 (0xE1)
+</b><br>
+UINT2 <i>local_number</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling the value <i>val</i>.
+Store the value in the local variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setarg1'></a>
+<p><hr><b>
+SETARG1 (0xE2)
+</b><br>
+UBYTE <i>arg_number</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling the value <i>val</i>.
+Store the value in the parameter variable at index <i>arg_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setarg2'></a>
+<p><hr><b>
+SETARG2 (0xE3)
+</b><br>
+UINT2 <i>arg_number</i>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling the value <i>val</i>.
+Store the value in the parameter variable at index <i>arg_number</i>.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setind'></a>
+<p><hr><b>
+SETIND (0xE4)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>newval</i> <i>container_val</i> <i>index_val</i> &rarr;
+     ... <i>new_container_val</i>
+
+<p>
+Pop the top element from the stack, calling the value <i>index_val</i>.
+Pop the next element from the stack, calling the value <i>container_val</i>.
+Pop the next element from the stack, calling the value <i>newval</i>.
+Check the type of <i>container_val</i>:
+
+<ul class=doublespace>
+<li>If <i>container_val</i> is of type list constant, check the type of
+<i>index_val</i>; if the value is not numeric, throw an error (NUM_VAL_REQD),
+otherwise convert the value to an integer.  Check the value to ensure
+that it's in the range 1 to the number of elements in the constant
+list, inclusive; throw an error (INDEX_OUT_OF_RANGE) if not.
+Create a new list object in which
+the element at index <i>index_val</i> (1 refers to the first element)
+from the original list is replaced by <i>newval</i>, and the other
+elements have the same values as their corresponding elements in the
+original list.  Push the resulting object.
+
+<li>If <i>container_val</i> is of type object, invoke the object's
+virtual (metaclass) "set value at index" method, passing
+<i>index_val</i> and <i>newval</i> as parameters.  Push the result.
+If the metaclass doesn't define a set-index method, try <a
+href="#opov">operator overloading</a> with the imported property
+symbol "operator []=".
+
+<li>If <i>container_val</i> is of any other type,
+throw an error (CANNOT_INDEX_TYPE).
+</ul>
+
+<p><b>Compiler note:</b> This instruction does only part of the job
+of compiling an assignment to an indexed value.  Consider this code
+in the TADS language:
+
+<p>
+<pre>
+    local x;
+    x = [1 2 3 4];
+    x[1] = 5;
+</pre>
+<p>
+The final statement sets element 1 of the list in local variable <b>x</b>
+to the value 5.  Because assignment to a list element does not actually
+change the original list value but creates a new list, compiling this
+statement requires two steps: first, the new list with the modified
+element is created; second, the new list is assigned to <b>x</b>.
+So, to compile this statement, the following sequence should be
+generated, assuming that <b>x</b> is local variable #1:
+
+<p>
+<pre>
+    pushint8   5     ; push the new value to assign to the element
+    getlcl1    1     ; get the value of x (local variable #1)
+    push_1           ; push the index value
+    setind           ; create and push the modified list value
+    setlcl1    1     ; assign the resulting value back to x
+</pre>
+<p>
+Note the order of the stack parameters.  The new value to assign to
+the element is popped last, hence pushed first.  In some languages
+(including the TADS language), the result of an assignment expression
+is the value assigned.  The order of the stack parameters to this
+instruction facilitates this by allowing the compiler to duplicate
+the new value on the stack after first pushing it, so that after the
+sequence of instructions for carrying out the assignment, one copy of
+the assigned value will remain on the stack for use in the enclosing
+expression.  In the example above, inserting a DUP instruction immediately
+after the PUSHINT8 5 instruction would accomplish this.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setprop'></a>
+<p><hr><b>
+SETPROP (0xE5)
+</b><br>
+UINT2 <i>prop_id</i><br>
+
+<p>
+Stack: ... <i>new_val</i> object(<i>obj</i>) &rarr; ...
+
+<p>
+Pop the top element of the stack, calling the value <i>obj</i>.
+Pop the next element of the stack, calling it <i>new_val</i>.
+Check that <i>obj</i> is of type object; throw an error (OBJ_VAL_REQD)
+if it's not.  Set the property <i>prop_id</i> of the object <i>obj</i>
+to the new value <i>new_val</i>, using the object's virtual "set property"
+method.
+
+<p>
+<b>Compiler note:</b> The new value parameter is the last item popped
+from the stack (hence the first pushed) so that the compiler can duplicate
+this value after originally pushing it if it's necessary to use the value
+again (for example, as the result of an assignment expression).
+
+<!-------------------------------------------------------------------->
+<a name='opc_ptrsetprop'></a>
+<p><hr><b>
+PTRSETPROP (0xE6)
+</b><br>
+<i>No operands.</i>
+
+<p>
+Stack: ... <i>new_val</i> object(<i>obj</i>) propid(<i>prop_id</i>) 
+   &rarr; ...
+
+<p>
+Pop the top element off the stack, calling the value <i>prop_id</i>.
+Pop the next element off the stack, calling this <i>obj</i>.
+Pop the next element off the stack, calling this value <i>new_val</i>.
+If <i>prop_id</i> is not of type property ID, throw an error
+(PROPPTR_VAL_REQD).  Proceed as with SETPROP, using the <i>prop_id</i>
+value from the stack rather than from immediate data.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setpropself'></a>
+<p><hr><b>
+SETPROPSELF (0xE7)
+</b><br>
+UINT2 <i>prop_id</i><br>
+
+<p>
+Stack: ... <i>new_val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling this value <i>new_val</i>.
+Proceed as with SETPROP, but use the "self" object rather than
+popping an object from the stack.
+
+<!-------------------------------------------------------------------->
+<a name='opc_objsetprop'></a>
+<p><hr><b>
+OBJSETPROP (0xE8)
+</b><br>
+UINT4 <i>obj</i><br>
+UINT2 <i>prop_id</i><br>
+
+<p>
+Stack: ... <i>new_val</i> &rarr; ...
+
+<p>
+Pop the top element of the stack, calling this value <i>new_val</i>.
+Proceed as with SETPROP, but use the object <i>obj</i> from the
+immediate data rather than popping an object from the stack.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setdblcl'></a>
+<p><hr><b>
+SETDBLCL (0xE9)
+</b><br>
+UINT2 <i>local_number</i><br>
+UINT2 <i>stack_level</i><br>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+<p>
+
+Set a debugger local: pop the top element of the stack, and store it
+in the given local variable at the given stack level.  This
+instruction is similar to <a href='#opc_setlcl2'>SETLCL2</a>, but
+rather than storing a value in a local in the active stack frame,
+this instruction stores a value in the <i>given</i> stack frame.  A
+stack_level value of 0 indicates the last active non-debug stack
+frame, 1 is the first enclosing frame (i.e., the frame that called
+the last active non-debug stack frame), 2 is the next enclosing frame
+(the frame that called level 1), and so on.  Note that if stack_level
+is 0, this has exactly the same effect as a <a
+href='#opc_setlcl2'>SETLCL2</a> instruction.
+
+<p>
+Refer to the <a href='#opc_getdblcl'>GETDBLCL</a> instruction for
+details on what stack_level means.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setdbarg'></a>
+<p><hr><b>
+SETDBARG (0xEA)
+</b><br>
+UINT2 <i>param_number</i><br>
+UINT2 <i>stack_level</i><br>
+<p>
+Stack: ... <i>val</i> &rarr; ...
+
+<p> Set a debugger argument.  This instruction works the same way as
+<a href='#opc_setdblcl'>SETDBLCL</a>, but stores the value in a
+parameter variable in the given stack frame rather than in a local
+variable.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setself'></a>
+<p><hr><b>
+SETSELF (0xEB)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>objval</i> &rarr; ...
+
+<p>
+Pop the top element of the stack.  If the value is not nil or an object
+reference, throw an error (OBJ_VAL_REQD).  Otherwise, set the "self"
+local variable in the current frame to the given value.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_loadctx'></a>
+<p><hr><b>
+LOADCTX (0xEC)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... <i>ctx_value</i> &rarr; ...
+
+<p> Pop the top element of the stack.  Interpret the value as a stored
+method context, as created by <a href='#opc_storectx'>STORECTX</a>.
+Copy the values from the stored context into the current activation
+frame.  This instruction allows code to re-establish a method context
+that was previously in effect.
+
+<!-------------------------------------------------------------------->
+<a name='opc_storectx'></a>
+<p><hr><b>
+STORECTX (0xED)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: ... &rarr; ... <i>ctx_value</i>
+
+<p> Create a "stored method context" and push its value onto the
+stack.  The method context consists of the current "self" object, the
+current "original target object" value, the current "defining object"
+value, and the current "target property" value.
+
+<p>The format for representing the stored context is left to the
+implementation, but the a couple of requirements must be met.  First,
+the values must be stored in such a way that they can be restored
+later with LOADCTX (this is, in fact, the only defined way for a
+program to use the stored context).  Second, the values must be stored
+in such a way that the referenced objects are recognized by the
+garbage collector as reachable as long as the context object itself is
+reachable.  Third, the values must be stored so that they are properly
+handled for saving state, restoring state, and undo.  A suggested
+implementation that meets these requirements is to create a List
+object and populate its elements with the method context values.
+
+<!-------------------------------------------------------------------->
+<a name='opc_setlcl1r0'></a>
+<p><hr><b>
+SETLCL1R0 (0xEE)
+</b><br>
+UBYTE <i>local_number</i>
+
+<p>
+Stack: <i>No change.</i>
+
+<p> Takes the value in register R0, and stores the value in the local
+variable at index <i>local_number</i>.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_setindlcl1i8'></a>
+<p><hr><b>
+SETINDLCL1I8 (0xEF)
+</b><br>
+UBYTE <i>local_number</i>
+UBYTE <i>index_val</i>
+
+<p>
+Stack: ... <i>newval</i> &rarr; ...
+
+<p> This instruction behaves like <a href='#opc_setind'>SETIND</a>,
+except that <i>container_val</i> is taken from the local variable
+indicated by <i>local_number</i>, and <i>index_val</i> is the integer
+given by <i>index_val</i>.  <i>newval</i> is still taken from the
+stack (and is the only value taken from the stack in this
+instruction).  Given these value substitutions, perform the same steps
+as performed by <i>SETIND</i>; however, at the final step, do <b>not</b>
+push the resulting new container value (<i>new_container_val</i>) onto
+the stack, but instead assign <i>new_container_val</i> to the local
+variable in <i>local_number</i>.
+
+<p> This instruction can be used for a more efficient encoding of
+an operation that assigns a value to an indexed element of the value
+in a local variable when the index is a small integer constant.
+
+
+<!-------------------------------------------------------------------->
+<a name='opc_bp'></a>
+<p><hr><b>
+BP (0xF1)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>No change.</i>
+
+<p> Breakpoint.  This instruction is included for the convenience of
+debugging tools.  When the VM encounters this instruction, it will
+invoke the debugger's main entrypoint, if a debugger is active.  If a
+debugger is <i>not</i> present, the VM throws an exception
+(BREAKPOINT) upon executing this instruction.
+
+<p> Compilers do not usually generate this instruction.  Instead,
+debuggers use this instruction to replace an actual instruction in a
+method at the point where the debugger wishes to take control
+(usually chosen by an interactive user: the user points to a location
+in the source code at which to place a breakpoint, and the debugger
+resolves this source location to a byte code location).  The debugger
+saves the original instruction in its own records, then overwrites the
+original instruction with the BP instruction.  The debugger then allows
+the VM to execute the program.  When the VM executes the BP instruction,
+it calls the debugger; the debugger find the breakpoint based on the
+byte code location, and might allow the user to inspect the machine
+state (such as local variables and object properties) before resuming
+execution.  The debugger must restore the original instruction (which
+was overwritten with the BP instruction) before proceeding.  (If the
+debugger wishes to re-establish the breakpoint, it must do this in a
+series of steps: restore the original instruction; step through a
+single instruction, to execute the original instruction; overwrite
+the original instruction again with the BP instruction, saving the
+original once again; and resume execution.)
+
+<!-------------------------------------------------------------------->
+<a name='opc_nop'></a>
+<p><hr><b>
+NOP (0xF2)
+</b><br>
+<i>No operands.</i>
+<p>
+Stack: <i>No change.</i>
+<p>
+NOP = "No Operation"; this instruction has no effect.  This opcode is
+included in the instruction set for the convenience of compilers and
+other tools that might need to insert padding into a byte code
+sequence.  This instruction provides a single byte of padding; it can
+always be inserted immediately before any other instruction without
+changing the meaning of a byte code sequence.
+
+
+<!-------------------------------------------------------------------->
+<p><hr><br>
+<a name='index_by_name'></a>
+<h3>Index to Instructions, Alphabetically by Mnemonic</h3>
+
+<p><table align=center>
+<tr>
+    <td><a href='#opc_add'>ADD</a>
+    <td><a href='#opc_addilcl1'>ADDILCL1</a>
+    <td><a href='#opc_addilcl4'>ADDILCL4</a>
+    <td><a href='#opc_addtolcl'>ADDTOLCL</a>
+<tr>
+    <td><a href='#opc_ashr'>ASHR</a>
+    <td><a href='#opc_band'>BAND</a>
+    <td><a href='#opc_bnot'>BNOT</a>
+    <td><a href='#opc_boolize'>BOOLIZE</a>
+<tr>
+    <td><a href='#opc_bor'>BOR</a>
+    <td><a href='#opc_bp'>BP</a>
+    <td><a href='#opc_builtin_a'>BUILTIN_A</a>
+    <td><a href='#opc_builtin_b'>BUILTIN_B</a>
+<tr>
+    <td><a href='#opc_builtin_c'>BUILTIN_C</a>
+    <td><a href='#opc_builtin_d'>BUILTIN_D</a>
+    <td><a href='#opc_builtin1'>BUILTIN1</a>
+    <td><a href='#opc_builtin2'>BUILTIN2</a>
+<tr>
+    <td><a href='#opc_call'>CALL</a>
+    <td><a href='#opc_callext'>CALLEXT</a>
+    <td><a href='#opc_callprop'>CALLPROP</a>
+    <td><a href='#opc_callproplcl1'>CALLPROPLCL1</a>
+<tr>
+    <td><a href='#opc_callpropr0'>CALLPROPR0</a>
+    <td><a href='#opc_callpropself'>CALLPROPSELF</a>
+    <td><a href='#opc_dec'>DEC</a>
+    <td><a href='#opc_declcl'>DECLCL</a>
+<tr>
+    <td><a href='#opc_delegate'>DELEGATE</a>
+    <td><a href='#opc_disc'>DISC</a>
+    <td><a href='#opc_disc1'>DISC1</a>
+    <td><a href='#opc_div'>DIV</a>
+<tr>
+    <td><a href='#opc_dup'>DUP</a>
+    <td><a href='#opc_dup'>DUP2</a>
+    <td><a href='#opc_eq'>EQ</a>
+    <td><a href='#opc_expinherit'>EXPINHERIT</a>
+<tr>
+    <td><a href='#opc_ge'>GE</a>
+    <td><a href='#opc_getarg1'>GETARG1</a>
+    <td><a href='#opc_getarg2'>GETARG2</a>
+    <td><a href='#opc_getargc'>GETARGC</a>
+<tr>
+    <td><a href='#opc_getargn0'>GETARGN0</a>
+    <td><a href='#opc_getargn1'>GETARGN1</a>
+    <td><a href='#opc_getargn2'>GETARGN2</a>
+    <td><a href='#opc_getargn3'>GETARGN3</a>
+<tr>
+    <td><a href='#opc_getdbarg'>GETDBARG</a>
+    <td><a href='#opc_getdbargc'>GETDBARGC</a>
+    <td><a href='#opc_getdblcl'>GETDBLCL</a>
+    <td><a href='#opc_getlcl1'>GETLCL1</a>
+<tr>
+    <td><a href='#opc_getlcl2'>GETLCL2</a>
+    <td><a href='#opc_getlcln0'>GETLCLN0</a>
+    <td><a href='#opc_getlcln1'>GETLCLN1</a>
+    <td><a href='#opc_getlcln2'>GETLCLN2</a>
+<tr>
+    <td><a href='#opc_getlcln3'>GETLCLN3</a>
+    <td><a href='#opc_getlcln4'>GETLCLN4</a>
+    <td><a href='#opc_getlcln5'>GETLCLN5</a>
+    <td><a href='#opc_getprop'>GETPROP</a>
+<tr>
+    <td><a href='#opc_getpropdata'>GETPROPDATA</a>
+    <td><a href='#opc_getproplcl1'>GETPROPLCL1</a>
+    <td><a href='#opc_getpropr0'>GETPROPR0</a>
+    <td><a href='#opc_getpropself'>GETPROPSELF</a>
+<tr>
+    <td><a href='#opc_getr0'>GETR0</a>
+    <td><a href='#opc_getspn'>GETSPN</a>
+    <td><a href='#opc_gt'>GT</a>
+    <td><a href='#opc_inc'>INC</a>
+<tr>
+    <td><a href='#opc_inclcl'>INCLCL</a>
+    <td><a href='#opc_index'>INDEX</a>
+    <td><a href='#opc_idxint8'>IDXINT8</a>
+    <td><a href='#opc_idxlcl1int8'>IDXLCL1INT8</a>
+<tr>
+    <td><a href='#opc_inherit'>INHERIT</a>
+    <td><a href='#opc_je'>JE</a>
+    <td><a href='#opc_jf'>JF</a>
+    <td><a href='#opc_jge'>JGE</a>
+<tr>
+    <td><a href='#opc_jgt'>JGT</a>
+    <td><a href='#opc_jle'>JLE</a>
+    <td><a href='#opc_jlt'>JLT</a>
+    <td><a href='#opc_jmp'>JMP</a>
+<tr>
+    <td><a href='#opc_jne'>JNE</a>
+    <td><a href='#opc_jnil'>JNIL</a>
+    <td><a href='#opc_jnotnil'>JNOTNIL</a>
+    <td><a href='#opc_jr0f'>JR0F</a>
+<tr>
+    <td><a href='#opc_jr0t'>JR0T</a>
+    <td><a href='#opc_jsf'>JSF</a>
+    <td><a href='#opc_jst'>JST</a>
+    <td><a href='#opc_jt'>JT</a>
+<tr>
+    <td><a href='#opc_le'>LE</a>
+    <td><a href='#opc_lshr'>LSHR</a>
+    <td><a href='#opc_lt'>LT</a>
+    <td><a href='#opc_ljsr'>LJSR</a>
+<tr>
+    <td><a href='#opc_loadctx'>LOADCTX</a>
+    <td><a href='#opc_lret'>LRET</a>
+    <td><a href='#opc_makelstpar'>MAKELSTPAR</a>
+    <td><a href='#opc_mod'>MOD</a>
+<tr>
+    <td><a href='#opc_mul'>MUL</a>
+    <td><a href="#opc_namedargptr">NAMEDARGPTR</a>
+    <td><a href="#opc_namedargtab">NAMEDARGTAB</a>
+    <td><a href='#opc_ne'>NE</a>
+<tr>
+    <td><a href='#opc_neg'>NEG</a>
+    <td><a href='#opc_new1'>NEW1</a>
+    <td><a href='#opc_new2'>NEW2</a>
+    <td><a href='#opc_nillcl1'>NILLCL1</a>
+<tr>
+    <td><a href='#opc_nillcl2'>NILLCL2</a>
+    <td><a href='#opc_nop'>NOP</a>
+    <td><a href='#opc_not'>NOT</a>
+    <td><a href='#opc_objcallprop'>OBJCALLPROP</a>
+<tr>
+    <td><a href='#opc_objgetprop'>OBJGETPROP</a>
+    <td><a href='#opc_objsetprop'>OBJSETPROP</a>
+    <td><a href='#opc_onelcl1'>ONELCL1</a>
+    <td><a href='#opc_onelcl2'>ONELCL2</a>
+<tr>
+    <td><a href='#opc_ptrcall'>PTRCALL</a>
+    <td><a href='#opc_ptrcallprop'>PTRCALLPROP</a>
+    <td><a href='#opc_ptrcallpropself'>PTRCALLPROPSELF</a>
+    <td><a href='#opc_ptrdelegate'>PTRDELEGATE</a>
+<tr>
+    <td><a href='#opc_ptrexpinherit'>PTREXPINHERIT</a>
+    <td><a href='#opc_ptrgetpropdata'>PTRGETPROPDATA</a>
+    <td><a href='#opc_ptrinherit'>PTRINHERIT</a>
+    <td><a href='#opc_ptrsetprop'>PTRSETPROP</a>
+<tr>
+    <td><a href='#opc_pushbifptr'>PUSHBIFPTR</a>
+    <td><a href='#opc_pushctxele'>PUSHCTXELE</a>
+    <td><a href='#opc_pushenum'>PUSHENUM</a>
+    <td><a href='#opc_pushfnptr'>PUSHFNPTR</a>
+<tr>
+    <td><a href='#opc_pushint'>PUSHINT</a>
+    <td><a href='#opc_pushint8'>PUSHINT8</a>
+    <td><a href='#opc_pushlst'>PUSHLST</a>
+    <td><a href='#opc_pushnil'>PUSHNIL</a>
+<tr>
+    <td><a href='#opc_pushobj'>PUSHOBJ</a>
+    <td><a href='#opc_pushparlst'>PUSHPARLST</a>
+    <td><a href='#opc_pushpropid'>PUSHPROPID</a>
+    <td><a href='#opc_pushself'>PUSHSELF</a>
+<tr>
+    <td><a href='#opc_pushstr'>PUSHSTR</a>
+    <td><a href='#opc_pushstri'>PUSHSTRI</a>
+    <td><a href='#opc_pushtrue'>PUSHTRUE</a>
+    <td><a href='#opc_push_0'>PUSH_0</a>
+<tr>
+    <td><a href='#opc_push_1'>PUSH_1</a>
+    <td><a href='#opc_ret'>RET</a>
+    <td><a href='#opc_retnil'>RETNIL</a>
+    <td><a href='#opc_rettrue'>RETTRUE</a>
+<tr>
+    <td><a href='#opc_retval'>RETVAL</a>
+    <td><a href='#opc_say'>SAY</a>
+    <td><a href='#opc_say'>SAYVAL</a>
+    <td><a href='#opc_setarg1'>SETARG1</a>
+<tr>
+    <td><a href='#opc_setarg2'>SETARG2</a>
+    <td><a href='#opc_setdbarg'>SETDBARG</a>
+    <td><a href='#opc_setdblcl'>SETDBLCL</a>
+    <td><a href='#opc_setind'>SETIND</a>
+<tr>
+    <td><a href='#opc_setindlcl1i8'>SETINDLCL1I8</a>
+    <td><a href='#opc_setlcl1'>SETLCL1</a>
+    <td><a href='#opc_setlcl1r0'>SETLCL1R0</a>
+    <td><a href='#opc_setlcl2'>SETLCL2</a>
+<tr>
+    <td><a href='#opc_setprop'>SETPROP</a>
+    <td><a href='#opc_setpropself'>SETPROPSELF</a>
+    <td><a href='#opc_setself'>SETSELF</a>
+    <td><a href='#opc_shl'>SHL</a>
+<tr>
+    <td><a href='#opc_swap'>SWAP</a>
+    <td><a href='#opc_storectx'>STORECTX</a>
+    <td><a href='#opc_sub'>SUB</a>
+    <td><a href='#opc_subfromlcl'>SUBFROMLCL</a>
+<tr>
+    <td><a href='#opc_trnew1'>TRNEW1</a>
+    <td><a href='#opc_swap2'>SWAP2</a>
+    <td><a href='#opc_swapn'>SWAPN</a>
+    <td><a href='#opc_switch'>SWITCH</a>
+<tr>
+    <td><a href='#opc_xor'>XOR</a>
+    <td><a href='#opc_trnew2'>TRNEW2</a>
+    <td><a href='#opc_throw'>THROW</a>
+    <td><a href='#opc_varargc'>VARARGC</a>
+<tr>
+    <td><a href='#opc_zerolcl1'>ZEROLCL1</a>
+    <td><a href='#opc_zerolcl2'>ZEROLCL2</a>
+</table>
+
+
+
+<!-------------------------------------------------------------------->
+<p><hr><br>
+<a name='index_by_cat'></a>
+<h3>Index to Instructions, Arranged by Category</h3>
+
+<h4>Arithmetic</h4>
+<blockquote>
+    <a href='#opc_add'>ADD</a><br>
+    <a href='#opc_addilcl1'>ADDILCL1</a><br>
+    <a href='#opc_addilcl4'>ADDILCL4</a><br>
+    <a href='#opc_addtolcl'>ADDTOLCL</a><br>
+    <a href='#opc_ashr'>ASHR</a><br>
+    <a href='#opc_dec'>DEC</a><br>
+    <a href='#opc_declcl'>DECLCL</a><br>
+    <a href='#opc_div'>DIV</a><br>
+    <a href='#opc_inc'>INC</a><br>
+    <a href='#opc_inclcl'>INCLCL</a><br>
+    <a href='#opc_lshr'>LSHR</a><br>
+    <a href='#opc_mod'>MOD</a><br>
+    <a href='#opc_mul'>MUL</a><br>
+    <a href='#opc_neg'>NEG</a><br>
+    <a href='#opc_shl'>SHL</a><br>
+    <a href='#opc_sub'>SUB</a><br>
+    <a href='#opc_subfromlcl'>SUBFROMLCL</a><br>
+    <a href='#opc_xor'>XOR</a><br>
+</blockquote>
+
+<h4>Bitwise Operations</h4>
+<blockquote>
+    <a href='#opc_band'>BAND</a><br>
+    <a href='#opc_bnot'>BNOT</a><br>
+    <a href='#opc_bor'>BOR</a><br>
+</blockquote>
+
+<h4>Comparisons</h4>
+<blockquote>
+    <a href='#opc_eq'>EQ</a><br>
+    <a href='#opc_ge'>GE</a><br>
+    <a href='#opc_gt'>GT</a><br>
+    <a href='#opc_le'>LE</a><br>
+    <a href='#opc_lt'>LT</a><br>
+    <a href='#opc_ne'>NE</a><br>
+</blockquote>
+
+<h4>Logical Operations</h4>
+<blockquote>
+    <a href='#opc_boolize'>BOOLIZE</a><br>
+    <a href='#opc_not'>NOT</a><br>
+</blockquote>
+
+<h4>Debugging</h4>
+<blockquote>
+    <a href='#opc_bp'>BP</a><br>
+    <a href='#opc_getdbarg'>GETDBARG</a><br>
+    <a href='#opc_getdbargc'>GETDBARGC</a><br>
+    <a href='#opc_getdblcl'>GETDBLCL</a><br>
+    <a href='#opc_pushstri'>PUSHSTRI</a><br>
+    <a href='#opc_setdbarg'>SETDBARG</a><br>
+    <a href='#opc_setdblcl'>SETDBLCL</a><br>
+</blockquote>
+
+<h4>Intrinsic Function Calls</h4>
+<blockquote>
+    <a href='#opc_builtin_a'>BUILTIN_A</a><br>
+    <a href='#opc_builtin_b'>BUILTIN_B</a><br>
+    <a href='#opc_builtin_c'>BUILTIN_C</a><br>
+    <a href='#opc_builtin_d'>BUILTIN_D</a><br>
+    <a href='#opc_builtin1'>BUILTIN1</a><br>
+    <a href='#opc_builtin2'>BUILTIN2</a><br>
+    <a href='#opc_say'>SAY</a><br>
+    <a href='#opc_sayval'>SAYVAL</a><br>
+</blockquote>
+
+<h4>External Function Calls</h4>
+<blockquote>
+    <a href='#opc_callext'>CALLEXT</a><br>
+</blockquote>
+
+<h4>Function Calls</h4>
+<blockquote>
+    <a href='#opc_call'>CALL</a><br>
+</blockquote>
+
+<h4>Object Method Calls</h4>
+<blockquote>
+    <a href='#opc_callprop'>CALLPROP</a><br>
+    <a href='#opc_callproplcl1'>CALLPROPLCL1</a><br>
+    <a href='#opc_callpropr0'>CALLPROPR0</a><br>
+    <a href='#opc_callpropself'>CALLPROPSELF</a><br>
+    <a href='#opc_delegate'>DELEGATE</a><br>
+    <a href='#opc_expinherit'>EXPINHERIT</a><br>
+    <a href='#opc_getprop'>GETPROP</a><br>
+    <a href='#opc_getpropdata'>GETPROPDATA</a><br>
+    <a href='#opc_getproplcl1'>GETPROPLCL1</a><br>
+    <a href='#opc_getpropr0'>GETPROPR0</a><br>
+    <a href='#opc_getpropself'>GETPROPSELF</a><br>
+    <a href='#opc_inherit'>INHERIT</a><br>
+    <a href='#opc_objcallprop'>OBJCALLPROP</a><br>
+    <a href='#opc_objgetprop'>OBJGETPROP</a><br>
+    <a href='#opc_objsetprop'>OBJSETPROP</a><br>
+    <a href='#opc_ptrcall'>PTRCALL</a><br>
+    <a href='#opc_ptrcallprop'>PTRCALLPROP</a><br>
+    <a href='#opc_ptrcallpropself'>PTRCALLPROPSELF</a><br>
+    <a href='#opc_ptrdelegate'>PTRDELEGATE</a><br>
+    <a href='#opc_ptrexpinherit'>PTREXPINHERIT</a><br>
+    <a href='#opc_ptrgetpropdata'>PTRGETPROPDATA</a><br>
+    <a href='#opc_ptrinherit'>PTRINHERIT</a><br>
+</blockquote>
+
+<h4>Stack Manipulation</h4>
+<blockquote>
+    <a href='#opc_disc'>DISC</a><br>
+    <a href='#opc_disc1'>DISC1</a><br>
+    <a href='#opc_dup'>DUP</a><br>
+    <a href='#opc_dup2'>DUP2</a><br>
+    <a href='#opc_getspn'>GETSPN</a><br>
+    <a href='#opc_swap'>SWAP</a><br>
+    <a href='#opc_swap2'>SWAP2</a><br>
+    <a href='#opc_swapn'>SWAPN</a><br>
+</blockquote>
+
+<h4>List Manipulation</h4>
+<blockquote>
+    <a href='#opc_index'>INDEX</a><br>
+    <a href='#opc_idxint8'>IDXINT8</a><br>
+    <a href='#opc_idxlcl1int8'>IDXLCL1INT8</a><br>
+</blockquote>
+
+<h4>Branching</h4>
+<blockquote>
+    <a href='#opc_je'>JE</a><br>
+    <a href='#opc_jf'>JF</a><br>
+    <a href='#opc_jge'>JGE</a><br>
+    <a href='#opc_jgt'>JGT</a><br>
+    <a href='#opc_jle'>JLE</a><br>
+    <a href='#opc_jlt'>JLT</a><br>
+    <a href='#opc_jmp'>JMP</a><br>
+    <a href='#opc_jne'>JNE</a><br>
+    <a href='#opc_jnil'>JNIL</a><br>
+    <a href='#opc_jnotnil'>JNOTNIL</a><br>
+    <a href='#opc_jr0f'>JR0F</a><br>
+    <a href='#opc_jr0t'>JR0T</a><br>
+    <a href='#opc_jsf'>JSF</a><br>
+    <a href='#opc_jst'>JST</a><br>
+    <a href='#opc_jt'>JT</a><br>
+    <a href='#opc_ljsr'>LJSR</a><br>
+    <a href='#opc_lret'>LRET</a><br>
+    <a href='#opc_switch'>SWITCH</a><br>
+</blockquote>
+
+<h4>Function Return</h4>
+<blockquote>
+    <a href='#opc_ret'>RET</a><br>
+    <a href='#opc_retnil'>RETNIL</a><br>
+    <a href='#opc_rettrue'>RETTRUE</a><br>
+    <a href='#opc_retval'>RETVAL</a><br>
+</blockquote>
+
+<h4>Exceptions</h4>
+<blockquote>
+    <a href='#opc_throw'>THROW</a><br>
+</blockquote>
+
+<h4>Object Creation</h4>
+<blockquote>
+    <a href='#opc_new1'>NEW1</a><br>
+    <a href='#opc_new2'>NEW2</a><br>
+    <a href='#opc_trnew1'>TRNEW1</a><br>
+    <a href='#opc_trnew2'>TRNEW2</a><br>
+</blockquote>
+
+<h4>Value Retrieval</h4>
+<blockquote>
+    <a href='#opc_getarg1'>GETARG1</a><br>
+    <a href='#opc_getarg2'>GETARG2</a><br>
+    <a href='#opc_getargc'>GETARGC</a><br>
+    <a href='#opc_getlcl1'>GETLCL1</a><br>
+    <a href='#opc_getlcl2'>GETLCL2</a><br>
+    <a href='#opc_getr0'>GETR0</a><br>
+    <a href='#opc_makelstpar'>MAKELSTPAR</a><br>
+    <a href='#opc_pushbifptr'>PUSHBIFPTR</a><br>
+    <a href='#opc_pushctxele'>PUSHCTXELE</a><br>
+    <a href='#opc_pushenum'>PUSHENUM</a><br>
+    <a href='#opc_pushfnptr'>PUSHFNPTR</a><br>
+    <a href='#opc_pushint'>PUSHINT</a><br>
+    <a href='#opc_pushint8'>PUSHINT8</a><br>
+    <a href='#opc_pushlst'>PUSHLST</a><br>
+    <a href='#opc_pushnil'>PUSHNIL</a><br>
+    <a href='#opc_pushobj'>PUSHOBJ</a><br>
+    <a href='#opc_pushparlst'>PUSHPARLST</a><br>
+    <a href='#opc_pushpropid'>PUSHPROPID</a><br>
+    <a href='#opc_pushself'>PUSHSELF</a><br>
+    <a href='#opc_pushstr'>PUSHSTR</a><br>
+    <a href='#opc_pushtrue'>PUSHTRUE</a><br>
+    <a href='#opc_push_0'>PUSH_0</a><br>
+    <a href='#opc_push_1'>PUSH_1</a><br>
+</blockquote>
+
+<h4>Value Storage</h4>
+<blockquote>
+    <a href='#opc_nillcl1'>NILLCL1</a><br>
+    <a href='#opc_nillcl2'>NILLCL2</a><br>
+    <a href='#opc_onelcl1'>ONELCL1</a><br>
+    <a href='#opc_onelcl2'>ONELCL2</a><br>
+    <a href='#opc_ptrsetprop'>PTRSETPROP</a><br>
+    <a href='#opc_setarg1'>SETARG1</a><br>
+    <a href='#opc_setarg2'>SETARG2</a><br>
+    <a href='#opc_setind'>SETIND</a><br>
+    <a href='#opc_setindlcl1i8'>SETINDLCL1I8</a><br>
+    <a href='#opc_setlcl1'>SETLCL1</a><br>
+    <a href='#opc_setlcl1r0'>SETLCL1R0</a><br>
+    <a href='#opc_setlcl2'>SETLCL2</a><br>
+    <a href='#opc_setprop'>SETPROP</a><br>
+    <a href='#opc_setpropself'>SETPROPSELF</a><br>
+    <a href='#opc_setself'>SETSELF</a><br>
+    <a href='#opc_zerolcl1'>ZEROLCL1</a><br>
+    <a href='#opc_zerolcl2'>ZEROLCL2</a><br>
+</blockquote>
+
+<h4>Miscellaneous</h4>
+<blockquote>
+    <a href='#opc_loadctx'>LOADCTX</a><br>
+    <a href='#opc_nop'>NOP</a><br>
+    <a href='#opc_storectx'>STORECTX</a><br>
+</blockquote>
+
+<h4>Modifiers</h4>
+<blockquote>
+    <a href='#opc_varargc'>VARARGC</a><br>
+    <a href='#opc_namedargptr'>NAMEDARGPTR</a><br>
+    <a href='#opc_namedargtab'>NAMEDARGTAB</a><br>
+</blockquote>
+
+
+<!-------------------------------------------------------------------->
+<div class=t3spec_version>
+Copyright &copy; 2001, 2009 by Michael J. Roberts.<br>
+Revision: December, 2009
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Byte-Code Instruction Set
+<br><span class="navnp"><a class="nav" href="metacl.htm"><i>Prev:</i> The Metaclasses</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="format.htm"><i>Next:</i> Image File Format</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

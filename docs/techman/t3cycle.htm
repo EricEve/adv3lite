@@ -1,0 +1,306 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The Command Execution Cycle</title>
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
+The Command Execution Cycle
+<br><span class="navnp"><a class="nav" href="t3banish.htm"><i>Prev:</i> Banishing (and Changing) Awkward Messages</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3transcript.htm"><i>Next:</i> Manipulating the Transcript</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>The Command Execution Cycle</h1>
+
+
+<p><i>by Eric Eve</i>
+
+<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3  library (the standard library for TADS 3 games) is pretty complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
+<p>To detail every single by-way and wrinkle of the command execution cycle would probably be more confusing than helpful, concealing the main contours of the process behind a mass of not particularly interesting detail. In this article we shall therefore simplify some of the processes involved, so that the usual course of events stands out, unencumbered by a plethora of potential exceptions. If you want the complete picture, you'll have to examine the library source code (some links to which are given as appropriate) and try to puzzle it out!</p>
+<p>The command execution cycle is, if not a series of wheels within wheels, at least cycles within cycles or subroutines within subroutines. In an attempt to make this less confusing and more easy to follow, we shall try to follow the main line of execution one level at a time. We'll start by giving an overview of the main scheduling loop that runs each turn, and then trace the execution of a player's command piece by piece.</p>
+<p>Much of the execution of a command that has been successfully parsed (to the point where any objects involved have been resolved) is carried out by the <a href='#doActionOnce'>doActionOnce()</a> method, which also calls the majority of the most commonly customized routines. Many readers (especially first-time readers) may therefore prefer to skip straight to that part of the article rather than trying to take in all the preceding material.</p> 
+<br>
+
+<h2>Top Level Loop &ndash; runScheduler</h2>
+
+<p>The top-level loop controlling each turn of a TADS 3 game is controlled by the global function runScheduler(), defined in <a href='../libref/source/events.t.html#16'>events.t</a>. This sorts all the Schedulable objects in the game into ascending scheduleOrder, and then executes the executeTurn() of each in turn, providing the game time has reached the time at which they're ready to execute. The process is complicated slightly by various forms of error checking that can result, for example, in the game being terminated.</p>
+<p>The normal procedure is that executeTurn() will first be run on all the actors, and then on the eventManager object, which will in turn execute all pending Fuses and Daemons.</p>
+<p>Among the actors, the order of priority for execution is:</p>
+<ol>
+<li>player character, ready to execute</li>
+<li>NPC, ready to execute</li>
+<li>player character, idle</li>
+<li>NPC, idle</li>
+</ol>
+<p>Normally, the player character is ready to execute, and the player character's turn will consist of reading and executing a new command (see <a href='#pcturn'>below</a>). Any NPCs with pending commands will then execute them, following which the idleTurn() method of all the other NPCs will execute; this in turn calls the takeTurn() method on their current ActorStates (after checking for any pending conversation the NPC has been scheduled to initiate).</p>
+<p>Once all the actors have taken their turn, the eventManager will execute all pending Fuses and Daemons, in the order of their eventOrder property; the lower the numerical value of this property, the earlier the Fuse or Daemon will be executed; the default value is 100.</p>
+
+<p>In all this, the process likely to be of most interest to game authors is the reading and executing of a player's command. This is what we'll look at next.</p>
+
+<br>
+<h2><a name='pcturn'>The Player Character's Turn</a></h2>
+<p>As mentioned above, the runScheduler method starts by calling <a href='../libref/source/actor.t.html#8850'>executeTurn</a> on each actor. From now on we shall concentrate on what happens when this is called on the Player Character. The brief version is that the game first reads a player's command and then executes it. Let's now try to unpack that a little.</p>
+<p>Basically, all executeCommand does is set up an appropriate sense context (so we don't get reports of what NPCs are doing when they can't be seen) and then calls <a href='../libref/source/actor.t.html#8886'>executeActorTurn()</a>.</p>
+<p>The first thing executeActorTurn() does is deliver any pending messages from the parser that couldn't be delivered previously for lack of a sense path; this is only likely to occur if the PC issues a command to an NPC but can't hear the reply.</p>
+<p>If the actor is the player character (as we're assuming) and the player character has no command pending (as will normally be the case), Actor.executeActorCommand() next reads a player command. This is carried out by the function <a href='../libref/source/input.t.html#949'>readMainCommandTokens()</a>, which basically (a) reads the command, (b) then filters the command through all the StringPreParsers, (c) tokenizes the command and returns the tokens or (d) throws an exception in the event of an invalid token being found. The first step, reading the command, is in turn carried out by <a href='../libref/source/input.t.html#712'>readMainCommand()</a>, which basically executes any active PromptDaemons, displays a command prompt, waits for the player to enter a command, and then returns the command entered. Schematically, this may be expressed thus:</p>
+<ol>
+<li>readMainCommandTokens() &mdash; read the command:
+<ol>
+<li>execute active PromptDaemons</li>
+<li>display command prompt</li>
+<li>wait for player input</i>
+<li>return the string the player inputs</li>
+</ol></li>
+<li>filter the string returned through all StringPreParsers; if any of these returns nil, stop here (since this would mean the StringPreParser had fully dealt with the command)</li>
+<li>tokenize the string (i.e. convert the string entered by the player and adjusted by the StringPreParsers into a list of tokens).</li>
+<li>if tokenizing produced an error, throw an error and abort the command.</li>
+<li>otherwise, return the list of tokens.
+</ol>
+<p>There are thus two places where game authors can most easily (and usefully) affect this part of the process:</p>
+<ul>
+<li>By defining one or more PromptDaemons (using the statement new PromptDaemon or new OneTimePromptDaemon), which will be executed just before a prompt is displayed. This can be useful for displaying a message which you want shown right at the end of the previous turn, for example.</li>
+<li>By defining one or more StringPreParsers (normally defined as static objects), the doParsing() method of which can alter the string input by the player in any way desired before the string is tokenized and executed as a command. This can be useful for all sorts of purposes, for example stripping all question-marks out of a command, or trapping common newbie errors.</li>
+</ul>
+<p>Once the player's command is tokenized, it is added to the queue, and then the next item in the queue is pulled off the queue to be executed. This normally results in the execution of the command just entered. Provided there is a command to be executed, the nonIdleTurn() method is first called on the actor (normally the player character). The method PendingCommandToks.executePending() is then invoked on the current command information. This in turn results in calling the function <a href='../libref/source/exec.t.html#10'>executeCommand()</a>, which first parses the tokens and then executes the resulting action. In the next sections, we shall look at both of these steps in turn.</p>
+<br>
+<h2><a name='parsing'>Parsing the Player's Command</a></h2>
+<p>The main parsing loop is contained in <a href='../libref/source/exec.t.html#10'>executeCommand()</a>. The first thing this function does is to set things up ready for parsing. Then the main parsing operation begins. The purpose of this is first of all to match what the player typed (as adjusted by any StringPreParsers that may have intervened) to a particular Action. The idea is to match the basic <i>pattern</i> of what the player typed to the grammar of the Action it bests fits; for example, if the player's command is of the form PUT X IN Y, this part of the parsing cycle should match PutInAction.</p>
+<p>Various things can complicate this process. The command may be directed towards another actor (e.g. BOB, PUT RED BALL IN BOX), or the player may have entered several commands at once (e.g. PUT RED BALL IN BOX, TAKE BOX, GO NORTH); the parsing loop also has to cope with these possibilities.</p>
+<p>Once the parsing loop has done its job, and an Action has been identified, the executeAction() function is then called to actually carry out the command. Any command tokens left over are then added to the actor's pending command queue to be pulled out an executed subsequently.</p>
+<p>The full details of this process are far too complex to go into here, and most game authors will not usually either want or need to know about them. Here we shall give a vastly simplified account. If you're reading this article for the first time you may want to skip even this simplified account and go straight to the <a href='#execCmd'>next section</a>.</p>
+<p>The routine begins by constructing a list of possible matches to the command entered. This list is then filtered to exclude matches that fit the grammatical rules of sentence construction but which make no sense because of the specific constraints of the verbs involved (this is more likely to be relevant in languages other than English).</p>
+<p>It's possible that we may end up with an empty list, in which case the command has not been understood. In this case the routine identifies the target actor (normally the player character) and then runs the <a href='../libref/source/parser.t.html#4225'>tryOops()</a> function to display an error message and give the player a chance to correct a typo. The message normally displayed in this situation is defined in playerMessage.askUnknownWord(), which in turn displays libMessages.oopsNote() the first time round to explain the OOPS command. Either or both of the messages could be customized if desired. After displaying the Oops message the routine next checks the SpecialTopic history to check if a SpecialTopic has been entered in the wrong context. If that isn't the problem, the routine instead displays a message indicating that the command was not understood. This normally results in displaying the message defined in playerMessages.commandNotUnderstood() (via a call to notifyParseFailure() on the target actor). If a command was directed to an NPC, and that NPC had a different message object defined, commandNotUnderstood() would be called on that instead.</p>
+<p>In the normal case, however, the list should not be empty. In that case the list is sorted (via a call to <a href='../libref/source/parser.t.html#5830'>CommandRanking.sortByRanking()</a>), and the top-ranking command interpretation is selected as the match. Any tokens not used for the match (if multiple commands were entered on the same line) are then stored for a subsequent parsing loop. The next task is to check if the command was directed to another actor, and if so resolve that actor so that the command can be directed to that NPC. If (as is by far the most common case) the command was not directed to another actor, it is to be carried out by the player character.</p>
+<p>The routine next checks for any unknown words in the best match; if there are any and it can't resolve them, the Oops message is printed and the cycle ends there (the player being prompted to enter a new command).</p>
+<p>If, on the other hand, the command appears okay up to this point, the routine now tries to execute it via a call to the function executeAction() (which we shall look at in the <a href='#execCmd'>next section</a>). This is the normal course of events for a valid command.</p>
+<p>Finally, any stored leftover tokens (see above) unused for the current command are put back in the actor's queue for subsequent execution.</p>
+<p>Few game authors will want to modify this process, and there are few places where it is useful to intervene, apart, perhaps, from customizing some of the error messages. The normal method by which game authors influence this part of the parsing process is by defining, modifying or replacing VerbRules (for further details of these, see the article on <a href='t3verb.htm'>How to Create Verbs</a>). Note that game authors have some control on how these are matched by attaching a 'badness' value to VerbRules which should be given a lower priority. For example the standard library defines:</p>
+<p><pre>
+VerbRule(PutInWhat)
+    [badness 500] ('put' | 'place') dobjList
+    : PutInAction
+    verbPhrase = 'put/putting (what) (in what)'
+    construct()
+    {
+        /* set up the empty indirect object phrase */
+        iobjMatch = new EmptyNounPhraseProd();
+        iobjMatch.responseProd = inSingleNoun;
+    }
+;
+</pre></p>
+<p>This matches commands of the form PUT X and causes the parser to prompt with "What do you want to put the X in". But we want to make sure it does not match commands of the form PUT X IN Y by taking X IN Y to be a noun phrase. For example if the player types PUT BALL IN BOX we don't want the parser to respond with "What do you want to put the ball in box in?". Giving this VerbRule a badness of 500 ensures that VerbRule(PutInWhat) is only matched if we can't match the preferable VerbRule(PutIn).</p>
+<p>The other point that may be useful to game authors is that the function executeCommand() can be used to execute a command given a string containing the command we want to execute. Suppose the string str contains a command string (like 'put ball in box') that we want the game to execute at some particular point (even though the player may not have entered it); we can make the game execute the command with the following code:</p>
+<p><pre>
+   local toks = Tokenizer.tokenize(str);
+   executeCommand(gPlayerChar, gPlayerChar, toks, true);
+</pre></p>
+<p>Or we could make an NPC execute a command by substituting the relevant NPC for gPlayerChar in the above.</p>
+
+<br>
+<h2><a name='execCmd'>Executing the Player's Command</a></h2>
+
+<p>Once the initial parsing has resolved the player's command to an
+action (as described above), the <a
+href='../libref/source/exec.t.html#578'>executeAction()</a> function
+is called to execute the command. The first thing this does is to
+check for Global Remapping, which in the standard library is used only
+for the purpose of turning commands of the form BOB, GIVE ME THE BALL
+into ASK BOB FOR THE BALL; for further details see the article on <a
+href='t3globalremap.htm'>Global Command Remapping</a> elsewhere in the
+<i>Technical Manual</i>.</p>
+
+<br>
+<h3>Noun Resolution</h3>
+
+<p>Apart from Global Command Remapping (which is likely to be quite
+rare), the first step is for the current action to resolve the nouns
+(via a call to action.resolveNouns()). What happens here depends on
+what type of action it is. An IAction or SystemAction will have no
+nouns to resolve. A LiteralAction will simply 'resolve' to a literal
+text string. A TopicAction will resolve to a <a
+href='#topic'>ResolvedTopic</a> (which may or may not actually match
+anything defined in the game). A TAction or a TIAction will try to
+resolve a direct object and also, in the case of a TIAction, an
+indirect object. A TopicTAction will resolved to a direct object and a
+<a href='#topic'>ResolvedTopic</a>. The resolution process will result
+in a list of <a
+href='../libref/object/ResolveInfo.html'>ResolveInfo</a> objects being
+stored in the dobjList_ (and where appropriate iobjList_) property of
+the current action object. Under particular circumstances (a TIAction
+in which the first noun phrase resolved resolves to a single object),
+remapping causes this step to start over again. Otherwise remapping
+just causes the remapped verify results to be stored.</p>
+
+<p>We need to look at this <b>noun resolution</b> phase a little more closely. Assuming the action has any nouns to resolve (it's a TAction, TopicTAction, LiteralTAction or TIAction), the resolution process first constructs a list of every object in scope that matches the noun phrase for the object in question (for example, if the player typed GET RED, the resolver will construct a list of all objects in scope that are described as 'red'). Or, more precisely, the resolver constructs a list of ResolveInfo objects encapsulating the game objects. In constructing this list, the resolver consults the matchName() method of each item in the list (which then has the option of removing that item from the list or substituting a different one). The resolver next tries to whittle this list down. First it removes any redundant facets from the lists (programming objects that refer to the same physical game object, identified through their getFacets property). It next calls filterResolveList() on each of the objects in the list, to give each object in turn an opportunity to adjust the list. After that there's a first verification pass on each of the objects.</p>
+<p>On each object in the list, this verification pass first checks for remapping, and, if remapping is to take place, returns the remapped results. Otherwise, if it's a TIAction, it next performs a tentative resolution of the other object involved in the command (e.g. if we're trying to resolve the direct object of a TIAction we first construct a list of ResolveInfo objects encapsulating the tentative indirect objects and assign it to the tentativeIobj_ property of the action). It next calls the appropriate <a href='t3res.htm#verify'>verify</a> method on the object (e.g. verifyDobjTake) and then the verifyPreCondition method on each of the appropriate <a href='t3res.htm#precond'>PreConditions</a> (e.g. all the preconditions listed in preCondDobjTake if we're resolving a TAKE command). (Actually, this is a slight oversimplification; before looking at the action-specific verify routines, we first check to see if a catch-all verify property is applicable, as in step 2 of the verification of TActions described <a href='#verify'>below</a>). The result of this first pass is a list of <a href='../libref/object/VerifyResultList.html'>VerifyResultList</a> objects, one for each object in the list. These are then sorted in order of decreasing 'logicalness', so that the first item in the list can be taken as the best match. Only the items in the list that are as logical as this best match are retained; the less logical matches are discarded. If the resultant list then contains any items that are equivalent (e.g. we're left with five identical coins, and there's no means of distinguishing between them), the equivalents are eliminated from the list, leaving only unique items (e.g. we'd remove four of the identical coins from the list, leaving only one). The resolver also notes whether any of the discarded items was nevertheless a valid choice (an unclear disambiguation), so that the parser can later tell the player that it made a choice.</p>
+<p>At this point we may have a list with zero, one, or several objects. If there's just one object, then we can proceed with executing the command. If there are several we need to prompt the user to resolve the ambiguity. If there are no objects in the list, the routine displays a message saying so. This is routed (somewhat indirectly) via playerMessages.noMatch() to the noMatch() method of the current action, which in turn generally calls playerMessages.noMatchCannotSee (though this is different for actions like SMELL or LISTEN TO, where a message saying that "you smell/hear no x here" is more appropriate than one saying "you see no x here"). Note that we get this message only if the parser recognizes the words in the noun phrase it was trying to resolve, e.g. "you see no red ball here" when there is a red ball somewhere in the game, or maybe something that's red and something else that's a ball. If the parser didn't recognize one of the words in the player's command at all (e.g. GET VERMILION BALL when nothing in the game is described as 'vermilion') it would have complained about not knowing the word at an earlier stage (see previous section).</p>
+<p>In the case of a TIAction both the direct and the indirect object need to be resolved. Which is done first depends on the value of the resolveFirst property of the action, which can be either DirectObject or IndirectObject; the default for a TIAction is IndirectObject (meaning that the indirect object is resolved first), except for the LockWith and UnlockWith commands.</li>
+<p>Complicated as the foregoing account doubtless appears, it is actually a simplified version compared with all the various things that <i>could</i> happen under various circumstances. Most game authors will not want to intervene in this part of the library directly, but as should be apparent from the above account, there are several other places where game authors can intervene to affect the process outlined above. Taking them in the sequence in which they take effect in the noun resolution process:</p>
+<ol>
+<li>Changing the definition of scope for the action, by overriding objInScope(obj) (and getScopeList() or cacheScopeList()) on the action class.</li>
+<li>Overrding the resolveFirst property on the action, in the case of a TIAction</li>
+<li>Overriding the matchName(), or more usually, matchNameCommon(), method of one or more objects in the game</li>
+<li>Making objects facets of one another (either explictly through setting their getFacets property, or implicitly by employing the relevant library classes, such as MultiFaceted or a subclass of Passage)</li>
+<li>Overriding filterResolveList() on one or more objects in the game.</li>
+<li>Overriding or defining appropriate verify() methods for various actions on various objects.</li>
+<li>Choosing what PreConditions apply to an object for a given action; by overriding the verifyPreCondition method of any of these PreConditions (not something you'll often want to do) or defining verifyPreCondition on any custom PreConditions you create.</li>
+<li>Adjusting the vocabLikelihood property on certain objects.</li>
+<li>Defining some items to be equivalent (giving them identical vocabWords and disambNames and set isEquivalent to true)</li>
+<li>Customizing parser messages, e.g. by overriding playerMessages.noMatch, or (perhaps more usefully) the noMatch() methods of particular Action classes.</li>
+</ol>
+<br>
+<h3>Preparing to Execute</h3>
+<p>Assuming noun resolution produced an acceptable result, the executeAction() method next carries out a few housekeeping functions preparatory to actually executing the action. First it checks whether the action is one that can be undone; if it is it makes a note of the current action and creates a savepoint that the game can return to in the event of a subsequent UNDO command.</p>
+<p>The routine then ensures that the issuing actor (normally, the player character) is marked as busy for the duration of the action (and hence not available to carry out any other commands).  If the command was directed to another actor, that actor now has a chance to reject the command (via its obeyCommand() method); if it does the command is terminated at this point. Otherwise, we are now ready to carry out the action.</p>
+<p>
+<br>
+
+<h2>Carrying Out the Action</h2>
+<p>At this point The executeAction() function has just about run its course. Its final act is to call the currentAction's doAction() method, defined on the <a href='../libref/source/action.t.html#998'>Action</a> class. Part of this method is concerned with storing the relevant global variables for restoration at the end of the method, and storing the details of the action for use with an AGAIN command. The actual action-processing execution cycle consists of the following:</p>
+<ol>
+<li>Call noteConditionsBefore() on the player character. This is principally so that an appropriate message can be displayed at the end of the action if it has resulted in a change of lighting conditions.</li>
+<li>Run BeforeActionMain() on the action. This does nothing in the standard library, but game authors can override it if they do want it to do anything. Note that this is only run once per action, even if the action is going to iterate over a number of objects.</li>
+<li>Run doActionMain() on the action. This carries out the main action processing, and is discussed further <a href='#doActionMain'>below</a> (precisely what it does depends on the kind of action).</li>
+<li>Run afterActionMain() on the action (once only, after iterating through all the objects to which the action applies). This does several things in the standard library:
+<ol>
+<li>Calls the afterActionMain() method of every object registered in the current object's afterActionMainList. This list can be be constructed by calling callAfterActionMain(obj) to add an action to the list; but it is only meaningful to do so while the action is in progress.</li>
+<li>Note the amount of busy time the actor has consumed in carrying out the action, via a call to actor.addBusyTime()</li>
+<li>If the command failed, and if it wasn't an implicit action, and if gameMain.cancelCmdLineOnFailure is true, then cancel processing of the command line even if it has more commands on it (e.g. if the player typed GO NORTH THEN TAKE BOOK and the GO NORTH command failed, the TAKE BOOK command would then be ignored under these circumstances.)</li>
+</ol>
+</li>
+<li>Finally, if the action doesn't have a parent action (i.e. it's a top-level action, not an implicit action or some other action called by the main action, such as a nestedAction), and the player character hasn't changed during the course of the action, call noteConditionsAfter() on the player character. This basically executes a NoteDarknessAction if the lighting conditions have changed as a result of the action, and displays a message about the onset of darkness (if it has just become dark) or performs a lookAround (if it has just become light).</li>
+</ol>
+<br>
+<h3><a name='doActionMain'>doActionMain</h3>
+<p>As we have just seen, doAction() does a number of things, but the bulk of the action processing is left to doActionMain, which is called as the central step of doAction(). What precisely doActionMain does depends on whether it's being called on an IAction, a TAction, or a TIAction. If it's an IAction doActionMain() simply calls doActionOnce(). For a TAction or a TIAction doActionMain basically iterates over the list of objects (if there's more than one direct or indirect object involved in the command, because it was applied to multiple objects), calling doActionOnce() for each of them in turn. If only one direct object and (where appropriate) indirect object was specified (e.g. GET RED BALL or PUT RED BALL IN BROWN BOX) then doActionOnce() will only be called once.</p>
+<p>The surrounding code in doActionMain() is responsible for such things as setting the objects for the current iteration, announcing the appropriate object for the current iteration (if there's more than one direct object, say), and breaking out of the iteration if the cancelIteration property has been set. For a TIAction, doActionMain also remembers the list of direct and indirect objects as potential pronoun antecedents.</p>
+<br>
+<h3><a name='doActionOnce'>doActionOnce()</a></h3>
+<p>As noted above, doActionMain() is responsible for iterating over a set of objects where there may be more than one direct object or more than one indirect object involved in a command. For each direct object in a TAction or pair of direct and indirect objects in a TIAction, the action processing is handled by <a href='../libref/source/action.t.html#1238'>doActionOnce()</a>. The same method is also used to execute an IAction, TopicAction, and any other kind of action. Where the different types of action vary is in the definition of the methods doActionOnce() calls to carry out the various steps.</p>
+
+<p>The steps carried out by doActionOnce() are:</p>
+
+<ol>
+<li>checkRemapping(). Before doing any actual execution, check the command for            remapping.  If this ends up doing any remapping, the remapping routine will simply replace the current command, so the remapping call will terminate the current action             with 'exit' and thus never return here. For an IAction, checkRemapping does nothing (there are no objects involved which might carry out remapping). For a TAction the direct object is checked for possible remapping of this action. For a TIAction both the direct and the indirect objects are checked for remapping but the order depends on the value of the resolveFirst property (which may be either DirectObject or IndirectObject).</li>
+<li>If the action is an implicit action, run verifyAction(); if the result is that the action would normally be allowed, but is not allowed as an implicit action (because it is verifies to nonObvious or dangerous), then abort the implicit action. See <a href='#verify'>below</a> for what verifyAction does.</li>
+<li>If the action is an implicit action, announce the implicit action (through a call to Action.maybeAnnounceImplicit()).</li>
+<li>Carry out verification using verifyAction(). If verifyAction returns a result for which allowAction is nil (in other words, the action failed verification), show the message explaining why the action failed verification (via result.showMessage, which displays the message from the illogical macro or equivalent that ruled the action out) and terminate the action. See <a href='#verify'>below</a> for what verifyAction() does in more detail; generally it will call the appropriate verify methods on any objects involved in the command, and the verifyPreCondition() methods on all the preconditions.</li>
+<li>Check the PreConditions for the action via a call to checkPreConditions. See <a href='#checkPreCond'>below</a> for what this does on different types of action. In general it will call the checkPreCondition method of each PreCondition relevant to the action. The first time through these methods will be allowed to carry out an implicit action in order to satisfy the PreCondition. If any implicit action is carried out we return to step 4 for a second pass, since the implicit action may have changed the game state, and hence the verification results we would get. If there is a second time through, no further implicit actions are allowed at this stage (so there's never more than two passes through steps 4 and 5).</i>
+<li>Disable the sense cache (it may already have been disabled by an implicit action), since the game state may change from now on.</li>
+<li>If gameMain.beforeRunsBeforeCheck is true, run the before notifiers, through a call to runBeforeNotifiers(). This in turn first runs beforeAction() on the current action (by default this does nothing, but game authors are free to override it to do something), then roomBeforeAction on the actor's containers (the Room or NestedRoom where the actor is located, which will in turn call roomBeforeAction on its containers, if it's a NestedRoom), and then beforeAction() on every other object in scope (or more precisely, on every other item in the action's notify list; this can be added to with an explicit call to addBeforeAfterObj(obj) on the action). If gameMain.beforeRunsBeforeCheck is nil, this all takes place at step 10 instead.</li>
+<li>Run the actorAction() method on the current actor (by default this does nothing, but it is available for game authors to override).</li>
+<li>Check the action, by calling checkAction() on the current action. What this does depends on the type of action (IAction, TAction, or TIAction), for details see <a href='#check'>below</a>. In general, though, this calls the check() parts of the dobjFor() and iobjFor() action handlers on the objects involved in the commands.</li>
+<li>If gameMain.beforeRunsBeforeCheck is nil, run the before notifiers, through a call to runBeforeNotifiers. See Step 7 for details of what happens.</li>
+<li>Execute the action through a call to execAction() on the current action. IActions or the equivalent must be overridden to define their action handling here. TActions and TIActions call the action parts of the dobjFor() and iobjFor() action handlers on the direct and (in the case of a TIAction) indirect object. For a SystemAction game authors should normally override execSystemAction rather than execAction. See <a href='#exec'>below</a> for more details of what execAction() does on various kinds of action.</li>
+<li>Call the afterAction() method of every item in the notify list (roughly speaking, all the other items in scope plus those added to the notify list by a call to addBeforeAfterObj(obj) on the action).</li>
+<li>Call the roomAfterAction() method of the actor's container (the Room or NestedRoom immediately containing the actor). This in turn will result the roomAfterAction of the container's containers being called (in the case of a NestedRoom).</li>
+<li>Call the afterAction() method on the action. By default this does nothing, but it is available to be overridden by game authors.</li>
+</ol>
+<p>This completes the processing of the action. Remember that doActionOnce() will be called for each object in turn if there's a list of objects involved in the command (e.g. TAKE RED BALL, GREEN PEN AND BLACK HAMMER). Once all the objects have been processed runScheduler will then let NPCs take a turn, and will then execute any current Fuses and Daemons (see above). All that remains now is to explore in a bit more detail what verifyAction(), checkAction and execAction() do on the different kinds of action.</p>
+<br>
+<h2>Action-Type Specific Handling.</h2>
+<p>We have now outlined the entire command execution cycle, but a few points of detail remain. In particular, we need to explore in just a little more detail what <a href='#verify'>verifyAction()</a>, <a href='#checkPreCond'>checkPreConditions()</a>, <a href='#check'>checkAction()</a> and <a href='#exec'>execAction()</a> do on the various kinds of action. For this purpose, we are mainly concerned with three broad classes of action:</p>
+<ul>
+<li><b>IAction</b> &mdash; actions that involve neither an indirect nor a direct object. For present purposes this includes SystemAction, TopicAction and LiteralAction as well as IAction itself.</li>
+<li><b>TAction</b> &mdash; actions that involve a direct object but not an indirect object. For present purposes this includes TopicTAction and LiteralTAction as well as TAction itself.</li>
+<li><b>TIAction</b> &mdash; actions that involve both a direct object and an indirect object; TIAction is the only category of action of this type (although there are, of course, many idifferent individual TIActions defined in the standard library).</li>
+</ul>
+<p>Note, then, that we are not interested in the grammatical form of the command (PUT BALL IN BAG or LOOK UP GREEK MYTHOLOGY IN BIG RED BOOK), but in the number of slots for simulation objects &ndash; objects of class Thing or one of its subclasses &ndash; that are required for the action: zero, one or two.</p>
+<br>
+<h3><a name='verify'>verifyAction</a></h3> 
+<p><b>IAction</b>: This simply returns the list of VerifyResults from callVerifyPreCond(). This in turn calls verifyPreCondition on any preconditions attached to the action itself; these PreConditions may be listed in the preCond property of the action. In the standard library only JumpAction has a PreCondition (actorStanding), but game authors may like to add PreConditions to custom actions. Note that you can't, however, just override verifyAction() to include a naked illogical() macro or whatever, since this won't work.</p>
+<p><b>TAction</b>: This proceeds in several stages:
+<ol>
+<li>Call the verifiers on any PreConditions attached to the <i>action</i> (as opposed to its direct object); this is the same at the callVerifyPreCond() for IAction, except that the list of VerifyResults returned will be augmented by the following two steps.</li>
+<li>Check whether we should use dobjFor(All) or dobjFor(Default) handling on the direct object. The former overrides any more specific action handling on the object; the latter only comes into play if no specific handling for this action is defined on the object. If it turns out we should use one of these catch-all handlers, then run the appropriate one (verifyDobjAll or verifyDobjDefault) and add the results to our list of VerifyResults.</li>
+<li>If we're not using a catch-all verify property (from the previous step) run the action-specific verify method on the direct object (e.g. verifyDobjTake for TakeAction), and add the results to our list of VerifyResults.</li>
+<li>Run the verifiers (i.e. the verifyPreCondition() methods) of each PreCondition listed in the appropriate preCond property for the current action on the direct object (e.g. run verifyPreCondition on each PreCondition listed in preCondDobjTake if the action is a TakeAction). Any results from this step are added to our list of VerifyResults.</li>
+<li>Finally, check that there are handlers defined for this action on the direct object, through a call to verifyHandlersExist. This checks that the object defines or inherits at least one out of verify, check and action handling (e.g. verifyDobjTake, checkDobjTake, or actionDobjTake for a TakeAction); if it doesn't, we add an illogical result ("You can't do that") to our list of VerifyResults.</li>
+</ol>
+</p> 
+<p><b>TIAction</b>: This proceeds much like the handling for TAction, with a few extra stages for the indirect object. We first perform the same step 1 (callVerifyPreCond) to run the verifiers on the <i>action's</i> PreConditions. We then perform steps 2 to 4 on the direct object, as for a TAction. Following that we repeat the same steps (2 to 4) on the indirect object. Finally, we carry out Step 5 &ndash; call verifyHandlersExist() &ndash; as for TAction, except that we check both objects (direct and indirect) for the existence of a handler, and add an illogical result if neither object provides one.</p>
+<br>
+<h3><a name='checkPreCond'>checkPreConditions</a></h3>
+<p><b>IAction</b>: This simply executes the checkPreCondition() method of every PreCondition listed in the <i>action's</i> preCond property. The PreConditions first are sorted in ascending order of their preCondOrder property.</p>
+
+<p><b>TAction</b>: This is similar to the processing for IAction, except that the PreConditions listed in the direct object's preCond property (e.g. dobjPreCondTake for a TakeAction) are added to the list before it is sorted and checkPreCondition() executed on each PreCondition in the list.</b>
+
+<p><b>TIAction</b>: This is similar to the processing for TAction, except that the PreConditions from the indirect object's appropriate preCond propety (e.g. preCondIobjPutIn for a PutInAction) are also added to the list.</p>
+<br>
+
+<h3><a name='check'>checkAction</a></h3>
+<p><b>IAction</b>: By default this does nothing on an instransitive action. Game authors could override this if desired (e.g. to check for some condition and use reportFailure() plus exit to terminate the command).</p>
+<p><b>TAction</b>: This tries the catch-all properties (checkDobjAll and checkDobjDefault) on the direct object. If a dobjFor(All) is found, this takes precedence. If a dobjFor(Default) is found, this will be used only if there's no applicable checkDobjForXXX (e.g. checkDobjForTake, in the case of a TakeAction) defined on or inherited by the direct object. If no catch-all property is applicable, run the appropriate check method  (e.g. checkDobjForTake, in the case of a TakeAction) on the direct object.</p>
+<p><b>TIAction</b>: This is similar to the TAction processing, except that we (1) check for catch-all check handling on the indirect object; (2) check for catch-all handling on the direct object; (3) if no catch-all handling was applicable to the direct object, execute the appropriate check() method on the direct object (e.g. checkDobjPutIn for a PutInAction); (4) if no catch-all handling was applicable to the indirect object, execute the appropriate check() method on the indirect object (e.g. checkIobjPutIn for a PutInAction).</p>
+<br>
+
+<h3><a name='exec'>execAction</a></h3>
+<p><b>IAction</b>: The execAction() method defined on the IAction class does nothing (except display a message saying "You can't do that"); specific IAction classes have to override this method to carry out the action.</p>
+
+<p><b>SystemAction</b>: This is a special case of IAction. The specific action processing for a SystemAction is carried out by its execSystemAction method. SystemAction.execAction first checks that the command to carry out a SystemAction isn't being directed to an NPC (which would be nonsensical). The transcript is then flushed and disabled to allow the SystemAction to prompt for interactive responses. Then execSystemAction() is executed, and finally the transcript is activated again.</p>
+
+<p><b>TAction</b>: First check whether the catch-all properties (actionDobjAll or actionDobjDefault) should be executed on the direct object; if actionDobjAll is defined it takes precedence over the specific action handling; only if there is no specific action handling for this action on the direct object with the default handling be used. If no catch-all action method is used, execute the action-specific action method on the direct action (e.g. actionDobjTake for a TakeAction).</p>
+
+<p><b>TIAction</b>: First check the catch-all properties (actionIobjAll and actionIobjDefault) on the indirect object to see if either of them should execute (according to the normal rules, for which see the execAction handling on TAction). Then do the same for the catch-all action properties (actionDobjAll and actionDobjDefault) on the direct object. What happens next depends on the value of the actions execFirst property. If this is DirectObject then we execute the appropriate action() method (e.g. actionDobjPutIn) on the direct object first, if the direct object's catch-all handling hasn't been used, and then the appropriate action method (e.g. actionIobjPutIn) on the indirect object, if the indirect object's catch-all action handling hasn't been used. If execFirst is IndirectObject we execute the indirect object's action method before the direct object's. By default execFirst is set to the value of the resolveFirst property on the action, but it can be overridden separately.</p>
+<hr>
+<h2><a name='topic'>A Note on ResolvedTopics</a></h2>
+<p>The discussion on <a href='#execCmd'>noun resolution</a> above mainly concentrated on actions that resolve to one or two simulation objects (TActions and TIActions). We should give a brief explanation of what happens with the resolution of a topic in a TopicAction or TopicTAction.</p>
+<p>The topic part of such an action, (generally) represented by gTopic in the appropriate VerbRule, resolves to a single <a href='../libref/object/ResolvedTopic.html'>ResolvedTopic</a> object. Such ResolveTopic objects maintain three lists of in-game objects (Topics or Things) that they potentially match:</p>
+<ol>
+<li>inScopeList</li>
+<li>likelyList</li>
+<li>otherList</li>
+</ol>
+<p>During resolution of a <i>topic</i> these lists are filled with lists of objects (Things or Topics already defined in the game) that the vocabularly entered by the player could match. For example, if the player typed ASK BOB ABOUT BALL, every Thing and Topic with 'ball' in its vocabWords would be placed in one of these three lists. If what the player typed matches nothing in the game (e.g. ASK BOB ABOUT FLOBDAVERYGUTS), a ResolvedTopic object is created with all three lists empty.</p>
+<p>The default <a href='../libref/object/TopicResolver.html'>TopicResolver</a> puts its entire list of matched objects (Things and Topics) into the first of these lists. This is the strategy used by ConsultAction; if the player types LOOK UP BALL IN BOOK, there's no reason to prefer any one meaning of BALL to another (should BALL match a number of Things and Topics in the game).</p>
+<p>For a conversational command (like ASK BOB ABOUT BALL or TELL JANE ABOUT BALL), the lists are separated out:</p>
+<ol>
+<li>inScopeList &mdash; contains all matched objects that are in conversation scope for the actor doing the talking, where the default definition of conversation scope is physical scope plus all the other objects and topics the actor knows about.</li>
+<li>likelyList &mdash; contains all other matched objects for which actor.isLikelyTopic(obj) returns true; by default this is defined to be objects the actor knows about, but this could be overridden by game authors if desired. The default definition would seem always to leave this list empty, since objects or topics the actor knows about are included in the inScopeList.</li>
+<li>otherList &mdash; contains a list of any other matched objects not included in the first two lists.</li>
+</ol>
+
+<p>The matchTopic() method of a TopicMatchTopic (e.g. AskTopic or TellTopic) checks first the inScopeList and then the likelyList of the ResolvedTopic from the current conversational command in order to find a match (so something the player character doesn't know about yet can't be matched). ResolvedTopic.getBestMatch() returns the first item from the inScopeList (if the inScopeList is not empty), or failing that, the first item from the likelyList (if the likelyList is not empty), or failing that, the first item from the otherList (if the otherList is not empty) or, failing that, nil,</p>
+<p>Whether or not a ResolvedTopic matches any Topics or Things in its three lists of matched objects, we can retrieve information about what text the ResolvedTopic was matching (i.e. what the player typed) using the following methods:</p>
+<ul>
+<li>getTopicText() &mdash; returns a string containing what the player typed to match this topic. The macro gTopicText returns gTopic.getTopicText.toLower(), which could be used to test the player's input, for example.</li>
+<li>getTopicTokens() &mdash; returns the original tokens of the topic phrase, in canonical
+     tokenizer format.</li>
+<li>getTopicWords() &mdash; returns just the original text strings from the token list</li>     
+</ul>
+
+<p>It may occasionally be useful to define an action to use a ResolvedTopic where it might have seemed more natural to use a Thing. For example, suppose you wanted to implement a Find command which allows players to type commands like FIND THE MAGIC TREASURE. This might be better implemented as a TopicAction than a TAction:</p>
+<p><pre>
+DefineTopicAction(Find)
+   execAction()
+   {
+	   /*  detailed handling here */
+   }
+;
+
+VerbRule(Find)
+  (('find') | ('look' | 'search' | 'hunt') 'for') singleTopic
+  : FindAction
+  verbPhrase = 'find/finding (what)'
+  ;
+</pre></p>
+<p>The reasons for doing it this way are (a) you don't have to worry about scope (and generally the player will be trying to find objects that aren't in scope) and more importantly, (b) the parser won't give any spoilery error messages like "The word 'treasure' is not necessary in this game. " On the other hand it's then up to you to look at the inScopeList of the ResolvedTopic object the parser creates and decide how you want to prioritize it.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
+The Command Execution Cycle
+<br><span class="navnp"><a class="nav" href="t3banish.htm"><i>Prev:</i> Banishing (and Changing) Awkward Messages</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3transcript.htm"><i>Next:</i> Manipulating the Transcript</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
+

@@ -1,0 +1,1011 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Lists and Listers</title>
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Lists and Listers
+<br><span class="navnp"><a class="nav" href="t3imp_action.htm"><i>Prev:</i> Implied Action Reports</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3tips.htm"><i>Next:</i> Tips: A Context-Sensitive Help System</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Lists and Listers</h1>
+
+
+<p><i>by Eric Eve</i>
+
+<p>At many points in a TADS 3 game the player will see a list of objects: in a room description, in examining the player character's inventory, in looking in, under or behind certain objects and so on. The default behaviour of the TADS 3 library generally handles these lists pretty well, but there will be probably come a point when you want to customize one or more of these lists. This article will explore some of the ways you can do this.</p>
+
+<p>This is actually quite a complex topic, since there are so many aspects of lists that can be customized, including:</p>
+
+<ul>
+<li>whether or not particular items appear in a list</li>
+<li>the order of items in a list</li>
+<li>the grouping of items in a list</li>
+<li>the text that introduces or concludes a list</li>
+</ul>
+
+<p>To attempt to cover every single aspect of Lists and Listers in this article would probably prove more confusing than helpful; it would almost certainly prove overwhelming. Instead we shall concentrate on those aspects of Lists and Listers that are useful for the kind of listing tasks most likely to crop up in TADS 3 games. Even this will prove a fairly long and complex journey, so we provide an index below so that you can jump to a particular part of the discussion if you already know what it is you need particular help with.</p>
+
+<ul>
+<li><a href='#simple'>Really Simple Lists</a>
+
+<li><a href='#exclude'>Including and Excluding Items in Lists</a>
+
+<li><a href='#ordgroup'>Ordering and Grouping List Items</a>
+   <ul>
+   <li><a href='#ordering'>Ordering</a>
+   <li><a href='#grouping'>Grouping</a>
+   </ul>
+
+<li><a href='#introtext'>Introductory and Concluding Text</a>
+   <ul>
+   <li><a href='#contcont'>Container Contents</a>
+       <ul>
+       <li><a href='#listproptab'>Table of Common Lister Properties</a>
+       <li><a href='#openable'>Openable Contents Lister</a>
+       </ul>
+   <li><a href='#other'>Other Lister Properties and Objects</a>
+       <ul>
+       <li><a href='#room'>Room Contents Listings</a>
+       <li><a href='#inventory'>Inventory Listings</a>
+       </ul>
+   </ul>
+</ul>
+      
+
+<h2><a name=simple>Really Simple Lists</a></h2>
+
+<p>The TADS 3 Library uses a variety of Lister objects (i.e. objects
+derived from the Lister class) to produce the many lists that appear
+in a typical TADS 3 game. If you look at the definition of Lister and
+its subclasses in the library, you'll see a bewildering array of
+methods, many of which look bewilderingly complex. You may be
+wondering whether it's possible to get a Lister just to display a
+straightforward list from a list of objects (or even strings) passed
+to it. You may sometimes wish you could just use code like this:</p
+
+<p><pre>
+objectLister.showSimpleList([orange, apple, pear]);
+
+stringLister.showSimpleList(['red', 'white', 'blue']);
+</pre></p>
+
+<p>To produce properly formatted lists like:</p>
+
+<p><pre>
+an orange, an apple, and a pear
+
+red, white, and blue
+</pre></p>
+
+<p>Well, the good news is that the library now provide this; it now defines:</p>
+
+<p><pre>
+class SimpleLister: Lister
+    showSimpleList(lst) { showListAll(lst, 0, 0); }
+    isListed(obj) { return true; }
+    makeSimpleList(lst)
+    {
+        return mainOutputStream.captureOutput({: showSimpleList(lst) });
+    }
+;
+
+objectLister: SimpleLister    
+;
+
+stringLister: SimpleLister
+    showListItem (str, options, pov, infoTab) { say(str); }
+    getArrangedListCardinality(singles, groups, groupTab)
+    {
+        return singles.length();
+    }    
+;
+</pre></p>
+
+<p>This allows us not only to display a simple list, but also to capture it in single-quoted string (using the makeSimpleList(lst) method).
+
+<p>This may not seem particularly useful when we're just passing a
+constant list to the showSimpleList() method, since we could more
+simply have displayed the strings "an orange, an apple and a pear" or
+"red, white and blue", but these simple listers could prove more
+useful when we're building the list of objects or strings
+programmatically, and then want to display a neatly formatted list. An
+example of this might be when we're defining a LabeledDial and want to
+include a list of its validSettings in its descriptions, e.g.:</p>
+
+<p><pre>
+  myDial: LabeledDial, Component 'big red dial' 'big red dial'
+     "The dial can be turned to a number of settings, in particular: 
+      &lt;&lt;stringLister.showSimpleList(validSettings)&gt;&gt;. "
+      validSettings = ['freezing', 'cold', 'tepid', 'hot', 'boiling']
+  ;      
+</pre></p>
+
+<p>Should we then want to add a 'warm' setting, we can add this to the validSettings property knowing that the description will be automatically taken care of.</p>
+
+<p>Most of the lists (and Listers) you will encounter are actually rather more complex than this. The Listers in the library tend to assume that they're producing a list of objects that can be sensed by a particular actor in a particular context, and so they use a series of more complex methods with more complex parameter lists. This is usually what is in fact needed in the context of a TADS 3 game. But in addition to providing code you can use for displaying custom lists you construct in your own code, the above examples provide a useful introduction to Listers. Listers are objects that take a list of objects, usually along with other information (such as sensory information) and output a properly formatted list. The list is displayed by calling the appropriate method of the Lister; the showListAll() method is the simplest, because it ignores all the sensory information; the library more commonly calls showList(), but that's more complicated than we need to go into here.</p>
+
+<p>In what follows, we shall look at various ways in which the output from the library's Listers can be customized. These lists are not normally ones we build by hand (as in the simple example above), but lists of objects in a particular place (such as a room or container) that are or become visible to the player character at a particular time.</p>
+<br>
+
+<h2><a name=exclude>Including and Excluding Items in Lists</a></h2>
+
+<p>The simplest way to control whether an item is or is not shown in a particular list is to set the appropriate isListedXXX property/method:</p>
+
+<ul>
+<li><i>isListed</i> &mdash; determines if the object will be listed in room descriptions and in descriptions of objects containing this item's container</li>
+<li><i>isListedInContents</i> &mdash; determines if the item will be listed in response to explicit EXAMINE and LOOK IN commands directed at the item's container</li>
+<li><i>isListedInInventory</i> &mdash; determines if this item is included in inventory listings</li>
+<li><i>isListedAboardVehicle</i> &mdash; determines if the item is listed when it arrives aboard a vehicle (the default is nil)</li>
+<li><i>isListedInRoomPart(part)</i> &mdash; determines if the item is listed as being located in the given room part</li>
+</ul>
+  
+<p>The library has sensible defaults for all these properties and methods, but if you want something other than the default behaviour, it's easy enough to override the appropriate method accordingly. For example, supposing Myrtle is carrying a bunch of flowers and a revolver, and wearing a red dress, but that she's somehow managed to conceal the revolver in her dress (or in the bunch of flowers?). To prevent the revolver being listed in Myrtle's inventory we could do this:</p>
+
+<p><pre>
+myrtle: Person 'pretty myrtle/woman' 'Myrtle' @westRoom
+    "You think she's very pretty. "    
+    isHer = true
+    isProperName = true
+;
+        
++ Thing 'bunch/flowers' 'bunch of flowers'
+;
+
++ Wearable 'red dress' 'red dress'
+    wornBy = myrtle    
+;
+
++ Thing 'revolver/run' 'revolver'
+    isListedInInventory = (!isIn(myrtle))
+;
+</pre><p>
+  
+<p>This will prevent the revolver being listed in Myrtle's inventory (but not in the player character's inventory should he later acquire the revolver). Actually, this would not be the best way to handle this particular issue, since the player can still examine the revolver when Myrtle's carrying it even though it's not listed; a better solution would be to make the 
+    revolver of class Hidden and then to call its discover() method at the appropriate moment. Nevertheless, the example serves to illustrate the principle.</p>
+    
+<p>Perhaps a more realistic example might be a large black pot that contains a small silver coin. Normally, it would be appear in a room description as:</p>
+
+<p><pre>
+You see a large black pot (which contains a small silver coin) here. 
+</pre><p>    
+
+<p>We may think it more realistic for the player not to notice the coin unless he explicitly examines (or looks in) the pot. We could achieve this like so:</p>
+
+<p><pre>
++ pot: Container 'large black pot' 'large black pot'
+;
+
+++ coin: Thing 'small silver coin*coins' 'small silver coin'
+    isListed = (!isIn(pot))
+;
+</pre></p>
+
+<p>Note how we override isListed so that it's only nil when the coin is in the pot; once the coin is removed from the pot, we'd probably want it to be listed normally. </p>
+
+<p>It's possible that we think examining the pot is not enough to reveal the coin, and that the player character would only notice it if he actually looks in the pot. We then need to override isListedInContents rather than isListed, but the complication is that we want isListedInContents to be true for a LOOK IN command but not for an EXAMINE command, so we'd have to do something like this:</p>
+
+<p><pre>
+++ coin: Thing 'small silver coin*coins' 'small silver coin'    
+    isListedInContents = (!isIn(pot) || gActionIs(LookIn))
+;
+</pre></p>
+
+<p>Note that if we override isListedInContents we don't need to override isListed as well in this case, since by default isListed takes its value from isListedInContents. However, the fact that the solution is beginning to look a little convoluted is a sign that there may be a better way of going about this. In particular, we might do better to adjust properties of the pot rather than properties of the coin, since it's the pot that's tending to conceal its contents. The time has come to look at a couple of useful properties of containers:</p>
+
+<ul>
+<li><i>contentsListed</i> &mdash; determines if the item's contents are listed in a room description</li>
+<li><i>contentsListedInExamine</i> &mdash; determines if the item's contents are listed when the item is explicitly examined</li>
+</ul>
+
+<p>Using these properties, we could make the pot hide its contents from a room description, revealing them only when the pot is explictly examined or looked in, like so:</p>
+
+<p><pre>
++ pot: Container 'large black pot' 'large black pot'
+    contentsListed = nil
+;
+
+++ coin: Thing 'small silver coin*coins' 'small silver coin'        
+;
+</pre><p>
+
+<p>This would give us a transcript like:</p>
+
+<p><pre>
+<b>East Room</b>
+This is the east room. An exit leads west. 
+
+You see a large black pot here. 
+
+<b>&gt;x pot</b>
+It contains a small silver coin. 
+
+<b>&gt;look in pot</b>
+The large black pot contains a small silver coin. 
+</pre></p>
+
+<p>If we also want the contents of the pot to remain unlisted until the player explicitly looks in the pot, we can set contentsListedInExamine to nil:</q>
+
+<p><pre>
++ pot: Container 'large black pot' 'large black pot'
+    contentsListedInExamine = nil
+;
+
+++ coin: Thing 'small silver coin*coins' 'small silver coin'        
+;
+</pre></p>
+
+<p>This would result in the slightly different transcript:</p>
+<p><pre>
+<b>East Room</b>
+This is the east room. An exit leads west. 
+
+You see a large black pot here. 
+
+<b>&gt;x pot</b>
+You see nothing unusual about it.  
+
+<b>&gt;look in pot</b>
+The large black pot contains a small silver coin. 
+</pre></p>
+
+<p>For a container that doesn't obviously display its contents until it's explicitly examined and/or looked in, this is clearly a neater solution than manipulating the isListedXXX properties of it contents.</p>
+
+<p>Between them, the isListedXXX and contentsListedXXX properties provide the most straightforward means of excluding items from lists, and between them they will probably cover most cases. For more complex cases you might need to start overriding some of the methods of the <i>Lister</i> that's responsible for displaying the list in question. We'll discuss Listers &ndash; including how to identify which Lister is used in which situation &ndash; further below. In the meantime we'll just list the Lister methods that might be useful in adjusting the contents of a list:</p>
+
+<ul>
+<li><i>isListed(obj)</i> &mdash; determines whether this item to be listed in room descriptions.  Returns true if so, nil if not. By default returns the value of obj.isListed.</li>
+<li><i>contentsListed(obj)</i> &mdash; determines if this object's contents is to be listed; by default returns the value of obj.contentsListed.</li>
+</ul>
+
+<p>One further technique that can be used to adjust the list of objects to be displayed in a room description is to override the adjustLookAroundTable() method of the room in question. This technique is illustrated in the <a href="../gsg/lookingthroughthewindow.htm">Looking Through the Window</a> section of <i>Getting Started in TADS 3</i>.</p>
+<br>
+
+<h2><a name=ordgroup>Ordering and Grouping List Items</a></h2>
+<h3><a name=ordering>Ordering</a></h3>
+
+<p>A typical room description might contain a list of items present in something like the following form:</p>
+
+<p><pre>
+A large box rests in the corner. 
+
+A table stands in the middle of the room. 
+
+You see a chair, a bucket of water, a pen, and a piece of paper here. On the table are a saucer, 
+a cup, and a priceless antique vase. 
+
+Myrtle is standing here.
+</pre></p>
+
+<p>In this list two items with a specialDesc (or initSpecialDesc) property defined are listed first (the box and the table), then a list of miscellaneous items (followed by a list of items on the table), and finally an NPC who happens to be present. There is not a great deal we can do to determine the order of the items within a miscellaneous list (e.g. the chair, bucket, pen, and piece of paper) in the general case, but in particular cases we should probably be able to achieve the effect we want by <a href='#grouping'>grouping</a> (see below).</p>
+
+<p>On the other hand, defining the order of items that get paragraphs to themselves (i.e. those that have a specialDesc or initSpecialDesc property defined) is quite straightforward; we simply need to adjust the values of one or both of the following two properties:</p>
+
+<ul>
+<li><i>specialDescOrder</i> &mdash; List order for the special description. Whenever there's more than one object showing a specialDesc at the same time (in a single room description, for example), we'll use this to order the specialDesc displays. We'll display in ascending order of this value. By default, we use the same value (100) for everything, so listing order is arbitrary; when one specialDesc should appear before or after another, this property can be used to control the relative ordering.</li>
+<li><i>specialDescBeforeContents</i> &mdash; determines whether the item with a specialDesc is listed before the miscellaneous items (if true - the default, except for Actors), or after them (if nil - the default for Actors). This can effectively split items with specialDescs into two groups (listed before and after the miscellaneous items); in this case the specialDescOrder property determines the order of items separately within the two groups.</li>
+</ul>
+
+<p>Suppose we wanted to arrange the listing above so that Myrtle is mentioned first, before the table, and the box is mentioned last of all, after all the miscellaneous items. Then we simply need to change specialDescBeforeContents on Myrtle to true, and specialDescOrder on Myrtle to 50 (say) to make sure she's mentioned before the table, and then change specialDescBeforeContents on the box to nil. We'd then see the items listed thus:</p>
+
+<p><pre>
+Myrtle is standing here. 
+
+A table stands in the middle of the room. 
+
+You see a chair, a bucket of water, a pen, and a piece of paper here. On the table are a saucer,
+a cup, and a priceless antique vase. 
+
+A large box rests in the corner. 
+</pre></p>
+<br>
+
+<h3><a name=grouping>Grouping</a></h3>
+<p>There is no standard listOrder property for miscellaneous items (analagous to specialDescOrder), but just about any custom ordering of miscellaneous item can be achieved by grouping them. Indeed, you could even assign every single item in your game to the same list group, and then define a listOrder property of your own that your list group could then be made to sort on. But let's take things one step at a time.</p>
+<p>To group miscellaneous items in a list you need to:
+<ol>
+<li>Define an object of class ListGroup (or rather, one of its subclasses)</li>
+<li>Assign the <i>listWith</i> property of all the items you want listed in this group to this ListGroup object</li>
+</ol>
+
+<p>This should hopefully become much clearer with an example. Suppose we add a pencil, a ruler, and a bottle of ink to the miscellaneous items in the room. We might then see a listing like:</p>
+
+<p><pre>
+You see a chair, a ruler, a pencil, a bucket of water, a bottle of ink, a pen, 
+and a piece of paper here.
+</pre></p>
+
+<p>But since the ruler, the pencil, the ink, the pen and the paper are all writing implements of a sort, we might prefer them all to be listed together. The first step is to create an appropriate ListGroup:
+</p>
+
+<p><pre>
+writingMaterials: ListGroupSorted    
+;
+</pre></p>
+
+<p>Then we assign each of the objects in question to this ListGroup, e.g.:</p>
+<p><pre>
++ ruler: Thing 'ruler' 'ruler'
+    listWith = [writingMaterials]
+;
+</pre></p>
+
+<p>Note that the listWith property takes a <i>list</i> of ListGroups, since the same item can belong to more than one ListGroup. We'll say a bit more about multiple ListGroups in this property later; for now we'll keep it simple and stick to one. Once we've defined our writingMaterials ListGroup and assigned all the appropriate objects to it in this way, the list will display something like:</p>
+
+<p><pre>
+You see a chair; a ruler, a pencil, a bottle of ink, a pen, and a piece of paper; 
+and a bucket of water here.  
+</pre></p>
+
+<p>Note that we made our writingMaterials list group a <i>ListGroupSorted</i> and not just a <i>ListGroup</i>. This is because the base ListGroup class doesn't actually display anything when it comes to listing its members; it's nearly always more useful, therefore, to use a subclass of ListGroup, ListGroupSorted being perhaps the most general-purpose of those subclasses. As its name suggest, ListGroupSorted can also sort the items it lists. Suppose, for example, we not only wanted to group the writing implements together, but wanted them to appear in the order: pen, pencil, ink, paper, ruler. We can do this by first defining a <i>compareGroupItems()</i> method on our writingMaterials list group, which could make use of a custom <i>listOrder</i> property on the writing implements themselves:</p>
+
+<p><pre>
+writingMaterials: ListGroupSorted    
+    /* 
+     * Return an integer &gt; 0 if the first item sorts after the second item;
+     * Return an integer &lt; 0 if the second item sorts after the first item;
+     * Return zero if the two items are at the same sorting order.
+     */
+    compareGroupItems (a, b) { return a.listOrder - b.listOrder; }    
+;
+
++ pencil: Thing 'pencil' 'pencil'
+    listWith = [writingMaterials]
+    listOrder = 20
+;
+
++ ink: Thing 'bottle/ink' 'bottle of ink'
+    listWith = [writingMaterials]
+    listOrder = 30
+;
+
+/* etc. */
+</pre></p>
+
+<p>Note that we could have called the listOrder property anything we liked, so long as we use the same name in writingMaterials.compareGroupItems() and on the items in question. With our modified writingMaterials list group we'll now get a list like:
+
+<p><pre>
+You see a chair; a pen, a pencil, a bottle of ink, a piece of paper, and a ruler; 
+and a bucket of water here.
+</pre></p>
+
+<p>ListGroupSorted has a couple of subclasses we can also use for particular purposes. We could use <i>ListGroupPrefixSuffix</i> to explicitly introduce the list of writing implements as "some writing implements":</p>
+<p><pre>
+writingMaterials: ListGroupPrefixSuffix   
+    compareGroupItems (a, b)
+    {
+        /* Return 1 if the first item sorts after the second item */
+        if(a.listOrder &gt; b.listOrder)
+            return 1;
+        
+        /* Return -1 if the first item sorts before the second item */
+        if(a.listOrder &lt; b.listOrder)
+            return -1;
+        
+        /* Return 0 if the two items are at the same sorting order */
+        return 0;
+    }
+    
+    groupPrefix = "some writing materials: "
+;
+</p></pre>
+<p>This would result in:</p>
+<p><pre>
+You see a chair; some writing materials: a pen, a pencil, a bottle of ink, 
+a piece of paper, and a ruler; and a bucket of water here. 
+</pre></p>
+
+<p>Note that we could likewise use the <i>groupSuffix</i> property to append text to the end of the list of writing materials. In a more complex situation we could instead override the methods showGroupPrefix(pov, lst) and showGroupSuffix(pov, lst), which by default just display the groupPrefix and groupSuffix properties; in a more complex case we might want to use these methods to vary the text shown according to the value of the pov parameter (normally the actor doing the looking) or the lst parameter (the list of items about to be listed).</p>
+
+<p>We can use <i>ListGroupParen</i> to give a general description of the items (e.g. "five writing implements" followed by the actual items listed in parentheses:</p>
+
+<p><pre>
+writingMaterials: ListGroupParen    
+    compareGroupItems (a, b)
+    {
+        /* Return 1 if the first item sorts after the second item */
+        if(a.listOrder &gt; b.listOrder)
+            return 1;
+        
+        /* Return -1 if the first item sorts before the second item */
+        if(a.listOrder &lt; b.listOrder)
+            return -1;
+        
+        /* Return 0 if the two items are at the same sorting order */
+        return 0;
+    }  
+    showGroupCountName(lst)
+    {
+        "&lt;&lt;spellInt(lst.length)&gt;&gt; writing implements";
+    }    
+;
+</pre></p>
+<p>Which results in:</p>
+<p><pre>
+You see a chair, five writing implements (a pen, a pencil, a bottle of ink, 
+a piece of paper, and a ruler), and a bucket of water here.
+</pre></p>
+
+<p>Note that if we hadn't overridden showGroupCountName() it would simply have used the count name of the first item in the list, so the list would have been shown as "five pens (a pen, a pencil, ...)" intead of "five writing implements (a pen, a pencil, ...)"</p>
+
+<p>Finally, we could use <i>ListGroupCustom</i> (a subclass of ListGroup, but not of ListGroupSorted) just to give a summary name for the pen, pencil etc. without listing the individual items at all:</p>
+
+<p><pre>
+
+writingMaterials: ListGroupCustom
+    showGroupMsg (lst) { "some writing materials"; }
+;
+</pre></p>
+<p>Resulting it:</p>
+<p><pre>
+You see a chair, some writing materials, and a bucket of water here.
+</pre></p>
+
+<p>This is probably not a good idea unless the individual items answer to the vocabulary "writing materials" (perhaps as a plural), since otherwise the player won't be able to refer to them!</p>
+
+<p>In summary, the ListGroup classes that are most useful, together with the properties you'll commonly want to override on them, are:</p>
+
+<ul>
+<li><b>ListGroupSorted</b>;  compareGroupItems (a, b) defines the sorting order</li>
+<li><b>ListGroupPrefixSuffix</b>;  groupPrefix and groupSuffix define the text used to introduce and conclude the list</li>
+<li><b>ListGroupParen</b>; showGroupCountName(lst) defines the collective name for the items about to be listed in parentheses (e.g. "five writing implements")</li>
+<li><b>ListGroupCustom</b>; showGroupMsg (lst) defines the text used to summarize the list of items (in place of the items themselves), e.g. "some writing materials"</li>
+</ul>
+
+<p>There are one or two other ListGroup classes defined in the library (ListGroupEquivalent, SuggestionListGroup and RoomActorGrouper), but you are less likely to use these in your own code; they're automatically employed by the standard library as they're needed.</p>
+<p>There's a couple more points to bear in mind about these ListGroups. First, you may be wondering what happens if only one member of a group is present; it would be ugly - or at least needlessly pedantic - to see a list like "You see one writing implement (a pen) here". This is taken care of by the <i>minGroupSize</i> property on the ListGroup object. By default the value of this property is two, which means that the ListGroup will only be used to group its members in a list if at least two of them are present. This is the behaviour we'd normally want, but obviously we can always change this property to something other than two if we need to.</p>
+
+<p>The other main point is the complication introduced above: the listWith property of an object contains a <i>list</i> of ListGroup objects, and that list can contain more than one member, meaning that an object can be grouped in more than one way. When multiple groups are specified here, the order is significant: </p>
+<ul>
+<li> To the extent two groups entirely overlap, which is to say that one of the pair entirely contains the other (for example, if every coin is a kind of money, then the "money" listing group would contain every object in the "coin" group, plus other objects as well: the coin group is a subset of the money group), the groups must be listed from most general to most specific (for our money/coin example, then, money would come before coin in the group list).</li> 
+<li> When two groups do not overlap, then the earlier one in our list is given higher priority</li>
+</ul>
+<p>One final point: the property <i>specialDescListWith</i> can be used to group items displaying specialDescs together in the same kind of way we have seen for ordinary items. That is, the specialDescListWith property can contain a list of one or more ListGroup objects that will be used to group the specialDescs. In game code, this is only likely to be at all useful with a ListGroupSorted, which could then be used as an alternative to specialDescOrder to group related items together and, if desired, list them in a certain sequence. Note that any grouping performed by this means will take precedence over the order specified by the specialDescOrder property.</p>
+<br>
+
+
+
+<h2><a name=introtext>Introductory and Concluding Text</a></h2>
+<h3><a name=contcont>Container Contents</a></h3>
+
+<p>A room description might typically include a list of objects like the following:</p>
+
+<p><pre>
+You see a chair, a table (on which are a saucer, a cup, and a priceless antique vase), a bucket
+of water, a pen, and a piece of paper here. 
+
+Myrtle is standing here. 
+</pre></p>
+
+<p>Here the paragraph about Myrtle (an NPC) stands out separately from the miscellaneous objects listed first. These miscellaneous objects are introduced with the text "You see" and the list is concluded with "here." Within the list is a bracketed sublist of items on the table, introduced with the words "on which are" (by the way, if you wanted to see the items on the table listed separately here, and not in a bracketed sublist, you'd just need to set the table's <i>contentsListedSeparately</i> property to true).</p>
+
+<p>Let's start by thinking about that bracketed sublist, and the ways in which we might want to change how it's introduced. Suppose, for example, than instead of the relatively colourless "on which are" we wanted the slightly more "across which are strewn". How would we go about this?</q>
+
+<p>Obviously we need to know where the text "on which are" is coming from. In fact it comes from the <i>Lister</i> object that controls how the contents of the table (i.e. what's on the table) is displayed. Working out just what that object is is a little complicated. The table is presumably a Surface, and if you look up the definition of Surface in the Library Reference Manual (or the library source code in objects.t) you'll find it has four properties related to listers:</p>
+
+<ul>
+<li><i>contentsLister</i> &mdash; the Lister object that we use to
+     display the contents of this object for room descriptions,
+     inventories, and the like.</li>
+<li><i>descContentsLister</i> &mdash; the Lister to use when showing the contents of this object as part of its own description (i.e., for Examine commands)</li>
+<li><i>inlineContentsLister</i> &mdash; the Lister object used to display the object's contents parenthetically as part of its list entry in a second-level contents listing</li>
+<li><i>lookInContentsLister</i> &mdash; the Lister to use when showing the object's contents in response to a LookIn command </li>
+</ul>
+
+<p>In fact, these four properties are all defined on Thing, and hence exist on all subclasses of Thing. But they are overridden on Surface to use Listers that are suitable for listing objects that are <i>on</i> something; other subclasses may need listers that describe their contents as being <i>in</i>, <i>under</i> or <i>behind</i> their parent object.</p>
+
+<p>The property we're after right now is the <i>inlineContentsLister</i>, since this is the one that's responsible for displaying the object's contents parenthetically as part of its list entry in a second-level contents listing (or, in other words, in producing a sublist in brackets after an object that's itself being shown as part of a list). If we look at the definition of inlineContentsLister on Surface, we'll find that it simply points to the surfaceInLineContentsLister object. If we look this up in turn we'll find that it's defined as:</p>
+
+<p><pre>
+surfaceInlineContentsLister: inlineListingContentsLister
+    showListPrefixWide(cnt, pov, parent)
+    {
+        " (on which &lt;&lt;cnt == 1 ? tSel('is', 'was')
+                               : tSel('are', 'were')&gt;&gt; ";
+    }
+;
+</pre></p>
+
+<p>From this we can already see where the text "(on which is/are ... _)" is coming from, but for the sake of completeness we might want to see the definition of inLineContentsLister, from which surfaceInlineContentsLister inherits:
+</p>
+
+<p><pre>
+inlineListingContentsLister: ContentsLister
+    showListEmpty(pov, parent) { }
+    showListPrefixWide(cnt, pov, parent)
+        { " (which contain&lt;&lt;parent.verbEndingSEd&gt;&gt; "; }
+    showListSuffixWide(itemCount, pov, parent)
+        { ")"; }
+;
+</pre><p>
+
+<p>It should be reasonably self-evident what the methods shown here do. First, <i>showListEmpty</i> defines what is to be shown when there's nothing in the list (in this case, nothing; in other circumstances it may be appropriate to display a message explicitly stating that a container is empty). The other two methods, <i>showListPrefixWide</i> and <i>showListSuffixWide</i> define the text with which the list is introduced and concluded (when the list is not empty). The <i>cnt</i> or <i>itemCount</i> parameter can be used to test whether there is one or more items in the list, so that where a verb is used it can be made singular or plural accordingly (e.g. 'is' or 'are'), so that we avoid seeing lists like "On the table are a cup" or "On the table is a cup and a saucer". Note that the case where there's a single item that looks plural (e.g. "some flowers") is automatically taken of; in this case a plural number will still be passed to these routines so that we'll get "On the table are some flowers", not "On the table is some flowers." The library takes care of this for us, so we don't need to worry about it.</p>
+
+<p>So, if we want to see "across which are scattered" instead of "on which are", we need to override the showListPrefixWide() method; but the next question is, where exactly should we override it? Unless we want to see "across which are scattered" introducing the list of items on top of every Surface in our game, we probably don't want to modify inLineListingContentsLister. We could create a special new lister object just for our table, but if we only want to use it on our table and not for any other object in our game this is probably best done as an anonymous object defined on the table itself:</p>
+
+<p><pre>
++ table: Surface 'table' 'table'
+    inlineContentsLister: surfaceInlineContentsLister
+    {
+        showListPrefixWide(cnt, pov, parent)
+        {
+            " (scattered across which &lt;&lt;cnt == 1 ? tSel('is', 'was')
+              : tSel('are', 'were')&gt;&gt; ";
+        }
+        
+    }
+;
+</pre><p>
+
+<p>And now we'll see:</p>
+<p><pre>
+You see a chair, a table (scattered across which are a saucer, a cup, and a priceless antique
+vase), a bucket of water, a pen, and a piece of paper here.
+</pre><p>
+
+<p>The main things to note here are that (1) we've subclassed our custom inLineContentsLister from the object a Surface would otherwise have used, to ensure that we get behaviour appropriate to a Surface for every aspect of the Lister we haven't explicitly customized ourselves; (2) we use the <i>cnt</i> parameter of the showListPrefixWide() method to ensure we get the singular or plural form of the verb ("is scattered" or "are scattered") as appropriate, and (3) we use the tSel macro to ensure we get the present or past tense as appropriate; if we're never going to change tense in our game (and in most games we probably won't) then this last step won't actually be necessary. (For more information on changing tenses in games, see the Technical Article on <a href="t3past.htm">Writing a Game in the Past Tense</a>).</p>
+
+<p>Had we wanted to use this "scattered" wording on more than one object in our game, we could instead have defined a separate custom lister object which we then attached to the objects we wanted to use it on, e.g.:</p>
+
+<p><pre>
++ smallTable: Surface 'small table*tables' 'small table'
+    inlineContentsLister = scatteredSurfaceInlineContentsLister
+;
+
++ largeTable: Surface 'large table*tables' 'small table'
+    inlineContentsLister = scatteredSurfaceInlineContentsLister
+;   
+    
+scatteredSurfaceInlineContentsLister: surfaceInlineContentsLister    
+    showListPrefixWide(cnt, pov, parent)
+    {
+         " (scattered across which &lt;&lt;cnt == 1 ? tSel('is', 'was')
+           : tSel('are', 'were')&gt;&gt; ";
+    }   
+;
+</pre><p>
+
+<p>The same method can be used to customize the way what's on the table is described when we EXAMINE or SEARCH the table. We just need to customize the appropriate Listers in the same way:</p>
+
+<p><pre>
++ table: Surface 'table' 'table'
+    inlineContentsLister: surfaceInlineContentsLister
+    {
+        showListPrefixWide(cnt, pov, parent)
+        {
+            " (scattered across which &lt;&lt;cnt == 1 ? tSel('is', 'was')
+              : tSel('are', 'were')&gt;&gt; ";
+        }
+        
+    }
+    
+    descContentsLister: surfaceDescContentsLister
+    {
+        showListPrefixWide(itemCount, pov, parent)
+        {
+            "Scattered across &lt;&lt;parent.theNameObj>>
+            &lt;&lt;itemCount == 1 ? tSel('is', 'was')
+              : tSel('are', 'were')&gt;&gt; ";
+        }
+        
+    }    
+    
+    lookInLister: surfaceLookInContentsLister
+    {
+        showListPrefixWide(itemCount, pov, parent)
+        {
+            "Scattered across &lt;&lt;parent.theNameObj>>
+            &lt;&lt;itemCount == 1 ? tSel('is', 'was')
+              : tSel('are', 'were')&gt;&gt; ";
+        }
+        
+    } 
+;
+</pre><p>
+
+<p>The only thing that is new in principle here is the use of the <i>parent</i> parameter to supply the name of the parent object (the object being examined or searched) in the text introducing the list of its contents.</p>
+
+<p>As yet, we've not seen an example of customizing the remaining Lister property, <i>contentsLister</i>. In our table example, this would most likely be useful if we gave the table a specialDesc or initSpecialDesc or else made it a NonPortable (e.g. a Heavy or CustomFixture). It that case the table is not listed among the miscellaneous items in the room, so its own contents would then appear in a separate list, not in a sublist; we'd then see something like this:</p>
+
+<p><pre>
+You see a chair, a bucket of water, a pen, and a piece of paper here. On the table are a saucer,
+a cup, and a priceless antique vase.
+</pre><p>
+
+<p>Tto get the "scattered across the table" version, it's the contentsLister property we need to override:</p>
+
+<p><pre>
++ table: Surface, Heavy 'table' 'table'
+    specialDesc = "A table stands in the middle of the room. "
+    contentsLister: surfaceContentsLister
+    {
+        showListPrefixWide(itemCount, pov, parent)
+        {
+            "Scattered across &lt;&lt;parent.theNameObj&gt;&gt;
+            &lt;&lt;itemCount == 1 ? tSel('is', 'was')
+              : tSel('are', 'were')&gt;&gt; ";
+        }        
+    }
+;
+</pre><p>
+
+<p>Finally, we should note that we are not restricted to changing the text that introduces the list; we can also change the text that concludes it, which would allow us, for example, to turn the sentence round so that the table is mentioned at the end rather than the beginning. We could even use the lister to describe the presence of the table in the room, rather than (also) mentioning it in the room description or giving it a specialDesc. For example, instead of the example above, we could have written:</p>
+
+<p><pre>
++ table: Surface, Heavy 'table' 'table'
+    contentsLister: surfaceContentsLister
+    {
+        showListPrefixWide(itemCount, pov, parent)
+        {
+            "\^";            
+        }
+        showListSuffixWide(itemCount, pov, parent)
+        {
+            " &lt;&lt;itemCount == 1 ? tSel('is', 'was') : tSel('are', 'were')&gt;&gt;
+            scattered across the table that stands in the middle of the room. ";
+        }        
+    }
+    
+    specialDesc = "A table stands in the middle of the room. "
+    useSpecialDesc { return contents.length() == 0; }
+;
+</pre></p>
+
+<p>Here we override useSpecialDesc so that the specialDesc is only used if there's nothing on the table. If there is something on the table, the table will be mentioned in connection with the list of objects resting on it, so rather than mentioning the table twice, here we incorporate the full description of the table's location ("in the middle of the room") into the list of objects scattered across the table.</p>
+
+<p>One further point to note: so far all the methods we have been customizing have had names ending in "Wide" (such as showListPrefixWide()). These are the methods used for displaying lists that run horizontally across the screen (the default way of listing, used in all our examples so far). But in some contexts (e.g. where the player has issued a command like INVENTORY TALL) items may be listed in a vertical column down the screen; to customize the introductions and conclusions to lists in this vertical format you need to override the appropriate methods with names ending in "Tall", i.e. showListPrefixTall() and showListContentsPrefixTall(). There is no showListSuffixTall() method.</p>
+
+<p>The examples used above have all applied to a Surface. The same principles would apply when listing the contents of a Container, an Underside, or a RearSurface/RearContainer. You'd override precisely the same Lister <i>properties</i> on the container-type object in question, but you'd to subclass a different lister <i>object</i> in each case. You can always look up which Lister property uses which Lister object on which container class in the Library Reference Manual, but you may find it more convenient to use the table below:</p>
+
+<TABLE WIDTH=95% BORDER=2>
+<CAPTION><b><a name=listproptab>Lister Properties and Objects</a></b></CAPTION>
+<THEAD>
+<TR><TH>Lister Property</TH><TH>Container</TH><TH>Surface</TH><TH>Underside</TH>
+<TH>RearContainer</TH></TR>
+</THEAD>
+<TBODY>
+<TR><TD><FONT SIZE=-1>contentsLister</FONT></TD>
+<TD><FONT SIZE=-1>thingContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>surfaceContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>undersideContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>rearContentsLister</FONT></TD>
+</TR>
+<TR><TD><FONT SIZE=-1>descContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>thingDescContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>surfaceDescContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>undersideDescContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>rearDescContentsLister</FONT></TD>
+</TR>
+<TR><TD><FONT SIZE=-1>inlineContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>inlineListingContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>surfaceInlineContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>undersideInlineContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>rearInlineContentsLister</FONT></TD>
+</TR>
+<TR><TD><FONT SIZE=-1>lookInContentsLister</FONT></TD>
+<TD><FONT SIZE=-1>thingLookInLister</FONT></TD>
+<TD><FONT SIZE=-1>surfaceLookInLister</FONT></TD>
+<TD><FONT SIZE=-1>undersideLookUnderLister</FONT></TD>
+<TD><FONT SIZE=-1>rearLookBehindLister</FONT></TD>
+</TR>
+</FONT></TBODY>
+</TABLE>
+
+<P>Notes:</P>
+<ol>
+<li>RearSurface uses the same lister objects as RearContainer</li>
+<li>Container uses the same lister objects as Thing (from which it inherits its lister properties)</li>
+<li>In the main the lister objects are named in a fairly consistent pattern, but note <i>inlineListingContentsLister</i> not thingInlineContentsLister. Note also <i>surfaceLookUnderLister</i> and <i>rearLookBehindLister</i></i>
+<li>In many cases, if all you want to do is to change the preposition a lister uses to describe its contents (e.g. "on top of" instead of "on" or "beneath" instead of "under"), you don't need to override the lister at all; instead you can simply override objInPrep on the object whose contents are to be listed. This should work for all listers in the table above (except inLineListingContentsLister, which uses "contains" rather than the preposition "in").</li>
+<li>Openable overrides descContentsLister to openableContentsLister, so that, for example, an OpenableContainer uses openableContentsLister rather than thingDescContentsLister.</li>
+</ol>
+<p><a name=openable>This last point is particularly worth noting, since OpenableContainers are far from uncommon, and also because (which may be far from initially obvious), openableContentsLister also reports whether an Openable object is open or closed:</a></p>
+
+<p><pre>
+openableContentsLister: thingContentsLister
+    showListEmpty(pov, parent)
+    {
+        "\^&lt;&lt;parent.openStatus&gt;&gt;. ";
+    }
+    showListPrefixWide(itemCount, pov, parent)
+    {
+        "\^&lt;&lt;parent.openStatus&gt;&gt;, and contain&lt;&lt;parent.verbEndingSEd&gt;&gt; ";
+    }
+;
+</pre></p>
+<p>So, for example, if you have an OpenableContainer which is reporting "It's closed" when the player examines it, this is where the message is coming from (and this is the place to change it if, for example, you only want the container to report when it's open, not when it's closed). It's also the place where you could add an explicit "It's empty" message to an empty, open container. e.g.:</p>
+
+<p><pre>
++ box: OpenableContainer 'box' 'box'
+    descContentsLister: openableContentsLister
+    {
+        showListEmpty(pov, parent)
+        {
+            if(parent.isOpen)
+                "\^&lt;&lt;parent.openStatus&gt;&gt; but empty. ";            
+        }
+    }
+;
+</pre></p>
+<p>Which could give you a transcript like:</p>
+<p><pre>
+<b>&gt;x box</b>
+You see nothing unusual about it. 
+
+<b>&gt;open box</b>
+Opened. 
+
+<b>&gt;x it</b>
+It’s open but empty. 
+
+<b>&gt;put pen in box</b>
+(first taking the pen)
+Done. 
+
+<b>&gt;x box</b>
+It’s open, and contains a pen. 
+
+<b>&gt;close box</b>
+Closed. 
+
+<b>&gt;x it</b>
+You see nothing unusual about it. 
+</pre></p>
+
+<br>
+
+<h3><a name=other>Other Lister Properties and Objects (including Room and Inventory Listings)</a></h3>
+<p>We have now covered the four standard lister properties found on all Things, but there are also some others that are specific to particular classes (and which deal with specific situations). These include:<p>
+
+<ul>
+<li><i>abandonContentsLister</i> &mdash; the lister used to describe the objects being revealed when we move a SpaceOverlay object (usually an Underside or RearContainer) and abandon its contents. Each concrete kind of SpaceOverlay must provide a lister that uses appropriate language; the list should be roughly of the form "Moving the armoire reveals a rusty can underneath." Individual objects can override this to customize the message further.</li>
+<li><i>openingLister</i> &mdash; the lister used to show the items that are newly revealed when an object is opened (defined on Openable).</li>
+<li><i>specialContentsLister</i> &mdash; the Lister to use to display the special descriptions for objects that have special descriptions when we're showing a room description for this object (usually specialDescLister)</li>
+<li><i>roomContentsLister</i>&mdash; this is the Lister object
+       that we use to display the room's contents when the room is lit;
+     the default is roomLister (defined on a Room)</li>
+<li><i>darkRoomContentsLister</i> &mdash; this is the Lister object we'll
+     use to display the room's self-illuminating contents when the room
+     is dark; the default is darkRoomLister (defined on a Room)</li>
+<li><i>inventoryLister</i> &mdash; the Lister object that we use for inventory listings.  By
+      default, we use actorInventoryLister, but this can be overridden
+     if desired to use a different listing style (defined on an Actor)</li>
+    
+<li><i>holdingDescInventoryLister</i> &mdash; The Lister for inventory listings, for use in a full description of the actor.  By default, we use the "long form" inventory
+     lister (actorHoldingDescInventoryListerLong
+), on the assumption that most actors have relatively lengthy
+     descriptive text.  This can be overridden to use other formats;
+     the short-form lister, for example, is useful for actors with only
+     brief descriptions (defined on an Actor).  
+
+</ul>
+
+<p>Note that these are the names of the <i>properties</i> that point to Lister objects, not the lister objects themselves. For example, on an Openable the openingLister <i>property</i> points to the openableOpeningLister <i>object</i>.</p>
+
+<p>Other commonly used Lister <i>objects</i> (some of which have just been mentioned above) include:</p>
+<ul>
+<li><b>roomLister</b> &mdash; the object that we use by
+   default with showList() to construct the listing of the portable
+   items in a room when displaying the room's description. The corresponding property that usually points to this object is <i>roomContentsLister</i></li>
+<li><b>darkRoomLister</b> &mdash; the basic room lister for dark rooms. The corresponding property that usually points to this object is <i>darkRoomContentsLister</i></li>
+<li><b>RemoteRoomLister</b> &mdash; This is used to describe the contents of an
+ adjoining room.  For example, if an actor is standing in one room,
+ and can see into a second top-level room through a window, we'll use
+ this lister to describe the objects the actor can see through the window. Note that this 
+ is a <i>class</i> and that it has a constructor, so that we could create an appropriate
+ lister object with <code>new RemoteRoomLister(otherRoom)</code> where <code>otherRoom</code> 
+ is the name of the remote room whose contents we want to list. In the standard library this is normally called from <i>remoteRoomContentsLister(other)</i></li>
+ <li><b>CustomRoomLister</b> &mdash; A simple customizable room lister.  This can be used to create custom listers for things like remote room contents listings.  We act just
+ like any ordinary room lister, but we use custom prefix and suffix
+ strings provided during construction, for example: <code>new CustomRoomLister('Further up the street you can see', '. ')</code></li>
+ <li><b>actorInventoryLister</b> &mdash; the standard inventory lister for actors - this will work for the player character and NPC's as well.  This lister uses a "divided" format,
+  which segregates the listing into items being carried and items being worn.</li>
+<li><b>actorSingleInventoryLister</b> &mdash; this shows the inventory listing as a
+   single list, with worn items mixed in among the other inventory items
+   and labeled "(being worn)".</li>
+   
+</ul>
+
+<h4><a name=room>Room Contents Listings</a></h4>
+
+<p>A couple of examples should suffice to show how these might be useful. Suppose that instead of having a room description say "You see X, Y and Z here" you want it to say "X, Y and Z are lying around on the floor. ". This can be achieved by overriding the roomContentsLister property on the Room in question, for example:</p>
+
+<p><pre>
+westRoom: Room 'West Room'
+    "This is the west room. An exit leads east. "
+    east = eastRoom
+ 
+    roomContentsLister: roomLister
+    {
+        /* show the prefix/suffix in wide mode */
+        showListPrefixWide(itemCount, pov, parent) { "\^"; }
+        showListSuffixWide(itemCount, pov, parent) 
+        { 
+            " &lt;&lt;itemCount > 1 ? tSel('are', 'were') : tSel('is', 'was')&gt;&gt;
+            lying around on the floor. "; 
+        }        
+    }
+;
+</pre><p>
+<p>In conjunction with the other tweaks we've already made above, this could produce something like:</p>
+
+<p><pre>
+<b>West Room</b>
+This is the west room. An exit leads east. 
+
+A chair, a bucket of water, a pen, a box, and a piece of paper are lying around on the floor. 
+A saucer, a cup, and a priceless antique vase are scattered across the table that stands in 
+the middle of the room. 
+</pre></p>
+
+<h4><a name=inventory>Inventory Listings</a></h4>
+
+<p>The standard form of an inventory listing (the listing of the player character's inventory shown in response to an INVENTORY command) typically looks something like this:</p>
+
+<p><pre>
+<b>&gt;i</b>
+You are carrying a walking stick, a map, and an iceberg lettuce, and you’re wearing a 
+long overcoat and a pair of brown shoes.
+</pre></p>
+
+<p>You can change the format to show a single list, with worn items shown as "(being worn)" simply by overriding the inventoryLister property on the gPlayerChar object (typically me) to singleActorInventoryLister. For example this:</p>
+
+<p><pre>
+me: Actor
+   location = westRoom   
+   inventoryLister = actorSingleInventoryLister
+;
+</pre></p>
+
+<p>Will give you this:</p>
+
+<p><pre>
+<b>&gt;i</b>
+You are carrying a long overcoat (being worn), a pair of brown shoes (being worn), a 
+walking stick, a map, and an iceberg lettuce.
+</pre></p>
+<p>To customize further, e.g. to make an inventory lister that replaces "carrying" with "holding" and "wearing" with "sporting" requires rather more work, since the standard lister that divides the PC's possessions into what's being carried and what's being worn needs to define several methods to keep track of several possibilities. By copying and adapting the library's definition of actorInventoryLister one might come up with something like this:</p>
+
+<p><pre>
+me: Actor
+    location = westRoom   
+    inventoryLister: actorInventoryLister
+    {
+        showInventoryEmpty(parent)
+        {
+            /* empty inventory */
+            "&lt;&lt;buildSynthParam('The/he', parent)&gt;&gt; {is} holding absolutely
+            nothing. ";
+        }
+        showInventoryWearingOnly(parent, wearing)
+        {
+            /* we're carrying nothing but wearing some items */
+            "&lt;&lt;buildSynthParam('The/he', parent)&gt;&gt; {is}n\'t holding anything,
+            but {is} sporting &lt;&lt;wearing&gt;&gt;. ";
+        }
+        showInventoryCarryingOnly(parent, carrying)
+        {
+            /* we have only carried items to report */
+            "&lt;&lt;buildSynthParam('The/he', parent)&gt;&gt; {is} holding &lt;&lt;carrying>>. ";
+        }
+        showInventoryShortLists(parent, carrying, wearing)
+        {
+            local nm = gSynthMessageParam(parent);
+            
+            /* short lists - combine carried and worn in a single sentence */
+            "&lt;&lt;buildParam('The/he', nm)&gt;&gt; {is} holding &lt;&lt;carrying&gt;&gt;,
+            and &lt;&lt;buildParam('it\'s', nm)&gt;&gt;{subj} sporting &lt;&lt;wearing&gt;&gt;. ";
+        }
+        showInventoryLongLists(parent, carrying, wearing)
+        {
+            local nm = gSynthMessageParam(parent);
+            
+            /* long lists - show carried and worn in separate sentences */
+            "&lt;&lt;buildParam('The/he', nm)&gt;&gt; {is} holding &lt;&lt;carrying>>.
+            &lt;&lt;buildParam('It\'s', nm)&gt;&gt; sporting &lt;&lt;wearing>>. ";
+        }
+        /*
+         *   For 'tall' listings, we'll use the standard listing style, so we
+         *   need to provide the framing messages for the tall-mode 
+         *   listing.  
+         */
+        showListPrefixTall(itemCount, pov, parent)
+            { "&lt;&lt;buildSynthParam('The/he', parent)&gt;&gt; {is} holding:"; }
+        showListContentsPrefixTall(itemCount, pov, parent)
+            { "&lt;&lt;buildSynthParam('A/he', parent)&gt;&gt;, who {is} holding:"; }           
+    }    
+;
+</pre></p>
+
+<p>This is probably slightly more complex than it needs to be. In the most common case where the player character remains the same throughout the game, the game remains in the present tense throughout, and is always told in the second person, a lot of the stuff that looks like <code>&lt;&lt;buildParam('The/he', nm)&gt;&gt; {is}</code> could be replaced with <code>You are</code>; but if you've copied and pasted this code from the library you may just as well leave it as it is. The effect is to give you a transcript like this:<p>
+<p><pre>
+<b>&gt;i</b>
+You are holding a walking stick, a map, and an iceberg lettuce, and you’re sporting a long
+overcoat and a pair of brown shoes. 
+
+<b>&gt;i tall</b>
+You are holding:
+	a long overcoat (being worn)
+	a pair of brown shoes (being worn)
+	a walking stick
+	a map
+	an iceberg lettuce
+
+<b>&gt;drop all</b>
+long overcoat:
+(first taking off the long overcoat)
+Dropped. 
+
+pair of brown shoes:
+(first taking off the pair of brown shoes)
+Dropped. 
+
+walking stick: Dropped. 
+map: Dropped. 
+iceberg lettuce: Dropped. 
+
+<b>&gt;i wide</b>
+You are holding absolutely nothing. 
+
+<b>&gt;wear shoes</b>
+(first taking the pair of brown shoes)
+Okay, you’re now wearing the pair of brown shoes. 
+
+<b>&gt;i</b>
+You aren't holding anything, but are sporting a pair of brown shoes. 
+</pre></p>
+
+<p>Changing the way the inventory of an NPC is listed is similar, except that one instead needs to override the holdingDescInventoryLister property of the NPC. For example, one might typically see something like this:</p>
+
+<p><pre>
+<b>&gt;x myrtle</b>
+You think she's very pretty. 
+
+Myrtle is carrying a bunch of flowers, and she’s wearing a red dress. 
+</pre></p>
+
+<p>But here the description of Myrtle is so short, that you might want to combine it with the descripition of what she's carrying. This can be done by using actorHoldingDescInventoryListerShort instead:</p>
+
+<p><pre>
+myrtle: Person 'pretty myrtle/woman' 'Myrtle' @westRoom
+    "You think she's very pretty. "
+    holdingDescInventoryLister = actorHoldingDescInventoryListerShort
+    isHer = true
+    isProperName = true
+;
+</pre></p>
+
+<p>You'll then get:</p>
+<p><pre>
+<b>&gt;x myrtle</b>
+You think she's very pretty. She is carrying a bunch of flowers, and she’s wearing a red dress.
+</pre></p>
+
+<p>For any more complex customization, you'll need to use the same kind of techniques as we've already seen exemplified for listing the player character's inventory, except that you'll be working with the NPC's holdingDescInventoryLister property instead, and subclassing from
+    actorHoldingDescInventoryListerShort or actorHoldingDescInventoryListerLong.</p>
+<br>
+
+<h2>Conclusion</h2>
+
+<p>There is more to lists and listers than we've covered here. We could go on to describe every single Lister method or to give lots of convoluted examples of listing complex groupings of objects in remote locations, but we have now covered the basics, and that should hopefully be enough to enable you to tweak the lists that appear in your own games in most of the ways that are likely to prove useful. If you need to go beyond what this article covers, then hopefully it will have covered enough ground to enable you to find what else you need to know from the <i>Library Reference Manual</i>. At the very least, it should have given you a better idea where to look.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Lists and Listers
+<br><span class="navnp"><a class="nav" href="t3imp_action.htm"><i>Prev:</i> Implied Action Reports</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3tips.htm"><i>Next:</i> Tips: A Context-Sensitive Help System</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
+

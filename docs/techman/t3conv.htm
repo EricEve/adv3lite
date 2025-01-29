@@ -1,0 +1,2183 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Programming Conversations with NPCs</title>
+
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+<a class="nav" href="t3actor.htm">Creating Dynamic Characters</a> &gt; 
+Programming Conversations with NPCs
+<br><span class="navnp"><a class="nav" href="convbkg.htm"><i>Prev:</i> Choosing a Conversation System</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3npcTravel.htm"><i>Next:</i> NPC Travel</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Programming Conversations with NPCs</h1>
+
+<p>In the <a href='convbkg.htm'>previous part of this article</a>, I
+offered my recommendations for a conversation system based on the
+traditional ASK/TELL model, but with some enhancements.  The TADS 3
+library provides support for a lot of the effects I described in my
+recommendations.
+
+<p>The library doesn't lock you into using any particular conversation
+style; I think it would be relatively easy to implement any of the
+systems mentioned in my <a href='convbkg.htm#survey'>survey</a>.  Many
+of the library classes for conversation support could be repurposed
+for other types of conversations, and if all else fails you can always
+ignore this part of the library and build your own completely custom
+conversation system.  But if you do choose to use my proposed system,
+the library offers ready-made support for many elements of it.
+
+
+<h2>Basic ASK/TELL</h2>
+
+<p>The traditional IF conversation system uses individual ASK/TELL
+commands, where each ASK ABOUT or TELL ABOUT is answered with a pat
+response.  For minor NPCs who don't have a significant role in the
+story, this is usually all you want.  The library makes it easy to set
+this up.
+
+<p>The key to implementing ASK/TELL responses is the TopicEntry
+object.  This is an "abstract" object that doesn't have any existence
+in the game world - it's not something that shows up in room listings
+or that characters can pick up and manipulate.  Each TopicEntry
+object defines a three-way association: a question, an answer, and
+the actor who's being asked.  The question is represented as the
+indirect object of an ASK ABOUT command; this can be a physical object
+in the game (a Thing object, for example), an abstract Topic object,
+or simply a regular expression pattern, if you want to match some
+specific text string.  The answer is usually simply a string to display,
+but more advanced responses are possible, as we'll see a little later.
+The actor who's being asked is simply the Actor object to whom the
+question can be directed.
+
+<p>Each TopicEntry further defines what kind of command it responds
+to.  There are four pre-defined commands that TopicEntry objects can
+answer: ASK, TELL, SHOW, and GIVE.  You can always add your own
+additional types if you need to, but these are the ones used in the
+traditional conversation model (and my recommended style).
+
+<p>This might sound like a lot of work just to define a single answer
+to a single question, but the way the library sets it up, it's really
+very convenient - more convenient than adding an element to a
+switch() statement, which is what TADS 2 authors usually end up doing.
+The library provide "templates" customized for TopicEntry objects, and
+it requires relatively little typing to add one of these.  In addition,
+you can usually specify the type of command the TopicEntry answers by
+using one of the several pre-defined subclasses of TopicEntry: 
+
+<ul>
+  <li>AskTopic answers an ASK ABOUT question;
+  <li>TellTopic responds to a TELL ABOUT command;
+  <li>AskTellTopic answers either an ASK ABOUT or TELL ABOUT command;
+  <li>AskForTopic responds to an ASK FOR request.
+  <li>GiveTopic responds to a GIVE TO command;
+  <li>ShowTopic responds to a SHOW TO command;
+  <li>GiveShowTopic responds to either a GIVE TO or SHOW TO command;
+  <li>YesTopic responds to a YES command;
+  <li>NoTopic responds to a NO command.
+</ul>
+
+<p>The most common type of topic entry in most games will probably be
+the AskTellTopic, since you usually want to treat ASK and TELL as
+equivalent for a given topic.  Likewise, in most situations, games
+tend to treat GIVE and SHOW as interchangeable.  It's always up to
+you to decide how you'll treat each command, though.  If you want to
+treat ASK and TELL differently for the same topic, you would simply
+create an AskTopic to handle the ASK response, and a separate TellTopic
+to handle the TELL response.  When you want to treat ASK and TELL as
+equivalent for a topic, you need only create a single AskTellTopic
+object to handle both commands.
+
+<p>The association of a TopicEntry with the target actor is created using
+the familiar "location" property.  This means you can use the "+" syntax
+to put the TopicEntry "inside" the answering actor.
+
+<p>Here's an example of how we could define an actor and a few 
+responses.
+
+<p><pre>
+  bob: Actor 'bob' 'Bob'
+    "He's a nervous-looking older man with white hair. "
+
+    isProperName = true
+    isHim = true
+  ;
+
+  + AskTellTopic @antenna
+    "&lt;q&gt;Have you been to the antenna?&lt;/q&gt; you ask.
+    &lt;.p&gt;&lt;q&gt;I climbed it once,&lt;/q&gt; Bob says. &lt;q&gt;It's pretty scary
+    up there. Great view of the city, though.&lt;/q&gt; "
+  ;
+
+  + TellTopic @lighthouse
+    "&lt;q&gt;I was in the lighthouse earlier today,&lt;/q&gt; you start.
+    &lt;.p&gt;Bob becomes quite flustered. &lt;q&gt;What are you talking about?
+    That thing was torn down years ago, after the...\ troubles.&lt;/q&gt; "
+  ;
+</pre>
+
+<p>Note the format for defining each topic entry: we use a "+" to put
+the topic "inside" the actor, and we use an "at" sign, "@", to
+indicate the topic we want to respond to.  The topics we've listed
+here - antenna, lighthouse - refer to objects in the game; the
+examples here are probably Fixture objects, or something like that.
+
+<p>Note that conversational commands are allowed to refer to objects
+that aren't physically present, because the "scope" of conversational
+topics extends to anything in the game that the player character has
+ever seen or otherwise knows about.  In some ways, this simplifies
+things, because you don't have to worry about defining the vocabulary
+words for a topic entry - you just point the topic entry to the game
+object that you want to talk about, and the parser matches that
+object's vocabulary as usual.  In other ways, this complicates things
+a bit; in particular, if there are several objects in the game that
+all go by the name of "lighthouse," then that topic phrase will match
+all of those objects.  Fortunately, you mostly won't have to
+worry about this, because of the way TopicEntry matches its topic:
+the parser first picks the list of objects that match the player's
+topic phrase, then matches these against the TopicEntry "@" object.
+If the "@" object is found among the topic phrase matches, then
+the TopicEntry is considered a match.
+
+<p>Sometimes, you'll want to define a single topic entry that matches
+multiple game objects.  To do this, simply provide a list of objects
+in place of the "@" object - and omit the "@" in this case.  Here's
+an example:
+
+<p><pre>
+  + AskTellTopic [harbor, island, shore]
+    "&lt;q&gt;Do you know how to get onto the island in the
+    harbor?&lt;/q&gt;
+    &lt;.p&gt;He ponders for a moment.  &lt;q&gt;Well,&lt;/q&gt; he says
+    slowly, &lt;q&gt;I've heard that crazy old fisherman talk
+    about a hidden dock on the north side.&lt;/q&gt; "
+  ;
+</pre>
+
+<p>If there's no "physical" object in the game that corresponds to a
+conversation topic, you can always add a Topic object.  A Topic is an
+abstract object (not part of the game world) whose only real purpose
+is to match noun phrases for commands like ASK and TELL.  You define
+one of these the same way you would any ordinary Thing, but the only
+property that a Topic usually needs is its vocabulary - there's rarely
+any need to give a Topic a location, a description, or any other
+properties.
+
+<p><pre>
+  meaningOfLifeTopic: Topic 'meaning of life';
+</pre>
+
+<p>(Note that you'll almost always want to name each Topic object you
+create, rather than creating them anonymously.  In most cases, the
+whole reason to create a Topic object is so that you can refer to it
+with an AskTellTopic (or other topic entry type), and to do that, you
+need to give the Topic a name.  In the example above, we've named our
+Topic object "meaningOfLifeTopic", which lets us refer to it with the
+normal "@" syntax when defining a topic entry.)
+
+<p>You can also match a regular expression pattern in a TopicEntry,
+instead of a game object.  It's usually a lot easier to match physical
+game objects or Topic objects, since you get the full power of the
+parser to interpret all of the different possible phrasings (such as
+using "the", or arranging adjectives in different orders, or
+abbreviating long words).  Once in a while, though, you might
+encounter a situation where you want to match an unusual phrasing that
+doesn't fit into the parser's normal ideas what a noun phrase looks
+like; in these cases, it's sometimes easier to just use a regular
+expression and match the literal text.  Simply use a single-quoted
+string in place of the "@" object in the TopicEntry definition (and,
+as with an object list, leave out the "@").
+
+<p><pre>
+  + TopicEntry '&lt;alpha&gt;&lt;digit&gt;{3}'
+    "&lt;q&gt;Does the sequence &lt;q&gt;&lt;&lt;gTopic.getTopicText()&gt;&gt;&lt;/q&gt;
+    mean anything to you?&lt;/q&gt;
+    &lt;.p&gt;&lt;q&gt;That sounds like a keypad code down at the
+    ferry terminal.&lt;/q&gt; "
+  ;
+</pre>
+
+<p>As you can see, TopicEntry objects make it easy and convenient to
+add responses to a character's repertoire.  The nice thing about them
+is that they don't require any coding - you essentially just create an
+"inventory" of things a character knows about.
+
+<h2>Sequential and random responses</h2>
+
+<p>With the basic TopicEntry definitions we've seen so far, a
+character will respond the same way to a topic no matter how many
+times the same question is asked.  Every so often, though, it's
+useful to make a character reveal more information about a topic if
+asked repeatedly.  The TopicEntry object makes this easy by allowing
+you to combine a TopicEntry and an EventList into a single object.  
+
+<p>To use an EventList in a topic entry, choose a subclass of EventList,
+and add this class to the superclass list when defining the
+TopicEntry.  Then, provide a list of single-quoted strings for the
+response instead of the one response string.  For situations where
+you want a character to reveal more information when pressed, the
+best choice is StopEventList: when the last element of this kind of
+list is reached, the list will simply stop at the last element and
+repeat it indefinitely.  Here's an example:
+
+<p><pre>
+  + AskTellTopic, StopEventList @lighthouse
+    ['&lt;q&gt;I was in the lighthouse earlier today,&lt;/q&gt; you start.
+    &lt;.p&gt;Bob becomes quite flustered. &lt;q&gt;What are you talking about?
+    That thing was torn down years ago, after the... troubles.&lt;/q&gt; ',
+
+    '&lt;q&gt;What did you mean about the lighthouse being torn down?&lt;/q&gt;
+    &lt;.p&gt;&lt;q&gt;Just what I said,&lt;/q&gt; he says. &lt;q&gt;It hasn't been there
+    for years. No way you could have been in it.&lt;/q&gt; ',
+
+    '&lt;q&gt;When was the lighthouse torn down?&lt;/q&gt;
+    &lt;.p&gt;&lt;q&gt;Like I said, after those troubles we had.&lt;/q&gt; ']
+  ;
+</pre>
+
+<p>You can use the same approach to achieve other effects.  A common
+variation is using random responses rather than sequential responses.
+For random responses, you would create a TopicEntry like the example
+above, but you'd use RandomEventList or ShuffledEventList instead of
+StopEventList.  (I'd personally recommend ShuffledEventList over
+RandomEventList in most cases.  RandomEventList just picks a response
+at random and shows it; it's like rolling dice to pick a response.
+ShuffledEventList instead first arranges the whole list of responses
+into a random order, then takes responses from the shuffled list one
+at a time, like dealing from a shuffled deck of cards.  When the list
+runs out, ShuffledEventList re-shuffles the list and starts over.
+Psychologically, this looks a lot more random to players, because it
+minimizes repetition by going through the whole list before repeating
+anything.)
+
+<h2>Default responses</h2>
+
+<p>As I talked about in the
+<a href='convbkg.htm#recommendations'>Recommendations</a> 
+section, it's important
+to provide a good set of customized "default responses" for each
+character, to handle the times when the player asks about something
+that you haven't anticipated.  The topic entry system makes this easy.
+
+<p>You define a default response (or a set of default responses) just
+like any other topic entry, but you use one of the DefaultTopic
+classes - DefaultAskTopic, DefaultTellTopic, DefaultAskTellTopic,
+DefaultAskForTopic, DefaultGiveTopic, DefaultShowTopic, or
+DefaultGiveShowTopic.  There's also the special DefaultAnyTopic, which
+is a catch-all that will respond to any of the other types of topics.
+For many NPCs, you'll be able to define one DefaultAnyTopic;
+sometimes, though, you'll want to differentiate the default responses
+to different types of commands, so you might define one
+DefaultAskTellTopic and one DefaultGiveShowTopic, for example.  You
+can use ShuffledEventList, as described above, to randomly show a
+different message each time one is needed.
+
+<p>In addition to catch-all defaults for completely unknown topics,
+you can also define fallbacks for groups of topics where one particular
+thing has a more specific message.  The way to do this is to use
+the "matchScore" property of a topic entry.  
+
+<p>When the actor is choosing which topic entry to use, it scans its
+database to find all of the topic entries that match what the user
+typed in, and it notes each matching entry's matchScore.  If there's
+more than one matching entry, the actor chooses the one with the
+highest score.  The matchScore is just an integer value; if you don't
+specify a matchScore for a TopicEntry object, the default is 100.  Any
+numeric score indicates a match; a score of nil means that there's no
+match at all.
+
+<p>(The score is how DefaultTopic and its subclasses work, by the
+way.  DefaultTopic will match anything at all, but it matches with
+the lowest possible matching score value, 1.  So, a DefaultTopic
+will always match everything the player types in, but it will only
+be selected if there's not another TopicEntry that also matches,
+because any other TopicEntry will have a higher score.)
+
+<p>To assign a score to a TopicEntry object, put a "+" sign and the
+score value immediately following the class name:
+
+<p><pre>
+  + AskTellTopic +80 @lighthouse // etc
+</pre>
+
+<h2>Conditional responses</h2>
+
+<p>Topics and their responses aren't always constant throughout a
+game.  The kinds of questions the player character can ask can change
+as events unfold, and NPCs can learn things as well.  For example,
+it makes no sense for the player character to ask anyone about an
+event until after it happens; similarly, an NPC's response to a
+question might change after the NPC witnesses some event.
+
+<p>To handle this kind of change, topic entries can be made
+conditional.  A topic entry is made conditional by defining an
+"isActive" property in the TopicEntry object; the topic entry will be
+used only if isActive returns true.
+
+<p>For example, suppose we wanted to create a response to a question
+about an event that happens midway through the game.  We obviously
+don't want to use the response before the event happens, so we could
+make it conditional on a property value that we set when the event
+occurs:
+
+<p><pre>
+  + AskTellTopic @lighthouse
+    "&lt;q&gt;What do you know about the fire at the lighthouse?&lt;/q&gt;
+    [etc.] "
+
+    isActive = (lighthouse.fireStarted)
+  ;
+</pre>
+
+<p>This topic will be completely ignored until the fireStarted
+property of the lighthouse has been set to true; we'll presumably set
+this property in some other part of the game at the proper time.  If
+the player asks about the lighthouse before that, the topic will act
+as though it doesn't even exist, so the actor will fall back on its
+default response.  Once the lighthouse fire has started, the topic
+will pop into existence.  The nice thing about this approach is that
+it keeps the code for the condition test right with the topic itself
+- you don't have to worry about inserting any handling for the topic
+itself in the part of the game that handles the lighthouse fire, and
+you don't have to hunt around the game's source code to figure out
+where the topic is activated.
+
+<p>Sometimes, merely becoming active after an event isn't good enough;
+sometimes you want a topic's response to change according to an event.
+There are a couple of ways to handle this.  The simplest is to use
+"alternative" topic objects, which are defined with the class AltTopic.
+Alternative topics let you create essentially an if-then-else list
+for a given topic, but without writing any procedural code.
+
+<p>Defining an AltTopic is simple: you just nest it within the
+TopicEntry object that you want the AltTopic to "override" when it's
+active.  The AltTopic always takes its match conditions from its
+parent, so you don't even have to repeat the match object, or say what
+kind of command (ASK, TELL, GIVE, SHOW) it matches.  The only thing
+you usually have to define with an AltTopic object is the response and
+the isActive condition.
+
+<p><pre>
+  + AskTellTopic @lighthouse
+    "(This is the 'default' response to ASK/TELL ABOUT 
+    LIGHTHOUSE - this one will be used when the nested
+    AltTopic isn't active.)"
+  ;
+
+  ++ AltTopic
+    "(This is the 'overriding' response.  It matches
+    exactly the same commands as the parent, so it'll
+    respond to ASK/TELL ABOUT LIGHTHOUSE.  This one
+    will override the parent when isActive is true.)"
+
+    isActive = (lighthouse.fireStarted)
+  ;
+</pre>
+
+<p>You can add any number of AltTopic objects nested within a regular
+topic entry.  To add a third possibility to the example above, we'd
+just add another AltTopic (also with two '+' signs) after the one we
+just defined, and so on to any number of additional alternatives.
+
+<p>The order of the AltTopics is important: it goes from most general
+to most specific.  The actor will always choose the <b>last</b> active
+topic in a group of alternatives, because it's the most specific one.
+Each subsequent AltTopic is more specific than the previous one, so an
+AltTopic overrides all of the previous ones when it's active.
+
+<p>Alternative topics are one way to create responses that change
+as the game unfolds.  Alternative topics are convenient to use, but
+they're not very flexible.  When AltTopics won't do the trick, you
+can use the matchScore mechanism as a more general approach.  Recall
+that the active topic with the best matchScore is the one that's
+chosen when more than one match is found.  You can take advantage of
+this to define your own hierarchy of matches.  For example, we could
+rewrite the example above like so:
+
+<p><pre>
+  + AskTellTopic @lighthouse 
+    "This is the general case..."
+  ;
+
+  + AskTellTopic +110 @lighthouse
+    "This is the more specific case..."
+
+    isActive = (lighthouse.fireStarted)
+  ;
+</pre>
+
+<p>The actor will choose the second one over the first whenever the
+second one's isActive property returns true, because the second has a
+higher score.  For this particular case, the AltTopic approach is
+better, because it makes the relationship between the two topics more
+apparent just looking at the source code.  However, the score
+approach lets you do things you couldn't do with AltTopics, such as
+use slightly different match criteria for the two; for example, you
+could set up the second topic to match several objects, such as
+[lighthouse, reflector, island], rather than just the lighthouse.
+
+<h3>Why not just use 'if'?</h3>
+
+<p>You might look at the AltTopic and "score" examples and wonder why
+you shouldn't do this with a somewhat more straightforward if-then-else
+test:
+
+<p><pre>
+  + AskTellTopic @lighthouse
+    topicResponse()
+    {
+      if (lighthouse.fireStarted)
+        "This is the post-fire case. ";
+      else
+        "This is the general case. ";
+    }
+  ;
+</pre>
+
+<p>This example does exactly what it looks like it will, so clearly
+you <i>can</i> use the topic system and still use if-then-else
+conditions for the responses, if you want.  In simple cases this can
+be fine, but it has a couple disadvantages.  First, as the game
+expands, that if-then-else test is likely to expand into more
+branches, and you'll get the kind of spaghetti that the topic database
+system was designed to avoid.  Second, and perhaps more importantly,
+when you use an AltTopic or a separate, conditional topic entry, each
+of the topic entries is a separate object with its own properties.
+This means, for example, that the topic inventory system (which we'll
+see in a moment) can treat the different conditional topics
+separately: it can suggest a topic only when the conditions are right,
+and it can re-suggest a topic when the conditions change.
+
+<h3>Player character knowledge and NPC knowledge</h3>
+
+<p>The library keeps track of what the player character knows, via the
+Actor method knowsAbout(obj), but it doesn't use any sort of NPC
+"knowledge model" in the conversation system.  Instead, the
+conversation system leaves it up to the game to determine what things
+an NPC can say.
+
+<h4>Actor.knowsAbout: PC knowledge</h4>
+
+<p>The library has a specific mechanism for tracking PC knowledge.
+Actor has a method, knowsAbout(obj), which indicates whether or not
+the given actor knows about the object.
+
+<p>Note that, by default, the library tracks only the player
+character's knowledge.  Most games don't need to track NPC knowledge
+separately, so the library doesn't bother keeping separate NPC
+knowledge bases, to reduce overhead.  If you want to track an NPC's
+knowledge separately, you can do so easily: you merely have to set the
+NPC's knownProp and/or seenProp properties to new values unique to
+that actor.  The Actor class in the adv3 library describes this in
+more detail.
+
+<p>The knowsAbout() method uses an internal flag tracking whether the
+player character knows about the object.  An object is considered
+"known" to an actor if the actor has ever seen the object, or the
+object's "known" status has been specifically set.  The "known" status
+can be used to indicate that the player character knows about things
+that have never been seen; this can be useful for objects that ought
+to be known to the player character because they're part of the
+character's background knowledge, or because the character hears about
+them in conversation, for example.  You can set the "known" status
+using actor.setKnowsAbout(obj).
+
+<h4>TopicEntry.isActive: NPC knowledge, and more</h4>
+
+<p>Each TopicEntry has a property, isActive, that indicates whether
+or not the entry is "active."  If an entry is active, then the entry
+can be used in a response; otherwise it can't.  It's up to your game
+to determine how you want to define and use this status information.
+
+<p>One way of using the active status is as a model of NPC knowledge.
+When an NPC is meant to know a response, you can mark the NPC's
+TopicEntry object for that response as active.  At other times, you
+can make the entry inactive.  This ensures that the NPC can only
+respond to a question about the topic when the NPC knows the answer.
+
+<p>It's important to note that you're modeling the NPC's knowledge of
+the <i>response</i>, not of the topic.  You could have several
+TopicEntry for the same NPC that respond to the same topic, but the
+NPC "knows" each of the responses at different times.  This lets you
+vary an NPC's answers to questions about a topic as the NPC's
+knowledge changes.
+
+<p>Even though you can use isActive to represent NPC knowledge,
+in practice it's useful to use it for other purposes as well.
+
+<ul>
+
+<li>You can use isActive to model the NPC's frame of mind or emotional
+state, separately from its knowledge.  For example, you could have
+the NPC use one response (i.e., one TopicEntry) for a given topic when
+the NPC is angry, and another when the NPC is contented.
+
+<li>You can use isActive to model what the NPC thinks the player
+knows, or what the NPC wants to reveal at the moment.  For example,
+you could have the NPC try to conceal something, by giving an
+uninformative (or misleading) response to a question on a topic.  But
+later on, after the player has confronted the NPC with an accusation,
+say, or bribed the NPC, the NPC could start being more cooperative,
+giving more informative answers to the same topic.  Note that we're
+not modeling the NPC's knowledge here, because the NPC knows the more
+informative response all along; we're instead modeling the NPC's
+desire to keep the information secret.
+
+<li>You can use isActive to model what the player character knows.
+Sometimes, the simple knowledge model for the player character,
+contained in the knowsAbout() system, isn't adequate to represent
+nuances of PC knowledge.  It's often the case that the whole meaning
+of a question can change as the PC learns things.  For example, the PC
+might know about another character named Mary throughout the game, but
+the meaning of ASK BOB ABOUT MARY could change as the game progresses:
+
+<p><pre>
+  + AskTellTopic @mary
+    "&lt;q&gt;What can you tell me about Mary?&lt;/q&gt;
+    [...] "
+  ;
+
+  ++ AltTopic
+    "&lt;q&gt;Mary told me all about how you cheated on her,&lt;/q&gt; you say,
+    unable to disguise your contempt.
+    [...] "
+
+    isActive = (gRevealed('bob\'s affair'))
+  ;
+</pre>
+
+<p>We'll see more on gRevealed later - it's a simple mechanism that
+lets you keep track of arbitrary bits of player character knowledge
+using a global table keyed by string names.  What we've done here is
+made the meaning of ASK BOB ABOUT MARY conditional on whether we've
+revealed Bob's affair yet; if not, the player character wouldn't know
+to ask about the affair, so a question about Mary is just a question
+about Mary.  Once the affair has been revealed, though, ASK BOB ABOUT
+MARY takes on a different meaning.
+
+</ul>
+
+<h4>Selecting a response: PC knowledge + topic entry activation</h4>
+
+<p>The parser uses knowsAbout() to select which objects the player is
+referring to with a command involving a topic, such as ASK or TELL.
+The parser first finds all of the objects (Things and Topics) that
+match the noun phrase the player typed, then it narrows the list down
+to those objects that return true from knowsAbout().  This is the list
+that the parser matches against the various TopicEntry objects
+associated with the NPC being questioned.
+
+<p>Taken together, these two mechanisms - the TopicEntry's isActive
+property, and the Actor.knowsAbout() method - ensure that we consider
+the player character's knowledge as well as the game-defined factors
+that go into determining whether or not a response is active.  We
+first figure out what the player could possibly be asking about by
+using player character knowledge; once we've narrowed down the list,
+we find the appropriate response using the isActive status of the
+topic entries.
+
+<h2>Groups of conditional responses</h2>
+
+<p>Sometimes, a whole group of responses will share a single
+condition.  For example, you might want to create a character who has
+a number of emotional conditions - he might be happy, sad, or angry.
+For each emotion, you might have a set of specialized responses that
+only apply in that mood.  It would be a little tedious to have to
+type the same "bob.emotion == sad" condition over and over for all
+of the different responses.  The library has a class that helps with
+this sort of thing: TopicGroup.
+
+<p>A TopicGroup is an abstract "container" for topics.  You can put
+topic entries inside a TopicGroup just like you can put them inside an
+actor.  The TopicGroup itself goes inside an actor, and any topic entries
+within a topic group act as though they were defined directly in the
+actor.  However, the TopicGroup has the additional feature that you
+can define an isActive condition on the TopicGroup object, and the
+condition will automatically apply to everything in the group.
+
+<p><pre>
+  bob: Actor /* ... */ ;
+
+  + TopicGroup isActive = (bob.emotion == sad);
+  ++ AskTellTopic @bob "&lt;q&gt;I'm so depressed...&lt;/q&gt; ";
+  ++ AskTellTopic @store "&lt;q&gt;Sales have been terrible.&lt;/q&gt; ";
+
+  + TopicGroup isActive = (bob.emotion == happy);
+  ++ AskTellTopic @bob "&lt;q&gt;I feel great!&lt;/q&gt; ";
+  ++ AskTellTopic @store "&lt;q&gt;Things have been going well.&lt;/q&gt; ";
+</pre>
+
+<p>The isActive condition of a TopicGroup is cumulative: in order to be
+active, a TopicEntry object must return true from its own isActive
+property, and its group must <i>also</i> return true.  In other words,
+the isActive condition of a topic entry is AND'ed with the isActive
+condition of its group.
+
+<p>You can nest TopicGroups within TopicGroups.  When you do this,
+all of the enclosing group conditions are AND'ed together.
+
+
+<h2>State-specific responses</h2>
+
+<p>In many cases, the "isActive" condition of a given response will
+simply depend on the actor's state.  If we go back to the "hair on
+fire" example in the <a href='t3actor.htm'>first part</a> of this
+article, we'd want the man to respond to the BACCARAT topic (and,
+in fact, most topics) differently in the hair-on-fire state than
+in the sitting-at-table state.
+
+<p>It's especially easy to specify that a topic entry is valid only
+in a given state: just put the topic entry "inside" the state object.
+Just as you can put topic entries inside an actor to associate them
+with the actor, you can put topic entries inside an actor state to
+associate them with the state.
+
+<p><pre>
+  baccaratMan: Actor
+    // ...
+  ;
+
+  + AskTellTopic @baccarat
+    "<q>Baccarat is like life: it's all about risk.</q> "
+  ;
+
+  + DefaultAskTellTopic
+    "He suavely ignores you and takes a sip of his drink. "
+  ;
+
+  + sittingState: ActorState
+    // ...
+  ;
+
+  + hairOnFireState: ActorState
+    // ...
+  ;
+
+  ++ AskTellTopic @baccart
+    "<q>Baccarat is like - Ack! Help! I'm on fire! </q> "
+  ;
+
+  ++ DefaultAskTellTopic
+    "<q>Ack! Stop asking me questions and find me some water!</q> "
+  ;
+</pre>
+
+<p>The topic entries for the current state "override" the entries for
+the actor itself.  When you ask about a topic, the actor will first
+look for a matching topic among the ones defined as "inside" its
+current state; if it can find one, that's the one we use.  If there's
+no match in the current state, then the actor looks for a match among
+the topics defined directly inside the actor.
+
+<p>Note that the score is important for resolving multiple matches at
+each level, but the score isn't important in deciding whether to use
+the topics defined in the actor state or those defined directly in the
+actor.  If there's <i>any</i> match in the actor state, we'll use that
+match, completely ignoring any other matches in the actor itself.
+This means that if you define a DefaultAskTellTopic inside the state
+object, then it will completely override every response defined in the
+actor.  So, in the example above, when we're in the "hair on fire"
+state, we'll never see a response defined directly in the actor,
+because the "find me some water" default response in the state object
+overrides every response directly in the actor.
+
+
+<h2>Topic inventory</h2>
+
+<p>If you don't like the "topic inventory" idea I described in the
+<a href='convbkg.htm#recommendations'>Recommendations</a> section, you can
+skip this part.  Briefly, the idea is to mark selected topics as
+suggestions, and display a list of the currently open suggestions
+to the player at certain times, such as when the player enters a
+TOPICS command to specifically ask for the list.
+
+<p>The library provides a class, SuggestedTopic, that lets you mark a
+topic entry as a suggestion.  To create a suggestion, make your
+TopicEntry object inherit from the appropriate SuggestedTopic subclass
+- in other words, add a SuggestedTopic subclass to the topic's
+superclass list, using multiple inheritance.  The library defines
+SuggestedAskTopic, SuggestedTellTopic, SuggestedShowTopic,
+SuggestedGiveTopic, SuggestedYesTopic, and SuggestedNoTopic.  Note
+that, unlike TopicEntry, there are no combination classes: there's no
+ask-plus-tell combination, for example.  We don't need the combination
+classes because there's no reason to be so vague in making
+suggestions; we can just pick the format that makes the most sense and
+suggest that.
+
+<p>Apart from adding the new superclass, there are two special things
+you have to do when you mark a topic entry as a suggestion.
+
+<p>First, you have to define a "name" property for the suggestion.
+This is the name that will be shown in the suggested topic list.
+There's also a "fullName" property, but for the pre-defined
+SuggestedTopic subclasses, you shouldn't have to define this - it'll
+default to something appropriate, such as "ask about (name)".  The
+"name" property should be given so that it can be substituted into a
+sentence after "ask about" (or the appropriate variation for the other
+types), so it should usually include "the" if appropriate.
+
+<p><pre>
+  + AskTellTopic, SuggestedAskTopic @lighthouse
+    "&lt;q&gt;Can you tell me about the lighthouse?&lt;/q&gt; [etc.] "
+
+    name = 'the lighthouse'
+  ;
+</pre>
+
+<p>Second, you'll need to make sure the suggestion won't show up "too
+early."  The library shows or hides a suggestion according to its
+isSuggestionActive() method.  In most cases, you won't need to override
+this method, because the default version does a pretty good job of
+figuring out when a suggestion should become visible.
+
+<p>By default, isSuggestionActive() will only return true when all
+of the following conditions are met:
+
+<ul>
+<li>the associated TopicEntry is active - that is, its isActive property
+returns true;
+
+<li>if the associated TopicEntry has a match object or a list of match
+objects in its matchObj property, then at least one of the match
+objects must be known to the player character (so
+gPlayerChar.knowsAbout(obj) must return true for at least one of the
+match objects);
+
+<li>the suggestion's suggestTo property refers to the current player
+character;
+
+<li>the player character must not already have "satisfied their curiosity"
+about the suggestion, which usually just means that the associated topic
+entry has displayed its response already.
+
+</ul>
+
+<p>These conditions usually ensure that a suggestion won't be shown
+until the player character knows about whatever it is we're suggesting
+that they ask about, and that it won't be shown again once the player
+acts on the suggestion.  The nice thing about this set of conditions
+is that they generally figure out when to show a suggestion based on
+information you've already defined for the topic entry itself, because
+in most cases you simply want a topic to be suggested if and only if
+the topic can be used as a response.
+
+<p>In some cases, you might have to override isSuggestionActive() to
+customize the conditions for showing the suggestion.  When the default
+behavior doesn't produce the results you want, you can take control of
+a suggestion's availability by overriding its isSuggestionActive()
+method.
+
+<h3><a name='activeTopicInventory'>The active topic inventory</a></h3>
+
+<p>The list of active topic inventory topics is constructed from a
+hierarchy of sources for the NPC we're talking to:
+
+<p><ul>
+<li>the NPC's current ConvNode
+<li>the NPC's current ActorState
+<li>the Actor object representing the NPC
+</ul>
+
+<p>In some cases, a ConvNode won't allow the player to stray from the
+current topic (see "<a href='#exclusiveConvNodes'>ConvNodes with
+exclusive responses</a>" below).  For example, a ConvNode might insist
+on a YES or NO answer to a question.  In cases where it's obvious from
+context that only certain limited topics are meaningful, it's
+pointless to suggest other topics, since the other topics won't be
+accepted.  For these cases, you can set the ConvNode's
+limitSuggestions property to true, indicating that only the ConvNode's
+topics should be included in the topic inventory.
+
+<p>Similarly, the ActorState sometimes limits the range of accepted
+topics.  To handle these cases, you can set limitSuggestions to true
+on the ActorState, indicating that the suggestion list should stop at
+the ActorState.  Note that this doesn't omit the ConvNode suggestions,
+because the ActorState is below the ConvNode in the hierarchy we
+mentioned above.  The limitSuggestions property merely cuts off the
+list <i>below</i> the current point in the hierarchy.  So,
+limitSuggestions on a ConvNode cuts off everything below the ConvNode,
+and limitSuggestions on an ActorState cuts off everything below the
+ActorState.
+
+<p>It's up to you to determine how you use limitSuggestions.  You
+could, for example, adopt a policy that any ConvNode or ActorState
+with a DefaultAnyTopic should limit suggestions to that level, because
+the DefaultAnyTopic will prevent responses to topics below that level.
+The library doesn't use this policy automatically, though, because the
+suggestion list is meant to be a list of things the <i>player
+character</i> wants to talk about, not things the NPC will respond to.
+In some cases, the PC might want to talk about something even at times
+when the NPC won't actually respond to the topic.  At other times, it
+ought to be obvious to the player character that only a YES or NO
+answer (for example) is appropriate.  That's why the library leaves it
+up to you to decide how to limit suggestions.  As you design your
+game, you can use limitSuggestions to fine-tune the topic inventory at
+times that it's obvious that the conversational options are limited.
+
+<h3>Satisfying curiosity</h3>
+
+<p>Each time a topic entry is used to respond to a command, the topic
+entry records the use by incrementing an internal counter, stored in a
+property of the topic entry called "talkCount".  By default, the
+TopicSuggestion object looks at this property, and automatically
+deactivates the suggestion as soon as the counter is at or above the
+value of the property "timesToSuggest"; at this point, we assume that
+the player character's curiosity about the topic has been satisfied,
+since they've asked about it and received our response.
+
+<p>The default value of timesToSuggest is 1.  So, by default, a
+suggestion is removed from inventory after the first time it's used.
+In cases where a topic entry has several sequential responses, you'll
+usually want to keep suggesting the topic until the full sequence has
+been exhausted, so in these cases you would want to override
+timesToSuggest to use the higher value.  If you set timesToSuggest to
+nil, it eliminates any limit.
+
+<h3>When is the topic inventory list shown?</h3>
+
+<p>There are three ways the topic inventory can be displayed:
+
+<p>
+<ul>
+<li>in response to a TOPICS command from the player;
+<li>in response to a TALK TO command from the player;
+<li>any other time the game (or library) thinks it's a good idea.
+</ul>
+
+<p>The first way - an explicit TOPICS command - can serve as a sort
+of hint system for the player.  When the player is talking to an NPC
+and is feeling lost, she might ask for a list of topics to get back
+on track.  If there are no suggested topics currently available, the
+default library response is "You have nothing specific in mind right
+now to discuss with &lt;the NPC&gt;."
+
+<p>The second way - TALK TO - is less explicit.  The player is
+saying they want to talk to the character, so we take the opportunity
+to show any suggestions that are currently available.  However, if
+there are no suggestions, there is no mention of the topic inventory -
+there is no "you have nothing in mind" message in this case, because
+the player didn't directly ask about the topic inventory.
+
+<p>When a TALK TO is merely implied - that is, when the player's first
+interaction with a character is an ASK, TELL, or whatever - then there
+is no automatic topic inventory display.  The automatic display only
+applies when the player actually types in the TALK TO command.
+
+<p>Note that you can suppress the automatic topic inventory listing on
+TALK TO commands by setting the property autoSuggest to nil in the
+actor's state object.  This property is true by default.
+
+<p>The third way of displaying the topic inventory is under game or
+library control.  Any time you think it would make sense to tell the
+player about the current topic inventory, you can do so explicitly.
+There are two ways of doing this.  First, you can put a
+&lt;.topics&gt; tag directly in any TopicEntry response text.  Second,
+you can call the method conversationManager.scheduleTopicInventory().
+With either of these mechanisms, a topic inventory listing will be
+scheduled to appear immediately before the next command prompt.  The
+library waits until the command prompt to display the inventory, so
+that it isn't lost in the noise of any daemon or other output; since
+this information is more than anything part of the command prompt, it
+makes the most sense to display it right before the command prompt.
+
+<p>The main time you'd want to automatically "push" a topic inventory
+display on the player is when you intend for an NPC's response to a
+question to suggest a follow-up question, but you don't want the
+response text to have to telegraph it with a flashing blue hyperlink.
+In other words, you feel that the NPC's response would suggest
+something to the player <i>character</i>, within the context of the
+story, but you're not as sure the <i>player</i> will pick up on the
+cue.  In these cases, the topic inventory can be a useful device; it's
+presented as a parenthetical comment, presumably from the story's
+narrator, so it's relatively unintrusive but at the same time outside
+of the literal exchange between the characters.
+
+<p>In addition to topic inventory display under the game's control,
+there's a time when the library automatically displays the inventory.
+When an actor switches to a "conversation node" (more on this shortly)
+in a threaded conversation, and that node includes one or more
+"special topics" (more on this below, as well) the library
+automatically schedules a topic inventory.  A special topic is one
+that responds to a non-standard, custom command that's meaningful only
+in that particular conversational context, so from a user interface
+perspective, we simply have no choice but to disclose these to the
+player whenever they're available.  Because these commands don't
+conform to any general syntax rules that the user is accustomed to,
+and because they're only usable in their limited context, it would be
+grossly unfair to force the player to guess at them.  Therefore,
+any time a conversation node with special topics becomes active,
+the library automatically triggers a topic inventory listing.
+
+
+<h2>Greeting protocols</h2>
+
+<p>Plain ASK/TELL interactions tend to make it all too obvious that an
+NPC is basically a reference book in which you look up topics, the
+only clear difference being that the command involved is ASK rather
+than LOOK UP.  In real life, you don't just walk up to someone and
+start asking questions without first at least getting their attention.
+And once you're in a conversation, it's awfully rude to just wander
+off without giving some kind of indication that you're done talking.
+
+<p>On the other hand, players don't want to have to describe every
+little detail of each action.  Players don't want to have to describe
+the detailed steps of UNLOCK DOOR, for example: it would be ludicrous
+to have to type a series of commands like HOLD KEY, MOVE HAND TO LOCK,
+PUT KEY IN LOCK, TURN KEY NINETY DEGREES CLOCKWISE, PUSH DOOR, etc.
+It would be equally annoying to have to type in SAY HELLO, MAKE SMALL
+TALK, SAY LOOK AT THE TIME I'D BETTER BE GOING, and so on.
+
+<p>The TADS 3 library provides a solution to both problems: it allows
+for greetings and goodbyes, but makes them automatic, so that they're
+implied in ASK, TELL, and the like.  Specifically, the library lets
+you set up an actor so that it keeps track of its conversation state.
+When the player targets the actor with a conversational command such
+as ASK, TELL, GIVE, or SHOW, the actor will automatically display its
+"greeting" message - this message should make it clear that we're
+soliciting the actor's attention, and that the actor accepts our
+invitation to converse with us.  The actor then remembers that it's in
+conversation with us, so subsequent conversation commands will just
+continue the conversation, without generating another greeting.
+Further, the actor watches for us to depart, and keeps track of how
+long it's been since the last conversation command; if we leave, or if
+too much time elapses, the actor terminates the conversation of its
+own volition.  The actor can optionally display a "goodbye" message
+upon terminating the discussion, to let us know that we no longer have
+the actor's attention.
+
+<p>Here's an example of how this might look in practice:
+
+<p><pre>
+  An older man is here, sweeping the porch.
+
+  &gt;ask man about town
+  "Excuse me," you say.
+
+  The man sees you and stops sweeping.  "Howdy, stranger.  What can
+  I do you for?"
+
+  "What can you tell me about the town?" you ask.
+
+  The man looks up and down the empty street.  "Well, not much to
+  tell, really.  Just the same as it's been since I got here
+  back in 67."
+
+  &gt;ask about store
+  "Is this your store?" you ask.
+
+  He visibly lights up.  "Yep, sure is.  Worked here 'til I had
+  enough to buy it, and now I guess I still work here."
+
+  &gt;east
+  The man returns to his sweeping.
+
+  <b>Main Street</b>
+  The pavement of this wide street is broken in places with [...]
+</pre>
+
+<p>This is fairly easy to set up.  The keys are two new
+ActorState subclasses: ConversationReadyState and InConversationState.
+
+<p>ConversationReadyState defines an actor state where the actor is
+receptive to conversational commands, but rather than simply responding
+to them and carrying on, switches to a separate "in-conversation" state.
+In the example above, the man stops sweeping when approached with a
+question: he switches from his "sweeping" state to his "conversing"
+state, to model the fact that the player has the man's attention.
+
+<p>To create this kind of behavior, you'd define the "sweeping" state
+as a ConversationReadyState rather than as a basic ActorState.  You'd
+define the state just like you would an ordinary ActorState, but
+you'd use ConversationReadyState as the superclass, and you'd define
+the property inConvState.  This property points to the associated
+in-conversation state object, which is the state we switch to when a
+conversation begins.  This must be set to an object of class
+InConversationState.  For your convenience, rather than defining this
+property explicitly, you can put the ConversationReadyState "inside"
+its corresponding InConversationState, using the '+' syntax.  If a
+ConversationReadyState is nested within an InConversationState
+object, the library will automatically initialize the former's
+inConvState property to point to the containing state.
+
+<p>Inside the ConversationReadyState, you can define some special
+TopicEntry objects to provide the messages that are displayed as
+we start and end the conversation.
+
+<ul>
+
+<li>HelloTopic - put a HelloTopic inside the ConversationReadyState
+to provide the message shown when we begin a conversation.  By
+default, a HelloTopic object will handle both the explicit kind of
+greeting, where the player types HELLO or TALK TO to start the
+conversation, and also the implicit kind of greeting, where the
+player just jumps directly into the conversation by starting with an
+ASK ABOUT command or the like.  If you also put an ImpHelloTopic
+inside the state, though, the HelloTopic will handle only the
+explicit HELLO and TALK TO cases.  As with other topic entry types,
+you can combine this with things like ShuffledEventList to add
+variety by providing multiple greetings.  For greetings, a good
+approach is to provide one or two initial, sequential messages,
+appropriate for the first-time introduction and maybe one return
+visit, and then a set of interchangeable shuffled messages for
+subsequent visits.  This gives the NPC a bit of a memory by making it
+clear that the NPC doesn't know the player character initially, but
+then recognizes that it's the same character returning later.
+
+<li>ImpHelloTopic - put this inside the ConversationReadyState if you
+want to provide a different message for implied greetings.  This will
+be used instead of the HelloTopic when the conversation starts
+without an explicit HELLO or TALK TO command.
+
+<li>ByeTopic - put this inside the ConversationReadyState to handle
+explicit GOODBYE commands from the player.  This will be used <b>only</b>
+for explicit goodbyes.
+
+<li>ImpByeTopic - put this inside the state to handle implicit
+conversation endings.  The conversation ends implicitly when the
+player character walks away from the conversation in progress (via a
+GO NORTH command, for example), or the NPC gets bored of being
+ignored (this is controlled with the attentionSpan property, as
+explained below).  This is used <b>only</b> for implied conversation
+endings, never for explicit goodbyes.  In the example above, this
+would display the message "The man returns to his sweeping."
+
+</ul>
+
+<p>The InConversationState is also a subclassed ActorState with a few
+added methods and properties you can define:
+
+<ul>
+
+<li>attentionSpan - this is an integer giving the number of turns the
+actor should wait before giving up on the conversation.  The default is
+4.  If the other character doesn't talk to our NPC for this many turns,
+we'll automatically terminate the conversation, switching to our next
+state.
+
+<li>nextState - this is an ActorState object, which should usually be
+of the ConversationReadyState subclass, which follows the conversation's
+termination.  When we terminate the conversation, we'll switch to this
+state.  You don't have to override this; if you don't, we'll remember
+the state that the actor was in just before the conversation, and switch
+back to that state when the conversation ends.
+
+</ul>
+
+<p>Of course, you can also define the ordinary ActorState properties
+and methods, since InConversationState is just a subclass of
+ActorState.  In particular, an InConversationState should usually
+have its own custom description properties for the actor, describing
+the actor as specifically being in conversation with the player
+character.
+
+<p>Here's an example of how we might implement the conversation shown above.
+
+<p><pre>
+  bob: Actor
+    // normal definitions for 'bob'...
+  ;
+
+  + InConversationState
+    specialDesc = "An older man is here, leaning on his broom, talking
+      with you. "
+    stateDesc = "He's leaning on his broom while you talk. "
+  ;
+
+  ++ ConversationReadyState
+    specialDesc = "An older man is here, sweeping the porch. "
+    stateDesc = "He's sweeping the porch. "
+  ;
+
+  +++ HelloTopic, StopEventList
+      ['&lt;q&gt;Excuse me,&lt;/q&gt; you say.
+       &lt;.p&gt;The man sees you and stops sweeping.  &lt;q&gt;Howdy, stranger.
+       What can I do you for?&lt;/q&gt;&lt;.p&gt;',
+
+       '&lt;q&gt;Hello,&lt;/q&gt; you say.
+       '&lt;.p&gt;The man stops sweeping and squints at you.
+       &lt;q&gt;Oh, hello again.&lt;/q&gt;&lt;.p&gt;',
+
+       '&lt;q&gt;Hello,&lt;/q&gt; you say.
+       &lt;.p&gt;Howdy,&lt;/q&gt; the man replies, halting his sweeping.&lt;.p&gt;']
+  ;
+
+  +++ ByeTopic, StopEventList
+      ['&lt;q&gt;Thanks,&lt;/q&gt; you say.  He nods and returns to sweeping.&lt;.p&gt;']
+  ;
+
+  +++ ImpByeTopic, StopEventList
+      ['The man returns to his sweeping. ',
+       'The man goes back to sweeping the porch. ']
+  ;
+</pre>
+
+<p>Note how we use a customized state object to describe the man's
+state while the conversation is ongoing.  This lets us override the
+description messages, so that we don't describe his as sweeping whiles
+he's talking to us.  This reinforces the sense that we're actually
+having a conversation with the character, rather than just a series of
+isolated question-answer exchanges superimposed on his background
+behavior.  
+
+<p>As you can see, the state mechanism takes care of most of the
+coding; nearly all you have to do is provide the text of the
+greetings.  For characters with any significant conversational
+interaction, the extra work writing the greeting messages might be
+well worthwhile.  For very simple characters, though, it's probably
+not worth the added work.  If a character only responds meaningfully
+to a couple of topics, it's probably easier to "fake it" with a little
+extra text right in the topic responses.
+
+<h3>Topic entry nesting with conversation states</h3>
+
+<p>When you create a ConversationReadyState and a corresponding
+InConversationState, and you want to create topics entry objects
+(AskTopic, AskTellTopic, etc.) that are specific to the conversation,
+you should be sure to put the topic entries inside the
+InConversationState.  The same thing applies to TopicGroup objects.
+
+<p>A ConversationReadyState always switches the
+actor to the InConversationState upon receiving any conversational
+command (ASK, TELL, etc.), so a ConversationReadyState will never
+be in effect long enough to field any topic look-ups.  Thus, if you
+were to put any topic entries inside a ConversationReadyState,
+they'd never be found.
+
+<h3>Greetings and NPC memory</h3>
+
+<p>There's a detail we glossed over in the code example above.  We
+defined the greeting messages for the "sweeping" state so that when
+we go back and talk to the NPC a second or third time, the NPC seems
+to remember having talked to us before.
+
+<p>If the NPC does nothing but sweep the porch, the implementation
+above is fine.  But what if the NPC has other ready-for-conversation
+states?  Then we have a problem: if we first greet the man while he's
+sweeping the porch, and then we go back and talk to him again while
+he's stacking soup cans, we'll get a first-time greeting.  The NPC's
+"memory" of having talked to us is nothing more than the position in
+the greeting StopEventList.  If we have two states, each with its own
+list of greetings, we'll see each separate state's greeting list
+separately.
+
+<p>An easy way of dealing with this is to coordinate the greeting
+lists of the different states.  The library has a built-in coordination
+mechanism: the SyncEventList, which ties its own position to that of
+a separate "master" event list.  Here's how we could extend the 
+example above to handle NPC memory across multiple states:
+
+<p><pre>
+  bob: Actor
+    // normal definitions for 'bob'...
+  ;
+
+  + InConversationState // ...same as before...
+
+  ++ ConversationReadyState // ...same as before...
+
+  +++ bobSweepingHello: HelloTopic, StopEventList
+    // same definitions as earlier
+  ;
+
+  +++ ByeTopic, StopEvenList // ...same as before...
+
+  +++ ImpByeTopic // ...same as before...
+
+  + InConversationState
+    specialDesc = "An older man is here, standing next to a partially-built
+      pyramid of soup cans, talking with you. "
+    stateDesc = "He's standing next to the soup can pyramid while you talk. "
+  ;
+
+  ++ ConversationReadyState
+    specialDesc = "An older man is here, unpacking
+      a crate of soup cans and building a pyramid out of the cans. "
+    stateDesc = "He's unpacking a crate of soup cans, building a
+      pyramid out of the cans. "
+  ;
+
+  +++ HelloTopic, SyncEventList
+    ['&lt;q&gt;Excuse me,&lt;/q&gt; you say.
+     &lt;.p&gt;The man puts down his soup cans and turns to
+     talk with you.  &lt;q&gt;Howdy, stranger. What can I do you
+     for?&lt;/q&gt;&lt;.p&gt;',
+
+     '&lt;q&gt;Hello,&lt;/q&gt; you say.
+     '&lt;.p&gt;The man stops stacking cans and squints at you.
+     &lt;q&gt;Oh, hello again.&lt;/q&gt;&lt;.p&gt;',
+
+     '&lt;q&gt;Hello,&lt;/q&gt; you say.
+     &lt;.p&gt;Howdy,&lt;/q&gt; the man replies, setting aside his
+     can-stacking to talk.&lt;.p&gt;']
+
+    masterObject = bobSweepingHello
+  ;
+</pre>
+
+<p>We've made only one change to the original code: we gave the
+ConversationReadyState a name, so that we can refer to it elsewhere in
+our code.  Then, we added the second InConversationState and
+ConversationReadyState pair, for a new state where the character is
+building a pyramid out of soup cans.  This time, we created a greeting
+list using a SyncEventList rather than a StopEventList, and we pointed
+the SyncEventList to the event list from the "sweeping" state, by
+setting the SyncEventList's masterObject property.  This is why we had
+to give the original conversation-ready state a name: we need to refer
+to it in the masterObject property of the synchronized list.
+
+<p>Now that we've tied the two greeting lists together, they'll
+automatically stay synchronized.  This means that once we see the
+first greeting in one of the lists, we won't see the first greeting in
+the other list in a subsequent conversation, because both lists will
+advance their positions in unison.
+
+
+<h2>Threaded conversations</h2>
+
+<p>Greeting protocols provide some sense of continuity to
+conversations, but they only go so far.  Still missing is any sense
+that there's a subject being discussed, or that there's any
+connection at all between one ASK ABOUT and the next.  Real
+conversations aren't usually strings of isolated non sequiturs whose
+temporal proximity is mere coincidence; each new utterance in a real
+conversation builds on what's been said up to that point.  It would
+be better if our simulated IF conversations could also have a
+"thread" that connects the individual pieces.
+
+<p>The TADS 3 library has some special mechanisms that can help
+create a threaded conversation.  These features can be used in
+various ways.  For the ultimate in threading, you could use the
+library mechanisms as the basis for a menu-based conversation system,
+but these features are primarily designed for the standard ASK/TELL
+model with some slight augmentation.
+
+<h3>NPC memory within a topic</h3>
+
+<p>A simple way to create a sense of context to conversations is to
+give NPCs some memory of what they've already said.  A simple way to
+do this is to avoid letting an NPC repeat himself by using a
+ShuffledEventList or a StopEventList to provide mutiple answers to the
+same question, rather than just using a single answer.  For example:
+
+<p><pre>
+  + TellTopic, StopEventList @lighthouse
+    ['&lt;q&gt;I was in the lighthouse earlier today,&lt;/q&gt; you say.
+    &lt;.p&gt;Bob becomes quite flustered. &lt;q&gt;What are you talking about?
+    That thing was torn down years ago, after the...\ troubles.&lt;/q&gt; ',
+
+    '&lt;q&gt;About the lighthouse...&lt;/q&gt; you start.
+    &lt;.p&gt;&lt;q&gt;Why do you keep going on about that?  I thought
+    I told you, it was torn down year ago.&lt;/q&gt; ',
+
+    '&lt;q&gt;What did you say about the lighthouse?&lt;/q&gt; you ask.
+    &lt;.p&gt;&lt;q&gt;Why do you keep asking me that?  It was torn down
+    after the troubles.&lt;/q&gt; ']
+  ;
+</pre>
+
+<p>We've used a StopEventList, which means that we'll show the list
+entries in order until we reach the last one, and then we'll just
+repeat the last one from then on.  Note that on the last entry, we
+just summarize and repeat what we've said before.  This provides a
+good compromise between realism and playability: it creates the
+impression that the character remembers that we've asked before, but
+it still lets the player go back and ask again any time in case
+they've forgotten any important clue or other information that was
+revealed.
+
+<p>You could also use a ShuffledEventList to provide the responses in
+a random order, although that would be best when variety is the goal
+rather than a sense of NPC memory.  This would be most suitable for
+throw-away topics that are mostly there for amusement value.
+
+<p>Creating a list of responses is obviously a little more work than
+creating just one response - not so much in terms of programming as
+in writing - and you probably won't want to go to this much trouble
+for every topic, or even for most topics.  For the handful of really
+important topics, though, it can be worthwhile.
+
+<h3>NPC memory across topics</h3>
+
+<p>As we just saw, changing an NPC's response to a repeated question
+helps create the impression that the NPC is paying attention, but
+there's more to the thread of a conversation than simple repetition.
+It would also be nice if responses could take into account other
+topics that have already been discussed.  One simple example is that
+some topics might not even be known to the player character until
+they come up in conversation, so we wouldn't want to answer these
+topics until they had come up:
+
+<p><pre>
+  &gt;ask bob about troubles
+  "Have you heard of any troubles around here?"
+
+  "Eh?"  Bob look puzzled.
+
+  &gt;ask bob about lighthouse
+  "I was at the lighthouse earlier today," you start.
+
+  Bob becomes quite flustered.  "What are you talking about?
+  That thing was torn down years ago, after the... troubles.
+
+  &gt;ask bob about troubles
+  "What troubles?" you ask.
+
+  Bob stares down the street.  He just stands there until you're
+  about to repeat the question, then looks back at you and shakes
+  his head.  "There are things you wish you didn't know.  Believe
+  me, this is one of them."
+</pre>
+
+<p>This kind of cross-topic memory is easily set up using the isActive
+property.  In this example, we could define two topic entries for "the
+troubles."  The first one would be the default, giving the "Bob looks
+puzzled" response; the second would be an AltTopic nested within the
+first, and would include an isActive condition that makes the topic
+available only after bob has been asked about the lighthouse.
+
+<p>How do we define this condition?  The library provides a special
+mechanism that makes it easy to keep track of what information one
+topic has revealed, and then to test for that revelation in another
+topic.  The way to do this is with the special &lt;.reveal key&gt;
+tag.  This isn't a real HTML tag; the library recognizes it and
+filters it out of any output.  The tag has an effect, though: the
+library adds the "key" value - which is any arbitrary text of your
+choosing - to a global lookup table as soon as the text is shown.  You
+can then refer to that lookup table using gRevealed('key').  This returns
+true if the 'key' value has been revealed using the &lt;.reveal&gt;
+tag, nil if not.
+
+<p>Here's how we'd use the &lt;.reveal&gt; tag to set up the
+conversation shown above.
+
+<p><pre>
+  Bob: Actor // ...etc...
+  ;
+
+  + AskTellTopic @lighthouse
+    "&lt;.reveal troubles&gt;&lt;q&gt;I was in the lighthouse earlier today,&lt;/q&gt;
+    you start.
+    &lt;.p&gt;Bob becomes quite flustered. &lt;q&gt;What are you talking about?
+    That thing was torn down years ago, after the...\ troubles.&lt;/q&gt; "
+  ;
+
+  + AskTellTopic @troublesTopic
+    "[Bob looks puzzled...]"
+  ;
+
+  ++ AltTopic
+    "[There are things you wish you didn't know...]"
+
+    isActive = gRevealed('troubles')
+  ;
+</pre>
+
+<p>As long as we haven't asked Bob about the lighthouse, we'll get the
+"Bob looks puzzled" response when we ask about the troubles, because
+the key 'troubles' hasn't been revealed yet.  As soon as we show the
+response to ASK BOB ABOUT LIGHTHOUSE, the &lt;.reveal troubles&gt; tag
+kicks in, which inserts the 'troubles' key into the global table of
+revealed information.  This causes gRevealed('troubles') to return
+true, which makes the AltTopic active, so from that point on we use the
+AltTopic for the response to ASK BOB ABOUT TROUBLES.
+
+<p>Note that the "revelation keys" are just an arbitrary strings.
+These have no meaning at all to the library; the library simply adds a
+key to the table when it's used in a &lt;.reveal&gt; tag in the
+output, and it looks up a key in the table when you use gRevealed() to
+request the key's status.  Note in particular that these keys are
+<b>not</b> object names, so you don't have to worry about using names
+that are different from any object or class names in your game.
+
+<p>Also note that you can mark a key as revealed without having to
+display any text.  Just use the macro gReveal('key') - this explicitly
+adds the key to the table of revealed keys.
+
+<h3>Conversation trees</h3>
+
+<p>The specific wording in the example above has a slight problem.
+If the player doesn't ask about the troubles right away, but comes
+back and asks Bob about the topic later, they'll get a rather
+non sequitur response.
+
+<p><pre>
+  &gt;ask bob about store
+  "Is this your store?"
+
+  He visibly lights up.  "Yep, sure is.  Worked here 'til I had
+  enough to buy it, and now I guess I still work here."
+
+  &gt;ask bob about troubles
+  "What troubles?" you ask.
+
+  Bob stares down the street...
+</pre>
+
+<p>The problem is that we wrote the response text for the "troubles"
+topic assuming that the player would ask about it right away.  That's
+fine as long as they do, but it would be unwise to count on it.  If
+the player asks later, it would be better to use an exchange like this:
+
+<p><pre>
+  &gt;ask bob about troubles
+  "What were the 'troubles' you mentioned earlier?" you ask.
+
+  Bob stares down the street...
+</pre>
+
+<p>You could solve this by counting turns or something like that, but
+there's a better way, which is to use the library's "conversation
+tree" system.  This feature lets you create a map of sorts for the
+flow of a conversation.  At any given time, a conversation is in a
+"location" in the tree; the location is simply an object you create to
+represent the conversational options at that point.
+
+<p>In some ways, conversation trees are similar to menu-based
+conversations.  If you think about conversation menus, you can picture
+each menu as a location on a map, and each of the items on the menu as
+an exit leading to a new location.  Each time the user selects an
+option, we move on the map to the new location connected to that item,
+which gives us a new menu to display and a new set of exits to other
+locations.
+
+<p>(We call this structure a "tree" because of the way each location
+branches to several other locations, which in turn branch to several
+other locations, and so on.  To be fully accurate, it's not really a
+tree in the strict computer-science sense of the term; a tree doesn't
+have branches that loop back on themselves, and doesn't have branches
+that split and later rejoin.  A computer scientist would actually call
+our structure a "directed graph"; but that term isn't an especially
+vivid metaphor for most people, so we'll stick with "tree.")
+
+<p>There are a few big differences between our ASK/TELL trees and
+typical menu trees, though.  First, conversation trees are completely
+optional; you can use all of the other conversation features we've
+talked about so far without even knowing about conversation trees.
+Second, whereas menu-based conversations are usually limited to what's
+on the menu, ASK/TELL trees are usually just a supplement: we use them
+to custom-tailor selected topics to the context, but we accept any
+other topics as well.  Third, the tree structure of a conversation is
+readily apparent to the player when menus are used, as all of the
+options are always laid out in plain sight; our conversation trees are
+internal constructs that the user can't see directly, and might not
+even notice.
+
+<h4>The ConvNode object</h4>
+
+<p>Conversation trees are represented with ConvNode objects.  Each
+ConvNode defines one location in the conversation; it specifies how to
+handle any ASK, TELL, or other conversational command.  At any given
+time, an NPC <i>can</i> have a current ConvNode object, but need not.
+If an actor doesn't have a current ConvNode object, then we use the
+standard non-tree handling.  Note that only one ConvNode can be active
+for an NPC at a time (so an NPC can be in only one "location" in a
+conversation at a time).
+
+<p>A conversation node has one main task: it serves as a container for
+TopicEntry objects.  (Yes, this is yet another place you can put topic
+entries.)  The topic entries that are nested within a ConvNode apply
+only when that ConvNode is active, and when the node is active, they
+override any other matching topic entries that are defined elsewhere
+(such as in the Actor, or in the ActorState).  That's what makes
+ConvNodes useful - you can use them to define special responses that
+apply only when the conversation is in that particular position.
+
+<p>A ConvNode object must always be associated directly with an Actor
+object, by locating the ConvNode within the Actor.  Normally, you'd
+do this by using the "+" syntax:
+
+<p><pre>
+  Bob: Actor
+    // ...
+  ;
+
+  + ConvNode 'lighthouse';
+</pre>
+
+<p>A ConvNode object can also go inside an ActorState object, but note
+that this has exactly the same effect as putting it inside the
+associated Actor directly - it doesn't actually create any association
+between the ConvNode and the ActorState object.  The library lets you
+put a ConvNode inside an ActorState purely for convenience, to give
+you more flexibility in how you arrange your source code.
+
+<h4>Entering and navigating a tree</h4>
+
+<p>By default, there is no conversation tree in effect.  So how do we
+get into a tree in the first place, and once we're in a tree, how do
+we navigate through it?
+
+<p>In most cases, we use the same mechanism to both enter and navigate
+a tree: we use the &lt;.convnode name&gt; tag in a response's text.
+This is a special pseudo-tag, not a real HTML tag; the library strips
+this tag out of any displayed text before the user sees it.  When
+the tag is used in output text, though, the library automatically switches
+the NPC that issued the response to the named conversation node.  The
+name is just a string; you use the same string to identify the ConvNode
+when you define it.  We'll see an example shortly.
+
+<p>You can also set the tree position explicitly.  Simply call the
+NPC's setConvNode() method, passing the new conversation node name as
+the parameter.  This can be useful for situations where you want the
+NPC to initiate a conversation.
+
+<p>Note that the &lt;.convnode&gt; tag can be used <b>only</b> within
+a TopicEntry's response text.  The tag has this restriction because
+the library doesn't have any idea which actor is supposed to be
+switching to the new ConvNode in other contexts.  The library only
+knows which actor is involved when the actor is specifically
+displaying a response via a TopicEntry.  If you need to switch to
+a new conversation node at any other time, you should use the
+setConvNode() method on the actor involved.
+
+<h4>Leaving a ConvNode</h4>
+
+<p>One obvious way to leave a ConvNode is to go to a new ConvNode.
+This is what happens when you display text that includes a
+&lt;.convnode&gt; tag.  Another is to explicitly change the node
+by calling the setConvNode() method on the Actor object.
+
+<p>In addition, the library leaves a conversation node automatically
+after a response that <i>doesn't</i> include a &lt;.convnode&gt; or
+&lt;.convstay&gt; tag.  This happens because a conversation node is
+usually relevant only to what came immediately before; if we veer off
+onto a topic that isn't specifically associated with a new ConvNode,
+then we probably want to simply leave the tree.
+
+<p>If you want to avoid leaving a conversation node automatically
+after a response, simply put a &lt;.convstay&gt; tag within the
+response text.  This tells the library to stay put at the same
+conversation node that was in effect just before the response.
+
+<p>The InConversationState object automatically returns to a nil
+conversation node when leaving the in-conversation state.  When a
+conversation ends, we obviously don't want to leave the actor stuck in
+the middle of the conversation flow.
+
+<p>When an InConversationState is terminating the conversation, if
+there's a current ConvNode in the actor, the state object calls the
+ConvNode's method endConversation(actor, explicit) to let the node do
+anything special it needs to do.  For example, if the ConvNode
+represents a point in the conversation where the NPC is expecting the
+player to answer a question, the ConvNode could let the NPC voice an
+objection to cutting off the conversation with the question
+unanswered.
+
+<h4>Topic entries inside ConvNodes</h4>
+
+<p>The most important way that a ConvNode controls the conversation
+flow is by specifying special responses that apply to that position in
+the conversation.  To specify special responses for a ConvNode, simply
+put the topics inside the ConvNode object (using the "+" syntax).
+
+<p>When you put a topic entry inside a ConvNode, the topic will only
+be available when the ConvNode is current.  What's more, the topic
+entry overrides any other matching topic entry, no matter what the
+relative scores - the ConvNode has precedence over the actor's
+topic database and the actor's state's database.
+
+<p>The ConvNode's ability to override every other response for a topic
+is perfect for the "troubles" example.  Recall that we wanted two
+ways of phrasing the response to ASK BOB ABOUT TROUBLES: one for
+right after Bob initially mentioned the troubles in his response to
+ASK BOB ABOUT LIGHTHOUSE, and a different one for any other time.
+We can accomplish this by creating a ConvNode object to represent
+the position in the conversation right after the LIGHTHOUSE response,
+and putting our special TROUBLES response inside the ConvNode.
+If the player asks about the troubles right away, we'll use the
+special response contained in the ConvNode object; at any other
+time, we'll get the regular response.
+
+<p><pre>
+  Bob: Actor // ...
+  ;
+
+  + AskTellTopic @lighthouse
+    "&lt;.reveal troubles&gt;&lt;.convnode after-lighthouseq&gt;I was in the lighthouse
+    earlier today,&lt;/q&gt; you start.
+    &lt;.p&gt;Bob becomes quite flustered. &lt;q&gt;What are you talking about?
+    That thing was torn down years ago, after the...\ troubles.&lt;/q&gt; "
+  ;
+
+  // define the *ordinary* responses to the TROUBLES topic
+  + AskTellTopic @troublesTopic
+    "[Bob looks puzzled...] "
+  ;
+  ++ AltTopic
+    "&lt;q&gt;What were the &lt;q&gt;troubles&lt;/q&gt; you mentioned earlier?&lt;/q&gt;
+    &lt;.p&gt;Bob stares down the street [...]"
+
+    isActive = gRevealed('troubles')
+  ;
+
+  // conversation position after ASK BOB ABOUT LIGHTHOUSE
+  + ConvNode 'after-lighthouse';
+
+  // a special response when were in this conversation position
+  ++ AskTellTopic @troublesTopic
+    "&lt;q&gt;What troubles&lt;/q&gt; you ask.
+    &lt;.p&gt;Bob stares down the street [...]"
+  ;
+</pre>
+
+<p>Note that we haven't changed all that much from the earlier
+incarantion of this example.  One change is that we've reworded the
+AltTopic text for the "troubles" response so that it no longer assumes
+that Bob just mentioned the troubles: rather than starting with simply
+"What troubles?", we start with "What were the 'troubles' you
+mentioned earlier?"  The only other changes relate to the new ConvNode
+object: we've added a &lt;.convnode&gt; tag to the "lighthouse" response,
+we've added the ConvNode object itself, and we've added yet another
+response for "the troubles," this time nested within the new ConvNode.
+
+<p>With this new set-up, ASK BOB ABOUT LIGHTHOUSE will automatically
+set Bob's current conversation tree position to our new ConvNode
+object.  Once we're in this conversation position,
+ASK BOB ABOUT TROUBLES will use the special response nested within
+the ConvNode object.  At any other time, we fall back on the ordinary
+responses.
+
+<p>Note that the association between a &lt;.convnode&gt; tag and a
+ConvNode object is made by the name of the ConvNode, which is just an
+arbitrary string value.  In the example, this is the string
+'after-lighthouse' that appears in the ConvNode object definition.
+This string is found through a global lookup table that the library
+maintains; this lookup table contains all of the ConvNode objects in
+the entire game, keyed by their names.  ConvNode names must thus be
+unique.  However, they don't have to conform to the usual object
+naming rules, since they're just arbitrary strings, and they only have
+to be unique relative to other ConvNode names - there's no need to
+worry about reusing names that are used by other kinds of game
+objects.
+
+<h4><a name='exclusiveConvNodes'>ConvNodes with exclusive responses</a></h4>
+
+<p>We mentioned earlier that the library will automatically exit the
+conversation tree (that is, the library will set the actor's current
+ConvNode to nil) when the actor gives a response that doesn't specify
+a new ConvNode.  In some cases, you won't want to allow the
+conversation to veer off to an arbitrary different topic like this.
+
+<p>The easy way to limit the conversation like this, to avoid veering
+off-topic, is to include a default response inside the ConvNode, and
+have the default response return to the same ConvNode.  For example,
+suppose that once we've asked Bob about "the troubles," we don't want
+to allow changing the subject.  Here's how we could do this,
+continuing our earlier example.
+
+<p><pre>
+  // conversation position after ASK BOB ABOUT LIGHTHOUSE
+  + ConvNode 'after-lighthouse';
+
+  // a special response when were in this conversation position
+  ++ AskTellTopic @troublesTopic
+    "&lt;.convnode troubles&gt;&lt;q&gt;What troubles&lt;/q&gt; you ask.
+    &lt;.p&gt;Bob stares down the street [...]"
+  ;
+
+  // conversation position when talking about the troubles
+  + ConvNode 'troubles';
+
+  ++ AskTellTopic, StopEventList @troublesTopic
+    ['&lt;.convnode troubles&gt;&lt;q&gt;I really need to know.&lt;/q&gt;
+      &lt;.p&gt;Bob shakes his head. &lt;q&gt;You just think you need to know,&lt;/q&gt;
+      he says scornfully. &lt;q&gt;That\'s what I thought, once.&lt;/q&gt; ',
+
+     '&lt;.convnode troubles&gt;&lt;q&gt;Pretty please?&lt;/q&gt;
+      &lt;.p&gt;Oh, all right, but you have to promise not to tell
+      anybody else.&lt;/q&gt; ',
+
+     /* and so on */ ]
+  ;
+
+  ++ DefaultAskTellTopic
+    "&lt;.convnode troubles&gt;Bob cuts you off. &lt;q&gt;I don't want to
+    talk about that.&lt;/q&gt; "
+  ;
+</pre>
+
+<p>This works because of the way that ConvNode topic entries override
+everything else.  By putting a default response within the ConvNode,
+you ensure that no topic outside of the ConvNode can ever be matched.
+If the player asks about anything not otherwise handled in the ConvNode,
+we'll show the default response, which explicitly returns to the same
+ConvNode.  There we'll stay, until we ask about something that takes
+us to a new node, or we just give up and leave the conversation.
+
+<p>When the conversation options are limited like this, it's sometimes
+better to limit the topic inventory list to match.  See the
+"<a href='#activeTopicInventory'>active topic inventory</a>" section
+above for details on how to do this.
+
+<h4>Using a ConvNode to await a reply</h4>
+
+<p>One interesting way you can use the default topic pattern above is
+for questions asked by the NPC.  Most IF authors strictly avoid having
+NPCs ask questions, because it's too thorny to deal with the range of
+possible inputs.  Using the ConvNode system, though, you can actually
+handle questions pretty easily.
+
+<p>The trick is to define a default response that says something
+like "Bob is waiting for your answer."  If the player tries to change
+the subject by asking about another topic, they'll just get this
+default response.  The NPC will stay in the ConvNode until the player
+uses TELL ABOUT, or YES or NO, to answer the question.  You handle the
+answer by defining, for example, a TellTopic for the topic that serves
+as the answer.
+
+<p>It's probably not a great idea to use this approach to open-ended
+questions that require a TELL ABOUT response, unless the answer is
+pretty obvious.  For better playability, questions that demand an
+answer should usually be answerable with YES or NO.  Fortunately,
+the ConvNode makes it easy to handle these responses: simply define
+a YesTopic and a NoTopic within the ConvNode.  YesTopic and NoTopic
+are just like ordinary topic entries, but they respond to YES and
+NO respectively.  Of course, there's no need for an "@topic" or
+topic list definition when creating a YesTopic or NoTopic.
+
+<p>Here's an example of a simple conversation where the NPC puts a
+series of YES/NO questions to the player character.
+
+<p><pre>
+  Bob: Actor // ...
+  ;
+
+  + AskTellTopic @troublesTopic
+    "&lt;q&gt;What were the &lt;q&gt;troubles&lt;/q&gt; you mentioned earlier?&lt;/q&gt;
+    &lt;.p&gt;Bob gets all dark and serious.  &lt;q&gt;Are you absolutely sure
+    you want to know?&lt;/q&gt;&lt;.convnode askOnce&gt; "
+  ;
+
+  + ConvNode 'askOnce';
+  ++ YesTopic
+    "&lt;q&gt;Sure,&lt;/q&gt; you say.
+    &lt;.p&gt;&lt;q&lt;I don't think you understand.  There are things that a
+    man wishes and prays he'd never known, things that will haunt your 
+    dreams, fill your nights with fear and your days with bitterness and
+    anger, shatter your illusions about goodness and justice in the world,
+    turn hope into just another lie, make you suspicious of everyone you
+    meet and everyone you've ever known, open your eyes to the cold, hard
+    truth about this miserable existence called life.  Once you know what I
+    know, you can never go back, things can never be the same for you.  Now,
+    are you &lt;i&gt;really&lt;/i&gt; sure you want to hear 
+    this?&lt;/q&gt;&lt;.convnode askTwice&gt; "
+  ;
+  ++ NoTopic
+    "Something about Bob's manner is a little frightening.
+     &lt;q&gt;Uh, maybe not.&lt;/q&gt;
+     &lt;.p&gt;&lt;q&gt;Good choice,&lt;/q&gt; Bob says, seeming relieved. "
+  ;
+
+  + ConvNode 'askTwice';
+  // etc with another YesTopic and NoTopic
+</pre>
+
+<p>When the player asks about "the troubles," we'll show the
+AskTellTopic's response text.  This contains a &lt;.convnode
+askOnce&gt; tag, which sets Bob's current ConvNode to the one labeled
+'askOnce'.  On the next turn, since this ConvNode is active, it will
+be the first place that we look for a response to the player's
+command, so if the player types YES or NO (or various alternative
+phrasings, such as "BOB, YES" or "SAY NO TO BOB"), we'll activate the
+YesTopic or NoTopic within the ConvNode.  The YesTopic response has
+another &lt;.convnode&gt; tag, this time taking us to the 'askTwice'
+node.  So, if the player answers YES, then we'll use the responses in
+the 'askTwice' node for the next turn.  
+
+<p>Note that, because we didn't include a default response among the
+ConvNode's responses, the player is free to change the subject
+entirely rather than answer the question.  If they ASK ABOUT something
+new, we'll just go off and find an appropriate TopicEntry elsewhere,
+looking at the topics associated with the actor's current state and
+then at the topics associated directly with the actor.
+
+<h4>Special topics</h4>
+
+<p>Conversations that involve only ASK, TELL, GIVE, and SHOW can feel
+awfully limiting to the player and author alike, because they allow
+no nuance of expression.  Some authors, seeking an alternative, have
+resorted to menu-based conversations; nothing in the TADS 3 library
+would prevent using conversation menus, and indeed they'd be a
+natural fit with the ConvNode threading system, but the conversation
+system doesn't provide direct support for menus.  Instead, the
+library provides a menu-like alternative that seeks to retain more of
+the flavor of the traditional text game user interface.
+
+<p>This alternative is provided by something called the "special
+topic," which is implemented by the class SpecialTopic.  A special
+topic is a kind of topic database entry (SpecialTopic is a subclass
+of TopicEntry, just like AskTopic and TellTopic and the rest).  Like
+the other kinds of topic entries, a special topic has response text
+that's shown when the special topic is triggered, an isActive property
+that determines whether or not the topic is available, and all of the
+other standard TopicEntry properties.  The difference is that a
+special topic isn't triggered by an ASK ABOUT command, or a TELL
+ABOUT command, or any other conventional command.  Instead, a special
+topic is triggered by a unique, custom command that the special topic
+itself defines.  The custom command doesn't have to be defined as a
+VerbRule or any other part of the normal grammar; special topics
+bypass the normal parser.
+
+<p>Here's an example of a conversation node that includes some
+special topics:
+
+<p><pre>
+  Bob: Actor // ...
+  ;
+
+  + AskTellTopic @mary
+    "&lt;q&gt;Mary told me all about how you cheated on her,&lt;/q&gt; you say,
+    unable to disguise your contempt.
+    &lt;.p&gt;Bob breaks down and starts blubbering.  &lt;q&gt;It wasn't my 
+    fault!&lt;/q&gt; he sobs. &lt;q&gt;She drove me to it!&lt;/q&gt;
+    &lt;.convnode affair&gt; "
+  ;
+
+  + ConvNode 'affair';
+  ++ SpecialTopic 'comfort him' ['comfort', 'bob', 'him']
+    "&lt;q&gt;There, there [...] "
+  ;
+  ++ SpecialTopic 'call him a liar' ['call', 'bob', 'him', 'a', 'liar']
+    "&lt;q&gt;You're so full of crap, Bob [...] "
+  ;
+</pre>
+
+<p>Each SpecialTopic definition has three main standard pieces: the
+string to show in the topic inventory list; the list of keywords that
+will match against the player's input; and the response text.  The
+inventory list string should be something that can be tagged onto
+"you could..." (for the English version, at least; other languages
+may vary).  The keyword list is just a list of strings to match; if
+the player's input consists entirely of words from this list, then
+the special topic will be activated.  The response text is the same
+as for any other topic entry.
+
+<p>There are several things to note about the way the library matches
+player input to a special topic.  The normal parsing rules don't
+apply; the special topic matching is done before any normal parsing
+is done.  The library only looks for special topics in the current
+ConvNode for the actor to whom the player character is currently
+speaking, and only considers special topics that are active (as
+indicated by the isActive property).  The library checks each of these
+active special topics; it matches the player's entire command line
+against the keyword list.  If every word the player typed in matches
+a keyword in the list, the special topic matches.  (The player's
+input doesn't have to contain all of the words in the keyword list,
+but all of the player's words have to be in the keyword list.)
+<b>Exactly one</b> active special topic must match for it to be
+selected.  If none of the active special topics match the player's
+input, or if more than one of them match, the library ignores the
+special topics and treats the player's input as an ordinary command.
+The reason that the library ignores multiple matches is that it
+assumes that the player's input must consist entirely of very common
+words if it matches more than one special topic, so chances are that
+the player didn't intend to select something as exotic as a special
+topic command.  In other words, the parser assumes that the special
+topic match is mere coincidence if the input isn't specific enough
+to select a unique special topic.
+
+<p>The keyword list is easy to program, but sometimes it's not flexible
+enough.  For cases where you need more control, you can replace the keyword
+list with a single string containing an arbitrary regular expression.
+If the entire player's input matches the regular expression, then the
+special topic will match.
+
+<p>Special topics are always nested within ConvNode objects.
+Inherent in the idea of a special topic is that its special command
+is meaningful only at a particular point in a conversation, which is
+what a ConvNode represents.  The nesting of a special topic within a
+ConvNode is done using the special topic's 'location' property, as
+you'd expect.
+
+<p>Because a special topic's triggering command is completely custom,
+it would be unreasonable to force the player to guess at its command.
+Therefore, special topics are automatically entered into the topic
+inventory as suggestions.  What's more, whenever a ConvNode becomes
+active, and the ConvNode has one or more active special topic
+objects, the library will automatically show a topic inventory
+listing.  This means that the player will always be shown any
+available special topics when they become available.
+
+<p>In a way, special topics resemble conventional menu systems, since
+they amount to enumerated lists of choices.  There are important
+differences, though.  First, the topic inventory is much less
+obtrusive than the typical menu display; the topic inventory list is
+phrased as narration, so it fits smoothly with the rest of the game's
+transcript.  Importantly, the list isn't displayed in a separate
+window, or as a numbered or bulleted list; it's specifically designed
+to fit in naturally with the surrounding text.  Second, the method of
+input for the player is also consistent with the normal command-line
+user interface: the user simply types in the command as suggested in
+the topic inventory.  Third, the user interface isn't modal, as
+conversation menus often are: the game shows an ordinary command
+prompt, and the player can select a special topic if she wants, but
+can just as well enter any ordinary command.
+
+<h2>NPC-driven conversations</h2>
+
+<p>So far, the techniques we've covered handle cases where NPCs
+respond to conversational commands from the player.  Sometimes, it's
+desirable for NPCs to take the lead in striking up a conversation or
+continuing an ongoing conversation.  The library has a few features
+that can help.
+
+<h3>NPC initiation</h3>
+
+<p>First, let's consider how an NPC can start a conversation on its own.
+
+<p>It's up to the author to decide exactly when an NPC initiates
+a conversation.  The author must write some code that tests for the
+triggering condition and starts the conversation when the condition
+occurs.  There are three main places where you'd typically write this
+kind of code:
+
+<ul>
+
+<li>In an NPC's background-action script, usually in the ActorState's
+takeTurn() method or the Actor's idleTurn() method.  This approach lets
+the NPC start a conversation as part of its turn when some condition
+has become true; for example, this could be used to start a conversation
+as soon as the player character enters the NPC's location.
+
+<li>In the beforeAction() or afterAction() method of the Actor or
+ActorState.  This lets the NPC start a conversation in response to a
+command carried out by the player character in the NPC's presence.
+
+<li>In the NPC's handler for a SensoryEvent.  This lets the NPC
+initiate a conversation upon observing some transient event.
+
+</ul>
+
+<p>In any of these cases, the code you have to write in the NPC to
+start a conversation is the same: you call the Actor's
+initiateConversation(state, node) method.  The 'state' parameter is an
+ActorState for the actor to enter; this can be nil if you don't want
+to change the NPC's current state.  The new state is usually an
+InConversationState - it doesn't have to be, but usually there's no
+reason to use initiateConversation() at all unless you want the
+conversation to have its own state.  The 'node' parameter is a
+ConvNode object, or a string naming a ConvNode object.  This parameter
+is required because the new ConvNode provides the initial exchange of
+the conversation.
+
+<p>The initiateConversation() method does several things.  It switches
+the NPC to the new ActorState, if one was provided, and it switches to
+the given ConvNode.  The method also sets the "current interlocutor"
+properties for the NPC and the player character Actor objects to point
+to one another.  Finally, the method invokes the new ConvNode's
+npcInitiateConversation() method, which displays the initial exchange
+of the conversation.
+
+<p>To define the message for the initial exchange, you must define either
+an npcGreetingMsg or npcGreetingList property in the ConvNode object.
+If you only need a single message, you can define npcGreetingMsg to
+a double-quoted string giving the initial exchange:
+
+<p><pre>
+  + ConvNode 'sales-1'
+    npcGreetingMsg = "The salesman approaches you, smiling. &lt;q&gt;Hello,
+      friend! My name is Ron, and I represent the Mutual Indemnity Life
+      Insurance Company. I have a serious question for you: do you have
+      enough life insurance?&lt;/q&gt; "
+  ;
+</pre>
+
+<p>If you'll need to re-use the ConvNode to initiate the conversation
+repeatedly, you might prefer to use a list of messages for the greeting,
+to make the actor seem less mechanical.  You can do this by defining
+the npcGreetingList property to refer to a EventList subclass.  For example:
+
+<p><pre>
+  + ConvNode 'sales-1'
+    npcGreetingList: StopEventList {
+    [
+      'The salesman approaches you, smiling...',
+
+      'The salesman walks up to you.  &lt;q&gt;Hello, again! I hope
+      you\'ve thought more about your life insurance needs.&lt;/q&gt; '
+
+      // etc...
+    ] }
+  ;
+</pre>
+
+<p>Once you have the NPC initiate a conversation, all of the library
+conversation features work as usual.  This means that you can have an
+NPC start a conversation with a question, using TopicEntry objects
+within the initial ConvNode to handle the answers - you can use
+YesTopic and NoTopic objects inside the ConvNode to handle YES and NO
+answers to the NPC's question, for example.
+
+<h3>NPC continuation</h3>
+
+<p>It's unusual in IF for an NPC to take the lead in a conversation,
+either by initiating a conversation or by asking a question as part
+of an ongoing conversation.  This isn't because IF authors <i>want</i>
+their NPCs to be purely passive; it's because it's more difficult to
+program active NPCs.  We've seen how greeting protocols and
+conversation trees can help maintain the illusion that the NPC is
+aware of a conversation for more than one turn at a time, by making
+the NPC react to different player actions in a way that's appropriate
+to the ongoing conversation.  There's one piece missing, though: what
+if the player doesn't keep up her end of the conversation?
+
+<p>In a real-life conversation, if one of the participants asks a
+question, and the other person doesn't answer, the questioner will
+often persist: they might repeat the question, or ask why the other
+person isn't answering.  Similarly, if neither participant in a
+conversation says anything for a little while, one person might
+offer something new to keep the conversation moving.
+
+<p>The library has a feature that lets you simulate these effects,
+so that the NPC can "continue" a conversation even if the player
+is doing other things.  This feature is managed through the ConvNode
+object, because this keeps the NPC's continuation remarks together
+with the conversation context.  Specifically, each ConvNode object
+can optionally define the property npcContinueMsg as a double-quoted
+string to display.  Alternatively, a ConvNode can define npcContinueList
+as an EventList subclass, giving a list of strings to display.
+
+<p>The InConversationState class automatically displays the current
+ConvNode's continuation message (using either npcContinueMsg or
+npcContinueList, as appropriate) on each turn on which the ConvNode is
+active, <i>and</i> the player didn't address a conversational command
+to the NPC on the same turn.  The second part of the condition is
+important, because it means that the continuation message will only be
+displayed when the player goes a turn without actively participating
+in the conversation.
+
+<p>Continuation messages can be especially useful in conversation
+nodes at which the NPC has just asked a question, because you can make
+it look like your NPC actually cares about getting an answer.  You can
+make the continuation message keep asking the question several times
+if necessary, to make it clear that your NPC expects an answer.
+
+<p>You can use the &lt;.convnode&gt; tag within a continuation message
+to switch to a new ConvNode, if you'd like.  If you don't use a
+&lt;.convnode&gt; tag in a continuation message, then the current
+ConvNode remains unchanged by default.  You might want to change to a
+new ConvNode, for example, to make the NPC give up on getting an
+answer from the player, or to make the NPC change the subject or ask a
+different question.
+
+<h3>Conversations and Agendas</h3>
+
+<p>Back in the <a href='t3actor.htm'>first part</a> of this article,
+we mentioned the "agenda" mechanism, which provides a way of giving an
+NPC goals to carry out.  The agenda feature is a good way to handle
+some NPC-initiated conversations.
+
+<p>There's a subclass of AgendaItem specifically designed for
+conversation initiation: ConvAgendaItem.  The special feature of
+this subclass is that its isReady() method returns true only when
+the NPC has not already engaged in conversation on the same turn.
+This is useful because it makes the NPC wait for an "opening" in
+a conversation, to avoid the appearance that the NPC is plowing
+ahead with a background script regardless of a conversation
+the player is attempting to conduct with the NPC.
+
+<p>Here's an example of how we could use ConvAgendaItem to make the
+NPC repeatedly request an object from the player.  The agenda item
+will stay in the actor's agenda list until the player hands over the
+desired object.  To avoid making the NPC overly pesky, we'll only
+pursue the agenda item about 33% of the times that we could, using
+a random number to decide.
+
+<p><pre>
+  bob: Person
+    // ... bob's definitions ...
+  ;
+
+  + askForBook: ConvAgendaItem
+    isReady = (inherited()
+               &amp;&amp; rand(100) &lt; 33
+               &amp;&amp; me.location == bob.location
+               &amp;&amp; blackBook.isIn(me))
+    isDone = (blackBook.isIn(bob))
+    invokeItem()
+    {
+      "Bob glances at the black book.  &lt;q&gt;I'd really like to take a
+      look at that book of yours,&lt;/q&gt; he says. ";
+    }
+  ;
+
+  + GiveShowTopic @blackBook
+    topicResponse()
+    {
+      "You hand Bob the book, which he takes eagerly.  He opens
+      it and starts flipping through pages, like he's looking
+      for something.  He stops on a page, runs his finger down
+      the page.  &lt;q&gt;Now that's interesting,&lt;/q&gt; he
+      says, eyes still intently on the text. &lt;q&gt;This isn't
+      at all what I thought.&lt;/q&gt; He looks up at you.
+      &lt;q&gt;Is it okay if I hang onto this for a while?&lt;/q&gt;
+      &lt;.convnode keepBook?&gt; ";
+
+      blackBook.moveInto(bob);
+    }
+  ;
+
+  + ConvNode 'keepBook?';
+  ++ YesTopic "&lt;q&gt;Sure,&lt;/q&gt; you say.
+    &lt;.p&gt;&lt;q&gt;Thanks,&lt;q&gt; Bob says. &lt;q&gt;I think it'll help me tell you
+    you what happened at the lighthouse.  Give me a couple of
+    hours and meet me back here.&lt;/q&gt; "
+  ;
+  ++ NoTopic "&lt;q&gt;I'd rather you didn't keep it,&lt;/q&gt; you say.
+    &lt;.p&gt;&lt;q&gt;Just give me a couple of hours,&lt;/q&gt; Bob says.
+    &lt;q&gt;I'll give it back then, I promise.  I think this'll help
+    me tell you what happened at the lighthouse.&lt;/q&gt; "
+  ;
+</pre>
+
+<p>A stateful conversation always takes precedence over an
+agenda.  If an actor has an active ConvNode, the actor will not
+attempt to execute any agenda items.  An NPC will pursue its agenda
+only when it has no active ConvNode object.  This ensures that the
+agenda won't intrude on a conversation.
+
+
+<h2>Summary</h2>
+
+<p>As we've seen, the TADS 3 library has a number of features
+designed to help you create non-player characters that do more than
+just sit there and answer a few ASK ABOUT questions.  The ActorState
+class helps structure the code for actors that can exhibit several
+different behaviors; TopicEntry and related classes let you build a
+database of knowledge for your characters, and help manage the
+database as character knowledge and game conditions change;
+ConversationReadyState and InConversationState help give interactions
+the form of real conversations; ConvNode lets you create internal
+context and structure within a conversation; and SpecialTopic lets
+you go beyond ASK/TELL when conversations require more nuance.
+
+<p>All of these classes and mechanisms are a lot to take in all at
+once, but don't worry that you have to learn everything here before
+you can start creating NPCs.  These features are all optional, so
+you can bring them to bear only when you need them, and you can add
+them incrementally to your actors as you design and build your game.
+The features are also designed to be modular, so you can mix and
+match them as you see fit.  So, you can start with a simple, standard
+Actor object, without worrying about any of this dynamic stuff; later
+on, you can learn about and add dynamic features as you need them.
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+<a class="nav" href="t3actor.htm">Creating Dynamic Characters</a> &gt; 
+Programming Conversations with NPCs
+<br><span class="navnp"><a class="nav" href="convbkg.htm"><i>Prev:</i> Choosing a Conversation System</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3npcTravel.htm"><i>Next:</i> NPC Travel</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

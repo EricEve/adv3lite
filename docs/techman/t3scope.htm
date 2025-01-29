@@ -1,0 +1,463 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Redefining Scope</title>
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
+Redefining Scope
+<br><span class="navnp"><a class="nav" href="t3transcript.htm"><i>Prev:</i> Manipulating the Transcript</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3mi.htm"><i>Next:</i> Multiple Inheritance</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>Redefining Scope</h1>
+<p><i>by Eric Eve</i></p>
+
+<p>Any action entered by the player can only do anything to objects
+that are in scope. Being in scope doesn't necessarily mean an object
+can be used for any particular action &mdash; I can't eat a diamond
+ring or a mountain just because I can see it, for instance &mdash; but
+it does mean that whatever else the parser may go on to complain about
+it won't complain that the objects aren't there, with a message like
+"You see no ring here". The <i>scope</i> of the action defines the set
+of objects available to the actor for that action, at the moment when
+the action is to be carried out. Virtually every action in the library
+assumes one of two types of scope, which for convenience we may call
+<i>sensory scope</i> and <i>topic scope</i>.</p>
+
+<p><i>Sensory scope</i> applies to every kind of physical action performed on simulation objects in the game world, such as examining, taking, dropping, wearing, putting in something, and any other kind of sensing or physical manipulation. As a general rule, sensory scope is used for any noun corresponding to singleDobj, dobjList, singleIobj, or iobjList in the action's VerbRule. Broadly speaking, sensory scope encompasses every object that the player character can see (or, where appropriate, hear or smell, if it's a SensoryEmanation) at the time of the action, plus any objects that the actor is carrying.</p>
+
+<p><i>Topic scope</i> applies to what we might term purely conceptual activities, such as discussing something or looking it up in a reference book, when the thing discussed or looked up need have no sensory presence at all, and may not even be a physical object (it could instead be something purely abstract such as Spanish Politics or The Meaning of Life). Topic scope is effectively universal, since any Thing or Topic can be talked about, thought about, or looked up at any time. As a general rule, topic scope applies to any noun corresponding to singleTopic in the action's VerbRule, the possible matches to any particular TopicAction or TopicTAction being stored in a <a href='t3cycle.htm#topic'>ResolvedTopic</a>.</p>
+
+<p>These two kinds of scope suffice for most purposes, and you could write quite a few TADS 3 games without ever having to worry about redefining scope. On the other hand you may come up against a situation where it is necessary to define scope differently. Such situations can include:</p>
+
+<ul>
+<li>Special Debugging commands that require effectively universal scope, e.g. to allow you to teleport round the map or magically summon items when testing.</li>
+<li>In-game commands that act on objects that the player character can't currently sense, such as a LOCATE command that reminds the player where something is or a GO TO command that takes the player character to a previously visited room.</li>
+<li>Commands that involve some form of remote sensing, like talking to a physically-absent NPC via a telephone.</li>
+<li>Allowing the Player Character to interact with objects in a dark room when s/he knows they're there but can't actually see them.</li>
+</ul>
+<br>
+<p>In this article we shall explore how to adjust the scope for all these cases.</p>
+
+<h2>Universal Scope</h2>
+
+<p>Suppose that for the purposes of testing and debugging our game we want to define a special TELEPORT TO command that magically teleports the player character to the location on any object on the map. We'll generally want this command to work on objects that <i>aren't</i> currently in sensory scope. In any case, we'll need to redefine scope for this command so that every object on the map is in scope for it.</p>
+
+<p>The library <a
+href='../libref/source/resolver.t.html#114'>comment</a> on
+Resolver.objInScope() suggests that "if a command's scope is the set
+of all objects, caching the full list would take a lot of memory; to
+save the memory, you could override cacheScopeList() to do nothing at
+all, and then override objInScope() to return true &mdash; this will
+report that every object is in scope without bothering to store a list
+of every object." But it then goes on to say, "Be aware that if you
+override objInScope(), you should ensure that getScopeList() yields
+consistent results.  In particular, objInScope() should return true
+for every object in the list returned by getScopeList() (although
+getScopeList() doesn't necessarily have to return every object for
+which objInScope() is true)." It may help to unpack this a little to
+see what it means in practice.</p>
+
+<p>First, the library comment goes on to make it quite clear that
+"consistent results" does not necessarily mean "identical results".
+The results are consistent if objInScope() would return true for every
+object returned by getScoreList(). This does not mean that
+getScopeList() has to return every object for which objInScope() is
+true. In particular, if objInScope() is overridden to provide
+universal scope, it may be find to leave getScopeList() to return only
+those items in local sensory scope. getScopeList() is used only for
+the following purposes:</p>
+
+<ul>
+<li>To provide an expansion of the token ALL in a player's command (e.g. TAKE ALL).</li>
+<li>To provide a list of potential default objects for a player's command when the command needs an object that the player hasn't specified.</li>
+<li>To provide a list of objects matching a locational phrase (e.g. "on the table").</li>
+</ul>
+
+<p>Even if we've defined a command to accept universal scope (any
+object can be a target of the command), we may still not want ALL to
+be interpreted as every object in the game in the context of that
+command, or to be a potential default object for the command. For
+example, I may want a TELEPORT TO command to work with every object in
+the game, but I probably wouldn't want TELEPORT TO ALL to teleport me
+to every object in the game! It can thus often be fine to define
+objInScope() to implement universal scope, while leaving getScopeList
+to return the list of objects in local sensory scope, a subset of
+universal scope.</p>
+
+
+<p>Second, although objInScope() is actually defined on the Resolver
+class, it is inherited by TAction (and thence by TIAction), and it is
+probably on one of these classes that you'll actually override it,
+e.g.:</p>
+
+<p><pre>
+#ifdef __DEBUG
+
+DefineTAction(TeleportTo)
+   objInScope(obj) { return true; }
+;
+
+...
+#endif
+</pre></p>
+
+<p>Third, even for "universal" scope, you probably wouldn't actually
+want to just return true in an objInScope method, since you probably
+wouldn't want to include Topics in scope. For example, if somewhere in
+your game you've defined the weather as a Topic, you wouldn't actually
+want TELEPORT TO WEATHER to transport the player character to nil, the
+likely location all Topic objects. You wouldn't even want the weather
+Topic to be considered a possible target of your TELEPORT TO command,
+so that the play-tester might be confronted with a disambiguation
+prompt like "Which weather do you mean, the weather or the Weather
+Station?" In practice, you'll probably want your universal scope to
+apply only to Things, so you'd actually want something like:</p>
+
+<p><pre>
+#ifdef __DEBUG
+
+DefineTAction(TeleportTo)
+   objInScope(obj) { return obj.ofKind(Thing); }
+;
+
+...
+#endif
+</pre></p>
+
+<p>You'd then need to go on to define a VerbRule and handling for
+dobjFor(TeleportTo) on Thing, and for a debugging command, that method
+of redefining scope would probably suffice. There's probably no need
+to override getScopeList() in this case, since you'd never want to use
+TELEPORT TO ALL in testing (and you'd probably define a
+VerbRule(Teleport) that only allowed a singleDobj in any case). In any
+case the library implementation of getScopeList() provides a subset of
+universal scope, and this is consistent within the meaning of the
+library's requirements. In practice this implementation with never
+create difficulties with your debugging command, and you can afford to
+leave it there.</p>
+
+<p>Things are a bit more problematic if you want to implement a command with universal scope that you want to allow a player to use in-game. Suppose, for example, that a game takes place entirely in the player character's own home, and that the player character knows precisely where everything is, even if the player doesn't. Then to bridge the gap between player and player character knowledge you might decide to implement a LOCATE command:</p>
+
+<p><pre>
+DefineTAction(Locate)
+   objInScope(obj) { return obj.ofKind(Thing); }
+;
+
+VerbRule(Locate)
+   'locate' dobjList
+   : LocateAction
+   verbPhrase = 'locate/locating (what)'
+;
+</pre></p>
+
+<p>It's reasonable to allow multiple objects with this command (at
+least, it may be so in the case of this hypothetical game), but then,
+by default, the player could issue the command LOCATE ALL; but as
+we've defined it the command will only list those objects in standard
+sensory scope, since that is what getScopeList() will still return.
+One way of dealing with this might be to disallow ALL with this
+command, by setting actionAllowsAll = nil on the definition of
+DefineAction(Locate), and that might be a perfectly reasonable
+solution. But suppose we <i>do</i> want to allow LOCATE ALL; we then
+have to find a way to return a universal scope list (in this case it
+would be legal, but not particularly useful, to restrict ALL to local
+sensory scope, since the player who issues a LOCATE ALL command is
+presumably more interested in getting information on the objects that
+<i>aren't</i> imediately to hand).</p>
+
+<p>Since the list of all objects in the game will never change (assuming we don't create any dynamically), we could build this list once only in a PreinitObject and then take it from there when we need it:</p>
+<p><pre>
+allScope: PreinitObject
+    scope_ = nil
+    execute()
+    {
+        local vec = new Vector(100);
+        forEachInstance(Thing, {x: vec.append(x)}  );
+        scope_ = vec.toList();
+    }    
+;
+
+DefineTAction(Locate)
+   objInScope(obj) { return obj.ofKind(Thing); }
+   cacheScopeList() { scope_ = allScope.scope_; }
+;
+</pre></p>
+
+<p>The cacheScopeList() does what it says is does: it caches the scope list in the property scope_, which is what getScopeList returns by default. On the assumption that getScopeList may be called more than once per turn, it is probably a little more efficient to override cacheScopeList() than getScopeList(). Overriding cacheScopeList() also prevents it from populating scope_ with a list of items in standard sensory scope, which isn't needeed here.
+The possibly mysterious forEachInstance() is a convenience function defined in the library; forEachInstance(cls, func) calls func(obj) for each and every obj of class cls.</p>
+
+<p>This would still not be quite right, however, since if the player issued the command LOCATE ALL, a number of items would probably be in scope that you didn't intend: objects such as askTravelDown and noTravelOut which the library defines as inheriting from Thing, but which don't represent physical objects in the game. To exclude these, you'd probably want to include in scope only those Things that have a non-null name property defined, something like:</p>
+
+<p><pre>
+allScope: PreinitObject
+    scope_ = nil
+    execute()
+    {
+        local vec = new Vector(100);
+        forEachInstance(Thing, new function(x) 
+        {
+            if(x.name && x.name > '')
+                vec.append(x); 
+        });
+        scope_ = vec.toList();
+    }    
+;
+</pre></p>
+<br>
+<h2>Extended Scope</h2>
+<p>We have just seen how to make a command apply to every object in the game, but if you implement a command like LOCATE X, it may be that you'd only want it to work on objects that the player character knows about, or even only objects that the player character has seen. The scope for such a command still needs to be extended beyond the standard sensory scope, but it would be less than universal, since during much of the game there would probably be objects the player had not yet seen. To define the appropriate objInScope() method is  straightforward enough:</p:
+<p><pre>
+DefineTAction(Locate)
+    objInScope(obj)   {  return gPlayerChar.hasSeen(obj);    }
+;
+</pre></p>
+<p>In this case, however, we can't pre-build a scope list in a PreInitObject, since the list of objects the player character has seen changes dynamically throughout the game. Instead, the best solution is probably to build the appropriate list dynamically in cacheScopeList():</p>
+
+<p><pre>
+DefineTAction(Locate)
+    objInScope(obj) {  return gPlayerChar.hasSeen(obj);   }
+    cacheScopeList()
+    {        
+        local vec = new Vector(100);
+        forEachInstance(Thing, new function(x) {
+            if(objInScope(x))
+                vec.append(x);                             
+        });
+        scope_ = vec.toList();
+    }
+;
+</pre></p>
+
+<p>Using objInScope() within cacheScopeList is the safest way of
+ensuring that the scope list identifies the same objects as the
+definition of objInScope(). If this were found to be too slow (in a
+very large game say), there'd be some gain in execution speed in this
+case in replacing this call to objInScope(x) (within the
+forEachInstance function) with one to gPlayerChar.hasSeen(x). Again,
+there might be a small gain in efficiency in increasing the number in
+new Vector() to something larger than 100, if there were potentially
+many more than a hundred objects that the player could have seen. But
+with this implementation, it would be worth stopping to ask whether
+it's really necessary for getScopeList() to return a list of every
+object in scope (as defined by objInScope); the overhead in execution
+time and memory use (particularly in a large game) could be cut down
+by leaving the library default definition of getScopeList() and
+cacheScopeList() (which would return a subset of items the player
+character has seen, and is therefore sufficient for consistency).
+Moreover, it's questionable whether you'd want LOCATE ALL to spew out
+a list of every object the player has seen in a large game, even
+assuming you wanted to allow LOCATE ALL.</p>
+
+<br>
+<h2>Using Topics for non-Spoilery Scope Extension</h2>
+<p>The methods used for extending scope may work fine for your game, but they do have one potential disadvantage. Armed with a command like LOCATE with extended or universal scope, a player might speculatively try LOCATE FOO, or LOCATE TREASURE just to see if such objects exist in the game.</p>
+<p>You may feel this isn't worth worrying about. After all the player could use the same trick with X FOO or X TREASURE to see whether the game defined the appropriate vocabulary anywhere. But if you want extended or universal scope, but you don't want it to be spoilery in this way, an alternative that may be worth considering is using a TopicAction rather than a TAction. For example, you might define:</p>
+<p><pre>
+DefineTopicAction(Locate)
+    execAction()
+    {
+        local obj;
+        local loc;      
+        
+        /* 
+         *   First try to find an objects the player has cannnot currently see 
+         *   but has previously seen. 
+         */
+        obj = gTopic.inScopeList.valWhich({ x: gActor.hasSeen(x) &&
+                                          !gActor.canSee(x)});
+       
+        if(obj)             
+        {
+            loc = obj.location; 
+            "\^&lt;&lt;obj.nameIs&gt;&gt; &lt;&lt;loc ? loc.actorInName : 'nowhere right now'
+              &gt;&gt;. ";
+            return;
+        }
+        
+        /* Next try to find an object the player char can see */
+        
+        obj = gTopic.inScopeList.valWhich({ x: gActor.canSee(x) });
+        
+        if(obj)
+        {            
+            "\^&lt;&lt;obj.nameIs&gt;&gt; right here. ";
+            return;
+        }
+        
+        /* If all else fails, print a failure message. */
+        "You haven't seen anything like that. ";
+        
+    }    
+;
+
+VerbRule(Locate)
+    'locate' singleTopic
+    : LocateAction
+    verbRule = 'locate/locating (what)'
+;
+</pre></p>
+<p>You might want your version to be a bit more sophisticated than this, but this illustrates the general principle. For more details about gTopic.inScopeList you may want to read about <a href='t3cycle.htm#topic'>ResolvedTopic</a>. Or you may feel that using a TopicAction for this purpose is more trouble than it's worth, and that you'd rather stick to extending the scope of a TAction as above!</p>
+
+
+<br>
+<h2>Remote Sensory Scope</h2>
+<p>Suppose we have a device that enables the player character to sense (but not see) a remote object, e.g. a telephone that enables the player character to converse with an NPC who isn't physically present. In order to allow the player character to interact with the remote object that s/he cannot see (e.g., speak with an absent NPC over the telephone) we need to do two things:</b>
+<ol>
+<li>Establish a sensory link between the player character and the remote object or objects (typically using some form of SenseConnector).</li>
+<li>Use getExtraScopeItems() on some appropriate item local to the player character to bring the remote object into scope for the player character.</li>
+</ol>
+<p>For example, my game <i>The Elysium Enigma</i> features a multi-function device called a <i>drik</i>. Pressing the blue stud on the drik establishes a voice link between the player character and his pilot, who remains inside the shuttle for the duration of the game. Here's a simplified version of the code that establishes an aural link between the player character and the pilot when the blue button is pressed:</p>
+
+<p><pre>
++++ blueStud: DrikStud 'smooth smoothest blue -' 'blue stud'
+    "The blue stud looks quite smooth. "
+    
+    dobjFor(Push)
+    {
+        verify()
+        {       
+            if(gActor.canTouch(pilot))
+                illogicalNow('There\'s no point using the communicator to talk
+                    to the pilot -- she\'s right by you!');
+        }
+        action()
+        {
+            if(communicationLink.isConnected)
+            {
+                "The communications link goes dead. ";
+                communicationLink.connect(nil);
+                pilot.setCurState(pilotWaiting);
+            }
+            else
+            {
+                communicationLink.connect(true);     
+                "A short beep indicates that you have opened a communications
+                link with your pilot.<.p>";                
+                nestedAction(TalkTo, pilot);
+            }
+        }
+    }
+    
+    getExtraScopeItems(actor)
+    {
+        return communicationLink.isConnected ? pilot : [];
+    }     
+;
+
+communicationLink: SenseConnector, Intangible 'comms communication link' 'comms link'
+    locationList = [insideShuttle]
+    transSensingThru(sense) { return sense == sound ? transparent : opaque; }
+    
+    connect(stat)
+    {
+        if(stat)
+        {
+            moveIntoAdd(drik);
+            isConnected = true;
+        }
+        else
+        {
+            moveOutOf(drik);   
+            isConnected = nil;
+        }
+    }
+    isConnected = nil
+;
+</pre></p>
+<p>Here, the actual sensory connection is provided by the communicationLink SensoryConnector, which is defined to be transparent to sound and opaque to all other senses. Pressing the blue stud executes communicationLink.connect(), which moves one end of the communicationLink into the drik (the other end remains permanently in insideShuttle), and sets isConnected to true. Meanwhile blueButton.getExtraScopeItems() adds the pilot to the list of items that are in scope (when communicationsLike.isConnected), which means the parser will accept commands that involve the player. Without that step, a command like A HERSELF would still have worked, but not ASK PILOT ABOUT HERSELF or TALK TO PILOT. We could have used the getExtraScopeItems() method on any item in scope for the player character when the blue stud was pressed (such as the drik), but since the blue stud will certainly be in scope when it's pressed, it's as good an object to use as any for this purpose.</p>
+
+<p>Note that if we create a SensoryConnector that allows sight between the player character and the remote location, we don't then need to use getExtraScopeItems as well; what the player character can see is always in scope even if it's in a remote location.</p>
+
+<p>On the other hand, merely defining getExtraScopeItmes without establishing any kind of sensory link won't achieve much, since although the player will be able to refer to the remote item, without any sense path to it s/he won't actually be able to interact with it; for example, suppose we have:</p>
+
+<p><pre>
+startRoom: Room 'Start Room'
+    "This is the starting room. "
+    north = otherPlace
+    getExtraScopeItems(actor)
+    {
+        return (nilToList(inherited(actor)) + silverRing);
+    }
+;
+
++ me: Actor
+;
+
+otherPlace 'Other Place'
+  "This is somewhere else. "
+  south = startRoom
+;
+
++ Wearable 'silver ring' 'silver ring'
+;
+</pre></p>
+
+<p>With this we'd get:</p>
+<p><pre>
+<b>Start Room</b>
+This is the starting room. 
+
+<b>&gt;x ring</b>
+You cannot see that. 
+
+<b>&gt;take ring</b>
+You cannot see that. 
+
+<b>&gt;feel ring</b>
+You cannot see that. 
+</pre></p>
+
+<br>
+<h2>Adjusting Scope in the Dark</h2>
+<p>Although getExtraScopeItems is not sufficient (although it may be necessary) to allow interaction with a remote object, it may be sufficient to allow interaction with a local object in a dark place. For example, suppose in the previous example we made otherPlace a DarkRoom and defined getExtraScopeItems on it instead of startRoom:</p>
+<p><pre>
+otherPlace: DarkRoom 'Some Other Place'
+    south = startRoom
+    getExtraScopeItems(actor)
+    {
+        return (nilToList(inherited(actor)) + silverRing);
+    }
+;
+
++ silverRing: Wearable 'silver ring' 'silver ring'
+;
+</pre></p>
+<p>This would allow the player character to TAKE THE RING in otherPlace even though s/he can't see it. This particular example is a little contrived, and probably not very useful (except to illustrate the principle), but the standard library uses the same principle to put the floor of the current room in scope even when the room is dark (provided the player character is directly in the room) and to put a NestedRoom in scope when a player is in it (so, for example, if the player character is sitting in a chair in a dark room, that chair is still in scope).</p>
+
+<p>Another case where this might be useful is where the player character descends a staircase into a darkened cellar, say. The player can then use UP to retrace his or her steps, so should probably also be allowed to use CLIMB STAIRS, although the stairs wouldn't usually be in scope in the dark. We could achieve this with getExtraScopeItems:</p>
+
+<p><pre>
+cellar: DarkRoom 'Cellar'
+    up = cellarStairs
+    getExtraScopeItems(actor)
+    {
+        return inherited(actor) + cellarStairs;
+    }
+;
+
++ cellarStairs: StairwayUp 'stairs' 'stairs'
+;
+</pre></p>
+<br>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
+Redefining Scope
+<br><span class="navnp"><a class="nav" href="t3transcript.htm"><i>Prev:</i> Manipulating the Transcript</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3mi.htm"><i>Next:</i> Multiple Inheritance</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
+
+

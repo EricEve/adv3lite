@@ -1,0 +1,1170 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Action Results</title>
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Action Results
+<br><span class="navnp"><a class="nav" href="t3messages.htm"><i>Prev:</i> Where Messages Come From</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3verchk.htm"><i>Next:</i> Verify, Check, and When to Use Which</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Action Results</h1>
+
+<p>One of the main programming tasks in writing an adventure game is
+handling special-case commands from the player - commands that do
+something special, rather than using the basic library handling.  The
+TADS 3 library uses "object oriented programming" techniques that let
+you write special-case command handlers for individual objects or for
+entire classes of related objects, but this article assumes you
+already know all about that sort of thing: dobjFor(), verify(),
+action(), and so on.  So we're not going to talk about that.
+Instead, this article is about how you return information from your
+special action handlers, to tell the library what happened and what
+to do next.
+
+<p>The handling for a specific action is divided into a series of
+phases: verification, preconditions, checking, and action.  Since
+each phase serves a distinct purpose, each phase has its own kinds of
+results.  So, you shouldn't expect to signal the same kinds of
+results from the "verify" phase that you would from the "check" phase.
+Since each phase is different, we have to consider them one at a time.
+
+<p><a href='#verify'>Verify</a><br>
+<a href='#precond'>Pre-conditions</a><br>
+<a href='#check'>Check</a><br>
+<a href='#action'>Action</a><br>
+<a href='#libmessages'>Library Messages</a><br>
+
+<h2><a name='verify'>Verification</a></h2>
+
+<p>The primary purpose of the verification phase - really the only
+purpose - is to figure out which object or objects are the most
+logical for a given action.  This lets the parser pick the best
+interpretation automatically when the player's phrasing is ambiguous,
+so that we don't have to constantly bother the player asking for
+clarification.  
+
+<p>A side benefit is that we can often use this same information to
+rule out some actions entirely, since our "logicalness" determination
+can frequently tell that an action is completely illogical.  This
+saves us the trouble of writing any code in the other phases for
+handling this particular action on this particular object, since we
+can just rule out the object in the verify phase based on the
+logicalness rating we have to come up with anyway.  But always keep
+in mind that this is just a side benefit; it's easy to slip into
+thinking that the point of the verify phase is to rule things out,
+but it's not, because we'll still have plenty more chances to rule
+things out later, in other phases.  Any ruling-out that we can do
+in the verify phase is just a free bonus that saves us a little work.
+
+<h3>What does "logical" mean, anyway?</h3>
+
+<p>Before we go on, we should define what "logical" means in the
+context of verifiers.  This is really important to understand,
+because it's at the heart of what the verification stage is for.
+Here's the key: "logical" means <i>what the <b>player</b> thinks it
+means</i>.
+
+<p>So, what does "what the player thinks it means" really mean?
+
+<p>English, like any natural language, is full of ambiguity.  It's
+<i>capable</i> of very fine precision, as you can plainly see if you
+read any ANSI specification document or any legal contract.  But
+there's a high price for that kind of precision, paid in the form of
+verbosity and linguistic convolution - which, again, you can plainly
+see in any ANSI spec or any contract.  There's a reason precision
+comes at such a great cost, and it's not that lawyers and engineers
+are bad writers.  The real reason is that precision of the kind
+needed in engineering and legal documents just isn't nearly as
+important in everyday speech as speed and expressiveness, so natural
+languages evolved to express information concisely, at the cost of
+allowing lots of ambiguity.  In everyday speech, there's so much
+shared context that we can communicate volumes with a few words,
+knowing that our shared context will fill in all of the things we
+leave poorly specified in our actual words.
+
+<p>Think about two friends talking, and one of them saying to the
+other, "Joe is retiring to Florida."  So, who's Joe?  First off, any
+English speaker would know it's a man's name, so we've narrowed it
+down to "male human named Joe"; that's still pretty darn ambiguous,
+but these two people talking are friends, so they have a shared idea
+of "Joe."  They might each know multiple people named Joe, and might
+even have several acquaintances named Joe in common, but there will
+be one person that they both understand to be the one they can talk
+about as just "Joe."  If they didn't have such an understanding, or
+if the speaker wanted to talk about one of the other Joes they both
+know, the speaker would have qualified it somehow: "Joe Smith," or
+"Bob's friend Joe," or "that guy from school who was always going on
+about his hernia problems" - the speaker would qualify it according
+to the shared context with the listener.
+
+<p><i>That's</i> what we mean by "what the player thinks it means":
+we have to imagine the player sitting at the keyboard, having just
+read the moving prose you've written to describe the room in which
+the player character finds herself.  What's in the player's mind now?
+What does the player mean by "Joe" here, in this location in the
+game, at this time?
+
+<h3>What "logical" <i>doesn't</i> mean</h3>
+
+<p>There are a couple of important distinctions we need to draw here.
+
+<p>First, note that we're not interested in what the <i>player
+character</i> thinks; we're interested in what the <i>player</i>
+thinks.  Whatever theory anyone has about the relationship between
+player and player character, there's no question that it's the player
+typing those commands, so our job parsing the input is to understand
+the meaning the player meant to convey.  
+
+<p>Second, we're <i>especially</i> not interested in what the author
+thinks, or what the "narrator" thinks, or what the parser thinks, or
+what an omiscient observer who can look at all of the object
+properties thinks.  This is a key point to understand and to keep in
+mind while writing your game, because it's sometimes easy to forget
+about the player and think instead in terms of the objective reality
+(so to speak) of the game world.
+
+<p>For example, if a particular key opens a particular door, it's
+easy to fall into the trap of thinking that that particular key ought
+to be a more logical match for UNLOCK DOOR WITH KEY than any other
+key.  That's the "objective reality" trap: the key is <i>in fact</i>
+the correct one for the action, but that doesn't matter - the only
+thing that matters is whether or not the player knows this.  If the
+player doesn't know it, then there's no reason to assume that the player
+means that key over any other.
+
+<p>(The library has a Key class that operates on exactly this
+principle.  Initially, one key is pretty much like any other.  Once
+the player has successfully used a particular key to open a
+particular door, though, the library remembers that successful
+combination, on the assumption that the player will also duly note
+and remember the combination.  On future attempts, the key that the
+player used successfully will be considered the most likely one in
+cases of ambiguity.)
+
+<p>Another example, roughly the opposite of the previous one: there's
+a door.  It looks perfectly ordinary, but unbeknownst to the player,
+it's actually a fake door, cleverly constructed to look exactly like
+a real door, but not openable.  Should OPEN DOOR be ruled out as
+illogical?  No, because the player has no way of knowing that the
+door's a fake.  If the fake is so convincing that even attempting to
+open it would not reveal its falsity (maybe it just looks like a real
+door that's stuck, for example), then it would <i>still</i> not be
+illogical to try opening it again and again.  Only when the player
+finds out that the door isn't actually a door - maybe by inspecting
+it more closely, or by being told by a character in the game - will OPEN
+DOOR stop making sense to the player.
+
+<h3>Verifiers and game state changes: a deadly combination</h3>
+
+<p>A general note on writing verify handlers: as in TADS 2, it's
+important that a verify handler never modifies the state of the game.
+For example, a verify handler should never move an object from one
+location to another, and it should never change an object from open
+to closed.  The reason is simple: the parser can call the same
+verifier several times in the course of an action, <i>and</i> it can
+call a verifier "tentatively," before deciding if the object is
+really involved in the action.  If a verifier does anything to change
+game state, then it will make its change too many times, or simply at
+the wrong times.
+
+<h3>How multiple results are handled</h3>
+
+<p>A single verification call can have several separate results, so
+you don't actually return results as function return values.
+Instead, you add the results to the current result set.  Fortunately,
+this isn't as complicated as it sounds, because the library provides
+a set of macros that make it easy to add a result.  Typically, a
+verify routine checks some conditions, adds one or two results, and
+might inherit the default handling from a superclass.
+
+<p>To determine if a command will be allowed to proceed, or to
+compare the logicalness of different possible object matches for a
+noun phrase, the library looks at the <i>worst</i> result of the
+verification.  The library pays attention to the worst result because
+verification is essentially a negative sort of process: we're looking
+for problems, reasons the object is a bad choice, so naturally we go
+with the biggest problem we find.  Note that this means that if there
+are no verify results at all, the parser takes this to mean that
+there are no problems - objects are assumed logical by default,
+unless a verifier says otherwise.
+
+<p>Because the worst result prevails in cases of multiple results,
+you don't have to worry that superclass code that you inherit could
+overrule any objections that your code might raise.  If you raise an
+objection by adding an "illogical" result of some kind, your
+objection will be obeyed; the worst that can happen is that a
+superclass can find a <i>worse</i> objection, in which case that more
+serious problem will upstage your objection.  On the other hand, this
+means that you can't overrule a superclass or subclass to make the
+object <i>more</i> logical; if some other code objects, there's no
+way to retract that objection in your code.  The only way to prevent
+superclass code from declaring something illogical when you want to
+make it logical is to avoid inheriting the superclass code in the
+first place - which is easy, since it just means you don't put an
+"inherited()" call in the method.
+
+<h3>Examples</h3>
+
+<p>Here are some examples of how to use verifiers.
+
+<p>For something that just plain makes no sense at all, we use "illogical."
+For example, it makes no sense to open a coffee mug:
+
+<p><pre>
+   dobjFor(Open)
+   {
+     verify() { illogical('{You} can\'t open a coffee mug! '); }
+   }
+</pre>
+
+<p>For things that might make sense some of the time, but don't make
+sense right now because of the current state of an object, we use
+either "illogicalNow" or "illogicalAlready," the latter being for
+cases where the action is redundant because it tries to put the
+object into a state it's already in.  For example, a door can be
+opened and closed, but if it's already open, then opening it again
+doesn't usually make any sense.  We use "illogicalAlready" for this
+kind of redundant command.
+
+<p><pre>
+   dobjFor(Open)
+   {
+     verify()
+     {
+       if (isOpen)
+         illogicalAlready('{The dobj} {is} already open. ');
+     }
+   }
+</pre>
+
+<p>We'd use illogicalNow instead of illogicalAlready if the object's
+state makes the command illogical, but for some reason other than
+redundancy.  For example, we can't board an inflatable rubber raft
+when it's deflated.
+
+<p>Note that it's not necessary to do anything at all if we don't
+want to raise an objection, so there's no "else" in the "if"
+statement above.  If we don't raise an objection, the parser assumes
+that the object is perfectly logical.
+
+<p>Sometimes, a particular action is <i>possible</i> on essentially
+any object, but it's more sensical on certain objects than others.
+For example, you could try to read almost anything, but things like
+books and magazines are much more likely than others to be the object
+of a READ action.  You can handle this sort of thing using "logicalRank,"
+which lets you indicate that an action is logical, and give different
+objects different relative rankings.  For reading, you could give
+ordinary objects a low ranking - the library uses a value of 50 on
+its arbitrary ranking scale for this.  (The default ranking for an
+object that doesn't provide a specific ranking is 100.)  So, for
+ordinary objects, you could do this:
+
+<p><pre>
+   dobjFor(Read) { verify() { logicalRank(50, 'not readable'); } }
+</pre>
+
+<p>The 'not readable' string, by the way, isn't something that will
+ever be shown to the player - it's not an error message.  It's just a
+"key" value that the parser uses to identify the rankings.  If every
+matching object has the same rank with the same key, the parser will
+know that it can't tell those objects apart on the basis of that
+ranking, so it'll ignore that ranking and look for some other ranking
+to use instead.
+
+<h3>Verifier result types in detail</h3>
+
+<p>Here are the macros to add verify results.  These are listed in
+descending order of logicalness, so you can read two things into the
+ordering.  First, an item later on the list will upstage an item
+earlier on the list when both items are added to the same object's
+verify results, because the worst result is always the prevailing
+one.  For example, if an object's verify uses both "logicalRank" and
+"illogical," the overall result will be "illogical."  Second, during
+disambiguation, once the parser has found the overall result for each
+possible match to a noun phrase, it will pick the object or objects
+with the <i>best</i> results, so an object with an overall result
+from earlier in the list will be chosen over objects with overall
+results later in the list.
+
+<p><b>logical</b>.  You don't usually have to bother with this one,
+but it's provided anyway, to make the set complete.  Remember, you
+can't overrule an objection by making an object more logical, and
+everything starts out logical by default, so this result really has no
+effect.  About the only reason to use this is if you want to add
+emphasis to the source code, for the benefit of a human reader looking
+at the code - it won't affect anything in the parser, but a human reader
+would be able to see that you specifically intend for the action to be
+logical.
+
+<p><b>logicalRank(<i>rank, key</i>)</b>.  This indicates that the
+object is logical, and qualifies the logicalness with a ranking.  
+
+<p>The <i>key</i> argument is any arbitrary string value.  This is a
+name - any name you want to make up - for whatever quality it is
+you're ranking.  The purpose of the key is to permit multiple
+logicalRank results for a single verify, keeping them all separate.
+When it comes time to choose the results, the parser will try to
+compare apples to apples by comparing each logicalRank result to
+others with the same key.  If two objects have the same rank value
+with the same key, the parser will know that both objects are exactly
+the same <i>for that particular quality</i>, and that it should
+therefore ignore that quality and look instead at any other
+logicalRank results that could distinguish the two objects.
+
+<p>The <i>rank</i> argument is any number; the higher the number, the
+more logical the ranking.  The default ranking for a regular
+"logical" object is 100.  Other than this, the meaning of the ranking
+is up to you; you can use this to fine-tune the parser's automatic
+object chooser for particular situations where you want it to pick
+one object over another.  
+
+<p>The library uses logical rankings in a few places to do this kind
+of fine-tuning, and when it does, it has its own conventional rank
+values.  You don't have to use the same values, but it might be
+convenient to do so.  The library's conventional rank values are:
+
+<p>
+<ul>
+
+<li>150: an especially good fit; this object is an especially likely
+match for the action.  For example, a book might use this for a READ
+command.
+
+<li>140: similar to 150, but slightly less ideal.  The library uses
+this for cases where an object is entirely appropriate in some general
+way (a key being used to unlock something, for example), but isn't the
+most likely unique individual object (it's not the particular key
+known to open this particular lock, for example).
+
+<li>100: the default ranking used by the "logical" macro.  This
+object is a good candidate, with nothing that would make it seem
+unlikely, but nothing that would make it seem more likely than
+anything else.
+
+<li>80: slightly less than perfect.  This object is a good match, but
+with some temporary and readily correctable attributes that make it
+less than perfect.  The library uses this for objects with unmet
+preconditions attached, so that it chooses objects that can already
+meet any preconditions over those that need work first.
+
+<li>70: slightly less than perfect, with some attributes that
+aren't necessarily problems, but make it seem likely that the player
+would probably be referring to something else.  For example, we might
+want to favor items already being held when we read them.
+
+<li>60: same as above, for slightly more unfavorable attributes.
+
+<li>50: logical, but not especially likely.  This object can be used
+as a match for the action, but probably isn't the best choice.  This
+is used for cases where the object would not normally be expected to
+be a good choice for the action.
+
+</ul>
+
+<p><b>logicalRankOrd(<i>rank, key, ord</i>)</b>.  This is the same as
+a regular logicalRank result, but further qualifies the result with a
+"list ordering," which is a number given by the <i>ord</i> argument.
+The list ordering determines how important the result is relative to
+other logicalRankOrd results.  The lower the list order, the earlier
+the result goes in the result list for the object.  The earlier in
+the list, the higher the priority.  So, the lowest <i>ord</i> value
+is the most important.
+
+<p>The basic logicalRank result type uses a list order of 100.  Other
+than this, the order number is arbitrary.  The library uses list
+order 150 for precondition results, but doesn't assign any ordering
+values other than this.  The reason the library uses 150 for
+precondition results is that it wants precondition results to be
+considered less important than other factors in determining
+logicalness; because of the ordering, precondition results will only
+matter when there aren't any ordinary logicalRank results at all.
+
+<p>My advice is not to worry about this one - just use the plain
+logicalRank result instead.  logicalRankOrd is included mostly for
+the library's use; games shouldn't usually need such microscopic
+control over result orderings.
+
+<p><a name='dangerous'><b>dangerous</b></a>.  This result indicates
+that the action is not one that a player would perform lightly,
+because of apparent danger in the situation.  This makes the object
+only slightly less logical than the default "logical" result, but its
+main purpose is to prevent the action from being undertaken as an
+implied action, or as a default action.
+
+<p>As always, what's important is what the <i>player</i> perceives.
+If something is in fact dangerous, but the danger isn't apparent to
+the player, you shouldn't add a "dangerous" result.
+
+<p>For example, going north through the airlock door would imply OPEN
+AIRLOCK DOOR.  It's probably pretty obvious to a player that you
+don't open an airlock door unless you have your spacesuit on, so
+you'd probably want to add a "dangerous" result to this action.  This
+would prevent OPEN AIRLOCK DOOR from being performed as an implied
+action for NORTH, and it would prevent the airlock door from being
+chosen as the default object if the player just types OPEN.
+
+Note that "dangerous" doesn't rule out the object.  If the action is
+explicitly and unambiguously performed on the object, then we'll
+allow the action to proceed despite the danger.
+
+<p><b>illogicalAlready(<i>msg, params...</i>)</b>.  The action is
+illogical, because whatever it's trying to do is already done.  For
+example, OPEN DOOR is illogical when the door is open - but it's not
+always illogical, since it's perfectly logical when the door is
+closed.
+
+<p>The parameters provide a message to display to the player, to explain
+why the action is illogical.  Within game code, you'll almost always
+use a simple single-quoted string here - something like this:
+
+<p><pre>
+   illogicalAlready('{The dobj} is already open. ');
+</pre>
+
+<p>Note that you can use "{xxx}" substitutions here.  For an overview
+of how those work, see the article on <a href='t3msg.htm'>message
+substitution parameters</a>.  Note also that when you give the message
+as a string, there are no additional parameters (so the <i>params</i>
+list is left empty).
+
+<p>Within the library itself, you'll never see single-quoted strings
+in these messages.  Instead, the library uses the alternative way of
+specifying the message, which is to provide a property pointer for a
+library message, along with optional parameters to the library
+message property.  The library uses message properties rather than
+strings for two reasons.  First, it makes it easier to translate the
+library to other languages, since the messages are all separated from
+the main library and gathered in one place.  Second, it makes it easy
+to use different messages for different actors.  We'll see more
+about using library message properties <a href='#libmessages'>later
+in the article</a>.
+
+<p><b>illogicalNow(<i>msg, params...</i>)</b>.  The action is
+illogical on this object, due to the object's current state, but
+might be logical at other times.  For example, BOARD RAFT is
+illogical when the inflatable rubber raft is deflated, but isn't
+<i>always</i> illogical.
+
+<p>As with illogicalAlready(), the arguments give the message to
+display and its parameters.
+
+<p><b>illogical(<i>msg, params...</i>)</b>.  The action is illogical
+on this object at all times.  This differs from illogicalAlready and
+illogicalNow in that the action is always going to be illogical on
+this object by the very nature of the object.  For example, TAKE
+BUILDING simply makes no sense, since a building is obviously not an
+object you can pick up and carry around; this isn't a momentary
+condition of the building, but an intrinsic aspect of its nature.
+
+<p>As with illogicalNow, the <i>msg</i> argument can be a simple
+single-quoted string giving the message text, or it can be a 
+library message property.
+
+<p><b>illogicalSelf(<i>msg, params...</i>)</b>.  The action is
+illogical because it's attempting to do something to an object
+using the object itself.  For example, PUT BOX IN BOX.
+
+<p>The reason the library provides this special separate macro,
+rather than simply using illogical() for these cases, is that it's
+relatively easy for a player to inadvertantly attempt an action like
+this by using a plural phrase in a command.  By flagging these errors
+specially, we make it possible for the parser to filter them out when
+they occur in plurals, avoiding unnecessary messages.
+
+<p><a name='nonobvious'><b>nonObvious</b></a>.  This indicates that
+the object is not obvious for the action.  This makes the object less
+likely, in terms of logicalness, than any of the "illogical" results,
+so it'll be chosen for disambiguation purposes only after exhausting
+all of the other possibilities.  It also prevents the action from
+being used implicitly, and it prevents the object from being chosen
+as a default.
+
+<p>This can be used for situations where an object is <i>actually</i>
+a good match for a command, but this isn't meant to be obvious to the
+player, because the object serves a hidden purpose.  For example,
+suppose you can pick a lock with a hairpin, but this is a puzzle.
+You obviously can't make the hairpin illogical for UNLOCK DOOR WITH
+<i>something</i>, but if you didn't do anything at all, and there
+were no other key-like objects present, then a simple UNLOCK DOOR
+would pick the hairpin by default.  nonObvious handles this: it
+allows the object to be used in a command when the command is explicit
+and unambiguous, but it ensures that the object will never be supplied
+as a default for the command, and that the command will never be
+attempted implicitly.
+
+<p><b>inaccessible(<i>msg, params...</i>)</b>.  The action is
+impossible because the object is inaccessible.  This indicates that
+the object is in scope, but it's inaccessible to a sense that's
+needed for the action, such as touch or hearing.  You usually won't
+have to use this result type in a game, since accessibility to a
+sense is almost always handled with a precondition.  If you write
+your own sense-checking precondition, look at the existing ones in
+the library (touchObj, objVisible, objAudible, and so on) to get an
+idea of how to use this.
+
+<h2><a name='precond'>Pre-conditions</a></h2>
+
+<p>One of the things that comes up over and over again when writing
+command handlers is checking for certain basic requirements before
+performing a command.  For example, before you can use a key to
+unlock a door, you have to be holding the key.  After writing a few
+command handlers, it becomes clear that the same requirements tend to
+come up a lot for different actions.  "You have to be holding
+<i>something</i>" comes up not only for UNLOCK DOOR WITH KEY, but for
+all sorts of other actions as well: TURN SCREW WITH SCREWDRIVER, CHOP
+WOOD WITH AXE, PUT BOOK ON SHELF, SHAKE CAN, THROW DART AT TARGET.
+
+<p>It's tempting to think that these requirements should be tested in
+the action itself, but in practice, that's a bad place to make these
+checks.  The problem with checking these requirements on the action is
+that it doesn't allow for cases where the requirements vary.  For
+example, you might think it's a reasonable rule to say that EAT X
+requires "X must be held," and so encode that rule in the EAT action.
+But while "X must be held" might apply to a hot dog or a sandwich, it
+probably wouldn't apply to a steak or a bowl of soup; for those, being
+able to touch the object is sufficient.  It's much better to test
+these requirements for each object, since that makes it easy to vary
+the requirements accordingly.  Specifying the individual requirements
+for every action for every object might sound incredibly tedious at
+first glance, but remember that TADS 3 is object-oriented, so all
+we'll really end up doing is writing the requirements for a base class
+or two, and then overriding this inherited set of requirements for
+special cases.
+
+<p>The library's approach to testing these common requirements is
+something called "pre-conditions."  A pre-condition is a requirement
+that you indicate must be met before the command can proceed.  If
+the requirement isn't met, the command isn't allowed.  This means
+that once you specify a pre-condition for a given action, you can
+stop worrying about that condition; your action handlers will never
+have to test for it, since they'll never even be invoked if the
+pre-condition fails.
+
+<p>The pre-condition mechanism has two really powerful features.
+First, it lets you take a common condition that applies to all sorts
+of different actions, such as "object must be held," and write the
+code to test that condition just once, by creating a PreCondition
+object.  Every time you need to apply that condition, you merely list
+the PreCondition object in the pre-condition list for the object
+action where you want to apply it; there's no additional code to
+write for the object, since the check is entirely contained in the
+PreCondition object.  For example, if you're creating a SANDWICH
+object, and you want to require that the player be holding the object
+before eating it, you'd simply list the objHeld precondition for EAT
+SANDWICH:
+
+<p><pre>
+   // on the sandwich object
+   dobjFor(Eat) { preCond = [objHeld] }
+</pre>
+
+<p>Second, a pre-condition can do more than just test that a requirement
+is met: a pre-condition can actually try to bring the requirement into
+effect automatically, using an "implied command."  An implied command
+is simply a command that is obviously implied by the requirement;
+for example, "object is held" pretty obviously implies TAKE OBJECT
+to bring the requirement into effect.  This lets your game overcome
+the common adventure-game annoyance of parser errors telling you
+what you have to do rather than just doing it; it's annoying to be
+told "You have to take the sandwich first," because if the parser
+knows this, why doesn't it just do it already?
+
+<p>(Note that the automatic implied command of a pre-condition is
+sometimes not desirable, because it would give away a puzzle, or
+because it would do something that the player would in all likelihood
+avoid because of danger.  In these cases, you can avoid the implied
+command in one of two ways.  The easiest way is not to use the
+pre-condition in the first place, but check for the condition
+explicitly somewhere else, such as in the check() routine.  The other
+way, which is often better but a little trickier, is to use a <a
+href='#dangerous'>"dangerous"</a> or <a
+href='#nonobvious'>"nonObvious"</a> verify result for the implied
+action.)
+
+<p>You attach pre-conditions to a particular object for a particular
+action, by using the preCond property in a dobjFor() or iobjFor()
+group.  The preCond property simply returns a list of PreCondition
+objects.  For example, we might add this to a screwdriver object:
+
+<p><pre>
+   iobjFor(UnscrewWith) { preCond = [touchObj] }
+</pre>
+
+<p>In many cases, you'll want to simply add a pre-condition or two
+to the default set of conditions inherited from a base class.  To
+do this, simply use inherited() to pick up the base class conditions,
+and add in your additional conditions:
+
+<p><pre>
+   dobjFor(Read) { preCond = (inherited() + touchObj) }
+</pre>
+
+<p>In some cases, you'll need to <i>remove</i> a pre-condition applied
+in a base class.  For example, the base Thing class in the library
+applies an objHeld pre-condition to EAT, but some objects don't need
+to be held to be eaten.  For these kinds of objects, you can remove
+the objHeld condition by inheriting the default and then subtracting
+out the condition you don't want:
+
+<p><pre>
+   dobjFor(Eat) { preCond = (inherited() - objHeld) }
+</pre>
+
+<p>Here's a list of the pre-conditions defined in the library.
+
+<p><b>objVisible</b> - ensures that the actor performing the action can
+see the object.  This doesn't imply any action if the condition isn't met;
+it simply disallows the action if the object isn't visible.
+
+<p><b>objAudible</b> - ensures that the actor performing the action
+can hear the object.  There is no implied action.  Note that this
+doesn't require that the object is actually making any noise, or that
+the actor can perceive the kind of noise it's making; it merely
+requires that the object is within "hearing range" of the actor, using
+the normal sense connection system.
+
+<p><b>objSmellable</b> - ensures that the actor performing the action
+can smell the object.  There is no implied action.  Note that this
+doesn't require that the object actually have an odor, or that it's
+a kind of odor that the actor can detect; it merely requires that
+the object is within "smelling range" of the actor.
+
+<p><b>actorStanding</b> - ensures that the actor performing the command
+is in a standing posture.  This implies the action STAND.
+
+<p><b>actorTravelReady</b> - ensures that the actor performing the
+command is "ready for travel," meaning that the actor is in a suitable
+state for travel to a new location.  The precondition defers to the
+actor's immediate container to determine the exact condition required,
+via the container's isActorTravelReady() and tryMakingTravelReady()
+methods.  The default, defined in BasicLocation, simply ensures that
+the actor is standing.  You could use this precondition to enforce
+novel travel rules, such as preventing travel while the actor is
+handcuffed to the wall.  This precondition is applied by default to
+all travel commands by TravelConnector objects (which are the objects
+that link rooms together for normal room-to-room travel).
+
+<p><b>TravelerDirectlyInRoom</b> - ensures that the traveler (which is
+usually an actor attempting to do something like "go east," but could
+be another kind of object, such as a vehicle) is located directly in
+the object.  This implies an action that depends on the traveler and
+on the object, but which attempts to move the traveler into the
+object.  (Note that this precondition is a class - it has to be
+instantiated when needed with some extra parameters, namely the actor
+doing the travel, the connector being traversed, and the room the
+traveler is required to be in.)
+
+<p><b>actorDirectlyInRoom</b> - ensures that the <i>actor</i> is
+directly in the object.  This is similar to TravelerDirectlyInRoom,
+but applies directly to the actor performing the command, even if
+the actor isn't the same as the traveler (the traveler differs from
+the actor when the actor is in a vehicle, for example).
+
+<p><b>actorReadyToEnterNestedRoom</b> - ensures that the actor performing
+the action is standing, and is ready to enter the object as a nested
+room.  The exact meaning of this is provided by the actor and by the
+object.
+
+<p><b>canTalkToObj</b> - ensures that the actor performing the action can
+talk to the object, as defined by the actor's canTalkTo() method.  There
+is no implied action.
+
+<p><b>objHeld</b> - ensures that the object is being <i>directly</i>
+held by the actor performing the action.  Implies TAKE.
+
+<p><b>touchObj</b> - ensures that the actor performing the action can
+touch the object, which means that there are no intermediate containers
+that would block the actor's reach.  This condition will attempt to
+perform implied commands to remove any obstructions, starting with
+the obstruction nearest the actor (in terms of containment).  The exact
+means of removing obstructions vary according to the obstructions;
+for example, the obstruction created by a closed container is usually
+removed by opening the container.
+
+<p><b>roomToHold</b> - ensures that the actor has room to directly
+hold the object.  This will implicitly try to create room in the
+actor's hands by rearranging the actor's inventory.  The exact means
+of rearrangement are defined by the actor via its tryMakingRoomToHold
+method; the implementation in the library attempts to move
+directly-held items into any "bag of holding" in the actor's
+possession, if possible.
+
+<p><b>objNotWorn</b> - ensures that the actor is not wearing the object.
+Implies a DOFF command.
+
+<p><b>objOpen</b> - ensures that the object is open.  Implies an OPEN
+command.
+
+<p><b>doorOpen</b> - ensures that the door is open in preparation for
+travel.  This is essentially the same as objOpen, but has the special
+feature that it will only report that the door needs to be opened
+if the actor can see the door; if the actor can't see the door, the
+report merely indicates that travel is not possible.  Doors are 
+slightly special in this respect in that a travel action can depend
+upon a door which the actor can't even see because of darkness.
+
+<p><b>objClosed</b> - ensures that the object is closed.  Implies a
+CLOSE command.
+
+<p><b>objUnlocked</b> - ensures that the object is unlocked.  Implies
+an UNLOCK command (with no indirect object).
+
+<p><b>dropDestinationIsOuterRoom</b> - ensures that the destination for
+a DROP command is an outermost room (that is, it's not nested within
+a containing room).  If this isn't the case, then we'll perform the
+action that the TravelerDirectlyInRoom would perform when used with
+the outermost room of the actor's drop destination.  (This is a pretty
+specialized condition that probably won't be needed in game code.)
+
+<p><b>objBurning</b> - ensures that the object is lit (i.e., its isLit
+property is true).  Implies a BURN command (with no indirect object).
+
+<p><b>objEmpty</b> - ensures that the object has no contents.
+Implies TAKE <i>child</i> FROM <i>object</i>, where <i>child</i> is
+the first item within the object.  We only try to remove one object
+because we'll be called repeatedly until the condition is fully met -
+the pre-condition mechanism always checks all of the pre-conditions
+again after any pre-condition performs an implied action.
+
+<p>You can extend the list above by defining your own PreCondition
+objects.  If you want to enforce some set of conditions that's beyond
+the capabilities of the library PreCondition objects listed above, you
+can usually do so by creating a custom PreCondition.  For details on
+how, see the separate article on <a href="t3precond.htm">Custom
+Preconditions</a>.
+
+
+<h2><a name='check'>Check</a></h2>
+
+<p>As we discussed back in the <a href='#verify'>verify section</a>,
+the verify routine is for determining how logical an action seems
+from the player's perspective, irrespective of whether or not the
+action is actually possible or meaningful within the game world.
+When we want to disallow an action for reasons that wouldn't be
+obvious to the player, we wait until the "check" method to halt
+the command.
+
+<p>The "check" routine can do one of two things: it can let the
+command proceed, or it can display an error message and use "exit"
+to stop the action.
+
+<p>If the "check" routine wants to stop the action, it can simply
+display a message directly, using a double-quoted string; doing this
+is exactly the same as using mainReport.  The routine can also use
+reportFailure, but this isn't necessary: the parser automatically
+considers the action to be a failure if the "check" routine uses
+"exit" to halt the action.
+
+<p>Here's a sample "check" routine.  This implements a piece of
+clothing that we don't want to allow the player to remove - it's not
+important to the game to let the player character undress, so we want
+to simply disallow it.  However, it's perfectly logical from the
+player's perspective to try the action, so we don't want to make
+it illogical; this is why we must handle it in "check" rather than
+in "verify."
+
+<p><pre>
+  dobjFor(Doff)
+  {
+    check()
+    {
+      "It would be highly unladylike to get undressed away from the
+      privacy of one's own bed chamber. ";
+      exit;
+    }
+  }
+</pre>
+  
+
+
+<h2><a name='action'>Action</a></h2>
+
+<p>The "action" routine is where the body of the action is carried out.
+If we've made it this far, we know the action is logical, that it's
+passed all of its pre-conditions, and that we've made it past any
+"check" conditions.
+
+<p>In addition to actually carrying out the action, this routine must
+generate a message to describe what happened.  The easiest way to do
+this is to display a message directly, using a double-quoted string:
+
+<p><pre>
+  dobjFor(Open)
+  {
+    action()
+    {
+      makeOpen(true);
+      "Okay, {the dobj} {is} now open. ";
+    }
+  }
+</pre>
+
+<p>In addition, the library defines several macros that you can use
+instead of showing a message directly.
+
+<p><b>mainReport(<i>msg, params...</i>)</b>.  This specifies the
+"main" result message for the action.  There can be any number of
+main reports for a single action, so this isn't an exclusive sort of
+"main."
+
+<p>If <i>msg</i> is a single-quoted string, this acts exactly like
+showing a message directly with a double-quoted string.  There are no
+additional parameters with a single-quoted string message.
+
+<p>The <i>msg</i> argument can also be a property pointer, in which
+case it's a library message property, and <i>params</i> are any
+parameters required for that library message method.  The library
+will get the actual message text from the library message object;
+we'll see more about this <a href='#libmessages'>later in the
+article</a>.
+
+<p>Game code can usually use the simple single-quoted string form of
+this call.  The library, on the other hand, always uses the property
+pointer form, since this keeps all of the messages in the library
+together in one place, to facilitate translating the library.
+
+<p><b>reportAfter(<i>msg, params...</i>)</b>  This adds a report
+that works pretty much like a main report, except that it'll
+be displayed after all main reports.  Even if another main report
+is added after the reportAfter is added, the reportAfter will still
+be moved so it appears in the final transcript after all of the
+main reports.
+
+<p><b>reportBefore(<i>msg, params...</i>)</b>  This adds a report
+that appears before any main reports.  Even if other main reports
+have already been generated, a reportBefore will be moved so that
+it appears in the final transcript before the first main report.
+
+<p><b>reportFailure(<i>msg, params...</i>)</b>.  This shows a failure
+message.  If the action routine checks a condition that it wasn't
+possible to test eariler (in "verify" or "check"), and finds that the
+command cannot proceed, the action routine can use this to show a
+message and mark the action as a failure.  
+
+<p>It's not strictly necessary to indicate that an action failed, but
+it's useful information that's made available to the code that
+initiated the action.  When a command is performed as a nested action,
+the outer action that called the nested action can test to see if the
+nested action succeeded or failed, and proceed accordingly.  Whenever
+you're writing an action handler, and you consider the outcome of the
+action to be a failure, you should use reportFailure to indicate
+this to callers.
+
+<p><b>defaultReport(<i>msg, params...</i>)</b>.  This generates a
+"default" report.  This is a special kind of report used to indicate
+a very simple, minimal acknowledgment of a successful action.  The
+important thing about default reports is that they merely acknowledge
+that we have done exactly what the player asked.  For example, if the
+player enters the command OPEN BOX, and the response is "Opened,"
+this would count as a default report: it tells the player only that
+we have done exactly what they asked, and nothing else.  If opening
+the box reveals something inside, that wouldn't be part of the
+default report, because the player's command didn't say anything
+about revealing the object.  (Even if the player expected the object
+to be revealed, that part still wouldn't be a default report - the
+revelation wasn't part of the explicit request, no matter what the
+player actually expected.)
+
+<p>The important thing about default reports is that they'll only be
+displayed if there's not also another report of some kind, <i>and</i>
+the command was explicit.  We don't show default reports for implied
+commands, because, by definition, a default report merely
+acknowledges a command, and a command that the player didn't actually
+enter requires no acknowledgment.  We leave out default reports if
+there are any other reports as a convenience to custom overrides; 
+a custom "action" routine can freely inherit base class code from the
+library without having to worry about any default message that the
+library code generates, since the default message won't be shown if
+the custom code shows a main report instead.
+
+<p>Default reports will probably not be used very often in game code.
+They're mostly for low-level library classes that implement the basic
+commands.
+
+<p><b>defaultDescReport(<i>msg, params...</i>)</b>.  This is similar
+to defaultReport, but is used for descriptions.  Like defaultReport,
+a defaultDescReport is not shown if there are any other reports
+for the action; unlike defaultReport, though, a defaultDescReport
+<i>is</i> displayed for an implied action.
+
+<p>The purpose of defaultDescReport is to provide an easy way of
+describing something as ordinary, without contradicting any special
+features that are added by other parts of a generated description.
+For example, suppose you have a table that has no special description:
+
+<p>
+<pre>
+   &gt;x table
+   You see nothing special about it.
+</pre>
+
+<p>Now, suppose there's something on the table.  The library's normal
+Surface code would add a mention of the items on the table; if we
+left the "nothing special" message, we'd have a somewhat
+self-contradictory description:
+
+<p>
+<pre>
+   &gt;x table
+   You see nothing special about it.  On the table are a newspaper
+   and a pair of sunglasses.
+</pre>
+
+<p>Well, we clearly <i>do</i> see something special about it: we see
+that it contains the newspaper and the sunglasses.  defaultDescReport
+helps with this.  In the first case, where the table is empty, there
+will be no other reports for the action, so we'll keep the default
+description.  In the second example, however, we have some additional
+reports, so the defaultDescReport will be suppressed, and all we'll
+see is this:
+
+<p>
+<pre>
+   &gt;x table
+   On the table are a newspaper and a pair of sunglasses.
+</pre>
+
+<p><b>cosmeticSpacingReport(<i>msg, params...</i>)</b>.  This adds
+a message for internal spacing only; this is usually used to add 
+a blank line or a paragraph break.  The important feature of this
+type of report is that it doesn't count against any default reports:
+if there are default reports for the action, and no other reports,
+a cosmeticSpacingReport won't suppress the default reports.
+
+<p><b>extraReport(<i>msg, params...</i>)</b>  This adds an additional
+report, without affecting any default reports.  If there are default
+reports and no other reports, this won't suppress the default reports.
+
+<h2><a name='libmessages'>Library Messages</a></h2>
+
+<p>This section is mostly for people interested in the internal
+technical details of the library, for people translating the library,
+and for authors of library extensions.  Game authors will not usually
+need to know how the library messages mechanism works.
+
+<p>In most cases, game authors will want to write the text of their
+messages directly within the game code.  For the library, though,
+interspersing messages directly within code would be a problem,
+because it would require library translators to edit virtually every
+library module, and to search laboriously through the entire library
+looking for messages to translate.  It would also create a huge
+merging problem as the library evolves: for every new version of the
+library, a translator would have to repeat the process from scratch
+on every module in the library that was updated.  For its own
+messages, then, the library needs to separate the message text from
+the main library code.
+
+<p>The library separates message text from program code by putting
+all of the messages in a set of object properties.  The objects that
+define these message properties are gathered into a single library
+module.  A translator can translate all of the messages in the
+library simply by replacing this single module.  (There are other
+parts of the library apart from the messages that require
+translation, so translating the library requires more than just
+replacing the messages and more than just replacing one module, but
+that's a separate story.)
+
+<p>The library groups the messages into three main places.
+
+<h3>libMessages</h3>
+
+<p>The libMessages object is the default message repository.  This
+object contains many default description messages and little text
+fragments that are used to construct larger messages.  There's
+nothing special about this object or about getting its messages; when
+the library wants to display a message from libMessages, it simply
+uses code like this:
+
+<p><pre>
+   say(libMessages.roomDarkName);
+</pre>
+
+
+<h3>playerMessages and npcMessages</h3>
+
+<p>For messages generated during parsing - disambiguation questions
+("which box do you mean..."), missing object questions ("what do you
+want to open?"), unknown word errors, and a few others - the parser
+doesn't look to the default libMessages repository.  Instead, it uses
+an object provided by the command's target actor - that is, the actor
+to whom the command is directed: Bob in "bob, go north," for example.
+(When the target actor can't be determined, or isn't yet known at the
+time the error message is displayed, the parser uses the player
+character by default.)
+
+<p>To get this parser-specific message repository, the parser calls the
+method getParserMessageObj() on the target actor.  The default
+version of this method returns the object playerMessages for the
+player character, and the object npcMessages for all other actors.
+
+<p>The playerActionMessages and npcActionMessages objects are both
+based on the basic libMessages object.  This means that any message
+that these objects don't override is inherited from libMessages.  Many
+parser error messages are defined in libMessages, since the library
+doesn't have a need to vary these by actor in most cases.
+
+<p>If you want to customize any of the parser-related messages for a
+particular actor, you can override getParserMessageObj() for that
+actor to return your own custom object.  Then, you must define this
+object so that it provides all of the methods defined in (and
+inherited by) npcMessages.  A simple way to override just a few
+messages is to create a new object that inherits from npcMessages, and
+then just override the methods for the messages you want to change.
+
+
+<h3>playerActionMessages and npcActionMessages</h3>
+
+<p>Much as the parser has its own set of special message repository
+objects, the action execution system has a separate set of objects.
+The action system, like the parser, gets the special message object
+from the command's target actor.
+
+<p>The action system calls the method getActionMessageObj() to get its
+special message object.  By default, Actor.getActionMessageObj()
+returns the object playerActionMessages if the actor is the player
+character, and returns the object npcActionMessages for any other
+actor.
+
+<p>The library automatically retrieves the appropriate object, using
+getActionMessageObj(), whenever you use any of the "verify" or "action"
+result macros with a property pointer.  The library then calls the
+property pointer, using the additional parameters defined in the macro,
+on the library message object.  So, for example, if you have a mainReport
+like this:
+
+<p>
+<pre>
+   mainReport(&amp;noResponseFrom, self);
+</pre>
+
+<p>...then the library turns this into a call like this:
+
+<p><pre>
+   gActor.getActionMessageObj().noResponseFrom(self);
+</pre>
+
+<p>This handling applies to illogicalNow(), illogicalAlready(),
+illogicalSelf(), illogical(), inaccessible(), mainReport(),
+reportAfter(), reportBefore(), reportFailure(), defaultReport(),
+defaultDescReport(), cosmeticSpacingReport(), and extraReport().
+
+<h3>Varying messages by actor</h3>
+
+<p>Because the library obtains the parser and action message object
+individually for every target actor, it's easy to customize the
+messages according to which actor is performing a command.  The
+library uses this extensively by separating player character and NPC
+messages into separate objects: playerMessages and playerActionMessages
+for the player character, and npcMessages and npcActionMessages for
+non-player characters.
+
+<p>For the player character, messages tend to be acknowledgments
+more than descriptions:
+
+<p><pre>
+   &gt;take the box
+   Taken.
+ 
+   &gt;open it
+   Opened.
+
+   &gt;put the coin in the box
+   Done.
+</pre>
+
+<p>For non-player characters, however, the library defines messages
+that describe the action more fully.  The library makes this
+distinction because the simple acknowledgments that are fully
+appropriate for the player character don't sound right when another
+character is the one performing actions.
+
+<p><pre>
+   &gt;bob, take the box
+   Bob takes the box.
+ 
+   &gt;bob, open it
+   Bob opens the box.
+
+   &gt;bob, put the coin in the box
+   Bob puts the coin in the box.
+</pre>
+
+<p>You can take advantage of the per-actor message objects to
+customize the responses that a particular actor produces for
+particular actions.  If you want to customize a few responses for a
+particular character, you merely have to do the following:
+
+<ul>
+
+  <li>Create a custom message object for your actor.  Make it inherit
+  from npcMessages (if it's a parser message repository) or
+  npcActionMessages (if it's an action message repository), so that
+  you only have to define the methods that you want to customize - the
+  rest will automatically be inherited from the base object.
+
+  <li>Define the messages you want to customize by defining methods on
+  the object that override the standard library messages.  For
+  example, here's a message object that customizes TAKE and DROP:
+
+<p><pre>
+   bobActionMessages: npcActionMessages
+     okayTake = '{You/he} grudgingly pick{s} up {the dobj/him}. '
+     okayDrop = '{You/he} disdainfully put{s} down {the dobj/him}. '
+   ;
+</pre>
+
+  <li>In the Actor object for your character, override
+  getParserMessageObj() and/or getActionMessageObj() so that they
+  return your custom message objects.
+
+</ul>
+
+<h3>npcMessagesDirect</h3>
+
+<p>The library provides a variation on the standard npcMessages
+object, called npcMessagesDirect.  This variation overrides many of
+the standard parser error messages to make them sound as though they
+were being stated aloud, within the game, by the NPC:
+
+<p><pre>
+    &gt;bob, get the box
+    Bob looks around.  "I don't see any box."
+</pre>
+
+<p>Some people prefer this style of parser errors, because it creates
+the impression that the player is talking directly to the NPC.  Most
+authors these days prefer the default style, which is based on the
+idea that the player isn't talking directly to the NPC's, but rather
+to an unseen parser/narrator that exists on the same plane as the
+player, outside of the story world; when there are parsing errors,
+they're in this external "meta-game" context, not in the context of
+the story world - it's the <i>parser</i> that failed to understand the
+command, not the NPC.
+
+<p>If you want to use this style of message for one of your actors,
+you can simply override getParserMessageObj() for that actor to
+return npcMessagesDirect.  If you want to use this style for all
+of your actors, you can modify Actor to return npcMessagesDirect
+from getParserMessageObj() when isPlayerChar() returns nil.
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+Action Results
+<br><span class="navnp"><a class="nav" href="t3messages.htm"><i>Prev:</i> Where Messages Come From</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3verchk.htm"><i>Next:</i> Verify, Check, and When to Use Which</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

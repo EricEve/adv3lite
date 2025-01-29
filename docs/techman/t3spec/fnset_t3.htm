@@ -1,0 +1,278 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>The "t3vm" Intrinsic Function Set</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+t3vm Function Set
+<br><span class="navnp"><a class="nav" href="debug.htm"><i>Prev:</i> Debug Records</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="metalist.htm"><i>Next:</i> Metaclass Identifier List</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+
+<br><br>
+
+
+<h2>The "t3vm" Intrinsic Function Set</h2>
+
+<p>
+The T3 VM uses <a href='model.htm#intrinsics'>intrinsic function sets</a>
+to provide access to built-in functionality in the VM itself and in
+the host application environment.  The T3 specification allows host
+environments and application configurations to define and provide their
+own function sets using an open extensibility mechanism.  Because each
+host environment can provide its own set of intrinsics through this
+extension mechanism, the T3 VM specification doesn't define a
+comprehensive set of intrinsics, but merely specifies how intrinsics
+are added and how they're accessed by a user program.
+
+<p>
+The T3 VM specification does, however, specify one required function
+set that all implementations must provide.  This required function set
+is the "t3vm" function set, which provides user programs with access
+to and control over the VM itself.
+
+<p>
+This section specifies the functions defined in the "t3vm" function
+set.
+
+<h3>The "t3vm" Function Set External Definition</h3>
+
+<p>
+The identification string for the current version of the "t3vm"
+function set is "<tt>t3vm/010000</tt>".  The numbers at the end are
+a version number; this version number will be changed in the future
+when new functions are added.  Any future "t3vm" function set versions
+will incorporate the current function set as their leading subset,
+hence they will be compatible with past versions and can be used by
+programs requiring past versions.
+
+<p>
+Programs compiled for the T3 VM access the "t3vm" function set using
+the external definition shown below.  This definition is for the 
+TADS 3 compiler; other compilers might use different syntax, but the
+meaning will be the same.
+
+<p>
+<pre>
+    intrinsic 't3vm/010000'
+    {
+        /* run the garbage collector */
+        t3RunGC();
+
+        /* set the default string display (SAY) function */
+        t3SetSay(funcptr);
+
+        /* get the VM version number */
+        t3GetVMVsn();
+
+        /* get the VM identification string */
+        t3GetVMID();
+
+        /* get the VM version and copyright banner string */
+        t3GetVMBanner();
+
+        /* get the preinitialization mode flag */
+        t3GetVMPreinitMode();
+
+        /* debugger trace operations */
+        t3DebugTrace(mode, ...);
+
+        /* get the global symbol table */
+        t3GetGlobalSymbols();
+
+        /* allocate a new property ID */
+        t3AllocProp();
+    }
+</pre>
+
+<h3>Function Index 0: Run garbage collector</h3>
+
+<p>
+<b>Parameters: None</b>
+<br><b>Return value: None</b>
+
+<p>This function invokes the garbage collector.  This function doesn't
+return until a complete garbage collection cycle is completed.  A program
+can invoke this function to force the garbage collector to run, which
+might be desirable because the program knows that it would pause for some
+time anyway while waiting for user input or other external events, or
+because the program is in the midst of a large number of dynamic memory
+operations.
+
+<h3>Function Index 1: Set the default string display function or method</h3>
+
+<p><b>Parameters: function pointer <i>or</i> property ID</b>
+<br><b>Return value: None</b>
+
+<p><b>Case 1: Function pointer argument</b>
+
+<p>This sets the default string display function to the
+given user program function; the VM simply remembers the function for
+future use.  After this function is called, the SAY instruction
+invokes the given function with a single string argument.  Evaluating
+an object property whose value is a self-printing string likewise
+invokes the given function.
+
+<p><b>Case 2: Property ID argument</b>
+
+<p>This sets the default display method to the given property ID;
+the VM simply remembers the property ID for future use.  After this
+is called, the SAY instruction invokes the given property ID on the
+current object any time a SAY instruction is executed when a valid
+"self" object is in effect.  Evaluating an object property whose value
+is a self-printing string likewise invokes the given method.
+
+<h3>Function Index 2: Get the VM version number</h3>
+
+<p><b>Parameters: none</b>
+<br><b>Return value: Integer</b>
+
+<p>
+This function returns the current VM version number.  The returned
+value is a 32-bit integer value, encoded as follows:  the high-order
+16 bits contain the major version number; the next 8 bits contain
+the minor version number; and the low-order 8 bits contain the patch
+or maintenance release number.  To decode the value, use the following
+formulas:
+
+<p>
+<pre>
+    major_version = (version >> 16) &amp; 0xffff;
+    minor_version = (version >> 8) &amp; 0xff;
+    patch_version = version &amp; 0xff;
+</pre>
+
+<p>The exact meaning of
+the version number varies from implementation to implementation;
+this value is meaningful only in conjunction with the VM identification
+string returned by the function at index 3.
+
+<h3>Function Index 3: Get the VM identification string</h3>
+
+<p><b>Parameters: none</b>
+<br><b>Return value: String</b>
+
+<p>
+This function returns the VM identification string.  This is a string
+that uniquely identifies the VM engine implementation.  A given
+implementation's identification string should remain the same from
+version to version.
+
+<p>
+Programs should avoid using the VM identification string to select
+different code paths because of observed differences between VM
+implementations.  When such differences arise, they should be considered
+bugs, either in the diverging implementations or in the VM specification
+itself for leaving some important behavior poorly specified.  To the 
+extent possible, whenever divergent implementation behavior tempts a
+developer to code a test for a particular VM implementation to work
+around some problematic difference in behavior, the developer should
+instead contact the respective implementation or specification authors
+to reconcile the problem in the VM's.
+
+<h3>Function Index 4: Get the VM banner string</h3>
+
+<p><b>Parameters: none</b>
+<br><b>Return value: String</b>
+
+<p>
+This function returns the VM's banner and copyright string.  This
+string is suitable for display to the user running the VM program.
+The format and contents of this string depend upon the implementation.
+Typically, this string will contain the VM implementation name,
+version number, and copyright owner.  A user program can display
+this information at startup, in an "about" box, or in another suitable
+location if it wishes to let the user see information on the underlying
+virtual machine.
+
+<h3>Function Index 5: Get the Preinitialization Mode Flag</h3>
+
+<p>This function returns true if the program is in "pre-initialization"
+mode, nil if not.  During normal execution, this returns nil.
+
+<p>The purpose of pre-initialization is to allow the program to
+perform arbitrary initialization computations, then capture the
+initialized state of the program in the final image file.  A
+compiler/linker providing a pre-initialization mechanism sets the
+preinit flag and then simply invokes the main program entrypoint.
+The program observes that it is in pre-initialization mode by
+checking the preinit flag through this function, and instead of
+starting a normal session, the program runs its special
+pre-initialization code and then terminates.  Upon termination, the
+compiler/linker builds a new image file capturing the state of all
+objects after this session - this new image file replaces the
+original image file.  The purpose of this scheme is to allow
+time-consuming initialization operations to be performed during
+compilation, rather than each time the program is loaded.
+
+<h3>Function Index 6: Get/Set Debug Mode</h3>
+
+<p>This function queries the presence of the debugger and sets the
+debug trace mode.  The first argument gives the trace mode to set:
+
+<ul>
+
+<li>1 - check to see if the debugger is present.  Returns true if the
+VM has an integrated interactive debugger, nil if not.
+
+<li>2 - break into the debugger.  If a debugger is present, this
+should set the VM trace mode to single-stepping, as though the user
+had been interactively stepping through program code.
+
+</ul>
+
+<h3>Function Index 7: Get the Global Symbol Table</h3>
+
+<p>Retrieves the global symbol table, if present.  This normally returns
+nil unless the program is running in pre-initialization mode or has 
+debugger records stored in the image file (which is normally the case
+any time the program is compiled for debugging).  This function is
+permitted to return nil <b>unless</b> the VM is in pre-initialization
+mode, in which case a valid symbol table <b>must</b> be returned.
+A valid symbol table <b>may</b> be returned in normal (non-preinit) mode
+if valid debug records are included in the image file, but this is not
+required.
+
+<p>The symbol table contains all object, property, function, and enumerator
+symbols defined in the program.  The return value of this function is
+a LookupTable object.  Each key in the table is a string giving the name
+of the program symbol, and each key's value is the corresponding value
+of the symbol.
+
+<h3>Function Index 8: Allocate a Property Identifier</h3>
+
+<p>Allocates and returns a new, unused property identifier.  Note that
+the property identifier allocation must be integrated with the "undo"
+mechanism and the state save/restore mechanism.
+
+
+<div class=t3spec_version>
+Copyright &copy; 2001, 2006 by Michael J. Roberts.<br>
+Revision: September, 2006
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+t3vm Function Set
+<br><span class="navnp"><a class="nav" href="debug.htm"><i>Prev:</i> Debug Records</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="metalist.htm"><i>Next:</i> Metaclass Identifier List</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

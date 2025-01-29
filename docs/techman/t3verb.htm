@@ -1,0 +1,627 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>How to Create Verbs</title>
+
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+How to Create Verbs
+<br><span class="navnp"><a class="nav" href="t3verchk.htm"><i>Prev:</i> Verify, Check, and When to Use Which</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3precond.htm"><i>Next:</i> Custom Preconditions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>How to Create Verbs</h1>
+
+<p>Every game based on the TADS 3 standard library automatically gets
+the benefit of the huge complement of verbs that the library defines -
+about 150 of them.  Even though so many verbs are pre-defined, though,
+it's a good bet that many games - maybe even most - will have at least
+one or two situations where a custom verb is needed.  Fortunately, it's
+relatively easy to add new, custom verbs to a TADS 3 game.
+
+<p>The method for adding a verb depends on what kind of verb you're
+adding.  We'll go over the main types one at a time.  Note that the
+techniques we describe here are exactly the same techniques that the
+library uses to define its own verbs - this means your new verbs are true
+first-class citizens, fully on par with the pre-defined library verbs.
+
+<p>The examples in this article are written for the English version of
+the library.  The syntax used to define verbs varies by language, so
+these examples probably won't work with other language versions.  To
+use the English library's special features in your game, you need to
+include the library's English language header in each of your source
+files, along with the main library header.  Just put these lines at
+the start of each of your ".t" source files:
+
+<p><pre>
+   #include &lt;adv3.h&gt;
+   #include &lt;en_us.h&gt;
+</pre>
+
+<h2>Verbs with no objects</h2>
+
+<p>A verb that doesn't take any objects is called an "intransitive"
+verb.  This is a verb like LOOK AROUND or SLEEP that expresses an
+action without mentioning any objects.
+
+<p>To create an intransitive verb, you have to write two bits of
+code, like this:
+
+<p>
+<pre>
+   DefineIAction(Sleep)
+     execAction() { mainReport('{You\'re} not sleepy right now. '); }
+   ;
+
+   VerbRule(Sleep)
+     'sleep' | 'doze' 'off' | 'nod' 'off'
+     : SleepAction
+     verbPhrase = 'sleep/sleeping'
+   ;
+</pre>
+
+<p>The first part, DefineIAction, defines the "Action" class for your
+new verb.  The Action class represents the verb during command
+execution.  DefineIAction (which stands for "Define Intransitive
+Action") is a macro defined in the TADS 3 library that takes care of
+some of the tedious busy-work of creating your Action class; under
+the covers, this macro just starts a class definition for you and
+fills in a few properties.  The name in parentheses is the root name
+of the class; the macro glues the word "Action" to the end of the
+name you provide, so the class name you're defining is actually
+SleepAction.
+
+<p>The execAction() definition is just a normal method definition
+that's part of your Action class.  For an intransitive action, this
+method is what actually carries out the action, so you simply write
+code here for whatever you want the verb to accomplish.
+
+<p>The second part, VerbRule, defines the grammar for your verb.  This
+tells the parser the various ways that the player could type this verb
+in command input.  The name in parentheses is the "tag," which is
+simply a name for the rule, for reference purposes.  In this case, the
+tag is "Sleep", which happens to be the same as the root name of the
+Action class - but this is completely arbitrary.  We could have made
+it "VerbRule(gloxnfab)", and everything would have worked equally
+well.  The only important thing about the tag is that it's unique
+among all of the VerbRule definitions in the entire game; by
+convention, the library usually uses the Action root name as the tag
+just because it's an easy way of ensuring uniqueness.  Note, however,
+that you sometimes will want to define multiple VerbRule's for the
+same Action class, and when you do that, you'll obviously have to come
+up with some other unique tag for each rule after the first.  You
+could use names like "VerbRule(Sleep2)", for example.
+
+<p>To define the syntax of your verb, you simply list all of the
+different phrasings, separating each phrasing from the next with the "|"
+character.  Each quoted string is matched exactly to a token - which
+means that each word has to go in a separate string, since the
+tokenizer breaks up a command into words before the parser starts
+matching syntax rules.
+
+<p>Note that, by default, the "|" symbol separates entire phrasings,
+so the definition above creates three phrasing: "sleep", "doze off",
+and "nod off".  You can also group parts of the phrasing with
+parentheses, and then use the "|" symbol to separate individual
+sub-phrases; for example, we could also write the grammar above like
+this:
+
+<p>
+<pre>
+   'sleep' | ('doze' | 'nod') 'off'
+</pre>
+
+<p>This is the same as the original definition, because it says that
+one phrasing is "sleep", and another is <i>either</i> "doze"
+<i>or</i> "nod" followed by "off".  It's sometimes more compact to
+write rules that group sub-phrases like this, because in English
+there are many verbs where there are different phrasings that involve
+variations in only one or two words in a longer phrase.
+
+<p>After the grammar rules, you have to specify the Action class
+associated with this VerbRule; in this case, the class is SleepAction.
+Just as DefineIAction is a macro that defines an Action class,
+VerbRule is a macro that defines a subclass of your action class.
+Remember that the DefineIAction macro appends "Action" to the class
+name we specified, so we have to do the same thing explicitly here.
+
+<p>Everything else in the VerbRule is an ordinary property or method
+definition.  Every VerbRule should define a verbPhrase property, giving
+a string that's used as a message template for the verb.  Don't confuse
+this with the grammar rule - the verbPhrase isn't used to parse anything,
+but is simply used to generate messages.  You should always use the
+format shown above for an intransitive verb.  Note that you only
+specify one phrasing in the verbPhrase, no matter how many phrasings
+you define in the grammar.
+
+<h2>Verbs with one object</h2>
+
+<p>Many verbs require an object to operate upon: TAKE THE KEY, READ
+THE BOOK.  These are called "transitive" verbs, and the object that a
+transitive verb operates upon is called the verb's "direct object."
+
+<p>Here's an example of defining a transitive verb:
+
+<p>
+<pre>
+   DefineTAction(Repair);
+
+   VerbRule(Repair)
+     ('repair' | 'fix') singleDobj
+     : RepairAction
+     verbPhrase = 'repair/repairing (what)'
+   ;
+
+   modify Thing
+     dobjFor(Repair)
+     {
+       verify() 
+       {
+         illogical('{You/he} do{es}n\'t know how to repair 
+                   {that dobj/him}. ');
+       }
+     }
+   ;
+</pre>
+
+<p>The first part defines the Action class for the new verb.
+DefineTAction stands for "Define Transitive Action"; it's a macro
+provided by the library to handle the tedious parts of defining the
+new verb.  Note that unlike our intransitive verb example earlier,
+we do <b>not</b> define an execAction() for a transitive verb; this
+is because a transitive verb is executed by the direct object, not
+by the action class itself.
+
+<p>The second part defines the grammar rule for the new verb.  This is
+very similar to defining a VerbRule for an intransitive action, but
+note two important differences.  First, the grammar rule has to
+include a "slot" for the direct object.  In this case, we did that
+using the special keyword singleDobj: this indicates that the slot can
+only take a single object, not a list of objects (so we won't be
+allowed to type REPAIR ALL or REPAIR TOY, SLIDE PROJECTOR, AND
+TOASTER; if we do, the parser will politely let us know that we have
+to repair one thing at a time).  We could instead have used dobjList,
+which indicates that the slot <i>can</i> take multiple objects at
+once.  Second, the verbPhrase also has to include a placeholder for
+the direct object, which we do by writing "(what)".  We could instead
+write "(whom)", if the direct object for the verb is typically a
+person rather than an inanimate object; for example, a "talk to"
+action would probably write its verbPhrase as 'talk/talking (to
+whom)'.
+
+<p> <blockquote>
+
+<b>verbPhrase and prepositions:</b> Verb phrasings that involve
+prepositions, such as "talk/talking (to whom)", can be written two
+ways: with the preposition inside or outside the parentheses.  And the
+placement <b>does</b> matter.  Write the preposition <b>inside</b> the
+parentheses if it belongs with the noun phrase of the direct or
+indirect object.  Write the preposition <b>outside</b> the parentheses
+if it's not a true preposition a "particle" - that is, a word that
+happens to be a preposition but when used with the given verb actually
+changes the meaning of the verb.  For example, the "up" in "pick up"
+is a particle, because it changes the whole meaning of the verb from
+"choose" to "take."
+
+<p>Fortunately, there's an easy rule of thumb for deciding which is
+which.  Try sounding out the sentence using a pronoun for the direct
+object, and see if it sounds more natural for the preposition to go
+before or after the pronoun.  If the preposition goes before, then
+it's really a preposition, so it goes with the direct object phrase,
+hence it goes <b>inside</b> the parentheses: "talk to him" sounds
+right, and "talk him to" obviously sounds wrong.  Thus, the verbPhrase
+for this command would be 'talk (to whom)'.  If, however, the
+preposition sounds better at the end of the sentence, it's a particle:
+"pick it up" sounds much better than "pick up it."  If it's a
+particle, it goes <b>outside</b> the parentheses, so the verbPhrase
+becomes 'pick up (what)'.
+
+<p>To summarize: if the preposition goes after the pronoun, it's a
+particle, so put the preposition with the verb: 'pick up (what)'.  If
+the preposition goes before the pronoun, it goes with the direct
+object: 'talk (to whom)'.
+
+</blockquote>
+
+<p>The third part is where we carry out the verb's action, or at
+least carry out its default action.  A transitive verb is executed by
+calling methods on the verb's direct object.  Now, in many cases, a
+new verb will only apply to a few objects, so it might be tempting to
+define handlers only for those objects.  However, a player might not
+know the limits you had in mind, or might just want to be difficult,
+so the player could conceivably try applying your verb to any object
+in the game.  The best way to cope with this is to write a default
+handler in the Thing class, since virtually every game object is
+typically based on Thing, either directly or indirectly.  Because a
+new verb usually won't have any effect on just any random object, the
+default Thing handler is usually a simple "illogical" call in the
+verify() method, as shown above.  If you want the default handling to
+actually do something, just write the appropriate dobjFor() code as
+you would for any pre-defined library verb.
+
+<h2>Verbs with two objects</h2>
+
+<p>Some verbs take not one but two objects: PUT BOOK ON SHELF,
+UNLOCK DOOR WITH KEY.  
+
+<p>Note that we're not talking about commands that list multiple
+direct objects, such as TAKE BOOK AND KEY: those are still one-object
+verbs in the sense we're talking about here, because there's only one
+role that an object can play with the verb.  If a list of objects is
+specified for the single role of a one-object verb, it's just saying
+that the verb should be applied in turn to each object in the list,
+with each object serving the same role.  Instead, what we're talking
+about here is verbs that have two objects in <i>different roles</i>.
+
+<p>In UNLOCK DOOR WITH KEY, the key is the "instrument" or "agent" of
+the action, but the door is what's being unlocked; we're not
+unlocking the key, obviously.  The door is called the "direct
+object," because it's the object that's being directly affected by
+the action.  The key is called the "indirect object," because it's
+being used in the course of performing the action but isn't the main
+focus of the action.
+
+<p>Creating a two-object action is a lot like creating a one-object verb:
+
+<p>
+<pre>
+   DefineTIAction(ScrapeWith);
+
+   VerbRule(ScrapeWith)
+     'scrape' dobjList 'with' singleIobj
+     : ScrapeWithAction
+     verbPhrase = 'scrape/scraping (what) (with what)'
+   ;
+
+   modify Thing
+     dobjFor(ScrapeWith)
+     {
+       verify() 
+       {
+         illogical('{That dobj/he} {is}n\'t something {you/he} can scrape. ');
+       }
+     }
+     iobjFor(ScrapeWith)
+     {
+       verify() 
+       {
+         illogical('{That iobj/he} do{es}n\'t look very useful as
+                    a scraping tool. ');
+       }
+     }
+   ;
+</pre>
+
+<p>As with a regular transitive action, we first define the Action
+class, this time using DefineTIAction.  DefineTIAction stands for
+"Define Transitive with Indirect object Action"; it defines an action
+with both a direct and an indirect object.
+
+<p>The VerbRule grammar for a two-object action requires two object
+slots, one for the direct object and one for the indirect object.  The
+direct object slot is indicated using singleDobj or dobjList, just as it
+is for a regular transitive action.  The indirect object slot is indicated
+with the similar singleIobj or iobjList keywords.
+
+<p>There are a couple of restrictions on these object slots keyword
+to be aware of.  First, exactly one direct object and one indirect
+object slot must be included in each grammar rule, for fairly obvious
+reasons.  Second, less obviously, <b>at most one</b> of the slots can
+be a "list" keyword.  So, you can't use dobjList and iobjList in the
+same rule.  You can use singleDobj and singleIobj together, and you
+can mix and match the "single" and "list" keywords, but you can't use
+"list" for both.  The reason for this makes sense if you think about
+it: if the player could specify multiple objects for both slots, the
+meaning would be terribly unclear, because it would be difficult or
+impossible to know which direct object was meant to be used with
+which indirect object.  We avoid this confusion by allowing only
+one or the other slot to accept multiple objects.
+
+<p>Note that the verbPhrase needs two "(what)" (or "(whom)") markers,
+since the verb has two object roles.
+
+<blockquote>
+<p>In the verbPhrase string, the indirect object preposition will
+<b>always</b> go inside the parentheses of the placeholder, but the
+direct object preposition can sometimes go inside and sometimes go
+outside.  Use the same rule of thumb as for single-object verbs to
+figure out which format to use.  We'd say "look at <i>it</i> through
+telescope," not "look <i>it</i> at through telescope," so we'd write
+our verbPhrase as 'look (at what) (through what)'.  However, we'd say
+"look <i>it</i> up in book" rather than "look up it in book," so this
+verbPhrase would be 'look up (what) (in what)'.  You can repeat the
+test for the indirect object, but as far as I can tell, English
+doesn't have any verb phrases where the indirect object part of the
+phrase involves a particle.
+</blockquote>
+
+<p>In writing our default action handler in Thing, we must write
+not only a direct object handler (using dobjFor), but an indirect
+object handler (using iobjFor) as well.  As with plain transitive
+actions, these default handlers will usually just disallow the
+action in one way or another.
+
+<h2>Verbs with a "literal" object</h2>
+
+<p>Sometimes, a verb superficially looks like a transitive verb,
+but rather than taking an ordinary direct object, the verb takes
+a literal phrase as its object.  For example, in SAY HELLO, the
+object of the verb is literally the word "hello."
+
+<p>You can define a verb that takes a literal object like this:
+
+<p>
+<pre>
+   DefineLiteralAction(Say)
+     execAction()
+     {
+       mainReport('Okay, "' + getLiteral() + '." ');
+     }
+   ;
+
+   VerbRule(Say)
+     'say' singleLiteral
+     : SayAction
+     verbPhrase = 'say/saying (what)'
+   ;
+</pre>
+
+<p>Even though a "literal action" has the superficial grammatical
+form of a transitive action, we must define an execAction() to
+execute the verb, just as we would for an intransitive action.  This
+is because a literal action doesn't have a direct object in the usual
+sense; there's no game object where we can write a dobjFor()
+definition, since the "object" of the verb is just some literal text.
+Note also that we can obtain the literal text that the user typed in
+by calling the getLiteral() method of the action object itself.
+getLiteral() returns a string giving the actual text that the user
+typed in (the string returned even preserves the original upper/lower
+case of the text the user entered).
+
+<p>In the VerbRule, the "slot" for the literal text must be indicated
+with the singleLiteral keyword.  In command input, the player can
+enter literal text with or without quotes: SAY HELLO and SAY "HELLO"
+will both match this grammar.  If the user does use quotes, note that
+the getLiteral() method of the action object will <b>not</b> include
+the quotes in its returned value; this means that you don't have to
+worry about whether or not the player used quotes, since getLiteral()
+will just return the meaningful part of the text in either case.
+
+<h2>Verbs with one object plus a literal</h2>
+
+<p>Some verbs take both an ordinary object and a literal: TYPE XYZ
+ON KEYBOARD or WRITE "SEND HELP" ON NAPKIN.  We can define this
+kind of verb like so:
+
+<p>
+<pre>
+   DefineLiteralTAction(WriteOn, DirectObject);
+
+   VerbRule(WriteOn)
+     'write' singleLiteral 'on' singleDobj
+     : WriteOnAction
+     verbPhrase = 'write/writing (what) (on what)'
+   ;
+
+   modify Thing
+     dobjFor(WriteOn)
+     {
+       verify() 
+       { 
+         illogical('There\'s no way to write anything on {that dobj/him}. ');
+       }
+     }
+   ;
+
+   // later, as part of some room definition...
+   + paper: Thing 'piece/paper' 'piece of paper'
+     "It's a piece of paper, with some hand-written notes:
+      \b&lt;&lt; noteText &gt;&gt; "
+
+     noteText = 'Get eggs!'
+
+     dobjFor(WriteOn)
+     {
+       verify() { }
+       action()
+       {
+         "You add your notes to the paper. ";
+         noteText += '\n' + gLiteral;
+       }
+     }
+   ;
+</pre>
+
+<p>Note that you can use "gLiteral" to get the text from the
+literal phrase.  This simply calls gAction.getLiteral() to
+obtain a string giving the literal text entered by the player.
+
+<p>As you might expect, this type of verb combines some of the
+features of the regular transitive action with the literal action.
+There's one special thing to note, though: the ordinary object (the
+object that's not the literal) is <i>always</i> considered the direct
+object, for the purposes of the singleDobj or dobjList slot
+indicator, and for the purposes of the dobjFor() handler.  In this
+example, you can see that the ordinary object fills what would be the
+indirect object in a TIAction: it's in the second object slot in the
+grammar, and it follows a preposition, which is usually a dead
+give-away that it's an indirect object.  Regardless of this, we must
+treat the ordinary object as a direct object in all of our
+definitions.
+
+<p>Because the ordinary object is always treated as the direct object
+regardless of its grammatical role, there's one small complication,
+which is that the action class needs to know how to phrase messages
+that it generates for the verb.  In particular, the class needs to
+know where the literal fits in, grammatically speaking.  We solve
+this problem with that mysterious second argument in the
+DefineLiteralTAction macro.  In this case, we've specified
+DirectObject.  This tells the new action class that the literal plays
+the <i>grammatical</i> role of the direct object, and the ordinary
+object plays the role of the indirect object.  Now, all we're
+talking about is the <i>grammatical</i> role; the ordinary object
+always plays the <i>functional</i> role of direct object, as we 
+stressed above.
+
+<h2>Verbs with a "topic" object</h2>
+
+<p>Some verbs involve a mere <i>reference</i> to an object, rather
+than an action applied to the object.  For example, THINK ABOUT
+AIRLOCK doesn't actually do anything to the "airlock" object, and it
+doesn't require that the object be physically present; the action
+simply makes mention of the airlock.  In a sense, the direct object
+is not really the object itself but instead some kind of abstract
+idea of the object.  We call these abstract ideas "topics."
+
+<p>We can define a verb that operates on a topic like this:
+
+<p>
+<pre>
+   DefineTopicAction(ThinkAbout)
+     execAction()
+     {
+       mainReport('Hmmm, ' + getTopic().getTopicText()
+                  + ', very interesting... ');
+     }
+   ;
+
+   VerbRule(ThinkAbout)
+     ('think' 'about' | 'ponder' | 'cogitate' 'on') singleTopic
+     : ThinkAboutAction
+     verbPhrase = 'think/thinking (about what)'
+   ;
+</pre>
+
+<p>As with literal actions, we must define the handler for a topic
+action with an execAction() method on the topic action itself.  Note
+that we can use the getTopic() method of the action to obtain the
+topic.  getTopic() returns an object of class ResolvedTopic that
+describes the topic that the player typed.  We won't go into detail
+on ResolvedTopic here, but we will point out that you can get the
+original text the player typed by calling the getTopicText() method
+on the ResolvedTopic object.
+
+<p>In defining the VerbRule for a topic action, you must use
+the singleTopic keyword to indicate the slot for the topic in the
+grammar.
+
+<h2>Verbs with one object plus a topic</h2>
+
+<p>As with literals, we sometimes want to combine a topic and
+an ordinary object: CONSULT TEXTBOOK ABOUT NUMERICAL INTEGRATION.
+We can define these verbs in much the same way that we define
+literal actions:
+
+<p>
+<pre>
+   DefineTopicTAction(LookUp, DirectObject);
+
+   VerbRule(LookUp)
+     'look' 'up' singleTopic 'in' singleDobj
+     : LookUpAction
+     verbPhrase = 'look/looking up (what) (in what)'
+   ;
+
+   modify Thing
+     dobjFor(LookUp)
+     {
+       verify() 
+       { 
+         illogical('{The dobj/he} do{es}n\'t seem to work that way. ');
+     }
+   ;
+
+   // later, in some room definition
+   + dictionary: Readable 'dictionary' 'dictionary'
+     "Frobster's Third Collegiate Unabridged. "
+
+     dobjFor(LookUp)
+     {
+       verify() { }
+       action()
+       {
+         local wrd = gTopic.getTopicText()
+         local def = dictionaryTable[wrd];
+         if (entry != nil)
+           "&lt;b&gt;&lt;&lt;wrd&gt;&gt;&lt;/b&gt;: &lt;&lt;def&gt;&gt; ";
+         else
+           "You can't seem to find an entry for &lt;q&gt;&lt;&lt;wrd&gt;&gt;&lt;/q&gt;
+           in the dictionary. ";
+       }
+     }
+
+     // filling up the dictionary is left as an exercise to the reader
+     dictionaryTable = static new LookupTable(32, 64)
+   ;
+</pre>
+
+<p>Note that we use singleTopic to indicate the topic slot in the
+grammar.  As with the literal transitive action, the ordinary object
+<i>always</i> takes the functional role of the direct object, and
+we must include the grammatical role of the literal phrase, for
+message-generation purposes, as the second argument to the
+DefineTopicTAction macro.
+
+<p>Note that we can obtain the topic object from within a dobjFor()
+handler using the gTopic macro.  This returns a ResolvedTopic object.
+To get the literal text entered by the player for the topic phrase,
+we call gTopic.getTopicText().
+
+<h2>Verbs with three or more objects</h3>
+
+<p>The TADS 3 library doesn't provide any recipes for creating a
+verb with more than two object roles.  This doesn't mean that you
+can't define such a verb; it just means that there aren't any
+pre-defined classes or macros for doing so.  
+
+<p>The basic principles of the library's parsing and command
+execution mechanisms can extend to arbitrarily many object roles in a
+single action, so creating a verb with three or more objects would be
+a matter of extending the two-object action class (TIAction) to
+resolve and coordinate execution with additional object roles.  But
+this would require writing significant amounts of new code; such a
+new action class would be at least as complicated as the TIAction
+class, which is not at all trivial.  The details are beyond the scope
+of this discussion.
+
+<p>If you're seriously thinking about creating a three-object action,
+we'd like to offer this bit of non-technical advice: please
+reconsider.  While you might have devised an elegant puzzle that
+requires manipulating three things at once in a single command, keep
+in mind that your most of your players will be never think of such a
+command.  Players don't like having to guess at verbs; guessing at
+syntax is even worse.  Players have come to expect a certain range of
+syntax in IF, and this works to everyone's advantage: it makes it
+easy for players to learn and remember how to write commands, and it
+limits the number of variations authors have to program.  In
+practice, the two-object verb has proven to be a very comfortable
+limit that provides plenty of expressive power but keeps things
+simple.
+
+<p>One more suggestion: in most cases that people have found where
+three-object verbs seem to be needed, there's almost always a way to
+decompose the action into two actions of two objects apiece.  For
+example, PUT COIN IN SLOT WITH TWEEZERS could be decomposed into GET
+COIN WITH TWEEZERS; PUT COIN IN SLOT.  Many, if not most,
+three-object actions involve this pattern of moving one object in
+relation to another using a third object, and this pattern frequently
+lends itself to decomposition along these same lines.
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+How to Create Verbs
+<br><span class="navnp"><a class="nav" href="t3verchk.htm"><i>Prev:</i> Verify, Check, and When to Use Which</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3precond.htm"><i>Next:</i> Custom Preconditions</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

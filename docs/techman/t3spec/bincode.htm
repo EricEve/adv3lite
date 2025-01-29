@@ -1,0 +1,235 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>T3 Portable Binary Encoding</title>
+
+<link rel=stylesheet type="text/css" href="t3spec.css">
+
+<link rel="stylesheet" href="../techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Portable Binary Encoding
+<br><span class="navnp"><a class="nav" href="format.htm"><i>Prev:</i> Image File Format</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="charmap.htm"><i>Next:</i> Character Mapping</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<center><img src='t3logo.gif'></center>
+
+<br><br>
+
+
+<h2>T3 Portable Binary Encoding</h2>
+
+All T3 binary files are encoded in a portable format that allows
+a binary file created on one type of computer to be used without
+any changes with T3 implementations on other types of computers.
+To achieve this binary portability, T3 binary files use a portable
+encoding that represents datatypes in a standard format.  Each
+T3 implementation translates between the standard format and the
+local representation of the datatype when reading and writing files.
+
+<h3>Datatypes</h3>
+
+The following are the portable datatypes and their encoding:
+
+<h4>UTF-8 Text</h4>
+
+Unicode text is encoded in UTF-8.  This encoding represents each 16-bit
+Unicode character with one, two, or three bytes:
+
+<p>
+<table width=75%>
+<tr><th align=left>From<th align=left>To<th align=left>Binary Encoding
+<tr><td>0x0000<td>0x007f<td>0bbbbbbb
+<tr><td>0x0080<td>0x07ff<td>110bbbbb 10bbbbbb
+<tr><td>0x0800<td>0xffff<td>1110bbbb 10bbbbbb 10bbbbbb
+</table>
+
+<p>
+The bits of the 16-bit value are encoded into the <b>b</b>'s in the
+table above with the most significant group of bits in the first
+byte.  So: 0x571 has the 16-bit Unicode binary pattern 0000011001110001,
+and is encoded in UTF-8 as 11011001 10110001.
+
+<p>
+Note that UTF-8 encodes the most significant bits in the first
+bytes; this is different from the byte ordering used for other types
+(such as integers), which are all stored in little-endian format
+(least-significant byte first).  The reason for this disparity is
+that this ordering makes it possible to compare two UTF-8 strings
+in a byte-wise fashion.  (This type of magnitude comparison is not always
+especially useful, since it does not produce correct results for a
+localized sorting order, but it at least produces a uniform sorting
+order based on the Unicode code points stored in the string and hence
+may be useful in certain cases for building internal indices and
+tables.)
+
+<h4>Integer values</h4>
+
+Integer values are stored in little-endian format (i.e., least-significant
+byte first) in fixed-size byte arrays.  These values are not aligned on
+any particular boundary in the file.  These values can be interpreted
+as signed or unsigned.  Signed values are encoded in 2's-complement
+notation.
+
+<p><b>16-bit integers</b> are stored as 2-byte arrays.  The first byte
+has the low-order 8 bits, the second byte has the high-order 8 bits.
+
+<p><b>32-bit integers</b> are stored as 4-byte arrays.  The first byte
+has the low-order 8 bits, the second byte has the next more significant
+8 bits, the third byte has the next more significant 8 bits, and the
+fourth byte has the most significant 8 bits.
+
+<h3>Data Holders</h3>
+
+The T3 VM uses run-time typing, which allows certain types of variables
+to hold any type of value; this type of value is tagged with its type, so
+that the VM can interpret the value correctly whenever it is used.
+
+<p>
+In order to store these "variant" types, the VM defines a composite
+type called a data holder.  This composite contains the type information
+along with the value.
+
+<p>
+To store a data holder portably, we store a 5-byte array.  The first
+byte contains the type ID value.  The remaining 4 bytes encode the
+value using the standard primitive type encodings; the table below
+shows the correspondence between the primitive types and their encodings.
+
+<p>
+When an encoding does not take up the full 4 bytes, the value is packed
+into the earlier bytes, and the later bytes have arbitrary values.
+For example, a property ID is encoded in a data holder as follows:
+
+<p>
+<table border>
+<tr><th>Byte Index<th>Value
+<tr><td>0<td>6 (the type code for VM_PROP)
+<tr><td>1<td>low-order 8 bits of property ID value
+<tr><td>2<td>high-order 8 bits of property ID value
+<tr><td>3<td>arbitrary
+<tr><td>4<td>arbitrary
+</table>
+
+<h3>Type ID's</h3>
+
+The table below shows the assigned ID values for the primitive types.
+(The types shown in italics are reserved for internal use by
+implementations and will never appear in portable files; we list them
+for the sake of completeness, but they'll never be stored persistently
+and thus are not relevant to the portable file format.)
+
+<p>
+<table border>
+
+<tr><th>Type Name<th>Type ID<th>Description<th>Value Encoding
+
+<tr><td>VM_NIL<td>1<td>nil (boolean "false" or null pointer)<td>none
+
+<tr><td>VM_TRUE<td>2<td>boolean "true"<td>none
+
+<tr><td><i>VM_STACK</i><td>3<td><i>Reserved for implementation use for
+storing native machine pointers to stack frames (see note below)</i>
+<td>none
+
+<tr><td><i>VM_CODEPTR</i><td>4<td><i>Reserved for implementation use for
+storing native machine pointers to code (see note below)</i>
+<td>none
+
+<tr><td>VM_OBJ<td>5<td>object reference as a 32-bit unsigned object ID number
+<td>UINT4
+
+<tr><td>VM_PROP<td>6<td>property ID as a 16-bit unsigned number<td>UINT2
+
+<tr><td>VM_INT<td>7<td>integer as a 32-bit signed number<td>INT4
+
+<tr><td>VM_SSTRING<td>8<td>single-quoted string; 32-bit unsigned
+constant pool offset<td>UINT4
+
+<tr><td>VM_DSTRING<td>9<td>double-quoted string; 32-bit unsigned
+constant pool offset<td>UINT4
+
+<tr><td>VM_LIST<td>10<td>list constant; 32-bit unsigned constant pool offset
+<td>UINT4
+
+<tr><td>VM_CODEOFS<td>11<td>code offset; 32-bit unsigned code pool offset
+<td>UINT4
+
+<tr><td>VM_FUNCPTR<td>12<td>function pointer; 32-bit unsigned code pool offset
+<td>UINT4
+
+<tr><td>VM_EMPTY<td>13<td>no value (this is useful in some cases to
+represent an explicitly unused data slot, such as a slot that has never
+been initialized)
+<td>none
+
+<tr><td><i>VM_NATIVE_CODE</i><td>14<td><i>Reserved for implementation use for
+storing native machine pointers to native code (see note below)</i>
+<td>none
+
+<tr><td>VM_ENUM<td>15<td>enumerated constant; 32-bit integer
+<td>UINT4
+
+<tr><td>VM_BIFPTR<td>16<td>built-in function pointer; 32-bit integer,
+encoding the function set dependency table index in the high-order 16 bits,
+and the function's index within its set in the low-order 16 bits.
+<td>UINT4
+
+<tr><td><i>VM_OBJX</i><td>17<td><i>Reserved for implementation use
+for an executable object, as a 32-bit object ID number (see note below)</i>
+<td>UINT4
+
+</table>
+
+<p>Note that types 3 (VM_STACK), 4 (VM_CODEPTR), 14 (VM_NATIVE_CODE),
+and 17 (VM_OBJX) are reserved for implementation use.  These will
+<b>never</b> appear in a portable binary file; we list them here only
+for completeness.  These types are intended to allow implementations
+to store native datatypes (such as native machine pointers) for which
+there is no meaningful portable representation.  Implementations are
+free to use these types for any purposes of their own; the names and
+descriptions in the table are for mnemonic value only and shouldn't be
+taken to imply a required use for these types.
+
+<h3>Type Names</h3>
+
+The file format specifications use the following names to refer to the
+portable datatypes:
+
+<p>
+<table width=75%>
+<tr><th align=left>Name<th align=left>Description
+<tr><td>SBYTE<td>Signed 8-bit byte
+<tr><td>UBYTE<td>Unsigned 8-bit byte
+<tr><td>UTF8<td>Unicode text encoded as UTF-8
+<tr><td>INT2<td>Signed 16-bit (2-byte) integer
+<tr><td>UINT2<td>Unsigned 16-bit (2-byte) integer
+<tr><td>INT4<td>Signed 32-bit (4-byte) integer
+<tr><td>UINT4<td>Unsigned 32-bit (4-byte) integer
+<tr><td>DATA_HOLDER<td>Data holder for any primitive type
+</table>
+
+<div class=t3spec_version>
+Copyright &copy; 2001, 2006 by Michael J. Roberts.<br>
+Revision: September, 2006
+</div>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="../toc.htm">Table of Contents</a> | 
+<a class="nav" href="../t3spec.htm">T3 VM Technical Documentation</a> &gt; 
+Portable Binary Encoding
+<br><span class="navnp"><a class="nav" href="format.htm"><i>Prev:</i> Image File Format</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="charmap.htm"><i>Next:</i> Character Mapping</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
