@@ -611,7 +611,7 @@ modify Thing
             remoteInitSpecialDesc(pov);
         
         /* Otherwise show our remoteSpecialDesc() */
-        else
+        else if (propType(&remoteSpecialDesc) != TypeNil )
             remoteSpecialDesc(pov);
            
         /* Then add a paragraph break */

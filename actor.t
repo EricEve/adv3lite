@@ -156,8 +156,8 @@ modify Actor
      */
     remoteSpecialDesc(pov) 
     { 
-        curState == nil ? actorRemoteSpecialDesc(pov) :
-        curState.remoteSpecialDesc(pov);
+        (curState == nil || curState.propType(&specialDesc) == TypeNil) 
+        ? actorRemoteSpecialDesc(pov) : curState.remoteSpecialDesc(pov);
     }
         
     /* 
@@ -169,7 +169,8 @@ modify Actor
     actorRemoteSpecialDesc(pov) 
     { 
         if(fDaemon == nil)
-            DMsg(actor in remote location, '\^<<theNameIs>> 
+            DMsg(actor in remote location, '\^<<theNameIs>> <<if location != getOutermostRoom>>
+                <<location.remoteObjInName(pov)>> <<end>> 
                 <<getOutermostRoom.inRoomName(pov)>>. ');
     }
        
