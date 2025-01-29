@@ -114,7 +114,8 @@ modify Actor
          *   or our our actorSpecialDesc if not.
          */
         else
-            curState != nil ? curState.specialDesc : actorSpecialDesc;
+            curState != nil && curState.propType(specialDesc) != TypeNil
+                                                 ? curState.specialDesc : actorSpecialDesc;
     }
     
     

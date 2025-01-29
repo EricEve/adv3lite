@@ -1806,10 +1806,7 @@ modify Object
      *   Call a function by calling this method. This allows us to write code in embedded
      *   expressions it mught otherwise be tricky to write, e.g. "<<(cf{: myProp = nil })>>".
      */
-    cf(func) 
-    {  
-        return func();
-    }
+    cf(func)  {  func();  }
     
     
     /* 
