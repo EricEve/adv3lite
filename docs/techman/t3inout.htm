@@ -19,6 +19,8 @@ Some Common Input/Output Issues
 
 <h1>Some Common Input/Output Issues</h1>
 <p><i>by Eric Eve</i>
+<h2>(Adapted for Adv3Lite by Eric Eve)</h2>
+<p>There is some overlap between this article and the Library Manual section on <a href='../manual/output.htm'>Some Output and Input Issues</a>, but also some additional material as well as a different presentation of the material that does overlap.</p>
 
 <h2>Introduction</h2>
 
@@ -48,8 +50,8 @@ which displays a MORE prompt and waits for the player to press a key;
 key pressed, and <span class="code">inputLine()</span>, which reads a whole line of text from
 the player (up to the point the player presses the ENTER or RETURN key) and then returns the string entered. 
 
-<p>The trouble is, as you will soon discover if you've tried to use them, that these functions
-don't entirely work as you want them to. For example you may try placing <span class="code">morePrompt()</span> in a the middle of some text to create a dramatic pause, but
+<p>Since adv3Lite does not use a transcript in the way that adv3 does, using these functions is not so problematic. In adv3 they 
+don't entirely work as you want them to. For example, if in adv3 you  try placing <span class="code">morePrompt()</span> in a the middle of some text to create a dramatic pause, 
 what actually happens is that all your text is displayed, and only then the does the more 
 prompt appear, at the end, and not in the middle where you actually wanted it. E.g. you might
 write code like: 
@@ -64,71 +66,44 @@ morePrompt();
 <p>But you then find the more prompt is actually displayed after the second line of text,
 defeating your dramatic pause. 
 
-<p>One way to deal with this is to toggle the transcript off and on: 
+<p>This problem does not occur in adv3Lite, but it is still preferable to use <b>inputManager</b> methods rather than the tadsio functions in case you subsequently want to convert your game to work with the <a href='../sysman/web.htm'>WebUI</a> interface.
 
-<p><div class="code"><pre>
-gTranscript.deactivate(); 
-"The evil baby-eating villain points his splat-gun at you, pulls the trigger and...";   
-morePrompt();   
-"... suffers a sudden fatal heart attack! ";    
-gTranscript.activate(); 
-</p></div> 
-
-<p>But this is a little long-winded. The simpler way would be to use an inputManager method: 
+<p>Our previous example then becomes: </p>
 
 <p><div class="code"><pre>
 "The evil baby-eating villain points his splat-gun at you, pulls the trigger and...";   
 inputManager.pauseForMore(true);   
 "... suffers a sudden fatal heart attack! ";  
 </p></div> 
-  
 
-<p>And you should find this works as you want. 
 
 <p>So rather than use the three tads-io functions mentioned above, it's
 generally better to use the corresponding inputManager methods: 
 
 <ul>
 <li>Instead of <span class="code">morePrompt()</span> use 
-<span class="code">inputManager.pauseForMore(true)</span>;</li>
+<span class="code">inputManager.pauseForMore()</span>;</li>
   
-<li>Instead of <span class="code">inputKey()</span>
-use <span class="code">inputManager.getKey(nil, nil)</span>;</li>
+<li>Instead of <span class="code">inputKey(<i>promptFunc?</i>)</span>
+use <span class="code">inputManager.getKey()</span>;</li>
   
 <li>Instead of <span class="code">inputLine()</span> use
-<span class="code">inputManager.getInputLine(nil, nil)</span>;  
+<span class="code">inputManager.getInputLine(<i>promptFunc?</i>)</span>;  
 </ul> 
  
-<p>The arguments of these methods will only be of interest to you if you want to allow real time 
-events to continue in the background while waiting for user input; this is a complication we
-shan't go into here - if you need real time processing look at the definition of inputManager in the <i>Library Reference Manual</i> (or input.t) and follow the comments in the library code. 
+<p>The <i>promptFunc</i> parameter can be supplied either as an anonymous function that displays a prompt or simply as a single-quoted string. For <code>getInputLine()</code> and <code>getKey()</code> (or their macro equivalents - see below) this parameter can be omitted altogether; you can simply display a prompt string before calling the method.
 
-<p>If you were planning to make a lot of use of these methods in your game,
-you might find it convenient to define wrapper functions (or perhaps macros)
-for them, to save you not only a bit of typing but the need to remember the
-appropriate argument list for each one on each occasion, e.g.:
 
-<p><div class="code"><pre>
-more() { inputManager.pauseForMore(true); }
+<p>For the most common cases you can use the following macros:</p>
 
-waitKey() { return inputManager.getKey(nil, nil); } 
-</p></div> 
+<ul>
+<li><b>more</b> expands to inputManager.pauseForMore()</li>
+<li><b>input(x)</b> expands to inputManager.getInputLine(x)</li>
+<li><b>waitKey(x)</b> expands to inputManager.getKey(x)</li>
+</ul>
 
-<p>Or, if you got to the point of needing more sophisticated versions that
-would optionally allow you to pass the arguments to the inputManager methods
-when you actually needed them (but only when you actually need them), you could define:
+<p>You shouldn't use the built-in function <code>clearScreen()</code>, just as you shouldn't use any other built-in I/O functions. Use <code>cls()</code> instead - this will work correctly in both Adv3Lite and Adv3LiteWeb.</p>
 
-<p><div class="code"><pre>
-more(freezeRealTime = true) { inputManager.pauseForMore(freezeRealTime); }
-
-waitKey(allowRealTime?, promptFunc?) 
-{      
-   return inputManager.getKey(allowRealTime, promptFunc); 
-} 
-</p></div> 
-
-<p>But that's a sophistication you'll only need if you're trying to implement real-time
-input, so it may well be that the simpler definitions will suffice.
 
 <h2><a name=cls>The About Box and Clearing the Screen</a></h2>
 
@@ -223,11 +198,11 @@ value of a property defined as a double-quoted string, such as the desc property
 like: 
 
 <p><div class="code"><pre>
-redBall: Thing 'big red bouncy round ball' 'red ball' 
+redBall: Thing 'red ball; big red round bouncy' 
   "It's a big bouncy object, red and round. " 
 ; 
 
-blueBall: Thing 'small blue round bouncy ball' 'blue ball'
+blueBall: Thing  'blue ball; small blue round bouncy'
   "It's a small bouncy ball, blue and &lt;&lt;flattened ? 'flat' : 'round'&gt;&gt;"
   flattened = nil
 ;
@@ -323,23 +298,23 @@ action to display its contents. We could do it like this:
     }   
  ;  
   
- specialBall: SpecialThing 'ball' 'ball'   
+ specialBall: SpecialThing 'ball'    
     specialMessage = "It's a special ball.&lt;.p&gt;"
  ;  
  
   
- specialStick: SpecialThing 'stick' 'stick'   
+ specialStick: SpecialThing 'stick'   
     specialMessage = 'It\'s a stick. '   
  ;  
  
    
- specialNumber: SpecialThing 'number' 'number'   
+ specialNumber: SpecialThing 'number'  
     specialMessage = 532   
  ;  
  
   
  DefineIAction(Test)   
-   execAction()   
+   execAction(c)   
    {   
      specialBall.showSpecialMessage;   
      specialStick.showSpecialMessage;  
@@ -350,7 +325,8 @@ action to display its contents. We could do it like this:
  
  VerbRule(Test)   
   'test'   
-  :TestAction   
+  : VerbProduction
+  action = Test
  ;  
 </p></div> 
   
@@ -370,14 +346,14 @@ which <span class="code">specialMessage</span> was a routine that may or may not
  something, e.g: 
 
 <p><div class="code"><pre>
- specialBall: SpecialThing 'ball' 'ball'   
+ specialBall: SpecialThing 'ball'
     specialMessage   
      {   
-       if(fooVal < 2)   
+       if(fooVal &lt; 2)   
          "It's an ordinary ball. ";   
        else if(fooVal == 2)     
-         "It's a special ball.&lt;.p&gt;";   
-       else if(fooVal > 10)   
+         "It's a special ball.&amp;lt;.p&amp;gt;&quot;;   
+       else if(fooVal &gt; 10)   
          "It's a very special ball. ";   
        return 'It\'s a moderately special ball. ';   
      }   
@@ -414,38 +390,10 @@ report). This is not something we shall attempt to go into here; the point is ju
 to note that OutputFilters <i>may</i> turn out to be something you could use sometime
 in the future.
 
-<a name=typo></a>
 
-<p>There is, however, one further OuputFilter you might find useful
-straight away: this is the <span
-class="code">cquoteOutputFilter</span> provided by Stephen Granade's
-very useful cquotes.t extension.  (The source file is in the
-<i>lib/extensions</i> folder in the standard TADS 3 distributions.)
-Its function is simply to change straight quotes into typographic
-(curly) ones.  Since many of the library messages use typographic
-quotes, and output from code you've written using <span
-class="code">&lt;q&gt;</span> and <span class="code">&lt;/q&gt;</span>
-tags will also use them, but since it's a huge effort to use <span
-class="code">&amp;rsquo;</span> for every apostrophe in your own text,
-you can all too easily end up with a ugly mixture of quote styles
-like:
 
-<p><font face="times new roman">&ldquo;Let's get going &ndash; I'm starving!&rdquo; Bob insists.
-</font>
-
-<p>When it would look so much better to have:
-
-<p><p><font face="times new roman">&ldquo;Let&rsquo;s get going &ndash; I&rsquo;m
-starving!&rdquo; Bob insists.</font> 
-
-<p>The cquotes.t extension makes this easy by installing an OutputFilter that converts all
-your straight apostrophes (') into typographical ones (&rsquo;), without your having
-to go to the trouble of typing <span class="code">&amp;rsquo;</span> for each and every
-apostrophe in your game.
-It's both an extension well worth using, and a neat illustration of the potential
-usefulness of OutputFilters.</p>
-
-<h3>Displaying ASCII Diagrams</h3>
+<a name='preform'>
+<h3>Displaying Preformatted Text</h3>
 <p>Sometimes in a game it's useful to be able to dispay a diagram or picture made up from ordinary text characters, perhaps as a crude map, along the lines of:</p>
 <pre>
 +---   -----------
@@ -460,55 +408,33 @@ runs of consecutive dashes will be converted to m-dashes or n-dashes, and runs o
 spaces will be converted to a single space.</p>
 
 <p>The conversion of consecutive dashes into m-dashes and n-dashes is carried out by an
-OutputFilter called the typograhicalOutputFilter. Perhaps the neatest way to solve this part
-of our ASCII art problem is to tweak the typographicalOutputFilter so we can turn it off when we
-don't want it (i.e. when we're about to output our diagram) and turn it back on again when we do
-(i.e. when we've finished with our diagram and we're ready to display ordinary text again):</p>
+OutputFilter called the typograhicalOutputFilter. This in not the only OutputFilter that
+might frustrate our efforts. We can bypass all the OutputFilters by ussing the function
+<b>aoiSay(<i>txt</i>)</b>, but we still need a way to circumvent the effects of compressing
+multiple spaces and having our diagram messed up by a variable spaced font.</p>
 
-<p><div class="code"><pre>
-modify typographicalOutputFilter
-    isActive = true
-    activate() { isActive = true; }
-    deactivate { isActive = nil; }
-    filterText(ostr, val) { return isActive ? inherited(ostr, val) : val; }
-;  
-</pre></div></p> 
+<p>The library function <b>showPreformatted(<i>lst</i>)</b> can handle all this for us, where <i>lst</i> is a list of strings we want displayed with line breaks between each element of the list. This allows us to display our diagram like this:</p>
 
-<p>Next, we can define a special function for displaying diagrams; this can deactive and reactive the typographicalOutputFilter and also convert ordinary spaces to quoted spaces
-so that consecutive spaces won't be reduced to single spaces. It's probably convenient if the
-function accepts a list of strings and inserts a newline after each one, and also if it sets
-and unsets the use of a fixed-spacing font. Our custom function could thus look something like
-this:</p>
 
-<p><div class="code"><pre>
-showDiag(lst)
-{    
-    typographicalOutputFilter.deactivate();
-    "&lt;pre&gt;";
-    foreach(local txt in lst)
-    {
-       txt = txt.findReplace(' ', '\ ', ReplaceAll);
-       "&lt;&lt;txt&gt;&gt;\n";
-    }
-    "&lt;/pre&gt;";
-    typographicalOutputFilter.activate();
-} 
-</pre></div></p>
-
-<p>We could then use the following code to display our ASCII diagram:</p>
 
 <p><div class="code"><pre>
 local diag = [
     '+---   -----------',
-    '|    *         +  \',
-    '|    *     |   |   \',
+    '|    *         +  \\',
+    '|    *     |   |   \\',
     '+-------------------'    
   ];
  
-showDiag(diag);
+showPreformatted(lst)
 </pre></div></p>
 
+<p>In case you're wondering about the extra backslashes at the end of the second and third lines of <code>lst</code>, these are needed to produce a single backslash rather than having the backslash escape the closing single quote mark, as it would have done if we only had one backslash there.</p>
 
+<p>We can also use <code>howPreformatted(<i>str</i>)</code> to display a single string, where <i>str</i> is supplied as a single-quoted string, for example:
+
+<p><div class="code"><pre>
+  showPreformatted('--- +++ *** ---');
+</pre></div></p>
 
 </div>
 <hr class="navb"><div class="navb">

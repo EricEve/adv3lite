@@ -1910,6 +1910,10 @@ class OutputStreamWindow: object
 typographicalOutputFilter: OutputFilter
     filterText(ostr, val)
     {
+        /* If we're not active, simply return val unchanged. */
+        if(!isActive)
+            return val;
+        
         /*
          *   Look for sentence-ending punctuation, and put an 'en' space after each occurrence.
          *   Recognize ends of sentences even if we have closing quotes, parentheses, or other
@@ -1995,8 +1999,41 @@ typographicalOutputFilter: OutputFilter
      *   this property at start-up, and doesn't re-evaluate it while the
      *   game is running.  
      */
-    abbreviations = 'mr|mrs|ms|dr|prof'
+    abbreviations = 'mr|mrs|ms|dr|prof'  
 ;
+
+/* 
+ *   Display a list of strings supplied in the lst parameter as preformatted text, i.e. in a fixed
+ *   width font with all spaces preserved and no intervention from the typographical output filter.
+ *   This is intended to facilitate the display of diagrams or pictures composed of ASCII
+ *   characters. For example:
+ *
+ *.     local diag = [
+ *.    '+---   -----------',
+ *.    '|    *         +  \',
+ *.    '|    *     |   |   \',
+ *.    '+-------------------'
+ *.    ];
+ *
+ *.    showPreformatted(diag);
+ */
+
+showPreformatted(lst)
+{
+    /* If lst is supplied as a single-quoted string, convert it to a single-element list. */
+    if(dataType(lst) == TypeSString)
+        lst = [lst];
+    
+    
+    "<pre>";
+    foreach(local txt in lst)
+    {
+        txt = txt.findReplace(' ', '\ ', ReplaceAll);
+        aioSay(txt);       
+        "\n";
+    }
+    "</pre>";  
+}
 
 /* 
  *   cquoteOutputFilter; this turns straight quotes into typographical quotes
