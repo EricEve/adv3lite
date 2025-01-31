@@ -21,6 +21,7 @@ Custom Preconditions
 
 
 <p><i>by Eric Eve</i>
+<h2>Adapted for Adv3Lite by Eric Eve</h2>
 
 <p>Preconditions provide a powerful and reasonably easy-to-use way of
 enforcing conditions when certain actions are performed on or with
@@ -91,10 +92,10 @@ typically used thus:</p>
 WriteLiteralOnAction, if on the piece of paper we defined:</p>
 
 <p><pre>
-   paperPiece: Readable 'piece/paper' 'piece of paper'
+   paperPiece: Thing 'piece of paper'
       dobjFor(WriteLiteralOn)
       {
-	      preCond = [touchObj, objHeld]
+	      preCond = [objHeld]
       }
    ;
 </pre></p>
@@ -158,7 +159,7 @@ class Ball: Thing
 	    verify() { }
 	    action()
 	    {
-		    "{You/he} give{s} {the dobj/him} a good kick. ";
+		    "{I} {give} {the dobj} a good kick. ";
 	    }
     }
 ;
@@ -194,46 +195,81 @@ precondition:</p>
 
 <p><pre>
 objHeld: PreCondition
-    checkPreCondition(obj, allowImplicit)
-    {
-        /* if the object is already held, there's nothing we need to do */
-        if (obj == nil || obj.meetsObjHeld(gActor))
-            return nil;
-        
-        /* the object isn't being held - try an implicit 'take' command */
-        if (allowImplicit && obj.tryHolding())
-        {
-            /* 
-             *   we successfully executed the command; check to make sure
-             *   it worked, and if not, abort the command without further
-             *   comment (if the command failed, presumably the command
-             *   showed an explanation as to why) 
-             */
-            if (!obj.meetsObjHeld(gActor))
-                exit;
-
-            /* tell the caller we executed an implicit command */
-            return true;
-        }
-
-        /* it's not held and we can't take it - fail */
-        reportFailure(&mustBeHoldingMsg, obj);
-
-        /* make it the pronoun */
-        gActor.setPronounObj(obj);
-
-        /* abort the command */
-        exit;
-    }
-
-    /* lower the likelihood rating for anything not being held */
+    
     verifyPreCondition(obj)
     {
-        /* if the object isn't being held, reduce its likelihood rating */
-        if (obj != nil && !obj.meetsObjHeld(gActor))
-            logicalRankOrd(80, 'implied take', 150);
+        /* 
+         *   If the object is fixed in place it can't be picked up, so there's
+         *   no point in trying. BUT we also have to check for the case that the
+         *   object is directly in the player (perhaps because a body part).
+         */        
+        if(obj.isFixed &amp;&amp; !obj.isDirectlyIn(gActor))
+            illogical(obj.cannotTakeMsg);
+        
+        
+        /* 
+         *   If the actor isn't carrying the object it's slightly less likely to
+         *   be the one the player means.
+         */        
+        if(!obj.isIn(gActor))
+            logicalRank(90);
+        
+    }
+    
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   if the object is already held, we're already done.
+         */
+        if (obj == nil || obj.isDirectlyIn(gActor))
+            return true;
+        
+        
+        /* 
+         *   If we're allowed to attempt an implicit action, try taking obj
+         *   implicitly and see if we succeed.
+         */
+        if(allowImplicit) 
+        {    
+            /* 
+             *   Try taking obj implicitly and note if we were allowed to make
+             *   the attempt.
+             */
+            local tried = tryImplicitAction(Take, obj);
+            
+            /*  
+             *   If obj is now held by the actor return true to signal that this
+             *   precondition has now been met.
+             */
+            if(obj.isDirectlyIn(gActor))
+              return true;   
+            
+            /* 
+             *   Otherwise, if we tried but failed to take obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to take obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;            
+        }
+        
+        /* 
+         *   If we reach here obj isn't being held by the actor and we weren't
+         *   allowed to try to take it; display a message explaining the
+         *   problem.
+         */
+        gMessageParams(obj);
+        DMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
+        
+        /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil;        
     }
 ;
+
+
+
 </pre></p>
 
 <p>We next carry out Step 3 and change the name to the new name we
@@ -254,8 +290,8 @@ down into small sub-steps. The existing definition starts with:</p>
     checkPreCondition(obj, allowImplicit)
     {
         /* if the object is already held, there's nothing we need to do */
-        if (obj == nil || obj.meetsObjHeld(gActor))
-            return nil;
+        if (obj == nil || obj.isDirectlyIn(gActor))
+            return true;
 </pre></p>
 
 <p>The <code>checkPreCondition</code> method is called at the point
@@ -276,61 +312,64 @@ need to do anything if the actor is already holding the object in
 question, so the method just returns nil to tell its caller that it
 didn't need to do anything. In our new <code>objNotHeld</code>
 precondition we want to apply precisely the opposite test: we return
-nil and do no more if the object is <i>not</i> already held:<p>
+nil and do no more if the object is <i>not</i> already in the player
+(we almost certainly want our objNotHeld PreCondition to ensure not
+only that the player isn't directly holding the object but that it's
+not indirectly contained by him either):<p>
 
 <p><pre>            
-     /* if the object is already not held, there's nothing we need to do */
-        if (obj == nil || !obj.meetsObjHeld(gActor))
-            return nil;
+     /* 
+      *   if the object is already not in the actor, we're already done.
+      */
+      if (obj == nil || !obj.isIn(gActor))
+            return true;
 </pre></p>
 
 <p>The next part of the code in the original <code>objHeld</code>
-precondition then tries to carry out an implicit TAKE or TAKE FROM
+precondition then tries to carry out an implicit TAKE 
 command and checks whether this has succeeded, provided that implicit
 actions are allowed at this stage of the proceedings:</p>
 
 <p><pre>
-      /* the object isn't being held - try an implicit 'take' command */
-        if (allowImplicit && obj.tryHolding())
-        {
+        /* 
+         *   If we're allowed to attempt an implicit action, try taking obj
+         *   implicitly and see if we succeed.
+         */
+        if(allowImplicit) 
+        {    
             /* 
-             *   we successfully executed the command; check to make sure
-             *   it worked, and if not, abort the command without further
-             *   comment (if the command failed, presumably the command
-             *   showed an explanation as to why) 
+             *   Try taking obj implicitly and note if we were allowed to make
+             *   the attempt.
              */
-            if (!obj.meetsObjHeld(gActor))
-                exit;
-
-            /* tell the caller we executed an implicit command */
-            return true;
+            local tried = tryImplicitAction(Take, obj);
+            
+            /*  
+             *   If obj is now held by the actor return true to signal that this
+             *   precondition has now been met.
+             */
+            if(obj.isDirectlyIn(gActor))
+              return true;   
+            
+            /* 
+             *   Otherwise, if we tried but failed to take obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to take obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;            
         }
 </pre></p>
 
-<p>The slight oddity here is the test <code>if (allowImplicit &&
-obj.tryHolding())</code>. If <code>allowImplicit</code> is nil then
+<p>If <code>allowImplicit</code> is nil then
 the test fails straight away and the entire code block is bypassed. If
-<code>allowImplicit</code> is true, then we try to hold the object via
-a call to <code>obj.tryHolding()</code> which will attempt to take the
-object out of its container if the actor is carrying the container, or
-will otherwise simply attempt to take the object. Either way the
-attempt will be via a call to <code>tryImplicitAction</code> and
-<code>tryHolding()</code> will return the result of that call (true or
-nil); if the implicit action is attempted then
+<code>allowImplicit</code> is true, then we try to take the object via
+a call to <code>tryImplicitAction(Take, obj)</code> which will attempt to take the
+object attempt to take the object. If the implicit action is attempted then
 <code>tryImplicitAction</code> will return true, but if it's not (e.g.
 because one of the objects involved is not in scope for the actor) it
 will return nil.</p>
-
-<p>If no implicit action has been attempted then we can skip the rest
-of the code block. If, on the other hand, it has been attempted then
-we need to check whether it has been successful (maybe the actor tried
-to pick up the anvil but it proved to be too heavy). If the implicit
-action did not achieve the desired result (in this case, if the object
-does not end up being held by the actor) then we assume that the
-failed attempt has already reported the reason for failure and simply
-exit the action. If on the the other hand the implicit action
-succeeded we return true to tell the caller that we carried out an
-implicit action that succeeded in meeting the required condition.</p>
 
 <p>Our new <code>objNotHeld</code> precondition needs to follow the
 same coding pattern and much of the same logic, reversing it in just a
@@ -339,20 +378,34 @@ it, and we need to check that the object ends up <i>not</i> held, not
 that it ends up held. The revised code becomes:<p>
 
 <p><pre>
-       /* the object is being held - try an implicit 'drop' command */
-        if (allowImplicit && tryImplicitAction(Drop, obj))
-        {
+        /* 
+         *   If we're allowed to attempt an implicit action, try taking obj
+         *   implicitly and see if we succeed.
+         */
+        if(allowImplicit) 
+        {    
             /* 
-             *   we successfully executed the command; check to make sure
-             *   it worked, and if not, abort the command without further
-             *   comment (if the command failed, presumably the command
-             *   showed an explanation as to why) 
+             *   Try dropping obj implicitly and note if we were allowed to make
+             *   the attempt.
              */
-            if (obj.meetsObjHeld(gActor))
-                exit;
-
-            /* tell the caller we executed an implicit command */
-            return true;
+            local tried = tryImplicitAction(Drop, obj);
+            
+            /*  
+             *   If obj is now not in the actor return true to signal that this
+             *   precondition has now been met.
+             */
+            if(!obj.isIn(gActor))
+              return true;   
+            
+            /* 
+             *   Otherwise, if we tried but failed to drop obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to drop obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;            
         }
 </pre><p>
 
@@ -370,14 +423,16 @@ Garak):</p>
 
 
 <p><pre>
-        /* it's not held and we can't take it - fail */
-        reportFailure(&mustBeHoldingMsg, obj);
-
-        /* make it the pronoun */
-        gActor.setPronounObj(obj);
-
-        /* abort the command */
-        exit;
+        /* 
+         *   If we reach here obj isn't being held by the actor and we weren't
+         *   allowed to try to take it; display a message explaining the
+         *   problem.
+         */
+        gMessageParams(obj);
+        DMsg(need to hold, '{I} need{s/ed} to be holding {the obj} to do that. ');
+        
+        /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil;  
 </pre></p>
 
 <p>We can use almost precisely the same code for our new
@@ -385,17 +440,16 @@ Garak):</p>
 custom failure message appropriate to the different situation:</p>
 
 <p><pre>
-       /* it's held and we can't drop it - fail */
-        
+       /* 
+         *   If we reach here obj is still in the actor and we weren't
+         *   allowed to try to drop it; display a message explaining the
+         *   problem.
+         */
         gMessageParams(obj);
-        reportFailure('{You/he} can\'t do that while {you\'re/he\'s} holding 
-            {the obj/him}. ');
-
-        /* make it the pronoun */
-        gActor.setPronounObj(obj);
-
-        /* abort the command */
-        exit;
+        DMsg(need to not hold, '{I} need{s/ed} to be not holding {the obj} to do that. ');
+        
+        /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil; 
     }  
 </pre></p>
 
@@ -409,12 +463,28 @@ EAT CAKE will choose the chocolate cake held by the actor in
 preference to the fruit cake sitting on the table):<p>
 
 <p><pre>
-    /* lower the likelihood rating for anything not being held */
     verifyPreCondition(obj)
     {
-        /* if the object isn't being held, reduce its likelihood rating */
-        if (obj != nil && !obj.meetsObjHeld(gActor))
-            logicalRankOrd(80, 'implied take', 150);
+        verifyPreCondition(obj)
+    {
+        /* 
+         *   If the object is fixed in place it can't be picked up, so there's
+         *   no point in trying. BUT we also have to check for the case that the
+         *   object is directly in the player (perhaps because a body part).
+         */        
+        if(obj.isFixed &amp;&amp; !obj.isDirectlyIn(gActor))
+            illogical(obj.cannotTakeMsg);
+        
+        
+        /* 
+         *   If the actor isn't carrying the object it's slightly less likely to
+         *   be the one the player means.
+         */        
+        if(!obj.isIn(gActor))
+            logicalRank(90);
+        
+    }
+        
     }
 ;
 </pre><p>
@@ -428,9 +498,21 @@ on the ground to the red ball being carried):</p>
     /* lower the likelihood rating for anything being held */
     verifyPreCondition(obj)
     {
-        /* if the object is being held, reduce its likelihood rating */
-        if (obj != nil && obj.meetsObjHeld(gActor))
-            logicalRankOrd(80, 'implied drop', 150);
+        /* 
+         *   If the object is fixed in place it can't be moved, so there's
+         *   no point in trying to drop it. 
+         */        
+        if(obj.isFixed)
+            illogical(obj.cannotTakeMsg);
+        
+        
+        /* 
+         *   If the actor is carrying the object it's slightly less likely to
+         *   be the one the player means.
+         */        
+        if(obj.isIn(gActor))
+            logicalRank(90);
+        
     }
 ;
 </pre><p>
@@ -439,49 +521,78 @@ on the ground to the red ball being carried):</p>
 becomes:<p>
 
 <pre><p>
-objNotHeld: PreCondition
-    checkPreCondition(obj, allowImplicit)
-    {
-        /* if the object is already not held, there's nothing we need to do */
-        if (obj == nil || !obj.meetsObjHeld(gActor))
-            return nil;
-        
-        /* the object is being held - try an implicit 'drop' command */
-        if (allowImplicit && tryImplicitAction(Drop, obj))
-        {
-            /* 
-             *   we successfully executed the command; check to make sure
-             *   it worked, and if not, abort the command without further
-             *   comment (if the command failed, presumably the command
-             *   showed an explanation as to why) 
-             */
-            if (obj.meetsObjHeld(gActor))
-                exit;
-
-            /* tell the caller we executed an implicit command */
-            return true;
-        }
-
-        /* it's held and we can't drop it - fail */
-        
-        gMessageParams(obj);
-        reportFailure('{You/he} can\'t do that while {you\'re/he\'s} holding 
-            {the obj/him}. ');
-
-        /* make it the pronoun */
-        gActor.setPronounObj(obj);
-
-        /* abort the command */
-        exit;
-    }
-
-    /* lower the likelihood rating for anything being held */
+objNotHeld: PreCondition    
     verifyPreCondition(obj)
     {
-        /* if the object is being held, reduce its likelihood rating */
-        if (obj != nil && obj.meetsObjHeld(gActor))
-            logicalRankOrd(80, 'implied drop', 150);
+        /* 
+         *   If the object is fixed in place it can't be moved, so there's
+         *   no point in trying. 
+         */        
+        if(obj.isFixed)
+            illogical(obj.cannotTakeMsg);
+        
+        
+        /* 
+         *   If the actor is carrying the object it's slightly less likely to
+         *   be the one the player means.
+         */        
+        if(obj.isIn(gActor))
+            logicalRank(90);
+        
     }
+    
+    checkPreCondition(obj, allowImplicit) 
+    { 
+        /* 
+         *   if the object is already not in the actor, we're already done.
+         */
+        if (obj == nil || !obj.isIn(gActor))
+            return true;
+        
+        
+        /* 
+         *   If we're allowed to attempt an implicit action, try taking obj
+         *   implicitly and see if we succeed.
+         */
+        if(allowImplicit) 
+        {    
+            /* 
+             *   Try taking obj implicitly and note if we were allowed to make
+             *   the attempt.
+             */
+            local tried = tryImplicitAction(Drop, obj);
+            
+            /*  
+             *   If obj is now not in the actor return true to signal that this
+             *   precondition has now been met.
+             */
+            if(!obj.isIn(gActor))
+              return true;   
+            
+            /* 
+             *   Otherwise, if we tried but failed to drop obj, return nil to
+             *   signal that this precondition can't be met (so the main action
+             *   cannot proceed). The attempt to drop obj will have explained
+             *   why it failed, so there's no need for any further explanation
+             *   here.
+             */
+            if(tried)
+                return nil;            
+        }
+        
+        /* 
+         *   If we reach here obj is still in the actor and we weren't
+         *   allowed to try to drop it; display a message explaining the
+         *   problem.
+         */
+        gMessageParams(obj);
+        DMsg(need to not hold, '{I} need{s/ed} to be not holding {the obj} to do that. ');
+        
+        /* Then return nil to indicate that the precondition hasn't been met. */
+        return nil;        
+    }
+;
+
 ;
 </pre></p>
 

@@ -2267,7 +2267,7 @@ VerbRule(ThrownDown)
     ('throw' | 'toss') 'down'
     : VerbProduction
     action = Drop
-    verbPhrase = 'throw/throwing down (what)'
+    verbPhrase = 'drop/dropping (what)'
     missingQ = 'what do you want to throw down'
     missingRole = DirectObject
 ;
