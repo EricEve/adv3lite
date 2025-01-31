@@ -404,7 +404,7 @@ enum rmcDisambig;
  *   Defined for the sake of adv3 users moving to adv3Lite, who may be more used to using
  *   mainReport() in a similar context.
  */
-#define mainReport(msg) actionReport(msg)
+#define mainReport(msg, args...) actionReport(msg, ##args)
 
 #define sLoc(which) subLocation = &remap##which
 
@@ -1024,6 +1024,9 @@ enum OtherObject;
  *   CustomMessages for full details.  
  */
 #define Msg(id, txt)  #@id, txt
+
+/* Template for CustomMessages objects */
+CustomMessages template [messages] +priority?;
 
 
 

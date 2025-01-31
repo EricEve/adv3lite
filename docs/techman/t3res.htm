@@ -17,7 +17,11 @@ Action Results
 <div class="main">
 
 <h1>Action Results</h1>
+<h2>(Adapted for use with adv3Lite by Eric Eve)</h2>
+<p><b>Editor's Note</b>: This chapter of the <i>Technical Manual</i> covers pretty much the same ground as the corresponsing section in the <a href='../manual/actres.htm'>Adv3Lite Library Manual</a>, but is nevertheless worth preserving since, as it was originally written by Mike Roberts, it offers a slightly different perspective and way of explaining things that some people may find helpful. Moreover, the adv3Lite handling of action results (the various stagee that need to be defined on objects handling any given action) were closely modelled on the corresponding phases in adv3, meaning that, for the most part, it is fairly straightforward to translate the corresponding stages between the two libraries, even though there are some difference between them.</p>
 
+
+<h2>Introduction</h2>
 <p>One of the main programming tasks in writing an adventure game is
 handling special-case commands from the player - commands that do
 something special, rather than using the basic library handling.  The
@@ -40,7 +44,8 @@ Since each phase is different, we have to consider them one at a time.
 <p><a href='#verify'>Verify</a><br>
 <a href='#precond'>Pre-conditions</a><br>
 <a href='#check'>Check</a><br>
-<a href='#action'>Action</a><br>
+<a href='#action'>Action</a><br></pre>
+<a href='#report'>Report</a><br></pre>
 <a href='#libmessages'>Library Messages</a><br>
 
 <h2><a name='verify'>Verification</a></h2>
@@ -222,7 +227,7 @@ For example, it makes no sense to open a coffee mug:
 <p><pre>
    dobjFor(Open)
    {
-     verify() { illogical('{You} can\'t open a coffee mug! '); }
+     verify() { illogical('{I} {can\'t} open a coffee mug! '); }
    }
 </pre>
 
@@ -241,7 +246,7 @@ kind of redundant command.
      verify()
      {
        if (isOpen)
-         illogicalAlready('{The dobj} {is} already open. ');
+         illogicalAlready('{The subj dobj} {is} already open. ');
      }
    }
 </pre>
@@ -269,16 +274,9 @@ object that doesn't provide a specific ranking is 100.)  So, for
 ordinary objects, you could do this:
 
 <p><pre>
-   dobjFor(Read) { verify() { logicalRank(50, 'not readable'); } }
+   dobjFor(Read) { verify() { logicalRank(50); } }
 </pre>
 
-<p>The 'not readable' string, by the way, isn't something that will
-ever be shown to the player - it's not an error message.  It's just a
-"key" value that the parser uses to identify the rankings.  If every
-matching object has the same rank with the same key, the parser will
-know that it can't tell those objects apart on the basis of that
-ranking, so it'll ignore that ranking and look for some other ranking
-to use instead.
 
 <h3>Verifier result types in detail</h3>
 
@@ -305,20 +303,8 @@ at the code - it won't affect anything in the parser, but a human reader
 would be able to see that you specifically intend for the action to be
 logical.
 
-<p><b>logicalRank(<i>rank, key</i>)</b>.  This indicates that the
+<p><b>logicalRank(<i>rank</i>)</b>.  This indicates that the
 object is logical, and qualifies the logicalness with a ranking.  
-
-<p>The <i>key</i> argument is any arbitrary string value.  This is a
-name - any name you want to make up - for whatever quality it is
-you're ranking.  The purpose of the key is to permit multiple
-logicalRank results for a single verify, keeping them all separate.
-When it comes time to choose the results, the parser will try to
-compare apples to apples by comparing each logicalRank result to
-others with the same key.  If two objects have the same rank value
-with the same key, the parser will know that both objects are exactly
-the same <i>for that particular quality</i>, and that it should
-therefore ignore that quality and look instead at any other
-logicalRank results that could distinguish the two objects.
 
 <p>The <i>rank</i> argument is any number; the higher the number, the
 more logical the ranking.  The default ranking for a regular
@@ -370,29 +356,6 @@ be a good choice for the action.
 
 </ul>
 
-<p><b>logicalRankOrd(<i>rank, key, ord</i>)</b>.  This is the same as
-a regular logicalRank result, but further qualifies the result with a
-"list ordering," which is a number given by the <i>ord</i> argument.
-The list ordering determines how important the result is relative to
-other logicalRankOrd results.  The lower the list order, the earlier
-the result goes in the result list for the object.  The earlier in
-the list, the higher the priority.  So, the lowest <i>ord</i> value
-is the most important.
-
-<p>The basic logicalRank result type uses a list order of 100.  Other
-than this, the order number is arbitrary.  The library uses list
-order 150 for precondition results, but doesn't assign any ordering
-values other than this.  The reason the library uses 150 for
-precondition results is that it wants precondition results to be
-considered less important than other factors in determining
-logicalness; because of the ordering, precondition results will only
-matter when there aren't any ordinary logicalRank results at all.
-
-<p>My advice is not to worry about this one - just use the plain
-logicalRank result instead.  logicalRankOrd is included mostly for
-the library's use; games shouldn't usually need such microscopic
-control over result orderings.
-
 <p><a name='dangerous'><b>dangerous</b></a>.  This result indicates
 that the action is not one that a player would perform lightly,
 because of apparent danger in the situation.  This makes the object
@@ -416,7 +379,7 @@ Note that "dangerous" doesn't rule out the object.  If the action is
 explicitly and unambiguously performed on the object, then we'll
 allow the action to proceed despite the danger.
 
-<p><b>illogicalAlready(<i>msg, params...</i>)</b>.  The action is
+<p><b>illogicalAlready(<i>msg</i>)</b>.  The action is
 illogical, because whatever it's trying to do is already done.  For
 example, OPEN DOOR is illogical when the door is open - but it's not
 always illogical, since it's perfectly logical when the door is
@@ -427,7 +390,7 @@ why the action is illogical.  Within game code, you'll almost always
 use a simple single-quoted string here - something like this:
 
 <p><pre>
-   illogicalAlready('{The dobj} is already open. ');
+   illogicalAlready('{The subj dobj} {is} already open. ');
 </pre>
 
 <p>Note that you can use "{xxx}" substitutions here.  For an overview
@@ -438,17 +401,20 @@ list is left empty).
 
 <p>Within the library itself, you'll never see single-quoted strings
 in these messages.  Instead, the library uses the alternative way of
-specifying the message, which is to provide a property pointer for a
-library message, along with optional parameters to the library
-message property.  The library uses message properties rather than
-strings for two reasons.  First, it makes it easier to translate the
-library to other languages, since the messages are all separated from
-the main library and gathered in one place.  Second, it makes it easy
-to use different messages for different actors.  We'll see more
+specifying the message, which is to provide a property of Thing (or
+some other class or object on which the verify() method is being defined)
+such <code>cannotOpenMsg</code> which defines the actual message to be
+displayed (and which is thus easily overridden by game code that wants
+to customize these messages). In the library these messages are in turn 
+usually defined using <a href='../manual/messages.htm#dmsg'>BMsg()</a>
+. This first it makes it easier to translate the
+library to other languages, it makes it easy
+to use different messages for different actors or under varying 
+circumstances by using a CustomMessages object.  We'll see more
 about using library message properties <a href='#libmessages'>later
 in the article</a>.
 
-<p><b>illogicalNow(<i>msg, params...</i>)</b>.  The action is
+<p><b>illogicalNow(<i>msg</i>)</b>.  The action is
 illogical on this object, due to the object's current state, but
 might be logical at other times.  For example, BOARD RAFT is
 illogical when the inflatable rubber raft is deflated, but isn't
@@ -457,7 +423,7 @@ illogical when the inflatable rubber raft is deflated, but isn't
 <p>As with illogicalAlready(), the arguments give the message to
 display and its parameters.
 
-<p><b>illogical(<i>msg, params...</i>)</b>.  The action is illogical
+<p><b>illogical(<i>msg</i>)</b>.  The action is illogical
 on this object at all times.  This differs from illogicalAlready and
 illogicalNow in that the action is always going to be illogical on
 this object by the very nature of the object.  For example, TAKE
@@ -467,9 +433,10 @@ condition of the building, but an intrinsic aspect of its nature.
 
 <p>As with illogicalNow, the <i>msg</i> argument can be a simple
 single-quoted string giving the message text, or it can be a 
-library message property.
+property of the class or object on which the verify method is 
+being defined.</p>
 
-<p><b>illogicalSelf(<i>msg, params...</i>)</b>.  The action is
+<p><b>illogicalSelf(<i>msg</i>)</b>.  The action is
 illogical because it's attempting to do something to an object
 using the object itself.  For example, PUT BOX IN BOX.
 
@@ -479,6 +446,11 @@ relatively easy for a player to inadvertantly attempt an action like
 this by using a plural phrase in a command.  By flagging these errors
 specially, we make it possible for the parser to filter them out when
 they occur in plurals, avoiding unnecessary messages.
+
+
+<p><b>implausible(<i>msg</i>)</b>: results in a logical rank of 35 and prevents
+ the action from going ahead. This is intended for actions that are illogical,
+ but whose illogicality might not be quite so immediately apparent as is the case with a straightforwardly illogical action.
 
 <p><a name='nonobvious'><b>nonObvious</b></a>.  This indicates that
 the object is not obvious for the action.  This makes the object less
@@ -501,7 +473,7 @@ and unambiguous, but it ensures that the object will never be supplied
 as a default for the command, and that the command will never be
 attempted implicitly.
 
-<p><b>inaccessible(<i>msg, params...</i>)</b>.  The action is
+<p><b>inaccessible(<i>msg</i>)</b>.  The action is
 impossible because the object is inaccessible.  This indicates that
 the object is in scope, but it's inaccessible to a sense that's
 needed for the action, such as touch or hearing.  You usually won't
@@ -619,121 +591,36 @@ out the condition you don't want:
    dobjFor(Eat) { preCond = (inherited() - objHeld) }
 </pre>
 
-<p>Here's a list of the pre-conditions defined in the library.
+<p>Here's a list of the pre-conditions defined in the adv3Lite library.
 
-<p><b>objVisible</b> - ensures that the actor performing the action can
-see the object.  This doesn't imply any action if the condition isn't met;
-it simply disallows the action if the object isn't visible.
 
-<p><b>objAudible</b> - ensures that the actor performing the action
-can hear the object.  There is no implied action.  Note that this
-doesn't require that the object is actually making any noise, or that
-the actor can perceive the kind of noise it's making; it merely
-requires that the object is within "hearing range" of the actor, using
-the normal sense connection system.
+<ul>
+<p><b>objHeld</b> This object must be held by the actor before the action can go ahead; if not, the library will attempt an implicit take.</p>
+<p><b>objCarried</b> A variant of the objHeld pre-condition for use with the DROP action. The object must be held by the actor before the action can go ahead. If the object is not directly held but is in a container carried by the actor and that container's <b>canDropContents</b> property is true, then the library will attempt an implicit TakeFrom to allow the action to proceed.</p>
 
-<p><b>objSmellable</b> - ensures that the actor performing the action
-can smell the object.  There is no implied action.  Note that this
-doesn't require that the object actually have an odor, or that it's
-a kind of odor that the actor can detect; it merely requires that
-the object is within "smelling range" of the actor.
+<p><b>objClosed</b> This object must be closed before the action can go ahead (typically the action concerned will be locking). If not, the library will attempt an implicit close.</p>
+<p><b>objNotWorn</b> This object must not be worn when the action takes place (e.g. when dropping the object). It it is currently worn, the library will attempt an implicit doff.</p>
+<p><b>objVisible</b> This object must be visible and there must be enough light to see it by (e.g. to examine or read the object). If the condition is not met the library does not attempt to correct it.</p>
+<p><b>objAudible</b> This object must be audible to the actor for this action to go ahead.  If the condition is not met the library does not attempt to correct it.</p>
+<p><b>objSmellable</b> This object must be smellable by the actor for this action to go ahead.  If the condition is not met the library does not attempt to correct it.</p>
+<p><b>objDetached</b> This object must be detached from any other object before this action can go ahead. If it isn't, the library attempts an implicit detach command.</p>
+<p><b>objUnlocked</b> The object must be unlocked before the action (typically opening) can go ahead. This PreCondition is used in the library on the dobjFor(Open) of objects whose <strong>autoUnlock</strong> property is true. It is normally only meaningful to use <span class="code">objUnlocked</span> in the dobjFor(Open) preCond list of objects with a lockability of either lockableWithoutKey or lockableWithKey. In the latter case the objUnlocked PreCondition will only attempt to unlock the object if the actor is carrying a key that might plausibly work.</p>
+<p><b>actorInStagingLocation</b> The actor must be in this object's stagingLocation before the action can proceed. If the condition is not met the library attempts to carry out the appropriate implicit actions (getting in/out/off or on various objects) to bring it about.</p>
+<p><b>actorOutOfNested</b> The actor must be in a top level room (out of any nested room) before the action can proceed. If the condition is not met the library attempts to remove the actor from the nested room(s) it's it via the appropriate implicit actions.</p>
+<p><b>actorOutOfSubNested</b>. This is used by the GetOff and GetOutOf actions to ensure that an actor is out of any enclosed nested rooms before exiting the enclosing nested room (for example, that the actor is out of a Booth situated on a Platform before getting off the Platform).
+<p><b>travelPermitted</b> This checks whether travel is permitted by calling the beforeAction notifications for the actor doing the travelling, and in the case of PushTravel, for the object being pushed. This ensures that if travel is ruled out by a relevant object's beforeTravel method, the action is halted before, say, any attempt is made to open a door via an implicit action or to check any travel barriers that might be in place (experience suggests that this is generally a better order of events).</p>
+<p><b>canTalkToObj</b> The actor must be able to talk to this object before the action can proceed. If the condition is not met the library does not attempt to correct it.</p>
+<p><b>containerOpen</b> If this object is a container (i.e. if its contType is In), then it must be open before the action can proceed. If it's not open, the library will try an implicit open command. If the object's contType is not In then this preCondition has no effect. (It has to be defined this way so that this preCondition can be defined for various actions on Thing in the library).</p>
+<p><b>containerInteriorVisible</b> Similar to <code>containerOpen</code> except that if the container is transparent or the actor is inside the container no implicit open will be attempted (since it shouldn't be needed). In the library this is used for the LOOK IN command.</p>
+<p><b>containerInteriorAccessible</b> Similar to <code>containerInteriorAccessible</code> except that the implicit open is omitted only if the actor is inside the container. In the library this is used for indirect object on the PUT IN command.</p>
+<p><b>touchObj</b> The actor must be able to touch this object before the action can proceed. If the condition is not met the library does not attempt to correct it, unless the object is in a closed openable transparent container, in which case the library will attempt to open the container to allow the action to proceed,</p>
 
-<p><b>actorStanding</b> - ensures that the actor performing the command
-is in a standing posture.  This implies the action STAND.
+</ul>
 
-<p><b>actorTravelReady</b> - ensures that the actor performing the
-command is "ready for travel," meaning that the actor is in a suitable
-state for travel to a new location.  The precondition defers to the
-actor's immediate container to determine the exact condition required,
-via the container's isActorTravelReady() and tryMakingTravelReady()
-methods.  The default, defined in BasicLocation, simply ensures that
-the actor is standing.  You could use this precondition to enforce
-novel travel rules, such as preventing travel while the actor is
-handcuffed to the wall.  This precondition is applied by default to
-all travel commands by TravelConnector objects (which are the objects
-that link rooms together for normal room-to-room travel).
+<p>The last of these PreConditions is very common. It also has a couple of additional complications, in that it queries the verifyReach(obj) and checkReach(obj) methods of the object that needs to be touched (the obj method in these methods actually refers to the actor whose trying to do the touching). verifyReach(obj) can optionally add further verify conditions (specified just as for a normal verify method). checkReach(obj) can then apply further checks; if checkReach(obj) displays anything (presumably a message saying why the object can't be touched), then the action will not be allowed to go ahead.</p>
 
-<p><b>TravelerDirectlyInRoom</b> - ensures that the traveler (which is
-usually an actor attempting to do something like "go east," but could
-be another kind of object, such as a vehicle) is located directly in
-the object.  This implies an action that depends on the traveler and
-on the object, but which attempts to move the traveler into the
-object.  (Note that this precondition is a class - it has to be
-instantiated when needed with some extra parameters, namely the actor
-doing the travel, the connector being traversed, and the room the
-traveler is required to be in.)
+<p>This incidentally highlights the point that a PreCondition has a verify stage (when it can apply further verify results) and a check stage (which is normally the stage at which it would attempt any implicit actions, though touchObj is a bit of an exception here).</p>
 
-<p><b>actorDirectlyInRoom</b> - ensures that the <i>actor</i> is
-directly in the object.  This is similar to TravelerDirectlyInRoom,
-but applies directly to the actor performing the command, even if
-the actor isn't the same as the traveler (the traveler differs from
-the actor when the actor is in a vehicle, for example).
-
-<p><b>actorReadyToEnterNestedRoom</b> - ensures that the actor performing
-the action is standing, and is ready to enter the object as a nested
-room.  The exact meaning of this is provided by the actor and by the
-object.
-
-<p><b>canTalkToObj</b> - ensures that the actor performing the action can
-talk to the object, as defined by the actor's canTalkTo() method.  There
-is no implied action.
-
-<p><b>objHeld</b> - ensures that the object is being <i>directly</i>
-held by the actor performing the action.  Implies TAKE.
-
-<p><b>touchObj</b> - ensures that the actor performing the action can
-touch the object, which means that there are no intermediate containers
-that would block the actor's reach.  This condition will attempt to
-perform implied commands to remove any obstructions, starting with
-the obstruction nearest the actor (in terms of containment).  The exact
-means of removing obstructions vary according to the obstructions;
-for example, the obstruction created by a closed container is usually
-removed by opening the container.
-
-<p><b>roomToHold</b> - ensures that the actor has room to directly
-hold the object.  This will implicitly try to create room in the
-actor's hands by rearranging the actor's inventory.  The exact means
-of rearrangement are defined by the actor via its tryMakingRoomToHold
-method; the implementation in the library attempts to move
-directly-held items into any "bag of holding" in the actor's
-possession, if possible.
-
-<p><b>objNotWorn</b> - ensures that the actor is not wearing the object.
-Implies a DOFF command.
-
-<p><b>objOpen</b> - ensures that the object is open.  Implies an OPEN
-command.
-
-<p><b>doorOpen</b> - ensures that the door is open in preparation for
-travel.  This is essentially the same as objOpen, but has the special
-feature that it will only report that the door needs to be opened
-if the actor can see the door; if the actor can't see the door, the
-report merely indicates that travel is not possible.  Doors are 
-slightly special in this respect in that a travel action can depend
-upon a door which the actor can't even see because of darkness.
-
-<p><b>objClosed</b> - ensures that the object is closed.  Implies a
-CLOSE command.
-
-<p><b>objUnlocked</b> - ensures that the object is unlocked.  Implies
-an UNLOCK command (with no indirect object).
-
-<p><b>dropDestinationIsOuterRoom</b> - ensures that the destination for
-a DROP command is an outermost room (that is, it's not nested within
-a containing room).  If this isn't the case, then we'll perform the
-action that the TravelerDirectlyInRoom would perform when used with
-the outermost room of the actor's drop destination.  (This is a pretty
-specialized condition that probably won't be needed in game code.)
-
-<p><b>objBurning</b> - ensures that the object is lit (i.e., its isLit
-property is true).  Implies a BURN command (with no indirect object).
-
-<p><b>objEmpty</b> - ensures that the object has no contents.
-Implies TAKE <i>child</i> FROM <i>object</i>, where <i>child</i> is
-the first item within the object.  We only try to remove one object
-because we'll be called repeatedly until the condition is fully met -
-the pre-condition mechanism always checks all of the pre-conditions
-again after any pre-condition performs an implied action.
 
 <p>You can extend the list above by defining your own PreCondition
 objects.  If you want to enforce some set of conditions that's beyond
@@ -754,15 +641,12 @@ obvious to the player, we wait until the "check" method to halt
 the command.
 
 <p>The "check" routine can do one of two things: it can let the
-command proceed, or it can display an error message and use "exit"
-to stop the action.
+command proceed, or it can display an error message to stop the action.
 
 <p>If the "check" routine wants to stop the action, it can simply
-display a message directly, using a double-quoted string; doing this
-is exactly the same as using mainReport.  The routine can also use
-reportFailure, but this isn't necessary: the parser automatically
-considers the action to be a failure if the "check" routine uses
-"exit" to halt the action.
+display a message directly, using a double-quoted string. The parser automatically
+considers the action to be a failure if the "check" routine displays
+any text (unless it also calls the <b>noHalt()</b> function). 
 
 <p>Here's a sample "check" routine.  This implements a piece of
 clothing that we don't want to allow the player to remove - it's not
@@ -778,8 +662,7 @@ in "verify."
     check()
     {
       "It would be highly unladylike to get undressed away from the
-      privacy of one's own bed chamber. ";
-      exit;
+      privacy of one's own bed chamber. ";      
     }
   }
 </pre>
@@ -793,7 +676,7 @@ If we've made it this far, we know the action is logical, that it's
 passed all of its pre-conditions, and that we've made it past any
 "check" conditions.
 
-<p>In addition to actually carrying out the action, this routine must
+<p>In addition to actually carrying out the action, this routine may
 generate a message to describe what happened.  The easiest way to do
 this is to display a message directly, using a double-quoted string:
 
@@ -803,146 +686,104 @@ this is to display a message directly, using a double-quoted string:
     action()
     {
       makeOpen(true);
-      "Okay, {the dobj} {is} now open. ";
+      "Okay, {the subj dobj} {is} now open. ";
     }
   }
 </pre>
 
+<p>Often, though, it will be better to display the message at the
+<a href='#report'>Report</a> stage.</p>
+
 <p>In addition, the library defines several macros that you can use
 instead of showing a message directly.
 
-<p><b>mainReport(<i>msg, params...</i>)</b>.  This specifies the
-"main" result message for the action.  There can be any number of
-main reports for a single action, so this isn't an exclusive sort of
-"main."
+<p><b>reportAfter(<i>msg</i>)</b>  This adds a report
+that'll be displayed after the Report stage (in other words,
+after all other reports). This could be used, for example,
+to display the side-effects of an action after it has been
+routinely reported as taking place. The <i>msg</i> parameter
+would normally be supplied as a single-quoted string.</p>
 
-<p>If <i>msg</i> is a single-quoted string, this acts exactly like
-showing a message directly with a double-quoted string.  There are no
-additional parameters with a single-quoted string message.
 
-<p>The <i>msg</i> argument can also be a property pointer, in which
-case it's a library message property, and <i>params</i> are any
-parameters required for that library message method.  The library
-will get the actual message text from the library message object;
-we'll see more about this <a href='#libmessages'>later in the
-article</a>.
+<p><b>extraReport(<i>msg</i>)</b>. This cas be used to display a piece of introductory text that won't suppress the default message at the Report stage. This probably isn't needed much but may occasionally needed to provided some piece of parentheic information. For example it is used by the library to announce which key it has chosen (e.g. ("(with the brass key)") in response to a LOCK or UNLOCK command: 
 
-<p>Game code can usually use the simple single-quoted string form of
-this call.  The library, on the other hand, always uses the property
-pointer form, since this keeps all of the messages in the library
-together in one place, to facilitate translating the library.
+<p><b>actionReport(<i>msg1</i>, <i>msg2</i>?)</b>.  This generates different reports depending on whether the action was carried out implicitly or explicity. If the action was carried out in response to an explicit request to carry out the action for which we're implementing the Action stage, e.g., TAKE VASE then <i>msg1</i> will be displayed at the action stage. If, on the other hand, the action is being carried out implicitly, e.g. '(first taking the vase)' after PUT VASE ON TABLE, then <i>msg2</i> will be displayed after any implicit action announcements (provided we've supplied the <i>msg2</i> parameter), otherwise further message will be displayed at this point). So, for example, we might define:</p>
+ 
 
-<p><b>reportAfter(<i>msg, params...</i>)</b>  This adds a report
-that works pretty much like a main report, except that it'll
-be displayed after all main reports.  Even if another main report
-is added after the reportAfter is added, the reportAfter will still
-be moved so it appears in the final transcript after all of the
-main reports.
-
-<p><b>reportBefore(<i>msg, params...</i>)</b>  This adds a report
-that appears before any main reports.  Even if other main reports
-have already been generated, a reportBefore will be moved so that
-it appears in the final transcript before the first main report.
-
-<p><b>reportFailure(<i>msg, params...</i>)</b>.  This shows a failure
-message.  If the action routine checks a condition that it wasn't
-possible to test eariler (in "verify" or "check"), and finds that the
-command cannot proceed, the action routine can use this to show a
-message and mark the action as a failure.  
-
-<p>It's not strictly necessary to indicate that an action failed, but
-it's useful information that's made available to the code that
-initiated the action.  When a command is performed as a nested action,
-the outer action that called the nested action can test to see if the
-nested action succeeded or failed, and proceed accordingly.  Whenever
-you're writing an action handler, and you consider the outcome of the
-action to be a failure, you should use reportFailure to indicate
-this to callers.
-
-<p><b>defaultReport(<i>msg, params...</i>)</b>.  This generates a
-"default" report.  This is a special kind of report used to indicate
-a very simple, minimal acknowledgment of a successful action.  The
-important thing about default reports is that they merely acknowledge
-that we have done exactly what the player asked.  For example, if the
-player enters the command OPEN BOX, and the response is "Opened,"
-this would count as a default report: it tells the player only that
-we have done exactly what they asked, and nothing else.  If opening
-the box reveals something inside, that wouldn't be part of the
-default report, because the player's command didn't say anything
-about revealing the object.  (Even if the player expected the object
-to be revealed, that part still wouldn't be a default report - the
-revelation wasn't part of the explicit request, no matter what the
-player actually expected.)
-
-<p>The important thing about default reports is that they'll only be
-displayed if there's not also another report of some kind, <i>and</i>
-the command was explicit.  We don't show default reports for implied
-commands, because, by definition, a default report merely
-acknowledges a command, and a command that the player didn't actually
-enter requires no acknowledgment.  We leave out default reports if
-there are any other reports as a convenience to custom overrides; 
-a custom "action" routine can freely inherit base class code from the
-library without having to worry about any default message that the
-library code generates, since the default message won't be shown if
-the custom code shows a main report instead.
-
-<p>Default reports will probably not be used very often in game code.
-They're mostly for low-level library classes that implement the basic
-commands.
-
-<p><b>defaultDescReport(<i>msg, params...</i>)</b>.  This is similar
-to defaultReport, but is used for descriptions.  Like defaultReport,
-a defaultDescReport is not shown if there are any other reports
-for the action; unlike defaultReport, though, a defaultDescReport
-<i>is</i> displayed for an implied action.
-
-<p>The purpose of defaultDescReport is to provide an easy way of
-describing something as ordinary, without contradicting any special
-features that are added by other parts of a generated description.
-For example, suppose you have a table that has no special description:
-
-<p>
-<pre>
-   &gt;x table
-   You see nothing special about it.
+<p><pre>
+dobjFor(Take)
+  {
+     ...
+     action()
+     {              
+        actionReport('You pick up the delicate vase very carefully indeed. ', 
+        'You were, of course, very careful when you picked up the delicate vase. ');        
+         
+        inherited();              
+     }     
+  }
 </pre>
 
-<p>Now, suppose there's something on the table.  The library's normal
-Surface code would add a mention of the items on the table; if we
-left the "nothing special" message, we'd have a somewhat
-self-contradictory description:
-
-<p>
-<pre>
-   &gt;x table
-   You see nothing special about it.  On the table are a newspaper
-   and a pair of sunglasses.
+<p>This avoids the messy output that could ensue from using a double-quoted string in the action() method, which could result in an illogical looking response such as:<p>
+<p><pre>
+&gt;PUT VASE ON TABLE
+You pick up the delicate vase very carefully indeed.
+(first taking the vase)
 </pre>
 
-<p>Well, we clearly <i>do</i> see something special about it: we see
-that it contains the newspaper and the sunglasses.  defaultDescReport
-helps with this.  In the first case, where the table is empty, there
-will be no other reports for the action, so we'll keep the default
-description.  In the second example, however, we have some additional
-reports, so the defaultDescReport will be suppressed, and all we'll
-see is this:
+<p>It follows that we should always use <code>actionReport()</code> in an action method rather than displaying text directly there if there's any chance that the action might be carried out implicitly. (Since adv3 has a <code>mainReport()</code> function that's used in a similar context, in adv3Lite you can, if you wish, use <code>mainReport()</code> as a synomym of <code>actionReport()</code>; in adv3Lite <code>mainReport(msg)</code> is simply a macro that expands to <code>actionReport(msg)</code>).</p>
 
-<p>
-<pre>
-   &gt;x table
-   On the table are a newspaper and a pair of sunglasses.
+<h2><a name='report'>Report</a></h2>
+
+<p>The purpose of the Report phase is to provide a brief default confirmation that the requested action has taken place, for example:</p>
+<p><pre>
+&gt;TAKE TENNIS BALL
+Taken
 </pre>
 
-<p><b>cosmeticSpacingReport(<i>msg, params...</i>)</b>.  This adds
-a message for internal spacing only; this is usually used to add 
-a blank line or a paragraph break.  The important feature of this
-type of report is that it doesn't count against any default reports:
-if there are default reports for the action, and no other reports,
-a cosmeticSpacingReport won't suppress the default reports.
+<p>The Report phase can also aggregate the reports resulting from applying the same action to a number of objects, e.g.:
+<p><pre>
+>TAKE SOCK AND BALL
+Taken.
 
-<p><b>extraReport(<i>msg, params...</i>)</b>  This adds an additional
-report, without affecting any default reports.  If there are default
-reports and no other reports, this won't suppress the default reports.
+>DROP ALL
+You drop the odd sock and the tennis ball.
+
+>TAKE ALL
+You take the old coat, the large red box, the small green book, the small blue box, the odd sock, and the tennis ball.
+</pre>
+
+<p>We this aggregation by using the macro <b>gActionListStr</b>, which by the time we reach the report stage will expand to a suitably formatted list of all the direct objects our command has just acted on. For example, a simplified version of the action and report stages for the TAKE action might be:</p>
+
+<p><pre>
+class Thing: Mentionable
+  dobjFor(Take)
+  {
+     action()
+     {
+        actionMoveInto(gActor);
+     }
+	 
+     report()
+     {
+        "Taken. | You take &lt;&lt;gActionListStr&gt;&gt;. ";
+     }
+  }
+;
+</pre>
+
+<p> The vertical bar | divides the brief response from the more elaborate one. The brief one is used when the player has specified which object or objects they want the command to act on (such as SOCK AND BALL) so only needs a brief acknowledgement that the command was successful. The more elaborate one is used for commands such as TAKE ALL where the player hasn't been so specific and needs to be informed what objects the command has affected.</p>
+
+<p>The report routine is only run on the <i>last</i> of a series of objects involved in any one command (of course many commands act on only one object, in which case this is the object whose report() method will be executed). The report() phase is not run at all if either of the following conditions is true:</p>
+
+<ol>
+<li>The action is an implicit action.</li>
+<li>There's nothing left to report on, either because no objects made it to the action stage, or because the action stage has already reported on the action for every object involved in the command.</li>
+</ol>
+
+<p>This brings us to another important point: if an action is reported on at the action stage, it will not also be reported on at the report stage for the same object.</p>
+
+
 
 <h2><a name='libmessages'>Library Messages</a></h2>
 
@@ -963,198 +804,104 @@ on every module in the library that was updated.  For its own
 messages, then, the library needs to separate the message text from
 the main library code.
 
-<p>The library separates message text from program code by putting
-all of the messages in a set of object properties.  The objects that
-define these message properties are gathered into a single library
-module.  A translator can translate all of the messages in the
-library simply by replacing this single module.  (There are other
-parts of the library apart from the messages that require
-translation, so translating the library requires more than just
-replacing the messages and more than just replacing one module, but
-that's a separate story.)
-
-<p>The library groups the messages into three main places.
-
-<h3>libMessages</h3>
-
-<p>The libMessages object is the default message repository.  This
-object contains many default description messages and little text
-fragments that are used to construct larger messages.  There's
-nothing special about this object or about getting its messages; when
-the library wants to display a message from libMessages, it simply
-uses code like this:
-
-<p><pre>
-   say(libMessages.roomDarkName);
-</pre>
-
-
-<h3>playerMessages and npcMessages</h3>
-
-<p>For messages generated during parsing - disambiguation questions
-("which box do you mean..."), missing object questions ("what do you
-want to open?"), unknown word errors, and a few others - the parser
-doesn't look to the default libMessages repository.  Instead, it uses
-an object provided by the command's target actor - that is, the actor
-to whom the command is directed: Bob in "bob, go north," for example.
-(When the target actor can't be determined, or isn't yet known at the
-time the error message is displayed, the parser uses the player
-character by default.)
-
-<p>To get this parser-specific message repository, the parser calls the
-method getParserMessageObj() on the target actor.  The default
-version of this method returns the object playerMessages for the
-player character, and the object npcMessages for all other actors.
-
-<p>The playerActionMessages and npcActionMessages objects are both
-based on the basic libMessages object.  This means that any message
-that these objects don't override is inherited from libMessages.  Many
-parser error messages are defined in libMessages, since the library
-doesn't have a need to vary these by actor in most cases.
-
-<p>If you want to customize any of the parser-related messages for a
-particular actor, you can override getParserMessageObj() for that
-actor to return your own custom object.  Then, you must define this
-object so that it provides all of the methods defined in (and
-inherited by) npcMessages.  A simple way to override just a few
-messages is to create a new object that inherits from npcMessages, and
-then just override the methods for the messages you want to change.
-
-
-<h3>playerActionMessages and npcActionMessages</h3>
-
-<p>Much as the parser has its own set of special message repository
-objects, the action execution system has a separate set of objects.
-The action system, like the parser, gets the special message object
-from the command's target actor.
-
-<p>The action system calls the method getActionMessageObj() to get its
-special message object.  By default, Actor.getActionMessageObj()
-returns the object playerActionMessages if the actor is the player
-character, and returns the object npcActionMessages for any other
-actor.
-
-<p>The library automatically retrieves the appropriate object, using
-getActionMessageObj(), whenever you use any of the "verify" or "action"
-result macros with a property pointer.  The library then calls the
-property pointer, using the additional parameters defined in the macro,
-on the library message object.  So, for example, if you have a mainReport
-like this:
-
-<p>
-<pre>
-   mainReport(&amp;noResponseFrom, self);
-</pre>
-
-<p>...then the library turns this into a call like this:
-
-<p><pre>
-   gActor.getActionMessageObj().noResponseFrom(self);
-</pre>
-
-<p>This handling applies to illogicalNow(), illogicalAlready(),
-illogicalSelf(), illogical(), inaccessible(), mainReport(),
-reportAfter(), reportBefore(), reportFailure(), defaultReport(),
-defaultDescReport(), cosmeticSpacingReport(), and extraReport().
-
-<h3>Varying messages by actor</h3>
-
-<p>Because the library obtains the parser and action message object
-individually for every target actor, it's easy to customize the
-messages according to which actor is performing a command.  The
-library uses this extensively by separating player character and NPC
-messages into separate objects: playerMessages and playerActionMessages
-for the player character, and npcMessages and npcActionMessages for
-non-player characters.
-
-<p>For the player character, messages tend to be acknowledgments
-more than descriptions:
-
-<p><pre>
-   &gt;take the box
-   Taken.
- 
-   &gt;open it
-   Opened.
-
-   &gt;put the coin in the box
-   Done.
-</pre>
-
-<p>For non-player characters, however, the library defines messages
-that describe the action more fully.  The library makes this
-distinction because the simple acknowledgments that are fully
-appropriate for the player character don't sound right when another
-character is the one performing actions.
-
-<p><pre>
-   &gt;bob, take the box
-   Bob takes the box.
- 
-   &gt;bob, open it
-   Bob opens the box.
-
-   &gt;bob, put the coin in the box
-   Bob puts the coin in the box.
-</pre>
-
-<p>You can take advantage of the per-actor message objects to
-customize the responses that a particular actor produces for
-particular actions.  If you want to customize a few responses for a
-particular character, you merely have to do the following:
+<p>The library separates message text from program code via one or 
+more of the following mechanisms (often in combination):</p>
 
 <ul>
+<li>Message text relating to responses to actions is usually defined
+of properties or methods of the objects (or rather the classes of
+objects) involved in the actions. For IActions and SystemActions
+which typically don't involve such additional objects, properties
+or methods of the Action object may be used instead.</p>
+<li>Exccept in the language specific parts of the language
+(such as in english.t) these messages are defined using the
+<code>DMsg()</code> and <code>BMsg()</code> macros (the first displays
+the message, the second creates a single-quoted string that can be used
+elsewhere; for the full story consult the section on 
+<a href='../manual/message.htm#dmsg'>Messages</a>
+in the <i>Adv3Lite Library Manual</i>).
+<li>In the language-specific parts of the library some messages or message
+fragments may be implemented as literal text.</li>
+</ul>
 
-  <li>Create a custom message object for your actor.  Make it inherit
-  from npcMessages (if it's a parser message repository) or
-  npcActionMessages (if it's an action message repository), so that
-  you only have to define the methods that you want to customize - the
-  rest will automatically be inherited from the base object.
-
-  <li>Define the messages you want to customize by defining methods on
-  the object that override the standard library messages.  For
-  example, here's a message object that customizes TAKE and DROP:
+<p>For example, the actual library implementation of the report
+stage of <code>dobjFor(Take)</code> in the advLite library is:</p>
 
 <p><pre>
-   bobActionMessages: npcActionMessages
-     okayTake = '{You/he} grudgingly pick{s} up {the dobj/him}. '
-     okayDrop = '{You/he} disdainfully put{s} down {the dobj/him}. '
+        report()
+        {            
+            DMsg(report take, 'Taken. | {I} {take} {1}. ', gActionListStr);
+        }
+</pre>
+
+<p>While the verify stage with its associated messages are defined as:</p>
+<p><pre>
+   dobjFor(Take)
+   { 
+     verify()
+        {
+            if(!isTakeable)
+                illogical(cannotTakeMsg);
+            
+            if(isDirectlyIn(gActor))
+                illogicalNow(alreadyHeldMsg);
+            
+            if(gActor.isIn(self))
+                illogicalNow(cannotTakeMyContainerMsg);
+            
+            if(gActor == self)
+                illogicalSelf(cannotTakeSelfMsg);
+            
+            logical;
+        }
+      ...
+    }
+
+    cannotTakeMsg = BMsg(cannot take, '{The subj cobj} {is} fixed in place.
+        ')
+    
+    alreadyHeldMsg = BMsg(already holding, '{I}{\'m} already holding {the dobj}.
+        ')
+    
+    cannotTakeMyContainerMsg = BMsg(cannot take my container, '{I} {can\'t}
+        take {the dobj} while {i}{\'m} {1} {him dobj}. ', objInPrep)
+    
+    cannotTakeSelfMsg = BMsg(cannot take self, '{I} {can} hardly take {myself}. ')    
+   
+
+</pre>
+
+<p>These messages can be customised either by overriding the various xxxMsg properties on
+classes or individual objects, or by means of 
+a <a href='../manual/message.htm#custmessage_idx'>CustomMessages </a> object.</p>
+
+<h3>Varying messages by actor</h3>
+<p>The adv3Lite library makes no specific provision for varying 
+messages by actor beyond using <a href='../manual/message.htm#parameter'>message substitution parameters</a>
+such as <code>{I}</code> and <code>{myself}</code>, which the library will replace
+with the name or pronoun appropriate to the current actor, and by always using the more verbose
+form of a message when the actor is not the player character. Game authors can, however,
+implement greater variation of messages by actor by use of CustomMessages objects, for 
+example:
+
+
+<p><pre>
+   bobActionMessages: CustomMessages
+   [
+     Msg(report take, '{I} grudgingly pick{s/ed} up {1}. '),    
+     
+     
+     Msg(report drop, '{I} disdainfully {put} down {1}. } '
+   ]
+   
+   active = (gActor == bob)
    ;
 </pre>
 
-  <li>In the Actor object for your character, override
-  getParserMessageObj() and/or getActionMessageObj() so that they
-  return your custom message objects.
+  
 
 </ul>
 
-<h3>npcMessagesDirect</h3>
-
-<p>The library provides a variation on the standard npcMessages
-object, called npcMessagesDirect.  This variation overrides many of
-the standard parser error messages to make them sound as though they
-were being stated aloud, within the game, by the NPC:
-
-<p><pre>
-    &gt;bob, get the box
-    Bob looks around.  "I don't see any box."
-</pre>
-
-<p>Some people prefer this style of parser errors, because it creates
-the impression that the player is talking directly to the NPC.  Most
-authors these days prefer the default style, which is based on the
-idea that the player isn't talking directly to the NPC's, but rather
-to an unseen parser/narrator that exists on the same plane as the
-player, outside of the story world; when there are parsing errors,
-they're in this external "meta-game" context, not in the context of
-the story world - it's the <i>parser</i> that failed to understand the
-command, not the NPC.
-
-<p>If you want to use this style of message for one of your actors,
-you can simply override getParserMessageObj() for that actor to
-return npcMessagesDirect.  If you want to use this style for all
-of your actors, you can modify Actor to return npcMessagesDirect
-from getParserMessageObj() when isPlayerChar() returns nil.
 
 
 </div>
