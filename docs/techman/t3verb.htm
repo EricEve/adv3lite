@@ -19,6 +19,14 @@ How to Create Verbs
 
 <h1>How to Create Verbs</h1>
 
+<H2>Adapted for adv3Lite by Eric Eve</h2>
+<p>Note: the material in this article covers much the same ground as the
+section on <a href='../manual/define.htm'>Defining New Actions</a> in the <i>Adv3Lite Library Manual</i>, but 
+it seems worth adapting and keeping Mike Roberts's article on this topic 
+as a complementary take on the same material, not least since it often offers
+more detailed explanations than the <i>Adv3Lite Library Manual</i>.</p>
+
+<h2>Introduction</h2>
 <p>Every game based on the TADS 3 standard library automatically gets
 the benefit of the huge complement of verbs that the library defines -
 about 150 of them.  Even though so many verbs are pre-defined, though,
@@ -41,8 +49,7 @@ files, along with the main library header.  Just put these lines at
 the start of each of your ".t" source files:
 
 <p><pre>
-   #include &lt;adv3.h&gt;
-   #include &lt;en_us.h&gt;
+   #include "advlite.h"
 </pre>
 
 <h2>Verbs with no objects</h2>
@@ -57,31 +64,32 @@ code, like this:
 <p>
 <pre>
    DefineIAction(Sleep)
-     execAction() { mainReport('{You\'re} not sleepy right now. '); }
+     execAction(c) { DMsg(not sleepy, '{I\'m} not sleepy right now. '); }
    ;
 
    VerbRule(Sleep)
      'sleep' | 'doze' 'off' | 'nod' 'off'
-     : SleepAction
+     : VerbProduction
+     action = Sleep
      verbPhrase = 'sleep/sleeping'
    ;
 </pre>
 
-<p>The first part, DefineIAction, defines the "Action" class for your
-new verb.  The Action class represents the verb during command
+<p>The first part, DefineIAction, defines the "Action" object for your
+new verb.  This Action object represents the verb during command
 execution.  DefineIAction (which stands for "Define Intransitive
-Action") is a macro defined in the TADS 3 library that takes care of
-some of the tedious busy-work of creating your Action class; under
-the covers, this macro just starts a class definition for you and
-fills in a few properties.  The name in parentheses is the root name
-of the class; the macro glues the word "Action" to the end of the
-name you provide, so the class name you're defining is actually
-SleepAction.
+Action") is a macro defined in the adv3Lite library that takes care of
+some of the tedious busy-work of creating your Action object; under
+the covers, this macro just starts an object definition for you and
+fills in a few properties.  The name in parentheses is the name
+of the object.
 
-<p>The execAction() definition is just a normal method definition
+<p>The execAction(<i>c</i>) definition is just a normal method definition
 that's part of your Action class.  For an intransitive action, this
 method is what actually carries out the action, so you simply write
-code here for whatever you want the verb to accomplish.
+code here for whatever you want the verb to accomplish. The <i>c</i>
+parameter is the Command object created for the current command, but
+we don't need to worry about that now.
 
 <p>The second part, VerbRule, defines the grammar for your verb.  This
 tells the parser the various ways that the player could type this verb
@@ -125,12 +133,11 @@ write rules that group sub-phrases like this, because in English
 there are many verbs where there are different phrasings that involve
 variations in only one or two words in a longer phrase.
 
-<p>After the grammar rules, you have to specify the Action class
-associated with this VerbRule; in this case, the class is SleepAction.
-Just as DefineIAction is a macro that defines an Action class,
-VerbRule is a macro that defines a subclass of your action class.
-Remember that the DefineIAction macro appends "Action" to the class
-name we specified, so we have to do the same thing explicitly here.
+<p>After the grammar rules, you have to specify that your grammar rule
+belongs to the VerbProduction class and then define which the Action object
+is associated with this VerbRule; in this case, the Action objectis Sleep.
+Just as DefineIAction is a macro that defines an Action object,
+VerbRule is a macro that defines a subclass of VerbProduction.
 
 <p>Everything else in the VerbRule is an ordinary property or method
 definition.  Every VerbRule should define a verbPhrase property, giving
@@ -155,19 +162,27 @@ transitive verb operates upon is called the verb's "direct object."
 
    VerbRule(Repair)
      ('repair' | 'fix') singleDobj
-     : RepairAction
+     : VerbProduction
+     action = Repair
      verbPhrase = 'repair/repairing (what)'
+     missingQ = 'what do you want to repair'
+     dobjReply = singleNoun
    ;
 
    modify Thing
      dobjFor(Repair)
      {
+       preCond = [touchObj]
+     
        verify() 
        {
-         illogical('{You/he} do{es}n\'t know how to repair 
-                   {that dobj/him}. ');
+         if(!isRepairable)
+            illogical(cannotRepairMsg);
        }
      }
+     
+     isRepairable = nil
+     cannotRepairMsg = '{I} {do}n\'t know how to repair {that dobj}. '
    ;
 </pre>
 
@@ -175,26 +190,36 @@ transitive verb operates upon is called the verb's "direct object."
 DefineTAction stands for "Define Transitive Action"; it's a macro
 provided by the library to handle the tedious parts of defining the
 new verb.  Note that unlike our intransitive verb example earlier,
-we do <b>not</b> define an execAction() for a transitive verb; this
+we do <b>not</b> define an execAction(c) for a transitive verb; this
 is because a transitive verb is executed by the direct object, not
 by the action class itself.
 
 <p>The second part defines the grammar rule for the new verb.  This is
 very similar to defining a VerbRule for an intransitive action, but
-note two important differences.  First, the grammar rule has to
+note some important differences.  First, the grammar rule has to
 include a "slot" for the direct object.  In this case, we did that
 using the special keyword singleDobj: this indicates that the slot can
 only take a single object, not a list of objects (so we won't be
 allowed to type REPAIR ALL or REPAIR TOY, SLIDE PROJECTOR, AND
 TOASTER; if we do, the parser will politely let us know that we have
-to repair one thing at a time).  We could instead have used dobjList,
+to repair one thing at a time).  We could instead have used multiDobj,
 which indicates that the slot <i>can</i> take multiple objects at
 once.  Second, the verbPhrase also has to include a placeholder for
 the direct object, which we do by writing "(what)".  We could instead
 write "(whom)", if the direct object for the verb is typically a
 person rather than an inanimate object; for example, a "talk to"
 action would probably write its verbPhrase as 'talk/talking (to
-whom)'.
+whom)'. Third, the missingQ provides the text of the question the 
+parser will ask if the player simply types REPAIR, without specifying
+what to repair (the parser will captilize the start of the sentence
+and finish it with a question mark, so we don't need to so on
+the missingQ property. Finally dobjReply = singleNoun tells the 
+parser to expect the player to respond with the name of a single
+noun if it asks the player what they want to repair. If we'd 
+used multiDobj instead of singleDobj in our grammar definition
+we could specify dobjReply = nounList, but we don't too since the
+library will assume this is we don't specify otherwise.
+
 
 <p> <blockquote>
 
@@ -241,10 +266,22 @@ in the game.  The best way to cope with this is to write a default
 handler in the Thing class, since virtually every game object is
 typically based on Thing, either directly or indirectly.  Because a
 new verb usually won't have any effect on just any random object, the
-default Thing handler is usually a simple "illogical" call in the
-verify() method, as shown above.  If you want the default handling to
+default Thing handler can be a simple "illogical" call in the
+verify() method, as shown above, or it may be more elaborate,
+(e.g., to rule out an actor trying to repair themselves).  If you want the default handling to
 actually do something, just write the appropriate dobjFor() code as
-you would for any pre-defined library verb.
+you would for any pre-defined library verb.</p>
+
+<p>It's a good idea to define custom properties such as
+<code>isRepairable</code> and <code>cannotRepairMsg</code> as above,
+since this allows easier customization than having to override
+verify() methods just to vary the refusal response or allowed
+repairing (which may be particularly pertinent if we have a
+more complex verify() method containing further global sanity checks
+which we want to keep on all objects). Then, for example, if you
+want the response to REPAIR AUNT MABEL to be 'If you only you could!'
+you only need to override the <code>cannotRepairMsg</code> on your
+mabel object without having to rewrite the entire verify() method.
 
 <h2>Verbs with two objects</h2>
 
@@ -275,49 +312,67 @@ focus of the action.
    DefineTIAction(ScrapeWith);
 
    VerbRule(ScrapeWith)
-     'scrape' dobjList 'with' singleIobj
-     : ScrapeWithAction
+     'scrape' multiDobj 'with' singleIobj
+     : VerbProduction 
+     action = ScrapeWith
      verbPhrase = 'scrape/scraping (what) (with what)'
+     missingQ = 'what do you want to scrape; what do you want to scrape it with'
+     iobjReply = withSingleNoun
    ;
 
    modify Thing
      dobjFor(ScrapeWith)
      {
-       verify() 
+       preCond = [objHeld]
+       
+       verify() 0
        {
-         illogical('{That dobj/he} {is}n\'t something {you/he} can scrape. ');
+          if(!isScrapeable)        
+             illogical(cannotScrapeMsg);
+             
+          if(gIobj == self)
+             illogicalSelf(cannotScrapeWithSelfMsg);
        }
      }
      iobjFor(ScrapeWith)
-     {
+     {     
+       preCond = [objHeld]
+       
        verify() 
        {
-         illogical('{That iobj/he} do{es}n\'t look very useful as
-                    a scraping tool. ');
+         if(!canScrapeWithMe)
+             illogical(cannotScrapeWithMsg);
        }
      }
-   ;
+   
+   
+     cannotScrapeMsg = 'That subj dobj} {isn\'t} something {i} {can} scrape}. '
+     cannotScrapeWithSelfMsg = '{I} {can} hardly scrape {the dobj} with {itself dobj}. '
+     cannotScrapeWithMsg = '{That subj iobj} {doesn\'t look} very useful as a scraping tool. '
+     isScrapeable = nil
+     canScrapeWithMe = nil
+ ; 
 </pre>
 
 <p>As with a regular transitive action, we first define the Action
-class, this time using DefineTIAction.  DefineTIAction stands for
+object, this time using DefineTIAction.  DefineTIAction stands for
 "Define Transitive with Indirect object Action"; it defines an action
 with both a direct and an indirect object.
 
 <p>The VerbRule grammar for a two-object action requires two object
 slots, one for the direct object and one for the indirect object.  The
-direct object slot is indicated using singleDobj or dobjList, just as it
+direct object slot is indicated using singleDobj or multiDobj, just as it
 is for a regular transitive action.  The indirect object slot is indicated
-with the similar singleIobj or iobjList keywords.
+with the similar singleIobj or multiIobj keywords.
 
 <p>There are a couple of restrictions on these object slots keyword
 to be aware of.  First, exactly one direct object and one indirect
 object slot must be included in each grammar rule, for fairly obvious
 reasons.  Second, less obviously, <b>at most one</b> of the slots can
-be a "list" keyword.  So, you can't use dobjList and iobjList in the
+be a "multi" keyword.  So, you can't use multiDobj and multiIobj in the
 same rule.  You can use singleDobj and singleIobj together, and you
-can mix and match the "single" and "list" keywords, but you can't use
-"list" for both.  The reason for this makes sense if you think about
+can mix and match the "single" and "multi" keywords, but you can't use
+"multi" for both.  The reason for this makes sense if you think about
 it: if the player could specify multiple objects for both slots, the
 meaning would be terribly unclear, because it would be difficult or
 impossible to know which direct object was meant to be used with
@@ -346,50 +401,54 @@ phrase involves a particle.
 not only a direct object handler (using dobjFor), but an indirect
 object handler (using iobjFor) as well.  As with plain transitive
 actions, these default handlers will usually just disallow the
-action in one way or another.
+action in one way or another, and, in this case, rule out an object
+being used on itself.
 
 <h2>Verbs with a "literal" object</h2>
 
 <p>Sometimes, a verb superficially looks like a transitive verb,
 but rather than taking an ordinary direct object, the verb takes
 a literal phrase as its object.  For example, in SAY HELLO, the
-object of the verb is literally the word "hello."
+object of the verb is literally the word "hello." (Note that the
+adv3Lite libary already has its own SAY verb, though).
 
 <p>You can define a verb that takes a literal object like this:
 
 <p>
 <pre>
    DefineLiteralAction(Say)
-     execAction()
+     execAction(c)
      {
-       mainReport('Okay, "' + getLiteral() + '." ');
+       "Okay,  &lt;&lt;gLiteral&gt;&gt;. ";
      }
    ;
 
    VerbRule(Say)
-     'say' singleLiteral
-     : SayAction
+     'say' literalDobj
+     : VerbProduction
+     action = Say
      verbPhrase = 'say/saying (what)'
+     missingQ = 'what do you want to say'
    ;
 </pre>
 
 <p>Even though a "literal action" has the superficial grammatical
-form of a transitive action, we must define an execAction() to
+form of a transitive action, we must define an execAction(c) to
 execute the verb, just as we would for an intransitive action.  This
 is because a literal action doesn't have a direct object in the usual
 sense; there's no game object where we can write a dobjFor()
 definition, since the "object" of the verb is just some literal text.
 Note also that we can obtain the literal text that the user typed in
-by calling the getLiteral() method of the action object itself.
-getLiteral() returns a string giving the actual text that the user
+by using the gLiteral macro. 
+gLiteral returns a string giving the actual text that the user
 typed in (the string returned even preserves the original upper/lower
 case of the text the user entered).
 
 <p>In the VerbRule, the "slot" for the literal text must be indicated
-with the singleLiteral keyword.  In command input, the player can
+with the literalDobj keyword.  In command input, the player can
 enter literal text with or without quotes: SAY HELLO and SAY "HELLO"
 will both match this grammar.  If the user does use quotes, note that
-the getLiteral() method of the action object will <b>not</b> include
+getLiteral will <b>not</b> include
 the quotes in its returned value; this means that you don't have to
 worry about whether or not the player used quotes, since getLiteral()
 will just return the meaningful part of the text in either case.
@@ -402,34 +461,42 @@ kind of verb like so:
 
 <p>
 <pre>
-   DefineLiteralTAction(WriteOn, DirectObject);
+   DefineLiteralTAction(WriteOn);
 
    VerbRule(WriteOn)
-     'write' singleLiteral 'on' singleDobj
-     : WriteOnAction
-     verbPhrase = 'write/writing (what) (on what)'
-   ;
+    'write' literalDobj ('on' | 'in') singleIobj
+    : VerbProduction
+    action = WriteOn
+    verbPhrase = 'write/writing (what) (on what)'
+    missingQ = 'what do you want to write;what do you want to write that on'
+    dobjReply = onSingleNoun
+;
 
    modify Thing
-     dobjFor(WriteOn)
-     {
-       verify() 
-       { 
-         illogical('There\'s no way to write anything on {that dobj/him}. ');
-       }
-     }
+    canWriteOnMe = nil
+        
+    dobjFor(WriteOn)
+    {
+        preCond = [touchObj]
+        verify() 
+        { 
+            if(!canWriteOnMe)
+               illogical(cannotWriteOnMsg); 
+        }        
+        
+    }
    ;
 
    // later, as part of some room definition...
-   + paper: Thing 'piece/paper' 'piece of paper'
+   + paper: Thing 'piece of paper'
      "It's a piece of paper, with some hand-written notes:
       \b&lt;&lt; noteText &gt;&gt; "
 
      noteText = 'Get eggs!'
+     canWriteOnMe = true
 
      dobjFor(WriteOn)
-     {
-       verify() { }
+     {       
        action()
        {
          "You add your notes to the paper. ";
@@ -439,36 +506,18 @@ kind of verb like so:
    ;
 </pre>
 
-<p>Note that you can use "gLiteral" to get the text from the
-literal phrase.  This simply calls gAction.getLiteral() to
-obtain a string giving the literal text entered by the player.
-
 <p>As you might expect, this type of verb combines some of the
 features of the regular transitive action with the literal action.
 There's one special thing to note, though: the ordinary object (the
 object that's not the literal) is <i>always</i> considered the direct
-object, for the purposes of the singleDobj or dobjList slot
-indicator, and for the purposes of the dobjFor() handler.  In this
+object, for the purposes of the dobjFor() handler.  In this
 example, you can see that the ordinary object fills what would be the
 indirect object in a TIAction: it's in the second object slot in the
 grammar, and it follows a preposition, which is usually a dead
 give-away that it's an indirect object.  Regardless of this, we must
-treat the ordinary object as a direct object in all of our
+treat the ordinary object as a direct object in all of our object
 definitions.
 
-<p>Because the ordinary object is always treated as the direct object
-regardless of its grammatical role, there's one small complication,
-which is that the action class needs to know how to phrase messages
-that it generates for the verb.  In particular, the class needs to
-know where the literal fits in, grammatically speaking.  We solve
-this problem with that mysterious second argument in the
-DefineLiteralTAction macro.  In this case, we've specified
-DirectObject.  This tells the new action class that the literal plays
-the <i>grammatical</i> role of the direct object, and the ordinary
-object plays the role of the indirect object.  Now, all we're
-talking about is the <i>grammatical</i> role; the ordinary object
-always plays the <i>functional</i> role of direct object, as we 
-stressed above.
 
 <h2>Verbs with a "topic" object</h2>
 
@@ -485,31 +534,33 @@ idea of the object.  We call these abstract ideas "topics."
 <p>
 <pre>
    DefineTopicAction(ThinkAbout)
-     execAction()
+     execAction(c)
      {
-       mainReport('Hmmm, ' + getTopic().getTopicText()
-                  + ', very interesting... ');
+         "Hmm &lt;&lt;gTopicText&gt;&gt;, very interesting";      
      }
    ;
 
    VerbRule(ThinkAbout)
-     ('think' 'about' | 'ponder' | 'cogitate' 'on') singleTopic
-     : ThinkAboutAction
-     verbPhrase = 'think/thinking (about what)'
-   ;
+    ('think' | 'ponder' | 'cogitate') 'about' topicDobj
+    : VerbProduction
+    action = ThinkAbout
+    verbPhrase = 'think/thinking (about what)'
+    missingQ = 'what do you want to think about'
+    dobjReply = aboutTopicPhrase
+;
 </pre>
 
 <p>As with literal actions, we must define the handler for a topic
-action with an execAction() method on the topic action itself.  Note
-that we can use the getTopic() method of the action to obtain the
-topic.  getTopic() returns an object of class ResolvedTopic that
+action with an execAction(c) method on the topic action itself.  Note
+that we can use the gTopic macro to obtain the
+topic.  gTopic returns an object of class ResolvedTopic that
 describes the topic that the player typed.  We won't go into detail
 on ResolvedTopic here, but we will point out that you can get the
 original text the player typed by calling the getTopicText() method
-on the ResolvedTopic object.
+on the ResolvedTopic object or by just using the gTopicText macro.
 
 <p>In defining the VerbRule for a topic action, you must use
-the singleTopic keyword to indicate the slot for the topic in the
+the topicDobj keyword to indicate the slot for the topic in the
 grammar.
 
 <h2>Verbs with one object plus a topic</h2>
@@ -521,25 +572,34 @@ literal actions:
 
 <p>
 <pre>
-   DefineTopicTAction(LookUp, DirectObject);
+   DefineTopicTAction(LookUp);
 
    VerbRule(LookUp)
-     'look' 'up' singleTopic 'in' singleDobj
-     : LookUpAction
-     verbPhrase = 'look/looking up (what) (in what)'
-   ;
+    (('look' | 'l') ('up' | 'for') | 'find'  | 'search' 'for' | 'read' 'about')
+    topicIobj ('in' | 'on') singleDobj
+    | ('look' | 'l') topicIobj 'up' ('in' | 'on') singleDobj
+    : VerbProduction
+    action = LookUo
+    verbPhrase = 'look/looking up (what) (in what)'
+    missingQ = 'what do you want to look that up in;what do you want to look up'
+    dobjReply = singleNoun
+    iobjReply = topicPhrase
+;
 
    modify Thing
      dobjFor(LookUp)
      {
+       preCond = [objVisible]
+     
        verify() 
        { 
-         illogical('{The dobj/he} do{es}n\'t seem to work that way. ');
+         illogical('{The subj dobj} {doesn\'t seem} to work that way. ');
+       }  
      }
    ;
 
    // later, in some room definition
-   + dictionary: Readable 'dictionary' 'dictionary'
+   + dictionary: Thing'dictionary' 
      "Frobster's Third Collegiate Unabridged. "
 
      dobjFor(LookUp)
@@ -547,7 +607,7 @@ literal actions:
        verify() { }
        action()
        {
-         local wrd = gTopic.getTopicText()
+         local wrd = gTopicText()
          local def = dictionaryTable[wrd];
          if (entry != nil)
            "&lt;b&gt;&lt;&lt;wrd&gt;&gt;&lt;/b&gt;: &lt;&lt;def&gt;&gt; ";
@@ -562,32 +622,29 @@ literal actions:
    ;
 </pre>
 
-<p>Note that we use singleTopic to indicate the topic slot in the
+<p>Note that we use topicIobj to indicate the topic slot in the
 grammar.  As with the literal transitive action, the ordinary object
 <i>always</i> takes the functional role of the direct object, and
 we must include the grammatical role of the literal phrase, for
 message-generation purposes, as the second argument to the
 DefineTopicTAction macro.
 
-<p>Note that we can obtain the topic object from within a dobjFor()
-handler using the gTopic macro.  This returns a ResolvedTopic object.
-To get the literal text entered by the player for the topic phrase,
-we call gTopic.getTopicText().
 
 <h2>Verbs with three or more objects</h3>
 
-<p>The TADS 3 library doesn't provide any recipes for creating a
+<p>The adv3Lite library doesn't provide any 
 verb with more than two object roles.  This doesn't mean that you
-can't define such a verb; it just means that there aren't any
-pre-defined classes or macros for doing so.  
+can't define such a verb; and adv3Lite does provide
+a <a href='../../extensions/docs/tiaaction.htm'>TIA Action</a> extension 
+to allow you to create your own verbs with three objects.
 
 <p>The basic principles of the library's parsing and command
 execution mechanisms can extend to arbitrarily many object roles in a
-single action, so creating a verb with three or more objects would be
-a matter of extending the two-object action class (TIAction) to
+single action, so creating a verb with four or more objects would be
+a matter of extending the extensions three-object action class (TIAAction) to
 resolve and coordinate execution with additional object roles.  But
 this would require writing significant amounts of new code; such a
-new action class would be at least as complicated as the TIAction
+new action class would be at least as complicated as the TIAAction
 class, which is not at all trivial.  The details are beyond the scope
 of this discussion.
 
