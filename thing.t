@@ -5740,6 +5740,9 @@ class Thing:  ReplaceRedirector, Mentionable
         
         verify()
         {
+            if(verifyPutIn(self, gVerifyIobj))
+                return;
+            
             if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);   
             
@@ -5786,6 +5789,9 @@ class Thing:  ReplaceRedirector, Mentionable
         
         check()
         {
+            if(checkPutIn(gDobj, self))
+                return;
+            
             /* 
              *   If we're actually a container-like object (our contType is In),
              *   check whether there's enough room inside us to contain the
@@ -5805,6 +5811,9 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
+            if(actionPutIn(gDobj, self))
+                return;
+            
             /* 
              *   If we're actually a container-like object (i.e. if our contType
              *   is In) then something put in us can be moved inside us.
@@ -5824,6 +5833,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     cannotPutInMsg = BMsg(cannot put in, '{I} {can\'t} put anything in {the
         iobj}. ')
+    
+    
     
     dobjFor(PutUnder)
     {
@@ -10409,6 +10420,8 @@ multiLocInitiator: PreinitObject
 ;
 
 
+
+
 /*  
  *   A Topic is something that the player character can refer to in the course
  *   of conversation or look up in a book, but which is not implemented as a
@@ -10704,4 +10717,31 @@ class Stance: object
     
     objToString() { return name; }
 ;
+
+
+/* 
+ *   Default multimethods for action handling. We make them match Mentionable dobj and iobj so that
+ *   if game code wants to define a Multimethod matching Thing and Thing it will take precedence.
+ *   The library action multikmethods all do nothing at all but need to exist so the action handling
+ *   for ITActions libary actions can call them.
+ *
+ *   User-defined action multimethods should return nil if they want to add their behaviour to the
+ *   library's behavious or true if they want to replace the library methods.
+ */     
+verifyPutIn(Mentionable dobj, Mentionable iobj) { }
+checkPutIn(Mentionable dobj, Mentionable iobj) { }
+actionPutIn(Mentionable dobj, Mentionable iobj) { }
+
+verifyPutOn(Mentionable dobj, Mentionable iobj) { }
+checkPutOn(Mentionable dobj, Mentionable iobj) { }
+actionPutOn(Mentionable dobj, Mentionable iobj) { }
+
+verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
+checkPutBehind(Mentionable dobj, Mentionable iobj) { }
+actionPutBehind(Mentionable dobj, Mentionable iobj) { }
+
+verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
+checkPutUnder(Mentionable dobj, Mentionable iobj) { }
+actionPutUnder(Mentionable dobj, Mentionable iobj) { }
+
 

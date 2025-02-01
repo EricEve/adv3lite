@@ -19,8 +19,19 @@ Programming Conversations with NPCs
 <div class="main">
 
 <h1>Programming Conversations with NPCs</h1>
+<h2>(Adapted for Adv3Lite by Eric Eve)</h2>
+<p>Editor's Note. While much of the material in this article is also covered 
+in the <a href='../manual/actor.htm'>Actors</a> section of the <i>Adv3Lite Library Manual</i>, Mike Roberts's 
+discussion below provides more detailed discussion of the rationale of his design and some more extensive
+explanations that seem worth preserving in the adv3Lite version of this manual. Moreover,
+since the adv3Lite handling of conversation was based on the way 
+it is implemented in adv3, much of MJR's discussion here applies unchanged to adv3Lite.
+In what follows, I have adapted MJR's text where things are done differently in adv3Lite,
+and referred the reader to the  <i>Adv3Lite Library Manual</i> for additions that adv3Lite
+makes to the system that MJR devised.</p>
 
-<p>In the <a href='convbkg.htm'>previous part of this article</a>, I
+<h2>Introduction</h2>
+<p>In the <a href='convbkg.htm'>previous part of this article</a>, I (MJR)
 offered my recommendations for a conversation system based on the
 traditional ASK/TELL model, but with some enhancements.  The TADS 3
 library provides support for a lot of the effects I described in my
@@ -104,11 +115,8 @@ to put the TopicEntry "inside" the answering actor.
 responses.
 
 <p><pre>
-  bob: Actor 'bob' 'Bob'
-    "He's a nervous-looking older man with white hair. "
-
-    isProperName = true
-    isHim = true
+  bob: Actor 'Bob;;;him'
+    "He's a nervous-looking older man with white hair. "   
   ;
 
   + AskTellTopic @antenna
@@ -476,10 +484,10 @@ separately, so the library doesn't bother keeping separate NPC
 knowledge bases, to reduce overhead.  If you want to track an NPC's
 knowledge separately, you can do so easily: you merely have to set the
 NPC's knownProp and/or seenProp properties to new values unique to
-that actor.  The Actor class in the adv3 library describes this in
+that actor.  The Actor class in the adv3Lite library describes this in
 more detail.
 
-<p>The knowsAbout() method uses an internal flag tracking whether the
+<p>The knowsAbout() method uses an internal flag (familiar) tracking whether the
 player character knows about the object.  An object is considered
 "known" to an actor if the actor has ever seen the object, or the
 object's "known" status has been specifically set.  The "known" status
@@ -502,8 +510,15 @@ When an NPC is meant to know a response, you can mark the NPC's
 TopicEntry object for that response as active.  At other times, you
 can make the entry inactive.  This ensures that the NPC can only
 respond to a question about the topic when the NPC knows the answer.
+To distinguish PC knowledge from NPC knowledge it's a good idea to test
+pcKnows(<i>something</i>, where <i>something</i> can be an object,
+Topic or 'informed' tag. For details of how PC knowledge and 
+NPC knowledge can be tracked in the adv3Lite library, see the chapter
+on <a href='../manual/knowledge.htm'>Player Character and NPC Knowledge</a> 
+in the <i>Adv3LiteLibrary Reference Manual</i>.
 
-<p>It's important to note that you're modeling the NPC's knowledge of
+<p>It's important to note that (if you only use reveal tags for tracking
+both PC and NPC knowledge) you're modeling the NPC's knowledge of
 the <i>response</i>, not of the topic.  You could have several
 TopicEntry for the same NPC that respond to the same topic, but the
 NPC "knows" each of the responses at different times.  This lets you
@@ -511,14 +526,15 @@ vary an NPC's answers to questions about a topic as the NPC's
 knowledge changes.
 
 <p>Even though you can use isActive to represent NPC knowledge,
-in practice it's useful to use it for other purposes as well.
-
+in practice it's useful to use it for other purposes as well. 
 <ul>
 
 <li>You can use isActive to model the NPC's frame of mind or emotional
 state, separately from its knowledge.  For example, you could have
 the NPC use one response (i.e., one TopicEntry) for a given topic when
-the NPC is angry, and another when the NPC is contented.
+the NPC is angry, and another when the NPC is contented. For one way of 
+keeping track of the NPC's emotional state, see the chapter on 
+<a href='../manual/mood.htm'>Moods and Stances</a> in the <i>Adv3LiteLibrary Reference Manual</i>.
 
 <li>You can use isActive to model what the NPC thinks the player
 knows, or what the NPC wants to reveal at the moment.  For example,
@@ -606,11 +622,11 @@ condition will automatically apply to everything in the group.
 <p><pre>
   bob: Actor /* ... */ ;
 
-  + TopicGroup isActive = (bob.emotion == sad);
+  + TopicGroup isActive = (bob.emotion == sad); // or,if using Moods, (aMoodIs(bob, sad))
   ++ AskTellTopic @bob "&lt;q&gt;I'm so depressed...&lt;/q&gt; ";
   ++ AskTellTopic @store "&lt;q&gt;Sales have been terrible.&lt;/q&gt; ";
 
-  + TopicGroup isActive = (bob.emotion == happy);
+  + TopicGroup isActive = (bob.emotion == happy); // or. if using Moods, (aMoodIs(bob, happy))
   ++ AskTellTopic @bob "&lt;q&gt;I feel great!&lt;/q&gt; ";
   ++ AskTellTopic @store "&lt;q&gt;Things have been going well.&lt;/q&gt; ";
 </pre>
@@ -699,33 +715,17 @@ suggestions, and display a list of the currently open suggestions
 to the player at certain times, such as when the player enters a
 TOPICS command to specifically ask for the list.
 
-<p>The library provides a class, SuggestedTopic, that lets you mark a
-topic entry as a suggestion.  To create a suggestion, make your
-TopicEntry object inherit from the appropriate SuggestedTopic subclass
-- in other words, add a SuggestedTopic subclass to the topic's
-superclass list, using multiple inheritance.  The library defines
-SuggestedAskTopic, SuggestedTellTopic, SuggestedShowTopic,
-SuggestedGiveTopic, SuggestedYesTopic, and SuggestedNoTopic.  Note
-that, unlike TopicEntry, there are no combination classes: there's no
-ask-plus-tell combination, for example.  We don't need the combination
-classes because there's no reason to be so vague in making
-suggestions; we can just pick the format that makes the most sense and
-suggest that.
-
-<p>Apart from adding the new superclass, there are two special things
-you have to do when you mark a topic entry as a suggestion.
-
-<p>First, you have to define a "name" property for the suggestion.
+<p>To create a suggestion, you first have to define a "name" property for the suggestion.
 This is the name that will be shown in the suggested topic list.
-There's also a "fullName" property, but for the pre-defined
-SuggestedTopic subclasses, you shouldn't have to define this - it'll
-default to something appropriate, such as "ask about (name)".  The
+There's also a "fullName" property, but for the pre-defined  The
 "name" property should be given so that it can be substituted into a
 sentence after "ask about" (or the appropriate variation for the other
-types), so it should usually include "the" if appropriate.
+types), so it should usually include "the" if appropriate. Alternatively 
+you can define autoName = true on the TopicEntry and it will set its 
+neme property to the theName property of the object it matches.
 
 <p><pre>
-  + AskTellTopic, SuggestedAskTopic @lighthouse
+  + AskTellTopic @lighthouse
     "&lt;q&gt;Can you tell me about the lighthouse?&lt;/q&gt; [etc.] "
 
     name = 'the lighthouse'
@@ -733,15 +733,11 @@ types), so it should usually include "the" if appropriate.
 </pre>
 
 <p>Second, you'll need to make sure the suggestion won't show up "too
-early."  The library shows or hides a suggestion according to its
-isSuggestionActive() method.  In most cases, you won't need to override
-this method, because the default version does a pretty good job of
-figuring out when a suggestion should become visible.
+early" or "too late". The library shows a suggestion according to whether:
 
-<p>By default, isSuggestionActive() will only return true when all
-of the following conditions are met:
+<ol>
+<li>the associatedTopicEntry defines a name property;</li>
 
-<ul>
 <li>the associated TopicEntry is active - that is, its isActive property
 returns true;
 
@@ -751,14 +747,18 @@ objects must be known to the player character (so
 gPlayerChar.knowsAbout(obj) must return true for at least one of the
 match objects);
 
-<li>the suggestion's suggestTo property refers to the current player
-character;
 
 <li>the player character must not already have "satisfied their curiosity"
 about the suggestion, which usually just means that the associated topic
 entry has displayed its response already.
 
-</ul>
+<li>the player character's curiosity about this suggestio has been aroused
+(by default we assume it has);</li>
+
+<li>The Topic Entry is reachable (i.e. it could potentially be triggered
+ by a player command on the current turn).</li>
+
+</ol>
 
 <p>These conditions usually ensure that a suggestion won't be shown
 until the player character knows about whatever it is we're suggesting
@@ -769,11 +769,13 @@ information you've already defined for the topic entry itself, because
 in most cases you simply want a topic to be suggested if and only if
 the topic can be used as a response.
 
-<p>In some cases, you might have to override isSuggestionActive() to
-customize the conditions for showing the suggestion.  When the default
-behavior doesn't produce the results you want, you can take control of
-a suggestion's availability by overriding its isSuggestionActive()
-method.
+<p>In some cases, you might have to override curiosityAroused or 
+curiositySatisfied to have the topic suggestion appear and disappear
+when you deem it appropriate.
+
+<p>For the full story on suggesting topics (which can be customized 
+further than is outlined here), see the chapter on <a href='../manual/suggest.htm'>
+Suggesting Conversational Topics</a> in <i>Adv3LiteLibrary Reference Manual</i>.
 
 <h3><a name='activeTopicInventory'>The active topic inventory</a></h3>
 
@@ -983,10 +985,8 @@ the actor's attention.
   The pavement of this wide street is broken in places with [...]
 </pre>
 
-<p>This is fairly easy to set up.  The keys are two new
-ActorState subclasses: ConversationReadyState and InConversationState.
-
-<p>ConversationReadyState defines an actor state where the actor is
+<p>This is fairly easy to set up.  To do so you'd probably 
+define two ActorStates, the first in which  the actor is
 receptive to conversational commands, but rather than simply responding
 to them and carrying on, switches to a separate "in-conversation" state.
 In the example above, the man stops sweeping when approached with a
@@ -994,26 +994,16 @@ question: he switches from his "sweeping" state to his "conversing"
 state, to model the fact that the player has the man's attention.
 
 <p>To create this kind of behavior, you'd define the "sweeping" state
-as a ConversationReadyState rather than as a basic ActorState.  You'd
-define the state just like you would an ordinary ActorState, but
-you'd use ConversationReadyState as the superclass, and you'd define
-the property inConvState.  This property points to the associated
-in-conversation state object, which is the state we switch to when a
-conversation begins.  This must be set to an object of class
-InConversationState.  For your convenience, rather than defining this
-property explicitly, you can put the ConversationReadyState "inside"
-its corresponding InConversationState, using the '+' syntax.  If a
-ConversationReadyState is nested within an InConversationState
-object, the library will automatically initialize the former's
-inConvState property to point to the containing state.
-
-<p>Inside the ConversationReadyState, you can define some special
+as an ActorState that describes its actor as engaged in sweeping  You'd
+define the state just like you would an ordinary ActorState. 
+<p>Inside this ActorState, you can define some special
 TopicEntry objects to provide the messages that are displayed as
-we start and end the conversation.
+we start the conversation and indicate which ActorState to switch
+to once the conversation is underway.
 
 <ul>
 
-<li>HelloTopic - put a HelloTopic inside the ConversationReadyState
+<li>HelloTopic - put a HelloTopic inside the first ActorState
 to provide the message shown when we begin a conversation.  By
 default, a HelloTopic object will handle both the explicit kind of
 greeting, where the player types HELLO or TALK TO to start the
@@ -1031,12 +1021,24 @@ subsequent visits.  This gives the NPC a bit of a memory by making it
 clear that the NPC doesn't know the player character initially, but
 then recognizes that it's the same character returning later.
 
-<li>ImpHelloTopic - put this inside the ConversationReadyState if you
+<li>ImpHelloTopic - put this inside the first ActorState if you
 want to provide a different message for implied greetings.  This will
 be used instead of the HelloTopic when the conversation starts
 without an explicit HELLO or TALK TO command.
 
-<li>ByeTopic - put this inside the ConversationReadyState to handle
+<li>ExpHelloTopic - put this inside the ActorState if you only want 
+to respond to an explicit greeting.</li>
+
+<li>On any of these "hello" Topics, you can define a changeToState
+property which defines the ActorState the actor should switch to following 
+the greating, e.g. <code>changeToState = bobTalking</code>.
+</ul>
+
+<p>Then, on the conversational ActorState you can define one or more
+TopicEntries to handle ending the conversation:</p>
+
+<ul>
+<li>ByeTopic - put this inside the conversational ActorState to handle
 explicit GOODBYE commands from the player.  This will be used <b>only</b>
 for explicit goodbyes.
 
@@ -1049,54 +1051,51 @@ explained below).  This is used <b>only</b> for implied conversation
 endings, never for explicit goodbyes.  In the example above, this
 would display the message "The man returns to his sweeping."
 
+<li>ExpByeTopic - put this inside the state to handle explicit
+conversation endings only.</li>
+
+<li>ActorHelloTopic - put this inside the conversational ActorState 
+to providde the response if the Actor decides to end the conversation.</li>
+
+
+<li>On any of these "goodbye" Topics you can define a changeToState
+property which defines the ActorState the actor should switch to following 
+the goodbye, e.g. <code>changeToState = bobSweeping</code>. Note that this 
+does not have to be the same state as the one the actor switched from 
+when the conversation started; after all, it may be that the conversation 
+changed the actor's mind about what they should be doing next!</li>
 </ul>
 
-<p>The InConversationState is also a subclassed ActorState with a few
-added methods and properties you can define:
+<p>(Note for users coming from adv3: In adv3Lite there is no ConversationReadyState 
+or InConversationState class, and the rule about which state to put HelloTopics 
+and GoodByeTopics is a little different: in adv3Lite the Hello and Goodbye Topics 
+should be located in the ActorState that's expected to be acitve at the point 
+the greeting or farewell is issued).</p>
 
-<ul>
+<p>The converational ActorState can also define an attentionSpan
+property  - this is an integer giving the number of turns the
+actor should wait before giving up on the conversation.  If the other 
+character doesn't talk to our NPC for this many turns,
+we'll automatically terminate the conversation. The default is
+nil, meaning the Actor will never terminate the conversation this 
+way.
 
-<li>attentionSpan - this is an integer giving the number of turns the
-actor should wait before giving up on the conversation.  The default is
-4.  If the other character doesn't talk to our NPC for this many turns,
-we'll automatically terminate the conversation, switching to our next
-state.
-
-<li>nextState - this is an ActorState object, which should usually be
-of the ConversationReadyState subclass, which follows the conversation's
-termination.  When we terminate the conversation, we'll switch to this
-state.  You don't have to override this; if you don't, we'll remember
-the state that the actor was in just before the conversation, and switch
-back to that state when the conversation ends.
-
-</ul>
-
-<p>Of course, you can also define the ordinary ActorState properties
-and methods, since InConversationState is just a subclass of
-ActorState.  In particular, an InConversationState should usually
-have its own custom description properties for the actor, describing
-the actor as specifically being in conversation with the player
-character.
 
 <p>Here's an example of how we might implement the conversation shown above.
 
 <p><pre>
-  bob: Actor
+  bob: Actor 'Bob;;;him'
     // normal definitions for 'bob'...
   ;
 
-  + InConversationState
-    specialDesc = "An older man is here, leaning on his broom, talking
-      with you. "
-    stateDesc = "He's leaning on his broom while you talk. "
-  ;
-
-  ++ ConversationReadyState
+  + bobSweeping: ActorState 
     specialDesc = "An older man is here, sweeping the porch. "
     stateDesc = "He's sweeping the porch. "
+    
+    isInitState = true
   ;
 
-  +++ HelloTopic, StopEventList
+++ HelloTopic, StopEventList
       ['&lt;q&gt;Excuse me,&lt;/q&gt; you say.
        &lt;.p&gt;The man sees you and stops sweeping.  &lt;q&gt;Howdy, stranger.
        What can I do you for?&lt;/q&gt;&lt;.p&gt;',
@@ -1106,16 +1105,29 @@ character.
        &lt;q&gt;Oh, hello again.&lt;/q&gt;&lt;.p&gt;',
 
        '&lt;q&gt;Hello,&lt;/q&gt; you say.
-       &lt;.p&gt;Howdy,&lt;/q&gt; the man replies, halting his sweeping.&lt;.p&gt;']
+       &lt;.p&gt;Howdy,&lt;/q&gt; the man replies, halting his sweeping.&lt;.p&gt;'] 
+       
+       changeToState = bobTalking
   ;
 
-  +++ ByeTopic, StopEventList
+  + bobTalking: ActorState
+    specialDesc = "An older man is here, leaning on his broom, talking
+      with you. "
+    stateDesc = "He's leaning on his broom while you talk. "
+  ;
+  
+
+  ++ ByeTopic, StopEventList
       ['&lt;q&gt;Thanks,&lt;/q&gt; you say.  He nods and returns to sweeping.&lt;.p&gt;']
+      
+      changeToState = bobSweeping
   ;
 
-  +++ ImpByeTopic, StopEventList
+  ++ ImpByeTopic, StopEventList
       ['The man returns to his sweeping. ',
        'The man goes back to sweeping the porch. ']
+       
+     changeToState = bobSweeping
   ;
 </pre>
 
@@ -1138,18 +1150,19 @@ extra text right in the topic responses.
 
 <h3>Topic entry nesting with conversation states</h3>
 
-<p>When you create a ConversationReadyState and a corresponding
-InConversationState, and you want to create topics entry objects
+<p>When you create a non-conversational ActorState and a corresponding
+conversational  State, and you want to create topics entry objects
 (AskTopic, AskTellTopic, etc.) that are specific to the conversation,
 you should be sure to put the topic entries inside the
-InConversationState.  The same thing applies to TopicGroup objects.
+conversational State.  The same thing applies to TopicGroup objects.
 
-<p>A ConversationReadyState always switches the
-actor to the InConversationState upon receiving any conversational
-command (ASK, TELL, etc.), so a ConversationReadyState will never
+<p>If, because of the greeting topics you define,
+the non-conversational AcgtorState always switches the
+actor to the conversational ActorState upon receiving any conversational
+command (ASK, TELL, etc.), the non-conversational State will never
 be in effect long enough to field any topic look-ups.  Thus, if you
-were to put any topic entries inside a ConversationReadyState,
-they'd never be found.
+were to put any topic entries inside such a non-converastional 
+ActorState, they'd never be found.
 
 <h3>Greetings and NPC memory</h3>
 
@@ -1175,36 +1188,30 @@ a separate "master" event list.  Here's how we could extend the
 example above to handle NPC memory across multiple states:
 
 <p><pre>
-  bob: Actor
+  bob: Actor 'Bob;;;him'
     // normal definitions for 'bob'...
   ;
 
-  + InConversationState // ...same as before...
-
-  ++ ConversationReadyState // ...same as before...
-
-  +++ bobSweepingHello: HelloTopic, StopEventList
+  + bobSweeping: ActorState // ...same as before...
+  
+  ++ bobSweepingHello: HelloTopic, StopEventList
     // same definitions as earlier
   ;
 
-  +++ ByeTopic, StopEvenList // ...same as before...
+  + bobTalking: ActorState // ...same as before...
+  
 
-  +++ ImpByeTopic // ...same as before...
+  ++ ByeTopic, StopEvenList // ...same as before...
 
-  + InConversationState
-    specialDesc = "An older man is here, standing next to a partially-built
-      pyramid of soup cans, talking with you. "
-    stateDesc = "He's standing next to the soup can pyramid while you talk. "
-  ;
+  ++ ImpByeTopic // ...same as before...
 
-  ++ ConversationReadyState
+  + bobStackingState: ActorState
     specialDesc = "An older man is here, unpacking
       a crate of soup cans and building a pyramid out of the cans. "
     stateDesc = "He's unpacking a crate of soup cans, building a
       pyramid out of the cans. "
-  ;
-
-  +++ HelloTopic, SyncEventList
+      
+    +++ HelloTopic, SyncEventList
     ['&lt;q&gt;Excuse me,&lt;/q&gt; you say.
      &lt;.p&gt;The man puts down his soup cans and turns to
      talk with you.  &lt;q&gt;Howdy, stranger. What can I do you
@@ -1219,18 +1226,25 @@ example above to handle NPC memory across multiple states:
      can-stacking to talk.&lt;.p&gt;']
 
     masterObject = bobSweepingHello
+    
+    changeToState = bobTalking2
   ;
+  
+
+  + bobTalking2: ActorState
+    specialDesc = "An older man is here, standing next to a partially-built
+      pyramid of soup cans, talking with you. "
+    stateDesc = "He's standing next to the soup can pyramid while you talk. "
+  ; 
 </pre>
 
-<p>We've made only one change to the original code: we gave the
-ConversationReadyState a name, so that we can refer to it elsewhere in
-our code.  Then, we added the second InConversationState and
-ConversationReadyState pair, for a new state where the character is
+<p>We've added the second converastional and
+non-conversational state pair, for a new state where the character is
 building a pyramid out of soup cans.  This time, we created a greeting
 list using a SyncEventList rather than a StopEventList, and we pointed
 the SyncEventList to the event list from the "sweeping" state, by
 setting the SyncEventList's masterObject property.  This is why we had
-to give the original conversation-ready state a name: we need to refer
+to give the original HelloTopic  a name: we need to refer
 to it in the masterObject property of the synchronized list.
 
 <p>Now that we've tied the two greeting lists together, they'll
@@ -1239,6 +1253,9 @@ first greeting in one of the lists, we won't see the first greeting in
 the other list in a subsequent conversation, because both lists will
 advance their positions in unison.
 
+<p>For more details of Greeting Protocols in adv3Lite, see the 
+<a href='../manual/hello.htm'>Hello and Goodbye</a> chapter in 
+the <i>Adv3Lite Library Manual</i>.
 
 <h2>Threaded conversations</h2>
 
@@ -1524,13 +1541,9 @@ the NPC that issued the response to the named conversation node.  The
 name is just a string; you use the same string to identify the ConvNode
 when you define it.  We'll see an example shortly.
 
-<p>You can also set the tree position explicitly.  Simply call the
-NPC's setConvNode() method, passing the new conversation node name as
-the parameter.  This can be useful for situations where you want the
-NPC to initiate a conversation.
-
 <p>Note that the &lt;.convnode&gt; tag can be used <b>only</b> within
-a TopicEntry's response text.  The tag has this restriction because
+a TopicEntry's response text (or the actorSay() method of an AgendaItem).
+The tag has this restriction because
 the library doesn't have any idea which actor is supposed to be
 switching to the new ConvNode in other contexts.  The library only
 knows which actor is involved when the actor is specifically
@@ -1557,19 +1570,17 @@ after a response, simply put a &lt;.convstay&gt; tag within the
 response text.  This tells the library to stay put at the same
 conversation node that was in effect just before the response.
 
-<p>The InConversationState object automatically returns to a nil
-conversation node when leaving the in-conversation state.  When a
-conversation ends, we obviously don't want to leave the actor stuck in
-the middle of the conversation flow.
-
-<p>When an InConversationState is terminating the conversation, if
-there's a current ConvNode in the actor, the state object calls the
-ConvNode's method endConversation(actor, explicit) to let the node do
-anything special it needs to do.  For example, if the ConvNode
+<p>When something attempts to terminate the conversation, if
+there's a current ConvNode in the actor, the state object (or rather a 
+NodeEndCheck object located within the Convode) calls its (the NEC's) 
+canEndConversation (reason) to let the node object to ending the conversation.
+For example, if the ConvNode
 represents a point in the conversation where the NPC is expecting the
 player to answer a question, the ConvNode could let the NPC voice an
 objection to cutting off the conversation with the question
-unanswered.
+unanswered. In most situations, this behaviour can be defined on 
+properties on the ConvNode object (such as sayBlockBye or sayBlockLeave) 
+without our needing to explicitly define a NodeEndCheck object.</p>
 
 <h4>Topic entries inside ConvNodes</h4>
 
@@ -1621,7 +1632,7 @@ time, we'll get the regular response.
   // conversation position after ASK BOB ABOUT LIGHTHOUSE
   + ConvNode 'after-lighthouse';
 
-  // a special response when were in this conversation position
+  // a special response when we're in this conversation position
   ++ AskTellTopic @troublesTopic
     "&lt;q&gt;What troubles&lt;/q&gt; you ask.
     &lt;.p&gt;Bob stares down the street [...]"
@@ -1629,7 +1640,7 @@ time, we'll get the regular response.
 </pre>
 
 <p>Note that we haven't changed all that much from the earlier
-incarantion of this example.  One change is that we've reworded the
+incarnation of this example.  One change is that we've reworded the
 AltTopic text for the "troubles" response so that it no longer assumes
 that Bob just mentioned the troubles: rather than starting with simply
 "What troubles?", we start with "What were the 'troubles' you
@@ -1812,7 +1823,8 @@ library provides a menu-like alternative that seeks to retain more of
 the flavor of the traditional text game user interface.
 
 <p>This alternative is provided by something called the "special
-topic," which is implemented by the class SpecialTopic.  A special
+topic," which is implemented by two subclasses of the SpecialTopic class:
+SayTopic and QueryTopic. A special
 topic is a kind of topic database entry (SpecialTopic is a subclass
 of TopicEntry, just like AskTopic and TellTopic and the rest).  Like
 the other kinds of topic entries, a special topic has response text
@@ -1827,7 +1839,7 @@ VerbRule or any other part of the normal grammar; special topics
 bypass the normal parser.
 
 <p>Here's an example of a conversation node that includes some
-special topics:
+SayTopics:
 
 <p><pre>
   Bob: Actor // ...
@@ -1842,47 +1854,43 @@ special topics:
   ;
 
   + ConvNode 'affair';
-  ++ SpecialTopic 'comfort him' ['comfort', 'bob', 'him']
+  ++ SayTopic 'comfort him; bob' 
     "&lt;q&gt;There, there [...] "
+    
+    includeSayinName = nil
   ;
-  ++ SpecialTopic 'call him a liar' ['call', 'bob', 'him', 'a', 'liar']
+  ++ SayTopic 'call him a liar; bob' 
     "&lt;q&gt;You're so full of crap, Bob [...] "
+    
+    includeSayinName = nil
   ;
 </pre>
 
-<p>Each SpecialTopic definition has three main standard pieces: the
-string to show in the topic inventory list; the list of keywords that
+<p>Each SayTopic definition has two main standard pieces: the
+string to show in the topic inventory list; the list of additional words that
 will match against the player's input; and the response text.  The
 inventory list string should be something that can be tagged onto
 "you could..." (for the English version, at least; other languages
-may vary).  The keyword list is just a list of strings to match; if
-the player's input consists entirely of words from this list, then
-the special topic will be activated.  The response text is the same
-as for any other topic entry.
+may vary).  The additional word list is simply a set of words that 
+can match this SayTopic in addition to those in the name. The two 
+are put together in a single string with a semicolon separating the two,
+rather like a vocab string (in fact, it is a vocab string).
 
 <p>There are several things to note about the way the library matches
-player input to a special topic.  The normal parsing rules don't
-apply; the special topic matching is done before any normal parsing
-is done.  The library only looks for special topics in the current
-ConvNode for the actor to whom the player character is currently
-speaking, and only considers special topics that are active (as
-indicated by the isActive property).  The library checks each of these
-active special topics; it matches the player's entire command line
-against the keyword list.  If every word the player typed in matches
-a keyword in the list, the special topic matches.  (The player's
-input doesn't have to contain all of the words in the keyword list,
-but all of the player's words have to be in the keyword list.)
-<b>Exactly one</b> active special topic must match for it to be
-selected.  If none of the active special topics match the player's
-input, or if more than one of them match, the library ignores the
-special topics and treats the player's input as an ordinary command.
-The reason that the library ignores multiple matches is that it
-assumes that the player's input must consist entirely of very common
-words if it matches more than one special topic, so chances are that
-the player didn't intend to select something as exotic as a special
-topic command.  In other words, the parser assumes that the special
-topic match is mere coincidence if the input isn't specific enough
-to select a unique special topic.
+player input to a special topic. Behind the scenes the library creates 
+a Topic object that uses the SayTopic's vocab as its own vocab and will
+be parsed in just the same way. This means that the SayTopic will be matched 
+in just the same way as if we had defined a callHimALiar Topic with the same 
+vocab and had written <code>SayTopic @callHimALiar</code>. There's one 
+important difference though. Although SayTopics will match an explicit
+SAY command (e.g., SAY COMFORT BOB), since this will often not be a natural 
+way to phrase the command, if there is a conversation in progress, the parser 
+will assume that any input it doesn't otherwise understand is an implicit 
+SAY command with the SAY part missing (so that CALL HIM A LIAR will effectively
+be parsed as SAY CALL HIM A LIAR). One downside of this is that if the vocabulary 
+needed to trigger a SayTopic looks like a valid command, that command will be 
+executed instead (though that probably won't happen often in practice and 
+can probably be avoided with care).</p>
 
 <p>The keyword list is easy to program, but sometimes it's not flexible
 enough.  For cases where you need more control, you can replace the keyword
@@ -1890,21 +1898,30 @@ list with a single string containing an arbitrary regular expression.
 If the entire player's input matches the regular expression, then the
 special topic will match.
 
-<p>Special topics are always nested within ConvNode objects.
-Inherent in the idea of a special topic is that its special command
-is meaningful only at a particular point in a conversation, which is
-what a ConvNode represents.  The nesting of a special topic within a
-ConvNode is done using the special topic's 'location' property, as
-you'd expect.
+<p>Unlike in adv3, Special topics (SayTopics and QueryTopics) 
+don't need to be nested within ConvNode objects; they can be used 
+wherever any other kind of ActorTopicEntry can be used.
 
 <p>Because a special topic's triggering command is completely custom,
 it would be unreasonable to force the player to guess at its command.
-Therefore, special topics are automatically entered into the topic
+Therefore, SpecialTopics are automatically entered into the topic
 inventory as suggestions.  What's more, whenever a ConvNode becomes
 active, and the ConvNode has one or more active special topic
 objects, the library will automatically show a topic inventory
 listing.  This means that the player will always be shown any
 available special topics when they become available.
+
+<p>The includeSayInName property of a SayTopic controls how a SayTopic 
+is listed in a topic inventory. If includeSayInName is true (the default)
+the SayTopic's name will be preceeded by "say" (e.g. "you could say you're
+sorry"). If, as here, the "say" would look out of place, we can suppress 
+it by setting includeSayInName to nil.
+
+<p>A QueryTopic is similar to a SayTopic, except that it can be used 
+to ask questions that don't conform to the ASK ABOUT WHATEVER format 
+or ordinary AskTopics. For example we could use QueryTopics to handle 
+commands like ASK BOB WHERE THE LIGHTHOUSE IS or ASK WHEN THE TROUBLES 
+STARTED.
 
 <p>In a way, special topics resemble conventional menu systems, since
 they amount to enumerated lists of choices.  There are important
@@ -1918,8 +1935,12 @@ input for the player is also consistent with the normal command-line
 user interface: the user simply types in the command as suggested in
 the topic inventory.  Third, the user interface isn't modal, as
 conversation menus often are: the game shows an ordinary command
-prompt, and the player can select a special topic if she wants, but
+prompt, and the player can select a special topic if they want, but
 can just as well enter any ordinary command.
+
+<p>For further information about AskTopics and QueryTopics, see the 
+chapter on <a href='../manual/specialtopic.htm'>Special Topics</a> in 
+the Adv3Lite Library Manuual</i>.
 
 <h2>NPC-driven conversations</h2>
 
@@ -1941,21 +1962,36 @@ kind of code:
 
 <ul>
 
-<li>In an NPC's background-action script, usually in the ActorState's
+<li>In an NPC's background-action script, usually in the Actor's
 takeTurn() method or the Actor's idleTurn() method.  This approach lets
 the NPC start a conversation as part of its turn when some condition
 has become true; for example, this could be used to start a conversation
-as soon as the player character enters the NPC's location.
+as soon as the player character enters the NPC's location. Be careful 
+when overriding this method, though, since it already does quite a bit 
+of housekeeping, so you'd need to be sure to include a call to 
+<code>inherited()</code> in any customization.</p>
 
 <li>In the beforeAction() or afterAction() method of the Actor or
 ActorState.  This lets the NPC start a conversation in response to a
 command carried out by the player character in the NPC's presence.
 
-<li>In the NPC's handler for a SensoryEvent.  This lets the NPC
+<li>In the NPC's handler for a SensoryEvent (assuming the Sensory extension 
+is present so that SensoryEvents can be defined).  This lets the NPC
 initiate a conversation upon observing some transient event.
 
+<li>By calling initiateTopic(top) on the actor object, which will trigger 
+the matching InitiateTopic (a special kind of TopicEntry). 
 </ul>
 
+<p>For more information on NPC Initiation, see the chapter on 
+<a href='../manual/initiate.htm'>NPC-Initiated Conversation</a>
+in the <i>Adv3Lite Library Manual</i>,
+
+<p><i>Note - the initiateConversation() method discuseed below doesn't exist in adv3Lite,
+although a comment in the library code suggests it was once intended, 
+so ignore this italicised section for now. I may go back and see if 
+there's any merit in adding an initiateConversation() method to the 
+adv3Lite Actor class in due course.</p>
 <p>In any of these cases, the code you have to write in the NPC to
 start a conversation is the same: you call the Actor's
 initiateConversation(state, node) method.  The 'state' parameter is an
@@ -2015,7 +2051,7 @@ NPC start a conversation with a question, using TopicEntry objects
 within the initial ConvNode to handle the answers - you can use
 YesTopic and NoTopic objects inside the ConvNode to handle YES and NO
 answers to the NPC's question, for example.
-
+</i>
 <h3>NPC continuation</h3>
 
 <p>It's unusual in IF for an NPC to take the lead in a conversation,
@@ -2038,16 +2074,16 @@ offer something new to keep the conversation moving.
 
 <p>The library has a feature that lets you simulate these effects,
 so that the NPC can "continue" a conversation even if the player
-is doing other things.  This feature is managed through the ConvNode
+is doing other things.  This feature can be managed through the ConvNode
 object, because this keeps the NPC's continuation remarks together
 with the conversation context.  Specifically, each ConvNode object
-can optionally define the property npcContinueMsg as a double-quoted
-string to display.  Alternatively, a ConvNode can define npcContinueList
-as an EventList subclass, giving a list of strings to display.
+can optionally define the property nodeContinuationMsg as a double-quoted
+string to display or as an EventList subclass, giving a list of strings 
+to displa, or as a method to output text.
 
-<p>The InConversationState class automatically displays the current
-ConvNode's continuation message (using either npcContinueMsg or
-npcContinueList, as appropriate) on each turn on which the ConvNode is
+<p>The library automatically displays the current
+ConvNode's continuation message (using either nodeContinuationMsg or
+a NodeContinuationTopic as appropriate) on each turn on which the ConvNode is
 active, <i>and</i> the player didn't address a conversational command
 to the NPC on the same turn.  The second part of the condition is
 important, because it means that the continuation message will only be
@@ -2154,7 +2190,7 @@ class helps structure the code for actors that can exhibit several
 different behaviors; TopicEntry and related classes let you build a
 database of knowledge for your characters, and help manage the
 database as character knowledge and game conditions change;
-ConversationReadyState and InConversationState help give interactions
+ActorStates help give interactions
 the form of real conversations; ConvNode lets you create internal
 context and structure within a conversation; and SpecialTopic lets
 you go beyond ASK/TELL when conversations require more nuance.

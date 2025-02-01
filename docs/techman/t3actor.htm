@@ -17,7 +17,12 @@ Creating Dynamic Characters
 </div>
 <div class="main">
 <h1>Creating Dynamic Characters</h1>
+<h2>(Adapted for adv3Lite by Eric Eve)</h2>
+<p>Editor's Note: the adaptation required here turned out to be fairly minimal 
+apart from the discussion of following and accomanying actors.</p>
 
+
+<h2>Introduction</h2>
 <p>This article's title makes it sound like one of those how-to books
 for novice writers, doesn't it?  Make your characters more exciting,
 dynamic, and lifelike!  Make them leap off the page with their
@@ -446,10 +451,10 @@ custom code relating to the behavior.  This always works the same
 way, no matter how many different behaviors the actor has.  To add a
 new behavior, you just define a new object along the lines of the
 "ifHairOnFireObj" object - we don't have to touch the Actor itself.
-To activate the behavior, call the actor's "setCurState(state)" method,
+To activate the behavior, call the actor's "setState(state)" method,
 passing the new state object as the parameter.
 
-<p>The TADS 3 library implements exactly this set-up.  The nice thing
+<p>The adv3Lite library implements a version of this set-up.  The nice thing
 is that all of the basic wiring is pre-defined in the Actor object -
 you won't have to write all of those calls to curState.thisAndThat()
 yourself.
@@ -457,8 +462,7 @@ yourself.
 <h3>The ActorState class</h4>
 
 <p>The class that defines an actor's current behavior is called
-ActorState.  The library pre-defines several subclasses of ActorState
-for special situations.  The base ActorState class itself can be
+ActorState.  The ActorState class itself is 
 used directly, and provides a suitable set of defaults that will
 work for most actors without further customization.  Of course,
 the whole point is to make further customization easier, but the
@@ -505,8 +509,6 @@ is the description displayed in the room description (for example,
 when entering the room, or in response to a LOOK command).  By default,
 we'll invoke the actor's actorHereDesc method.
 
-<li>obeyCommand(issuingActor, action) - determine if we should obey
-the given action.  By default, we'll simply refuse all commands.
 
 <li>beforeAction(), afterAction() - these give the state object a
 chance to react to an action.  The Actor's beforeAction() and
@@ -514,7 +516,7 @@ afterAction() methods (respectively) call these on the current state
 object, so these simply let you put reaction code with the state
 rather than with the actor.
 
-<li>beforeTravel(traveler, connector), afterTravel(traveler, Connector) -
+<li>beforeTravel(traveler, connector), afterTravel(traveler, connector) -
 like beforeAction() and afterAction(), the Actor forwards these calls
 to the ActorState, to give the state object a chance to respond.
 
@@ -526,9 +528,14 @@ is active, and another state is about to be activated for the actor.
 
 </ul>
 
+<p>Plus some others you can read about in the chapter on 
+ <a href='../manual/actorstate.htm'>Actor States </a> in 
+ the <i>Adv3Lite Library Manual</i>
+
+
 <h3>Hermit states</h4>
 
-<p>The library defines a subclass of ActorState called HermitActorState.
+<p>An ActorState can be made a Hermit state by defining its noReponse property.
 This is useful in a situation that comes up frequently: an actor becomes
 temporarily unresponsive, because the actor is busy doing something else.
 
@@ -537,7 +544,7 @@ normal description messages, and add a message to respond to any
 sort of interaction (ASK, TELL, GIVE, SHOW, HELLO, etc).
 
 <p><pre>
-  + bobStackingCans: HermitActorState
+  + bobStackingCans: ActorState
     stateDesc = "He's stacking cans into a pyramid. "
     specialDesc = "Bob is here, carefully building a pyramid of cans. "
     noResponse = "He seems to be deep in concentration; you
@@ -568,11 +575,6 @@ initializing the actor.
 <p>If all of this sounds like it's way too complex for your simpler
 NPCs, don't worry.  ActorState objects are completely optional.
 
-<p>If you never give an Actor an explicit ActorState object, then the
-library will automatically create a default ActorState object for
-the Actor during pre-initialization.  This means that you don't have
-to create an ActorState object at all for simple, static actors.
-
 <p>Furthermore, you can always customize an Actor directly in the
 Actor.  Reading the description of ActorState, you might have been
 worried that, since so much functionality is farmed out to the
@@ -589,11 +591,13 @@ by overriding the appropriate Actor methods.
 <h3>Agendas</h3>
 
 <p>One way that you can make an actor do things on its own is by
-programming background activities in the takeTurn() method in an
-ActorState object, or in the idleTurn() method in the Actor itself.
+programming background activities in the takeTurn() 
+on the Actor itself.
 For the bulk of NPCs, the only thing you want the actor to do on its
 own is display some random background activity messages; for such
-simple actors, the takeTurn() approach is fine.  In some cases,
+simple actors, you can mix in an ActorState with an EventList 
+class and define the random background activity messages on its 
+eventList property.  In some cases,
 though, we want an actor to show some more complex type of initiative,
 and procedural scripting can quickly become unwieldy for this.  The
 library has a mechanism called "agendas" that can help.
@@ -719,161 +723,18 @@ would be much nicer to have the travel actually described as group
 travel, rather than looking as though the others are just happening
 to straggle in after the player character.
 
-<p>The TADS 3 library provides a mechanism that improves this
-situation greatly.  A couple of actor state subclasses, provided
-by the library, help out with this.
+<p>For the situation where we want the NPC to lead or guide the 
+the Player Character, we can use a 
+<a href='../manual/agenda.htm#followagenda'>FollowAgendaItem</a>.
 
-<p>The "accompanying travel" mechanism in the library works by
-sending the accompanying actor on ahead of the player character,
-rather than having the actor straggle in afterwards.  This might
-seem like it's substituting one inelegant sequence of messages for
-another, but the advantage is that it lets you customize both the
-"before" and "after" messages.  For our Blurg guard example, we could
-get this much better effect:
-
-<p><pre>
-  &gt;north
-  The lead guard prods you on.
-
-  <b>Cell Block</b>
-  This is a narrow north-south corridor, lined on
-  either side by closed cell doors.
-
-  The guard scowls.  "Keep going, puny earthling."
-</pre>
-
-<p>What we've done is taken over the actor-departing and
-actor-is-here messages.  These messages are handled by the state
-object, and for accompanying travel, we activate a special state
-object instance (based on the library-defined AccompanyingInTravelState
-subclass) for the duration of the travel.
-
-<p>The first message, before the room description appears, is
-actually the actor-departing message; rather than seeing "The Blurg
-guard leaves to the north," we see this special custom message,
-courtesy of our state object.  The second message, "The guard scowls,"
-is the actor-is-here message, also from the state object.
-
-<p>Setting up accompanying travel is pretty straightforward.  There
-are two parts: first, triggering the accompanying travel in the first
-place; and second, customizing the before and after messages generated
-during the group travel.
-
-<h3>Triggering accompanying travel</h3>
-
-<p>Accompanying travel is controlled by the ActorState object of the
-NPC who's traveling with the player character.  So, in our Blurg
-example above, we'd have to customize the ActorState object of the
-Blurg guard.  
-
-<p>To make an actor accompany another actor, the actor's state must
-inherit from AccompanyingState.  You can use AccompanyingState as a
-mix-in to other ActorState subclasses - we could, for example,
-combine AccompanyingState with HermitActorState to define an escort state.
-
-<p>In our state object, we have to define a couple of methods that
-control how the accompanying travel is carried out.  First, we define
-accompanyTravel(), which decides whether or not we should accompany a
-particular actor for a particular travel action.  This method returns
-true to accompany the travel, nil to ignore it.  Second, we define
-getAccompanyingTravelState(), which gives us a state object to use
-temporarily during the travel operation.
-
-<p>In most cases, we'll want to accompany the player character, so
-our accompanyTravel() method will check to see if the actor doing the
-traveling is the player, and accompany the travel only if it is.  The
-method can also look at the travel connector that will be used for
-the departure, so it can selectively choose to travel with the other
-actor only to certain places.
-
-<p>Here's how an escort state object might look:
-
-<p><pre>
-  blurgEscortState: AccompanyingState, HermitActorState
-    specialDesc = "The Blurg guard is keeping his hyperlaser
-      trained on you. "
-    stateDesc = "He has his hyperlaser pointed straight at you. "
-
-    accompanyTravel(leadActor, conn) { return leadActor == gPlayerChar; }
-    getAccompanyingTravelState(leadActor, conn)
-      { return new BlurgEscortTravelState(location, leadActor, self); }
-    
-    noReponse = "Silence, feeble human! "
-  ;
-</pre>
-
-<p>We'll see shortly why we defined getAccompanyingTravelState().
-
-<h3>Customizing the travel messages</h3>
-
-<p>Once you've overridden accompanyTravel() in the ActorState to
-return true, your NPC will accompany the player character
-automatically.  However, there's usually one extra thing you want to
-customize, which is the set of messages displayed during the group
-travel.  To do this, you need to create a custom subclass of another
-library class, AccompanyingInTravelState.
-
-<p>By default, if you don't override getAccompanyingTravelState() in the
-state object that initiates the travel, you'll get an instance of the
-base AccompanyingInTravelState class.  This uses generic messages for
-the group travel.  For the "before" message, it displays something
-like "The Blurg guard comes with you," and for the "after" message,
-it displays the ordinary specialDesc for the NPC.
-
-<p>To override these, create your own custom subclass of
-AccompanyingInTravelState, and override a couple of methods:
-
-<p><pre>
-   class BlurgEscortTravelState: AccompanyingInTravelState
-     sayDeparting(conn) { "The Blurg guard prods you onward. "; }
-     specialDesc = "&lt;q&gt;Keep moving, human scum!&lt;/q&gt; the 
-       Blurg guard growls. "
-   ;
-</pre>
-
-<p>The "before" message is sayDeparting(), and the "after" message
-is specialDesc.
-
-<h3>Guided Tours</h3>
-
-<p>The library has a pre-defined actor state subclass that makes it
-easy to set up "guided tours," where an NPC escorts the player
-character through a series of locations.  To set up a guided tour,
-you create one GuidedTourState object for each location on the
-tour.  At the appropriate point, you call your NPC's setCurState() method
-to activate your special GuidedTourState object for the first location
-on the tour; the guided tour class will take it from there.
-
-<p>In defining each GuidedTourState, you need to define two properties:
-escortDest, which gives the travel connector that connects to the next
-location on the tour; and stateAfterEscort, which gives your special
-GuidedTourState object for the next stop on the tour.
-
-<p>The library class uses a set of messages that's suitable for a
-wide range of guided tours, but you might want to customize these.
-To use your own messages, you simply need to create your own subclass
-of GuidedTravelState - this is a subclass of AccompanyingInTravelState
-that the library uses by default during guided tours.  You can use
-your own custom subclass of GuidedTravelState instead by setting
-the property escortStateClass in the GuidedTourState object to
-refer to your custom subclass.
-
-
-<h3>Extending accompanying travel</h3>
-
-<p>Accompanying travel can be as customized or general as you want.
-For a sidekick character, you probably won't want to worry about
-customizing the travel too much, since the sidekick will likely visit
-almost every location in the game with the player character.  For
-this kind of thing, the defaults work fine; the defaults are really
-set up for sidekicks more than anything else, in fact.  Likewise,
-the base "guided tour" class is suitable without customization for
-a wide range of guided tour situations.
-
-<p>There are times when you might want to customize group travel
-so much that every move is special.  This isn't hard; it's just a
-matter of creating a series of custom state objects, one for each
-travel action.
+<p>If we want the NPC to follow the Actor we can call startFollowing() 
+on the Actor object. To stop the Actor following the player character 
+we call stopFollowing(). To describe the Actor following the player 
+character from one location to another we can define sayFollowing(oldLoc) 
+on the Actor's current ActorState or actorSayFollowing(oldLoc) on the Actor,
+where <i>oldLoc</i> is the location the Actor has just carried the 
+player character from. The location the Actor has just followed the player 
+character to can be obtained from gLocation or (if different) gOutermostRoom.</p
 
 </div>
 <hr class="navb"><div class="navb">

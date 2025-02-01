@@ -770,6 +770,12 @@ modify Actor
     }
     
     /* 
+     *   setConvNode() is effectively a synonym of addPendingKey(), but is a more intuitive name if
+     *   what we want to do is to set this actor's current convnode.
+     */
+    setConvNode(vel)  { addPendingKey(val); }
+    
+    /* 
      *   A list of the convKeys triggered by the most recent TopicEntry with a keyTopics property.
      *   For internal library use only.
      */
