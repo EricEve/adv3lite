@@ -2425,7 +2425,16 @@ class TIAction: TAction
         return true;
     }
     
-   
+    /* 
+     *   These three methods so nothing by default, but provide hooks for implementing multimethod
+     *   TIAction handling. The idea is that in code that makes use of this they would call
+     *   verifyWhateveAction, checkWhateverAction and ActionWhateverAction multimethod functions
+     *   (depending on the particular action.
+     */
+    mmVerify(dobj, iobj) { }
+    mmCheck(dobj, iobj) { }
+    mmAction(dobj, iobj) { }
+    
 ;
 
 /* 

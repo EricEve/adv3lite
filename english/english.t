@@ -5771,6 +5771,17 @@ modify Action
 ;
 
 modify TAction
+    /* 
+     *   The verbPhrase to use for this object when constructing implicit action reports. By default
+     *   we just return the verbPhrase defined on our verbRule but game code can override this to
+     *   return a a custom verbPhrase for a particular object (or, on a TIAction, combination of
+     *   objects).
+     */
+    vPhrase(dobj, iobj?)
+    {
+        return verbRule.verbPhrase;
+    }
+    
      /* get the verb phrase in infinitive or participle form */
     getVerbPhrase(inf, ctx)
     {
@@ -5789,7 +5800,8 @@ modify TAction
         dobjText = dobj.theName;
 
         /* get the phrasing */
-        ret = getVerbPhrase1(inf, verbRule.verbPhrase, dobjText, dobjIsPronoun);
+//        ret = getVerbPhrase1(inf, verbRule.verbPhrase, dobjText, dobjIsPronoun);
+        ret = getVerbPhrase1(inf, vPhrase(dobj), dobjText, dobjIsPronoun);
 
         /* return the result */
         return ret;
@@ -5886,8 +5898,10 @@ modify TIAction
         iobjText = (iobj != nil ? iobj.theName : nil);
 
         /* get the phrasing */
-        ret = getVerbPhrase2(inf, verbRule.verbPhrase,
+        ret = getVerbPhrase2(inf, vPhrase(dobj, iobj), 
                              dobjText, dobjIsPronoun, iobjText);
+//         ret = getVerbPhrase2(inf, verbRule.verbPhrase,
+//                             dobjText, dobjIsPronoun, iobjText);
 
         
         /* return the result */

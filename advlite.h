@@ -617,6 +617,21 @@ enum rmcDisambig;
     reportIobjProp = &reportIobj##name \
 
 /*
+ *   Modify a concrete TIAction to work with multimethods. This creates the base version of the
+ *   three multimethods needed then sets the relevant methods of the TIAction to call the relevant
+ *   multimethod.
+ */
+#define MMTIAction(name) \
+    verify ## name (Object dobj, Object iobj) {} \
+    check ## name (Object dobj, Object iobj) {} \
+    action ## name (Object dobj, Object iobj) {} \
+    modify name \
+    mmVerify(dobj, iobj) { verify ## name (dobj, iobj); } \
+    mmCheck(dobj, iobj) { check ## name (dobj, iobj); } \
+    mmAction(dobj, iobj) { action ## name (dobj, iobj); }
+
+
+/*
  *   The following macros relating to the TIAAction class are only relevant when
  *   the TIAAction extension is used. The macros are nevertheless included here
  *   for convenience when using the TIAAction extension.

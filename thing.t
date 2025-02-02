@@ -5739,10 +5739,7 @@ class Thing:  ReplaceRedirector, Mentionable
         preCond = [objHeld, objNotWorn]
         
         verify()
-        {
-            if(verifyPutIn(self, gVerifyIobj))
-                return;
-            
+        {            
             if(gVerifyIobj == self)
                 illogicalSelf(cannotPutInSelfMsg);   
             
@@ -5788,10 +5785,7 @@ class Thing:  ReplaceRedirector, Mentionable
         }
         
         check()
-        {
-            if(checkPutIn(gDobj, self))
-                return;
-            
+        {            
             /* 
              *   If we're actually a container-like object (our contType is In),
              *   check whether there's enough room inside us to contain the
@@ -5811,8 +5805,6 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(actionPutIn(gDobj, self))
-                return;
             
             /* 
              *   If we're actually a container-like object (i.e. if our contType
@@ -10728,20 +10720,20 @@ class Stance: object
  *   User-defined action multimethods should return nil if they want to add their behaviour to the
  *   library's behavious or true if they want to replace the library methods.
  */     
-verifyPutIn(Mentionable dobj, Mentionable iobj) { }
-checkPutIn(Mentionable dobj, Mentionable iobj) { }
-actionPutIn(Mentionable dobj, Mentionable iobj) { }
-
-verifyPutOn(Mentionable dobj, Mentionable iobj) { }
-checkPutOn(Mentionable dobj, Mentionable iobj) { }
-actionPutOn(Mentionable dobj, Mentionable iobj) { }
-
-verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
-checkPutBehind(Mentionable dobj, Mentionable iobj) { }
-actionPutBehind(Mentionable dobj, Mentionable iobj) { }
-
-verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
-checkPutUnder(Mentionable dobj, Mentionable iobj) { }
-actionPutUnder(Mentionable dobj, Mentionable iobj) { }
+//verifyPutIn(Mentionable dobj, Mentionable iobj) { }
+//checkPutIn(Object dobj, Object iobj) { }
+//actionPutIn(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutOn(Mentionable dobj, Mentionable iobj) { }
+//checkPutOn(Mentionable dobj, Mentionable iobj) { }
+//actionPutOn(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
+//checkPutBehind(Mentionable dobj, Mentionable iobj) { }
+//actionPutBehind(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
+//checkPutUnder(Mentionable dobj, Mentionable iobj) { }
+//actionPutUnder(Mentionable dobj, Mentionable iobj) { }
 
 
