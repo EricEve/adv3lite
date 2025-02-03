@@ -9,8 +9,8 @@
 <div class="topbar"><img src="topbar.jpg" border=0></div>
 <div class="nav">
 <a class="nav" href="toc.htm">Table of Contents</a> | 
-<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
-Implied Action Reports
+<a class="nav" href="depth.htm">Adv3Lite In Depth</a> &gt; 
+Implicit Action Reports
 <br><span class="navnp"><a class="nav" href="t3msg.htm"><i>Prev:</i> Message Parameter Substitutions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3lister.htm"><i>Next:</i> Lists and Listers</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
@@ -111,7 +111,7 @@ vase through an implicit action:</p>
 	  verify() {}
 	  action()
 	  {
-		  if(vase.meetsObjHeld(gActor);
+		  if(vase.isIn(gActor);
 		     tryImplicitAction(Drop, vase);
 		     
 		  "You give Myrtle a firm kiss on her lips, which makes her burst
@@ -217,33 +217,27 @@ key").</p>
 this verbPhrase to something like 'place/placing (what) gently on the
 floor' just before the implicit drop action report is generated. The
 best place to do this is probably in the
-<code>getImplicitPhrase()</code> method of the appropriate action:<p>
+<code>vPhrase(obj)</code> method of the appropriate action:<p>
 
 <p><pre>
-modify DropAction    
-    getImplicitPhrase(ctx)
+modify Drop  
+    vPhrase(dobj)
     {
-        if(dobjCur_ == vase)
-            verbPhrase = 'set/setting (what) gently on the floor';
+        if(dobj == vase)
+            return 'put/putting (what) carefully down on the floor';
         
-        return inherited(ctx);
+        return inherited(dobj);
     }    
 ;
 </pre><p>
 
-<p>When this modified code runs, it will run on an object of class
-DropAction that only exists for the duration on the implicit action
-being executed. This means that we don't need to worry about resetting
-<code>verbPhrase</code> back again to its normal value once we've
-finished with this action; any subsequent DROP will take its
-verbPhrase from VerbRule(Drop) and won't be affected by the change
-we've made to this particular action instance. Moreover since the
-method will be executed on the particular action instance we're
-interested in, we can test properties of the current (self) object
-(such as <code>dobjCur_</code> and <code>iobjCur_</code>) to get at
-the objects involved in the command, and we can change the
-<code>verbPhrase</code> on the current (self) object to get the effect
-we want. In this example we simply test whether the current direct
+<p>The <code>vPhrase(<i>dobj</i></code> method on a TAction obtains the verbPhrase to use 
+when constructing the implicit action report to be used when the action is 
+carried out implicitly. The <i>dobj</i> parameter is the direct object of the 
+current action. On a TIAction <code>vPhrase(dobj, iobj)</code> is called with 
+two parameters (the direct and indirect objects).
+
+In this example above  we simply test whether the current direct
 object is the vase, and if so we substitute our custom
 <code>verbPhrase</code> for the standard one. Implicitly dropping
 anything other than the vase will result in the standard message being
@@ -259,13 +253,10 @@ decide whether to use a custom phrase, and if so to supply that custom
 it. We could achieve this like so:</p>
 
 <p><pre>
-modify DropAction    
-    getImplicitPhrase(ctx)
+modify Drop   
+    vPhrase(dobj)
     {
-        if(dobjCur_.verbPhraseDobjDrop != nil)
-            verbPhrase = dobjCur_.verbPhraseDobjDrop;
-        
-        return inherited(ctx);
+        return dobj.verbPhraseDobjDrop  ?? inherited(dobj);      
     }    
 ;
 </pre><p>
@@ -304,187 +295,85 @@ the action is not implicit (since otherwise we'd see both custom
 messages - the implicit and the explicit ones - when the vase was
 dropped implicitly, which would not look good.)</p>
 
+<p>Note also that if you overrise vPhrase() along the lines of the 
+previous example, but don't go on to define the corresponding property 
+for that action on at least one game object, you'll get a compiler warning.</p>
+
 <p>The technique outlined here is easily generalizable and should cater for most implicit action phrase tweaking you're likely to do,  but there are a couple of further points to bear in mind:</p>
 
 <ul>
-<li>If a player sees an implicit action report like "(first setting the priceless antique vase carefully down on the ground)" s/he may very well suppose that this is a legitimate way to phrase the action, and so at some future point s/he'll try SET VASE CAREFULLY DOWN ON GROUND. It might be a good idea to modify or create a VerbRule to cater for this phrasing and its likely variants.</li>
+<li>If a player sees an implicit action report like "(first setting the priceless antique vase carefully down on the ground)" they may very well suppose that this is a legitimate way to phrase the action, and so at some future point s/he'll try SET VASE CAREFULLY DOWN ON GROUND. It might be a good idea to modify or create a VerbRule to cater for this phrasing and its likely variants. It might be better to make your customize verbPhrase reflect something the parser will understand, such as 'put/putting {what} down'.</li>
 <li>There's no reason why the technique outlined above shouldn't be extended to cover two-object commands, but what you'll then need to look out for is whether you want the direct object or the indirect object of the command to be the one providing the customized verbPhrase, or whether you want to give both objects the chance to provide a customized verbPhrase, in which case you'll need to decide which of the two is to take precedence.</li>
 </ul>
 
-<p>One further advantage of the approach described in this section is
-that it allows us to customize implicit action announcements from
-implicit actions generated by preconditions, as well as those
-generated by explicit calls to tryImplicitAction in our own code. At
-the end of the article we'll see how we can use tryImplicitActionMsg
-as an alternative way to customize implicit action reports, but this
-alternative won't work with the preconditions defined in the standard
-library.  <br>
-
 <h2>Modifying Framework Text</h2>
 
-<p>Modifying the framework text for implicit action reports is probably less useful to do and rather fiddlier to achieve, so we shall not spend a great deal of time discussing it. The difficulties are (1) finding where these bits of text are generated and then (2) customizing them, given that they turn out to be hard-coded in the depths of various methods.</p>
+<p>Modifying the framework text for implicit action reports is probably less useful to do, but not particularly difficult to achieve, these fragments are all defined in <a href='../manual/message.htm#dmsg'>BSMg </a>strings:</p>
 
-<p>We can address the first of these difficulties here by simply
-pointing out where in fact these pieces of text are defined in the
-standard library. The framing fragment, "(first...)\n" comes from
-standardImpCtx.buildImplicitAnnouncement(txt), but you'll actually
-find this method defined on the superclass
-ImplicitAnnouncementContext:</p>
-
-<p><pre>
-buildImplicitAnnouncement(txt)
-    {
-        /* if we're not in a list, make it a full, stand-alone message */
-        if (!isInList)
-            txt = '<./p0>\n<.assume>first ' + txt + '<./assume>\n';
-
-        /* return the result */
-        return txt;
-    }
-</pre></p>
-
-<p>This would be reasonably easy to customize if, for example, you
-wanted to change 'first' to 'having first' (you'd just modify
-standardImpCtx or ImplicitAnnouncementContext and define your own
-version of buildImplicitAnnouncement() accordingly).</p>
-
-<p>Similarly, the 'trying' that preceeds a failed implicit action
-comes from tryingImpCtx.buildImplicitAnnouncement, so that, for
-example, if you wanted such reports to read "(first attempting to open
-the door)" instead of "(first trying to open the door)" you could just
-modify tryingImpCtx and override buildImplicitAnnouncement
-accordingly:</p>
-
-<p><pre>
-modify tryingImpCtx    
-    buildImplicitAnnouncement(txt)
-    {    
-        if (!isInSublist)
-            txt = 'attempting to ' + txt;
-
-        /* now build the message into the full text as usual */
-        return inherited(txt);
-    }
-;
-</pre></p>
-
-<p>Trickier, and probably even less useful, to change are the
-separator parts of the implicit action report framework ("then", "and
-then" or just ","). If you really must change these, then the place to
-look is in the definition of the implicitAnnouncementGrouper object
-(defined in msg_neu.t). What you would need to do is to modify
-implicitAnnouncementGrouper, copy and paste the definition of the
-compositeMessage(lst) method into your own code, and then tweak the
-parts of the method you want to tweak (e.g. by changing 'then' to
-'next' wherever it occurs in a string). This is seldom likely to be
-all that worthwhile, but it would not in principle be all that
-difficult to do if you were really determined to put your own stamp on
-implicit action announcements.</p> <br>
-
-<H2>Silent Implicit Actions and tryImplicitActionMsg</H2>
-
-<p>We have covered most of the ways in which it is likely to be useful to customize an implicit action report, apart from two things:</p>
 <ul>
-<li>Suppressing implicit action reports altogether</li>
-<li>Making use of the 'official' mechanism for customizing implicit action reports - tryImplicitActionMsg.</li>
+<li>BMsg(implicit action report start, '&lt;.assume&gt;first ')</li>
+<li>BMsg(implicit action report separator, ' then ')</li>
+<li>BMsg(implicit action report terminator, '&lt;./assume&gt;\n')</li>
+<li>BMsg(implicit action report failure, 'trying to ') </li>
 </ul>
 
-<p>As it so happens, these things are closely related, since
-suppressing an implicit action report altogether is probably the most
-practical use of tryImplicitActionMsg. In particular, if, say, we
-wished to carry out an implicit DROP VASE command without any implicit
-action report at all, we'd just use:</p>
-
+<p>So, if we wanted to, we could change all these fragments using a <a href='../manual/message.htm#custmessage_idx'>CustomMessages</a>
+object:</p>
 <p><pre>
-tryImplicitActionMsg(&amp;silentImplicitAction, Drop, vase);
-</pre><p>
-
-<p>The one limitation is that we can only use this in place of
-tryImplicitAction when we're explicitly calling it from our own code;
-if the implicit action report is coming from a precondition we'd have
-to modify the precondition to replace the silent implicit action with
-the implicit action the precondition was currently using (though it's
-hard to see why anyone would <i>want</i> to do this, since failing to
-report the implicit action is likely to confuse the player).</p>
-
-<p>To give a slightly fuller explanation: what
-tryImplicitActionMsg(&amp;msgProp, action, ...) does is to try the
-implicit action and to construct the corresponding report using the
-msgProp property of libMessages in place of the
-announceImplicitActionMsg property (of libMessages) that would
-normally be used. Thus:<p>
-
-<p><pre>tryImplicitAction(Drop, vase);</pre><p>
-
-<p>Is exactly equivalent to:<p>
-
-<p><pre>tryImplicitActionMsg(&amp;announceImplicitAction, Drop, vase);</pre><p>
-
-<p>If you look at the definition of libMessages in msg_neu.t, you'll
-see it defines:
-
-<p><pre>
-    /*
-     *   Get a string to announce an implicit action.  This announces the
-     *   current global action.  'ctx' is an ImplicitAnnouncementContext
-     *   object describing the context in which the message is being
-     *   displayed.  
-     */
-    announceImplicitAction(action, ctx)
-    {
-        /* build the announcement from the basic verb phrase */
-        return ctx.buildImplicitAnnouncement(action.getImplicitPhrase(ctx));
-    }
-
-    /*
-     *   Announce a silent implied action.  This allows an implied action
-     *   to work exactly as normal (including the suppression of a default
-     *   response message), but without any announcement of the implied
-     *   action. 
-     */
-    silentImplicitAction(action, ctx) { return ''; }    
-</pre><p>
-<p>Now, we <i>could</i> make use of tryImplicitActionMsg to define an ad-hoc message for putting down the vase:</p>
-
-<p><pre>
-modify libMessages
-    announceImplicitDropVaseAction(action, ctx)    {
-        
-        return '(first putting the priceless vase carefully down on
-            the ground)\n';
-    }
+CustomMessages
+    [
+        Msg(implicit action report start, '&lt;b&gt;[to begin with '),
+        Msg(implicit action report separator, ' and next '),
+        Msg(implicit action report terminator, ']&lt;/b&gt;\n'),
+        Msg(implicit action report failure, 'totally failing to ')
+    ]
 ;
-</pre></p>
+</pre>
 
-<p>At first sight this may seem at least as simple, if not simpler,
-than the methods suggested in previous sections, and indeed, in a
-simple situation it might well be safe to do this kind of thing and
-then make use of it with:</p>
+<p>If we liked we could define this CustomMessages' <code>active</code> property to define when we wanted this 
+set of fragments to be used, e.g. <code>active = gActionIn(Take, Drop)</code> or <code>gPlayerChar = barnabas</code>. 
+(Whether you think any of thie is a good idea is, of course, another matter; the point is that it's 
+not hard to do if you want to).
 
-<p><pre>tryImplicitActionMsg(&amp;announceImplicitDropVaseAction, Drop, vase);</pre></p>
 
-<p>But there are certain limitations. In particular, it's only safe to
-do it this way if we know (a) that the implicit action will never fail
-(so we'll never use the 'first trying to...' form) and (b) that it's
-the only implicit action to be performed on the current turn (so that
-it'll never be part of a chain like "(first putting down the vase,
-then taking off your hat)"). If we can't be certain of both (a) and
-(b) we'll have to start writing extra code to test for these
-conditions, at which point it will probably have been easier to use
-the standard library definition of announceImplicitAction() and to
-make our tweaks elsewhere, using the techniques outlined in previous
-sections. On the other hand, where we want a highly non-standard
-implicit action announcement, especially if we can be pretty confident
-about the context in which it will be used, defining a custom method
-on libMessages and using it via a call to tryImplicitActionMsg may be
-the way to go.  <p>
+<h2>Silent Implicit Actions</h2>
+
+<p>It's normally a good idea to display implicit action reports so that players
+can see what's happened in the course of carrying out the command they asked for.
+Otherwise they might imagine the player character has walked through a closed door 
+or wonder how they've ended up holding the widget they couldn't put in the locked 
+box. but if you want to silence implicit action reports you can do so simply 
+by setting <b>reportImplicitActions</b> to nil either on individual actions 
+or globally on the Action class.</p>
+
+<p>If you wanted to silence Implicit Action reports for a pariculer block of code, for example, you could use 
+a pattern like the following:</p>
+
+<p><pre>
+   ...
+   try
+   { 
+      Action.reportImplicitActions = nil;
+      //Do stuff without implicit action reports here 
+      ...
+   }
+   finally   
+   {
+      Action.reportImplicitActions = true;
+   }
+  
+
+</pre>
+
+</p>
+
 
 </div>
 <hr class="navb"><div class="navb">
 <i>TADS 3 Technical Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 
-<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
-Implied Action Reports
+<a class="nav" href="depth.htm">Av3Lite In Depth</a> &gt; 
+Implicit Action Reports
 <br><span class="navnp"><a class="nav" href="t3msg.htm"><i>Prev:</i> Message Parameter Substitutions</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3lister.htm"><i>Next:</i> Lists and Listers</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>

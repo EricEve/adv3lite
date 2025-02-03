@@ -5774,7 +5774,7 @@ modify TAction
     /* 
      *   The verbPhrase to use for this object when constructing implicit action reports. By default
      *   we just return the verbPhrase defined on our verbRule but game code can override this to
-     *   return a a custom verbPhrase for a particular object (or, on a TIAction, combination of
+     *   return a custom verbPhrase for a particular object (or, on a TIAction, combination of
      *   objects).
      */
     vPhrase(dobj, iobj?)
