@@ -10,7 +10,7 @@
 <div class="topbar"><img src="topbar.jpg" border=0></div>
 <div class="nav">
 <a class="nav" href="toc.htm">Table of Contents</a> | 
-<a class="nav" href="depth.htm">TADS 3 In Depth</a> &gt; 
+<a class="nav" href="depth.htm">Adv3Lite In Depth</a> &gt; 
 NPC Travel
 <br><span class="navnp"><a class="nav" href="t3conv.htm"><i>Prev:</i> Programming Conversations with NPCs</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3banner.htm"><i>Next:</i> Using the Banner API</a> &nbsp;&nbsp;&nbsp; </span>
 
@@ -18,7 +18,13 @@ NPC Travel
 <div class="main">
 
 <h1>NPC Travel</h1>
+<h2>(Adapted for Adv3Lite by Eric Eve)</h2>
+<p>Editor's Note: The adv3Lite way of handling this is sufficiently different 
+from adv3 that little remains of MJR's original article here beyond the 
+Introduction. The remainder is almost a complete re-write that ends up rather 
+shorter.</p>
 
+<h2>Introduction</h2>
 <p>Many IF games contain people and creatures for the player to
 encounter.  These are known as non-player characters, or NPCs.  In
 real life, living creatures don't tend to stay forever rooted in a
@@ -35,36 +41,20 @@ that do most of the work for you; the only trick is to know which
 ones to call in which situations.  This article covers the main
 methods of moving NPCs around and describes when to use each one.
 
+
 <h2>moveInto</h2>
 
-<p>The first thing to know is that you should <b>not</b> use
-moveInto() to move NPCs around.  Many authors naturally assume that
-moveInto() should work for actors, since it works for everything else.
-Unfortunately, it doesn't usually work very well for NPCs.  The
-problem with moveInto() is that it's designed primarily for moving
-objects around within a single room, so it tries to find a simple
-containment path between the old and new locations.  This can
-sometimes cause confusion when moving an object between separate
-rooms.
-
-<p>So, <b>don't use moveInto</b> for NPC travel.
-
-<h2>moveIntoForTravel</h2>
-
 <p>The simplest and most direct way to move actors around is with
-the moveIntoForTravel() method.  This method works almost exactly
-like moveInto() does for ordinary objects; the only difference is
-that moveIntoForTravel() doesn't try to find a containment path
-between the old and new locations.
+the moveInto() method.</p>
 
-<p>moveIntoForTravel() is a method of the actor you want to move,
+<p>moveInto() is a method of the actor you want to move,
 and you call it with the new location as the parameter:
 
 <p><pre>
-   bob.moveIntoForTravel(iceCave);
+   bob.moveInto(iceCave);
 </pre>
 
-<p>You should use moveIntoForTravel() when you want to move an actor
+<p>You should use moveInto() when you want to move an actor
 "by fiat" - that is, you want complete programmatic control over what
 happens, and what side effects occur.  This routine simply makes the
 actor disappear from the old location and magically reappear in the
@@ -73,110 +63,131 @@ you use this routine: there's no attempt to open any doors along the
 way, for example, and the library doesn't generate any messages
 mentioning that the actor is departing or arriving.
 
-<h2>travelTo</h2>
+<h2>actionMoveInto</h2>
+<p>The difference between actionMoveInto() and moveInto() is that 
+actionMoveInto also calls the notifyRemove and notifyInsert methods 
+on the locations being moved from and to, marks the object (here the 
+npc) as being moved, and marks it as having been seen by the player 
+character if the player character can see it in its new location. 
+You may or may not want these additional side-effects. If you do,
+use actionMoveInto(), otherwise use moveInto().</p>
 
-<p>The travelTo() method performs more "simulated" travel than
-moveIntoForTravel() does, but it doesn't do everything that happens
-when the player types in a travel command like "go north."  Unlike
-moveIntoForTravel(), the travelTo() method <i>does</i> carry out all
+
+<h2>travelVia</h2>
+
+<p>The travelVia() method performs more "simulated" travel than
+moveInto or actionMoveInto do. Unlike
+moveInto(), the travelVia() method <i>does</i> carry out all
 of the standard notifications involved in the travel: it calls
 beforeTravel() on everything nearby in the starting location; it calls
-actorTravel() on the actor performing the command; it calls
-travelerLeaving() on the starting location, which displays a departure
+ it calls travelerLeaving() on the starting location, which displays a departure
 message if the player character can see the actor departing; it calls
-noteTraversal() on the TravelConnector; it calls travelerArriving() on
-the new location, which displays an arrival message if the player
-character can see the NPC arriving; and it calls afterTravel() on
+noteTraversal() on the TravelConnector; it calls travelerEntering() on
+the new location;  and it calls afterTravel() on
 everything nearby in the new location.
 
-<p>travelTo() is a method of the actor who's traveling, and it takes
-three parameters: the destination location, the connector being
-traversed, the and "back connector," which is the connector that leads
-back to the starting point from the destination location.  (The back
-connector tells us which connector the actor appears to be emerging
-from in the new location, which is useful for displaying an
-appropriate arrival message.  If you don't actually want to explicitly
-select a connector back on your own, which you probably won't often
-want to do, you can simply call connectorBack() on the connector
-the actor is traversing to find the reverse connector.)  Here's an
-example:
+<p>travelVia(<i>conn</i>. <i>announceArrival?</i>) is
+ a method of the actor who's traveling, 
+where <i>conn</i> is the connector being
+traversed, and <i>announceArrival?</i> (which defaults to true) is 
+a flag that determines whether or not to display a message 
+about the actor's arrival in the new location if the actor 
+can be seen there by the player character.</p>
+
+  Here's an example:
 
 <p><pre>
    local conn = bob.location.east;
-   bob.travelTo(iceCave, conn,
-                conn.connectorBack(bob.getTraveler(conn), iceCave));
+   bob.travelVia(conn);
 </pre>
 
-<p>The travelTo() method gives you a lot of control over what happens,
-because you can specify just about everything about the travel.  As
-you can see, though, all that control makes it a bit complicated to
-use.
-
-<p>Note that travelTo() does <b>not</b> carry out any pre-conditions
+<p>Note that travelVia() checks any travel barries that are 
+in force on the connector, and do typically does carry out any pre-conditions
 of the travel.  For example, if a closed door is in the way,
-travelTo() will make the character magically go right through the door
-without opening it.  This is a plus and a minus, depending on what
-you're trying to accomplish; it's useful when you want to move your
+travelVia() will make the character attempt to open it, and travel 
+will be interrupted if it's locked.  This is a plus and a minus, depending on what
+you're trying to accomplish; it's less useful when you want to move your
 characters by fiat, without regard to the simulation implications,
-but you have to be careful that it doesn't create jarring, unrealistic
+help avoid creating jarring, unrealistic
 effects for the player.
 
-<h2>scriptedTravelTo</h2>
+<h2>Travel with Pathfinding</h2>
+<p>The most full-featured travel method is the one that uses
+adv3Lite library's contains a pathfinding module. This enables
+you to calculate the shortest route from one location to another,
+such as npc's current location to where you'd like them to move 
+to. You could use this to script a quasi-automous npc who moves 
+around the map in a realistic manner.</p>
 
-<p>The most full-featured travel method is also one of the easiest
-to use.  The scriptedTravelTo() method carries out a "nested command"
-that moves your NPC to an adjacent location.  For example, if your
-NPC is in the Diamond Cave, and the Ice Cave lies to the east, you
-can make the NPC carry out a nested "go east" command like so:
-
+<p>To use route finding to implement NPC travel, you'd need to 
+do first things: first use the <a name='../manual/pathfind.htm#routefinder'>routefinder</a>
+to calculate the route, like this:<p>
 <p><pre>
-   bob.scriptedTravelTo(iceCave);
+  routeFinder.findPath(bob.getOutermostRoom, <i>destinationRoom</i>);
+</pre> 
+
+<p>Then use this information to move the npc along the route, using code 
+like that auggested in the Library Manual's section on the routeFinder (see link 
+above) or by using using travelVia(), e.g.:
+<p><pre>
+   local dir;
+   local idx = routeFinder.cachedPath.indexWhich({x: x[2] == bob.getOutermostRoom});
+   if(idx != nil &amp;&amp; idx &lt; routeFinder.cachedPath.length)
+      dir = routeFinder.cachedPath[idx + 1][1];
+   
+   if(dir)
+   {
+      local conn = bob.getOutermostRoom.getConnector(dir);
+      if(conn)
+         bob.travelVia(conn);
+   }         
+;   
 </pre>
 
-<p>The scriptedTravelTo() method always carries out a single nested
-action, which means that it does <i>everything</i> that would normally
-happen when the player types in a command like "go east."  Because the
-travel is performed as a full nested action, all of the pre-conditions
-that would normally be required for the player to travel the same way
-are invoked: if there's a closed door in the way, the NPC will try to
-open it, for example.
-
-<p>It's important to note that scriptedTravelTo() is <b>not</b> a
-"path finder" method - it doesn't try to compute a path between two
-locations that aren't directly adjacent.  If the destination isn't
-connected to the starting location directly, the routine will do
-nothing.  If you want your NPC to figure its own way between
-non-adjacent locations, take a look at the path-finder example
-(see the <a href="http://www.tads.org/tads3.htm">TADS 3 page</a>
-at tads.org).
+<p>In turn, you might put this code (or a suitable adapted vesion of it) 
+in the invokeItem() method of an <a href='../manual/agenda.htm'>AgendaItem</a> that remains 
+active until Bob reaches his destination.</p>
 
 <h2>Choosing a Method</h2>
 
-<p>The three main NPC travel methods - scriptedTravelTo(), travelTo(),
-and moveIntoForTravel() - all have their uses.  Which one you use
+<p>The four main NPC travel methods - routefinder, travelVia(),
+and moveInto() and actionMoveInto() - all have their uses.  Which one you use
 depends on the situation, and you'll probably use more than one in
 any given game.
 
-<p>You should use moveIntoForTravel() when you want to move an actor
+<p>You should use moveInto() when you want to move an actor
 "by fiat," without triggering any simulation side effects.  This is
 the one to use when you want complete control over what happens, and
 are willing to take complete responsibility for things like generating
-arrival and departure messages.
+arrival and departure messages. This or actionMoveInto() are probably 
+the best options when, for example, the player character's arrival
+in a location triggers the npc's arrival in the same location from 
+a different direction, or you want to move the npc off-stage from 
+the player character's location.
 
-<p>Use travelTo() when you want to trigger the notifications normally
-associated with travel, but you still want control over the NPC's
+<p>Use actionMoveInto() when you want to trigger a minimal subset 
+of the notifications normally associated with travel, but you still want control over the NPC's
 actions during the travel.  In particular, this method doesn't trigger
 any preconditions of the travel, so it's up to you to make sure that
-any doors that need to be open are open, for example.
+any doors that need to be open are open, for example (or else indicate to 
+the player that the npc has opened and close any doors that would  
+need to have been opened and closed).
 
-<p>Use scriptedTravelTo() when you know where you want the actor to
-go, and you want the library to figure out what command to perform to
-make that happen.  This method is best when you want the NPC's travel
+<p>Use travelVia() when you know (or can easily figure out) 
+which TravelConnector you want the actor to use,
+and you want the library make the npc use it.
+This method is best when you want the NPC's travel
 to be fully simulated, triggering all of the same preconditions and
 side effects that the player would trigger with a normal "go east"
-command or the like.
+command or the like. This might be the best way to go, if, for example,
+there might be some barrier, such as a locked door, that would prevent 
+the npc reaching its intended destination.
 
-<p>And whatever you do, <b>don't</b> use moveInto() for NPC travel.
+<p>Use routeFinder when you need your npc to appear to be a quasi-autonomous
+actor going about their own business regardless of what the player character 
+is doing, so that the player character may or may not encounter the npc 
+travelling along their route (and the npc may or may not react to the 
+player character if their paths happen to cross).
 
 </div>
 <hr class="navb"><div class="navb">

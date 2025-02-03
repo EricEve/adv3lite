@@ -49,8 +49,7 @@ Using the Banner API
 <p><i>by Eric Eve</i>
 
 <p><i>Note: the customBanner.t source file described in this article
-can be found in the </i>lib/extensions<i> folder in the standard TADS
-3 Author's Kit and library distributions.</i>
+can be found in the </i>extensions<i> folder under your adv3Lite folder.</i>
 
 <p><i>Important Note: the Banner API cannot be used with games compiled for the Web UI; if you want to use the Banner API you must compile your game for use with a traditional HTML-TADS interpreter.</i>
 
@@ -471,7 +470,10 @@ to arrange, but it is also quite tricky.
 <p>In the next section, we'll look at using a class that takes care of most of these
 issues for you.
 
-<H2><a name=CustomBannerWindow>Using the CustomBannerWindow Class</A></H2>
+<h2 id="CustomBannerWindow">Using the CustomBannerWindow Class</h2>
+
+<p><em>Note: to use the CustomBannerWindow class you'll need to include the cuatomBanner.t extension  
+in your project. This can be found in the extensions folder under you adv3Lite folder.</em>
 
 <p>Using <span class="code">CustomBannerWindow</span>, the banners we defined in
 the previous section could be defined simply with:
@@ -609,7 +611,7 @@ and <span class="code">deactivate()</span> methods to add or remove custom banne
 or from the screen. Once again, it's our responsibility to respect the dependency order
 of any parent, child or sibling banners involved.
 
-<H2>An Example</H2>
+<h2>An Example</H2>
 
 <p>Suppose we want to use the banner layout described above in the following way:
 <ul>
@@ -624,332 +626,10 @@ custom banners from the screen layout.</li>
 look or examine command changes it.</li>
 </ul>
 
-<p>Whether this scheme is necessarily a good idea is beside the point for the present
-exercise (it would be distracting if the banners kept appearing and disappearing as
-we moved from room to room, perhaps less so if this only happened once or twice as
-we moved between regions). The point of it here is to serve as a convenient implementation
-example.
-
-<p>To begin with, we note that a picture and its caption always go together. That suggests 
-that picture and caption might usefully be encapsulated together in a class that
-also contain the method to display them to our banners. For the sake of argument we assume
-that our picture files all have a .jpg extension and that they're all in the /docs folder
-under our game folder:
-
-<p><div class="code"><pre>
-class Picture
-  picFile = ''
-  caption = ''
-  showPic()
-  {
-    /* 
-     *  We can't be sure that the banners will be active when we want to
-     *  display in them, so we need to check and, if necessary, activate
-     *  them.
-     */
-    if(!picWindow.isActive)
-    {
-      /* We must be careful to activate the parent window before its child */ 
-      picWindow.activate();
-      captionWindow.activate();
-    }
-  
-  
-    picWindow.updateContents('&lt;body bgcolor=statusbg&gt;
-         &lt;img src="pics/' + picFile + '.jpg" &gt;');
-                 
-    captionWindow.updateContents('&amp;lt;- ' + caption);  
-  }
-;
 </pre></div>
 
-<p>Note that the <span class="code">&amp;lt;-</span> in the last line is deliberate
-here; we want this to appear in the window as &lt;-, but since what we send to the
-window will be interpreted as HTML, we need to use the <span class="code">&amp;lt;</span>
-entity to represent the &lt; character.
-
-<p>Since we may be defining many Picture objects, we can save ourselves a bit of typing
-by defining an appropriate template:
-
-<p><div class="code"><pre>
-Picture template 'picFile' 'caption';
-</pre></div>
-
-<p>Next we need to modify the Room and Thing classes to display their pictures
-(and accompanying captions) if they have them:
-
-<p><div class="code"><pre>
-modify Room
-    pic = nil
-  
-    enteringRoom(traveler) 
-    {        
-      if(traveler == gPlayerChar)
-        showPic();          
-    }    
-    
-    showPic()
-    {
-       
-      /* If we have no pic, remove the banners from screen */
-      if(pic == nil)
-      {
-        /* Note we must be careful to deactivate the child banner before its parent */
-        captionWindow.deactivate();
-        picWindow.deactivate();
-      }     
-      else
-        pic.showPic();
-    }
-;
-
-modify Thing
-  pic = nil
-
-  mainExamine()
-  {
-    inherited();
-    if(pic)
-      pic.showPic();
-  }
-;
-
-</pre></div>
-
-<p>We next need to make an explicit LOOK command display any relevant picture and caption
-for the player character's current location. For the purposes of this example, we only want
-an explicit LOOK to do this, not an implicit lookAround called by the library code. 
-We therefore need to make a minor override to <span class="code">LookAction</span>:
-
-<p><div class="code"><pre>
-modify LookAction
-  execAction()
-  {
-    inherited();
-    
-    local loc = gActor.getOutermostRoom();
-    if(loc.pic)
-      loc.showPic();
-  } 
-;
-</pre></div>
-
-<p>Our final task is to make the picture and caption of the starting location appear
-on the first turn. The easiest way to achieve that may be to call the room's
-<span class="code">showPic()</span> method from <span class="code">
-gameMain.showIntro()</span>:
-
-<p><div class="code"><pre>
-gameMain: GameMainDef  
-    initialPlayerChar = me
-    
-    showIntro() { startRoom.showPic(); }
-;
-</pre></div>
-
-<p>And this is all we need to do to implement our scheme; the <span class="code">
-CustomBannerWindow</span> class can be left to do the rest, such as displaying the
-right picture and caption (or absence of picture and caption) after RESTORE, RESTART 
-and UNDO. At this point we can start defining our rooms and objects, e.g.:
-
-<p><div class="code"><pre>
-startRoom: OutdoorRoom 'Radcliffe Square' 'Radcliffe Square'
-    "From the south-east corner of Radcliffe Square you could go north between
-     the Radcliffe Camera and All Souls College. "
-    
-    pic: Picture {
-      'rad_square'
-      'A view from the south-east quadrant of Radcliffe Square'
-    }
-    
-    north = catteStreet    
-; 
-
-
-+ me: Actor    
-;
-
-+ radcliffeCamera: Fixture 'radcliffe camera' 'Radcliffe Camera'
-   "This iconic round building, designed by James Gibbs, is now
-    part of the Bodleian Library, holding among other things the
-    open-shelf undergraduate collections for English Literature
-    and Theology. "
-   pic: Picture {
-     'camera'
-     'A view of the Radcliffe Camera from the south side of
-      Radcliffe Square'
-   }
-   cannotEnterMsg = 'You don\'t have your Bod card with you. '
-;
-
-+ allSouls: Fixture 'all souls souls\' college' 'All Souls College'
-  "Founded in 1438, the All Souls traditionally takes no undergraduates. "
-  pic: Picture{
-     'all_souls'
-     'All Souls College seen from Radcliffe Square'
-  }
-  cannotEnterMsg = 'It\'s not your college, and you don\'t have time
-   to go sightseeing right now. '
-  isProper = true
-;
-
-catteStreet: OutdoorRoom 'Catte Street' 'Catte Street'
-  "Catte Street runs north from Radcliffe Square to the main crossroads.
-    Along the way it passes such famous landmarks as the Sheldonian Theatre
-    and the Bridge of Sighs. "
-  pic: Picture {
-    'catte'
-    'Looking up Catte Street, with the Bodleian Libary to the left'
-  }
-  south = startRoom
-  north = crossroads
-;
-</pre></div>
-
-<H2>Working with a More Complicated Layout</H2>
-
-<p>As a final exercise, let's suppose that we want a slightly more complicated banner
-layout than the one we've been working with so far (in practice, we probably don't
-actually <i>need</i> one here, but we're just taking the opportunity to show how it
-might be done). Suppose, for the sake of argument, that we don't want our picture window
-and banner window to occupy the full screen width, but instead want to frame them with
-left, centre, and right banners (that will always remain empty) thus:
-
-<p>
-<table class=eg align=center>
-<tr style="height:1em;"><td colspan=5>Status
-<tr style="height:3em;"><td width=10%>L
-<td width=35%>Picture<td>C<td width=35%>Caption
-<td width=10%>R
-<tr><td colspan=5>Main
-</table>
-<p>
-
-<p>In this case we effectively have a horizontal band between the status line and the main
-window, which we need to divide into five regions. It's probably easiest to start
-by defining the central border as the parent banner, and then carve the other four windows
-out of it. The definition of the central banner is then something like the following:
-
-<p><div class="code"><pre>
-centreWindow: CustomBannerWindow
-  bannerArgs = [nil, BannerAfter, statuslineBanner, BannerTypeText, BannerAlignTop,
-    15, BannerSizeAbsolute, BannerStyleBorder]
-
-  currentContents = '&lt;body bgcolor=statusbg&gt;'
-;
-</pre></div>
-
-<p>Since we need the left and right frames to go on the outside, we need to define them next.
-The point to bear in mind here is that we are going to define the remaining windows with
-<span class="code">BannerAlignLeft</span> and <span class="code">BannerAlignRight</span>,
-and that the earliest windows in sequence take the outermost positions, and that windows
-defined as coming immediately <i>after</i> them will thus appear closer to the centre.
-It doesn't much matter, however, whether the outer left window or the outer right window 
-comes first: here we'll start with the outer right:
-
-<p><div class="code"><pre>
-rightWindow: CustomBannerWindow
-   bannerArgs = [centreWindow, BannerFirst,nil, BannerTypeText, BannerAlignRight,
-    5, BannerSizePercent, BannerStyleBorder]
-
-  currentContents = '&lt;body bgcolor=statusbg&gt;'
-;
-
-leftWindow: CustomBannerWindow
-   bannerArgs = [centreWindow, BannerAfter, rightWindow, BannerTypeText, 
-      BannerAlignLeft,  5, BannerSizePercent, 0]
-
-  currentContents = '&lt;body bgcolor=statusbg&gt;'
-;
-</pre></div>
-
-<p>Now we can define our picture window and our caption window as before, this
-time placing them after the left-hand and right-hand framing windows respectively:
-
-<p><div class="code"><pre>
-picWindow: CustomBannerWindow
-  bannerArgs = [centreWindow, BannerAfter,  leftWindow,  BannerTypeText, 
-     BannerAlignLeft, 35, BannerSizeAbsolute, BannerStyleBorder]
-                 
-  autoSize = true               
-;
-
-captionWindow: CustomBannerWindow
-  bannerArgs = [centreWindow, BannerAfter, rightWindow, BannerTypeText, BannerAlignRight,
-                  40, BannerSizePercent, BannerStyleBorder ]     
-;
-</pre></div>
-
-<p>The only other change we need to make is in the methods that remove and restore 
-the complete set of banner windows to and from the display:
-
-<p><div class="code"><pre>
-class Picture: object
-  picFile = ''
-  caption = ''
-  showPic()
-  {
-    if(!picWindow.isActive)
-    {
-      /*
-       * We must be careful to activate the parent window before all
-       * its children, and the older sibling windows before the younger
-       * siblings that are placed in relation to them.
-       *
-       * We also call activate with the optional (true) argument on
-       * centreWindow, rightWindow and leftWindow to force display of
-       * their current contents on activation (their current contents being
-       * HTML code to set their background colour to the background colour
-       * of the status line)
-       */
-      centreWindow.activate(true);
-      rightWindow.activate(true);
-      leftWindow.activate(true);
-      picWindow.activate();
-      captionWindow.activate(); 
-
-    }
-  
-  
-    picWindow.updateContents('&lt;body bgcolor=statusbg&gt;
-         &lt;img src="pics/' + picFile + '.jpg" &gt;');
-                 
-    captionWindow.updateContents('&amp;lt;- ' + caption);  
-  }
-;
-
-
-modify Room
-  roomPic = nil
-  
-  enteringRoom(traveler) 
-    {       
-      if(traveler == gPlayerChar)
-        showPic();          
-    }    
-    
-    showPic()
-    {
-      if(roomPic == nil)
-      {
-        /*  
-         *  The windows need to be deactivated in reverse order of
-         *  activation, so that we deactivate all the child windows
-         *  before deactivating the parent.
-         */
-        captionWindow.deactivate();
-        picWindow.deactivate();
-        leftWindow.deactivate();
-        rightWindow.deactivate();
-        centreWindow.deactivate();
-      }     
-      else
-        roomPic.showPic();
-    }
-;
-
-</pre></div>
-
+<p>One way of implementing this example is given in the documenation for the 
+<a href='../../extensions/docs/custombanner.htm#example'>customBanner</a> extension.</p>
 
 
 <H2>Summary</H2>
@@ -1074,6 +754,9 @@ There are also a number of inherited methods such as <span class="code">setOutpu
 that you can use, but which <span class="code">CustomBannerWindow</span> provides only
 partial support for, in that a RESTORE or UNDO will not automatically return what's displayed
 in a window to the result of the output from these methods.
+ 
+<p>For further information, see the documenation for the 
+<a href='../../extensions/docs/custombanner.htm'>customBanner</a> extension.</p> 
  
 </div>
 <hr class="navb"><div class="navb">
