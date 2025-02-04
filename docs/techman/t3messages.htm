@@ -138,13 +138,16 @@ just to the west.
 You walk briskly down the stairs.   <a href='#travelDesc'>[19]</a> 
 
 <a name='r20'><b>Hall (East End)</b></a>
-This large hall continues to the west. A flight of stairs leads up to the north. 
+This large hall continues to the west. A flight of stairs leads up to the north.
 
-You see a rubber duck here. 
+You can see a rubber duck here.
 
-The Harold is standing in the hall (west end).   <a href='#remoteactor'>[20]</a>
+In the hall west end you see a wooden chair.
 
-Mavis is in the hall (west end), sitting on the wooden chair.   <a href='#remoteactor'>[20]</a> 
+Mavis is sitting on a wooden chair at the far end of the hall. 
+
+Harold is in the hall west end. <a href='#remoteactor'>[20]</a>
+
 
 <a name='r21'><b>&gt;x harold</b></a>
 He's about your height and build, and really looks quite a lot like you. Since he's   <a href='#sightSize'>[21]</a>
@@ -153,8 +156,8 @@ your twin brother this is not altogether surprising.
 <b>&gt;x mavis</b>
 She’s too far away to make out any detail.   <a href='#sightSize'>[21]</a> 
 
-<a name='r22'><b>&gt;x buck</b></a>
-The word “buck” is not necessary in this story.   <a href='#oops'>[22]</a> 
+<a name='r22'><b>&gt;x dfwv</b></a>
+You see no dfwv here.   <a href='#oops'>[22]</a> 
 
 (If this was an accidental misspelling, you can correct it by typing OOPS followed by the
 corrected word now. Any time the story points out an unknown word, you can correct a
@@ -512,76 +515,61 @@ CustomMessages
 <br>
 
 <h3><a name='inventory'>[17] Inventory Listing</a></h3>
-<p>This is a typical <a href='t3lister.htm#inventory'>inventory listing</a>. 
+<p>This is a typical inventory listing, produced by the inventoryLister, which is a specialised type of <a href='../manual/lister.htm#itemlister'>itemLister</a>. 
 <a href='#r17'>[back]</a>
 <br>
 
-<h3><a name='roomfirst'>[18] roomFirstDesc</a></h3>
+<h3><a name='roomfirst'>[18] roomFirstDesc</a></h3> 
 <p>Ordinarily it would be a bad idea to include any mention of how you arrived at the location in a room descrption, since this will generally not read well if the room is approached from some other direction, or the room is subsequently examined again. In this case, however, the <a href='#landing'>landing</a> is described differently when it is examined the second time. This is achieved by using roomFirstDesc to display a different description the first time the room is examined. This works well here since the first time the landing is examined the player character <i>can</i> only have just entered it from the box room.</p>
 <a href='#r18'>[back]</a>
 <br>
 
 <h3><a name='travelDesc'>[19] travelDesc</a></h3>
-<p>There's more than one way we could produce this description of the player character walking down the stairs. Perhaps the simplest, which is used the code below, is to make the <a href='#stairway'>stairway</a> a TravelWithMessage as well as a StairwayDown and then simply define the message we want on its travelDesc property.</p>
+<p>There's more than one way we could produce this description of the player character walking down the stairs. Perhaps the simplest, which is used in the code below, is to define the message we want on its travelDesc property.</p>
 <a href='#r19'>[back]</a>
 <br>
-<h3><a name='remoteactor'>[20] Remotely Described Actors</a></h3>
+<h3><a name='remoteactor'>[20] Remote Descriptions</a></h3>
 
-<p>The hall is represented in this game by two different locations, <a href='#hallEast'>hallEast</a> and <a href='#hallWest'>hallWest</a>, linked with a <a href='#dConn'>DistanceConnector</a>. The implementation is less than perfect, however, as can be seen from the transcript.</p>
+<p>The hall is represented in this game by two different locations, <a href='#hallEast'>hallEast</a> and <a href='#hallWest'>hallWest</a>, linked by being in the same <a href='#dConn'>SenseRegion</a>. The implementation is less than perfect, however, as can be seen from the transcript.</p>
 
-<p>The man is described with the text:</p>
-
-<p><pre>
-The Harold is standing in the hall (west end).
-</pre></p>
-
-<p>Obviously he should be described as 'Harold' not 'the Harold'. What's needed to fix this is to add:</p>
+<p>First, the man is described and the chair are both decribed as being "in the hall west end", which doesn't read at all well, but is the best the library can do from the roomTitle. We can improve things by giving the hallWest room a name as well: </p>
 
 <p><pre>
-    isProperName = true
-</pre></p>
-<p>to the definition of the <a href='#harold'>harold</a> object.</p>
-
-<p>A second infelicity is the fact that both Harold and Mavis are described as being "in the wall (west end)"; while it is probably clear enough what this means, it would read better if they were said to be "in the east end of the hall" or even better, perhaps, "at the other end of the hall". One way of achieving the latter, using inRoomName(), is illustrated below. A second way to deal with this would be to explicitly assign the name property of hallWest, which, using the template, would mean giving it an explicit destName as well, like this:</p>
-
-<p><pre>
-hallWest: Room 'Hall (West End)' 'the west end of the hall' 
-    'west end of the hall'
+  hallWest: Room 'Hall (West End)' 'west end of the hall[n]'
     "This large hall continues to the east. A flight of stairs leads down to the
     south. "
+    east = hallEast  
+    south = hallStairsDown
+    down asExit(south) 
     ...
+</pre>
+
+<p><p>Here the first single-quoted string in the Room template is the roomTitle, which is displayed in the status line and at the head of a room description. The second single-quoted string is the vocab, in which we've just specified the name.</p> 
+
+<p>The next issue is the chair is mentioned twice, first as something being in the west end of the hall, and then as what Mavis is sitting on. We could probably do without the first of these. There's more than one way we could get rid of it, but for now we'll make the chair not listed if Mavis is on it:</p>
+
+<p><pre>
++ woodenChair: Platform 'wooden chair'
+    canLieOnMe = nil
+    sightSize = large
+    
+   isListed = !(mavis.isIn(self)) // add this
 ;
-</pre></p>
+</pre>    
+<p>With these changes we get:</p>
 
-<p>Here the first single-quoted string in the Room template is the roomName, which is displayed in the status line and at the head of a room description. The second single-quoted string is the destName, used in exit listings. The third single-quoted string defines the name property, which is the one that concerns us here. Changing the name property in this way would result in this output:</p>
 <p><pre>
 <b>Hall (East End)</b>
-This large hall continues to the west. A flight of stairs leads up to the north. 
+This large hall continues to the west. A flight of stairs leads up to the north.
 
-You see a rubber duck here. 
+You can see a rubber duck here.
 
-The Harold is standing in the west end of the hall. 
+Mavis is sitting on a wooden chair at the far end of the hall.
 
-Mavis is in the west end of the hall, sitting on the wooden chair. 
-</pre></p>
+Harold is in the west end of the hall.
+</pre>
 
-<p>Another way we could change this is by defining an actorInName on westHall. For example we could define:</p>
-
-<p><pre>
-    actorInName = 'at the far end of the hall'
-</pre></p>
-<p>This would then give us:</p>
-<p><pre>
-<b>Hall (East End)</b>
-This large hall continues to the west. A flight of stairs leads up to the north. 
-
-You see a rubber duck here. 
-
-The Harold is standing at the far end of the hall. 
-
-Mavis is at the far end of the hall, sitting on the wooden chair. 
-</pre></p>
-<p>We have yet to go into what part of the code is generating the messages that Harold is standing while Mavis is sitting on the wooden chair; we'll discuss this in more detail <a href='#locActor'>below</a> when we talk about how Harold and Mavis are listed in their own room description. But we'll make a brief foray into it here, insofar as it's relevant to listing actors specifically in <i>remote</i> locations, as here. Suppose we thought it would be neater to have Mavis listed as "Mavis is sitting on the wooden chair at the far end of the hall." We can override the way an actor is listed by overriding the specialDesc property on their current ActorState, or, in a case such as this, where we're viewing the actor from a remote location, by overriding the remoteSpecialDesc(pov) method (where the pov parameter is the point of view from which we're looking, normally that of the player character). </p>
+<p>The description of Mavis here hasn't been automatically generated by the library here (by default adv3Lite has no concept of postures like sitting, although we can add them via the <a href='../../extensions/docs/postures.htm'>postures</a> extension). Here, we've generated the text about Mavis through defining the remoteSpecialDesc method on her <a href='#hermit'>ActorState</a>:
 
 <p><a href='#mavis'>Mavis</a> starts out in a <a href='#hermit'>HermitActorState</a> (for details of ActorStates see the article on <a href='t3actor.htm'>Creating Dynamic Characters</a>). All we need to do is to add the following to the definition of this HermitActorState:</p>
 <p><pre>
@@ -590,6 +578,18 @@ Mavis is at the far end of the hall, sitting on the wooden chair.
         "Mavis is sitting on the wooden chair at the far end of the hall. ";
     }
 </pre></p>
+
+ We could improve the description of Harold by doing something similar on his ActorState:</p>
+ 
+ <p><pre>
+ + hWaiting: ActorState
+    specialDesc = "Harold is standing by Mavis's chair. "  
+    isInitState = true
+;
+ 
+ </pre>
+ 
+
 <p>Then we'll get:</p>
 <p><pre>
 <b>Hall (East End)</b>
@@ -1263,7 +1263,7 @@ class Crayon: Thing 'crayon'
     down asExit(south)
 ;
 
-+ landingDoor: Door ->boxDoor 'box room door*doors' 'box room door'
++ landingDoor: Door ->boxDoor 'box room door'
 ;
 
 + <a name='stairway'>landingStairs</a>: StairwayDown 
