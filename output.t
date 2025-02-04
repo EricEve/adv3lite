@@ -288,6 +288,12 @@ class OutputStream: PreinitObject
         {
             return mon.outputFlag;
         }
+        
+        catch(SkipSignal ex)
+        {
+            return mon.outputFlag ? 2 : nil;
+        }
+                
         finally
         {
             /* remove our monitor filter */
@@ -358,6 +364,11 @@ class OutputStream: PreinitObject
         catch(AbortActionSignal ex)
         {
             return filter.txt_;
+        }
+        
+        catch(SkipSignal ex)
+        {
+            return filter.txt_ = '' ? 2 : filter.txt_;
         }
         
         finally
@@ -2274,3 +2285,6 @@ conversationManager: OutputFilter, PreinitObject
     
 ;
 
+class SkipSignal: Exception
+    
+;

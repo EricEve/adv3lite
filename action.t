@@ -537,8 +537,31 @@ class Action: ReplaceRedirector
             }          
         }
 
-        /* Execute the appropriate verify routine on the object */
-        obj.(verifyProp);
+        
+        try
+        {
+            /* 
+             *   If this action defines the mmVerify method to handle multimethod verify, then call
+             *   it now. Note that this means that the same mmVerify routine will be called for
+             *   every object role (dobj && iob on a TIAction), but this is what we want.
+             */
+            if(propDefined(&mmVerify))
+                mmVerify(gVerifyDobj, gVerifyIobj, verifyObj);
+            
+            
+            
+            
+            /* 
+             *   Execute the appropriate verify routine on the object, provided our multimethod
+             *   didn't throw a skip signal.
+             */
+            
+            
+            obj.(verifyProp);
+        }
+       
+        
+        catch (SkipSignal ex)  {   }
         
         /* If we don't already have a verify table, create it */
         if(verifyTab == nil)
@@ -1713,7 +1736,7 @@ class TAction: Action
         local checkMsg = nil;
         
         /* Note which object is the current object of the command. */
-        curObj = obj;
+        curObj = (dataType(obj) == TypeList ? obj[1] : obj);
         
         /* Run the check method on the object and capture its output */
         try
@@ -1721,8 +1744,20 @@ class TAction: Action
             /* Set this flag to true - the check routine may set it to nil. */
             haltOnMessageInCheck = true;
             
-            checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
+            /* 
+             *   If the obj Parameter has been passed as a list [dobj, iobj] we want to use a
+             *   multimethod to  do the checking.
+             */
+            if(dataType(obj) == TypeList)
+                checkMsg = gOutStream.captureOutputIgnoreExit({: self.(checkProp)(obj[1], obj[2])});
+            
+            else
+                checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
+            
+            if(dataType(checkMsg) == TypeInt)
+                return checkMsg;
         }
+            
         
         /* 
          *   Game authors aren't meant to use the exit macro in check methods,
@@ -1732,6 +1767,16 @@ class TAction: Action
         {
             /* 
              *   If for some reason a check method uses exit without displaying
+             *   a method, we supply a dummy failure message at this point.
+             */
+            if(checkMsg is in (nil, ''))
+               checkMsg = failCheckMsg;
+        }
+        
+        catch (SkipSignal ex)
+        {
+            /* 
+             *   If for some reason a check method uses skip without displaying
              *   a method, we supply a dummy failure message at this point.
              */
             if(checkMsg is in (nil, ''))
@@ -1796,7 +1841,6 @@ class TAction: Action
              */
             return !haltOnMessageInCheck;
         }
-        
         /* 
          *   Return true to tell our our caller this action passed the check
          *   stage on this object.
@@ -1804,6 +1848,103 @@ class TAction: Action
         return true;
     }
     
+    
+//    check(obj, checkProp)
+//    {
+//        local checkMsg = nil;
+//        
+//        /* Note which object is the current object of the command. */
+//        curObj = obj;
+//        
+//        /* Run the check method on the object and capture its output */
+//        try
+//        {
+//            /* Set this flag to true - the check routine may set it to nil. */
+//            haltOnMessageInCheck = true;
+//            
+//            checkMsg = gOutStream.captureOutputIgnoreExit({: obj.(checkProp)});
+//        }
+//        
+//        /* 
+//         *   Game authors aren't meant to use the exit macro in check methods,
+//         *   but in case they do we handle it here.
+//         */
+//        catch (ExitSignal ex)
+//        {
+//            /* 
+//             *   If for some reason a check method uses exit without displaying
+//             *   a method, we supply a dummy failure message at this point.
+//             */
+//            if(checkMsg is in (nil, ''))
+//               checkMsg = failCheckMsg;
+//        }
+//               
+//        /* 
+//         *   If the check method tried to display something then it wants to
+//         *   block the action, so we display the failure message and stop the
+//         *   action.
+//         */
+//        if(checkMsg not in (nil, ''))
+//        {           
+//            /* 
+//             *   If this action wants to announce the object of the action when it fails at the
+//             *   check stage and our Command is processing more than one direct object, and we don't
+//             *   want to report failed attempts after successful ones, announce the object.
+//             */ 
+//            if(announceMultiCheck && gCommand.dobjs.length > 1 && !reportFailureAfterSuccess)
+//                announceObject(obj);
+//            
+//            /* 
+//             *   If we're an implicit action then add a failure message to our
+//             *   implicit action list and display the list ("first trying
+//             *   to...")
+//             */
+//            if(isImplicit)
+//                "<<buildImplicitActionAnnouncement(nil)>>";
+//            else if(haltOnMessageInCheck)
+//                /* first flush any pending implicit action reports */ 
+//                "<<buildImplicitActionAnnouncement(true)>>";
+//            
+//            /* 
+//             *   Display our failure message. If this command is processing more than one direct
+//             *   object, and we want to report failed attempts after successrul ones, use
+//             *   reportAfter() so that the failure reports come after the report of any actions that
+//             *   were successful, otherwise display the failure message straight away.
+//             */
+//            if(gCommand.dobjs.length > 1 && reportFailureAfterSuccess)
+//            {
+//                if(announceMultiCheck)
+//                    checkMsg = gOutStream.captureOutputIgnoreExit({: announceObject(obj)}) + 
+//                    checkMsg;
+//                
+//                reportAfter(checkMsg);
+//            }
+//            else
+//            {   
+//                say(checkMsg);
+//                "\n";
+//            }
+//            
+//            /* 
+//             *   Note the outcome of the action -- it failed unless haltOnMesageInCheck was set to
+//             *   nil.
+//             */
+//            actionFailed = haltOnMessageInCheck;
+//            
+//            /* 
+//             *   Return the opposite of haltOnMessageInCheck to tell our caller whether this action
+//             *   failed the check stage
+//             */
+//            return !haltOnMessageInCheck;
+//        }
+//        
+//        /* 
+//         *   Return true to tell our our caller this action passed the check
+//         *   stage on this object.
+//         */
+//        return true;
+//    }
+//    
     
     /* 
      *   Flag: when a command processes multiple direct objects, do we want any failed attempts to
@@ -2168,6 +2309,27 @@ class TIAction: TAction
     }
     
     /* Carry out the check phase for this command. */   
+//    checkAction(cmd)
+//    {
+//        
+//        /* 
+//         *   If we don't pass the check stage on both the iobj and the dobj's
+//         *   preconditions, then return nil to tell our caller we've failed this
+//         *   stage.
+//         */
+//        if(!(checkPreCond(curIobj, preCondIobjProp) 
+//             && checkPreCond(curDobj, preCondDobjProp)))           
+//            return nil;
+//        
+//        /* 
+//         *   Return the result of running the check phase on both the indirect
+//         *   and the direct objects.
+//         */        
+//        return check(curIobj, checkIobjProp) && check(curDobj, checkDobjProp);
+//        
+//        
+//    }
+    
     checkAction(cmd)
     {
         
@@ -2181,14 +2343,28 @@ class TIAction: TAction
             return nil;
         
         /* 
+         *   If we don't pass the multimethod check stage (involving both objects) return nil
+         */
+        local mmCheckResult = check([curDobj, curIobj], &mmCheck);
+        
+        if(mmCheckResult == nil)
+            return nil;
+        
+        /* 
+         *   If mmCheckResult is an integer (probablly 2) skip the other checks and deemed us to
+         *   have passed the check stage.
+         */
+        if(dataType(mmCheckResult) == TypeInt)
+            return true;
+   
+        /* 
          *   Return the result of running the check phase on both the indirect
          *   and the direct objects.
          */        
         return check(curIobj, checkIobjProp) && check(curDobj, checkDobjProp);
         
         
-    }
-    
+    } 
     
     /* Set the resolved objects for this action. */
     setResolvedObjects(dobj, iobj)
@@ -2329,7 +2505,7 @@ class TIAction: TAction
     doActionOnce()
     {
         
-        local msgForDobj, msgForIobj;
+        local msgForDobj, msgForIobj, msgForMM;
         
         /* 
          *   If we're iterating over several objects and we're the kind of
@@ -2364,37 +2540,42 @@ class TIAction: TAction
             
 //            gOutStream.addOutputFilter(ImplicitActionFilter);
             
-            /* 
-             *   Run the action routine on the current direct object and capture
-             *   the output for later use. If the output is null direct object
-             *   can be added to the list of objects to be reported on at the
-             *   report stage, provided the iobj action routine doesn't report
-             *   anything either.
-             *
-             *   NOTE TO SELF: Don't try making this work with captureOutput();
-             *   it creates far more hassle than it's worth!!!!
-             */
-            msgForDobj =
-                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
             
+            msgForMM = gOutStream.watchForOutput({:mmAction(curDobj, curIobj)});
             
+            if(msgForMM != 2)
+            {
+                /* 
+                 *   Run the action routine on the current direct object and capture the output for
+                 *   later use. If the output is null direct object can be added to the list of
+                 *   objects to be reported on at the report stage, provided the iobj action routine
+                 *   doesn't report anything either.
+                 *
+                 *   NOTE TO SELF: Don't try making this work with captureOutput(); it creates far
+                 *   more hassle than it's worth!!!!
+                 */
+                msgForDobj =
+                    gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+                
+                
+                
+                /* Note that we've acted on this direct object. */
+                actionList += curDobj;
+                
+                /* Note that the current object is now the indirect object. */
+                curObj = curIobj;
+                
+                /* 
+                 *   Execute the action method on the indirect object. If it doesn't output
+                 *   anything, add the current indirect object to ioActionList in case the report
+                 *   phase wants to do anything with it, and add the dobj to the reportList if it's
+                 *   not already there so that a report method on the dobj can report on actions
+                 *   handled on the iobj.
+                 */        
+                msgForIobj =
+                    gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+            }
             
-            /* Note that we've acted on this direct object. */
-            actionList += curDobj;
-            
-            /* Note that the current object is now the indirect object. */
-            curObj = curIobj;
-            
-            /* 
-             *   Execute the action method on the indirect object. If it doesn't
-             *   output anything, add the current indirect object to
-             *   ioActionList in case the report phase wants to do anything with
-             *   it, and add the dobj to the reportList if it's not already
-             *   there so that a report method on the dobj can report on actions
-             *   handled on the iobj.
-             */        
-            msgForIobj =
-                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
         }
         
         finally
@@ -2411,7 +2592,7 @@ class TIAction: TAction
          *   reported on, and add the current direct object to the list of
          *   direct objects to be reported on at the report stage.
          */
-        if(!(msgForDobj) && !(msgForIobj))
+        if(!(msgForDobj) && !(msgForIobj) && !(msgForMM))
         {
             ioActionList += curIobj;
             
@@ -2424,14 +2605,114 @@ class TIAction: TAction
          */      
         return true;
     }
+     
     
+//    doActionOnce()
+//    {
+//        
+//        local msgForDobj, msgForIobj;
+//        
+//        /* 
+//         *   If we're iterating over several objects and we're the kind of
+//         *   action which wants to announce objects in this context, do so.
+//         */        
+//        if(announceMultiAction && gCommand.dobjs.length > 1)
+//            announceObject(curDobj);
+//        
+//        
+//        
+//        /* 
+//         *   Note that the current object we're dealing with is the direct
+//         *   object.
+//         */
+//        curObj = curDobj;     
+//        
+//        /* 
+//         *   Add the ImplicitActionFilter to the current output stream so that
+//         *   any pending implicit action reports are prepended to any action
+//         *   reports output at this stage.
+//         */       
+//        if(isImplicit)
+//            buildImplicitActionAnnouncement(true, nil);
+//        
+//        try
+//        {
+//            /* 
+//             *   First add the ImplicitActionFilter to the output stream so that
+//             *   any text output from the action routines are preceeded by any
+//             *   pending implicit action reports.
+//             */
+//            
+////            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            
+//            /* 
+//             *   Run the action routine on the current direct object and capture
+//             *   the output for later use. If the output is null direct object
+//             *   can be added to the list of objects to be reported on at the
+//             *   report stage, provided the iobj action routine doesn't report
+//             *   anything either.
+//             *
+//             *   NOTE TO SELF: Don't try making this work with captureOutput();
+//             *   it creates far more hassle than it's worth!!!!
+//             */
+//            msgForDobj =
+//                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+//            
+//            
+//            
+//            /* Note that we've acted on this direct object. */
+//            actionList += curDobj;
+//            
+//            /* Note that the current object is now the indirect object. */
+//            curObj = curIobj;
+//            
+//            /* 
+//             *   Execute the action method on the indirect object. If it doesn't
+//             *   output anything, add the current indirect object to
+//             *   ioActionList in case the report phase wants to do anything with
+//             *   it, and add the dobj to the reportList if it's not already
+//             *   there so that a report method on the dobj can report on actions
+//             *   handled on the iobj.
+//             */        
+//            msgForIobj =
+//                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+//        }
+//        
+//        finally
+//        {
+//            /* Remove any implicit action announcement from the output stream */
+//                       
+////            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//        }
+//       
+//        /* 
+//         *   If neither the action stage for the direct object nor the action
+//         *   stage for the direct object produced any output then add the
+//         *   indirect object to the list of indirect objects that could be
+//         *   reported on, and add the current direct object to the list of
+//         *   direct objects to be reported on at the report stage.
+//         */
+//        if(!(msgForDobj) && !(msgForIobj))
+//        {
+//            ioActionList += curIobj;
+//            
+//            reportList = reportList.appendUnique([curDobj]);            
+//        }           
+//        
+//        /* 
+//         *   Return true to tell our caller we completed the action
+//         *   successfully.
+//         */      
+//        return true;
+//    }
+//    
     /* 
      *   These three methods so nothing by default, but provide hooks for implementing multimethod
      *   TIAction handling. The idea is that in code that makes use of this they would call
      *   verifyWhateveAction, checkWhateverAction and ActionWhateverAction multimethod functions
      *   (depending on the particular action.
      */
-    mmVerify(dobj, iobj) { }
+//    mmVerify(dobj, iobj) { }
     mmCheck(dobj, iobj) { }
     mmAction(dobj, iobj) { }
     

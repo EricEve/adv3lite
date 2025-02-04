@@ -620,16 +620,17 @@ enum rmcDisambig;
  *   Modify a concrete TIAction to work with multimethods. This creates the base version of the
  *   three multimethods needed then sets the relevant methods of the TIAction to call the relevant
  *   multimethod.
- */
+ */   
 #define MMTIAction(name) \
-    verify ## name (Object dobj, Object iobj) {} \
+    verify ## name (Object dobj, Object iobj, Thing verobj) {} \
     check ## name (Object dobj, Object iobj) {} \
     action ## name (Object dobj, Object iobj) {} \
     modify name \
-    mmVerify(dobj, iobj) { verify ## name (dobj, iobj); } \
+    mmVerify(dobj, iobj, verobj) { verify ## name (dobj, iobj, verobj); } \
     mmCheck(dobj, iobj) { check ## name (dobj, iobj); } \
     mmAction(dobj, iobj) { action ## name (dobj, iobj); }
 
+#define tvo Thing verobj
 
 /*
  *   The following macros relating to the TIAAction class are only relevant when
@@ -685,13 +686,13 @@ enum rmcDisambig;
 
 #define gVerifyList gAction.verifyList
 
-#define logical gAction.addVerifyResult (new VerifyResult(100, '', true, self))
+#define logical gAction.addVerifyResult (new VerifyResult(100, '', true, verobj))
     
 #define illogical(msg) \
-    gAction.addVerifyResult(new VerifyResult(30, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(30, msg, nil, verobj))
 
 #define illogicalNow(msg) \
-    gAction.addVerifyResult(new VerifyResult(40, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj))
 
 
 /* 
@@ -702,25 +703,25 @@ enum rmcDisambig;
  *   out an action.
  */
 #define illogicalAlready(msg) \
-    gAction.addVerifyResult(new VerifyResult(40, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj)
 
 #define illogicalSelf(msg) \
-    gAction.addVerifyResult(new VerifyResult(20, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(20, msg, nil, verobj))
 
 #define logicalRank(score) \
-    gAction.addVerifyResult(new VerifyResult(score, '', true, self))
+    gAction.addVerifyResult(new VerifyResult(score, '', true, verobj))
 
 #define inaccessible(msg) \
-    gAction.addVerifyResult(new VerifyResult(10, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(10, msg, nil, verobj))
 
 #define implausible(msg) \
-    gAction.addVerifyResult(new VerifyResult(35, msg, nil, self))
+    gAction.addVerifyResult(new VerifyResult(35, msg, nil, verobj))
 
 #define nonObvious \
-    gAction.addVerifyResult(new VerifyResult(30, '', true, self, nil))
+    gAction.addVerifyResult(new VerifyResult(30, '', true, verobj, nil))
 
 #define dangerous \
-    gAction.addVerifyResult(new VerifyResult(90, '', true, self, nil))
+    gAction.addVerifyResult(new VerifyResult(90, '', true, verobj, nil))
 
 
 /* ------------------------------------------------------------------------ */
@@ -740,7 +741,8 @@ enum rmcDisambig;
 /* a concise macro to throw an Abort signal */
 #define abort throw new AbortActionSignal()
 
-
+/* a concise macro to throw a Skip signal */
+#define skip throw new SkipSignal() 
 
 /* ------------------------------------------------------------------------ */
 /*

@@ -4155,6 +4155,13 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     myThoughtManager = nil
     
+    /*   
+     *   Tbe object referred to in our verify routine. For a Thing this is always self. We use
+     this indirection here to allow the various verify macros (illogical, etc.) to be called from a
+     function where verobj can be a local variable (or parameter). 
+     */
+    verobj = self
+    
     
     
     /*

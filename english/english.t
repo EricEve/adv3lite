@@ -3994,7 +3994,7 @@ askAmbiguous(cmd, role, names)
      */
     local q;
     if (role is in (DirectObject, ActorRole))
-        q = 'Which do you mean';
+        q = BMsg(which do you mean, 'Which do you mean');
     else
         q = nounRoleQuestion(cmd, role)
         .findReplace('what', 'which', ReplaceOnce);
