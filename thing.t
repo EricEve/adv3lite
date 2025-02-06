@@ -1894,8 +1894,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   it's both openable and open.
      */
     openStatusReportable = (isOpenable && isOpen)
-    
-        
+            
     /* 
      *   If present, a description of this object shown in a separate paragraph
      *   in the listing of the contents of a Room. If specialDesc is defined

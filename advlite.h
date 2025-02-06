@@ -408,6 +408,8 @@ enum rmcDisambig;
 
 #define sLoc(which) subLocation = &remap##which
 
+#define UsePronoun 1
+
 
 /*
  *   Treat an object definition as equivalent to another object definition.

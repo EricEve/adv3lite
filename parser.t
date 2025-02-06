@@ -5404,6 +5404,8 @@ class UnmatchedNounError: ActorResolutionError
          *   text of the noun phrase from the player's input.  
          */
         DMsg(unmatched noun, '{I} {see} no {2} {here}.', cmd, stripArticle(txt));
+        
+        oopsTip.showTip();
     }
 ;
 

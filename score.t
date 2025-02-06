@@ -290,6 +290,8 @@ scoreNotifier: object
     firstScoreChange(delta)
     {
         scoreChange(delta);
+        DMsg(first score change, '<.p><.parser>If you</sq>d prefer not to be notified about score
+            changes in the future, type NOTIFY OFF.<./parser>');
     }
 
     /* score change - notification other than the first time */

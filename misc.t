@@ -2918,3 +2918,35 @@ decimalStr(val, decimalPlaces = 2)
     /* Return the resulting string, prependsing a minus sign if dv was negative. */
     return (negative ? '-' : '') + dv;       
 }
+
+class Tip: object
+    showTip() 
+    {
+        if(shownCount < maxTimesToShow)
+        {
+            display(&tipText);
+            shownCount ++;
+        }
+    }
+    
+    shownCount = 0  
+    
+    maxTimesToShow = 1
+;
+
+undoTip: Tip
+    tipText 
+    { 
+        DMsg(undo tip, '<.p><.parser>If this didn\'t turn out quite as intended, note that you can
+            always take back one or more commands by typing UNDO.<./parser>' );
+    }   
+;
+
+oopsTip:Tip 
+    tipText
+    {
+        DMsg(oops tip, '''<.p><.parser>If this was an accidental misspelling, you can correct it by
+            typing OOPS followed by the corrected word now. Any time the story points out an unknown
+            word, you can correct a misspelling using OOPS as your next command.<./parser>''');
+    }
+;

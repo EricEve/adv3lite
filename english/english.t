@@ -3366,7 +3366,10 @@ modify descContentsLister
          *   open-or-closed status, start the listing by reporting that it's
          *   open and then say 'and contains'
          */
-        if(parent.openStatusReportable)
+        if(parent.openStatusReportable == UsePronoun)
+            "{He parent}{\'s} open and contain{s/ed} ";  
+        
+        else if(parent.openStatusReportable)
             "{The subj parent} {is} open and contain{s/ed} ";  
         
         /*  
@@ -3390,9 +3393,12 @@ modify descContentsLister
      */
     showListEmpty(parent)  
     {
-        if(parent.openStatusReportable)
-            "\^<<parent.theNameIs>> <<if parent.isOpen>>open<<else>>
-            closed<<end>>. ";
+        gMessageParams(parent);
+        if(parent.openStatusReportable == UsePronoun)
+            "{He parent}{\'s} <<if parent.isOpen>>open<<end>>. ";
+        
+        else if(parent.openStatusReportable)
+            "\^<<parent.theNameIs>> <<if parent.isOpen>>open<<end>>. ";
     }
     
     /* 

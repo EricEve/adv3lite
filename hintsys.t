@@ -962,25 +962,5 @@ extraHintManager: PreinitObject
     }
 ;
 
-class Tip: ExtraHint
-    showTip() 
-    {
-        showHint();
-        shownCount ++;
-    }
-    
-    shownCount = 0
-    
-    closeWhen = (shownCount >= maxTimesToShow)
-    
-    maxTimesToShow = 1
-;
 
-undoTip: Tip
-    hintText 
-    { 
-        DMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
-            always take back one or more commands by typing UNDO' );
-    }   
-;
 
