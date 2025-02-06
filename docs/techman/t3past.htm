@@ -39,6 +39,10 @@ Writing a Game in the Past Tense
 <h1>Writing a Game in the Past Tense</h1>
 
 <p><i>by Michel Nizette</i>
+<h2>Adapted for Adv3Lite by Eric Eve</h2>
+<p>The adaptation is fairly slight here, since adv3Lite handles this quite similarly to the way adv3 does.</p>
+
+<h2>Introduction</h2>
 
 <p>IF authors usually prefer to write in the second person and in the present tense, as though the events were happening directly to the player.  Many feel that this creates a sense of involvement in the story that cannot be so efficiently achieved otherwise.  Occasionally, though, some authors like to break free of this tradition and explore how a different narrative style affects the playing experience.  For example, a first-person game presented in the form of a dialogue between the player and the protagonist of the story may help establish the latter as a distinct character, with an independent personality.  The past tense also can be used to good effect to evoke the protagonist's memories, either for the whole story or during a short interlude.
 
@@ -52,37 +56,43 @@ Writing a Game in the Past Tense
 
 <p>You can reset this property at any time during the game to switch to a different tense.  The TADS&nbsp;3 Library defines a convenience macro for this, called <span class="code">setPastTense</span>.  This macro takes a single argument and is just a shorthand for assigning <span class="code">gameMain.usePastTense</span> directly: <span class="code">setPastTense(val)</span> simply expands to <span class="code">gameMain.usePastTense = val</span>.
 
-<p>Unlike the narrative tense, the person in which the player character is referred to is a property of the player character's <span class="code">Actor</span> object.  In a game where several characters can be controlled by the player at different times, you might want to use distinct grammatical persons for some of them, so it makes sense to define this setting separately for each potential player character.  To select the person for the player character object, you set its <span class="code">pcReferralPerson</span> property to one of the three following values: <span class="code">FirstPerson</span>, <span class="code">SecondPerson</span>, or <span class="code">ThirdPerson</span>.  The default value is <span class="code">SecondPerson</span>, so that the game refers to the player character as "you" unless otherwise specified.
+<p>Unlike the narrative tense, the person in which the player character is referred to is a property of the player character's <span class="code">Actor</span> object.  In a game where several characters can be controlled by the player at different times, you might want to use distinct grammatical persons for some of them, so it makes sense to define this setting separately for each potential player character.  To select the person for the player character object, you set its <span class="code">person</span> property to one of the three following values: <span class="code">1</span>, <span class="code">2</span>, or <span class="code">3</span>.  The default value is <span class="code">2</span>, so that the game refers to the player character as "you" unless otherwise specified.
+
+<p>In adv3Lite you can also set the tense on the Narrator object (Narrator.tense) to one of six tenses:</p>
+<ul>
+<li>Present, e.g., Bob opens the box.</li>
+<li>Past: Bob opened the box.</li>
+<li>Perfect: Bob has opened the box.</li>
+<li>Past Perfect: Bob had opened the box.</li>
+<li>Future: Bob will open the box.</li>
+<li>Future Perfect: Bob will have opened the box.</li>
+</ul>
+<p> Narrator.Present defaults to Present, but we don't have to worry about the Narrator object at all if we're only interested in using the present and/or part tense. Since tenses other than these two are so rare in Interactive Fiction, for the rest of this article we shall focus solely on the past and present tenses.</p>
 
 <h2>The past tense handling framework</h2>
 
-The ability to switch between the present tense and the past tense is a recent addition to TADS&nbsp;3.  On this occasion, it has been necessary to extend the message parameter substitution mechanism already used for plugging the appropriate object names in the command responses and making verbs agree in person and number with the subject.  The remainder of this article describes the new features of the substitution parameter framework that are specific to handling the past tense, and which are not covered in the older article <a href="t3msg.htm">Message Parameter Substitutions in the TADS 3 Library</a>.  From now on, we'll assume that you have some familiarity with the material exposed therein.
+The ability to switch between the present tense and the past tense relies on the <a href='t3msg.htm'>message parameter substitution</a> mechanism  used for plugging the appropriate object names in the command responses and making verbs agree in person and number with the subject.  The remainder of this article describes the new features of the substitution parameter framework that are specific to handling the past tense.  From now on, we'll assume that you have some familiarity with message substitution parameters.
 
 <p>If you have read the article in question, you have probably noticed that the first given example of a message that uses substitution parameters:
 
 <p><div class="code"><pre>
-   {You/he} see{s} nothing unusual about {it dobj/him}.
+    {I} {see} nothing unusual about {it dobj}.
 </pre></div>
 
-<p>has been updated in a more recent version of the TADS&nbsp;3 Library to:
 
-<p><div class="code"><pre>
-   {You/he} {sees} nothing unusual about {it dobj/him}.
-</pre></div>
-
-<p>Although the verb "see" could be considered regular as long as we were only interested in the present-tense form, and could be handled with the regular verb ending parameter {s}, it can't be anymore now that we need to take the irregular past tense form ("saw") into account.  The new parameter {sees} generates the appropriate conjugated form of "see" in agreement with the subject of the sentence <em>and</em> in the desired tense: it produces "sees" in the third-person singular of the present tense, "see" in all other cases of the present tense, and "saw" in the past tense.  The irregular verb "see," just like "have," is common enough to justify a dedicated substitution parameter, although all irregular verbs don't have their own specific substitution parameters.  We'll see below how to conjugate arbitrary verbs, whether regular or irregular.
+<p>Although the verb "see" could be considered regular as long as we were only interested in the present-tense form, and could be handled with the regular verb ending parameter {s}, it can't be anymore now that we need to take the irregular past tense form ("saw") into account.  The parameter {sees} generates the appropriate conjugated form of "see" in agreement with the subject of the sentence <em>and</em> in the desired tense: it produces "sees" in the third-person singular of the present tense, "see" in all other cases of the present tense, and "saw" in the past tense.  The irregular verb "see," just like "have," is common enough to justify a dedicated substitution parameter. Many other irregular verbs have their own specific substitution parameters.  We'll see below how to conjugate arbitrary verbs, whether regular or irregular.
 
 <h2>Regular verb endings</h2>
 
 <p>Regular verbs are those that obey simple conjugation rules in both the present tense and the past tense: up to some minor variations, they take -s in the third-person singular of the present tense and -ed in the past tense.  Formerly, TADS&nbsp;3 defined three substitution parameters for regular verb endings: {s}, {es}, and {ies}.  The problem with these parameters is that they don't always provide enough information about the correct past-tense ending, so now the set of verb ending parameters has been augmented with the following:
 
 <p><table>
-<tr><th>Parameter string<th>Thing property<th>Example use<th>Example expansion
-<tr class=odd><td>s/d<td>verbEndingSD<td>close{s/d}<td>close, close<u>s</u>, close<u>d</u>
-<tr><td>s/ed<td>verbEndingSEd<td>open{s/ed}<td>open, open<u>s</u>, open<u>ed</u>
-<tr class=odd><td>s/?ed<td>verbEndingSMessageBuilder_<td>drop{s/ped}<td>drop, drop<u>s</u>, drop<u>ped</u>
-<tr><td>es/ed<td>verbEndingEs<td>fix{es/ed}<td>fix, fix<u>es</u>, fix<u>ed</u>
-<tr class=odd><td>ies/ied<td>verbEndingIes<td>carr{ies/ied}<td>carr<u>y</u>, carr<u>ies</u>, carr<u>ied</u>
+<tr><th>Parameter string<th>Example use<th>Example expansion
+<tr class=odd><td>s/d<td>close{s/d}<td>close, close<u>s</u>, close<u>d</u>
+<tr><td>s/ed<td>open{s/ed}<td>open, open<u>s</u>, open<u>ed</u>
+<tr class=odd><td>s/?ed<td>drop{s/ped}<td>drop, drop<u>s</u>, drop<u>ped</u>
+<tr><td>es/ed<td>fix{es/ed}<td>fix, fix<u>es</u>, fix<u>ed</u>
+<tr class=odd><td>ies/ied<td>carr{ies/ied}<td>carr<u>y</u>, carr<u>ies</u>, carr<u>ied</u>
 </table>
 
 <p>Their use should be mostly self-explanatory from the examples given in the two last columns of the table, but a few comments are worth making.
@@ -95,49 +105,76 @@ The ability to switch between the present tense and the past tense is a recent a
 
 <h2>Common irregular verbs</h2>
 
-<p>Already before the introduction of the past-tense framework, the TADS&nbsp;3 Library defined substitution parameters for the few verbs that have an irregular form in the past tense.  This set is pretty limited: there are "to have," "to be," and a few contractions of "to be" with the subject.  However, many verbs have a regular conjugation in the present tense, but an irregular past-tense form.  For the most commonly used of them, the Library now defines the following additional parameters:
+<p>The adv3Lite library defines substitution parameters for about two hundred verbs that have an irregular form in the past tense. Some common ones include:</p>
 
 <p><table>
-<tr><th>Parameter strings<th>Thing property<th>Expands to
-<tr class=odd><td>do, does<td>verbToDo<td>do, does, did
-<tr><td>go, goes<td>verbToGo<td>go, goes, went
-<tr class=odd><td>come, comes<td>verbToCome<td>come, comes, came
-<tr><td>leave, leaves<td>verbToLeave<td>leave, leaves, left
-<tr class=odd><td>see, sees<td>verbToSee<td>see, sees, saw
-<tr><td>say, says<td>verbToGo<td>say, says, said
-<tr class=odd><td>must<td>verbMust<td>must, had to
-<tr><td>can<td>verbCan<td>can, could
-<tr class=odd><td>cannot<td>verbCannot<td>cannot, could not
-<tr><td>can't<td>verbCant<td>can't, couldn't
-<tr class=odd><td>will<td>verbWill<td>will, would
-<tr><td>won't<td>verbWont<td>won't, wouldn't
+<tr><th>Parameter strings<th>Expands to
+<tr class=odd><td>do, does<td>do, does, did
+<tr><td>go, goes<td>go, goes, went
+<tr class=odd><td>come, comes<td>come, comes, came
+<tr><td>leave, leaves<td>leave, leaves, left
+<tr class=odd><td>see, sees<td>see, sees, saw
+<tr><td>say, says<td>say, says, said
+<tr class=odd><td>must<td>must, had to
+<tr><td>can<td>>can, could
+<tr class=odd><td>cannot<td>cannot, could not
+<tr><td>can't<td>can't, couldn't
+<tr class=odd><td>will<td>will, would
+<tr><td>won't<td>won't, wouldn't
 </table>
 
 <p>You can see from the table that if a verb or verb form is defective in the past tense, then the corresponding parameter expands to a close approximation: {must} expands to "had to," and {cannot} expands to "could not."  Also, for some verbs, there are two equivalent parameter strings: for example, {do} and {does} have exactly the same expansion rules.
 
 <h2>Arbitrary irregular verbs</h2>
 
-<p>All irregular verbs aren't used as frequently as those listed in the table above, and thus don't deserve a specific substitution parameter.  For the less-used irregular verbs, the Library provides a fallback mechanism that allows switching between two arbitrary strings depending on the narrative tense.  The format superficially looks like an ordinary substitution parameter: the syntax is {<i>presentString</i>|<i>pastString</i>}, where <i>presentString</i> and <i>pastString</i> represent the (possibly empty) strings to be displayed in the present and past tenses, respectively.  
+<p>For rarely used irregular verbs, the Library providest two fallback mechanisms. One allows switching between two arbitrary strings depending on the narrative tense.  The format superficially looks like an ordinary substitution parameter: the syntax is {<i>presentString</i>|<i>pastString</i>}, where <i>presentString</i> and <i>pastString</i> represent the (possibly empty) strings to be displayed in the present and past tenses, respectively.  
 
-<p>For example, the substring {may|might} in a parameterized message string would expand to "may" in the present tense and to "might" in the past tense.
+<p>For example, the substring {may|might} in a parameterized message string would expand to "may" in the present tense and to "might" in the past tense. (We don't actually needs to do this since the library undersstands {may} perfectly well).
 
-<p>This example is rather exceptional in that the verb "may" doesn't vary at all in the present tense.  Most irregular verbs need to be made to agree with the subject in the present tense, and so you'll often want to include ordinary substitution parameters inside one of the two strings embedded in a tense-switching sequence.  The nested substitution parameters, if present, must be enclosed in square brackets rather than braces.  For example, a message involving the verb "understand" could be written like this:
+<p>This example is rather exceptional in that the verb "may" doesn't vary at all in the present tense.  Most irregular verbs need to be made to agree with the subject in the present tense. Let's imagine we had the rare verb 'to frob' which become 'he frobs' in the third person preseny, 'he frub' in the past, and 'he has frabbed' in the past perfect. We can tell the library how to cope with a new {frob} parameter by adding it to a CustomVocab object:</p>
+<p><pre>
+CustomVocab
+    verbParams = ['frob/frobs/frub/frabbed']
+;
+</pre>
+<p>Then we could write messages like:</p>
+<p><pre>
+   "<.p>{I} hardly {frob} Blottnyan poetry. ";
+</pre>
+<p>And it would expand into "You hardly frob Blottnyan poetry", "Fred hardly frobs Blottyan poetry", "You hardly frub Blottnyan poetry" (back then) or "You have hardly frabbed Blottnyan poetry" as appropriate.</p>
 
-<p><div class="code"><pre>
-   {You/he} hardly underst{and[s]|ood} Blottnyan poetry.
-</pre></div>
-
-<p>Let's look at this example in detail.  The initial substitution parameter sets up the actor as the grammatical subject.  Then, a bit further on, we have the constant substring "underst" immediately followed by the tense-switching sequence, {and[s]|ood}.  If the current narrative tense is the past, then this sequence expands to "ood," producing "understood" in combination with the prefix "underst."  In the present tense, the switching sequence selects "and[s]" instead, which contains an ordinary substitution parameter, [s], enclosed in square brackets.  This parameter expands to either "s" or nothing, depending on which of these gives the correct verb agreement, so the whole switching sequence expands to either "and" or "ands."  In combination with the prefix "underst," this ultimately gives either "understand" or "understands" in the present tense.
-
-<p>Note, by the way, that here we have a case where it makes sense to use the verb ending parameter [s] rather than one of the forms that has the past tense ending listed explicitly (such as [s/ed] or whatever), because we never use a regular past-tense ending.
+<p>The verbParams property of a <a href='../manual/message.htm#custmessage_idx'>CustomVocab </a>
+object holds a list of
+strings, using the following template:</p>
+<p><pre>     
+ 'infinitive/present3/past/past-participle'
+ </pre>
+       
+<p>The 'infinitive' is the 'to' form of the verb (to go, to look, to
+see), but <i>without</i> the word 'to'.  'present3' is the third-person
+present form (is, goes, sees).  'past' is the past tense form
+went, looked, saw).  'past-participle' is the past participle
+form; this is optional, and is needed only for verbs with distinct
+past and past participle forms (e.g., saw/seen, went/gone).  Most
+regular verbs - those with the past formed by adding -ed to the
+infinitive - have identical past and participle forms.</p>
+      
+<p>For every English verb except "to be", the entire present and past
+conjugations can be derived from these three bits of information.
+The past perfect, future, and future perfect conjugations can also
+be derived from this information, for any verb except "to be" and
+the auxiliary verbs (could, should, etc).  The English library
+pre-defines "to be" and all of the auxiliary verbs, so there's no
+need to define those with this mechanism.</p>
+     
 
 <h2>Arbitrary tense-dependent expressions</h2>
 
-<p>The tense-switching syntax can also be useful for more complicated verb forms, or for things other than verbs but that still vary with tense.  For example, the following message string is defined somewhere in the TADS&nbsp;3 Library:
+<p>The tense-switching syntax can also be useful for more complicated verb forms, or for things other than verbs but that still vary with tense.  For example, we could define:</p>
 
 <p><div class="code"><pre>
-   {The dobj/he} should {be|have been} right {|t}here,
-   but {you/he} {can\'t} see {it dobj/him}.
+   {The subj dobj} should {be|have been} right {|t}here,
+   but {I} {can\'t} see {him dobj}.
 </pre></div>
 
 <p>In this example, the tense-switching syntax is used twice.  The first instance generates a present or past conditional: the substring "should {be|have been}" produces "should be" in the present tense, and "should have been" in the past tense.  The second instance is "{|t}here," which gives "here" in the present tense and "there" in the past tense.  (In case you wonder, the reason why we want to avoid using "here" in the past tense is that it doesn't make much sense to call "here" a place which the player character has visited at some time in the past, but might very well have left since then.)
@@ -145,23 +182,30 @@ The ability to switch between the present tense and the past tense is a recent a
 <p>Note also an important difference between the two following messages (both found in the TADS&nbsp;3 Library):
 
 <p><div class="code"><pre>
-   {You/he} smell{s/ed} nothing out of the ordinary.
+   {I} smell{s/ed} nothing out of the ordinary.
 
-   Opening {the dobj/him} reveal{s|ed} nothing unusual.
+   Opening {the dobj} reveal{s|ed} nothing unusual.
 </pre></div>
 
-<p>You may wonder why the first message uses the ordinary verb ending substitution parameter {s/ed}, whereas the second message uses the generic tense-switching syntax {s|ed}, for apparently identical purposes.  The answer is that ordinary verb parameters need a subject to agree with, while the tense-switching syntax doesn't.  In the first message, the parameter {You/he} sets up the grammatical subject of the sentence.  The verb "smell" is then required to agree with it, so we must use the appropriate substitution parameter for the verb ending.  In the second message, the subject of the sentence is the present participle "Opening," which unconditionally requires the verb to be in third-person singular.  Because the subject isn't a parameterized expression, we don't need (and we can't use) a verb ending parameter here.  But the verb ending still needs to vary with tense, so we use the tense-switching syntax.
+<p>You may wonder why the first message uses the ordinary verb ending substitution parameter {s/ed}, whereas the second message uses the generic tense-switching syntax {s|ed}, for apparently identical purposes.  The answer is that ordinary verb parameters need a subject to agree with, while the tense-switching syntax doesn't.  In the first message, the parameter {I} sets up the grammatical subject of the sentence.  The verb "smell" is then required to agree with it, so we must use the appropriate substitution parameter for the verb ending.  In the second message, the subject of the sentence is the present participle "Opening," which unconditionally requires the verb to be in third-person singular.  Because the subject isn't a parameterized expression, we don't need (and we can't use) a verb ending parameter here.  But the verb ending still needs to vary with tense, so we use the tense-switching syntax.</p>
+
+<p>An alternative here would have been to use the parameter string {dummy} to stand in for the subject of the verb without outputting any text:<p>
+
+<p><pre>
+    Opening {the dobj} {dummy} reveal{s/ed} nothing unusual.
+</pre>
 
 <p>Behind the scenes, the tense-switching syntax is implemented via a macro which you may find convenient in its own right.  The macro is named <span class="code">tSel</span> and takes two arguments; it just expands to its first argument if the current narrative tense is the present, and to its second argument if it is the past.  For example, <span class="code">tSel(getTime()[1], 1492)</span> would give the current year for the present tense, and the year of the discovery of America by Columbus for the past tense.
 
 <h2>Disabling tense switching in substitution parameters</h2>
+<p><i>Editor's Note: The exclamation mark mechanism mentioned in this section doesn't (yet?) exist in adv3Lite, but it seemed appropriate to leave this section in place to draw readers' attention to the problem it was designed to address and the existence of the <code>withPast</code> and <code>withPresent</code> macros.</i></p>
 
 <p>Occasionally, you may want a verb form to vary as a function of person and number only, but not as a function of the narrative tense.  Quoted speech, for example, is always reported in the present tense, even in a past tense narrative.
 
 <p>You might be tempted to write a default response to giving an arbitrary object to a certain character as follows:
 
 <p><div class="code"><pre>
-   {The iobj/he} {says}, &lt;q&gt;{The dobj/he} {is} of no use to me right now.&lt;/q&gt;
+   {The subj iobj} {says}, &lt;q&gt;{The subj dobj} {is} of no use to me right now.&lt;/q&gt;
 </pre></div>
 
 <p>except that this won't quite work as you want it to, at least in the past tense.  The kind of response you are aiming for with such a message string is probably something like "The thief said, 'the lock pick <em>is</em> of no use to me right now.'"  But instead, it will generate "The thief said, 'the lock pick <em>was</em> of no use to me right now,'" because the system has no way to know that you want the verb "is" in the present tense, despite this being a past-tense phrasing.  Yet you really need a substitution parameter for the verb "is," because it must agree in number with the direct object of the action.  This is obvious from the following example: "The thief said, 'the gloves <em>are</em> of no use to me right now.'"
@@ -169,7 +213,7 @@ The ability to switch between the present tense and the past tense is a recent a
 <p>TADS&nbsp;3 provides a solution to this problem.  Just add an exclamation mark at the end of the substitution parameter for which you want the present-tense form unconditionally, like this:
 
 <p><div class="code"><pre>
-   {The iobj/he} {says}, &lt;q&gt;{The dobj/he} {is!} of no use to me right now.&lt;/q&gt;
+   {The subj iobj} {says}, &lt;q&gt;{The subj dobj} {is!} of no use to me right now.&lt;/q&gt;
 </pre></div>
 
 <p>The Library then will not attempt to render the verb "to be" in the past tense, but still knows that you want it to agree with the subject.
@@ -180,7 +224,6 @@ The ability to switch between the present tense and the past tense is a recent a
 
 <p>The TADS&nbsp;3 Library complements this function with two convenience macros, named <span class="code">withPresent</span> and <span class="code">withPast</span>.  They simply call the function <span class="code">withTense</span> with a <span class="code">nil</span> or <span class="code">true</span> first argument, respectively.  Both macros take a single argument, which is the callback function to be passed to <span class="code">withTense</span>.
 
-<p>For example, on the assumption that your game contains an actor named "me", <span class="code">withPast({: me.conjugateRegularVerb('carry')})</span> would return the string <span class="code">'carried'</span> no matter what the current narrative tense is.
 
 </div>
 <hr class="navb"><div class="navb">
