@@ -411,6 +411,7 @@ enum rmcDisambig;
 #define UsePronoun 1
 
 
+
 /*
  *   Treat an object definition as equivalent to another object definition.
  *   These can be used immediately after a dobjFor() or iobjFor() to treat
@@ -1176,7 +1177,8 @@ Hint template 'hintText' [referencedGoals]?;
 
 ExtraHint template +hintDelay? "hintText" | [eventList];
 
-
+Tip template "desc" | 'desc';
+    
 /* templates for EventLists */
 
 EventList template [eventList];

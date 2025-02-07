@@ -801,13 +801,8 @@ DefineSystemAction(Instructions)
         saving all of the displayed text to a disk file, so that you
         can peruse it later or print it out.
         \bSCRIPT OFF: Ends a transcript that you started with SCRIPT. 
-        \bUNDO: Takes back the last command.
-        \bSAVE DEFAULTS: Saves your current settings for things like
-        NOTIFY, EXITS, and FOOTNOTES as defaults.  This means that your
-        settings will be restored automatically the next time you start
-        a new game, or RESTART this one.
-        \bRESTORE DEFAULTS: Explicitly restores the option settings
-        you previously saved with SAVE DEFAULTS. ";
+        \bUNDO: Takes back the last command."
+        ;
     }
     
     /* Unknown Words chapter */

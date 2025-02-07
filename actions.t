@@ -446,6 +446,22 @@ DefineSystemAction(ExtraHints)
     extraHintsCmd = BMsg(extra hints command, 'EXTRA ')
 ;
 
+DefineSystemAction(TipsOn)
+    execAction(cmd)
+    {
+        tipMode.isOn = true;
+        DMsg(tips on, 'Tips are now on. ');
+    }    
+;
+
+DefineSystemAction(TipsOff)
+    execAction(cmd)
+    {
+        tipMode.isOn = nil;
+        DMsg(tips on, 'Tips are now off. ');
+    }    
+;
+
 DefineSystemAction(Brief)
     execAction(cmd)
     {

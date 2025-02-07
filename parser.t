@@ -4565,6 +4565,9 @@ class OopsProduction: Production
         /* build the tree into an OopsCommand object */
         local cmd = new OopsCommand();
         prod.build(cmd, nil);
+        
+        /* If the player has already issues an OOPS command they don't need the OOPS tip. */
+        oopsTip.makeShown();
 
         /* 
          *   splice the corrected tokens into the original token list,

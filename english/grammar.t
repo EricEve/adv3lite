@@ -3686,6 +3686,20 @@ VerbRule(ExtraHints)
     verbPhrase = ('turn/turning extra hints ' + onOff)
 ;
 
+VerbRule(TipsOn)
+    ('tips' |'tip'| ) 'on'    
+    : VerbProduction
+    action = TipsOn
+    verbPhrase = ('turn/turning tips on')
+;
+
+VerbRule(TipsOff)
+    ('tips' |'tip'| ) 'off'    
+    : VerbProduction
+    action = TipsOff
+    verbPhrase = ('turn/turning tips off')
+;
+
 VerbRule(Brief)
     'brief' | 'terse'
     : VerbProduction

@@ -953,8 +953,7 @@ libGlobal: object
      *   A list of objects in the game with alternating vocabulary. This is maintained and used by
      *   the library and shouldn't normally be changed by game code.
      */
-    altVocabLst = []
-   
+    altVocabLst = []   
 ;
 
 
@@ -2920,33 +2919,65 @@ decimalStr(val, decimalPlaces = 2)
 }
 
 class Tip: object
+    /* 
+     *   Our description, in other words the text of the tip we'll display. This can be a a
+     *   double-quoted string, as single-quoted string, or a method.
+     */
+    desc = nil
+    
+    /* Show this tip. */
     showTip() 
     {
-        if(shownCount < maxTimesToShow)
+        /* If we should show this tip, show it and mark it as shown. */
+        if(shouldShow())
         {
-            display(&tipText);
-            shownCount ++;
+            showTipDesc();
+            makeShown();
         }
     }
     
-    shownCount = 0  
+    /* 
+     *   Mark this tip as having been shown. If for any reason we need to make a previously shown
+     *   tipa act as if it had not been shown, we can call makeShown(nil).
+     */
+    makeShown(stat = true)  {  isShown = stat; }
     
-    maxTimesToShow = 1
+    /* 
+     *   Show the description of this Tip. By prepend and append the <.tip> and <./tip> style tags
+     *   and then display our desc.
+     */
+    showTipDesc()
+    {        
+        "<.p><.tip>";
+        display(&desc);
+        "<./tip>";
+    }
+    /* This tip should be shown if and only if it hasn't yet been shown and tipMode.isOn is true. */
+    shouldShow = (!isShown && tipMode.isOn)
+    
+    
+    /* Has this Tip been shown? */
+    isShown = nil;
+;
+
+/* Object to keep track of whether or not we want tips to be shown in this game. */
+tipMode: object
+    /* Tips will be shown if isOn is true and suppressed it it's nil. */
+    isOn = true
 ;
 
 undoTip: Tip
-    tipText 
-    { 
-        DMsg(undo tip, '<.p><.parser>If this didn\'t turn out quite as intended, note that you can
-            always take back one or more commands by typing UNDO.<./parser>' );
-    }   
+    desc() { DMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
+        always take back one or more commands by typing 
+        <<aHref('undo', 'UNDO', 'Take back the most recent command')>>.');  }     
 ;
 
 oopsTip:Tip 
-    tipText
-    {
-        DMsg(oops tip, '''<.p><.parser>If this was an accidental misspelling, you can correct it by
-            typing OOPS followed by the corrected word now. Any time the story points out an unknown
-            word, you can correct a misspelling using OOPS as your next command.<./parser>''');
+    desc() { DMsg(oops tip, '''If this was an accidental misspelling, you can correct
+        it by typing OOPS followed by the corrected word now. Any time the story points out an
+        unknown word, you can correct a misspelling using OOPS as your next command.''');
     }
+    
+        
+    
 ;

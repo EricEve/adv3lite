@@ -1094,6 +1094,15 @@ assumeStyleTag: StyleTag 'assume'
     closeText = ')'
 ;
 
+/*  
+ *   <.tip> - style for displaying the text (desc) of tips. The opening and closing tip tags are
+ *   automatically added before and after desc by the showTip() method.
+ */
+tipStyleTag: StyleTag 'tip'
+   openText = '('
+   closeText = ')'    
+;
+
 /*
  *   <.announceObj> - style for object announcement messages.  The parser
  *   shows an object announcement for each object when a command is applied
