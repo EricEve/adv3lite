@@ -2355,11 +2355,15 @@ modify Actor
     touchResponseMsg = BMsg(should not touch actor, '{The subj dobj} {doesn\'t
         appreciate[d]} being touched. ')
     
+    feelDesc = touchResponseMsg
+    touchDesc = touchResponseMsg
+    
+    
     dobjFor(Feel)
     {
         action()
         {
-            handleTopic(&miscTopics, [touchTopicObj], &touchResponseMsg);
+            handleTopic(&miscTopics, [touchTopicObj], &feelDesc);
         }
     }
     

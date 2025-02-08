@@ -1691,9 +1691,17 @@ VerbRule(LookDir)
 
 
 VerbRule(Feel)
-    ('feel' | 'touch') multiDobj
+    'feel'  multiDobj
     : VerbProduction
     action = Feel
+    verbPhrase = 'feel/feeling (what)'
+    missingQ = 'what do you want to feel'
+;
+
+VerbRule(Touch)
+    'touch' multiDobj
+    : VerbProduction
+    action = Touch
     verbPhrase = 'touch/touching (what)'
     missingQ = 'what do you want to touch'
 ;

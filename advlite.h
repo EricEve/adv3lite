@@ -1367,7 +1367,7 @@ enum likely, dubious, unlikely, untrue;
 #define feelResponseMsg touchResponseMsg
 #define isTouchable isFeelable
 #define cannotTouchMsg cannotFeelMsg
-#define touchDesc feelDesc
+
 #define checkHitMsg checkAttackMsg
 #define hitResponseMsg attackResponseMsg
 

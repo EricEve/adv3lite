@@ -225,7 +225,7 @@ QDefaults: Special
         return s;
     }
     
-    /* Get a list of all objects that are known to the player char */
+    /* Get a list of all Things that are known to the player char */
     
     knownScopeList()
     {
@@ -1030,7 +1030,7 @@ commLink: Special
     
     /* 
      *   Give this Special a higher priority that the QSenseRegion Special so
-     *   that it takes precedence when its active.
+     *   that it takes precedence when it's active.
      */
     priority = 5
 ;

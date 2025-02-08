@@ -2075,8 +2075,15 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     isProminentSmell = true
     
-    /*   The description displayed in response to a FEEL command */
+    /*   The description displayed in response to a FEEL or TOUCH command */
     feelDesc = nil
+    
+    /*   
+     *   By default TOUCH and FEEL both do the same things and both use feelDesc, but if game code
+     *   wants to override dobjFor(Touch) to distinguish them it may want to use a touchDesc
+     *   property for TOUCH.
+     */
+    touchDesc = feelDesc
     
     /*   The description displayed in response to a LISTEN command */
     listenDesc = nil
@@ -4447,6 +4454,9 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* By default a Thing is takeable if it's not fixed in place */
     isTakeable = (!isFixed)
+    
+    /* Make TOUCH act the sane as FEEL */
+    dobjFor(Touch) asDobjFor(Feel)
     
     dobjFor(Take)    
     {

@@ -1176,6 +1176,16 @@ DefineTAction(Feel)
     againRepeatsParse = nil
 ;
 
+
+DefineTAction(Touch)
+    announceMultiAction = true
+    getAll(cmd, role)
+    {
+        return scopeList.subset({ x: !x.ofKind(Room)});
+    }
+    againRepeatsParse = nil
+;
+
 DefineTAction(Take)
     
     getAll(cmd, role)
