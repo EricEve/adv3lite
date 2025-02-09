@@ -914,8 +914,22 @@ class MessageParams: object
     {
         /* look up the parameter name */
         local pname = params[1].trim();
-        local t = paramTab[pname.toLower()];
+        
+        /* Note whether we have a parameter ending in ! that wants to force a present tense verb */
+        local forcePresentTense = nil;
+        
+        /* 
+         *   If the parameter ends in ! we want a present tense verb whatever the tense of the game.
+         */
+        if(pname.right(1) == '!')
+        {
+            forcePresentTense = true;
+            pname = pname.left(-1);
+            params[1] = pname;
+        }
 
+        local t = paramTab[pname.toLower()]; 
+        
         /* 
          *   If we found an entry, let the entry handle it.  If there's no
          *   matching entry, it's basically an error: return the original
@@ -933,8 +947,46 @@ class MessageParams: object
             if(ctx.subj == nil)
                 ctx.subj = dummy_;
             
+            /* 
+             *   If we're forcing present tense .Note the current game tense so we can restore it
+             *   once we've expanded this parameter. Since this could be defined either on gameMain
+             *   or on Narrator we meed to check both places. If Narrator.tense is a method (rather
+             *   than a Tense object) we need to take the tense from gameMain.usePastTense,
+             *   otherwise we need to note the Tense object on Narrator.tense.             
+             */
+            local oldTense = Narrator.propType(&tense) == TypeCode ? gameMain.usePastTense :
+            Narrator.tense;
+            
+            /* 
+             *   If we're forcing present tense, set the Narrator.tense to Present if oldTense is an
+             *   object, otherwise set gameMain.usePastTense to nil on the assumption that
+             *   Narrator.tense is getting its value to gameMain.usePastTense.
+             */
+            if(forcePresentTense)
+            {
+                if(dataType(&oldTense) == TypeObject)
+                    Narrator.tense = Present;
+                else
+                    gameMain.usePastTense = nil;               
+            }
+            
             /* we found the parameter - get the translation */
             txt = t[2](ctx, params);
+            
+            /* 
+             *   If we've been forcing present tense, now restore the previous tensse. If oldTense
+             *   is an object, assume it's a Tense object and set Narrator.tense back to it,
+             *   otherwise restore the previous value of gameMain.usePastTense on the assumption
+             *   that Narrator.tense is getting its value from there.
+             */
+            if(forcePresentTense)
+            {
+                if(dataType(&oldTense) == TypeObject)
+                    Narrator.tense = oldTense;
+                else
+                    gameMain.usePastTense = oldTense;               
+            }
+            
             
             /* 
              *   if this isn't a pre-scan, and the parameter name starts
@@ -954,7 +1006,8 @@ class MessageParams: object
         /* return the result */
         return txt;
     }
-
+    
+    
     /* 
      *   Parameter mapping list.  This is a list of lists: [name, func],
      *   where 'name' is the parameter name (as a string), and 'func' is
