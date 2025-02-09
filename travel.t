@@ -1449,9 +1449,7 @@ class TravelConnector: object
         if(checkTravelBarriers(traveler))           
             execTravel(actor, traveler, self);               
     }
-    
-   
-    
+       
     /* 
      *   Get the traveler associated with this actor. Normally the traveler will
      *   be the same as the actor, but if the actor is in a vehicle, then the
@@ -1505,10 +1503,7 @@ class TravelConnector: object
         }
     }
     
-       
-    
-    
-    
+         
     /* 
      *   Display a message saying that this travel connector doesn't actually
      *   lead anywhere; this may be needed if our destination is nil and our
@@ -1645,6 +1640,33 @@ class TravelConnector: object
      */
     checkTravelBarriers(traveler)
     {
+        /* 
+         *   First check if we have a checkReach method that might prevent the traveler from
+         *   accessing this connector.
+         */
+        if(propDefined(&checkReach))
+        {    
+            if(gOutStream.watchForOutput({: checkReach(traveler)}))
+               return nil;
+        }
+        
+        /* 
+         *   Next, check if this TravelConnector has any staging locations, and if so, wheteher the
+         *   traveler is in one of them. If not, disallow the travel.
+         */
+        if(stagingLocations)
+        {
+            local stagLocs = valToList(stagingLocations);
+            if(stagLocs.length > 0)
+            {
+                if(!stagLocs.indexWhich({x: traveler.location.ofKind(x)}))
+                {
+                    sayNotInStagingLocation(traveler);
+                    return nil;
+                }                                            
+            }
+        }
+        
         /* first check our own built-in barrier test. */
         if(!canTravelerPass(traveler))
         {
@@ -1668,7 +1690,6 @@ class TravelConnector: object
          */
         return true;   
     }
-    
     
     /* 
      *   Display a message to say that an actor is departing via this connector.
@@ -1738,6 +1759,27 @@ class TravelConnector: object
         /* Return the direction to which this connector is attached. */
         return room.getDirection(self);
     }
+    
+    /* 
+     *   Our list of stagingLocations. We don't need to define this, in which case we'll assume the
+     *   traveler needs to be directly in the room they're traveling from. If we do define this
+     *   property it should contain a list of objects and/or classes and the traveler must be
+     *   directly in one of them for the travel to be allowed to proceed.
+     */      
+    stagingLocations = nil 
+  
+    /* 
+     *   The message to display if stagingLocations is not nil and the traveler is not in one of our
+     *   staging locations. It may often be better to pre-empt the display of this generic message
+     *   by defining a checkReach() method on this TravelConnector if it's a physicsl one.
+     */
+    sayNotInStagingLocation(traveler)
+    {
+        gMessageParams(traveler);
+        DMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
+            {his traveler} current location. ' );
+    }
+    
     
     /* 
      *   The TravelVia action is supplied so game code can execute a TravelVia

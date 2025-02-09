@@ -1271,13 +1271,7 @@ class TravelAction: Action
          */             
         if(outOfNestedInstead)
             return;
-        /* 
-         *   If the actor is not directly in the room, make him/her get out of his immediate
-         *   container(s) before attempting travel, unless the actor is in a vehicle.
-         */                
-        getOutOfNested();
-        
-        
+                
         /* 
          *   Note and if necessary display any other implicit action reports that may have been
          *   generated prior to executing this action.
@@ -1325,11 +1319,17 @@ class TravelAction: Action
      *   If the actor is not directly in the room, make him/her get out of his immediate
      *   container(s) before attempting travel, unless the actor is in a vehicle.
      */  
-    getOutOfNested()
-    {
-        local traveler = TravelConnector.getTraveler(gActor);
+    
+    getOutOfNested(conn)
+    {       
+        local stagLocs = valToList(conn.stagingLocations);
         
-        while(!gActor.location.ofKind(Room) && traveler == gActor)
+        if(stagLocs.length == 0)
+            stagLocs = [Room];
+            
+ 
+        while(!gActor.location.ofKind(Room) && 
+              stagLocs.indexWhich({x: gActor.location.ofKind(x)}) == nil)
         {
             /* Note the actor's current location. */
             local loc = gActor.location;
@@ -1432,6 +1432,9 @@ class TravelAction: Action
     
     doVisibleTravel(conn)
     {
+        /* Get the actor out of any nested room they shouldn't be in. */
+        getOutOfNested(conn);
+        
         /* if the actor is the player char, just carry out the travel */
         if(gActor == gPlayerChar)
             conn.travelVia(gActor);
@@ -1442,8 +1445,7 @@ class TravelAction: Action
         else
             gActor.travelVia(conn);
     }
-    
-    
+   
     /* 
      *   The direction the actor wants to travel in. This is placed here by the
      *   execCycle method and takes the form of A Direction object, e.g.
