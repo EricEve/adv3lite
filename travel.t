@@ -195,6 +195,17 @@ class Room: TravelConnector, Thing
         /*  Move the traveling object into its destination */
         traveler.actionMoveInto(dest);
         
+        /* 
+         *   See if the travel connector we've just traveled via defines an exit location (a nester
+         *   room) within us that we should end up in,.
+         */
+        local loc = conn.exitLocation(self);
+        
+        /* If so, move thea traveler into that nested room. */
+        if(loc && loc.isIn(self))
+            traveler.actionMoveInto(loc);    
+
+        
         if(gPlayerChar.isOrIsIn(traveler))
         {
             /* 
@@ -1780,6 +1791,14 @@ class TravelConnector: object
             {his traveler} current location. ' );
     }
     
+    /* 
+     *   Optionally specify a nested room within our destination room a traveler traveling via
+     *   should be moved to on entering this room. If this returns anything that's not in our
+     *   destination room it will be igonored.     
+     */
+    exitLocation(dest) { }
+    
+       
     
     /* 
      *   The TravelVia action is supplied so game code can execute a TravelVia
