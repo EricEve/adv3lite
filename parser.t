@@ -414,10 +414,10 @@ class Parser: object
                     }
                     /* 
                      *   If the player char is not in conversation with anyone,
-                     *   or the first word of the command matches a possible
+                     *   and the first word of the command doesn't match a possible
                      *   command verb, then try parsing the command line as a
                      *   single direct object phrase for the DefaultAction verb,
-                     *   provided defaultActions are enabled (which they aren't
+                     *   provided defaultActions are enabled (which they are
                      *   by default).
                      */
                     else if(defaultActions)                                                

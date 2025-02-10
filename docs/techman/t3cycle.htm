@@ -21,161 +21,203 @@ The Command Execution Cycle
 
 <p><i>by Eric Eve</i>
 
-<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3  library (the standard library for TADS 3 games) is pretty complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
+<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3Lite library  is pretty complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
 <p>To detail every single by-way and wrinkle of the command execution cycle would probably be more confusing than helpful, concealing the main contours of the process behind a mass of not particularly interesting detail. In this article we shall therefore simplify some of the processes involved, so that the usual course of events stands out, unencumbered by a plethora of potential exceptions. If you want the complete picture, you'll have to examine the library source code (some links to which are given as appropriate) and try to puzzle it out!</p>
 <p>The command execution cycle is, if not a series of wheels within wheels, at least cycles within cycles or subroutines within subroutines. In an attempt to make this less confusing and more easy to follow, we shall try to follow the main line of execution one level at a time. We'll start by giving an overview of the main scheduling loop that runs each turn, and then trace the execution of a player's command piece by piece.</p>
 <p>Much of the execution of a command that has been successfully parsed (to the point where any objects involved have been resolved) is carried out by the <a href='#doActionOnce'>doActionOnce()</a> method, which also calls the majority of the most commonly customized routines. Many readers (especially first-time readers) may therefore prefer to skip straight to that part of the article rather than trying to take in all the preceding material.</p> 
 <br>
 
-<h2>Top Level Loop &ndash; runScheduler</h2>
-
-<p>The top-level loop controlling each turn of a TADS 3 game is controlled by the global function runScheduler(), defined in <a href='../libref/source/events.t.html#16'>events.t</a>. This sorts all the Schedulable objects in the game into ascending scheduleOrder, and then executes the executeTurn() of each in turn, providing the game time has reached the time at which they're ready to execute. The process is complicated slightly by various forms of error checking that can result, for example, in the game being terminated.</p>
-<p>The normal procedure is that executeTurn() will first be run on all the actors, and then on the eventManager object, which will in turn execute all pending Fuses and Daemons.</p>
-<p>Among the actors, the order of priority for execution is:</p>
+<h2>Broadbrush Overview</h2>
+<p>At a rough broadbrush approxination, the command execution loop works as follows:</p>
 <ol>
-<li>player character, ready to execute</li>
-<li>NPC, ready to execute</li>
-<li>player character, idle</li>
-<li>NPC, idle</li>
+<li><a href='#maincommand'>mainCommandLoop</a> reads the player's command, applies any modifications from StringPreParsers, and passes it to Parser.parse() to parse (interpet).</li>
+<li>The <a href='#parser'>parser</a> attempts to work out what action, actor, and objects are intended in the player's command and creates a new Command object to encapsulate its understanding of the command.</li>
+<li>The <a href='#command'>Command</a> object then selects the appropriate Doer or Doers to handle the command.</li>
+<li>The <a href='#doer'>Doer</a> object can do whatever it likes with the information passed to it by the Command object, but the usual behaviour is to pass the command information on to the relevant Action by calling the action's exec(cmd) method, where <i>cmd</i> is the Command object.</li>
+<li>The relevant <a href='#action'>Action</a> then does the bulk of the work related to the specific action concerned, which includes carrying out the before action processing, the action processing, and the after action processing.</li>
 </ol>
-<p>Normally, the player character is ready to execute, and the player character's turn will consist of reading and executing a new command (see <a href='#pcturn'>below</a>). Any NPCs with pending commands will then execute them, following which the idleTurn() method of all the other NPCs will execute; this in turn calls the takeTurn() method on their current ActorStates (after checking for any pending conversation the NPC has been scheduled to initiate).</p>
-<p>Once all the actors have taken their turn, the eventManager will execute all pending Fuses and Daemons, in the order of their eventOrder property; the lower the numerical value of this property, the earlier the Fuse or Daemon will be executed; the default value is 100.</p>
 
-<p>In all this, the process likely to be of most interest to game authors is the reading and executing of a player's command. This is what we'll look at next.</p>
+<p>We shall next explore each of these steps in more detail.</p>
 
-<br>
-<h2><a name='pcturn'>The Player Character's Turn</a></h2>
-<p>As mentioned above, the runScheduler method starts by calling <a href='../libref/source/actor.t.html#8850'>executeTurn</a> on each actor. From now on we shall concentrate on what happens when this is called on the Player Character. The brief version is that the game first reads a player's command and then executes it. Let's now try to unpack that a little.</p>
-<p>Basically, all executeCommand does is set up an appropriate sense context (so we don't get reports of what NPCs are doing when they can't be seen) and then calls <a href='../libref/source/actor.t.html#8886'>executeActorTurn()</a>.</p>
-<p>The first thing executeActorTurn() does is deliver any pending messages from the parser that couldn't be delivered previously for lack of a sense path; this is only likely to occur if the PC issues a command to an NPC but can't hear the reply.</p>
-<p>If the actor is the player character (as we're assuming) and the player character has no command pending (as will normally be the case), Actor.executeActorCommand() next reads a player command. This is carried out by the function <a href='../libref/source/input.t.html#949'>readMainCommandTokens()</a>, which basically (a) reads the command, (b) then filters the command through all the StringPreParsers, (c) tokenizes the command and returns the tokens or (d) throws an exception in the event of an invalid token being found. The first step, reading the command, is in turn carried out by <a href='../libref/source/input.t.html#712'>readMainCommand()</a>, which basically executes any active PromptDaemons, displays a command prompt, waits for the player to enter a command, and then returns the command entered. Schematically, this may be expressed thus:</p>
+<h2 id='maincommand'>Top Level Loop &ndash; mainCommandLoop</h2>
+<p>The overall command execution in adv3Lite is carried out by the <code>mainCommandLoop()</code> function, which does the following:</p>
 <ol>
-<li>readMainCommandTokens() &mdash; read the command:
+<li>Sets the current actor to gPlayerChar to ensure there is a current actor (the current actor may be changed later in the cycle).</li>
+<li>Displays any pending score notifications.</li>
+<li>Executes any current PromptDaemons.</li>
+<li>Outputs a paragraph break.</li>
+<li>Calls <code>readCommandLine()</code> which:
 <ol>
-<li>execute active PromptDaemons</li>
-<li>display command prompt</li>
-<li>wait for player input</i>
-<li>return the string the player inputs</li>
+<li>Displays the command prompt.</li>
+<li>Reads the player's command and stores it in the local variable <i>txt</i>.</li>
 </ol></li>
-<li>filter the string returned through all StringPreParsers; if any of these returns nil, stop here (since this would mean the StringPreParser had fully dealt with the command)</li>
-<li>tokenize the string (i.e. convert the string entered by the player and adjusted by the StringPreParsers into a list of tokens).</li>
-<li>if tokenizing produced an error, throw an error and abort the command.</li>
-<li>otherwise, return the list of tokens.
+<li>Allows any active StringPreParsers to modidfy <i>txt</i>.</li>
+<li>If as a result, <i>txt</i> is now nil skips the rest of the loop and goes back to step 1.</li>
+<li>Calls <a href='#parser'>Parser</a>.parse(txt) to parse and execute the command.</li>
+<li>Updates the status line.</li>
+<li>Goes back to Step 1 to execute the next cycle.</li>
 </ol>
-<p>There are thus two places where game authors can most easily (and usefully) affect this part of the process:</p>
-<ul>
-<li>By defining one or more PromptDaemons (using the statement new PromptDaemon or new OneTimePromptDaemon), which will be executed just before a prompt is displayed. This can be useful for displaying a message which you want shown right at the end of the previous turn, for example.</li>
-<li>By defining one or more StringPreParsers (normally defined as static objects), the doParsing() method of which can alter the string input by the player in any way desired before the string is tokenized and executed as a command. This can be useful for all sorts of purposes, for example stripping all question-marks out of a command, or trapping common newbie errors.</li>
-</ul>
-<p>Once the player's command is tokenized, it is added to the queue, and then the next item in the queue is pulled off the queue to be executed. This normally results in the execution of the command just entered. Provided there is a command to be executed, the nonIdleTurn() method is first called on the actor (normally the player character). The method PendingCommandToks.executePending() is then invoked on the current command information. This in turn results in calling the function <a href='../libref/source/exec.t.html#10'>executeCommand()</a>, which first parses the tokens and then executes the resulting action. In the next sections, we shall look at both of these steps in turn.</p>
-<br>
-<h2><a name='parsing'>Parsing the Player's Command</a></h2>
-<p>The main parsing loop is contained in <a href='../libref/source/exec.t.html#10'>executeCommand()</a>. The first thing this function does is to set things up ready for parsing. Then the main parsing operation begins. The purpose of this is first of all to match what the player typed (as adjusted by any StringPreParsers that may have intervened) to a particular Action. The idea is to match the basic <i>pattern</i> of what the player typed to the grammar of the Action it bests fits; for example, if the player's command is of the form PUT X IN Y, this part of the parsing cycle should match PutInAction.</p>
-<p>Various things can complicate this process. The command may be directed towards another actor (e.g. BOB, PUT RED BALL IN BOX), or the player may have entered several commands at once (e.g. PUT RED BALL IN BOX, TAKE BOX, GO NORTH); the parsing loop also has to cope with these possibilities.</p>
-<p>Once the parsing loop has done its job, and an Action has been identified, the executeAction() function is then called to actually carry out the command. Any command tokens left over are then added to the actor's pending command queue to be pulled out an executed subsequently.</p>
-<p>The full details of this process are far too complex to go into here, and most game authors will not usually either want or need to know about them. Here we shall give a vastly simplified account. If you're reading this article for the first time you may want to skip even this simplified account and go straight to the <a href='#execCmd'>next section</a>.</p>
-<p>The routine begins by constructing a list of possible matches to the command entered. This list is then filtered to exclude matches that fit the grammatical rules of sentence construction but which make no sense because of the specific constraints of the verbs involved (this is more likely to be relevant in languages other than English).</p>
-<p>It's possible that we may end up with an empty list, in which case the command has not been understood. In this case the routine identifies the target actor (normally the player character) and then runs the <a href='../libref/source/parser.t.html#4225'>tryOops()</a> function to display an error message and give the player a chance to correct a typo. The message normally displayed in this situation is defined in playerMessage.askUnknownWord(), which in turn displays libMessages.oopsNote() the first time round to explain the OOPS command. Either or both of the messages could be customized if desired. After displaying the Oops message the routine next checks the SpecialTopic history to check if a SpecialTopic has been entered in the wrong context. If that isn't the problem, the routine instead displays a message indicating that the command was not understood. This normally results in displaying the message defined in playerMessages.commandNotUnderstood() (via a call to notifyParseFailure() on the target actor). If a command was directed to an NPC, and that NPC had a different message object defined, commandNotUnderstood() would be called on that instead.</p>
-<p>In the normal case, however, the list should not be empty. In that case the list is sorted (via a call to <a href='../libref/source/parser.t.html#5830'>CommandRanking.sortByRanking()</a>), and the top-ranking command interpretation is selected as the match. Any tokens not used for the match (if multiple commands were entered on the same line) are then stored for a subsequent parsing loop. The next task is to check if the command was directed to another actor, and if so resolve that actor so that the command can be directed to that NPC. If (as is by far the most common case) the command was not directed to another actor, it is to be carried out by the player character.</p>
-<p>The routine next checks for any unknown words in the best match; if there are any and it can't resolve them, the Oops message is printed and the cycle ends there (the player being prompted to enter a new command).</p>
-<p>If, on the other hand, the command appears okay up to this point, the routine now tries to execute it via a call to the function executeAction() (which we shall look at in the <a href='#execCmd'>next section</a>). This is the normal course of events for a valid command.</p>
-<p>Finally, any stored leftover tokens (see above) unused for the current command are put back in the actor's queue for subsequent execution.</p>
-<p>Few game authors will want to modify this process, and there are few places where it is useful to intervene, apart, perhaps, from customizing some of the error messages. The normal method by which game authors influence this part of the parsing process is by defining, modifying or replacing VerbRules (for further details of these, see the article on <a href='t3verb.htm'>How to Create Verbs</a>). Note that game authors have some control on how these are matched by attaching a 'badness' value to VerbRules which should be given a lower priority. For example the standard library defines:</p>
-<p><pre>
-VerbRule(PutInWhat)
-    [badness 500] ('put' | 'place') dobjList
-    : PutInAction
-    verbPhrase = 'put/putting (what) (in what)'
-    construct()
-    {
-        /* set up the empty indirect object phrase */
-        iobjMatch = new EmptyNounPhraseProd();
-        iobjMatch.responseProd = inSingleNoun;
-    }
-;
-</pre></p>
-<p>This matches commands of the form PUT X and causes the parser to prompt with "What do you want to put the X in". But we want to make sure it does not match commands of the form PUT X IN Y by taking X IN Y to be a noun phrase. For example if the player types PUT BALL IN BOX we don't want the parser to respond with "What do you want to put the ball in box in?". Giving this VerbRule a badness of 500 ensures that VerbRule(PutInWhat) is only matched if we can't match the preferable VerbRule(PutIn).</p>
-<p>The other point that may be useful to game authors is that the function executeCommand() can be used to execute a command given a string containing the command we want to execute. Suppose the string str contains a command string (like 'put ball in box') that we want the game to execute at some particular point (even though the player may not have entered it); we can make the game execute the command with the following code:</p>
-<p><pre>
-   local toks = Tokenizer.tokenize(str);
-   executeCommand(gPlayerChar, gPlayerChar, toks, true);
-</pre></p>
-<p>Or we could make an NPC execute a command by substituting the relevant NPC for gPlayerChar in the above.</p>
 
-<br>
-<h2><a name='execCmd'>Executing the Player's Command</a></h2>
+<h2><a name='parser'>Parsing the Player's Command</a></h2>
+<p>The main parsing loop is contained in <a href='../libref/source/parser.t.html#211'>Parser.parse()</a>. <p>Various things can complicate this process. The command may be directed towards another actor (e.g. BOB, PUT RED BALL IN BOX), or the player may have entered several commands at once (e.g. PUT RED BALL IN BOX, TAKE BOX, GO NORTH); or the Player have entered an OOPS command to correct a misspelling, or be responding to a parser query such as a disambiguation prompt, or be entering a sepecial command form such as an implicit SAY command (the text of what the player wants the player character to say without explictly using the command SAY); the parsing loop has to cope with these possibilities.</p>
+<p>The full details of this process are far too complex to go into here, and most game authors will not usually either want or need to know about them. Here we shall give a simplified account that should suffice for most purposes. With that caveat, Parser.parse(<i>str</i>) carries out the following steps:</p>
+<ol>
+<li>Resets the special verb handler.</li>
+<li><a href='../sysman/tok.htm'>Tokenizes </a> the input string (<i>str</i>), producing a list of tokens encapsulating each of the separate words and punctuation marks in the player's input.</li>
+<li>If there are no outstanding parser queries, set the current actor to the player character (if there is an outstanding query, the current actor may already have been set).</li>
+<li>Note any spelling corrects the spelling corrector has made.</li>
+<li>If there are no tokens at all (because the player has entered an empty command) carry out the empty command by calling <code>emptyCommand()</code>, which either carries out a LOOK command (if autoLook is true) or otherwise displays "I beg your pardon?". Either the Parser then stops there.</li>
+<li>Otherwise the parser checks for an OOPS command and if there is one correcting a current error, adjusts the command tokens from step 2 to take account of it.</li>
+<li>Updates the vocabulary of any game objects that use <a href='../manual/thing.htm#altvocab'>alternating or variable vocabulary</a>.</li>
+<li>Give the special verb manner the chance to amend the command tokens to take account of any <a href='../manual/specialaction.htm'>SpecialVerbs</a> the player may have used.</li>
+<li>If there's an outstanding parser question (such as a dismbiguation, 'Which do you mean?' or a missing object, 'What do you want to frob?'), and the question takes priority over new commands, try parsing the input against the question if it's the first command on the input line.</li>
+<li>Otherwise, construct a list of new <a href='#commandobj'>Command</a> objects which could correspond to the player's input.
+This involves the construction of a new CommandList object which:
+<ol>
+<li>Creates a list of commands by parsing the tokens passed to the CommandList constuctor by calling its Production's (typically a VerbRule) parseTokens() method. This stage identifes the possible actions the command may refer to.</li> 
+<li>Sorts the command list in order of <a href='../libref/object/Command.html#calcPriority'>priority</a>.</li>
+<li>Iterates through every command in the command list to call its resolveNouns() method, which in simplified form, does the following:
+<ol>
+<li>Calls the matchVocab() method on each noun phrase, which again, in simplified turns, takes care of any pronouns and calls matchName(tokens) on every Thing in scope for the current action to obtain a list of matching objects.</li>
+<li>Calls buildObjLists() to construct a tentative list of matching objects.</li>
+<li>Determines the actor if the noun we're looking for occupies the actor role (e.g. bob in a command that starts "bob, jump")</li>
+<li>Select the objects from the available matches according to the grammatical mode (definite, indefinite, plural), by calling selectObjects() on each of the objects in our match list. Roughly speaking, this does the following:
+<ol>
+<li>If we're looking for a definite match (e.g. "THE BOOK") and we have one possible match, simply choose that match. If we have more than one, attempt to disambiguate among the possibilities by calling our disambiguate() method which:
+<ol>
+<li>First calls scoreObjects() on the current action, which in turn:
+<ol>
+<li>Calls the <b>verify</b> routine for the current action on every item in the list of objects we want to choose between. If this is TIAction we're using multimethods for, first call the appropriate verifyWhatever() multimethod. In any case next call the verifyPreCondition() method on all PreConditions that apply to the object for the current action. Then call the verify() sections of any dobjFor() and (for TIActions) iobjFor() blocks.</li>
+<li>Adds 100 to the resultant verify score (the lowest logicalRank that emerges from the verify routine).</li>
+<li>Make a note of this adjusted score and its associated verifyResult if it's better than any previous score we've encountered so far.</li>
+<li>Note whether the verifyResult has resulted in a change of object via a remap.</li>
+<li>Make a note of which object came out best in whichever role we're currentllu interested in.</li>
+<li>Call scoreObject() on any object we're interested, which adds the object's vocabLikelihood to the score and carries out a couple of other tweaks in special circumstances.</li>
+</ol></li>
+<li>Sorts the objects in descending order of score.</li>
+<li>If the number of objects with the highest score is the number of objects we're looking for, then selects them.</li>
+<li>Otherwise, if we have two many best matches, through a disambiguation error so the parser can ask the player to clarify their choice.</li>
+</ol></li>
+<li>If we're looking for an indefinite match (e.g. "TWO BOOKS) call scoreObjects() on the action and sort the result in descending order of score and choose the first however many objects we want.</li>
+<li>If we're looking for a match to ALL, simply select all the matching objects.</li>
+</ol></li>
+<li>Goes back and re-resolve any ALL lists.  For two-object commands, resolving ALL in one slot sometimes depends on resolving the
+bject in the other slot first.</li>
+<li>Resolves any reflexives.</li>
+<li>Check for any empty roles (such as a missing indirect object for a TIAction) and throws an error if it finds one.</li>
+<li>Calls buildObjLists() again to  Clear out the old object lists, then build them anew.  The old object lists were tentative, before disambiguation; we want to  replace them now with the final lists.</li>
+</ol></li>
+<li>If any errors are encountered, notes the first curable one and then continues interating through the list of commands.</li>
+</ol></li>
+</li> 
+<li>If the previous step failed to find any resolvabe commands, try treating the player's input as the answer to any outstanding parser queries that don't take precedence over a new command.</li>
+<li>If we still don't have any resolvable commands and this is the first command on the line and there is a conversation currently in progress (gPlayerChar.currentInterlocutor isn't nil), and the player character can still talk to their current interlocutor and the player character's current interlocutor allows implicit say commands, then treat the player's input as an implicit SAY command.</li>
+<li>Otherwise, if the first word of the command doesn't match a possible verb, try parsing it as a noun phrase and, if that works, make the noun the direct object of our default action (GO TO for a Room or EXAMINE for any other thing), provided our defaultActions property is true (as it is by default).</li>
+<li>If we've applied a spelling correction, and the command match didn't consume the entire input, make sure what's left of the input has a valid parsing as another command.  This ensures that we don't get a false positive by excessively shortening a command, which we can sometimes do by substituting a word like "then" for another word.</li>
+<li> If we didn't find a parsing at all, issue a generic "I don't understand" error.  If we found a parsing, but not a resolution, reject it if it's a spelling correction.  We only want completely clean spelling corrections, without any errors.</li>
+<li>If, one the other hand, the parser has found a resolvable command, we now execute it:
+<ol>
+<li>First ensure that we don't have multiple objects occupying a slot that the action's grammar (VerbRule) defines as only allowing a single object (singleDobj, singleIobj). If we do, then reject the command and explain the problem.</li>
+<li>Otherwise, execute the <a href='##command'>command</a> by calling its exec() method. This is outcome we hope will occur in the majority of cases.</li>
+<li>If this wasn't the last command on the command line, go back and parse the next one.</li>
+</ol></li>
+<li>If, however, we were unable to find a valid command, see if our command list contains a curable command, i.e. a command that could be rectified by the player responding to parser query.</li>
+<li>If we can't find a curable command, try applying the spelling corrector. If that works, try executing the corrected command </li>
+<li>If all has failed, throw an error and report the problem to the player and then stop trying to pause this command.</li>
+</ol>
+
+<h2 id="command">Executing the Command</h2>
 
 <p>Once the initial parsing has resolved the player's command to an
-action (as described above), the <a
-href='../libref/source/exec.t.html#578'>executeAction()</a> function
-is called to execute the command. The first thing this does is to
-check for Global Remapping, which in the standard library is used only
-for the purpose of turning commands of the form BOB, GIVE ME THE BALL
-into ASK BOB FOR THE BALL; for further details see the article on <a
-href='t3globalremap.htm'>Global Command Remapping</a> elsewhere in the
-<i>Technical Manual</i>.</p>
-
-<br>
-<h3>Noun Resolution</h3>
-
-<p>Apart from Global Command Remapping (which is likely to be quite
-rare), the first step is for the current action to resolve the nouns
-(via a call to action.resolveNouns()). What happens here depends on
-what type of action it is. An IAction or SystemAction will have no
-nouns to resolve. A LiteralAction will simply 'resolve' to a literal
-text string. A TopicAction will resolve to a <a
-href='#topic'>ResolvedTopic</a> (which may or may not actually match
-anything defined in the game). A TAction or a TIAction will try to
-resolve a direct object and also, in the case of a TIAction, an
-indirect object. A TopicTAction will resolved to a direct object and a
-<a href='#topic'>ResolvedTopic</a>. The resolution process will result
-in a list of <a
-href='../libref/object/ResolveInfo.html'>ResolveInfo</a> objects being
-stored in the dobjList_ (and where appropriate iobjList_) property of
-the current action object. Under particular circumstances (a TIAction
-in which the first noun phrase resolved resolves to a single object),
-remapping causes this step to start over again. Otherwise remapping
-just causes the remapped verify results to be stored.</p>
-
-<p>We need to look at this <b>noun resolution</b> phase a little more closely. Assuming the action has any nouns to resolve (it's a TAction, TopicTAction, LiteralTAction or TIAction), the resolution process first constructs a list of every object in scope that matches the noun phrase for the object in question (for example, if the player typed GET RED, the resolver will construct a list of all objects in scope that are described as 'red'). Or, more precisely, the resolver constructs a list of ResolveInfo objects encapsulating the game objects. In constructing this list, the resolver consults the matchName() method of each item in the list (which then has the option of removing that item from the list or substituting a different one). The resolver next tries to whittle this list down. First it removes any redundant facets from the lists (programming objects that refer to the same physical game object, identified through their getFacets property). It next calls filterResolveList() on each of the objects in the list, to give each object in turn an opportunity to adjust the list. After that there's a first verification pass on each of the objects.</p>
-<p>On each object in the list, this verification pass first checks for remapping, and, if remapping is to take place, returns the remapped results. Otherwise, if it's a TIAction, it next performs a tentative resolution of the other object involved in the command (e.g. if we're trying to resolve the direct object of a TIAction we first construct a list of ResolveInfo objects encapsulating the tentative indirect objects and assign it to the tentativeIobj_ property of the action). It next calls the appropriate <a href='t3res.htm#verify'>verify</a> method on the object (e.g. verifyDobjTake) and then the verifyPreCondition method on each of the appropriate <a href='t3res.htm#precond'>PreConditions</a> (e.g. all the preconditions listed in preCondDobjTake if we're resolving a TAKE command). (Actually, this is a slight oversimplification; before looking at the action-specific verify routines, we first check to see if a catch-all verify property is applicable, as in step 2 of the verification of TActions described <a href='#verify'>below</a>). The result of this first pass is a list of <a href='../libref/object/VerifyResultList.html'>VerifyResultList</a> objects, one for each object in the list. These are then sorted in order of decreasing 'logicalness', so that the first item in the list can be taken as the best match. Only the items in the list that are as logical as this best match are retained; the less logical matches are discarded. If the resultant list then contains any items that are equivalent (e.g. we're left with five identical coins, and there's no means of distinguishing between them), the equivalents are eliminated from the list, leaving only unique items (e.g. we'd remove four of the identical coins from the list, leaving only one). The resolver also notes whether any of the discarded items was nevertheless a valid choice (an unclear disambiguation), so that the parser can later tell the player that it made a choice.</p>
-<p>At this point we may have a list with zero, one, or several objects. If there's just one object, then we can proceed with executing the command. If there are several we need to prompt the user to resolve the ambiguity. If there are no objects in the list, the routine displays a message saying so. This is routed (somewhat indirectly) via playerMessages.noMatch() to the noMatch() method of the current action, which in turn generally calls playerMessages.noMatchCannotSee (though this is different for actions like SMELL or LISTEN TO, where a message saying that "you smell/hear no x here" is more appropriate than one saying "you see no x here"). Note that we get this message only if the parser recognizes the words in the noun phrase it was trying to resolve, e.g. "you see no red ball here" when there is a red ball somewhere in the game, or maybe something that's red and something else that's a ball. If the parser didn't recognize one of the words in the player's command at all (e.g. GET VERMILION BALL when nothing in the game is described as 'vermilion') it would have complained about not knowing the word at an earlier stage (see previous section).</p>
-<p>In the case of a TIAction both the direct and the indirect object need to be resolved. Which is done first depends on the value of the resolveFirst property of the action, which can be either DirectObject or IndirectObject; the default for a TIAction is IndirectObject (meaning that the indirect object is resolved first), except for the LockWith and UnlockWith commands.</li>
-<p>Complicated as the foregoing account doubtless appears, it is actually a simplified version compared with all the various things that <i>could</i> happen under various circumstances. Most game authors will not want to intervene in this part of the library directly, but as should be apparent from the above account, there are several other places where game authors can intervene to affect the process outlined above. Taking them in the sequence in which they take effect in the noun resolution process:</p>
+action and a set of objects the action should act on (if there are any; for an IAction or most SystemActions
+there plainly won't be), the Parser calls the appropriate Command object's exec() method, which:</p>
 <ol>
-<li>Changing the definition of scope for the action, by overriding objInScope(obj) (and getScopeList() or cacheScopeList()) on the action class.</li>
-<li>Overrding the resolveFirst property on the action, in the case of a TIAction</li>
-<li>Overriding the matchName(), or more usually, matchNameCommon(), method of one or more objects in the game</li>
-<li>Making objects facets of one another (either explictly through setting their getFacets property, or implicitly by employing the relevant library classes, such as MultiFaceted or a subclass of Passage)</li>
-<li>Overriding filterResolveList() on one or more objects in the game.</li>
-<li>Overriding or defining appropriate verify() methods for various actions on various objects.</li>
-<li>Choosing what PreConditions apply to an object for a given action; by overriding the verifyPreCondition method of any of these PreConditions (not something you'll often want to do) or defining verifyPreCondition on any custom PreConditions you create.</li>
-<li>Adjusting the vocabLikelihood property on certain objects.</li>
-<li>Defining some items to be equivalent (giving them identical vocabWords and disambNames and set isEquivalent to true)</li>
-<li>Customizing parser messages, e.g. by overriding playerMessages.noMatch, or (perhaps more usefully) the noMatch() methods of particular Action classes.</li>
-</ol>
-<br>
-<h3>Preparing to Execute</h3>
-<p>Assuming noun resolution produced an acceptable result, the executeAction() method next carries out a few housekeeping functions preparatory to actually executing the action. First it checks whether the action is one that can be undone; if it is it makes a note of the current action and creates a savepoint that the game can return to in the event of a subsequent UNDO command.</p>
-<p>The routine then ensures that the issuing actor (normally, the player character) is marked as busy for the duration of the action (and hence not available to carry out any other commands).  If the command was directed to another actor, that actor now has a chance to reject the command (via its obeyCommand() method); if it does the command is terminated at this point. Otherwise, we are now ready to carry out the action.</p>
-<p>
-<br>
-
-<h2>Carrying Out the Action</h2>
-<p>At this point The executeAction() function has just about run its course. Its final act is to call the currentAction's doAction() method, defined on the <a href='../libref/source/action.t.html#998'>Action</a> class. Part of this method is concerned with storing the relevant global variables for restoration at the end of the method, and storing the details of the action for use with an AGAIN command. The actual action-processing execution cycle consists of the following:</p>
+<li>Carries out a number of housekeeping tasks, such as resetting a number of values, which need not detain us here.</li>
+<li>Calls execGroup(cmd) on the relevant action to give it a chance to act on the entire group of objects involved (e.g. if the command was TAKE ALL or DROP THE PEN, THE GREEN BOOK AND THE GLASS KEY). In the library this does nothing on any actions part from GIVE TO and SHOW TO, where it resets a couple of properties used to summarise the effects of the action.</li>
+<li>If there are no noun roles (because this is an intransitive action) just run our <a href='#execiter'>execIter()</a> method for this action.</li>
+<li>Otherwise, first combine any duplicate direct objects into a single object (this is relevant if, for example, the player has types X LEAVES, TWIGS, TREES and BRANCHES and these are all synonyms for the same Decoration object).</li>
+<li>Get the matches for each role (DirectObject, IndirecObject, etc.)</li>
+<li>Sort the roles into canonical order (DirectObject, IndirecObject, AccessoryObject)</li>
+<li>Call our execCombos() method for each set of objects in each role, starting with the DirectObject role: this method does the following for each set of objects:
 <ol>
-<li>Call noteConditionsBefore() on the player character. This is principally so that an appropriate message can be displayed at the end of the action if it has resulted in a change of lighting conditions.</li>
-<li>Run BeforeActionMain() on the action. This does nothing in the standard library, but game authors can override it if they do want it to do anything. Note that this is only run once per action, even if the action is going to iterate over a number of objects.</li>
-<li>Run doActionMain() on the action. This carries out the main action processing, and is discussed further <a href='#doActionMain'>below</a> (precisely what it does depends on the kind of action).</li>
-<li>Run afterActionMain() on the action (once only, after iterating through all the objects to which the action applies). This does several things in the standard library:
+<li>Sets the current object for this role.</li>
+<li>If there's more than one role, recursively call execCombos() for the next role.</li>
+<li id="execiter">Otherwise, if we have reached the final role, call execIter(list), where <i>list</i> is a list in the form [action, dobj, iobj...]. This it turn does the following:
+<li>Gives the special verb manager the opportunity to veto this command if we've been executing a <a href='../manual/specialaction.htm'>SpecialVerb</a>.
+</li>Calls preAction(list) on the current actor (for example, to allow it to veto the action if the actor is bound or blindfolded).</li>
+<li>Calls execDoer(list). This finds the list of <a href='../manual/doer.htm'>Doers</a> that match this action and its current set of objects (as specified in <i>list</i> and <a href='#doer'>executes</a> the one with the highest priority. This will lead to the bulk of the action handling on this turn.</li>
+</ol></li>
+<li id='post-action'> After the current Doer/Action has finished dealing with the action, Command.exec() resumes control by carrying out some post-action processing. This starts with displaying all the afterReports that were created by calls to reportAfter() during execution of the action.</li>
+<li>Next carry out the afterAction() routine for the current action, unless it's a SystemAction or the action failed. This does the following:
 <ol>
-<li>Calls the afterActionMain() method of every object registered in the current object's afterActionMainList. This list can be be constructed by calling callAfterActionMain(obj) to add an action to the list; but it is only meaningful to do so while the action is in progress.</li>
-<li>Note the amount of busy time the actor has consumed in carrying out the action, via a call to actor.addBusyTime()</li>
-<li>If the command failed, and if it wasn't an implicit action, and if gameMain.cancelCmdLineOnFailure is true, then cancel processing of the command line even if it has more commands on it (e.g. if the player typed GO NORTH THEN TAKE BOOK and the GO NORTH command failed, the TAKE BOOK command would then be ignored under these circumstances.)</li>
+<li>If the lighting conditions change, display a description of current location if it's now lit or announce the onset of darkness if it's now dark.</li>
+<li>Call afterAction() on all current <a href='../manual/scene.htm'>Scenes</a>.
+<li>Call notifyAfter() on the actor's current Room. This first calls the Room's roomAfterAction() method and then calls regionAfterAction() on all the regions that contain the Room.</li>
+<li>Call afterAction() on every object currently in scope for the actor.</li>
+</ol></li>
+<li>Call turnSequence() on the current action. This does the following:
+<ol>
+<li>Calls regionDaemon() on every region that contains the player character's current room.</li>
+<li>Calls roomDaemon() on the player character's current room.</li>
+<li>Calls executeTurn() on the eventManager object, which executes all current Events (Fuses and Daemons) in order of their priority.</li>
+<li>Advances the turn counter.</li>
 </ol>
 </li>
-<li>Finally, if the action doesn't have a parent action (i.e. it's a top-level action, not an implicit action or some other action called by the main action, such as a nestedAction), and the player character hasn't changed during the course of the action, call noteConditionsAfter() on the player character. This basically executes a NoteDarknessAction if the lighting conditions have changed as a result of the action, and displays a message about the onset of darkness (if it has just become dark) or performs a lookAround (if it has just become light).</li>
+<li>Call advanceTime() on the current action. This does nothing in the main library but is provided as a hook for the
+<a href='../../extensions/docs/objtime.htm'>Objective Time</a> extension to use to add to the time taken by implicit actions.</li>
 </ol>
+<br>
+
+<h2 id="doer">The Doer</h2>
+<p>Once the current Command has identfied the appropriate <a href='../manual/doer.htm'>Doer</a> to handle the command, it calls that Doer's exec(curCommand) command, where <i>curCommand</i> is the current Command object. If the actor for the current command is the player character, we carry out various housekeeping tasks and allow the Doer to redirect the action to a different action, before calling our execAction() method. Otherwise we call handleCommand on the actor (who would then be a Non-Player Character). The normal result of calling execAction is to call our current action's exec(curCmd) method.</p>
+<p>In sum a Doer, can intervene to change the action into something completely different, handle it itself, or stop the action althogether but the usual outcome is that the Doer will pass the command straight through to the action's exec() method.</p>
+
+<h2 id="action">Carrying Out the Action</h2>
+<p>As just stated, in most cases the relevant Doer will pass control to the appropriate action's exec(cmd) method, where <i>cmd</i> is the current <a href='#commandobj'>Command object</a>. What happens then depends on what type of action it is: SystemAction, IAction, TIAction or whatever, but we'll start with what virtually all actions do in common.</p>
+
+<h3>exec(cmd)</h3>
+<p>Action.exec(cmd) mostly does the following:</p>
+<ol>
+<li>Resets actionFailed to nil.</li>
+<li>Resets scopeList to an empty list.</li>
+<li>Sets libGlobal.curActor to cmd.actor.</li>
+<li>Notes the actor's current room in the action's oldRoom property.</li>
+<li>Notes that room's illumination state (lit or unlit) in the action's wasIlluminated property.</li>
+<li>Executes the action-processing cycle by calling <a href='#execcycle'>execCycle(cmd)</a>.</li>
+</ol>
+<p>A few types of action vary this slightly:</p>
+<ul>
+<li><b>LiteralAction</b>s additionally store cmd.dobj.name (their literal object) in their <code>literal</code> property.</li>
+<li><b>TopicAction</b>s additionally store cmd.dobj (the current topic) in their <code>curTopic</code> property.</li>
+<li><b>NumericAction</b>s additionally store cmd.dobj.numVal (the numeric value associated with the action) in their <code>num</code> property.</li>
+<li><b>SystemAction</b>.exec(cmd) simply calls execCycle(cmd) without doing anything else.</li>
+<li>A few specific actions defined in the library do their own thing in exec(cmd). These include Again, ExamineOrGoto, TakeFrom (which calls inherited(cmd) on one comditional branch) and TellTo.</li>
+</ul>
+
+<h3 id = 'execcycle'>execCycle(cmd)</h3>
+<p>Tbis does the following:<p>
+<ol>
+<li>Unless it's a SystemAction, first calls beforeAction(), which in turn:
+<ol>
+<li>Calls checkActionPreconditions() and stops the action if this returns nil.</li>
+<li>Calls actorAction() on the current actor.</li> 
+<li>Calls notifyBefore() on the sceneManager.</li>
+<li>Calls notifyBefore() on the actor's current room. This in turn:
+<ol>
+<li>Calls roomBeforeAction() on the room.</li>
+<li>Calls regionBeforeAction() on every Region that (directly or indirectly) contains the room.</li>
+</ol></li>
+<li>Calls buildScopeList() to build the scope list for the current action if it hasn't already been built.</li>
+<li>Calls beforeAction() on every item in the scope list.</li>
+</ol></li>
+<li>Calls <a href='#execaction'>execAction(cmd)</a>.</li>
+<li>If the action is repeatable, stores a clone of the action at libGlobal.lastAction.</li>
+</ol>
+
+<p><b>SystemAction</b> omits step 1. A <b>TravelAction</b> first sets its <code>direction</code> property to cmd.verbProd.dirMatch.dir (the direction entered by the player) unless it already has a non-nil <code>predefinedDirection</code> property. A <b>TAction</b> or <b>TIAction</b> first checks whether ALL was used with an action for which allowAll is nil, and if so displays a message saying that the current command does not allow ALL and then stops the action.</p>
+
+<h3 id="execaction">execAction(cmd)</h3>
+
 <br>
 <h3><a name='doActionMain'>doActionMain</h3>
 <p>As we have just seen, doAction() does a number of things, but the bulk of the action processing is left to doActionMain, which is called as the central step of doAction(). What precisely doActionMain does depends on whether it's being called on an IAction, a TAction, or a TIAction. If it's an IAction doActionMain() simply calls doActionOnce(). For a TAction or a TIAction doActionMain basically iterates over the list of objects (if there's more than one direct or indirect object involved in the command, because it was applied to multiple objects), calling doActionOnce() for each of them in turn. If only one direct object and (where appropriate) indirect object was specified (e.g. GET RED BALL or PUT RED BALL IN BROWN BOX) then doActionOnce() will only be called once.</p>

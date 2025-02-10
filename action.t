@@ -56,7 +56,7 @@ class Action: ReplaceRedirector
         /* Resest actionFailed to nil */
         actionFailed = nil;
         
-        /* Resent the scope list */
+        /* Reset the scope list */
         scopeList = [];
         
         /* Note the current actor */
