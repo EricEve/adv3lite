@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!-- DERIVED FILE - DO NOT EDIT -->
 
@@ -26,439 +27,315 @@ Using Nested Rooms as Staging Locations
 the player character needs to stand on one object (such as a chair
 or table) in order to reach another (such a window high up on a wall)
 in order to leave via a particular exit (in this case, the window). In
-the TADS 3 library (known as "adv3"), objects like tables and chairs
+adv3Lite, objects like tables and chairs
 that can stood on, sat on or lain on are generally implemented as
-NestedRooms, and a location that's used to reach a particular exit
+Nested Rooms (although there's no such class in adv3Lite), while
+a location that's used to reach a particular exit
 is a staging location. Using the two together can, however, be a 
-little tricky; this article suggests some ways round the most common
-problems.</p>
+little tricky; this article suggests how to go about it.</p>
 
 
 <h2>An erroneous example</h2>
 
 <p>To illustrate the problems, we'll start by coding an example that doesn't
-work, but instead exemplifies the kinds of problem a TADS 3 programmer faced
+quite work, but instead exemplifies the kinds of problem and adv3Lite programmer faced
 with this situation could easily come up against. For the sake of illustration,
-we'll assume a simple two-room one-puzzle game. The player character starts
-in a bare room with nothing but a plain wooden chair for company. There's a
-window high up on one wall, but no other exit. The player character needs to
-leave the room via the window, but can only do that if he's standing on the
-chair.</q>
-
-<p>The basic code we might use to set this up could be something like this:
+we'll implement only two rooms, a cellar with a hatch high up in one wall and
+a secret chamber that's only reachable via the hatch. There's a bench in the cellar
+that the player character needs to stand on in order to reach the hatch, so
+the obvious thing to do is to use checkReach() to prevent the player character
+from reaching the hatch unless the pc is on the bench:<p>
 
 <p><pre>
-startRoom: Room 'Start Room'
-    "This is the starting room. There's a window high up on the north wall. "
-    north = window
+cellar: Room 'Cellar'
+    "The cellar is almost bare. A flight of stairs leads up to the north, 
+    and there's a hatch on the east wall. "
+    north = cellarStairs
+    up asExit(north)   
+   
+    east = hatch
 ;
 
-+ me: Actor
++ cellarStairs: StairwayUp  'flight of stairs[n];;;it them'
+    "They're just ordinary stairs. "
+    destination = hallWest   
 ;
 
-+ chair: Chair 'sturdy wooden chair' 'chair'
-  "It's a sturdy wooden chair. "
++ oldBench: Platform 'old wooden bench'
+    
+    initSpecialDess = "An old wooden bench rests by the wall. "
+        
 ;
-
-
-+ window: OutOfReach, Door 'window' 'window'
-  "Too high to reach from the floor, but big enough to squeeze through. "
-  initNominalRoomPartLocation = defaultNorthWall
-  canObjReachSelf(obj) { return obj.isIn(chair) && obj.posture == standing; }
-;
-
-outside: OutdoorRoom 'Outside'
-  "You are now outside the start room. You could get back in through the window. "
-;
-
-+ window2: Door -> window 'window' 'window'
-;
-
-</pre>
-
-<p>Here the most notable thing we've done is to make the window an
-OutOfReach and to define its canObjReachSelf method so that it can only be
-reached if the object trying to reach it (normally, the player character)
-is standing on the chair. If you try to compile and run the above example
-(together with the other code you need, such as the gameMain and versionInfo
-objects), you'll find it works after a fashion, but fails at the critical
-point. It won't let you open the window if you're just standing in the room
-or sitting on the chair, but it will let you open the window if you're standing
-on the chair. This is just as it should be. But if you attempt to go through
-the window while standing on the chair, the game will frustrate your efforts:</p>
-
-<p><small><b>&gt;go through window</b><br>
-(first getting off of the chair)<br>
-The window is too far away.</small></p>
-
-<p>The problem here is that by default the library assumes that a traveler must
-be standing in the outermost room to be ready for travel, which immediately negates
-the player's attempts to stand the player character on the chair so he can
-go through the window. In the next section, we'll see how to fix this.
-
-
-<h2>Fixing the problems &mdash; connectorStagingLocation and Platform</h2>
-
-<p>Trying to trace the routines that are applying the offending travel
-preconditions through the various class definitions through which they
-are directed may make your head spin, but in fact we can cut this gordian
-knot by simply adding the following to the definition of the window object:
-
-<pre>connectorStagingLocation = chair</pre>
-
-<p>This tells the game that the actor needs to be in the chair rather than the enclosing room before attempting to travel; indeed it does allow the player character to stand on the chair and exit through the window:</p>
-
-<p><small><b>&gt;stand on chair</b><br>
-Okay, you're now standing on the chair.<br>
-<br>
-<b>&gt;go through window</b><br>
-(first opening the window)
-<br><br>
-<b>Outside</b><br>
-You are now outside the start room. You could get back in through the window.
-</small></p>
-
-
-But the code behaves rather less elegantly if the player character isn't already in the chair
-when the player types <b>n</b> or <b>go through window</b>:</p>
-
-<p><small><b>&gt;go through window</b><br>
-(first sitting on the chair)<br>
-The window is too far away.</small><p>
-
-<p>Opinions may vary on whether the above response is acceptable, but the following is
-definitely perverse:</p>
-
-<p><small><b>&gt;sit on chair</b><br>
-Okay, you're now sitting on the chair.<br>
-<br>
-<b>&gt;go through window</b><br>
-
-(first standing up, then sitting on the chair)<br>
-The window is too far away.</small></p>
-
-<p>To cut a long story short, the problem here is that now that the chair is a staging
-location for the window, the game not only tries to move the player character into the chair
-prior to travel, but also applies the chair's default posture (which is sitting). It might seem
-that changing the chair's defaultPosture to standing would fix the problem, but unfortunately
-it doesn't, since Chair inherits BasicLocation's tryMakingTravelReady method, which, by default, performs an implicit STAND action. Rather than trying to fix a bunch of things on Chair to try to make it work as we need, it becomes easier to redefine the chair as a Platform and then restrict the postures that can be used with it:</p>
-
-<pre>
-+ chair: Platform 'sturdy wooden chair' 'chair'
-  "It's a sturdy wooden chair. "
-  allowedPostures = [sitting, standing]  
-  obviousPostures = [sitting, standing]
-  dobjFor(Board) asDobjFor(SitOn)
-;
-</pre>
-
-This now works fine in all cases; the only problem is that it might now work a bit
-<i>too</i> well, a problem we'll address in the next section.
-
-
-<h2>Stopping it all being too helpful</h2>
-
-<p>The one problem with the game as we now have it is that it may be a bit
-too helpful to the player, since it will now take the player character through
-the window whether the player works out that s/he needs to use the window or not:</p>
-
-<p><small><b>Start Room</b><br>
-This is the starting room. There's a window high up on the north wall.<br><br>
-
-You see a chair here.<br>
-<br>
-
-<b>&gt;n</b><br>
-(first standing on the chair, then opening the window)<br>
-<br>
-
-<b>Outside</b><br>
-You are now outside the start room. You could get back in through the window. 
-</small></p>
-
-<p>Much the same happens if the player character first sits on the chair:</p>
-
-<p><small><b>&gt;sit on chair</b><br>
-Okay, you're now sitting on the chair.<br>
-<br>
-
-<b>&gt;n</b><br>
-(first standing up, then opening the window)<br>
-<br>
-
-<b>Outside</b><br>
-You are now outside the start room. You could get back in through the window. 
-</small></p>
-
-
-<p>This doesn't exactly leave the player with much to work out. Of course, you may feel
-that the puzzle here is so much of a no-brainer that solving it implicity is just fine.
-It's more likely, though, that you'd want the player to figure out that the player character
-needs to stand on the chair at least for the first time, even if it's reasonable for
-the necessary actions to be carried out implicitly thereafter.<p>
-
-<p>One way to achieve this might be to have an object not counted as a staging
-location until it's been stood on. This means that the player character will have
-to stand on the chair via an explicit command at least once before it will function
-as a staging location for the window. We can achieve that by modifying the connectorStagingLocation
-property of the window so that the chair only becomes the staging location for the 
-window once it has been stood on:</p>
-
-<pre>
- connectorStagingLocation = (chair.hasBeenStoodOn ? chair : nil)
-</pre>
-
-<p>At the same time, we need to ensure that the chair keeps track of when it has been
-stood on:</p>
-
-<pre>
-modify Platform
-  hasBeenStoodOn = nil
-  dobjFor(StandOn)
-  {
-    action()
+ 
+hatch: DSDoor 'wooden hatch' @cellar @secretChamber    
+    checkReach(actor)
     {
-        inherited;
-        hasBeenStoodOn = true;
-    }
-  }
+        if(actor.location not in (secretChamber, oldBench))
+            "The hatch is too high up for you to reach from the ground. ";
+    }    
+;
+    
+secretChamber: Room 'Secret Chamber'
+    "The only way out of this secret chamber is through the
+    hatch to the west, which only exists for demonstration
+    purposes. "
+    
+    west = hatch
 ;
 </pre>
+<p>At first sight this looks like it should work, and it almost does, except that it can all too easilygenerate a transcript like this:</p>
+<p><pre>
+<b>Cellar</b>
+The cellar is almost bare. A flight of stairs leads up to the north, and there’s a hatch on the east wall.
 
-<p>The previous modification <i>could</i> have been made on the chair object rather than the Platform class, but by putting it on the class we automatically cater for the possibility that more than one object might be used as a platform to reach the window (a possibility to which we shall return in the next section). At the moment, the problem we're left with is that the program is still a little too obliging if the player character first sits on the chair:</p>
+You can see an old wooden bench here.
 
-<p><small><b>Start Room</b><br>
-This is the starting room. There's a window high up on the north wall. 
-<br><br>
-You see a chair here. 
-<br><br>
+&gt;<b>open hatch</b>
+The hatch is too high up for you to reach from the ground.
 
-<b>&gt;sit on chair</b><br>
-Okay, you're now sitting on the chair.<br>
-<br>
+&gt;<b>stand on bench</b>
+You get on the old wooden bench.
 
-<b>&gt;n</b><br>
-(first standing up, then opening the window)<br>
-<br>
+&gt;<b>e</b>
+(first getting off the old wooden bench)
+The hatch is too high up for you to reach from the ground.
 
-<b>Outside</b><br>
-You are now outside the start room. You could get back in through the window. 
-</small></p>
+&gt;<b>stand on bench</b>
+You get on the old wooden bench.
 
-<p>One way to fix this is to override the actorTravelPreCond on the window so that it only returns a travel precondition if the staging location has first been stood on. That way, if the player character sits on the chair without having first stood on it, no implicit actions will be triggered and the window will remain out of reach. Once again, we may as well write this code so that it works for the most general case, rather than with one specific staging location object:</p>
+&gt;<b>go through hatch</b>
+(first opening the wooden hatch)
 
+<b>Secret Chamber</b>
+The only way out of this secret chamber is through the hatch to the west, which only 
+exists for demonstration purposes.
 
-<pre>
-  actorTravelPreCond(actor)
-  {
-     local loc = connectorStagingLocation;
-     if(loc && loc.hasBeenStoodOn)
-       return inherited(actor);
-     else
-       return [];
-  }
-</pre>
+&gt;
+</pre></p>
 
+<p>The problem is that the library assumes that the staging location for travel between rooms is the actor's
+outermost room, so it moves the actor our of/off any nested rooms they're in before carrying out the travel via 
+an implicit action. In most cases this is what we want; if the actor had been sitting in a chair or sofa, we'd 
+expect them to get off the chair or sofa before leaving the room. In this case, however, the 'helpful' implicit 
+action is frustrating what we want the actor to do. To leave the cellar vis the hatch, the player character 
+needs to be standing on the bench, but issuing the EAST travel command triggers the implicit action that makes 
+the pc get off the bench. That the player character can get round this by typing GO THROUGH HATCH rather than 
+E doesn't really solve the problem, since players are likely to regard this as an inconsistent mess.</p>
 
-<p>This now works fine, apart from one small detail. If the player character sits on the chair and the player issues a <b>stand</b> command it will be taken as "stand on chair" rather than "get out of chair", so that the player character will then be able to go through the window with a <b>n</b> or <b>go through window</b> command even if the player hadn't in fact intended standing on the chair as a means of reaching the window. One way of fixing this might be to make the chair reinterpret a <b>stand</b> command as a <b>get out</b> command until the chair has been stood upon. We could do this in the chair's roomBeforeAction method:</p>
+<h2 id="solving">Solving the Problem with stagingLocations</h2>
 
+<p>The solution here is quite simple: we can simply define a stagingLocations property on the hatch object to 
+contain a list of locations, one of which the traveler needs to be in before being able to travel through the 
+hatch:</p>
 
-<pre>
- roomBeforeAction()
-  {
-     if(gActionIs(Stand) && !hasBeenStoodOn)
-       replaceAction(GetOutOf, self);
-  }
-</pre>
-
-<p>Now everything should behave as we want it.</p>
-
-
-
-<h2>Multiple staging locations</h2>
-
-<p>So far we have dealt with the case where an exit can be reached by one and only one staging location, in this case a chair. But in a real game there may be several objects the player character could use to reach the window. For example, we might have a table in the room that would work just as well:</p>
-
-<pre>
-+ table: Platform, Heavy 'heavy table' 'heavy table'
-  "It's against the wall; sturdy enough to stand on and too heavy to move. "
-  initSpecialDesc = "A heavy table rests against the north wall. "
-;
-</pre>
-
-
-<p>There are basically two ways we could have the window identify which objects were
-suitable for use as staging locations when stood on. Either the window could keep a list
-of such objects (in this case, the table and chair) or the objects could identify themselves
-by means of some custom property, such as <code>isWindowStage</code>, which would need to be
-set to true on all objects that can be used to reach the window (here, the table and chair).
-Either method should be perfectly workable, but the second may be slightly easier because:</p>
-
-<ul>
-<li>The resulting coding pattern is slightly simpler.
-<li>When adding a new object that could be used as a staging location for the window (e.g. a 
-step-ladder found in a different location) it's probably easier to be able to set a property on that new object there and then rather than having to look elsewhere in the code
-for the window object and add the new object name to the window's list of possible staging locations.
-</ul>
-
-<p>We shall accordingly use the second method here. The first thing we need to do is to allow any object that has <code>isWindowStage</code> set to true to be used as a connectorStagingLocation for the window. The problem here is that TravelConnector.connectorStagingLocation is ordinarily a property that contains a single value; how, then, can it be made to work with multiple staging locations? The trick is to turn window.connectorStagingLocation into a method that returns the actor's current roomLocation if and only if that roomLocation is a valid staging location for the window:</p>
-
-<pre>
-  connectorStagingLocation
-  {
-     local loc = gActor.roomLocation;
-     return loc.isWindowStage  && loc.hasBeenStoodOn ? loc : nil;
-  }
-</pre>
-
-
-<p>The other change needed is to make the window reachable from any valid object on which the actor is standing. To achieve this we need to tweak the window's canObjReachSelf method:</p>
-
-<pre>
-  canObjReachSelf (obj) 
-  { 
-     return obj.roomLocation.isWindowStage && gActor.posture == standing; 
-  }  
-</pre>
-
-<p>Note that though it might be tempting simply to test for gActor.roomLocation.ofKind(Platform), rather than adding a custom property for the purpose, in the general case this may not be such a good idea. Not every Platform is necessarily high enough to enable the window to be reached; for example, you might later add a rubber mat object to the game, and implement the mat as a Platform so it can be stood on, but standing on the mat shouldn't enable the player character to reach the window. You're much more likely to avoid the unrealistic use of mat-like objects if you use a custom property from the outset, even if you don't have any mat-like objects in mind when you're coding your NestedRoom as a staging location puzzle.</p>
-
-<p>Finally, one side-effect of making our window allow either the chair or the table as a staging location is that it won't choose either by default, so even if the player character has used one or the other of them as a route to the window before, a subsequent <b>n</b> or <b>go through window</b> command will result in the response "The window is too far away" unless the player character is already on either the chair or the table. In practice this may not matter much, since should the player character return to this situation, the player would know well enough second time round what to do to get him through the window, and having to type an additional command (<b>stand on chair</b> or <b>stand on table</b>) at that point would not be that much of a bother. However, unlike the chair (which could be carried away), in this instance we can be sure that the table will always be present to be used as a staging location for the window (since it can't be moved), so if we wanted to automate the player character's use of the table once it had been used the first time we could add the following code to the start of window.connectorStagingLocation:</p>
-
-<pre>
-  if(table.hasBeenStoodOn && gActor.roomLocation == getOutermostRoom)
-       return table;  
-</pre>
-
-
-<p>Alternatively, a more general test would be, if the player character is in the outermost room,  to look through all the room contents for an object that's been stood on and that's a window staging location. The connectorStagingLocation for the window then becomes:</p>
-
-<pre>
-  connectorStagingLocation
-  {
-     local loc;
-     if(gActor.roomLocation == getOutermostRoom)
-         foreach(loc in getOutermostRoom.allContents)
-         {
-            if(loc.hasBeenStoodOn && loc.isWindowStage)
-              return loc;
-         }
-     loc = gActor.roomLocation;
-     return loc.isWindowStage  && loc.hasBeenStoodOn ? loc : nil;
-  }
-</pre>
-
-
-<p>The nice thing about this is that if the player character stands on either the chair or the table and then goes through the window, the next time the player issues a <b>go through window</b> command when the player character is directly in the room, the game will send the player character through the window by whatever route was used before. If the player has previously used both the chair and the window, however, the game will arbitrarily choose one or the other (depending which one it comes across first).</p>
-
-
-<h2>Summary and final remarks</h2>
-
-<p>It may seem that setting up the relatively straightforward and common puzzle of using a platform or chair-like object to reach an otherwise out-of-reach exit is something quite complicated. How complicated it needs to be depends on precisely what you want to achieve; not every game will require all the steps suggested here.</p>
-
-<p>In summary, the steps you may need to take are:</q>
-<ol>
-<li>Define your out-of-reach exit (normally some kind of TravelConnector such as a Door or ThroughPassage) as an OutOfReach.
-<li>Define this exit's canObjReachSelf method to return true only if the actor (the obj parameter of this method) is in an object than can be used as a staging location (such as a table, chair, or ladder). The easiest way to do this may be to test a custom property (such as isWindowStage) on the player character's current roomLocation. You may also want to enforce the condition that the actor is standing.
-<li>Define the exit's connectorStagingLocation so that:
-<ul>
-<li>If there is only one object in the game that could ever be used to reach the exit, connectorStagingLocation is simply a property containing the identifier for this object.
-<li>If there are several objects that could potentially be used as staging locations for this
-exit, connectorStagingLocation is a method that returns the actor's current roomLocation if this is a valid staging location for this exit, or else returns nil.
-<li>Optionally, you may want to make this more sophisticated by testing for whether the actor's current location has (say) been stood on before, or whether there's a platform anywhere in the current room that's been stood on before and could be used as a staging location. See above for examples of how to do this.
-</ul>
-<li>Add a custom property, such as isWindowStage, to any objects you want to be usable as staging locations for this exit, and set its value to true for these objects.
-<li>Use Platform rather than Chair for any chair-like option you want to use as a staging location in this way, and tweak properties such as allowedPostures to make the Platform behave in a more chair-like way (but see further on this below).
-</ol>
-
-<p>It may be useful to illustrate this by listing the finished form of the code we developed above:</p>
-
-<pre>
-startRoom: Room 'Start Room'
-    "This is the starting room. There's a window high up on the north wall. "     
-     north = window
-;
-
-+ me: Actor
-;
-
-+ table: Platform, Heavy 'heavy table' 'heavy table'
-  "It's against the wall; sturdy enough to stand on and too heavy to move. "
-  initSpecialDesc = "A heavy table rests against the north wall. "
-  isWindowStage = true
-;
-
-+ chair: Platform 'sturdy wooden chair' 'chair'
-  "It's a sturdy wooden chair. "
-  isWindowStage = true  
-  allowedPostures = [sitting, standing]  
-  obviousPostures = [sitting, standing]
-  dobjFor(Board) asDobjFor(SitOn)
-  roomBeforeAction()
-  {
-     if(gActionIs(Stand) && !hasBeenStoodOn)
-       replaceAction(GetOutOf, self);
-  }
-;
-
-
-+ window: OutOfReach, Door 'window' 'window'
-  "Too high to reach from the floor, but big enough to squeeze through. "
-  initNominalRoomPartLocation = defaultNorthWall
-  
-  canObjReachSelf (obj) 
-  { 
-     return obj.roomLocation.isWindowStage && gActor.posture == standing; 
-  }  
-  
-  connectorStagingLocation
-  {
-     local loc;
-     if(gActor.roomLocation == getOutermostRoom)
-         foreach(loc in getOutermostRoom.allContents)
-         {
-            if(loc.hasBeenStoodOn && loc.isWindowStage)
-              return loc;
-         }
-     loc = gActor.roomLocation;
-     return loc.isWindowStage  && loc.hasBeenStoodOn ? loc : nil;
-  }
-
-  
-  actorTravelPreCond(actor)
-  {
-     local loc = connectorStagingLocation;
-     if(loc && loc.hasBeenStoodOn)
-       return inherited(actor);
-     else
-       return [];
-  }
-;
-
-outside: OutdoorRoom 'Outside'
-  "You are now outside the start room. You could get back in through the window. "
-;
-
-+ window2: Door -> window 'window' 'window'
-;
-
-modify Platform
-  hasBeenStoodOn = nil
-  dobjFor(StandOn)
-  {
-    action()
+<p><pre>
+hatch: DSDoor 'wooden hatch' @cellar @secretChamber    
+    checkReach(actor)
     {
-        inherited;
-        hasBeenStoodOn = true;
-    }
-  }
+        if(actor.location not in (secretChamber, oldBench))
+            "The hatch is too high up for you to reach from the ground. ";
+    }    
+    
+    stagingLocations = [oldBench, secretChamber]
 ;
+</pre></p>
 
-</pre>
+<p>This means that in order to travel via the hatch the player character (or any other actor) 
+needs to be either in/on the oldBench or directly in secretChamber (so that the pc can travel 
+back through this door from the other side). Provided the player character is in one of these 
+stagingLocations, a travel command won't try to remove them from it, but if the pc isn't in one 
+of them, the travel will be disallowed. With this change we get:</p>
 
-<p>There's just a final couple of points to consider. The first is that the approach taken here with the chair is to start with a Platform and make it more Chair-like. In some cases it may work better to start with a Chair and make it more Platform-like; either way when a chair is used as a staging location in the type of case we've been exploring it seems necessary to override quite a bit of the default behaviour it inherits from its class. If, however, you do decide to experiment by starting with a Chair and modifying its behaviour you'll need to remember to apply the hasBeenStoodOn modification not to the Platform class (as above) but to BasicChair or NestedRoom.</p>
-<p>The second is that the test we applied to see if a player had already worked out how to use an object as a staging location was simply whether or not it had already been stood on. This worked reasonably well in our sample game, but it was not strictly perfect: it's possible that a player character could stand on the table and then get off again without going through the window, so that a subsequent <b>north</b> or <b>go through window</b> command would then work without the player expecting it to. This is admittedly unlikely, since it's unlikely that it would occur to players to stand on the chair or table without it also occurring to them that this is the way to reach the window. It's also difficult to think of a better test, since if we tested for the player character actually going through the window after standing on the chair or table we'd create a Catch-22 situation in which neither the chair nor the table could be used as a staging location until it had been used as one previously. There may be a way round this, but it may also be more trouble than it's worth to find it. However, depending on your game, you may need to adjust the stood-on condition if, for example, your staging locations can be stood on by other actors, or if you use a NestedRoom on which the player character can sit or lie to reach the exit. In particular, if, as may be well be the case in your own game, the platform object that's to be used as a staging location first needs to be brought to the OutOfReach TravelConnector that the player's trying to get through, you'd probably want to apply a stricter test before setting its hasBeenStoodOn flag (or its equivalent in your game); for example, you might want to set it only if the player character stands on the staging object when the staging object is in the same location as the otherwise inaccessible exit.
+<p><pre>
+<b>Cellar</b>
+The cellar is almost bare. A flight of stairs leads up to the north, and there’s a hatch on the east wall.
 
+You can see an old wooden bench here.
+
+&gt;<b>e</b>
+The hatch is too high up for you to reach from the ground.
+
+&gt;<b>get on bench</b>
+You get on the old wooden bench.
+
+&gt;<b>e</b>
+(first opening the wooden hatch)
+
+<b>Secret Chamber</b>
+The only way out of this secret chamber is through the hatch to the west, which only exists for testing purposes.
+
+&gt;<b>w</b>
+
+<b>Cellar</b>
+The cellar is almost bare. A flight of stairs leads up to the north, and there&rsquo;s a hatch on the east wall.
+
+You can see an old wooden bench here.
+
+&gt;<b>close hatch</b>
+The hatch is too high up for you to reach from the ground.
+
+&gt;<b>get on bench</b>
+You get on the old wooden bench.
+
+&gt;<b>close hatch</b>
+Done.
+</pre><//p>
+<p>This is just what we want.</p>
+<p>At this point we might be tempted to think that now we've defined stagingLocations on the hatch, we don't 
+need its checkReach() method as well, but removing checkReach() wouldn't be a good idea. If we did, we could end 
+up with something like this:</p>
+
+<p><pre>
+<b>Cellar</b>
+The cellar is almost bare. A flight of stairs leads up to the north, and there’s a hatch on the east wall.
+
+You can see an old wooden bench here.
+
+&gt;<b>e</b>
+You can&rsquo;t access that exit from your current location.
+
+&gt;<b>open hatch</b>
+Opened.
+
+&gt;<b>go through hatch</b>
+You can&rsquo;t access that exit from your current location.
+
+&gt;<b>get on bench</b>
+You get on the old wooden bench.
+
+&gt;<b>e</b>
+
+<b>Secret Chamber</b>
+The only way out of this secret chamber is through the hatch to the west, which only exists for testing purposes.
+</pre></p>
+
+<p>This isn't as good. We could customise the "You can't access that exit..." message by overriding <code>sayNotInStagingLocation(traveler)</code> on the hatch, but we're still left with the fact that the 
+player character can open the hatch while standing on the ground even though it's meant to be too high up 
+in the wall for the pc to reach unless standing on the bench. The moral of the story is that in this kind 
+of situation it's best to define both <code>checkReach()</code> and <code>stagingLocations</code> on the 
+TravelConnector in question.</p>
+
+<h2 id="exitloc">Exit Location</h2>
+<p>Although we've solved the problem we set out to solve here, there's still one potential imperfection. The player character needs to stand on the bench to go through the hatch, but when the pc comes back through the hatch from the secret chamber the pc ends up directly back in cellar, as if they had leapt down from the hatch onto the floor. This might just about pass muster in this case, but if the stagingLocation were, say, a large stage at one end of an auditorium with a door leading off it, we'd certainly expect returning coming back through that door to return the actor to the stage rather than the stage's enclosing room, and even in our cellar example, it might seem more realistic for the player character to end up back on the bench when coming back through the hatch from the secret chamber.</p>
+
+<p>We can achieve this by defining the hatch's exit location, which is the location an actor will end up in when travelling through the hatch to <i>dest</i>. We can do this by adding the following code to our hatch object:</p>
+
+<p><pre>
+    exitLocation(dest)
+    {
+        if(dest == cellar)
+            return oldBench;
+        return dest;
+    }
+
+</pre></p>
+<p>Then we'll get:</p>
+
+<p><pre>
+&gt;<b>get on bench</b>
+You get on the old wooden bench.
+
+&gt;<b>e</b>
+(first opening the wooden hatch)
+
+<b>Secret Chamber</b>
+The only way out of this secret chamber is through the hatch to the west, which only exists for testing purposes.
+
+&gt;w
+<b>Cellar (on the old wooden bench)</b>
+The cellar is almost bare. A flight of stairs leads up to the north, and there’s a hatch on the east wall.
+
+You are on the old wooden bench.
+</pre></p>
+
+<p>The <code>return dest;</code> isn't strictly necessary here, although it does prevent the compiler warning we'd 
+get if we didn't have an explicit return value for when dest isn't. If exitLocation(dest) returns anything that isn't an 
+object in <i>dest</i> then its return value is ignored and the traveler just ends up directly in dest.</p>
+
+<p>This use of exitLocation() works well enough here, but it's even better suited to a exit location that's a fixed platform, 
+like a stage in an auditorium. In that kind of case, the coding pattern we've used here will successfully simulate a door (or other TravelConnector) leading directly off the fixed platform to another location. This is useful since strictly speaking TravelConnectors can only lead between two Rooms. The combination of checkReach(), stagingLocations, and exitLocation() canmake itappear that the a door (or other TravelConnector) leads directly off from the fixed Platform instead.</p>
+
+<p>But in our original example, the bench may not be fixed in place. If it's moved while the player character is in 
+the secret chamber, it's probably okay if the pc ends up directly in the cellar after their return journey, since we can imagine them leaping down from the floor, but what it if the bench were portable and there were other objects the player character could use to stand on instead. How could we arrange for the exitLocation to be the same as the stagingLocation the playerCharacter used to access the hatch?</p>
+
+<p>One way would be to store the stagingLocation in a custom property, <code>lastStagingLocation</code>,  
+when the player character uses that stagingLocation, and then have exitLocation return the value of 
+that property when the pc returns througj the hatch:</p>
+
+<p><pre>
+hatch: DSDoor 'wooden hatch' @cellar @secretChamber    
+    checkReach(actor)
+    {
+        if(actor.location not in (secretChamber, oldBench, woodenChair))
+            "The hatch is too high up for you to reach from the ground. ";
+    }
+    
+    stagingLocations = [oldBench, woodenChair, secretChamber]
+    
+    exitLocation(dest)
+    {
+        if(dest == cellar)
+            return lastStagingLocation;
+        return dest;
+    }
+    
+    lastStagingLocation = nil
+    
+    beforeTravel(traveler, connector)
+    {
+        if(traveler.isIn(cellar))
+           lastStagingLocation = traveler.location;
+    }
+;
+</pre></p>
+<p>Then, in this example, the player character will end up on whichever of the bench or the chair 
+they used to access the hatch when going through it from the cellar. This could readily be extended 
+to separate stagingLocations and exitLocations on either side of the hatch by using two properties,
+say cellarStagingLocation and chamberStagingLocation:</p>
+
+
+<p><pre>
+hatch: DSDoor 'wooden hatch' @cellar @secretChamber    
+    checkReach(actor)
+    {
+        if(actor.location not in (oldBench, woodenChair, packingCrate))
+            "The hatch is too high up for you to reach from the ground. ";
+    }
+    
+    stagingLocations = [oldBench, woodenChair, packingCrate]
+    
+    exitLocation(dest)
+    {
+        if(dest == cellar)
+            return cellarStagingLocation;
+        return chamberStagingLocation;
+    }
+    
+    cellarStagingLocation = nil
+    chamberStagingLocation = nil
+    
+    beforeTravel(traveler, connector)
+    {
+        if(traveler.isIn(cellar))
+           cellarStagingLocation = traveler.location;
+        else
+           chamberStagingLocation = traveler.location
+    }
+;
+</pre></p>
+<p>Further variations on the theme may be left as an exercise for the reader.</p>
+
+<h2>Staging Locations with Booths</h2>
+<p>So far our discussion of nested rooms as staging locations has focused entirely on Platforms, but this raisses 
+the question whether the same techniques can also be used with Booths. The answer is yes, but only to the limited
+extent. We can use the same combination of stagingLocations, exitLocation and checkReach with a Booth provided that 
+the Booth is permanently open. So, for example, we could use these techniques to model an alcove in a larger 
+room with a door set in the alcove or a passage running from it. But we can't do the same with an openable 
+Booth that might be closed, since a Door or other travelConnector connecting two Rooms would not be accessible 
+from inside the closed Booth. So if, for example, we wanted to model a wardrobe with a secret door at its rear,
+the way to do it would be to make the wardrobe a Room in its own right, perhaps putting it in the same SenseRegion 
+as its notionally enclosing room, and then defining <code>canSeeOutTo(loc) { return isOpen; }<code> on our 
+wardrobe object.</p>
 
 </div>
 <hr class="navb"><div class="navb">
