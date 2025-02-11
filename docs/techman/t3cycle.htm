@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <!-- DERIVED FILE - DO NOT EDIT -->
 
@@ -21,10 +22,10 @@ The Command Execution Cycle
 
 <p><i>by Eric Eve</i>
 
-<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3Lite library  is pretty complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
+<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3Lite library  is quite complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
 <p>To detail every single by-way and wrinkle of the command execution cycle would probably be more confusing than helpful, concealing the main contours of the process behind a mass of not particularly interesting detail. In this article we shall therefore simplify some of the processes involved, so that the usual course of events stands out, unencumbered by a plethora of potential exceptions. If you want the complete picture, you'll have to examine the library source code (some links to which are given as appropriate) and try to puzzle it out!</p>
 <p>The command execution cycle is, if not a series of wheels within wheels, at least cycles within cycles or subroutines within subroutines. In an attempt to make this less confusing and more easy to follow, we shall try to follow the main line of execution one level at a time. We'll start by giving an overview of the main scheduling loop that runs each turn, and then trace the execution of a player's command piece by piece.</p>
-<p>Much of the execution of a command that has been successfully parsed (to the point where any objects involved have been resolved) is carried out by the <a href='#doActionOnce'>doActionOnce()</a> method, which also calls the majority of the most commonly customized routines. Many readers (especially first-time readers) may therefore prefer to skip straight to that part of the article rather than trying to take in all the preceding material.</p> 
+
 <br>
 
 <h2>Broadbrush Overview</h2>
@@ -71,7 +72,7 @@ The Command Execution Cycle
 <li>Updates the vocabulary of any game objects that use <a href='../manual/thing.htm#altvocab'>alternating or variable vocabulary</a>.</li>
 <li>Give the special verb manner the chance to amend the command tokens to take account of any <a href='../manual/specialaction.htm'>SpecialVerbs</a> the player may have used.</li>
 <li>If there's an outstanding parser question (such as a dismbiguation, 'Which do you mean?' or a missing object, 'What do you want to frob?'), and the question takes priority over new commands, try parsing the input against the question if it's the first command on the input line.</li>
-<li>Otherwise, construct a list of new <a href='#commandobj'>Command</a> objects which could correspond to the player's input.
+<li>Otherwise, construct a list of new <a href='../libref/object/Command.html'>Command</a> objects which could correspond to the player's input.
 This involves the construction of a new CommandList object which:
 <ol>
 <li>Creates a list of commands by parsing the tokens passed to the CommandList constuctor by calling its Production's (typically a VerbRule) parseTokens() method. This stage identifes the possible actions the command may refer to.</li> 
@@ -85,13 +86,13 @@ This involves the construction of a new CommandList object which:
 <ol>
 <li>If we're looking for a definite match (e.g. "THE BOOK") and we have one possible match, simply choose that match. If we have more than one, attempt to disambiguate among the possibilities by calling our disambiguate() method which:
 <ol>
-<li>First calls scoreObjects() on the current action, which in turn:
+<li id='scoreobjs'>First calls scoreObjects() on the current action, which in turn:
 <ol>
 <li>Calls the <b>verify</b> routine for the current action on every item in the list of objects we want to choose between. If this is TIAction we're using multimethods for, first call the appropriate verifyWhatever() multimethod. In any case next call the verifyPreCondition() method on all PreConditions that apply to the object for the current action. Then call the verify() sections of any dobjFor() and (for TIActions) iobjFor() blocks.</li>
 <li>Adds 100 to the resultant verify score (the lowest logicalRank that emerges from the verify routine).</li>
 <li>Make a note of this adjusted score and its associated verifyResult if it's better than any previous score we've encountered so far.</li>
 <li>Note whether the verifyResult has resulted in a change of object via a remap.</li>
-<li>Make a note of which object came out best in whichever role we're currentllu interested in.</li>
+<li>Make a note of which object came out best in whichever role we're currently interested in.</li>
 <li>Call scoreObject() on any object we're interested, which adds the object's vocabLikelihood to the score and carries out a couple of other tweaks in special circumstances.</li>
 </ol></li>
 <li>Sorts the objects in descending order of score.</li>
@@ -147,7 +148,12 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 </li>Calls preAction(list) on the current actor (for example, to allow it to veto the action if the actor is bound or blindfolded).</li>
 <li>Calls execDoer(list). This finds the list of <a href='../manual/doer.htm'>Doers</a> that match this action and its current set of objects (as specified in <i>list</i> and <a href='#doer'>executes</a> the one with the highest priority. This will lead to the bulk of the action handling on this turn.</li>
 </ol></li>
-<li id='post-action'> After the current Doer/Action has finished dealing with the action, Command.exec() resumes control by carrying out some post-action processing. This starts with displaying all the afterReports that were created by calls to reportAfter() during execution of the action.</li>
+<li id='post-action'> After the current Doer/Action has finished dealing with the action, Command.exec() resumes control by carrying out some post-action processing.
+<ol>
+<li>Call reportAction() on the action that's just been executed, which in turn displays any pending implicit action reports and then calls the appropriate report method, reportDobjWhatever, on the last direct object the action acted on, in order to display a default summary report of the action (for any objects whose action() method didn't display anything).</li>
+
+<li>Display all the afterReports that were created by calls to reportAfter() during execution of the action.</li>
+</ol></li>
 <li>Next carry out the afterAction() routine for the current action, unless it's a SystemAction or the action failed. This does the following:
 <ol>
 <li>If the lighting conditions change, display a description of current location if it's now lit or announce the onset of darkness if it's now dark.</li>
@@ -166,6 +172,8 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 <li>Call advanceTime() on the current action. This does nothing in the main library but is provided as a hook for the
 <a href='../../extensions/docs/objtime.htm'>Objective Time</a> extension to use to add to the time taken by implicit actions.</li>
 </ol>
+<p>Tbis completes the action cycle. At this point the game will return to the start of the <a href='#maincommand'>main command loop</a>.</p>
+
 <br>
 
 <h2 id="doer">The Doer</h2>
@@ -197,11 +205,11 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 <h3 id = 'execcycle'>execCycle(cmd)</h3>
 <p>Tbis does the following:<p>
 <ol>
-<li>Unless it's a SystemAction, first calls beforeAction(), which in turn:
+<li id='beforeaction'>Unless it's a SystemAction, TAction or TIAction, first calls beforeAction(), which in turn:
 <ol>
 <li>Calls checkActionPreconditions() and stops the action if this returns nil.</li>
 <li>Calls actorAction() on the current actor.</li> 
-<li>Calls notifyBefore() on the sceneManager.</li>
+<li>Calls notifyBefore() on the sceneManager, which calls beforeAction() on any current Scenes..</li>
 <li>Calls notifyBefore() on the actor's current room. This in turn:
 <ol>
 <li>Calls roomBeforeAction() on the room.</li>
@@ -214,125 +222,132 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 <li>If the action is repeatable, stores a clone of the action at libGlobal.lastAction.</li>
 </ol>
 
-<p><b>SystemAction</b> omits step 1. A <b>TravelAction</b> first sets its <code>direction</code> property to cmd.verbProd.dirMatch.dir (the direction entered by the player) unless it already has a non-nil <code>predefinedDirection</code> property. A <b>TAction</b> or <b>TIAction</b> first checks whether ALL was used with an action for which allowAll is nil, and if so displays a message saying that the current command does not allow ALL and then stops the action.</p>
+<p><b>SystemAction</b> omits step 1. A <b>TravelAction</b> first sets its <code>direction</code> property to cmd.verbProd.dirMatch.dir (the direction entered by the player) unless it already has a non-nil <code>predefinedDirection</code> property. A <b>TAction</b> or <b>TIAction</b> first checks whether ALL was used with an action for which allowAll is nil, and if so displays a message saying that the current command does not allow ALL and then stops the action; they also both call beforeAction() at a later point, during execAction().</p>
 
 <h3 id="execaction">execAction(cmd)</h3>
+<p>How things proceed from now on depend on the kind of action. Broadly speaking we may divide actions into Type 1 Actions that don't involve any physical game objects (or at least, don't have any grammar slots for them in their VerbRule) and Type 2 Actions that do. Type 1 Actions include SystemAction, IAction, TravelAction, TopicAction, LiteralAction and NumericAction. Type 2 Actions include all the rest: TAction, TIAction, TopicTAction, LiteralTAction and NumericTAction. For Type 2 Actions the details of what happens is defined on the dobjFor() and, for TIActions, iobjFor() blocks of the objects (or classes of object) involved. Type 1 Actions are handled in their execAction(cmd) method.<p>
 
-<br>
-<h3><a name='doActionMain'>doActionMain</h3>
-<p>As we have just seen, doAction() does a number of things, but the bulk of the action processing is left to doActionMain, which is called as the central step of doAction(). What precisely doActionMain does depends on whether it's being called on an IAction, a TAction, or a TIAction. If it's an IAction doActionMain() simply calls doActionOnce(). For a TAction or a TIAction doActionMain basically iterates over the list of objects (if there's more than one direct or indirect object involved in the command, because it was applied to multiple objects), calling doActionOnce() for each of them in turn. If only one direct object and (where appropriate) indirect object was specified (e.g. GET RED BALL or PUT RED BALL IN BROWN BOX) then doActionOnce() will only be called once.</p>
-<p>The surrounding code in doActionMain() is responsible for such things as setting the objects for the current iteration, announcing the appropriate object for the current iteration (if there's more than one direct object, say), and breaking out of the iteration if the cancelIteration property has been set. For a TIAction, doActionMain also remembers the list of direct and indirect objects as potential pronoun antecedents.</p>
-<br>
-<h3><a name='doActionOnce'>doActionOnce()</a></h3>
-<p>As noted above, doActionMain() is responsible for iterating over a set of objects where there may be more than one direct object or more than one indirect object involved in a command. For each direct object in a TAction or pair of direct and indirect objects in a TIAction, the action processing is handled by <a href='../libref/source/action.t.html#1238'>doActionOnce()</a>. The same method is also used to execute an IAction, TopicAction, and any other kind of action. Where the different types of action vary is in the definition of the methods doActionOnce() calls to carry out the various steps.</p>
+<p><b>Type 1 Actions</b> (SystemAction, IAction, TravelAction, TopicAction, LiteralAction and NumericAction)</p>
+<p>For these types of action, what happens is defined by the execAction() method of the relevant Action object in a way that will vary from Action to Action. This method may call other methods on the Action object relevant to the specific action and/or methods on some physical game objects. An ImplicitConversationAction (a subclass of TopicAction), for example, will call handleTopic() on the player character's current interlocutor, which a TravelAction may well end up call the travelVia() method of an TravelConnector, which in turn will trigger various <a href='#travel'>travel notifications</a>.
 
-<p>The steps carried out by doActionOnce() are:</p>
+<p>Remember that once a Type 1 Action's execAction() has finished its work, control will return to the Command object's exec() method to carry out the <a href='#post-action'>post-action</a> processing.</b>
 
+<p><b>Type 2 Actions</b> (TAction, TIAction, TopicTAction, LiteralTAction, NumericTAction)</b>
+<p>From this point on, a Type 2 Action mainly co-ordinates calling the appropriate preCond, verify, check, and action methods on the objects involved in the command, although this will be via a series of methods we'll outline below.</p>
+<p>TopicTAction, LiteralTAction and NumericTAction first ensure that the physical game object involved in the command is moved to the direct object slot and the topic, literal or number to the indirect object slot, regardless of the grammatical form of the command issued by the player (such as ASK BOB ABOUT TROUBLES, or WRITE FOO ON PAPER). This ensures that the actoin handling that follows can assume that the direct object is the Thing or Thing-derived object involved in the action, which in turn means that the relevant methods can always be called on the direct object.</p>
+<p>Type 2 Actions then call <code>notePronounAntecedent()</code> on the object(s) (dobj and possibly iobj) involved in the command so that if the player refers to the same object(s) with a pronoun in the following command (e.g. X BOOK followed by TAKE IT) the parser will know what the player is referring to.</p>
+<p>Finally, execAction() calls execResolvedAction() to handle what comes next.</p>
+
+<h3 id="execresolved">execResolvedAction()</h3>
+<p>This is similar for all Type 2 Actions, except that TIActions have to call methods on both the objects involved in the command. The steps are:</p>
 <ol>
-<li>checkRemapping(). Before doing any actual execution, check the command for            remapping.  If this ends up doing any remapping, the remapping routine will simply replace the current command, so the remapping call will terminate the current action             with 'exit' and thus never return here. For an IAction, checkRemapping does nothing (there are no objects involved which might carry out remapping). For a TAction the direct object is checked for possible remapping of this action. For a TIAction both the direct and the indirect objects are checked for remapping but the order depends on the value of the resolveFirst property (which may be either DirectObject or IndirectObject).</li>
-<li>If the action is an implicit action, run verifyAction(); if the result is that the action would normally be allowed, but is not allowed as an implicit action (because it is verifies to nonObvious or dangerous), then abort the implicit action. See <a href='#verify'>below</a> for what verifyAction does.</li>
-<li>If the action is an implicit action, announce the implicit action (through a call to Action.maybeAnnounceImplicit()).</li>
-<li>Carry out verification using verifyAction(). If verifyAction returns a result for which allowAction is nil (in other words, the action failed verification), show the message explaining why the action failed verification (via result.showMessage, which displays the message from the illogical macro or equivalent that ruled the action out) and terminate the action. See <a href='#verify'>below</a> for what verifyAction() does in more detail; generally it will call the appropriate verify methods on any objects involved in the command, and the verifyPreCondition() methods on all the preconditions.</li>
-<li>Check the PreConditions for the action via a call to checkPreConditions. See <a href='#checkPreCond'>below</a> for what this does on different types of action. In general it will call the checkPreCondition method of each PreCondition relevant to the action. The first time through these methods will be allowed to carry out an implicit action in order to satisfy the PreCondition. If any implicit action is carried out we return to step 4 for a second pass, since the implicit action may have changed the game state, and hence the verification results we would get. If there is a second time through, no further implicit actions are allowed at this stage (so there's never more than two passes through steps 4 and 5).</i>
-<li>Disable the sense cache (it may already have been disabled by an implicit action), since the game state may change from now on.</li>
-<li>If gameMain.beforeRunsBeforeCheck is true, run the before notifiers, through a call to runBeforeNotifiers(). This in turn first runs beforeAction() on the current action (by default this does nothing, but game authors are free to override it to do something), then roomBeforeAction on the actor's containers (the Room or NestedRoom where the actor is located, which will in turn call roomBeforeAction on its containers, if it's a NestedRoom), and then beforeAction() on every other object in scope (or more precisely, on every other item in the action's notify list; this can be added to with an explicit call to addBeforeAfterObj(obj) on the action). If gameMain.beforeRunsBeforeCheck is nil, this all takes place at step 10 instead.</li>
-<li>Run the actorAction() method on the current actor (by default this does nothing, but it is available for game authors to override).</li>
-<li>Check the action, by calling checkAction() on the current action. What this does depends on the type of action (IAction, TAction, or TIAction), for details see <a href='#check'>below</a>. In general, though, this calls the check() parts of the dobjFor() and iobjFor() action handlers on the objects involved in the commands.</li>
-<li>If gameMain.beforeRunsBeforeCheck is nil, run the before notifiers, through a call to runBeforeNotifiers. See Step 7 for details of what happens.</li>
-<li>Execute the action through a call to execAction() on the current action. IActions or the equivalent must be overridden to define their action handling here. TActions and TIActions call the action parts of the dobjFor() and iobjFor() action handlers on the direct and (in the case of a TIAction) indirect object. For a SystemAction game authors should normally override execSystemAction rather than execAction. See <a href='#exec'>below</a> for more details of what execAction() does on various kinds of action.</li>
-<li>Call the afterAction() method of every item in the notify list (roughly speaking, all the other items in scope plus those added to the notify list by a call to addBeforeAfterObj(obj) on the action).</li>
-<li>Call the roomAfterAction() method of the actor's container (the Room or NestedRoom immediately containing the actor). This in turn will result the roomAfterAction of the container's containers being called (in the case of a NestedRoom).</li>
-<li>Call the afterAction() method on the action. By default this does nothing, but it is available to be overridden by game authors.</li>
-</ol>
-<p>This completes the processing of the action. Remember that doActionOnce() will be called for each object in turn if there's a list of objects involved in the command (e.g. TAKE RED BALL, GREEN PEN AND BLACK HAMMER). Once all the objects have been processed runScheduler will then let NPCs take a turn, and will then execute any current Fuses and Daemons (see above). All that remains now is to explore in a bit more detail what verifyAction(), checkAction and execAction() do on the different kinds of action.</p>
-<br>
-<h2>Action-Type Specific Handling.</h2>
-<p>We have now outlined the entire command execution cycle, but a few points of detail remain. In particular, we need to explore in just a little more detail what <a href='#verify'>verifyAction()</a>, <a href='#checkPreCond'>checkPreConditions()</a>, <a href='#check'>checkAction()</a> and <a href='#exec'>execAction()</a> do on the various kinds of action. For this purpose, we are mainly concerned with three broad classes of action:</p>
-<ul>
-<li><b>IAction</b> &mdash; actions that involve neither an indirect nor a direct object. For present purposes this includes SystemAction, TopicAction and LiteralAction as well as IAction itself.</li>
-<li><b>TAction</b> &mdash; actions that involve a direct object but not an indirect object. For present purposes this includes TopicTAction and LiteralTAction as well as TAction itself.</li>
-<li><b>TIAction</b> &mdash; actions that involve both a direct object and an indirect object; TIAction is the only category of action of this type (although there are, of course, many idifferent individual TIActions defined in the standard library).</li>
-</ul>
-<p>Note, then, that we are not interested in the grammatical form of the command (PUT BALL IN BAG or LOOK UP GREEK MYTHOLOGY IN BIG RED BOOK), but in the number of slots for simulation objects &ndash; objects of class Thing or one of its subclasses &ndash; that are required for the action: zero, one or two.</p>
-<br>
-<h3><a name='verify'>verifyAction</a></h3> 
-<p><b>IAction</b>: This simply returns the list of VerifyResults from callVerifyPreCond(). This in turn calls verifyPreCondition on any preconditions attached to the action itself; these PreConditions may be listed in the preCond property of the action. In the standard library only JumpAction has a PreCondition (actorStanding), but game authors may like to add PreConditions to custom actions. Note that you can't, however, just override verifyAction() to include a naked illogical() macro or whatever, since this won't work.</p>
-<p><b>TAction</b>: This proceeds in several stages:
+<li>Create a new LookUpTable called verifyTab to store our verify results.</li>
+<li>Obtain the verify results for current direct object. If we're a TIAction we also do the same for the indirect object; which comes first depends on the value of resolveIobjFirst for this Action. Note that the verify routines for this action were previously called by <a href='#scoreobjs'>scoreObjects()</a> to help the parser choose which objects the player meant. This time round the Action calls verifyObjRole(obj, role) on each of the objects (direct object, and if there is one, indirect object) to ascertain whether the action can go ahead. If verifyObjRole() returns nil, the object is stopped at this point and we skip to the <a href='#post-action'>post-action</a> processing. The steps followed by verifyObjRole() are:
 <ol>
-<li>Call the verifiers on any PreConditions attached to the <i>action</i> (as opposed to its direct object); this is the same at the callVerifyPreCond() for IAction, except that the list of VerifyResults returned will be augmented by the following two steps.</li>
-<li>Check whether we should use dobjFor(All) or dobjFor(Default) handling on the direct object. The former overrides any more specific action handling on the object; the latter only comes into play if no specific handling for this action is defined on the object. If it turns out we should use one of these catch-all handlers, then run the appropriate one (verifyDobjAll or verifyDobjDefault) and add the results to our list of VerifyResults.</li>
-<li>If we're not using a catch-all verify property (from the previous step) run the action-specific verify method on the direct object (e.g. verifyDobjTake for TakeAction), and add the results to our list of VerifyResults.</li>
-<li>Run the verifiers (i.e. the verifyPreCondition() methods) of each PreCondition listed in the appropriate preCond property for the current action on the direct object (e.g. run verifyPreCondition on each PreCondition listed in preCondDobjTake if the action is a TakeAction). Any results from this step are added to our list of VerifyResults.</li>
-<li>Finally, check that there are handlers defined for this action on the direct object, through a call to verifyHandlersExist. This checks that the object defines or inherits at least one out of verify, check and action handling (e.g. verifyDobjTake, checkDobjTake, or actionDobjTake for a TakeAction); if it doesn't, we add an illogical result ("You can't do that") to our list of VerifyResults.</li>
-</ol>
-</p> 
-<p><b>TIAction</b>: This proceeds much like the handling for TAction, with a few extra stages for the indirect object. We first perform the same step 1 (callVerifyPreCond) to run the verifiers on the <i>action's</i> PreConditions. We then perform steps 2 to 4 on the direct object, as for a TAction. Following that we repeat the same steps (2 to 4) on the indirect object. Finally, we carry out Step 5 &ndash; call verifyHandlersExist() &ndash; as for TAction, except that we check both objects (direct and indirect) for the existence of a handler, and add an illogical result if neither object provides one.</p>
-<br>
-<h3><a name='checkPreCond'>checkPreConditions</a></h3>
-<p><b>IAction</b>: This simply executes the checkPreCondition() method of every PreCondition listed in the <i>action's</i> preCond property. The PreConditions first are sorted in ascending order of their preCondOrder property.</p>
-
-<p><b>TAction</b>: This is similar to the processing for IAction, except that the PreConditions listed in the direct object's preCond property (e.g. dobjPreCondTake for a TakeAction) are added to the list before it is sorted and checkPreCondition() executed on each PreCondition in the list.</b>
-
-<p><b>TIAction</b>: This is similar to the processing for TAction, except that the PreConditions from the indirect object's appropriate preCond propety (e.g. preCondIobjPutIn for a PutInAction) are also added to the list.</p>
-<br>
-
-<h3><a name='check'>checkAction</a></h3>
-<p><b>IAction</b>: By default this does nothing on an instransitive action. Game authors could override this if desired (e.g. to check for some condition and use reportFailure() plus exit to terminate the command).</p>
-<p><b>TAction</b>: This tries the catch-all properties (checkDobjAll and checkDobjDefault) on the direct object. If a dobjFor(All) is found, this takes precedence. If a dobjFor(Default) is found, this will be used only if there's no applicable checkDobjForXXX (e.g. checkDobjForTake, in the case of a TakeAction) defined on or inherited by the direct object. If no catch-all property is applicable, run the appropriate check method  (e.g. checkDobjForTake, in the case of a TakeAction) on the direct object.</p>
-<p><b>TIAction</b>: This is similar to the TAction processing, except that we (1) check for catch-all check handling on the indirect object; (2) check for catch-all handling on the direct object; (3) if no catch-all handling was applicable to the direct object, execute the appropriate check() method on the direct object (e.g. checkDobjPutIn for a PutInAction); (4) if no catch-all handling was applicable to the indirect object, execute the appropriate check() method on the indirect object (e.g. checkIobjPutIn for a PutInAction).</p>
-<br>
-
-<h3><a name='exec'>execAction</a></h3>
-<p><b>IAction</b>: The execAction() method defined on the IAction class does nothing (except display a message saying "You can't do that"); specific IAction classes have to override this method to carry out the action.</p>
-
-<p><b>SystemAction</b>: This is a special case of IAction. The specific action processing for a SystemAction is carried out by its execSystemAction method. SystemAction.execAction first checks that the command to carry out a SystemAction isn't being directed to an NPC (which would be nonsensical). The transcript is then flushed and disabled to allow the SystemAction to prompt for interactive responses. Then execSystemAction() is executed, and finally the transcript is activated again.</p>
-
-<p><b>TAction</b>: First check whether the catch-all properties (actionDobjAll or actionDobjDefault) should be executed on the direct object; if actionDobjAll is defined it takes precedence over the specific action handling; only if there is no specific action handling for this action on the direct object with the default handling be used. If no catch-all action method is used, execute the action-specific action method on the direct action (e.g. actionDobjTake for a TakeAction).</p>
-
-<p><b>TIAction</b>: First check the catch-all properties (actionIobjAll and actionIobjDefault) on the indirect object to see if either of them should execute (according to the normal rules, for which see the execAction handling on TAction). Then do the same for the catch-all action properties (actionDobjAll and actionDobjDefault) on the direct object. What happens next depends on the value of the actions execFirst property. If this is DirectObject then we execute the appropriate action() method (e.g. actionDobjPutIn) on the direct object first, if the direct object's catch-all handling hasn't been used, and then the appropriate action method (e.g. actionIobjPutIn) on the indirect object, if the indirect object's catch-all action handling hasn't been used. If execFirst is IndirectObject we execute the indirect object's action method before the direct object's. By default execFirst is set to the value of the resolveFirst property on the action, but it can be overridden separately.</p>
-<hr>
-<h2><a name='topic'>A Note on ResolvedTopics</a></h2>
-<p>The discussion on <a href='#execCmd'>noun resolution</a> above mainly concentrated on actions that resolve to one or two simulation objects (TActions and TIActions). We should give a brief explanation of what happens with the resolution of a topic in a TopicAction or TopicTAction.</p>
-<p>The topic part of such an action, (generally) represented by gTopic in the appropriate VerbRule, resolves to a single <a href='../libref/object/ResolvedTopic.html'>ResolvedTopic</a> object. Such ResolveTopic objects maintain three lists of in-game objects (Topics or Things) that they potentially match:</p>
+<li>Set up a new LookUpTable, then call verify(obj, role) and store the result in the local variable verResult; verify(obj, role) does the following:
 <ol>
-<li>inScopeList</li>
-<li>likelyList</li>
-<li>otherList</li>
-</ol>
-<p>During resolution of a <i>topic</i> these lists are filled with lists of objects (Things or Topics already defined in the game) that the vocabularly entered by the player could match. For example, if the player typed ASK BOB ABOUT BALL, every Thing and Topic with 'ball' in its vocabWords would be placed in one of these three lists. If what the player typed matches nothing in the game (e.g. ASK BOB ABOUT FLOBDAVERYGUTS), a ResolvedTopic object is created with all three lists empty.</p>
-<p>The default <a href='../libref/object/TopicResolver.html'>TopicResolver</a> puts its entire list of matched objects (Things and Topics) into the first of these lists. This is the strategy used by ConsultAction; if the player types LOOK UP BALL IN BOOK, there's no reason to prefer any one meaning of BALL to another (should BALL match a number of Things and Topics in the game).</p>
-<p>For a conversational command (like ASK BOB ABOUT BALL or TELL JANE ABOUT BALL), the lists are separated out:</p>
+<li>Clears out any existing verify table</li>
+<li>Determines which object properties to use depending on the role (DirectObject, IndirectObject, AccessoryObject or ActorRole).</li>
+<li>Calls  obj.remap(D|I|A)obj to check is we should remap to a different object in this role; if so replace the current object with the object we're remapping to.</li>
+<li>If the object is a Decoration (obj.isDecoration is true) and we're not one of obj's decorationActions, change the verify prop we would otherwise have used to verify(D|I|A)objDefault.</li>
+<li>If we're a TIAction on which multi-method handling has been enabled, call the appropriate multi-method, e.g. verifyWhateverAction(dobj, iobj, obj). This may add verify results to our verify table.</li>
+<li>Call obj.(verifyProp) where <i>verifyProp</i> is the appropriate verify property (e.g. &amp;verifyDobjPutIn) for this object in this role. This may add verify results to our verify table.</li>
+<li>If we don't yet have a verify table, create a new one now.</li>
+<li>If our verifyTable doesn't contain an entry for obj, create one now (a 'logical' result with a logical rank of 100).</li>
+<li>Iterate over all the preConditions defined on obj for this action in this role and call their verifyPrecondition(obj) method, which replace the verify result in our verify table if it's a worse result.</li>
+<li>Return the entry for obj in our verify table. This will the worst result, i.e. the one with the lowest logical rank. (The method that adds entries to a verify table only replaces an entry if the replacement is a 'worse' one).</li>
+</ol></li>
+<li>If the verify result doesn't allow the action (verResult.allowAction == nil), then note the failure message.</li>
+<li>If we're testing the direct object of the command and this action is iterating over more than one direct object,
+then announce the object name, unless announceMultiVerify (a property of the Action object) is nil.</li>
+<li>If this is an implicit action, add a failing implicit action report ('first trying to whatever') to the implicit action reports for this action.</li>
+<li>If we have a failure message, display it.</li>
+<li>If the action failed, note that it did.</li>
+<li>If we don't want a failed action to count as a turn (failedActionCountsAsTurn is nil for this Action), throw an <code>abort</code> signal to skip the post-action processing.</li>
+<li>If the action failed, return nil to our caller.</li>
+<li>Otherwise, if this is an implicit action and our best verify result doesn't allow implicit actions (because it's <code>nonObvious</code> or <code>dangerous</code> throw an abortImplicit signal to abort the implicit action.</li>
+<li>Otherwise, if our worst verify result allows the action to go ahead, return true to our caller.</li>
+</ol></li>
+<li>If gameMain.beforeRunsBeforeCheck is nil, the order of the next two steps is reversed.</li>
+<li>Calls beforeAction(), which does the following: 
 <ol>
-<li>inScopeList &mdash; contains all matched objects that are in conversation scope for the actor doing the talking, where the default definition of conversation scope is physical scope plus all the other objects and topics the actor knows about.</li>
-<li>likelyList &mdash; contains all other matched objects for which actor.isLikelyTopic(obj) returns true; by default this is defined to be objects the actor knows about, but this could be overridden by game authors if desired. The default definition would seem always to leave this list empty, since objects or topics the actor knows about are included in the inScopeList.</li>
-<li>otherList &mdash; contains a list of any other matched objects not included in the first two lists.</li>
+<li>Calls checkActionPreconditions() and stops the action if this returns nil. Note that checkActionPreconditions calls checkPreCondition on the PreConditions defined on the Action rather than those defined on any of the objects involved in the action.</li>
+<li>Calls actorAction() on the current actor.</li> 
+<li>Calls notifyBefore() on the sceneManager, which calls beforeAction() on any current Scenes.</li>
+<li>Calls notifyBefore() on the actor's current room. This in turn:
+<ol>
+<li>Calls roomBeforeAction() on the room.</li>
+<li>Calls regionBeforeAction() on every Region that (directly or indirectly) contains the room.</li>
+</ol></li>
+</li>
+<li>Calls checkAction(). If this returns nil, stop the action here and jump to the <a href='#post-action'>post-action</a> processing; checkAction() does the following:
+<ol>
+<li>Calls checkPreCondition on all the preconditions related to this action defined on the dobj (and, for a TIAction, the iobj) of this action. If any fail, return nil to fail the action.</li>
+<li>If this a TIAction that has been enabled for multi-methods, calls check([dobj, iob], &amp;mmcheck) to call the appropriate multi-method, checkWhateverAction(dobj, iobj). 
+<li>Calle the relevant check(dobj, checkDobjProp) and, if this is a TIAction, check(iobj, checkIobjProp), and if either returns nil, return nil to halt the action at this point; checkDobjProp is property pointer of the form &amp;checkDobjActionName; the check() method does the following:
+<ol>
+<li>If this a TIAction that has been enabled for multi-methods and check has been called with a list [dobj, iobj] for its first argument, calls the appropriate multi-method, checkWhateverAction(dobj, iobj), and captures the output to checkMsg.</li>
+<li>Otherwise, call the check method passed in the second argument on the object passed in the first (e.g. call dobj.checkDobjWhateverAction()) and capture the output to checkMsg.</li>
+<li>If checkMsg is neither nil nor the empty string '', then:
+<ol>
+<li>If we're iterating over several objects and this action's announceMultiCheck property is true but its reportFailureAfterSuccess property is nil, display the name of the current object.</li>
+<li>If this is an implicit action, add a failure ('trying to...) message to our implicit action reports.</li>
+<li>Otherwise flush our implicit action reports (display any pending ones and then empty the list).</li>
+<li>If reportFailureAfterSuccess is true, call reportAfter(checkMsg) to add out failure message to the list of reports to be displayed in the post-action handling.</li>
+<li>Otherwise, simply display our checkMsg.</li>
+<li>Note that the action failed, unless the latest check routine called on an object used the noHalt macro.</li>
+</li>Return nil to indicate that the action failed the check stage, unless the latest check routine called on an object used the noHalt macro.</li>
+</ol></li>
+<li>Otherwise, return true to allow the action to proceed.</li>
+</ol></li>
+</ol></li>
+<li>Calls doActionOnce() to carry out the action with the current direct object (and, for a TIAction, the current indirect object).</li>
 </ol>
 
-<p>The matchTopic() method of a TopicMatchTopic (e.g. AskTopic or TellTopic) checks first the inScopeList and then the likelyList of the ResolvedTopic from the current conversational command in order to find a match (so something the player character doesn't know about yet can't be matched). ResolvedTopic.getBestMatch() returns the first item from the inScopeList (if the inScopeList is not empty), or failing that, the first item from the likelyList (if the likelyList is not empty), or failing that, the first item from the otherList (if the otherList is not empty) or, failing that, nil,</p>
-<p>Whether or not a ResolvedTopic matches any Topics or Things in its three lists of matched objects, we can retrieve information about what text the ResolvedTopic was matching (i.e. what the player typed) using the following methods:</p>
-<ul>
-<li>getTopicText() &mdash; returns a string containing what the player typed to match this topic. The macro gTopicText returns gTopic.getTopicText.toLower(), which could be used to test the player's input, for example.</li>
-<li>getTopicTokens() &mdash; returns the original tokens of the topic phrase, in canonical
-     tokenizer format.</li>
-<li>getTopicWords() &mdash; returns just the original text strings from the token list</li>     
-</ul>
 
-<p>It may occasionally be useful to define an action to use a ResolvedTopic where it might have seemed more natural to use a Thing. For example, suppose you wanted to implement a Find command which allows players to type commands like FIND THE MAGIC TREASURE. This might be better implemented as a TopicAction than a TAction:</p>
-<p><pre>
-DefineTopicAction(Find)
-   execAction()
-   {
-	   /*  detailed handling here */
-   }
-;
+<h2>doActionOnce()</h2>
+<p>If we've reached this point, the action can proceed, employing the following steps:</p>
+<ol>
+<li>If announceMultiAction is true for this action we're iterating over multiple direct objects for this command, then announce the name of the current direct object.</li>
+<li>If this is an implicit action, add it to the list of pending implicit action reports.</li>
+<li>If this is a TIAction and this action has been enabled for multi-methods, execute the appropriate multi-method, actionWhateverAction(dob, iobj) and note whether this output any text.</li>
+<li>Provided the previous step didn't use the skip macro, call the appropriate action method on the direct object, e.g. dobj.actionDobjWhatever(), and note whether this output any text.</li>
+<li>Certain actions, such as GoThroug, ClimbUp, ClimbDown, PushTravel and Enter, may cause the actor to travel from one room to another, in which case a number of <a href='#travel'>travel notifications</a> will be triggered at this point.</li>
+<li>Add the current direct object to the list of objects this action has added on.</li>
+<li>If this is a TIAction, call the appropriate action method on the indirect object, e.g. iobj.actionIobjWhatever(), and note whether this output any text.</li>
+<li>If none of the methods called above output any text then add the current indirect object to the list of objects we've acted on and add the current direct object to the list of objects to be reported on at the report stage.</li>
+<li>Return true to tell our caller we completed the action successfully.</li>
+</ol>
+<p>Control now returns to the Command object's exec() method to carry out the <a href='#post-action'>post-action</a> processing.</p>
+<br>
+<h2 id="travel">Travel notifications</h2>
+<p>TravelAction(s) and some TActions such as GoThrough, ClimbUp, ClimbDown and PushTravel which trigger travel via a TravelConnector (which can include a Room) will or may call a TravelConnector's travelVia() method to execute the travel. This will trigger a further series of notifactions at the action handling point in the command execution cycle, some of which may be used to interrupt the action. The sequence of event triggered by travelVia is as follows:</p>
+<ol>
+<li>Check any travel barriers defined on the TravelConnector. If any fail canTravelerPass() call their explainTravelBarrier() to explain travel isn't possible and halt the action at this point.</li>
+<li>Carry out our travel connector's beforeTravel notifications:
+<ol>
+<li>Call beforeTravel(actor, connector) on every object that's in scope for the actor.</li>
+<li>Call regionBeforeTravel(actor, connector) on every region containing the actor's pre-travel current room.</li>
+</ol></li>
+<li>Call noteTraversal(actor) on the TravelConnector. If the actor is the player character this will cause the TravelConnector's travelDesc to be displayed.</li>
+<li>If this TravelConnector doesn't go anywhere (because its destination is nil) then if noteTraversal() hasn't displayed anything, then call sayNoDestination to say it doesn't lead anywhere, and it any case stop at this point.</li>
+<li>Call notifyDeparture() on the room the actor is leaving; this does the following:
+<ol>
+<li>Calls travelerLeaving(traveler, dest) on the Room the actor is about to leave.</li>
+<li>Calls travelerLeaving(traveler,dest) on any Regions the actor is about to leave.</li>
+<li>Calls travelerEnteringtraveler,dest) on any Regions the actor is about to enter.</li>
+<li>Calls travelerEnteringtraveler,dest) on the Room the actor is about to enter.</li>
+</ol></li>
+<li>Move the traveler into the destination room.</li>
+<li>Display the description of the room the traveler has just arrived in, provided the traveler is or contains the player character and the new room's lookAroundOnEntering property is true (which it normally will be).</li>
+<li>Provided the traveler has arrived in a new room, carry out the after travel notifications:
+<ol>
+<li>Call afterTravel(actor, connector) on every item in the actor's new scope.</li>
+<li>Call regionAfterTravel(actor, connector) on every Region that contains the actor's new location.</li>
+</ol></li>
+</ol>
 
-VerbRule(Find)
-  (('find') | ('look' | 'search' | 'hunt') 'for') singleTopic
-  : FindAction
-  verbPhrase = 'find/finding (what)'
-  ;
-</pre></p>
-<p>The reasons for doing it this way are (a) you don't have to worry about scope (and generally the player will be trying to find objects that aren't in scope) and more importantly, (b) the parser won't give any spoilery error messages like "The word 'treasure' is not necessary in this game. " On the other hand it's then up to you to look at the inScopeList of the ResolvedTopic object the parser creates and decide how you want to prioritize it.</p>
+
 
 </div>
 <hr class="navb"><div class="navb">
