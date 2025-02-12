@@ -1,8 +1,8 @@
+<!DOCTYPE html>
 <html>
-<!-- DERIVED FILE - DO NOT EDIT -->
 
 <head>
-<title>Manipulating the Transcript</title>
+<title>Handling TIActions with Multi-Methods</title>
 <link rel="stylesheet" href="techman.css" type="text/css">
 </head>
 <body>
@@ -10,1069 +10,414 @@
 <div class="nav">
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
-Manipulating the Transcript
+Handling TIActions with Multi-Methods
 <br><span class="navnp"><a class="nav" href="t3cycle.htm"><i>Prev:</i> The Command Execution Cycle</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3scope.htm"><i>Next:</i> Redefining Scope</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>
 <div class="main">
 
-<h1>Manipulating the Transcript</h1>
+<h1>Handling TIActions with Multi-Methods</h1>
 <p><i>by Eric Eve</i></p>
 
 <h2>Introduction</h2>
-<p>Output from a TADS 3 game doesn't generally go straight to the screen. Instead it's buffered in something called the <i>transcript</i> so that it can be manipulated further before it's actually displayed (normally right at the end of the action-processing cycle on each turn). Although this can occasionally complicate things, it allows the various pieces of text output during the execution of a command to be reordered, summarized, or processed in any other way desired before actually being displayed. This allows the standard library to, for example, group implicit action announcements, so that instead of displaying:</p>
+<p>The adv3Lite library, like the adv3 library, takes an object-oriented approach to handling actions. Most of the code for handling an action is implemented in methods of the object or object involved. For example, when the player issues the command TAKE KNIFE, taking the knife will be handled by methods defined on the knife object, or, more likely, the Thing class. In typical adv3Lite coding this will be found in the dobjFor(Take) block, a shorthand way of defining preCondDobjTake, verifyDobjTake(), checkDobjTake(), actionDobjTake(), and reportDobj(Take), which between them ensure that any preconditions for the action are met (the player character can touch the knife), that the action makes sense (the knife isn't fixed in place or already held by the player character), and that the player has room to hold the knife, and then, if all goes well, moving the knife into the player's inventory and reporting that the action has taken place. When just one object is involved in the action (because it's a TAction that takes only a direct object), this all works well.</p>
+
+<p>Things become a little more complicated with a TIAction, which involves two objects, a direct object and an indirect object. Consider PUT KNIFE IN BOX, for example. This effects both the knife (which may be moved) and the box (which will have something moved into it). This raises the question which object should host the code that handles the action. In the library, it's usually split between the two. The direct object enforces the PreConditions that the direct object is being held but not worn by the actor, and it's verify stage checks that we're not trying to put the direct object in itself (PUT BOX IN BOX wouldn't make sense), that the direct object is not already in the indirect object (the knife isn't already in the box), and that the direct object isn't fixed in place. It's also responsible for reporting that the action has taken place (if indeed it does). The indirect object enforces the PreConditions that the indirect object is reachable (the player character can touch the box) and that it's interior is accessible (for example, that it's not closed). At the verify stage it checks whether the indirect object is the kind of thing we can put things in: PUT BOX IN BOX makes sense but PUT KNIFE IN TABLE probably doesn't (more on which below). At the check stage it checks whether the indirect object has enough space for the direct object - maybe the box is too small for the knife or maybe it's full of other stuff already. Finally it's the indirect object (here, the box) that carries out moving the direct object into itself at the action stage if the action has passed the preCond, verify and check stages on both objects.</p>
+
+<p>Clearly this works fine in practice, and for the most part there's reasonably clear logic to which of the two objects we assign particular tasks to, for example the direct object is responsible for ensuring it can be moved and the indirect object for ensuring it's open and has space available. Some areas may seem more arbitrary, moving the knife into the box could have been carried out by the direct object's action method just as well as the indirect object, but since it doesn't matter where we put the code, we can just make an arbitrary choice and everything works fine, and this indeed is what the library does, for the most part without creating any problems or difficulties.</p>
+
+<p>But what about that example of an apparently illogical action, PUT KNIFE IN TABLE? A table would normally be implemeted as a Surface or Platform, something we can put things on but not in, but perhaps PUT KNIFE IN TABLE could make sense if it means sticking the blade of the knife into the surface of the tabletop. This isn't the normal meaning of PUT IN, so it would need special handling, which would require overriding various methods on both objects to handle this special case, probably with slightly messy code in which object needs to test the identity of the other object (the knife needs to know whether the indirect object is the table and the table needs to know whether the direct object is the knife). We could probably handle this one special case without two much trouble, but if we had many more of them our neat object-oriented coding pattern might start to break down.</p>
+
+<p>Now consider a game in which there are several objects that can cut other objects (their <code>canCutWithMe</code> property is true and several objects that could be cut (their <code>isCuttable</code> property is true. The list of such objects might look like this:</p>
+
+<table>
+<tr>
+<th>isCuttable</th> <th>canCutWithMe</th>
+</tr>
+<tr><td>cake</td><td>lawnmower</td></tr>
+<tr><td>butter</td><td>scissors</td></tr>
+<tr><td>tree</td><td>knife</td></tr>
+<tr><td>lawn</td><td>axe<td></tr>
+<tr><td>mrDastardly</td><td>wireCutter</td></tr>
+<tr><td>fence</td><td>sword</td></tr>
+<tr><td>ribbon</td><td>saw</td></tr>
+<tr><td>envelope</td><td>scythe</td></tr>
+<tr><td>branch</td><td>dagger</td></tr>
+</table>
+
+<p>At this point, trying to handle everything by splitting the relevant code between the direct object and the indirect object becomes increasingly awkward. Cutting the tree with the lawnmower seems plainly illogical. Cutting the butter with the axe or the saw might be possible but messy. You could cut the lawn with either the mower or the scythe, but attempting to do so with the scissors would be highly inefficident at best. The saw or the axe must be the best tools for cutting the tree or the branch, but would the scythe be totally hopeless? We could hardly use the scissors for the task, but what about the sword? Each combination of objects seems to offer different possibilities with different effects. We've reached a point where it would feel so much easier if we had a neat way of defining what should happed with each combination of objects (or at least, each class of objects). This is where Multi-Methods could help, allowing us to write code like:</p>
 <p><pre>
-<b>&gt;go south</b>
-(first unlocking the door)
-(first opening the door)
-</pre></p>
-<p>The game displays the rather neater:</p>
-<p><pre>
-<b>&gt;go south</b>
-(first unlocking the door, then opening it)
-</pre></p>
-<p>Occasionally the interception of output text by the transcript can seem a bit of a nuisance to the unwary game author, particularly when you want to interrupt the flow of text with a dramatic pause or a special prompt for user input at a particular point, and the transcript ruins the effect. However, there are quite straightforward ways to deal with this (see the article on <a href='t3inout.htm'>Some Common Input/Output Issues</a> if you need help with them), and once you learn how to manipulate the transcript, it can be used to good effect. In particular you can use it to reorder reports that otherwise seem to be in the wrong sequence, or, more commonly, to combine multiple reports into one where this would make for a neater effect. For example:</p>
-<ul>
-<li>Instead of showing "<b>gold coin:</b> You give the tavern keeper a gold coin" three times over when the player character gives three gold coins to the tavern keeper, you could combine these three reports into "You give the tavern keeper three gold coins."</li>
-<li>Instead of having several lines like "<b>red ball:</b> Taken" in response to a TAKE ALL command, you could, if you wished, have one combined report along the lines of "You take the red ball, the blue ball, the small picture of Abraham Lincoln, the chipped tea-cup, and the silver spoon. "</li>
-<li>Instead of the rather awkward effect you can get when, say, an actor sitting on a chair leaves the room ("Bob stands up",  "Bob follows you out") you could combine the two reports into the neater "Bob stands up, gets off the stage, and follows you out")</li>
-</ul>
-<p>This article will explain in a little more detail how the transcript works, and how you can achieve some useful effects with it.</p>
-<br>
-<h2>Simple Ordering with reportAfter() and reportBefore()</h2>
-<p>Before going into further details of how the transcript actually works, it's worth looking at some simple ordering effects that can be achieved very easily without any detailed knowledge of the transcript. 
-<p>We'll start with a simple example of reportAfter(). Suppose we have a game in which there are objects like fountains, pools, washbasins, sinks and taps (or faucets) that make other objects wet when they come in contact with them. We might cater for this by calling a custom makeWet() method on objects dipped in the fountain or put under a running tap (or faucet). This method should not only change the state of the newly-wetted object, but also announce that it has become wet. But we might want the announcement of becoming wet to follow any other description of the action, so that no matter where in the action sequence book.makeWet() method happens to get called we can be always sure of getting:</p>
-<p><pre>
-<b>&gt;put book in pond</b>
-You put the book in the pond. The book becomes rather wet.
-</pre></p>
-<p>And never:</p>
-<p><pre>
-<b>&gt;put book in pond</b>
-The book becomes rather wet. You put the book in the pond. 
-</pre></p>
-<p>We can achieve this by using reportAfter() in the makeWet() method:</p>
-<p><pre>
-   makeWet () 
+   checkCutWith(lawn dobj, scissors iobj)
    {
-      if (!isWet) 
-      {
-          local obj = self;
-          gMessageParams(obj);
-          reportAfter('{The obj/he{ become{s} rather wet. ');
-          name = 'rather wet ' + name;
-          initializeVocabWith('rather wet -');
-      }
-      isWet = true;
-    }
-</pre></p>    
-
-<p>For reportBefore() we'll use a slightly more complex example. Suppose we have an NPC (called Bob) who's following the player character around. Suppose that we also use the occasional TravelMessage to describe the player character's travel, something like:</p>
-<p><pre>
-theatre: Room 'Theatre'
-    "A large stage occupies the northern end of the theatre. The exit is to
-    the west. "
-    west: TravelMessage { -&gt; lobby "You walk out of the theatre. " }    
-;
-</pre></p>
-<p>The output we'd get from this is less than ideal. Without customizing anything else and just using a plain-vanilla AccompanyingState for Bob we'd get:</p>
-<p><pre>
-<b>&gt;w</b>
-Bob comes with you. You walk out of the theatre. 
-</pre></p>
-<p>These messages look in the wrong order. They'd look even more wrong if we'd given Bob a custom AccompanyingInTravelState that provided a custom message like "Bob follows you out." instead of "Bob comes with you.".</p>
-<p>One quick and dirty fix would be to use reportBefore() on the TravelMessage to makes its message come first:</p>
-
-<p><pre>
-theatre: Room 'Theatre'
-    "A large stage occupies the northern end of the theatre. The exit is to
-    the west. "
-    west: TravelMessage { -&gt; landing "&lt;&lt;reportBefore('You walk out of the
-        theatre. ')&gt;&gt;" }    
-;
-</pre></p>
-<p>We'd then get:</p>
-<p><pre>
-<b>&gt;w</b>
-You walk out of the theatre. Bob comes with you. 
-</pre></p>
-<p>This is certainly an improvement, and it illustrates the use of reportBefore(), but the implementation is a little messy unless we only have one or two TravelMessages in our game; not least it would be something of an inconvenience to have to wrap every travelDesc in a reportBefore macro like that. It's also a little inflexible. Suppose we had a second NPC in the game called Sally who sometimes acts as a TourGuide. When Sally is leading the player out of the theatre, we'd want her movements to be described first, not those of the player, so using reportBefore on the TravelMessage would then give the wrong result (not a problem if no NPC in your game will ever be a TourGuide, but worth bearing in mind otherwise).</p>
-<p>A cleaner solution is to override TravelWithMessage to use reportBefore() only where appropriate, i.e. when there's an acommpanying actor in an AccompanyingInTravelState that's not a GuidedInTravelState:</p>
-
-<p><pre>
-modify TravelWithMessage
-    showTravelDesc()
-    {        
-        if(Schedulable.allSchedulables.indexWhich({x:
-            x.ofKind(Actor) 
-            && x.curState.ofKind(AccompanyingInTravelState) 
-            && !x.curState.ofKind(GuidedInTravelState) }))
-        {    
-            local str = mainOutputStream.captureOutput( {: inherited });    
-            reportBefore(str);
-        }
-        else
-            inherited;
-    } 
-;
-</pre></p>
-<p>This code may look a bit frightful, but it does what's required. Once it's included in your game you can define TravelMessages in the normal way without having to worry and have them take care of the sequence of reports automatically. The showTravelDesc() method takes advantage of the fact that Schedulable.allSchedulables already contains a list of every Actor in the game, so we can use it to see if the list contains anything that's an Actor we're interested in, i.e. an actor whose current ActorState is an AccompanyingInTravelState but not a GuidedInTravelState (which is a subclass of AccompanyingInTravelState). If so, but only if so, we need to ensure that the message displayed is wrapped in a reportBefore() macro. To do that we first need to capture the output from showTravelDesc()in a single-quoted string, which we do by wrapping the inherited method in mainOutputStream.captureOutput(). We can then display the captured string (str) via the reportBefore() macro, which ensures that it's displayed before the report of the NPC's travel.</p>
-
-<p>By the way, it might have seemed simpler to use reportAfter() on the NPC's accompanying message in the sayDeparting(conn) method of his AccompanyingInTravelState, but this wouldn't work too well in practice: reportAfter really does report after everthing else, so if we used it here we'd see the report of the NPC's tagging along after the Player Character not only after the description of the Player Char's travel, but after the description of the new room they'd entered together, and that wouldn't look right at all!</p>
-
-<p>As we've seen, it's sometimes possible to get the effect you want with reportAfter() or reportBefore(), but for anything more elaborate than this, it's helpful to have a deeper understanding of how the transcript works. In particular, using reportBefore in TravelWithMessage no longer works so well if the following actor has to do anything (like standing up) before following the player out of the room, since one will then get a transcript like:</p>
-<p><pre>
-<b>&gt;w</b>
-Bob stands up.
-
-You walk out of the theatre. Bob comes with you. 
-</pre></p>
-<p>Which is not at all what one would want. It is possible to deal with this, and towards the end of the article we'll see how; but to do that, or anything else more advanced than we've seen so far, it's necessary to gain a deeper understanding of how the transcript works. That's what we'll look at next.</p>
-<br>
-<h2>How the Transcript Works</h2>
-<h3>What the Transcript Is</h3>
-<p>The transcript is an object belonging to the <a href='../libref/object/CommandTranscript.html'>CommandTranscript</a> class, a subclass of <a href='../libref/object/OutputFilter.html'>OutputFilter</a>. Its function is to collect, and at the appropriate time display, the list of reports relating to a particular action. The current transcript object can be referenced using <b>gTranscript</b> (a macro that expands to mainOutputStream.curTranscript).</p>
-<p>The CommandTranscript class (and hence the gTranscript object) has a number of properties and methods. Those most likely to be of interest to game authors are:</p>
-<ul>
-<li><b>reports_</b>: a Vector containing a list of the current transcript's report objects. These objects are usually derived from the <a href='../libref/object/MessageResult.html'>MessageResult</a> class and/or the <a href='../libref/object/CommandReport.html'>CommandReport</a> class, although any object that defines a suitable showMessage() method would work here.</li>
-<li><b>isActive</b>: a flag that determines whether text being output is captured by this filter and stored in the reports_ list (if isActive is true) or simply passed through unaltered (if isActive is nil).</li>
-<li><b>activate()</b>: set isActive to true.</li>
-<li><b>deactivate()</b>: set isActive to nil.</li>
-<li><b>addReport(<i>report</i>)</b>: add <i>report</i> to the Vector of report objects in reports_.</li>
-<li><b>clearReports()</b>: remove all the reports from reports_ (leaving it empty).</li>
-<li><b>filterText(<i>ostr</i>, <i>txt</i>)</b>: if the transcript is active, turn <i>txt</i> into a command report and add it to reports_; otherwise pass <i>txt</i> through unchanged. Since a CommandTranscript is also an OutputFilter, this captures all the text output during a game while gTranscript is active.</li>
-<li><b>transforms_</b>: a list of objects of type <a href='../libref/object/TranscriptTransform.html'>TranscriptTransform</a> which carry out further transformations on list of report objects in reports_ before they're finally displayed. The standard CommandTranscript lists four TranscriptTransforms here, but it's conceivable (though hardly common) that a game author might want to add others.</li>
-<li><b>showReports(<i>deact</i>)</b>: show all the reports in list_. This method first deactivates the transcript (so that it doesn't capture its own output), then calls applyTransforms() to apply all the TranscriptTransforms in transforms_ to reports_, then calls the showMessage() method of every item in reports_. If <i>deact</i> is true the transcript is left deactivated, otherwise it is reactived after all the reports have been show.</li>
-<li><b>summarizeAction (<i>cond</i>, <i>report</i>)</b>: A powerful method that can be used by game authors to replace multiple reports with a single summary. Its use will be described more fully <a href='#summ'>below</a>.</li>
-</ul>
-<br>
-<h3>What the Transcript Contains &mdash; CommandReports</h3>
-<p>As mentioned above, what the transcript contains (in its reports_ property) is a Vector of CommandReport objects. To understand the transcript fully, it's helpful to know a bit more about these objects. But if you're reading this article for the first time, you might like to skip over this section fairly rapidly (or even skip straight to the <a href='#howadded'>next section</a>) and come back to it when you need it for reference or deeper understanding.</p>
-<p>The library uses CommandReports to control how the text from a command is displayed. 
-Reports are divided into two broad classes: "default" and "full" reports.</p> 
-
-<p>A "default" report is one that simply confirms that an action was performed, and provides little additional information. The library uses default reports for simple commands whose full implications should normally be obvious to a player typing such commands: take, drop, put in, and the like. The library's default reports are usually quite terse: "Taken", "Dropped", "Done".</p>
-
-<p>A "full" report is one that gives the player more information than a simple confirmation. These reports typically describe either the changes to the game state caused by a command or surprising side effects of a command. For example, if the command is "push button," and pushing the button opens the door next to the button, a full report would describe the door opening. </p>
-
-<p>Full reports are further divided into three subcategories by time ordering: "main," "before," and "after." "Before" and "after" reports are ordered before and after (respectively) a main report.</p>
-<p>An action may iterate over a number of objects. For example TAKE ALL may result in an attempt to take a ball, a pen, and a table. The action may succeed with some objects but not with others; for example the command TAKE ALL may result in the ball and the pen being picked up, but not the table, which could be reported as being too heavy. By the time we near the end of the command execution cycle (in afterActionMain, for example), the transcript will contain CommandReports relating to each iteration (the TAKE action on the ball, the pen, and the table). There may well be more than one report relating to each iteration (typically there'd be a MultiObjectAnnouncement for each of the objects, followed by a DefaultCommandReport or MainCommandReport for each iteration that succeeded and a FailCommandReport for each iteration that failed).</p>
-<p>There are various classes of <a href='../libref/object/CommandReport.html'>CommandReport</a>, as we'll shortly see below. Although they can vary a bit from class to class, the most CommandReports have the following properties and methods (amongst others); those shown in <font color=#6000A0>mauve</font> are derived from <a href='../libref/object/MessageResult :</p>.html'>MessageResult</a> (from which <a href='../libref/object/CommandReportMessage </p>.html'>CommandReportMessage </a> descends, along with CommandReport):</p>
-<ul>
-<li><b>action_:</b> the action associated with this report (typically this will be whatever gAction was at the time the CommandReport was created).</li>
-<li><b>iter_:</b> the iteration number that was current when this report was added to the transcript. This can be used to check whether or not several reports all concern the same iteration (e.g., whether they all related to the attempt to take a table when the table was one of several targets of a TAKE ALL command).</li>
-<li><b>isFailure:</b> indicates whether the action associated with this report failed (on this particular iteration). Note that if isFailure is true the action did fail on this iteration, but that if isFailure is nil that doesn't necessarily mean the action succeeded; there may be several CommandReports associated with a particular iteration of an action, and the action failed if any one of those CommandReports has isFailure = true.</li>
-<li><b><font color=#6000A0>messageText_:</font></b> the text this report will display when it is finally shown.</li>
-<li><b><font color=#6000A0>messageProp_:</font></b> the message property (if any) used to generate the message stored in messageText_. If this is given as &prop then the objects involved in the command will first be checked to see if they define prop; if one of them does, then one of them will be used as the message object; if not then the standard library message object (typically playerActionMessages) will be used. Once the message object has been determined, the messageText_ will be generated by a call to messageObject.(prop)(args).</li>
-<li><b>getAction():</b> usually just returns action_</li>
-<li><b>isActionImplicit():</b> is true if this report concerns an implicit action.</li>
-<li><b>isActionNestedIn(<i>other</i>):</b> determines whether the action relating to this report is nested in the action relating to the <i>other</i> report. One action is nested in another if the second action is being executed as part of the first (e.g. because the first action triggers an implicitAction or calls nestedAction())</li>
-<li><b>isPartOf(<i>report</i>):</b> One report is considered to be part of another if they belong to the same iteration (i.e. their iter_ properties are equal) and the action relating to the first report is part of the action relating to the second. One action is considered to be part of another either if the first action is the second action, or if the original action of the first action is part of the original action of the second action. In brief, the original action is the action the actor was actually trying to carry out. For a fuller explanation see the description of the <a href='../libref/object/Action.html#getOriginalAction'>getOriginalAction</a> method of the Action class.</li>
-<li><b><font color=#6000A0>setMessage(<i>msg</i>, <i>[params]</i>):</font></b> sets the messageText_ property in the same way as the MessageReport constructor does, via a call to resolveMessageText.</li>
-<li><b><font color=#6000A0>resolveMessageText(<i>sources</i>, <i>msg</i>, <i>[params]</i>)</font>:</b> If <i>msg</i> is given as a property, construct the message text by calling msg(params) on the appropriate message object, which may be one of the objects listed in <i>sources</i> if any of them define the <i>msg</i> property, or failing that the action message object (typically playerActionMessages). If <i>msg</i> is given as a string, simply use that string. Either way the resulting message is then passed through langMessageBuilder.generateMessage(<i>msg</i>) to expand any parameter substitutions .</li>
-<li><b>construct():</b></li> As we shall see in the next section, reports are typically added to the transcript with code like gTranscript.addReport( new WhateverReportClass(params) ); the construct method of a CommandReport is thus generally called at the point when the report is added to the transcript, and is used to store or generate the information relevant to the report. The CommandReport constructor simply stores gAction in the action_ property. The CommandReportMessage constructor additionally calls the MessageResult constructor which fills the messageText_ property via a call to resolveMessageText. The CommandAnnouncement constructor fills the messageText_ property by calling its messageProp_ property (predefined on each subclass) on gLibMessages using the parameters passed to the constructor. If you define your own CommandReport class (which can be useful) you can make its construct method do whatever you deem useful.</i>
-</ul>
-<p>We said above that reports are broadly defined into "default" and "main" reports, but another useful classification is into CommandReportMessages, CommandAnnouncements, and others.</p>
-<p><a href='../libref/object/CommandReportMessage.html'>CommandReportMessages</a> are the reports that use <a href='../libref/object/MessageResult.html'>MessageResult</a> to construct their messages. They typically result from using the macros described in the article on <a href='t3res.htm#action'>Action Results</a>. The various types of CommandReportMessage (with links to the appropriate sections in the Library Reference Manual) are:<p>
-<ul>
-<li><a href='../libref/object/CosmeticSpacingCommandReport.html'>CosmeticSpacingCommandReport</a>: a cosmetic spacing report, usually added via the cosmeticSpacingReport(msg, params...) macro. This adds a message for internal spacing only; it is usually used to add a blank line or a paragraph break. The important feature of this type of report is that it doesn't count against any default reports: if there are default reports for the action, and no other reports, a CosmeticSpacingReport won't suppress the default reports. This is useful when internal separation is added on speculation that there might be some reports to separate, but without certainty that there will actually be any reports shown; for example, when preparing to show a list of special descriptions, we might add some spacing just in case some special descriptions will be shown, saving the trouble of checking to see if anything actually needs to be shown.</li>
-<li><a href='../libref/object/DefaultCommandReport.html'>DefaultCommandReport</a>: a default report (usually generated via defaultReport()). This will typically contain some laconic response (such as 'Taken. ') intended as a minimal acknowledgement that an action has succeeded. If there is a FullCommandReport for the same iteration of the same action, the DefaultCommandReport will be suppressed.</li>
-<li><a href='../libref/object/DefaultDescCommandReport.html'>DefaultDescCommandReport</a>: a default descriptive report for the current command, usually via the defaultDescReport() macro. This report will be shown unless any other report is shown for the same command. This differs from defaultReport in that we don't suppress a default description for an implied command: we only suppress a default description when there are other reports for the same command. The purpose of the default descriptive report is to generate reports that say things along the lines that there's nothing special to describe. For examples of how this might be used, see the comment attached to the defaultDescReport() macro in <a href='../libref/file/adv3.h.html#defaultDescReport'>adv3.h</a></li>
-<li><a href='../libref/object/ExtraCommandReport.html'>ExtraCommandReport</a>: an extra report (added via a call to extraReport()). ExtraCommandReports do not cause DefaultCommandReports to be suppressed.</li>
-<li><a href='../libref/object/FullCommandReport.html'>FullCommandReport</a>: the base class for the FullCommandReport subclasses described below. The presence of a FullCommandReport will cause the suppression of any DefaultCommandReports relating to the same iteration of the same action.
-    <ul>
-    <li><a href='../libref/object/AfterCommandReport.html'>AfterCommandReport</a>: a report generated by the reportAfter() macro. AfterCommandReports are displayed after MainCommandReports.</li>
-    <li><a href='../libref/object/BeforeCommandReport.html'>BeforeCommandReport</a>: a report generated by the reportBefore() macro. BeforeCommandReports are displayed before MainCommandReports.</li>
-    <li><a href='../libref/object/FailCommandReport.html'>FailCommandReport</a>: a report indicating that a command failed (for the current iteration). These are reports added using the reportFailure() macro, and have isFailure = true. If you plan to manipulate the transcript to any extent in your game, it's a <i>very</i> good idea to ensure that you always use reportFailure() to report failures (rather than a double-quoted string, say), so that it's easy to identify failures in the transcript.</li>
-    <li><a href='../libref/object/MainCommandReport.html'>MainCommandReport</a>: the most common kind of report for an action, generated either by using the mainReport() macro, or by displaying text using a double-quoted string or say() while the transcript is active.
-        <ul>   
-        <li><a href='../libref/object/QuestionCommandReport.html'>QuestionCommandReport</a>: an interruption for interactive input. This is used to report a prompt for more information that's needed before the command can proceed, such as a prompt for a missing object, or a disambiguation prompt.</li>
-        </ul></li>
-    </ul></li>
-</ul>
-<br>
-<p>The other main class of CommandReport that occurs quite commonly in the transcript is the <a href='../libref/object/CommandAnnouncement.html'>CommandAnnouncement</a>, which are used to track announcements to be made as part of an action's results. The various CommandAnnouncement subclasses are listed below:</p>
-<ul>
-<li><a href='../libref/object/AmbigObjectAnnouncement.html'>AmbigObjectAnnouncement</a>: We display this when the parser manages to resolve a noun phrase to an object (or objects) from an ambiguous set of possibilities, without having to ask the player for help but also without absolute certainty that the objects selected are the ones the player meant. This happens when more than enough objects are logical possibilities for selection, but some objects are more logical choices than others. The parser picks the most logical of the available options, but since other logical choices are present, the parser can't be certain that it chose the ones the player actually meant. Because of this uncertainty, we generate one of these announcements each time this happens. This report lets the player know exactly which object we chose, which will immediately alert the player when our selection is different from what they had in mind. In form, this type of announcement usually looks just like a default object announcement.</li>
-<li><a href='../libref/object/CommandSepAnnouncement.html'>CommandSepAnnouncement</a>: a CommandAnnouncement that simply displays a command separator, ("&lt;.commandsep&gt;"). For a description of what this does, see the <a href='../libref/object/commandSequencer.html'>commandSequencer</a> object.</li>
-<li><a href='../libref/object/DefaultObjectAnnouncement.html'>DefaultObjectAnnouncement</a>: this announcement is displayed whenever the player leaves out a required object from a command, but the parser is able to infer which object they must have meant. The parser infers that an object was intended when a verb requires an object that the player didn't specify, and there's only one logical choice for the missing object. We announce our assumption to put it out in the open, to ensure that the player is immediately alerted if they had something else in mind. In English, this type of announcement conventionally consists of simply the name of the assumed object, in parenthesis and on a line by itself.</li>
-<li><a href='../libref/object/ImplicitActionAnnouncement.html'>ImplicitActionAnnouncement</a>: this is displayed when we perform a command implicitly, which we usually do to fulfill a precondition of an action. In English, we usually show an implied action as the verb participle phrase ("opening the door"), prefixed with "first", and enclosed in parentheses on a line by itself (hence, "(first opening the door)"). An ImplicitActionAnnouncement has  a noteJustTrying() method, which sets its justTrying property to true and changes the message from "(first doing to such-and-such)" to "(first trying to do such and such)", which we use when the attempt fails. ImplicitActionAnnouncements may need careful handling when  manipulating the transcript.</li>
-<li><a href='../libref/object/MultiObjectAnnouncement.html'>MultiObjectAnnouncement</a>: When the player applies a single command to a series of objects (as in "take the book and the folder" or "take all"), we'll show one of these announcements for each object, just before we execute the command for that object. This announcement usually just shows the object's name plus suitable punctuation (in English, a colon), and helps the player see which results go with which objects. They can also help the game author see what reports go with which objects when trying to manipulate the transcript: everything from one MultiObjectAccouncement up to (but not including) the next will be the set of reports relating to one object (i.e. one iteration of the command). This set generally needs to be dealt with as a group; e.g., if we want to rearrange the order of reports, we should keep such sets of reports together, or otherwise deal with them as a group by replacing them all with a summary report of our own. Simply dispersing or rearranging the reports in a group of reports between one MultiObjectAnnouncement and the next is likely to result in chaotic output.</li>
-<li><a href='../libref/object/RemappedActionAnnouncement.html'>RemappedActionAnnouncement</a>: Remapped action announcement. This is used when we need to mention a defaulted or disambiguated object, but the player's original input was remapped to a different action that rearranges the object roles. In these cases, rather than just announcing the defaulted object name, we announce the entire remapped action; we show the full action description because rearrangement of the object roles usually makes the standard object-only announcement confusing to read, since it doesn't naturally fit in as a continuation of what the user typed. In English, this message is usually shown with the entire verb phrase, in present participle form ("opening the door"), enclosed in parentheses and on a line by itself.</li>
-</ul>
-<br>
-<p>The other types of CommandReport are less common, or at least less commonly interesting to game authors wanting to manipulate the transcript. If you're just skipping quickly through this section on a first-read through, you might want to jump straight to the <a href='#howadded'>next section</a>. But for the sake of completeness (and after all, you may encounter one of these less common report types and have to deal with it), we list the other kinds of CommandReports below (again with links to the appropriate section of the Library Reference Manual):</p>
-<ul>
-<li><a href='../libref/object/ConvBoundaryReport.html'>ConvBoundaryReport</a>: A conversation begin/end report. This is a special marker we insert into the transcript to flag the boundaries of an NPC's conversational message.
-    <ul>
-    <li><a href='../libref/object/ConvBeginReport.html'>ConvBeginReport</a>: a ConvBoundaryReport that displays a &lt;.convbegin &gt; tag containing the interlocutor's actorID.</li>
-    <li><a href='../libref/object/ConvEndReport.html'>ConvEndReport</a>: a ConvBoundaryReport that displays a &lt;.convend &gt; tag containing the interlocutor's ID, or, if s/he has one, his/her new ConvNode.</li>
-    </ul></li>
-<li><a href='../libref/object/GroupSeparatorMessage.html'>GroupSeparatorMessage</a>: this simply displays separation between groups of messages - that is, between one set of messages associated with a single action and a set of messages associated with a different action.</li>
-<li><a href='../libref/object/InternalSeparatorMessage.html'>InternalSeparatorMessage</a>: this displays separation within a group of messages for a command, to visually separate the results from an implied command from the results for the enclosing command. </li>
-<li><a href='../libref/object/MarkerReport.html'>MarkerReport</a>: a report boundary marker. This is a pseudo-report that doesn't display anything; its purpose is to allow a caller to identify a block of reports (the reports between two markers) for later removal or reordering.
-    <ul>
-    <li><a href='../libref/object/EndOfDescReport.html'>EndOfDescReport</a>: end-of-description marker. This serves as a marker in the transcript stream to let us know where the descriptive reports for a given action end.</li>
-    <li><a href='../libref/object/FailCommandMarker.html'>FailCommandMarker</a>: failure marker &ndash; this is a silent report that marks an action as having failed without actually generating any message text.</li>
-    </ul></li>    
-</ul>
-  
-
-<br>
-<h3><a name='howadded'>How Reports Get Added to the Transcript</a></h3>
-<p>Reports are added to the current transcript in one of two ways:</p>
-<ul>
-<li>When the transcript is active (as it usually is) and the game displays a string using say(txt) or "txt" or some equivalant statement. The filterText() method of the current transcript then captures the text, wrapping it in a <a href='../libref/object/MainCommandReport.html'>MainCommandReport</a> and adding it to the list of report objects in the reports_ Vector.</li>
-<li>Whenever gTranscript.addReport(<i>report</i>) is called; this directly adds <i>report</i> to the reports_ Vector.</li>
-</ul>
-<p>This second method of adding reports is more common than might at first appear; it's used by all the macros that are responsible for reporting things:</p>
-<ul>
-<li><b>cosmeticSpacingReport (msg, params, ...)</b>  (gTranscript.addReport(new CosmeticSpacingCommandReport(msg, ##params)))</li>
-<li><b>defaultDescReport (msg, params, ...)</b> (gTranscript.addReport(new DefaultDescCommandReport(msg, ##params)))</li>
-<li><b>reportAfter(msg, params, ...)</b> (gTranscript.addReport(new AfterCommandReport(msg, ##params)))</li>
-<li><b>reportBefore(msg, params, ...)</b> (gTranscript.addReport(new BeforeCommandReport(msg, ##params)))</li>
-<li><b>reportFailure(msg, params, ...)</b> (gTranscript.addReport(new FailCommandReport(msg, ##params)))</li>
-<li><b>defaultReport(msg, params, ...)</b> (gTranscript.addReport(new DefaultCommandReport(msg, ##params)))</li>
-<li><b>extraReport(msg, params, ...)</b> (gTranscript.addReport(new ExtraCommandReport(msg, ##params)))</li>
-<li><b>mainReport(msg, params, ...)</b> (gTranscript.addReport(new MainCommandReport(msg, ##params)))</li>
-</ul>
-<p>At first sight, this last definition may make using mainReport() look exactly equivalent to displaying the same text with a double-quoted string, but this is not always the case. If you use mainReport(txt), you can be sure that one and only one MainCommandReport will be added to the transcript. If, however, you use a double-quoted string, under certain circumstances that string can be split over a number of MainCommandReports, specifically when the double-quoted string uses the &lt;&lt;&gt;&gt; notation. In ordinary use this doesn't matter, but it can matter quite a bit when you want to manipulate the transcript, as we shall see.</p>
-<br>
-<h3>When Reports Get Displayed</h3>
-<p>Apart from one or two exceptional circumstances that need not detain us, the reports in the transcript are generally displayed once per action (which often equates to once per player turn, except where NPCs are performing actions on their own initiative).</p>
-<p>The usual flow of events is that executeCommand() eventually calls executeAction() wrapped within the withCommandTranscript() function (for the roles of executeCommand and executeAction see the article on the <a href='t3cycle.htm'>Command Execution Cycle</a>). In this context, withCommandTranscript() creates a new CommandTranscript object, installs it on the mainOutputStream (so that it becomes the gTranscript object), calls executeAction(), uninstalls the CommandTranscript object, and then runs the showReports() method of the transcript. To put that more briefly: first a new transcript object is setup, then executeAction() is called, then the transcript shows its reports.</p>
-<p>About the last thing executeAction() does is to call doAction() on the current action. About the last thing doAction() does is to call afterActionMain() (after all the action processing has occurred), so this is a good point at which to intervene in the transcript, as we shall now go on to explore.</p>  
-<br>
-
-<h2>Manipulating the Transcript</h2>
-<h3>Where to Intervene</h3>
-<p>As explained at the end of the previous section, the best point at which to intervene to manipulate the transcript is in the afterActionMain() method of the current action. However, it isn't normally necessary to override this method directly, since the library provides some convenient hooks for the purpose. To use these hooks we'd normally follow these two steps:</p>
-<ol>
-<li>At some earlier point in the execution cycle make a call to gAction.callAfterAction(obj) (where obj can be any convenient object). This might typically but by no means exclusively be done in the action() part of the relevant dobjFor() or iobjFor() on one of the actions involved in the command, with <code>self</code> serving as the obj parameter.)</li>
-<li>Then define an afterActionMain() method on the same obj (whatever you defined it to be) to carry out whatever transcript manipulation you want.
-</ol>
-<p>These two steps will hopefully become clearer through the examples we shall be looking at below.</p>
-<br>
-<h3>How to Intervene</h3>
-<p>Manipulating the transcript is basically a matter of manipulating the report objects in its reports_ property. The reports_ property holds a Vector of reports, so any Vector methods may be applied to it. The reports can be reordered, or some removed and others added, or the messageText_ property of some reports tweaked so that they come out saying something different.</p>
-<p>In order to manipulate the transcript effectively, it is very helpful to know (or know where to look up) the details of the <a href='../sysman/vector.htm'>Vector</a> intrinsic class and to be reasonably comfortable with <a href='../sysman/anonfn.htm'>Anonymous Functions</a>, since these are extremely useful in manipulating Vectors, and are also essential in the summarizeAction() method we shall look at next.</p>
-
-<br>
-
-<h3><a name='summ'>Using summarizeAction</a></h3>
-<p>Although you can manipulate the reports_ property any way you like, the CommandTranscript class provides a summarizeAction() method which makes it relatively easy to handle certain cases. We shall now go on to look at how this method is used and give a couple of examples, before going on to look at cases where it's necessary to manipulate reports_ by other means.</p>
-<p>The summarizeAction() method does what it says: it summarizes an action by combining a number of reports from the current transcript into a single report. For example, we could change something like this:</p>
-<p><pre>
-gold coin: Bob accepts the gold coin. 
-gold coin: Bob accepts the gold coin. 
-gold coin: Bob accepts the gold coin. 
-</pre></p>
-<p>into this:</p>
-<p><pre>
-Bob accepts the three gold coins. 
-</pre></p>
-
-<p>The summarizeAction() method doesn't do this all by itself, but it
-does make it easier for game authors to produce this effect by
-removing a run of consecutive reports in the transcript which meet the
-author's specification and replacing them with a single report defined
-by the author. Whatever kind of CommandReport it is we specify we want
-summarized, summarizeAction() will also gobble up any
-ImplicitActionAnnouncements, MultiObjectAnnouncements,
-DefaultCommandReports and ConvBoundaryReports it finds between one
-such CommandReport and the next, so that these subsidiary reports
-don't get in the way of constructing our summary.</p>
-
-<p>summarizeAction() is called with two arguments, <i>cond</i> and <i>report</i>, both of which must be defined by the game author as anonymous functions.</p>
-
-<p>The summarizeAction() method runs through the reports for the current action, submitting each one to the 'cond' callback to see if it's of interest to the summary. For each consecutive run of two or more reports that can be summarized, it removes the reports that 'cond' accepted, along with the multiple-object announcement reports associated with them; it then inserts a new report with the message returned by the 'report' callback.</p>
-
-<p>'cond' is called as cond(x), where 'x' is a report object. This callback returns true if the report can be summarized for the caller's purposes, nil if not.</p>
-
-<p>'report' is called as report(vec), where 'vec' is a Vector consisting of all of the consecutive report objects that we're now summarizing. This function returns a string giving the message to use in place of the reports we're removing. This should be a summary message, standing in for the set of individual reports we're removing.</p> 
-
-<p>There's an important subtlety to note. If the messages you're summarizing are conversational (that is, if they're generated by TopicEntry responses), you should take care to generate the full replacement text in the 'report' part, rather than doing so in separate code that you run after summarizeAction() returns. This is important because it ensures that the Conversation Manager knows that your replacement message is part of the same conversation. If you wait until after summarizeAction() returns to generate more response text, the conversation manager won't realize that the additional text is part of the same conversation.</p>
-<p>[Note: most of the foregoing explanation is taken from the comment in the library source.]</p>
-<p>Reading this description in the abstract, especially for the first time, may not leave a very clear impression of how summarizeAction() should actually be used. So we'll just give a quick summary here, and then move on to some examples that will hopefully make it a bit clearer.</p>
-<p>The steps to follow to make use of summarizeAction() are:</p>
-<ol>
-<li>At some earlier convenient point, call gAction.callAfterActionMain(obj) (where obj is some appropriate object)</li>
-<li>On the same obj as used in the call at step 1, define an an afterActionMain method().</li>
-<li>In obj.afterActionMain() include a call to gAction.summarizeAction(<i>cond</i>, <i>report</i>).</li>
-<li>In place of <i>cond</i> define an anonymous function that picks out the reports you want to summarize: e.g. {x: x.ofKind(MyCustomCommandReport)}.</i>
-<li>In place of <i>report</i> define an anonymous function that prints a summary of the reports matched by <i>cond</i>, e.g. {vec: 'Bob accepts ' + spellint(vec.length) + ' gold coins. '}.</li>
-</ol>
-<p>Note that although we have used short-form anonymous functions as examples in these steps, we could equally well have used the new function() syntax and gone on to make these functions as complicated as we liked. But now let's go on to look at some examples.</p>
-
-<br>
-<h2>Example 1 - Combining Identical Reports</h2>
-<p>Let's start with the example suggested above, namely combining multiple reports of 'Bob accepts the gold coin.' into a single report of 'Bob accepts <i>n</i> gold coins.'</p>
-
-<p>Although, as we shall see, it's not absolutely essential, it is convenient to define our own report class, since this is then easy to pick out of the transcript. We'll define a GiveReport class in a fairly general way that allows it to be used with any actor receiving any kind of object (instead of just Bob receiving gold coins) so that it could be reused in other contexts. This class will be responsible for providing the message that should be displayed if the player character gives Bob just one gold coin:</p>
-<p><pre>
-class GiveReport: MainCommandReport
-    construct(receivingActor, obj)
-    {
-	    /* remember our object */
-        obj_ = obj;
-        
-        gMessageParams(receivingActor, obj);
-        
-        /* use the inherited handling to construct the message */
-        inherited('{The receivingActor/he} accepts {the obj/him}. ');
-    }
-    obj_ = nil
-;
-</pre></p>
-<p>Assuming we have defined a suitable GoldCoin class, we can then define a GiveTopic for Bob along the following lines:</p>
-<p><pre>
-+ GiveTopic 
-    matchTopic(fromActor, obj)
-    {
-        return obj.ofKind(GoldCoin) ? matchScore : nil;
-    }
-    
-    topicResponse()
-    {
-        gAction.callAfterActionMain(self);
-        gTranscript.addReport( new GiveReport(getActor, gDobj) );
-        gDobj.moveInto(bob);
-    }
-    
-    afterActionMain()
-    {
-        gTranscript.summarizeAction(
-            {x: x.ofKind(GiveReport) },
-            {vec: 'Bob accepts ' + spellInt(vec.length) + ' ' +
-            vec[1].obj_.pluralName + '. '}
-            );
-    }
-;
-</pre></p>
-<p>We need to define a custom matchTopic() method to ensure that the GiveTopic matches any object of the GoldCoin class. The topicResponse() method then calls gAction.callAfterActionMain to register the GiveTopic as the action on which to call afterActionMain() (the fact that this may be called more than once doesn't matter, the library will ensure that our GiveTopic is only registered once), and then adds an appropriate GiveReport to the transcript. Finally, we define afterActionMain() to look for all the GiveReports in the transcript and replace them with a single report.</p> 
-<p>The vec parameter in the second anonymous function is a Vector containing all the GiveReports identified by the first anonymous function. There'll be one of these for each coin handed over to Bob, so the length of the Vector gives the number of coins handed over. We use spellInt to spell out the number (e.g. 'three' instead of '3') and then use the pluralName of the object stored in the first report to give us the plural 'gold coins'. We could simply have used the string ' gold coins' here, but that would have made our code a little less general.</p>
-
-<p>For a similar but slightly more elaborate example of this kind of thing, see the section on 'Counting the Cash' in the <a href='../gsg/countingthecash.htm'>Getting Started</a> guide.</p>
-<p>Of course, giving coins to an NPC is not the only case where reports on multiple coins could be improved. It may be we'd want to expand the tidying up to other actions applying to multiple coins. For example:</p>
-<p><pre>
-<b>&gt;take coins</b>
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-</pre></p>
-<p>Would obviously read better as:</p>
-<p><pre>
-<b>&gt;take coins</b>
-You take six gold coins.
-</pre></p>
-<p>We could achieve this by much the same means as before: define a TakeReport class on analogy with the GiveReport class we defined above, override the action part of dobjFor(Take) on the GoldCoin class:</p>
-<p><pre>
-class GoldCoin 'gold coin*coins' 'gold coin'
-   dobjFor(Take)
-   {
-     action()
-     {
-	     gAction.callAfterActionMain(self);
-	     if(!gAction.isImplicit)
-	        gTranscript.addReport( new TakeReport(self) );
-	     moveInto(gActor);
-     }
+       "That would be theoretically possible but hopelessly inefficient. ";
    }
- ;
 </pre></p>
-<p>And then define an afterActionMain method that uses gTranscript.summarizeAction() as above. One downside with this approach, however, is that the more standard actions we want to deal with like this, the more cumbersome it will become to define a custom MainReport class and override action methods like this. A second downside with this particular implementation is that afterActionMain will get called on every individual gold coin involved in the action, which is needlessly inefficient. So let's look at a slightly different way of doing it.</p>
-<p>The library implementation of the Take action already adds a report to the transcript &ndash; a DefaultCommandReport added through a call to defaultReport(). So provided we can find some means of picking out the DefaultCommandReports we want, we can simply have afterActionMain summarize those DefaultCommandReports. We can do this is we modify CommandReport (and hence all its subclasses) to remember the direct object of the action it's recording:</p>
-<p><pre>
-modify CommandReport
-    construct()
-    {
-        inherited();
-        dobj_ = gDobj;
-    }
-    dobj_ = nil;
-;
-</pre></p>
-<p>(We don't bother to record the indirect object here since iterating a command over a series of indirect objects is very rare; no action defined in the library does it.)</p>
-<p>Then the only override we need to dobjFor(Take) on the GoldCoin class is to invoke callAfterActionMain():</p>
-<p><pre>
-class GoldCoin: Thing 'gold coin*coins' 'gold coin'
-    dobjFor(Take)
-    {
-        action()
-        {
-            gAction.callAfterActionMain(takeReportManager);
-            inherited;
-        }
-    }    
-    isEquivalent = true
-;
-</pre></p>
-<p>There are two reasons for making a separate object (takeReportManager) rather than <code>self</code> the argument to callAfterActionMain() here. First, callAfterActionMain(self) would register each individual coin involved in the command for having its afterActionMain() method called, so that, for example, if the player were picking up twenty coins, afterActionMain() would be called twenty times, once on each coin, which is rather inefficient; callAfterActionMain() won't register the same <i>object</i> more than once, but there's nothing to stop it registering multiple objects of the same class. Second, if we wanted to extend this principle to other actions such as Drop, PutIn, PutOn, etc., it would be handier to have them each call their own version of afterActionMain (thus defined on a different object), rather that having one large afterActionMain that had to cope with a variety of different action.</p>
-<p>It remains now to define our takeReportManager class and its associated afterActionMain() method:</p>
-<p><pre>
-takeReportManager: object
-    afterActionMain()
-    {       
-        gTranscript.summarizeAction(
-            { x: x.ofKind(DefaultCommandReport) && x.dobj_.ofKind(GoldCoin)},
-            { vec: '{You/he} take{s} ' + spellInt(vec.length) + ' ' +
-            vec[1].dobj_.pluralName + '. '} );            
-    }
-;
-</pre></p>
-<p>This works fine provided the command issued by the player concerns only a quantity of gold coins. It is not quite so neat if the player issues a TAKE ALL command when there are plenty of other objects in scope, e.g.:</p>
+
+<h2>How Multi-Methods Can Help</h2>
+<p>To get the full story on Multi-Methods you may want to read the chapter on <a href='../sysman/multmeth.htm'>Multi-Methods </a> in the <i>TADS 3 System Manual</i>. Here we shall restrict ourselves to what's needed to use Multi-Methods to handle TIActions in adv3Lite.</p>
+
+<p>A Multi-Method is defined like a standalone function, but behaves rather like a method when it comes to inheritance. It takes the form:</p>
 
 <p><pre>
-<b>&gt;take all</b>
-<b>tennis ball:</b> Taken. 
-<b>old coat:</b> Taken. 
-<b>odd sock:</b> Taken. 
-<b>large red box:</b> Taken. 
-<b>small green book:</b> Taken. 
-<b>torch:</b> Taken. 
-<b>small square table:</b> The small square table is too heavy. 
-<b>small blue box:</b> Taken. You take six gold coins. 
+   methodName(specifier1 arg1, specifier2 arg2,...)
 </pre></p>
-<p>While this is not totally disastrous (as it might have been had our summarizeAction() method not ensured that it was only summarizing reports involving GoldCoin objects), it is slightly messy. It could be improved slightly by putting a '&lt;.p&gt;' before '{You/he takes} ' in the second anonymous function argument of summarizeAction(), since this would at least visually separate the 'You take six gold coins' report from the others, but it's less than ideal. Whether it would be worth fixing is a matter of judgement. In the next section we'll go on to look at how similar reports for different objects might be combined, and we'll look at fixing this then. But before we do that, we'll just take the gold coins a stage further.</p>
-<p>If taking the gold coins is an obvious candidate for combining reports, putting them somewhere is equally so. With the default library handling we'd get:</p>
-<p><pre>
-<b>&gt;put coins on table</b>
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-
-<b>gold coin:</b>
-(first taking the gold coin)
-Done. 
-</pre></p>
-<p>We can improve this greatly using the same technique as with Take:</p>
-<p><pre>
-class GoldCoin: Thing 'gold coin*coins' 'gold coin'
-    dobjFor(Take)
-    {
-        action()
-        {
-            gAction.callAfterActionMain(takeReportManager);
-            inherited;
-        }
-    }    
-    dobjFor(PutOn)
-    {
-        action()
-        {
-            gAction.callAfterActionMain(putReportManager);
-            inherited;
-        }
-    }
-    dobjFor(PutIn)
-    {
-        action()
-        {
-            gAction.callAfterActionMain(putReportManager);
-            inherited;
-        }
-    }
-    
-    isEquivalent = true
-;
-
-putReportManager: object
-    afterActionMain()
-    {       
-        gTranscript.summarizeAction(
-            { x: x.ofKind(DefaultCommandReport) && x.dobj_.ofKind(GoldCoin)
-            && x.action_== gAction},
-            { vec: '&lt;.p&gt;{You/he} put{s} ' + spellInt(vec.length) + ' ' +
-            vec[1].dobj_.pluralName + ' {in iobj}. '} );            
-    }
-;
-</pre></p>
-<p>Note that by using the {in iobj} parameter substitution we can make the same putReportManager serve for both putting in and putting on. Note also that we have to add the test x.action_ == gAction, since we only want to count the default reports for the main action (PutOn or PutIn), and not the default reports that are also generated for the implicit Take actions. With this code in place we get the much improved:</p>
-<p><pre>
-<b>&gt;put coins on table</b>
-(first taking the gold coin, then taking the gold coin, then taking the gold coin, then taking
- the gold coin, then taking the gold coin, then taking the gold coin)
-
-You put six gold coins on the small square table.
-</pre></p>
-<p>But it would be better still if we could combine the implicit action reports. This can be done, but it can't be done using summarizeAction, since this creates a new MainCommandReport, whereas we need to summarize the implicit action reports into a single new ImplicitActionAnnouncement. It's therefore necessary to manipulate gTranscript.reports_ directly. Basically, what we need to do is first to determine how may implicit action reports for taking gold coins there are. If there are none or only one we don't need to do anything; we only need to manipulate the transcript any further if there are more than one. If there are we need to create a new implicit action report that summarizes the others, and then remove the others from the transcript. It turns out that we then need to remove all the DefaultCommandReports relating to taking gold coins as well, since they will otherwise be displayed once the corresponding ImplicitObjectAnnouncements have been removed. Here's one way of doing all that:</p>
-
+<p>The ellipsis after arg2, indicates that we can have as many arguments as we like, but for present purposes we're only interested in Multi-Methods that take two or three arguments.</p>
+<p>For each argument, the <i>specifier</i> is a class to which the corresponding argument must belong or an object it must match if the multi-method is to be used, for example:</p>
 
 <p><pre>
-putReportManager: object
-    afterActionMain()
-    {    
-        /* Summarize the PutIn or PutOn action for all gold coins. */
-        gTranscript.summarizeAction(
-            { x: x.ofKind(DefaultCommandReport) && x.dobj_.ofKind(GoldCoin)
-            && x.action_==gAction},
-            { vec: '&lt;.p&gt;{You/he} put{s} ' + spellInt(vec.length) + ' ' +
-            vec[1].dobj_.pluralName + ' {in iobj}. '} );    
-       
-        /* 
-         *   Define this function separately as we'll use it more than once; 
-         *   the function identifies implicit action reports relating to 
-         *   taking gold coins.
-         */
-        
-        local impFunc = {x: x.ofKind(ImplicitActionAnnouncement) 
-            && x.action_.ofKind(TakeAction)
-                && x.dobj_.ofKind(GoldCoin) };
-
-        
-        /* 
-         *   Count how many implicit action reports there are relating to 
-         *   taking gold coins.
-         */
-        local impActions = gTranscript.reports_.countWhich(impFunc);
-                   
-        /*  We only need to do anything if there's more than one. */
-        if(impActions > 1)
-        {
-            /* Note the location of the first relevant implicit action report */
-            local firstImp = gTranscript.reports_.indexWhich(impFunc);
-            
-            /* Store a copy of this report */
-            local rep = gTranscript.reports_[firstImp];
-            
-            /* 
-             *   Change the text of this implicit action report to account 
-             *   for all the gold coins implicitly taken
-             */
-            rep.messageText_ = '&lt;./p0&gt;\n&lt;.assume&gt;first taking ' +
-                spellInt(impActions) + ' gold coins&lt;./assume&gt;\n';
-            
-            /*  
-             *   Remove all the individual gold coin taking implicit action 
-             *   reports from the transcript.
-             */
-            gTranscript.reports_ = gTranscript.reports_.subset({x: !impFunc(x) });
-            
-            /*  
-             *   Add back our summary implicit action report at the location 
-             *   of the first individual report we removed.
-             */
-            gTranscript.reports_.insertAt(firstImp, rep);
-            
-            /*   
-             *   Remove all the DefaultCommandReports relating to taking gold
-             *   coins, since they would otherwise show up now we've removed
-             *   most of the implicit action reports.
-             */
-            gTranscript.reports_ = gTranscript.reports_.subset({
-                x: !(x.ofKind(DefaultCommandReport) 
-                     && x.action_.ofKind(TakeAction)
-                     && x.dobj_.ofKind(GoldCoin)) } );
-        }
-    }
-;
+   checkCutWith(Thing dobj, lawnmower iobj)
+   {
+      "Cutting {the dobj} with the lawnmower would not be very practical. ";
+   }
+   
+   checkCutWith(lawn dobj, lawnmower iobj} { }  
 </pre></p>
-<p>This is still far from perfect, but rather than developing this implementation any further, we'll go on to the next example, since this in any way provides a more general implementation for combining reports of this kind.</p>
 
+<p>There are a couple of points to note here:</p>
+<ol>
+<li>Although these look rather like ordinary function definitions, unlike regular functions, multiple 
+versions can co-exist in the same game, provided they are distinguishable by their specifiers. That means 
+we can have as many versions of checkCutWith as we like so long as they all have different combinations 
+of <i>specifier1</i> and <i>specifier2</i>.</li>
+<li>At run-time the interpreter will choose the version of checkCutWith() that gives the most specific match of <i>dobj</i> to <i>specifier1</i> and <i>obj</i> to <i>specifier2</i>, in the same way that it would call the most specific version of obj.method(), such lawn.makeCut() in preference to Thing.makeCut when the direct object is the lawn.</li>
+<li>When we <i>call</i> a multi-method (as opposed to <i>defining</i> it, we just supply its arguments in the ordinary way; for example we might call <code>checkCutWith(cake, lawnmower)</code>; this would result in the <code>checkCutWith(Thing dobj, lawnmower iobj)</code> version of our multi-method being called, unless we'd defined another version of <code>checkCutWith</code> for which <code>checkCutWith(cake, lawnmower)</code> was a more precise match.</p>
+</ol>
+<p> In this example that means that most attempts to cut cuttable objects with the lawnmower will be refused with the message "Cutting the whatever with the lawnmower would not be very practical" whereas cutting the lawn with the lawnmower would be allowed, since the more specific checkCuWith() multi-method overrides the more general one (and, in this case, does nothing at all, which allows the CutWith to proceed to the action stage).</p>
 
-<br>
-<h2>Example 2 - Combining Similar Reports</h2>
-<p>Combining identical reports about doing the same thing to identical objects is one thing. It is quite another is to combine similar reports about doing the same thing to a group of different objects. For the sake of argument, let's suppose that we've got a group of objects that includes a number of gold coins, silver coins and copper coins, as well as some miscellaneous portable and non-portable items. Assuming we're starting over from scratch (and not using any of the techniques for summarizing gold coin reports discussed above, a TAKE ALL command might produce something like the following result:</p>
-<p><pre>
-<b>&gt;take all</b>
-<b>tennis ball:</b> Taken. 
-<b>old coat:</b> Taken. 
-<b>odd sock:</b> Taken. 
-<b>large red box:</b> Taken. 
-<b>wardrobe:</b> You can’t take that. 
-<b>small green book:</b> Taken. 
-<b>torch:</b> Taken. 
-<b>small square table:</b> The small square table is too heavy. 
-<b>small blue box:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>silver coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>silver coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>copper coin:</b> Taken. 
-<b>gold coin:</b> Taken. 
-<b>copper coin:</b> Taken. 
-<b>silver coin:</b> Taken. 
-</pre></p>
-<p>Over the course of this example, we'll explore how this can be combined into a single summary report listing what the player has taken and what could not be taken. We'll proceed step by step.</p>
+<h2 id="enabling">Enabling Multi-Method TIA Handling</h2>
+<p>Multi-Method TIA handling is not enabled in the adv3Lite library by default, since many games may not 
+make any use of it, and although it might not make all that much difference in practice, including multi-method 
+TIA handling we're not going to use would just bloat the code and slow things down to no good purpose 
+(although whether anyone would notice much on a modern computer is another matter).</p>
 
-<p>First, we'll need to borrow one piece of code from the previous
-example, namely the modification to Command Report:</p>
+<p>There are two ways in which we can enable Multi-Method TIA handling in our game. The first is to include
+the multimethtia.t extension in our game (in the same way we'd include any other extension). This will then  
+enable Multi-Method TIA handling for every TIAction defined in the library.</p>
+
+<p>The other way, if we want to be more economical and we know we are only going to use Multi-Method TIA 
+handling for a handful of actions, is to enable it on just those actions by using the MMIAction() macro, which we'd use like this:</p>
 
 <p><pre>
-modify CommandReport
-    construct()
-    {
-        inherited();
-        dobj_ = gDobj;
-    }
-    dobj_ = nil;
-;
+  MMTIAction(PutIn);
+  MMTIAction(CutWith);
 </pre></p>
-<p>Then we'll start with a simple modification of Thing, in fact precisely the same modification we earlier used on the GoldCoin class:</p>
-<p><pre>
-modify Thing
-    dobjFor(Take)
-    {
-        action()
-        {
-            gAction.callAfterActionMain(takeReportManager);
-            inherited;
-        }
-    }
-;
-</pre></p>
-<p>For the remainder of this example, we can concentrate on developing takeReportManager.afterActionMain(). We'll start with a very simple (and not entirely adequate) implementation, that simply lists every item after "You take ":</p>
+
+<p>All the multimethtia.t extension does is to list this macro for every TIAction defined in the library.</p>
+
+<p>Note that this macro can't be used twice for the same action without causing a compiler error, so if we start by using the MMTIAction() macro for individual TIActions and later decide to use the multimethtia.t extension, we'll need to remove 
+all the MMTIAction macros from our own code, except those for new TIActions we've defined ourselves.</p>
+
+<p>If we do define a new TIAction and we want to use multi-methods with it, we accordingly need to go through two 
+steps:</p>
 
 <p><pre>
-takeReportManager: object
-    afterActionMain()
-    {
-        gTranscript.summarizeAction(
-            { x: x.action_.ofKind(TakeAction) 
-            && !x.ofKind(MultiObjectAnnouncement) },
-            { vec: '{You/he} take{s} ' + objectLister.makeSimpleList(
-                vec.applyAll({x: x.dobj_}).toList
-                ) + '. ' } );
-    }
-;
+  DefineTIAction(FrobWith);
+  MMTIActinon(FrobWith);
 </pre></p>
-<p>We need to exclude the MultiObjectAnnouncements, otherwise we'll end up counting everything twice. Otherwise the most mysterious part of this code is probably this:</p>
+
+<p>It may we worth taking quite look at what the MMTIAction macro does. It's defined in the library as:</p>
 
 <p><pre>
-objectLister.makeSimpleList(vec.applyAll({x: x.dobj_}).toList)
-</pre></p>
-<p>objectLister.makeSimpleList takes a list objects and returns a single-quoted string containing a nicely-formatted list of those objects. vec.applyAll({x: x.dobj_}) returns a Vector containing the dobj_ property of every report object in vec (or, if you like, it returns the Vector that results from replacing every element of vec with its dobj_ property). Finally toList turns the Vector into a list, so we can pass it to makeSimpleList (actually, it's not strictly necessary, since the method will quite happily accept a Vector).</p>
-
-<p>With this definition of afterActionMain we get:</p>
-<p><pre>
-<b>&gt;take all</b>
-You take the tennis ball, the old coat, the odd sock, the large red box, the wardrobe, the 
-small green book, the torch, the small square table, the small blue box, eight gold coins, 
-three silver coins, and two copper coins. 
-</pre></p>
-
-<p>Apart from the fact that the list contains two items it shouldn't
-(the wardrobe and the table) this has worked pretty well. In
-particular, by leveraging the library's Lister class (via
-objectLister) we've automatically got a report that separates out and
-summarizes the various equivalent objects (the eight gold coins, three
-silver coins, and two copper coins).</p>
-
-<p>The next step is to separate out the reports of items that weren't taken. Provided the reportFailure() macro was used to report the failure of the item to be taken, their reports can easily be identified as ones for which isFailure is true. We can use this to separate the vector of reports into two, one of successes and one of failures. We can then deal with the successes as before and finally append the list of failures:</p>
-
-<p><pre>
-takeReportManager: object
-    afterActionMain()
-    {
-        gTranscript.summarizeAction(
-            { x: x.action_.ofKind(TakeAction) 
-            && !x.ofKind(MultiObjectAnnouncement) },
-            new function (vec)
-        { 
-            /* Isolate the reports of failures */
-            local failVec = vec.subset({x: x.isFailure});
-            
-            /* And then the reports of successes */
-            local successVec = vec.subset({x: !x.isFailure});
-            
-            /* Construct a string reporting the objects we did take */
-            local str = '{You/he} take{s} ' + objectLister.makeSimpleList(
-                successVec.applyAll({x: x.dobj_})) + '. ';  
-            
-            /* 
-             *   Then append a report explaining the failure of all those we 
-             *   didn't
-             */
-            foreach(local cur in failVec)
-                str += cur.messageText_;
-            
-            /* Return the result */
-            return str;
-        });           
-    }
-;
+/*
+ *   Modify a concrete TIAction to work with multimethods. This creates the base version of the
+ *   three multimethods needed then sets the relevant methods of the TIAction to call the relevant
+ *   multimethod.
+ */   
+#define MMTIAction(name) \
+    verify ## name (Object dobj, Object iobj, Thing verobj) {} \
+    check ## name (Object dobj, Object iobj) {} \
+    action ## name (Object dobj, Object iobj) {} \
+    modify name \
+    mmVerify(dobj, iobj, verobj) { verify ## name (dobj, iobj, verobj); } \
+    mmCheck(dobj, iobj) { check ## name (dobj, iobj); } \
+    mmAction(dobj, iobj) { action ## name (dobj, iobj); }
 </pre></p>
 
-<p>With this code the output becomes:</p>
-
+<p>To take our previous example, this means that <code>MMTIA(FrobWith)</code> will expand 
+into the following code:</p>
 <p><pre>
-<b>&gt;take all</b>
-You take the tennis ball, the old coat, the odd sock, the large red box, the small green book,
-the torch, the small blue box, eight gold coins, three silver coins, and two copper coins. 
-You can’t take that. The small square table is too heavy.
+verifyFrobWith(Object dobj, Object iobj, Thing verobj) { }
+checkFrobWith(Object dobj, Object iobj) { }
+actionFrobWith(Object dobj, Object iobj) { }
+
+modify FrobWith   
+  mmVerify(dobj, iobj, verobj) { verifyFrobWith(dobj, iobj, verobj); }
+  mmCheck(dobj, iobj) { checkFrobWith(dobj, iobj); }
+  mmAction(dobj, iobj} { actionFrobWith(dobj, iobj); }
 </pre></p>
 
-<p>This is an improvement, but it is still not quite right. For one thing, it's far from clear what 'that' refers to in "You can't take that", and the final report might read a little better in this context it is red "The small square table is too heavy to take." We can fix this by tweaking each failure report as we append it to our result string. Here we give the code of the resultant foreach loop; the rest of the code remains the same:</p>
+<p>What's happened here is that we've created three new appropriately named multi-methods that match any objects at all in the direct object and indirect object slots (we'll come back to the Thing verobj parameter later). This ensures both that there are versions of these multi-methods for the libary to call, even if we don't go on to define any of our own, and that any versions we define will take precedence over these very general do-nothing ones, provided we always specify a pair of identifiers that are more specific than Object and Object (as in practice we almost certainly will).</p>
+
+<p>The other thing we've done here is to tell the FrobWith action which multi-methods it should call at the verify, check and action stages.</p>
+
+<h2>Using Multi-Methods with TIActions</h2>
+<p>We should now take a look at how we might use these multi-methods at each of the <a href='#verify'>verify</a>, <a href='#check'>check</a> and <a href='#action'>action</a> stages. There might be a case for leaving the verify stage till last, since it is arguably the most complex, but we'll nevertheless take these three stages in their traditional order, both because what happens at each stage to some extent depends on what happened at the previous one, and because if we tackle the most complex case first the others may be all the easier to understand.</p>
+
+<h3 id="verify">Verify</h3>
+<p>Verify mult-methods typically look like:</p>
 <p><pre>
-            foreach(local cur in failVec)
-            {
-                local mess = cur.messageText_;
-                
-                /* replace "too heavy" with "too heavy to take" */
-                mess = mess.findReplace('too heavy', 'too heavy to take',
-                                      ReplaceOnce);
-                
-                /* replace "that" or "those" with the name of the object */                      
-                mess = rexReplace('%&lt;(that|those)%&gt;', mess, cur.dobj_.theName,
-                                  ReplaceAll);
-                str += mess;
-            }
-</pre></p>            
-<p>With this our output becomes what we were aiming for:</p>
+   verifyCutWith(cake dobj, lawnmower iobj, Thing verobj)
+   {
+       illogical('Trying to cut the cake with the lawnmower would be plainly ridiculous. ');
+   }
+   
+   verifyCutWith(lawn dobj, lawnmower iobj, Thing verobj)
+   {
+       logicalRank(120);
+       skip;
+   }
+</pre></p>
+
+<p>Although mowing the cake with the lawnmower would be ruled out by the check multi-method defined above, we 
+might consider it so ridiculous that it deserves to be ruled out at the verify stage, which not only decides 
+whether the action can go ahead but guides the parser's choice of objects. Here, in addition to ruling out 
+cutting the cake with the lawnmower, we're telling the parser that
+the cake and the lawnmower would be a poor choice of objects in the direct and indirect object roles of the 
+CutWith action.</p>
+
+<p>On the other hand, the lawn and the lawnmower would be particular good choice of objects in the direct and 
+indirect object roles of the CutWith action, so we want to boost the logicalRank of this combination. To make 
+sure we achieve this we add the <code>skip</code> macro to skip the dobjForVerify() and iobjFor(Verify) routines 
+on the lawn and the mower respectively, in case they would otherwise have intervened with a lower logical rank, 
+which would then have taken precedence.</p>
+
+<p>At this point we should explain the seemingly mysterious <code>Thing verobj</code> parameter, which 
+absolutely needs to be there in precisely that form, although we can use the <code>tvo</code> macro to 
+abbreviate it.</p>
 
 <p><pre>
-<b>&gt;take all</b>
-You take the tennis ball, the old coat, the odd sock, the large red box, the small green book,
-the torch, the small blue box, eight gold coins, three silver coins, and two copper coins. You
-can’t take the wardrobe. The small square table is too heavy to take. 
+   verifyCutWith(cake dobj, lawnmower iobj, tvo)
+   {
+       illogical('Trying to cut the cake with the lawnmower would be plainly ridiculous. ');
+   }
+   
+   verifyCutWith(lawn dobj, lawnmower iobj, tvo)
+   {
+       logicalRank(120);
+       skip;
+   }
 </pre></p>
 
-<p>It would be possible to refine this a little further. For example, if there were several items that were too heavy to take, you might want to combine them into a single report ("The wardrobe and the small square table are too heavy to take"). But this probably isn't worthwhile. Given the number of ways a take action could fail (for example, consider the case where there's an item in a locked glass cabinet) it's probably better not to include the failure reports along with the successful ones like this. A safer approach for the more general case would be to separate out the failure reports before calling summarizeAction, have summarizeAction summarize the objects that were taken, and then let the library report the objects that weren't taken in the normal way. Not only is this safer to implement, it also makes it clearer to the player what went wrong with the items that weren't taken.</p>
-
-<p>There is, however, one further refinement we should explore before leaving this example. Suppose one or more of the objects had an overidden actionDobjTake method that displayed a custom message; e.g.:</p>
-<p><pre>
-+ tennisBall: Thing 'split tennis ball*balls' 'tennis ball'
-    "This one has been split open; it's no good for playing tennis with any
-    more. "
-    dobjFor(Take)
-    {
-        action()
-        {
-            inherited;
-            "You grab hold of the tennis ball. ";
-        }
-    }
-;
-</pre></p>
-<p>We'd then find that the tennis ball was listed twice:</p>
+<p>But why is this third parameter needed? The short answer is that we wouldn't be able to use macros like <code>illogical()</code> and <code>logicalRank()</code> without it. Prior to the introduction of mult-method TIAction handling to the adv3Lite library these macros were defined thus:</p>
 
 <p><pre>
-<b>&gt;take all</b>
-You take the tennis ball, the tennis ball, the old coat, the odd sock, the large red box, the
-small green book, the torch, the small blue box, eight gold coins, three silver coins, and two
-copper coins. You can’t take the wardrobe. The small square table is too heavy to take. 
+#define illogical(msg) \
+    gAction.addVerifyResult(new VerifyResult(30, msg, nil, self))
+
+#define logicalRank(score) \
+    gAction.addVerifyResult(new VerifyResult(score, '', true, self))
 </pre></p>
 
-<p>The reason for this doubling of the tennis ball is that the transcript now contains two reports for taking the tennis ball: the default command report generated from the inherited action handling and the main command report from the custom message. The simplest way to solve this is to ensure that our Vector of taken objects contains each object only once, which we can achieve by calling the getUnique() method on this Vector. Our code then becomes:</p>
+<p>They were defined this way because they were defined to be called in the verify() method of one of the objects (direct or indirect) involved in the action, and to add themselves to the table of verify results. But this meant they couldn't be used in a multi-method, because, <i>there is no self object in the context of a multi-method</i>.<p>
+
+<p>They (and the other verify macros) have accordingly been redefined:</p>
 
 <p><pre>
-takeReportManager: object
-    afterActionMain()
-    {
-        gTranscript.summarizeAction(
-            { x: x.action_.ofKind(TakeAction) 
-            && !x.ofKind(MultiObjectAnnouncement) },
-            new function (vec)
-        { 
-            /* Isolate the reports of failures */
-            local failVec = vec.subset({x: x.isFailure});
-            
-            /* And then the reports of successes */
-            local successVec = vec.subset({x: !x.isFailure});
-            
-            /* 
-             *   Construct a string reporting the objects we did take, 
-             *   ensuring that each one is counted only once.
-             */
-            local str = '{You/he} take{s} ' + objectLister.makeSimpleList(
-                successVec.applyAll({x: x.dobj_}).getUnique()) + '. ';  
-            
-            /* 
-             *   Then append a report explaining the failure of all those we 
-             *   didn't
-             */
-            foreach(local cur in failVec)
-            {
-                local mess = cur.messageText_;
-                
-                /* replace "too heavy" with "too heavy to take" */
-                mess = mess.findReplace('too heavy', 'too heavy to take',
-                                      ReplaceOnce);
-                
-                /* replace "that" or "those" with the name of the object */                      
-                mess = rexReplace(thatPat, mess, cur.dobj_.theName,
-                                  ReplaceAll);
-                str += mess;
-            }
-            
-            /* Return the result */
-            return str;
-        });           
-    }
-    thatPat = static new RexPattern('%&lt;(that|those)%&gt;')
-;
+#define illogical(msg) \
+    gAction.addVerifyResult(new VerifyResult(30, msg, nil, verobj))
+
+#define logicalRank(score) \
+    gAction.addVerifyResult(new VerifyResult(score, '', true, verobj))
 </pre></p>
-<p>This example could be taken a lot further to make it both more general and more robust, but we have taken it as far as we need to for the purpose of this article. For a much fuller implementation (which you can also use in your own games), see the combineReports.t extension that should be in the ../TADS 3/lib/extensions folder.</p>
 
-
-<br>
-<h2>Example 3 - Combining Disparate Reports</h2>
-<p>For our final example, we'll return to Bob following the player character out of the theatre. Once again, we'll start from scratch (i.e. we'll assume we haven't used reportBefore or reportAfter anywhere to tweak the order of reports). This time, though, we'll assume that Bob starts out sitting on a chair in the theatre when the player does whatever makes Bob decide to follow him. Assuming we still have a TravelMessage on the western exit from the Theatre, the output we'd get using the standard library without any further modifications is:</p>
+<p>While the Thing class now defines:</p>
 <p><pre>
-<b>&gt;w</b>
-Bob stands up. 
-
-Bob comes with you. You walk out of the theatre. 
-
-<b>Lobby</b>
-The main theatre auditorium is just to the east. To the north are the toilets and the
-street exit is to the east.
-
-Bob is standing here. 
-</pre></p>
-<p>Quite apart from improving the output by customizing some of these messages, it would be better if the format were more like:</p>
-<p><pre>
-<b>&gt;w</b>
-You walk out of the theatre.  
-
-Bob stands up and comes with you. 
-
-<b>Lobby</b>
-The main theatre auditorium is just to the east. To the north are the toilets and the
-street exit is to the east.
-
-Bob is standing here. 
+   verobj = self 
 </pre></p>
 
+<p>This means that these macros can continue to be used in exactly the same way with exactly the same effect in the verify routines defined on the direct and indirect objects of the action. But is also means that they can now also be used in verify multi-methods provided there is a parameter called <code>verobj</code> for them to relate to.</p>
 
-<p>To do this we have to combine, not similar reports about different objects, but different reports about the same object (Bob). Since we need to manipulate the transcript to do this in any case, we may as well rearrange the reports into a better sequence at the same time.</p>
+<p>But what object is passed as the verobj argument? The answer is that the verifyCutWith() multi-method will be called twice, once with the direct object as the verobj argument and once with the indirect object, so that a call to illogical(), logicalRank(), or any other such verify macro will add the same verify result for both the direct object and the indirect object &mdash; and this just is what we want, for it tells the parser that both objects are either a good or a bad fit for the action in question when used in combination.</p>
 
-<p>If we go back to the original transcript, we see that Bob is mentioned three times: first when he stands up, then when he comes with you, and then when he is standing in the new location. What we need is some way of picking out the first two reports and moving them after the report of the player character walking out of the theatre, while leaving the final report (Bob in the new location) alone. But because we'd like whatever we do to be as general as posssible, we can't rely on there being two reports of what Bob does before we get to the new location (in many cases there'll only be one, and on occasion there could be more than two). Neither can we rely on there being a report of the player character's movements; not every TravelConnector through which the player character may pass will necessarily have a travelDesc.</p>
-<p>What we <i>can</i> rely on is the presence of a &lt;.roomname&gt; tag in a command report all on its own just before the name of the new location is displayed. We can use this for two purposes: first, we can ignore all reports about Bob that come after this tag while combining all the reports about Bob that come before it; second, we can use this tag as a marker, showing us the position where we need to insert our summary report of Bob's actions.</p>
-<p>The way to pick out the reports we need to work on is then to pick out all the reports prior to the &lt;.roomname&gt; tag that start with the word "Bob" (or, in the more general case, with the name of the NPC who's doing the following). Unfortunately there's a complication: the string "Bob comes with you." is actually split over four or five different command reports, which makes it extremely different to deal with. The reason for this is that the library creates this output from a double-quoted string that makes generous use of the &lt;&lt;&gt;&gt; notation, which the transcript sees as a sequence of separate reports. The obvious cure is to override AccompanyingInTravelState.sayDeparting() to use mainReport instead. A literalistic way of doing this that otherwise preserves the library behaviour is:</p>
-<p><pre>
-modify AccompanyingInTravelState
-    sayDeparting(conn)
-    {
-        local msg = mainOutputStream.captureOutput( {: inherited(conn) });;
-        
-        /* 
-         *  strip off any leading \^ so that we can be sure of matching the NPC's name
-         *  at the start of the report string. 
-         */
-        if(msg.startsWith('\^'))
-            msg = msg.substr(2);
-            
-        mainReport(msg);
-    }
-;
-</pre></p>
-<p>Although in practice we'd probably go for something less elaborate:</p>
-<p><pre>
-modify AccompanyingInTravelState
-    sayDeparting(conn)
-    {
-        local msg = getActor.theName + ' comes with you. ';
-        mainReport(msg);
-    }
-;
-</pre></p>
-<p>In any case it would be more stylish to give Bob a customized AccompanyingInTravelState, with suitable custom messages:</p>
-<p><pre>
-+ bobFollowing: AccompanyingState
-     getAccompanyingTravelState(traveler, connector)
-    {
-        
-        return new BobAccompanyingInTravelState(
-            getActor(), gActor, getActor().curState);
-    }
-;
-
-class BobAccompanyingInTravelState: AccompanyingInTravelState
-    sayDeparting(conn)
-    {
-        gMessageParams(conn);
-        local msg = '{The bob/he} follows ';
-        if(conn == theatre.west)
-            msg += 'you out of the theatre. ';
-        else if(conn.ofKind(StairwayDown))
-            msg += 'you down {the conn/him}. ';
-        else if(conn.ofKind(ThroughPassage))
-            msg += 'you through {the conn/him}. ';
-        else   
-            msg += 'along behind you. ';
-        mainReport(msg);
-    }
-    
-    specialDesc = "{The bob/he} tags along behind. "
-;
-</pre></p>
-<p>The main thing is to ensure that we use mainReport() to generate the sayDeparting message, to ensure that it's all contained in one report.</p>
-
-<p>To make our transcript-manipulation code as general as possible we'll define it on a modified AccompanyingState in such a way as to work for any actor. As ever the first step is to register something as an object on which to call afterActionMain. In this case the object may as well be the AccompanyingState itself, and the best place to carry out the registration is probably in the beforeTravel() method (which is also the method that triggers the NPC following the PC):</p>
-
+<p>Finally, we should take a closer look at the <code>skip</code> macro. What it does is to throw a new SkipSignal exception, which in this case causes execution to skip over calling the verify routines on the direct and indirect objects of the action (it does not, however, skip over calling the verifyPreCondition() methods of any of the PreConditions defined on the direct and indirect objects, since the chances are that these will still be applicable). So when should we use <code>skip</code> here? That depends, of course, on what we want to achieve, but as a rough rule of thumb, it's a good idea to use <code>skip</code> when we want to ensure that our verify multi-method allows the action to go ahead, but to omit <code>skip</code> when we want it to stop the action (in which case we may as well give the other possible reasons for stopping the action to go ahead). Some care is needed, however, since we don't want to write a verify multi-method that could have disastrous consequences, such as:</p>
 
 <p><pre>
-modify AccompanyingState
-    beforeTravel(traveler, connector)
-    {
-        gAction.callAfterActionMain(self); 
-        inherited(traveler, connector);
-    }
-</pre></p>    
-    
-<p>The remaining step is to define the afterActionMain() method. What we're trying to do is beyond the capabilities of summarizeAction(), so we'll have to manipulate gTranscript.reports_ directly. We've already described the logic of what we need to do; we just need to translate it into TADS 3 code:</p>
+  verifyPutIn(dobj Thing, iobj packingCrate, tvo)
+  {
+     logicalRank(110);
+     skip;
+  }
+</pre><p>
 
-<p><pre>    
-    afterActionMain()
-    {
-	    
-        /* 
-         *   Check whether there is a &lt;.roomname&gt; tag somewhere in the 
-         *   transcript.          
-         */
-        
-        local idx = gTranscript.reports_.indexWhich({ x: x.messageText_ ==
-                                              '&lt;.roomname&gt;' });
-        
-        /* 
-         *   If there is no &lt;.roomname&gt; tag, travel failed for some reason, 
-         *   in which case we don't want to change the transcript at all.
-         */        
-        
-        if(idx == nil)
-            return;
-            
-        local actor = getActor;       
-        local str = '';
-        local vec = new Vector(4);   
-        local pat = new RexPattern('&lt;NoCase&gt;^' + actor.theName + '&lt;Space&gt;+');
-        
-        /*  
-         *   Look through all the reports in the transcript for those whose 
-         *   message text begins with the name of our actor, followed by at 
-         *   least one space (so that if the actor's name is Rob we don't 
-         *   pick up any messages relating to Roberta, for example), 
-         *   regardless of case (so we pick up messages about 'the tall man' 
-         *   and 'The tall man'). 
-         *
-         *   Once we get to the description of a new room, stop looking (we 
-         *   don't want to include the description of the actor arriving in 
-         *   the new location, just the actor departing the old one).
-         *
-         *   Store the relevant message strings (those before the new room 
-         *   description, but not any after it) in the vector vec; at the 
-         *   same time remove these reports from the transcript (since we'll 
-         *   be replacing them with a single report below).
-         */
-        
-        while((idx = gTranscript.reports_.indexWhich({ x:
-            rexMatch(pat, x.messageText_) })) != nil)
-        {
-            if(idx &gt; gTranscript.reports_.indexWhich({ x: x.messageText_ ==
-                                              '&lt;.roomname&gt;' }))
-               break;  
+<p>At first sight this may look like a good way to make the packing crate a specially good choice for putting things but you only have to try the command PUT CRATE IN CRATE (or even PUT WOODEN IN CRATE if both the crate and a chair are described as 'wooden') to discover why it isn't (spoiler alert: allowing you to put the crate in itself will cause a spectacular stack overflow error). The moral of this story is that we should ensure that using <code>skip</code> doesn't risk skipping sanity checks we may still need.</p>
 
-            
-            vec.append(gTranscript.reports_[idx].messageText_);
-            gTranscript.reports_.removeElementAt(idx);
-        }
-        
-        local len = actor.theName.length() + 1;
-        
-        /* 
-         *   Now go through each of the strings in vec in turn, stripping 
-         *   off the actor's name at the start and the period/full-stop at 
-         *   the end (so that, for example 'Bob stands up. ' becomes 'stands 
-         *   up'. In searching for the position of the terminating full 
-         *   stop (period) we start beyond the end of the actor's name in 
-         *   case the actor's name contains a full stop (e.g. Prof. Smith).
-         */
-        
-        vec.applyAll( { cur: cur.substr(len, cur.find('.', len) - len)});
-        
-        /*   
-         *   Concatanate these truncated action reports into a single string 
-         *   listing the actor's actions (e.g. 'stands up and comes with 
-         *   you'), separating the final pair of actions with 'and' and any 
-         *   previous actions with a comma. We can use stringLister (defined 
-         *   in the previous example) to do this for us.
-         */        
-        
-        str = stringLister.makeSimpleList(vec.toList);
-        
-        /* 
-         *   Put the actor's name back at the start of the string, and 
-         *   conclude the string with a full-stop and a paragraph break.
-         */
-        str = '\^' + actor.theName + ' ' + str + '.&lt;.p&gt;';
-        
-        /* 
-         *   Find the insertion point, which is just before the description 
-         *   of the new room.
-         */
-        
-        idx = gTranscript.reports_.indexWhich({ x: x.messageText_ ==
-                                              '&lt;.roomname&gt;' });
-                
-        /* 
-         *   Insert the message we just created as a new report at the 
-         *   appropriate place, i.e. just before the new room description.
-         */
-        gTranscript.reports_.insertAt(idx, new MessageResult(str));
-        
-    }
-;
-</pre></p>
-<p>With this we finally get:</P
+<h3 id="check">Check</h3>
+<p>Compared with using verify multi-methods, using check ones is relatively simple. We no longer need the third parameter, so provided we haven't ruled things out at the verify stage we could, for example, write check multi-methods like:</p>
 
 <p><pre>
-<b>&gt;w</b>
-You walk out of the theatre. 
+checkPutIn(Platform dobj, Container iobj)
+{
+   "{The dobj} {is} obviously too big to fit {in iobj). ";
+}
 
-Bob stands up and follows you out of the theatre.
-
-<b>Lobby</b>
-The main theatre auditorium is just to the east. To the north are the toilets and the
-street exit is to the east. 
-
-Bob tags along behind. 
+checkPutIn(Platform dobj, Container packingCrate)
+{   
+}
 </pre></p>
-<p>This may seem like quite a lot of work for a relatively minor effect, but because we've achieved this effect by modifying AccompanyingState and making it general for any actor, we get it for every NPC in our game, and even when we don't need to combine any reports, we also get the reordering of reports (the NPC's movement described after that of the player character who's being followed) for every NPC in an AccompanyingState. Indeed, we could hive this modified AccompanyingState (along with the modified AccompanyingInTravelState) into a small extension which we included in all our games, at which point the effort required to tweak the transcript like this undoubtedly become worthwhile. You don't even have to copy any of this into your own code; it's all included in the smartAccompany.t extension which you can find in the ../lib/extensions folder.</p>
+<p>This would cover a situation in which the only object in our game that's large enough to 
+accommodate Platforms (which must be fairly large if actors can get on them) is the packing crate. 
+We have already seen examples of how it migjht be used to allow or disallow various combinations 
+of objects for CutWith, e.g.:</p>
 
-<p>There's just one more thing to consider here; the modifications we made to AccompanyingState are appropriate to when an NPC is following the player character, but less so when the player character is following the NPC (i.e., when the NPC is in a GuidedTourState). Since GuidedTourState is a subclass of AccompanyingState it's probably best to override GuidedTourState.afterActionMain() to do nothing (as the smartAccompany.t extension does).</p>
-<br>
-<h2>Some Final Thoughts</h2>
-<p>Hopefully the three examples given above should serve to illustrate the more abstract discussion that preceded. These examples clearly won't cover everything you might want to do with the transcript in your game, but they should help you work out how to get the particular effects you want.</p>
-<p>Tweaking the transcript can be a tricky business, so don't be disheartened if you can't get it right first time. Even more than in most other areas of TADS 3 programming you'll probably find there's a <i>lot</i> of trial and error. In particular it may not be at all obvious what set of command reports the transcript is going to contain at any particular point. If something doesn't immediately work the way you expect, or you can't work out how to get started on it, the best thing to do is probably to set a breakpoint in the Windows debugger (preferably in your afterActionMain method) and take a look at what gTranscript.reports_ contains.</p> 
-<p>If you can't use Workbench (e.g. because you're not using Windows), you'll almost certainly need to write a debugging routine that displays the contents of gTranscript.reports_, and then call it from afterActionMain. Remember, though, that any such routine <i>must</i> start by deactivating the transcript, otherwise it'll go into an everlasting loop as it adds reports about the transcript to the transcript!</p>
+<p><pre>
+checkCutWith(Actor dobj, axe iobj)
+{
+   "That would be excessively violent. ";
+}
+</pre></p>
 
-<p>For your convenience the extension showTranscript.t is included in the ../lib/extensions folder. If you use this extension you <b><i>must</i></b> also include reflect.t in your project (at least when compiling for debugging). The extension defines the function showTranscript(), which lists the contents of gTranscript.reports_ in a form which will hopefully help you see what's going on (but if you need more information, feel free to tweak the extenstion).
+<p>Further point to note here are:</p>
+<ul>
+<li>Check multi-methods work just like regular check methods insofar as the action will be halted 
+if they display any text (and don't also use the <code>noHalt()</code> macro).</li>
+<li>We can use <code>skip</code> with check multi-methods in much the same way as we can with 
+verify ones. The effect will be to skip over the check() routines called on the direct and indirect 
+objects but still call the checkPrecondition() methods of any PreConditions defined on the direct 
+and indirect objects, since they are most likely still applicable. This can be useful for allowing 
+an action that the regular check methods would have ruled out, but once again care may be needed 
+to ensure we're not skipping any essential sanity checks. For example, by <i>not</i> using 
+<code>skip</code> in our <code>checkPutIn(Platform dobj, Container packingCrate)</code> example we're 
+allowing the library to carry out its normal check that there's enough room left in the packing 
+crate to accommodate the Platform we want to put in it.</li>
+</ul>
 
-<p>When debugging (or perhaps even planning how to write) your afterActionMain() routine without the aid of Workbench (or even if you do have Workbench but prefer not to use the debugger for this purpose), you can simply include a call to showTranscript() in your afterActionMain() routine to get a reasonable idea of what the transcript contains at that point. That should help you work out either what you need to do to get the effect you're after, or else what's going wrong with your latest attempt.</p>
+<h3 id="action">Action</h3>
+<p>In principle, action multi-methods act much like check once, although they may be trickier to implement.
+In particular, just as we can in verify and check, we can use <code>skip</code> to skip over what the 
+library would have done in its action handling on the direct and indirect objects of the action. Whether 
+this is a good idea or not depends on whether we want to add something to the libary's standard handling 
+of the command or add to it. If we want to add to it, it's important to be aware that whatever we define 
+in our action multi-method will execute <i>before</i> the library's usual handling.</p>
+
+<p>One way we can use a multi-method to add to the libary's handling is simply to display some text 
+the library would not otherwise have displayed, for example:</p>
+
+<p><pre>
+  actionPutIn(delicateVase dobj, Container iobj)
+  {
+     "{I} <i>very</i> carefully lower(s/ed} the vase into {the obj}. ";
+  }
+</pre></p>
+
+<p>This will work because if an action method displays any text, the action will not be reported again 
+at the report stage for the same direct object. It's very unlikely that a PutIn action such as this 
+would be triggered as an implicit action, but if you wanted to make assurance double sure you could 
+instead write:</p>
+
+<p><pre>
+  actionPutIn(delicateVase dobj, Container iobj)
+  {
+     actionReport('{I} <i>very</i> carefully lower(s/ed} the vase into {the obj}. ');
+  }
+</pre></p>
+
+<p>Tbings are likely to be more complicated in the case of our CutWith example, where 
+what happens will very much depend on the particular pair of objects involved. For example,
+we might write:</p>
+
+<p><pre>
+actionCutWith(cake dobj, knife iobj)
+{
+   "You caredfully cut the cake with the knife, and then offer 
+   the first slice to the bride. ";
+   cake.makeCut() // assume this is a custom method you've defined on the cake.
+   knife.makeDirty(cake); // likewise on the knife.
+   
+   skip;
+}
+
+actionCutWith(cake dobj, sword iobj)
+{
+   "Carefully wielding the sword with both hands, you just manage to cut into 
+    the cake with it, although it results in quite a clumsy slice. As you habd
+   the first slice to the bride, Mr Dastardly looks daggers at you, plainly 
+   suspecting, not without justice, that you're just showing off. ";
+   cake.makeCut() // assume this is a custom method you've defined on the cake.
+   sword.makeDirty(cake); // likewise on the knife.
+   
+   skip;
+}
+
+actionCutWith(mrDastardly dobj, knife iobj)
+{
+   "You accidentally on purpose let the knife slip and nick Mr Dastardly's hand. 
+   Dastardly at once clutches his &lt;i&gt;very&lt;/i&gt; minor wound and screams 
+   in pain before running from the room, thereby demonstrating what a coward he really is 
+   --- as well as getting him out of the way.&lt;.reveal cut-dastardly&gt; ";
+   
+   mrDastardly.moveInto(nil);
+   
+   skip;
+}
+</pre></p>
+
+<p>The <code>skip</code>s <i>may</i> be redundant here since the library doesn't define 
+anything for the action stage of CutWith, but they shouldn't do any harm, so we may as 
+include them to be on the safe side. Of coure if you'd provided your own action handling 
+for CutWith on Tbing and/or any other classes you'd need to consider whether you wanted 
+to skip it or not.</p>
+
+<p>This incidentally raises another issue: what if we want the same thing to happen if 
+the player character cuts Mr Dastardly with some other cutting implement, such as the 
+scissors? While we might disallow the sword as being too blatant and the axe as too violent,
+the we might consider the scissors to be another viable option, but there's no way we can
+specify <i>identifier</i> as a list but we probably rather not have to duplicate our code.</p>
+
+<p>There are two ways we could deal with this; the first is to define a makeCut(obj) on 
+the mrDastardly object that does all the work and then define:</p>
+
+<p><pre>
+actionCutWith(mrDastardly dobj, knife iobj)
+{
+   dobj.makeCut(iobj);
+   skip;
+}
+
+actionCutWith(mrDastardly dobj, scissors iobj)
+{
+   dobj.makeCut(iobj);
+   skip;
+}
 
 </pre></p>
+<p>Although this may feel less than ideal. The other is to define a custom class such as:
+
+<p><pre>
+DomesticCuttingImplement: Thing
+  canCutWithMe = true 
+</pre></p>
+
+<p>And then define both the knife and the scissors to that class. Then we can write:
+
+<p><pre>
+actionCutWith(mrDastardly dobj, DomesticCuttingImplement iobj)
+{
+   "You accidentally on purpose let {the iobj} slip and nick Mr Dastardly's hand. 
+   Dastardly at once clutches his &lt;i&gt;very&lt;/i&gt; minor wound and screams
+   in pain before running from the room, thereby demonstrating what a coward he really is
+   --- as well as getting him out of the way.&lt;.reveal cut-dastardly&gt; ";
+   
+   mrDastardly.moveInto(nil);
+   
+   skip;
+}
+</pre></p>
+
+<p>To my mind the latter seems preferable, both because it keeps all the relevant code 
+in one place and because it becomes simpler to extend it to other objects, if say, we 
+later wanted to add a letter opener into the mix, we could just define it to be of the 
+DomesticCuttingImplement class. Moreover, since TADS 3 allows multiple inheritance,
+we can define the various cutting objects as belonging to as many classes as we need 
+to fit the <i>identifier 2</i> slots we want to implement in our multi-methods.
+We can, of course, do the same for slots we want to match at the check and verify 
+stages, should we wish to group objects together there as well.</p>
 
 </div>
 <hr class="navb"><div class="navb">
 <i>TADS 3 Technical Manual</i><br>
 <a class="nav" href="toc.htm">Table of Contents</a> | 
 <a class="nav" href="advtop.htm">Advanced Topics</a> &gt; 
-Manipulating the Transcript
+Handling TIActions with Multi-Methods
 <br><span class="navnp"><a class="nav" href="t3cycle.htm"><i>Prev:</i> The Command Execution Cycle</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3scope.htm"><i>Next:</i> Redefining Scope</a> &nbsp;&nbsp;&nbsp; </span>
 
 </div>

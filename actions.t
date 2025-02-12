@@ -1543,7 +1543,7 @@ DefineTIAction(PutUnder)
 ;
 
 DefineTIAction(PutBehind)      
-    nnounceMultiAction = nil
+    announceMultiAction = nil
     allowAll = true
     
     getAll(cmd, role)   
