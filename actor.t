@@ -716,6 +716,26 @@ modify Actor
             say(str);   
     }
     
+    /* 
+     *   Make the actor initiate the conversation. If state is non-nil the actor will change
+     *   ActorState to state after issuing a greeting. The text of str will then be displayed.
+     */
+    initiateConversation(state, str)
+    {
+        /* 
+         *   If the actor is not already the player character's current interlocutor, execute any
+         *   ActorHelloTopic in the actor's current state.
+         */
+        if(gPlayerChar.currentInterlocutor != getActor)
+            getActor.actorSayHello();
+        
+        /* If state is not nii, change our ActorState to state. */
+        if(state)
+            setState(state);              
+        
+        /* Use actorSay() to display str. */
+        actorSay(str);
+    }
 	
     /* 
      *   The last turn on which this actor conversed with the player character.
@@ -3044,6 +3064,15 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   of the actorMood property instead.
      */
     mood = nil   
+    
+    /* Calling actorSay() on an ActorState calls actorSay() on its associated Actor. */
+    actorSay(str) { getActor.actorSay(str); }
+    
+    /* 
+     *   Calling initiateConverstion() on an ActorState calls ainitiateConverstion() on its
+     *   associated Actor.
+     */
+    initiateConversation(state, str) {getActor.initiateConversation(state, str); }
 ;
 
 /*  
@@ -6990,6 +7019,12 @@ class AgendaItem: object
      *   associated Actor.
      */
     actorSay(msg) { getActor.actorSay(msg); }
+    
+    /* Calling initiateConversation) on its aasociated Actor. */
+    initiateConversation(state, str)
+    {
+        getActor.initiateConversation(state, str);
+    }
 ;
 
 

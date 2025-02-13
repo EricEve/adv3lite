@@ -1962,96 +1962,38 @@ kind of code:
 
 <ul>
 
-<li>In an NPC's background-action script, usually in the Actor's
-takeTurn() method or the Actor's idleTurn() method.  This approach lets
-the NPC start a conversation as part of its turn when some condition
-has become true; for example, this could be used to start a conversation
-as soon as the player character enters the NPC's location. Be careful 
-when overriding this method, though, since it already does quite a bit 
-of housekeeping, so you'd need to be sure to include a call to 
-<code>inherited()</code> in any customization.</p>
+<li>In the invokeItem() method of a ConvAgendaItem()</li>
 
-<li>In the beforeAction() or afterAction() method of the Actor or
+
+<li>In the beforeAction(), afterAction(), beforeTravel() or afterTravel() 
+method of the Actor or
 ActorState.  This lets the NPC start a conversation in response to a
-command carried out by the player character in the NPC's presence.
+command carried out by the player character in the NPC's presence,
+or by the player character's arrival or imminent departure.</li>
 
 <li>In the NPC's handler for a SensoryEvent (assuming the Sensory extension 
 is present so that SensoryEvents can be defined).  This lets the NPC
-initiate a conversation upon observing some transient event.
+initiate a conversation upon observing some transient event.</li>
+</ul>
 
+<p>The methods we can call to make the Actor initiate a conversation 
+in one of these contexts include:<p>
+<ul>
 <li>By calling initiateTopic(top) on the actor object, which will trigger 
-the matching InitiateTopic (a special kind of TopicEntry). 
+the matching InitiateTopic (a special kind of TopicEntry).</li>
+<li>By calling actorSay(str) to output what the Actor says (which can include 
+converation tags such as &lt;.convode&gt; - this is one reason for using actorSay()
+rather than just say()).</li>
+<li>By calling initiateConversation(state, str) to do the same as actorSay() but 
+after triggering any relevant ActorHelloTopic and changing the Actor's ActorState 
+to <i>state</i>.</li>
 </ul>
 
 <p>For more information on NPC Initiation, see the chapter on 
 <a href='../manual/initiate.htm'>NPC-Initiated Conversation</a>
-in the <i>Adv3Lite Library Manual</i>,
+in the <i>Adv3Lite Library Manual</i>.</p>
 
-<p><i>Note - the initiateConversation() method discuseed below doesn't exist in adv3Lite,
-although a comment in the library code suggests it was once intended, 
-so ignore this italicised section for now. I may go back and see if 
-there's any merit in adding an initiateConversation() method to the 
-adv3Lite Actor class in due course.</p>
-<p>In any of these cases, the code you have to write in the NPC to
-start a conversation is the same: you call the Actor's
-initiateConversation(state, node) method.  The 'state' parameter is an
-ActorState for the actor to enter; this can be nil if you don't want
-to change the NPC's current state.  The new state is usually an
-InConversationState - it doesn't have to be, but usually there's no
-reason to use initiateConversation() at all unless you want the
-conversation to have its own state.  The 'node' parameter is a
-ConvNode object, or a string naming a ConvNode object.  This parameter
-is required because the new ConvNode provides the initial exchange of
-the conversation.
 
-<p>The initiateConversation() method does several things.  It switches
-the NPC to the new ActorState, if one was provided, and it switches to
-the given ConvNode.  The method also sets the "current interlocutor"
-properties for the NPC and the player character Actor objects to point
-to one another.  Finally, the method invokes the new ConvNode's
-npcInitiateConversation() method, which displays the initial exchange
-of the conversation.
-
-<p>To define the message for the initial exchange, you must define either
-an npcGreetingMsg or npcGreetingList property in the ConvNode object.
-If you only need a single message, you can define npcGreetingMsg to
-a double-quoted string giving the initial exchange:
-
-<p><pre>
-  + ConvNode 'sales-1'
-    npcGreetingMsg = "The salesman approaches you, smiling. &lt;q&gt;Hello,
-      friend! My name is Ron, and I represent the Mutual Indemnity Life
-      Insurance Company. I have a serious question for you: do you have
-      enough life insurance?&lt;/q&gt; "
-  ;
-</pre>
-
-<p>If you'll need to re-use the ConvNode to initiate the conversation
-repeatedly, you might prefer to use a list of messages for the greeting,
-to make the actor seem less mechanical.  You can do this by defining
-the npcGreetingList property to refer to a EventList subclass.  For example:
-
-<p><pre>
-  + ConvNode 'sales-1'
-    npcGreetingList: StopEventList {
-    [
-      'The salesman approaches you, smiling...',
-
-      'The salesman walks up to you.  &lt;q&gt;Hello, again! I hope
-      you\'ve thought more about your life insurance needs.&lt;/q&gt; '
-
-      // etc...
-    ] }
-  ;
-</pre>
-
-<p>Once you have the NPC initiate a conversation, all of the library
-conversation features work as usual.  This means that you can have an
-NPC start a conversation with a question, using TopicEntry objects
-within the initial ConvNode to handle the answers - you can use
-YesTopic and NoTopic objects inside the ConvNode to handle YES and NO
-answers to the NPC's question, for example.
-</i>
 <h3>NPC continuation</h3>
 
 <p>It's unusual in IF for an NPC to take the lead in a conversation,
