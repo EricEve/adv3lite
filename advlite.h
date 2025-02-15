@@ -1210,10 +1210,49 @@ Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
  */
 #define isEatable isEdible
 
+/* Further macros for various isXable properties game author may spell wrong. */
+#define isCutable isCuttable
+#define isTouchable isFeelable
+#define isDropable isDroppable
+#define isLookUnderable canLookUnderMe
+#define isLooBehindable canLookBehindMe
+
+#define isLookThroughable canLookThroughMe
+#define isLookThrughable canLookThroughMe
+#define isGoThroughable canGoThroughMe
+#define isGoThruable canGoThroughMe
+#define isGoAlongable canGoAlongMe
+
+#define isSwitchOnable isSwitchable
+#define canSwitchMeOn isSwitchable
+#define canSwichOnMe isSwitchable
+#define isSwitchOffable isSwitchable
+#define canSwitchMeOff isSwitchable
+#define canSwichOffMe isSwitchable
+#define isFlipable isFlippable
+#define isClimbUpable canClimbUpMe
+#define isClimbDownable canClimbDownMe
+#define isStandOnable canStandOnMe
+#define isSitOnable canSitOnMe
+#define isLieOnable canLieOnMe
+#define isDigable isDiggable
+#define isTurnToable canTurnToMe
+#define isSetToable canSetToMe
+#define isPluggable isPlugable
+#define isUnpluggable isUnplugable
+#define isJumpOffable canJumpOffMe
+#define isJumpOverable camJumpOverMe
+#define isSetable isSettable
+#define isTypeOnable canTypeOnMe
+#define isEnterOnable canEnterOnMe
+#define isWriteOnAble canWriteOnMe
+#define isPushTravelable canPushTravel
+
+
 
 /*  
  *   Conversely, authors alive to the Latin root of edible might try the
- *   latinate isPotable instead of isDrinable.
+ *   latinate isPotable instead of isDrinkable.
  */
 #define isPotable isDrinkable
 

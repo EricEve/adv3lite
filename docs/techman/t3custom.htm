@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Customising (and Using) Existing Actions</title>
+<link rel="stylesheet" href="techman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">Adv3Lite In Depth</a> &gt; 
+Customising (and Using) Existing Actions
+<br><span class="navnp"><a class="nav" href="t3imp_action.htm"><i>Prev:</i> Implied Action Reports</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3tips.htm"><i>Next:</i> Tips: A Context-Sensitive Help System</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>Customising (and Using) Existing Actions</h1>
+
+
+<p><i>by Eric Eve</i>
+
+<p>Other articles in this <i>Technical Manual</i>, such as <a href="t3res.htm">Action Results</a>, <a "t3verchk.htm">Verify, Check, and When to Use Which</a>, and <a href="t3verb.htm">How to Create Verbs</a>, along with the <a href='../manual/action.htm'>Actions</a> Section of the <i>Adv3Lite Library Manual</i>, describe how to create new actions and/or control the behaviour of exisiting ones. This article assumes some familiarity (though not necessarily mastery) of this material and focuses on how best to put it to use when customising existing actions (primarily those defined in the libary, but the advice could extend to actions you've created yourself).</p>
+
+<p>Adv3Lite implements handling for a substantial range of standard Interactive Fiction commands, many of which work just fine out of the box without game authors having to think about them too much. LOOK, TAKE, DROP, PUT IN, EXAMINE and the like act as any reasoanably experienced player of IF would expect without game authors needing to tinker with them at all. Others like PULL, PUSH and CUT WITH implement a few obvious checks to rule out nonsensical actions like trying to cut something with itself, but leave it to game authors to define what happens when the action succeeds, since this will very much depend on the particular effect an author wishes to achieve in their game. But we may occasionally need to customise even the most basic actions if they need to do something out of the ordinary for some special reason, and even when we want a common action to behave as it always does we may wish to customise the way it's outcome is described to lend more colour and variety to our game. There are times when "Picking up the house is beyond your puny strength" may feel a more apt response to TAKE HOUSE than the default "The house is fixed in place."
+
+<p>In what follows we offer some suggestions on how to customize the way actions work in a safe, efficient and economical manner. Our advice may be summed up as:</p>
+<ul>
+<li><a href='#dobjfor'>Don't Rush to override dObjFor() and/or iObjFor()</a>
+<ul>
+<li><a href='#props'>Use Object Properties Before Resorting to Code</a></li>
+<li><a href='#existing'>Use Existing Methods</a></li>
+</ul></li>
+<li><a href='#inherited'>Always call inherited() unless you know you don't want it</a></li>
+<li><a href='#text'>Take Care when Displaying Text</a></li>
+<li><a href='#simple'>Keep Things Simple</a></li>
+</ul>
+
+
+
+<h2 id='dobjfor'>Don't Rush to override dObjFor() and/or iObjFor()</h2>
+<p>There are situations in which we'll have no option other than to override the library's definitions of dObjFor() and iObjFor() methods. but we should regard this more as a last resort than the first thing we try. No one should be writing code like:</p>
+
+<p><pre>
+redBook: Thing  
+   name = 'red book'
+   dobjFor(Examine)
+   {
+     verify() { }
+     action()
+     {
+        "The red book is called <i>How not to code in Adv3Lite</i>. ";
+     }
+   }
+   
+   dobjFor(Read)
+   {
+      verify() {}
+      check() {}
+      action()
+      {
+         "Reading the book reveals a mass of poorly thought-out advice. ";
+      }
+      
+  }
+;  
+</pre><p>
+
+<p>That's an extreme example, of course, but such code is not only unnecessary but positively wrong. The action section of the dobjFor(Examine) block on Thing occupies 65 lines of code that this elementary blunder would effectively anul. This code keeps track of what the player character has seen, what objects have been examined, what should happen if the object is examined in the dark, and the display of the object's content and any additional state-related description. Carelessly brushing this all aside as in the ill-advised use of dobjFor() above is the programming equivalent of behaving like a bull in a china shop.</p>
+
+ As readers of this article will hopefully know, the above example should be written:</p>
+
+<p><pre>
+   redBook: Thing 'red book'
+      "The red book is called <i>How to Write Great Interactive Fiction with AdvLite</i>. "
+      readDesc = "Even a cursory glance through the first few pages sugggests that this 
+        book is going to be full of really useful advice. "
+;        
+</pre><p>
+
+<p>Hopefully no one reading this article would ever be tempted to go about implementing the book in the manner 
+shown at the start of this section, but this example 
+does serve to illustrate a broader point: adv3Lite is designed so that as much as possible can be done 
+<i>declaratively</i> rather than <i>procedurally</i>, which is a fancy way of saying you should be able to achieve 
+quite a bit of what you want to achieve by simply defining properties on objects rather than needing to write 
+procedual code (a series of programming statements).</p>
+
+<p>Now let's look at that principal in a bit more detail.</p>
+
+<h3 id='props'>Use Object Properties Before Resorting to Code</h3>
+<p>Our previous example illustrates this principle perfectly. To get the response we want to X BOOK, we just need to override its <code>desc</code> property (which we can do via the Thing template, as here). To customise the response to READ BOOK we just overried its <code>readDesc</code> property. We don't need to meddle with <code>dobjFor(Read)</code>; the very fact that we've defined the <code>readDesc</code> property on the red book suffices to tell the parser that the red book is something that can be read.</p>
+
+<p>The same principle can be extended to customising responsed to TAKE HOUSE, when we want the response to be more colourful than "The house is fixed in place." Rather than writing:</p>
+
+<p></pre>
+house: Fixture 'large house; red brick four storey'
+   "It's a large red brick house, four storeys high. "
+   dobjFor(Take)
+   {
+      verify() {'Picking up the house is beyond your puny strength. ');
+   }
+;
+</pre></p>
+<p>We should get into the habit of writing the more compact (and potentially less error-prone):</p>
+<p><pre>
+house: Fixture 'large house; red brick four storey'
+   "It's a large red brick house, four storeys high. "
+   cannotTakeMsg = 'Picking up the house is beyond your puny strength. '   
+;
+</pre></p>
+<p>The same principle applies to allowing certain actions that the library might normally disallow, such 
+as CutWith. Suppose the objects in our game include a wedding cake and a cake knife it can be cut with.
+The cutting of the cake at the action stage is something we'd need to write code for at the action 
+stage, but that's something we'll come back to. Our immediate concern is how we allow the CutWith action 
+to pass the verify stage. The safest and easiest way is to override the <code>isCuttable</code> and <code>canCutWithMe</code> 
+properties of the cake and the knife:</p>
+
+<p><pre>
+weddingCake: Thing 'wedding cake'; magnificent'
+  "It's a magnificeny concoction..."
+  isCuttable = true
+  ...
+;
+  
+ cakeKnife: Thing 'cake knife; sharp'
+   "It's a sharp implement, well up to the job. "
+   canCutWithMe =  true 
+   ...
+;
+</pre></p>
+
+<p>What we should avoid doing is rushing into overriding the verify methods like this:</p>
+
+<p><pre>
+weddingCake: Thing 'wedding cake'; magnificent'
+  "It's a magnificent concoction..."
+  dobjFor(CutWith)
+  {
+     verify() {}
+  }
+  ...
+;
+  
+ cakeKnife: Thing 'cake knife; sharp'
+   "It's a sharp implement, well up to the job. "
+   iobjFor(CutWith)
+   {
+     verify() {}
+   }   
+   ...
+;
+</pre></p>
+<p>The chances are that this will appear to work well enough, and it's possible that in most games we'd get away with it,
+but let's take a look at how the library defines iobjFor(CutWith):</p>
+
+<p><pre>
+iobjFor(CutWith)
+    {
+        preCond = [objHeld]
+        
+        verify()
+        {                       
+            if(!canCutWithMe)
+                illogical(cannotCutWithMsg);
+            
+            if(self == gVerifyDobj)
+                illogicalSelf(cannotCutWithSelfMsg);
+        }
+    }
+
+</pre></p>
+
+<p>This code doesn't just check whether the indirect object is a possibler cutting implement (canCutWithMe), it also 
+rules out using anything to cut itself, so if we blithely override that with a verify routine that does nothing,
+we obliterate that sanity chack - a sanity check that any well-written game should have.</p>
+
+<p>You may think that no player would try cutting the knife with the knife, but your play-testers might,
+and maybe a competition judge testing for imperfections in your game might. You might also point out 
+that in any case attempting to cut the knife with the knife will fail because we haven't defined the knife 
+as something that can be cut. But now suppose that we later decide that at come point the player will need 
+to separate the knife blade from its handle by cutting the knife with an axe, so we override the verify routine 
+on the knife to allow it to be cut. Cutting the knife with the knife has now been made possible, and there's 
+worse to come. If a player issues CUT CAKE WITH KNIFR when the cake is in scope, all will be well because 
+the parser will choose the cake rather than the cake knife, preferring the noun match to the adjective match. 
+But if the player takes the knife to a different location and then issues the command CUT CAKE WITH KNIFE, 
+the parser will interpret this as cutting the knife with the knife, since CAKE will now match the vocabulary 
+'cake knife', and now nothing will intervene to prevent the action of cutting the knife with itself going 
+ahead. Just about any player will regard this as a bug; many may regard it as quite a serious bug.</p>
+
+<p>If we're lucky, the bug will be caught in playtesting before the game is released, but then we still have 
+to go back and trace the cause of the bug and then work out a way to fix it, all of which will take time and
+energy, the need for which we could so easily have avoided by using the <code>isCuttable</code> and
+<code>canCutWithMe</code> properties rather than riding roughshod over the library's verify routines.</p>
+
+<p>That's all very well, but how do we know what properties we need to use (such as isCuttable and canCutWithMe)? 
+For most actions these follow a common pattern:</p>
+<ul>
+<li>For the direct object of a TAction called Whatever or a TIAction called WhateverPrep (where Prep is a preposition 
+such as With, From, To, On, In, etc.) the corresponding verify property will be called <code>isWhateverable</code> (e.g,. is Cuttable) for the direct object and <code>canWhateverPrepMe</code> (e.g., canCutWithMe) on the indirect object.</li>
+<li>For the direct object of a TAction, TopicTAction, LiteralTAction or NumericTAction with names in the form WhateverPrep (e.g. SitOn, WriteOn) the verify property is usually called <code>canWhateverPrepMe</code> (rather than is WhateverPrepable); for exampe, canSitOnMe (not isSitOnable).</li>
+<li>The corresponding message properties that tell the player that such-and-such an action has failed at the  
+verify stage, follow a similar pattern. On the direct object they're usually called cannotWhateverMsg (e.g. cannotCutMsg) and on the indirect object cannotWhateverPrepMsg (e.g. cannotCutWithMsg). The same applies to messages ruling out an object doing something to itself, e.g., cannotCutWithSelfMsg.</li>
+</ul>
+
+<p>There are some exceptions. For all the conversational commands (AskAbout, TellAbout, etc.) the relevant verify property is called <code>cannotTalkToObj</code> and the message property <code>cannotTalkToMsg</code>. For a series of actions that primarily involve movinyg the direct object, such as Take, PutIn, and PutOn, the relevant property is <code>isFixed</code>. There's no <code>isLockable</code> property, because adv3Lite doesn't treat lockability as a binary true/nil option; instead a Thing's <code>lockability</code> can take one of four different values which control the allowing or disallowing of the Lock, LockWith, Unlock and UnlockWith actions. The keen-eyed reader might even suggest that <code>isCuttable</code> is an exception, since according to the rules given just above, is should be <code>isCutable</code>, although in that instance if a game author did try to use <code>isCutable</code> there's a macro in the library that would translate it into <code>isCuttable</code>, so no harm would be done.</p>
+
+<p>There are also many other message properties, whose names (and even existence) may be rather less predictable, but whose use would be preferable to overriding a section of a dobjFor() or iobjFor() block just to customise a message (the text displayed to the player). While we may remember a few of the more commonly used of these, we can hardly be expected to remember them all. But help is at hand to find out what the exeptions are and what the other message properties are we may want to use:</p>
+
+<ol id="lookup">
+<li>The place to start is the <a href='../manual/actionref.htm'>Action Reference</a> in the <i>Adv3Lite Library Manual</i>. The first section helps you find out which action corresponds to which verb in the command line (for example, that DESTROY something would trigger the Break action). This then links to the second section (which you can also go straight to without using the first if you know which action you want), which contains a table giving many of the relevant property names and a brief summary of what happens in the action methods of each action.</li>
+<li>If you can't find what you need in the Action Reference, your next port of call should be the <a href='../libref/index.html'>Library Reference Manual</a>. This is a tool any TADS 3 author should get to know and use frequently; its introductory page explains how to use it. When you use it to find out about some method or property, don't just read the comments, click on the numbered link to read the code. For example, if you're interested in what dobjFor(Examine) does on Thing, navigate to the Thing class, find dobjFor(Examine) in the list of methods, and then click on the little number in square brackets after thing.t near the right-hand side to take you to the code. This will show you not only the method you clicked on to get there but it's immediate context, including related methods and properties. (If you look at the action part of dobjFor(Examine) you'll also see why just overriding to display an object's description comes close to being an act of vandalism). You may also want to check to see if the method is overridden on the subclass of Thing you're interested in.</li>
+<li>As an alternative to supplement to using the <i>Library Reference Manual</i> you can try searching your project's entire source code, if your programming editor will allow it. In Windows Workbench you can do this by selecting Search Project Files from the drop-down list just to the right of the Search box (or leave it selected if it already is) and then enter your search term in the search box and click to search. This will generate a list of every occurrence of your search term in your own code and the libary code, which you may find a quicker way of finding what you're looking for than using the <i>Library Reference Manual</i>. Two additional tips: if you want to search for a whole word in Workbench, type a space before and after it in the search box. You can also press the F6 key on the name of a class or object in your own or library code to jump to its definition.</li>
+</ol>
+<h2 id='existing'>Use Existing Methods</h2>
+<p>Here I'm not thinking so much of the dobjFor() and iobjFor() methods themselves as the methods they call, particularly from the action stage. For example, actionFobjFor(Open) calls makeOpen(true) and actionDobjFor(Pull) on the Lever class just calls makePulled(true). In both cases it would be a bad idea to obliterate these method calls through an injuicious overrding of the action() method that calls them, since this is likely to lead to subtle (or not so subtle) bugs in your game code. You may well need to add some code of your own to describe or supplement what happens (for example, pulling a lever may open a secret panel), but in that case it may be neater to place your additional code in the method action() calls, for example:</p>
+
+<p><pre>
+redLever: Lever 'little red lever'
+  "It's little and red. "
+  makePulled(stat)
+  {
+     inherited(stat);
+     secretPanel.makeOpen(stat);
+     "The secret panel slides &lt;&lt;if stat&gt;&gt;open&lt;&lt;closed&gt;&gt; ";
+  }
+</pre></p>
+
+<p>To be sure, we could have placed our additional code in the dobjFor(Pull) { action() } bit after calling inherited() to make sure that the library code is also executed, but overrding makePulled() may well save us some work, since if pushing the lever causes the sectret panel to close again, we've handled that too, without needing to override both dobjFor(Pull) and dobjFor(Push).
+
+<h2 id='inherited'>Always call inherited() unless you know you don't want it</h2>
+<p>We've just illustrated this above. If we hadn't called inherited() in our makePulled() method (or our actionDobjFor(Pull) method, if we'd handled it that way), we'd no longer be keeping track of whether the lever was in the pulled or the pushed position, which the library tracks to check whether the lever can be pushed or pulled again. If we failed to call inherited() in our version of makeOpen() message, our game would lose track of whether the object was open or closed, and we could end up, say, with a door that was open on one side and closed on the other.</p>
+
+<p>To be sure, on occasion there may be a very good reason for not wanting the library's inherited handling. The library's Lever class assumes a lever can be in one of two positions, the pulled position and the pushed position, but maybe our little red lever is meant to be a spring lever that springs back into its original position when it's released, and the mechanism for closing the secret panel is something completely unrelated to the lever. In that case, it would completely in order to write:</p>
+
+<p><pre>
+redLever: Lever 'little red lever'
+  "It's little and red. "
+  makePulled(stat)
+  {     
+     secretPanel.makeOpen(true);
+     "The lever springs back into place as the secret panel slides open. ";
+  }
+</pre></p>
+<p>In this instance, we positively <i>don't</i> want the inherited behaviour; but then we know we don't want it and we know why we don't want it. Hence the advice isn't "Always call inherited() on any method you override" but "Call inherited() on any method you override unless you have a good reason for not doing so."</p>
+<p>To find out whether or not we might have a good reason for not calling inherited() we'll need to examine the libary code we're overriding. The tips given <a href='#lookup'>above</a> suggest how we can find it.</p>
+
+<h2 id='text'>Take Care when Displaying Text</h2>
+<p>There will be plenty of cases where our game will need, or at least legitimately want, to display text to the player beyond 
+what we can achieve by overriding the library's message properties (as we've just seen in our previous example); we just need to be a little careful how we go about it.</p>
+
+<h3 id='verify'>Verify</h3>
+<p>A verify method should <b>never</b> display any text apart from that produced by one of the verify macros (illogical(), illogicalSelf(), illogicalNow(() and the like). A verify routine is likely to run multiple times during the course of processing a player's command. <b>Never</b> use say() or a double-quoted string to display text from verify() (with the possible exception of messages needed for debugging purposes, which should be removed before the game is released).</p>
+
+<h3 id='check'>Check</h3>
+<p>Displaying anything in a check message will cause the action at the check stage. Usually, this is what we want, since the purpose of check() is to allow us to halt an action and explain why it can't or shouldn't go ahead. On the very rare occasions when you may need to display text in check for any other purpose (for example to display the name of an object the iavailability of which formed part of what the check() method needed to test for), be sure to follow it with <code>noHalt()</code> to prevent the check() method halting the action.</p>
+
+<h3 id='action'>Action</h3>
+<p>Action methods are where we are most likely to both want and need to display some text to inform the player of the 
+result (or possibly, the side-effects) of the command that's just been carried out. We can do that with a double-quoted string or by using say(), but some caution is in order; it's often safer to display our text using reportAction(<i>txt</i>) instead. This averts the danger of a messy output should the action in question ever be carried out as an implicit action. Consider the following example:</p>
+<p><pre>
++ oldCoat: Wearable 'old coat; brown'
+    "It's brown, but not too motheaten. "
+    
+    dobjFor(Doff)
+    {
+        action()
+        {
+           "You strip off the old coat with a feeling of relief. ";            
+            inherited;
+        }
+    }
+;
+</pre></p>
+<p>This works fine if the player just types DOFF COAT, but it's no so good if the player types DROP COAT, thereby triggering an implicit Doff action, in which case we get:</p>
+<p><pre>
+<b>>drop coat</b>
+You strip off the old coat with a feeling of relief. (first taking off the old coat)
+Dropped.
+</pre></p>
+<p>Which is less than ideal, to say the least. We can tidy it up a bit by using reportAction():</p>
+<p><pre>
++ oldCoat: Wearable 'old coat; brown'
+    "It's brown, but not too motheaten. "
+    
+    dobjFor(Doff)
+    {
+        action()
+        {
+            actionReport('You strip off the old coat with a feeling of relief. ');           
+            inherited;
+        }
+    }
+;
+</pre></p>
+<p>This won't change what happens in response to DOFF COAT, but the response to DROP COAT now becomes:</p>
+<p><pre>
+<b>&gt;drop coat</b>
+(first taking off the old coat)
+You strip off the old coat with a feeling of relief. Dropped.
+</pre></p>
+<p>That's a substantial improvement, but you might like to tidy it up a bit more. One way would be to supply a different 
+version of the message to be displayed after the implicit action report:</p>
+<p><pre>
++ oldCoat: Wearable 'old coat; brown'
+    "It's brown, but not too motheaten. "
+    
+    dobjFor(Doff)
+    {
+        action()
+        {
+            actionReport('You strip off the old coat with a feeling of relief.', 
+             'It’s a relief to be rid of that old coat.\n');           
+            inherited;
+        }
+    }
+;
+</pre></p>
+<p>Which would result in:</p>
+<p><pre>
+&gt;<b>drop coat</b>
+(first taking off the old coat)
+It’s a relief to be rid of that old coat.
+Dropped.
+</pre></p>
+<p>The other, which you may find preferable, is to suppress it altogther:</p>
+<p><pre>
++ oldCoat: Wearable 'old coat; brown'
+    "It's brown, but not too motheaten. "
+    
+    dobjFor(Doff)
+    {
+        action()
+        {
+            actionReport('You strip off the old coat with a feeling of relief.', '');            
+            inherited;
+        }
+    }
+;
+</pre></p>
+<p>Which would result in:</p>
+<p><pre>
+&gt;<b>drop coat</b>
+(first taking off the old coat)
+Dropped.
+</pre></p>
+<p>The moral of the story is that it's safest to use <code>actionReport()</code> rather than say() or a double-quoted 
+string in an action method unless we're quite sure it'll never be executed as a implicit action.
+
+<h3 id='report'>Report</h3>
+<p>The function of a report() method is not to report the particular outcome of an action on a particular object 
+&mdash; you should use the action() method for that &mdash; it's to display a brisk default report that would be 
+equally applicable to any object of the action and to summarize the action it has just applied to a series of 
+objects, e.g. "You take the red ball, the old hat, the battered book, and the rubber duck" in response to TAKE ALL.</p>
+
+<p>But if you want to customise this kind of report to lend more individual colour to you game, then overriding report 
+methods may be just the way to do it. For example:</p>
+
+<p><pre>
+dobjFor(Take)
+    {
+        report()
+        {
+            say('Grabbed. | {I} rapidly snatch{es/ed} &lt;&lt;gActionListStr&gt;&gt;');;
+        }
+    }
+</pre><p>
+
+<p>Note that you have to use say() here rather than a double-string, otherwise the default report will come out 
+"Grabbed. the red ball" instead of just "Grabbed." Note also that you need to use gActionListStr to incorporate the 
+list of objects taken by a TAKE ALL command in your report.</p>
+
+<h2 id="simple">Keep Things Simple</h2>
+<p>By "keep things simple" we don't at all mean our plot, puzzles, contraptions and the like; these can be as 
+fiendishly complex as we like, provided we're fair to the player. Rather, we mean the way we implement our
+game, and in particular, the way we go about customising actions.</p>
+<p>One way we can do this is to break longer and complex methods down into a series of smaller and simpler 
+ones, each one of which performs just one small part of the task (this may not always be feasible or convenient, 
+but it's good practice wherever it's practicable.</p>
+
+<p>Another way is to try to avoid long switch statements and complex masses of nested if statements by seeing if 
+there's another way of tackling the problem. There are various ways we do this: one alternative to a long switch statement might be a data structure 
+sucb as a <a href='../sysman/lookup.htm'>LookupTable</a> with the case values in the switch statement becoming key 
+values in the LookUp table. On this scheme the corresponding values in the LookupTable could be property pointers 
+to a series of methods used to handle each case, then your complex switch statement could be replaced with something like:</p>
+
+<p><pre>
+   doSomethingComplex(obj)
+   {
+       local prop = myTab[obj];
+       return self.(prop)(obj);
+   }
+</pre></p>
+<p>Other possibilities include the use of <a href='../../extensions/docs/rules.htm'>Rules</a> or <a href='../../extensions/docs/signals.htm'>Signals</a> or <a href='../../extensions/docs/sensory.htm#events'>SensoryEvents</a> as ways of implementing interactions between various objects. With TIActions such as CutWith where what happens may depend heavily on the particular pair of objects involved, you may be able to break the problem down into small chunks using <a href='../manual/doer.htm'>Doers</a> or <a href='t3multimeth.htm'>Multi-Methods</a>.</li>
+
+<p>One other thing we can try to avoid is re-inventing wheels that are already in the library. Before leaping into coding 
+our clever customisation, it can do no harm to check whether there's a library feature or extension that already does the job for us, or most of the job for us, or else something similar to what we want do do. In the last case we can always copy the relevant libary code into our own project and then adapt it for what we're trying to achieve. For example, if we have a curmudgeonly player character who likes to complain about everything, we might consider adding a ComplainAbout action and a ComplainTopic class and then adapt the library's handling of the TalkAbout action to add our new complaints procedure. If our game includes a college of wizardry with different skill levels among the various wizards and their apprentices, we could consider using an adaptation of the Moods or Stances framework to keep track of MagicalSkills. If our game involves important animal characters such as dogs and horses (or even dragons and unicorns), we could consider sublclassing the Actor class to an Animal class and adapting the conversational system inherited from Actor to communications more appropriate to our animals. If our game involves a boat or train or other large vehicle that moves from place to place but needs one or more rooms to implement internally, we coukd look at leveraging DynamicSenseRegion to model its environment as it moves from place to place (using a single object to represent its exterior, perhaps).</p>
+
+<h2>Concluding Remarks</h2>
+<p>Adv3Lite users are, of course, free to do what they like with it. The advice offered in this article is not a set 
+of rules that game authors are obliged to follow. More experienced authors may in any case know well enough what works 
+and what doesn't (including what shortcuts it's safe to take), and everyone is entitled to take the view that what works, 
+works.</p>
+<p>That said, adv3Lite has been designed to work in certain ways, and game authors who go against the grain of those 
+ways without adequate reason for so doing risk making life more difficult for themselves for no good reason. The advice 
+offered here should thus be regarded as a set of guidelines for working with the grain and getting the best out of the 
+adv3Lite library. This is in turn should help game authors, especially relatively inexperience authors (or those inexperienced 
+with adv3Lite) save themselves a lot of unnecessary trouble.</p>
+
+<p>Finally, anyone who feels that the adv3Lite library could do certain things better, or indeed that this article could present better advice, is not only free but positively encouraged to post their ideas on <a href='https://intfiction.org/c/authoring/tads/20'>int-fiction.org</a> or else contact the author privately.</p>
+
+</div>
+<hr class="navb"><div class="navb">
+<i>TADS 3 Technical Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="depth.htm">Adv3Lite In Depth</a> &gt; 
+Customising (and Using) Existing Actions
+<br><span class="navnp"><a class="nav" href="t3imp_action.htm"><i>Prev:</i> Implied Action Reports</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="t3tips.htm"><i>Next:</i> Tips: A Context-Sensitive Help System</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>
+

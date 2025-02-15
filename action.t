@@ -1031,7 +1031,10 @@ class Action: ReplaceRedirector
     {
         local rep = '';
         foreach(local prp in gCommand.postImplicitReports)
-            rep += ('\n' + prp);
+        {
+            if(dataType(prp) == TypeSString && prp.length > 0)
+                rep += ('\n' + prp);
+        }
         
         return rep;
     }    
