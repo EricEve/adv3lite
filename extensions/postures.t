@@ -12,8 +12,8 @@
  *   and for the enforcement of postures in relation to various kinsds of nested
  *   room.
  *
- *   VERSION 1
- *.  20-Jul-13
+ *   VERSION 2
+ *.  16-Feb-25
  *
  *   Usage: include this extension after the adv3Lite library but before your
  *   own game-specific files. This makes it possible to sit, stand and lie in
@@ -77,6 +77,9 @@ class Posture: object
      *   involves taking this posture. [POSTURES EXTENSION] 
      */
     verbPhrase = nil
+    
+    /*   The action needed to bring an actor into this posture. */
+    action = nil
 ;
 
 /* The standing posture. [POSTURES EXTENSION] */
@@ -87,6 +90,7 @@ standing: Posture
     cannotInMsgProp = &cannotStandInMsg
     cannotOnMsgProp = &cannotStandOnMsg    
     verbPhrase = BMsg(i stand, '{I} {stand}')
+    action = Stand
 ;
 
 /* The sitting posture [POSTURES EXTENSION] */
@@ -97,6 +101,7 @@ sitting: Posture
     cannotInMsgProp = &cannotSitInMsg
     cannotOnMsgProp = &cannotSitOnMsg   
     verbPhrase = BMsg(i sit, '{I} {sit}')
+    action = Sit
 ;
 
 /* The lying posture {POSTURES EXTENSION] */
@@ -107,6 +112,7 @@ lying: Posture
     cannotInMsgProp = &cannotLieInMsg
     cannotOnMsgProp = &cannotLieOnMsg    
     verbPhrase = BMsg(i lie, '{I} {lie}')
+    action = Lie
 ;
 
 
@@ -122,11 +128,16 @@ modify Thing
      */
     posture = standing
     
+     /* A description of our posture as a participle, e.g. 'standing' or 'sitting'. */
+    postureDesc = posture.participle
+    
     /*   
      *   The posture that's adopted by default by an actor entering or boarding
      *   this this. [DEFINED IN POSTURES EXTENSION]
      */
     defaultPosture = standing 
+    
+   
     
     /*   By default we can't stand, sit or lie in anything. [POSTURES EXTENSION] */
     canStandInMe = nil	
@@ -519,6 +530,7 @@ modify Thing
                              <<actor.location.objInPrep>> 
                              <<actor.location.theName>>)');
     }
+   
 ;
 
 /* 
@@ -562,6 +574,32 @@ modify Room
     
 ;
 
+modify TravelConnector
+    /* 
+     *   The posture an actor needs to be in before travelling via this connector. This will
+     *   normally be standing, but this could be changed if, for example, the actor needs to crawl
+     *   through this connector.
+     */
+    posture = standing
+    
+    /* Ensure the actor is in the posture needed to travel via this connector. */
+    setTravelPosture()
+    {
+        /* 
+         *   If the actor is not in the correct posture, try executing the appropriate action to put
+         *   them in that posture.
+         */
+        if(gActor.posture != posture)
+        {
+            tryImplicitAction(posture.action);
+//            "<<buildImplicitActionAnnouncement(gActor.posture == posture, true)>>";
+        }
+        
+        /* Return true or nil according to whether the actor is now in the correct posture. */
+        return gActor.posture == posture;
+    }
+;
+
 /* 
  *   A Bed is something an actor can sit, stand or lie on, but is most likely to
  *   lie on and least likely to stand on. [DEFINED IN POSTURES EXTENSION]
@@ -603,7 +641,7 @@ modify Booth
 modify Stand
     execAction(c)
     {
-        gActor.tryMakingPosture(standing);
+        gActor.tryMakingPosture(standing);           
     }
 ;
 
@@ -623,3 +661,50 @@ modify Lie
     }
 ;
 
+actorInTravelPosture: PreCondition
+    checkPreCondition(obj, allowImplicit)
+    {
+        if(obj.posture == requiredPosture)
+            return true;
+        
+        if(allowImplicit && tryImplicitAction(requiredPosture.action))
+            return true;
+        
+        DMsg(not in posture to travel, '{I} need{s/ed} to be {1} first. ',
+             requiredPosture.participle);
+        
+        return nil;
+    }
+    
+    requiredPosture = standing
+    
+    preCondOrder = 80
+;
+
+modify TravelAction
+    preCond = valToList(inherited) + actorInTravelPosture
+    
+    
+;
+
+modify GoThrough
+//     preCond = valToList(inherited) + actorInTravelPosture
+;
+
+modify ClimbDown
+     preCond = valToList(inherited) + actorInTravelPosture
+;
+
+modify ClimbUp
+     preCond = valToList(inherited) + actorInTravelPosture
+;
+
+modify Door
+    checkTravelBarriers(traveler)
+    {        
+        if(traveler.ofKind(Actor) && !actorInTravelPosture.checkPreCondition(traveler, true))
+            return nil;
+        
+        return inherited(traveler);
+    }
+;

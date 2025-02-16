@@ -1208,6 +1208,8 @@ class IAction: Action
              *   reports.
              */            
 //            gOutStream.removeOutputFilter(ImplicitActionFilter);
+            
+//            "<<buildImplicitActionAnnouncement(true, true)>>";
         }        
     }
     
@@ -1220,6 +1222,9 @@ class IAction: Action
      *   indicate that scope is not a problem.
      */
     resolvedObjectsInScope()  { return true;  }
+    
+    checkAction() { checkActionPreconditions(); }
+    
 ;
 
 /* 
@@ -1283,6 +1288,8 @@ class TravelAction: Action
         
         /* Carry out the actual travel. */
         doTravel();
+        
+        
     }
     
     
@@ -1438,17 +1445,21 @@ class TravelAction: Action
         /* Get the actor out of any nested room they shouldn't be in. */
         getOutOfNested(conn);
         
+       
+                
         /* if the actor is the player char, just carry out the travel */
-        if(gActor == gPlayerChar)
-            conn.travelVia(gActor);
+        if(gActor == gPlayerChar)                 
+            conn.travelVia(gActor);        
         
         /* 
          *   otherwise carry out the travel and display the appropriate travel notifications.
          */
         else
             gActor.travelVia(conn);
-    }
-   
+    }       
+    
+    
+    
     /* 
      *   The direction the actor wants to travel in. This is placed here by the
      *   execCycle method and takes the form of A Direction object, e.g.
@@ -1458,7 +1469,26 @@ class TravelAction: Action
     
     /* It's generally possible to undo a travel command. */
     canUndo = true
+    
+    checkActionPreconditions() 
+    {
+         /* Note the actor's current location. */
+        local loc = gActor.getOutermostRoom;  
+        
+        /*   
+         *   If we point to an object, assume it's a travel connector and attempt travel via the
+         *   connector.
+         */
+        if(loc.propType(direction.dirProp) == TypeObject)        
+        {
+            local conn = loc.(direction.dirProp);
+            getOutOfNested(conn);                
+        }
+        
+        return inherited(); 
+    }
 ;
+
 
 
 /* 
@@ -2800,7 +2830,7 @@ tryImplicitAction(action, [objs])
      */ 
     action = action.createInstance();
     
-    /* Our new action will be an implict action. */
+    /* Our new action will be an implicit action. */
     action.isImplicit = true;
     
     /* Note the previous action being executed. */

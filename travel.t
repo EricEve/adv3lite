@@ -1451,6 +1451,12 @@ class TravelConnector: object
          */
         local traveler = getTraveler(actor);       
         
+        
+        /* This is a hook for the postures extension */
+        if(!setTravelPosture())
+            exit;    
+       
+        
         /* 
          *   Check the travel barriers on this TravelConnector to ensure that
          *   travel is permitted. If so carry out the travel. If not
@@ -1460,7 +1466,9 @@ class TravelConnector: object
         if(checkTravelBarriers(traveler))           
             execTravel(actor, traveler, self);               
     }
-       
+     
+    satTravelPosture() { return true; }
+    
     /* 
      *   Get the traveler associated with this actor. Normally the traveler will
      *   be the same as the actor, but if the actor is in a vehicle, then the

@@ -4831,7 +4831,9 @@ englishMessageParams: MessageParams
         [ 'actionliststr', {ctx, params: gActionListStr } ],
 
         /* conj <verb> <type> congugate a regular verb */
-        ['conj', {ctx, params: conjugateRegular(ctx, params) } ]
+        ['conj', {ctx, params: conjugateRegular(ctx, params) } ],
+
+        ['posture', {ctx, params: ctx.subj.postureDesc } ]
 
     ]
 

@@ -4168,7 +4168,12 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     verobj = self
     
-    
+    /* 
+     *   A Hook for the postures extension. In the main library this just evaluates to an empty
+     *   string, although it could be overridden to a posture psrticiple such as 'standing' or
+     *   'sitting'. The postures extension will handle this automatically.
+     */
+    postureDesc = ''
     
     /*
      *   ******************************************************************

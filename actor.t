@@ -134,9 +134,9 @@ modify Actor
             return;
         
         if(location == getOutermostRoom)
-            DMsg(actor here, '\^<<theNameIs>> {here}. ');
+            DMsg(actor here, '\^<<theNameIs>> <<postureDesc>>> {here}. ');
         else
-            DMsg(actor in location, '\^<<theNameIs>> <<location.objInName>>. ');        		
+            DMsg(actor in location, '\^<<theNameIs>> <<postureDesc>>> <<location.objInName>>. ');        		
     }
     
     /*   
@@ -2726,6 +2726,8 @@ modify Actor
     
     /* Flad; do we want this Actor's moods to depend on their ActorState, by default we do */
     stateDependentMoods = true
+    
+  
 ;
 
 /*  
