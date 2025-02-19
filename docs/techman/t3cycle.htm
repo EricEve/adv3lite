@@ -22,9 +22,9 @@ The Command Execution Cycle
 
 <p><i>by Eric Eve</i>
 
-<p>A first sight (or even second, third or fourteenth sight) the command execution cycle in the adv3Lite library  is quite complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
-<p>To detail every single by-way and wrinkle of the command execution cycle would probably be more confusing than helpful, concealing the main contours of the process behind a mass of not particularly interesting detail. In this article we shall therefore simplify some of the processes involved, so that the usual course of events stands out, unencumbered by a plethora of potential exceptions. If you want the complete picture, you'll have to examine the library source code (some links to which are given as appropriate) and try to puzzle it out!</p>
-<p>The command execution cycle is, if not a series of wheels within wheels, at least cycles within cycles or subroutines within subroutines. In an attempt to make this less confusing and more easy to follow, we shall try to follow the main line of execution one level at a time. We'll start by giving an overview of the main scheduling loop that runs each turn, and then trace the execution of a player's command piece by piece.</p>
+<p>The command execution cycle in the adv3Lite library is quite complex. This article aims to unpack it step-by-step, both to give game authors a clearer idea of what is happening, and to indicate places where it may be useful to intervene.</p>
+<p>To detail every single by-way and wrinkle of the command execution cycle would probably be more confusing than helpful, concealing the main contours of the process behind a mass of not particularly interesting detail. In this article we shall therefore simplify some of the processes involved, so that the usual course of events stands out, unencumbered by a plethora of potential exceptions. If you want the complete picture, you'll have to examine the library source code and try to puzzle it out!</p>
+<p>The command execution cycle is, if not a series of wheels within wheels, at least cycles within cycles or subroutines within subroutines. In an attempt to make this less confusing and more easy to follow, we shall try to follow the main line of execution one level at a time. We'll start by giving an overview of the main scheduling loop that runs each turn, and then trace the execution of a player's command piece by piece. Game authors who just want to see an step-by-step chart of the execution cycle focused mainly on the steps where game code might intervene may prefer to jump straight to the expandable <a href='#summary'><b>summary</b></a> below.</p>
 
 <br>
 
@@ -66,11 +66,11 @@ The Command Execution Cycle
 <li>Resets the special verb handler.</li>
 <li><a href='../sysman/tok.htm'>Tokenizes </a> the input string (<i>str</i>), producing a list of tokens encapsulating each of the separate words and punctuation marks in the player's input.</li>
 <li>If there are no outstanding parser queries, set the current actor to the player character (if there is an outstanding query, the current actor may already have been set).</li>
-<li>Note any spelling corrects the spelling corrector has made.</li>
-<li>If there are no tokens at all (because the player has entered an empty command) carry out the empty command by calling <code>emptyCommand()</code>, which either carries out a LOOK command (if autoLook is true) or otherwise displays "I beg your pardon?". Either the Parser then stops there.</li>
+<li>Notes any spelling corrects the spelling corrector has made.</li>
+<li>If there are no tokens at all (because the player has entered an empty command) carry out the empty command by calling <code>emptyCommand()</code>, which either carries out a LOOK command (if autoLook is true) or otherwise displays "I beg your pardon?". Either way the Parser then stops there.</li>
 <li>Otherwise the parser checks for an OOPS command and if there is one correcting a current error, adjusts the command tokens from step 2 to take account of it.</li>
 <li>Updates the vocabulary of any game objects that use <a href='../manual/thing.htm#altvocab'>alternating or variable vocabulary</a>.</li>
-<li>Give the special verb manner the chance to amend the command tokens to take account of any <a href='../manual/specialaction.htm'>SpecialVerbs</a> the player may have used.</li>
+<li>Gives the special verb manner the chance to amend the command tokens to take account of any <a href='../manual/specialaction.htm'>SpecialVerbs</a> the player may have used.</li>
 <li>If there's an outstanding parser question (such as a dismbiguation, 'Which do you mean?' or a missing object, 'What do you want to frob?'), and the question takes priority over new commands, try parsing the input against the question if it's the first command on the input line.</li>
 <li>Otherwise, construct a list of new <a href='../libref/object/Command.html'>Command</a> objects which could correspond to the player's input.
 This involves the construction of a new CommandList object which:
@@ -90,16 +90,16 @@ This involves the construction of a new CommandList object which:
 <ol>
 <li>Calls the <b>verify</b> routine for the current action on every item in the list of objects we want to choose between. If this is TIAction we're using multimethods for, first call the appropriate verifyWhatever() multimethod. In any case next call the verifyPreCondition() method on all PreConditions that apply to the object for the current action. Then call the verify() sections of any dobjFor() and (for TIActions) iobjFor() blocks.</li>
 <li>Adds 100 to the resultant verify score (the lowest logicalRank that emerges from the verify routine).</li>
-<li>Make a note of this adjusted score and its associated verifyResult if it's better than any previous score we've encountered so far.</li>
+<li>Makes a note of this adjusted score and its associated verifyResult if it's better than any previous score we've encountered so far.</li>
 <li>Note whether the verifyResult has resulted in a change of object via a remap.</li>
-<li>Make a note of which object came out best in whichever role we're currently interested in.</li>
-<li>Call scoreObject() on any object we're interested, which adds the object's vocabLikelihood to the score and carries out a couple of other tweaks in special circumstances.</li>
+<li>Makes a note of which object came out best in whichever role we're currently interested in.</li>
+<li>Calls scoreObject() on any object we're interested, which adds the object's vocabLikelihood to the score and carries out a couple of other tweaks in special circumstances.</li>
 </ol></li>
 <li>Sorts the objects in descending order of score.</li>
 <li>If the number of objects with the highest score is the number of objects we're looking for, then selects them.</li>
-<li>Otherwise, if we have two many best matches, through a disambiguation error so the parser can ask the player to clarify their choice.</li>
+<li>Otherwise, if we have too many best matches, throws a disambiguation error so the parser can ask the player to clarify their choice.</li>
 </ol></li>
-<li>If we're looking for an indefinite match (e.g. "TWO BOOKS) call scoreObjects() on the action and sort the result in descending order of score and choose the first however many objects we want.</li>
+<li>If we're looking for an indefinite match (e.g. "TWO BOOKS) calls scoreObjects() on the action and sorts the result in descending order of score then chooses the first however many objects we want.</li>
 <li>If we're looking for a match to ALL, simply select all the matching objects.</li>
 </ol></li>
 <li>Goes back and re-resolve any ALL lists.  For two-object commands, resolving ALL in one slot sometimes depends on resolving the
@@ -234,7 +234,7 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 
 <p><b>Type 2 Actions</b> (TAction, TIAction, TopicTAction, LiteralTAction, NumericTAction)</b>
 <p>From this point on, a Type 2 Action mainly co-ordinates calling the appropriate preCond, verify, check, and action methods on the objects involved in the command, although this will be via a series of methods we'll outline below.</p>
-<p>TopicTAction, LiteralTAction and NumericTAction first ensure that the physical game object involved in the command is moved to the direct object slot and the topic, literal or number to the indirect object slot, regardless of the grammatical form of the command issued by the player (such as ASK BOB ABOUT TROUBLES, or WRITE FOO ON PAPER). This ensures that the actoin handling that follows can assume that the direct object is the Thing or Thing-derived object involved in the action, which in turn means that the relevant methods can always be called on the direct object.</p>
+<p>TopicTAction, LiteralTAction and NumericTAction first ensure that the physical game object involved in the command is moved to the direct object slot and the topic, literal or number to the indirect object slot, regardless of the grammatical form of the command issued by the player (such as ASK BOB ABOUT TROUBLES, or WRITE FOO ON PAPER). This ensures that the action handling that follows can assume that the direct object is the Thing or Thing-derived object involved in the action, which in turn means that the relevant methods can always be called on the direct object.</p>
 <p>Type 2 Actions then call <code>notePronounAntecedent()</code> on the object(s) (dobj and possibly iobj) involved in the command so that if the player refers to the same object(s) with a pronoun in the following command (e.g. X BOOK followed by TAKE IT) the parser will know what the player is referring to.</p>
 <p>Finally, execAction() calls execResolvedAction() to handle what comes next.</p>
 
@@ -242,7 +242,7 @@ there plainly won't be), the Parser calls the appropriate Command object's exec(
 <p>This is similar for all Type 2 Actions, except that TIActions have to call methods on both the objects involved in the command. The steps are:</p>
 <ol>
 <li>Create a new LookUpTable called verifyTab to store our verify results.</li>
-<li>Obtain the verify results for current direct object. If we're a TIAction we also do the same for the indirect object; which comes first depends on the value of resolveIobjFirst for this Action. Note that the verify routines for this action were previously called by <a href='#scoreobjs'>scoreObjects()</a> to help the parser choose which objects the player meant. This time round the Action calls verifyObjRole(obj, role) on each of the objects (direct object, and if there is one, indirect object) to ascertain whether the action can go ahead. If verifyObjRole() returns nil, the object is stopped at this point and we skip to the <a href='#post-action'>post-action</a> processing. The steps followed by verifyObjRole() are:
+<li>Obtain the verify results for current direct object. If we're a TIAction we also do the same for the indirect object; which comes first depends on the value of resolveIobjFirst for this Action. Note that the verify routines for this action were previously called by <a href='#scoreobjs'>scoreObjects()</a> to help the parser choose which objects the player meant. This time round the Action calls verifyObjRole(obj, role) on each of the objects (direct object, and if there is one, indirect object) to ascertain whether the action can go ahead. If verifyObjRole() returns nil, the action is stopped at this point and we skip to the <a href='#post-action'>post-action</a> processing. The steps followed by verifyObjRole() are:
 <ol>
 <li>Set up a new LookUpTable, then call verify(obj, role) and store the result in the local variable verResult; verify(obj, role) does the following:
 <ol>
@@ -312,7 +312,7 @@ then announce the object name, unless announceMultiVerify (a property of the Act
 <li>If this is an implicit action, add it to the list of pending implicit action reports.</li>
 <li>If this is a TIAction and this action has been enabled for multi-methods, execute the appropriate multi-method, actionWhateverAction(dob, iobj) and note whether this output any text.</li>
 <li>Provided the previous step didn't use the skip macro, call the appropriate action method on the direct object, e.g. dobj.actionDobjWhatever(), and note whether this output any text.</li>
-<li>Certain actions, such as GoThroug, ClimbUp, ClimbDown, PushTravel and Enter, may cause the actor to travel from one room to another, in which case a number of <a href='#travel'>travel notifications</a> will be triggered at this point.</li>
+<li>Certain actions, such as GoThrough, ClimbUp, ClimbDown, PushTravel and Enter, may cause the actor to travel from one room to another, in which case a number of <a href='#travel'>travel notifications</a> will be triggered at this point.</li>
 <li>Add the current direct object to the list of objects this action has added on.</li>
 <li>If this is a TIAction, call the appropriate action method on the indirect object, e.g. iobj.actionIobjWhatever(), and note whether this output any text.</li>
 <li>If none of the methods called above output any text then add the current indirect object to the list of objects we've acted on and add the current direct object to the list of objects to be reported on at the report stage.</li>
@@ -346,6 +346,153 @@ then announce the object name, unless announceMultiVerify (a property of the Act
 <li>Call regionAfterTravel(actor, connector) on every Region that contains the actor's new location.</li>
 </ol></li>
 </ol>
+
+<h2 id='summary'>Summary</h2>
+
+<p>For a <b>System Action</b> the important steps are displaying any prompt daemons, accepting the player commmand, parsing it to a System Action (like QUIT or UNDO), passing it through a Doer (which could in theory intervene but normally shouldn't) and then carrying out the command in the Action object's execAction (c) method. User code will very seldom if at all need to intervene at any of the stages. Perhaps the most important to bear in mind with System Actions is not to rule them out by accident, as might happen in the course of a scene when the player character is immobilized and restricted to only a couple of basic actions. In this case you should normally ensure that all System Actions are still allowed (you can check for <code>gAction.ofKind(SystemAction)</code>, otherwise players may become mightily annoyed with you if they can't even QUIT, let alone UNDO, SAVE or RESTORE.</p>
+
+<p>All other actions are otherwise Type 1 actions or Type 2 Actions.</p>
+
+<p><b>Type 1 Actions</b> are those not involving any physical game objects (Things) as either direct object or indirect object. These include IAction, TravelAction, TopicAction, LiteralAction and NumericalAction</p>
+
+<p><b>Type 2 Actions</b> are those that do involve a physical game objects (Things) as either direct object or indirect object (or both). These include TAction, TIAction, TopicTAction, LiteralTAction and NumericTAction. Some TActions (e.g. GO THROUGH) also involve travel.</p>
+
+<p>The table below lists the main points of the command action cycle of game authors in the order in which they occur. Some sections relate only to Type 1 actions, Type 2 actions, or actions involving travel. Readers can view the steps peculiar each by clicking on the little triangle beside the relevant section to expand them, as they can also do to expand various other summary headings.</p>
+
+<ol>
+<li>Any pending score notifications are displayed.</li>
+<li>Any current PromptDaemons are executed.</li>
+<li>The command prompt is displayed and the player's command read.</li>
+<li>Any active StringPreParsers get a chance to amend the player's input and/or stop the action.</li>
+<li>The command is parsed to identify the actor, action, and objects involved. A SpecialVerb can intervene 
+to translate an non-standard verb into one the parser can understand.</li>
+<li>To identity the objects (Things) involved the parser may call the verify() routines for the relevant action 
+on the direct and, if there is on, indirect object of the action to choose the objects with the highest score (
+highest logical rank).
+<li>The command is encapsulated in a Command object.</li>
+<li>The Commmand object calls the preAction() method on the actor (which could stop the action at this point).</li>
+<li>The Command object chooses the most suitable Doer to handle the command and calls its execAction() method. 
+This can modify or stop the action, but normally passes it straight through to the appropriate Action object 
+by calling the Action object's execAction() method.</li>
+<li><details><summary>Type 1 Actions only carry out their before action processing at this point:</summary>
+<ol>
+<li>Call checkActionPreconditions() and stops the action if this returns nil.</li>
+<li>Call actorAction() on the current actor.</li> 
+<li>Call notifyBefore() on the sceneManager, which calls beforeAction() on any current Scenes..</li>
+<li>Call roomBeforeAction() on the room.</li>
+<li>Call regionBeforeAction() on every Region that (directly or indirectly) contains the room.</li>
+<li>Call buildScopeList() to build the scope list for the current action if it hasn't already been built.</li>
+<li>Call beforeAction() on every item in the scope list.</li>
+</ol>
+</details></li>
+<li>Type 1 Actions only then execute the action directly in their execAction method.</li>
+<li><details><summary>Type 1 Travel Actions (e.g. GO EAST) carry out travel notifications and travel at this point:</summary>
+<ol>
+<li>Check any travel barriers defined on the TravelConnector. If any fail canTravelerPass() call their explainTravelBarrier() to explain travel isn't possible and halt the action at this point.</li>
+<li>Carry out our travel connector's beforeTravel notifications:
+<ol>
+<li>Call beforeTravel(actor, connector) on every object that's in scope for the actor.</li>
+<li>Call regionBeforeTravel(actor, connector) on every region containing the actor's pre-travel current room.</li>
+</ol></li>
+<li>Call noteTraversal(actor) on the TravelConnector. If the actor is the player character this will cause the TravelConnector's travelDesc to be displayed.</li>
+<li>If this TravelConnector doesn't go anywhere (because its destination is nil) then if noteTraversal() hasn't displayed anything, then call sayNoDestination to say it doesn't lead anywhere, and it any case stop at this point.</li>
+<li>Call notifyDeparture() on the room the actor is leaving; this does the following:
+<ol>
+<li>Calls travelerLeaving(traveler, dest) on the Room the actor is about to leave.</li>
+<li>Calls travelerLeaving(traveler,dest) on any Regions the actor is about to leave.</li>
+<li>Calls travelerEnteringtraveler,dest) on any Regions the actor is about to enter.</li>
+<li>Calls travelerEnteringtraveler,dest) on the Room the actor is about to enter.</li>
+</ol></li>
+<li>Move the traveler into the destination room.</li>
+<li>Display the description of the room the traveler has just arrived in, provided the traveler is or contains the player character and the new room's lookAroundOnEntering property is true (which it normally will be).</li>
+<li>Provided the traveler has arrived in a new room, carry out the after travel notifications:
+<ol>
+<li>Call afterTravel(actor, connector) on every item in the actor's new scope.</li>
+<li>Call regionAfterTravel(actor, connector) on every Region that contains the actor's new location.</li>
+</ol></details></li>
+<li><details><summary>Type 2 Actions only then call appropriate methods on the direct and (if there is one) indirect objects of the action:</summary>
+<ol>
+<li>Calls  obj.remap(D|I|A)obj to check is we should remap to a different object in this role; if so replace the current object with the object we're remapping to.</li>
+<li>If the object is a Decoration (obj.isDecoration is true) and we're not one of obj's decorationActions, change the verify prop we would otherwise have used to verify(D|I|A)objDefault.</li>
+<li>If we're a TIAction on which multi-method handling has been enabled, call the appropriate multi-method, e.g. verifyWhateverAction(dobj, iobj, obj).</li>
+<li>Call the verify routines on the direct and (if there is one) indirect object. These may rule out the action at 
+this point.</li>
+<li>Call the verifyPrecondition() method on all the preconditions attached to the direct (and, if any, indirect) objects 
+of the action. These may also rule out the action.</li>
+<li>If <code>gameMain.beforeRunsBeforeCheck</code> is nil, the order of the next two steps is reversed.</code>
+<li><details><summary>Carry out the before action handling:</summary>
+<ol>
+<li>Calls checkActionPreconditions() and stops the action if this returns nil. Note that checkActionPreconditions calls checkPreCondition on the PreConditions defined on the Action rather than those defined on any of the objects involved in the action.</li>
+<li>Calls actorAction() on the current actor.</li> 
+<li>Calls notifyBefore() on the sceneManager, which calls beforeAction() on any current Scenes.</li>
+<li>Calls notifyBefore() on the actor's current room. This in turn:
+<ol>
+<li>Calls roomBeforeAction() on the room.</li>
+<li>Calls regionBeforeAction() on every Region that (directly or indirectly) contains the room.</li>
+</ol></details></li>
+<li><details><summary>Carry out the check routines</summary>
+<ol>
+<li>Call checkPreCondition on all the preconditions related to this action defined on the dobj (and, for a TIAction, the iobj) of this action. If any fail, return nil to fail the action.</li>
+<li>If this a TIAction that has been enabled for multi-methods, call the appropriate multi-method, checkWhateverAction(dobj, iobj).</li> 
+<li>Call the check() methods for the current action on the direct and (if any) indirect object of the command.</li>
+<li>If any of the above methods output any text, halt the output at this point (unless a <code>noHalt</code> was used).</li>
+</ol></details></li>
+<li>Call the action() methods for the current action on the direct and (if any) indirect object of the command.</li>
+<li><details><summary>If the action involves travel (e.g., GO THROUGH DOOR) this will also involve travel notifications:</summary>
+<ol>
+<li>Check any travel barriers defined on the TravelConnector. If any fail canTravelerPass() call their explainTravelBarrier() to explain travel isn't possible and halt the action at this point.</li>
+<li>Carry out our travel connector's beforeTravel notifications:
+<ol>
+<li>Call beforeTravel(actor, connector) on every object that's in scope for the actor.</li>
+<li>Call regionBeforeTravel(actor, connector) on every region containing the actor's pre-travel current room.</li>
+</ol></li>
+<li>Call noteTraversal(actor) on the TravelConnector. If the actor is the player character this will cause the TravelConnector's travelDesc to be displayed.</li>
+<li>If this TravelConnector doesn't go anywhere (because its destination is nil) then if noteTraversal() hasn't displayed anything, then call sayNoDestination to say it doesn't lead anywhere, and it any case stop at this point.</li>
+<li>Call notifyDeparture() on the room the actor is leaving; this does the following:
+<ol>
+<li>Call travelerLeaving(traveler, dest) on the Room the actor is about to leave.</li>
+<li>Call travelerLeaving(traveler,dest) on any Regions the actor is about to leave.</li>
+<li>Call travelerEnteringtraveler,dest) on any Regions the actor is about to enter.</li>
+<li>Call travelerEnteringtraveler,dest) on the Room the actor is about to enter.</li>
+</ol></li>
+<li>Move the traveler into the destination room.</li>
+<li>Display the description of the room the traveler has just arrived in, provided the traveler is or contains the player character and the new room's lookAroundOnEntering property is true (which it normally will be).</li>
+<li>Provided the traveler has arrived in a new room, carry out the after travel notifications:
+<ol>
+<li>Call afterTravel(actor, connector) on every item in the actor's new scope.</li>
+<li>Call regionAfterTravel(actor, connector) on every Region that contains the actor's new location.</li>
+</ol></details></li>
+<li>If nothing at the action stage has output any text, add the direct object to the list of direct objects to 
+be reported on at the report stage.</li>
+</ol>
+</details></li>
+<li><details><summary>Carry out the post-action processing</summary>
+<ol>
+<li>Call reportAction() on the action that's just been executed, which in turn displays any pending implicit action reports and then, for a Type 2 Action, calls the appropriate report method, reportDobjWhatever, on the last direct object the action acted on, in order to display a default summary report of the action (for any objects whose action() method didn't display anything).</li>
+
+<li>Display all the afterReports that were created by calls to reportAfter() during execution of the action.</li>
+<li>Next carry out the afterAction() routine for the current action, unless it's a SystemAction or the action failed. This does the following:
+<ol>
+<li>If the lighting conditions change, display a description of current location if it's now lit or announce the onset of darkness if it's now dark.</li>
+<li>Call afterAction() on all current <a href='../manual/scene.htm'>Scenes</a>.
+<li>Call notifyAfter() on the actor's current Room. This first calls the Room's roomAfterAction() method and then calls regionAfterAction() on all the regions that contain the Room.</li>
+<li>Call afterAction() on every object currently in scope for the actor.</li>
+</ol></li>
+<li>Call turnSequence() on the current action. This does the following:
+<ol>
+<li>Calls regionDaemon() on every region that contains the player character's current room.</li>
+<li>Calls roomDaemon() on the player character's current room.</li>
+<li>Calls executeTurn() on the eventManager object, which executes all current Events (Fuses and Daemons) in order of their priority.</li>
+<li>Advances the turn counter.</li>
+</ol>
+</li>
+<li>Call advanceTime() on the current action. This does nothing in the main library but is provided as a hook for the
+<a href='../../extensions/docs/objtime.htm'>Objective Time</a> extension to use to add to the time taken by implicit actions.</li>
+</ol></details></li>
+</ol>
+<p>This completes the full command cycle.</p>
+
+
 
 
 

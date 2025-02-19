@@ -770,6 +770,14 @@ class MessageCtx: object
      *   themselves
      */
     reflexiveAnte = perInstance(new Vector(5))
+    
+    subjPlural()
+    {
+        if(subj.isGenderNeutral && lastParam.ofKind(Pronoun))
+           return true;
+        
+        return subj.plural;           
+    }
 ;
 
 /*

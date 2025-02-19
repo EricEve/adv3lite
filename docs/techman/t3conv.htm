@@ -71,7 +71,9 @@ question can be directed.
 
 <p>Each TopicEntry further defines what kind of command it responds
 to.  There are four pre-defined commands that TopicEntry objects can
-answer: ASK, TELL, SHOW, and GIVE.  You can always add your own
+answer: ASK, TELL, SHOW, and GIVE.  (Editor's Note: adv3Lite adds 
+a few more possibilities, but we'll stick to discussing those MJR
+lists for now). You can always add your own
 additional types if you need to, but these are the ones used in the
 traditional conversation model (and my recommended style).
 
@@ -511,11 +513,11 @@ TopicEntry object for that response as active.  At other times, you
 can make the entry inactive.  This ensures that the NPC can only
 respond to a question about the topic when the NPC knows the answer.
 To distinguish PC knowledge from NPC knowledge it's a good idea to test
-pcKnows(<i>something</i>, where <i>something</i> can be an object,
+pcKnows(<i>something</i>) or npcKnows(<i>something</i>), where <i>something</i> can be an object,
 Topic or 'informed' tag. For details of how PC knowledge and 
 NPC knowledge can be tracked in the adv3Lite library, see the chapter
 on <a href='../manual/knowledge.htm'>Player Character and NPC Knowledge</a> 
-in the <i>Adv3LiteLibrary Reference Manual</i>.
+in the <i>Adv3Lite Library Manual</i>.
 
 <p>It's important to note that (if you only use reveal tags for tracking
 both PC and NPC knowledge) you're modeling the NPC's knowledge of
@@ -717,8 +719,7 @@ TOPICS command to specifically ask for the list.
 
 <p>To create a suggestion, you first have to define a "name" property for the suggestion.
 This is the name that will be shown in the suggested topic list.
-There's also a "fullName" property, but for the pre-defined  The
-"name" property should be given so that it can be substituted into a
+The "name" property should be given so that it can be substituted into a
 sentence after "ask about" (or the appropriate variation for the other
 types), so it should usually include "the" if appropriate. Alternatively 
 you can define autoName = true on the TopicEntry and it will set its 
@@ -752,7 +753,7 @@ match objects);
 about the suggestion, which usually just means that the associated topic
 entry has displayed its response already.
 
-<li>the player character's curiosity about this suggestio has been aroused
+<li>the player character's curiosity about this suggestion has been aroused
 (by default we assume it has);</li>
 
 <li>The Topic Entry is reachable (i.e. it could potentially be triggered
@@ -775,7 +776,7 @@ when you deem it appropriate.
 
 <p>For the full story on suggesting topics (which can be customized 
 further than is outlined here), see the chapter on <a href='../manual/suggest.htm'>
-Suggesting Conversational Topics</a> in <i>Adv3LiteLibrary Reference Manual</i>.
+Suggesting Conversational Topics</a> in <i>Adv3Lite Library Manual</i>.
 
 <h3><a name='activeTopicInventory'>The active topic inventory</a></h3>
 
@@ -794,41 +795,19 @@ exclusive responses</a>" below).  For example, a ConvNode might insist
 on a YES or NO answer to a question.  In cases where it's obvious from
 context that only certain limited topics are meaningful, it's
 pointless to suggest other topics, since the other topics won't be
-accepted.  For these cases, you can set the ConvNode's
-limitSuggestions property to true, indicating that only the ConvNode's
-topics should be included in the topic inventory.
+accepted.  For these cases the library's calculation of which topics
+are reachable will ensure that only the ConvNode's
+topics should be included in the topic inventory. The same applies 
+to ActorStates that block access to TopicEntries defined directly 
+on the Actor; if the library determines that the topics defined on 
+the Actor aren't reachable it won't suggest them.</p>
 
-<p>Similarly, the ActorState sometimes limits the range of accepted
-topics.  To handle these cases, you can set limitSuggestions to true
-on the ActorState, indicating that the suggestion list should stop at
-the ActorState.  Note that this doesn't omit the ConvNode suggestions,
-because the ActorState is below the ConvNode in the hierarchy we
-mentioned above.  The limitSuggestions property merely cuts off the
-list <i>below</i> the current point in the hierarchy.  So,
-limitSuggestions on a ConvNode cuts off everything below the ConvNode,
-and limitSuggestions on an ActorState cuts off everything below the
-ActorState.
-
-<p>It's up to you to determine how you use limitSuggestions.  You
-could, for example, adopt a policy that any ConvNode or ActorState
-with a DefaultAnyTopic should limit suggestions to that level, because
-the DefaultAnyTopic will prevent responses to topics below that level.
-The library doesn't use this policy automatically, though, because the
-suggestion list is meant to be a list of things the <i>player
-character</i> wants to talk about, not things the NPC will respond to.
-In some cases, the PC might want to talk about something even at times
-when the NPC won't actually respond to the topic.  At other times, it
-ought to be obvious to the player character that only a YES or NO
-answer (for example) is appropriate.  That's why the library leaves it
-up to you to decide how to limit suggestions.  As you design your
-game, you can use limitSuggestions to fine-tune the topic inventory at
-times that it's obvious that the conversational options are limited.
 
 <h3>Satisfying curiosity</h3>
 
 <p>Each time a topic entry is used to respond to a command, the topic
 entry records the use by incrementing an internal counter, stored in a
-property of the topic entry called "talkCount".  By default, the
+property of the topic entry called "timesInvoked".  By default, the
 TopicSuggestion object looks at this property, and automatically
 deactivates the suggestion as soon as the counter is at or above the
 value of the property "timesToSuggest"; at this point, we assume that
@@ -882,7 +861,7 @@ library control.  Any time you think it would make sense to tell the
 player about the current topic inventory, you can do so explicitly.
 There are two ways of doing this.  First, you can put a
 &lt;.topics&gt; tag directly in any TopicEntry response text.  Second,
-you can call the method conversationManager.scheduleTopicInventory().
+you can call the method scheduleTopicInventory(pendingKeys) on the Actor.
 With either of these mechanisms, a topic inventory listing will be
 scheduled to appear immediately before the next command prompt.  The
 library waits until the command prompt to display the inventory, so
@@ -902,21 +881,19 @@ presented as a parenthetical comment, presumably from the story's
 narrator, so it's relatively unintrusive but at the same time outside
 of the literal exchange between the characters.
 
-<p>In addition to topic inventory display under the game's control,
-there's a time when the library automatically displays the inventory.
-When an actor switches to a "conversation node" (more on this shortly)
-in a threaded conversation, and that node includes one or more
-"special topics" (more on this below, as well) the library
-automatically schedules a topic inventory.  A special topic is one
+<p>When you switch to a "conversation node", especially one that node 
+includes one or more"special topics" (more on this below, as well) it is 
+normally as well to 
+schedulesa topic inventory.  A special topic is one
 that responds to a non-standard, custom command that's meaningful only
 in that particular conversational context, so from a user interface
-perspective, we simply have no choice but to disclose these to the
+perspective, we need to disclose these to the
 player whenever they're available.  Because these commands don't
 conform to any general syntax rules that the user is accustomed to,
 and because they're only usable in their limited context, it would be
-grossly unfair to force the player to guess at them.  Therefore,
-any time a conversation node with special topics becomes active,
-the library automatically triggers a topic inventory listing.
+grossly unfair to force the player to guess at them.  To change to 
+a conversation node and display its topic inventory we can use the 
+tag &lt;.convnodet xxx&gt;, where xxx is the node name.
 
 
 <h2 id="greeting">Greeting protocols</h2>
@@ -1038,10 +1015,6 @@ the greating, e.g. <code>changeToState = bobTalking</code>.
 TopicEntries to handle ending the conversation:</p>
 
 <ul>
-<li>ByeTopic - put this inside the conversational ActorState to handle
-explicit GOODBYE commands from the player.  This will be used <b>only</b>
-for explicit goodbyes.
-
 <li>ImpByeTopic - put this inside the state to handle implicit
 conversation endings.  The conversation ends implicitly when the
 player character walks away from the conversation in progress (via a
@@ -1054,8 +1027,13 @@ would display the message "The man returns to his sweeping."
 <li>ExpByeTopic - put this inside the state to handle explicit
 conversation endings only.</li>
 
-<li>ActorHelloTopic - put this inside the conversational ActorState 
-to providde the response if the Actor decides to end the conversation.</li>
+<li>ByeTopic - put this inside the conversational ActorState to handle both
+explicit GOODBYE commands from the player and impliecit conversation 
+endings.</li>
+
+
+<li>ActorByeTopic - put this inside the conversational ActorState 
+to provide the response if the Actor decides to end the conversation.</li>
 
 
 <li>On any of these "goodbye" Topics you can define a changeToState
@@ -1063,16 +1041,16 @@ property which defines the ActorState the actor should switch to following
 the goodbye, e.g. <code>changeToState = bobSweeping</code>. Note that this 
 does not have to be the same state as the one the actor switched from 
 when the conversation started; after all, it may be that the conversation 
-changed the actor's mind about what they should be doing next!</li>
+changed the actor's mind about what they should be doing next.</li>
 </ul>
 
 <p>(Note for users coming from adv3: In adv3Lite there is no ConversationReadyState 
 or InConversationState class, and the rule about which state to put HelloTopics 
 and GoodByeTopics is a little different: in adv3Lite the Hello and Goodbye Topics 
-should be located in the ActorState that's expected to be acitve at the point 
+should be located in the ActorState that's expected to be active at the point 
 the greeting or farewell is issued).</p>
 
-<p>The converational ActorState can also define an attentionSpan
+<p>The conversational ActorState can also define an attentionSpan
 property  - this is an integer giving the number of turns the
 actor should wait before giving up on the conversation.  If the other 
 character doesn't talk to our NPC for this many turns,
@@ -1634,7 +1612,7 @@ time, we'll get the regular response.
 
   // a special response when we're in this conversation position
   ++ AskTellTopic @troublesTopic
-    "&lt;q&gt;What troubles&lt;/q&gt; you ask.
+    "&lt;q&gt;What troubles?&lt;/q&gt; you ask.
     &lt;.p&gt;Bob stares down the street [...]"
   ;
 </pre>
@@ -1660,12 +1638,12 @@ responses.
 ConvNode object is made by the name of the ConvNode, which is just an
 arbitrary string value.  In the example, this is the string
 'after-lighthouse' that appears in the ConvNode object definition.
-This string is found through a global lookup table that the library
-maintains; this lookup table contains all of the ConvNode objects in
-the entire game, keyed by their names.  ConvNode names must thus be
-unique.  However, they don't have to conform to the usual object
+This string is found through the allNodes property of the Actor.
+This contains a list of all the ConvNode objects related to this
+Actor, keyed by their names.  ConvNode names must thus be
+unique for any given Actor.  However, they don't have to conform to the usual object
 naming rules, since they're just arbitrary strings, and they only have
-to be unique relative to other ConvNode names - there's no need to
+to be unique relative to other ConvNode names defined on the same Actor  - there's no need to
 worry about reusing names that are used by other kinds of game
 objects.
 
@@ -1723,10 +1701,10 @@ we'll show the default response, which explicitly returns to the same
 ConvNode.  There we'll stay, until we ask about something that takes
 us to a new node, or we just give up and leave the conversation.
 
-<p>When the conversation options are limited like this, it's sometimes
-better to limit the topic inventory list to match.  See the
-"<a href='#activeTopicInventory'>active topic inventory</a>" section
-above for details on how to do this.
+<p>When the conversation options are limited like this, it may be a good
+idea to display topic inventory list to match. We can do this by using 
+&lt;.convnodet name&gt; rather than just &lt;.convnode name&gt;, 
+e.g., &lt;.convnodet troubles&gt;.
 
 <h4>Using a ConvNode to await a reply</h4>
 
@@ -1892,7 +1870,8 @@ needed to trigger a SayTopic looks like a valid command, that command will be
 executed instead (though that probably won't happen often in practice and 
 can probably be avoided with care).</p>
 
-<p>The keyword list is easy to program, but sometimes it's not flexible
+<p>The vocab property is easy to program (provided we take care to deal 
+with the obvious alternative phrasings players might use) but sometimes it's not flexible
 enough.  For cases where you need more control, you can replace the keyword
 list with a single string containing an arbitrary regular expression.
 If the entire player's input matches the regular expression, then the
@@ -1904,12 +1883,10 @@ wherever any other kind of ActorTopicEntry can be used.
 
 <p>Because a special topic's triggering command is completely custom,
 it would be unreasonable to force the player to guess at its command.
-Therefore, SpecialTopics are automatically entered into the topic
-inventory as suggestions.  What's more, whenever a ConvNode becomes
-active, and the ConvNode has one or more active special topic
-objects, the library will automatically show a topic inventory
-listing.  This means that the player will always be shown any
-available special topics when they become available.
+Therefore, special topics are automatically entered into the topic
+inventory as suggestions. It's a good idea to enter ConvNodes 
+containing special topics with a &lt;.convnodet&gt; tag to ensure the 
+topic inventory is displayed.
 
 <p>The includeSayInName property of a SayTopic controls how a SayTopic 
 is listed in a topic inventory. If includeSayInName is true (the default)
@@ -2021,7 +1998,7 @@ object, because this keeps the NPC's continuation remarks together
 with the conversation context.  Specifically, each ConvNode object
 can optionally define the property nodeContinuationMsg as a double-quoted
 string to display or as an EventList subclass, giving a list of strings 
-to displa, or as a method to output text.
+to display, or as a method to output text.
 
 <p>The library automatically displays the current
 ConvNode's continuation message (using either nodeContinuationMsg or
@@ -2125,7 +2102,7 @@ agenda won't intrude on a conversation.
 
 <h2>Summary</h2>
 
-<p>As we've seen, the TADS 3 library has a number of features
+<p>As we've seen, like he original adv3 library, the adv3Lite library has a number of features
 designed to help you create non-player characters that do more than
 just sit there and answer a few ASK ABOUT questions.  The ActorState
 class helps structure the code for actors that can exhibit several
@@ -2134,7 +2111,7 @@ database of knowledge for your characters, and help manage the
 database as character knowledge and game conditions change;
 ActorStates help give interactions
 the form of real conversations; ConvNode lets you create internal
-context and structure within a conversation; and SpecialTopic lets
+context and structure within a conversation; and special topics let
 you go beyond ASK/TELL when conversations require more nuance.
 
 <p>All of these classes and mechanisms are a lot to take in all at

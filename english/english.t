@@ -223,6 +223,7 @@ class LMentionable: object
     /* Determine the gender of this object */
     isHim = nil
     isHer = nil
+    isGenderNeutral = true   
     
     /*  
      *   By default an object is neuter if it's neither masculine nor feminine,
@@ -372,7 +373,7 @@ class LMentionable: object
         case 2:
             return (plural ? Yall : You);
         default:
-            return (plural ? Them :
+            return ((plural || isGenderNeutral) ? Them :
                 isHim ? Him : isHer ? Her : It);    
         }
         
@@ -793,7 +794,8 @@ class LMentionable: object
                 local map = ['it', &isIt,
                     'him', &isHim,
                     'her', &isHer,
-                    'them', &plural];
+                    'them', &plural,
+                    'them!', &isGenderNeutral ];
                 
                 local explicitlySingular = nil;
                 

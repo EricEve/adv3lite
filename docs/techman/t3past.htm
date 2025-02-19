@@ -54,7 +54,7 @@ Writing a Game in the Past Tense
 
 <p>You select the narrative tense via the <span class="code">usePastTense</span> property of your <span class="code">gameMain</span> object.  This is the object where you define the initial player character and the messages displayed during the introduction and after quitting.  The default value of <span class="code">usePastTense</span> is <span class="code">nil</span>, meaning that, by default, the story uses the present tense.  Override this property to <span class="code">true</span> for a past tense narrative.
 
-<p>You can reset this property at any time during the game to switch to a different tense.  The TADS&nbsp;3 Library defines a convenience macro for this, called <span class="code">setPastTense</span>.  This macro takes a single argument and is just a shorthand for assigning <span class="code">gameMain.usePastTense</span> directly: <span class="code">setPastTense(val)</span> simply expands to <span class="code">gameMain.usePastTense = val</span>.
+<p>You can reset this property at any time during the game to switch to a different tense.  The adv3Lie Library defines a convenience macro for this, called <span class="code">setPastTense</span>.  This macro takes a single argument and is just a shorthand for assigning <span class="code">gameMain.usePastTense</span> directly: <span class="code">setPastTense(val)</span> simply expands to <span class="code">gameMain.usePastTense = val</span>.
 
 <p>Unlike the narrative tense, the person in which the player character is referred to is a property of the player character's <span class="code">Actor</span> object.  In a game where several characters can be controlled by the player at different times, you might want to use distinct grammatical persons for some of them, so it makes sense to define this setting separately for each potential player character.  To select the person for the player character object, you set its <span class="code">person</span> property to one of the three following values: <span class="code">1</span>, <span class="code">2</span>, or <span class="code">3</span>.  The default value is <span class="code">2</span>, so that the game refers to the player character as "you" unless otherwise specified.
 
@@ -67,11 +67,11 @@ Writing a Game in the Past Tense
 <li>Future: Bob will open the box.</li>
 <li>Future Perfect: Bob will have opened the box.</li>
 </ul>
-<p> Narrator.Present defaults to Present, but we don't have to worry about the Narrator object at all if we're only interested in using the present and/or part tense. Since tenses other than these two are so rare in Interactive Fiction, for the rest of this article we shall focus solely on the past and present tenses.</p>
+<p> Narrator.Present defaults to Present, but we don't have to worry about the Narrator object at all if we're only interested in using the present and/or part tense. Since tenses other than these two are so rare in Interactive Fiction, for the rest of this article we shall focus almost entirely on the past and present tenses.</p>
 
 <h2>The past tense handling framework</h2>
 
-The ability to switch between the present tense and the past tense relies on the <a href='t3msg.htm'>message parameter substitution</a> mechanism  used for plugging the appropriate object names in the command responses and making verbs agree in person and number with the subject.  The remainder of this article describes the new features of the substitution parameter framework that are specific to handling the past tense.  From now on, we'll assume that you have some familiarity with message substitution parameters.
+The ability to switch between the present tense and the past tense relies on the <a href='t3msg.htm'>message parameter substitution</a> mechanism  used for plugging the appropriate object names in the command responses and making verbs agree in person and number with the subject.  The remainder of this article describes the features of the substitution parameter framework that are specific to handling the past tense.  From now on, we'll assume that you have some familiarity with message substitution parameters.
 
 <p>If you have read the article in question, you have probably noticed that the first given example of a message that uses substitution parameters:
 
@@ -84,13 +84,13 @@ The ability to switch between the present tense and the past tense relies on the
 
 <h2>Regular verb endings</h2>
 
-<p>Regular verbs are those that obey simple conjugation rules in both the present tense and the past tense: up to some minor variations, they take -s in the third-person singular of the present tense and -ed in the past tense.  Formerly, TADS&nbsp;3 defined three substitution parameters for regular verb endings: {s}, {es}, and {ies}.  The problem with these parameters is that they don't always provide enough information about the correct past-tense ending, so now the set of verb ending parameters has been augmented with the following:
+<p>Regular verbs are those that obey simple conjugation rules in both the present tense and the past tense: up to some minor variations, they take -s in the third-person singular of the present tense and -ed in the past tense.  The parameters relevant to conjugating verbs in either the present or the past tense are:</p>
 
 <p><table>
 <tr><th>Parameter string<th>Example use<th>Example expansion
 <tr class=odd><td>s/d<td>close{s/d}<td>close, close<u>s</u>, close<u>d</u>
 <tr><td>s/ed<td>open{s/ed}<td>open, open<u>s</u>, open<u>ed</u>
-<tr class=odd><td>s/?ed<td>drop{s/ped}<td>drop, drop<u>s</u>, drop<u>ped</u>
+<tr class=odd><td>s/?ed<td>drop{s/?ed}<td>drop, drop<u>s</u>, drop<u>ped</u>
 <tr><td>es/ed<td>fix{es/ed}<td>fix, fix<u>es</u>, fix<u>ed</u>
 <tr class=odd><td>ies/ied<td>carr{ies/ied}<td>carr<u>y</u>, carr<u>ies</u>, carr<u>ied</u>
 </table>
@@ -99,9 +99,9 @@ The ability to switch between the present tense and the past tense relies on the
 
 <p>The two first parameters, {s/d} and {s/ed}, are used for those verbs that just take -s in the third-person singular present: some of them take -d in the past (like "close") and thus require {s/d}, and others take -ed (like "open") and thus require {s/ed}.  The parameter {s} doesn't contain enough information to lift this ambiguity, and should be used only in those contexts where you are certain that you don't need the past-tense form (more about this later).
 
-<p>The parameter {s/?ed} is handled in a special way by the Library.  It is used for those verbs that end with a consonant and have that last consonant repeated in the past tense, but otherwise have a regular conjugation.  The example listed in the table is "drop," which has its final 'p' repeated in the past: "dropped."  To use this parameter, you never type it literally with the explicit question mark.  Instead, its proper use is to replace the question mark with the repeated consonant: {s/ped}, {s/ted}, or whatever.
+<p>The parameter {s/?ed} is handled in a special way by the Library.  It is used for those verbs that end with a consonant and have that last consonant repeated in the past tense, but otherwise have a regular conjugation.  The example listed in the table is "drop," which has its final 'p' repeated in the past: "dropped."  To use this parameter, you type it literally with the explicit question mark.  The library then replaces the question mark with the repeated consonant.
 
-<p>The two last parameters in the table, {es/ed} and {ies/ied}, are respectively for those verbs that take -es or have their -y ending replaced with -ies in the third-person singular present.  Note that, unlike {s}, the verb endings {es} and {ies} actually contain no ambiguity about the corresponding regular past tense form, since -es always becomes -ed, and -ies always becomes -ied in the past.  So, the parameters {es/ed} and {ies/ied} are actually redundant, and are in fact equivalent to {es} and {ies}, respectively.  They only are provided for symmetry with the {s/d}, {s/ed}, {s/?ed} set.  We recommand that you always use the paramater forms that explicitly list the past tense ending in all cases, so that you never need to think about which case truly requires it and which does not.
+<p>The two last parameters in the table, {es/ed} and {ies/ied}, are respectively for those verbs that take -es or have their -y ending replaced with -ies in the third-person singular present.  Note that, unlike {s}, the verb endings {es} and {ies} actually contain no ambiguity about the corresponding regular past tense form, since -es always becomes -ed, and -ies always becomes -ied in the past.  So, the parameters {es/ed} and {ies/ied} are actually redundant, and are in fact equivalent to {es} and {ies}, respectively.  They only are provided for symmetry with the {s/d}, {s/ed}, {s/?ed} set.  We recommand that you always use the parameter forms that explicitly list the past tense ending in all cases, so that you never need to think about which case truly requires it and which does not.
 
 <h2>Common irregular verbs</h2>
 
@@ -129,7 +129,7 @@ The ability to switch between the present tense and the past tense relies on the
 
 <p>For rarely used irregular verbs, the Library providest two fallback mechanisms. One allows switching between two arbitrary strings depending on the narrative tense.  The format superficially looks like an ordinary substitution parameter: the syntax is {<i>presentString</i>|<i>pastString</i>}, where <i>presentString</i> and <i>pastString</i> represent the (possibly empty) strings to be displayed in the present and past tenses, respectively.  
 
-<p>For example, the substring {may|might} in a parameterized message string would expand to "may" in the present tense and to "might" in the past tense. (We don't actually needs to do this since the library undersstands {may} perfectly well).
+<p>For example, the substring {may|might} in a parameterized message string would expand to "may" in the present tense and to "might" in the past tense. (We don't actually needs to do this since the library understands {may} perfectly well).
 
 <p>This example is rather exceptional in that the verb "may" doesn't vary at all in the present tense.  Most irregular verbs need to be made to agree with the subject in the present tense. Let's imagine we had the rare verb 'to frob' which become 'he frobs' in the third person preseny, 'he frub' in the past, and 'he has frabbed' in the past perfect. We can tell the library how to cope with a new {frob} parameter by adding it to a CustomVocab object:</p>
 <p><pre>
@@ -179,7 +179,7 @@ need to define those with this mechanism.</p>
 
 <p>In this example, the tense-switching syntax is used twice.  The first instance generates a present or past conditional: the substring "should {be|have been}" produces "should be" in the present tense, and "should have been" in the past tense.  The second instance is "{|t}here," which gives "here" in the present tense and "there" in the past tense.  (In case you wonder, the reason why we want to avoid using "here" in the past tense is that it doesn't make much sense to call "here" a place which the player character has visited at some time in the past, but might very well have left since then.)
 
-<p>Note also an important difference between the two following messages (both found in the TADS&nbsp;3 Library):
+<p>Note also an important difference between the two following messages:
 
 <p><div class="code"><pre>
    {I} smell{s/ed} nothing out of the ordinary.

@@ -1368,10 +1368,33 @@ class TravelAction: Action
                 exit;
             
         }
-        
     }
-    
-    
+        
+        /* 
+     *   These methods are provided to allow an IAction to be invoked as an
+     *   implicit action.
+     */
+    execResolvedAction()
+    {
+        /* 
+         *   Capture the output from this action in case we don't want to
+         *   display it (if we're an implicit action).
+         */
+        local str = gOutStream.captureOutput({: execAction(gCommand) });
+        
+        /* 
+         *   If this action is being performed implicitly, we should display an
+         *   implicit action report for it.
+         */
+        if(isImplicit)
+            buildImplicitActionAnnouncement(!actionFailed);
+        
+        /* Otherwise, display the normal output from this action */
+        else
+            say(str);
+    }
+        
+       
     
     /* 
      *   Carry out travel in direction. For this purpose we first have to define

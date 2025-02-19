@@ -4761,6 +4761,8 @@ Them: Pronoun
     {
         return obj.ofKind(Collection) || obj.matchPronoun(self);
     }
+    
+    plural = true
 ;
 
 /* 

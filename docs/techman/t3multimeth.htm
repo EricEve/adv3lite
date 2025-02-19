@@ -20,15 +20,15 @@ Handling TIActions with Multi-Methods
 <p><i>by Eric Eve</i></p>
 
 <h2>Introduction</h2>
-<p>The adv3Lite library, like the adv3 library, takes an object-oriented approach to handling actions. Most of the code for handling an action is implemented in methods of the object or object involved. For example, when the player issues the command TAKE KNIFE, taking the knife will be handled by methods defined on the knife object, or, more likely, the Thing class. In typical adv3Lite coding this will be found in the dobjFor(Take) block, a shorthand way of defining preCondDobjTake, verifyDobjTake(), checkDobjTake(), actionDobjTake(), and reportDobj(Take), which between them ensure that any preconditions for the action are met (the player character can touch the knife), that the action makes sense (the knife isn't fixed in place or already held by the player character), and that the player has room to hold the knife, and then, if all goes well, moving the knife into the player's inventory and reporting that the action has taken place. When just one object is involved in the action (because it's a TAction that takes only a direct object), this all works well.</p>
+<p>The adv3Lite library, like the adv3 library, takes an object-oriented approach to handling actions. Most of the code for handling an action is implemented in methods of the object or objects involved. For example, when the player issues the command TAKE KNIFE, taking the knife will be handled by methods defined on the knife object, or, more likely, the Thing class. In typical adv3Lite coding this will be found in the dobjFor(Take) block, a shorthand way of defining preCondDobjTake, verifyDobjTake(), checkDobjTake(), actionDobjTake(), and reportDobj(Take), which between them ensure that any preconditions for the action are met (the player character can touch the knife), that the action makes sense (the knife isn't fixed in place or already held by the player character), and that the player has room to hold the knife, and then, if all goes well, moving the knife into the player's inventory and reporting that the action has taken place. When just one object is involved in the action (because it's a TAction that takes only a direct object), this all works well.</p>
 
-<p>Things become a little more complicated with a TIAction, which involves two objects, a direct object and an indirect object. Consider PUT KNIFE IN BOX, for example. This effects both the knife (which may be moved) and the box (which will have something moved into it). This raises the question which object should host the code that handles the action. In the library, it's usually split between the two. The direct object enforces the PreConditions that the direct object is being held but not worn by the actor, and it's verify stage checks that we're not trying to put the direct object in itself (PUT BOX IN BOX wouldn't make sense), that the direct object is not already in the indirect object (the knife isn't already in the box), and that the direct object isn't fixed in place. It's also responsible for reporting that the action has taken place (if indeed it does). The indirect object enforces the PreConditions that the indirect object is reachable (the player character can touch the box) and that it's interior is accessible (for example, that it's not closed). At the verify stage it checks whether the indirect object is the kind of thing we can put things in: PUT BOX IN BOX makes sense but PUT KNIFE IN TABLE probably doesn't (more on which below). At the check stage it checks whether the indirect object has enough space for the direct object - maybe the box is too small for the knife or maybe it's full of other stuff already. Finally it's the indirect object (here, the box) that carries out moving the direct object into itself at the action stage if the action has passed the preCond, verify and check stages on both objects.</p>
+<p>Things become a little more complicated with a TIAction, which involves two objects, a direct object and an indirect object. Consider PUT KNIFE IN BOX, for example. This effects both the knife (which may be moved) and the box (which will have something moved into it). This raises the question which object should host the code that handles the action. In the library, it's usually split between the two. The direct object enforces the PreConditions that the direct object is being held but not worn by the actor, and its verify stage checks that we're not trying to put the direct object in itself (PUT BOX IN BOX wouldn't make sense), that the direct object is not already in the indirect object (the knife isn't already in the box), and that the direct object isn't fixed in place. It's also responsible for reporting that the action has taken place (if indeed it does). The indirect object enforces the PreConditions that the indirect object is reachable (the player character can touch the box) and that its interior is accessible (for example, that it's not closed). At the verify stage it checks whether the indirect object is the kind of thing we can put things in: PUT BOX IN BOX makes sense but PUT KNIFE IN TABLE probably doesn't (more on which below). At the check stage it checks whether the indirect object has enough space for the direct object - maybe the box is too small for the knife or maybe it's full of other stuff already. Finally it's the indirect object (here, the box) that carries out moving the direct object into itself at the action stage if the action has passed the preCond, verify and check stages on both objects.</p>
 
 <p>Clearly this works fine in practice, and for the most part there's reasonably clear logic to which of the two objects we assign particular tasks to, for example the direct object is responsible for ensuring it can be moved and the indirect object for ensuring it's open and has space available. Some areas may seem more arbitrary, moving the knife into the box could have been carried out by the direct object's action method just as well as the indirect object, but since it doesn't matter where we put the code, we can just make an arbitrary choice and everything works fine, and this indeed is what the library does, for the most part without creating any problems or difficulties.</p>
 
 <p>But what about that example of an apparently illogical action, PUT KNIFE IN TABLE? A table would normally be implemeted as a Surface or Platform, something we can put things on but not in, but perhaps PUT KNIFE IN TABLE could make sense if it means sticking the blade of the knife into the surface of the tabletop. This isn't the normal meaning of PUT IN, so it would need special handling, which would require overriding various methods on both objects to handle this special case, probably with slightly messy code in which object needs to test the identity of the other object (the knife needs to know whether the indirect object is the table and the table needs to know whether the direct object is the knife). We could probably handle this one special case without two much trouble, but if we had many more of them our neat object-oriented coding pattern might start to break down.</p>
 
-<p>Now consider a game in which there are several objects that can cut other objects (their <code>canCutWithMe</code> property is true and several objects that could be cut (their <code>isCuttable</code> property is true. The list of such objects might look like this:</p>
+<p>Now consider a game in which there are several objects that can cut other objects (their <code>canCutWithMe</code> property is true) and several objects that could be cut (their <code>isCuttable</code> property is true). The list of such objects might look like this:</p>
 
 <table>
 <tr>
@@ -45,7 +45,7 @@ Handling TIActions with Multi-Methods
 <tr><td>branch</td><td>dagger</td></tr>
 </table>
 
-<p>At this point, trying to handle everything by splitting the relevant code between the direct object and the indirect object becomes increasingly awkward. Cutting the tree with the lawnmower seems plainly illogical. Cutting the butter with the axe or the saw might be possible but messy. You could cut the lawn with either the mower or the scythe, but attempting to do so with the scissors would be highly inefficident at best. The saw or the axe must be the best tools for cutting the tree or the branch, but would the scythe be totally hopeless? We could hardly use the scissors for the task, but what about the sword? Each combination of objects seems to offer different possibilities with different effects. We've reached a point where it would feel so much easier if we had a neat way of defining what should happed with each combination of objects (or at least, each class of objects). This is where Multi-Methods could help, allowing us to write code like:</p>
+<p>At this point, trying to handle everything by splitting the relevant code between the direct object and the indirect object becomes increasingly awkward. Cutting the tree with the lawnmower seems plainly illogical. Cutting the butter with the axe or the saw might be possible but messy. You could cut the lawn with either the mower or the scythe, but attempting to do so with the scissors would be highly inefficient at best. The saw or the axe must be the best tools for cutting the tree or the branch, but would the scythe be totally hopeless? We could hardly use the scissors for the task, but what about the sword? Each combination of objects seems to offer different possibilities with different effects. We've reached a point where it would feel so much easier if we had a neat way of defining what should happen with each combination of objects (or at least, each class of objects). This is where Multi-Methods could help, allowing us to write code like:</p>
 <p><pre>
    checkCutWith(lawn dobj, scissors iobj)
    {
@@ -76,13 +76,13 @@ Handling TIActions with Multi-Methods
 <p>There are a couple of points to note here:</p>
 <ol>
 <li>Although these look rather like ordinary function definitions, unlike regular functions, multiple 
-versions can co-exist in the same game, provided they are distinguishable by their specifiers. That means 
+versions with the same can co-exist in the same game, provided they are distinguishable by their specifiers. That means 
 we can have as many versions of checkCutWith as we like so long as they all have different combinations 
 of <i>specifier1</i> and <i>specifier2</i>.</li>
-<li>At run-time the interpreter will choose the version of checkCutWith() that gives the most specific match of <i>dobj</i> to <i>specifier1</i> and <i>obj</i> to <i>specifier2</i>, in the same way that it would call the most specific version of obj.method(), such lawn.makeCut() in preference to Thing.makeCut when the direct object is the lawn.</li>
-<li>When we <i>call</i> a multi-method (as opposed to <i>defining</i> it, we just supply its arguments in the ordinary way; for example we might call <code>checkCutWith(cake, lawnmower)</code>; this would result in the <code>checkCutWith(Thing dobj, lawnmower iobj)</code> version of our multi-method being called, unless we'd defined another version of <code>checkCutWith</code> for which <code>checkCutWith(cake, lawnmower)</code> was a more precise match.</p>
+<li>At run-time the interpreter will choose the version of checkCutWith() that gives the most specific match of <i>dobj</i> to <i>specifier1</i> and <i>iobj</i> to <i>specifier2</i>, in the same way that it would call the most specific version of obj.method(), such lawn.makeCut() in preference to Thing.makeCut when the direct object is the lawn.</li>
+<li>When we <i>call</i> a multi-method (as opposed to <i>defining</i> it), we just supply its arguments in the ordinary way; for example we might call <code>checkCutWith(cake, lawnmower)</code>; this would result in the <code>checkCutWith(Thing dobj, lawnmower iobj)</code> version of our multi-method being called, unless we'd defined another version of <code>checkCutWith</code> for which <code>checkCutWith(cake, lawnmower)</code> was a more precise match.</p>
 </ol>
-<p> In this example that means that most attempts to cut cuttable objects with the lawnmower will be refused with the message "Cutting the whatever with the lawnmower would not be very practical" whereas cutting the lawn with the lawnmower would be allowed, since the more specific checkCuWith() multi-method overrides the more general one (and, in this case, does nothing at all, which allows the CutWith to proceed to the action stage).</p>
+<p> The effect of this example is that most attempts to cut cuttable objects with the lawnmower will be refused with the message "Cutting the whatever with the lawnmower would not be very practical" whereas cutting the lawn with the lawnmower would be allowed, since the more specific checkCuWith() multi-method overrides the more general one (and, in this case, does nothing at all, which allows the CutWith to proceed to the action stage).</p>
 
 <h2 id="enabling">Enabling Multi-Method TIA Handling</h2>
 <p>Multi-Method TIA handling is not enabled in the adv3Lite library by default, since many games may not 
@@ -102,7 +102,7 @@ handling for a handful of actions, is to enable it on just those actions by usin
   MMTIAction(CutWith);
 </pre></p>
 
-<p>All the multimethtia.t extension does is to list this macro for every TIAction defined in the library.</p>
+<p>All the multimethtia.t extension does is to apply this macro to every TIAction defined in the library.</p>
 
 <p>Note that this macro can't be used twice for the same action without causing a compiler error, so if we start by using the MMTIAction() macro for individual TIActions and later decide to use the multimethtia.t extension, we'll need to remove 
 all the MMTIAction macros from our own code, except those for new TIActions we've defined ourselves.</p>
@@ -151,7 +151,7 @@ modify FrobWith
 <p>The other thing we've done here is to tell the FrobWith action which multi-methods it should call at the verify, check and action stages.</p>
 
 <h2>Using Multi-Methods with TIActions</h2>
-<p>We should now take a look at how we might use these multi-methods at each of the <a href='#verify'>verify</a>, <a href='#check'>check</a> and <a href='#action'>action</a> stages. There might be a case for leaving the verify stage till last, since it is arguably the most complex, but we'll nevertheless take these three stages in their traditional order, both because what happens at each stage to some extent depends on what happened at the previous one, and because if we tackle the most complex case first the others may be all the easier to understand.</p>
+<p>We should now take a look at how we might use these multi-methods at each of the <a href='#verify'>verify</a>, <a href='#check'>check</a> and <a href='#action'>action</a> stages. There might be a case for leaving the verify stage till last, since it is arguably the most complex, but we'll nevertheless take these three stages in their traditional order, both because what happens at each stage to some extent depends on what happened at the previous one, and because if we tackle the most complex case first the others should be all the easier to understand.</p>
 
 <h3 id="verify">Verify</h3>
 <p>Verify mult-methods typically look like:</p>
@@ -175,7 +175,7 @@ cutting the cake with the lawnmower, we're telling the parser that
 the cake and the lawnmower would be a poor choice of objects in the direct and indirect object roles of the 
 CutWith action.</p>
 
-<p>On the other hand, the lawn and the lawnmower would be particular good choice of objects in the direct and 
+<p>On the other hand, the lawn and the lawnmower would be a particularly good choice of objects in the direct and 
 indirect object roles of the CutWith action, so we want to boost the logicalRank of this combination. To make 
 sure we achieve this we add the <code>skip</code> macro to skip the dobjForVerify() and iobjFor(Verify) routines 
 on the lawn and the mower respectively, in case they would otherwise have intervened with a lower logical rank, 
@@ -229,7 +229,7 @@ abbreviate it.</p>
 
 <p>But what object is passed as the verobj argument? The answer is that the verifyCutWith() multi-method will be called twice, once with the direct object as the verobj argument and once with the indirect object, so that a call to illogical(), logicalRank(), or any other such verify macro will add the same verify result for both the direct object and the indirect object &mdash; and this just is what we want, for it tells the parser that both objects are either a good or a bad fit for the action in question when used in combination.</p>
 
-<p>Finally, we should take a closer look at the <code>skip</code> macro. What it does is to throw a new SkipSignal exception, which in this case causes execution to skip over calling the verify routines on the direct and indirect objects of the action (it does not, however, skip over calling the verifyPreCondition() methods of any of the PreConditions defined on the direct and indirect objects, since the chances are that these will still be applicable). So when should we use <code>skip</code> here? That depends, of course, on what we want to achieve, but as a rough rule of thumb, it's a good idea to use <code>skip</code> when we want to ensure that our verify multi-method allows the action to go ahead, but to omit <code>skip</code> when we want it to stop the action (in which case we may as well give the other possible reasons for stopping the action to go ahead). Some care is needed, however, since we don't want to write a verify multi-method that could have disastrous consequences, such as:</p>
+<p>Finally, we should take a closer look at the <code>skip</code> macro. What it does is to throw a new SkipSignal exception, which in this case causes execution to skip over calling the verify routines on the direct and indirect objects of the action (it does not, however, skip over calling the verifyPreCondition() methods of any of the PreConditions defined on the direct and indirect objects, since the chances are that these will still be applicable). So when should we use <code>skip</code> here? That depends, of course, on what we want to achieve, but as a rough rule of thumb, it's a good idea to use <code>skip</code> when we want to ensure that our verify multi-method allows the action to go ahead, but to omit <code>skip</code> when we want it to stop the action (in which case we may as well keep the other possible reasons for stopping the action to go ahead). Some care is needed, however, since we don't want to write a verify multi-method that could have disastrous consequences, such as:</p>
 
 <p><pre>
   verifyPutIn(dobj Thing, iobj packingCrate, tvo)
@@ -256,7 +256,7 @@ checkPutIn(Platform dobj, Container packingCrate)
 </pre></p>
 <p>This would cover a situation in which the only object in our game that's large enough to 
 accommodate Platforms (which must be fairly large if actors can get on them) is the packing crate. 
-We have already seen examples of how it migjht be used to allow or disallow various combinations 
+We have already seen examples of how it might be used to allow or disallow various combinations 
 of objects for CutWith, e.g.:</p>
 
 <p><pre>
@@ -282,11 +282,11 @@ crate to accommodate the Platform we want to put in it.</li>
 </ul>
 
 <h3 id="action">Action</h3>
-<p>In principle, action multi-methods act much like check once, although they may be trickier to implement.
+<p>In principle, action multi-methods act much like check ones, although they may be a bit trickier to implement.
 In particular, just as we can in verify and check, we can use <code>skip</code> to skip over what the 
-library would have done in its action handling on the direct and indirect objects of the action. Whether 
-this is a good idea or not depends on whether we want to add something to the libary's standard handling 
-of the command or add to it. If we want to add to it, it's important to be aware that whatever we define 
+library would have done in its action handling on the direct and indirect objects of the action. Whether or not
+this is a good idea depends on whether we want to add something to the libary's standard handling 
+of the command or replace it. If we want to add to it, it's important to be aware that whatever we define 
 in our action multi-method will execute <i>before</i> the library's usual handling.</p>
 
 <p>One way we can use a multi-method to add to the libary's handling is simply to display some text 
@@ -354,14 +354,14 @@ actionCutWith(mrDastardly dobj, knife iobj)
 <p>The <code>skip</code>s <i>may</i> be redundant here since the library doesn't define 
 anything for the action stage of CutWith, but they shouldn't do any harm, so we may as 
 include them to be on the safe side. Of coure if you'd provided your own action handling 
-for CutWith on Tbing and/or any other classes you'd need to consider whether you wanted 
+for CutWith on Thing and/or any other classes you'd need to consider whether you wanted 
 to skip it or not.</p>
 
 <p>This incidentally raises another issue: what if we want the same thing to happen if 
 the player character cuts Mr Dastardly with some other cutting implement, such as the 
 scissors? While we might disallow the sword as being too blatant and the axe as too violent,
 the we might consider the scissors to be another viable option, but there's no way we can
-specify <i>identifier</i> as a list but we probably rather not have to duplicate our code.</p>
+specify <i>identifier</i> as a list but we'd probably rather not have to duplicate our code.</p>
 
 <p>There are two ways we could deal with this; the first is to define a makeCut(obj) on 
 the mrDastardly object that does all the work and then define:</p>
@@ -387,7 +387,7 @@ DomesticCuttingImplement: Thing
   canCutWithMe = true 
 </pre></p>
 
-<p>And then define both the knife and the scissors to that class. Then we can write:
+<p>And then assign both the knife and the scissors to that class. Then we can write:
 
 <p><pre>
 actionCutWith(mrDastardly dobj, DomesticCuttingImplement iobj)
@@ -434,7 +434,7 @@ being plunged into the desktop.</p>
 
 <p>PreConditions are normally best defined on the objects to which they relate. There 
 are few situations in which this is likely to vary according to the combination of 
-objects involved (as opposed to indivitual objects). To able to put x in y would normally
+objects involved (as opposed to individual objects). To able to put x in y would normally
 seem to require the actor to first hold x and then being able to reach y. If the actor 
 has a magical ability to teleport one object into another, that seems likely to apply 
 to every object rather than particular pairs of objects. If I have magic box I can put things 
@@ -442,9 +442,7 @@ in even when the box is out of reach, I can just remove the touchObj PreConditio
 magic box. The situation could be different if the magic box allows me to move objects 
 into it without needing to hold or even them, because we would then need to remove the objHeld 
 PreCondition from every portable object in the game if and only if the indirect object is 
-the magic box; but then I may need a new TeleportTo action for that (although if this kind  
-of thing turns out to be common enough to justify it, we could always look into implementing 
-a PreCondition multi-method for some future library update.</p>
+the magic box; but then I may need a new TeleportTo action for that (see below).</p>
 
 <p>It is, of course, possible that a game will need to implement something that's an
 exception to these norms, but in that case the exceptional handling might be better implemented 
@@ -458,13 +456,13 @@ have the additional advantage that they can specify the conditions under which t
 and have more flexibility in specifying the action(s) and objects they apply to. So what is the 
 advantage of using Multi-Methods?</p>
 
-<p>The main advantages of Multi-Methods over Doers is that Multi-Methods are that they are more 
+<p>The main advantages of Multi-Methods over Doers is that Multi-Methods are more 
 tightly integrated into the normal action-handling cycle than Doers and that they are usually 
 easier to write. Defining a Multi-method is more concise than definining an equivalent Doer. It 
 may also require less work of the game author, since if the entire handling of an action 
 has to be coded in the exec(curCmd) or execAction(curCmd) method of a Doer, the game author 
 has to take responsibility for carrying out all the sanity checks and notifications the normal 
-action handling would normally take care of, whereas this isn't something we neede to 
+action handling would normally take care of, whereas this isn't something we need to 
 worry about when we use 
 multi-methods. The main exceptions here are the cases that Doers are best fitted to handle:
 stopping an action in its tracks or changing one action into another through the use of 
@@ -474,7 +472,7 @@ stopping an action in its tracks or changing one action into another through the
 scenario in which we might want PUT IN to work in a totally non-standard way through the 
 player character's magical abilities or advanced technology (say, allowing the pc to teleport 
 objects into special containers without touching them and even if the special container 
-remain closed. The neatest way to handle this might be to define a special TeleportTo 
+remain closed). The neatest way to handle this might be to define a special TeleportTo 
 action, which needn't necessarily have to have an associated VerbRule, and then use a 
 Doer to deflect a PutIn action to it under specified circumstances:</p>
 

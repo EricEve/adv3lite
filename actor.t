@@ -134,9 +134,9 @@ modify Actor
             return;
         
         if(location == getOutermostRoom)
-            DMsg(actor here, '\^<<theNameIs>> <<postureDesc>>> {here}. ');
+            DMsg(actor here, '\^<<theNameIs>> <<postureDesc>> {here}. ');
         else
-            DMsg(actor in location, '\^<<theNameIs>> <<postureDesc>>> <<location.objInName>>. ');        		
+            DMsg(actor in location, '\^<<theNameIs>> <<postureDesc>> <<location.objInName>>. ');        		
     }
     
     /*   
@@ -1921,8 +1921,15 @@ modify Actor
         "<.p>";
         
         /* Display a list of not-explicitly-asked-for topic suggestions */
-        showSuggestions(nil, suggestionKey);
+        if(autoSuggest)
+            showSuggestions(nil, suggestionKey);
     }
+    
+    /* 
+     *   Flag - do we want to show a list of sugegsted topics in response to a TALK TO command. By
+     *   default we let our current ActorState decide.
+     */
+    autoSuggest = curState ? curState.autoSuggest : true
     
     /* Have the actor greet the player character on the actor's initiative */
     actorSayHello()    
@@ -3075,6 +3082,12 @@ class ActorState: EndConvBlocker, ActorTopicDatabase
      *   associated Actor.
      */
     initiateConversation(state, str) {getActor.initiateConversation(state, str); }
+    
+    /* 
+     *   Flag: do we want the game to suggest topics of conversation after a TALK TO commmand when
+     *   the actor is in this ActorState? By default we do.
+     */
+    autoSuggest = true
 ;
 
 /*  
