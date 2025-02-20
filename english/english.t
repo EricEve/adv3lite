@@ -223,7 +223,7 @@ class LMentionable: object
     /* Determine the gender of this object */
     isHim = nil
     isHer = nil
-    isGenderNeutral = true   
+    isGenderNeutral = nil 
     
     /*  
      *   By default an object is neuter if it's neither masculine nor feminine,
@@ -837,7 +837,7 @@ class LMentionable: object
              *   something other than a pronoun appears in the pronoun section.
              */
             parts[4].split(' ').forEach(function(x){
-                if(x not in ('him', 'her', 'it', 'them'))
+                if(x not in ('him', 'her', 'it', 'them', 'them!'))
                 {
                     "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
                     "Non-Pronoun '<<x>>' appears in pronoun section (after third
@@ -4955,7 +4955,7 @@ conjugate(ctx, params)
      *   get the present tense index: third-person singular has the second
      *   slot, all other forms have the first slot 
      */
-    local idx = ctx.subj.plural || ctx.subj.person != 3 ? 1 : 2;
+    local idx = ctx.subjEffectivelyPlural || ctx.subj.person != 3 ? 1 : 2;
     
     switch (Narrator.tense)
     {
@@ -5071,14 +5071,14 @@ conjugateRegular(ctx, params)
         
         
     case Present:
-        return !ctx.subj.plural && ctx.subj.person == 3 ? root +
+        return !ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? root +
             thirdPresentEnding : params[2];
         
     case Past:
         return root + participleEnding;
         
     case Perfect:
-        return (!ctx.subj.plural && ctx.subj.person == 3 ? 'has ' : 'have ') +
+        return (!ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? 'has ' : 'have ') +
             root + participleEnding;
         
     case PastPerfect:
@@ -5144,7 +5144,7 @@ conjugateBe(ctx, params)
      *   and number: [I am, you are, he/she/it is, we are, you are, they
      *   are] 
      */
-    local idx = ctx.subj.plural ? 4 : ctx.subj.person;
+    local idx = ctx.subjEffectivelyPlural ? 4 : ctx.subj.person;
 
     /* 
      *   for other tenses, the conjugation boils down to at most two
@@ -5189,7 +5189,7 @@ conjugateBeNot(ctx, params)
      *   and number: [I am, you are, he/she/it is, we are, you are, they
      *   are] 
      */
-    local idx = ctx.subj.plural ? 4 : ctx.subj.person;
+    local idx = ctx.subjEffectivelyPlural ? 4 : ctx.subj.person;
 
     /* 
      *   for other tenses, the conjugation boils down to at most two
@@ -5234,13 +5234,13 @@ conjugateIsnt(ctx, params)
      *   and number: [I am, you are, he/she/it is, we are, you are, they
      *   are] 
      */
-    local idx = ctx.subj.plural ? 4 : ctx.subj.person;
+    local idx = ctx.subjEffectivelyPlural ? 4 : ctx.subj.person;
 
     /* 
      *   for other tenses, the conjugation boils down to at most two
      *   options: third person singular and everything else 
      */
-    local idx2 = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    local idx2 = ctx.subj.person == 3 && !ctx.subjEffectivelyPlural ? 2 : 1;
 
     /* look up the conjugation in the current tense */
     switch (Narrator.tense)
@@ -5279,13 +5279,13 @@ conjugateIm(ctx, params)
      *   and number: [I am, you are, he/she/it is, we are, you are, they
      *   are] 
      */
-    local idx = ctx.subj.plural ? 4 : ctx.subj.person;
+    local idx = ctx.subjEffectivelyPlural ? 4 : ctx.subj.person;
 
     /* 
      *   for other tenses, the conjugation boils down to at most two
      *   options: third person singular and everything else 
      */
-    local idx2 = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    local idx2 = ctx.subj.person == 3 && !ctx.subjEffectivelyPlural ? 2 : 1;
 
     /* look up the conjugation in the current tense */
     switch (Narrator.tense)
@@ -5323,7 +5323,7 @@ conjugateWas(ctx, params)
     switch (Narrator.tense)
     {
     case Present:
-        return ctx.subj.plural || ctx.subj.person == 2 ? 'were' : 'was';
+        return ctx.subjEffectivelyPlural || ctx.subj.person == 2 ? 'were' : 'was';
         
     case Past:
     case Perfect:
@@ -5343,7 +5343,7 @@ conjugateWasnt(ctx, params)
     switch (Narrator.tense)
     {
     case Present:
-        return ctx.subj.plural || ctx.subj.person == 2 ? 'weren\'t' : 'wasn\'t';
+        return ctx.subjEffectivelyPlural || ctx.subj.person == 2 ? 'weren\'t' : 'wasn\'t';
         
     case Past:
     case Perfect:
@@ -5392,9 +5392,9 @@ conjugateIve(ctx, params)
     {
     case Present:
         if(fullForm)
-            return !ctx.subj.plural && ctx.subj.person == 3 ? ' has' : ' have';
+            return !ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? ' has' : ' have';
         else
-            return !ctx.subj.plural && ctx.subj.person == 3 ? '\'s' : '\'ve';
+            return !ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? '\'s' : '\'ve';
         
         
         
@@ -5417,7 +5417,7 @@ conjugateHavnt(ctx, params)
     switch (Narrator.tense)
     {
     case Present:       
-            return !ctx.subj.plural && ctx.subj.person == 3 ? 'hasn\'t' 
+            return !ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? 'hasn\'t' 
             : 'haven\'t';      
         
     case Past:
@@ -5439,7 +5439,7 @@ conjugateHavenot(ctx, params)
     switch (Narrator.tense)
     {
     case Present:       
-            return !ctx.subj.plural && ctx.subj.person == 3 ? 'has not' 
+            return !ctx.subjEffectivelyPlural && ctx.subj.person == 3 ? 'has not' 
             : 'have not';      
         
     case Past:
@@ -5464,7 +5464,7 @@ conjugateHavenot(ctx, params)
 conjugateDont(ctx, params)
 {
     /* get the present index - don't vs doesn't */
-    local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    local idx = ctx.subj.person == 3 && !ctx.subjEffectivelyPlural ? 2 : 1;
     
     /* get the infinitive form by splitting off any [x/y] ending */
     local inf = params[2].split('[')[1];
@@ -5511,7 +5511,7 @@ conjugateDont(ctx, params)
 conjugateDoNot(ctx, params)
 {
     /* get the present index - don't vs doesn't */
-    local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    local idx = ctx.subj.person == 3 && !ctx.subjEffectivelyPlural ? 2 : 1;
     
     /* get the infinitive form by splitting off any [x/y] ending */
     local inf = params[2].split('[')[1];
@@ -5587,7 +5587,7 @@ conjugateMust(ctx, params)
     local inf = params[2].split('[')[1];    
     
     local part = pastParticiple(params[2]);
-    local idx = ctx.subj.person == 3 && !ctx.subj.plural ? 2 : 1;
+    local idx = ctx.subj.person == 3 && !ctx.subjEffectivelyPlural ? 2 : 1;
 
     switch (Narrator.tense)
     {
@@ -6455,4 +6455,20 @@ modify libGlobal
     defaultMood = neutralMood
 ;
 
-
+modify MessageCtx
+    /* A list of object properties that refer to pronouns. */
+    pronounProps = [&heName, &himName, &herName, &hersName, &reflexiveName  ]
+    
+    /* 
+     *   Has a pronoun just been used? It has it we've just used a pronoun property to generate the
+     *   messaage text relating to the subject.
+     */
+    pronounUsed = pronounProps.indexOf(sourceProp)
+    
+    
+    /* 
+     *   The subject is effectively plural for the purponses of conjugation if it as actually plural
+     *   or we've just used a plural pronoun ('they') to refer to it.
+     */
+    subjEffectivelyPlural = subj.plural || (pronounUsed && subj.pronoun.plural)
+;

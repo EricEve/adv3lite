@@ -202,7 +202,7 @@ class Mentionable: LMentionable
      *   fNoun token properties (and more if needed) to distinguish the
      *   gender of individual nouns in the dictionary.  
      */
-    isIt = (!(isHim || isHer))
+    isIt = (!(isHim || isHer || isGenderNeutral))
     isHim = nil
     isHer = nil
 

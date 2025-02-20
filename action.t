@@ -3420,8 +3420,8 @@ notePronounAntecedent([objlist])
         if(cur.ofKind(SubComponent) && cur.location)
             cur = cur.location;
         
-        /* If the object is plural, it's a possible antecedent for 'them' */
-        if(cur.plural || cur.ambiguouslyPlural)
+        /* If the object is plural or gender neutral, it's a possible antecedent for 'them' */
+        if(cur.plural || cur.ambiguouslyPlural || cur.isGenderNeutral)
             themList += cur;
         
         /* 

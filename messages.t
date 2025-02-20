@@ -580,7 +580,7 @@ class MessageCtx: object
     noteObj(obj, role)
     {
         /* remember the object as the last parameter value */
-        noteParam(obj);
+        noteParam(obj);        
 
         /* 
          *   If the role is ambiguous, guess at the role based on the
@@ -757,6 +757,15 @@ class MessageCtx: object
 
     /* the Command object among the arguments, if any */
     cmd = nil
+    
+    sourceProp = nil
+    
+    noteSourceProp(prop)
+    {
+        sourceProp = prop;
+    }
+
+
 
     /* 
      *   The reflexive antecedents.  Each time we see an object in a
@@ -1113,7 +1122,10 @@ class MessageParams: object
                      && (src.ofKind(Mentionable) || src.ofKind(Pronoun)
                          || src.ofKind(LiteralObject) ||
                          src.ofKind(ResolvedTopic)))
+            {
                 srcObj = src;
+                ctx.noteSourceProp(objProp);
+            }
 
             /* check for reflexivity */
             if (srcObj != nil && role == vObject && !ctx.prescan)
