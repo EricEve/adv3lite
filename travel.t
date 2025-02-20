@@ -1467,7 +1467,7 @@ class TravelConnector: object
             execTravel(actor, traveler, self);               
     }
      
-    satTravelPosture() { return true; }
+    setTravelPosture() { return true; }
     
     /* 
      *   Get the traveler associated with this actor. Normally the traveler will

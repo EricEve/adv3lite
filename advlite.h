@@ -706,7 +706,7 @@ enum rmcDisambig;
  *   out an action.
  */
 #define illogicalAlready(msg) \
-    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj)
+    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj))
 
 #define illogicalSelf(msg) \
     gAction.addVerifyResult(new VerifyResult(20, msg, nil, verobj))

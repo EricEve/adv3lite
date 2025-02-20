@@ -748,7 +748,7 @@ class LMentionable: object
              *   legally have pronouns in any section.
              */
             parts[2].split(' ').forEach(function(x){
-                if(ofKind(Thing) && x is in ('him', 'it', 'them'))
+                if(ofKind(Thing) && x is in ('him', 'it', 'them', 'them!'))
                 {
                     "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
                     "Pronoun '<<x>>' appears in adjective section (after first
@@ -774,7 +774,7 @@ class LMentionable: object
              *   appears in the noun section.
              */
             parts[3].split(' ').forEach(function(x){
-                if(ofKind(Thing) && x is in ('him', 'her', 'it', 'them'))
+                if(ofKind(Thing) && x is in ('him', 'her', 'it', 'them', 'them!'))
                 {
                     "<b><FONT COLOR=RED>WARNING!</FONT></B> ";
                     "Pronoun '<<x>>' appears in noun section (after second
@@ -1237,13 +1237,14 @@ class LMentionable: object
         ambiguouslyPlural = nil;
         isHim = nil;
         isHer = nil;
+        isGenderNeutral = nil;
         massNoun = nil;
         
         /* Restore the default expression for qualified. */
         setMethod(&qualified, {: proper });
         
         /* Restore the default expression for isIt. */
-        setMethod(&isIt, { : !(isHim || isHer)} );
+        setMethod(&isIt, { : !(isHim || isHer || isGenderNeutral)} );
         
         
         /* Set our vocab property to the vocab we're replacing it with */
