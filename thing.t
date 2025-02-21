@@ -2083,7 +2083,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   wants to override dobjFor(Touch) to distinguish them it may want to use a touchDesc
      *   property for TOUCH.
      */
-    touchDesc = feelDesc
+//    touchDesc = feelDesc
     
     /*   The description displayed in response to a LISTEN command */
     listenDesc = nil
@@ -4450,7 +4450,10 @@ class Thing:  ReplaceRedirector, Mentionable
         
         action()
         {
-            if(propType(&feelDesc) == TypeNil)            
+            if(gActionIs(Touch) && propDefined(&touchDesc) && propType(&touchDesc) != TypeNil)
+                display(&touchDesc);
+            
+            else if(propType(&feelDesc) == TypeNil)            
                 DMsg(feel nothing, '{I} {feel} nothing unexpected.<.p>');
             else
                 display(&feelDesc);
@@ -8413,7 +8416,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(!canJumpOverMe)
                illogical(cannotJumpOverMsg); 
-            if(gDobj == self)
+            if(gDobj == gActor)
                 illogicalSelf(cannotJumpOverSelfMsg);
         }
     }

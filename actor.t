@@ -2390,7 +2390,13 @@ modify Actor
     {
         action()
         {
-            handleTopic(&miscTopics, [touchTopicObj], &feelDesc);
+            local prop;
+            if(gActionIs(Touch) && propDefined(&touchDesc) && dataType(&touchDesc) != TypeNil)
+                prop = &touchDesc;
+            else
+                prop = &feelDesc;               
+            
+            handleTopic(&miscTopics, [touchTopicObj], prop);
         }
     }
     
