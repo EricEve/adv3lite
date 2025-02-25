@@ -1187,31 +1187,31 @@ class IAction: Action
             say(str);
     }
     
-    execCycle(cmd)
-    {
-        try
-        {
-            /* 
-             *   Add an output filter to display any pending implicit action
-             *   reports before any other text
-             */    
+//    execCycle(cmd)
+//    {
+//        try
+//        {
+//            /* 
+//             *   Add an output filter to display any pending implicit action
+//             *   reports before any other text
+//             */    
 //            gOutStream.addOutputFilter(ImplicitActionFilter);
-            
-            /* Carry out the inherited handling. */
-            inherited(cmd);
-        }
-        
-        finally
-        {
-            /*  
-             *   Remove the filter that displays pending implicit action
-             *   reports.
-             */            
+//            
+//            /* Carry out the inherited handling. */
+//            inherited(cmd);
+//        }
+//        
+//        finally
+//        {
+//            /*  
+//             *   Remove the filter that displays pending implicit action
+//             *   reports.
+//             */            
 //            gOutStream.removeOutputFilter(ImplicitActionFilter);
-            
+//            
 //            "<<buildImplicitActionAnnouncement(true, true)>>";
-        }        
-    }
+//        }        
+//    }
     
     
     /* Nothing to do here. */
@@ -2013,18 +2013,18 @@ class TAction: Action
          *   NOTE TO SELF: Don't try making this work with captureOutput(); it
          *   creates far more hassle than it's worth!!!!
          */            
-        try
-        {
+//        try
+//        {
 //            gOutStream.addOutputFilter(ImplicitActionFilter);
             
             msg = gOutStream.watchForOutput({: doAction() });
-        }
-        finally
-        {
-            /* Remove any implicit action announcement from the output stream */
-
+//        }
+//        finally
+//        {
+//            /* Remove any implicit action announcement from the output stream */
+//
 //            gOutStream.removeOutputFilter(ImplicitActionFilter);
-        }
+//        }
         
         
         /* 
@@ -2478,8 +2478,8 @@ class TIAction: TAction
         if(isImplicit)
             buildImplicitActionAnnouncement(true, nil);
         
-        try
-        {
+//        try
+//        {
             /* 
              *   First add the ImplicitActionFilter to the output stream so that
              *   any text output from the action routines are preceeded by any
@@ -2524,14 +2524,14 @@ class TIAction: TAction
                     gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
             }
             
-        }
+//        }
         
-        finally
-        {
+//        finally
+//        {
             /* Remove any implicit action announcement from the output stream */
                        
 //            gOutStream.removeOutputFilter(ImplicitActionFilter);
-        }
+//        }
        
         /* 
          *   If neither the action stage for the direct object nor the action

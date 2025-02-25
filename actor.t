@@ -1483,14 +1483,24 @@ modify Actor
     /* 
      *   Default message to display when the player character sees this actor
      *   arriving. We use a very plain-vanilla message here, since in practice
-     *   game code will generally want to override this.
+     *   game code will often want to override this.
      */
-    sayActorArriving(fromLoc)
+     sayActorArriving(fromLoc)
     {
         local traveler = self;
         gMessageParams(traveler);
         
-        DMsg(actor arriving, '{The subj traveler} arrive{s/d} in the area. ');
+        /* Attempt to get the director this actor arrived from. */
+        local dir = getOutermostRoom.getDirectionTo(fromLoc);      
+        
+        /* If we find it, display a message saying we've arrived from that direction. */
+        if(dir)
+            DMsg(actor arriving from dir,
+                 '{The subj traveler} arrive{s/d} from <<dir.arrivalName>>. ');
+        
+        /* Otherwise, just say the actor arrived in the player character's locatton. */
+        else            
+            DMsg(actor arriving, '{The subj traveler} arrive{s/d} in the area. ');
     }
     
     

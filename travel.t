@@ -2143,6 +2143,7 @@ northDir: CompassDirection
     dirProp = &north
     name = BMsg(north, 'north')
     departureName = BMsg(depart north, 'to the north')
+    arrivalName = BMsg(arrive north, 'from the north')
     sortingOrder = 1000
     opposite = southDir
 ;
@@ -2151,6 +2152,7 @@ eastDir: CompassDirection
     dirProp = &east
     name = BMsg(east, 'east')
     departureName = BMsg(depart east, 'to the east')
+    arrivalName = BMsg(arrive east, 'from the east')
     sortingOrder = 1100
     opposite = westDir
 ;
@@ -2159,6 +2161,7 @@ southDir: CompassDirection
     dirProp = &south
     name = BMsg(south, 'south')
     departureName = BMsg(depart south, 'to the south')
+    arrivalName = BMsg(arrive south, 'from the south')
     sortingOrder = 1200
     opposite = northDir
 ;
@@ -2167,6 +2170,7 @@ westDir: CompassDirection
     dirProp = &west
     name = BMsg(west, 'west')
     departureName = BMsg(depart west, 'to the west')
+    arrivalName = BMsg(arrive west, 'from the west')
     sortingOrder = 1300
     opposite = eastDir
 ;
@@ -2175,6 +2179,7 @@ northeastDir: CompassDirection
     dirProp = &northeast
     name = BMsg(northeast, 'northeast')
     departureName = BMsg(depart northeast, 'to the northeast')
+    arrivalName = BMsg(arrive northeast, 'from the northeast')
     sortingOrder = 1400
     opposite = southwestDir
 ;
@@ -2183,6 +2188,7 @@ northwestDir: CompassDirection
     dirProp = &northwest
     name = BMsg(northwest, 'northwest')
     departureName = BMsg(depart northwest, 'to the northwest')
+    arrivalName = BMsg(arrive northwest, 'from the northwest')
     sortingOrder = 1500
     opposite = southeastDir
 ;
@@ -2191,6 +2197,7 @@ southeastDir: CompassDirection
     dirProp = &southeast
     name = BMsg(southeast, 'southeast')
     departureName = BMsg(depart southeast, 'to the southeast')
+    arrivalName = BMsg(arrive southeast, 'from the southeast')
     sortingOrder = 1600
     opposite = northwestDir
 ;
@@ -2199,6 +2206,7 @@ southwestDir: CompassDirection
     dirProp = &southwest
     name = BMsg(southwest, 'southwest')
     departureName = BMsg(depart southwest, 'to the southwest')
+    arrivalName = BMsg(arrive southwest, 'from the southwest')
     sortingOrder = 1700
     opposite = northeastDir
 ;
@@ -2207,6 +2215,7 @@ downDir: Direction
     dirProp = &down
     name = BMsg(down, 'down')
     departureName = BMsg(depart down, 'down')
+    arrivalName = BMsg(arrive down, 'from below')
     sortingOrder = 2000
     opposite = upDir
 ;
@@ -2215,6 +2224,7 @@ upDir: Direction
     dirProp = &up
     name = BMsg(up, 'up')
     departureName = BMsg(depart up, 'up')
+    arrivalName = BMsg(arrive up, 'from above')
     sortingOrder = 2100
     opposite = downDir
 ;
@@ -2223,6 +2233,7 @@ inDir: Direction
     dirProp = &in
     name = BMsg(in, 'in')
     departureName = BMsg(depart in, 'inside')
+    arrivalName = BMsg(arrive in, 'from inside')
     sortingOrder = 3000
     opposite = outDir
 ;
@@ -2231,6 +2242,7 @@ outDir: Direction
     dirProp = &out
     name = BMsg(out, 'out')
     departureName = BMsg(depart out, 'out')
+    arrivalName = BMsg(arrive out, 'from outside')
     sortingOrder = 3100
     opposite = inDir
 ;
@@ -2258,6 +2270,7 @@ portDir: ShipboardDirection
     dirProp = &port
     name = BMsg(port, 'port')
     departureName = BMsg(depart port, 'to port')
+    arrivalName = BMsg(depart port, 'from port')
     sortingOrder = 4000
     opposite = starboardDir
 ;
@@ -2266,6 +2279,7 @@ starboardDir: ShipboardDirection
     dirProp = &starboard
     name = BMsg(starboard, 'starboard')
     departureName = BMsg(depart starboard, 'to starboard')
+    arrivalName = BMsg(arrive starboard, 'from starboard')
     sortingOrder = 4100
     opposite = portDir
 ;
@@ -2274,6 +2288,7 @@ foreDir: ShipboardDirection
     dirProp = &fore
     name = BMsg(forward, 'forward')
     departureName = BMsg(depart forward, 'forward')
+    arrivalName = BMsg(arrive forward, 'from forward')
     sortingOrder = 4200
     opposite = aftDir
 ;
@@ -2282,6 +2297,7 @@ aftDir: ShipboardDirection
     dirProp = &aft
     name = BMsg(aft, 'aft')
     departureName = BMsg(depart aft, 'aft')
+    arrivalName = BMsg(arrive aft, 'from aft')
     sortingOrder = 4300
     opposite = foreDir
 ;

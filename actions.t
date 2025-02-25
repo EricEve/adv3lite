@@ -1024,7 +1024,7 @@ DefineIAction(Continue)
     
     /* 
      *   Flag - do we want each step of the way to count as one turn when we're in fastGo mode? In
-     *   default we won't but game code can override this by setting turnPerStep to true.
+     *   default we do but game code can override this by setting turnPerStep to nil.
      */
     turnPerStep = true
     

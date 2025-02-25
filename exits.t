@@ -296,6 +296,7 @@ exitLister: PreinitObject
             switch(loc.propType(dir.dirProp))
             {
             case TypeNil:
+                break;
             case TypeSString:
                 if(showSQSExits && locIsLit && dest != nil)
                     destList.append(new DestInfo(dir, dest));
@@ -508,6 +509,7 @@ class DestInfo: object
         /* remember the direction, destination, and destination name */
         dir_ = dir;
         dest_ = dest;
+        destName_ == destName ?? dest.theName;
     }
 
     /* the direction of travel */

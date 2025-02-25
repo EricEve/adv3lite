@@ -699,14 +699,14 @@ enum rmcDisambig;
 
 
 /* 
- *   IllogicalAlready doesn't do anything different from IllogicalNow in
+ *   IllogicalAlready doesn't do anything mush different from IllogicalNow in
  *   adv3Lite, but is supplied so that game authors familiar with adv3 can use
  *   it without getting a compilation error. It may also be slightly useful for
  *   documentary purposes to clarify why a verify routine in game code is ruling
- *   out an action.
+ *   out an action. We now give it a slightly higher logical rank than illogicalNow().
  */
 #define illogicalAlready(msg) \
-    gAction.addVerifyResult(new VerifyResult(40, msg, nil, verobj))
+    gAction.addVerifyResult(new VerifyResult(45, msg, nil, verobj))
 
 #define illogicalSelf(msg) \
     gAction.addVerifyResult(new VerifyResult(20, msg, nil, verobj))
