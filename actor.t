@@ -2508,7 +2508,7 @@ modify Actor
         {
             /* 
              *   If the player character can see the actor s/he wants to follow,
-             *   and they're in the same qocation then following the target is
+             *   and they're in the same location then following the target is
              *   logical.
              */
             if(Q.canSee(gActor, self) && isIn(gActor.getOutermostRoom))

@@ -1601,10 +1601,13 @@ class TravelConnector: object
     afterTravelNotifications(actor)
     {
         /* 
-         *   Call the after travel notification for every object that's in scope
-         *   for this actor.
+         *   Call the after travel notification for every object that's in scope for this actor plus
+         *   anything else in our notirication list.
          */
-        Q.scopeList(actor).toList.forEach({x: x.afterTravel(actor, self)});
+         
+        local notifyList = Q.scopeList(actor).toList.appendUnique(valToList(travelNotificationList));
+        
+        notifyList.forEach({x: x.afterTravel(actor, self)});
         
         /*   
          *   Finally, carry out after travel notifications in all the regions
@@ -1615,7 +1618,8 @@ class TravelConnector: object
         
     }
 
-        
+    /* List of additional actors to be notified that this actor has travelled. */
+    travelNotificationList = []    
         
     /*  
      *   Method that should return true is actor is allowed to pass through this
