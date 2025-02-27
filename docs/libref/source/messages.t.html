@@ -582,7 +582,7 @@
 <a name="580"></a>    noteObj(obj, role)
 <a name="581"></a>    {
 <a name="582"></a>        /* remember the object as the last parameter value */
-<a name="583"></a>        noteParam(obj);
+<a name="583"></a>        noteParam(obj);        
 <a name="584"></a>
 <a name="585"></a>        /* 
 <a name="586"></a>         *   If the role is ambiguous, guess at the role based on the
@@ -759,433 +759,506 @@
 <a name="757"></a>
 <a name="758"></a>    /* the Command object among the arguments, if any */
 <a name="759"></a>    cmd = nil
-<a name="760"></a>
-<a name="761"></a>    /* 
-<a name="762"></a>     *   The reflexive antecedents.  Each time we see an object in a
-<a name="763"></a>     *   non-subject role, and the object has different pronoun usage from
-<a name="764"></a>     *   any previous entry, we'll add it to this list.  If we see the same
-<a name="765"></a>     *   object subsequently in another non-subject role, we'll know that
-<a name="766"></a>     *   we should generate a reflexive pronoun for the object rather than
-<a name="767"></a>     *   the name or a regular pronoun:
-<a name="768"></a>     *   
-<a name="769"></a>     *   You can't put the tongs in the box with the tongs -&gt; with
-<a name="770"></a>     *   themselves
-<a name="771"></a>     */
-<a name="772"></a>    reflexiveAnte = perInstance(new Vector(5))
-<a name="773"></a>;
-<a name="774"></a>
-<a name="775"></a>/*
-<a name="776"></a> *   Dummy command placeholder for messages generated without a command.
-<a name="777"></a> */
-<a name="778"></a>messageDummyCommand: object
-<a name="779"></a>    /* use the player character as the actor */
-<a name="780"></a>    actor = (gPlayerChar)
-<a name="781"></a>    
-<a name="782"></a>;
-<a name="783"></a>
-<a name="784"></a>/*
-<a name="785"></a> *    Use the message builder to format a message without supplying a key
-<a name="786"></a> *    to look up at alternative message. We can use this with library
-<a name="787"></a> *    messages that employ object properties (e.g. cannotTakeMsg) or user
-<a name="788"></a> *    code.
-<a name="789"></a> *
-<a name="790"></a> *    dmsg() displays the resultant message.
-<a name="791"></a> */
-<a name="792"></a>dmsg(txt, [args])
-<a name="793"></a>{
-<a name="794"></a>    message('', txt, args...);
-<a name="795"></a>}
-<a name="796"></a>
-<a name="797"></a>
-<a name="798"></a>/* bmsg returns the text of a message formatted by the message formatter. */
-<a name="799"></a>bmsg(txt, [args])
-<a name="800"></a>{
-<a name="801"></a>    return buildMessage('', txt, args...);
-<a name="802"></a>}
-<a name="803"></a>
-<a name="804"></a>/* ------------------------------------------------------------------------ */
-<a name="805"></a>/*
-<a name="806"></a> *   Message customizer object.  Language extensions and games can use this
-<a name="807"></a> *   class to define their own custom messages that override the default
-<a name="808"></a> *   English messages used throughout the library.
-<a name="809"></a> *   
-<a name="810"></a> *   Each CustomMessages object can define a list of messages to be
-<a name="811"></a> *   customized.  This lets you centrally locate all of your custom
-<a name="812"></a> *   messages by putting them all in a single object, if you wish.
-<a name="813"></a> *   Alternatively, you can create separate objects, if you prefer to keep
-<a name="814"></a> *   them with some other body of code they apply to.  In either case, the
-<a name="815"></a> *   library gathers them all up during preinit.  
-<a name="816"></a> */
-<a name="817"></a>class CustomMessages: object
-<a name="818"></a>    /*
-<a name="819"></a>     *   The priority determines the precedence of a message defined in
-<a name="820"></a>     *   this object, if the same message is defined in more than one
-<a name="821"></a>     *   CustomMessages object.  The message with the highest priority is
-<a name="822"></a>     *   the one that's actually displayed.
-<a name="823"></a>     *   
-<a name="824"></a>     *   The library defines one standard priority level: 100 is the
-<a name="825"></a>     *   priority for language module overrides.  Each language module
-<a name="826"></a>     *   provides a translated set of the standard library messages, via a
-<a name="827"></a>     *   CustomMessages object with priority 100.  (The default English
-<a name="828"></a>     *   messages defined in-line throughout the library via DMsg() macros
-<a name="829"></a>     *   effectively have a priority of negative infinity, since any custom
-<a name="830"></a>     *   message of any priority overrides a default.)
-<a name="831"></a>     *   
-<a name="832"></a>     *   Games will generally want to override all library messages,
-<a name="833"></a>     *   including translations, so we set the default here to 200.  
-<a name="834"></a>     */
-<a name="835"></a>    priority = 200
-<a name="836"></a>
-<a name="837"></a>    /*
-<a name="838"></a>     *   Is this customizer active?  If you want to change the messages at
-<a name="839"></a>     *   different points in the course of the game, you can use this to
-<a name="840"></a>     *   turn sets of messages on and off.  For example, if your game
-<a name="841"></a>     *   includes narrator changes at certain points, you can create
-<a name="842"></a>     *   separate sets of messages per narrator.  By default, we make all
-<a name="843"></a>     *   customizations active, but you can override this to turn selected
-<a name="844"></a>     *   messages on and off as needed.  Note that the library consults
-<a name="845"></a>     *   this every time it looks up a message, so you can change the value
-<a name="846"></a>     *   dynamically, or use a method whose return value changes
-<a name="847"></a>     *   dynamically.  
-<a name="848"></a>     */
-<a name="849"></a>    active = true
-<a name="850"></a>
-<a name="851"></a>    /*
-<a name="852"></a>     *   The message list.  This can contain any number of messages; the
-<a name="853"></a>     *   order isn't important.  Each message is defined with a Msg()
-<a name="854"></a>     *   macro:
-<a name="855"></a>     *   
-<a name="856"></a>     *.     Msg(id key, 'Message text'),  ...
-<a name="857"></a>     *   
-<a name="858"></a>     *   The "id key" is the message ID that the library uses in the DMsg()
-<a name="859"></a>     *   message that you're customizing.  (DON'T use quotes around the ID
-<a name="860"></a>     *   key.)  The message text is a single-quoted string giving the
-<a name="861"></a>     *   message text.  This can contain curly-brace replacement
-<a name="862"></a>     *   parameters.  
-<a name="863"></a>     */
-<a name="864"></a>    messages = []
-<a name="865"></a>
-<a name="866"></a>    /*
-<a name="867"></a>     *   Construction.  Build the lookup table of our messages for fast
-<a name="868"></a>     *   access at run-time. 
-<a name="869"></a>     */
-<a name="870"></a>    construct()
-<a name="871"></a>    {
-<a name="872"></a>        /* add me to the master list of message customizers */
-<a name="873"></a>        CustomMessages.all += self;
-<a name="874"></a>
-<a name="875"></a>        /* create the lookup table */
-<a name="876"></a>        msgTab = new LookupTable(64, 128);
-<a name="877"></a>
-<a name="878"></a>        /* populate it with our key-&gt;string mappings */
-<a name="879"></a>        for (local i = 1, local len = messages.length() ; i &lt;= len ; i += 2)
-<a name="880"></a>            msgTab[messages[i]] = messages[i+1];
-<a name="881"></a>    }
+<a name="760"></a>    
+<a name="761"></a>    sourceProp = nil
+<a name="762"></a>    
+<a name="763"></a>    noteSourceProp(prop)
+<a name="764"></a>    {
+<a name="765"></a>        sourceProp = prop;
+<a name="766"></a>    }
+<a name="767"></a>
+<a name="768"></a>
+<a name="769"></a>
+<a name="770"></a>    /* 
+<a name="771"></a>     *   The reflexive antecedents.  Each time we see an object in a
+<a name="772"></a>     *   non-subject role, and the object has different pronoun usage from
+<a name="773"></a>     *   any previous entry, we'll add it to this list.  If we see the same
+<a name="774"></a>     *   object subsequently in another non-subject role, we'll know that
+<a name="775"></a>     *   we should generate a reflexive pronoun for the object rather than
+<a name="776"></a>     *   the name or a regular pronoun:
+<a name="777"></a>     *   
+<a name="778"></a>     *   You can't put the tongs in the box with the tongs -&gt; with
+<a name="779"></a>     *   themselves
+<a name="780"></a>     */
+<a name="781"></a>    reflexiveAnte = perInstance(new Vector(5))
+<a name="782"></a>    
+<a name="783"></a>    subjPlural()
+<a name="784"></a>    {
+<a name="785"></a>        if(subj.isGenderNeutral &amp;&amp; lastParam.ofKind(Pronoun))
+<a name="786"></a>           return true;
+<a name="787"></a>        
+<a name="788"></a>        return subj.plural;           
+<a name="789"></a>    }
+<a name="790"></a>;
+<a name="791"></a>
+<a name="792"></a>/*
+<a name="793"></a> *   Dummy command placeholder for messages generated without a command.
+<a name="794"></a> */
+<a name="795"></a>messageDummyCommand: object
+<a name="796"></a>    /* use the player character as the actor */
+<a name="797"></a>    actor = (gPlayerChar)
+<a name="798"></a>    
+<a name="799"></a>;
+<a name="800"></a>
+<a name="801"></a>/*
+<a name="802"></a> *    Use the message builder to format a message without supplying a key
+<a name="803"></a> *    to look up at alternative message. We can use this with library
+<a name="804"></a> *    messages that employ object properties (e.g. cannotTakeMsg) or user
+<a name="805"></a> *    code.
+<a name="806"></a> *
+<a name="807"></a> *    dmsg() displays the resultant message.
+<a name="808"></a> */
+<a name="809"></a>dmsg(txt, [args])
+<a name="810"></a>{
+<a name="811"></a>    message('', txt, args...);
+<a name="812"></a>}
+<a name="813"></a>
+<a name="814"></a>
+<a name="815"></a>/* bmsg returns the text of a message formatted by the message formatter. */
+<a name="816"></a>bmsg(txt, [args])
+<a name="817"></a>{
+<a name="818"></a>    return buildMessage('', txt, args...);
+<a name="819"></a>}
+<a name="820"></a>
+<a name="821"></a>/* ------------------------------------------------------------------------ */
+<a name="822"></a>/*
+<a name="823"></a> *   Message customizer object.  Language extensions and games can use this
+<a name="824"></a> *   class to define their own custom messages that override the default
+<a name="825"></a> *   English messages used throughout the library.
+<a name="826"></a> *   
+<a name="827"></a> *   Each CustomMessages object can define a list of messages to be
+<a name="828"></a> *   customized.  This lets you centrally locate all of your custom
+<a name="829"></a> *   messages by putting them all in a single object, if you wish.
+<a name="830"></a> *   Alternatively, you can create separate objects, if you prefer to keep
+<a name="831"></a> *   them with some other body of code they apply to.  In either case, the
+<a name="832"></a> *   library gathers them all up during preinit.  
+<a name="833"></a> */
+<a name="834"></a>class CustomMessages: object
+<a name="835"></a>    /*
+<a name="836"></a>     *   The priority determines the precedence of a message defined in
+<a name="837"></a>     *   this object, if the same message is defined in more than one
+<a name="838"></a>     *   CustomMessages object.  The message with the highest priority is
+<a name="839"></a>     *   the one that's actually displayed.
+<a name="840"></a>     *   
+<a name="841"></a>     *   The library defines one standard priority level: 100 is the
+<a name="842"></a>     *   priority for language module overrides.  Each language module
+<a name="843"></a>     *   provides a translated set of the standard library messages, via a
+<a name="844"></a>     *   CustomMessages object with priority 100.  (The default English
+<a name="845"></a>     *   messages defined in-line throughout the library via DMsg() macros
+<a name="846"></a>     *   effectively have a priority of negative infinity, since any custom
+<a name="847"></a>     *   message of any priority overrides a default.)
+<a name="848"></a>     *   
+<a name="849"></a>     *   Games will generally want to override all library messages,
+<a name="850"></a>     *   including translations, so we set the default here to 200.  
+<a name="851"></a>     */
+<a name="852"></a>    priority = 200
+<a name="853"></a>
+<a name="854"></a>    /*
+<a name="855"></a>     *   Is this customizer active?  If you want to change the messages at
+<a name="856"></a>     *   different points in the course of the game, you can use this to
+<a name="857"></a>     *   turn sets of messages on and off.  For example, if your game
+<a name="858"></a>     *   includes narrator changes at certain points, you can create
+<a name="859"></a>     *   separate sets of messages per narrator.  By default, we make all
+<a name="860"></a>     *   customizations active, but you can override this to turn selected
+<a name="861"></a>     *   messages on and off as needed.  Note that the library consults
+<a name="862"></a>     *   this every time it looks up a message, so you can change the value
+<a name="863"></a>     *   dynamically, or use a method whose return value changes
+<a name="864"></a>     *   dynamically.  
+<a name="865"></a>     */
+<a name="866"></a>    active = true
+<a name="867"></a>
+<a name="868"></a>    /*
+<a name="869"></a>     *   The message list.  This can contain any number of messages; the
+<a name="870"></a>     *   order isn't important.  Each message is defined with a Msg()
+<a name="871"></a>     *   macro:
+<a name="872"></a>     *   
+<a name="873"></a>     *.     Msg(id key, 'Message text'),  ...
+<a name="874"></a>     *   
+<a name="875"></a>     *   The "id key" is the message ID that the library uses in the DMsg()
+<a name="876"></a>     *   message that you're customizing.  (DON'T use quotes around the ID
+<a name="877"></a>     *   key.)  The message text is a single-quoted string giving the
+<a name="878"></a>     *   message text.  This can contain curly-brace replacement
+<a name="879"></a>     *   parameters.  
+<a name="880"></a>     */
+<a name="881"></a>    messages = []
 <a name="882"></a>
-<a name="883"></a>    /* message lookup table - this maps ID keys to message text strings */
-<a name="884"></a>    msgTab = nil
-<a name="885"></a>
-<a name="886"></a>    /* 
-<a name="887"></a>     *   class property: the master list of CustomMessages objects defined
-<a name="888"></a>     *   throughout the game 
-<a name="889"></a>     */
-<a name="890"></a>    all = []
-<a name="891"></a>;
-<a name="892"></a>
-<a name="893"></a>/* ------------------------------------------------------------------------ */
-<a name="894"></a>/*
-<a name="895"></a> *   Message Parameter Handler.  This object defines and handles parameter
-<a name="896"></a> *   expansion for '{...}' strings in displayed messages.
-<a name="897"></a> *   
-<a name="898"></a> *   The language module must provide one instance of this class.  The name
-<a name="899"></a> *   of the instance doesn't matter - we'll find it at preinit time.  The
-<a name="900"></a> *   object must provide the 'params' property giving the language-specific
-<a name="901"></a> *   list of substitution parameter names and handler functions.  
-<a name="902"></a> */
-<a name="903"></a>class MessageParams: object
-<a name="904"></a>    /*
-<a name="905"></a>     *   Expand a parameter string.  'ctx' is a MessageCtx object with the
-<a name="906"></a>     *   current sentence context.  This contains the message expansion
-<a name="907"></a>     *   arguments (ctx.args), the Command object from the arguments
-<a name="908"></a>     *   (ctx.cmd), and information on the grammar elements of the
-<a name="909"></a>     *   sentence.  'params' is the list of space-delimited tokens within
-<a name="910"></a>     *   the curly-brace parameter string.  Returns the string to
-<a name="911"></a>     *   substitute for the parameter in the message output.  
-<a name="912"></a>     */
-<a name="913"></a>    expand(ctx, params)
-<a name="914"></a>    {
-<a name="915"></a>        /* look up the parameter name */
-<a name="916"></a>        local pname = params[1].trim();
-<a name="917"></a>        local t = paramTab[pname.toLower()];
-<a name="918"></a>
-<a name="919"></a>        /* 
-<a name="920"></a>         *   If we found an entry, let the entry handle it.  If there's no
-<a name="921"></a>         *   matching entry, it's basically an error: return the original
-<a name="922"></a>         *   parameter source text, with the braces restored, so that it'll
-<a name="923"></a>         *   be obvious in the output.
-<a name="924"></a>         */
-<a name="925"></a>        local txt = nil;
-<a name="926"></a>        if (t != nil)
-<a name="927"></a>        {
-<a name="928"></a>            /* 
-<a name="929"></a>             *   If we have not previously identified a subject for this
-<a name="930"></a>             *   context, use the dummy_ object, which provides a dummy third
-<a name="931"></a>             *   person singular noun as a default subject for the verb.
-<a name="932"></a>             */
-<a name="933"></a>            if(ctx.subj == nil)
-<a name="934"></a>                ctx.subj = dummy_;
-<a name="935"></a>            
-<a name="936"></a>            /* we found the parameter - get the translation */
-<a name="937"></a>            txt = t[2](ctx, params);
-<a name="938"></a>            
-<a name="939"></a>            /* 
-<a name="940"></a>             *   if this isn't a pre-scan, and the parameter name starts
-<a name="941"></a>             *   with a capital, mimic that pattern in the result 
-<a name="942"></a>             */
-<a name="943"></a>            if (txt != nil &amp;&amp; !ctx.prescan &amp;&amp; rexMatch(R'&lt;upper&gt;', pname) != nil)
-<a name="944"></a>                txt = txt.firstChar().toUpper() + txt.delFirst();
-<a name="945"></a>        }
-<a name="946"></a>
-<a name="947"></a>        /* 
-<a name="948"></a>         *   if we failed to find an expansion, and this isn't just a
-<a name="949"></a>         *   pre-scan, return the source text as an error indication 
-<a name="950"></a>         */
-<a name="951"></a>        if (txt == nil &amp;&amp; !ctx.prescan)
-<a name="952"></a>            txt = '{' + params.join(' ') + '}';
-<a name="953"></a>
-<a name="954"></a>        /* return the result */
-<a name="955"></a>        return txt;
-<a name="956"></a>    }
-<a name="957"></a>
-<a name="958"></a>    /* 
-<a name="959"></a>     *   Parameter mapping list.  This is a list of lists: [name, func],
-<a name="960"></a>     *   where 'name' is the parameter name (as a string), and 'func' is
-<a name="961"></a>     *   the expansion handler function.
-<a name="962"></a>     *   
-<a name="963"></a>     *   The parameter name must be all lower case.  During expansion, we
-<a name="964"></a>     *   convert the first space-delimited token within the {curly brace}
-<a name="965"></a>     *   parameter string to lower case, then look for an entry in the list
-<a name="966"></a>     *   with the matching parameter name.  If we find an entry, we call
-<a name="967"></a>     *   its handler function.
-<a name="968"></a>     *   
-<a name="969"></a>     *   The handler function is a pointer to a function that takes two
-<a name="970"></a>     *   arguments: func(params, ctx), where 'params' is the list of tokens
-<a name="971"></a>     *   within the {curly braces} of the substitution string, as a list of
-<a name="972"></a>     *   strings, where each string is a space-delimited token in the
-<a name="973"></a>     *   original {curly brace} string; and 'ctx' is the MessageCtx object
-<a name="974"></a>     *   for the expansion.  The function returns a string giving the
-<a name="975"></a>     *   expansion of the parameter.
-<a name="976"></a>     *   
-<a name="977"></a>     *   The parameter list must be provided by the language module, since
-<a name="978"></a>     *   each language's list of parameters and expansions will vary.  
-<a name="979"></a>     */
-<a name="980"></a>    params = [ ]
-<a name="981"></a>
-<a name="982"></a>    /*
-<a name="983"></a>     *   Some parameters expand to properties of objects involved in the
-<a name="984"></a>     *   command.  cmdInfo() makes it easier to define the expansion
-<a name="985"></a>     *   functions for such parameters.  We search the parameters for a
-<a name="986"></a>     *   Command object, and if we find it, we retrieve a particular source
-<a name="987"></a>     *   object and evaluate a particular property on the source object to
-<a name="988"></a>     *   get the result string.
-<a name="989"></a>     *   
-<a name="990"></a>     *   For example, {the dobj} could be handled via cmdInfo('ctx, dobj',
-<a name="991"></a>     *   &amp;theName, vSubject): we find the current 'dobj' object in the
-<a name="992"></a>     *   Command, then evaluate the &amp;theName property on that object.
-<a name="993"></a>     *   
-<a name="994"></a>     *   'ctx' is the MessageCtx object with the current sentence context.
-<a name="995"></a>     *   
-<a name="996"></a>     *   'src' is the source object in the Command.  This can be given as a
-<a name="997"></a>     *   property pointer (&amp;actor, say), in which case we simply evaluate
-<a name="998"></a>     *   that property of the Command object (cmd.(src)) to get the source
-<a name="999"></a>     *   object.  Or, it can be a string giving a NounRole name (dobj,
-<a name="1000"></a>     *   iobj, acc), in which case we'll retrieve the current object for
-<a name="1001"></a>     *   the noun role from the Command.  Or, it can be a string with a
-<a name="1002"></a>     *   number, in which case we'll use the number as an index into the
-<a name="1003"></a>     *   argument list.
-<a name="1004"></a>     *   
-<a name="1005"></a>     *   'objProp' is the property of the source object to evaluate to get
-<a name="1006"></a>     *   the expansion string.
-<a name="1007"></a>     *   
-<a name="1008"></a>     *   'role' is vSubject if this is a noun phrase with subject usage (in
-<a name="1009"></a>     *   most languages, this is a noun phrase in the nominative case; in
-<a name="1010"></a>     *   English this is called subjective case).  It's vObject for any
-<a name="1011"></a>     *   other noun phrase role (direct object, prepositional object, etc).
-<a name="1012"></a>     *   If the role isn't clear from the context (the case marking of the
-<a name="1013"></a>     *   parameter, or the position), use vAmbig to mark it as ambiguous.  
-<a name="1014"></a>     */
-<a name="1015"></a>    cmdInfo(ctx, src, objProp, role)
-<a name="1016"></a>    {
-<a name="1017"></a>        try
-<a name="1018"></a>        {
-<a name="1019"></a>            /* we don't have a source object yet */
-<a name="1020"></a>            local srcObj = nil;
-<a name="1021"></a>            
-<a name="1022"></a>            /* if the source is a role name, get the corresponding property */
-<a name="1023"></a>            if (dataType(src) == TypeSString)
-<a name="1024"></a>            {
-<a name="1025"></a>                /* check for a number */
-<a name="1026"></a>                if (rexMatch(R'&lt;digit&gt;+', src) != nil)
-<a name="1027"></a>                {
-<a name="1028"></a>                    /* it's an argument index */
-<a name="1029"></a>                    src = ctx.args[toInteger(src)];
-<a name="1030"></a>                }
-<a name="1031"></a>                else
-<a name="1032"></a>                {
-<a name="1033"></a>                    /* Find the source object corresponding to the string */
-<a name="1034"></a>                    src = findStrParam(src, role);
-<a name="1035"></a>                
-<a name="1036"></a>                /* 
-<a name="1037"></a>                 *   If we didn't find an object, return nil to the caller to
-<a name="1038"></a>                 *   indicate an error
-<a name="1039"></a>                 */     
-<a name="1040"></a>                
-<a name="1041"></a>                    if(src == nil)
-<a name="1042"></a>                        return nil;
-<a name="1043"></a>                
-<a name="1044"></a>                }
-<a name="1045"></a>                    
-<a name="1046"></a>            }
-<a name="1047"></a>
-<a name="1048"></a>            /* retrieve the source object from the command */
-<a name="1049"></a>            if (dataType(src) == TypeProp)
-<a name="1050"></a>                srcObj = ctx.cmd.(src);
-<a name="1051"></a>            else if (dataType(src) == TypeObject 
-<a name="1052"></a>                     &amp;&amp; (src.ofKind(Mentionable) || src.ofKind(Pronoun)
-<a name="1053"></a>                         || src.ofKind(LiteralObject) ||
-<a name="1054"></a>                         src.ofKind(ResolvedTopic)))
-<a name="1055"></a>                srcObj = src;
-<a name="1056"></a>
-<a name="1057"></a>            /* check for reflexivity */
-<a name="1058"></a>            if (srcObj != nil &amp;&amp; role == vObject &amp;&amp; !ctx.prescan)
-<a name="1059"></a>            {
-<a name="1060"></a>                local r = cmdInfoReflexive(ctx, srcObj, objProp);
-<a name="1061"></a>                if (r != nil)
-<a name="1062"></a>                    return r;
-<a name="1063"></a>            }
-<a name="1064"></a>
-<a name="1065"></a>            /* note the object's role in the sentence context */
-<a name="1066"></a>            if (srcObj != nil)
-<a name="1067"></a>                ctx.noteObj(srcObj, role);
-<a name="1068"></a>
-<a name="1069"></a>            /* 
-<a name="1070"></a>             *   if we're in pre-scan mode, skip the actual expansion;
-<a name="1071"></a>             *   otherwise evaluate the target property on the source
-<a name="1072"></a>             *   object to get the expansion text 
-<a name="1073"></a>             */
-<a name="1074"></a>            return ctx.prescan ? nil : srcObj.(objProp);
-<a name="1075"></a>        }
-<a name="1076"></a>        catch (Exception e)
-<a name="1077"></a>        {
-<a name="1078"></a>            /* 
-<a name="1079"></a>             *   if anything went wrong, return nil to indicate we failed
-<a name="1080"></a>             *   to find an expansion
-<a name="1081"></a>             */
-<a name="1082"></a>            return nil;
-<a name="1083"></a>        }
-<a name="1084"></a>    }
-<a name="1085"></a>    
-<a name="1086"></a>    findStrParam(src, role)
-<a name="1087"></a>    {
-<a name="1088"></a>        local targetObj;
-<a name="1089"></a>        
-<a name="1090"></a>        if (gAction != nil)
-<a name="1091"></a>        {
-<a name="1092"></a>            /* get the target object by name through the action */
-<a name="1093"></a>            targetObj = gAction.getMessageParam(src);
-<a name="1094"></a>        }
-<a name="1095"></a>        else
-<a name="1096"></a>        {
-<a name="1097"></a>            /* there's no action, so we don't have a value yet */
-<a name="1098"></a>            targetObj = nil;
-<a name="1099"></a>        }
-<a name="1100"></a>        
-<a name="1101"></a>        if (targetObj == nil)
-<a name="1102"></a>        {
-<a name="1103"></a>            /* look up the name */
-<a name="1104"></a>            targetObj = libGlobal.nameTable_[src];
-<a name="1105"></a>            
-<a name="1106"></a>            /* 
-<a name="1107"></a>             *   if we found it, and the result is a function pointer or an
-<a name="1108"></a>             *   anonymous function, invoke the function to get the result
-<a name="1109"></a>             */
-<a name="1110"></a>            if (dataTypeXlat(targetObj) == TypeFuncPtr)
-<a name="1111"></a>            {
-<a name="1112"></a>                /* evaluate the function */
-<a name="1113"></a>                targetObj = (targetObj)();
-<a name="1114"></a>            }
-<a name="1115"></a>        }
-<a name="1116"></a>        
-<a name="1117"></a>        /* 
-<a name="1118"></a>         *   If we still haven't found a targetObj, try getting it from the
-<a name="1119"></a>         *   role's object property.
-<a name="1120"></a>         */
-<a name="1121"></a>        
-<a name="1122"></a>        if (targetObj == nil &amp;&amp; role != nil)
-<a name="1123"></a>        {
-<a name="1124"></a>            /* it's a role name - look up the role */
-<a name="1125"></a>            local role = NounRole.all.valWhich({ r: r.name == src });
-<a name="1126"></a>            
-<a name="1127"></a>            /* get the role's object property */
-<a name="1128"></a>            if(role != nil)
-<a name="1129"></a>               targetObj = role.objProp;
-<a name="1130"></a>        }
-<a name="1131"></a>        
-<a name="1132"></a>        /* 
-<a name="1133"></a>         *   If we still haven't found a targetObj, there's probably an error in
-<a name="1134"></a>         *   the way the object parameter was specified, but rather than
-<a name="1135"></a>         *   allowing this to cause a run-time error down the track, substitute
-<a name="1136"></a>         *   a dummy object and note the offending src parameter on an
-<a name="1137"></a>         *   appropiate property so that the text presented should make it clear
-<a name="1138"></a>         *   where the problem lies.
-<a name="1139"></a>         */
-<a name="1140"></a>        
-<a name="1141"></a>        if(targetObj == nil)
-<a name="1142"></a>        {
-<a name="1143"></a>            targetObj = dummy_;
-<a name="1144"></a>            dummy_.noteName('[' + src + ']');
-<a name="1145"></a>        }
-<a name="1146"></a>            
-<a name="1147"></a>        
-<a name="1148"></a>        return targetObj;
-<a name="1149"></a>    }
-<a name="1150"></a>
-<a name="1151"></a>    /* 
-<a name="1152"></a>     *   Parameter lookup table.  This maps a parameter name to its handler
-<a name="1153"></a>     *   function.  
-<a name="1154"></a>     */
-<a name="1155"></a>    paramTab = nil
-<a name="1156"></a>
-<a name="1157"></a>    /* the language module's instance of the class */
-<a name="1158"></a>    langObj = nil
-<a name="1159"></a>
-<a name="1160"></a>    /* construction - build the lookup table */
-<a name="1161"></a>    construct()
-<a name="1162"></a>    {
-<a name="1163"></a>        /* remember the instance */
-<a name="1164"></a>        MessageParams.langObj = self;
-<a name="1165"></a>
-<a name="1166"></a>        /* create the parameter table */
-<a name="1167"></a>        paramTab = new LookupTable(64, 128);
-<a name="1168"></a>        foreach (local p in params)
-<a name="1169"></a>            paramTab[p[1]] = p;
-<a name="1170"></a>    }
-<a name="1171"></a>;
-<a name="1172"></a>
-<a name="1173"></a>/* Dummy object to use as a fallback when a parameter can't be identified */
-<a name="1174"></a>
-<a name="1175"></a>dummy_: Thing
-<a name="1176"></a>    noteName(src) { }
-<a name="1177"></a>;
-<a name="1178"></a>
-<a name="1179"></a>pluralDummy_: Thing
-<a name="1180"></a>    noteName(src) { }
-<a name="1181"></a>;
-<a name="1182"></a>
-<a name="1183"></a>
-<a name="1184"></a>/*----------------------------------------------------------------------------*/
-<a name="1185"></a>
+<a name="883"></a>    /*
+<a name="884"></a>     *   Construction.  Build the lookup table of our messages for fast
+<a name="885"></a>     *   access at run-time. 
+<a name="886"></a>     */
+<a name="887"></a>    construct()
+<a name="888"></a>    {
+<a name="889"></a>        /* add me to the master list of message customizers */
+<a name="890"></a>        CustomMessages.all += self;
+<a name="891"></a>
+<a name="892"></a>        /* create the lookup table */
+<a name="893"></a>        msgTab = new LookupTable(64, 128);
+<a name="894"></a>
+<a name="895"></a>        /* populate it with our key-&gt;string mappings */
+<a name="896"></a>        for (local i = 1, local len = messages.length() ; i &lt;= len ; i += 2)
+<a name="897"></a>            msgTab[messages[i]] = messages[i+1];
+<a name="898"></a>    }
+<a name="899"></a>
+<a name="900"></a>    /* message lookup table - this maps ID keys to message text strings */
+<a name="901"></a>    msgTab = nil
+<a name="902"></a>
+<a name="903"></a>    /* 
+<a name="904"></a>     *   class property: the master list of CustomMessages objects defined
+<a name="905"></a>     *   throughout the game 
+<a name="906"></a>     */
+<a name="907"></a>    all = []
+<a name="908"></a>;
+<a name="909"></a>
+<a name="910"></a>/* ------------------------------------------------------------------------ */
+<a name="911"></a>/*
+<a name="912"></a> *   Message Parameter Handler.  This object defines and handles parameter
+<a name="913"></a> *   expansion for '{...}' strings in displayed messages.
+<a name="914"></a> *   
+<a name="915"></a> *   The language module must provide one instance of this class.  The name
+<a name="916"></a> *   of the instance doesn't matter - we'll find it at preinit time.  The
+<a name="917"></a> *   object must provide the 'params' property giving the language-specific
+<a name="918"></a> *   list of substitution parameter names and handler functions.  
+<a name="919"></a> */
+<a name="920"></a>class MessageParams: object
+<a name="921"></a>    /*
+<a name="922"></a>     *   Expand a parameter string.  'ctx' is a MessageCtx object with the
+<a name="923"></a>     *   current sentence context.  This contains the message expansion
+<a name="924"></a>     *   arguments (ctx.args), the Command object from the arguments
+<a name="925"></a>     *   (ctx.cmd), and information on the grammar elements of the
+<a name="926"></a>     *   sentence.  'params' is the list of space-delimited tokens within
+<a name="927"></a>     *   the curly-brace parameter string.  Returns the string to
+<a name="928"></a>     *   substitute for the parameter in the message output.  
+<a name="929"></a>     */
+<a name="930"></a>    expand(ctx, params)
+<a name="931"></a>    {
+<a name="932"></a>        /* look up the parameter name */
+<a name="933"></a>        local pname = params[1].trim();
+<a name="934"></a>        
+<a name="935"></a>        /* Note whether we have a parameter ending in ! that wants to force a present tense verb */
+<a name="936"></a>        local forcePresentTense = nil;
+<a name="937"></a>        
+<a name="938"></a>        /* 
+<a name="939"></a>         *   If the parameter ends in ! we want a present tense verb whatever the tense of the game.
+<a name="940"></a>         */
+<a name="941"></a>        if(pname.right(1) == '!')
+<a name="942"></a>        {
+<a name="943"></a>            forcePresentTense = true;
+<a name="944"></a>            pname = pname.left(-1);
+<a name="945"></a>            params[1] = pname;
+<a name="946"></a>        }
+<a name="947"></a>
+<a name="948"></a>        local t = paramTab[pname.toLower()]; 
+<a name="949"></a>        
+<a name="950"></a>        /* 
+<a name="951"></a>         *   If we found an entry, let the entry handle it.  If there's no
+<a name="952"></a>         *   matching entry, it's basically an error: return the original
+<a name="953"></a>         *   parameter source text, with the braces restored, so that it'll
+<a name="954"></a>         *   be obvious in the output.
+<a name="955"></a>         */
+<a name="956"></a>        local txt = nil;
+<a name="957"></a>        if (t != nil)
+<a name="958"></a>        {
+<a name="959"></a>            /* 
+<a name="960"></a>             *   If we have not previously identified a subject for this
+<a name="961"></a>             *   context, use the dummy_ object, which provides a dummy third
+<a name="962"></a>             *   person singular noun as a default subject for the verb.
+<a name="963"></a>             */
+<a name="964"></a>            if(ctx.subj == nil)
+<a name="965"></a>                ctx.subj = dummy_;
+<a name="966"></a>            
+<a name="967"></a>            /* 
+<a name="968"></a>             *   If we're forcing present tense .Note the current game tense so we can restore it
+<a name="969"></a>             *   once we've expanded this parameter. Since this could be defined either on gameMain
+<a name="970"></a>             *   or on Narrator we meed to check both places. If Narrator.tense is a method (rather
+<a name="971"></a>             *   than a Tense object) we need to take the tense from gameMain.usePastTense,
+<a name="972"></a>             *   otherwise we need to note the Tense object on Narrator.tense.             
+<a name="973"></a>             */
+<a name="974"></a>            local oldTense = Narrator.propType(&amp;tense) == TypeCode ? gameMain.usePastTense :
+<a name="975"></a>            Narrator.tense;
+<a name="976"></a>            
+<a name="977"></a>            /* 
+<a name="978"></a>             *   If we're forcing present tense, set the Narrator.tense to Present if oldTense is an
+<a name="979"></a>             *   object, otherwise set gameMain.usePastTense to nil on the assumption that
+<a name="980"></a>             *   Narrator.tense is getting its value to gameMain.usePastTense.
+<a name="981"></a>             */
+<a name="982"></a>            if(forcePresentTense)
+<a name="983"></a>            {
+<a name="984"></a>                if(dataType(&amp;oldTense) == TypeObject)
+<a name="985"></a>                    Narrator.tense = Present;
+<a name="986"></a>                else
+<a name="987"></a>                    gameMain.usePastTense = nil;               
+<a name="988"></a>            }
+<a name="989"></a>            
+<a name="990"></a>            /* we found the parameter - get the translation */
+<a name="991"></a>            txt = t[2](ctx, params);
+<a name="992"></a>            
+<a name="993"></a>            /* 
+<a name="994"></a>             *   If we've been forcing present tense, now restore the previous tensse. If oldTense
+<a name="995"></a>             *   is an object, assume it's a Tense object and set Narrator.tense back to it,
+<a name="996"></a>             *   otherwise restore the previous value of gameMain.usePastTense on the assumption
+<a name="997"></a>             *   that Narrator.tense is getting its value from there.
+<a name="998"></a>             */
+<a name="999"></a>            if(forcePresentTense)
+<a name="1000"></a>            {
+<a name="1001"></a>                if(dataType(&amp;oldTense) == TypeObject)
+<a name="1002"></a>                    Narrator.tense = oldTense;
+<a name="1003"></a>                else
+<a name="1004"></a>                    gameMain.usePastTense = oldTense;               
+<a name="1005"></a>            }
+<a name="1006"></a>            
+<a name="1007"></a>            
+<a name="1008"></a>            /* 
+<a name="1009"></a>             *   if this isn't a pre-scan, and the parameter name starts
+<a name="1010"></a>             *   with a capital, mimic that pattern in the result 
+<a name="1011"></a>             */
+<a name="1012"></a>            if (txt != nil &amp;&amp; !ctx.prescan &amp;&amp; rexMatch(R'&lt;upper&gt;', pname) != nil)
+<a name="1013"></a>                txt = txt.firstChar().toUpper() + txt.delFirst();
+<a name="1014"></a>        }
+<a name="1015"></a>
+<a name="1016"></a>        /* 
+<a name="1017"></a>         *   if we failed to find an expansion, and this isn't just a
+<a name="1018"></a>         *   pre-scan, return the source text as an error indication 
+<a name="1019"></a>         */
+<a name="1020"></a>        if (txt == nil &amp;&amp; !ctx.prescan)
+<a name="1021"></a>            txt = '{' + params.join(' ') + '}';
+<a name="1022"></a>
+<a name="1023"></a>        /* return the result */
+<a name="1024"></a>        return txt;
+<a name="1025"></a>    }
+<a name="1026"></a>    
+<a name="1027"></a>    
+<a name="1028"></a>    /* 
+<a name="1029"></a>     *   Parameter mapping list.  This is a list of lists: [name, func],
+<a name="1030"></a>     *   where 'name' is the parameter name (as a string), and 'func' is
+<a name="1031"></a>     *   the expansion handler function.
+<a name="1032"></a>     *   
+<a name="1033"></a>     *   The parameter name must be all lower case.  During expansion, we
+<a name="1034"></a>     *   convert the first space-delimited token within the {curly brace}
+<a name="1035"></a>     *   parameter string to lower case, then look for an entry in the list
+<a name="1036"></a>     *   with the matching parameter name.  If we find an entry, we call
+<a name="1037"></a>     *   its handler function.
+<a name="1038"></a>     *   
+<a name="1039"></a>     *   The handler function is a pointer to a function that takes two
+<a name="1040"></a>     *   arguments: func(params, ctx), where 'params' is the list of tokens
+<a name="1041"></a>     *   within the {curly braces} of the substitution string, as a list of
+<a name="1042"></a>     *   strings, where each string is a space-delimited token in the
+<a name="1043"></a>     *   original {curly brace} string; and 'ctx' is the MessageCtx object
+<a name="1044"></a>     *   for the expansion.  The function returns a string giving the
+<a name="1045"></a>     *   expansion of the parameter.
+<a name="1046"></a>     *   
+<a name="1047"></a>     *   The parameter list must be provided by the language module, since
+<a name="1048"></a>     *   each language's list of parameters and expansions will vary.  
+<a name="1049"></a>     */
+<a name="1050"></a>    params = [ ]
+<a name="1051"></a>
+<a name="1052"></a>    /*
+<a name="1053"></a>     *   Some parameters expand to properties of objects involved in the
+<a name="1054"></a>     *   command.  cmdInfo() makes it easier to define the expansion
+<a name="1055"></a>     *   functions for such parameters.  We search the parameters for a
+<a name="1056"></a>     *   Command object, and if we find it, we retrieve a particular source
+<a name="1057"></a>     *   object and evaluate a particular property on the source object to
+<a name="1058"></a>     *   get the result string.
+<a name="1059"></a>     *   
+<a name="1060"></a>     *   For example, {the dobj} could be handled via cmdInfo('ctx, dobj',
+<a name="1061"></a>     *   &amp;theName, vSubject): we find the current 'dobj' object in the
+<a name="1062"></a>     *   Command, then evaluate the &amp;theName property on that object.
+<a name="1063"></a>     *   
+<a name="1064"></a>     *   'ctx' is the MessageCtx object with the current sentence context.
+<a name="1065"></a>     *   
+<a name="1066"></a>     *   'src' is the source object in the Command.  This can be given as a
+<a name="1067"></a>     *   property pointer (&amp;actor, say), in which case we simply evaluate
+<a name="1068"></a>     *   that property of the Command object (cmd.(src)) to get the source
+<a name="1069"></a>     *   object.  Or, it can be a string giving a NounRole name (dobj,
+<a name="1070"></a>     *   iobj, acc), in which case we'll retrieve the current object for
+<a name="1071"></a>     *   the noun role from the Command.  Or, it can be a string with a
+<a name="1072"></a>     *   number, in which case we'll use the number as an index into the
+<a name="1073"></a>     *   argument list.
+<a name="1074"></a>     *   
+<a name="1075"></a>     *   'objProp' is the property of the source object to evaluate to get
+<a name="1076"></a>     *   the expansion string.
+<a name="1077"></a>     *   
+<a name="1078"></a>     *   'role' is vSubject if this is a noun phrase with subject usage (in
+<a name="1079"></a>     *   most languages, this is a noun phrase in the nominative case; in
+<a name="1080"></a>     *   English this is called subjective case).  It's vObject for any
+<a name="1081"></a>     *   other noun phrase role (direct object, prepositional object, etc).
+<a name="1082"></a>     *   If the role isn't clear from the context (the case marking of the
+<a name="1083"></a>     *   parameter, or the position), use vAmbig to mark it as ambiguous.  
+<a name="1084"></a>     */
+<a name="1085"></a>    cmdInfo(ctx, src, objProp, role)
+<a name="1086"></a>    {
+<a name="1087"></a>        try
+<a name="1088"></a>        {
+<a name="1089"></a>            /* we don't have a source object yet */
+<a name="1090"></a>            local srcObj = nil;
+<a name="1091"></a>            
+<a name="1092"></a>            /* if the source is a role name, get the corresponding property */
+<a name="1093"></a>            if (dataType(src) == TypeSString)
+<a name="1094"></a>            {
+<a name="1095"></a>                /* check for a number */
+<a name="1096"></a>                if (rexMatch(R'&lt;digit&gt;+', src) != nil)
+<a name="1097"></a>                {
+<a name="1098"></a>                    /* it's an argument index */
+<a name="1099"></a>                    src = ctx.args[toInteger(src)];
+<a name="1100"></a>                }
+<a name="1101"></a>                else
+<a name="1102"></a>                {
+<a name="1103"></a>                    /* Find the source object corresponding to the string */
+<a name="1104"></a>                    src = findStrParam(src, role);
+<a name="1105"></a>                
+<a name="1106"></a>                /* 
+<a name="1107"></a>                 *   If we didn't find an object, return nil to the caller to
+<a name="1108"></a>                 *   indicate an error
+<a name="1109"></a>                 */     
+<a name="1110"></a>                
+<a name="1111"></a>                    if(src == nil)
+<a name="1112"></a>                        return nil;
+<a name="1113"></a>                
+<a name="1114"></a>                }
+<a name="1115"></a>                    
+<a name="1116"></a>            }
+<a name="1117"></a>
+<a name="1118"></a>            /* retrieve the source object from the command */
+<a name="1119"></a>            if (dataType(src) == TypeProp)
+<a name="1120"></a>                srcObj = ctx.cmd.(src);
+<a name="1121"></a>            else if (dataType(src) == TypeObject 
+<a name="1122"></a>                     &amp;&amp; (src.ofKind(Mentionable) || src.ofKind(Pronoun)
+<a name="1123"></a>                         || src.ofKind(LiteralObject) ||
+<a name="1124"></a>                         src.ofKind(ResolvedTopic)))
+<a name="1125"></a>            {
+<a name="1126"></a>                srcObj = src;
+<a name="1127"></a>                ctx.noteSourceProp(objProp);
+<a name="1128"></a>            }
+<a name="1129"></a>
+<a name="1130"></a>            /* check for reflexivity */
+<a name="1131"></a>            if (srcObj != nil &amp;&amp; role == vObject &amp;&amp; !ctx.prescan)
+<a name="1132"></a>            {
+<a name="1133"></a>                local r = cmdInfoReflexive(ctx, srcObj, objProp);
+<a name="1134"></a>                if (r != nil)
+<a name="1135"></a>                    return r;
+<a name="1136"></a>            }
+<a name="1137"></a>
+<a name="1138"></a>            /* note the object's role in the sentence context */
+<a name="1139"></a>            if (srcObj != nil)
+<a name="1140"></a>                ctx.noteObj(srcObj, role);
+<a name="1141"></a>
+<a name="1142"></a>            /* 
+<a name="1143"></a>             *   if we're in pre-scan mode, skip the actual expansion;
+<a name="1144"></a>             *   otherwise evaluate the target property on the source
+<a name="1145"></a>             *   object to get the expansion text 
+<a name="1146"></a>             */
+<a name="1147"></a>            return ctx.prescan ? nil : srcObj.(objProp);
+<a name="1148"></a>        }
+<a name="1149"></a>        catch (Exception e)
+<a name="1150"></a>        {
+<a name="1151"></a>            /* 
+<a name="1152"></a>             *   if anything went wrong, return nil to indicate we failed
+<a name="1153"></a>             *   to find an expansion
+<a name="1154"></a>             */
+<a name="1155"></a>            return nil;
+<a name="1156"></a>        }
+<a name="1157"></a>    }
+<a name="1158"></a>    
+<a name="1159"></a>    findStrParam(src, role)
+<a name="1160"></a>    {
+<a name="1161"></a>        local targetObj;
+<a name="1162"></a>        
+<a name="1163"></a>        if (gAction != nil)
+<a name="1164"></a>        {
+<a name="1165"></a>            /* get the target object by name through the action */
+<a name="1166"></a>            targetObj = gAction.getMessageParam(src);
+<a name="1167"></a>        }
+<a name="1168"></a>        else
+<a name="1169"></a>        {
+<a name="1170"></a>            /* there's no action, so we don't have a value yet */
+<a name="1171"></a>            targetObj = nil;
+<a name="1172"></a>        }
+<a name="1173"></a>        
+<a name="1174"></a>        if (targetObj == nil)
+<a name="1175"></a>        {
+<a name="1176"></a>            /* look up the name */
+<a name="1177"></a>            targetObj = libGlobal.nameTable_[src];
+<a name="1178"></a>            
+<a name="1179"></a>            /* 
+<a name="1180"></a>             *   if we found it, and the result is a function pointer or an
+<a name="1181"></a>             *   anonymous function, invoke the function to get the result
+<a name="1182"></a>             */
+<a name="1183"></a>            if (dataTypeXlat(targetObj) == TypeFuncPtr)
+<a name="1184"></a>            {
+<a name="1185"></a>                /* evaluate the function */
+<a name="1186"></a>                targetObj = (targetObj)();
+<a name="1187"></a>            }
+<a name="1188"></a>        }
+<a name="1189"></a>        
+<a name="1190"></a>        /* 
+<a name="1191"></a>         *   If we still haven't found a targetObj, try getting it from the
+<a name="1192"></a>         *   role's object property.
+<a name="1193"></a>         */
+<a name="1194"></a>        
+<a name="1195"></a>        if (targetObj == nil &amp;&amp; role != nil)
+<a name="1196"></a>        {
+<a name="1197"></a>            /* it's a role name - look up the role */
+<a name="1198"></a>            local role = NounRole.all.valWhich({ r: r.name == src });
+<a name="1199"></a>            
+<a name="1200"></a>            /* get the role's object property */
+<a name="1201"></a>            if(role != nil)
+<a name="1202"></a>               targetObj = role.objProp;
+<a name="1203"></a>        }
+<a name="1204"></a>        
+<a name="1205"></a>        /* 
+<a name="1206"></a>         *   If we still haven't found a targetObj, there's probably an error in
+<a name="1207"></a>         *   the way the object parameter was specified, but rather than
+<a name="1208"></a>         *   allowing this to cause a run-time error down the track, substitute
+<a name="1209"></a>         *   a dummy object and note the offending src parameter on an
+<a name="1210"></a>         *   appropiate property so that the text presented should make it clear
+<a name="1211"></a>         *   where the problem lies.
+<a name="1212"></a>         */
+<a name="1213"></a>        
+<a name="1214"></a>        if(targetObj == nil)
+<a name="1215"></a>        {
+<a name="1216"></a>            targetObj = dummy_;
+<a name="1217"></a>            dummy_.noteName('[' + src + ']');
+<a name="1218"></a>        }
+<a name="1219"></a>            
+<a name="1220"></a>        
+<a name="1221"></a>        return targetObj;
+<a name="1222"></a>    }
+<a name="1223"></a>
+<a name="1224"></a>    /* 
+<a name="1225"></a>     *   Parameter lookup table.  This maps a parameter name to its handler
+<a name="1226"></a>     *   function.  
+<a name="1227"></a>     */
+<a name="1228"></a>    paramTab = nil
+<a name="1229"></a>
+<a name="1230"></a>    /* the language module's instance of the class */
+<a name="1231"></a>    langObj = nil
+<a name="1232"></a>
+<a name="1233"></a>    /* construction - build the lookup table */
+<a name="1234"></a>    construct()
+<a name="1235"></a>    {
+<a name="1236"></a>        /* remember the instance */
+<a name="1237"></a>        MessageParams.langObj = self;
+<a name="1238"></a>
+<a name="1239"></a>        /* create the parameter table */
+<a name="1240"></a>        paramTab = new LookupTable(64, 128);
+<a name="1241"></a>        foreach (local p in params)
+<a name="1242"></a>            paramTab[p[1]] = p;
+<a name="1243"></a>    }
+<a name="1244"></a>;
+<a name="1245"></a>
+<a name="1246"></a>/* Dummy object to use as a fallback when a parameter can't be identified */
+<a name="1247"></a>
+<a name="1248"></a>dummy_: Thing
+<a name="1249"></a>    noteName(src) { }
+<a name="1250"></a>;
+<a name="1251"></a>
+<a name="1252"></a>pluralDummy_: Thing
+<a name="1253"></a>    noteName(src) { }
+<a name="1254"></a>;
+<a name="1255"></a>
+<a name="1256"></a>
+<a name="1257"></a>/*----------------------------------------------------------------------------*/
+<a name="1258"></a>
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/01/2025 from adv3Lite version 2.1.1.14</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 26/02/2025 from adv3Lite version 2.2</div>
 </body>
 </html>

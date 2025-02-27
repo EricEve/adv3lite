@@ -3515,6 +3515,8 @@ convNodePreinit: PreinitObject
     {
         forEachInstance(ConvNode, {c: c.register() });
     }
+    
+    execBeforeMe = [actorPreinit]
 ;
 
 /* 

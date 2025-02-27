@@ -292,304 +292,306 @@
 <a name="290"></a>    firstScoreChange(delta)
 <a name="291"></a>    {
 <a name="292"></a>        scoreChange(delta);
-<a name="293"></a>    }
-<a name="294"></a>
-<a name="295"></a>    /* score change - notification other than the first time */
-<a name="296"></a>    scoreChange(delta)
-<a name="297"></a>    {
-<a name="298"></a>        "&lt;.p&gt;&lt;.notification&gt;&lt;&lt;
-<a name="299"></a>        basicScoreChange(delta)&gt;&gt;&lt;./notification&gt; ";
-<a name="300"></a>    }
-<a name="301"></a>
-<a name="302"></a>    /*
-<a name="303"></a>     *   basic score change notification message - this is an internal
-<a name="304"></a>     *   service routine for scoreChange and firstScoreChange 
-<a name="305"></a>     */
-<a name="306"></a>    basicScoreChange(delta)
-<a name="307"></a>    {
-<a name="308"></a>        cquoteOutputFilter.deactivate();
-<a name="309"></a>        
-<a name="310"></a>        DMsg(basic score change,         
-<a name="311"></a>             '''Your &lt;&lt;aHref('full score', 'score', 
-<a name="312"></a>                            'Show full score')&gt;&gt;
-<a name="313"></a>        has just &lt;&lt;delta &gt; 0 ? 'in' : 'de'&gt;&gt;creased by
-<a name="314"></a>        &lt;&lt;spellNumber(delta &gt; 0 ? delta : -delta)&gt;&gt;
-<a name="315"></a>        point&lt;&lt;delta is in (1, -1) ? '' : 's'&gt;&gt;.''');
-<a name="316"></a>        
-<a name="317"></a>        cquoteOutputFilter.activate();
-<a name="318"></a>    }
-<a name="319"></a>
-<a name="320"></a>    
-<a name="321"></a>;
-<a name="322"></a>
-<a name="323"></a>/* 
-<a name="324"></a> *   Add points to the total score.  This is a convenience function that
-<a name="325"></a> *   simply calls libScore.addToScore_().
-<a name="326"></a> */
-<a name="327"></a>addToScore(points, desc)
-<a name="328"></a>{
-<a name="329"></a>    /* simply call the libScore method to handle it */
-<a name="330"></a>    libScore.addToScore_(points, desc);
-<a name="331"></a>}
-<a name="332"></a>
-<a name="333"></a>/*
-<a name="334"></a> *   The main game score object.  
-<a name="335"></a> */
-<a name="336"></a>libScore: PreinitObject
-<a name="337"></a>    /*
-<a name="338"></a>     *   Add to the score.  'points' is the number of points to add to the
-<a name="339"></a>     *   score, and 'desc' is a string describing the reason the points
-<a name="340"></a>     *   are being awarded, or an Achievement object describing the points.
-<a name="341"></a>     *   
-<a name="342"></a>     *   We keep a list of each unique achievement.  If 'desc' is already
-<a name="343"></a>     *   in this list, we'll simply add the given number of points to the
-<a name="344"></a>     *   existing entry for the same description.
-<a name="345"></a>     *   
-<a name="346"></a>     *   Note that, if 'desc' is an Achievement object, it will match a
-<a name="347"></a>     *   previous item only if it's exactly the same Achievement instance.
-<a name="348"></a>     */
-<a name="349"></a>    addToScore_(points, desc)
-<a name="350"></a>    {
-<a name="351"></a>        local idx;
-<a name="352"></a>        
-<a name="353"></a>        /* 
-<a name="354"></a>         *   if the description is a string, encapsulate it in a
-<a name="355"></a>         *   SimpleAchievement object 
-<a name="356"></a>         */
-<a name="357"></a>        if (dataType(desc) == TypeSString)
-<a name="358"></a>        {
-<a name="359"></a>            local newDesc;
-<a name="360"></a>            
-<a name="361"></a>            /* 
-<a name="362"></a>             *   look for an existing SimpleAchievement in our list with
-<a name="363"></a>             *   the same descriptive text - if we find one, reuse it,
-<a name="364"></a>             *   since this is another instance of the same group of
-<a name="365"></a>             *   achievements and thus can be combined into the same
-<a name="366"></a>             *   achievement object 
-<a name="367"></a>             */
-<a name="368"></a>            newDesc = fullScoreList.valWhich(
-<a name="369"></a>                { x: x.ofKind(SimpleAchievement) &amp;&amp; x.desc_ == desc });
-<a name="370"></a>
-<a name="371"></a>            /* 
-<a name="372"></a>             *   if we didn't find it, create a new simple achievement to
-<a name="373"></a>             *   wrap the descriptive text 
-<a name="374"></a>             */
-<a name="375"></a>            if (newDesc == nil)
-<a name="376"></a>                newDesc = new SimpleAchievement(desc);
-<a name="377"></a>
-<a name="378"></a>            /* 
-<a name="379"></a>             *   for the rest of our processing, use the wrapper simple
-<a name="380"></a>             *   achievement object instead of the original text string 
-<a name="381"></a>             */
-<a name="382"></a>            desc = newDesc;
-<a name="383"></a>        }
-<a name="384"></a>
-<a name="385"></a>        /* increase the use count for the achievement */
-<a name="386"></a>        desc.scoreCount++;
-<a name="387"></a>        
-<a name="388"></a>        /* add the points to the total */
-<a name="389"></a>        totalScore += points;
-<a name="390"></a>        
-<a name="391"></a>        /* try to find a match in our list of past achievements */
-<a name="392"></a>        idx = fullScoreList.indexOf(desc);
-<a name="393"></a>        
-<a name="394"></a>        /* if we didn't find it, add it to the list */
-<a name="395"></a>        if (idx == nil)
-<a name="396"></a>        {
-<a name="397"></a>            fullScoreList.append(desc);
-<a name="398"></a>            desc.listOrder = ++Achievement.lastListOrder;
-<a name="399"></a>        }
-<a name="400"></a>
-<a name="401"></a>        /* 
-<a name="402"></a>         *   combine the points awarded this time into the total for this
-<a name="403"></a>         *   achievement 
-<a name="404"></a>         */
-<a name="405"></a>        desc.totalPoints += points;
-<a name="406"></a>    }
-<a name="407"></a>
-<a name="408"></a>    /*
-<a name="409"></a>     *   Explicitly run the score notification daemon. 
-<a name="410"></a>     */
-<a name="411"></a>    runScoreNotifier()
-<a name="412"></a>    {
-<a name="413"></a>        /* explicitly run the notification */
-<a name="414"></a>        scoreNotifier.checkNotification();
-<a name="415"></a>    }
-<a name="416"></a>
-<a name="417"></a>    /*
-<a name="418"></a>     *   Show the simple score 
-<a name="419"></a>     */
-<a name="420"></a>    showScore()
-<a name="421"></a>    {
-<a name="422"></a>        /* 
-<a name="423"></a>         *   Show the basic score statistics.  Use the appropriate form of
-<a name="424"></a>         *   the message, depending on whether or not there's a maximum
-<a name="425"></a>         *   score value. 
-<a name="426"></a>         */
-<a name="427"></a>        if (gameMain.maxScore != nil)                
-<a name="428"></a>            showScoreMessage(totalScore, gameMain.maxScore,
-<a name="429"></a>                                          libGlobal.totalTurns);
-<a name="430"></a>        else
-<a name="431"></a>            showScoreNoMaxMessage(totalScore, libGlobal.totalTurns);
-<a name="432"></a>
-<a name="433"></a>        /* show the score ranking */
-<a name="434"></a>        showScoreRank(totalScore);
-<a name="435"></a>                
-<a name="436"></a>
-<a name="437"></a>    }
+<a name="293"></a>        DMsg(first score change, '&lt;.p&gt;&lt;.parser&gt;If you&lt;/sq&gt;d prefer not to be notified about score
+<a name="294"></a>            changes in the future, type NOTIFY OFF.&lt;./parser&gt;');
+<a name="295"></a>    }
+<a name="296"></a>
+<a name="297"></a>    /* score change - notification other than the first time */
+<a name="298"></a>    scoreChange(delta)
+<a name="299"></a>    {
+<a name="300"></a>        "&lt;.p&gt;&lt;.notification&gt;&lt;&lt;
+<a name="301"></a>        basicScoreChange(delta)&gt;&gt;&lt;./notification&gt; ";
+<a name="302"></a>    }
+<a name="303"></a>
+<a name="304"></a>    /*
+<a name="305"></a>     *   basic score change notification message - this is an internal
+<a name="306"></a>     *   service routine for scoreChange and firstScoreChange 
+<a name="307"></a>     */
+<a name="308"></a>    basicScoreChange(delta)
+<a name="309"></a>    {
+<a name="310"></a>        cquoteOutputFilter.deactivate();
+<a name="311"></a>        
+<a name="312"></a>        DMsg(basic score change,         
+<a name="313"></a>             '''Your &lt;&lt;aHref('full score', 'score', 
+<a name="314"></a>                            'Show full score')&gt;&gt;
+<a name="315"></a>        has just &lt;&lt;delta &gt; 0 ? 'in' : 'de'&gt;&gt;creased by
+<a name="316"></a>        &lt;&lt;spellNumber(delta &gt; 0 ? delta : -delta)&gt;&gt;
+<a name="317"></a>        point&lt;&lt;delta is in (1, -1) ? '' : 's'&gt;&gt;.''');
+<a name="318"></a>        
+<a name="319"></a>        cquoteOutputFilter.activate();
+<a name="320"></a>    }
+<a name="321"></a>
+<a name="322"></a>    
+<a name="323"></a>;
+<a name="324"></a>
+<a name="325"></a>/* 
+<a name="326"></a> *   Add points to the total score.  This is a convenience function that
+<a name="327"></a> *   simply calls libScore.addToScore_().
+<a name="328"></a> */
+<a name="329"></a>addToScore(points, desc)
+<a name="330"></a>{
+<a name="331"></a>    /* simply call the libScore method to handle it */
+<a name="332"></a>    libScore.addToScore_(points, desc);
+<a name="333"></a>}
+<a name="334"></a>
+<a name="335"></a>/*
+<a name="336"></a> *   The main game score object.  
+<a name="337"></a> */
+<a name="338"></a>libScore: PreinitObject
+<a name="339"></a>    /*
+<a name="340"></a>     *   Add to the score.  'points' is the number of points to add to the
+<a name="341"></a>     *   score, and 'desc' is a string describing the reason the points
+<a name="342"></a>     *   are being awarded, or an Achievement object describing the points.
+<a name="343"></a>     *   
+<a name="344"></a>     *   We keep a list of each unique achievement.  If 'desc' is already
+<a name="345"></a>     *   in this list, we'll simply add the given number of points to the
+<a name="346"></a>     *   existing entry for the same description.
+<a name="347"></a>     *   
+<a name="348"></a>     *   Note that, if 'desc' is an Achievement object, it will match a
+<a name="349"></a>     *   previous item only if it's exactly the same Achievement instance.
+<a name="350"></a>     */
+<a name="351"></a>    addToScore_(points, desc)
+<a name="352"></a>    {
+<a name="353"></a>        local idx;
+<a name="354"></a>        
+<a name="355"></a>        /* 
+<a name="356"></a>         *   if the description is a string, encapsulate it in a
+<a name="357"></a>         *   SimpleAchievement object 
+<a name="358"></a>         */
+<a name="359"></a>        if (dataType(desc) == TypeSString)
+<a name="360"></a>        {
+<a name="361"></a>            local newDesc;
+<a name="362"></a>            
+<a name="363"></a>            /* 
+<a name="364"></a>             *   look for an existing SimpleAchievement in our list with
+<a name="365"></a>             *   the same descriptive text - if we find one, reuse it,
+<a name="366"></a>             *   since this is another instance of the same group of
+<a name="367"></a>             *   achievements and thus can be combined into the same
+<a name="368"></a>             *   achievement object 
+<a name="369"></a>             */
+<a name="370"></a>            newDesc = fullScoreList.valWhich(
+<a name="371"></a>                { x: x.ofKind(SimpleAchievement) &amp;&amp; x.desc_ == desc });
+<a name="372"></a>
+<a name="373"></a>            /* 
+<a name="374"></a>             *   if we didn't find it, create a new simple achievement to
+<a name="375"></a>             *   wrap the descriptive text 
+<a name="376"></a>             */
+<a name="377"></a>            if (newDesc == nil)
+<a name="378"></a>                newDesc = new SimpleAchievement(desc);
+<a name="379"></a>
+<a name="380"></a>            /* 
+<a name="381"></a>             *   for the rest of our processing, use the wrapper simple
+<a name="382"></a>             *   achievement object instead of the original text string 
+<a name="383"></a>             */
+<a name="384"></a>            desc = newDesc;
+<a name="385"></a>        }
+<a name="386"></a>
+<a name="387"></a>        /* increase the use count for the achievement */
+<a name="388"></a>        desc.scoreCount++;
+<a name="389"></a>        
+<a name="390"></a>        /* add the points to the total */
+<a name="391"></a>        totalScore += points;
+<a name="392"></a>        
+<a name="393"></a>        /* try to find a match in our list of past achievements */
+<a name="394"></a>        idx = fullScoreList.indexOf(desc);
+<a name="395"></a>        
+<a name="396"></a>        /* if we didn't find it, add it to the list */
+<a name="397"></a>        if (idx == nil)
+<a name="398"></a>        {
+<a name="399"></a>            fullScoreList.append(desc);
+<a name="400"></a>            desc.listOrder = ++Achievement.lastListOrder;
+<a name="401"></a>        }
+<a name="402"></a>
+<a name="403"></a>        /* 
+<a name="404"></a>         *   combine the points awarded this time into the total for this
+<a name="405"></a>         *   achievement 
+<a name="406"></a>         */
+<a name="407"></a>        desc.totalPoints += points;
+<a name="408"></a>    }
+<a name="409"></a>
+<a name="410"></a>    /*
+<a name="411"></a>     *   Explicitly run the score notification daemon. 
+<a name="412"></a>     */
+<a name="413"></a>    runScoreNotifier()
+<a name="414"></a>    {
+<a name="415"></a>        /* explicitly run the notification */
+<a name="416"></a>        scoreNotifier.checkNotification();
+<a name="417"></a>    }
+<a name="418"></a>
+<a name="419"></a>    /*
+<a name="420"></a>     *   Show the simple score 
+<a name="421"></a>     */
+<a name="422"></a>    showScore()
+<a name="423"></a>    {
+<a name="424"></a>        /* 
+<a name="425"></a>         *   Show the basic score statistics.  Use the appropriate form of
+<a name="426"></a>         *   the message, depending on whether or not there's a maximum
+<a name="427"></a>         *   score value. 
+<a name="428"></a>         */
+<a name="429"></a>        if (gameMain.maxScore != nil)                
+<a name="430"></a>            showScoreMessage(totalScore, gameMain.maxScore,
+<a name="431"></a>                                          libGlobal.totalTurns);
+<a name="432"></a>        else
+<a name="433"></a>            showScoreNoMaxMessage(totalScore, libGlobal.totalTurns);
+<a name="434"></a>
+<a name="435"></a>        /* show the score ranking */
+<a name="436"></a>        showScoreRank(totalScore);
+<a name="437"></a>                
 <a name="438"></a>
-<a name="439"></a>    /* show the basic score message */
-<a name="440"></a>    showScoreMessage(points, maxPoints, turns)
-<a name="441"></a>    {
-<a name="442"></a>        DMsg(show score, 'In {1} turn&lt;&lt;turns == 1 ? '' : 's'&gt;&gt; you have scored 
-<a name="443"></a>            {2} of a total {3} point&lt;&lt;maxPoints == 1 ? '' : 's'&gt;&gt;. ',
-<a name="444"></a>        turns, points, maxPoints);
-<a name="445"></a>    }
-<a name="446"></a>    
-<a name="447"></a>    
-<a name="448"></a>    /* show the basic score message with no maximum */
-<a name="449"></a>    showScoreNoMaxMessage(points, turns)
-<a name="450"></a>    {
-<a name="451"></a>        DMsg(show score no max, 'In {1} turn&lt;&lt;turns == 1 ? '' : 's'&gt;&gt; you have
-<a name="452"></a>            scored {2} point&lt;&lt;points == 1 ? '' : 's'&gt;&gt;. ', turns, points);
-<a name="453"></a>        
-<a name="454"></a>    }
-<a name="455"></a>    
-<a name="456"></a>    
-<a name="457"></a>    /* 
-<a name="458"></a>     *   show the score rank message 
-<a name="459"></a>     */
-<a name="460"></a>    showScoreRank(points)
-<a name="461"></a>    {
-<a name="462"></a>        local idx;
-<a name="463"></a>        local tab = gameMain.scoreRankTable;
-<a name="464"></a>        
-<a name="465"></a>        /* if there's no rank table, skip the ranking */
-<a name="466"></a>        if (tab == nil)
-<a name="467"></a>            return;
-<a name="468"></a>        
-<a name="469"></a>        /*
-<a name="470"></a>         *   find the last item for which our score is at least the
-<a name="471"></a>         *   minimum - the table is in ascending order of minimum score,
-<a name="472"></a>         *   so we want the last item for which our score is sufficient 
-<a name="473"></a>         */
-<a name="474"></a>        idx = tab.lastIndexWhich({x: points &gt;= x[1]});
-<a name="475"></a>    
-<a name="476"></a>        /* if we didn't find an item, use the first by default */
-<a name="477"></a>        if (idx == nil)
-<a name="478"></a>            idx = 1;
-<a name="479"></a>    
-<a name="480"></a>        /* show the description from the item we found */
-<a name="481"></a>        showScoreRankMessage(tab[idx][2]);
-<a name="482"></a>    }
-<a name="483"></a>
-<a name="484"></a>     /* show the full message for a given score rank string */
-<a name="485"></a>    showScoreRankMessage(msg) 
-<a name="486"></a>    { 
-<a name="487"></a>        DMsg(show score rank, 'This makes you {1}. ', msg ); 
-<a name="488"></a>    }
-<a name="489"></a>    
-<a name="490"></a>    
-<a name="491"></a>    /*
-<a name="492"></a>     *   Display the full score.  'explicit' is true if the player asked
-<a name="493"></a>     *   for the full score explicitly, as with a FULL SCORE command; if
-<a name="494"></a>     *   we're showing the full score automatically in the course of some
-<a name="495"></a>     *   other action, 'explicit' should be nil.  
-<a name="496"></a>     */
-<a name="497"></a>    showFullScore()
-<a name="498"></a>    {
-<a name="499"></a>        /* show the basic score statistics */
-<a name="500"></a>        showScore();
-<a name="501"></a>        
-<a name="502"></a>        /* list the achievements in 'tall' mode */
-<a name="503"></a>        fullScoreLister.show(fullScoreList.toList(), 0);
-<a name="504"></a>    }
-<a name="505"></a>
-<a name="506"></a>    /*
-<a name="507"></a>     *   Vector for the full score achievement list.  This is a list of
-<a name="508"></a>     *   all of the Achievement objects awarded for accomplishments so
-<a name="509"></a>     *   far.  
-<a name="510"></a>     */
-<a name="511"></a>    fullScoreList = static new Vector(32)
-<a name="512"></a>
-<a name="513"></a>    /* the total number of points scored so far */
-<a name="514"></a>    totalScore = 0
-<a name="515"></a>
-<a name="516"></a>    /* 
-<a name="517"></a>     *   current score notification status - if on, we'll show a message at
-<a name="518"></a>     *   the end of each turn where the score changes, otherwise we won't
-<a name="519"></a>     *   mention anything 
-<a name="520"></a>     */
-<a name="521"></a>    scoreNotify = scoreNotifySettingsItem
-<a name="522"></a>
-<a name="523"></a>    /*
-<a name="524"></a>     *   Compute the sum of the maximum point values of the Achievement
-<a name="525"></a>     *   objects in the game.  Point values are optional in Achievement
-<a name="526"></a>     *   objects; if there are no Achievement objects with non-nil point
-<a name="527"></a>     *   values, this will simply return nil.  
-<a name="528"></a>     */
-<a name="529"></a>    calcMaxScore()
-<a name="530"></a>    {
-<a name="531"></a>        local sum;
-<a name="532"></a>        local found;
-<a name="533"></a>
-<a name="534"></a>        /* start with a running total of zero */
-<a name="535"></a>        sum = 0;
-<a name="536"></a>
-<a name="537"></a>        /* we haven't found any non-nil point values yet */
-<a name="538"></a>        found = nil;
-<a name="539"></a>
-<a name="540"></a>        /*
-<a name="541"></a>         *   Run through all of the Achievement objects to see if we can
-<a name="542"></a>         *   derive a maximum score for the game. 
-<a name="543"></a>         */
-<a name="544"></a>        forEachInstance(Achievement, function(obj) {
-<a name="545"></a>            local m;
-<a name="546"></a>            
-<a name="547"></a>            /*
-<a name="548"></a>             *   If this object has a non-nil maxPoints value, add it to
-<a name="549"></a>             *   the running total. 
-<a name="550"></a>             */
-<a name="551"></a>            if ((m = obj.maxPoints) != nil)
-<a name="552"></a>            {
-<a name="553"></a>                /* add this one to the sum */
-<a name="554"></a>                sum += m;
-<a name="555"></a>
-<a name="556"></a>                /* note that we found one with a non-nil point value */
-<a name="557"></a>                found = true;
-<a name="558"></a>            }
-<a name="559"></a>        });
-<a name="560"></a>
-<a name="561"></a>        /*
-<a name="562"></a>         *   If we found any Achievements with point values, return the sum
-<a name="563"></a>         *   of those point values; otherwise, return nil. 
-<a name="564"></a>         */
-<a name="565"></a>        return (found ? sum : nil);
-<a name="566"></a>    }
-<a name="567"></a>
-<a name="568"></a>    /* execute pre-initialization */
-<a name="569"></a>    execute()
-<a name="570"></a>    {
-<a name="571"></a>        /* register as the global score handler */
-<a name="572"></a>        libGlobal.scoreObj = self;
-<a name="573"></a>    }
-<a name="574"></a>;
-<a name="575"></a>
-<a name="576"></a>/* settings item for score notification mode */
-<a name="577"></a>scoreNotifySettingsItem: object 
-<a name="578"></a>    /* the "factory setting" for NOTIFY is ON */
-<a name="579"></a>    isOn = true
-<a name="580"></a>
-<a name="581"></a>    /* our configuration file variable ID */
-<a name="582"></a>    settingID = 'adv3.notify'
-<a name="583"></a>
-<a name="584"></a>    /* show our description */
-<a name="585"></a>    settingDesc() 
-<a name="586"></a>    { 
-<a name="587"></a>        DMsg(short notify status, 'NOTIFY &lt;&lt;isOn ? 'ON' : 'OFF'&gt;&gt;');
-<a name="588"></a>    }    
-<a name="589"></a>;
+<a name="439"></a>    }
+<a name="440"></a>
+<a name="441"></a>    /* show the basic score message */
+<a name="442"></a>    showScoreMessage(points, maxPoints, turns)
+<a name="443"></a>    {
+<a name="444"></a>        DMsg(show score, 'In {1} turn&lt;&lt;turns == 1 ? '' : 's'&gt;&gt; you have scored 
+<a name="445"></a>            {2} of a total {3} point&lt;&lt;maxPoints == 1 ? '' : 's'&gt;&gt;. ',
+<a name="446"></a>        turns, points, maxPoints);
+<a name="447"></a>    }
+<a name="448"></a>    
+<a name="449"></a>    
+<a name="450"></a>    /* show the basic score message with no maximum */
+<a name="451"></a>    showScoreNoMaxMessage(points, turns)
+<a name="452"></a>    {
+<a name="453"></a>        DMsg(show score no max, 'In {1} turn&lt;&lt;turns == 1 ? '' : 's'&gt;&gt; you have
+<a name="454"></a>            scored {2} point&lt;&lt;points == 1 ? '' : 's'&gt;&gt;. ', turns, points);
+<a name="455"></a>        
+<a name="456"></a>    }
+<a name="457"></a>    
+<a name="458"></a>    
+<a name="459"></a>    /* 
+<a name="460"></a>     *   show the score rank message 
+<a name="461"></a>     */
+<a name="462"></a>    showScoreRank(points)
+<a name="463"></a>    {
+<a name="464"></a>        local idx;
+<a name="465"></a>        local tab = gameMain.scoreRankTable;
+<a name="466"></a>        
+<a name="467"></a>        /* if there's no rank table, skip the ranking */
+<a name="468"></a>        if (tab == nil)
+<a name="469"></a>            return;
+<a name="470"></a>        
+<a name="471"></a>        /*
+<a name="472"></a>         *   find the last item for which our score is at least the
+<a name="473"></a>         *   minimum - the table is in ascending order of minimum score,
+<a name="474"></a>         *   so we want the last item for which our score is sufficient 
+<a name="475"></a>         */
+<a name="476"></a>        idx = tab.lastIndexWhich({x: points &gt;= x[1]});
+<a name="477"></a>    
+<a name="478"></a>        /* if we didn't find an item, use the first by default */
+<a name="479"></a>        if (idx == nil)
+<a name="480"></a>            idx = 1;
+<a name="481"></a>    
+<a name="482"></a>        /* show the description from the item we found */
+<a name="483"></a>        showScoreRankMessage(tab[idx][2]);
+<a name="484"></a>    }
+<a name="485"></a>
+<a name="486"></a>     /* show the full message for a given score rank string */
+<a name="487"></a>    showScoreRankMessage(msg) 
+<a name="488"></a>    { 
+<a name="489"></a>        DMsg(show score rank, 'This makes you {1}. ', msg ); 
+<a name="490"></a>    }
+<a name="491"></a>    
+<a name="492"></a>    
+<a name="493"></a>    /*
+<a name="494"></a>     *   Display the full score.  'explicit' is true if the player asked
+<a name="495"></a>     *   for the full score explicitly, as with a FULL SCORE command; if
+<a name="496"></a>     *   we're showing the full score automatically in the course of some
+<a name="497"></a>     *   other action, 'explicit' should be nil.  
+<a name="498"></a>     */
+<a name="499"></a>    showFullScore()
+<a name="500"></a>    {
+<a name="501"></a>        /* show the basic score statistics */
+<a name="502"></a>        showScore();
+<a name="503"></a>        
+<a name="504"></a>        /* list the achievements in 'tall' mode */
+<a name="505"></a>        fullScoreLister.show(fullScoreList.toList(), 0);
+<a name="506"></a>    }
+<a name="507"></a>
+<a name="508"></a>    /*
+<a name="509"></a>     *   Vector for the full score achievement list.  This is a list of
+<a name="510"></a>     *   all of the Achievement objects awarded for accomplishments so
+<a name="511"></a>     *   far.  
+<a name="512"></a>     */
+<a name="513"></a>    fullScoreList = static new Vector(32)
+<a name="514"></a>
+<a name="515"></a>    /* the total number of points scored so far */
+<a name="516"></a>    totalScore = 0
+<a name="517"></a>
+<a name="518"></a>    /* 
+<a name="519"></a>     *   current score notification status - if on, we'll show a message at
+<a name="520"></a>     *   the end of each turn where the score changes, otherwise we won't
+<a name="521"></a>     *   mention anything 
+<a name="522"></a>     */
+<a name="523"></a>    scoreNotify = scoreNotifySettingsItem
+<a name="524"></a>
+<a name="525"></a>    /*
+<a name="526"></a>     *   Compute the sum of the maximum point values of the Achievement
+<a name="527"></a>     *   objects in the game.  Point values are optional in Achievement
+<a name="528"></a>     *   objects; if there are no Achievement objects with non-nil point
+<a name="529"></a>     *   values, this will simply return nil.  
+<a name="530"></a>     */
+<a name="531"></a>    calcMaxScore()
+<a name="532"></a>    {
+<a name="533"></a>        local sum;
+<a name="534"></a>        local found;
+<a name="535"></a>
+<a name="536"></a>        /* start with a running total of zero */
+<a name="537"></a>        sum = 0;
+<a name="538"></a>
+<a name="539"></a>        /* we haven't found any non-nil point values yet */
+<a name="540"></a>        found = nil;
+<a name="541"></a>
+<a name="542"></a>        /*
+<a name="543"></a>         *   Run through all of the Achievement objects to see if we can
+<a name="544"></a>         *   derive a maximum score for the game. 
+<a name="545"></a>         */
+<a name="546"></a>        forEachInstance(Achievement, function(obj) {
+<a name="547"></a>            local m;
+<a name="548"></a>            
+<a name="549"></a>            /*
+<a name="550"></a>             *   If this object has a non-nil maxPoints value, add it to
+<a name="551"></a>             *   the running total. 
+<a name="552"></a>             */
+<a name="553"></a>            if ((m = obj.maxPoints) != nil)
+<a name="554"></a>            {
+<a name="555"></a>                /* add this one to the sum */
+<a name="556"></a>                sum += m;
+<a name="557"></a>
+<a name="558"></a>                /* note that we found one with a non-nil point value */
+<a name="559"></a>                found = true;
+<a name="560"></a>            }
+<a name="561"></a>        });
+<a name="562"></a>
+<a name="563"></a>        /*
+<a name="564"></a>         *   If we found any Achievements with point values, return the sum
+<a name="565"></a>         *   of those point values; otherwise, return nil. 
+<a name="566"></a>         */
+<a name="567"></a>        return (found ? sum : nil);
+<a name="568"></a>    }
+<a name="569"></a>
+<a name="570"></a>    /* execute pre-initialization */
+<a name="571"></a>    execute()
+<a name="572"></a>    {
+<a name="573"></a>        /* register as the global score handler */
+<a name="574"></a>        libGlobal.scoreObj = self;
+<a name="575"></a>    }
+<a name="576"></a>;
+<a name="577"></a>
+<a name="578"></a>/* settings item for score notification mode */
+<a name="579"></a>scoreNotifySettingsItem: object 
+<a name="580"></a>    /* the "factory setting" for NOTIFY is ON */
+<a name="581"></a>    isOn = true
+<a name="582"></a>
+<a name="583"></a>    /* our configuration file variable ID */
+<a name="584"></a>    settingID = 'adv3.notify'
+<a name="585"></a>
+<a name="586"></a>    /* show our description */
+<a name="587"></a>    settingDesc() 
+<a name="588"></a>    { 
+<a name="589"></a>        DMsg(short notify status, 'NOTIFY &lt;&lt;isOn ? 'ON' : 'OFF'&gt;&gt;');
+<a name="590"></a>    }    
+<a name="591"></a>;
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 25/01/2025 from adv3Lite version 2.1.1.14</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 26/02/2025 from adv3Lite version 2.2</div>
 </body>
 </html>
