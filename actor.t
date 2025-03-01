@@ -3411,7 +3411,8 @@ class ConvNode: TopicGroup
          *   object for this ConvNode and moved all the sayBlockXXX methods over to our newly
          *   created NodeEndCheck.
          */
-        if(propDefined(&sayBlockLeave) || propDefined(&sayBlockBye) || propDefined(&sayBlockBoredom))
+        if(propDefined(&sayBlockLeave) || propDefined(&sayBlockBye) 
+           || propDefined(&sayBlockBoredom) || propDefined(&sayBlockActor))
         {
             /* Create our NodeEndCheck object. */
             local nec = new NodeEndCheck;
@@ -3423,6 +3424,7 @@ class ConvNode: TopicGroup
             moveMethod(nec, &sayBlockLeave);
             moveMethod(nec, &sayBlockBye);
             moveMethod(nec, &sayBlockBoredom);    
+            moveMethod(nec, &sayBlockActor);  
             
             /* 
              *   Initialize our new NodeEndCheck object with our convKeys and add it to our
@@ -3494,6 +3496,7 @@ class ConvNode: TopicGroup
     // sayBlockLeave
     // sayBlockBye
     // sayBlockBoredom
+    // sayBlockActor
     
     /*
      *   We can define a nodeContinuationMsg on a ConvNode and it will become the topicResponse of a
@@ -5733,6 +5736,17 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
                return block(&sayBlockBoredom);
             break;
             
+            
+            /* 
+             *   If reason is endConvActor the NPC wishes to end the conversation for some
+             *   other reason, such as moving to another location. If we define a sayBlockActor
+             *   property call it and return the result.
+             */
+        case endConvActor:    
+            if(propDefined(&sayBlockActor))
+               return block(&sayBlockActor);
+            break;
+            
             /* 
              *   For anything else, return our default value (true or nil to allow the conversation
              *   to be ended or to block it silently.
@@ -5767,9 +5781,10 @@ class NodeEndCheck: EndConvBlocker, InitiateTopic
      *.   An event list, in which case its doScript method is called and we return blockEndConv to
      *   treat it as as conversational response.
      */
-     // sayBlockTravel() {}
-     // sayBlockBye () {}
-     // sayBlockBoredom() {}
+    // sayBlockTravel() {}
+    // sayBlockBye () {}
+    // sayBlockBoredom() {}
+    // sayBlockActor() {}
     
     /* 
      *   The method that handles prop (a proprty pointer) according to its property type. For the
