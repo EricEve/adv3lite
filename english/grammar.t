@@ -1690,6 +1690,16 @@ VerbRule(LookDir)
 ;
 
 
+DefineIAction(LookDir2)    
+    execAction(cmd)
+    {
+        LookDir.execAction(cmd);
+        "<.p>";
+        cmd.verbProd.dirMatch = cmd.verbProd.dirMatch2;                 
+        LookDir.execAction(cmd);
+    }
+;
+
 VerbRule(Feel)
     'feel'  multiDobj
     : VerbProduction

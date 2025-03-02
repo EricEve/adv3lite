@@ -811,6 +811,8 @@ class OutputFilter: object
      *   and 'txt' is the original text to be displayed.  
      */
     filterText(ostr, txt) { return txt; }
+    
+    isActive = true
 ;
 
 
@@ -2020,6 +2022,8 @@ typographicalOutputFilter: OutputFilter
      *   game is running.  
      */
     abbreviations = 'mr|mrs|ms|dr|prof'  
+    
+    isActive = true
 ;
 
 /* 

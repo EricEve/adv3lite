@@ -4415,6 +4415,17 @@ modify pluralDummy_
     plural = true
 ;
 
+theresingular: Thing
+    name = 'there'
+;
+
+thereplural: Thing
+    name = 'there'
+    plural = true
+;
+    
+    
+
 /* 
  *   prevDummy_ is used by the {prev} message parameter substitution to enable a
  *   subsequent verb to agree with a previous list defined through one of the
@@ -4596,6 +4607,17 @@ englishMessageParams: MessageParams
          *   text
          */
         [ 'prev', { ctx, params: cmdInfo(ctx, prevDummy_, &dummyName, vSubject) } ],
+        
+        /* 
+         *   {there} displays 'there' and makes it the singular subject of an ensuing verb.
+         */
+        [ 'there', { ctx, params: cmdInfo(ctx, theresingular, &name, vSubject) } ],
+        
+        /* 
+         *   {therepl} displays 'there' and makes it the plural subject of an ensuing verb.
+         */
+        
+        [ 'therepl', { ctx, params: cmdInfo(ctx, thereplural, &name, vSubject) } ],
         
         
         /* 
