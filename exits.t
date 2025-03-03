@@ -481,13 +481,16 @@ explicitExitLister: ExitLister
     {
         ".";
     }
+    
     showListItem(obj, options, pov, infoTab)
-    {
+    {               
+        htmlSay('<<aHref(obj.dir_.name, obj.dir_.name, 'Go ' + obj.dir_.name,
+                 0)>>');    
+        if(showDestNames && obj.dest_ && (obj.dest_.visited || obj.dest_.familiar))
+            DMsg(exit lister dest name, ' to <<obj.dest_.destName>>');
         
-      htmlSay('<<aHref(obj.dir_.name, obj.dir_.name, 'Go ' + obj.dir_.name,
-                 0)>>');
-        
-    }
+    }    
+    
     showListSeparator(options, curItemNum, totalItems)
     {
         if(curItemNum == totalItems - 1)
@@ -495,6 +498,12 @@ explicitExitLister: ExitLister
         if(curItemNum < totalItems - 1)
             ", ";
     }
+    
+    /* 
+     *   Flag, do we want to show known destination names along with the directions that lead to
+     *   them? By default we do.
+     */    
+    showDestNames = true
     
 ;
 

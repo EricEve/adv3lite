@@ -112,8 +112,16 @@ class Room: TravelConnector, Thing
     /* By default our destination is known if we've been visited */
     isDestinationKnown = (visited)
     
+    /* 
+     *   Our name as a deatination to be used in the explicit exit lister. By default we use our
+     *   theName.
+     */
+    destName = theName
+    
     /* Has this room been visited? */
     visited = nil
+    
+    
  
     /* 
      *   Although we don't define room parts in general, we do give every Room a
@@ -1967,6 +1975,15 @@ class UnlistedProxyConnector: TravelConnector
         return objOfKind(conn, TravelConnector) ? conn.getDestination(origin) : nil;
         
     }
+    
+    getApparentDestination(origin)
+    {
+        local conn = proxyForConnector(origin);
+               
+        return objOfKind(conn, TravelConnector) ? conn.getApparentDestination(origin) : nil;
+        
+    }
+    
      /* 
       *   Handle going through this connector by calling our travelVia() method to execute travel
       *   via the connector for which we're a proxy.
