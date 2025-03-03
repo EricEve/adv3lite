@@ -1541,8 +1541,8 @@ modify Actor
        
     /*  
      *   The takeTurn() method is called on every Actor every turn to carry out
-     *   a number of housekeeping functions relating to the conversation and
-     *   agenda item systems.
+     *   a number of housekeeping functions relating to the conversation, 
+     *   scripted travel and agenda item systems.     
      */
     takeTurn()
     {      
@@ -1588,7 +1588,10 @@ modify Actor
          *   priority AgendaItem, if we have one.
          */
         if(!conversedThisTurn && !executeAgenda)
-        {
+        {            
+            if(currentRoute != nil)
+                tryScriptedTravel();
+            
             /* 
              *   If we haven't conversed this turn and we didn't find an
              *   AgendaItem to execute, then, if we have a current ActorState
@@ -1598,9 +1601,11 @@ modify Actor
              *   an ActorState to display a series of 'fidget messages' or the
              *   like for an actor who hasn't otherwise done anything this turn.
              */
-            if(curState != nil && curState.ofKind(Script) 
+           else if(curState != nil && curState.ofKind(Script) 
                && Q.canSee(gPlayerChar, self))
                 curState.doScript();
+            
+            
         }
         
         /* 
@@ -1618,6 +1623,191 @@ modify Actor
     }
     
     
+     /* 
+     *   Attempt to make this actor take one step along the route currently defined on its
+     *   currentRoute property. Thia method is called from takeTurn() when other activities haven't
+     *   taken precdence, but can also be called from use code, for example straight after a call to
+     *   scriptedTravelTo() when we want to make the actor start moving on the same turn (although
+     *   this can also be achieved by calling scriptedTravelTo(dest, true) which its option second
+     *   parameter set to true.
+     */    
+    tryScriptedTravel()
+    {       
+        /* 
+         *   If this actor doesn't have a current route, then return straight away, since there's
+         *   nothing to do here.
+         */
+        if(currentRoute == nil)
+            return;
+        
+        local ele = currentRoute.car();
+        currentRoute = currentRoute.cdr();
+        local loc = getOutermostRoom();
+        
+        /* 
+         *   If we're in conversation with the player character, first check whether we can end the
+         *   converssation.
+         */
+        if(gPlayerChar.currentInterlocutor == self)
+        {
+            /* Attempt to end the conversation. */
+            endConversation(endConvActor);
+            
+            /* 
+             *   If we're still in conversation with the player character, we weren't allowed to end
+             *   the conversatiion, so stop here.
+             */
+            if(gPlayerChar.currentInterlocutor == self)
+                return;            
+        }
+        
+        
+        /* If ele is a list, assume we have a path in routefinder format */
+        if(dataType(ele) == TypeList)
+        {
+            /* 
+             *   If the list is in the right format ele should be a two-element list whose second
+             *   element is this actor's current room. If that's not the case or there aren't any
+             *   more elements left in the list, there's nothing left to do.
+             */
+            if(currentRoute && currentRoute.length > 0 && ele[2] == loc)           
+            {
+                /* Get the next element from out route. */
+                ele = currentRoute[1];
+                
+                /* The direction we need to travel in is the first element of that element. */
+                local dir = ele[1];
+                
+                /* Note the current actor. */
+                local actor = gActor;
+                
+                try
+                {
+                    /* Create a TravelAction instance. */
+                    local action = TravelAction.createInstance();
+                    
+                    /* Make the actor this Actor.l */
+                    gActor = self;
+                    
+                    /* 
+                     *   Set the action direction to the direction we want this actor to travvel in.
+                     */
+                    action.direction = dir;
+                    
+                    /* Carry out the travel */
+                    action.doTravel();
+                }
+                
+                finally
+                {
+                    /* Restore the current actor. */
+                    gActor = actor;
+                }
+            }
+            
+        }
+            
+        /* 
+         *   If ele is a TravelConnetor, assume it's the next one the actor is meant to travel via
+         */
+        if(objOfKind(ele, TravelConnector))
+        {
+            /* Note the current travel information, in case we need it to follow this actor. */
+            local oldTravelInfo = lastTravelInfo;
+            
+            /* 
+             *   If the player character can see this actor depart, note the new travel information
+             *   to allow the  player character to follow the actor.
+             */
+            if(gPlayerChar.canSee(self))
+                lastTravelInfo = [getOutermostRoom, ele];
+                
+            /* Carry out the travel via the specified connector. */
+            travelVia(ele);
+            
+            /* 
+             *   If the travel failed, that is if the actor hasn't changed room, restore the
+             *   previous travel information.
+             */
+            if(getOutermostRoom == loc)
+                lastTravelInfo = oldTravelInfo;
+        }
+           
+        /* 
+         *   If the actor hasn't moved, either something's prevented the travel or there's an error
+         *   in the specification of the currentRoute, so we set it to nil to cancel the scripted
+         *   travel.
+         */
+        if(getOutermostRoom == loc)
+            currentRoute = nil;        
+        
+    }
+    
+    /* 
+     *   Set up a route for this actor to follow. Once the route has been established the actor will
+     *   take one step along it each turn it doesn't have a higher priority task to perform, such as
+     *   conversation or an AgendaItem.
+     *
+     *   The dest paraamter can be supplied as one of:
+     *
+     *   1) A Room or Thing, in which case the route to that Room or Thing will be calculated for
+     *   the actor to follow.
+     *
+     *   2) A list of travel connectors (which can include Rooms) for the actor to follow from its
+     *   current location. It's the game author's responsibility to ensure this makes sense. Where
+     *   connections between rooms on the map aare via some other form of travel connector it may be
+     *   better to list that connector rather than the room it leads to in order to ensure any
+     *   side-effects of travel or travel barriers are respected, but there may be legitimate
+     *   reasons for bypassing these and simply listing the Room to be traveled to.
+     *
+     *   3) A list in the same format as that generated by the route finder, [[nil, currentRoom],
+     *   [dir, nextroom], [dir, nextroom]..., e.g. [[nil, hall], [eastDir, kitchen], [downDir,
+     *   cellar]] ]  The first element of this list must specify the actor's current room.
+     *
+     *   4) Any other kind of value, such as nil, to reset the actor's route (and so stop the
+     *   scripted travel).
+     *
+     *   The second optional exec parameter can be set to true to ensure that travel begins on the
+     *   same turn as the call to scriptedTravelTo() in cases where this wouldn't otherwise happen,
+     *   e.g., because scriptedTravelTo() was called from an AgendaItem, or the whenStarting(), 
+     *   whenEnding(), or eachTurn() method of a Scene.
+     */
+    
+    scriptedTravelTo(dest, exec?)
+    {
+        /* 
+         *   If the dest parameter has been supplied as a list, assume it's a list of the steps we
+         *   want the actor to take on their travels and so store it directly in our currentRoute
+         *   property.
+         */
+        if(dataType(dest) == TypeList)
+            currentRoute = dest;
+        
+        /* 
+         *   Otherwise, if dest is supplied as a Thing, take the location of the Thing as our target
+         *   and use the routeFinder to calculate the route to it. Then stache the route in our
+         *   currentRoute property.
+         */
+        else if(objOfKind(dest, Thing))
+        {
+            routeFinder.findPath(getOutermostRoom, dest.getOutermostRoom);
+            currentRoute = routeFinder.cachedRoute.toList();          
+        }
+        
+        /* Otherwise, simply reset our currentRoute to nil. */
+        else currentRoute = nil;
+        
+        
+        if(exec && currentRoute)
+            tryScriptedTravel();
+    }
+    
+    /* 
+     *   The current route this actor should follow (if any). Following the route is executed from
+     *   the actor's takeTurn() routine if the actor hasn't a higher priority activity such as
+     *   conversing or executing an agenda item.
+     */
+    currentRoute = nil       
     
     /* 
      *   our special "boredom" agenda item - this makes us initiate an end

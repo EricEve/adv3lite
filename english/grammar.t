@@ -1689,16 +1689,16 @@ VerbRule(LookDir)
     priority = 40
 ;
 
-
-DefineIAction(LookDir2)    
-    execAction(cmd)
-    {
-        LookDir.execAction(cmd);
-        "<.p>";
-        cmd.verbProd.dirMatch = cmd.verbProd.dirMatch2;                 
-        LookDir.execAction(cmd);
-    }
+VerbRule(LookDir2)
+    ('look' | 'l') ('to' |) ('the'|) singleDir ('and' | 'then' | 'and' 'then')
+    directionName->dirMatch2   
+    : VerbProduction
+    action = LookDir2
+    verbPhrase = 'look/looking (where)' 
+    priority = 40
 ;
+
+
 
 VerbRule(Feel)
     'feel'  multiDobj
