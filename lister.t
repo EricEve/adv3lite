@@ -135,6 +135,158 @@ class ItemLister: Lister
         }        
     }
     
+    showList(lst, pl, parent)   
+    {    
+        lst = findListGroups(lst);
+        
+        /* 
+         *   If our groupTab table is empty, there are no ListGroups involved in our list, so we can
+         *   just show a simple list of items.
+         */
+        if(groupTab.getEntryCount() == 0)
+            showSimpleList(lst);
+        
+        /* Otherwise we'll need to use the more commplex list handling. */
+        else
+            showComplexList(lst, pl, parent);
+    }
+    
+    /* 
+     *   Show a simple list of things. This must be defined in the language-specific part of the
+     *   library.
+     */
+    showSimpleList(lst)     {  }
+    
+    /* Our LookUp table of any ListGroups we need to work with. */
+    groupTab = nil
+    
+    findListGroups(lst)
+    {
+        /* Create a new LookupTable for our table of ListGroups */
+        groupTab =  new LookupTable;
+        
+        /* 
+         *   For every item we're due to list, if it has any ListGroups listed in its listWith
+         *   property, create or update an entry for that ListGroup and the item it lists in our
+         *   table of ListGroups.
+         */
+        foreach(local item in lst)
+        {
+            foreach(local grp in valToList(item.listWith))
+                groupTab[grp] = valToList(groupTab[grp]) + item;                    
+        }        
+      
+        /* Get a list of the groups that have been added to groupTab. */
+        local grpList = groupTab.keysToList();
+        
+        /* 
+         *   Then remove from the list group table entries for any ListGroups that don't match the
+         *   minimum number of items they should list.
+         */
+        foreach (local grp in grpList)
+        {
+            if(groupTab[grp].length < grp.minGroupSize)
+                groupTab.removeElement(grp);
+        }
+        
+        /* 
+         *   If there's nothing left in the list group table, there's nothing more to do here, so
+         *   simply return our list of items unchanged.
+         */
+        if(groupTab.getEntryCount() == 0)
+            return lst;
+        
+        /* 
+         *   Get an updated list of the groups that are left, in descending order of priority and
+         *   the number of items they relate to.
+         */
+        grpList = groupTab.keysToList().sort(SortAsc, {a, b: b.priority + groupTab[b].length - 
+                                             a.priority - groupTab[a].length});
+        
+        local listed = [];
+        
+        /* 
+         *   Check for items that appear in more than one ListGroup. Remove their association from
+         *   the groupTab table, and if that leaves a ListGroup with too few items, remove that too.
+         */
+        foreach(local grp in grpList)
+        {
+            /* Note the items covered by the current ListGroup grp */
+            local items = groupTab[grp];
+            
+            /* 
+             *   Remove items from the list that would already have been listed in previous
+             *   ListGroups.
+             */
+            items = items.subset({x: listed.indexOf(x) == nil});
+            
+            /*  Update the groupTab entry for this group with the revised list of items. */
+            groupTab[grp] = items;                       
+                  
+            /* 
+             *   If that leaves the group with too few items for the group to be used, remove it
+             *   from our group table.
+             */
+            if(items.length < grp.minGroupSize)
+                groupTab.removeElement(grp);
+            
+            /* Otherwise, add its items to the list of items that will be listed by ListGroups. */
+            else
+                listed = listed.appendUnique(items); 
+        }
+        
+        /* 
+         *   Remove the list of items to be listed by ListGroups from the list of items to be listed
+         *   and add the ListGroups in their place.
+         */
+        lst = lst - listed + groupTab.keysToList();
+        
+        /* Sort the resulting list in ascending order of listOrder. */
+        lst = lst.sort(SortAsc, {a, b: a.listOrder - b.listOrder});
+        
+        /* Return the resulting list. */
+        return lst;
+    }
+    
+    /* Show a list of items that may be a list of Things and ListGroups */
+    showComplexList(lst, pl, parent)
+    {
+        /* Note the length of the list. */
+        local len = lst.length();
+        
+        /* Iterate through the list. */
+        for(local i = 1, local item in lst;; ++ i)    
+        { 
+            /* If we're reaching the final item in the list, prepend ' and ' */
+            if(i == len && i > 1)
+                DMsg(list and, ' and ');
+            
+            /* Note the punctuation that should follow this item. */
+            local punct = ', ';
+            
+            /* If the item is a Thimg, simpyl display its listName. */
+            if(item.ofKind(Thing))
+            {                
+                "<<listName(item)>>";
+            }
+            
+            /* 
+             *   If it's a ListGroup, get the ListGroup to list its contents and then change the
+             *   following punctuation to a semicolon.
+             */
+            if(item.ofKind(ListGroup))
+            {
+                item.showList(self, groupTab[item]);
+                punct = '; ';
+            }
+            
+            /* If we haven't reach the end of the list, add the appropriate punctuation. */
+            if(i < len)
+                say(punct);
+        }   
+            
+    }
+    
     /* 
      *   The property on a Thing-derived container to test whether its contents
      *   should be listed when listing with this lister
@@ -145,9 +297,7 @@ class ItemLister: Lister
      *   Flag, so we want to list contents of contents when using this lister;
      *   by default we do.
      */
-    listRecursively = (gActor == gPlayerChar)
-    
-    
+    listRecursively = (gActor == gPlayerChar)   
 ;
 
 
@@ -424,4 +574,194 @@ class CustomRoomLister: ItemLister
     }
     
     showSubListing = (gameMain.useParentheticalListing)
+;
+
+
+/*
+ *   -----------------------------------------------------------------------------------
+ *
+ *   Various types of ListGroup
+ *
+ *   These can be defined on the listWith property of miscellaneous items to be listed in a room,
+ *   container or inventory listing to group items together.
+ */
+
+
+/* 
+ *   Abstract base class for all kinds of ListGroup. Game code will use one of more of its
+ *   subclasses defined below.
+ */
+class ListGroup: object
+    
+    /* 
+     *   The minimum number of objects in the list to be listed belonging to this ListGroup for this
+     *   ListGroup to be used to list them. By default this is two.
+     */
+    minGroupSize = 2    
+    
+    
+    /* Show a list of items (lst) using lister. */
+    showList(lister, lst)
+    {
+        showSimpleList(lister, lst);
+    }
+    
+    /* 
+     *   Show a simple list of items (lst) using lister. The method of doing so must be provided in
+     *   the language-dependent part of the libary.
+     */    
+    showSimpleList(lister, lst)   {}
+    
+    /* 
+     *   Our own list order, relative to the listOrder of other items in the list to be listed that
+     *   do not belong to this ListGroup.
+     */
+    listOrder = 100
+    
+    /* 
+     *   Normally if an item to be listed belongs to more than one ListGroup, we use the ListGroup
+     *   that would contain the largest number of items. We can override this by assigning a higher
+     *   priority to the ListGroup so that the highet priority ListGroup will be use. This should be
+     *   a number that's large compared with the number of items in any one group so we use a
+     *   default of 100. Game code may wish to assign priorities in steps of a hundred.
+     */
+    priority = 100
+;
+
+
+/* A ListGroupSorted simply lists its items in ascending listOrder sequence within the group. */
+class ListGroupSorted: ListGroup
+    
+    /* 
+     *   The compareGroupItems method defines how items will be sorted within the ListGroup. By
+     *   default we sort on their groupOrder, which by default is the same as their listOrder,  but
+     *   we could define an alternative custom property or some other means of sorting if we so
+     *   wished.
+     */
+    compareGroupItems (a, b) { return a.groupOrder - b.groupOrder; }    
+    
+    /* Show our list (lst) of items using lister. */
+    showList(lister, lst)
+    {
+        /* First sort our items. */
+        lst = sortList(lst);
+        
+        /* Then show a simple list of them using lister. */
+        showSimpleList(lister, lst);
+    }
+    
+    /* Sort our list of items. By default we do so in their listOrder order. */
+    sortList(lst) { return lst.sort(SortAsc, {a, b: compareGroupItems(a, b)});  }
+;
+
+
+/* 
+ *   ListGroupSuffixPrefix is a type of ListGroupSorted to which we can prepend or append custom
+ *   text, e.g. "keys: "
+ */
+class ListGroupSuffixPrefix: ListGroupSorted
+    
+    /* 
+     *   The prefix text we want to display before our list of items, if any. This is for game code
+     *   to define.
+     */
+    groupPrefix = nil
+        
+    /* 
+     *   The suffix text we want to display after our list of items, if any. This is for game code
+     *   to define.
+     */
+    groupSuffix = nil
+    
+    /*  
+     *   Show our group prefix. By default we display a apelled out count of the number of items
+     *   this group is going to list followed by our prefix text, but game code can override if some
+     *   other format is wanted.
+     */
+    showGroupPrefix(pov, lst)         
+    { 
+        /* Spell out the number of items we're about to list. */
+        "<<spellNumber(lst.length)>> ";
+        
+        /* Then display our group prefix/ */
+        display(&groupPrefix); 
+    }
+    
+    /* Display our group suffix. */
+    showGroupSuffix(pov, lst) { display(&groupSufffix); }
+          
+    /* Show our list of items (lst) using lister. */
+    showList(lister, lst)
+    {
+        /* Display our group prefix. */
+        showGroupPrefix(gActor, lst); 
+        
+        /* Sort out list */
+        lst = sortList(lst);
+        
+        /* Output a apace to separate the list from our prefix. */
+        " ";
+        
+        /* Show a simple list of our items (lst) using lister. */
+        showSimpleList(lister, lst);
+        
+        /* Output another space to separate the list from its suffix */
+        " ";
+        
+        /* Show the group suffix. */
+        showGroupSuffix(gActor, lst);
+    }        
+        
+;
+
+
+/* 
+ *   ListGroupParem introduces the list with a summary of what it contains (e.g., 'three keys') and
+ *   then lists its individual items in parentheses (e.g. 'three keys (a large key, a brass key, and
+ *   a tiny silver key).
+ */
+class ListGroupParen: ListGroupSorted
+    
+    /* Show the summmary prefix, e.g. "three keys". */
+    showGroupCountName(lst)
+    {
+        "<<spellNumber(lst.length)>> <<pluralName>>";
+    }     
+    
+    /* The plural name to use to summarise the items in the group, e.g., 'keys' */
+    pluralName = ''
+    
+    /* Show our list of items (lst) using lister. */
+    showList(lister, lst)
+    {
+        /* Start with our summary description, e.g., 'three keys' */
+        showGroupCountName(lst);
+        
+        /* Sort our list of items. */
+        lst = sortList(lst);
+        
+        /* Display the opening parenthesis. */
+        " (";
+        
+        /* Show a simple list of our itmes (lst) using lister. */
+        showSimpleList(lister, lst);
+        
+        /* Display the closing parenthesis. */
+        ")";
+    }
+;
+
+/* A ListGroupCuatom displays the list or a summary of the list in a user-defined way, */
+
+class ListGroupCustom: ListGroup
+    
+    /* The text to display to define this group. Tbis must be defined in user code. */
+    showGroupMsg(lst) { }
+    
+    /* Show our list. */
+    showList(lister, lst)
+    {
+        /* Call showGroupMsg(lst) to do the work of displaying it. */
+        showGroupMsg(lst);
+    }
 ;

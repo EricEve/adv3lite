@@ -3105,16 +3105,28 @@ modify Lister
  */
 modify ItemLister    
     
+//    /* 
+//     *   For an item lister we use the listName method of the lister rather than
+//     *   the aName property of the object to provide a name for the object; this
+//     *   allows the lister to add status-specific information like '(providing
+//     *   light)' or '(being worn)' to the name as it appears in the list.
+//     */
+//    showList(lst, pl, parent)   
+//    {        
+//        "<<andList(lst.mapAll({ o: listName(o) }))>>";        
+//    }
+    
     /* 
-     *   For an item lister we use the listName method of the lister rather than
-     *   the aName property of the object to provide a name for the object; this
-     *   allows the lister to add status-specific information like '(providing
-     *   light)' or '(being worn)' to the name as it appears in the list.
+     *   Show a simple list of things. For an item lister we use the listName method of the lister
+     *   rather than the aName property of the object to provide a name for the object; this allows
+     *   the lister to add status-specific information like '(providing light)' or '(being worn)' to
+     *   the name as it appears in the list.
      */
-    showList(lst, pl, parent)   
-    {        
-        "<<andList(lst.mapAll({ o: listName(o) }))>>";        
+    showSimpleList(lst)
+    {
+        "<<andList(lst.mapAll({ o: listName(o) }))>>";  
     }
+    
     
     /* 
      *   The listName is the aName of o plus any status-specific information we
@@ -3215,6 +3227,18 @@ modify ItemLister
      *   default we do if the actor is the player character. 
      */
     showSubListing = (gActor == gPlayerChar)
+;
+
+/* English-language modfications to the base ListGroup class. */
+modify ListGroup
+    /* 
+     *   Show a simple list of items lst using lister. Here we just create a simple and list: "a, b,
+     *   c, ... and x"
+     */
+    showSimpleList(lister, lst)
+    {
+        "<<andList(lst.mapAll({ o: lister.listName(o) }))>>";
+    }    
 ;
 
 /*  

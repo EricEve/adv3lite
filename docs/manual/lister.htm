@@ -151,6 +151,165 @@ Lists and Listers
  
 <p>For more information on customizing the way items are listed in room descriptions, see the chapters on <a href="roomdesc.htm">Room Descriptions</a> and (for remote rooms) <a href="senseregion.htm#descriptions">SenseRegions</a>. </p>
 <br>
+
+<h2 id="grouping">Ordering and Grouping</h2>
+<p>We can control the order in which miscellaneous items are liste by using their <b>listOrder</b> property (the list will be sorted in ascending order of listOrder). Beyond that, just about any custom ordering of miscellaneous item can be achieved by grouping them, e.g., to group keys or writing implements or coins together in any room description or inventory listing.</p>
+
+<p>To group miscellaneous items in a list you need to:
+<ol>
+<li>Define an object of class ListGroup (or rather, one of its subclasses)</li>
+<li>Assign the <b>listWith</b> property of all the items you want listed in this group to this ListGroup object</li>
+</ol>
+
+<p>This should hopefully become much clearer with an example. Suppose we add a pencil, a ruler, and a bottle of ink to the miscellaneous items in the room. We might then see a listing like:</p>
+
+<p><pre>
+You see a chair, a ruler, a pencil, a bucket of water, a bottle of ink, a pen, 
+and a piece of paper here.
+</pre></p>
+
+<p>But since the ruler, the pencil, the ink, the pen and the paper are all writing implements of a sort, we might prefer them all to be listed together. The first step is to create an appropriate ListGroup:
+</p>
+
+<p><div class="code"><pre>
+writingMaterials: ListGroupSorted    
+;
+</pre></div></p>
+
+<p>Then we assign each of the objects in question to this ListGroup, e.g.:</p>
+<p><div class="code"><pre>
++ ruler: Thing 'ruler' 'ruler'
+    listWith = [writingMaterials]
+;
+</pre></div></p>
+
+<p>Note that the listWith property takes a <i>list</i> of ListGroups, since the same item can belong to more than one ListGroup. We'll say a bit more about multiple ListGroups in this property later; for now we'll keep it simple and stick to one. Once we've defined our writingMaterials ListGroup and assigned all the appropriate objects to it in this way, the list will display something like:</p>
+
+<p><div class="cmdLine"<pre>
+You see a chair; a ruler, a pencil, a bottle of ink, a pen, and a piece of paper; 
+and a bucket of water here.  
+</pre></div></p>
+
+<p>Note that we made our writingMaterials list group a <b>ListGroupSorted</b> and not just a <i>ListGroup</i>. This is because the base ListGroup class doesn't actually do much when it comes to listing its members; it's nearly always more useful, therefore, to use a subclass of ListGroup, ListGroupSorted being perhaps the most general-purpose of those subclasses. As its name suggest, ListGroupSorted can also sort the items it lists. Suppose, for example, we not only wanted to group the writing implements together, but wanted them to appear in the order: pen, pencil, ink, paper, ruler. We can do this by first defining a <i>compareGroupItems()</i> method on our writingMaterials list group, which could make use of a the <i>groupOrder</i> property on the writing implements themselves:</p>
+
+<p><div class="code"><pre>
+writingMaterials: ListGroupSorted    
+    /* 
+     * Return an integer &gt; 0 if the first item sorts after the second item;
+     * Return an integer &lt; 0 if the second item sorts after the first item;
+     * Return zero if the two items are at the same sorting order.
+     */
+    compareGroupItems (a, b) { return a.groupOrder - b.groupOrder; }    
+;
+
++ pencil: Thing 'pencil' 'pencil'
+    listWith = [writingMaterials]
+    groupOrder = 20
+;
+
++ ink: Thing 'bottle/ink' 'bottle of ink'
+    listWith = [writingMaterials]
+    groupOrder = 30
+;
+
+/* etc. */
+</pre></div></p>
+
+<p>Note that we didn't need to override <code>compareGroupItems (a, b)</code> in this instance, since sorting in ascending order of groupOrder is what it already does by default, but this illustrates how we could implement some other custom listing order. Note also that by default Things take their <code>groupOrder</code> from their <code>listOrder</code>, so if we were content for the two to remain the same we wouldn't need to override <code>groupOrder</code>.</p>
+
+<p>With our modified writingMaterials list group we'll now get a list like:</p>
+
+<p><pre>
+You see a chair; a pen, a pencil, a bottle of ink, a piece of paper, and a ruler; 
+and a bucket of water here.
+</pre></p>
+
+<p>ListGroupSorted has a couple of subclasses we can also use for particular purposes. We could use <b>ListGroupPrefixSuffix</b> to explicitly introduce the list of writing implements as "some writing implements":</p>
+<p><div class="code"><pre>
+writingMaterials: ListGroupPrefixSuffix    
+    showGroupPrefix(pov, lst)         
+    {    
+       "some writing materials: ";
+    }
+;
+</p></div></pre>
+<p>This would result in:</p>
+<p><pre>
+You see a chair; some writing materials: a pen, a pencil, a bottle of ink, 
+a piece of paper, and a ruler; and a bucket of water here. 
+</pre></p>
+
+<p>Alternatively we could have overridden <code>groupPrefix</code> to 'writing implements' and then we would have got:</p>
+
+<p><pre>
+You see a chair; five writing implements: a pen, a pencil, a bottle of ink, 
+a piece of paper, and a ruler; and a bucket of water here. 
+</pre></p>
+
+<p>Note that we could likewise use the <b>groupSuffix</b> property to append text to the end of the list of writing materials. In a more complex situation we could instead override the methods showGroupPrefix(pov, lst) and showGroupSuffix(pov, lst), which by default just display the groupPrefix and groupSuffix properties; in a more complex case we might want to use these methods to vary the text shown according to the value of the pov parameter (normally the actor doing the looking) or the lst parameter (the list of items about to be listed).</p>
+
+<p>We can use <b>ListGroupParen</b> to give a general description of the items (e.g. "five writing implements" followed by the actual items listed in parentheses:</p>
+
+<p><div class="code"><pre>
+writingMaterials: ListGroupParen        
+    showGroupCountName(lst)
+    {
+        "&lt;&lt;spellInt(lst.length)&gt;&gt; writing implements";
+    }    
+;
+</pre></div></p>
+
+<p>Or, more simply but equivalently:</p>
+
+<p><div class="code"><pre>
+writingMaterials: ListGroupParen        
+    pluralName = 'writing implements'
+;
+</pre></div></p>
+
+
+<p>Either of which results in:</p>
+<p><pre>
+You see a chair, five writing implements (a pen, a pencil, a bottle of ink, 
+a piece of paper, and a ruler), and a bucket of water here.
+</pre></p>
+
+<p>Note that if we hadn't overridden either showGroupCountName() or pluralName it would simply have used the count , so the list would have been shown as "five (a pen, a pencil, ...)" intead of "five writing implements (a pen, a pencil, ...)"</p>
+
+<p>Finally, we could use <b>ListGroupCustom</b> (a subclass of ListGroup, but not of ListGroupSorted) just to give a summary name for the pen, pencil etc. without listing the individual items at all:</p>
+
+<p><div class="code"><pre>
+writingMaterials: ListGroupCustom
+    showGroupMsg (lst) { "some writing materials"; }
+;
+</pre></div></p>
+<p>Resulting it:</p>
+<p><pre>
+You see a chair, some writing materials, and a bucket of water here.
+</pre></p>
+
+<p>This is probably not a good idea unless the individual items answer to the vocabulary "writing materials" (perhaps as a plural), since otherwise the player won't be able to refer to them!</p>
+
+<p>In summary, the ListGroup classes that are most useful, together with the properties you'll commonly want to override on them, are:</p>
+
+<ul>
+<li><b>ListGroupSorted</b>;  compareGroupItems(a, b) defines the sorting order (by default this is ascending order of the items' groupOrder property which by default is the same as their listOrder)</li>
+<li><b>ListGroupPrefixSuffix</b>;  groupPrefix and groupSuffix define the text used to introduce and conclude the list</li>
+<li><b>ListGroupParen</b>; pluralName defines the collective name for the items about to be listed in parentheses (e.g. "writing implements")</li>
+<li><b>ListGroupCustom</b>; showGroupMsg(lst) defines the text used to summarize the list of items (in place of the items themselves), e.g. "some writing materials"</li>
+</ul>
+
+<p>There's a couple more points to bear in mind about these ListGroups. First, you may be wondering what happens if only one member of a group is present; it would be ugly - or at least needlessly pedantic - to see a list like "You see one writing implement (a pen) here". This is taken care of by the <b>minGroupSize</b> property on the ListGroup object. By default the value of this property is two, which means that the ListGroup will only be used to group its members in a list if at least two of them are present. This is the behaviour we'd normally want, but we can always change this property to something other than two if we need to.</p>
+
+<p>The other main point is the complication introduced above: the listWith property of an object contains a <i>list</i> of ListGroup objects, and that list can contain more than one member, meaning that an object can be grouped in more than one way. When multiple groups are specified here, the ListGroup an item will be listed on will depend on.</p>
+<ul>
+<li>If the ListGroups involved have different priorities, the ListGrouop with the highest <b>priority</b> will be used (provided the difference is a big enough number, where 'big enough' means larger than the number of items in any one group)</li> 
+<li> Otherwise, the ListGroup that would contain the largest number of items is used (in the event of a tie, the choice will be arbitrary)</li>
+</ul>
+
+<p>Finally, we can control where a given ListGroup appears in a list of items by setting its own <b>listOrder</b> property. So for example, if we wanted our group of writing materials to appear after everything else, we could give our <code>writingMaterials</code> ListGroup a listOrder of 200 (assuming this was greater than the listOrder of everything else).</p>
+
+
 <a name="generating" id="generating"></a>
 <h2>Generating Lists</h2> 
  

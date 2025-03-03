@@ -3313,16 +3313,16 @@ class Thing:  ReplaceRedirector, Mentionable
     listOrder = 100
 
     /*
-     *   List group.  At the moment this does nothing, but it has been retained
-     *   from the Mercury library for possible future use.
+     *   The ListGroup or ListGroups (if any) we want this item to be grouped with in any item
+     *   listing.
      */
     listWith = nil
 
     /*
      *   Group order.  This gives the relative order of this item within
-     *   its list group.  
+     *   its list group. By default we use its listOrder. 
      */
-    groupOrder = 100
+    groupOrder = listOrder
 
      /*   
       *   CollectiveGroup, or a list of CollectiveGroups, to which this item
