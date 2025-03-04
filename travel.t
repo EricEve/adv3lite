@@ -922,15 +922,15 @@ class Door: TravelConnector, Thing
              */
             else if(tryImplicitActorAction(traveler, Open, self))
             {                   
-//                /* 
-//                 *   If the player character can see the traveler open the door,
-//                 *   report the fact that the traveler does so.
-//                 */
-//                if(gPlayerChar.canSee(traveler))
-//                    sayTravelerOpensDoor(traveler);
-//                
-//                else if(otherSide && gPlayerChar.canSee(otherSide))                
-//                    sayDoorOpens();                                
+                /* 
+                 *   If the player character can see the traveler open the door,
+                 *   report the fact that the traveler does so.
+                 */
+                if(gPlayerChar.canSee(traveler))
+                    sayTravelerOpensDoor(traveler);
+                
+                else if(otherSide && gPlayerChar.canSee(otherSide))                
+                    sayDoorOpens();                                
                 
             }
             

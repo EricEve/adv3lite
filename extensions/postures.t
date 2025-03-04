@@ -591,8 +591,11 @@ modify TravelConnector
          */
         if(gActor.posture != posture)
         {
+            /* Attempt to get the actor into the right posture via an implicit action. */
             tryImplicitAction(posture.action);
-//            "<<buildImplicitActionAnnouncement(gActor.posture == posture, true)>>";
+            
+            /* Report the result of the implicit action. */
+            "<<gAction.buildImplicitActionAnnouncement(gActor.posture == posture, true)>>";
         }
         
         /* Return true or nil according to whether the actor is now in the correct posture. */
@@ -664,7 +667,12 @@ modify Lie
 actorInTravelPosture: PreCondition
     checkPreCondition(obj, allowImplicit)
     {
-        if(obj.posture == requiredPosture)
+        local requiredPosture = standing;
+        
+        if(objOfKind(obj, TravelConnector))
+           requiredPosture = obj.posture;        
+        
+        if(gActor.posture == requiredPosture)
             return true;
         
         if(allowImplicit && tryImplicitAction(requiredPosture.action))
@@ -675,29 +683,25 @@ actorInTravelPosture: PreCondition
         
         return nil;
     }
-    
-    requiredPosture = standing
-    
+       
     preCondOrder = 80
 ;
 
-modify TravelAction
-    preCond = valToList(inherited) + actorInTravelPosture
-    
-    
-;
-
-modify GoThrough
+//modify TravelAction
+//    preCond = valToList(inherited) + actorInTravelPosture    
+//;
+//
+//modify GoThrough
 //     preCond = valToList(inherited) + actorInTravelPosture
-;
-
-modify ClimbDown
-     preCond = valToList(inherited) + actorInTravelPosture
-;
-
-modify ClimbUp
-     preCond = valToList(inherited) + actorInTravelPosture
-;
+//;
+//
+//modify ClimbDown
+//     preCond = valToList(inherited)
+//;
+//
+//modify ClimbUp
+//     preCond = valToList(inherited) + actorInTravelPosture
+//;
 
 modify Door
     checkTravelBarriers(traveler)
@@ -706,5 +710,73 @@ modify Door
             return nil;
         
         return inherited(traveler);
+    }   
+    
+    dobjFor(GoThrough)
+    {
+        preCond = inherited + actorInTravelPosture
     }
 ;
+
+modify Passage
+    dobjFor(GoThrough)
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+;
+
+modify StairwayUp
+    dobjFor(Climb)     
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+    dobjFor(ClimbDown)     
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+;
+
+modify StairwayDown
+    dobjFor(Climb)     
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+    dobjFor(ClimbDown)     
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+;
+
+modify Thing
+    iobjFor(PushTravelThrough)
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+    iobjFor(PushTravelEnter)
+    {
+         preCond = inherited + actorInTravelPosture
+    }
+    
+    iobjFor(PushTravelGetOutOf)
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+    iobjFor(PushTravelClimbUp)
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+    iobjFor(PushTravelClimbDown)
+    {
+        preCond = inherited + actorInTravelPosture
+    }
+    
+;
+    
+    
+    
+    

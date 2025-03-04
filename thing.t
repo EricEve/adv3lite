@@ -8889,8 +8889,13 @@ class Thing:  ReplaceRedirector, Mentionable
                 /* If the connector we want to use is an object then check its travel barriers. */
                 if(dataType(conn) == TypeObject)
                 {                    
+                    if(!conn.setTravelPosture())
+                        exit;
+                    
                     if(conn.checkTravelBarriers(self))
                         conn.checkTravelBarriers(gActor);
+                    
+                    
                 }
             }
             
