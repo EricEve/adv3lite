@@ -231,7 +231,8 @@ class OutputStream: PreinitObject
             
         case TypeInt:
         case TypeObject:
-            /* convert integers and objects to strings */
+        case TypeList:
+            /* convert integers, lists and objects to strings */
             val = toString(val);
             break;
         }
@@ -1596,7 +1597,7 @@ transient commandSequencer: OutputFilter
 
 /* ------------------------------------------------------------------------ */ 
  /* 
-  *   quoteFilter: this loooks for smart quotes in the output and checks that
+  *   quoteFilter: this looks for smart quotes in the output and checks that
   *   they are balanced.
   *
   *   The problem with the smart quotes <q> </q> is that if one is missing, or a
