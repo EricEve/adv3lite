@@ -1316,6 +1316,11 @@ DefineTAction(Wear)
 
 DefineTAction(Doff)    
     allowAll = true    
+    
+    getAll(cmd, role)
+    {
+        return scopeList.subset({ x: x.wornBy == gActor});
+    }
 ;
 
 DefineIAction(TakeOff)
