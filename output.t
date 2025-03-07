@@ -910,32 +910,6 @@ class StringCaptureFilter: CaptureFilter
     txt_ = ''
 ;
 
-/* 
- *   ImplicitAction announcement filter. This is applied just before text from
- *   an action routine is output to ensure than any pending implicit action
- *   reports are output before any text from the action routine itself.
- */
-class ImplicitActionFilter: OutputFilter
-    
-    filterText(ostr, txt)    
-    {      
-        /* 
-         *   This method should never be called if we don't have a current
-         *   action, but just in case we return the text unchanged if there is
-         *   no gAction.
-         */
-//        if(gAction == nil)
-            return txt;
-        
-        /* 
-         *   If we do have have a gAction, prepend any pending implicit action
-         *   announcements to the text we output.
-         */
-//        return gAction.buildImplicitActionAnnouncement(true, !gAction.isImplicit)
-//            + txt;
-    }   
-;
-
 
 /* ------------------------------------------------------------------------ */
 /*

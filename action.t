@@ -1187,32 +1187,6 @@ class IAction: Action
             say(str);
     }
     
-//    execCycle(cmd)
-//    {
-//        try
-//        {
-//            /* 
-//             *   Add an output filter to display any pending implicit action
-//             *   reports before any other text
-//             */    
-//            gOutStream.addOutputFilter(ImplicitActionFilter);
-//            
-//            /* Carry out the inherited handling. */
-//            inherited(cmd);
-//        }
-//        
-//        finally
-//        {
-//            /*  
-//             *   Remove the filter that displays pending implicit action
-//             *   reports.
-//             */            
-//            gOutStream.removeOutputFilter(ImplicitActionFilter);
-//            
-//            "<<buildImplicitActionAnnouncement(true, true)>>";
-//        }        
-//    }
-    
     
     /* Nothing to do here. */
     setResolvedObjects([objs]) { }
@@ -1993,9 +1967,8 @@ class TAction: Action
         curObj = curDobj;
         
         /* 
-         *   Add the ImplicitActionFilter to the current output stream so that
-         *   any pending implicit action reports are prepended to any action
-         *   reports output at this stage.
+         *   If this is an implicit action, add an implicit action report describing it to the
+         *   pending implicit action reports for this comand.S
          */        
         if(isImplicit)
             buildImplicitActionAnnouncement(true, nil);
@@ -2013,18 +1986,8 @@ class TAction: Action
          *   NOTE TO SELF: Don't try making this work with captureOutput(); it
          *   creates far more hassle than it's worth!!!!
          */            
-//        try
-//        {
-//            gOutStream.addOutputFilter(ImplicitActionFilter);
             
-            msg = gOutStream.watchForOutput({: doAction() });
-//        }
-//        finally
-//        {
-//            /* Remove any implicit action announcement from the output stream */
-//
-//            gOutStream.removeOutputFilter(ImplicitActionFilter);
-//        }
+        msg = gOutStream.watchForOutput({: doAction() });
         
         
         /* 
@@ -2471,67 +2434,47 @@ class TIAction: TAction
         curObj = curDobj;     
         
         /* 
-         *   Add the ImplicitActionFilter to the current output stream so that
-         *   any pending implicit action reports are prepended to any action
-         *   reports output at this stage.
+         *   If this action is an implicit one construct an implicit action report to describe it
+         *   and add it to the list of pending implicit action reports for the current command.
          */       
         if(isImplicit)
             buildImplicitActionAnnouncement(true, nil);
         
-//        try
-//        {
-            /* 
-             *   First add the ImplicitActionFilter to the output stream so that
-             *   any text output from the action routines are preceeded by any
-             *   pending implicit action reports.
-             */
-            
-//            gOutStream.addOutputFilter(ImplicitActionFilter);
-            
-            
-            msgForMM = gOutStream.watchForOutput({:mmAction(curDobj, curIobj)});
-            
-            if(msgForMM != 2)
-            {
-                /* 
-                 *   Run the action routine on the current direct object and capture the output for
-                 *   later use. If the output is null direct object can be added to the list of
-                 *   objects to be reported on at the report stage, provided the iobj action routine
-                 *   doesn't report anything either.
-                 *
-                 *   NOTE TO SELF: Don't try making this work with captureOutput(); it creates far
-                 *   more hassle than it's worth!!!!
-                 */
-                msgForDobj =
-                    gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
-                
-                
-                
-                /* Note that we've acted on this direct object. */
-                actionList += curDobj;
-                
-                /* Note that the current object is now the indirect object. */
-                curObj = curIobj;
-                
-                /* 
-                 *   Execute the action method on the indirect object. If it doesn't output
-                 *   anything, add the current indirect object to ioActionList in case the report
-                 *   phase wants to do anything with it, and add the dobj to the reportList if it's
-                 *   not already there so that a report method on the dobj can report on actions
-                 *   handled on the iobj.
-                 */        
-                msgForIobj =
-                    gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
-            }
-            
-//        }
         
-//        finally
-//        {
-            /* Remove any implicit action announcement from the output stream */
-                       
-//            gOutStream.removeOutputFilter(ImplicitActionFilter);
-//        }
+        msgForMM = gOutStream.watchForOutput({:mmAction(curDobj, curIobj)});
+        
+        if(msgForMM != 2)
+        {
+            /* 
+             *   Run the action routine on the current direct object and capture the output for
+             *   later use. If the output is null direct object can be added to the list of objects
+             *   to be reported on at the report stage, provided the iobj action routine doesn't
+             *   report anything either.
+             *
+             *   NOTE TO SELF: Don't try making this work with captureOutput(); it creates far more
+             *   hassle than it's worth!!!!
+             */
+            msgForDobj =
+                gOutStream.watchForOutput({:curDobj.(actionDobjProp)});
+            
+            
+            
+            /* Note that we've acted on this direct object. */
+            actionList += curDobj;
+            
+            /* Note that the current object is now the indirect object. */
+            curObj = curIobj;
+            
+            /* 
+             *   Execute the action method on the indirect object. If it doesn't output anything,
+             *   add the current indirect object to ioActionList in case the report phase wants to
+             *   do anything with it, and add the dobj to the reportList if it's not already there
+             *   so that a report method on the dobj can report on actions handled on the iobj.
+             */        
+            msgForIobj =
+                gOutStream.watchForOutput({:curIobj.(actionIobjProp)});
+        }
+        
        
         /* 
          *   If neither the action stage for the direct object nor the action
