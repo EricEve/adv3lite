@@ -119,10 +119,10 @@ modify Room
              */
         case TypeDString:
         case TypeCode:
-            obj = libGlobal.extraDestInfo([self, dir]);
+            obj = libGlobal.extraDestInfo[[self, dir]];
             if(obj is in (nil, unknownDest_))
             {
-                sayCouldGoThatWay();
+                sayCouldGoThatWay(dir);
                 break;
             }
             /* Deliberately fall through if we reaach here. */    

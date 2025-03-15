@@ -1277,7 +1277,7 @@ DefineIAction(LookDir)
     sayNoNeedToLookDir()
     {
         DMsg(no need to lookdir, '<.parser>{There}{\'s} no need to look in particular directions
-            {here}.');
+            {here}.<./parser>');
         abort;
     }
     
