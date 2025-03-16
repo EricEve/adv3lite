@@ -159,7 +159,7 @@ modify Room
             else if(obj.ofKind(TravelConnector) && obj.propDefined(&lookDirDesc) 
                     && obj.propType(&lookDirDesc) != TypeNil)
             {
-                DMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
+                introLookDirDesc(dir);
                 obj.display(&lookDirDesc);
                 ". ";
                 break;                         
@@ -267,6 +267,16 @@ modify Room
     
     /* A Room is always a candidate for handling lookDir. */
     handleLookDir = true
+    
+    /* 
+     *   Display the introduction to a lookDirDesc. By default we display "To the dir you see ", but
+     *   game code can override. One possible ovveride might be to make this method ddo nothing at
+     *   all leaving the TravelConnector's lookDirDesc property to handle the entire method
+     */
+    introLookDirDesc(dir)
+    {
+        DMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
+    }
 ;
 
 /* Modifications to Thing for the LookDir extension. */
