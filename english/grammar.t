@@ -2979,7 +2979,7 @@ VerbRule(ConsultWhatAbout)
 ;
 
 VerbRule(ConsultAboutVague)
-    ('oonsult' | 'read') 'about'
+    ('consult' | 'read') 'about'
     : VerbProduction
     action = ConsultAboutVague
     verbPhrase = 'consult/consulting about'    
