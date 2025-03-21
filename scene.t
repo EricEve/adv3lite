@@ -122,6 +122,14 @@ class Scene: object
      */
     isHappening = nil
     
+    /* 
+     *   Is this scene currently taking place? (Game code should treat this as
+     *   read-only). We provide isActive as a read-only synonym of isHappening in
+     *   case game code uses it on analogy with several other adv3Lite entities
+     *   that do use an isActive property
+     */
+    isActive = isHappening
+    
     /* The turn this scene started at */
     startedAt = nil
     
@@ -206,5 +214,26 @@ class Scene: object
      *   The number of turms this Scene has been active. Is this Scene is not happening, return -1.
      */
     turnsActive = (isHappening ? gTurns - startedAt : -1)
+    
+    
+    /* 
+     *   This method is called on each active scene before any Doers and can be used to
+     *   conditionally rule out the action (by using abort or exit), for example if the player is
+     *   character is tied up or otherwise incapacitated during the Scene. The lst parameter
+     *   contains a list in the form [action, dobj, iobj] (or just [action] for an IAction or just
+     *   [action, dobj]) and should be used to determine what the proposed action is.
+     */ 
+    
+    preAction(lst) { }
+    
+    /* 
+     *   Service method usede internally on the library to ensure that preAction() is called only on
+     *   currently active scenes.
+     */
+    tryPreAction(lst)
+    {
+        if(isHappening)
+            preAction(lst);
+    }
 ;
 

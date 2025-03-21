@@ -24,7 +24,7 @@
 
 /* 
  *   The Thought Suggestions extension modifies the behaviour of the THINK action to display a list
- *   of suggeste topics the player could think about.
+ *   of suggested topics the player could think about.
  */
 modify Think
     execAction(cmd)

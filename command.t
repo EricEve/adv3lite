@@ -487,6 +487,14 @@ class Command: object
              */
             gActor.preAction(lst);
             
+            
+            /*
+             *   Next give any active Scenes the opportunity to veto this action.
+             */
+            
+            if(defined(Scene) && forEachInstance(Scene, {s: s.tryPreAction(lst)}));
+            
+            
             /* carry out the default action processing */            
             execDoer(lst);
         }
