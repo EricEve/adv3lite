@@ -354,6 +354,22 @@ class Consultable: TopicDatabase, Thing
         }
     }
     
+    dobjFor(Read)
+    {
+        action()
+        {
+            /* Carry out the inherited action */
+            inherited;
+            
+            /* 
+             *   If we've just been read then the chances are we'll be a likely object of any
+             *   ConsultAbout command that follows, so we boost our currentConsultableScore
+             *   accordingly.             */
+
+            currentConsultableScore = max(15, currentConsultableScore);
+        }
+    }
+    
     noMatchedTopicMsg = BMsg(no matched topic, '{The subj dobj} {has} nothing to
         say on that. ')
     

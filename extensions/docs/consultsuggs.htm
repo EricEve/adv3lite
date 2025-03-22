@@ -1,0 +1,224 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>ConsultTopic Suggestions</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+ConsultTopic Sugggestions
+<br><span class="navnp"><a class="nav" href="cmdhelp.htm"><i>Prev:</i> Command Help</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="custombanner.htm"><i>Next:</i> Custom Banner</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>ConsultTopic Suggestions</h1>
+<h2>Overview</h2>
+<p>The "ConsultTopic Suggestions" extension allows a Consultable to display a list of suggested topics the player can LOOK UP in it (just as the TOPICS command displays a list of suggested conversational topics). The commands HYPER SUGGS and ENUM SUGGS will affect the list of suggested ConsultTopics in the same way as for conversational topics (respectively hyperlinking and numbering the suggestions). To display a list of the suggested ConsultTopics associated with a given Consultable we need to call the Consultable's <b>showSuggestions()</b> method.</p>
+
+<p>To implement this extension you need to include consultsugs.t (which you can find in the extentions folder under your adv3Lite folder) in your game, after the adv3Lite library files but before your other game files. You also need to create a number of ConsultTopic objects located in a one of more ConsultTopic object as described in the documentation for <a href='../../docs/manual/topicentry.htm'>ConsultTopics</a>. Both topicEntry.t and actor.t must be present among your library files (as they are by default). In addition you will need to define the <strong>name</strong> property on any ConsultTopic you wish to be suggested. This and the other modifications to the ConsultTopic and Consultable classes are explained in more detail below.</a>
+<br>
+<h2>Enhancements to the ConsultTopic and Consultable Classes</h2>
+<p>This extensions adds the following properties to the ConsultTopic class which you can use to define how Thoughts are suggested:</p>
+<ul>
+<li><b>name</b>: This is the name of the ConsultTopic you want to be displayed following the introductory 'You could think about '. It should match the vocab of the Topic or Thing this ConsultTopic matches (so that the player can use the name to THINK ABOUT this thought). Alternatively, you can just set the <span class='code'>autoName</span> property to true.</li>
+<li><b>autoName</b>: If this is true then the extension will set the <span class='code'>name</span> of this Thought to the name of its associated Topic or Thing (unless you have already defined <span class='code'>name</span> to be something else).</li>
+<li><b>curiosityAroused</b>: An expression (e.g., <span class='code'>gRevealed('foo')</span>) that should evaluate to true when we want this ConsultTopic to be suggested. Note that both <span class='code'>curiosityAroused</span> and <span class='code'>curiositySatisfied</span> need to be overridden by expressions or methods) in game code if something other then their default values (or true and nil respectively) are needed.</li>
+<li><b>curiositySatisfied</b>: An expression (e.g., <span class='code'>gRevealed('bar')</span>) that should evaluate to true when we no lomger want this ConsultTopic to be suggested. This needs to be overriden by game code if desired; the extension makes no attempt to update <span class='code'>curiositySatisifed</span> to true when, say, a ConsultToic topic has been suggested once or so many times, as each game will probably want to handle this in a different way.</li>
+<li><b>listOrder</b>: The <span class='code'>listOrder</span> can be used to determine the order in which ConsultTopic suggestions are listed. Thoughts with a lower listOrder will be listed before Tboughts with a higher listOrder. By default we give all Thoughts a <span class='code'>listOrder</span> of 100.</li>
+</ul>
+<p>Note that for a ConsultTopic to be suggested, its <b>isActive</b> property must also be true.</p>
+
+<p>The extension adds the following method and property to the Consultable class:</p>
+
+<ul>
+<li><b>showSuggestions()</b>: Show the list of suggested ConsultTopics associated with this Consultable.</li>
+<li><b>customPrefix</b>: By default the list of suggestions will be introduced with 'You could look up...'. If we'd prefer it to be introduced in some other way, such as 'you could consult the big back book about', we could change this property to, say, 'consult the big black book about'. This is explained further below.</li>
+<li><b>verbosePrefix</b>: A more verbose form of the prefix than the default 'look up'. In the extension this is defined as <code>'consult ' + theName + 'about'</code>, e.g., 'consult the big black book about'. To use the <code>verbosePrefix</code> instead of the default one we can simply set <b>useVerbosePrefix</b> to true.</li>
+</ul>
+
+
+<h2>Triggering Suggested ConsultTopics</h2>
+
+<p>The ConsultTopic Suggestions has no equivalent to a TOPICS command (or the Though Suggestions THINK command) the player can use to generate a list of suggested ConsultTopics. Instead, game code needs to call the Consultable's <code>showSuggestions</code> command at some appropriate point in response to something else the player does, such as attempting to read the Consultable. The example below exhibits several of the possibilities:</p>
+
+<div class='code'><pre>
+blackBook: Consultable 'big black book' @startroom
+    "It's a big black book called <i>Vegetable Reference</i>. "
+    readDesc()
+    {
+        "It's a book in which you could look up a variety of topics. The index indicates that \v";;
+        
+        showSuggestions();
+    }   
+;
+
++ ConsultTopic @tCarrots
+    "They're an orange root vegetable. "
+
+    name = 'carrots'
+;
+    
++ ConsultTopic @tTomatoes
+    "They're a round red fruit, but they're usually used as a vegetable. "
+    
+    name = 'tomatoes'
+;
+
++ ConsultTopic @tWeather
+    "The book supplies a wealth of too much information on the best kind of weather
+    for growing various kinds of vegetable. "
+    
+    name = 'the weather'
+    
+    listOrder = 200
+;
+
++ ConsultTopic @tIndex
+    topicResponse()
+    {
+        "The index indicates that \v";
+        location.showSuggestions();
+    }   
+;
+
++ DefaultConsultTopic
+    topicResponse()
+    {
+        "The black book doesn't seem to have any information on that.<.p>";
+        location.showSuggestions();
+    }
+;
+
++ Component 'index'
+    desc()
+    {
+        "The index indicates that \v";
+        location.showSuggestions();
+    }
+    
+    readDesc = desc
+;
+
+
+tCarrots: Topic 'carrots';
+tTomatoes: Topic 'tomatoes';
+tIndex: Topic 'index';
+tWeather: Topic 'weather';
+</pre></div>
+
+<p>Providing quite so many ways of triggering a list of ConsultTopics on the same Consultable may be overkill for many games. As game authors we can choose whichever of them we feel will best suit our game, or the particular Consultable within our game.
+
+
+<h2>Using the customPrefix property</h2>
+<p>By default (in the English library) a list of suggested ConsultTopics will be introduced with 'You could look up '. This should work well enough for most Consultables, but we can tweak the wording if we want by defining a Consultable's <b>customPrefix</b> property to be something other than 'look up '. If we do so, however, our <code>customPrefix</code> string must observe the following rules:</p>
+
+<ol>
+<li>It must be supplied as a single-quoted string.</li>
+<lI>It must be something that could immediately follow 'You could ' and immediatly precede the name of a suggested ConsultTopic.</li>
+<li>When combined with the name of a suggested ConsultTopic it must form a command that would work if the player entered it at the command prompt.</li>
+</ol>
+
+<p>It follows that valid customPrefix strings will normally need to be one of the following:</p>
+
+<ul>
+<li>'search for'</li>
+<li>'look for'</li>
+<li>'find'</li>
+<li>'read about'</li>
+<li>'consult the big black book about'</li>
+<li>'consult book on'</li>
+<li>'search book for'</li>
+</ul>
+
+In the final three examples we'd obviously need to substitute the name of the Consultable in question. To do this automatically, we can simply set the Consultable's <code>useVerbosePrefix</code> property to true, or override it to true on the Consultable class. For reasons why we might want to do so, see further below.</p>
+
+<p>The reasons for these rules are (1) to ensure that players are prompted with commands that will work and (2) to ensure that hyperlinked and/or enumerated lists of suggested ConsultTopics work correctly.</p>
+<br>
+<h2 id='plural'>Plurality Pitfalls</h2>
+<p>Everything we have described will work fine provided there's only ever one Consultable in scope at any one time. Having several in scope at once can potentially cause problems that adv3Lite does its best to mitigate but which game code may sometimes need to mititage further.</p>
+
+<p>The first potential pitfall could arise from the use of 'look up' to introduce the list of suggested ConsultTopics, since presented with the command LOOK UP FOO, the parser has to decide what to look FOO up in. If there is only one Consultable in scope, that's not a problem, since the parser will simply pick that one Consultable. But if there are several, which one is the parser to pick? Adv3Lite tries to ensure that the parser picks the Consultable most recently read or consulted by the player character, and for the most part that probably works well enough. But if we find we're getting unwanted disambiguation prompts or other disamnbiguation problems, it may be better to resort to the more verbose form of the command for looking things up in things by including the following in our game:</p>
+
+<pre><code>
+modify Consultable
+   useVerbosePrefix = true
+;
+</code></pre>
+
+<p>This will result in suggested ConsultTopic lists like "You could consult the black book about carrots, tomatoes or the weather". The point here is not simply to prompt players to use the longer form of the command, but to make enumerated and/or hyperlinked suggestion lists do so (since what these lists do is simply replace the number typed or the hyperlink clicked by the player with the text of the suggestion, which is then parsed in the normal way). If the command is LOOK UP WEATHER, there may be some doubt what to look it up in (although the parser will do its best to guess intelligently), but if the command is CONSULT THE BLACK BOOK ABOUT THE WEATHER, all doubt is removed.</p>
+
+<p>The second potential pitfall concerns the use of Compoments named 'index' as a means of generating a list of suggested ConsultTopics. That's fine if there's only one index in scope, but not so good if we have a stack of books each with its own index. In this case we not only need to give each index a unique name but also (ideally) help give the parser a nudge towards the right index if the player just types X INDEX or READ INDEX. We can achieve that by defining our index objects along the following lines:</p>
+
+<pre><code>
++ Component 'black book index'
+    desc()
+    {
+        "The index indicates that \v";
+        location.showSuggestions();
+    }
+    
+    readDesc = desc  
+    
+    <span class='comment'>/* Help the parser choose the index from the most recently referenced book */</span>
+    vocabLikelihood = location.currentConsultableScore
+;
+</code></pre>
+
+<p>If we planned to have several books with indexes we could save ourselves quite a bit of typing by definiing a custom
+Index class:</q>
+
+<pre><code>
+class Index: Component 
+    desc()
+    {
+        "\^&lt;&lt;theName&gt; indicates that \v";
+        location.showSuggestions();
+    }
+    
+    readDesc = desc  
+    
+    <span class='comment'>/* Help the parser choose the index from the most recently referenced book */</span>
+    vocabLikelihood = location.currentConsultableScore
+;
+</code></pre>
+
+<p>A third pitfall that could occur in the examples we gave above could be if we allowed READ to be used with multiple direcgt objects (e.g., READ BOOKS). Currently the adv3Lite library doesn't allow this, partly to avoid the pitfall we're about to describe, but also because it seems sensible to restrict actors to reading one thing at a time. Game code could, however, override this restriction by including the following:</p>
+
+<pre><code>
+modify VerbRule(Read)
+    'read' multiDobj
+    :
+;
+</code></pre>
+
+<p>If we were to do that in our game, then READ BOOKS could produce quite a messy and confusing list of suggested ConsultTopics for a number of different books all at once if, as in the examples above, we'd used the <code>readDesc</code> property of those books to trigger a list of suggested ConsultTopics. Even worse, enumerated suggestions and possibly hyperlinked suggestions might not work as expected - despite being listed for all the books they'd only work properly for the last one.</p>
+
+<p>The easiest way to avoid such pitfalls is to avoid changing VerbRule(Read) to allow multiple direct objects. If, however, there is some compelling reason why we need multiple objects to be read on the same turn, then we'll need to find some other way to avoid the mess that could result from a command like READ BOOKS applied to Consultables that use their readDesc properties to display lists of suggested topics to look up. The most obvious approach would be to use a <a href='../../manual/extra.htm#collective'>CollectiveGroup</a>, or, if (as is likely) the books are portable, <a href='mobilecollectivegroup.htm'>MobileCollectiveGroup</a>, along the lines of:</p>
+
+<pre><code>
+bookGroup: MobileCollectiveGroup 'books;;;them'
+    collectiveActions = [Examine, Read]
+    readDesc = "You can only read these books one at a time. "
+;
+</code></pre>
+
+
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+Sysrules
+<br><span class="navnp"><a class="nav" href="cmdhelp.htm"><i>Prev:</i> Command Help</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="custombanner.htm"><i>Next:</i> Custom Banner</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

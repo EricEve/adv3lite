@@ -4779,7 +4779,7 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             if(propType(&readDesc) == TypeNil)
                 say(cannotReadMsg);
-            else
+            else                
                 display(&readDesc);         
         }
     }

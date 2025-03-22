@@ -4176,6 +4176,9 @@ announceBestChoice(action, obj, role)
     /* Pull out the first parenthesised section */
     local rm = rexSearch(pat, vp);
     
+    if(role == DirectObject && action == ConsultAbout)
+        role = IndirectObject;
+    
     
     /* 
      *   If we're looking for the indirect object pull out the next

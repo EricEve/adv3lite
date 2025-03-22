@@ -1591,7 +1591,7 @@ VerbRule(LookAtWhat)
 ;
 
 VerbRule(Read)
-    'read' multiDobj
+    'read' singleDobj
     : VerbProduction
     action = Read
     verbPhrase = 'read/reading (what)'
@@ -2958,8 +2958,8 @@ VerbRule(LookUp)
     action = ConsultAbout
     verbPhrase = 'look/looking up (what) (in what)'
     missingQ = 'what do you want to look that up in;what do you want to look up'
-    dobjReply = singleNoun
-    iobjReply = topicPhrase
+    dobjReply = topicPhrase
+    iobjReply = inSingleNoun
 ;
 
 VerbRule(ConsultWhatAbout)
@@ -2975,7 +2975,7 @@ VerbRule(ConsultWhatAbout)
     missingQ = 'what do you want to look that up in;what do you want to look up'
     priority = 25
     iobjReply = topicPhrase
-    dobjReply = singleNoun
+    dobjReply = inSingleNoun
 ;
 
 VerbRule(ConsultAboutVague)
