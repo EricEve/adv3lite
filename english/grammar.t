@@ -2960,6 +2960,12 @@ VerbRule(LookUp)
     missingQ = 'what do you want to look that up in;what do you want to look up'
     dobjReply = topicPhrase
     iobjReply = inSingleNoun
+    
+    /* 
+     *   This VerbRule effectively reverses the grammtical roles of its action's direct and indirect
+     *   objects.
+     */
+    rolesReversed = true
 ;
 
 VerbRule(ConsultWhatAbout)

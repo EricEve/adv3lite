@@ -4176,7 +4176,13 @@ announceBestChoice(action, obj, role)
     /* Pull out the first parenthesised section */
     local rm = rexSearch(pat, vp);
     
-    if(role == DirectObject && action == ConsultAbout)
+    /* 
+     *   Some VerbRules (notably VerbRule(LookUp) for the ConsultAbout action) reverse the dobj and
+     *   iobj roles in their notional grammatical slots. We need to correct for this reversal in
+     *   extracting the correct section of the verb rule's verbPhrase for the purpose of this object
+     *   announcement.
+     */
+    if(role == DirectObject && action.verbRule.rolesReversed)
         role = IndirectObject;
     
     
