@@ -2704,11 +2704,11 @@ DefineAction(ScriptOn, FileOpAction)
             {
                 if (exc != nil)
                     DMsg(scripting failed exception, '<.parser>Failed; 
-                        <<exc.displayException>><./parser>');
+                        <<exc.displayException>><./parser><.p>');
                     
                 else
                     DMsg(scripting failed, '<.parser>Failed; an error occurred
-                        opening the script file.<./parser> ');
+                        opening the script file.<./parser><.p> ');
                    
             }
         }
@@ -2719,12 +2719,12 @@ DefineAction(ScriptOn, FileOpAction)
                                 Type <<aHref('script off', 'SCRIPT OFF', 
                                              'Turn off scripting')>>
                                 to discontinue scripting and download the saved
-                                transcript.<./parser> ')
+                                transcript.<./parser><.p> ')
     
     scriptingOkay = BMsg(scripting okay, '<.parser>The transcript will
                         be saved to the file. Type <<aHref('script off', 
                             'SCRIPT OFF', 'Turn off scripting')>> to
-                        discontinue scripting.<./parser> ')
+                        discontinue scripting.<./parser><.p> ')
 ;
 
 /*
@@ -2767,7 +2767,7 @@ DefineSystemAction(ScriptOff)
         if (scriptStatus.scriptFile == nil)
         {
             DMsg(script off ignored, '<.parser>No script is currently being
-                        recorded.<./parser>');
+                        recorded.<./parser><.p>');
 
             return;
         }
@@ -2780,7 +2780,7 @@ DefineSystemAction(ScriptOff)
 
         /* acknowledge the change, if desired */
         if (ack)
-            DMsg(script off okay, '<.parser>Scripting ended.<./parser>');
+            DMsg(script off okay, '<.parser>Scripting ended.<./parser><.p>');
            
     }
 
@@ -2801,7 +2801,7 @@ DefineAction(Record, FileOpAction)
     fileDisposition = InFileSave
 
     /* show our cancellation mesasge */
-    showCancelMsg() { DMsg(recording canceled, '<.parser>Canceled.<./parser> '); }
+    showCancelMsg() { DMsg(recording canceled, '<.parser>Canceled.<./parser><.p> '); }
 
     /* 
      *   set up recording - this can be used to set up scripting
@@ -2833,7 +2833,7 @@ DefineAction(Record, FileOpAction)
                               '<.parser>Commands will now be recorded.  Type
                      <<aHref('record off', 'RECORD OFF',
                              'Turn off recording')>>
-                              to stop recording commands.<./parser> '));                
+                              to stop recording commands.<./parser><.p> '));                
                 
         }
         else
@@ -2850,7 +2850,7 @@ DefineAction(Record, FileOpAction)
                     
                 else
                     DMsg(recording failed, '<.parser>Failed; an error occurred
-                        opening the command recording file.<./parser>');
+                        opening the command recording file.<./parser><.p>');
             }
         }
     }
@@ -2896,7 +2896,7 @@ DefineSystemAction(RecordOff)
         if (scriptStatus.recordFile == nil)
         {
             DMsg(record off ignored, '<.parser>No command recording is currently
-                being made.<./parser> ');
+                being made.<./parser><.p> ');
            
             return;
         }
@@ -2909,7 +2909,7 @@ DefineSystemAction(RecordOff)
 
         /* acknowledge the change, if desired */
         if (ack)
-            DMsg(record off okay, '<.parser>Command recording ended.<./parser> ');
+            DMsg(record off okay, '<.parser>Command recording ended.<./parser><.p> ');
     }
 
     /* we can't include this in undo, as it affects external files */
@@ -2928,7 +2928,7 @@ DefineAction(Replay, FileOpAction)
     fileDisposition = InFileOpen
 
     /* show our cancellation mesasge */
-    showCancelMsg() { DMsg(replay canceled, '<.parser>Canceled.<./parser> '); }
+    showCancelMsg() { DMsg(replay canceled, '<.parser>Canceled.<./parser><.p> '); }
 
     /* script flags passed to setScriptFile */
     scriptOptionFlags = 0
