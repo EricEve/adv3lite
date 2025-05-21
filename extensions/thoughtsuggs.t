@@ -231,8 +231,8 @@ enumTboughtSuggestionsPreparser: StringPreParser
     doParsing(str, which)   
     {
         /* 
-         *   We only want to modify str here if this is a new command and a conversation is in
-         *   progress and the suggestedTopicLister's enumerateSuggestions property is set to true.
+         *   We only want to modify str here if this is a new command 
+         *   and the suggestedTopicLister's enumerateSuggestions property is set to true.
          */
         if(which == rmcCommand && thoughtSuggestionLister.enumerateSuggestions)
         {

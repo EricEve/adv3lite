@@ -8222,7 +8222,17 @@ enumSuggestionsPreparser: StringPreParser
                  *   executed.
                  */
                 "<.inputline>\^<<str>><./inputline>\n";
-            }            
+            }     
+            else if(num)
+            {
+                if(suggestionEnumerator.count == 0)
+                    DMsg(no enumerations, 'Enumerated suggestions aren\'t available right now. ');
+                else
+                    DMsg(enmeration out of range, 'To select an enumerated suggestion, please enter
+                        a number between 1 and {1}. ', suggestionEnumerator.count);
+                
+                str = nil;
+            }
         }       
         
         /* Return our string, modified or unmodified as the case may be. */
