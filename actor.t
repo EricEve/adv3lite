@@ -1015,6 +1015,9 @@ modify Actor
         
         /* Also reset the last fact mentioned. */
         libGlobal.lastFactMentioned = nil;
+        
+        /* Reset the list of enmurated topics, since it's no longer relevant */
+        suggestionEnumerator.initialize();
     }
     
     /* 
@@ -7811,8 +7814,11 @@ suggestedTopicLister: object
         /* 
          *   Then introduce the list of suggestions with the appropriate form of
          *   'You could' (suitably adjusted for the person of the player
-         *   character)
+         *   character). In case this is called before there's a command context
+         *   we first ensure that gCommand is non-nil.
          */
+        gCommand = gCommand ?? new Command;
+        
         gCommand.actor = gPlayerChar;
         DMsg(suggestion list intro, '{I} could ');
     }

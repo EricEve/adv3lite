@@ -2780,7 +2780,7 @@ class Thing:  ReplaceRedirector, Mentionable
         if(isDirectlyIn(cont))
             return true;
         
-        /* Otherwise if out location is nil, we're not in cont */
+        /* Otherwise if our location is nil, we're not in cont */
         if(location == nil)
             return nil;
         

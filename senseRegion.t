@@ -890,7 +890,7 @@ modify Thing
              *   If the actor doing the examining is in the same room as this
              *   object, simply carry out the inherited handling.
              */
-            if(isIn(gActor.getOutermostRoom))
+            if(isIn(gActor.getOutermostRoom))            
                 inherited;
             
             /* Otherwise, if we're being examined from a remote location... */
