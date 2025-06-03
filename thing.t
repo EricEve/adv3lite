@@ -10042,6 +10042,23 @@ class SubComponent : Thing
         return match;
     }
 
+    /* 
+     *   Normally we want any command that might be directed to a SubComponent to be directed to its
+     *   parent, unless the actor is inside the SubComponent in which case we want to match the
+     *   SubComponent.
+     */
+     
+    filterResolveList(np, cmd, mode)
+    {       
+        if(np.matches.length > 1)
+        {
+            if(gActor.isIn(self) && contType == In)
+                np.matches = np.matches.subset({m: m.obj == self});
+            else
+                np.matches = np.matches.subset({m: m.obj != self});
+        }
+    }
+    
     /*
      *  DEPRECATED. It used to be necessary to call this method after changing
      *  the parent's name-related properties. Now it's a no-op.
