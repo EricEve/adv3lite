@@ -121,10 +121,10 @@
 <a name="119"></a>             */
 <a name="120"></a>        case TypeDString:
 <a name="121"></a>        case TypeCode:
-<a name="122"></a>            obj = libGlobal.extraDestInfo([self, dir]);
+<a name="122"></a>            obj = libGlobal.extraDestInfo[[self, dir]];
 <a name="123"></a>            if(obj is in (nil, unknownDest_))
 <a name="124"></a>            {
-<a name="125"></a>                sayCouldGoThatWay();
+<a name="125"></a>                sayCouldGoThatWay(dir);
 <a name="126"></a>                break;
 <a name="127"></a>            }
 <a name="128"></a>            /* Deliberately fall through if we reaach here. */    
@@ -161,7 +161,7 @@
 <a name="159"></a>            else if(obj.ofKind(TravelConnector) &amp;&amp; obj.propDefined(&amp;lookDirDesc) 
 <a name="160"></a>                    &amp;&amp; obj.propType(&amp;lookDirDesc) != TypeNil)
 <a name="161"></a>            {
-<a name="162"></a>                DMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
+<a name="162"></a>                introLookDirDesc(dir);
 <a name="163"></a>                obj.display(&amp;lookDirDesc);
 <a name="164"></a>                ". ";
 <a name="165"></a>                break;                         
@@ -269,169 +269,179 @@
 <a name="267"></a>    
 <a name="268"></a>    /* A Room is always a candidate for handling lookDir. */
 <a name="269"></a>    handleLookDir = true
-<a name="270"></a>;
-<a name="271"></a>
-<a name="272"></a>/* Modifications to Thing for the LookDir extension. */
-<a name="273"></a>modify Thing
-<a name="274"></a>    
-<a name="275"></a>    /* Display a message saying we see nothing unexpected in the direction we're looking in. */
-<a name="276"></a>    sayNothingUnexpectedThatWay(dir)
+<a name="270"></a>    
+<a name="271"></a>    /* 
+<a name="272"></a>     *   Display the introduction to a lookDirDesc. By default we display "To the dir you see ", but
+<a name="273"></a>     *   game code can override. One possible ovveride might be to make this method ddo nothing at
+<a name="274"></a>     *   all leaving the TravelConnector's lookDirDesc property to handle the entire method
+<a name="275"></a>     */
+<a name="276"></a>    introLookDirDesc(dir)
 <a name="277"></a>    {
-<a name="278"></a>        DMsg(nothing unexpected that way, '{I} {see} nothing unexpected in that direction. ');
+<a name="278"></a>        DMsg(intro look dirdesc, '\^{1} {i} {see} ', dir.departureName);
 <a name="279"></a>    }
-<a name="280"></a>    
-<a name="281"></a>    /* 
-<a name="282"></a>     *   Display a message saying it's too dark to see that way (for when we're trying to look in a
-<a name="283"></a>     *   particular direction in the dark.
-<a name="284"></a>     */
-<a name="285"></a>    sayTooDarkToLookDir() 
-<a name="286"></a>    {
-<a name="287"></a>        DMsg(too dark to look that way, 'It{dummy}{\'s} too dark to see anything that way. ' );        
-<a name="288"></a>    }
-<a name="289"></a>    
-<a name="290"></a>    /* 
-<a name="291"></a>     *   Flag - do we want the library to attempt to autogenerate a description of what lies in the
-<a name="292"></a>     *   direction we're looking in if we haven't provided one ourselves. By default we do, but if
-<a name="293"></a>     *   game authors don't like this feature they can switch it off by setting autoLookDir to nil.
+<a name="280"></a>;
+<a name="281"></a>
+<a name="282"></a>/* Modifications to Thing for the LookDir extension. */
+<a name="283"></a>modify Thing
+<a name="284"></a>    
+<a name="285"></a>    /* Display a message saying we see nothing unexpected in the direction we're looking in. */
+<a name="286"></a>    sayNothingUnexpectedThatWay(dir)
+<a name="287"></a>    {
+<a name="288"></a>        DMsg(nothing unexpected that way, '{I} {see} nothing unexpected in that direction. ');
+<a name="289"></a>    }
+<a name="290"></a>    
+<a name="291"></a>    /* 
+<a name="292"></a>     *   Display a message saying it's too dark to see that way (for when we're trying to look in a
+<a name="293"></a>     *   particular direction in the dark.
 <a name="294"></a>     */
-<a name="295"></a>    autoLookDir = true
-<a name="296"></a>    
-<a name="297"></a>    
-<a name="298"></a>    /* 
-<a name="299"></a>         If no object matches the vocabulary of the direction the player wants to look in, we next
-<a name="300"></a>         call this method to handle it. 
-<a name="301"></a>         
-<a name="302"></a>         If the relevant xxxLook (e.g., northLook, westLook, portLook, upLook) is defined on this
-<a name="303"></a>         Thing, we use it to display what can be seen in the dir direction. Otherwise, if we're
-<a name="304"></a>         looking down and the 
-<a name="305"></a>     */
-<a name="306"></a>    lookDir(dir)
-<a name="307"></a>    {
-<a name="308"></a>        
-<a name="309"></a>        /* Obtain the zzzLook property corresponding to the direction we want to look in. */
-<a name="310"></a>        local prop = dir.lookProp;
-<a name="311"></a>        
-<a name="312"></a>        /* Note that our starting location is this Thing. */
-<a name="313"></a>        local loc = self;
-<a name="314"></a>        
-<a name="315"></a>        /* 
-<a name="316"></a>         *   Note that our outermost location is our outermost visible parent, which will either be
-<a name="317"></a>         *   the room we're in or a Booth if we're in a closed opaque booth.
-<a name="318"></a>         */
-<a name="319"></a>        local outerLoc = gActor.outermostVisibleParent();
-<a name="320"></a>        
-<a name="321"></a>        /* Keep a note of whether we've succeeded in describing the view. */
-<a name="322"></a>        local viewDescribed = nil;
-<a name="323"></a>        
-<a name="324"></a>        /* 
-<a name="325"></a>         *   Work outwards from this object, which should be the actor's immmediate container, to
-<a name="326"></a>         *   its outermost visible parent to find an object that defines the appropriate xxxLook
-<a name="327"></a>         *   property and then use it to describe the view in that direction (if any is found).
-<a name="328"></a>         *   Otherwise, if we're looking down and we have a floor object, describe the floor object.
-<a name="329"></a>         *   Otherwise, if all else fails, call describeView() to autogenerate a description of what
-<a name="330"></a>         *   lies in the direction we're looking.
-<a name="331"></a>         */
-<a name="332"></a>        do
-<a name="333"></a>        {                      
-<a name="334"></a>            /* If our location defines this property and it's not nil, display it. */
-<a name="335"></a>            if(loc.propDefined(prop) &amp;&amp; loc.propType(prop) != TypeNil)
-<a name="336"></a>            {
-<a name="337"></a>                loc.display(prop);
-<a name="338"></a>                viewDescribed = true;
-<a name="339"></a>                break;
-<a name="340"></a>            }
-<a name="341"></a>            loc = loc.location;
-<a name="342"></a>        } while (loc != outerLoc &amp;&amp; loc != nil);
-<a name="343"></a>        
-<a name="344"></a>        /* 
-<a name="345"></a>         *   Otherwise if we're looking down try describing our floor object, and if not call our
-<a name="346"></a>         *   describeView method to generate a description of the view in the dir direction based on
-<a name="347"></a>         *   what's defined on our room's corresponding direction property.
-<a name="348"></a>         */
-<a name="349"></a>        if(!viewDescribed)   
-<a name="350"></a>        {
-<a name="351"></a>            if(dir == downDir)
-<a name="352"></a>                downLook();
-<a name="353"></a>            else
-<a name="354"></a>                describeView(dir);
-<a name="355"></a>        }      
-<a name="356"></a>    }
-<a name="357"></a>    
-<a name="358"></a>    /* By default, translate LOOK DOWN into examining our floor object if we have one. */
-<a name="359"></a>    downLook()
-<a name="360"></a>    {
-<a name="361"></a>        /* If we have a floor objecgt, examine it. */
-<a name="362"></a>        if(floorObj)
-<a name="363"></a>            doInstead(Examine, floorObj);
-<a name="364"></a>        /* Otherwise say there's nothing special to see. */
-<a name="365"></a>        else
-<a name="366"></a>            describeView(downDir);
-<a name="367"></a>    }
-<a name="368"></a>    
-<a name="369"></a>    /* 
-<a name="370"></a>     *   We provide this method on Thing in case it's called on a nested room. By default, if we can
-<a name="371"></a>     *   see out we call use the describeView on the next suitable containing object working
-<a name="372"></a>     *   outwards from us or else if we can't see out we just display our nothing unexpected
-<a name="373"></a>     *   message.
-<a name="374"></a>     */
-<a name="375"></a>           
-<a name="376"></a>    describeView(dir)        
-<a name="377"></a>    {
-<a name="378"></a>        if(canSeeOut)
-<a name="379"></a>        {
-<a name="380"></a>            getLookDirHandler(self).describeView(dir);
-<a name="381"></a>        }
-<a name="382"></a>        else
-<a name="383"></a>            sayNothingUnexpectedThatWay(dir);
-<a name="384"></a>    }
-<a name="385"></a>    
-<a name="386"></a>    /* 
-<a name="387"></a>     *   Service method to find the next containing object that should handle a lookDir, working out
-<a name="388"></a>     *   from loc. We carry on looping outwards until we find a Room or a container for which
-<a name="389"></a>     *   handleLockDir is true of which we can't see out of.
-<a name="390"></a>     */
-<a name="391"></a>    getLookDirHandler(loc)
-<a name="392"></a>    {        
-<a name="393"></a>        do
-<a name="394"></a>        {
-<a name="395"></a>            loc = loc.location;
-<a name="396"></a>        } while(!loc.ofKind(Room) &amp;&amp; !loc.handleLookDir &amp;&amp; loc.canSeeOut) ;
-<a name="397"></a>        
-<a name="398"></a>        return loc;
-<a name="399"></a>    }
-<a name="400"></a>    
-<a name="401"></a>    /* 
-<a name="402"></a>     *   Are we a candidate object for calling lookDir() on? By default we are we can't see out from
-<a name="403"></a>     *   us. Game code can overried on nested rooms whose lookDir() method we always want to use,
-<a name="404"></a>     *   such as a partially enclosed Booth.
-<a name="405"></a>     */     
-<a name="406"></a>    handleLookDir = !canSeeOut
-<a name="407"></a>;
-<a name="408"></a>    
-<a name="409"></a>
-<a name="410"></a>/* 
-<a name="411"></a> *   Add a lookProp property to each Direction object and populate it with a pointer to the
-<a name="412"></a> *   appropriate xxxLook property.
-<a name="413"></a> */
-<a name="414"></a>modify northDir lookProp = &amp;northLook;
-<a name="415"></a>modify eastDir lookProp = &amp;eastLook;
-<a name="416"></a>modify southDir lookProp = &amp;southLook;
-<a name="417"></a>modify westDir lookProp = &amp;westLook;
-<a name="418"></a>modify northeastDir lookProp = &amp;northeastLook;
-<a name="419"></a>modify southeastDir lookProp = &amp;southeastLook;
-<a name="420"></a>modify southwestDir lookProp = &amp;southwestLook;
-<a name="421"></a>modify northwestDir lookProp = &amp;northwestLook;
-<a name="422"></a>
-<a name="423"></a>modify starboardDir lookProp = &amp;starboardLook;
-<a name="424"></a>modify portDir lookProp = &amp;portLook;
-<a name="425"></a>modify foreDir lookProp = &amp;foreLook;
-<a name="426"></a>modify aftDir lookProp = &amp;aftLook;
-<a name="427"></a>
-<a name="428"></a>modify upDir lookProp = &amp;upLook;
-<a name="429"></a>modify downDir lookProp = &amp;downLook;
-<a name="430"></a>modify inDir lookProp = &amp;inLook;
-<a name="431"></a>modify outDir lookProp = &amp;outLook;
+<a name="295"></a>    sayTooDarkToLookDir() 
+<a name="296"></a>    {
+<a name="297"></a>        DMsg(too dark to look that way, 'It{dummy}{\'s} too dark to see anything that way. ' );        
+<a name="298"></a>    }
+<a name="299"></a>    
+<a name="300"></a>    /* 
+<a name="301"></a>     *   Flag - do we want the library to attempt to autogenerate a description of what lies in the
+<a name="302"></a>     *   direction we're looking in if we haven't provided one ourselves. By default we do, but if
+<a name="303"></a>     *   game authors don't like this feature they can switch it off by setting autoLookDir to nil.
+<a name="304"></a>     */
+<a name="305"></a>    autoLookDir = true
+<a name="306"></a>    
+<a name="307"></a>    
+<a name="308"></a>    /* 
+<a name="309"></a>         If no object matches the vocabulary of the direction the player wants to look in, we next
+<a name="310"></a>         call this method to handle it. 
+<a name="311"></a>         
+<a name="312"></a>         If the relevant xxxLook (e.g., northLook, westLook, portLook, upLook) is defined on this
+<a name="313"></a>         Thing, we use it to display what can be seen in the dir direction. Otherwise, if we're
+<a name="314"></a>         looking down and the 
+<a name="315"></a>     */
+<a name="316"></a>    lookDir(dir)
+<a name="317"></a>    {
+<a name="318"></a>        
+<a name="319"></a>        /* Obtain the zzzLook property corresponding to the direction we want to look in. */
+<a name="320"></a>        local prop = dir.lookProp;
+<a name="321"></a>        
+<a name="322"></a>        /* Note that our starting location is this Thing. */
+<a name="323"></a>        local loc = self;
+<a name="324"></a>        
+<a name="325"></a>        /* 
+<a name="326"></a>         *   Note that our outermost location is our outermost visible parent, which will either be
+<a name="327"></a>         *   the room we're in or a Booth if we're in a closed opaque booth.
+<a name="328"></a>         */
+<a name="329"></a>        local outerLoc = gActor.outermostVisibleParent();
+<a name="330"></a>        
+<a name="331"></a>        /* Keep a note of whether we've succeeded in describing the view. */
+<a name="332"></a>        local viewDescribed = nil;
+<a name="333"></a>        
+<a name="334"></a>        /* 
+<a name="335"></a>         *   Work outwards from this object, which should be the actor's immmediate container, to
+<a name="336"></a>         *   its outermost visible parent to find an object that defines the appropriate xxxLook
+<a name="337"></a>         *   property and then use it to describe the view in that direction (if any is found).
+<a name="338"></a>         *   Otherwise, if we're looking down and we have a floor object, describe the floor object.
+<a name="339"></a>         *   Otherwise, if all else fails, call describeView() to autogenerate a description of what
+<a name="340"></a>         *   lies in the direction we're looking.
+<a name="341"></a>         */
+<a name="342"></a>        do
+<a name="343"></a>        {                      
+<a name="344"></a>            /* If our location defines this property and it's not nil, display it. */
+<a name="345"></a>            if(loc.propDefined(prop) &amp;&amp; loc.propType(prop) != TypeNil)
+<a name="346"></a>            {
+<a name="347"></a>                loc.display(prop);
+<a name="348"></a>                viewDescribed = true;
+<a name="349"></a>                break;
+<a name="350"></a>            }
+<a name="351"></a>            loc = loc.location;
+<a name="352"></a>        } while (loc != outerLoc &amp;&amp; loc != nil);
+<a name="353"></a>        
+<a name="354"></a>        /* 
+<a name="355"></a>         *   Otherwise if we're looking down try describing our floor object, and if not call our
+<a name="356"></a>         *   describeView method to generate a description of the view in the dir direction based on
+<a name="357"></a>         *   what's defined on our room's corresponding direction property.
+<a name="358"></a>         */
+<a name="359"></a>        if(!viewDescribed)   
+<a name="360"></a>        {
+<a name="361"></a>            if(dir == downDir)
+<a name="362"></a>                downLook();
+<a name="363"></a>            else
+<a name="364"></a>                describeView(dir);
+<a name="365"></a>        }      
+<a name="366"></a>    }
+<a name="367"></a>    
+<a name="368"></a>    /* By default, translate LOOK DOWN into examining our floor object if we have one. */
+<a name="369"></a>    downLook()
+<a name="370"></a>    {
+<a name="371"></a>        /* If we have a floor objecgt, examine it. */
+<a name="372"></a>        if(floorObj)
+<a name="373"></a>            doInstead(Examine, floorObj);
+<a name="374"></a>        /* Otherwise say there's nothing special to see. */
+<a name="375"></a>        else
+<a name="376"></a>            describeView(downDir);
+<a name="377"></a>    }
+<a name="378"></a>    
+<a name="379"></a>    /* 
+<a name="380"></a>     *   We provide this method on Thing in case it's called on a nested room. By default, if we can
+<a name="381"></a>     *   see out we call use the describeView on the next suitable containing object working
+<a name="382"></a>     *   outwards from us or else if we can't see out we just display our nothing unexpected
+<a name="383"></a>     *   message.
+<a name="384"></a>     */
+<a name="385"></a>           
+<a name="386"></a>    describeView(dir)        
+<a name="387"></a>    {
+<a name="388"></a>        if(canSeeOut)
+<a name="389"></a>        {
+<a name="390"></a>            getLookDirHandler(self).describeView(dir);
+<a name="391"></a>        }
+<a name="392"></a>        else
+<a name="393"></a>            sayNothingUnexpectedThatWay(dir);
+<a name="394"></a>    }
+<a name="395"></a>    
+<a name="396"></a>    /* 
+<a name="397"></a>     *   Service method to find the next containing object that should handle a lookDir, working out
+<a name="398"></a>     *   from loc. We carry on looping outwards until we find a Room or a container for which
+<a name="399"></a>     *   handleLockDir is true of which we can't see out of.
+<a name="400"></a>     */
+<a name="401"></a>    getLookDirHandler(loc)
+<a name="402"></a>    {        
+<a name="403"></a>        do
+<a name="404"></a>        {
+<a name="405"></a>            loc = loc.location;
+<a name="406"></a>        } while(!loc.ofKind(Room) &amp;&amp; !loc.handleLookDir &amp;&amp; loc.canSeeOut) ;
+<a name="407"></a>        
+<a name="408"></a>        return loc;
+<a name="409"></a>    }
+<a name="410"></a>    
+<a name="411"></a>    /* 
+<a name="412"></a>     *   Are we a candidate object for calling lookDir() on? By default we are we can't see out from
+<a name="413"></a>     *   us. Game code can overried on nested rooms whose lookDir() method we always want to use,
+<a name="414"></a>     *   such as a partially enclosed Booth.
+<a name="415"></a>     */     
+<a name="416"></a>    handleLookDir = !canSeeOut
+<a name="417"></a>;
+<a name="418"></a>    
+<a name="419"></a>
+<a name="420"></a>/* 
+<a name="421"></a> *   Add a lookProp property to each Direction object and populate it with a pointer to the
+<a name="422"></a> *   appropriate xxxLook property.
+<a name="423"></a> */
+<a name="424"></a>modify northDir lookProp = &amp;northLook;
+<a name="425"></a>modify eastDir lookProp = &amp;eastLook;
+<a name="426"></a>modify southDir lookProp = &amp;southLook;
+<a name="427"></a>modify westDir lookProp = &amp;westLook;
+<a name="428"></a>modify northeastDir lookProp = &amp;northeastLook;
+<a name="429"></a>modify southeastDir lookProp = &amp;southeastLook;
+<a name="430"></a>modify southwestDir lookProp = &amp;southwestLook;
+<a name="431"></a>modify northwestDir lookProp = &amp;northwestLook;
+<a name="432"></a>
+<a name="433"></a>modify starboardDir lookProp = &amp;starboardLook;
+<a name="434"></a>modify portDir lookProp = &amp;portLook;
+<a name="435"></a>modify foreDir lookProp = &amp;foreLook;
+<a name="436"></a>modify aftDir lookProp = &amp;aftLook;
+<a name="437"></a>
+<a name="438"></a>modify upDir lookProp = &amp;upLook;
+<a name="439"></a>modify downDir lookProp = &amp;downLook;
+<a name="440"></a>modify inDir lookProp = &amp;inLook;
+<a name="441"></a>modify outDir lookProp = &amp;outLook;
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 03/03/2025 from adv3Lite version 2.2.0.3</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 13/06/2025 from adv3Lite version 2.2.1</div>
 </body>
 </html>

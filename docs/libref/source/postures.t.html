@@ -593,124 +593,196 @@
 <a name="591"></a>         */
 <a name="592"></a>        if(gActor.posture != posture)
 <a name="593"></a>        {
-<a name="594"></a>            tryImplicitAction(posture.action);
-<a name="595"></a>//            "&lt;&lt;buildImplicitActionAnnouncement(gActor.posture == posture, true)&gt;&gt;";
-<a name="596"></a>        }
-<a name="597"></a>        
-<a name="598"></a>        /* Return true or nil according to whether the actor is now in the correct posture. */
-<a name="599"></a>        return gActor.posture == posture;
-<a name="600"></a>    }
-<a name="601"></a>;
-<a name="602"></a>
-<a name="603"></a>/* 
-<a name="604"></a> *   A Bed is something an actor can sit, stand or lie on, but is most likely to
-<a name="605"></a> *   lie on and least likely to stand on. [DEFINED IN POSTURES EXTENSION]
-<a name="606"></a> */
-<a name="607"></a>class Bed: Platform
-<a name="608"></a>    lieOnScore = 120
-<a name="609"></a>    standOnScore = 80
-<a name="610"></a>    defaultPosture = lying
-<a name="611"></a>;
-<a name="612"></a>
-<a name="613"></a>/*   
-<a name="614"></a> *   Chair is something an actor would normally sit on, but could also stand on,
-<a name="615"></a> *   but not lie on. [DEFINED IN POSTURES EXTENSION]
-<a name="616"></a> */
-<a name="617"></a>class Chair: Platform
-<a name="618"></a>    canLieOnMe = nil
-<a name="619"></a>    sitOnScore = 120
-<a name="620"></a>    standOnScore = 80
-<a name="621"></a>    defaultPosture = sitting
-<a name="622"></a>;
-<a name="623"></a>
-<a name="624"></a>/*  
-<a name="625"></a> *   By default we assume that an actor can stand, sit or lie in a Booth. This
-<a name="626"></a> *   can, of course, be overridden in particular instances.
-<a name="627"></a> *   [DEFINED IN POSTURES EXTENSION]
-<a name="628"></a> */
-<a name="629"></a>modify Booth
-<a name="630"></a>    canStandInMe = true
-<a name="631"></a>    canSitInMe = true
-<a name="632"></a>    canLieInMe = true
-<a name="633"></a>;
-<a name="634"></a>
-<a name="635"></a>
-<a name="636"></a>/*  
-<a name="637"></a> *   We modify the Stand, Sit and Lie actions so that they now result in the
-<a name="638"></a> *   actor changing posture without changing location.
-<a name="639"></a> *   [MODIFIED IN POSTURES EXTENSION]
-<a name="640"></a> */
-<a name="641"></a>modify Stand
-<a name="642"></a>    execAction(c)
-<a name="643"></a>    {
-<a name="644"></a>        gActor.tryMakingPosture(standing);           
-<a name="645"></a>    }
-<a name="646"></a>;
-<a name="647"></a>
-<a name="648"></a>/* [MODIFIED IN POSTURES EXTENSION] */
-<a name="649"></a>modify Sit
-<a name="650"></a>    execAction(c)
-<a name="651"></a>    {
-<a name="652"></a>        gActor.tryMakingPosture(sitting);
-<a name="653"></a>    }
-<a name="654"></a>;
-<a name="655"></a>
-<a name="656"></a>/* [MODIFIED IN POSTURES EXTENSION] */
-<a name="657"></a>modify Lie
-<a name="658"></a>    execAction(c)
-<a name="659"></a>    {
-<a name="660"></a>        gActor.tryMakingPosture(lying);
-<a name="661"></a>    }
-<a name="662"></a>;
-<a name="663"></a>
-<a name="664"></a>actorInTravelPosture: PreCondition
-<a name="665"></a>    checkPreCondition(obj, allowImplicit)
-<a name="666"></a>    {
-<a name="667"></a>        if(obj.posture == requiredPosture)
-<a name="668"></a>            return true;
-<a name="669"></a>        
-<a name="670"></a>        if(allowImplicit &amp;&amp; tryImplicitAction(requiredPosture.action))
-<a name="671"></a>            return true;
-<a name="672"></a>        
-<a name="673"></a>        DMsg(not in posture to travel, '{I} need{s/ed} to be {1} first. ',
-<a name="674"></a>             requiredPosture.participle);
-<a name="675"></a>        
-<a name="676"></a>        return nil;
-<a name="677"></a>    }
-<a name="678"></a>    
-<a name="679"></a>    requiredPosture = standing
-<a name="680"></a>    
-<a name="681"></a>    preCondOrder = 80
-<a name="682"></a>;
-<a name="683"></a>
-<a name="684"></a>modify TravelAction
-<a name="685"></a>    preCond = valToList(inherited) + actorInTravelPosture
-<a name="686"></a>    
-<a name="687"></a>    
+<a name="594"></a>            /* Attempt to get the actor into the right posture via an implicit action. */
+<a name="595"></a>            tryImplicitAction(posture.action);
+<a name="596"></a>            
+<a name="597"></a>            /* Report the result of the implicit action. */
+<a name="598"></a>            "&lt;&lt;gAction.buildImplicitActionAnnouncement(gActor.posture == posture, true)&gt;&gt;";
+<a name="599"></a>        }
+<a name="600"></a>        
+<a name="601"></a>        /* Return true or nil according to whether the actor is now in the correct posture. */
+<a name="602"></a>        return gActor.posture == posture;
+<a name="603"></a>    }
+<a name="604"></a>;
+<a name="605"></a>
+<a name="606"></a>/* 
+<a name="607"></a> *   A Bed is something an actor can sit, stand or lie on, but is most likely to
+<a name="608"></a> *   lie on and least likely to stand on. [DEFINED IN POSTURES EXTENSION]
+<a name="609"></a> */
+<a name="610"></a>class Bed: Platform
+<a name="611"></a>    lieOnScore = 120
+<a name="612"></a>    standOnScore = 80
+<a name="613"></a>    defaultPosture = lying
+<a name="614"></a>;
+<a name="615"></a>
+<a name="616"></a>/*   
+<a name="617"></a> *   Chair is something an actor would normally sit on, but could also stand on,
+<a name="618"></a> *   but not lie on. [DEFINED IN POSTURES EXTENSION]
+<a name="619"></a> */
+<a name="620"></a>class Chair: Platform
+<a name="621"></a>    canLieOnMe = nil
+<a name="622"></a>    sitOnScore = 120
+<a name="623"></a>    standOnScore = 80
+<a name="624"></a>    defaultPosture = sitting
+<a name="625"></a>;
+<a name="626"></a>
+<a name="627"></a>/*  
+<a name="628"></a> *   By default we assume that an actor can stand, sit or lie in a Booth. This
+<a name="629"></a> *   can, of course, be overridden in particular instances.
+<a name="630"></a> *   [DEFINED IN POSTURES EXTENSION]
+<a name="631"></a> */
+<a name="632"></a>modify Booth
+<a name="633"></a>    canStandInMe = true
+<a name="634"></a>    canSitInMe = true
+<a name="635"></a>    canLieInMe = true
+<a name="636"></a>;
+<a name="637"></a>
+<a name="638"></a>
+<a name="639"></a>/*  
+<a name="640"></a> *   We modify the Stand, Sit and Lie actions so that they now result in the
+<a name="641"></a> *   actor changing posture without changing location.
+<a name="642"></a> *   [MODIFIED IN POSTURES EXTENSION]
+<a name="643"></a> */
+<a name="644"></a>modify Stand
+<a name="645"></a>    execAction(c)
+<a name="646"></a>    {
+<a name="647"></a>        gActor.tryMakingPosture(standing);           
+<a name="648"></a>    }
+<a name="649"></a>;
+<a name="650"></a>
+<a name="651"></a>/* [MODIFIED IN POSTURES EXTENSION] */
+<a name="652"></a>modify Sit
+<a name="653"></a>    execAction(c)
+<a name="654"></a>    {
+<a name="655"></a>        gActor.tryMakingPosture(sitting);
+<a name="656"></a>    }
+<a name="657"></a>;
+<a name="658"></a>
+<a name="659"></a>/* [MODIFIED IN POSTURES EXTENSION] */
+<a name="660"></a>modify Lie
+<a name="661"></a>    execAction(c)
+<a name="662"></a>    {
+<a name="663"></a>        gActor.tryMakingPosture(lying);
+<a name="664"></a>    }
+<a name="665"></a>;
+<a name="666"></a>
+<a name="667"></a>actorInTravelPosture: PreCondition
+<a name="668"></a>    checkPreCondition(obj, allowImplicit)
+<a name="669"></a>    {
+<a name="670"></a>        local requiredPosture = standing;
+<a name="671"></a>        
+<a name="672"></a>        if(objOfKind(obj, TravelConnector))
+<a name="673"></a>           requiredPosture = obj.posture;        
+<a name="674"></a>        
+<a name="675"></a>        if(gActor.posture == requiredPosture)
+<a name="676"></a>            return true;
+<a name="677"></a>        
+<a name="678"></a>        if(allowImplicit &amp;&amp; tryImplicitAction(requiredPosture.action))
+<a name="679"></a>            return true;
+<a name="680"></a>        
+<a name="681"></a>        DMsg(not in posture to travel, '{I} need{s/ed} to be {1} first. ',
+<a name="682"></a>             requiredPosture.participle);
+<a name="683"></a>        
+<a name="684"></a>        return nil;
+<a name="685"></a>    }
+<a name="686"></a>       
+<a name="687"></a>    preCondOrder = 80
 <a name="688"></a>;
 <a name="689"></a>
-<a name="690"></a>modify GoThrough
-<a name="691"></a>//     preCond = valToList(inherited) + actorInTravelPosture
-<a name="692"></a>;
-<a name="693"></a>
-<a name="694"></a>modify ClimbDown
-<a name="695"></a>     preCond = valToList(inherited) + actorInTravelPosture
-<a name="696"></a>;
-<a name="697"></a>
-<a name="698"></a>modify ClimbUp
-<a name="699"></a>     preCond = valToList(inherited) + actorInTravelPosture
-<a name="700"></a>;
-<a name="701"></a>
-<a name="702"></a>modify Door
-<a name="703"></a>    checkTravelBarriers(traveler)
-<a name="704"></a>    {        
-<a name="705"></a>        if(traveler.ofKind(Actor) &amp;&amp; !actorInTravelPosture.checkPreCondition(traveler, true))
-<a name="706"></a>            return nil;
-<a name="707"></a>        
-<a name="708"></a>        return inherited(traveler);
-<a name="709"></a>    }
-<a name="710"></a>;
+<a name="690"></a>//modify TravelAction
+<a name="691"></a>//    preCond = valToList(inherited) + actorInTravelPosture    
+<a name="692"></a>//;
+<a name="693"></a>//
+<a name="694"></a>//modify GoThrough
+<a name="695"></a>//     preCond = valToList(inherited) + actorInTravelPosture
+<a name="696"></a>//;
+<a name="697"></a>//
+<a name="698"></a>//modify ClimbDown
+<a name="699"></a>//     preCond = valToList(inherited)
+<a name="700"></a>//;
+<a name="701"></a>//
+<a name="702"></a>//modify ClimbUp
+<a name="703"></a>//     preCond = valToList(inherited) + actorInTravelPosture
+<a name="704"></a>//;
+<a name="705"></a>
+<a name="706"></a>modify Door
+<a name="707"></a>    checkTravelBarriers(traveler)
+<a name="708"></a>    {        
+<a name="709"></a>        if(traveler.ofKind(Actor) &amp;&amp; !actorInTravelPosture.checkPreCondition(traveler, true))
+<a name="710"></a>            return nil;
+<a name="711"></a>        
+<a name="712"></a>        return inherited(traveler);
+<a name="713"></a>    }   
+<a name="714"></a>    
+<a name="715"></a>    dobjFor(GoThrough)
+<a name="716"></a>    {
+<a name="717"></a>        preCond = inherited + actorInTravelPosture
+<a name="718"></a>    }
+<a name="719"></a>;
+<a name="720"></a>
+<a name="721"></a>modify Passage
+<a name="722"></a>    dobjFor(GoThrough)
+<a name="723"></a>    {
+<a name="724"></a>        preCond = inherited + actorInTravelPosture
+<a name="725"></a>    }
+<a name="726"></a>;
+<a name="727"></a>
+<a name="728"></a>modify StairwayUp
+<a name="729"></a>    dobjFor(Climb)     
+<a name="730"></a>    {
+<a name="731"></a>        preCond = inherited + actorInTravelPosture
+<a name="732"></a>    }
+<a name="733"></a>    
+<a name="734"></a>    dobjFor(ClimbDown)     
+<a name="735"></a>    {
+<a name="736"></a>        preCond = inherited + actorInTravelPosture
+<a name="737"></a>    }
+<a name="738"></a>;
+<a name="739"></a>
+<a name="740"></a>modify StairwayDown
+<a name="741"></a>    dobjFor(Climb)     
+<a name="742"></a>    {
+<a name="743"></a>        preCond = inherited + actorInTravelPosture
+<a name="744"></a>    }
+<a name="745"></a>    
+<a name="746"></a>    dobjFor(ClimbDown)     
+<a name="747"></a>    {
+<a name="748"></a>        preCond = inherited + actorInTravelPosture
+<a name="749"></a>    }
+<a name="750"></a>;
+<a name="751"></a>
+<a name="752"></a>modify Thing
+<a name="753"></a>    iobjFor(PushTravelThrough)
+<a name="754"></a>    {
+<a name="755"></a>        preCond = inherited + actorInTravelPosture
+<a name="756"></a>    }
+<a name="757"></a>    
+<a name="758"></a>    iobjFor(PushTravelEnter)
+<a name="759"></a>    {
+<a name="760"></a>         preCond = inherited + actorInTravelPosture
+<a name="761"></a>    }
+<a name="762"></a>    
+<a name="763"></a>    iobjFor(PushTravelGetOutOf)
+<a name="764"></a>    {
+<a name="765"></a>        preCond = inherited + actorInTravelPosture
+<a name="766"></a>    }
+<a name="767"></a>    
+<a name="768"></a>    iobjFor(PushTravelClimbUp)
+<a name="769"></a>    {
+<a name="770"></a>        preCond = inherited + actorInTravelPosture
+<a name="771"></a>    }
+<a name="772"></a>    
+<a name="773"></a>    iobjFor(PushTravelClimbDown)
+<a name="774"></a>    {
+<a name="775"></a>        preCond = inherited + actorInTravelPosture
+<a name="776"></a>    }
+<a name="777"></a>    
+<a name="778"></a>;
+<a name="779"></a>    
+<a name="780"></a>    
+<a name="781"></a>    
+<a name="782"></a>    
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 03/03/2025 from adv3Lite version 2.2.0.3</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 13/06/2025 from adv3Lite version 2.2.1</div>
 </body>
 </html>
