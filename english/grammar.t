@@ -2509,7 +2509,7 @@ VerbRule(Undo)
 ;
 
 VerbRule(Version)
-    'version'
+    'version' | 'ver'
     : VerbProduction
     action = Version
     verbPhrase = 'show/showing version'
