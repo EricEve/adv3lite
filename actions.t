@@ -782,9 +782,22 @@ GoOut: TravelAction
 Go: TravelAction
     predefinedDirection = true
     
+    /* 
+     *   We need to test for and set the direction property in both execCycle() and execAction(),
+     *   since statements such as doInstead(Go, northDir) might execute the Go action via either
+     *   route (depending where called from).
+     */
+    execCycle(cmd)
+    {
+        if(direction == nil)
+            direction = cmd.dobj;
+        inherited(cmd);
+    }
+    
     execAction(cmd)
     {
-        direction = cmd.dobj;
+        if(direction == nil)
+            direction = cmd.dobj;
         inherited(cmd);
     }
     
