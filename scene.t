@@ -37,34 +37,76 @@ sceneManager: InitObject, Event
     
     /* The executeEvent() method is run each turn to drive the Scenes mechanism */
     executeEvent()
-    {
-        /* Go through each Scene defined in the game in turn. */
-        for(local scene = firstObj(Scene); scene != nil ; scene = nextObj(scene,
-            Scene))
+    {       
+        /* Check whether we have ended or started a Scene on this turn. */
+        local sceneEnded = nil;
+        local sceneStarted = nil;
+        
+        /* 
+         *   Keep track of all the Scenes we've called eachTurn() on so we don't it more than once
+         *   on any given Scene.
+         */
+        local turnVec = new Vector;
+        
+        /* 
+         *   We repeat the loop through all the Scenes in case starting or ending a Scene should
+         *   tigger the start or end of another Scene.
+         */
+        do
+        { 
+            /* Check whether we have ended or started a Scene on this turn. */
+            sceneEnded = nil;
+            sceneStarted = nil;
             
-        {
+           
+            
+            /* Go through each Scene defined in the game in turn. */
+            for(local scene = firstObj(Scene); scene != nil ; scene = nextObj(scene,
+                Scene))            
+            {     
+                
+                
+                /* 
+                 *   If the scene's startsWhen condition is true and the scene is not already
+                 *   happening, then provided it's a recurring scene or it's never been started
+                 *   before, start the scene.
+                 */
+                if(scene.startsWhen && !scene.isHappening 
+                   && (scene.recurring || scene.startedAt == nil))
+                {
+                    scene.start();
+                    sceneStarted = true;
+                }
+                
+                /*  
+                 *   If the scene is happening and its endsWhen property is non-nil, then record the
+                 *   value of its endsWhen property in its howEnded property and end the scene.
+                 */
+                if(scene.isHappening && (scene.howEnded = scene.endsWhen) != nil)
+                {
+                    scene.end();
+                    sceneEnded = true;
+                }
+                
+                /* 
+                 *   If the scene is happening, call its eachTurn() method, unless we've alreasy
+                 *   called it.
+                 */
+                if(scene.isHappening && turnVec.indexOf(scene) == nil)
+                {
+                    scene.eachTurn();
+                    turnVec.appendUnique(scene);
+                }
+            }      
+      
             /* 
-             *   If the scene's startsWhen condition is true and the scene is
-             *   not already happening, then provided it's a recurring scene or
-             *   it's never been started before, start the scene.
+             *   If a scene has started or ended we need to repeat going through all the Scenes in
+             *   case this should trigger the stating or ending of another Scene
              */
-            if(scene.startsWhen && !scene.isHappening 
-               && (scene.recurring || scene.startedAt == nil))
-                scene.start();
+        } while (sceneEnded || sceneStarted);
             
-            /*  
-             *   If the scene is happening and its endsWhen property is non-nil,
-             *   then record the value of its endsWhen property in its howEnded
-             *   property and end the scene.
-             */
-            if(scene.isHappening && (scene.howEnded = scene.endsWhen) != nil)
-                scene.end();
             
-            /* If the scene is happening, call its eachTurn() method */
-            if(scene.isHappening)
-                scene.eachTurn();
-        }        
-    }  
+    }
     
     execBeforeMe = [adv3LibInit]
     
@@ -76,49 +118,46 @@ sceneManager: InitObject, Event
             if(scene.isHappening)
                 scene.beforeAction(); 
         });
-    }
+}
 
-    
-    notifyAfter()
+
+notifyAfter()
+{
+    forEachInstance(Scene, function(scene) 
     {
-         forEachInstance(Scene, function(scene) 
-        {
-            if(scene.isHappening)
-                scene.afterAction(); 
-        });
-    }
+        if(scene.isHappening)
+            scene.afterAction(); 
+    });
+}
 ;
 
 
 /* 
- *   A Scene is an object that represents a slice of time that starts and ends
- *   according to specified conditions, and which can define what happens when
- *   it starts and ends and also what happens each turn when it is happening.
+ *   A Scene is an object that represents a slice of time that starts and ends according to
+ *   specified conditions, and which can define what happens when it starts and ends and also what
+ *   happens each turn when it is happening.
  */
 class Scene: object
     
     /* 
-     *   An expression or method that evaluates to true when you want the scene
-     *   to start
+     *   An expression or method that evaluates to true when you want the scene to start
      */
     startsWhen = nil
     
     /*  
-     *   an expression or method that evaluates to something other than nil when
-     *   you want the scene to end
+     *   an expression or method that evaluates to something other than nil when you want the scene
+     *   to end
      */
     endsWhen = nil
     
     /* 
-     *   Normally a scene will only occur once. Set recurring to true if you
-     *   want the scene to start again every time its startsWhen condition is
-     *   true.
+     *   Normally a scene will only occur once. Set recurring to true if you want the scene to start
+     *   again every time its startsWhen condition is true.
      */
     recurring = nil
     
     /* 
-     *   Is this scene currently taking place? (Game code should treat this as
-     *   read-only)
+     *   Is this scene currently taking place? (Game code should treat this as read-only)
      */
     isHappening = nil
     
