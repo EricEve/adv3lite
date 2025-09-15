@@ -39,7 +39,7 @@ sceneManager: InitObject, Event
     executeEvent()
     {       
         /* Check whether we have ended or started a Scene on this turn. */
-        local sceneEnded = nil;
+           local sceneEnded = nil;
         local sceneStarted = nil;
         
         /* 
