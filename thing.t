@@ -2629,6 +2629,9 @@ class Thing:  ReplaceRedirector, Mentionable
         if(newCont != nil)
             newCont.notifyInsert(self); 
         
+        /* Note which room we're in before the moce. */
+        local oldRoom = getOutermostRoom;
+        
         /* Carry out the move. */
         moveInto(newCont);
         
@@ -2638,6 +2641,20 @@ class Thing:  ReplaceRedirector, Mentionable
         /* If the player character can now see us, note that we've been seen */
         if(Q.canSee(gPlayerChar, self))
             noteSeen();
+        
+        /* 
+         *   Set up a local variable for our new room; this avoids needing to calculate the value of
+         *   getOutermostRoom twice.
+         */
+        local newRoom;
+        
+        /* 
+         *   If we're recording location history for this object and we'v moved to a new room,
+         *   update our location history.
+         */
+        if(locationHistoryLength && oldRoom != (newRoom = getOutermostRoom))
+            updateLocationHistory(newRoom);
+            
     }
     
     /* 
@@ -2667,6 +2684,50 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     notifyInsert(obj) { }
     
+    
+    /* 
+     *   The number of previous room locations to keep track of. By default this is nil, meaning we
+     *   don't normally track this object's previous rooms.
+     */
+    locationHistoryLength = nil
+    
+    /*   
+     *   Thus object's previous location history. If present, this will be list of up to
+     *   locationHistoryLength elements with the most recent (i.e. current) room location last.
+     */
+    locationHistory = nil
+    
+    /*  Returns a List containing the actor’s location history.*/    
+    getLocationHistory()  { return valToList(locationHistory); }
+    
+    updateLocationHistory(newRoom)
+    {
+        /* Add the new room to our location history) */
+        locationHistory = valToList(locationHistory)  + newRoom;
+        
+        /* 
+         *   If the resultant list islonger than our required locatio0n history length, truncate our
+         *   locationHistory list accordingly.
+         */
+        if(locationHistory.length > locationHistoryLength)
+            locationHistory = locationHistory.cdr();    
+    }
+    
+    /* 
+     *   Returns the most recent room location, not counting the current one, that this object
+     *   occupied.
+     */
+    getPreviousLocation()
+    {
+        /* Obtain the index of the last but one enty in our locationHistory list. */
+        local idx = valToList(locationHistory).length - 1;
+        
+        /* 
+         *   If that index is greater than 0, return the last but one item in the list, otherwise
+         *   return nil.
+         */
+        return idx > 0 ? locationHistory[idx] : nil ;
+    }
     
     /* 
      *   Move a MultiLoc (ml) into this additional Thing or Room, by adding it
@@ -2895,6 +2956,13 @@ class Thing:  ReplaceRedirector, Mentionable
         /* if we have an altVocab string, initialize our altVocab handling. */
         if(altVocab)
             initAltVocab();
+        
+        /* 
+         *   If we want to record location history for this item, initialize our locationHistory
+         *   list with our initial room location.
+         */
+        if(locationHistoryLength)
+            locationHistory = [getOutermostRoom];
         
 
         /* 
