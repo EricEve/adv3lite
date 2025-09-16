@@ -797,24 +797,28 @@ Unthing template @unObject @location? 'notHereMsg'?;
 
 SensoryEmanation template inherited [eventList]?;
 
-ActorState template "specialDesc" 'stateDesc' | "stateDesc" ?;
+ActorState template @location? "specialDesc" 'stateDesc' | "stateDesc" ? ;
+ActorState template @location;
 
-TopicGroup template +scoreBoost? 'convKeys' | [convKeys] ? ;
+TopicGroup template @location? +scoreBoost? 'convKeys' | [convKeys] ? ;
 
 
 TopicEntry template
+   ->location? 
    +matchScore?
    @matchObj | [matchObj] | 'matchPattern'
    "topicResponse" | [eventList] ?;
 
 /* a ShuffledEventList version of the above */
 TopicEntry template
+    ->location?
    +matchScore?
    @matchObj | [matchObj] | 'matchPattern'
    [firstEvents] [eventList];
 
 /* we can also include *both* the match object/list *and* pattern */
 TopicEntry template
+    ->location?
    +matchScore?
    @matchObj | [matchObj]
    'matchPattern'
@@ -822,35 +826,41 @@ TopicEntry template
 
 /* a ShuffledEventList version of the above */
 TopicEntry template
+   ->location? 
    +matchScore?
    @matchObj | [matchObj]
    'matchPattern'
    [firstEvents] [eventList]; 
 
-/* Version ActorTopicEntry template for use with Facts and kTag */
-ActorTopicEntry template +matchScore? "topicResponse" | [eventList];
+/* Version of ActorTopicEntry template for use with Facts and kTag */
+ActorTopicEntry template ->location? +matchScore? "topicResponse" | [eventList];
 
 QueryTopic template
+   ->location? 
    +matchScore? 'matchPattern'
     "topicResponse" | [eventList] ?;
 
 QueryTopic template
+    ->location?
     +matchScore? 'matchPattern'
     [firstEvents] [eventList];    
 
 QueryTopic template
+    ->location?
    +matchScore? 'qtype'
    @matchObj | [matchObj] | 'matchPattern'
    "topicResponse" | [eventList] ?;
 
 /* a ShuffledEventList version of the above */
 QueryTopic template
+    ->location?
    +matchScore? 'qtype'
    @matchObj | [matchObj] | 'matchPattern'
    [firstEvents] [eventList];
 
 /* we can also include *both* the match object/list *and* pattern */
 QueryTopic template
+    ->location?
    +matchScore? 'qtype'
    @matchObj | [matchObj]
    'matchPattern'
@@ -858,36 +868,42 @@ QueryTopic template
 
 /* a ShuffledEventList version of the above */
 QueryTopic template
+    ->location?
    +matchScore? 'qtype'
    @matchObj | [matchObj]
    'matchPattern'
    [firstEvents] [eventList];
 
 SayTopic template
+    ->location?
     +matchScore?
     'tTag' 'extraVocab'
     "topicResponse" | [eventList] ?;
 
-CommandTopic template +matchScore? 
+CommandTopic template ->location? +matchScore? 
+    
     @matchObj | [matchObj]
     @matchDobj @matchIobj? "topicResponse" | [eventList]? ;
 
-CommandTopic template +matchScore? 
+CommandTopic template ->location? +matchScore?     
     @matchObj | [matchObj] [matchDobj] @matchIobj "topicResponse" | [eventList]? ;
 
-DefaultTopic template "topicResponse" | [eventList];
-DefaultConsultTopic template "topicResponse" | [eventList];
-DefaultThought template "topicResponse" | [eventList];
+DefaultTopic template ->location? "topicResponse" | [eventList];
+DefaultConsultTopic template ->location? "topicResponse" | [eventList];
+DefaultThought template ->location? "topicResponse" | [eventList];
 
 /* miscellanous topics just specify the response text or list */
-MiscTopic template "topicResponse" | [eventList];
-MiscTopic template [firstEvents] [eventList];
-NodeContinuationTopic template "topicResponse" | [eventList];
-NodeContinuationTopic template [firstEvents] [eventList];
+MiscTopic template ->location? "topicResponse" | [eventList];
+MiscTopic template ->location? [firstEvents] [eventList];
+NodeContinuationTopic template ->location? "topicResponse" | [eventList];
+NodeContinuationTopic template ->location? [firstEvents] [eventList];
 
 /* AltTopics just specify the response text or list */
-AltTopic template "topicResponse" | [eventList];
-AltTopic template [firstEvents] [eventList];
+AltTopic template ->location? "topicResponse" | [eventList];
+AltTopic template ->location? [firstEvents] [eventList];
+
+
+AgendaItem template @location;
 
 /* The ProxyActor template just specifies the location (i.e. the base Actor) */
 ProxyActor template @location;

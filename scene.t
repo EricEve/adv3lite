@@ -33,13 +33,17 @@ sceneManager: InitObject, Event
     
     eventOrder = 200
     
-    
+    /* 
+     *   Flagg: Do we want to allow the starting or ending of one Scene to trigger the starting or
+     *   ending of another Scene. By default we do.
+     */
+    sameTurnTrigger = true
     
     /* The executeEvent() method is run each turn to drive the Scenes mechanism */
     executeEvent()
     {       
         /* Check whether we have ended or started a Scene on this turn. */
-           local sceneEnded = nil;
+        local sceneEnded = nil;
         local sceneStarted = nil;
         
         /* 
@@ -103,7 +107,7 @@ sceneManager: InitObject, Event
              *   If a scene has started or ended we need to repeat going through all the Scenes in
              *   case this should trigger the stating or ending of another Scene
              */
-        } while (sceneEnded || sceneStarted);
+        } while (sameTurnTrigger && (sceneEnded || sceneStarted));
             
             
     }
