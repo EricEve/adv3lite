@@ -100,8 +100,8 @@ class Parser: object
      *   The precise meaning of the default action varies by object.  For most
      *   objects, it's EXAMINE.  For locations, it's GO TO.
      *
-     *   We make the default value nil since setting it to true can result in
-     *   some rather odd parser behaviour.
+     *   We make the default value true, but it can be set to nil if setting it to true results in
+     *   some odd parser behaviour.
      */
     
     defaultActions = true

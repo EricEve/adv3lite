@@ -39,12 +39,20 @@ sceneManager: InitObject, Event
      */
     sameTurnTrigger = true
     
+    /* 
+     *   The maximum number of loops the do loop in executeEvent will go through before breaking
+     *   out. This is to avoid getting into an infinite loop if Scenes are defined in a way that
+     *   might otherwise cause them.
+     */
+    maxLoopCount = 10
+    
     /* The executeEvent() method is run each turn to drive the Scenes mechanism */
     executeEvent()
     {       
         /* Check whether we have ended or started a Scene on this turn. */
         local sceneEnded = nil;
         local sceneStarted = nil;
+        local loopCount = 0;
         
         /* 
          *   Keep track of all the Scenes we've called eachTurn() on so we don't it more than once
@@ -58,6 +66,9 @@ sceneManager: InitObject, Event
          */
         do
         { 
+            /* Increment the loop counter to check how many times we've been round this loop. */
+            loopCount++;
+            
             /* Check whether we have ended or started a Scene on this turn. */
             sceneEnded = nil;
             sceneStarted = nil;
@@ -107,8 +118,10 @@ sceneManager: InitObject, Event
              *   If a scene has started or ended we need to repeat going through all the Scenes in
              *   case this should trigger the stating or ending of another Scene
              */
-        } while (sameTurnTrigger && (sceneEnded || sceneStarted));
+        } while (sameTurnTrigger && (sceneEnded || sceneStarted) && loopCount <= maxLoopCount);
             
+        if(loopCount >= maxLoopCount)
+            "<.p><b>WARNING!</b> Potential infinite loop in one or more Scene definitions.<.p>";
             
     }
     

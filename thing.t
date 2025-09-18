@@ -2630,7 +2630,7 @@ class Thing:  ReplaceRedirector, Mentionable
             newCont.notifyInsert(self); 
         
         /* Note which room we're in before the moce. */
-        local oldRoom = getOutermostRoom;
+        local oldRoom = trackedLocation;
         
         /* Carry out the move. */
         moveInto(newCont);
@@ -2652,10 +2652,12 @@ class Thing:  ReplaceRedirector, Mentionable
          *   If we're recording location history for this object and we'v moved to a new room,
          *   update our location history.
          */
-        if(locationHistoryLength && oldRoom != (newRoom = getOutermostRoom))
+        if(locationHistoryLength && oldRoom != (newRoom = trackedLocation))
             updateLocationHistory(newRoom);
             
     }
+    
+       
     
     /* 
      *   Receive notification that obj is about to be removed from inside us; by default we do
@@ -2684,6 +2686,18 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     notifyInsert(obj) { }
     
+    /* 
+     *   Flag, if location tracking is active, do we want to track only the rooms this object has
+     *   been in, or track every location its been directl in. By default we only track rooms.
+     */
+    trackRoomsOnly = true
+    
+    
+    /* 
+     *   The location we're tracking is this obect's outermost location if trackRoomsOnly is true or
+     *   its location otherwise.
+     */
+    trackedLocation = (trackRoomsOnly ? getOutermostRoom : location)
     
     /* 
      *   The number of previous room locations to keep track of. By default this is nil, meaning we
@@ -2962,7 +2976,7 @@ class Thing:  ReplaceRedirector, Mentionable
          *   list with our initial room location.
          */
         if(locationHistoryLength)
-            locationHistory = [getOutermostRoom];
+            locationHistory = [trackedLocation];
         
 
         /* 
