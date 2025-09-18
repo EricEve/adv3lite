@@ -2695,7 +2695,8 @@ class Thing:  ReplaceRedirector, Mentionable
     
     /* 
      *   The location we're tracking is this obect's outermost location if trackRoomsOnly is true or
-     *   its location otherwise.
+     *   its location otherwise. This property can be overridden in user code if tracking some other
+     definition of location is desired, e,g, trackedLocation = (isIn(me) ? me : location).
      */
     trackedLocation = (trackRoomsOnly ? getOutermostRoom : location)
     
