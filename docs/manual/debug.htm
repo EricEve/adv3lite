@@ -131,7 +131,8 @@ modify Thing
 
 <br>
 
-<h2><a name="tests">Test Scripts</a></h2>
+<h2><a name="tests">Basic Test Scripts</a></h2>
+<p>For the full story on Test Scripts see on <a href='#newtest'>Enhanced Test Scripts</a> below. In this section we shall just cover the basics.</p>
 
 <p>When testing a game it's often useful to be able to run a set of commands to test a particular feature. In adv3Lite you can set up named test scripts to help automate this task. To define a test script, define an object of the Test class (it can be an anonymous object). Use the <strong>testName</strong> property to give the test script a name by which it can be referred to with a TEST command. Then define the list of commands to be performed by the test script in the <strong>testList</strong> property. For example:</p>
 
@@ -184,6 +185,100 @@ Test 'queen' ['unlock golden door with diamond key', 'n', 'x queen', 'give yello
  
 #endif 
  </pre></div>
+
+<h2 id='newtest'>Enhanced Test Scripts (with Assertions)</h2>
+<h3>Specification</h3>
+<p>Thanks to work by Mitchell Mlinar, the Basic Test Script functionality described above has now been substantially enchanced, not least to incorporate assertion-based testing. This now supports the following features:</p>
+
+<ul>
+<li>Ability to define a set of commands to run in order.</li>
+<li>Ability to set up a test with the player in a specific location and specific objects in their possession.</li>
+<li>Ability to restore the game to the game state it was prior to the test running.</li>
+<li>Ability to effectively restart the game prior to the test running.</li>
+<li>Ability to actually test the outcome of commands such as location of the player, location of objects and even what messages were sent to the console; these will all start with the phrase assertXXX. An assertXXX will succeed or fail.</li>
+<li>When running a test, have it fail when an assertXXX fails.</li>
+<li>When running all tests, ability to STOP testing when a test fails.</li>
+<li>When running all tests (the norm), collect the results from the tests and give a brief summary report.</li>
+</ul>
+
+<h3 id='testdef'>Test definition</h3>
+<p.>Using one of two templates you will want to add somewhere (see templates.h), the primary definition for NewTest extends upon text: <code>NewTest 'testName' ['cmd1','cmd2',...] [list of objects to purloin] @location</code> where both the <code>[list of objects to purloin]</code> and <code>@location</code> (where the player character is moved first) are optional. Here is where the similarity ends. There are five flags for controlling how the test will run including two that were there before:</p>
+
+<ul>
+<li><b>reportHolding</b>: Report any items that were picked up. true by default.</li>
+<li><b>reportMove</b>: Report any change in location. true by default.</li>
+<li><b>restoreStartStateAfterTest</b>: Restores game to the state it was prior to running this test; nil by default.</li>
+<li><b>restartBeforeTest</b>: Restarts the game from scratch prior to running this test. nil by default.</li>
+<li><b>clearAssertBufferBeforeCmd</b>: Clear assertMsg buffer prior to each command (see below for more information); true by default.</li>
+<li><b>testOrder:</b> The TESTALL command (see below) will run all the tests defined in your game in ascending order of their <code>testOrder</code> property, which defaults to <code>sourceTextOrder</code> so that tests defined in the same source file should run in the order they're defined in that file. Game code can override this property if some other order is desired.</li>
+</ul>
+
+<h3 id='assert'>Assert-based test commands</h3>
+<p>All of these commands are intended to be inserted into your test command list and validate some condition. If the condition is true, the test continues. If the condition is false, a report is made to the console and that test fails and will not execute any more commands. (This is where the value of restoring game state or even restarting the game are important for testing.) Whether subsequent tests are executed or not depends upon the testall &lt;option&gt;. (NOTE: None of these commands advance the game time/counter but are instead considered system commands.)</p>
+
+<li><b>assertMsg <i>text</i></b>: Succeeds if <i>text</i> is shown in the most recent message(s) printed to the console. This is usually some phrase that identifies some unique message you expect to see. This is substring match meaning that if text phrase appears anywhere in prior messages, it will succeed the assertMsg. Note that the way this works is to keep a message buffer where this search is actually performed and is, by default, cleared after each non-assert command, so only the last actual command's message(s) will be checked. (You can change this setting but it is not recommended.) This is one of the most powerful commands for assertion-based testing as you can validate what the user is seeing on the screen. Example: <code>assertMsg jumped over the rock</code>.</li>
+
+<li><b>assertMsgClear</b>: This command clears the message buffer. Should only be needed if you set <code>clearAssertBufferBeforeCmd = nil</code>. It is a test no-op.</li>
+
+<li><b>assert <i>"expression"</i></b>: This is the second most powerful command in the assertion-based test command set. Leveraging eval, this tests a game-code expression and, if the expression is nil, the test fails. All other values are considered a success. Note that you will be using object and room references that are part of your game code, not the user-visible name. So, for example, <code>oroom: Room 'outdoor room'</code> is referred to as <code>oroom</code> NOT <code>outdoor room</code>. Example: <code>assert me.isIn(bedquilt)</code>. Finally, the quotes are usually optional but there is one situation where the expression will result in a game error without quotes and that is when you want to test the inverse as in assert !ring.isWornBy(me). Here, you instead must use quotes: <code>assert "!ring.isWornBy(me)"</code>;</li>
+
+<li><b>assertPlayerInRoom <i>room Name</i></b>: Succeeds if the player character is in the named room. Example: <code>assertPlayerInRoom long hallway</code>.</li>
+
+<li><b>assertPlayerHasItem <i>item Name</i></b>: Succeeds if the player character carries the specified item. Only one item is allowed per line. Example: <code>assertPlayerHasItem red ball</code>.</li>
+
+<li><b>assertPlayerLacksItem <i>item Name</i></b>: Succeeds if the player character is NOT carrying the specified item. Only one item is allowed per line. Example: <code>assertPlayerLacksItem blue ball</code>.</li>
+
+<li><b>assertPlayerRoomHasItem <i>item Name</i></b>: Succeeds if the room the player character is located contains the specified item. Only one item is allowed per line. Example: <code>assertPlayerRoomHasItem red ball</code>.</li>
+
+<li><b>assertPlayerRoomLacksItem <i>item Name</i></b>: Succeeds if room the player character is located does NOT contain the specified item. Only one item is allowed per line. <code>Example: assertPlayerRoomLacksItem blue ball</code>.</li>
+
+<p>To use any of these assertXXX commands you simply include them in your Test definition like any other commands it may include, e.g.:</p>
+
+<pre><code>
+Test 'test1' ['east', 'get red ball', 'assertPlayerHasItem red ball'] ;
+</code></pre>
+
+<h3 id='runtests'>How to run your test(s)</h3>
+<p>There are several commands for running your tests:</p>
+
+<li><b>test <i>testname</i></b>: Run the named test.</li>
+
+<li><b>list tests [fully|sorted]</b>: Lists the tests. By default (or if sorted), this will also include the flag settings of the test. Whereas normally the tests are listed in the order found during compilation, the sorted option sorts them by name.</li>
+
+<li><b>testall [nostop]</b>: Run all of the tests (in the order found during compilation). By default, this will stop running when any test fails (that is caused by any assertion failing). This allows you to quickly address the problem. If you use the nostop option, it will run all of the tests whether they fail or not. In the end, a summary of the results is printed to console as shown in the example below:</li>
+
+<pre>
+===========================
+===========================
+Total tests:     16
+Total asserts:  26
+Failed asserts: 0
+===========================
+</pre>
+
+<p>Finally, don't forget to enclose your Test definitions in a <code>#ifdef __DEBUG ... #endif</code> block, e.g.:</p>
+
+<pre><code>
+#ifdef __DEBUG
+Test 'test1' ['east', 'get red ball', 'assertPlayerHasItem red ball', 'jump'] 
+;
+
+
+Test 'test2' ['drop red ball', 'throw red ball at blue ball', 'get balls', 'i',
+    'assert "blueBall.isIn(me)"'] [bugle]
+    restoreStartStateAfterTest =  true   
+;
+
+Test 'test3' ['i', 's','t me', 
+    'assertMsg i am someone'] @startroom
+    restartBeforeTest = true   
+;
+
+Test 'test123' ['test test1', 'test test2', 'test test3'];
+
+#endif
+
+</code></pre>
 
 
  <br>
