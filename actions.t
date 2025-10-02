@@ -18,6 +18,7 @@ property enumerateSuggestions;
 property hyperlinkSuggestions;
 property thinkDesc;
 property follow;
+property optionsExplained;
 
 DefineSystemAction(Quit)
    

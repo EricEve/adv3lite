@@ -12,6 +12,9 @@
  *   The Command object is built in several steps, so its contents aren't
  *   complete until all of the steps are completed.  
  */
+
+property tryPreAction;
+
 class Command: object
     /* 
      *   Create the command object.  There are several ways to create a

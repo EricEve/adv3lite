@@ -1888,6 +1888,13 @@ class TravelConnector: object
     
 ;
 
+/* 
+ *   A TravelConnector leading to an exit not listed by the exit lister. This is principally for use
+ *   with the ulExit(dest) macro.
+ */
+class UnlistedTravelConnector: TravelConnector
+    isConnectorListed = nil
+;
 
 /* 
  *   An UnlistedProxyConnector is a special kind of TravelConnector created by
@@ -1895,7 +1902,7 @@ class TravelConnector: object
  *   never any need for this class to be used explicitly in game code, since
  *   game authors will always use the asExit macro instead.
  */
-class UnlistedProxyConnector: TravelConnector
+class UnlistedProxyConnector: TravelConnector    
     
     /* The direction property for which we're a proxy. */
     proxyForProp = direction.dirProp

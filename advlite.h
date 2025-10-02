@@ -513,6 +513,13 @@ enum rmcDisambig;
 
 #define asExit(dir) : UnlistedProxyConnector { direction = dir##Dir }
 #define asExitListed(dir) : UnlistedProxyConnector { direction = dir##Dir  isConnectorListed = true}
+#define ulExit(dest) : UnlistedTravelConnector { destination = dest }
+#define ulMsgExit(dest, msg) : UnlistedTravelConnector { \
+    destination = dest \
+    travelDesc = #msg   }
+#define tcMsg(dest, msg) : TravelConnector { \
+    destination = dest \
+    travelDesc = #msg   }    
 
 /* ------------------------------------------------------------------------ */
 /*

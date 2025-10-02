@@ -4725,6 +4725,17 @@ englishMessageParams: MessageParams
            return cmdInfo(ctx, params[2], &theObjName, vAmbig);
         }
         ],
+    
+    ['name', function(ctx, params) {
+        
+        if (params[2] == 'subj')
+           return cmdInfo(ctx, params[3], &name, vSubject);
+        else if (params[2].endsWith('\'s'))
+           return cmdInfo(ctx, params[2].left(-2), &possAdj, vObject);
+        else
+           return cmdInfo(ctx, params[2], &name, vAmbig);
+        }
+        ],
             
         /*
          *   {a subj obj} - aName, subjective case
