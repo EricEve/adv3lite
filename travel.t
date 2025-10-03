@@ -1391,23 +1391,50 @@ class TravelConnector: object
      */
     transmitsLight = true
     
-    /*  
+     /* 
+     *   Flag, do we want this connector as being effectively absent if it leads to a nil
+     *   destination? By default we do.
+     */
+    nilBlocksTravel = true
+    
+    /* 
+     *   If this connector apparerent from loc? (In other words if we're in loc, do we know of its
+     *   existence?)
+     */
+    connectorApparent(loc = gRoom)
+    {
+        /* 
+         *   This TravelConnector should be treated as apparent if its isConnectorApparent property
+         *   is true and it leads to a non-nil destination or we've set nilBlocksTravel to nil
+         *.
+         */
+        return isConnectorApparent && !(nilBlocksTravel && getDestination(loc) == nil);
+    }
+    
+     /*  
      *   A TravelConnector (or at least, the exit it represents) is visible if
      *   it's apparent (i.e. not concealed in some way) and if the lighting
      *   conditions are adequate, or if it's visible in the dark.
      */
     isConnectorVisible()
     {
-        local loc = gPlayerChar.getOutermostRoom();
+        local actor = gActor ?? gPlayerChar;
+        local loc = actor.getOutermostRoom();
         local dest = getDestination(loc);
-        return (isConnectorApparent && 
+        return (connectorApparent(loc) && 
                           (loc.isIlluminated
                               || (dest != nil && dest.isIlluminated
                                   && transmitsLight)
                            || visibleInDark));
     }
     
-    /* The room to which this TravelConnector leads when it is traversed */    
+       
+    /* 
+     *   The room to which this TravelConnector leads when it is traversed. This can also be defined
+     *   as a method or expression that evaluates to a room, but for complex cases (such as those
+     *   involving randomization) you should use the VarDest mix-in class and define its calcDest
+     *   method instead.
+     */    
     destination = nil
     
     /* 
@@ -1887,6 +1914,49 @@ class TravelConnector: object
     suppressTravelDescForPushTravel = true
     
 ;
+
+/* 
+ *   Mix-in class for use with a TravelConnector whose destination may vary. To use a VarDest list
+ *   it before the TravelConnector class in the class list of your object/class definition and use
+ *   its caldDest method to define the expression or method yielding the connector's destination.
+ *   This is only necessary if the value of this method might change in the course of one turn (when
+ *   it will be evaluated multiple times), as may, for example, occur if it contains an element of
+ *   randomness.
+ */
+class VarDest: object
+    /* Obtain our destination for the current turn. */
+    destination
+    {         
+        /* 
+         *   If we're no longer on the same turn as when we last calculated our destination,
+         *   recalculate it, cache the result, and update our own turn count.
+         */
+        if(lastTurn != gTurns)
+        {
+            /* Note which turn we're on. */
+            lastTurn = gTurns;
+            
+            /* Calculate our current destination and store the result. */
+            currentDest = calcDest();
+        }
+        /* Return our stored current destination. */
+        return currentDest;            
+    }      
+    
+    /* The last turn on which our destination was calculated. */
+    lastTurn = 0
+    
+    /* Our current destination. */
+    currentDest = nil
+    
+    /* 
+     *   The method or expression to calculate our corrent destination. User code must override as
+     *   required for particular cases.
+     */
+    calcDest() { }
+    
+;
+
 
 /* 
  *   A TravelConnector leading to an exit not listed by the exit lister. This is principally for use
@@ -2708,9 +2778,32 @@ nonTravel(loc, dir)
                 loc.notifyDeparture(gActor, dest);
             
             /*  
-             *   Then execute the method or display the double-quoted string.
+             *   Then execute the method or display the double-quoted string and note the return
+             *   value
              */
-            loc.(dir.dirProp);
+            conn = loc.(dir.dirProp);
+            
+            /*  
+             *   If the return value is a viable TravelConnector, execute travel via that connector.
+             */
+            if(conn && conn.ofKind(TravelConnector))
+            {
+                /* 
+                 *   If the connector is visible to the actor then attempt travel via the connector.
+                 */
+                if(conn.isConnectorVisible)                        
+                    TravelAction.doVisibleTravel(conn);            
+                
+                /* 
+                 *   Otherwise if there's light enough to travel and the actor is the player
+                 *   character, display the standard can't travel message (as if the connector
+                 *   wasn't there.
+                 */
+                else if(illum && gActor == gPlayerChar)
+                    loc.cannotGoThatWay(dir);                
+                
+            }
+            
             
             /* 
              *   If we've just executed a method, it may have moved the actor to a new location, so

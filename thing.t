@@ -10298,16 +10298,18 @@ class MultiLoc: object
     }
       
     /* 
-     *   Move this MultiLoc into an additional location.
+     *   Move this MultiLoc into an additional location or locations. The locs parameter may be
+     *   supplied as a single location or a list of locations.
      */      
-    moveIntoAdd(loc)
+   moveIntoAdd(locs)
     {
-        /* 
-         *   Let the new location handle it, so it will work whether the new
-         *   location is a Thing, a Room or a Region.
-         */
-        loc.moveMLIntoAdd(self);
-        
+        locs = valToList(locs);
+        foreach(local loc in locs)
+            /* 
+             *   Let the new location handle it, so it will work whether the new location is a
+             *   Thing, a Room or a Region.
+             */
+            loc.moveMLIntoAdd(self);
     }
     
     /* 

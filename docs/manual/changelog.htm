@@ -115,7 +115,53 @@ insideBuilding: IndoorRoom 'Inside the Building'
  <pre><code>
     out tcMsg(atEndOfRoad, {I} step{s/ed} outside. )
  </code></pre>
- 
+ <hr>
+ <p>Previously, if a Room's direction property was defined as a method (or expression), the library ignored the return value from that method or expression. Now, however, if such a method or expression evaluates to a viable TravelConnector the game will attempt travel via that connector, allowing us to write, for example:</p>
+ <pre><code>
+ hall: Room 'Hall'
+    north = magicRing.isIn(gActor) ? magicRoom : kitchen
+    ...
+ ;
+ </code></pre>
+ <p>This technique should be used with some caution, however. It should work in simple cases but should be regarded as somewhat experimental. If in doubt (for example, because it fails to work as expected), a safer approach may be to define a TravelConnector with a variable destination.</p> 
+<hr>
+<p>There is now a <b>VarDest</b> mix-in class to aid with the definition of TravelConnectors that have variable destinations. To use it, place VarDest first in the class list and use the <code>calcDest</code> method to define the TravelConnector's destination, for example:</p>
+ <pre><code>
+ hall: Room 'Hall'
+    north: VarDest, TravelConnector
+    { 
+       calcDest = magicRing.isIn(gActor) ? magicRoom : kitchen
+    }
+    ...
+ ;
+ </code></pre>
+<p>This ensures that the destination is re-evaluated only once per turn, which is essential if re-evaluating it might result in different results (for example, because it includes an element of randomization), and might be beneficial if recalculting the destination would be complex or time-consuming. In the example above neither is the case, so that we could just define the destination property directly and dispense with <code>VarDest</code> and <code>calcDest</code>. It would, however, be necessary to retain them if we instead defined something like:</p>
+
+<pre><code>
+ hall: Room 'Hall'
+    north: VarDest, TravelConnector
+    { 
+       calcDest = rand(100) &lt; 30 ? magicRoom : kitchen
+    }
+    ...
+ ;
+ </code></pre>
+
+<hr>
+<p>Previously, if travel was carried out via a TravelConnector whose destination evaluated to <code>nil</code>, the actor (often the playerCharacter) would be moved into nil, which almost certainly isn't what's wanted. Now a TravelConnector with a nil destination will be treated as if it wasn't there (so it won't be mentioned in an exitLister and travel won't be attempted, just as if the corresponding direction property had been defined as <code>nil</code>). This allows us to write code like:</p>
+<pre><code>
+hall: Room 'Hall'
+    north: TravelConnector
+    { 
+       destination = magicRing.isIn(gActor) ? magicRoom : nil
+    }
+    ...
+ ;
+ </code></pre>
+ <p>And have the connection appear to be present only if the player character is carrying the magic ring.</p>
+ <p>This is almost certainly the better behaviour, but if you want to restore the previous behaviour you can do so by defining <code>nilBlocksTravel = nil</code> either on the TravelConnector class or on one or more individual TravelConnectors.</p>
+<hr>
+<p>In the MultiLoc <b>moveIntoAdd(loc)</b> method, the <i>loc</i> parameter may now be supplied as a list of objects (Things, Rooms or Regions) as well as a single object.</p>
 <hr>
 <p>Fixed a minor bug that could prevent adv3Liter games from compiling (or compiling without warnings).</p>
 <hr>
