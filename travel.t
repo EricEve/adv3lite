@@ -2804,6 +2804,13 @@ nonTravel(loc, dir)
                 
             }
             
+            /* 
+             *   If the method has returned a single-quoted string and the actor is the player
+             *   character, display the string.
+             */
+            if(dataType(conn) == TypeSString && gActor == gPlayerChar)
+                say(conn);
+            
             
             /* 
              *   If we've just executed a method, it may have moved the actor to a new location, so
