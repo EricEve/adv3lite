@@ -1484,6 +1484,29 @@ class TravelAction: Action
         
         return inherited(); 
     }
+    
+    /* 
+     *   A chance to do something else with the return value of a method, triggered by travel,
+     *   defined on a direction property of a Room. loc is the room in question (where the travel
+     *   started from), dir is the directiion of travel, dest is the destination of the travel, val
+     *   is the return value from the method, and actor is the actor involved in the travel. By
+     *   default we do nothing here but game code can override.
+     */
+    noteRetval(loc, dir, dest, val, actor)
+    {
+    }
+    
+    /* 
+     *   Flag, do we want to display any single-quoted string returned by the travel method defined
+     *   on the direction property corresponding to the dir direction on the room loc. dest is the
+     *   direction of travel, val is the return value, and actor is the actor involved in the
+     *   travel. By default we do.     
+     */
+    displayStrRet(loc, dir, dest, val, actor)
+    {
+        return actor == gPlayerChar;
+    }
+
 ;
 
 

@@ -2808,7 +2808,8 @@ nonTravel(loc, dir)
              *   If the method has returned a single-quoted string and the actor is the player
              *   character, display the string.
              */
-            if(dataType(conn) == TypeSString && gActor == gPlayerChar)
+            if(dataType(conn) == TypeSString 
+               && TravelAction.displayStrRet(loc, dir, dest, conn, gActor))
                 say(conn);
             
             
@@ -2820,6 +2821,11 @@ nonTravel(loc, dir)
             if(gActor == gPlayerChar)
                 libGlobal.addExtraDestInfo(loc, dir,
                                            gActor.getOutermostRoom);
+            
+            /*  Hook to allow further processing of the return avalue in user code. */
+            TravelAction.noteRetval(loc, dir, dest, conn, gActor);
+            
+            
         }
         else if(gActor == gPlayerChar)
             loc.cannotGoThatWayInDark(dir);
