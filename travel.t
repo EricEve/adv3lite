@@ -2786,7 +2786,7 @@ nonTravel(loc, dir)
             /*  
              *   If the return value is a viable TravelConnector, execute travel via that connector.
              */
-            if(conn && conn.ofKind(TravelConnector))
+            if(objOfKind(conn, TravelConnector))
             {
                 /* 
                  *   If the connector is visible to the actor then attempt travel via the connector.
