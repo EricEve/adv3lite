@@ -516,10 +516,10 @@ enum rmcDisambig;
 #define ulExit(dest) : UnlistedTravelConnector { destination = dest }
 #define ulMsgExit(dest, msg) : UnlistedTravelConnector { \
     destination = dest \
-    travelDesc = #msg   }
+    travelDesc = msg   }
 #define tcMsg(dest, msg) : TravelConnector { \
     destination = dest \
-    travelDesc = #msg   }    
+    travelDesc = msg   }    
 
 /* ------------------------------------------------------------------------ */
 /*

@@ -2333,6 +2333,12 @@ modify Thing
      *   floor" instead of the defauult "!You see X, Y, and Z here."
      */
     miscListSuffix = nil
+          
+    /* 
+     *   Flag - do we want Remove on this object to be an action separate from both TAKE and DOFF?
+     *   See removeDoer below.
+     */
+    separateRemove = nil
 ;
 
 
@@ -6249,7 +6255,13 @@ removeDoer: Doer 'remove Thing'
 
     execAction(c)
     {
-        if(c.dobj.wornBy == c.actor)
+        /* 
+         *   If we want REMOVE to be handed as s separate action on the dobj, set the dobj's
+         *   separateRemove property to true.
+         */
+        if(c.dobj.separateRemove)
+            inherited(c);        
+        else if(c.dobj.wornBy == c.actor)
             redirect(c, Doff, dobj: c.dobj);
         else
             redirect(c, Take, dobj: c.dobj);

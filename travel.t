@@ -1732,7 +1732,7 @@ class TravelConnector: object
              *   If travel is not permitted display a message explaining why and
              *   then return nil to cancel the travel.
              */
-            explainTravelBarrier(traveler);
+            explainTravelBarrier(traveler, connector);
             return nil;
         }
         

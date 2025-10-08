@@ -7044,12 +7044,12 @@ class Thing:  ReplaceRedirector, Mentionable
     actorNotOnMsg = BMsg(actor not on,'{I}{\'m} not on {the dobj}. ')
     
     /* 
-     *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE
-     *   otherwise. This handling will be dealt with by removeDoer insteadof
-     *   remap, since this form of remap has now been discontinued. See
-     *   english.t for removeDoer (which seems to be a language-specific
-     *   construct)
-     */
+     *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE otherwise. This handling
+     *   will be dealt with by removeDoer insteadof remap, since this form of remap has now been
+     *   discontinued. See english.t for removeDoer (which seems to be a language-specific
+     *   construct). If we want REMOVE to be treated as a separate action, set separateRemove to to
+     *   true.
+     */    
     dobjFor(Remove)
     {
         /* 
@@ -7072,6 +7072,7 @@ class Thing:  ReplaceRedirector, Mentionable
     
         
     }
+  
     
     /* By default an object is removeable if it's takeable */
          
