@@ -294,6 +294,13 @@ class ItemLister: Lister
     contentsListedProp = &contentsListed
     
     /* 
+     *   The property on a Thing-derived container to test whether its contents
+     *   should be (parentelically) sublisted when listing with this lister
+     */
+    subContentsListedProp = &contentsSublisted 
+    
+    
+    /* 
      *   Flag, so we want to list contents of contents when using this lister;
      *   by default we do.
      */

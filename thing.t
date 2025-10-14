@@ -2032,6 +2032,12 @@ class Thing:  ReplaceRedirector, Mentionable
     contentsListedInLook = (contentsListed)
     
     /*  
+     *   Flag: should this item's contents be parenthetically sublisted when the item is itself
+     *   listed (e.g. in an inventory list.
+     */    
+    contentsSublisted = contentsListed
+    
+    /*  
      *   Fllag: should the Player Character be listed as being in this object as part of a room
      *   description (this is often useful but may sometimes look redundant)? By default we take out
      *   value from contentsListedInLook.

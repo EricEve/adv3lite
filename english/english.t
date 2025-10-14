@@ -3173,10 +3173,11 @@ modify ItemLister
         }
         
         /* 
-         *   If the object being listed has visible contents, list its visible contents recursively.
-         *   Then do the same for any remapIn or remapOn subcomponents.
+         *   If the object being listed has visible contents and wants its contents to be sublisted,
+         *   list its visible contents recursively. Then do the same for any remapIn or remapOn
+         *   subcomponents.
          */ 
-        if(showSubListing)
+        if(showSubListing && o.(subContentsListedProp))
         {
             local lists = [o];
             

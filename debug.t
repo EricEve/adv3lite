@@ -538,7 +538,7 @@ DefineSystemAction(AssertPlayerHasItem)
         if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
             allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!<.p>');
         }
-		else if (gActor.isPlayerChar && !gDobj.isIn(me)) {
+		else if (gActor.isPlayerChar && !gDobj.isIn(gActor)) {
             allNewTests.fail('Expected player to have item \"<<gDobj>>\" but does not!');
 		}
         else
@@ -569,7 +569,7 @@ DefineSystemAction(AssertPlayerLacksItem)
         if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
             allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!');
         }
-		else if (gActor.isPlayerChar && gDobj.isIn(me)) {
+		else if (gActor.isPlayerChar && gDobj.isIn(gActor)) {
             allNewTests.fail('Expected player to NOT have item \"<<gDobj>>\" but
                 does!');
 		}
