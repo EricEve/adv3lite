@@ -626,6 +626,44 @@ enum rmcDisambig;
     reportDobjProp = &reportDobj##name \
     reportIobjProp = &reportIobj##name \
 
+/* Shortcut macros for defining VerbRules and Actions together in a single statement. */
+#define DefineTVerb(name, gram, inf, partc) \
+    VerbRule(name)\
+    gram\
+    : VerbProduction\
+    action = name\
+    verbPhrase = inf + '/' + partc + 'what '\
+    missingQ = 'what do you want to ' + inf\
+    ;\
+    DefineTAction(name)
+
+#define DefineIVerb(name, gram, inf, partc)\
+    VerbRule(name)\
+    gram\
+    :VerbProduction \
+    action = name\
+    verbPhrase = inf + '/' + partc\
+    ;\
+    DefineIAction(name)
+
+#define DefineTIVerb(name, gram, inf, partc, prep) \
+    VerbRule(name)\
+    gram\
+    : VerbProduction\
+    action = name\
+    verbPhrase = inf + '/' + partc + 'what ' + '('+ prep + ' what)'\
+    missingQ = 'what do you want to ' + inf + '; what do you want to '+ inf + ' it ' + prep\
+    ;\
+    DefineTIAction(name)
+
+/* Macros to abbreviate the definitions of multiple SpecialTRavelActions. */
+    
+#define DefSTA(action, prop) action : SpecialTravelAction travelProp = prop
+#define DefSTAVR(name, voc) VerbRule(name) voc :VerbProduction action = name 
+#define DefSpecialTravel(action, prop, voc) \
+    DefSTAVR(action, voc);\
+    DefSTA(action, prop)
+
 /*
  *   Modify a concrete TIAction to work with multimethods. This creates the base version of the
  *   three multimethods needed then sets the relevant methods of the TIAction to call the relevant
@@ -916,6 +954,7 @@ AgendaItem template @location;
 ProxyActor template @location;
 
 Doer template 'cmd';
+RemapCmd template 'cmd' @where? 'remappedCmd'?;
 
 /* Templates for use with test sequences */
 Test template 'testName' [testList] @location? [testHolding]?;

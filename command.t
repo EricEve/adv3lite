@@ -98,7 +98,7 @@ class Command: object
                     /* it's an object vector - save a list copy */
                     self.(roles[r].objListProp) = np.toList();
                 }
-                else if (np.ofKind(Mentionable))
+                else if (np.ofKind(Mentionable) || (np.ofKind(Direction) && action == Go)) //ECSE MOD
                 {
                     /* single object - make it into a single-element list */
                     self.(roles[r].objListProp) = [np];

@@ -31,6 +31,7 @@ source: menusys
 source: menuweb
 source: hintsys
 source: pathfind
+source: remapcmd
 source: scene
 source: score
 source: senseRegion

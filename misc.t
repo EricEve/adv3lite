@@ -2976,8 +2976,252 @@ oopsTip:Tip
     desc() { DMsg(oops tip, '''If this was an accidental misspelling, you can correct
         it by typing OOPS followed by the corrected word now. Any time the story points out an
         unknown word, you can correct a misspelling using OOPS as your next command.''');
-    }
-    
-        
+    }      
     
 ;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   LocType objects are used for Thing.locType property values to specify
+ *   the relationship between an object and its container.
+ *   
+ *   The language module must set appropriate vocabulary properties for
+ *   each LocType object during pre-initialization.  The exact vocabulary
+ *   needed is up to the language to define.  For the English module, we
+ *   set the 'prep' property to a suitable preposition for constructing
+ *   locational phrases ("the book *on* the table", etc).  
+ */
+class LocType: object
+    
+    listOrder = 100
+;
+
+/*
+ *   An IntLocType is an interior location type.  These represent objects
+ *   on the inside of an enclosed space. 
+ */
+IntLocType: LocType
+    
+;
+
+/*
+ *   An ExtLocType is an exterior location type.  These represent objects
+ *   on the outside of an object, such as atop it or attached to it. 
+ */
+ExtLocType: LocType
+;
+
+/* 
+ *   "In" location type - specifies that an object is contained within its
+ *   location; its location encloses it.
+ */
+In: IntLocType
+    listOrder = 10
+;
+
+/*
+ *   "Outside" location type - specifies that an object is situated
+ *   somewhere on the exterior of the object.  This can be used for
+ *   components, attachments, things stuck to an object, things nailed to
+ *   it, messages painted on it, etc.  
+ */
+Outside: ExtLocType
+;
+
+/*
+ *   "On" location type - specifies that an object is sitting on the top
+ *   surface of its container.  
+ */
+On: ExtLocType
+    listOrder = 20
+;
+
+/*
+ *   "Under" location type - specifies that an object is situated
+ *   underneath its container. 
+ */
+Under: ExtLocType
+    listOrder = 30
+;
+
+/*
+ *   "Behind" location type - specifies that an object is situated behind
+ *   its container. 
+ */
+Behind: ExtLocType
+    listOrder = 40
+;
+
+/*
+ *   "Held" location type - specifies that an object is being held by its
+ *   container, in the sense of a person holding an object in her hands.
+ *   An object being held is exterior to the holder, not enclosed.  
+ */
+Held: ExtLocType
+;
+
+/*
+ *   "Worn" location type - specifies that an object is being worn by its
+ *   container, in the sense of a person wearing a coat. 
+ */
+Worn: ExtLocType
+;
+
+/*  
+ *   "Attached" location type - specifies that an object is attached to its
+ *   container.
+ */
+Attached: ExtLocType
+;
+    
+/* 
+ *   "PartOf" location type - specifies that an object is part of -- a component
+ *   of -- its container.
+ */
+PartOf: ExtLocType
+;
+
+/*  
+ *   "Carrier" location type - specifies that the object is being carried by its
+ *   container (which will then normally be the actor holding this object). Any
+ *   actor-type object should define Carrier as its contType.
+ */
+Carrier: ExtLocType
+;
+
+/* 
+ *   A ViaType is an object used to define the preposition to use to describe
+ *   various kinds of PushTravel. The language-specific part of the libary needs
+ *   to override the various ViaType objects to give the names of the
+ *   prepositions in the target language.
+ */
+class ViaType: object
+    prep = ''
+;
+
+Into: ViaType;
+OutOf: ViaType;
+Down: ViaType;
+Up: ViaType;
+Through: ViaType;
+
+/* 
+ *   The displayProbe object is used to store the result of capturing text in
+ *   Thing.checkDisplay() before undoing the trial display of the string. By
+ *   making displayProbe transient we preserve the value of its displayed
+ *   property across the undo.
+ */
+transient displayProbe: object
+    displayed = nil
+;
+
+
+/*  
+ *   The failVerifyObj is intended for internal library use only as a fallback value for gVerifyIobj
+ *   or gVerifyDobj when these might otherwise evailuate to nil and potentially cause nil object
+ *   reference runtime errors. Since this is never intended to be a valid verify result,
+ *   failVerifyObj is designed to fail the verify stage of any action.
+ */
+
+failVerifyObj: Thing
+    dobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}
+    iobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}    
+    aobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}   
+    
+    inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
+        of a command. ')
+;
+
+/* We define Mood and Stance in thing.t so english.t can define the built-in moods and stances */
+
+/* A Mood object can be used to represent the mood of an actor (happy, sad, bored, etc.) */
+class Mood: object
+    /* 
+     *   A single-quoted string giving the name of this Mood, which will normally correspond to the
+     *   name of the Mood object; e.g. happyMood.name = 'happy'
+     */
+    name = nil
+    
+    objToString() { return name; }
+;
+
+
+/* 
+ *   A Stance object can be used to represent the stance of an actor towards the player character
+ *   (neutral, friendly, hostile, etc.).
+ */
+class Stance: object
+    /* 
+     *   A single-quoted string giving the name of this Stance which will normally correspond to the
+     *   name of the Mood object; e.g. friendlyStance.name = 'friendly'
+     */
+    name = nil
+    
+    /* 
+     *   The score is a measure of how positive or negative an actor with this stance is towards the
+     *   player character. Each Stance object defines its own score.
+     */
+    score = 0
+    
+    operator >> (x) { return self.score > x.score;  }
+    operator << (x) { return self.score < x.score; }
+    operator >>> (x) { return self.score >= x.score;  }
+    operator []= (x, y) { x.setStanceToward(y, self); }
+    operator - (x) {return self.score - x.score; }
+    
+    /* Get a list of actors who have this stance towards x */
+    operator * (x)
+    {
+        local vec = new Vector;
+        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
+        {
+            if(a.stanceToward(x) == self)
+                vec.append(a);
+        }
+        
+        return vec.toList();
+    }
+    
+    /* Get a list of actors x holds this stance towards */
+    operator [](x)
+    {
+        local vec = new Vector;
+        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
+        {
+            if(x.stanceToward(a) == self)
+                vec.append(a);
+        }
+        
+        return vec.toList();
+    }
+    
+    objToString() { return name; }
+;
+
+/* 
+ *   Default multimethods for action handling. We make them match Mentionable dobj and iobj so that
+ *   if game code wants to define a Multimethod matching Thing and Thing it will take precedence.
+ *   The library action multikmethods all do nothing at all but need to exist so the action handling
+ *   for ITActions libary actions can call them.
+ *
+ *   User-defined action multimethods should return nil if they want to add their behaviour to the
+ *   library's behavious or true if they want to replace the library methods.
+ */     
+//verifyPutIn(Mentionable dobj, Mentionable iobj) { }
+//checkPutIn(Object dobj, Object iobj) { }
+//actionPutIn(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutOn(Mentionable dobj, Mentionable iobj) { }
+//checkPutOn(Mentionable dobj, Mentionable iobj) { }
+//actionPutOn(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
+//checkPutBehind(Mentionable dobj, Mentionable iobj) { }
+//actionPutBehind(Mentionable dobj, Mentionable iobj) { }
+//
+//verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
+//checkPutUnder(Mentionable dobj, Mentionable iobj) { }
+//actionPutUnder(Mentionable dobj, Mentionable iobj) { }
+
+

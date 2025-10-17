@@ -28,6 +28,7 @@ source: exits
 source: gadget
 source: menusys
 source: hintsys
+source: remapcmd
 source: score
 source: scenery
 source: pathfind

@@ -1,0 +1,144 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>Optional Modules &mdash; RemapCmd</title>
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+RemapCmd
+<br><span class="navnp"><a class="nav" href="pathfind.htm"><i>Prev:</i> Pathfinding</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scene.htm"><i>Next:</i> Scenes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+<h1>RemapCmd</h1>
+<h2>Introduction</h2>
+<p>The RemapCmd module offers a way to reinterpret players' input that lies midway between a <a href='doer.htm'>Doer</a> and a 
+<a href='output.htm#preparser'>StringPreParser</a>. This module has been provided by Mitchell Mlinar; this documention page is closely based on his.</p>
+
+<p>The RemapCmd class provides the following functionality:</p>
+<ul>
+<li>Source phrase used for matching can be arbitrary text in that the words used do not need to be any known object (noun, verb, preposition, etc.)</li>
+<li>Source phrase can have variations using or ("|"), grouping with "(...)" and multiple phrases with ";"</li>
+<li>When the source phrase matches, we have several options for how this gets processed
+<ul>
+<li>Provide a complete phrase to replace it (this one, though, MUST use words understood by the game)</li>
+<li>OR emit some set of messages to the console</li>
+<li>OR redirect to some command</li>
+</ul></li>
+<li>In addition, the specified remap command could optionally be
+<ul>
+<li>location-sensitive</li>
+<li>have a when condition</li>
+<li>have a during condition (for Scenes)</li>
+</ul></li>
+</ul>
+
+<h2>Usage</h2>
+<p>The adv3Lite library header file (advlite.h) provides the following template for use with the RemapCmd class:<p>
+<p><code>RemapCmd template 'cmd' @where? 'remappedCmd'?;</code></p>
+<p>RemapCmd has one source text 'cmd' that contains one or more phrases (separated by ';') that supports grouping via '(...)' and or via '|'. Here is an example (and, yes, most of this would work natively but this is just an example).
+
+<p>Suppose we have a verb HoldUp (hold up) that takes one object. However, <i>light</i> and <i>ceiling</i> are not nouns and we don't want to define them but want to handle the paper. When you write your source text, it is very similar to a VerbRule:</p>
+
+<p><code>RemapCmd 'hold paper up to light;hold paper against (|ceiling) light' @brightRoom 'hold up paper';</code></p>
+<p>Here, the first item ('hold up...light') defines the <b>cmd</b> property, the second (@brightRoom) the <b>where</b> property (where the actor must be for this RemapCmd to be matched) and the third ('hold up paper') the <b>remappedCmd</b> property (the string the parser will interpret to execute the command).</p>
+
+<p>With this definition of the <code>cmd</code> property the RemapCmd will consider any of the following player inputs a match:</p>
+<ul>
+<li>hold paper up to light</li>
+<li>hold paper against light</li>
+<li>hold paper against ceiling light</li>
+</ul>
+
+<p>If the player input matches one of these strings, the RemapCmd will replace that string with the command <code>hold up paper</code> &mdash; as if that is what the player typed in. However, it will ONLY do this if the player character's current location is <code>brightRoom.</code> (The <code>where</code> property can be defined as a Room, Region, or a list of Rooms and/or Regions.)</p>
+
+<p>Another use case is to just emit some message(s) to the console. This is a great way to respond to some text without having to define all (or any) of the objects that entails writing some additional code to define words only used once. You do this by <b>NOT</b> specifying the remapped text and defining an execute() function on your RemapCmd object:</p>
+
+<pre><code>
+RemapCmd 'spit (|(on the ground))'
+  execute()
+  {
+    "How often have you told yourself to quit doing that... ";
+  }
+;
+</code></pre>
+
+<p>So now when you run this, here is what you see:</p>
+<pre><div class = 'cmdline'>
+&gt;<b>spit on the ground</b>
+How often have you told yourself to quit doing that...
+
+&gt;
+</div></pre>
+
+<p>Your may also use <code>doInstead(...)</code> within the <code>execute</code> method of a RemapCmd. It works much like using <code>doInstead()</code> in a Doer, for example:</code>
+
+<pre><code>
+RemapCmd 'sing loudly'
+  execute()
+  {
+    doInstead(Yell);
+  }
+;
+</code></pre>
+<p>As in a Doer, do in a RemapCmd <code>doInstead</code> can take between one and four arguments: <code>doInstead(action, dobj?, iobj?, aobj?)</code>. Also as in a Doer, you can use the macro <code>goInstead()</code> to bring about travel, e.g., <code>goInstead(east)</code>. There are, however, a couple of things to note here. First, <code>doInstead(...)</code> (or <code>goInstead()</code)) should be the LAST statement in your <code>execute()</code> method. Second, the turn counter will be affected by what the redirected <code>doInstead(...)</code> command does and the turnsTaken property defined on your RemapCmd onject will be ignored.</p>
+
+<p>We don't have to use <code>doInstead()</code> at all; within reason, we can use the <code>execute</code> method of our RemapCmd to anything we like. To adapt an example from the original Colossal Cave Adventure, we could, for example, do something like this:</p>
+
+<pre><code>
+RemapCmd 'fee fie foe foo' @giantRoom
+  execute()
+  {
+    eggs.moveInto(giantRoom);
+    "The eggs you gave to the troll have mysteriously re-appeared on the floor in front of you. ";
+  }
+  when = eggs.isIn(troll)
+;
+</code></pre>
+
+<p id='rcprops'>RemapCmd defines the following properties/methods (of which the first three may be set via the template):
+
+<ul>
+<li><b>cmd</b>: The source text that defines the phrase(s) that should be remapped (as described above).</li>
+<li><b>remappedCmd</b>: If present, the replacement command text; this must be a command your game processes.</li>
+<li><b>where</b>: Set to nil by default, which means this remap command works everywhere. You can set this to a Room, Region, or list of Rooms/Regions where this remap command is active; it will then be inactive (and, thus, unavailable) outside of those Rooms/Regions.</li>
+<li><b>when</b>: Set to true by default, but you can define specific condition(s) needed to be true for the remap command to be active.</li>
+<li><b>during</b>: Set to nil by default, so active during all Scenes. You can set this to a Scene (or list of Scenes) where this remap command is active; it will then be inactive (and, thus, unavailable) outside of those Scene(s).</li>
+<li><b>turnsTaken</b>: Normally, you would want any non-system command to take a turn, so this is set to 1 by default. However, if it is a system command or there is another reason to not count a turn, set this to 0. Note that if doInstead(...) is used, this property is ignored.
+<li><b>execute()</b>: This is only called if remappedCmd = nil and contains normal TADS3/Adv3Lite code.</li>
+</ul>
+
+<p><b>NOTE</b>: RemapCmd has a restriction on the source text phrase in that, outside of the special characters described above, it does not allow any other special or punctuation characters other than comma ',' or apostrophe (').</p>
+
+<h2 id='operation'>Operation</h2>
+<p>RemapCmd parses up the cmd and does not make any attempt to map the words to existing objects in the game. Rather, it builds all the possible variations (by the use of "|", "(" and ")" operators) and then matches that against the user input FIRST before any other routines get a whack at it. You can also provide two or more disjoint phrases that are separated by semi-colon ";" to provide additional phrases that match.</p>
+
+<p>Phrases can contain words enclosed in single quotes ('..') but you will need to use backslash as in \' within the text itself. This capability can be used to have a compound word with a space in it treated as one effective word.</p>
+
+<p>RemapCmd takes advantage of string hashing to ensure high performance within your game.</p>
+
+<p>RemapCmd modifies Parser.parse(str).</p>
+
+<p>Finally, please note that RemapCmd takes effect <i>before</i> the parser has resolved the action and any objects involved in the command. That means that we cannot refer to <code>gAction</code>, <code>gDobj</code> or <code>gIobj</code> in any part of our RemapCmd definition, since these will be yet to be determined. In some cases this may make it difficult to define a <code>cmd</code> property that refers to the object we intend. For example if we have a crystal ball in one location and a football in other in our game and the player can refer to either object as simply 'ball' (which may seem quite unambigous to the player) a RemapCmd like the following may not always work as intended, especially :</p>
+<p><code>RemapCmd 'play with (football| (foot|) ball))' 'throw football';</code>
+<p>One can mitigate the risk here by adding a <code>when</code> condition, such as <code>when = gPlayerChar.canReach(football)</code>, but in cases of potential ambiguity like this it may well be safer to use a <a href='doer.htm'>Doer</a> or <a href='specialaction.htm'>SpecialVerb</a>.
+ 
+
+
+
+
+<hr class="navb"><div class="navb">
+<i>adv3Lite Library Manual</i><br>
+<a class="nav" href="toc.htm">Table of Contents</a> | 
+<a class="nav" href="optional.htm">Optional Modules</a> &gt; 
+RemapCmd
+<br><span class="navnp"><a class="nav" href="pathfind.htm"><i>Prev:</i> Pathfinding</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="scene.htm"><i>Next:</i> Scenes</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

@@ -32,6 +32,7 @@ source: menusys
 source: menucon
 source: hintsys
 source: pathfind
+source: remapcmd
 source: scene
 source: scenery
 source: score
