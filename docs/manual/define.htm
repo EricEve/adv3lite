@@ -112,6 +112,7 @@ VerbRule(Grab)
 <li><strong>dobjReply, iobjReply, accReply</strong> - the noun phrase production to use for parsing a reply to the missing-object question for the corresponding role.  Players sometimes reply to a question like "What do you want to put it in?" by starting the answer with the same preposition in the question: "in the box".  To support this, you can specify a noun phrase production that starts with the appropriate preposition (inSingleNoun, onSingleNoun, etc). We'll go into this a bit more below.</li> 
 
 <li><strong>priority</strong> - The predicate priority is a small number, 0-99.  The default is 50, which should apply to most normal, complete verb phrases.  For incomplete phrases (with a missing object, which will force the   parser to assume a default or ask the player for the missing information), use 25.  Other values are for fine-tuning as needed in the individual grammar rules.  A higher value means higher priority. One example where this is used in the adv3Lite Library is in the grammar for the Hello, Yes and Say commands. The Say command allows the player to say anything (this is used in the conversation system), such as SAY YOU DON'T BELIEVE HIM. One of the possible grammars for the Hello command is SAY HELLO, and one of the possible grammars for the Yes command is SAY YES. The trouble then is that SAY HELLO and SAY YES both match the grammar for the SAY command as well as a Hello or Yes command. To make sure the parser matches the corrent command in these cases the adv3Lite library gives VerbRule(Yes) and VerbRule(Hello) a priority of 60 to ensure that they're both matched in preference to VerbRule(Say).</li>
+<li><strong>isActive</strong>: Do we want to consider this production to be active; we may want some VerbRules to be active only under certain circumstances.</li>
 </ul>
 
 <p>Note that for the most part when defining your own actions you'll mostly only have to worry about the first two or three of these properties (and occasionally the last), but there may occasionally be times when you need to know about the others, so they're included here for completeness. Note also that although it's possible to define a VerbRule for an action that takes three objects (direct object, indirect object and accessory), the adv3Lite library has no direct support for such actions unless you include the <a href="../../extensions/docs/tiaaction.htm">TIAAction</a> extension.</p>
@@ -553,6 +554,54 @@ VerbRule(SetFireToWhat)
 </pre></div>
 
 <p>In addition to the TIActions of the kind we've discussed here, which involve a direct object and an indirect object which are both physical objects within the simulation, there are other commands that may look like TIActions at first sight but are in fact something rather different, such as WRITE HELLO WORLD IN NOTEBOOK or ASK MAUDE ABOUT THE MASKED BALL. In the first of these example HELLO WORLD is not a game object but a literal, and in the second THE MASKED BALL is not a physical object but a topic. The next two chapters will discuss how to deal with such commands, but first we'll take a quick look at actions that take more than two objects.</p>
+
+<br>
+<h2 id='short'>Short Form Action Definitions</h2>
+<p>Defining a new action can involve quite a lot of busywork, since you need to define both the action and the associated VerbRule, and defining the VerbRule involves quite a bit of filling in a series of properties in what is usually a formulaic manner. The process is often sufficiently formulaic that it can be abbreviated by the use of three short form macros that do most of the busywork for us.:</p>
+<ul>
+<li><b>DefineIVerb(name, gram, inf, partc)</b>: Defines a new IAction and its associated VerbRule.</li>
+<li><b>DefineTVerb(name, gram, inf, partc)</b>: Defines a new TAction and its associated VerbRule.</li>
+<li><b>DefineTIVerb(name, gram, inf, partc, prep)</b>: Defines a new IAction and its associated VerbRule.</li>
+</ul>
+<p>These four or five parameters are:</p>
+<ul>
+<li><i>name</i>: the name both of the Action and the VerbRule tag; e.g., <code>Rub</code></li>
+<li><i>gram</i>: the grammar for the VerbRule that matches this action: e.g., <code> 'rub' singleDobj</code></li>
+<li><i>inf</i>: the infinitive form (minus the 'to') of the verb to use in the verbPhrase, e.g. <code>'rub'</code></li>
+<li><i>partc</i>: the participle form of the verb to use in the verbPhrase, e.g. <code>'rubbing'</code></li>
+<li><i>prep</i>: the preposition to use in the verbPhrase of a TIAction, e.g. <code>with</code>, <code>on</code> or <code>through</code>; note that we <i>don't</i> enclose the preposition in quote marks.</li>
+</ul>
+
+<p>So, for example:</p>
+<p><code>DefineTIVerb(RubWith, 'rub' multiDobj 'with' singleIobj, 'rub', 'rubbing', with);</code>
+<p>Would expand to:
+<pre><code>
+VerbRule(RubWith)
+   'rub' multiDobj 'with' singleIobj
+   : VerbProduction
+   action = RubWith
+   verbPhrase = 'rub/rubbing (what) (with what)'
+   missingQ = 'what do you want to rub; what do you want to rub it with'
+   iobjReply = withSingleNoun
+;
+
+DefineTIAction(RubWith)
+;
+</code></pre>
+
+<p>Note that the definition of the Action follows that of the VerbRule and that we need to terminate our DefineXVerb statement with a semicolon. This allows us to define additional methods or properties on the action before adding the terminating semicolon. This is particularly important when using <code>DefineIAction</code>, for example:</p>
+
+<pre><code>
+DefineIVerb(Foo, 'foo', 'foo', 'fooing')
+   execAction(c)
+   {
+      "{I} foo{s/ed} with exquisite expertise. ";
+   }
+;  
+</code></pre>
+<p>There are some limitations here. The name of the action has to match that of the VerbRule tag (although that is often if not usually the case, and we since we are free to choose whatever names we like it should always be possible to meet this condition). Also, the DefineXAction macros can't be used to define more complex VerbRules that depart from the standard pattern assumed here, e.g., by including a dobjReply property. But in many or most cases this shouldn't normally matter much in practice, and in the most common case where you might want to  define <code>dobjReply = singleNoun</code> you can do so by adding S to the end of the macro name, e.g.,</p>
+
+<p><code>DefineTIVerbS(RubWith, 'rub' singleDobj 'with' singleIobj, 'rub', 'rubbing', with);</code>
 
 <br>
 <h2><a name="threeobjects"></a>Actions with Three Objects</h2>

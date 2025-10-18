@@ -807,6 +807,88 @@ Go: TravelAction
 
 ;
     
+/* 
+  *   Base class for special travel actions like XYZZY or ROAD which refer to similar-named
+  *   properties on the current room.
+  */    
+ class SpecialTravelAction: IAction
+    baseActionClass = SpecialTravelAction
+    
+    /* The property defined on a Room that this action will match, e.g. &xyxxy */
+    travelProp = nil
+    darkTravelAllowed = isMagicTravel
+    requireOutOfNested = true
+    
+    isMagicTravel = nil
+    
+    execAction(cmd)
+    {
+        local loc = gActor.getOutermostRoom;
+        local conn;
+        
+        if(!loc.isIlluminated && !darkTravelAllowed)
+        {
+            "<<loc.cannotGoThatWayInDarkMsg>><.p>";
+            return;
+        }    
+        
+        
+        switch(loc.propType(travelProp))
+        {
+        case TypeObject:
+            conn = loc.(travelProp);
+            if(conn.ofKind(TravelConnector))
+            {
+                getOutOfNested(conn);
+                conn.travelVia(gActor);
+            }
+            else
+                noGoodHereMsg;
+            break;
+        case TypeDString:
+        case TypeCode:
+            conn = loc.(travelProp);
+            if(objOfKind(conn, TravelConnector))
+            {
+                getOutOfNested(conn);
+                local ret = conn.travelVia(gActor);       
+                if(ret)
+                    noteRetval(loc, ret);
+                    
+            }
+            break;
+        case TypeSString:
+            say(loc.travelProp);
+            break;
+        default:
+            noGoodHereMsg;
+            break;            
+        } 
+    }
+    noGoodHereMsg = "That doesn't work here. "
+    
+    /* 
+     *   A chance to do something else with the return value of a method, triggered by travel,
+     *   defined on a direction property of a Room. loc is the room in question (where the travel
+     *   started from) and val is the return value from the method. The detault is to display the
+     *   val if val is a single-quoted string but do nothing otherwise, but game code can override.
+     */
+    noteRetval(loc, val)
+    {
+        if(dataType(val) == TypeSString)
+           say(val);
+    }
+    
+    
+    
+    getOutOfNested(conn)
+    {
+        if(requireOutOfNested)
+            delegated TravelAction(conn);
+    }
+;
+
+
 DefineIAction(GetOut)
     execAction(cmd)
     {        

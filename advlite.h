@@ -651,12 +651,36 @@ enum rmcDisambig;
     gram\
     : VerbProduction\
     action = name\
-    verbPhrase = inf + '/' + partc + 'what ' + '('+ prep + ' what)'\
-    missingQ = 'what do you want to ' + inf + '; what do you want to '+ inf + ' it ' + prep\
+    verbPhrase = inf + '/' + partc + ' what ' + '('+ #@prep + ' what)'\
+    missingQ = 'what do you want to ' + inf +';what do you want to ' + inf + ' it ' + #@prep\
+    iobjReply = prep##SingleNoun \
+    ;\
+    DefineTIAction(name)
+    
+#define DefineTVerbS(name, gram, inf, partc) \
+    VerbRule(name)\
+    gram\
+    : VerbProduction\
+    action = name\
+    verbPhrase = inf + '/' + partc + 'what '\
+    missingQ = 'what do you want to ' + inf\
+    dobjReply = singleNoun\
+    ;\
+    DefineTAction(name)
+
+#define DefineTIVerbS(name, gram, inf, partc, prep) \
+    VerbRule(name)\
+    gram\
+    : VerbProduction\
+    action = name\
+    verbPhrase = inf + '/' + partc + ' what ' + '('+ #@prep + ' what)'\
+    missingQ = 'what do you want to ' + inf +';what do you want to ' + inf + ' it ' + #@prep\
+    iobjReply = prep##SingleNoun \
+    dobjReply = singleNoun\
     ;\
     DefineTIAction(name)
 
-/* Macros to abbreviate the definitions of multiple SpecialTRavelActions. */
+/* Macros to abbreviate the definitions of SpecialTRavelActions. */
     
 #define DefSTA(action, prop) action : SpecialTravelAction travelProp = prop
 #define DefSTAVR(name, voc) VerbRule(name) voc :VerbProduction action = name 
